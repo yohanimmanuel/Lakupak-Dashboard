@@ -8,6 +8,7 @@ import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { useUserStore } from '@/store/userStore';
 import { format } from 'date-fns';
 import SendCampaignModal from './SendCampaignModal';
+import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
 
 const statusTabs = [
   { label: 'All' },
@@ -33,6 +34,13 @@ export default function CampaignTable({
   onUpdateCampaign,
   campaignToTableRow,
 }: CampaignTableProps) {
+  const {
+    tCampaignTable,
+    tShared,
+    translateStatusTab,
+    translateCampaignStatus,
+    translateRecipientOption,
+  } = useMarketingTranslations();
   const user = useUserStore((state) => state.user);
   const router = useRouter();
   const userCurrency = user?.currency || getDefaultCurrency();
@@ -332,7 +340,7 @@ export default function CampaignTable({
                   flex: 'unset',
                 }}
               >
-                {tab.label}
+                {translateStatusTab(tab.label)}
               </button>
             ))}
           </div>
@@ -341,14 +349,14 @@ export default function CampaignTable({
 
       {/* Search and Filters */}
       <div className="flex gap-2 w-full md:w-auto items-center justify-start mb-4">
-        <div className="relative w-full md:w-150">
+        <div className="relative w-full md:w-64 shrink-0">
           <input
             type="text"
-            placeholder="Search campaigns..."
+            placeholder={tCampaignTable('searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2 rounded-lg border border-[#e6e6e6] text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7] bg-white"
-            aria-label="Search campaigns by name or campaign ID"
+            aria-label={tCampaignTable('searchAriaLabel')}
             maxLength={100}
           />
           <Search className="absolute left-3 top-2 text-gray-400 w-5 h-5" />
@@ -363,7 +371,7 @@ export default function CampaignTable({
             }}
           >
             <Filter className="w-4 h-4" />
-            {selectedRecipient}
+            {translateRecipientOption(selectedRecipient)}
             <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
           </button>
           {showRecipientDropdown && (
@@ -377,7 +385,7 @@ export default function CampaignTable({
                   selectedRecipient === 'All Recipients' ? 'font-bold text-[#0a61d7]' : 'text-gray-700'
                 }`}
               >
-                All Recipients
+                {translateRecipientOption('All Recipients')}
               </button>
               {uniqueRecipients.map((recipient) => (
                 <button
@@ -408,36 +416,46 @@ export default function CampaignTable({
                     {selectedCampaigns.size}
                   </div>
                   <span className="text-sm font-semibold text-white">
-                    {selectedCampaigns.size === 1 ? 'campaign' : 'campaigns'} selected
+                    {selectedCampaigns.size === 1
+                      ? tCampaignTable('campaignSelected')
+                      : tCampaignTable('campaignsSelected')}{' '}
+                    {tCampaignTable('selected')}
                   </span>
                 </div>
               </div>
               <div className="text-white text-xs font-semibold leading-relaxed">
-                {selectedCampaigns.size === 1 
-                  ? isResendMode() 
-                    ? 'Select campaign to be removed or resent.'
-                    : 'Select campaign to be removed or sent.'
-                  : 'Select campaigns to be removed.'
-                }
+                {selectedCampaigns.size === 1
+                  ? isResendMode()
+                    ? tCampaignTable('bulkHintSingleResend')
+                    : tCampaignTable('bulkHintSingleSend')
+                  : tCampaignTable('bulkHintMultiple')}
               </div>
               <div className="flex gap-2">
                 {selectedCampaigns.size === 1 && (
                   <button
                     onClick={handleBulkSend}
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold text-sm rounded-lg hover:bg-emerald-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    aria-label={isResendMode() ? "Resend selected campaign" : "Send selected campaign"}
+                    aria-label={
+                      isResendMode()
+                        ? tCampaignTable('resendSelectedAriaLabel')
+                        : tCampaignTable('sendSelectedAriaLabel')
+                    }
                   >
                     <img src="/whatsapp.svg" alt="WhatsApp" className="w-4 h-4" />
-                    {isResendMode() ? 'Resend Campaign' : 'Send Campaign'}
+                    {isResendMode()
+                      ? tCampaignTable('resendCampaign')
+                      : tCampaignTable('sendCampaign')}
                   </button>
                 )}
                 <button
                   onClick={handleBulkDelete}
                   className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 ${selectedCampaigns.size === 1 ? '' : 'flex-1'}`}
-                  aria-label={`Remove ${selectedCampaigns.size} selected campaign${selectedCampaigns.size === 1 ? '' : 's'}`}
+                  aria-label={tCampaignTable('removeSelectedAriaLabel', { count: selectedCampaigns.size })}
                 >
                   <Trash2 className="w-4 h-4" />
-                  {selectedCampaigns.size === 1 ? 'Remove Campaign' : 'Remove Selected'}
+                  {selectedCampaigns.size === 1
+                    ? tCampaignTable('removeCampaign')
+                    : tCampaignTable('removeSelected')}
                 </button>
               </div>
             </div>
@@ -449,36 +467,46 @@ export default function CampaignTable({
                     {selectedCampaigns.size}
                   </div>
                   <span className="text-sm font-semibold text-white">
-                    {selectedCampaigns.size === 1 ? 'campaign' : 'campaigns'} selected
+                    {selectedCampaigns.size === 1
+                      ? tCampaignTable('campaignSelected')
+                      : tCampaignTable('campaignsSelected')}{' '}
+                    {tCampaignTable('selected')}
                   </span>
                 </div>
               </div>
               <div className="flex items-center gap-4">
                 <span className="text-white text-xs md:text-sm font-semibold">
-                  {selectedCampaigns.size === 1 
+                  {selectedCampaigns.size === 1
                     ? isResendMode()
-                      ? 'Select campaign to be removed or resent. '
-                      : 'Select campaign to be removed or sent. '
-                    : 'Select campaigns to be removed. '
-                  }
+                      ? tCampaignTable('bulkHintSingleResend')
+                      : tCampaignTable('bulkHintSingleSend')
+                    : tCampaignTable('bulkHintMultiple')}
                 </span>
                 {selectedCampaigns.size === 1 && (
                   <button
                     onClick={handleBulkSend}
                     className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold text-sm rounded-lg hover:bg-emerald-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    aria-label={isResendMode() ? "Resend selected campaign" : "Send selected campaign"}
+                    aria-label={
+                      isResendMode()
+                        ? tCampaignTable('resendSelectedAriaLabel')
+                        : tCampaignTable('sendSelectedAriaLabel')
+                    }
                   >
                     <img src="/whatsapp.svg" alt="WhatsApp" className="w-4 h-4" />
-                    {isResendMode() ? 'Resend Campaign' : 'Send Campaign'}
+                    {isResendMode()
+                      ? tCampaignTable('resendCampaign')
+                      : tCampaignTable('sendCampaign')}
                   </button>
                 )}
                 <button
                   onClick={handleBulkDelete}
                   className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
-                  aria-label={`Remove ${selectedCampaigns.size} selected campaign${selectedCampaigns.size === 1 ? '' : 's'}`}
+                  aria-label={tCampaignTable('removeSelectedAriaLabel', { count: selectedCampaigns.size })}
                 >
                   <Trash2 className="w-4 h-4" />
-                  {selectedCampaigns.size === 1 ? 'Remove Campaign' : 'Remove Selected'}
+                  {selectedCampaigns.size === 1
+                    ? tCampaignTable('removeCampaign')
+                    : tCampaignTable('removeSelected')}
                 </button>
               </div>
             </div>
@@ -489,7 +517,7 @@ export default function CampaignTable({
         <div className="space-y-0 -mx-4">
           {pagedCampaigns.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-gray-500 text-sm">No campaigns found</p>
+              <p className="text-gray-500 text-sm">{tCampaignTable('empty')}</p>
             </div>
           ) : (
             <>
@@ -502,7 +530,11 @@ export default function CampaignTable({
                       ? 'bg-green-500 border-green-500'
                       : 'bg-white border-gray-300 hover:border-green-400'
                   }`}
-                  aria-label={allFilteredSelected ? 'Deselect all campaigns' : 'Select all campaigns'}
+                  aria-label={
+                    allFilteredSelected
+                      ? tCampaignTable('deselectAllCampaigns')
+                      : tCampaignTable('selectAllCampaigns')
+                  }
                 >
                   {allFilteredSelected && (
                     <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -511,7 +543,10 @@ export default function CampaignTable({
                   )}
                 </button>
                 <span className="text-sm font-medium text-gray-700">
-                  {allFilteredSelected ? 'Deselect all' : 'Select all'} ({filteredCampaigns.length})
+                  {allFilteredSelected
+                    ? tCampaignTable('deselectAll')
+                    : tCampaignTable('selectAll')}{' '}
+                  ({filteredCampaigns.length})
                 </span>
               </div>
               {pagedCampaigns.map((campaignRow, index) => {
@@ -531,7 +566,11 @@ export default function CampaignTable({
                         ? 'bg-green-500 border-green-500'
                         : 'bg-white border-gray-300 hover:border-green-400'
                     }`}
-                    aria-label={selectedCampaigns.has(campaignRow.id) ? `Deselect ${campaignRow.name}` : `Select ${campaignRow.name}`}
+                    aria-label={
+                      selectedCampaigns.has(campaignRow.id)
+                        ? tCampaignTable('deselectCampaign', { name: campaignRow.name })
+                        : tCampaignTable('selectCampaign', { name: campaignRow.name })
+                    }
                   >
                     {selectedCampaigns.has(campaignRow.id) && (
                       <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -545,10 +584,10 @@ export default function CampaignTable({
                       <p className="text-sm text-gray-500 mb-2 line-clamp-2">{campaign.description}</p>
                     )}
                   <div className="space-y-1 text-sm text-gray-600">
-                    <p>Recipients: {campaignRow.recipients}</p>
+                    <p>{tCampaignTable('recipients')} {campaignRow.recipients}</p>
                     <div className="flex items-center gap-4 mt-2">
-                      <span>{campaignRow.opensCount || 0} Opened</span>
-                      <span>{campaignRow.clicksCount || 0} Clicked</span>
+                      <span>{campaignRow.opensCount || 0} {tCampaignTable('opened')}</span>
+                      <span>{campaignRow.clicksCount || 0} {tCampaignTable('clicked')}</span>
                     </div>
                   </div>
                   </div>
@@ -558,26 +597,29 @@ export default function CampaignTable({
                     <span
                       className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${statusBadge(campaignRow.status)}`}
                     >
-                      {campaignRow.status}
+                      {translateCampaignStatus(campaignRow.status)}
                     </span>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleView(campaignRow)}
                         className="p-2 hover:bg-gray-100 rounded-lg transition-colors focus:outline-none"
-                        aria-label="Edit campaign details"
+                        aria-label={tCampaignTable('editCampaign')}
                       >
                         <Edit className="w-4 h-4 text-gray-500" />
                       </button>
                       <button
                         onClick={() => handleDelete(campaignRow)}
                         className="p-2 hover:bg-red-100 rounded-lg transition-colors focus:outline-none"
-                        aria-label="Delete campaign"
+                        aria-label={tCampaignTable('deleteCampaign')}
                       >
                         <Trash2 className="w-4 h-4 text-red-600" />
                       </button>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500">Send Date: {campaignRow.sentDate ? formatDate(campaignRow.sentDate) : 'Not sent'}</p>
+                  <p className="text-xs text-gray-500">
+                    {tCampaignTable('sendDate')}{' '}
+                    {campaignRow.sentDate ? formatDate(campaignRow.sentDate) : tCampaignTable('notSent')}
+                  </p>
                 </div>
               </div>
               );
@@ -590,7 +632,7 @@ export default function CampaignTable({
         <div className="flex flex-col md:flex-row md:items-center md:justify-between border-t border-[#e6e6e6] pt-4 -mx-4 px-4 gap-2">
             {/* Left: Showing X to Y of Z */}
             <div className="text-sm text-gray-500">
-              Showing {fromRow} to {toRow} of {totalRows}
+              {tCampaignTable('pagination.showing', { from: fromRow, to: toRow, total: totalRows })}
             </div>
             {/* Right: Pagination Controls */}
             <div className="flex items-center gap-3">
@@ -598,7 +640,7 @@ export default function CampaignTable({
                 className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                 onClick={() => setPage(page - 1)}
                 disabled={page === 1}
-                aria-label="Previous page"
+                aria-label={tCampaignTable('previousPage')}
               >
                 <ChevronLeft className="w-4 h-4 text-gray-500" />
               </button>
@@ -609,7 +651,7 @@ export default function CampaignTable({
                     p === page ? 'bg-[#0a61d7] text-white' : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
                   }`}
                   onClick={() => setPage(p)}
-                  aria-label={`Page ${p}`}
+                  aria-label={tCampaignTable('page', { page: p })}
                   aria-current={p === page ? 'page' : undefined}
                 >
                   {p}
@@ -619,7 +661,7 @@ export default function CampaignTable({
                 className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                 onClick={() => setPage(page + 1)}
                 disabled={page === totalPages}
-                aria-label="Next page"
+                aria-label={tCampaignTable('nextPage')}
               >
                 <ChevronRight className="w-4 h-4 text-gray-500" />
               </button>
@@ -632,26 +674,27 @@ export default function CampaignTable({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 w-full max-w-sm">
             <h2 className="text-lg font-bold mb-2 text-red-500">
-              {isBulkDelete ? 'Delete Campaigns' : 'Delete Campaign'}
+              {isBulkDelete ? tCampaignTable('deleteCampaignsTitle') : tCampaignTable('deleteCampaignTitle')}
             </h2>
             <p className="mb-4 text-gray-500">
-              {isBulkDelete 
-                ? `Are you sure you want to delete ${selectedCampaigns.size} campaign${selectedCampaigns.size === 1 ? '' : 's'}? This action cannot be undone.`
-                : `Are you sure you want to delete ${campaignToDelete?.name || 'this campaign'}? This action cannot be undone.`
-              }
+              {isBulkDelete
+                ? tCampaignTable('deleteBulkConfirm', { count: selectedCampaigns.size })
+                : tCampaignTable('deleteSingleConfirm', {
+                    name: campaignToDelete?.name || tCampaignTable('thisCampaign'),
+                  })}
             </p>
             <div className="flex justify-end gap-2">
               <button
                 className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
                 onClick={handleDeleteCancel}
               >
-                Cancel
+                {tShared('cancel')}
               </button>
               <button
                 className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
                 onClick={confirmDelete}
               >
-                Delete
+                {tShared('delete')}
               </button>
             </div>
           </div>

@@ -7,6 +7,7 @@ import { SalesAgent } from './TeamList';
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { formatDateLong } from '@/utils/dateUtils';
+import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
 
 interface SalesDetailsProps {
   agent: SalesAgent;
@@ -47,10 +48,11 @@ interface FavoriteProduct {
 }
 
 export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProps) {
+  const { tSalesDetails, translateAgentRole, translateAgentStatus, tShared } = useMarketingTranslations();
   const router = useRouter();
   const user = useUserStore(state => state.user);
-  const [selectedMonth, setSelectedMonth] = useState('October, 2024');
-  const [selectedYear, setSelectedYear] = useState('This year (2024)');
+  const [selectedMonth] = useState('October, 2024');
+  const [selectedYear] = useState('This year (2024)');
   const [selectedReport, setSelectedReport] = useState<FieldReport | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportPage, setReportPage] = useState(1);
@@ -131,7 +133,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
             className="flex items-center gap-2 text-lg font-bold text-gray-500 hover:text-black transition-colors mb-2"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to team list
+            {tSalesDetails('backToTeamList')}
           </button>
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-gray-900">{agent.name}</h1>
@@ -141,7 +143,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                 className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors text-sm font-medium"
               >
                 <Edit className="w-4 h-4" />
-                Edit details
+                {tSalesDetails('editDetails')}
               </button>
             )}
           </div>
@@ -166,16 +168,16 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                 </div>
               </div>
               <h2 className="text-xl font-bold text-gray-900 mb-1">{agent.name}</h2>
-              <p className="text-sm text-gray-600">{agent.role}</p>
+              <p className="text-sm text-gray-600">{translateAgentRole(agent.role)}</p>
             </div>
 
             {/* Sales Target Summary */}
             {currentMonthTarget && (
               <div className="py-4 border-b border-[#e6e6e6]">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-gray-700">{currentMonthTarget.period} sales target</span>
+                  <span className="text-sm font-medium text-gray-700">{tSalesDetails('salesTargetLabel', { period: currentMonthTarget.period })}</span>
                   <span className="text-sm font-semibold text-gray-900">
-                    {Math.round(progressPercentage)}% achieved
+                    {tSalesDetails('achievedPercent', { percent: Math.round(progressPercentage) })}
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2.5 mb-3 overflow-hidden">
@@ -193,12 +195,12 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2">
                     <div className="w-1 h-4 bg-orange-500 rounded"></div>
-                    <span className="text-xs text-gray-500">Target</span>
+                    <span className="text-xs text-gray-500">{tSalesDetails('target')}</span>
                     <span className="text-xs font-semibold text-gray-900 ml-auto">{formatCurrencyAmount(currentMonthTarget.goal)}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-1 h-4 bg-[#0a61d7] rounded"></div>
-                    <span className="text-xs text-gray-500">Achieved</span>
+                    <span className="text-xs text-gray-500">{tSalesDetails('achieved')}</span>
                     <span className="text-xs font-semibold text-gray-900 ml-auto">{formatCurrencyAmount(currentMonthTarget.achieved)}</span>
                   </div>
                 </div>
@@ -207,18 +209,18 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
 
             {/* Other Info */}
             <div className="py-4 border-b border-[#e6e6e6]">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">Other Info</h3>
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">{tSalesDetails('otherInfo')}</h3>
               <div className="space-y-2.5">
                 <div className="flex items-center gap-2 justify-between">
-                  <span className="text-sm text-gray-500">Phone:</span>
+                  <span className="text-sm text-gray-500">{tSalesDetails('phone')}</span>
                   <span className="text-sm text-gray-900 text-right">{agent.phone}</span>
                 </div>
                 <div className="flex items-center gap-2 justify-between">
-                  <span className="text-sm text-gray-500">Sex:</span>
+                  <span className="text-sm text-gray-500">{tSalesDetails('sex')}</span>
                   <span className="text-sm text-gray-900 text-right">{agent.sex || '-'}</span>
                 </div>
                 <div className="flex items-center gap-2 justify-between">
-                  <span className="text-sm text-gray-500">Email:</span>
+                  <span className="text-sm text-gray-500">{tSalesDetails('email')}</span>
                   <span className="text-sm text-gray-900 text-right">{agent.email}</span>
                 </div>
               </div>
@@ -226,9 +228,9 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
 
             {/* Employee Status */}
             <div className="py-4">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">Employee Location & Status</h3>
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">{tSalesDetails('employeeLocationStatus')}</h3>
               <div className="flex items-center justify-between gap-3">
-                <span className="text-sm text-gray-500">Location:</span>
+                <span className="text-sm text-gray-500">{tSalesDetails('location')}</span>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-900">{agent.territory || '-'}</span>
                   <span
@@ -238,7 +240,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                         : 'bg-gray-100 text-gray-700'
                     }`}
                   >
-                    {agent.status.charAt(0).toUpperCase() + agent.status.slice(1)}
+                    {translateAgentStatus(agent.status)}
                   </span>
                 </div>
               </div>
@@ -250,7 +252,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
             <div className="flex items-center justify-between mb-4 flex-shrink-0">
               <div className="flex items-center gap-2">
                 <Package className="w-4 h-4 text-gray-400" />
-                <h3 className="text-sm font-semibold text-gray-900">Favourite Product to be Sold</h3>
+                <h3 className="text-sm font-semibold text-gray-900">{tSalesDetails('favouriteProducts')}</h3>
               </div>
             </div>
             <div className="space-y-3 flex-shrink-0">
@@ -280,14 +282,14 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                         <p className="text-sm font-medium text-gray-900 mb-1">{product.name}</p>
                         <p className="text-xs text-gray-500">{product.productType}</p>
                         {product.brand && (
-                          <p className="text-xs text-gray-400 mt-1">Brand: {product.brand}</p>
+                          <p className="text-xs text-gray-400 mt-1">{tSalesDetails('brand', { brand: product.brand })}</p>
                         )}
                       </div>
                     </div>
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-gray-500 text-center py-4">No favorite products selected</p>
+                <p className="text-sm text-gray-500 text-center py-4">{tSalesDetails('noFavoriteProducts')}</p>
               )}
             </div>
           </div>
@@ -298,22 +300,22 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
           {/* About Section */}
           <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">About {agent.name.split(' ')[0]}</h3>
+              <h3 className="text-lg font-semibold text-gray-900">{tSalesDetails('about', { name: agent.name.split(' ')[0] })}</h3>
             </div>
             <p className="text-sm text-gray-600 leading-relaxed">
-              {agent.bio || 'No biography available.'}
+              {agent.bio || tSalesDetails('noBiography')}
             </p>
           </div>
 
           {/* Daily Field Report */}
           <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
             <div className="mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Daily Field Report</h3>
+              <h3 className="text-lg font-semibold text-gray-900">{tSalesDetails('dailyFieldReport')}</h3>
             </div>
             
             <div className="flex items-center gap-2 mb-4">
               <Calendar className="w-4 h-4 text-gray-400" />
-              <span className="text-sm text-gray-600">{selectedMonth}</span>
+              <span className="text-sm text-gray-600">{tSalesDetails('filters.defaultMonth')}</span>
             </div>
             
 
@@ -339,7 +341,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                           onClick={() => handleViewReport(report)}
                           className="text-sm text-[#0a61d7] hover:text-[#0851b8] font-medium"
                         >
-                          View report
+                          {tSalesDetails('viewReport')}
                         </button>
                       </div>
                     ))}
@@ -349,7 +351,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-6 gap-2">
                       {/* Left: Showing X to Y of Z */}
                       <div className="text-sm text-gray-500">
-                        Showing {fromReport} to {toReport} of {fieldReports.length}
+                        {tSalesDetails('pagination.showing', { from: fromReport, to: toReport, total: fieldReports.length })}
                       </div>
                       {/* Right: Pagination Controls */}
                       <div className="flex items-center gap-3">
@@ -357,7 +359,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                           className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                           onClick={() => setReportPage(p => Math.max(1, p - 1))}
                           disabled={reportPage === 1 || totalReportPages === 0}
-                          aria-label="Previous page"
+                          aria-label={tSalesDetails('previousPage')}
                         >
                           <ChevronLeft className="w-4 h-4 text-gray-500" />
                         </button>
@@ -405,7 +407,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                           className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                           onClick={() => setReportPage(p => Math.min(totalReportPages, p + 1))}
                           disabled={reportPage === totalReportPages || totalReportPages === 0}
-                          aria-label="Next page"
+                          aria-label={tSalesDetails('nextPage')}
                         >
                           <ChevronRight className="w-4 h-4 text-gray-500" />
                         </button>
@@ -420,12 +422,12 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
           {/* Sales Target */}
           <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
             <div className="mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Sales Target</h3>
+              <h3 className="text-lg font-semibold text-gray-900">{tSalesDetails('salesTarget')}</h3>
             </div>
             
             <div className="flex items-center gap-2 mb-4">
               <Calendar className="w-4 h-4 text-gray-400" />
-              <span className="text-sm text-gray-600">{selectedYear}</span>
+              <span className="text-sm text-gray-600">{tSalesDetails('filters.defaultYear')}</span>
             </div>
             
             {(() => {
@@ -440,10 +442,10 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                     <table className="w-full">
                       <thead>
                         <tr className="bg-gray-100 border-b border-[#e6e6e6]">
-                          <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Period</th>
-                          <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Goal ({userCurrency})</th>
-                          <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Achieved ({userCurrency})</th>
-                          <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Unit Sold</th>
+                          <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">{tSalesDetails('columns.period')}</th>
+                          <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">{tSalesDetails('columns.goal', { currency: userCurrency })}</th>
+                          <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">{tSalesDetails('columns.achieved', { currency: userCurrency })}</th>
+                          <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">{tSalesDetails('columns.unitsSold')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -452,7 +454,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                             <td className="py-3 px-4 text-xs font-medium text-gray-900">{target.period}</td>
                             <td className="py-3 px-4 text-xs text-black text-right">{formatCurrencyAmount(target.goal)}</td>
                             <td className="py-3 px-4 text-xs text-black text-right">{formatCurrencyAmount(target.achieved)}</td>
-                            <td className="py-3 px-4 text-xs text-black text-right">{target.unitsSold} Units</td>
+                            <td className="py-3 px-4 text-xs text-black text-right">{target.unitsSold} {tSalesDetails('units')}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -463,7 +465,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-5 gap-2">
                       {/* Left: Showing X to Y of Z */}
                       <div className="text-sm text-gray-500">
-                        Showing {fromTarget} to {toTarget} of {salesTargets.length}
+                        {tSalesDetails('pagination.showing', { from: fromTarget, to: toTarget, total: salesTargets.length })}
                       </div>
                       {/* Right: Pagination Controls */}
                       <div className="flex items-center gap-3">
@@ -471,7 +473,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                           className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                           onClick={() => setTargetPage(p => Math.max(1, p - 1))}
                           disabled={targetPage === 1 || totalTargetPages === 0}
-                          aria-label="Previous page"
+                          aria-label={tSalesDetails('previousPage')}
                         >
                           <ChevronLeft className="w-4 h-4 text-gray-500" />
                         </button>
@@ -519,7 +521,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                           className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                           onClick={() => setTargetPage(p => Math.min(totalTargetPages, p + 1))}
                           disabled={targetPage === totalTargetPages || totalTargetPages === 0}
-                          aria-label="Next page"
+                          aria-label={tSalesDetails('nextPage')}
                         >
                           <ChevronRight className="w-4 h-4 text-gray-500" />
                         </button>
@@ -544,7 +546,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
             {/* Modal Header */}
             <div className="flex items-center justify-between p-4 border-b border-[#e6e6e6]">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">Daily Field Report</h2>
+                <h2 className="text-xl font-semibold text-gray-900">{tSalesDetails('reportModalTitle')}</h2>
                 <p className="text-sm text-gray-500 mt-1">{selectedReport.date}</p>
               </div>
               <button
@@ -563,7 +565,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                   <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                     <Clock className="w-5 h-5 text-gray-400" />
                     <div>
-                      <p className="text-xs text-gray-500">Working Hours</p>
+                      <p className="text-xs text-gray-500">{tSalesDetails('workingHours')}</p>
                       <p className="text-sm font-medium text-gray-900">
                         {selectedReport.startTime} - {selectedReport.endTime}
                       </p>
@@ -572,9 +574,9 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                   <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                     <MapPin className="w-5 h-5 text-gray-400" />
                     <div>
-                      <p className="text-xs text-gray-500">Location</p>
+                      <p className="text-xs text-gray-500">{tSalesDetails('location')}</p>
                       <p className="text-sm font-medium text-gray-900">
-                        {selectedReport.location || 'N/A'}
+                        {selectedReport.location || tShared('notAvailable')}
                       </p>
                     </div>
                   </div>
@@ -585,24 +587,24 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                   <div className="border border-[#e6e6e6] rounded-lg p-4">
                     <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
                       <Target className="w-4 h-4" />
-                      Daily Activities Summary
+                      {tSalesDetails('dailyActivitiesSummary')}
                     </h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div className="text-center p-3 bg-blue-50 rounded-lg">
                         <p className="text-2xl font-bold text-blue-600">{selectedReport.activities.visits}</p>
-                        <p className="text-xs text-gray-600 mt-1">Visits</p>
+                        <p className="text-xs text-gray-600 mt-1">{tSalesDetails('visits')}</p>
                       </div>
                       <div className="text-center p-3 bg-green-50 rounded-lg">
                         <p className="text-2xl font-bold text-green-600">{selectedReport.activities.customersMet}</p>
-                        <p className="text-xs text-gray-600 mt-1">Customers Met</p>
+                        <p className="text-xs text-gray-600 mt-1">{tSalesDetails('customersMet')}</p>
                       </div>
                       <div className="text-center p-3 bg-purple-50 rounded-lg">
                         <p className="text-2xl font-bold text-purple-600">{selectedReport.activities.productsDemonstrated}</p>
-                        <p className="text-xs text-gray-600 mt-1">Products Demonstrated</p>
+                        <p className="text-xs text-gray-600 mt-1">{tSalesDetails('productsDemonstrated')}</p>
                       </div>
                       <div className="text-center p-3 bg-orange-50 rounded-lg">
                         <p className="text-2xl font-bold text-orange-600">{selectedReport.activities.salesMade}</p>
-                        <p className="text-xs text-gray-600 mt-1">Sales Made</p>
+                        <p className="text-xs text-gray-600 mt-1">{tSalesDetails('salesMade')}</p>
                       </div>
                     </div>
                   </div>
@@ -613,7 +615,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                   <div className="border border-[#e6e6e6] rounded-lg p-4">
                     <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
                       <User className="w-4 h-4" />
-                      Notes & Observations
+                      {tSalesDetails('notesObservations')}
                     </h3>
                     <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                       {selectedReport.notes}

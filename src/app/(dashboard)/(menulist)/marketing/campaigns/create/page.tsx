@@ -6,10 +6,12 @@ import { useRouter } from 'next/navigation';
 import { Campaign } from '@/types/campaign';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
+import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
 
 export default function CreateCampaignPage() {
   const router = useRouter();
   const user = useUserStore(state => state.user);
+  const { tCampaigns } = useMarketingTranslations();
 
   const handleSave = async (campaign: Campaign) => {
     if (!user?.id) return;
@@ -64,7 +66,7 @@ export default function CreateCampaignPage() {
       });
       router.push('/marketing/campaigns');
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to create campaign. Please try again.');
+      alert(error instanceof Error ? error.message : tCampaigns('createFailed'));
     }
   };
 

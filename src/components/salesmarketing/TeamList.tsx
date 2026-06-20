@@ -6,6 +6,7 @@ import { Search, Edit, Plus, ChevronDown, ChevronRight, Users, User, Trash2, Mai
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
 
 export interface FavoriteProduct {
   productId: string;
@@ -86,8 +87,8 @@ interface TeamListProps {
 }
 
 const tabs = [
-  { label: 'Individuals', value: 'individuals' },
-  { label: 'Teams', value: 'teams' },
+  { value: 'individuals' },
+  { value: 'teams' },
 ];
 
 export default function TeamList({
@@ -100,6 +101,15 @@ export default function TeamList({
   onEditTeam,
   onCreateTeam,
 }: TeamListProps) {
+  const {
+    tTeamList,
+    tShared,
+    translateTeamTab,
+    translateRoleFilter,
+    translateStatusFilter,
+    translateAgentRole,
+    translateAgentStatus,
+  } = useMarketingTranslations();
   const router = useRouter();
   const user = useUserStore(state => state.user);
   const [selectedTab, setSelectedTab] = useState('individuals');
@@ -305,19 +315,19 @@ export default function TeamList({
 
   const handleSaveTeam = async () => {
     if (!teamName.trim()) {
-      alert('Please enter a team/region name');
+      alert(tTeamList('teamModal.teamNameRequired'));
       return;
     }
 
     if (selectedMemberIds.size === 0) {
-      alert('Please select at least one sales agent');
+      alert(tTeamList('teamModal.selectAgentRequired'));
       return;
     }
 
     try {
       const user = useUserStore.getState().user;
       if (!user?.id) {
-        alert('User not authenticated');
+        alert(tTeamList('teamModal.notAuthenticated'));
         return;
       }
 
@@ -378,7 +388,7 @@ export default function TeamList({
       handleCloseTeamModal();
     } catch (error) {
       console.error('Error saving team:', error);
-      alert(error instanceof Error ? error.message : 'Failed to save team. Please try again.');
+      alert(error instanceof Error ? error.message : tTeamList('teamModal.saveFailed'));
     }
   };
 
@@ -440,7 +450,7 @@ export default function TeamList({
         {/* Title and Count */}
         <div>
           <h2 className="text-xl font-bold text-gray-900">
-            Agents <span className="font-medium text-gray-400">{agents.length}</span>
+            {tTeamList('agentsTitle')} <span className="font-medium text-gray-400">{agents.length}</span>
           </h2>
         </div>
       </div>
@@ -479,7 +489,7 @@ export default function TeamList({
                   flex: 'unset',
                 }}
               >
-                {tab.label}
+                  {translateTeamTab(tab.value)}
               </button>
             ))}
           </div>
@@ -490,11 +500,11 @@ export default function TeamList({
       {selectedTab === 'individuals' && (
         <div className="flex flex-col md:flex-row gap-2 mb-4 items-start md:items-center">
           {/* Search Bar */}
-          <div className="relative w-full md:w-150">
+          <div className="relative w-full md:w-64 shrink-0">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Search agents..."
+              placeholder={tTeamList('searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 rounded-lg border border-[#e6e6e6] text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7] bg-white"
@@ -511,7 +521,7 @@ export default function TeamList({
               }}
             >
               <Filter className="w-4 h-4" />
-              {selectedRole}
+              {selectedRole === 'All Roles' ? translateRoleFilter(selectedRole) : translateAgentRole(selectedRole)}
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showRoleDropdown && (
@@ -529,7 +539,7 @@ export default function TeamList({
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
-                    {role}
+                    {role === 'All Roles' ? translateRoleFilter(role) : translateAgentRole(role)}
                   </button>
                 ))}
               </div>
@@ -546,7 +556,7 @@ export default function TeamList({
               }}
             >
               <Filter className="w-4 h-4" />
-              {selectedStatus}
+              {translateStatusFilter(selectedStatus)}
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showStatusDropdown && (
@@ -564,7 +574,7 @@ export default function TeamList({
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
-                    {status}
+                    {translateStatusFilter(status)}
                   </button>
                 ))}
               </div>
@@ -584,23 +594,25 @@ export default function TeamList({
                   {selectedAgents.size}
                 </div>
                 <span className="text-sm font-semibold text-white">
-                  {selectedAgents.size === 1 ? 'agent' : 'agents'} selected
+                  {selectedAgents.size}{' '}
+                  {selectedAgents.size === 1 ? tTeamList('agentSelected') : tTeamList('agentsSelected')}{' '}
+                  {tTeamList('selected')}
                 </span>
               </div>
             </div>
             <div className="text-white text-xs font-semibold leading-relaxed">
               {selectedAgents.size === 1 
-                ? 'Select agent to be removed.'
-                : 'Select agents to be removed.'
+                ? tTeamList('bulkHintSingle')
+                : tTeamList('bulkHintMultiple')
               }
             </div>
             <button
               onClick={handleBulkDelete}
               className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
-              aria-label={`Remove ${selectedAgents.size} selected agent${selectedAgents.size === 1 ? '' : 's'}`}
+              aria-label={selectedAgents.size === 1 ? tTeamList('removeAgent') : tTeamList('removeSelected')}
             >
               <Trash2 className="w-4 h-4" />
-              {selectedAgents.size === 1 ? 'Remove Agent' : 'Remove Selected'}
+              {selectedAgents.size === 1 ? tTeamList('removeAgent') : tTeamList('removeSelected')}
             </button>
           </div>
           
@@ -612,24 +624,26 @@ export default function TeamList({
                   {selectedAgents.size}
                 </div>
                 <span className="text-sm font-semibold text-white">
-                  {selectedAgents.size === 1 ? 'agent' : 'agents'} selected
+                  {selectedAgents.size}{' '}
+                  {selectedAgents.size === 1 ? tTeamList('agentSelected') : tTeamList('agentsSelected')}{' '}
+                  {tTeamList('selected')}
                 </span>
               </div>
             </div>
             <div className="flex items-center gap-4">
               <span className="text-white text-xs md:text-sm font-semibold">
                 {selectedAgents.size === 1 
-                  ? 'Select agent to be removed. '
-                  : 'Select agents to be removed. '
+                  ? tTeamList('bulkHintSingle')
+                  : tTeamList('bulkHintMultiple')
                 }
               </span>
               <button
                 onClick={handleBulkDelete}
                 className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
-                aria-label={`Remove ${selectedAgents.size} selected agent${selectedAgents.size === 1 ? '' : 's'}`}
+                aria-label={selectedAgents.size === 1 ? tTeamList('removeAgent') : tTeamList('removeSelected')}
               >
                 <Trash2 className="w-4 h-4" />
-                {selectedAgents.size === 1 ? 'Remove Agent' : 'Remove Selected'}
+                {selectedAgents.size === 1 ? tTeamList('removeAgent') : tTeamList('removeSelected')}
               </button>
             </div>
           </div>
@@ -642,7 +656,7 @@ export default function TeamList({
           {filteredAgents.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <User className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-              <p className="text-sm">No agents found</p>
+              <p className="text-sm">{tTeamList('noAgentsFound')}</p>
             </div>
           ) : (
             <div className="overflow-x-auto rounded-lg">
@@ -657,7 +671,7 @@ export default function TeamList({
                             ? 'bg-green-500 border-green-500'
                             : 'bg-white border-gray-300 hover:border-green-400'
                         }`}
-                        aria-label={selectedAgents.size === filteredAgents.length ? 'Deselect all agents' : 'Select all agents'}
+                        aria-label={selectedAgents.size === filteredAgents.length ? tTeamList('deselectAllAgents') : tTeamList('selectAllAgents')}
                       >
                         {selectedAgents.size === filteredAgents.length && filteredAgents.length > 0 && (
                           <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -666,12 +680,12 @@ export default function TeamList({
                         )}
                       </button>
                     </th>
-                    <th className="py-3 px-4 font-medium uppercase">NAME</th>
-                    <th className="py-3 px-4 font-medium uppercase">PHONE</th>
-                    <th className="py-3 px-4 font-medium uppercase">EMAIL</th>
-                    <th className="py-3 px-4 font-medium uppercase">ROLE</th>
-                    <th className="py-3 px-4 font-medium uppercase">STATUS</th>
-                    <th className="py-3 px-4 font-medium uppercase text-center">ACTIONS</th>
+                    <th className="py-3 px-4 font-medium uppercase">{tTeamList('columns.name')}</th>
+                    <th className="py-3 px-4 font-medium uppercase">{tTeamList('columns.phone')}</th>
+                    <th className="py-3 px-4 font-medium uppercase">{tTeamList('columns.email')}</th>
+                    <th className="py-3 px-4 font-medium uppercase">{tTeamList('columns.role')}</th>
+                    <th className="py-3 px-4 font-medium uppercase">{tTeamList('columns.status')}</th>
+                    <th className="py-3 px-4 font-medium uppercase text-center">{tTeamList('columns.actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white">
@@ -696,7 +710,7 @@ export default function TeamList({
                               ? 'bg-green-500 border-green-500'
                               : 'bg-white border-gray-300 hover:border-green-400'
                           }`}
-                          aria-label={selectedAgents.has(agent.id) ? `Deselect ${agent.name}` : `Select ${agent.name}`}
+                          aria-label={selectedAgents.has(agent.id) ? tTeamList('deselectAgent', { name: agent.name }) : tTeamList('selectAgent', { name: agent.name })}
                         >
                           {selectedAgents.has(agent.id) && (
                             <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -721,10 +735,10 @@ export default function TeamList({
                       </td>
                       <td className="py-3 px-4 text-xs text-black">{agent.phone}</td>
                       <td className="py-3 px-4 text-xs text-black">{agent.email}</td>
-                      <td className="py-3 px-4 text-xs text-black">{agent.role}</td>
+                      <td className="py-3 px-4 text-xs text-black">{translateAgentRole(agent.role)}</td>
                       <td className="py-3 px-4">
                         <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${statusBadge(agent.status)}`}>
-                          {agent.status.charAt(0).toUpperCase() + agent.status.slice(1)}
+                          {translateAgentStatus(agent.status)}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-center">
@@ -732,7 +746,7 @@ export default function TeamList({
                           <button
                             onClick={() => handleViewAgent(agent)}
                             className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 transition-colors focus:outline-none"
-                            aria-label={`Edit ${agent.name}`}
+                            aria-label={tTeamList('editAgent', { name: agent.name })}
                           >
                             <Edit className="w-4 h-4 text-gray-500" />
                           </button>
@@ -743,7 +757,7 @@ export default function TeamList({
                                 handleDelete(agent);
                               }}
                               className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-red-100 transition-colors focus:outline-none"
-                              aria-label={`Delete ${agent.name}`}
+                              aria-label={tTeamList('deleteAgent', { name: agent.name })}
                             >
                               <Trash2 className="w-4 h-4 text-red-600" />
                             </button>
@@ -762,7 +776,7 @@ export default function TeamList({
             <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-6 gap-2">
               {/* Left: Showing X to Y of Z */}
               <div className="text-sm text-gray-500">
-                Showing {fromRow} to {toRow} of {filteredAgents.length}
+                {tTeamList('pagination.showing', { from: fromRow, to: toRow, total: filteredAgents.length })}
               </div>
               {/* Right: Pagination Controls */}
               <div className="flex items-center gap-3">
@@ -770,7 +784,7 @@ export default function TeamList({
                   className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1 || totalPages === 0}
-                  aria-label="Previous page"
+                  aria-label={tTeamList('previousPage')}
                 >
                   <ChevronLeft className="w-4 h-4 text-gray-500" />
                 </button>
@@ -818,7 +832,7 @@ export default function TeamList({
                   className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages || totalPages === 0}
-                  aria-label="Next page"
+                  aria-label={tTeamList('nextPage')}
                 >
                   <ChevronRight className="w-4 h-4 text-gray-500" />
                 </button>
@@ -833,13 +847,13 @@ export default function TeamList({
           {filteredTeams.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <Users className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-              <p className="text-sm mb-4">No teams found</p>
+              <p className="text-sm mb-4">{tTeamList('noTeamsFound')}</p>
               <button
                 onClick={handleOpenCreateTeam}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors font-medium text-sm"
               >
                 <Plus className="w-4 h-4" />
-                Create New Team
+                {tTeamList('createNewTeam')}
               </button>
             </div>
           ) : (
@@ -881,7 +895,7 @@ export default function TeamList({
                           </div>
                           <div>
                             <div className="font-medium text-gray-900">{team.name}</div>
-                            <div className="text-xs text-gray-500">{team.members.length} members</div>
+                            <div className="text-xs text-gray-500">{tTeamList('membersCount', { count: team.members.length })}</div>
                           </div>
                         </div>
                       </div>
@@ -900,11 +914,11 @@ export default function TeamList({
                           <table className="min-w-full text-sm text-left whitespace-nowrap text-xs">
                             <thead className="bg-gray-100 text-gray-500 whitespace-nowrap">
                               <tr>
-                                <th className="py-3 px-4 font-medium uppercase">NAME</th>
-                                <th className="py-3 px-4 font-medium uppercase">PHONE</th>
-                                <th className="py-3 px-4 font-medium uppercase">EMAIL</th>
-                                <th className="py-3 px-4 font-medium uppercase">ROLE</th>
-                                <th className="py-3 px-4 font-medium uppercase text-center">ACTIONS</th>
+                                <th className="py-3 px-4 font-medium uppercase">{tTeamList('columns.name')}</th>
+                                <th className="py-3 px-4 font-medium uppercase">{tTeamList('columns.phone')}</th>
+                                <th className="py-3 px-4 font-medium uppercase">{tTeamList('columns.email')}</th>
+                                <th className="py-3 px-4 font-medium uppercase">{tTeamList('columns.role')}</th>
+                                <th className="py-3 px-4 font-medium uppercase text-center">{tTeamList('columns.actions')}</th>
                               </tr>
                             </thead>
                             <tbody className="bg-white">
@@ -929,13 +943,13 @@ export default function TeamList({
                                   </td>
                                   <td className="py-3 px-4 text-xs text-black">{member.phone}</td>
                                   <td className="py-3 px-4 text-xs text-black">{member.email}</td>
-                                  <td className="py-3 px-4 text-xs text-black">{member.role}</td>
+                                  <td className="py-3 px-4 text-xs text-black">{translateAgentRole(member.role)}</td>
                                   <td className="py-3 px-4 text-center">
                                     <div className="flex items-center justify-center gap-2">
                                       <button
                                         onClick={() => handleViewAgent(member)}
                                         className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 transition-colors focus:outline-none"
-                                        aria-label={`Edit ${member.name}`}
+                                        aria-label={tTeamList('editAgent', { name: member.name })}
                                       >
                                         <Edit className="w-4 h-4 text-gray-500" />
                                       </button>
@@ -946,7 +960,7 @@ export default function TeamList({
                                             handleDelete(member);
                                           }}
                                           className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-red-100 transition-colors focus:outline-none"
-                                          aria-label={`Delete ${member.name}`}
+                                          aria-label={tTeamList('deleteAgent', { name: member.name })}
                                         >
                                           <Trash2 className="w-4 h-4 text-red-600" />
                                         </button>
@@ -965,7 +979,7 @@ export default function TeamList({
                               className="flex items-center gap-2 text-sm text-[#0a61d7] hover:text-[#0851b8] font-medium"
                             >
                               <Plus className="w-4 h-4" />
-                              Add member(s)
+                              {tTeamList('addMembers')}
                             </button>
                           </div>
                         )}
@@ -982,7 +996,7 @@ export default function TeamList({
                   className="flex items-center gap-2 text-sm text-[#0a61d7] hover:text-[#0851b8] font-medium"
                 >
                   <Plus className="w-4 h-4" />
-                  Create New Team
+                  {tTeamList('createNewTeam')}
                 </button>
               </div>
             </div>
@@ -1011,7 +1025,7 @@ export default function TeamList({
               type="button"
               onClick={handleCloseTeamModal}
               className="absolute top-5 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-              aria-label="Close modal"
+              aria-label={tTeamList('teamModal.closeModal')}
             >
               <X className="w-5 h-5" />
             </button>
@@ -1023,10 +1037,10 @@ export default function TeamList({
               </div>
               <div>
                 <h2 className="text-xl font-bold text-black">
-                  {editingTeam ? 'Edit Team' : 'Create New Team'}
+                  {editingTeam ? tTeamList('teamModal.editTitle') : tTeamList('teamModal.createTitle')}
                 </h2>
                 <p className="text-gray-500 text-sm">
-                  {editingTeam ? 'Update team/region information' : 'Assign sales agents to a region'}
+                  {editingTeam ? tTeamList('teamModal.editSubtitle') : tTeamList('teamModal.createSubtitle')}
                 </p>
               </div>
             </div>
@@ -1037,13 +1051,13 @@ export default function TeamList({
               {/* Team/Region Name */}
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Team/Region Name <span className="text-red-500">*</span>
+                  {tTeamList('teamModal.teamNameLabel')} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={teamName}
                   onChange={(e) => setTeamName(e.target.value)}
-                  placeholder="e.g., Jakarta Team, Regional Team"
+                  placeholder={tTeamList('teamModal.teamNamePlaceholder')}
                   className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2"
                 />
               </div>
@@ -1052,21 +1066,23 @@ export default function TeamList({
               <div className="mt-4">
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-xs font-medium text-gray-700">
-                    Sales Agents <span className="text-red-500">*</span>
+                    {tTeamList('teamModal.salesAgentsLabel')} <span className="text-red-500">*</span>
                   </label>
                   <button
                     type="button"
                     onClick={handleSelectAllMembers}
                     className="text-xs text-[#0a61d7] hover:text-[#0851b8] font-medium"
                   >
-                    {selectedMemberIds.size === agents.length && agents.length > 0 ? 'Deselect All' : 'Select All'}
+                    {selectedMemberIds.size === agents.length && agents.length > 0
+                      ? tTeamList('teamModal.deselectAll')
+                      : tTeamList('teamModal.selectAll')}
                   </button>
                 </div>
                 
                 <div className="border border-[#e6e6e6] rounded-lg max-h-64 overflow-y-auto">
                   {agents.length === 0 ? (
                     <div className="p-4 text-center text-gray-500 text-xs">
-                      No sales agents available
+                      {tTeamList('teamModal.noAgentsAvailable')}
                     </div>
                   ) : (
                     <div className="divide-y divide-gray-200">
@@ -1083,7 +1099,7 @@ export default function TeamList({
                                 ? 'bg-green-500 border-green-500'
                                 : 'bg-white border-gray-300 hover:border-green-400'
                             }`}
-                            aria-label={selectedMemberIds.has(agent.id) ? `Deselect ${agent.name}` : `Select ${agent.name}`}
+                            aria-label={selectedMemberIds.has(agent.id) ? tTeamList('deselectAgent', { name: agent.name }) : tTeamList('selectAgent', { name: agent.name })}
                           >
                             {selectedMemberIds.has(agent.id) && (
                               <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -1104,7 +1120,7 @@ export default function TeamList({
                             <div className="text-xs font-medium text-gray-900">{agent.name}</div>
                             <div className="text-xs text-gray-500">{agent.email}</div>
                           </div>
-                          <div className="text-xs text-gray-500">{agent.role}</div>
+                          <div className="text-xs text-gray-500">{translateAgentRole(agent.role)}</div>
                         </label>
                       ))}
                     </div>
@@ -1112,7 +1128,7 @@ export default function TeamList({
                 </div>
                 {selectedMemberIds.size > 0 && (
                   <p className="mt-2 text-xs text-gray-500">
-                    {selectedMemberIds.size} agent{selectedMemberIds.size !== 1 ? 's' : ''} selected
+                    {tTeamList('teamModal.agentsSelectedCount', { count: selectedMemberIds.size })}
                   </p>
                 )}
               </div>
@@ -1125,14 +1141,14 @@ export default function TeamList({
                 onClick={handleCloseTeamModal}
                 className="px-4 py-2 text-xs font-medium text-gray-700 bg-white border border-[#e6e6e6] rounded-lg hover:bg-gray-50 transition-colors"
               >
-                Cancel
+                {tTeamList('teamModal.cancel')}
               </button>
               <button
                 type="button"
                 onClick={handleSaveTeam}
                 className="px-4 py-2 text-xs font-medium text-white bg-[#0a61d7] rounded-lg hover:bg-[#0851b8] transition-colors"
               >
-                {editingTeam ? 'Update Team' : 'Create Team'}
+                {editingTeam ? tTeamList('teamModal.updateTeam') : tTeamList('teamModal.createTeam')}
               </button>
             </div>
           </div>
@@ -1144,12 +1160,12 @@ export default function TeamList({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 w-full max-w-sm">
             <h2 className="text-lg font-bold mb-2 text-red-500">
-              {isBulkDelete ? 'Delete Agents' : 'Delete Agent'}
+              {isBulkDelete ? tTeamList('deleteAgentsTitle') : tTeamList('deleteAgentTitle')}
             </h2>
             <p className="mb-4 text-gray-500">
               {isBulkDelete 
-                ? `Are you sure you want to delete ${selectedAgents.size} agent${selectedAgents.size === 1 ? '' : 's'}? This action cannot be undone.`
-                : `Are you sure you want to delete ${agentToDelete?.name || 'this agent'}? This action cannot be undone.`
+                ? tTeamList('deleteBulkConfirm', { count: selectedAgents.size })
+                : tTeamList('deleteSingleConfirm', { name: agentToDelete?.name || tTeamList('thisAgent') })
               }
             </p>
             <div className="flex justify-end gap-2">
@@ -1157,13 +1173,13 @@ export default function TeamList({
                 className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
                 onClick={handleDeleteCancel}
               >
-                Cancel
+                {tShared('cancel')}
               </button>
               <button
                 className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
                 onClick={handleDeleteConfirm}
               >
-                Delete
+                {tShared('delete')}
               </button>
             </div>
           </div>

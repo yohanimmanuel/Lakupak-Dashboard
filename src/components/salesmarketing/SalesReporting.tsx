@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FileText, Plus, Calendar, Clock, MapPin, Trash2, Edit } from 'lucide-react';
 import { SalesAgent } from './TeamList';
+import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
 
 interface FieldReport {
   id: string;
@@ -49,6 +50,7 @@ export default function SalesReporting({
   onTabCompletion,
   mode,
 }: SalesReportingProps) {
+  const { tSalesReporting } = useMarketingTranslations();
   const [reports, setReports] = useState<FieldReport[]>(() => {
     // Use existing reports from formData if available (both create and edit mode)
     if (formData.fieldReports && formData.fieldReports.length > 0) {
@@ -192,15 +194,15 @@ export default function SalesReporting({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">Daily Field Reports</h3>
-          <p className="text-sm text-gray-500">Manage daily field activity reports for this agent</p>
+          <h3 className="text-lg font-semibold text-gray-900 mb-1">{tSalesReporting('title')}</h3>
+          <p className="text-sm text-gray-500">{tSalesReporting('subtitle')}</p>
         </div>
         <button
           onClick={handleAddReport}
           className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors font-medium"
         >
           <Plus className="w-4 h-4" />
-          Add Report
+          {tSalesReporting('addReport')}
         </button>
       </div>
 
@@ -221,7 +223,7 @@ export default function SalesReporting({
                 <button
                   onClick={() => handleDeleteReport(report.id)}
                   className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                  aria-label="Delete report"
+                  aria-label={tSalesReporting('deleteReport')}
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -232,7 +234,7 @@ export default function SalesReporting({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div className="flex items-center gap-3">
                 <div className="flex-1">
-                  <label className="text-xs text-gray-500 mb-1 block">Start Time</label>
+                  <label className="text-xs text-gray-500 mb-1 block">{tSalesReporting('startTime')}</label>
                   <input
                     type="time"
                     value={report.startTime || '08:00'}
@@ -242,7 +244,7 @@ export default function SalesReporting({
                 </div>
                 <span className="text-gray-400 mx-2">-</span>
                 <div className="flex-1">
-                  <label className="text-xs text-gray-500 mb-1 block">End Time</label>
+                  <label className="text-xs text-gray-500 mb-1 block">{tSalesReporting('endTime')}</label>
                   <input
                     type="time"
                     value={report.endTime || '17:00'}
@@ -253,12 +255,12 @@ export default function SalesReporting({
               </div>
               <div className="flex items-center gap-3">
                 <div className="flex-1">
-                  <label className="text-xs text-gray-500 mb-1 block">Location</label>
+                  <label className="text-xs text-gray-500 mb-1 block">{tSalesReporting('location')}</label>
                   <input
                     type="text"
                     value={report.location || ''}
                     onChange={(e) => handleUpdateReport(report.id, { location: e.target.value })}
-                    placeholder="e.g., Jakarta & West Java"
+                    placeholder={tSalesReporting('locationPlaceholder')}
                     className="w-full text-xs text-black border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#0a61d7]"
                   />
                 </div>
@@ -269,11 +271,11 @@ export default function SalesReporting({
             <div className="border border-[#e6e6e6] rounded-lg p-4 mb-4">
               <h4 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <FileText className="w-4 h-4" />
-                Daily Activities
+                {tSalesReporting('dailyActivities')}
               </h4>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Visits</label>
+                  <label className="text-xs text-gray-500 mb-1 block">{tSalesReporting('visits')}</label>
                   <input
                     type="number"
                     value={report.activities?.visits || 0}
@@ -296,7 +298,7 @@ export default function SalesReporting({
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Customers Met</label>
+                  <label className="text-xs text-gray-500 mb-1 block">{tSalesReporting('customersMet')}</label>
                   <input
                     type="number"
                     value={report.activities?.customersMet || 0}
@@ -319,7 +321,7 @@ export default function SalesReporting({
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Products Demonstrated</label>
+                  <label className="text-xs text-gray-500 mb-1 block">{tSalesReporting('productsDemonstrated')}</label>
                   <input
                     type="number"
                     value={report.activities?.productsDemonstrated || 0}
@@ -342,7 +344,7 @@ export default function SalesReporting({
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Sales Made</label>
+                  <label className="text-xs text-gray-500 mb-1 block">{tSalesReporting('salesMade')}</label>
                   <input
                     type="number"
                     value={report.activities?.salesMade || 0}
@@ -369,11 +371,11 @@ export default function SalesReporting({
 
             {/* Notes */}
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Notes & Observations</label>
+              <label className="text-xs text-gray-500 mb-1 block">{tSalesReporting('notes')}</label>
               <textarea
                 value={report.notes || ''}
                 onChange={(e) => handleUpdateReport(report.id, { notes: e.target.value })}
-                placeholder="Enter notes about the day's activities, customer feedback, challenges, etc."
+                placeholder={tSalesReporting('notesPlaceholder')}
                 rows={3}
                 className="w-full text-xs text-black border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#0a61d7] resize-none"
               />
@@ -384,10 +386,7 @@ export default function SalesReporting({
 
       {/* Info Note */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-sm text-blue-800">
-          <strong>Note:</strong> Daily field reports help track agent activities, customer visits, and sales performance. 
-          Reports can be marked as reviewed by managers/admins.
-        </p>
+        <p className="text-sm text-blue-800">{tSalesReporting('note')}</p>
       </div>
     </div>
   );

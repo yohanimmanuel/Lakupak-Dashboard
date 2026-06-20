@@ -8,6 +8,7 @@ import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { formatCurrency, getDefaultCurrency, parsePrice } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
+import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
 
 interface FavouriteProductsProps {
   formData: Partial<SalesAgent>;
@@ -22,6 +23,7 @@ export default function FavouriteProducts({
   onTabCompletion,
   mode,
 }: FavouriteProductsProps) {
+  const { tFavouriteProducts, translateFilter } = useMarketingTranslations();
   const user = useUserStore(state => state.user);
   const userCurrency = user?.currency || getDefaultCurrency();
   
@@ -277,7 +279,7 @@ export default function FavouriteProducts({
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
             <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading products...</p>
+            <p className="text-gray-600">{tFavouriteProducts('loading')}</p>
           </div>
         </div>
       </div>
@@ -287,24 +289,24 @@ export default function FavouriteProducts({
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">Favourite Products to be Sold</h3>
-        <p className="text-sm text-gray-500">Select products top 3 (can be unordered) from your catalog that this agent specializes in selling.</p>
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">{tFavouriteProducts('title')}</h3>
+        <p className="text-sm text-gray-500">{tFavouriteProducts('subtitle')}</p>
       </div>
 
       {/* Search and Filters */}
       <div className="bg-white border border-[#e6e6e6] rounded-lg p-4">
         <div className="flex flex-col md:flex-row md:items-center gap-4">
           {/* Search */}
-          <div className="relative flex-1">
+          <div className="relative w-full md:w-64 shrink-0">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
-                setPage(1); // Reset to first page on search
+                setPage(1);
               }}
-              placeholder="Search products by name, SKU, or brand..."
+              placeholder={tFavouriteProducts('searchPlaceholder')}
               className="w-full pl-10 pr-4 py-2 text-black border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] text-sm"
             />
           </div>
@@ -318,7 +320,7 @@ export default function FavouriteProducts({
                 setShowCategoryDropdown(false);
               }}
             >
-              {selectedType}
+              {translateFilter(selectedType)}
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showTypeDropdown && (
@@ -337,7 +339,7 @@ export default function FavouriteProducts({
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
-                    {type}
+                    {translateFilter(type)}
                   </button>
                 ))}
               </div>
@@ -353,7 +355,7 @@ export default function FavouriteProducts({
                 setShowTypeDropdown(false);
               }}
             >
-              {selectedCategory}
+              {translateFilter(selectedCategory)}
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showCategoryDropdown && (
@@ -372,7 +374,7 @@ export default function FavouriteProducts({
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
-                    {category}
+                    {translateFilter(category)}
                   </button>
                 ))}
               </div>
@@ -405,7 +407,7 @@ export default function FavouriteProducts({
           <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-center justify-between">
               <span className="text-sm text-blue-700">
-                {selectedProducts.length} product{selectedProducts.length !== 1 ? 's' : ''} selected as favorites
+                {tFavouriteProducts('selectedCount', { count: selectedProducts.length })}
               </span>
               <button
                 onClick={() => {
@@ -414,7 +416,7 @@ export default function FavouriteProducts({
                 }}
                 className="text-xs text-blue-600 hover:text-blue-800 font-medium"
               >
-                Clear All
+                {tFavouriteProducts('clearAll')}
               </button>
             </div>
           </div>
@@ -437,7 +439,10 @@ export default function FavouriteProducts({
             )}
           </button>
           <span className="text-sm text-gray-700">
-            Select All ({filteredProducts.filter(p => isProductSelected(p.productId)).length}/{filteredProducts.length})
+            {tFavouriteProducts('selectAll', {
+              selected: filteredProducts.filter(p => isProductSelected(p.productId)).length,
+              total: filteredProducts.length,
+            })}
           </span>
         </div>
       )}
@@ -446,8 +451,8 @@ export default function FavouriteProducts({
       {pagedProducts.length === 0 ? (
         <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg">
           <Package className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-          <p className="text-sm text-gray-500">No products found</p>
-          <p className="text-xs text-gray-400 mt-1">Try adjusting your search or filters</p>
+          <p className="text-sm text-gray-500">{tFavouriteProducts('emptyTitle')}</p>
+          <p className="text-xs text-gray-400 mt-1">{tFavouriteProducts('emptyHint')}</p>
         </div>
       ) : (
         <>
@@ -549,7 +554,11 @@ export default function FavouriteProducts({
             <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-6 gap-2">
               {/* Left: Showing X to Y of Z */}
               <div className="text-sm text-gray-500">
-                Showing {startIndex + 1} to {Math.min(endIndex, filteredProducts.length)} of {filteredProducts.length}
+                {tFavouriteProducts('pagination.showing', {
+                  from: startIndex + 1,
+                  to: Math.min(endIndex, filteredProducts.length),
+                  total: filteredProducts.length,
+                })}
               </div>
               {/* Right: Pagination Controls */}
               <div className="flex items-center gap-3">
@@ -557,7 +566,7 @@ export default function FavouriteProducts({
                   className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1 || totalPages === 0}
-                  aria-label="Previous page"
+                  aria-label={tFavouriteProducts('previousPage')}
                 >
                   <ChevronLeft className="w-4 h-4 text-gray-500" />
                 </button>
@@ -605,7 +614,7 @@ export default function FavouriteProducts({
                   className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages || totalPages === 0}
-                  aria-label="Next page"
+                  aria-label={tFavouriteProducts('nextPage')}
                 >
                   <ChevronRight className="w-4 h-4 text-gray-500" />
                 </button>
@@ -618,8 +627,7 @@ export default function FavouriteProducts({
       {/* Info Note */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <p className="text-sm text-blue-800">
-          <strong>Tip:</strong> Select products from your catalog that this sales agent specializes in selling. 
-          This helps track performance and improve sales analysis.
+        <p className="text-sm text-blue-800">{tFavouriteProducts('tip')}</p>
         </p>
       </div>
     </div>

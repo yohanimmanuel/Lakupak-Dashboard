@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useMemo, useLayoutEffect } from 're
 import { User, Mail, Phone, MapPin, Upload, X, ChevronDown } from 'lucide-react';
 import { SalesAgent } from './TeamList';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
+import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
 
 interface BasicProfileInfoProps {
   formData: Partial<SalesAgent>;
@@ -22,12 +23,20 @@ const roleOptions: SalesAgent['role'][] = [
 
 const statusOptions: SalesAgent['status'][] = ['active', 'inactive'];
 
+const GENDER_OPTIONS = [
+  { value: 'Male', key: 'male' },
+  { value: 'Female', key: 'female' },
+  { value: 'Other', key: 'other' },
+  { value: 'Prefer not to say', key: 'preferNotToSay' },
+] as const;
+
 export default function BasicProfileInfo({
   formData,
   onFormChange,
   onTabCompletion,
   mode,
 }: BasicProfileInfoProps) {
+  const { tBasicProfile, translateAgentRole, translateAgentStatus } = useMarketingTranslations();
   const [avatarPreview, setAvatarPreview] = useState<string | null>(formData.avatar || null);
   const [isUploading, setIsUploading] = useState(false);
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
@@ -90,7 +99,7 @@ export default function BasicProfileInfo({
         throw new Error(result.error || 'Upload failed');
       }
     } catch (error) {
-      alert(`Failed to upload avatar: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      alert(tBasicProfile('uploadFailed', { error: error instanceof Error ? error.message : tBasicProfile('unknownError') }));
     } finally {
       setIsUploading(false);
     }
@@ -104,8 +113,8 @@ export default function BasicProfileInfo({
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">Basic Profile Information</h3>
-        <p className="text-sm text-gray-500">Enter the agent's personal and contact details</p>
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">{tBasicProfile('title')}</h3>
+        <p className="text-sm text-gray-500">{tBasicProfile('subtitle')}</p>
       </div>
 
       {/* Avatar Upload */}
@@ -142,7 +151,7 @@ export default function BasicProfileInfo({
           />
           <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm font-medium text-gray-700">
             <Upload className="w-4 h-4" />
-            {isUploading ? 'Uploading...' : avatarPreview ? 'Change Avatar' : 'Upload Avatar'}
+            {isUploading ? tBasicProfile('uploading') : avatarPreview ? tBasicProfile('changeAvatar') : tBasicProfile('uploadAvatar')}
           </div>
         </label>
       </div>
@@ -152,7 +161,7 @@ export default function BasicProfileInfo({
         {/* Name */}
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-2">
-            Full Name <span className="text-red-500">*</span>
+            {tBasicProfile('fullName')} <span className="text-red-500">*</span>
           </label>
           <div className="relative">
             <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -160,7 +169,7 @@ export default function BasicProfileInfo({
               type="text"
               value={formData.name || ''}
               onChange={(e) => onFormChange({ name: e.target.value })}
-              placeholder="Enter full name"
+              placeholder={tBasicProfile('fullNamePlaceholder')}
               className="w-full pl-10 pr-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
               required
             />
@@ -170,7 +179,7 @@ export default function BasicProfileInfo({
         {/* Email */}
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-2">
-            Email <span className="text-red-500">*</span>
+            {tBasicProfile('email')} <span className="text-red-500">*</span>
           </label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -178,7 +187,7 @@ export default function BasicProfileInfo({
               type="email"
               value={formData.email || ''}
               onChange={(e) => onFormChange({ email: e.target.value })}
-              placeholder="agent@example.com"
+              placeholder={tBasicProfile('emailPlaceholder')}
               className="w-full pl-10 pr-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
               required
             />
@@ -188,7 +197,7 @@ export default function BasicProfileInfo({
         {/* Phone */}
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-2">
-            Phone <span className="text-red-500">*</span>
+            {tBasicProfile('phone')} <span className="text-red-500">*</span>
           </label>
           <div className="relative">
             <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -196,7 +205,7 @@ export default function BasicProfileInfo({
               type="tel"
               value={formData.phone || ''}
               onChange={(e) => onFormChange({ phone: e.target.value })}
-              placeholder="+62 21 1234 5678"
+              placeholder={tBasicProfile('phonePlaceholder')}
               className="w-full pl-10 pr-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
               required
             />
@@ -206,7 +215,7 @@ export default function BasicProfileInfo({
         {/* Role */}
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-2">
-            Role <span className="text-red-500">*</span>
+            {tBasicProfile('role')} <span className="text-red-500">*</span>
           </label>
           <div className="relative" ref={roleDropdownRef}>
             <button
@@ -218,7 +227,7 @@ export default function BasicProfileInfo({
               className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-black text-left flex items-center justify-between"
             >
               <span className={formData.role ? 'text-black' : 'text-gray-500'}>
-                {formData.role || 'Select role'}
+                {formData.role ? translateAgentRole(formData.role) : tBasicProfile('selectRole')}
               </span>
               <ChevronDown className="w-4 h-4 text-gray-400" />
             </button>
@@ -236,7 +245,7 @@ export default function BasicProfileInfo({
                       formData.role === role ? 'text-[#0a61d7] font-semibold bg-gray-50' : 'text-gray-700'
                     }`}
                   >
-                    {role}
+                    {translateAgentRole(role)}
                   </button>
                 ))}
               </div>
@@ -247,7 +256,7 @@ export default function BasicProfileInfo({
         {/* Status */}
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-2">
-            Status <span className="text-red-500">*</span>
+            {tBasicProfile('status')} <span className="text-red-500">*</span>
           </label>
           <div className="relative" ref={statusDropdownRef}>
             <button
@@ -259,7 +268,7 @@ export default function BasicProfileInfo({
               className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-black text-left flex items-center justify-between"
             >
               <span className={formData.status ? 'text-black' : 'text-gray-500'}>
-                {formData.status ? (formData.status.charAt(0).toUpperCase() + formData.status.slice(1)) : 'Select status'}
+                {formData.status ? translateAgentStatus(formData.status) : tBasicProfile('selectStatus')}
               </span>
               <ChevronDown className="w-4 h-4 text-gray-400" />
             </button>
@@ -277,7 +286,7 @@ export default function BasicProfileInfo({
                       formData.status === status ? 'text-[#0a61d7] font-semibold bg-gray-50' : 'text-gray-700'
                     }`}
                   >
-                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                    {translateAgentStatus(status)}
                   </button>
                 ))}
               </div>
@@ -288,7 +297,7 @@ export default function BasicProfileInfo({
         {/* Territory */}
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-2">
-            Territory / Location
+            {tBasicProfile('territory')}
           </label>
           <div className="relative">
             <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -296,7 +305,7 @@ export default function BasicProfileInfo({
               type="text"
               value={formData.territory || ''}
               onChange={(e) => onFormChange({ territory: e.target.value })}
-              placeholder="e.g., Jakarta & West Java"
+              placeholder={tBasicProfile('territoryPlaceholder')}
               className="w-full pl-10 pr-4 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
             />
           </div>
@@ -305,7 +314,7 @@ export default function BasicProfileInfo({
         {/* Sex/Gender */}
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-2">
-            Sex / Gender
+            {tBasicProfile('sex')}
           </label>
           <div className="relative" ref={sexDropdownRef}>
             <button
@@ -318,25 +327,27 @@ export default function BasicProfileInfo({
               className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-black text-left flex items-center justify-between"
             >
               <span className={formData.sex ? 'text-black' : 'text-gray-500'}>
-                {formData.sex || 'Select gender'}
+                {formData.sex
+                  ? tBasicProfile(`genderOptions.${GENDER_OPTIONS.find(g => g.value === formData.sex)?.key ?? 'other'}`)
+                  : tBasicProfile('selectGender')}
               </span>
               <ChevronDown className="w-4 h-4 text-gray-400" />
             </button>
             {showSexDropdown && (
               <div className="absolute z-50 w-full mt-1 bg-white border border-[#e6e6e6] rounded-lg shadow-lg max-h-40 overflow-y-auto">
-                {['Male', 'Female', 'Other', 'Prefer not to say'].map((gender) => (
+                {GENDER_OPTIONS.map(({ value, key }) => (
                   <button
-                    key={gender}
+                    key={value}
                     type="button"
                     onClick={() => {
-                      onFormChange({ sex: gender });
+                      onFormChange({ sex: value });
                       setShowSexDropdown(false);
                     }}
                     className={`w-full px-3 py-2 text-xs text-left hover:bg-gray-100 ${
-                      formData.sex === gender ? 'text-[#0a61d7] font-semibold bg-gray-50' : 'text-gray-700'
+                      formData.sex === value ? 'text-[#0a61d7] font-semibold bg-gray-50' : 'text-gray-700'
                     }`}
                   >
-                    {gender}
+                    {tBasicProfile(`genderOptions.${key}`)}
                   </button>
                 ))}
               </div>
@@ -348,12 +359,12 @@ export default function BasicProfileInfo({
       {/* About Me / Bio */}
       <div>
         <label className="block text-xs font-medium text-gray-700 mb-2">
-          About Me / Biography
+          {tBasicProfile('bio')}
         </label>
         <textarea
           value={formData.bio || ''}
           onChange={(e) => onFormChange({ bio: e.target.value })}
-          placeholder="Enter a brief biography or description about this sales agent..."
+          placeholder={tBasicProfile('bioPlaceholder')}
           rows={4}
           className="w-full text-black text-xs border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent resize-none"
         />
@@ -362,8 +373,7 @@ export default function BasicProfileInfo({
       {/* Additional Info */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
         <p className="text-xs text-blue-800">
-          <strong>Note:</strong> Fields marked with <span className="text-red-500">*</span> are required. 
-          The agent will be able to update their profile information later.
+          <strong>{tBasicProfile('note')}</strong> {tBasicProfile('requiredNote')}
         </p>
       </div>
     </div>

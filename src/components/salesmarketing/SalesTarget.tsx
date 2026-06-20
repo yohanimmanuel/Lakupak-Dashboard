@@ -5,6 +5,7 @@ import { Target, Plus, Trash2, DollarSign } from 'lucide-react';
 import { SalesAgent } from './TeamList';
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
+import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
 
 interface SalesTargetRow {
   id: string;
@@ -27,6 +28,7 @@ export default function SalesTarget({
   onTabCompletion,
   mode,
 }: SalesTargetProps) {
+  const { tSalesTarget } = useMarketingTranslations();
   const user = useUserStore(state => state.user);
   const [targetRows, setTargetRows] = useState<SalesTargetRow[]>(() => {
     // Use existing targets from formData if available (both create and edit mode)
@@ -166,22 +168,27 @@ export default function SalesTarget({
   // Common month options
   const monthOptions = [
     'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
+    'July', 'August', 'September', 'October', 'November', 'December',
   ];
+
+  const translateMonth = (month: string) => {
+    const key = month.toLowerCase();
+    return tSalesTarget.has(`months.${key}`) ? tSalesTarget(`months.${key}`) : month;
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">Sales Target</h3>
-          <p className="text-sm text-gray-500">Set sales goals and targets for this agent</p>
+          <h3 className="text-lg font-semibold text-gray-900 mb-1">{tSalesTarget('title')}</h3>
+          <p className="text-sm text-gray-500">{tSalesTarget('subtitle')}</p>
         </div>
         <button
           onClick={handleAddRow}
           className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors font-medium"
         >
           <Plus className="w-4 h-4" />
-          Add Row
+          {tSalesTarget('addRow')}
         </button>
       </div>
 
@@ -192,19 +199,19 @@ export default function SalesTarget({
             <thead>
               <tr className="bg-gray-100 border-b border-[#e6e6e6]">
                 <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Period
+                  {tSalesTarget('period')}
                 </th>
                 <th className="text-right py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Goal ({userCurrency})
+                  {tSalesTarget('goal', { currency: userCurrency })}
                 </th>
                 <th className="text-right py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Achieved ({userCurrency})
+                  {tSalesTarget('achieved', { currency: userCurrency })}
                 </th>
                 <th className="text-right py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Unit Sold
+                  {tSalesTarget('unitsSold')}
                 </th>
                 <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
-                  Actions
+                  {tSalesTarget('actions')}
                 </th>
               </tr>
             </thead>
@@ -216,13 +223,13 @@ export default function SalesTarget({
                       type="text"
                       value={row.period}
                       onChange={(e) => handleUpdateRow(row.id, 'period', e.target.value)}
-                      placeholder="e.g., October"
+                      placeholder={tSalesTarget('periodPlaceholder')}
                       list="months-list"
                       className="w-full text-xs text-black border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent"
                     />
                     <datalist id="months-list">
                       {monthOptions.map(month => (
-                        <option key={month} value={month} />
+                        <option key={month} value={month} label={translateMonth(month)} />
                       ))}
                     </datalist>
                   </td>
@@ -267,7 +274,7 @@ export default function SalesTarget({
                       <button
                         onClick={() => handleDeleteRow(row.id)}
                         className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                        aria-label="Delete row"
+                        aria-label={tSalesTarget('deleteRow')}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -283,24 +290,24 @@ export default function SalesTarget({
       {/* Summary (if there are targets) */}
       {targetRows.length > 0 && targetRows.some(r => r.goal > 0) && (
         <div className="bg-gray-50 border border-[#e6e6e6] rounded-lg p-3">
-          <h4 className="text-sm font-semibold text-gray-900 mb-3">Summary</h4>
+          <h4 className="text-sm font-semibold text-gray-900 mb-3">{tSalesTarget('summary')}</h4>
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <p className="text-xs text-gray-500 mb-1">Total Goal</p>
+              <p className="text-xs text-gray-500 mb-1">{tSalesTarget('totalGoal')}</p>
               <p className="text-sm font-semibold text-gray-900">
                 {formatCurrencyAmount(targetRows.reduce((sum, r) => sum + (r.goal || 0), 0))}
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-500 mb-1">Total Achieved</p>
+              <p className="text-xs text-gray-500 mb-1">{tSalesTarget('totalAchieved')}</p>
               <p className="text-sm font-semibold text-gray-900">
                 {formatCurrencyAmount(targetRows.reduce((sum, r) => sum + (r.achieved || 0), 0))}
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-500 mb-1">Total Units Sold</p>
+              <p className="text-xs text-gray-500 mb-1">{tSalesTarget('totalUnitsSold')}</p>
               <p className="text-sm font-semibold text-gray-900">
-                {targetRows.reduce((sum, r) => sum + (r.unitsSold || 0), 0)} Units
+                {targetRows.reduce((sum, r) => sum + (r.unitsSold || 0), 0)} {tSalesTarget('units')}
               </p>
             </div>
           </div>
@@ -309,10 +316,7 @@ export default function SalesTarget({
 
       {/* Info Note */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-        <p className="text-sm text-blue-800">
-          <strong>Note:</strong> Add sales targets by period (month, quarter, or year). The Goal column is required. 
-          Achieved and Unit Sold can be updated as sales progress.
-        </p>
+        <p className="text-sm text-blue-800">{tSalesTarget('note')}</p>
       </div>
     </div>
   );

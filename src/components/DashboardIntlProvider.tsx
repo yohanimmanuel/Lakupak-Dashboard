@@ -14,6 +14,10 @@ import ordersEn from '@/messages/dashboard/orders-en.json';
 import ordersId from '@/messages/dashboard/orders-id.json';
 import offersEn from '@/messages/dashboard/offers-en.json';
 import offersId from '@/messages/dashboard/offers-id.json';
+import marketingEn from '@/messages/dashboard/marketing-en.json';
+import marketingId from '@/messages/dashboard/marketing-id.json';
+import analyticsEn from '@/messages/dashboard/analytics-en.json';
+import analyticsId from '@/messages/dashboard/analytics-id.json';
 
 type SupportedLocale = 'en' | 'id';
 
@@ -22,8 +26,8 @@ function normalizeLocale(language?: string | null): SupportedLocale {
 }
 
 const MESSAGES: Record<SupportedLocale, Record<string, unknown>> = {
-  en: { ...enMessages, dashboard: { ...dashboardEn, clients: clientsEn, products: productsEn, orders: ordersEn, offers: offersEn } },
-  id: { ...idMessages, dashboard: { ...dashboardId, clients: clientsId, products: productsId, orders: ordersId, offers: offersId } },
+  en: { ...enMessages, dashboard: { ...dashboardEn, clients: clientsEn, products: productsEn, orders: ordersEn, offers: offersEn, marketing: marketingEn, analytics: analyticsEn } },
+  id: { ...idMessages, dashboard: { ...dashboardId, clients: clientsId, products: productsId, orders: ordersId, offers: offersId, marketing: marketingId, analytics: analyticsId } },
 };
 
 export function DashboardIntlProvider({ children }: { children: React.ReactNode }) {

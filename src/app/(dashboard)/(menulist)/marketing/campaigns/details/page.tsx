@@ -6,11 +6,13 @@ import CampaignDetails from '@/components/salesmarketing/CampaignDetails';
 import { Campaign } from '@/types/campaign';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
 
 export default function CampaignDetailsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const user = useUserStore((state) => state.user);
+  const { tCampaignDetails } = useMarketingTranslations();
   const campaignId = searchParams?.get('id') ?? null;
   const modeParam = searchParams?.get('mode') ?? null;
   const [campaign, setCampaign] = useState<Campaign | null>(null);
@@ -164,7 +166,7 @@ export default function CampaignDetailsPage() {
       <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading campaign...</p>
+          <p className="text-gray-600">{tCampaignDetails('loading')}</p>
         </div>
       </div>
     );
@@ -174,12 +176,12 @@ export default function CampaignDetailsPage() {
     return (
       <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">Campaign not found</p>
+          <p className="text-red-600 mb-4">{tCampaignDetails('notFound')}</p>
           <button
             onClick={() => router.push('/marketing/campaigns')}
             className="px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors"
           >
-            Go Back
+            {tCampaignDetails('goBack')}
           </button>
         </div>
       </div>

@@ -1,0 +1,158 @@
+{
+  "shared": {
+    "timeRanges": {
+      "1M": "Last Month",
+      "3M": "Last 3 Months",
+      "6M": "Last 6 Months",
+      "1Y": "Last Year"
+    },
+    "export": "Export",
+    "seeMore": "See More",
+    "vsLastMonth": "vs last month",
+    "na": "N/A",
+    "addProducts": "Add Products",
+    "manageOrders": "Manage Orders",
+    "exportLoginRequired": "Please log in to export data.",
+    "exportFailed": "Failed to export data. Please try again.",
+    "ordersSuffix": "orders",
+    "hoursSuffix": "hours",
+    "piecesSuffix": "pieces",
+    "unitsSuffix": "units",
+    "trendLabel": "Trend:",
+    "confidenceLabel": "Confidence:",
+    "currentLabel": "Current",
+    "targetLabel": "Target: {percent}%",
+    "viewProduct": "View {name}",
+    "viewBuyerProfile": "View buyer profile",
+    "seeMoreFinancialAria": "See more financial analytics",
+    "seeMoreOperationalAria": "See more operational performance analytics",
+    "categoryFilters": {
+      "productCategory": "Product Category",
+      "productType": "Product Type"
+    },
+    "forecastTrend": {
+      "increasing": "Increasing",
+      "decreasing": "Decreasing",
+      "stable": "Stable"
+    },
+    "orderStatus": {
+      "Pending": "Pending",
+      "Confirmed": "Confirmed",
+      "Packed": "Packed",
+      "Shipped": "Shipped",
+      "Delivered": "Delivered",
+      "Failed": "Failed",
+      "Cancelled": "Cancelled",
+      "Returned": "Returned"
+    },
+    "pagination": {
+      "showing": "Showing {from} to {to} of {total}",
+      "previousPage": "Previous page",
+      "nextPage": "Next page",
+      "pageAria": "Page {page}"
+    },
+    "uncategorized": "Uncategorized"
+  },
+  "overview": {
+    "title": "Analytics Dashboard",
+    "subtitle": "Key insights and performance metrics for your business",
+    "loading": "Loading analytics...",
+    "emptyTitle": "No Analytics Data",
+    "emptyBody": "Add products and track orders to see revenue and sales analytics for your account."
+  },
+  "financial": {
+    "title": "Financial Analytics",
+    "subtitle": "Comprehensive financial overview and insights",
+    "loading": "Loading financial analytics...",
+    "emptyTitle": "No Financial Data Available",
+    "emptyBody": "Start by adding products and tracking orders to see your financial analytics. Your revenue, profit, and performance metrics will appear here once you have data."
+  },
+  "sales": {
+    "title": "Customer & Sales Analytics",
+    "subtitle": "Insights on customers, sales volume, and product performance",
+    "loading": "Loading sales analytics...",
+    "emptyTitle": "No Customer/Sales Data",
+    "emptyBody": "Add products and track orders to see customer and sales analytics."
+  },
+  "operational": {
+    "title": "Operational Performance",
+    "subtitle": "End-to-end operations insights: orders, logistics, and inventory",
+    "loading": "Loading operational performance...",
+    "emptyTitle": "No Operational Data Available",
+    "emptyBody": "Start by creating orders and managing products to see your operational performance metrics. Order processing, delivery tracking, and inventory insights will appear here once you have data."
+  },
+  "metrics": {
+    "orderVolume": "Order Volume",
+    "totalProfit": "Total Profit",
+    "profitMargin": "Profit Margin",
+    "averageOrderValue": "Average Order Value",
+    "orderCompletionRate": "Order Completion Rate",
+    "piecesSold": "Pieces Sold",
+    "totalOrders": "Total Orders",
+    "avgPiecesPerOrder": "Avg Pieces / Order",
+    "avgOrderValue": "Avg Order Value",
+    "avgProcessingTime": "Avg Processing Time",
+    "trackingCoverage": "Tracking Coverage",
+    "stockHealth": "Stock Health"
+  },
+  "charts": {
+    "revenueTrend": "Revenue Trend",
+    "revenueByCategory": "Revenue by Category",
+    "cashFlowTrend": "Cash Flow Trend",
+    "revenueForecast": "Revenue Forecast",
+    "salesTrend": "Sales Trend",
+    "salesTrendForecastSuffix": " & Forecast",
+    "salesTrendForecast": "Sales Trend Forecast",
+    "unitsByCategory": "Units by Product Category",
+    "orderStatusDistribution": "Order Status Distribution",
+    "processingTimeTrend": "Processing Time Trend",
+    "inventoryHealthByCategory": "Inventory Health by Category",
+    "operationalQualityMetrics": "Operational Quality Metrics",
+    "deliveryMethodsDistribution": "Delivery Methods Distribution",
+    "orderVolumeLegend": "Order Volume",
+    "profitLegend": "Profit",
+    "cashIn": "Cash In",
+    "cashOut": "Cash Out",
+    "netFlow": "Net Flow",
+    "historical": "Historical",
+    "forecast": "Forecast",
+    "historicalOrders": "Historical Orders",
+    "ordersLegend": "Orders",
+    "unitsLegend": "Units",
+    "avgHours": "Avg Hours",
+    "ordersCountLegend": "Orders",
+    "noRevenueData": "No revenue data available",
+    "noRevenueDataHint": "Create orders to see revenue trends",
+    "insufficientForecastData": "Insufficient data for forecast",
+    "insufficientForecastHint": "Need at least 2 months of data",
+    "ordersTooltip": "Orders: {count}{forecastSuffix}",
+    "forecastSuffix": " (Forecast)"
+  },
+  "tables": {
+    "topPerformingProducts": "Top Performing Products",
+    "topCustomers": "Top Customers",
+    "rank": "Rank",
+    "productName": "Product Name",
+    "category": "Category",
+    "piecesSold": "Pieces Sold",
+    "orderVolume": "Order Volume",
+    "margin": "Margin",
+    "customer": "Customer",
+    "buyer": "Buyer",
+    "name": "Name",
+    "businessType": "Business Type",
+    "orders": "Orders"
+  },
+  "qualityMetrics": {
+    "orderAcceptanceRate": "Order Acceptance Rate",
+    "trackingCoverage": "Tracking Coverage",
+    "dataCompleteness": "Data Completeness",
+    "stockHealth": "Stock Health",
+    "overallQualityScore": "Overall Quality Score"
+  },
+  "inventoryLegend": {
+    "healthyStock": "Healthy stock (In-stock)",
+    "lowStock": "Low Stock",
+    "outOfStock": "Out of Stock"
+  }
+}

@@ -1,0 +1,659 @@
+{
+  "hub": {
+    "title": "Marketing",
+    "subtitle": "Build customer relationships and drive orders with marketing opportunities, tools, and resources.",
+    "tipsSection": "Tips",
+    "toolsSection": "Tools",
+    "dismissTip": "Dismiss tip",
+    "closeModal": "Close modal",
+    "mainPurpose": "Main Purpose",
+    "details": "Details",
+    "tips": {
+      "new-customers": {
+        "title": "Invite New Customers",
+        "description": "Reach out to potential buyers who recently joined the platform to expand your customer base. Building relationships early can lead to long-term partnerships and increased order volume.",
+        "actionLabel": "Invite customers",
+        "mainPurpose": "Grow your customer base by proactively reaching out to new buyers who recently joined the platform and converting them into active customers. Reach out to new buyers who have recently registered on the platform and send them personalized invitations to showcase your product catalog and services.",
+        "fullDetails": [
+          "Identify potential buyers who have recently registered on the platform",
+          "Send personalized invitations to showcase your product catalog and services",
+          "Highlight unique value propositions and competitive advantages",
+          "Offer welcome incentives or special discounts for first-time orders",
+          "Build initial relationships through direct communication and follow-up",
+          "Track invitation responses and conversion rates",
+          "Convert new platform users into loyal, repeat customers"
+        ]
+      },
+      "promotions": {
+        "title": "Create Promotions",
+        "description": "Boost your sales by creating special offers and discounts for your products. Set up percentage discounts, fixed amount reductions, or bundle deals to attract buyers and drive immediate sales.",
+        "actionLabel": "Create promotion",
+        "mainPurpose": "Create percentage-based discounts for selected products or categories, set up fixed amount reductions for specific items, design bundle deals and buy-one-get-one promotions, define promotion periods with start and end dates, target specific customer segments or buyer groups, set minimum order quantities or spending thresholds, track promotion performance and conversion metrics, schedule promotions for peak seasons or special events.",
+        "fullDetails": [
+          "Create percentage-based discounts for selected products or categories",
+          "Set up fixed amount reductions for specific items",
+          "Design bundle deals and buy-one-get-one promotions",
+          "Define promotion periods with start and end dates",
+          "Target specific customer segments or buyer groups",
+          "Set minimum order quantities or spending thresholds",
+          "Track promotion performance and conversion metrics",
+          "Schedule promotions for peak seasons or special events"
+        ]
+      },
+      "cart-reminders": {
+        "title": "Cart Abandonment",
+        "description": "Follow up with customers who added products to their cart but haven't completed their purchase. Cart abandonment campaigns can recover lost sales by sending timely reminders and offering incentives.",
+        "actionLabel": "View campaigns",
+        "mainPurpose": "Identify customers and send automated reminder emails or notifications to WhatsApp Messaging, offer time-limited incentives or discounts to encourage completion, personalize follow-up messages based on cart contents. You can also create urgency with limited-time offers or stock availability alerts, A/B test different messaging and incentive strategies, convert abandoned carts into completed orders and revenue.",
+        "fullDetails": [
+          "Identify customers with abandoned carts and incomplete purchases",
+          "Send automated reminder emails or notifications",
+          "Offer time-limited incentives or discounts to encourage completion",
+          "Personalize follow-up messages based on cart contents",
+          "Create urgency with limited-time offers or stock availability alerts",
+          "Track cart abandonment rates and recovery success metrics",
+          "A/B test different messaging and incentive strategies",
+          "Convert abandoned carts into completed orders and revenue"
+        ]
+      }
+    },
+    "tools": {
+      "teams": {
+        "name": "Teams",
+        "description": "Manage your marketing team members and assign roles."
+      },
+      "campaigns": {
+        "name": "Campaigns",
+        "description": "Create and manage marketing campaigns to reach your customers."
+      },
+      "automation": {
+        "name": "Automation",
+        "description": "Set up automated marketing workflows and reminders."
+      }
+    }
+  },
+  "campaigns": {
+    "title": "Campaigns",
+    "subtitle": "Send one-time rich content message campaigns to your retailers.",
+    "loading": "Loading campaigns...",
+    "createCampaign": "Create campaign",
+    "tipBanner": "Invite 22 customers who joined Faire in the past week to shop if they place an order, you could earn new customers through Faire Direct Rewards.",
+    "dismissTip": "Dismiss tip",
+    "createFailed": "Failed to create campaign. Please try again."
+  },
+  "campaignTable": {
+    "searchPlaceholder": "Search campaigns...",
+    "searchAriaLabel": "Search campaigns by name or campaign ID",
+    "empty": "No campaigns found",
+    "campaignSelected": "campaign",
+    "campaignsSelected": "campaigns",
+    "selected": "selected",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
+    "bulkHintSingleSend": "Select campaign to be removed or sent.",
+    "bulkHintSingleResend": "Select campaign to be removed or resent.",
+    "bulkHintMultiple": "Select campaigns to be removed.",
+    "sendCampaign": "Send Campaign",
+    "resendCampaign": "Resend Campaign",
+    "removeCampaign": "Remove Campaign",
+    "removeSelected": "Remove Selected",
+    "sendSelectedAriaLabel": "Send selected campaign",
+    "resendSelectedAriaLabel": "Resend selected campaign",
+    "removeSelectedAriaLabel": "Remove {count} selected campaign(s)",
+    "recipients": "Recipients",
+    "opened": "Opened",
+    "clicked": "Clicked",
+    "sendDate": "Send Date",
+    "notSent": "Not sent",
+    "editCampaign": "Edit campaign details",
+    "deleteCampaign": "Delete campaign",
+    "selectCampaign": "Select {name}",
+    "deselectCampaign": "Deselect {name}",
+    "selectAllCampaigns": "Select all campaigns",
+    "deselectAllCampaigns": "Deselect all campaigns",
+    "deleteCampaignTitle": "Delete Campaign",
+    "deleteCampaignsTitle": "Delete Campaigns",
+    "deleteBulkConfirm": "Are you sure you want to delete {count} campaign(s)? This action cannot be undone.",
+    "deleteSingleConfirm": "Are you sure you want to delete {name}? This action cannot be undone.",
+    "thisCampaign": "this campaign",
+    "pagination": {
+      "showing": "Showing {from} to {to} of {total}"
+    },
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "page": "Page {page}",
+    "whatsappAlt": "WhatsApp"
+  },
+  "campaignPreview": {
+    "headerAlt": "Header",
+    "campaignImageAlt": "Campaign image",
+    "priceLabel": "Price:",
+    "productAlt": "Product",
+    "defaultButton": "Click here"
+  },
+  "campaignDetails": {
+    "loading": "Loading campaign...",
+    "notFound": "Campaign not found",
+    "goBack": "Go back",
+    "createTitle": "Create Campaign",
+    "viewTitle": "Campaign Details",
+    "editTitle": "Edit Campaign",
+    "back": "Back",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "saveDraft": "Save Draft",
+    "saving": "Saving...",
+    "saveAndSend": "Save and Send Campaign",
+    "resendCampaign": "Resend Campaign",
+    "unsavedChanges": "Unsaved changes",
+    "draftBadge": "Draft",
+    "modeAddDescription": "Create a new marketing campaign by filling out the form below. All required fields must be completed before saving.",
+    "modeViewDescription": "View detailed information about this campaign. You can see all campaign details, recipients, and current status.",
+    "modeEditDescription": "Modify existing campaign information. Update any fields as needed and save your changes.",
+    "completionTitle": "Campaign Completion",
+    "allFieldsCompleted": "All required fields completed",
+    "missingFields": "Missing: {fields}",
+    "missingRequiredFieldsTitle": "Missing required fields: {fields}",
+    "campaignInformation": "Campaign Information",
+    "whatsappDesign": "WhatsApp Campaign Design",
+    "campaignPerformance": "Campaign Performance",
+    "campaignId": "Campaign ID",
+    "campaignIdPlaceholder": "Auto-generated Campaign ID",
+    "campaignIdHint": "Campaign ID is automatically generated",
+    "recipients": "Recipients",
+    "campaignName": "Campaign Name",
+    "campaignNamePlaceholder": "Enter campaign name",
+    "description": "Description",
+    "descriptionPlaceholder": "Enter campaign description",
+    "metricsOpened": "Opened",
+    "metricsClicked": "Clicked",
+    "metricsRevenue": "Revenue",
+    "metricsOrders": "Orders",
+    "metricsUnavailableTitle": "Performance metrics will be available after sending",
+    "metricsUnavailableBody": "Campaign performance metrics including open rates, click rates, revenue, and orders will be generated once you successfully send your campaign to recipients.",
+    "validation": {
+      "campaignName": "Campaign Name",
+      "campaignId": "Campaign ID",
+      "recipients": "Recipients"
+    },
+    "createFailed": "Failed to create campaign. Please try again."
+  },
+  "campaignBuilder": {
+    "untitledCampaign": "Untitled campaign",
+    "back": "Back",
+    "saveCampaign": "Save Campaign",
+    "inspirationHint": "Need inspiration? Check out some best practices",
+    "inspirationLink": "here",
+    "selectTemplate": "Select a template",
+    "contentTitle": "Content",
+    "contentSubtitle": "Add blocks to build your campaign",
+    "emptyPreview": "Add content blocks to build your campaign",
+    "selectBlockToEdit": "Select a content block to edit",
+    "blockEditorTitle": "{type} Block",
+    "online": "Online",
+    "blockTypes": {
+      "header": {
+        "label": "Header",
+        "description": "Add your logo and company name"
+      },
+      "text": {
+        "label": "Text",
+        "description": "Add formatted text content"
+      },
+      "image": {
+        "label": "Image",
+        "description": "Add an image or photo"
+      },
+      "product": {
+        "label": "Product",
+        "description": "Showcase a product with details"
+      },
+      "button": {
+        "label": "Button",
+        "description": "Add an interactive button"
+      },
+      "list": {
+        "label": "List",
+        "description": "Create a list of items"
+      },
+      "divider": {
+        "label": "Divider",
+        "description": "Add a visual separator"
+      },
+      "spacing": {
+        "label": "Spacing",
+        "description": "Add spacing between blocks"
+      }
+    },
+    "templates": {
+      "productLaunch": {
+        "name": "Product Launch",
+        "description": "Announce new products with images and details"
+      },
+      "promotion": {
+        "name": "Promotion",
+        "description": "Promote special offers and discounts"
+      },
+      "announcement": {
+        "name": "Announcement",
+        "description": "Share important updates and news"
+      },
+      "flashSale": {
+        "name": "Flash Sale",
+        "description": "Create urgency with limited-time offers"
+      },
+      "welcome": {
+        "name": "Welcome",
+        "description": "Welcome new customers with special offers"
+      },
+      "custom": {
+        "name": "Custom",
+        "description": "Start from scratch with a blank template"
+      }
+    },
+    "placeholders": {
+      "yourCompany": "Your Company",
+      "clickToEditHeader": "Click to edit header...",
+      "clickToEditText": "Click to edit text...",
+      "enterTextHere": "Enter your text here",
+      "clickToUploadImage": "Click to upload image",
+      "campaignImageAlt": "Campaign image",
+      "searchProducts": "Search products...",
+      "clickToSearchProduct": "Click to search product...",
+      "buttonDefault": "Button",
+      "clickToEdit": "Click to edit...",
+      "addListItems": "Add list items",
+      "newItem": "New item",
+      "imageDescription": "Image description",
+      "buttonLink": "https://example.com",
+      "clickHere": "Click here"
+    },
+    "editor": {
+      "style": "Style",
+      "textContent": "Text Content",
+      "uploadImage": "Upload Image",
+      "chooseImage": "Choose Image",
+      "uploading": "Uploading...",
+      "altText": "Alt Text",
+      "buttonText": "Button Text",
+      "buttonLink": "Button Link",
+      "buttonStyle": "Button Style",
+      "spacingSize": "Spacing Size",
+      "addItem": "Add item",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "preview": "Preview"
+    },
+    "styles": {
+      "normal": "normal",
+      "bold": "bold",
+      "italic": "italic",
+      "primary": "primary",
+      "secondary": "secondary",
+      "small": "small",
+      "medium": "medium",
+      "large": "large"
+    },
+    "alerts": {
+      "uploadFailed": "Failed to upload image",
+      "uploadFailedRetry": "Failed to upload image. Please try again.",
+      "selectImageFile": "Please select an image file",
+      "imageTooLarge": "Image size must be less than 5MB"
+    }
+  },
+  "sendModal": {
+    "title": "Send Campaign",
+    "closeModal": "Close modal",
+    "campaignInformation": "Campaign Information",
+    "campaignDesign": "Campaign Design",
+    "campaignId": "Campaign ID",
+    "campaignName": "Campaign Name",
+    "description": "Description",
+    "recipients": "Recipients",
+    "cancel": "Cancel",
+    "sendCampaign": "Send Campaign",
+    "sending": "Sending...",
+    "whatsappAlt": "WhatsApp"
+  },
+  "team": {
+    "title": "Teams",
+    "subtitle": "Manage your marketing team members and roles",
+    "refresh": "Refresh",
+    "exportData": "Export Data",
+    "addAgent": "Add Agent",
+    "loading": "Loading team...",
+    "overlayRefreshing": "Refreshing team data",
+    "overlayLoaded": "Showing team data ({count} sales agents loaded)",
+    "overlayLoading": "Loading team data...",
+    "overlayError": "Error loading teams",
+    "agentsLoaded": "{count} sales agent(s) loaded",
+    "deleteConfirm": "Are you sure you want to delete this agent?",
+    "deleteFailed": "Failed to delete agent. Please try again.",
+    "noAgentsToExport": "No agents to export",
+    "exportSheetName": "Sales Agents"
+  },
+  "teamList": {
+    "agentsTitle": "Agents",
+    "searchPlaceholder": "Search agents...",
+    "agentSelected": "agent",
+    "agentsSelected": "agents",
+    "selected": "selected",
+    "bulkHintSingle": "Select agent to be removed.",
+    "bulkHintMultiple": "Select agents to be removed.",
+    "removeAgent": "Remove Agent",
+    "removeSelected": "Remove Selected",
+    "noAgentsFound": "No agents found",
+    "noTeamsFound": "No teams found",
+    "createNewTeam": "Create New Team",
+    "addMembers": "Add member(s)",
+    "membersCount": "{count} members",
+    "teamModal": {
+      "createTitle": "Create New Team",
+      "editTitle": "Edit Team",
+      "createSubtitle": "Assign sales agents to a region",
+      "editSubtitle": "Update team/region information",
+      "teamNameLabel": "Team/Region Name",
+      "teamNamePlaceholder": "e.g., Jakarta Team, Regional Team",
+      "salesAgentsLabel": "Sales Agents",
+      "selectAll": "Select All",
+      "deselectAll": "Deselect All",
+      "noAgentsAvailable": "No sales agents available",
+      "agentsSelectedCount": "{count} agent(s) selected",
+      "cancel": "Cancel",
+      "createTeam": "Create Team",
+      "updateTeam": "Update Team",
+      "closeModal": "Close modal",
+      "teamNameRequired": "Please enter a team/region name",
+      "selectAgentRequired": "Please select at least one sales agent",
+      "notAuthenticated": "User not authenticated",
+      "saveFailed": "Failed to save team. Please try again."
+    },
+    "deleteAgentTitle": "Delete Agent",
+    "deleteAgentsTitle": "Delete Agents",
+    "deleteBulkConfirm": "Are you sure you want to delete {count} agent(s)? This action cannot be undone.",
+    "deleteSingleConfirm": "Are you sure you want to delete {name}? This action cannot be undone.",
+    "thisAgent": "this agent",
+    "columns": {
+      "name": "NAME",
+      "phone": "PHONE",
+      "email": "EMAIL",
+      "role": "ROLE",
+      "status": "STATUS",
+      "actions": "ACTIONS"
+    },
+    "pagination": {
+      "showing": "Showing {from} to {to} of {total}"
+    },
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "editAgent": "Edit {name}",
+    "deleteAgent": "Delete {name}",
+    "selectAgent": "Select {name}",
+    "deselectAgent": "Deselect {name}",
+    "selectAllAgents": "Select all agents",
+    "deselectAllAgents": "Deselect all agents"
+  },
+  "agentForm": {
+    "createTitle": "Create New Sales Agent",
+    "createSubtitle": "Add a new sales agent to your team",
+    "editTitle": "Edit Sales Agent",
+    "editSubtitle": "Update agent information",
+    "backToTeam": "Back to Team",
+    "backToDetails": "Back to Details",
+    "createAgent": "Create Agent",
+    "saveChanges": "Save Changes",
+    "creating": "Creating...",
+    "saving": "Saving...",
+    "completeRequiredFields": "Complete required fields",
+    "wizardTabs": {
+      "profile": "Basic Profile",
+      "products": "Favourite Products",
+      "reporting": "Sales Reporting",
+      "target": "Sales Target"
+    },
+    "wizardTabDescriptions": {
+      "profile": "Personal and contact information",
+      "products": "Products to be sold",
+      "reporting": "Reporting preferences",
+      "target": "Sales goals and targets"
+    },
+    "statusIndicators": {
+      "profile": "Profile",
+      "products": "Products",
+      "reporting": "Reporting",
+      "target": "Target"
+    },
+    "validation": {
+      "completeBeforeCreate": "Please complete all required fields before creating the agent.",
+      "completeBeforeSave": "Please complete all required fields before saving.",
+      "notAuthenticated": "User not authenticated",
+      "notAuthenticatedOrMissingId": "User not authenticated or agent ID missing"
+    },
+    "alerts": {
+      "createFailed": "Failed to create agent. Please try again.",
+      "updateFailed": "Failed to update agent. Please try again.",
+      "loadFailed": "Failed to load agent data",
+      "notFound": "Sales agent not found"
+    },
+    "loading": "Loading agent data..."
+  },
+  "basicProfile": {
+    "title": "Basic Profile Information",
+    "subtitle": "Enter the agent's personal and contact details",
+    "uploadAvatar": "Upload Avatar",
+    "changeAvatar": "Change Avatar",
+    "uploading": "Uploading...",
+    "fullName": "Full Name",
+    "fullNamePlaceholder": "Enter full name",
+    "email": "Email",
+    "emailPlaceholder": "agent@example.com",
+    "phone": "Phone",
+    "phonePlaceholder": "+62 21 1234 5678",
+    "role": "Role",
+    "selectRole": "Select role",
+    "status": "Status",
+    "selectStatus": "Select status",
+    "territory": "Territory / Location",
+    "territoryPlaceholder": "e.g., Jakarta & West Java",
+    "sex": "Sex / Gender",
+    "selectGender": "Select gender",
+    "bio": "About Me / Biography",
+    "bioPlaceholder": "Enter a brief biography or description about this sales agent...",
+    "requiredNote": "Fields marked with * are required. The agent will be able to update their profile information later.",
+    "note": "Note:",
+    "genderOptions": {
+      "male": "Male",
+      "female": "Female",
+      "other": "Other",
+      "preferNotToSay": "Prefer not to say"
+    },
+    "uploadFailed": "Failed to upload avatar: {error}"
+  },
+  "favouriteProducts": {
+    "title": "Favourite Products to be Sold",
+    "subtitle": "Select products top 3 (can be unordered) from your catalog that this agent specializes in selling.",
+    "loading": "Loading products...",
+    "searchPlaceholder": "Search products by name, SKU, or brand...",
+    "selectedCount": "{count} product(s) selected as favorites",
+    "clearAll": "Clear All",
+    "selectAll": "Select All ({selected}/{total})",
+    "emptyTitle": "No products found",
+    "emptyHint": "Try adjusting your search or filters",
+    "tip": "Select products from your catalog that this sales agent specializes in selling. This helps track performance and improve sales analysis.",
+    "pagination": {
+      "showing": "Showing {from} to {to} of {total}"
+    },
+    "previousPage": "Previous page",
+    "nextPage": "Next page"
+  },
+  "salesReporting": {
+    "title": "Daily Field Reports",
+    "subtitle": "Manage daily field activity reports for this agent",
+    "addReport": "Add Report",
+    "startTime": "Start Time",
+    "endTime": "End Time",
+    "location": "Location",
+    "locationPlaceholder": "e.g., Jakarta & West Java",
+    "dailyActivities": "Daily Activities",
+    "visits": "Visits",
+    "customersMet": "Customers Met",
+    "productsDemonstrated": "Products Demonstrated",
+    "salesMade": "Sales Made",
+    "notes": "Notes & Observations",
+    "notesPlaceholder": "Enter notes about the day's activities, customer feedback, challenges, etc.",
+    "deleteReport": "Delete report",
+    "note": "Daily field reports help track agent activities, customer visits, and sales performance. Reports can be marked as reviewed by managers/admins."
+  },
+  "salesTarget": {
+    "title": "Sales Target",
+    "subtitle": "Set sales goals and targets for this agent",
+    "addRow": "Add Row",
+    "period": "Period",
+    "periodPlaceholder": "e.g., October",
+    "goal": "Goal ({currency})",
+    "achieved": "Achieved ({currency})",
+    "unitsSold": "Unit Sold",
+    "actions": "Actions",
+    "deleteRow": "Delete row",
+    "summary": "Summary",
+    "totalGoal": "Total Goal",
+    "totalAchieved": "Total Achieved",
+    "totalUnitsSold": "Total Units Sold",
+    "units": "Units",
+    "note": "Add sales targets by period (month, quarter, or year). The Goal column is required. Achieved and Unit Sold can be updated as sales progress.",
+    "months": {
+      "january": "January",
+      "february": "February",
+      "march": "March",
+      "april": "April",
+      "may": "May",
+      "june": "June",
+      "july": "July",
+      "august": "August",
+      "september": "September",
+      "october": "October",
+      "november": "November",
+      "december": "December"
+    }
+  },
+  "salesDetails": {
+    "backToTeamList": "Back to team list",
+    "editDetails": "Edit details",
+    "salesTargetLabel": "{period} sales target",
+    "achievedPercent": "{percent}% achieved",
+    "target": "Target",
+    "achieved": "Achieved",
+    "otherInfo": "Other Info",
+    "phone": "Phone:",
+    "sex": "Sex:",
+    "email": "Email:",
+    "employeeLocationStatus": "Employee Location & Status",
+    "location": "Location:",
+    "favouriteProducts": "Favourite Product to be Sold",
+    "noFavoriteProducts": "No favorite products selected",
+    "brand": "Brand: {brand}",
+    "about": "About {name}",
+    "noBiography": "No biography available.",
+    "dailyFieldReport": "Daily Field Report",
+    "viewReport": "View report",
+    "salesTarget": "Sales Target",
+    "reportModalTitle": "Daily Field Report",
+    "workingHours": "Working Hours",
+    "dailyActivitiesSummary": "Daily Activities Summary",
+    "visits": "Visits",
+    "customersMet": "Customers Met",
+    "productsDemonstrated": "Products Demonstrated",
+    "salesMade": "Sales Made",
+    "notesObservations": "Notes & Observations",
+    "pagination": {
+      "showing": "Showing {from} to {to} of {total}"
+    },
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "loading": "Loading agent details...",
+    "notFound": "Agent not found",
+    "backToTeamListButton": "Back to Team List",
+    "columns": {
+      "period": "Period",
+      "goal": "Goal ({currency})",
+      "achieved": "Achieved ({currency})",
+      "unitsSold": "Unit Sold"
+    },
+    "units": "Units",
+    "filters": {
+      "defaultMonth": "Oktober, 2024",
+      "defaultYear": "Tahun ini (2024)"
+    }
+  },
+  "automation": {
+    "title": "Automations",
+    "subtitle": "Manage your marketing automation workflows",
+    "loading": "Loading automations..."
+  },
+  "shared": {
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "notAvailable": "N/A",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "statusTabs": {
+      "All": "All",
+      "Draft": "Draft",
+      "Scheduled": "Scheduled",
+      "Completed": "Completed"
+    },
+    "campaignStatus": {
+      "Draft": "Draft",
+      "Scheduled": "Scheduled",
+      "Sent": "Sent",
+      "Completed": "Completed"
+    },
+    "recipientOptions": {
+      "All Recipients": "All Recipients",
+      "All Customers": "All Customers",
+      "Recurrent Buyers": "Recurrent Buyers",
+      "New Buyers": "New Buyers",
+      "Unused Credits and Discounts": "Unused Credits and Discounts",
+      "No recipients yet": "No recipients yet"
+    },
+    "teamTabs": {
+      "individuals": "Individuals",
+      "teams": "Teams"
+    },
+    "roleFilters": {
+      "All Roles": "All Roles"
+    },
+    "statusFilters": {
+      "All Status": "All Status",
+      "Active": "Active",
+      "Inactive": "Inactive"
+    },
+    "agentRoles": {
+      "Sales Manager": "Sales Manager",
+      "Sales Rep": "Sales Rep",
+      "Sales Support": "Sales Support",
+      "Lead Gen": "Lead Gen",
+      "Account Manager": "Account Manager"
+    },
+    "agentStatus": {
+      "active": "active",
+      "inactive": "inactive",
+      "Active": "Active",
+      "Inactive": "Inactive"
+    },
+    "filters": {
+      "All Types": "All Types",
+      "All Categories": "All Categories"
+    },
+    "exportColumns": {
+      "name": "Name",
+      "email": "Email",
+      "phone": "Phone",
+      "role": "Role",
+      "status": "Status",
+      "territory": "Territory",
+      "team": "Team",
+      "sheetName": "Sales Agents"
+    }
+  }
+}

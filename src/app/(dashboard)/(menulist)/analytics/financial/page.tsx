@@ -7,6 +7,9 @@ import { fetchGraphQL } from '@/lib/graphqlClient';
 import { Order } from '@/types/order';
 import { Product } from '@/types/product';
 import { parseAmountSafely } from '@/utils/currencyUtils';
+import { useAnalyticsTranslations } from '@/hooks/useAnalyticsTranslations';
+
+const TIME_RANGE_VALUES = ['1M', '3M', '6M', '1Y'] as const;
 
 const FINANCIAL_ANALYTICS_PAGE_QUERY = `
   query FinancialAnalyticsPageData($userId: Int!, $orderLimit: Int!, $productLimit: Int!) {
@@ -73,18 +76,14 @@ const FINANCIAL_ANALYTICS_PAGE_QUERY = `
 
 export default function FinancialAnalyticsPage() {
   const { user } = useUserStore();
+  const { tFinancial, tShared, translateTimeRange } = useAnalyticsTranslations();
   const [timeRange, setTimeRange] = useState('1M');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [hasData, setHasData] = useState(false);
 
-  const timeRanges = [
-    { value: '1M', label: 'Last Month' },
-    { value: '3M', label: 'Last 3 Months' },
-    { value: '6M', label: 'Last 6 Months' },
-    { value: '1Y', label: 'Last Year' }
-  ];
+  const timeRanges = TIME_RANGE_VALUES.map((value) => ({ value, label: translateTimeRange(value) }));
 
   const currentRange = timeRanges.find(range => range.value === timeRange);
 
@@ -144,7 +143,7 @@ export default function FinancialAnalyticsPage() {
     try {
       // Get user ID from Zustand store - NO FALLBACK
       if (!user?.id) {
-        alert('Please log in to export data.');
+        alert(tShared('exportLoginRequired'));
         return;
       }
 
@@ -276,7 +275,7 @@ export default function FinancialAnalyticsPage() {
       link.click();
       document.body.removeChild(link);
     } catch (error) {
-      alert('Failed to export data. Please try again.');
+      alert(tShared('exportFailed'));
     }
   };
 
@@ -827,7 +826,7 @@ export default function FinancialAnalyticsPage() {
       <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading financial analytics...</p>
+          <p className="text-gray-600">{tFinancial('loading')}</p>
         </div>
       </div>
     );
@@ -837,17 +836,16 @@ export default function FinancialAnalyticsPage() {
     return (
       <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Financial Analytics</h1>
-          <p className="text-sm text-gray-600">Comprehensive financial overview and insights</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">{tFinancial('title')}</h1>
+          <p className="text-sm text-gray-600">{tFinancial('subtitle')}</p>
         </div>
         <div className="text-center mt-30">
           <div className="w-20 h-20 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
             <DollarSign className="w-10 h-10 text-gray-400" />
           </div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">No Financial Data Available</h3>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">{tFinancial('emptyTitle')}</h3>
           <p className="text-gray-500 max-w-md mx-auto">
-            Start by adding products and tracking orders to see your financial analytics. 
-            Your revenue, profit, and performance metrics will appear here once you have data.
+            {tFinancial('emptyBody')}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row mt-6 justify-center">
@@ -855,7 +853,7 @@ export default function FinancialAnalyticsPage() {
             onClick={() => window.location.href = '/products'}
             className="px-6 py-3 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors"
           >
-            Add Products
+            {tShared('addProducts')}
           </button>
         </div>
       </div>
@@ -867,8 +865,8 @@ export default function FinancialAnalyticsPage() {
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Financial Analytics</h1>
-          <p className="text-sm text-gray-500 mb-4">Comprehensive financial overview and insights</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">{tFinancial('title')}</h1>
+          <p className="text-sm text-gray-500 mb-4">{tFinancial('subtitle')}</p>
         </div>
         
         {/* Action Buttons */}
@@ -910,7 +908,7 @@ export default function FinancialAnalyticsPage() {
             className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] border border-[#e6e6e6] text-white rounded-lg hover:bg-[#084ba6] transition-colors text-sm font-medium"
           >
             <Download className="w-4 h-4" />
-            Export
+            {tShared('export')}
           </button>
         </div>
       </div>

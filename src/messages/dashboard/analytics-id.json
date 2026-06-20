@@ -1,0 +1,158 @@
+{
+  "shared": {
+    "timeRanges": {
+      "1M": "Bulan Lalu",
+      "3M": "3 Bulan Terakhir",
+      "6M": "6 Bulan Terakhir",
+      "1Y": "Tahun Lalu"
+    },
+    "export": "Ekspor",
+    "seeMore": "Lihat Selengkapnya",
+    "vsLastMonth": "vs bulan lalu",
+    "na": "T/A",
+    "addProducts": "Tambah Produk",
+    "manageOrders": "Kelola Pesanan",
+    "exportLoginRequired": "Silakan masuk untuk mengekspor data.",
+    "exportFailed": "Gagal mengekspor data. Silakan coba lagi.",
+    "ordersSuffix": "pesanan",
+    "hoursSuffix": "jam",
+    "piecesSuffix": "pieces",
+    "unitsSuffix": "unit",
+    "trendLabel": "Tren:",
+    "confidenceLabel": "Kepercayaan:",
+    "currentLabel": "Saat ini",
+    "targetLabel": "Target: {percent}%",
+    "viewProduct": "Lihat {name}",
+    "viewBuyerProfile": "Lihat profil pembeli",
+    "seeMoreFinancialAria": "Lihat analitik keuangan selengkapnya",
+    "seeMoreOperationalAria": "Lihat kinerja operasional selengkapnya",
+    "categoryFilters": {
+      "productCategory": "Kategori Produk",
+      "productType": "Tipe Produk"
+    },
+    "forecastTrend": {
+      "increasing": "Meningkat",
+      "decreasing": "Menurun",
+      "stable": "Stabil"
+    },
+    "orderStatus": {
+      "Pending": "Tertunda",
+      "Confirmed": "Dikonfirmasi",
+      "Packed": "Dikemas",
+      "Shipped": "Dikirim",
+      "Delivered": "Terkirim",
+      "Failed": "Gagal",
+      "Cancelled": "Dibatalkan",
+      "Returned": "Dikembalikan"
+    },
+    "pagination": {
+      "showing": "Menampilkan {from} hingga {to} dari {total}",
+      "previousPage": "Halaman sebelumnya",
+      "nextPage": "Halaman berikutnya",
+      "pageAria": "Halaman {page}"
+    },
+    "uncategorized": "Tanpa Kategori"
+  },
+  "overview": {
+    "title": "Dashboard Analitik",
+    "subtitle": "Wawasan utama dan metrik kinerja untuk bisnis Anda",
+    "loading": "Memuat analitik...",
+    "emptyTitle": "Tidak Ada Data Analitik",
+    "emptyBody": "Tambahkan produk dan lacak pesanan untuk melihat analitik pendapatan dan penjualan untuk akun Anda."
+  },
+  "financial": {
+    "title": "Analitik Keuangan",
+    "subtitle": "Ringkasan dan wawasan keuangan komprehensif",
+    "loading": "Memuat analitik keuangan...",
+    "emptyTitle": "Tidak Ada Data Keuangan",
+    "emptyBody": "Mulai dengan menambahkan produk dan melacak pesanan untuk melihat analitik keuangan Anda. Pendapatan, laba, dan metrik kinerja akan muncul di sini setelah Anda memiliki data."
+  },
+  "sales": {
+    "title": "Analitik Pelanggan & Penjualan",
+    "subtitle": "Wawasan tentang pelanggan, volume penjualan, dan kinerja produk",
+    "loading": "Memuat analitik penjualan...",
+    "emptyTitle": "Tidak Ada Data Pelanggan/Penjualan",
+    "emptyBody": "Tambahkan produk dan lacak pesanan untuk melihat analitik pelanggan dan penjualan."
+  },
+  "operational": {
+    "title": "Kinerja Operasional",
+    "subtitle": "Wawasan operasional end-to-end: pesanan, logistik, dan inventaris",
+    "loading": "Memuat kinerja operasional...",
+    "emptyTitle": "Tidak Ada Data Operasional",
+    "emptyBody": "Mulai dengan membuat pesanan dan mengelola produk untuk melihat metrik kinerja operasional Anda. Pemrosesan pesanan, pelacakan pengiriman, dan wawasan inventaris akan muncul di sini setelah Anda memiliki data."
+  },
+  "metrics": {
+    "orderVolume": "Volume Pesanan",
+    "totalProfit": "Total Laba",
+    "profitMargin": "Margin Laba",
+    "averageOrderValue": "Nilai Pesanan Rata-rata",
+    "orderCompletionRate": "Penyelesaian Pesanan",
+    "piecesSold": "Pieces Terjual",
+    "totalOrders": "Total Pesanan",
+    "avgPiecesPerOrder": "Rata-rata Pieces / Pesanan",
+    "avgOrderValue": "Nilai Pesanan Rata-rata",
+    "avgProcessingTime": "Rata-rata Pemrosesan",
+    "trackingCoverage": "Cakupan Pelacakan",
+    "stockHealth": "Kesehatan Stok"
+  },
+  "charts": {
+    "revenueTrend": "Tren Pendapatan",
+    "revenueByCategory": "Pendapatan per Kategori",
+    "cashFlowTrend": "Tren Arus Kas",
+    "revenueForecast": "Prakiraan Pendapatan",
+    "salesTrend": "Tren Penjualan",
+    "salesTrendForecastSuffix": " & Prakiraan",
+    "salesTrendForecast": "Prakiraan Tren Penjualan",
+    "unitsByCategory": "Unit per Kategori Produk",
+    "orderStatusDistribution": "Distribusi Status Pesanan",
+    "processingTimeTrend": "Tren Waktu Pemrosesan",
+    "inventoryHealthByCategory": "Kesehatan Inventaris per Kategori",
+    "operationalQualityMetrics": "Metrik Kualitas Operasional",
+    "deliveryMethodsDistribution": "Distribusi Metode Pengiriman",
+    "orderVolumeLegend": "Volume Pesanan",
+    "profitLegend": "Laba",
+    "cashIn": "Kas Masuk",
+    "cashOut": "Kas Keluar",
+    "netFlow": "Arus Bersih",
+    "historical": "Historis",
+    "forecast": "Prakiraan",
+    "historicalOrders": "Pesanan Historis",
+    "ordersLegend": "Pesanan",
+    "unitsLegend": "Unit",
+    "avgHours": "Rata-rata Jam",
+    "ordersCountLegend": "Pesanan",
+    "noRevenueData": "Tidak ada data pendapatan",
+    "noRevenueDataHint": "Buat pesanan untuk melihat tren pendapatan",
+    "insufficientForecastData": "Data tidak cukup untuk prakiraan",
+    "insufficientForecastHint": "Diperlukan minimal 2 bulan data",
+    "ordersTooltip": "Pesanan: {count}{forecastSuffix}",
+    "forecastSuffix": " (Prakiraan)"
+  },
+  "tables": {
+    "topPerformingProducts": "Produk Berkinerja Terbaik",
+    "topCustomers": "Pelanggan Teratas",
+    "rank": "Peringkat",
+    "productName": "Nama Produk",
+    "category": "Kategori",
+    "piecesSold": "Pieces Terjual",
+    "orderVolume": "Volume Pesanan",
+    "margin": "Margin",
+    "customer": "Pelanggan",
+    "buyer": "Pembeli",
+    "name": "Nama",
+    "businessType": "Tipe Bisnis",
+    "orders": "Pesanan"
+  },
+  "qualityMetrics": {
+    "orderAcceptanceRate": "Tingkat Penerimaan Pesanan",
+    "trackingCoverage": "Cakupan Pelacakan",
+    "dataCompleteness": "Kelengkapan Data",
+    "stockHealth": "Kesehatan Stok",
+    "overallQualityScore": "Skor Kualitas Keseluruhan"
+  },
+  "inventoryLegend": {
+    "healthyStock": "Stok sehat (Tersedia)",
+    "lowStock": "Stok Rendah",
+    "outOfStock": "Stok Habis"
+  }
+}

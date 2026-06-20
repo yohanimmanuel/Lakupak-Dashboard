@@ -10,8 +10,18 @@ import SalesTarget from '@/components/salesmarketing/SalesTarget';
 import { SalesAgent } from '@/components/salesmarketing/TeamList';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
 
 type TabId = 'profile' | 'products' | 'reporting' | 'target';
+
+const TAB_IDS: TabId[] = ['profile', 'products', 'reporting', 'target'];
+
+const TAB_ICONS: Record<TabId, React.ReactNode> = {
+  profile: <User className="w-5 h-5" />,
+  products: <Package className="w-5 h-5" />,
+  reporting: <FileText className="w-5 h-5" />,
+  target: <Target className="w-5 h-5" />,
+};
 
 interface Tab {
   id: TabId;
@@ -38,6 +48,7 @@ const CREATE_SALES_AGENT_MUTATION = `
 `;
 
 export default function CreateSalesAgentPage() {
+  const { tAgentForm, translateWizardTab, translateWizardTabDesc } = useMarketingTranslations();
   const router = useRouter();
   const user = useUserStore(state => state.user);
   const [activeTab, setActiveTab] = useState<TabId>('profile');
@@ -65,32 +76,12 @@ export default function CreateSalesAgentPage() {
     target: false,
   });
 
-  const tabs: Tab[] = [
-    {
-      id: 'profile',
-      label: 'Basic Profile',
-      icon: <User className="w-5 h-5" />,
-      description: 'Personal and contact information',
-    },
-    {
-      id: 'products',
-      label: 'Favourite Products',
-      icon: <Package className="w-5 h-5" />,
-      description: 'Products to be sold',
-    },
-    {
-      id: 'reporting',
-      label: 'Sales Reporting',
-      icon: <FileText className="w-5 h-5" />,
-      description: 'Reporting preferences',
-    },
-    {
-      id: 'target',
-      label: 'Sales Target',
-      icon: <Target className="w-5 h-5" />,
-      description: 'Sales goals and targets',
-    },
-  ];
+  const tabs: Tab[] = TAB_IDS.map((id) => ({
+    id,
+    label: translateWizardTab(id),
+    icon: TAB_ICONS[id],
+    description: translateWizardTabDesc(id),
+  }));
 
   const handleFormChange = useCallback((updates: Partial<SalesAgent>) => {
     setFormData(prev => ({ ...prev, ...updates }));
@@ -119,12 +110,12 @@ export default function CreateSalesAgentPage() {
 
   const handleSave = async () => {
     if (!isReadyToCreate) {
-      alert('Please complete all required fields before creating the agent.');
+      alert(tAgentForm('validation.completeBeforeCreate'));
       return;
     }
 
     if (!user?.id) {
-      alert('User not authenticated');
+      alert(tAgentForm('validation.notAuthenticated'));
       return;
     }
 
@@ -179,7 +170,7 @@ export default function CreateSalesAgentPage() {
       }
     } catch (error) {
       console.error('Error creating agent:', error);
-      alert(error instanceof Error ? error.message : 'Failed to create agent. Please try again.');
+      alert(error instanceof Error ? error.message : tAgentForm('alerts.createFailed'));
     } finally {
       setIsCreating(false);
     }
@@ -221,34 +212,34 @@ export default function CreateSalesAgentPage() {
             className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-black hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to Team
+            {tAgentForm('backToTeam')}
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-black">Create New Sales Agent</h1>
-            <p className="text-gray-500 text-sm">Add a new sales agent to your team</p>
+            <h1 className="text-2xl font-bold text-black">{tAgentForm('createTitle')}</h1>
+            <p className="text-gray-500 text-sm">{tAgentForm('createSubtitle')}</p>
             
             {/* Status Indicator */}
             <div className="flex items-center gap-4 mt-2">
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${tabCompletion.profile ? 'bg-green-500' : 'bg-gray-300'}`} />
-                <span className="text-xs text-gray-600">Profile</span>
+                <span className="text-xs text-gray-600">{tAgentForm('statusIndicators.profile')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${tabCompletion.products ? 'bg-green-500' : 'bg-gray-300'}`} />
-                <span className="text-xs text-gray-600">Products</span>
+                <span className="text-xs text-gray-600">{tAgentForm('statusIndicators.products')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${tabCompletion.reporting ? 'bg-green-500' : 'bg-gray-300'}`} />
-                <span className="text-xs text-gray-600">Reporting</span>
+                <span className="text-xs text-gray-600">{tAgentForm('statusIndicators.reporting')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${tabCompletion.target ? 'bg-green-500' : 'bg-gray-300'}`} />
-                <span className="text-xs text-gray-600">Target</span>
+                <span className="text-xs text-gray-600">{tAgentForm('statusIndicators.target')}</span>
               </div>
               {!isReadyToCreate && (
                 <div className="flex items-center gap-1 text-amber-600">
                   <AlertCircle className="w-3 h-3" />
-                  <span className="text-xs">Complete required fields</span>
+                  <span className="text-xs">{tAgentForm('completeRequiredFields')}</span>
                 </div>
               )}
             </div>
@@ -267,12 +258,12 @@ export default function CreateSalesAgentPage() {
           {isCreating ? (
             <>
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              Creating...
+              {tAgentForm('creating')}
             </>
           ) : (
             <>
               <CheckCircle className="w-4 h-4" />
-              Create Agent
+              {tAgentForm('createAgent')}
             </>
           )}
         </button>

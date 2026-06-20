@@ -10,8 +10,18 @@ import SalesTarget from '@/components/salesmarketing/SalesTarget';
 import { SalesAgent } from '@/components/salesmarketing/TeamList';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
 
 type TabId = 'profile' | 'products' | 'reporting' | 'target';
+
+const TAB_IDS: TabId[] = ['profile', 'products', 'reporting', 'target'];
+
+const TAB_ICONS: Record<TabId, React.ReactNode> = {
+  profile: <User className="w-5 h-5" />,
+  products: <Package className="w-5 h-5" />,
+  reporting: <FileText className="w-5 h-5" />,
+  target: <Target className="w-5 h-5" />,
+};
 
 interface Tab {
   id: TabId;
@@ -21,6 +31,7 @@ interface Tab {
 }
 
 export default function EditSalesAgentPage() {
+  const { tAgentForm, translateWizardTab, translateWizardTabDesc } = useMarketingTranslations();
   const router = useRouter();
   const searchParams = useSearchParams();
   const agentId = searchParams?.get('id') ?? null;
@@ -53,32 +64,12 @@ export default function EditSalesAgentPage() {
     target: false,
   });
 
-  const tabs: Tab[] = [
-    {
-      id: 'profile',
-      label: 'Basic Profile',
-      icon: <User className="w-5 h-5" />,
-      description: 'Personal and contact information',
-    },
-    {
-      id: 'products',
-      label: 'Favourite Products',
-      icon: <Package className="w-5 h-5" />,
-      description: 'Products to be sold',
-    },
-    {
-      id: 'reporting',
-      label: 'Sales Reporting',
-      icon: <FileText className="w-5 h-5" />,
-      description: 'Reporting preferences',
-    },
-    {
-      id: 'target',
-      label: 'Sales Target',
-      icon: <Target className="w-5 h-5" />,
-      description: 'Sales goals and targets',
-    },
-  ];
+  const tabs: Tab[] = TAB_IDS.map((id) => ({
+    id,
+    label: translateWizardTab(id),
+    icon: TAB_ICONS[id],
+    description: translateWizardTabDesc(id),
+  }));
 
   const GET_SALES_AGENT_QUERY = `
     query GetSalesAgent($userId: Int!, $id: String!) {
@@ -142,7 +133,7 @@ export default function EditSalesAgentPage() {
         });
 
         if (!data.salesAgent) {
-          alert('Sales agent not found');
+          alert(tAgentForm('alerts.notFound'));
           router.push('/marketing/team');
           return;
         }
@@ -166,7 +157,7 @@ export default function EditSalesAgentPage() {
         });
       } catch (error) {
         console.error('Error fetching agent:', error);
-        alert(error instanceof Error ? error.message : 'Failed to load agent data');
+        alert(error instanceof Error ? error.message : tAgentForm('alerts.loadFailed'));
         router.push('/marketing/team');
       } finally {
         setLoading(false);
@@ -222,12 +213,12 @@ export default function EditSalesAgentPage() {
 
   const handleSave = async () => {
     if (!isReadyToSave) {
-      alert('Please complete all required fields before saving.');
+      alert(tAgentForm('validation.completeBeforeSave'));
       return;
     }
 
     if (!user?.id || !agentId) {
-      alert('User not authenticated or agent ID missing');
+      alert(tAgentForm('validation.notAuthenticatedOrMissingId'));
       return;
     }
 
@@ -311,7 +302,7 @@ export default function EditSalesAgentPage() {
       }
     } catch (error) {
       console.error('Error updating agent:', error);
-      alert(error instanceof Error ? error.message : 'Failed to update agent. Please try again.');
+      alert(error instanceof Error ? error.message : tAgentForm('alerts.updateFailed'));
     } finally {
       setIsSaving(false);
     }
@@ -352,7 +343,7 @@ export default function EditSalesAgentPage() {
       <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading agent data...</p>
+          <p className="text-gray-600">{tAgentForm('loading')}</p>
         </div>
       </div>
     );
@@ -368,34 +359,34 @@ export default function EditSalesAgentPage() {
             className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-black hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to Details
+            {tAgentForm('backToDetails')}
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-black">Edit Sales Agent</h1>
-            <p className="text-gray-500 text-sm">Update agent information</p>
+            <h1 className="text-2xl font-bold text-black">{tAgentForm('editTitle')}</h1>
+            <p className="text-gray-500 text-sm">{tAgentForm('editSubtitle')}</p>
             
             {/* Status Indicator */}
             <div className="flex items-center gap-4 mt-2">
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${tabCompletion.profile ? 'bg-green-500' : 'bg-gray-300'}`} />
-                <span className="text-xs text-gray-600">Profile</span>
+                <span className="text-xs text-gray-600">{tAgentForm('statusIndicators.profile')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${tabCompletion.products ? 'bg-green-500' : 'bg-gray-300'}`} />
-                <span className="text-xs text-gray-600">Products</span>
+                <span className="text-xs text-gray-600">{tAgentForm('statusIndicators.products')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${tabCompletion.reporting ? 'bg-green-500' : 'bg-gray-300'}`} />
-                <span className="text-xs text-gray-600">Reporting</span>
+                <span className="text-xs text-gray-600">{tAgentForm('statusIndicators.reporting')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${tabCompletion.target ? 'bg-green-500' : 'bg-gray-300'}`} />
-                <span className="text-xs text-gray-600">Target</span>
+                <span className="text-xs text-gray-600">{tAgentForm('statusIndicators.target')}</span>
               </div>
               {!isReadyToSave && (
                 <div className="flex items-center gap-1 text-amber-600">
                   <AlertCircle className="w-3 h-3" />
-                  <span className="text-xs">Complete required fields</span>
+                  <span className="text-xs">{tAgentForm('completeRequiredFields')}</span>
                 </div>
               )}
             </div>
@@ -414,12 +405,12 @@ export default function EditSalesAgentPage() {
           {isSaving ? (
             <>
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              Saving...
+              {tAgentForm('saving')}
             </>
           ) : (
             <>
               <CheckCircle className="w-4 h-4" />
-              Save Changes
+              {tAgentForm('saveChanges')}
             </>
           )}
         </button>

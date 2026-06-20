@@ -6,6 +6,7 @@ import SalesDetails from '@/components/salesmarketing/SalesDetails';
 import { SalesAgent } from '@/components/salesmarketing/TeamList';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
 
 const GET_SALES_AGENT_QUERY = `
   query GetSalesAgent($userId: Int!, $id: String!) {
@@ -53,6 +54,7 @@ const GET_SALES_AGENT_QUERY = `
 `;
 
 export default function SalesDetailsPage() {
+  const { tSalesDetails } = useMarketingTranslations();
   const searchParams = useSearchParams();
   const router = useRouter();
   const user = useUserStore(state => state.user);
@@ -98,7 +100,7 @@ export default function SalesDetailsPage() {
       <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading agent details...</p>
+          <p className="text-gray-600">{tSalesDetails('loading')}</p>
         </div>
       </div>
     );
@@ -108,12 +110,12 @@ export default function SalesDetailsPage() {
     return (
       <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600 mb-4">Agent not found</p>
+          <p className="text-gray-600 mb-4">{tSalesDetails('notFound')}</p>
           <button
             onClick={() => router.push('/marketing/team')}
             className="px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors"
           >
-            Back to Team List
+            {tSalesDetails('backToTeamListButton')}
           </button>
         </div>
       </div>

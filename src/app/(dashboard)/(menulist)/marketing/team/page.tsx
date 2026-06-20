@@ -9,6 +9,7 @@ import { SalesAgent, SalesTeam } from '@/components/salesmarketing/TeamList';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import type { SalesAgentConnection, SalesTeamConnection } from '@/types/sales';
+import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
 
 function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -91,6 +92,7 @@ const SALES_TEAMS_QUERY = `
 `;
 
 export default function MarketingTeamPage() {
+  const { tTeam, tShared } = useMarketingTranslations();
   const router = useRouter();
   const user = useUserStore(state => state.user);
   const [loading, setLoading] = useState(true);
@@ -122,7 +124,7 @@ export default function MarketingTeamPage() {
     // Always start slide-in animation when refresh is clicked
     setIsSlidingOut(false);
     setIsSlidingIn(true);
-    setOverlayMessage('Refreshing team data');
+    setOverlayMessage(tTeam('overlayRefreshing'));
     
     try {
       const [agentsData, teamsData] = await Promise.all([
@@ -145,10 +147,10 @@ export default function MarketingTeamPage() {
       setSalesTeams(teams);
       
       const agentCount = agents.length;
-      setOverlayMessage(`Showing team data (${agentCount} sales agents loaded)`);
+      setOverlayMessage(tTeam('overlayLoaded', { count: agentCount }));
     } catch (error) {
       console.error('Error fetching team data:', error);
-      setOverlayMessage('Error loading teams');
+      setOverlayMessage(tTeam('overlayError'));
       setSalesAgents([]);
       setSalesTeams([]);
     } finally {
@@ -172,12 +174,12 @@ export default function MarketingTeamPage() {
         }, 500);
       }, 2500);
     }
-  }, [user?.id]);
+  }, [user?.id, tTeam]);
 
   useEffect(() => {
     // Start slide-in animation immediately for initial page load
     setIsSlidingIn(true);
-    setOverlayMessage('Loading team data...');
+    setOverlayMessage(tTeam('overlayLoading'));
     
     fetchData();
     
@@ -205,7 +207,7 @@ export default function MarketingTeamPage() {
   const handleDeleteAgent = async (agentId: string) => {
     if (!user?.id) return;
     
-    if (confirm('Are you sure you want to delete this agent?')) {
+    if (confirm(tTeam('deleteConfirm'))) {
       try {
         const DELETE_AGENT_MUTATION = `
           mutation DeleteSalesAgent($userId: Int!, $id: String!) {
@@ -224,7 +226,7 @@ export default function MarketingTeamPage() {
         await fetchData();
       } catch (error) {
         console.error('Error deleting agent:', error);
-        alert('Failed to delete agent. Please try again.');
+        alert(tTeam('deleteFailed'));
       }
     }
   };
@@ -243,25 +245,33 @@ export default function MarketingTeamPage() {
 
   const handleExport = () => {
     if (salesAgents.length === 0) {
-      alert('No agents to export');
+      alert(tTeam('noAgentsToExport'));
       return;
     }
 
     // Export agents data to XLSX
-    const headers = ['Name', 'Email', 'Phone', 'Role', 'Status', 'Territory', 'Team'];
+    const headers = [
+      tShared('exportColumns.name'),
+      tShared('exportColumns.email'),
+      tShared('exportColumns.phone'),
+      tShared('exportColumns.role'),
+      tShared('exportColumns.status'),
+      tShared('exportColumns.territory'),
+      tShared('exportColumns.team'),
+    ];
     const rows = salesAgents.map(agent => [
       agent.name,
       agent.email,
       agent.phone,
       agent.role,
       agent.status,
-      agent.territory || 'N/A',
-      agent.teamName || 'N/A',
+      agent.territory || tShared('notAvailable'),
+      agent.teamName || tShared('notAvailable'),
     ]);
     
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Sales Agents');
+    XLSX.utils.book_append_sheet(wb, ws, tShared('exportColumns.sheetName'));
     
     // Generate filename with current date
     const currentDate = new Date().toISOString().split('T')[0];
@@ -275,7 +285,7 @@ export default function MarketingTeamPage() {
       <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading team...</p>
+          <p className="text-gray-600">{tTeam('loading')}</p>
         </div>
       </div>
     );
@@ -286,8 +296,8 @@ export default function MarketingTeamPage() {
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
         <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Teams</h1>
-          <p className="text-sm text-gray-500 mb-4">Manage your marketing team members and roles</p>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">{tTeam('title')}</h1>
+          <p className="text-sm text-gray-500 mb-4">{tTeam('subtitle')}</p>
         </div>
         {/* Action Buttons */}
         <div className="flex items-center gap-3">
@@ -297,7 +307,7 @@ export default function MarketingTeamPage() {
             className="flex items-center gap-2 px-4 py-2 bg-white border border-[#e6e6e6] text-black rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
           >
             <RefreshCcw className="w-4 h-4" />
-            Refresh
+            {tTeam('refresh')}
           </button>
 
           {/* Export Button */}
@@ -306,7 +316,7 @@ export default function MarketingTeamPage() {
             className="flex items-center gap-2 px-4 py-2 bg-white border border-[#e6e6e6] text-black rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
           >
             <Download className="w-4 h-4" />
-            Export Data
+            {tTeam('exportData')}
           </button>
 
           {/* Add Agents Button */}
@@ -315,7 +325,7 @@ export default function MarketingTeamPage() {
             className="flex items-center gap-2 px-6 py-2 bg-[#0a61d7] font-semibold text-white rounded-lg hover:bg-[#0851b8] transition-colors text-sm font-medium"
           >
             <Plus className="w-4 h-4" />
-            Add Agent
+            {tTeam('addAgent')}
           </button>
         </div>
       </div>
@@ -339,7 +349,7 @@ export default function MarketingTeamPage() {
               <p className="text-sm font-medium text-gray-900">{overlayMessage}</p>
               {!loading && (
                 <p className="text-xs text-gray-500">
-                  <span className="text-gray-400">{salesAgents.length}</span> sales agent{salesAgents.length !== 1 ? 's' : ''} loaded
+                  {tTeam('agentsLoaded', { count: salesAgents.length })}
                 </p>
               )}
             </div>

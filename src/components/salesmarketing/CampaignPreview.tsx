@@ -4,6 +4,7 @@ import React from 'react';
 import { Campaign, CampaignContentBlock } from '@/types/campaign';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { useUserStore } from '@/store/userStore';
+import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
 
 interface CampaignPreviewProps {
   campaign: Campaign;
@@ -13,6 +14,7 @@ interface CampaignPreviewProps {
 
 export default function CampaignPreview({ campaign, onTrackClick, currency }: CampaignPreviewProps) {
   const user = useUserStore((state) => state.user);
+  const { tCampaignPreview } = useMarketingTranslations();
   
   // Determine currency: prop > user currency > default (IDR)
   const displayCurrency = currency || user?.currency || getDefaultCurrency();
@@ -26,7 +28,7 @@ export default function CampaignPreview({ campaign, onTrackClick, currency }: Ca
         return (
           <div className="text-center">
             {block.headerImage && (
-              <img src={block.headerImage} alt="Header" className="w-16 h-16 mx-auto mb-2 rounded" />
+              <img src={block.headerImage} alt={tCampaignPreview('headerAlt')} className="w-16 h-16 mx-auto mb-2 rounded" />
             )}
             {block.headerText && (
               <h2 className="text-lg font-bold text-black">{block.headerText}</h2>
@@ -47,7 +49,7 @@ export default function CampaignPreview({ campaign, onTrackClick, currency }: Ca
 
       case 'image':
         return block.imageUrl ? (
-          <img src={block.imageUrl} alt={block.imageAlt || 'Campaign image'} className="w-full rounded-lg" />
+          <img src={block.imageUrl} alt={block.imageAlt || tCampaignPreview('campaignImageAlt')} className="w-full rounded-lg" />
         ) : null;
 
       case 'product':
@@ -58,11 +60,11 @@ export default function CampaignPreview({ campaign, onTrackClick, currency }: Ca
             )}
             {block.productPrice !== undefined && (
               <p className="text-black mt-1">
-                Price: {formatCurrency(block.productPrice, displayCurrency)}
+                {tCampaignPreview('priceLabel')} {formatCurrency(block.productPrice, displayCurrency)}
               </p>
             )}
             {block.productImage && (
-              <img src={block.productImage} alt={block.productName || 'Product'} className="w-full mt-2 rounded-lg" />
+              <img src={block.productImage} alt={block.productName || tCampaignPreview('productAlt')} className="w-full mt-2 rounded-lg" />
             )}
             {block.productButtonText && (
               <button
@@ -101,7 +103,7 @@ export default function CampaignPreview({ campaign, onTrackClick, currency }: Ca
               }
             }}
           >
-            {block.buttonText || 'Button'}
+            {block.buttonText || tCampaignPreview('defaultButton')}
           </button>
         );
 

@@ -8,10 +8,12 @@ import CampaignTable from '@/components/salesmarketing/CampaignTable';
 import { Campaign, CampaignTableRow } from '@/types/campaign';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
+import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
 
 export default function MarketingCampaignsPage() {
   const router = useRouter();
   const user = useUserStore(state => state.user);
+  const { tCampaigns } = useMarketingTranslations();
   const [loading, setLoading] = useState(true);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [showTip, setShowTip] = useState(true);
@@ -226,7 +228,7 @@ export default function MarketingCampaignsPage() {
       <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading campaigns...</p>
+          <p className="text-gray-600">{tCampaigns('loading')}</p>
         </div>
       </div>
     );
@@ -237,9 +239,9 @@ export default function MarketingCampaignsPage() {
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
         <div>
-          <h1 className="text-2xl font-bold text-black mb-2">Campaigns</h1>
+          <h1 className="text-2xl font-bold text-black mb-2">{tCampaigns('title')}</h1>
           <p className="text-sm text-gray-600">
-            Send one-time rich content message campaigns to your retailers.
+            {tCampaigns('subtitle')}
           </p>
         </div>
         <Link
@@ -247,7 +249,7 @@ export default function MarketingCampaignsPage() {
           className="inline-flex items-center gap-2 px-6 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors text-sm font-semibold"
         >
           <Plus className="w-4 h-4" />
-          Create campaign
+          {tCampaigns('createCampaign')}
         </Link>
       </div>
 
@@ -257,19 +259,19 @@ export default function MarketingCampaignsPage() {
           <button
             onClick={() => setShowTip(false)}
             className="absolute top-3 right-3 p-1 hover:bg-blue-100 rounded-full transition-colors"
-            aria-label="Dismiss tip"
+            aria-label={tCampaigns('dismissTip')}
           >
             <X className="w-4 h-4 text-gray-400" />
           </button>
           <div className="pr-8">
             <p className="text-sm text-gray-700 mb-2">
-              Invite 22 customers who joined Faire in the past week to shop if they place an order, you could earn new customers through Faire Direct Rewards.
+              {tCampaigns('tipBanner')}
             </p>
             <Link
               href="/marketing/campaigns/create"
               className="inline-flex items-center gap-1 text-sm font-semibold text-[#0a61d7] hover:text-[#084ba6] transition-colors"
             >
-              Create campaign
+              {tCampaigns('createCampaign')}
               <ArrowRight className="w-3 h-3" />
             </Link>
           </div>

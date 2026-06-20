@@ -45,6 +45,7 @@ import { forecastRevenue } from '@/utils/forecasting';
 import { calculatePromotionGift, PromotionDetails } from '@/utils/promotionUtils';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useAnalyticsTranslations } from '@/hooks/useAnalyticsTranslations';
 
 function getOrderBucketDate(order: Pick<Order, 'orderDate'>): Date {
   return new Date(order.orderDate);
@@ -186,12 +187,14 @@ const FINANCIAL_ANALYTICS_QUERY = `
 
 /** Empty state used by `AnalyticsRevenueTrendChart` and the full Financial Analytics revenue trend card. */
 export function AnalyticsRevenueTrendChartEmpty() {
+  const { tCharts } = useAnalyticsTranslations();
+
   return (
     <div className="h-80 flex items-center justify-center">
       <div className="text-center">
         <TrendingUp className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-        <p className="text-gray-500 text-sm">No revenue data available</p>
-        <p className="text-gray-400 text-xs">Create orders to see revenue trends</p>
+        <p className="text-gray-500 text-sm">{tCharts('noRevenueData')}</p>
+        <p className="text-gray-400 text-xs">{tCharts('noRevenueDataHint')}</p>
       </div>
     </div>
   );
@@ -199,6 +202,8 @@ export function AnalyticsRevenueTrendChartEmpty() {
 
 const FinancialAnalytics: React.FC = () => {
   const { user } = useUserStore();
+  const { tShared, tMetrics, tCharts, tTables, translateCategoryFilter, translateForecastTrend } =
+    useAnalyticsTranslations();
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('6M');
   const [currentPage, setCurrentPage] = useState(1);
@@ -212,10 +217,13 @@ const FinancialAnalytics: React.FC = () => {
 
   const userCurrency = user?.currency || getDefaultCurrency();
 
-  const categoryOptions = [
-    { value: 'productCategory', label: 'Product Category' },
-    { value: 'productType', label: 'Product Type' }
-  ];
+  const categoryOptions = useMemo(
+    () => [
+      { value: 'productCategory', label: translateCategoryFilter('productCategory') },
+      { value: 'productType', label: translateCategoryFilter('productType') },
+    ],
+    [translateCategoryFilter]
+  );
 
   const currentCategoryOption = categoryOptions.find(option => option.value === categoryFilter);
 
@@ -872,28 +880,28 @@ const FinancialAnalytics: React.FC = () => {
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
         <MetricCard
-          title="Order Volume"
+          title={tMetrics('orderVolume')}
           value={utilsFormatCurrency(calculateMetrics.totalRevenue, userCurrency)}
           change={growthMetrics.revenueGrowth}
           icon={<DollarSign className="w-6 h-6 text-[#0a61d7]" />}
           color="bg-[#f7faff]"
         />
         <MetricCard
-          title="Total Profit"
+          title={tMetrics('totalProfit')}
           value={utilsFormatCurrency(calculateMetrics.totalProfit, userCurrency)}
           change={growthMetrics.profitGrowth}
           icon={<TrendingUp className="w-6 h-6 text-green-500" />}
           color="bg-[#e6f7ec]"
         />
         <MetricCard
-          title="Profit Margin"
+          title={tMetrics('profitMargin')}
           value={`${calculateMetrics.profitMargin.toFixed(1)}%`}
           change={growthMetrics.marginGrowth}
           icon={<TrendingUp className="w-6 h-6 text-yellow-500" />}
           color="bg-[#f7faff]"
         />
         <MetricCard
-          title="Average Order Value"
+          title={tMetrics('averageOrderValue')}
           value={utilsFormatCurrency(calculateMetrics.averageOrderValue, userCurrency)}
           change={growthMetrics.aovGrowth}
           icon={<ShoppingCart className="w-6 h-6 text-gray-500" />}
@@ -909,15 +917,15 @@ const FinancialAnalytics: React.FC = () => {
                  {/* Revenue Trend */}
          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
            <div className="flex items-center justify-between mb-6">
-             <h3 className="text-lg font-semibold text-gray-900">Revenue Trend</h3>
+             <h3 className="text-lg font-semibold text-gray-900">{tCharts('revenueTrend')}</h3>
                <div className="flex items-center space-x-4">
                <div className="flex items-center">
                  <div className="w-3 h-3 bg-gradient-to-r from-[#3b82f6] to-[#0a61d7] rounded-full mr-2"></div>
-                 <span className="text-sm text-gray-600 font-medium">Order Volume</span>
+                 <span className="text-sm text-gray-600 font-medium">{tCharts('orderVolumeLegend')}</span>
                </div>
                <div className="flex items-center">
                  <div className="w-3 h-3 bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full mr-2"></div>
-                 <span className="text-sm text-gray-600 font-medium">Profit</span>
+                 <span className="text-sm text-gray-600 font-medium">{tCharts('profitLegend')}</span>
                </div>
              </div>
            </div>
@@ -956,7 +964,7 @@ const FinancialAnalytics: React.FC = () => {
                  <Tooltip 
                    formatter={(value: number, name: string) => [
                      utilsFormatCurrency(value, userCurrency), 
-                     name === 'revenue' ? 'Order Volume' : 'Profit'
+                     name === 'revenue' ? tCharts('orderVolumeLegend') : tCharts('profitLegend')
                    ]}
                    labelStyle={{ 
                      color: '#1E293B', 
@@ -1027,7 +1035,7 @@ const FinancialAnalytics: React.FC = () => {
          {/* Revenue by Category */}
          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
            <div className="flex items-center justify-between mb-6">
-             <h3 className="text-lg font-semibold text-gray-900">Revenue by Category</h3>
+             <h3 className="text-lg font-semibold text-gray-900">{tCharts('revenueByCategory')}</h3>
              <div className="relative" ref={categoryDropdownRef}>
                <button
                  onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
@@ -1160,19 +1168,19 @@ const FinancialAnalytics: React.FC = () => {
                   {/* Cash Flow Trend */}
           <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
            <div className="flex items-center justify-between mb-4">
-             <h3 className="text-lg font-semibold text-gray-900">Cash Flow Trend</h3>
+             <h3 className="text-lg font-semibold text-gray-900">{tCharts('cashFlowTrend')}</h3>
              <div className="flex items-center space-x-4">
                <div className="flex items-center">
                  <div className="w-3 h-3 bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full mr-1"></div>
-                 <span className="text-sm text-gray-600 font-medium">Cash In</span>
+                 <span className="text-sm text-gray-600 font-medium">{tCharts('cashIn')}</span>
                </div>
                <div className="flex items-center">
                  <div className="w-3 h-3 bg-gradient-to-r from-red-400 to-red-600 rounded-full mr-1"></div>
-                 <span className="text-sm text-gray-600 font-medium">Cash Out</span>
+                 <span className="text-sm text-gray-600 font-medium">{tCharts('cashOut')}</span>
                </div>
                <div className="flex items-center">
                  <div className="w-3 h-3 bg-gradient-to-r from-[#3b82f6] to-[#0a61d7] rounded-full mr-1"></div>
-                 <span className="text-sm text-gray-600 font-medium">Net Flow</span>
+                 <span className="text-sm text-gray-600 font-medium">{tCharts('netFlow')}</span>
                </div>
              </div>
            </div>
@@ -1221,13 +1229,13 @@ const FinancialAnalytics: React.FC = () => {
                            
                            if (entry.dataKey === 'inflows') {
                              dotColor = '#059669';
-                             labelText = 'Cash In';
+                             labelText = tCharts('cashIn');
                            } else if (entry.dataKey === 'outflows') {
                              dotColor = '#DC2626';
-                             labelText = 'Cash Out';
+                             labelText = tCharts('cashOut');
                            } else if (entry.dataKey === 'netFlow') {
                              dotColor = '#0a61d7';
-                             labelText = 'Net Flow';
+                             labelText = tCharts('netFlow');
                            }
                            
                            return (
@@ -1255,14 +1263,14 @@ const FinancialAnalytics: React.FC = () => {
                <Bar 
                  dataKey="inflows" 
                  fill="url(#inflowGradient)" 
-                 name="Cash In"
+                 name={tCharts('cashIn')}
                  radius={[6, 6, 0, 0]}
                  maxBarSize={40}
                />
                <Bar 
                  dataKey="outflows" 
                  fill="url(#outflowGradient)" 
-                 name="Cash Out"
+                 name={tCharts('cashOut')}
                  radius={[6, 6, 0, 0]}
                  maxBarSize={40}
                />
@@ -1271,7 +1279,7 @@ const FinancialAnalytics: React.FC = () => {
                  dataKey="netFlow" 
                  stroke="url(#netFlowGradient)" 
                  strokeWidth={4}
-                 name="Net Flow"
+                 name={tCharts('netFlow')}
                  dot={{ 
                    fill: '#0a61d7', 
                    strokeWidth: 3, 
@@ -1295,16 +1303,16 @@ const FinancialAnalytics: React.FC = () => {
          {/* Revenue Forecast */}
             <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">Revenue Forecast</h3>
+                <h3 className="text-lg font-semibold text-gray-900">{tCharts('revenueForecast')}</h3>
                 {revenueForecast && revenueForecast.forecast.length > 0 && (
                   <div className="flex items-center space-x-4">
                     <div className="flex items-center">
                       <div className="w-3 h-3 bg-gradient-to-r from-[#3b82f6] to-[#0a61d7] rounded-full mr-2"></div>
-                      <span className="text-sm text-gray-600 font-medium">Historical</span>
+                      <span className="text-sm text-gray-600 font-medium">{tCharts('historical')}</span>
                     </div>
                     <div className="flex items-center">
                       <div className="w-3 h-3 border-2 border-dashed border-[#9CA3AF] rounded-full mr-2"></div>
-                      <span className="text-sm text-gray-600 font-medium">Forecast</span>
+                      <span className="text-sm text-gray-600 font-medium">{tCharts('forecast')}</span>
                     </div>
                   </div>
                 )}
@@ -1353,7 +1361,7 @@ const FinancialAnalytics: React.FC = () => {
                         }}
                         formatter={(value: number) => [
                           utilsFormatCurrency(value, userCurrency), 
-                          'Order Volume'
+                          tCharts('orderVolumeLegend')
                         ]}
                         labelStyle={{ color: '#374151', fontWeight: '600' }}
                       />
@@ -1387,17 +1395,17 @@ const FinancialAnalytics: React.FC = () => {
                   <div className="mt-4 pt-4 border-t border-[#e6e6e6] flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div>
-                        <span className="text-xs text-gray-500">Trend: </span>
+                        <span className="text-xs text-gray-500">{tShared('trendLabel')} </span>
                         <span className={`text-sm font-semibold ${
                           revenueForecast.trend === 'increasing' ? 'text-green-600' : 
                           revenueForecast.trend === 'decreasing' ? 'text-red-600' : 
                           'text-gray-600'
                         }`}>
-                          {revenueForecast.trend.charAt(0).toUpperCase() + revenueForecast.trend.slice(1)}
+                          {translateForecastTrend(revenueForecast.trend)}
                         </span>
                       </div>
                       <div>
-                        <span className="text-xs text-gray-500">Confidence: </span>
+                        <span className="text-xs text-gray-500">{tShared('confidenceLabel')} </span>
                         <span className="text-sm font-semibold text-black">{revenueForecast.confidence.toFixed(1)}%</span>
                       </div>
                     </div>
@@ -1407,8 +1415,8 @@ const FinancialAnalytics: React.FC = () => {
                 <div className="h-[357px] flex items-center justify-center">
                   <div className="text-center">
                     <TrendingUp className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-                    <p className="text-gray-500 text-sm">Insufficient data for forecast</p>
-                    <p className="text-gray-400 text-xs">Need at least 2 months of data</p>
+                    <p className="text-gray-500 text-sm">{tCharts('insufficientForecastData')}</p>
+                    <p className="text-gray-400 text-xs">{tCharts('insufficientForecastHint')}</p>
                   </div>
                 </div>
               )}
@@ -1419,17 +1427,17 @@ const FinancialAnalytics: React.FC = () => {
          {/* Fourth Row - Top Performing Products Table */}
          <div className="mt-3">
            <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 h-full flex flex-col">
-            <h3 className="text-lg font-semibold text-gray-900 mb-6">Top Performing Products</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-6">{tTables('topPerformingProducts')}</h3>
             <div className="flex-1 overflow-x-auto rounded-lg">
               <table className="min-w-full text-sm text-left whitespace-nowrap text-xs">
                                 <thead className="bg-gray-100 text-gray-500 whitespace-nowrap">
                   <tr>
-                    <th className="py-3 px-4 font-medium uppercase text-left">Rank</th>
-                    <th className="py-3 px-4 font-medium uppercase text-left">Product Name</th>
-                    <th className="py-3 px-4 font-medium uppercase text-center">Category</th>
-                    <th className="py-3 px-4 font-medium uppercase text-center">Pieces Sold</th>
-                    <th className="py-3 px-4 font-medium uppercase text-center">Order Volume</th>
-                    <th className="py-3 px-4 font-medium uppercase text-center">Margin</th>
+                    <th className="py-3 px-4 font-medium uppercase text-left">{tTables('rank')}</th>
+                    <th className="py-3 px-4 font-medium uppercase text-left">{tTables('productName')}</th>
+                    <th className="py-3 px-4 font-medium uppercase text-center">{tTables('category')}</th>
+                    <th className="py-3 px-4 font-medium uppercase text-center">{tTables('piecesSold')}</th>
+                    <th className="py-3 px-4 font-medium uppercase text-center">{tTables('orderVolume')}</th>
+                    <th className="py-3 px-4 font-medium uppercase text-center">{tTables('margin')}</th>
                   </tr>
                 </thead>
                <tbody className="bg-white">
@@ -1444,7 +1452,7 @@ const FinancialAnalytics: React.FC = () => {
                            <Link
                              href={`/products/catalog/${product.productId}`}
                              className="truncate font-semibold text-[#0a61d7] transition-all duration-200 hover:text-blue-800"
-                             title={`View ${product.name}`}
+                             title={tShared('viewProduct', { name: product.name })}
                            >
                              {product.name}
                            </Link>
@@ -1472,7 +1480,7 @@ const FinancialAnalytics: React.FC = () => {
            <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-6 gap-2">
              {/* Left: Showing X to Y of Z */}
              <div className="text-sm text-gray-500">
-               Showing {fromProduct} to {toProduct} of {totalProducts} products
+               {tShared('pagination.showing', { from: fromProduct, to: toProduct, total: totalProducts })}
              </div>
              {/* Right: Pagination Controls */}
              <div className="flex items-center gap-3">
@@ -1480,13 +1488,13 @@ const FinancialAnalytics: React.FC = () => {
                  className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                  onClick={() => handlePageChange(currentPage - 1)}
                  disabled={currentPage === 1}
-                 aria-label="Previous page"
+                 aria-label={tShared('pagination.previousPage')}
                >
                  <ChevronLeft className="w-4 h-4 text-gray-500" />
                </button>
                <button
                  className="px-3 py-2 rounded-lg font-semibold text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[#0a61d7] text-white"
-                 aria-label={`Page ${currentPage}`}
+                 aria-label={tShared('pagination.pageAria', { page: currentPage })}
                  aria-current="page"
                >
                  {currentPage}
@@ -1495,7 +1503,7 @@ const FinancialAnalytics: React.FC = () => {
                  className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                  onClick={() => handlePageChange(currentPage + 1)}
                  disabled={currentPage === totalPages}
-                 aria-label="Next page"
+                 aria-label={tShared('pagination.nextPage')}
                >
                  <ChevronRight className="w-4 h-4 text-gray-500" />
                </button>
@@ -1512,19 +1520,23 @@ const FinancialAnalytics: React.FC = () => {
 
 function MetricChangeFooter({
   change,
-  comparisonLabel = 'vs last month',
-  naLabel = 'N/A',
+  comparisonLabel,
+  naLabel,
 }: {
   change: number | null;
   comparisonLabel?: string;
   naLabel?: string;
 }) {
+  const { tShared } = useAnalyticsTranslations();
+  const resolvedComparisonLabel = comparisonLabel ?? tShared('vsLastMonth');
+  const resolvedNaLabel = naLabel ?? tShared('na');
+
   if (change === null || change === undefined) {
     return (
       <>
         <ArrowRight className="w-5 h-5 text-gray-400" />
-        <span className="text-gray-400 text-xs font-semibold">{naLabel}</span>
-        <span className="text-gray-400 text-xs">{comparisonLabel}</span>
+        <span className="text-gray-400 text-xs font-semibold">{resolvedNaLabel}</span>
+        <span className="text-gray-400 text-xs">{resolvedComparisonLabel}</span>
       </>
     );
   }
@@ -1534,7 +1546,7 @@ function MetricChangeFooter({
       <>
         <ArrowRight className="w-5 h-5 text-gray-400" />
         <span className="text-gray-400 text-xs font-semibold">0.0%</span>
-        <span className="text-gray-400 text-xs">{comparisonLabel}</span>
+        <span className="text-gray-400 text-xs">{resolvedComparisonLabel}</span>
       </>
     );
   }
@@ -1553,7 +1565,7 @@ function MetricChangeFooter({
       >
         {Math.abs(change).toFixed(1)}%
       </span>
-      <span className="text-gray-400 text-xs">{comparisonLabel}</span>
+      <span className="text-gray-400 text-xs">{resolvedComparisonLabel}</span>
     </>
   );
 }
@@ -1573,9 +1585,14 @@ export const AnalyticsMetricCard: React.FC<{
   change,
   icon,
   color,
-  comparisonLabel = 'vs last month',
-  naLabel = 'N/A',
-}) => (
+  comparisonLabel,
+  naLabel,
+}) => {
+  const { tShared } = useAnalyticsTranslations();
+  const resolvedComparisonLabel = comparisonLabel ?? tShared('vsLastMonth');
+  const resolvedNaLabel = naLabel ?? tShared('na');
+
+  return (
   <div className={`flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6] ${color}`}>
     <div className="flex items-center gap-4 border-b border-[#e6e6e6] pb-4">
       <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white">
@@ -1587,34 +1604,38 @@ export const AnalyticsMetricCard: React.FC<{
       </div>
     </div>
     <div className="flex items-center gap-2 mt-4 ml-1">
-      <MetricChangeFooter change={change} comparisonLabel={comparisonLabel} naLabel={naLabel} />
+      <MetricChangeFooter change={change} comparisonLabel={resolvedComparisonLabel} naLabel={resolvedNaLabel} />
     </div>
   </div>
-);
+  );
+};
 
 // Shared Revenue Trend Chart component
 export const AnalyticsRevenueTrendChart: React.FC<{
   revenueData: RevenueData[];
   userCurrency: string;
   hasData: boolean;
-}> = ({ revenueData, userCurrency, hasData }) => (
+}> = ({ revenueData, userCurrency, hasData }) => {
+  const { tShared, tCharts } = useAnalyticsTranslations();
+
+  return (
   <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
     <div className="flex items-center justify-between mb-4">
-      <h3 className="text-lg font-semibold text-gray-900">Revenue Trend</h3>
+      <h3 className="text-lg font-semibold text-gray-900">{tCharts('revenueTrend')}</h3>
       <div className="flex items-center space-x-4">
         <div className="flex items-center">
           <div className="w-3 h-3 bg-gradient-to-r from-[#3b82f6] to-[#0a61d7] rounded-full mr-2"></div>
-          <span className="text-sm text-gray-600 font-medium">Order Volume</span>
+          <span className="text-sm text-gray-600 font-medium">{tCharts('orderVolumeLegend')}</span>
         </div>
         <div className="flex items-center">
           <div className="w-3 h-3 bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full mr-2"></div>
-          <span className="text-sm text-gray-600 font-medium">Profit</span>
+          <span className="text-sm text-gray-600 font-medium">{tCharts('profitLegend')}</span>
         </div>
         <button 
           onClick={() => window.location.href = '/analytics/financial'}
           className="flex items-center px-3 py-1.5 text-xs font-medium text-black bg-white shadow-sm hover:bg-gray-100 rounded-md transition-colors"
         >
-          See More
+          {tShared('seeMore')}
           <ArrowRight className="w-4 h-4 ml-1" />
         </button>
       </div>
@@ -1658,7 +1679,7 @@ export const AnalyticsRevenueTrendChart: React.FC<{
           }}
           formatter={(value: number, name: string) => [
             utilsFormatCurrency(value, userCurrency), 
-            name === 'revenue' ? 'Order Volume' : 'Profit'
+            name === 'revenue' ? tCharts('orderVolumeLegend') : tCharts('profitLegend')
           ]}
           labelStyle={{ color: '#374151', fontWeight: '600' }}
         />
@@ -1703,7 +1724,8 @@ export const AnalyticsRevenueTrendChart: React.FC<{
     <AnalyticsRevenueTrendChartEmpty />
   )}
 </div>
-);
+  );
+};
 
 // ===== SHARED DATA CALCULATION UTILITIES =====
 
@@ -2018,16 +2040,19 @@ export const AnalyticsTopProductsTable: React.FC<{
   userCurrency: string;
   maxRows?: number;
   seeMoreHref?: string;
-}> = ({ products, userCurrency, maxRows = 5, seeMoreHref = '/analytics/financial' }) => (
+}> = ({ products, userCurrency, maxRows = 5, seeMoreHref = '/analytics/financial' }) => {
+  const { tShared, tTables } = useAnalyticsTranslations();
+
+  return (
   <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
     <div className="flex items-center justify-between mb-6">
-      <h3 className="text-lg font-semibold text-gray-900">Top Performing Products</h3>
+      <h3 className="text-lg font-semibold text-gray-900">{tTables('topPerformingProducts')}</h3>
       <button 
         onClick={() => (window.location.href = seeMoreHref)}
         className="flex items-center px-3 py-1.5 text-xs font-medium text-black bg-white shadow-sm hover:bg-gray-100 rounded-md transition-colors"
-        aria-label="See more financial analytics"
+        aria-label={tShared('seeMoreFinancialAria')}
       >
-        See More
+        {tShared('seeMore')}
         <ArrowRightIcon className="w-4 h-4 ml-1" />
       </button>
     </div>
@@ -2035,12 +2060,12 @@ export const AnalyticsTopProductsTable: React.FC<{
       <table className="min-w-full text-sm text-left whitespace-nowrap text-xs">
         <thead className="bg-gray-100 text-gray-500 whitespace-nowrap">
           <tr>
-            <th className="py-3 px-4 font-medium uppercase text-left">Rank</th>
-            <th className="py-3 px-4 font-medium uppercase text-left">Product Name</th>
-            <th className="py-3 px-4 font-medium uppercase text-center">Category</th>
-            <th className="py-3 px-4 font-medium uppercase text-center">Pieces Sold</th>
-            <th className="py-3 px-4 font-medium uppercase text-center">Order Volume</th>
-            <th className="py-3 px-4 font-medium uppercase text-center">Margin</th>
+            <th className="py-3 px-4 font-medium uppercase text-left">{tTables('rank')}</th>
+            <th className="py-3 px-4 font-medium uppercase text-left">{tTables('productName')}</th>
+            <th className="py-3 px-4 font-medium uppercase text-center">{tTables('category')}</th>
+            <th className="py-3 px-4 font-medium uppercase text-center">{tTables('piecesSold')}</th>
+            <th className="py-3 px-4 font-medium uppercase text-center">{tTables('orderVolume')}</th>
+            <th className="py-3 px-4 font-medium uppercase text-center">{tTables('margin')}</th>
           </tr>
         </thead>
         <tbody className="bg-white">
@@ -2053,7 +2078,7 @@ export const AnalyticsTopProductsTable: React.FC<{
                   <Link
                     href={`/products/catalog/${product.productId}`}
                     className="truncate font-semibold text-[#0a61d7] transition-all duration-200 hover:text-blue-800"
-                    title={`View ${product.name}`}
+                    title={tShared('viewProduct', { name: product.name })}
                   >
                     {product.name}
                   </Link>
@@ -2069,4 +2094,5 @@ export const AnalyticsTopProductsTable: React.FC<{
       </table>
     </div>
   </div>
-);
+  );
+};

@@ -46,6 +46,7 @@ import { formatCurrency as utilsFormatCurrency, getDefaultCurrency } from '@/uti
 import { Order, OrderItem } from '@/types/order';
 import { Product } from '@/types/product';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { useAnalyticsTranslations } from '@/hooks/useAnalyticsTranslations';
 
 // Types for operational metrics
 interface OperationalMetrics {
@@ -243,6 +244,15 @@ const OperationalPerformanceAnalytics: React.FC = () => {
   const [hasData, setHasData] = useState(false);
 
   const userCurrency = user?.currency || getDefaultCurrency();
+  const {
+    tShared,
+    tMetrics,
+    tCharts,
+    tQualityMetrics,
+    tInventoryLegend,
+    translateOrderStatus,
+    translateQualityMetric,
+  } = useAnalyticsTranslations();
 
   // Fetch real data from APIs
   const fetchData = async () => {
@@ -559,25 +569,25 @@ const OperationalPerformanceAnalytics: React.FC = () => {
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
         <MetricCard
-          title="Order Completion Rate"
+          title={tMetrics('orderCompletionRate')}
           value={`${calculateMetrics.completionRate.toFixed(1)}%`}
           icon={<CheckCircle className="w-6 h-6 text-green-500" />}
           color="bg-[#e6f7ec]"
         />
         <MetricCard
-          title="Avg Processing Time"
+          title={tMetrics('avgProcessingTime')}
           value={`${calculateMetrics.averageProcessingTime.toFixed(1)}h`}
           icon={<Clock className="w-6 h-6 text-blue-500" />}
           color="bg-[#f7faff]"
         />
         <MetricCard
-          title="Tracking Coverage"
+          title={tMetrics('trackingCoverage')}
           value={`${calculateMetrics.trackingCoverageRate.toFixed(1)}%`}
           icon={<Truck className="w-6 h-6 text-purple-500" />}
           color="bg-[#f3f4f6]"
         />
         <MetricCard
-          title="Stock Health"
+          title={tMetrics('stockHealth')}
           value={`${calculateMetrics.stockHealthScore.toFixed(1)}%`}
           icon={<Package className="w-6 h-6 text-orange-500" />}
           color="bg-[#fff7ed]"
@@ -591,7 +601,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
           <div className="lg:col-span-5 h-full">
             {/* Order Status Distribution */}
             <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 h-full flex flex-col">
-              <h3 className="text-lg font-semibold text-black">Order Status Distribution</h3>
+              <h3 className="text-lg font-semibold text-black">{tCharts('orderStatusDistribution')}</h3>
               <div className="flex-1 min-h-0 min-h-[280px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -634,11 +644,11 @@ const OperationalPerformanceAnalytics: React.FC = () => {
                         <div className="bg-white rounded-xl border border-[#e6e6e6] p-4">
                           <div className="flex items-center mb-2">
                             <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: color }} />
-                            <span className="font-semibold" style={{ color }}>{status}</span>
+                            <span className="font-semibold" style={{ color }}>{translateOrderStatus(status)}</span>
                           </div>
                           <div className="text-sm">
                             <span className="font-semibold" style={{ color }}>{count}</span>
-                            <span className="text-gray-500"> orders </span>
+                            <span className="text-gray-500"> {tShared('ordersSuffix')} </span>
                             <span className="font-semibold" style={{ color }}>{percentage.toFixed(1)}%</span>
                           </div>
                         </div>
@@ -659,7 +669,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
                       style={{ backgroundColor: entry.color }}
                     />
                     <span className="text-sm text-gray-700 font-medium">
-                      {entry.status} ({entry.count})
+                      {translateOrderStatus(entry.status)} ({entry.count})
                     </span>
                   </div>
                 ))}
@@ -671,15 +681,15 @@ const OperationalPerformanceAnalytics: React.FC = () => {
             {/* Processing Time Trend */}
             <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 h-full flex flex-col">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">Processing Time Trend</h3>
+                <h3 className="text-lg font-semibold text-gray-900">{tCharts('processingTimeTrend')}</h3>
                 <div className="flex items-center space-x-4">
                   <div className="flex items-center">
                     <div className="w-3 h-3 bg-gradient-to-r from-[#3b82f6] to-[#0a61d7] rounded-full mr-2"></div>
-                    <span className="text-sm text-gray-600 font-medium">Avg Hours</span>
+                    <span className="text-sm text-gray-600 font-medium">{tCharts('avgHours')}</span>
                   </div>
                   <div className="flex items-center">
                     <div className="w-3 h-3 bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full mr-2"></div>
-                    <span className="text-sm text-gray-600 font-medium">Orders</span>
+                    <span className="text-sm text-gray-600 font-medium">{tCharts('ordersCountLegend')}</span>
                   </div>
                 </div>
               </div>
@@ -727,8 +737,8 @@ const OperationalPerformanceAnalytics: React.FC = () => {
                         totalOrders: '#10B981'
                       };
                       const labels: Record<string, string> = {
-                        avgProcessingTime: 'Avg Processing Time',
-                        totalOrders: 'Total Orders'
+                        avgProcessingTime: tMetrics('avgProcessingTime'),
+                        totalOrders: tMetrics('totalOrders')
                       };
                       return (
                         <div className="bg-white rounded-xl border border-[#e6e6e6] p-4">
@@ -742,7 +752,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
                               <div key={idx} className="flex items-center space-x-2 mb-1">
                                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
                                 <span className="font-medium" style={{ color }}>
-                                  {isTime ? `${value.toFixed(1)} hours` : `${value} orders`}
+                                  {isTime ? `${value.toFixed(1)} ${tShared('hoursSuffix')}` : `${value} ${tShared('ordersSuffix')}`}
                                 </span>
                                 <span className="text-gray-500 ml-1">{labels[key] || key}</span>
                               </div>
@@ -793,7 +803,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
           <div className="lg:col-span-6 h-full">
             {/* Inventory Health by Category */}
             <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 h-full flex flex-col">
-              <h3 className="text-lg font-semibold text-gray-900 mb-6">Inventory Health by Category</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-6">{tCharts('inventoryHealthByCategory')}</h3>
               <div className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={inventoryHealthData} margin={{ top: 20, right: 50, left: 50, bottom: 20 }}>
@@ -836,13 +846,14 @@ const OperationalPerformanceAnalytics: React.FC = () => {
                         stockoutPieces: '#EF4444'
                       };
                       const labelsMap: Record<string, string> = {
-                        healthyPieces: 'Healthy stock (In-stock)',
-                        lowStockPieces: 'Low Stock',
-                        stockoutPieces: 'Out of Stock'
+                        healthyPieces: tInventoryLegend('healthyStock'),
+                        lowStockPieces: tInventoryLegend('lowStock'),
+                        stockoutPieces: tInventoryLegend('outOfStock')
                       };
+                      const displayLabel = label === 'Uncategorized' ? tShared('uncategorized') : String(label);
                       return (
                         <div className="bg-white rounded-xl border border-[#e6e6e6] p-4">
-                          <p className="font-semibold text-gray-900 mb-2">{label}</p>
+                          <p className="font-semibold text-gray-900 mb-2">{displayLabel}</p>
                           {payload.map((p, idx) => {
                             const key = String(p.name || p.dataKey || '');
                             const color = colors[key] || '#64748B';
@@ -851,7 +862,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
                             return (
                               <div key={idx} className="flex items-center space-x-2 mb-1">
                                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
-                                <span className="font-medium" style={{ color }}>{value} pieces</span>
+                                <span className="font-medium" style={{ color }}>{value} {tShared('piecesSuffix')}</span>
                                 <span className="text-gray-500 ml-1">{display}</span>
                               </div>
                             );
@@ -890,15 +901,15 @@ const OperationalPerformanceAnalytics: React.FC = () => {
               <div className="flex justify-center gap-6 mt-4">
                 <div className="flex items-center space-x-2">
                   <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                  <span className="text-sm text-gray-700 font-medium">Healthy stock (In-stock)</span>
+                  <span className="text-sm text-gray-700 font-medium">{tInventoryLegend('healthyStock')}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                  <span className="text-sm text-gray-700 font-medium">Low Stock</span>
+                  <span className="text-sm text-gray-700 font-medium">{tInventoryLegend('lowStock')}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                  <span className="text-sm text-gray-700 font-medium">Out of Stock</span>
+                  <span className="text-sm text-gray-700 font-medium">{tInventoryLegend('outOfStock')}</span>
                 </div>
               </div>
             </div>
@@ -907,7 +918,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
           <div className="lg:col-span-5 h-full">
             {/* Quality Metrics Dashboard */}
             <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 h-full flex flex-col">
-              <h3 className="text-lg font-semibold text-gray-900 mb-6">Operational Quality Metrics</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-6">{tCharts('operationalQualityMetrics')}</h3>
               <div className="space-y-4">
                 {qualityMetrics.map((metric, index) => (
                   <div key={index} className="p-4 rounded-lg border border-[#e6e6e6] bg-gray-50">
@@ -917,7 +928,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
                           metric.status === 'good' ? 'bg-green-500' :
                           metric.status === 'warning' ? 'bg-yellow-500' : 'bg-red-500'
                         }`}></div>
-                        <span className="text-sm font-medium text-gray-900">{metric.metric}</span>
+                        <span className="text-sm font-medium text-gray-900">{translateQualityMetric(metric.metric)}</span>
                       </div>
                       <span className={`text-sm font-semibold ${
                         metric.status === 'good' ? 'text-green-600' :
@@ -936,8 +947,8 @@ const OperationalPerformanceAnalytics: React.FC = () => {
                       ></div>
                     </div>
                     <div className="flex justify-between mt-1">
-                      <span className="text-xs text-gray-500">Current</span>
-                      <span className="text-xs text-gray-500">Target: {metric.target}%</span>
+                      <span className="text-xs text-gray-500">{tShared('currentLabel')}</span>
+                      <span className="text-xs text-gray-500">{tShared('targetLabel', { percent: metric.target })}</span>
                     </div>
                   </div>
                 ))}
@@ -948,7 +959,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <Target className="w-5 h-5 text-blue-600" />
-                    <span className="font-semibold text-blue-900">Overall Quality Score</span>
+                    <span className="font-semibold text-blue-900">{tQualityMetrics('overallQualityScore')}</span>
                   </div>
                   <span className="text-lg font-bold text-blue-900">
                     {(qualityMetrics.reduce((sum, m) => sum + m.value, 0) / qualityMetrics.length).toFixed(1)}%
@@ -964,7 +975,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
           <div className="lg:col-span-12">
             {/* Delivery Methods Performance */}
             <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
-              <h3 className="text-lg font-semibold text-gray-900 mb-6">Delivery Methods Distribution</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-6">{tCharts('deliveryMethodsDistribution')}</h3>
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={deliveryMethodData} margin={{ top: 20, right: 50, left: 50, bottom: 20 }}>
                   <defs>
@@ -1005,7 +1016,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
                           </div>
                           <div className="text-sm">
                             <span className="font-semibold" style={{ color }}>{count}</span>
-                            <span className="text-gray-500"> orders </span>
+                            <span className="text-gray-500"> {tShared('ordersSuffix')} </span>
                             <span className="font-semibold" style={{ color }}>{percentage.toFixed(1)}%</span>
                           </div>
                         </div>
@@ -1039,7 +1050,10 @@ export const OperationalMetricCard: React.FC<{
   change: number | null;
   icon: React.ReactNode;
   color: string;
-}> = ({ title, value, change, icon, color }) => (
+}> = ({ title, value, change, icon, color }) => {
+  const { tShared } = useAnalyticsTranslations();
+
+  return (
 <div className={`flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6] ${color}`}>
       <div className="flex items-center gap-4 border-b border-[#e6e6e6] pb-4">
         <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white">
@@ -1056,8 +1070,8 @@ export const OperationalMetricCard: React.FC<{
           return (
             <>
               <ArrowRight className="w-5 h-5 text-gray-400" />
-              <span className="text-gray-400 text-xs font-semibold">N/A</span>
-              <span className="text-gray-400 text-xs">vs last month</span>
+              <span className="text-gray-400 text-xs font-semibold">{tShared('na')}</span>
+              <span className="text-gray-400 text-xs">{tShared('vsLastMonth')}</span>
             </>
           );
         }
@@ -1067,7 +1081,7 @@ export const OperationalMetricCard: React.FC<{
             <>
               <ArrowRight className="w-5 h-5 text-gray-400" />
               <span className="text-gray-400 text-xs font-semibold">0.0%</span>
-              <span className="text-gray-400 text-xs">vs last month</span>
+              <span className="text-gray-400 text-xs">{tShared('vsLastMonth')}</span>
             </>
           );
         }
@@ -1083,26 +1097,30 @@ export const OperationalMetricCard: React.FC<{
             <span className={changeValue >= 0 ? "text-[#3ea73b] text-xs font-semibold" : "text-[#f65911] text-xs font-semibold"}>
               {Math.abs(changeValue).toFixed(1)}%
             </span>
-            <span className="text-gray-400 text-xs">vs last month</span>
+            <span className="text-gray-400 text-xs">{tShared('vsLastMonth')}</span>
           </>
         );
       })()}
     </div>
   </div>
-);
+  );
+};
 
 export const OrderStatusDistributionChart: React.FC<{
   data: OrderStatusData[];
-}> = ({ data }) => (
+}> = ({ data }) => {
+  const { tShared, tCharts, translateOrderStatus } = useAnalyticsTranslations();
+
+  return (
   <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 h-full flex flex-col">
     <div className="flex items-center justify-between mb-2">
-      <h3 className="text-lg font-semibold text-black">Order Status Distribution</h3>
+      <h3 className="text-lg font-semibold text-black">{tCharts('orderStatusDistribution')}</h3>
       <button 
         onClick={() => (window.location.href = '/analytics/performance')}
         className="flex items-center px-3 py-1.5 text-xs font-medium text-black bg-white shadow-sm hover:bg-gray-100 rounded-md transition-colors"
-        aria-label="See more operational performance analytics"
+        aria-label={tShared('seeMoreOperationalAria')}
       >
-        See More
+        {tShared('seeMore')}
         <ArrowRight className="w-4 h-4 ml-1" />
       </button>
     </div>
@@ -1145,11 +1163,11 @@ export const OrderStatusDistributionChart: React.FC<{
                 <div className="bg-white rounded-xl border border-[#e6e6e6] p-4">
                   <div className="flex items-center mb-2">
                     <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: color }} />
-                    <span className="font-semibold" style={{ color }}>{status}</span>
+                    <span className="font-semibold" style={{ color }}>{translateOrderStatus(status)}</span>
                   </div>
                   <div className="text-sm">
                     <span className="font-semibold" style={{ color }}>{count}</span>
-                    <span className="text-gray-500"> orders </span>
+                    <span className="text-gray-500"> {tShared('ordersSuffix')} </span>
                     <span className="font-semibold" style={{ color }}>{percentage.toFixed(1)}%</span>
                   </div>
                 </div>
@@ -1166,35 +1184,39 @@ export const OrderStatusDistributionChart: React.FC<{
         <div key={index} className="flex items-center space-x-2">
           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
           <span className="text-sm text-gray-700 font-medium">
-            {entry.status} ({entry.count})
+            {translateOrderStatus(entry.status)} ({entry.count})
           </span>
         </div>
       ))}
     </div>
   </div>
-);
+  );
+};
 
 export const ProcessingTimeTrendChart: React.FC<{
   data: ProcessingTimeData[];
-}> = ({ data }) => (
+}> = ({ data }) => {
+  const { tShared, tMetrics, tCharts } = useAnalyticsTranslations();
+
+  return (
   <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 h-full flex flex-col">
     <div className="flex items-center justify-between mb-6">
-      <h3 className="text-lg font-semibold text-gray-900">Processing Time Trend</h3>
+      <h3 className="text-lg font-semibold text-gray-900">{tCharts('processingTimeTrend')}</h3>
       <div className="flex items-center space-x-4">
         <div className="flex items-center">
           <div className="w-3 h-3 bg-gradient-to-r from-[#3b82f6] to-[#0a61d7] rounded-full mr-2"></div>
-          <span className="text-sm text-gray-600 font-medium">Avg Hours</span>
+          <span className="text-sm text-gray-600 font-medium">{tCharts('avgHours')}</span>
         </div>
         <div className="flex items-center">
           <div className="w-3 h-3 bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full mr-2"></div>
-          <span className="text-sm text-gray-600 font-medium">Orders</span>
+          <span className="text-sm text-gray-600 font-medium">{tCharts('ordersCountLegend')}</span>
         </div>
         <button 
           onClick={() => (window.location.href = '/analytics/performance')}
           className="flex items-center px-3 py-1.5 text-xs font-medium text-black bg-white shadow-sm hover:bg-gray-100 rounded-md transition-colors"
-          aria-label="See more operational performance analytics"
+          aria-label={tShared('seeMoreOperationalAria')}
         >
-          See More
+          {tShared('seeMore')}
           <ArrowRight className="w-4 h-4 ml-1" />
         </button>
       </div>
@@ -1216,7 +1238,7 @@ export const ProcessingTimeTrendChart: React.FC<{
             content={({ active, payload, label }) => {
               if (!active || !payload) return null;
               const colors: Record<string, string> = { avgProcessingTime: '#0a61d7', totalOrders: '#10B981' };
-              const labels: Record<string, string> = { avgProcessingTime: 'Avg Processing Time', totalOrders: 'Total Orders' };
+              const labels: Record<string, string> = { avgProcessingTime: tMetrics('avgProcessingTime'), totalOrders: tMetrics('totalOrders') };
               return (
                 <div className="bg-white rounded-xl border border-[#e6e6e6] p-4">
                   <p className="font-semibold text-gray-900 mb-2">{label}</p>
@@ -1229,7 +1251,7 @@ export const ProcessingTimeTrendChart: React.FC<{
                       <div key={idx} className="flex items-center space-x-2 mb-1">
                         <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
                         <span className="font-medium" style={{ color }}>
-                          {isTime ? `${value.toFixed(1)} hours` : `${value} orders`}
+                          {isTime ? `${value.toFixed(1)} ${tShared('hoursSuffix')}` : `${value} ${tShared('ordersSuffix')}`}
                         </span>
                         <span className="text-gray-500 ml-1">{labels[key] || key}</span>
                       </div>
@@ -1249,7 +1271,8 @@ export const ProcessingTimeTrendChart: React.FC<{
       </ResponsiveContainer>
     </div>
   </div>
-);
+  );
+};
 
 // ===== Data calculators for the main page =====
 export const computeOperationalMetrics = (orders: Order[], products: Product[]): OperationalMetrics => {

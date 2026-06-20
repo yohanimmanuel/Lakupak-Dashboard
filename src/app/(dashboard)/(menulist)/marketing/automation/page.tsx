@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
 
 export default function MarketingAutomationPage() {
+  const { tAutomation } = useMarketingTranslations();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate data loading
     const timer = setTimeout(() => {
       setLoading(false);
     }, 500);
@@ -18,7 +19,7 @@ export default function MarketingAutomationPage() {
       <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading automations...</p>
+          <p className="text-gray-600">{tAutomation('loading')}</p>
         </div>
       </div>
     );
@@ -27,8 +28,8 @@ export default function MarketingAutomationPage() {
   return (
     <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Automations</h1>
-        <p className="text-sm text-gray-600">Manage your marketing automation workflows</p>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">{tAutomation('title')}</h1>
+        <p className="text-sm text-gray-600">{tAutomation('subtitle')}</p>
       </div>
     </div>
   );

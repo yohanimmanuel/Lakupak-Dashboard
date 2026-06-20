@@ -20,6 +20,7 @@ import { Campaign, CampaignContentBlock } from '@/types/campaign';
 import { format } from 'date-fns';
 import WhatsAppCampaignBuilder from './WhatsAppCampaignBuilder';
 import SendCampaignModal from './SendCampaignModal';
+import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
 
 interface CampaignFormData {
   id?: string;
@@ -67,6 +68,12 @@ export default function CampaignDetails({
   onSave,
   onCancel,
 }: CampaignDetailsProps) {
+  const {
+    tCampaignDetails,
+    tShared,
+    translateCampaignStatus,
+    translateRecipientOption,
+  } = useMarketingTranslations();
   const router = useRouter();
   const user = useUserStore((state) => state.user);
   const [formData, setFormData] = useState<CampaignFormData>({
@@ -255,27 +262,26 @@ export default function CampaignDetails({
     }
   };
 
-  // Validation
   const validation = useMemo(() => {
     const missingFields: string[] = [];
-    if (!formData.name.trim()) missingFields.push('Campaign Name');
-    if (!formData.campaignId.trim()) missingFields.push('Campaign ID');
+    if (!formData.name.trim()) missingFields.push(tCampaignDetails('validation.campaignName'));
+    if (!formData.campaignId.trim()) missingFields.push(tCampaignDetails('validation.campaignId'));
     return {
       isValid: missingFields.length === 0,
       missingFields,
     };
-  }, [formData]);
+  }, [formData, tCampaignDetails]);
 
   // Completion percentage
   const completionPercentage = useMemo(() => {
     const requiredFields = [
-      { name: 'Campaign Name', value: formData.name.trim() },
-      { name: 'Campaign ID', value: formData.campaignId.trim() },
-      { name: 'Recipients', value: formData.recipients.trim() },
+      { name: tCampaignDetails('validation.campaignName'), value: formData.name.trim() },
+      { name: tCampaignDetails('validation.campaignId'), value: formData.campaignId.trim() },
+      { name: tCampaignDetails('validation.recipients'), value: formData.recipients.trim() },
     ];
     const completedFields = requiredFields.filter((field) => field.value !== '');
     return Math.round((completedFields.length / requiredFields.length) * 100);
-  }, [formData]);
+  }, [formData, tCampaignDetails]);
 
   return (
     <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6]">
@@ -288,17 +294,17 @@ export default function CampaignDetails({
             className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back
+            {tCampaignDetails('back')}
           </button>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-gray-900">
-              {mode === 'add' && 'Create Campaign'}
-              {mode === 'view' && 'Campaign Details'}
-              {mode === 'edit' && 'Edit Campaign'}
+              {mode === 'add' && tCampaignDetails('createTitle')}
+              {mode === 'view' && tCampaignDetails('viewTitle')}
+              {mode === 'edit' && tCampaignDetails('editTitle')}
             </h1>
             {(mode === 'add' || (mode !== 'view' && formData.status === 'Draft')) && (
               <span className="px-3 py-1 text-sm font-semibold rounded-full bg-gray-100 text-gray-700">
-                Draft
+                {translateCampaignStatus('Draft')}
               </span>
             )}
             {mode === 'view' && (
@@ -311,11 +317,11 @@ export default function CampaignDetails({
                     : 'bg-gray-100 text-gray-700'
                 }`}
               >
-                {formData.status}
+                {translateCampaignStatus(formData.status)}
               </span>
             )}
             {mode === 'edit' && hasUnsavedChanges && (
-              <span className="text-sm text-orange-600 font-medium">• Unsaved changes</span>
+              <span className="text-sm text-orange-600 font-medium">• {tCampaignDetails('unsavedChanges')}</span>
             )}
           </div>
         </div>
@@ -331,7 +337,7 @@ export default function CampaignDetails({
               className="flex items-center gap-2 px-4 py-2 font-semibold bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors"
             >
               <Edit className="w-4 h-4" />
-              Edit
+              {tCampaignDetails('edit')}
             </button>
           )}
           {mode === 'view' && (campaign?.status === 'Sent' || campaign?.status === 'Completed') && (
@@ -346,7 +352,7 @@ export default function CampaignDetails({
               className="flex items-center gap-2 px-4 py-2 font-semibold bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors"
             >
               <img src="/whatsapp.svg" alt="WhatsApp" className="w-4 h-4" />
-              Resend Campaign
+              {tCampaignDetails('resendCampaign')}
             </button>
           )}
           {!isViewMode && (
@@ -358,7 +364,7 @@ export default function CampaignDetails({
                 className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-black hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-gray-300"
               >
                 <X className="w-4 h-4" />
-                Cancel
+                {tShared('cancel')}
               </button>
               <button
                 type="button"
@@ -402,12 +408,12 @@ export default function CampaignDetails({
                 {saving ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Saving...
+                    {tCampaignDetails('saving')}
                   </>
                 ) : (
                   <>
                     <Save className="w-4 h-4" />
-                    Save Draft
+                    {tCampaignDetails('saveDraft')}
                   </>
                 )}
               </button>
@@ -416,17 +422,23 @@ export default function CampaignDetails({
                 form="campaign-form"
                 disabled={saving || !validation.isValid}
                 className="flex items-center gap-2 px-4 py-2 font-semibold bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title={!validation.isValid ? `Missing required fields: ${validation.missingFields.join(', ')}` : ''}
+                title={
+                  !validation.isValid
+                    ? tCampaignDetails('missingRequiredFieldsTitle', {
+                        fields: validation.missingFields.join(', '),
+                      })
+                    : ''
+                }
               >
                 {saving ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Saving...
+                    {tCampaignDetails('saving')}
                   </>
                 ) : (
                   <>
                     <img src="/whatsapp.svg" alt="WhatsApp" className="w-4 h-4" />
-                    Save and Send Campaign
+                    {tCampaignDetails('saveAndSend')}
                   </>
                 )}
               </button>
@@ -439,17 +451,17 @@ export default function CampaignDetails({
       <div className="px-4 py-3 bg-gray-50 border-b border-[#e6e6e6]">
         {mode === 'add' && (
           <p className="text-sm text-gray-600">
-            Create a new marketing campaign by filling out the form below. All required fields must be completed before saving.
+            {tCampaignDetails('modeAddDescription')}
           </p>
         )}
         {mode === 'view' && (
           <p className="text-sm text-gray-600">
-            View detailed information about this campaign. You can see all campaign details, recipients, and current status.
+            {tCampaignDetails('modeViewDescription')}
           </p>
         )}
         {mode === 'edit' && (
           <p className="text-sm text-gray-600">
-            Modify existing campaign information. Update any fields as needed and save your changes.
+            {tCampaignDetails('modeEditDescription')}
           </p>
         )}
       </div>
@@ -458,7 +470,7 @@ export default function CampaignDetails({
       {!isViewMode && (
         <div className="mx-4 mt-4 mb-4 p-4 bg-gradient-to-r from-blue-50 to-amber-50 border border-blue-200 rounded-lg">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-semibold text-black">Campaign Completion</h3>
+            <h3 className="text-sm font-semibold text-black">{tCampaignDetails('completionTitle')}</h3>
             <span
               className={`text-sm font-bold ${completionPercentage === 100 ? 'text-green-600' : 'text-amber-700'}`}
             >
@@ -475,8 +487,8 @@ export default function CampaignDetails({
           </div>
           <div className="text-xs text-gray-600">
             {validation.missingFields.length === 0
-              ? 'All required fields completed'
-              : `Missing: ${validation.missingFields.join(', ')}`}
+              ? tCampaignDetails('allFieldsCompleted')
+              : tCampaignDetails('missingFields', { fields: validation.missingFields.join(', ') })}
           </div>
         </div>
       )}
@@ -486,28 +498,28 @@ export default function CampaignDetails({
         <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 mb-4">
           <h2 className="text-md font-semibold text-black mb-4 flex items-center gap-2">
             <Mail className="w-5 h-5 text-gray-500" />
-            Campaign Information
+            {tCampaignDetails('campaignInformation')}
           </h2>
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-black mb-2">
-                  Campaign ID
+                  {tCampaignDetails('campaignId')}
                 </label>
                 <input
                   type="text"
                   value={formData.campaignId}
                   disabled={true}
                   className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                  placeholder="Auto-generated Campaign ID"
+                  placeholder={tCampaignDetails('campaignIdPlaceholder')}
                 />
                 {mode === 'add' && (
-                  <p className="text-xs text-gray-500 mt-1">Campaign ID is automatically generated</p>
+                  <p className="text-xs text-gray-500 mt-1">{tCampaignDetails('campaignIdHint')}</p>
                 )}
               </div>
               <div>
                 <label className="block text-xs font-medium text-black mb-2">
-                  Recipients <span className="text-red-500">*</span>
+                  {tCampaignDetails('recipients')} <span className="text-red-500">*</span>
                 </label>
                 <div className="relative" ref={recipientsDropdownRef}>
                   <button
@@ -520,7 +532,7 @@ export default function CampaignDetails({
                     disabled={isViewMode}
                     className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black text-left flex items-center justify-between"
                   >
-                    <span className="text-black">{formData.recipients}</span>
+                    <span className="text-black">{translateRecipientOption(formData.recipients)}</span>
                     <ChevronDown className="w-4 h-4 text-gray-400" />
                   </button>
 
@@ -536,7 +548,7 @@ export default function CampaignDetails({
                           }}
                           className="w-full px-3 py-2 text-xs text-left hover:bg-gray-100 text-black"
                         >
-                          {option}
+                          {translateRecipientOption(option)}
                         </button>
                       ))}
                     </div>
@@ -547,7 +559,7 @@ export default function CampaignDetails({
 
             <div>
               <label className="block text-xs font-medium text-black mb-2">
-                Campaign Name <span className="text-red-500">*</span>
+                {tCampaignDetails('campaignName')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -555,13 +567,13 @@ export default function CampaignDetails({
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 disabled={isViewMode}
                 className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                placeholder="Enter campaign name"
+                placeholder={tCampaignDetails('campaignNamePlaceholder')}
               />
             </div>
 
             <div>
               <label className="block text-xs font-medium text-black mb-2">
-                Description
+                {tCampaignDetails('description')}
               </label>
               <textarea
                 value={formData.description}
@@ -569,7 +581,7 @@ export default function CampaignDetails({
                 disabled={isViewMode}
                 rows={4}
                 className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                placeholder="Enter campaign description"
+                placeholder={tCampaignDetails('descriptionPlaceholder')}
               />
             </div>
           </div>
@@ -579,7 +591,7 @@ export default function CampaignDetails({
         <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 mb-4">
           <h2 className="text-md font-semibold text-black mb-4 flex items-center gap-2">
             <Smartphone className="w-5 h-5 text-gray-500" />
-            WhatsApp Campaign Design
+            {tCampaignDetails('whatsappDesign')}
           </h2>
           <div className="border border-[#e6e6e6] rounded-lg overflow-hidden">
             <WhatsAppCampaignBuilder
@@ -608,23 +620,23 @@ export default function CampaignDetails({
 
         {/* Campaign Metrics */}
         <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
-          <h2 className="text-md font-semibold text-black mb-4">Campaign Performance</h2>
+          <h2 className="text-md font-semibold text-black mb-4">{tCampaignDetails('campaignPerformance')}</h2>
           {mode === 'view' && campaign ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
-                <p className="text-xs text-gray-600 mb-1">Opened</p>
+                <p className="text-xs text-gray-600 mb-1">{tCampaignDetails('metricsOpened')}</p>
                 <p className="text-lg font-semibold text-black">{campaign.opensCount || 0}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-600 mb-1">Clicked</p>
+                <p className="text-xs text-gray-600 mb-1">{tCampaignDetails('metricsClicked')}</p>
                 <p className="text-lg font-semibold text-black">{campaign.clicksCount || 0}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-600 mb-1">Revenue</p>
+                <p className="text-xs text-gray-600 mb-1">{tCampaignDetails('metricsRevenue')}</p>
                 <p className="text-lg font-semibold text-black">${campaign.revenue.toLocaleString()}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-600 mb-1">Orders</p>
+                <p className="text-xs text-gray-600 mb-1">{tCampaignDetails('metricsOrders')}</p>
                 <p className="text-lg font-semibold text-black">{campaign.orders}</p>
               </div>
             </div>
@@ -633,9 +645,9 @@ export default function CampaignDetails({
               <div className="flex items-start gap-3">
                 <Info className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-gray-600 mb-1">Performance metrics will be available after sending</p>
+                  <p className="text-sm font-medium text-gray-600 mb-1">{tCampaignDetails('metricsUnavailableTitle')}</p>
                   <p className="text-xs text-gray-500">
-                    Campaign performance metrics including open rates, click rates, revenue, and orders will be generated once you successfully send your campaign to recipients.
+                    {tCampaignDetails('metricsUnavailableBody')}
                   </p>
                 </div>
               </div>

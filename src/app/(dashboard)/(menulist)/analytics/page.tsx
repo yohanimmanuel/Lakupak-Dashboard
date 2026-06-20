@@ -25,6 +25,9 @@ import {
 } from '@/components/analyticsperformance/OperationalPerformanceAnalytics';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { computeOrderMonthOverMonthGrowth } from '@/utils/monthOverMonthGrowth';
+import { useAnalyticsTranslations } from '@/hooks/useAnalyticsTranslations';
+
+const TIME_RANGE_VALUES = ['1M', '3M', '6M', '1Y'] as const;
 
 const ANALYTICS_PAGE_QUERY = `
   query AnalyticsPageData($userId: Int!, $orderLimit: Int!, $productLimit: Int!) {
@@ -93,6 +96,7 @@ const ANALYTICS_PAGE_QUERY = `
 
 export default function AnalyticsPage() {
   const { user } = useUserStore();
+  const { tOverview, tMetrics, tShared, translateTimeRange } = useAnalyticsTranslations();
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -103,12 +107,10 @@ export default function AnalyticsPage() {
 
   const userCurrency = user?.currency || 'IDR';
 
-  const timeRanges = [
-    { value: '1M', label: 'Last Month' },
-    { value: '3M', label: 'Last 3 Months' },
-    { value: '6M', label: 'Last 6 Months' },
-    { value: '1Y', label: 'Last Year' }
-  ];
+  const timeRanges = useMemo(
+    () => TIME_RANGE_VALUES.map((value) => ({ value, label: translateTimeRange(value) })),
+    [translateTimeRange],
+  );
 
   const currentRange = timeRanges.find(range => range.value === timeRange);
 
@@ -234,7 +236,7 @@ export default function AnalyticsPage() {
       <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading analytics...</p>
+          <p className="text-gray-600">{tOverview('loading')}</p>
         </div>
       </div>
     );
@@ -244,16 +246,16 @@ export default function AnalyticsPage() {
     return (
       <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Analytics Dashboard</h1>
-          <p className="text-sm text-gray-600">Key insights and performance metrics for your business</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">{tOverview('title')}</h1>
+          <p className="text-sm text-gray-600">{tOverview('subtitle')}</p>
         </div>
         <div className="text-center mt-30">
           <div className="w-20 h-20 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
             <DollarSign className="w-10 h-10 text-gray-400" />
           </div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">No Analytics Data</h3>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">{tOverview('emptyTitle')}</h3>
           <p className="text-gray-500 max-w-md mx-auto">
-            Add products and track orders to see revenue and sales analytics for your account.
+            {tOverview('emptyBody')}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row mt-6 justify-center">
@@ -261,7 +263,7 @@ export default function AnalyticsPage() {
             onClick={() => window.location.href = '/products'}
             className="px-6 py-3 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors"
           >
-            Add Products
+            {tShared('addProducts')}
           </button>
         </div>
       </div>
@@ -272,8 +274,8 @@ export default function AnalyticsPage() {
     <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Analytics Dashboard</h1>
-          <p className="text-sm text-gray-600">Key insights and performance metrics for your business</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">{tOverview('title')}</h1>
+          <p className="text-sm text-gray-600">{tOverview('subtitle')}</p>
         </div>
         
         {/* Time Range Dropdown */}
@@ -314,7 +316,7 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
           <>
             <AnalyticsMetricCard
-              title="Order Volume"
+              title={tMetrics('orderVolume')}
               value={formatCurrency(orderVolume, userCurrency)}
               change={orderGrowth.orderVolumeGrowth}
               icon={<DollarSign className="w-6 h-6 text-[#0a61d7]" />}
@@ -327,14 +329,14 @@ export default function AnalyticsPage() {
             />
             {/* Operational metric card reused */}
             <OperationalMetricCard
-              title="Order Completion Rate"
+              title={tMetrics('orderCompletionRate')}
               value={`${opMetrics.completionRate.toFixed(1)}%`}
               change={orderGrowth.completionGrowth}
               icon={<ShoppingCart className="w-6 h-6 text-green-600" />}
               color="bg-white"
             />
             <AnalyticsMetricCard
-              title="Average Order Volume"
+              title={tMetrics('averageOrderValue')}
               value={formatCurrency(averageOrderVolume, userCurrency)}
               change={orderGrowth.averageOrderVolumeGrowth}
               icon={<DollarSign className="w-6 h-6 text-emerald-600" />}

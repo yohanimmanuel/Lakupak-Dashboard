@@ -34,6 +34,7 @@ import { Campaign, CampaignContentBlock, ContentBlockType } from '@/types/campai
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
+import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
 
 interface WhatsAppCampaignBuilderProps {
   campaign?: Campaign;
@@ -47,59 +48,50 @@ interface WhatsAppCampaignBuilderProps {
 
 const CONTENT_BLOCKS: Array<{
   type: ContentBlockType;
-  label: string;
   icon: React.ReactNode;
-  description: string;
 }> = [
   {
     type: 'header',
-    label: 'Header',
     icon: <Heading className="w-5 h-5" />,
-    description: 'Add your logo and company name'
   },
   {
     type: 'text',
-    label: 'Text',
     icon: <Type className="w-5 h-5" />,
-    description: 'Add formatted text content'
   },
   {
     type: 'image',
-    label: 'Image',
     icon: <ImageIcon className="w-5 h-5" />,
-    description: 'Add an image or photo'
   },
   {
     type: 'product',
-    label: 'Product',
     icon: <Package className="w-5 h-5" />,
-    description: 'Showcase a product with details'
   },
   {
     type: 'button',
-    label: 'Button',
     icon: <MousePointerClick className="w-5 h-5" />,
-    description: 'Add an interactive button'
   },
   {
     type: 'list',
-    label: 'List',
     icon: <List className="w-5 h-5" />,
-    description: 'Create a list of items'
   },
   {
     type: 'divider',
-    label: 'Divider',
     icon: <Minus className="w-5 h-5" />,
-    description: 'Add a visual separator'
   },
   {
     type: 'spacing',
-    label: 'Spacing',
     icon: <MoreVertical className="w-5 h-5" />,
-    description: 'Add spacing between blocks'
   }
 ];
+
+const TEMPLATE_I18N_KEYS: Record<string, string> = {
+  'product-launch': 'productLaunch',
+  promotion: 'promotion',
+  announcement: 'announcement',
+  'flash-sale': 'flashSale',
+  welcome: 'welcome',
+  custom: 'custom',
+};
 
 // Campaign Templates
 const CAMPAIGN_TEMPLATES: Array<{
@@ -322,6 +314,17 @@ export default function WhatsAppCampaignBuilder({
   previewOnly = false,
   onTrackClick,
 }: WhatsAppCampaignBuilderProps) {
+  const {
+    tCampaignBuilder,
+    translateBlockType,
+    translateBlockDescription,
+    translateTemplateName,
+    translateTemplateDescription,
+  } = useMarketingTranslations();
+
+  const translateStyle = (style: string) =>
+    tCampaignBuilder.has(`styles.${style}`) ? tCampaignBuilder(`styles.${style}`) : style;
+
   const [campaignName, setCampaignName] = useState(campaign?.name || 'Untitled campaign');
   const [contentBlocks, setContentBlocks] = useState<CampaignContentBlock[]>(
     campaign?.contentBlocks || []
@@ -524,25 +527,25 @@ export default function WhatsAppCampaignBuilder({
       if (result.success && result.url) {
         handleUpdateBlock(blockId, { imageUrl: result.url });
       } else {
-        alert(result.error || 'Failed to upload image');
+        alert(result.error || tCampaignBuilder('alerts.uploadFailed'));
       }
     } catch (error) {
-      alert('Failed to upload image. Please try again.');
+      alert(tCampaignBuilder('alerts.uploadFailedRetry'));
     } finally {
       setUploadingImage(false);
     }
-  }, [handleUpdateBlock]);
+  }, [handleUpdateBlock, tCampaignBuilder]);
 
   // Handle file input change
   const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>, blockId: string) => {
     const file = e.target.files?.[0];
     if (file) {
       if (!file.type.startsWith('image/')) {
-        alert('Please select an image file');
+        alert(tCampaignBuilder('alerts.selectImageFile'));
         return;
       }
       if (file.size > 5 * 1024 * 1024) {
-        alert('Image size must be less than 5MB');
+        alert(tCampaignBuilder('alerts.imageTooLarge'));
         return;
       }
       handleImageUpload(file, blockId);
@@ -551,7 +554,7 @@ export default function WhatsAppCampaignBuilder({
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  }, [handleImageUpload]);
+  }, [handleImageUpload, tCampaignBuilder]);
 
   // Handle inline text editing
   const handleInlineTextEdit = useCallback((blockId: string, newText: string) => {
@@ -663,7 +666,7 @@ export default function WhatsAppCampaignBuilder({
               </div>
               <div>
                 <h3 className="font-semibold text-sm">Laku</h3>
-                <p className="text-xs opacity-90">Online</p>
+                <p className="text-xs opacity-90">{tCampaignBuilder('online')}</p>
               </div>
             </div>
           </div>
@@ -673,7 +676,7 @@ export default function WhatsAppCampaignBuilder({
             {sortedBlocks.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-[400px] text-gray-400">
                 <Smartphone className="w-12 h-12 mb-3 opacity-50" />
-                <p className="text-sm">Add content blocks to build your campaign</p>
+                <p className="text-sm">{tCampaignBuilder('emptyPreview')}</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -719,7 +722,7 @@ export default function WhatsAppCampaignBuilder({
         return (
           <div className="text-center">
             {block.headerImage && (
-              <img src={block.headerImage} alt="Header" className="w-16 h-16 mx-auto mb-2 rounded" />
+              <img src={block.headerImage} alt={tCampaignBuilder('placeholders.campaignImageAlt')} className="w-16 h-16 mx-auto mb-2 rounded" />
             )}
             {isEditingHeader ? (
               <input
@@ -734,7 +737,7 @@ export default function WhatsAppCampaignBuilder({
                   }
                 }}
                 className="text-lg font-bold text-black text-center border-2 border-[#0a61d7] rounded-lg focus:outline-none px-2 py-1 w-full"
-                placeholder="Your Company"
+                placeholder={tCampaignBuilder('placeholders.yourCompany')}
                 autoFocus
               />
             ) : (
@@ -744,7 +747,7 @@ export default function WhatsAppCampaignBuilder({
                   previewOnly ? '' : 'cursor-text hover:bg-gray-50 transition-colors'
                 }`}
               >
-                {block.headerText || (previewOnly ? '' : 'Click to edit header...')}
+                {block.headerText || (previewOnly ? '' : tCampaignBuilder('placeholders.clickToEditHeader'))}
               </h2>
             )}
           </div>
@@ -779,7 +782,7 @@ export default function WhatsAppCampaignBuilder({
                   previewOnly ? '' : 'cursor-text hover:bg-gray-50 transition-colors'
                 }`}
               >
-                {block.text || (previewOnly ? '' : 'Click to edit text...')}
+                {block.text || (previewOnly ? '' : tCampaignBuilder('placeholders.clickToEditText'))}
               </p>
             )}
           </div>
@@ -789,7 +792,7 @@ export default function WhatsAppCampaignBuilder({
           <div className="relative group">
             {block.imageUrl ? (
               <div className="relative">
-                <img src={block.imageUrl} alt={block.imageAlt || 'Campaign image'} className="w-full rounded-lg" />
+                <img src={block.imageUrl} alt={block.imageAlt || tCampaignBuilder('placeholders.campaignImageAlt')} className="w-full rounded-lg" />
                 {!previewOnly && (
                   <button
                     type="button"
@@ -822,7 +825,7 @@ export default function WhatsAppCampaignBuilder({
                 ) : (
                   <>
                     <ImageIcon className="w-8 h-8 text-gray-400" />
-                    {!previewOnly && <span className="mt-2 text-sm text-gray-500">Click to upload image</span>}
+                    {!previewOnly && <span className="mt-2 text-sm text-gray-500">{tCampaignBuilder('placeholders.clickToUploadImage')}</span>}
                   </>
                 )}
               </div>
@@ -852,7 +855,7 @@ export default function WhatsAppCampaignBuilder({
                     }, 200);
                   }}
                   className="w-full px-3 py-2 text-sm border-2 border-[#0a61d7] rounded-lg focus:outline-none text-black"
-                  placeholder="Search products..."
+                  placeholder={tCampaignBuilder('placeholders.searchProducts')}
                   autoFocus
                 />
                 {products.length > 0 && (
@@ -891,7 +894,7 @@ export default function WhatsAppCampaignBuilder({
                     previewOnly ? '' : 'cursor-text hover:bg-gray-50 transition-colors'
                   }`}
                 >
-                  {block.productName || (previewOnly ? '' : 'Click to search product...')}
+                  {block.productName || (previewOnly ? '' : tCampaignBuilder('placeholders.clickToSearchProduct'))}
                 </h3>
                 {block.productButtonText && (
                   <button 
@@ -931,7 +934,7 @@ export default function WhatsAppCampaignBuilder({
               }
             }}
           >
-            {block.buttonText || 'Button'}
+            {block.buttonText || tCampaignBuilder('placeholders.buttonDefault')}
           </button>
         );
       case 'list':
@@ -970,7 +973,7 @@ export default function WhatsAppCampaignBuilder({
                               previewOnly ? '' : 'cursor-text hover:bg-gray-50 transition-colors'
                             }`}
                           >
-                            {item.title || (previewOnly ? '' : 'Click to edit...')}
+                            {item.title || (previewOnly ? '' : tCampaignBuilder('placeholders.clickToEdit'))}
                           </p>
                         )}
                         {item.description && (
@@ -994,7 +997,7 @@ export default function WhatsAppCampaignBuilder({
                 })}
               </ul>
             ) : (
-              !previewOnly && <p className="text-gray-400 text-sm">Add list items</p>
+              !previewOnly && <p className="text-gray-400 text-sm">{tCampaignBuilder('placeholders.addListItems')}</p>
             )}
             {!previewOnly && (
               <button
@@ -1012,7 +1015,7 @@ export default function WhatsAppCampaignBuilder({
                 className="text-sm text-[#0a61d7] hover:text-[#0851b8] font-medium flex items-center gap-1"
               >
                 <Plus className="w-4 h-4" />
-                Add item
+                {tCampaignBuilder('editor.addItem')}
               </button>
             )}
           </div>
@@ -1031,7 +1034,7 @@ export default function WhatsAppCampaignBuilder({
     if (!selectedBlock) {
       return (
         <div className="p-4 text-center text-gray-500 text-sm">
-          Select a content block to edit
+          {tCampaignBuilder('selectBlockToEdit')}
         </div>
       );
     }
@@ -1039,7 +1042,9 @@ export default function WhatsAppCampaignBuilder({
     return (
       <div className="p-4 border-t border-[#e6e6e6]">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-black capitalize">{selectedBlock.type} Block</h3>
+          <h3 className="font-semibold text-black capitalize">
+            {tCampaignBuilder('blockEditorTitle', { type: translateBlockType(selectedBlock.type) })}
+          </h3>
           <button
             type="button"
             onClick={() => handleDeleteBlock(selectedBlock.id)}
@@ -1053,7 +1058,7 @@ export default function WhatsAppCampaignBuilder({
           {selectedBlock.type === 'text' && (
             <>
               <div>
-                <label className="block text-xs font-medium text-black mb-2">Style</label>
+                <label className="block text-xs font-medium text-black mb-2">{tCampaignBuilder('editor.style')}</label>
                 <div className="relative" ref={textStyleDropdownRef}>
                   <button
                     type="button"
@@ -1064,7 +1069,7 @@ export default function WhatsAppCampaignBuilder({
                     }}
                     className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-black text-left flex items-center justify-between"
                   >
-                    <span className="text-black capitalize">{selectedBlock.textStyle || 'normal'}</span>
+                    <span className="text-black capitalize">{translateStyle(selectedBlock.textStyle || 'normal')}</span>
                     <ChevronDown className="w-4 h-4 text-gray-400" />
                   </button>
 
@@ -1080,7 +1085,7 @@ export default function WhatsAppCampaignBuilder({
                           }}
                           className="w-full px-3 py-2 text-xs text-left hover:bg-gray-100 text-black capitalize"
                         >
-                          {style}
+                          {translateStyle(style)}
                         </button>
                       ))}
                     </div>
@@ -1088,7 +1093,7 @@ export default function WhatsAppCampaignBuilder({
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-black mb-2">Text Content</label>
+                <label className="block text-xs font-medium text-black mb-2">{tCampaignBuilder('editor.textContent')}</label>
                 <textarea
                   value={selectedBlock.text || ''}
                   onChange={(e) => handleUpdateBlock(selectedBlock.id, { text: e.target.value })}
@@ -1102,7 +1107,7 @@ export default function WhatsAppCampaignBuilder({
           {selectedBlock.type === 'image' && (
             <>
               <div>
-                <label className="block text-xs font-medium text-black mb-2">Upload Image</label>
+                <label className="block text-xs font-medium text-black mb-2">{tCampaignBuilder('editor.uploadImage')}</label>
                 <button
                   type="button"
                   onClick={() => {
@@ -1117,29 +1122,29 @@ export default function WhatsAppCampaignBuilder({
                   {uploadingImage ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Uploading...
+                      {tCampaignBuilder('editor.uploading')}
                     </>
                   ) : (
                     <>
                       <Upload className="w-4 h-4" />
-                      Choose Image
+                      {tCampaignBuilder('editor.chooseImage')}
                     </>
                   )}
                 </button>
               </div>
               {selectedBlock.imageUrl && (
                 <div className="mt-2">
-                  <img src={selectedBlock.imageUrl} alt="Preview" className="w-full rounded-lg max-h-32 object-cover" />
+                  <img src={selectedBlock.imageUrl} alt={tCampaignBuilder('editor.preview')} className="w-full rounded-lg max-h-32 object-cover" />
                 </div>
               )}
               <div>
-                <label className="block text-xs font-medium text-black mb-2">Alt Text</label>
+                <label className="block text-xs font-medium text-black mb-2">{tCampaignBuilder('editor.altText')}</label>
                 <input
                   type="text"
                   value={selectedBlock.imageAlt || ''}
                   onChange={(e) => handleUpdateBlock(selectedBlock.id, { imageAlt: e.target.value })}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] text-black"
-                  placeholder="Image description"
+                  placeholder={tCampaignBuilder('placeholders.imageDescription')}
                 />
               </div>
             </>
@@ -1148,7 +1153,7 @@ export default function WhatsAppCampaignBuilder({
           {selectedBlock.type === 'button' && (
             <>
               <div>
-                <label className="block text-xs font-medium text-black mb-2">Button Text</label>
+                <label className="block text-xs font-medium text-black mb-2">{tCampaignBuilder('editor.buttonText')}</label>
                 <input
                   type="text"
                   value={selectedBlock.buttonText || ''}
@@ -1157,17 +1162,17 @@ export default function WhatsAppCampaignBuilder({
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-black mb-2">Button Link</label>
+                <label className="block text-xs font-medium text-black mb-2">{tCampaignBuilder('editor.buttonLink')}</label>
                 <input
                   type="text"
                   value={selectedBlock.buttonLink || ''}
                   onChange={(e) => handleUpdateBlock(selectedBlock.id, { buttonLink: e.target.value })}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] text-black"
-                  placeholder="https://example.com"
+                  placeholder={tCampaignBuilder('placeholders.buttonLink')}
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-black mb-2">Button Style</label>
+                <label className="block text-xs font-medium text-black mb-2">{tCampaignBuilder('editor.buttonStyle')}</label>
                 <div className="relative" ref={buttonStyleDropdownRef}>
                   <button
                     type="button"
@@ -1178,7 +1183,7 @@ export default function WhatsAppCampaignBuilder({
                     }}
                     className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-black text-left flex items-center justify-between"
                   >
-                    <span className="text-black capitalize">{selectedBlock.buttonStyle || 'primary'}</span>
+                    <span className="text-black capitalize">{translateStyle(selectedBlock.buttonStyle || 'primary')}</span>
                     <ChevronDown className="w-4 h-4 text-gray-400" />
                   </button>
 
@@ -1194,7 +1199,7 @@ export default function WhatsAppCampaignBuilder({
                           }}
                           className="w-full px-3 py-2 text-xs text-left hover:bg-gray-100 text-black capitalize"
                         >
-                          {style}
+                          {translateStyle(style)}
                         </button>
                       ))}
                     </div>
@@ -1206,7 +1211,7 @@ export default function WhatsAppCampaignBuilder({
 
           {selectedBlock.type === 'spacing' && (
             <div>
-              <label className="block text-xs font-medium text-black mb-2">Spacing Size</label>
+              <label className="block text-xs font-medium text-black mb-2">{tCampaignBuilder('editor.spacingSize')}</label>
               <div className="relative" ref={spacingSizeDropdownRef}>
                 <button
                   type="button"
@@ -1217,7 +1222,7 @@ export default function WhatsAppCampaignBuilder({
                   }}
                   className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-black text-left flex items-center justify-between"
                 >
-                  <span className="text-black capitalize">{selectedBlock.spacingSize || 'medium'}</span>
+                  <span className="text-black capitalize">{translateStyle(selectedBlock.spacingSize || 'medium')}</span>
                   <ChevronDown className="w-4 h-4 text-gray-400" />
                 </button>
 
@@ -1233,7 +1238,7 @@ export default function WhatsAppCampaignBuilder({
                         }}
                         className="w-full px-3 py-2 text-xs text-left hover:bg-gray-100 text-black capitalize"
                       >
-                        {size}
+                        {translateStyle(size)}
                       </button>
                     ))}
                   </div>
@@ -1288,7 +1293,7 @@ export default function WhatsAppCampaignBuilder({
               className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
-              Back
+              {tCampaignBuilder('back')}
             </button>
             <div className="flex items-center gap-2">
               {isEditingName ? (
@@ -1336,7 +1341,7 @@ export default function WhatsAppCampaignBuilder({
               className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors font-semibold"
             >
               <Save className="w-4 h-4" />
-              Save Campaign
+              {tCampaignBuilder('saveCampaign')}
             </button>
           </div>
         </div>
@@ -1347,9 +1352,10 @@ export default function WhatsAppCampaignBuilder({
       <div className="p-4 border-b border-[#e6e6e6] bg-white">
         <div className="mb-3">
           <p className="text-sm text-gray-600 mb-1">
-            Need inspiration? Check out some best practices <a href="#" className="text-[#0a61d7] underline">here</a>.
+            {tCampaignBuilder('inspirationHint')}{' '}
+            <a href="#" className="text-[#0a61d7] underline">{tCampaignBuilder('inspirationLink')}</a>.
           </p>
-          <h3 className="text-base font-semibold text-black">Select a template</h3>
+          <h3 className="text-base font-semibold text-black">{tCampaignBuilder('selectTemplate')}</h3>
         </div>
         <div className="relative">
           <button
@@ -1381,6 +1387,7 @@ export default function WhatsAppCampaignBuilder({
                   >
                     {pageTemplates.map((template) => {
                       const isSelected = selectedTemplate === template.id;
+                      const templateKey = TEMPLATE_I18N_KEYS[template.id] || template.id;
                       return (
                         <button
                           key={template.id}
@@ -1402,9 +1409,9 @@ export default function WhatsAppCampaignBuilder({
                               <div className={`font-semibold text-sm mb-1 ${
                                 isSelected ? 'text-[#0a61d7]' : 'text-black'
                               }`}>
-                                {template.name}
+                                {translateTemplateName(templateKey)}
                               </div>
-                              <div className="text-xs text-gray-600">{template.description}</div>
+                              <div className="text-xs text-gray-600">{translateTemplateDescription(templateKey)}</div>
                             </div>
                           </div>
                         </button>
@@ -1442,8 +1449,8 @@ export default function WhatsAppCampaignBuilder({
         {!previewOnly && (
         <div data-block-editor className={`${embedded ? 'w-80' : 'w-80'} bg-white ${embedded ? '' : 'border-l-2 border-gray-300'} flex flex-col`}>
           <div className="p-4 border-b border-[#e6e6e6]">
-            <h2 className="font-semibold text-black mb-1">Content</h2>
-            <p className="text-xs text-gray-600">Add blocks to build your campaign</p>
+            <h2 className="font-semibold text-black mb-1">{tCampaignBuilder('contentTitle')}</h2>
+            <p className="text-xs text-gray-600">{tCampaignBuilder('contentSubtitle')}</p>
           </div>
 
           <div className="flex-1 overflow-y-auto p-4">
@@ -1454,10 +1461,11 @@ export default function WhatsAppCampaignBuilder({
                   type="button"
                   onClick={() => handleAddBlock(block.type)}
                   className="p-3 border border-[#e6e6e6] rounded-lg hover:border-[#0a61d7] hover:bg-blue-50 transition-colors text-left"
+                  title={translateBlockDescription(block.type)}
                 >
                   <div className="flex flex-col items-center gap-2">
                     <div className="text-gray-600">{block.icon}</div>
-                    <span className="text-xs font-medium text-black">{block.label}</span>
+                    <span className="text-xs font-medium text-black">{translateBlockType(block.type)}</span>
                   </div>
                 </button>
               ))}

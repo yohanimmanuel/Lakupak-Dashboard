@@ -1,0 +1,659 @@
+{
+  "hub": {
+    "title": "Marketing",
+    "subtitle": "Bangun hubungan dengan pelanggan dan dorong pesanan melalui peluang marketing, alat, dan sumber daya.",
+    "tipsSection": "Tips",
+    "toolsSection": "Alat",
+    "dismissTip": "Tutup tip",
+    "closeModal": "Tutup modal",
+    "mainPurpose": "Tujuan Utama",
+    "details": "Detail",
+    "tips": {
+      "new-customers": {
+        "title": "Undang Pelanggan Baru",
+        "description": "Hubungi calon pembeli yang baru bergabung di platform untuk memperluas basis pelanggan Anda. Membangun hubungan sejak awal dapat mendorong kemitraan jangka panjang dan peningkatan volume pesanan.",
+        "actionLabel": "Undang pelanggan",
+        "mainPurpose": "Perluas basis pelanggan dengan proaktif menghubungi pembeli baru yang baru bergabung di platform dan mengonversi mereka menjadi pelanggan aktif. Hubungi pembeli baru yang baru mendaftar di platform dan kirim undangan personal untuk memperkenalkan katalog produk serta layanan Anda.",
+        "fullDetails": [
+          "Identifikasi calon pembeli yang baru mendaftar di platform",
+          "Kirim undangan personal untuk memperkenalkan katalog produk dan layanan Anda",
+          "Soroti proposisi nilai unik dan keunggulan kompetitif",
+          "Tawarkan insentif sambutan atau diskon khusus untuk pesanan pertama",
+          "Bangun hubungan awal melalui komunikasi langsung dan tindak lanjut",
+          "Pantau respons undangan dan tingkat konversi",
+          "Konversi pengguna platform baru menjadi pelanggan setia dan berulang"
+        ]
+      },
+      "promotions": {
+        "title": "Buat Promosi",
+        "description": "Tingkatkan penjualan dengan membuat penawaran khusus dan diskon untuk produk Anda. Atur diskon persentase, potongan nominal, atau paket bundling untuk menarik pembeli dan mendorong penjualan segera.",
+        "actionLabel": "Buat promosi",
+        "mainPurpose": "Buat diskon berbasis persentase untuk produk atau kategori tertentu, atur potongan nominal untuk item spesifik, rancang paket bundling dan promosi beli-satu-gratis-satu, tentukan periode promosi dengan tanggal mulai dan berakhir, targetkan segmen pelanggan atau kelompok pembeli tertentu, atur minimum kuantitas pesanan atau ambang belanja, pantau performa promosi dan metrik konversi, jadwalkan promosi untuk musim puncak atau acara khusus.",
+        "fullDetails": [
+          "Buat diskon berbasis persentase untuk produk atau kategori tertentu",
+          "Atur potongan nominal untuk item spesifik",
+          "Rancang paket bundling dan promosi beli-satu-gratis-satu",
+          "Tentukan periode promosi dengan tanggal mulai dan berakhir",
+          "Targetkan segmen pelanggan atau kelompok pembeli tertentu",
+          "Atur minimum kuantitas pesanan atau ambang belanja",
+          "Pantau performa promosi dan metrik konversi",
+          "Jadwalkan promosi untuk musim puncak atau acara khusus"
+        ]
+      },
+      "cart-reminders": {
+        "title": "Keranjang Tertinggal",
+        "description": "Tindak lanjuti pelanggan yang menambahkan produk ke keranjang tetapi belum menyelesaikan pembelian. Kampanye keranjang tertinggal dapat memulihkan penjualan yang hilang dengan mengirim pengingat tepat waktu dan menawarkan insentif.",
+        "actionLabel": "Lihat kampanye",
+        "mainPurpose": "Identifikasi pelanggan dan kirim email pengingat otomatis atau notifikasi ke WhatsApp Messaging, tawarkan insentif atau diskon berbatas waktu untuk mendorong penyelesaian pembelian, personalisasi pesan tindak lanjut berdasarkan isi keranjang. Anda juga dapat menciptakan urgensi dengan penawaran terbatas waktu atau peringatan ketersediaan stok, uji A/B berbagai strategi pesan dan insentif, konversi keranjang tertinggal menjadi pesanan selesai dan pendapatan.",
+        "fullDetails": [
+          "Identifikasi pelanggan dengan keranjang tertinggal dan pembelian yang belum selesai",
+          "Kirim email pengingat otomatis atau notifikasi",
+          "Tawarkan insentif atau diskon berbatas waktu untuk mendorong penyelesaian pembelian",
+          "Personalisasi pesan tindak lanjut berdasarkan isi keranjang",
+          "Ciptakan urgensi dengan penawaran terbatas waktu atau peringatan ketersediaan stok",
+          "Pantau tingkat keranjang tertinggal dan metrik keberhasilan pemulihan",
+          "Uji A/B berbagai strategi pesan dan insentif",
+          "Konversi keranjang tertinggal menjadi pesanan selesai dan pendapatan"
+        ]
+      }
+    },
+    "tools": {
+      "teams": {
+        "name": "Tim",
+        "description": "Kelola anggota tim marketing dan tetapkan peran."
+      },
+      "campaigns": {
+        "name": "Kampanye",
+        "description": "Buat dan kelola kampanye marketing untuk menjangkau pelanggan Anda."
+      },
+      "automation": {
+        "name": "Otomatisasi",
+        "description": "Atur alur kerja marketing otomatis dan pengingat."
+      }
+    }
+  },
+  "campaigns": {
+    "title": "Kampanye",
+    "subtitle": "Kirim kampanye pesan konten kaya sekali kirim ke retailer Anda.",
+    "loading": "Memuat kampanye...",
+    "createCampaign": "Buat kampanye",
+    "tipBanner": "Undang 22 pelanggan yang bergabung di Faire minggu lalu untuk berbelanja — jika mereka melakukan pesanan, Anda bisa mendapatkan pelanggan baru melalui Faire Direct Rewards.",
+    "dismissTip": "Tutup tip",
+    "createFailed": "Gagal membuat kampanye. Silakan coba lagi."
+  },
+  "campaignTable": {
+    "searchPlaceholder": "Cari kampanye...",
+    "searchAriaLabel": "Cari kampanye berdasarkan nama atau ID kampanye",
+    "empty": "Tidak ada kampanye ditemukan",
+    "campaignSelected": "kampanye",
+    "campaignsSelected": "kampanye",
+    "selected": "dipilih",
+    "selectAll": "Pilih semua",
+    "deselectAll": "Batalkan pilihan semua",
+    "bulkHintSingleSend": "Pilih kampanye untuk dihapus atau dikirim.",
+    "bulkHintSingleResend": "Pilih kampanye untuk dihapus atau dikirim ulang.",
+    "bulkHintMultiple": "Pilih kampanye untuk dihapus.",
+    "sendCampaign": "Kirim Kampanye",
+    "resendCampaign": "Kirim Ulang Kampanye",
+    "removeCampaign": "Hapus Kampanye",
+    "removeSelected": "Hapus yang Dipilih",
+    "sendSelectedAriaLabel": "Kirim kampanye yang dipilih",
+    "resendSelectedAriaLabel": "Kirim ulang kampanye yang dipilih",
+    "removeSelectedAriaLabel": "Hapus {count} kampanye yang dipilih",
+    "recipients": "Penerima",
+    "opened": "Dibuka",
+    "clicked": "Diklik",
+    "sendDate": "Tanggal Kirim",
+    "notSent": "Belum dikirim",
+    "editCampaign": "Edit detail kampanye",
+    "deleteCampaign": "Hapus kampanye",
+    "selectCampaign": "Pilih {name}",
+    "deselectCampaign": "Batalkan pilihan {name}",
+    "selectAllCampaigns": "Pilih semua kampanye",
+    "deselectAllCampaigns": "Batalkan pilihan semua kampanye",
+    "deleteCampaignTitle": "Hapus Kampanye",
+    "deleteCampaignsTitle": "Hapus Kampanye",
+    "deleteBulkConfirm": "Apakah Anda yakin ingin menghapus {count} kampanye? Tindakan ini tidak dapat dibatalkan.",
+    "deleteSingleConfirm": "Apakah Anda yakin ingin menghapus {name}? Tindakan ini tidak dapat dibatalkan.",
+    "thisCampaign": "kampanye ini",
+    "pagination": {
+      "showing": "Menampilkan {from} hingga {to} dari {total}"
+    },
+    "previousPage": "Halaman sebelumnya",
+    "nextPage": "Halaman berikutnya",
+    "page": "Halaman {page}",
+    "whatsappAlt": "WhatsApp"
+  },
+  "campaignPreview": {
+    "headerAlt": "Header",
+    "campaignImageAlt": "Gambar kampanye",
+    "priceLabel": "Harga:",
+    "productAlt": "Produk",
+    "defaultButton": "Klik di sini"
+  },
+  "campaignDetails": {
+    "loading": "Memuat kampanye...",
+    "notFound": "Kampanye tidak ditemukan",
+    "goBack": "Kembali",
+    "createTitle": "Buat Kampanye",
+    "viewTitle": "Detail Kampanye",
+    "editTitle": "Edit Kampanye",
+    "back": "Kembali",
+    "cancel": "Batal",
+    "edit": "Edit",
+    "saveDraft": "Simpan Draf",
+    "saving": "Menyimpan...",
+    "saveAndSend": "Simpan dan Kirim Kampanye",
+    "resendCampaign": "Kirim Ulang Kampanye",
+    "unsavedChanges": "Perubahan belum disimpan",
+    "draftBadge": "Draf",
+    "modeAddDescription": "Buat kampanye marketing baru dengan mengisi formulir di bawah. Semua field wajib harus dilengkapi sebelum menyimpan.",
+    "modeViewDescription": "Lihat informasi detail kampanye ini. Anda dapat melihat semua detail kampanye, penerima, dan status saat ini.",
+    "modeEditDescription": "Ubah informasi kampanye yang ada. Perbarui field yang diperlukan dan simpan perubahan Anda.",
+    "completionTitle": "Kelengkapan Kampanye",
+    "allFieldsCompleted": "Semua field wajib telah dilengkapi",
+    "missingFields": "Belum lengkap: {fields}",
+    "missingRequiredFieldsTitle": "Field wajib belum lengkap: {fields}",
+    "campaignInformation": "Informasi Kampanye",
+    "whatsappDesign": "Desain Kampanye WhatsApp",
+    "campaignPerformance": "Performa Kampanye",
+    "campaignId": "ID Kampanye",
+    "campaignIdPlaceholder": "ID Kampanye otomatis",
+    "campaignIdHint": "ID Kampanye dibuat secara otomatis",
+    "recipients": "Penerima",
+    "campaignName": "Nama Kampanye",
+    "campaignNamePlaceholder": "Masukkan nama kampanye",
+    "description": "Deskripsi",
+    "descriptionPlaceholder": "Masukkan deskripsi kampanye",
+    "metricsOpened": "Dibuka",
+    "metricsClicked": "Diklik",
+    "metricsRevenue": "Pendapatan",
+    "metricsOrders": "Pesanan",
+    "metricsUnavailableTitle": "Metrik performa akan tersedia setelah pengiriman",
+    "metricsUnavailableBody": "Metrik performa kampanye termasuk tingkat buka, tingkat klik, pendapatan, dan pesanan akan dihasilkan setelah kampanye berhasil dikirim ke penerima.",
+    "validation": {
+      "campaignName": "Nama Kampanye",
+      "campaignId": "ID Kampanye",
+      "recipients": "Penerima"
+    },
+    "createFailed": "Gagal membuat kampanye. Silakan coba lagi."
+  },
+  "campaignBuilder": {
+    "untitledCampaign": "Kampanye tanpa judul",
+    "back": "Kembali",
+    "saveCampaign": "Simpan Kampanye",
+    "inspirationHint": "Butuh inspirasi? Lihat praktik terbaik",
+    "inspirationLink": "di sini",
+    "selectTemplate": "Pilih template",
+    "contentTitle": "Konten",
+    "contentSubtitle": "Tambahkan blok untuk membangun kampanye Anda",
+    "emptyPreview": "Tambahkan blok konten untuk membangun kampanye Anda",
+    "selectBlockToEdit": "Pilih blok konten untuk diedit",
+    "blockEditorTitle": "Blok {type}",
+    "online": "Online",
+    "blockTypes": {
+      "header": {
+        "label": "Header",
+        "description": "Tambahkan logo dan nama perusahaan"
+      },
+      "text": {
+        "label": "Teks",
+        "description": "Tambahkan konten teks dengan format"
+      },
+      "image": {
+        "label": "Gambar",
+        "description": "Tambahkan gambar atau foto"
+      },
+      "product": {
+        "label": "Produk",
+        "description": "Tampilkan produk beserta detailnya"
+      },
+      "button": {
+        "label": "Tombol",
+        "description": "Tambahkan tombol interaktif"
+      },
+      "list": {
+        "label": "Daftar",
+        "description": "Buat daftar item"
+      },
+      "divider": {
+        "label": "Pembatas",
+        "description": "Tambahkan pemisah visual"
+      },
+      "spacing": {
+        "label": "Jarak",
+        "description": "Tambahkan jarak antar blok"
+      }
+    },
+    "templates": {
+      "productLaunch": {
+        "name": "Peluncuran Produk",
+        "description": "Umumkan produk baru dengan gambar dan detail"
+      },
+      "promotion": {
+        "name": "Promosi",
+        "description": "Promosikan penawaran khusus dan diskon"
+      },
+      "announcement": {
+        "name": "Pengumuman",
+        "description": "Bagikan pembaruan dan berita penting"
+      },
+      "flashSale": {
+        "name": "Flash Sale",
+        "description": "Ciptakan urgensi dengan penawaran terbatas waktu"
+      },
+      "welcome": {
+        "name": "Sambutan",
+        "description": "Sambut pelanggan baru dengan penawaran khusus"
+      },
+      "custom": {
+        "name": "Kustom",
+        "description": "Mulai dari awal dengan template kosong"
+      }
+    },
+    "placeholders": {
+      "yourCompany": "Perusahaan Anda",
+      "clickToEditHeader": "Klik untuk edit header...",
+      "clickToEditText": "Klik untuk edit teks...",
+      "enterTextHere": "Masukkan teks di sini",
+      "clickToUploadImage": "Klik untuk unggah gambar",
+      "campaignImageAlt": "Gambar kampanye",
+      "searchProducts": "Cari produk...",
+      "clickToSearchProduct": "Klik untuk cari produk...",
+      "buttonDefault": "Tombol",
+      "clickToEdit": "Klik untuk edit...",
+      "addListItems": "Tambahkan item daftar",
+      "newItem": "Item baru",
+      "imageDescription": "Deskripsi gambar",
+      "buttonLink": "https://contoh.com",
+      "clickHere": "Klik di sini"
+    },
+    "editor": {
+      "style": "Gaya",
+      "textContent": "Konten Teks",
+      "uploadImage": "Unggah Gambar",
+      "chooseImage": "Pilih Gambar",
+      "uploading": "Mengunggah...",
+      "altText": "Teks Alt",
+      "buttonText": "Teks Tombol",
+      "buttonLink": "Tautan Tombol",
+      "buttonStyle": "Gaya Tombol",
+      "spacingSize": "Ukuran Jarak",
+      "addItem": "Tambah item",
+      "moveUp": "Pindah ke atas",
+      "moveDown": "Pindah ke bawah",
+      "preview": "Pratinjau"
+    },
+    "styles": {
+      "normal": "normal",
+      "bold": "tebal",
+      "italic": "miring",
+      "primary": "utama",
+      "secondary": "sekunder",
+      "small": "kecil",
+      "medium": "sedang",
+      "large": "besar"
+    },
+    "alerts": {
+      "uploadFailed": "Gagal mengunggah gambar",
+      "uploadFailedRetry": "Gagal mengunggah gambar. Silakan coba lagi.",
+      "selectImageFile": "Silakan pilih file gambar",
+      "imageTooLarge": "Ukuran gambar harus kurang dari 5MB"
+    }
+  },
+  "sendModal": {
+    "title": "Kirim Kampanye",
+    "closeModal": "Tutup modal",
+    "campaignInformation": "Informasi Kampanye",
+    "campaignDesign": "Desain Kampanye",
+    "campaignId": "ID Kampanye",
+    "campaignName": "Nama Kampanye",
+    "description": "Deskripsi",
+    "recipients": "Penerima",
+    "cancel": "Batal",
+    "sendCampaign": "Kirim Kampanye",
+    "sending": "Mengirim...",
+    "whatsappAlt": "WhatsApp"
+  },
+  "team": {
+    "title": "Tim",
+    "subtitle": "Kelola anggota tim marketing dan peran",
+    "refresh": "Segarkan",
+    "exportData": "Ekspor Data",
+    "addAgent": "Tambah Agen",
+    "loading": "Memuat tim...",
+    "overlayRefreshing": "Menyegarkan data tim",
+    "overlayLoaded": "Menampilkan data tim ({count} agen penjualan dimuat)",
+    "overlayLoading": "Memuat data tim...",
+    "overlayError": "Gagal memuat tim",
+    "agentsLoaded": "{count} agen penjualan dimuat",
+    "deleteConfirm": "Apakah Anda yakin ingin menghapus agen ini?",
+    "deleteFailed": "Gagal menghapus agen. Silakan coba lagi.",
+    "noAgentsToExport": "Tidak ada agen untuk diekspor",
+    "exportSheetName": "Agen Penjualan"
+  },
+  "teamList": {
+    "agentsTitle": "Agen",
+    "searchPlaceholder": "Cari agen...",
+    "agentSelected": "agen",
+    "agentsSelected": "agen",
+    "selected": "dipilih",
+    "bulkHintSingle": "Pilih agen untuk dihapus.",
+    "bulkHintMultiple": "Pilih agen untuk dihapus.",
+    "removeAgent": "Hapus Agen",
+    "removeSelected": "Hapus yang Dipilih",
+    "noAgentsFound": "Tidak ada agen ditemukan",
+    "noTeamsFound": "Tidak ada tim ditemukan",
+    "createNewTeam": "Buat Tim Baru",
+    "addMembers": "Tambah anggota",
+    "membersCount": "{count} anggota",
+    "teamModal": {
+      "createTitle": "Buat Tim Baru",
+      "editTitle": "Edit Tim",
+      "createSubtitle": "Tetapkan agen penjualan ke wilayah",
+      "editSubtitle": "Perbarui informasi tim/wilayah",
+      "teamNameLabel": "Nama Tim/Wilayah",
+      "teamNamePlaceholder": "contoh: Tim Jakarta, Tim Regional",
+      "salesAgentsLabel": "Agen Penjualan",
+      "selectAll": "Pilih Semua",
+      "deselectAll": "Batalkan Pilihan Semua",
+      "noAgentsAvailable": "Tidak ada agen penjualan tersedia",
+      "agentsSelectedCount": "{count} agen dipilih",
+      "cancel": "Batal",
+      "createTeam": "Buat Tim",
+      "updateTeam": "Perbarui Tim",
+      "closeModal": "Tutup modal",
+      "teamNameRequired": "Silakan masukkan nama tim/wilayah",
+      "selectAgentRequired": "Silakan pilih minimal satu agen penjualan",
+      "notAuthenticated": "Pengguna belum terautentikasi",
+      "saveFailed": "Gagal menyimpan tim. Silakan coba lagi."
+    },
+    "deleteAgentTitle": "Hapus Agen",
+    "deleteAgentsTitle": "Hapus Agen",
+    "deleteBulkConfirm": "Apakah Anda yakin ingin menghapus {count} agen? Tindakan ini tidak dapat dibatalkan.",
+    "deleteSingleConfirm": "Apakah Anda yakin ingin menghapus {name}? Tindakan ini tidak dapat dibatalkan.",
+    "thisAgent": "agen ini",
+    "columns": {
+      "name": "NAMA",
+      "phone": "TELEPON",
+      "email": "EMAIL",
+      "role": "PERAN",
+      "status": "STATUS",
+      "actions": "AKSI"
+    },
+    "pagination": {
+      "showing": "Menampilkan {from} hingga {to} dari {total}"
+    },
+    "previousPage": "Halaman sebelumnya",
+    "nextPage": "Halaman berikutnya",
+    "editAgent": "Edit {name}",
+    "deleteAgent": "Hapus {name}",
+    "selectAgent": "Pilih {name}",
+    "deselectAgent": "Batalkan pilihan {name}",
+    "selectAllAgents": "Pilih semua agen",
+    "deselectAllAgents": "Batalkan pilihan semua agen"
+  },
+  "agentForm": {
+    "createTitle": "Buat Agen Penjualan Baru",
+    "createSubtitle": "Tambahkan agen penjualan baru ke tim Anda",
+    "editTitle": "Edit Agen Penjualan",
+    "editSubtitle": "Perbarui informasi agen",
+    "backToTeam": "Kembali ke Tim",
+    "backToDetails": "Kembali ke Detail",
+    "createAgent": "Buat Agen",
+    "saveChanges": "Simpan Perubahan",
+    "creating": "Membuat...",
+    "saving": "Menyimpan...",
+    "completeRequiredFields": "Lengkapi field wajib",
+    "wizardTabs": {
+      "profile": "Profil Dasar",
+      "products": "Produk Favorit",
+      "reporting": "Laporan Penjualan",
+      "target": "Target Penjualan"
+    },
+    "wizardTabDescriptions": {
+      "profile": "Informasi pribadi dan kontak",
+      "products": "Produk yang dijual",
+      "reporting": "Preferensi pelaporan",
+      "target": "Target dan sasaran penjualan"
+    },
+    "statusIndicators": {
+      "profile": "Profil",
+      "products": "Produk",
+      "reporting": "Laporan",
+      "target": "Target"
+    },
+    "validation": {
+      "completeBeforeCreate": "Silakan lengkapi semua field wajib sebelum membuat agen.",
+      "completeBeforeSave": "Silakan lengkapi semua field wajib sebelum menyimpan.",
+      "notAuthenticated": "Pengguna belum terautentikasi",
+      "notAuthenticatedOrMissingId": "Pengguna belum terautentikasi atau ID agen tidak ditemukan"
+    },
+    "alerts": {
+      "createFailed": "Gagal membuat agen. Silakan coba lagi.",
+      "updateFailed": "Gagal memperbarui agen. Silakan coba lagi.",
+      "loadFailed": "Gagal memuat data agen",
+      "notFound": "Agen penjualan tidak ditemukan"
+    },
+    "loading": "Memuat data agen..."
+  },
+  "basicProfile": {
+    "title": "Informasi Profil Dasar",
+    "subtitle": "Masukkan detail pribadi dan kontak agen",
+    "uploadAvatar": "Unggah Avatar",
+    "changeAvatar": "Ganti Avatar",
+    "uploading": "Mengunggah...",
+    "fullName": "Nama Lengkap",
+    "fullNamePlaceholder": "Masukkan nama lengkap",
+    "email": "Email",
+    "emailPlaceholder": "agen@contoh.com",
+    "phone": "Telepon",
+    "phonePlaceholder": "+62 21 1234 5678",
+    "role": "Peran",
+    "selectRole": "Pilih peran",
+    "status": "Status",
+    "selectStatus": "Pilih status",
+    "territory": "Wilayah / Lokasi",
+    "territoryPlaceholder": "contoh: Jakarta & Jawa Barat",
+    "sex": "Jenis Kelamin",
+    "selectGender": "Pilih jenis kelamin",
+    "bio": "Tentang Saya / Biografi",
+    "bioPlaceholder": "Masukkan biografi singkat atau deskripsi tentang agen penjualan ini...",
+    "requiredNote": "Field yang ditandai * wajib diisi. Agen dapat memperbarui informasi profilnya nanti.",
+    "note": "Catatan:",
+    "genderOptions": {
+      "male": "Laki-laki",
+      "female": "Perempuan",
+      "other": "Lainnya",
+      "preferNotToSay": "Tidak ingin menyebutkan"
+    },
+    "uploadFailed": "Gagal mengunggah avatar: {error}"
+  },
+  "favouriteProducts": {
+    "title": "Produk Favorit yang Dijual",
+    "subtitle": "Pilih hingga 3 produk (urutan bebas) dari katalog yang menjadi spesialisasi agen ini.",
+    "loading": "Memuat produk...",
+    "searchPlaceholder": "Cari produk berdasarkan nama, SKU, atau merek...",
+    "selectedCount": "{count} produk dipilih sebagai favorit",
+    "clearAll": "Hapus Semua",
+    "selectAll": "Pilih Semua ({selected}/{total})",
+    "emptyTitle": "Tidak ada produk ditemukan",
+    "emptyHint": "Coba sesuaikan pencarian atau filter Anda",
+    "tip": "Pilih produk dari katalog yang menjadi spesialisasi agen penjualan ini. Ini membantu melacak performa dan meningkatkan analisis penjualan.",
+    "pagination": {
+      "showing": "Menampilkan {from} hingga {to} dari {total}"
+    },
+    "previousPage": "Halaman sebelumnya",
+    "nextPage": "Halaman berikutnya"
+  },
+  "salesReporting": {
+    "title": "Laporan Lapangan Harian",
+    "subtitle": "Kelola laporan aktivitas lapangan harian untuk agen ini",
+    "addReport": "Tambah Laporan",
+    "startTime": "Waktu Mulai",
+    "endTime": "Waktu Selesai",
+    "location": "Lokasi",
+    "locationPlaceholder": "contoh: Jakarta & Jawa Barat",
+    "dailyActivities": "Aktivitas Harian",
+    "visits": "Kunjungan",
+    "customersMet": "Pelanggan Ditemui",
+    "productsDemonstrated": "Produk Didemonstrasikan",
+    "salesMade": "Penjualan Tercapai",
+    "notes": "Catatan & Observasi",
+    "notesPlaceholder": "Masukkan catatan tentang aktivitas hari ini, umpan balik pelanggan, tantangan, dll.",
+    "deleteReport": "Hapus laporan",
+    "note": "Laporan lapangan harian membantu melacak aktivitas agen, kunjungan pelanggan, dan performa penjualan. Laporan dapat ditandai sebagai sudah ditinjau oleh manajer/admin."
+  },
+  "salesTarget": {
+    "title": "Target Penjualan",
+    "subtitle": "Tetapkan target dan sasaran penjualan untuk agen ini",
+    "addRow": "Tambah Baris",
+    "period": "Periode",
+    "periodPlaceholder": "contoh: Oktober",
+    "goal": "Target ({currency})",
+    "achieved": "Tercapai ({currency})",
+    "unitsSold": "Unit Terjual",
+    "actions": "Aksi",
+    "deleteRow": "Hapus baris",
+    "summary": "Ringkasan",
+    "totalGoal": "Total Target",
+    "totalAchieved": "Total Tercapai",
+    "totalUnitsSold": "Total Unit Terjual",
+    "units": "Unit",
+    "note": "Tambahkan target penjualan per periode (bulan, kuartal, atau tahun). Kolom Target wajib diisi. Tercapai dan Unit Terjual dapat diperbarui seiring perkembangan penjualan.",
+    "months": {
+      "january": "Januari",
+      "february": "Februari",
+      "march": "Maret",
+      "april": "April",
+      "may": "Mei",
+      "june": "Juni",
+      "july": "Juli",
+      "august": "Agustus",
+      "september": "September",
+      "october": "Oktober",
+      "november": "November",
+      "december": "Desember"
+    }
+  },
+  "salesDetails": {
+    "backToTeamList": "Kembali ke daftar tim",
+    "editDetails": "Edit detail",
+    "salesTargetLabel": "Target penjualan {period}",
+    "achievedPercent": "{percent}% tercapai",
+    "target": "Target",
+    "achieved": "Tercapai",
+    "otherInfo": "Info Lainnya",
+    "phone": "Telepon:",
+    "sex": "Jenis Kelamin:",
+    "email": "Email:",
+    "employeeLocationStatus": "Lokasi & Status Karyawan",
+    "location": "Lokasi:",
+    "favouriteProducts": "Produk Favorit yang Dijual",
+    "noFavoriteProducts": "Belum ada produk favorit dipilih",
+    "brand": "Merek: {brand}",
+    "about": "Tentang {name}",
+    "noBiography": "Biografi belum tersedia.",
+    "dailyFieldReport": "Laporan Lapangan Harian",
+    "viewReport": "Lihat laporan",
+    "salesTarget": "Target Penjualan",
+    "reportModalTitle": "Laporan Lapangan Harian",
+    "workingHours": "Jam Kerja",
+    "dailyActivitiesSummary": "Ringkasan Aktivitas Harian",
+    "visits": "Kunjungan",
+    "customersMet": "Pelanggan Ditemui",
+    "productsDemonstrated": "Produk Didemonstrasikan",
+    "salesMade": "Penjualan Tercapai",
+    "notesObservations": "Catatan & Observasi",
+    "pagination": {
+      "showing": "Menampilkan {from} hingga {to} dari {total}"
+    },
+    "previousPage": "Halaman sebelumnya",
+    "nextPage": "Halaman berikutnya",
+    "loading": "Memuat detail agen...",
+    "notFound": "Agen tidak ditemukan",
+    "backToTeamListButton": "Kembali ke Daftar Tim",
+    "columns": {
+      "period": "Periode",
+      "goal": "Target ({currency})",
+      "achieved": "Tercapai ({currency})",
+      "unitsSold": "Unit Terjual"
+    },
+    "units": "Unit",
+    "filters": {
+      "defaultMonth": "Oktober, 2024",
+      "defaultYear": "Tahun ini (2024)"
+    }
+  },
+  "automation": {
+    "title": "Otomatisasi",
+    "subtitle": "Kelola alur kerja otomatisasi marketing Anda",
+    "loading": "Memuat otomatisasi..."
+  },
+  "shared": {
+    "cancel": "Batal",
+    "delete": "Hapus",
+    "notAvailable": "T/A",
+    "previousPage": "Halaman sebelumnya",
+    "nextPage": "Halaman berikutnya",
+    "statusTabs": {
+      "All": "Semua",
+      "Draft": "Draf",
+      "Scheduled": "Terjadwal",
+      "Completed": "Selesai"
+    },
+    "campaignStatus": {
+      "Draft": "Draf",
+      "Scheduled": "Terjadwal",
+      "Sent": "Terkirim",
+      "Completed": "Selesai"
+    },
+    "recipientOptions": {
+      "All Recipients": "Semua Penerima",
+      "All Customers": "Semua Pelanggan",
+      "Recurrent Buyers": "Pembeli Berulang",
+      "New Buyers": "Pembeli Baru",
+      "Unused Credits and Discounts": "Kredit dan Diskon Belum Digunakan",
+      "No recipients yet": "Belum ada penerima"
+    },
+    "teamTabs": {
+      "individuals": "Individu",
+      "teams": "Tim"
+    },
+    "roleFilters": {
+      "All Roles": "Semua Peran"
+    },
+    "statusFilters": {
+      "All Status": "Semua Status",
+      "Active": "Aktif",
+      "Inactive": "Nonaktif"
+    },
+    "agentRoles": {
+      "Sales Manager": "Manajer Penjualan",
+      "Sales Rep": "Sales Rep",
+      "Sales Support": "Dukungan Penjualan",
+      "Lead Gen": "Lead Gen",
+      "Account Manager": "Account Manager"
+    },
+    "agentStatus": {
+      "active": "aktif",
+      "inactive": "nonaktif",
+      "Active": "Aktif",
+      "Inactive": "Nonaktif"
+    },
+    "filters": {
+      "All Types": "Semua Tipe",
+      "All Categories": "Semua Kategori"
+    },
+    "exportColumns": {
+      "name": "Nama",
+      "email": "Email",
+      "phone": "Telepon",
+      "role": "Peran",
+      "status": "Status",
+      "territory": "Wilayah",
+      "team": "Tim",
+      "sheetName": "Agen Penjualan"
+    }
+  }
+}

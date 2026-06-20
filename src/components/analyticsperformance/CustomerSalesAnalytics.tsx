@@ -36,6 +36,7 @@ import {
 import { formatCurrency as formatCurrencyShared } from '@/utils/currencyUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { forecastSales } from '@/utils/forecasting';
+import { useAnalyticsTranslations } from '@/hooks/useAnalyticsTranslations';
 
 // Helper function to parse currency to number (matching FinancialAnalytics)
 const parseCurrencyToNumber = (currencyValue: string | number): number => {
@@ -158,6 +159,7 @@ export const calculateSalesMetrics = (
 };
 
 export const SalesTrendChart: React.FC<{ data: SalesTrendPoint[]; showSeeMore?: boolean; showForecast?: boolean }> = ({ data, showSeeMore = false, showForecast = true }) => {
+	const { tShared, tCharts } = useAnalyticsTranslations();
 	const salesForecast = showForecast && data.length >= 2 
 		? forecastSales(data, 'orders', 3) 
 		: null;
@@ -181,19 +183,23 @@ export const SalesTrendChart: React.FC<{ data: SalesTrendPoint[]; showSeeMore?: 
 	return (
 		<div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
 			<div className="flex items-center justify-between mb-4">
-				<h3 className="text-lg font-semibold text-gray-900">Sales Trend{salesForecast ? ' & Forecast' : ''}</h3>
+				<h3 className="text-lg font-semibold text-gray-900">
+					{salesForecast
+						? `${tCharts('salesTrend')}${tCharts('salesTrendForecastSuffix')}`
+						: tCharts('salesTrend')}
+				</h3>
 				<div className="flex items-center space-x-4">
-					<div className="flex items-center"><div className="w-3 h-3 rounded-full bg-[#3B82F6] mr-2"></div><span className="text-sm text-gray-600 font-medium">Orders</span></div>
-					<div className="flex items-center"><div className="w-3 h-3 rounded-full bg-[#10B981] mr-2"></div><span className="text-sm text-gray-600 font-medium">Units</span></div>
+					<div className="flex items-center"><div className="w-3 h-3 rounded-full bg-[#3B82F6] mr-2"></div><span className="text-sm text-gray-600 font-medium">{tCharts('ordersLegend')}</span></div>
+					<div className="flex items-center"><div className="w-3 h-3 rounded-full bg-[#10B981] mr-2"></div><span className="text-sm text-gray-600 font-medium">{tCharts('unitsLegend')}</span></div>
 					{salesForecast && (
-						<div className="flex items-center"><div className="w-3 h-3 border-2 border-dashed border-[#9CA3AF] rounded-full mr-2"></div><span className="text-sm text-gray-600 font-medium">Forecast</span></div>
+						<div className="flex items-center"><div className="w-3 h-3 border-2 border-dashed border-[#9CA3AF] rounded-full mr-2"></div><span className="text-sm text-gray-600 font-medium">{tCharts('forecast')}</span></div>
 					)}
 					{showSeeMore && (
 						<button 
 							onClick={() => (window.location.href = '/analytics/sales')}
 							className="flex items-center px-3 py-1.5 text-xs font-medium text-black bg-white shadow-sm hover:bg-gray-100 rounded-md transition-colors"
 						>
-							See More
+							{tShared('seeMore')}
 							<ArrowRight className="w-4 h-4 ml-1" />
 						</button>
 					)}
@@ -227,10 +233,10 @@ export const SalesTrendChart: React.FC<{ data: SalesTrendPoint[]; showSeeMore?: 
 										let label = '';
 										let color = '';
 										if (entry.dataKey === 'orders') {
-											label = 'Orders';
+											label = tCharts('ordersLegend');
 											color = '#3B82F6';
 										} else if (entry.dataKey === 'units') {
-											label = 'Pieces';
+											label = tCharts('unitsLegend');
 											color = '#10B981';
 										}
 										return (
@@ -247,8 +253,8 @@ export const SalesTrendChart: React.FC<{ data: SalesTrendPoint[]; showSeeMore?: 
 					}}
 					cursor={{ fill: '#F1F5F9', fillOpacity: 0.3 }}
 				/>
-					<Bar dataKey="orders" name="Orders" fill="url(#ordersGradient)" radius={[6,6,0,0]} maxBarSize={40} />
-					<Bar dataKey="units" name="Pieces" fill="url(#unitsGradient)" radius={[6,6,0,0]} maxBarSize={40} />
+					<Bar dataKey="orders" name={tCharts('ordersLegend')} fill="url(#ordersGradient)" radius={[6,6,0,0]} maxBarSize={40} />
+					<Bar dataKey="units" name={tCharts('unitsLegend')} fill="url(#unitsGradient)" radius={[6,6,0,0]} maxBarSize={40} />
 					{salesForecast && salesForecast.forecast.length > 0 && (
 						<Line
 							type="monotone"
@@ -266,15 +272,18 @@ export const SalesTrendChart: React.FC<{ data: SalesTrendPoint[]; showSeeMore?: 
 	);
 };
 
-export const CustomerPiecesSoldCard: React.FC<{ piecesSold: number; unitsSold: number; change: number | null; userCurrency?: string }> = ({ piecesSold, unitsSold, change }) => (
-	<AnalyticsMetricCard
-		title="Pieces Sold"
-		value={`${piecesSold.toLocaleString()}`}
-		change={change}
-		icon={<Package className="w-6 h-6 text-green-600" />}
-		color="bg-[#e6f7ec]"
-	/>
-);
+export const CustomerPiecesSoldCard: React.FC<{ piecesSold: number; unitsSold: number; change: number | null; userCurrency?: string }> = ({ piecesSold, unitsSold, change }) => {
+	const { tMetrics } = useAnalyticsTranslations();
+	return (
+		<AnalyticsMetricCard
+			title={tMetrics('piecesSold')}
+			value={`${piecesSold.toLocaleString()}`}
+			change={change}
+			icon={<Package className="w-6 h-6 text-green-600" />}
+			color="bg-[#e6f7ec]"
+		/>
+	);
+};
 
 // ===== Main Page Component (unchanged) =====
 const CUSTOMER_ANALYTICS_QUERY = `
@@ -344,6 +353,7 @@ const CUSTOMER_ANALYTICS_QUERY = `
 
 const CustomerSalesAnalytics: React.FC = () => {
 	const { user } = useUserStore();
+	const { tShared, tMetrics, tCharts, tTables, translateCategoryFilter, translateForecastTrend } = useAnalyticsTranslations();
 	const [orders, setOrders] = useState<Order[]>([]);
 	const [products, setProducts] = useState<Product[]>([]);
 	const [buyers, setBuyers] = useState<BuyerLite[]>([]);
@@ -355,10 +365,13 @@ const CustomerSalesAnalytics: React.FC = () => {
 
 	const userCurrency = user?.currency || 'IDR';
 
-	const categoryOptions = [
-		{ value: 'productCategory', label: 'Product Category' },
-		{ value: 'productType', label: 'Product Type' }
-	];
+	const categoryOptions = useMemo(
+		() => [
+			{ value: 'productCategory' as const, label: translateCategoryFilter('productCategory') },
+			{ value: 'productType' as const, label: translateCategoryFilter('productType') },
+		],
+		[translateCategoryFilter],
+	);
 
 	const currentCategoryOption = categoryOptions.find(option => option.value === categoryFilter);
 
@@ -614,7 +627,7 @@ const CustomerSalesAnalytics: React.FC = () => {
 			{/* Key Metrics */}
 			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
 				<AnalyticsMetricCard
-					title="Total Orders"
+					title={tMetrics('totalOrders')}
 					value={String(metrics.totalOrders)}
 					change={growthMetrics.ordersGrowth}
 					icon={<ShoppingCart className="w-6 h-6 text-[#0a61d7]" />}
@@ -627,14 +640,14 @@ const CustomerSalesAnalytics: React.FC = () => {
 					userCurrency={user?.currency}
 				/>
 				<AnalyticsMetricCard
-					title="Avg Pieces / Order"
+					title={tMetrics('avgPiecesPerOrder')}
 					value={`${(metrics.avgPiecesPerOrder || 0).toFixed(2)}`}
 					change={growthMetrics.avgPiecesGrowth}
 					icon={<TrendingUp className="w-6 h-6 text-amber-500" />}
 					color="bg-[#fff7ed]"
 				/>
 				<AnalyticsMetricCard
-					title="Avg Order Value"
+					title={tMetrics('avgOrderValue')}
 					value={formatCurrencyShared(metrics.avgOrderValue, userCurrency)}
 					change={growthMetrics.avgOrderValueGrowth}
 					icon={<Repeat className="w-6 h-6 text-violet-600" />}
@@ -653,7 +666,7 @@ const CustomerSalesAnalytics: React.FC = () => {
 				<div className="lg:col-span-5">
 					<div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
 						<div className="flex items-center justify-between mb-6">
-							<h3 className="text-lg font-semibold text-gray-900">Units by Product Category</h3>
+							<h3 className="text-lg font-semibold text-gray-900">{tCharts('unitsByCategory')}</h3>
 							<div className="relative" ref={categoryDropdownRef}>
 								<button
 									onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
@@ -692,9 +705,11 @@ const CustomerSalesAnalytics: React.FC = () => {
 									))}
 								</Pie>
 								<Tooltip 
-									formatter={(value: number, name: string, props: { payload?: { category?: string } }) => [
-										`${value} units`, `${props?.payload?.category ?? name}`
-									]}
+									formatter={(value: number, name: string, props: { payload?: { category?: string } }) => {
+										const category = props?.payload?.category ?? name;
+										const displayCategory = category === 'Uncategorized' ? tShared('uncategorized') : category;
+										return [`${value} ${tShared('unitsSuffix')}`, displayCategory];
+									}}
 									labelStyle={{ color: '#1E293B', fontWeight: 600, fontSize: '14px' }}
 									contentStyle={{ backgroundColor: 'white', border: 'none', borderRadius: '12px', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)', padding: '16px' }}
 								/>
@@ -709,7 +724,9 @@ const CustomerSalesAnalytics: React.FC = () => {
 										className="w-3 h-3 rounded-full"
 										style={{ backgroundColor: COLORS[index % COLORS.length], boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}
 									/>
-									<span className="text-sm text-gray-700 font-medium">{entry.category}</span>
+									<span className="text-sm text-gray-700 font-medium">
+										{entry.category === 'Uncategorized' ? tShared('uncategorized') : entry.category}
+									</span>
 								</div>
 							))}
 						</div>
@@ -720,16 +737,16 @@ const CustomerSalesAnalytics: React.FC = () => {
 			{/* Sales Trend Forecast */}
 			<div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
 				<div className="flex items-center justify-between mb-6">
-					<h3 className="text-lg font-semibold text-gray-900">Sales Trend Forecast</h3>
+					<h3 className="text-lg font-semibold text-gray-900">{tCharts('salesTrendForecast')}</h3>
 					{salesForecast && salesForecast.forecast.length > 0 && (
 						<div className="flex items-center space-x-4">
 							<div className="flex items-center">
 								<div className="w-3 h-3 rounded-full bg-[#3B82F6] mr-2"></div>
-								<span className="text-sm text-gray-600 font-medium">Historical Orders</span>
+								<span className="text-sm text-gray-600 font-medium">{tCharts('historicalOrders')}</span>
 							</div>
 							<div className="flex items-center">
 								<div className="w-3 h-3 border-2 border-dashed border-[#9CA3AF] rounded-full mr-2"></div>
-								<span className="text-sm text-gray-600 font-medium">Forecast</span>
+								<span className="text-sm text-gray-600 font-medium">{tCharts('forecast')}</span>
 							</div>
 						</div>
 					)}
@@ -783,7 +800,10 @@ const CustomerSalesAnalytics: React.FC = () => {
 																<div key={index} className="flex items-center space-x-2 mb-1">
 																	<div className={`w-3 h-3 rounded-full ${isForecast ? 'border-2 border-dashed border-[#9CA3AF]' : 'bg-[#3B82F6]'}`} />
 																	<span className="text-gray-700">
-																		Orders: {entry.value} {isForecast ? '(Forecast)' : ''}
+																		{tCharts('ordersTooltip', {
+																			count: entry.value,
+																			forecastSuffix: isForecast ? tCharts('forecastSuffix') : '',
+																		})}
 																	</span>
 																</div>
 															);
@@ -799,7 +819,7 @@ const CustomerSalesAnalytics: React.FC = () => {
 								/>
 								<Bar 
 									dataKey="orders" 
-									name="Orders" 
+									name={tCharts('ordersLegend')} 
 									fill="url(#salesForecastOrdersGradient)" 
 									radius={[6, 6, 0, 0]} 
 									maxBarSize={40}
@@ -819,17 +839,17 @@ const CustomerSalesAnalytics: React.FC = () => {
 						<div className="mt-4 pt-4 border-t border-[#e6e6e6] flex items-center justify-between">
 							<div className="flex items-center gap-4">
 								<div>
-									<span className="text-xs text-gray-500">Trend: </span>
+									<span className="text-xs text-gray-500">{tShared('trendLabel')} </span>
 									<span className={`text-sm font-semibold ${
 										salesForecast.trend === 'increasing' ? 'text-green-600' : 
 										salesForecast.trend === 'decreasing' ? 'text-red-600' : 
 										'text-gray-600'
 									}`}>
-										{salesForecast.trend.charAt(0).toUpperCase() + salesForecast.trend.slice(1)}
+										{translateForecastTrend(salesForecast.trend)}
 									</span>
 								</div>
 								<div>
-									<span className="text-xs text-gray-500">Confidence: </span>
+									<span className="text-xs text-gray-500">{tShared('confidenceLabel')} </span>
 									<span className="text-sm font-semibold text-black">{(salesForecast.confidence * 100).toFixed(1)}%</span>
 								</div>
 							</div>
@@ -839,8 +859,8 @@ const CustomerSalesAnalytics: React.FC = () => {
 					<div className="h-[320px] flex items-center justify-center">
 						<div className="text-center">
 							<TrendingUp className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-							<p className="text-gray-500 text-sm">Insufficient data for forecast</p>
-							<p className="text-gray-400 text-xs">Need at least 2 months of data</p>
+							<p className="text-gray-500 text-sm">{tCharts('insufficientForecastData')}</p>
+							<p className="text-gray-400 text-xs">{tCharts('insufficientForecastHint')}</p>
 						</div>
 					</div>
 				)}
@@ -848,17 +868,17 @@ const CustomerSalesAnalytics: React.FC = () => {
 
 			{/* Top Customers Table */}
 			<div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
-				<h3 className="text-lg font-semibold text-gray-900 mb-4">Top Customers</h3>
+				<h3 className="text-lg font-semibold text-gray-900 mb-4">{tTables('topCustomers')}</h3>
 				<div className="overflow-x-auto rounded-lg">
 					<table className="min-w-full text-sm text-left whitespace-nowrap text-xs">
 						<thead className="bg-gray-100 text-gray-500 whitespace-nowrap">
 							<tr>
-								<th className="py-3 px-4 font-medium uppercase text-left">Customer</th>
-								<th className="py-3 px-4 font-medium uppercase text-left">Buyer</th>
-								<th className="py-3 px-4 font-medium uppercase text-left">Name</th>
-								<th className="py-3 px-4 font-medium uppercase text-left">Business Type</th>
-								<th className="py-3 px-4 font-medium uppercase text-center">Orders</th>
-								<th className="py-3 px-4 font-medium uppercase text-right">Order Volume</th>
+								<th className="py-3 px-4 font-medium uppercase text-left">{tTables('customer')}</th>
+								<th className="py-3 px-4 font-medium uppercase text-left">{tTables('buyer')}</th>
+								<th className="py-3 px-4 font-medium uppercase text-left">{tTables('name')}</th>
+								<th className="py-3 px-4 font-medium uppercase text-left">{tTables('businessType')}</th>
+								<th className="py-3 px-4 font-medium uppercase text-center">{tTables('orders')}</th>
+								<th className="py-3 px-4 font-medium uppercase text-right">{tTables('orderVolume')}</th>
 							</tr>
 						</thead>
 						<tbody className="bg-white">
@@ -877,7 +897,7 @@ const CustomerSalesAnalytics: React.FC = () => {
 											</div>
 										)}
 									</td>
-									<td className="py-3 px-4 text-left text-black"><span className="cursor-pointer text-[#0a61d7] font-semibold hover:text-blue-800" onClick={() => (window.location.href = `/clients/buyers/details/${String(c.buyerId)}`)} title="View buyer profile">{String(c.buyerId)}</span></td>
+									<td className="py-3 px-4 text-left text-black"><span className="cursor-pointer text-[#0a61d7] font-semibold hover:text-blue-800" onClick={() => (window.location.href = `/clients/buyers/details/${String(c.buyerId)}`)} title={tShared('viewBuyerProfile')}>{String(c.buyerId)}</span></td>
 									<td className="py-3 px-4 text-left text-black">{c.name}</td>
 									<td className="py-3 px-4 text-left text-black">{c.businessType}</td>
 									<td className="py-3 px-4 text-center text-black">{c.orders}</td>
@@ -891,20 +911,20 @@ const CustomerSalesAnalytics: React.FC = () => {
 				{/* Pagination */}
 				<div className="flex flex-col md:flex-row md:items-center md:justify-between mt-6 gap-2">
 					<div className="text-sm text-gray-500">
-						Showing {fromCustomer} to {toCustomer} of {totalCustomers} customers
+						{tShared('pagination.showing', { from: fromCustomer, to: toCustomer, total: totalCustomers })}
 					</div>
 					<div className="flex items-center gap-3">
 						<button
 							className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
 							onClick={() => setCustomerPage(customerPage - 1)}
 							disabled={customerPage === 1}
-							aria-label="Previous page"
+							aria-label={tShared('pagination.previousPage')}
 						>
 							<ChevronLeft className="w-4 h-4 text-gray-500" />
 						</button>
 						<button
 							className="px-3 py-2 rounded-lg font-semibold text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[#0a61d7] text-white"
-							aria-label={`Page ${customerPage}`}
+							aria-label={tShared('pagination.pageAria', { page: customerPage })}
 							aria-current="page"
 						>
 							{customerPage}
@@ -913,7 +933,7 @@ const CustomerSalesAnalytics: React.FC = () => {
 							className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
 							onClick={() => setCustomerPage(customerPage + 1)}
 							disabled={customerPage === totalCustomerPages}
-							aria-label="Next page"
+							aria-label={tShared('pagination.nextPage')}
 						>
 							<ChevronRight className="w-4 h-4 text-gray-500" />
 						</button>
