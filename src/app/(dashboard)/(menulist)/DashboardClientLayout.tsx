@@ -8,6 +8,7 @@ import { useUserStore } from '@/store/userStore';
 import { useAuthHydration } from '@/hooks/useAuthHydration';
 import { TourProvider } from '@/components/tours/TourProvider';
 import { DashboardIntlProvider } from '@/components/DashboardIntlProvider';
+import { LanguageChangedModal } from '@/components/accountsettings/LanguageChangedModal';
 import { useTranslations } from 'next-intl';
 
 const MenuContext = createContext({
@@ -81,6 +82,7 @@ export default function DashboardClientLayout({ children }: { children: React.Re
     <DashboardIntlProvider>
     <MenuContext.Provider value={{ isCollapsed, toggleMenu, isMobileMenuOpen, toggleMobileMenu }}>
       <TourProvider>
+      <LanguageChangedModal />
       <div className="h-screen flex overflow-hidden relative" data-layout>
         {/* Desktop Sidebar */}
         <div className={`hidden md:block ${isCollapsed ? 'w-[70px]' : 'w-[15%]'} bg-white transition-all duration-300 border border-gray-200 min-w-[70px]`}>

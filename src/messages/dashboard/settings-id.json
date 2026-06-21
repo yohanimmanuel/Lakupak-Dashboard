@@ -94,7 +94,10 @@
       "genericUpdateError": "Terjadi kesalahan saat memperbarui pengaturan"
     },
     "success": {
-      "settingsUpdated": "Pengaturan bahasa dan wilayah berhasil diperbarui!"
+      "settingsUpdated": "Pengaturan bahasa dan wilayah berhasil diperbarui!",
+      "languageChangedTitle": "Bahasa diperbarui",
+      "languageChangedMessage": "Bahasa telah diubah ke {language}.",
+      "languageChangedClose": "Tutup"
     }
   },
   "security": {

@@ -94,7 +94,10 @@
       "genericUpdateError": "An error occurred while updating settings"
     },
     "success": {
-      "settingsUpdated": "Language and region settings updated successfully!"
+      "settingsUpdated": "Language and region settings updated successfully!",
+      "languageChangedTitle": "Language updated",
+      "languageChangedMessage": "Language has been changed to {language}.",
+      "languageChangedClose": "Close"
     }
   },
   "security": {

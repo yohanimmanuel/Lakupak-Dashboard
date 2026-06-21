@@ -6,6 +6,7 @@ import { REGIONS, getRegionByCode, getCurrencyDisplayName } from '@/config/regio
 import { ChevronDownIcon, GlobeIcon, CheckIcon, Loader2 } from 'lucide-react';
 import ReactCountryFlag from 'react-country-flag';
 import { useSettingsTranslations } from '@/hooks/useSettingsTranslations';
+import { LANGUAGE_CHANGED_SESSION_KEY } from '@/components/accountsettings/LanguageChangedModal';
 
 interface LanguageRegionData {
   language: string;
@@ -82,6 +83,11 @@ export default function LanguageRegion() {
   }, [user, user?.id]);
 
   const handleLanguageChange = async (languageCode: string) => {
+    if (languageCode === formData.language) {
+      setShowLanguageDropdown(false);
+      return;
+    }
+
     const newFormData = {
       ...formData,
       language: languageCode
@@ -164,8 +170,34 @@ export default function LanguageRegion() {
         throw new Error(errorData.error || tLanguage('errors.updateFailed'));
       }
 
-      const updatedUser = await response.json();
-      
+      await response.json();
+
+      if (field === 'language') {
+        const { user: currentUser, sessionExpiry } = useUserStore.getState();
+        if (currentUser && sessionExpiry && typeof window !== 'undefined') {
+          try {
+            const sessionData = {
+              user: {
+                ...currentUser,
+                language: data.language,
+                region: data.region,
+                currency: data.region
+                  ? getRegionByCode(data.region)?.currency || data.currency
+                  : data.currency,
+              },
+              timestamp: Date.now(),
+              expiresAt: sessionExpiry,
+            };
+            localStorage.setItem('userSession', JSON.stringify(sessionData));
+          } catch {
+            // ignore storage errors; reload will still attempt hydrate from API session
+          }
+        }
+        sessionStorage.setItem(LANGUAGE_CHANGED_SESSION_KEY, data.language);
+        window.location.reload();
+        return;
+      }
+
       updateUser({
         language: data.language,
         region: data.region,
