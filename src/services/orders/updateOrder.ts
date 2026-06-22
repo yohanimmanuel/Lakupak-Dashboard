@@ -4,26 +4,17 @@ import { Prisma } from '@/lib/prisma-generated';
 import { getOrderSecurityHeaders, validateOrderUpdate, sanitizeOrderData } from '@/utils/order-security';
 import { ensureAllPriceConsistency } from '@/utils/orderUtils';
 import { parsePrice } from '@/utils/currencyUtils';
-import { syncOrderToBuyerProfile, parseMarketplaceUserIdFromBuyerId } from '@/utils/buyerSync';
-import { broadcastOrderUpdate, broadcastNotification } from '@/utils/websocketBroadcast';
-import {
-  getMarketplaceUserPushLanguage,
-  sendExpoPushToMarketplaceUser,
-  sendExpoPushToDriver,
-} from '@/utils/expoPush';
-import { translateDriverOrderUpdate } from '@/utils/driverPushTranslations';
-import {
-  translateMarketplaceBuyerOrderCancelled,
-  translateMarketplaceBuyerOrderStatus,
-  translateMarketplacePaymentConfirmed,
-  translateMarketplacePaymentUnpaid,
-  translateMarketplaceReturnRequestRejected,
-} from '@/utils/marketplacePushTranslations';
+import { parseMarketplaceUserIdFromBuyerId } from '@/utils/buyerSync';
 import { orderUpdateRateLimiter } from '@/utils/rateLimiter';
-import { NotificationService } from '@/app/api/graphql/modules/notifications';
 import { auditOrder } from '@/lib/audit';
-import { decimalToNumber, broadcastSoldCountUpdates, calculateTotalQuantityWithPromotions } from './utils';
+import { decimalToNumber, calculateTotalQuantityWithPromotions } from './utils';
 import { getUnitPriceFromVariantOption, selectVariantOption } from '@/domain/marketplace/orderItemRules';
+import {
+  enqueueBroadcastOrderUpdates,
+  scheduleOrderCancelPostCommitEffects,
+  scheduleOrderUpdatePostCommitEffects,
+  scheduleReturnRequestRejectedNotification,
+} from './enqueueOrderUpdateSideEffects';
 
 // Move-only extraction of PUT handler from `ordersRouteService.ts`.
 export async function updateOrderHandler(request: NextRequest) {
@@ -72,11 +63,7 @@ export async function updateOrderHandler(request: NextRequest) {
         where: { ...baseWhere, orderId: { in: body.archiveOrderIds.map((v: unknown) => String(v)) } },
         data: { archivedAt: new Date() }
       });
-      try {
-        await broadcastOrderUpdate(body.archiveOrderIds.map((v: unknown) => String(v)));
-      } catch (error) {
-        // Ignore broadcast errors
-      }
+      enqueueBroadcastOrderUpdates('archive-bulk', body.archiveOrderIds.map((v: unknown) => String(v)));
       auditOrder(request, {
         action: 'archive',
         actorId: userIdForRateLimit,
@@ -113,11 +100,7 @@ export async function updateOrderHandler(request: NextRequest) {
         return NextResponse.json({ error: 'Order not found' }, { status: 404, headers });
       }
       if (archiveBroadcastIds.length > 0) {
-        try {
-          await broadcastOrderUpdate(archiveBroadcastIds);
-        } catch (error) {
-          // Ignore broadcast errors
-        }
+        enqueueBroadcastOrderUpdates('archive', archiveBroadcastIds);
       }
       auditOrder(request, {
         action: 'archive',
@@ -155,11 +138,7 @@ export async function updateOrderHandler(request: NextRequest) {
         return NextResponse.json({ error: 'Order not found' }, { status: 404, headers });
       }
       if (unarchiveBroadcastIds.length > 0) {
-        try {
-          await broadcastOrderUpdate(unarchiveBroadcastIds);
-        } catch (error) {
-          // Ignore broadcast errors
-        }
+        enqueueBroadcastOrderUpdates('unarchive', unarchiveBroadcastIds);
       }
       auditOrder(request, {
         action: 'unarchive',
@@ -227,28 +206,13 @@ export async function updateOrderHandler(request: NextRequest) {
         // Rejection does not change Order.orderStatus, so the buyer push block below never runs.
         // Notify the marketplace buyer explicitly (Expo + WebSocket), same pattern as POST /return-request.
         if (status === 'Rejected') {
-          try {
-            const marketplaceUserId = existingReturnRequest.marketplaceUserId;
-            if (marketplaceUserId != null) {
-              const orderRow = existingReturnRequest.order;
-              const rejectTranslations = translateMarketplaceReturnRequestRejected({
-                orderId: orderRow.orderId,
-              });
-              const payload = {
-                orderId: orderRow.orderId,
-                orderStatus: orderRow.orderStatus,
-                type: 'order' as const,
-                returnRequestStatus: 'Rejected' as const,
-              };
-              const { tokenCount } = await sendExpoPushToMarketplaceUser(marketplaceUserId, rejectTranslations, payload);
-              if (tokenCount === 0) {
-                const wsLang = await getMarketplaceUserPushLanguage(marketplaceUserId);
-                const wsCopy = rejectTranslations[wsLang] ?? rejectTranslations.en;
-                await broadcastNotification('order', wsCopy.title, wsCopy.body, payload, marketplaceUserId);
-              }
-            }
-          } catch {
-            // best-effort
+          const marketplaceUserId = existingReturnRequest.marketplaceUserId;
+          if (marketplaceUserId != null) {
+            scheduleReturnRequestRejectedNotification({
+              marketplaceUserId,
+              orderId: existingReturnRequest.order.orderId,
+              orderStatus: existingReturnRequest.order.orderStatus,
+            });
           }
         }
       } catch (e) {
@@ -333,67 +297,7 @@ export async function updateOrderHandler(request: NextRequest) {
           }
         }
         
-        // Auto-sync order to buyer profile after cancellation
-        if (updatedOrder.buyerId && body.userId) {
-          try {
-            await syncOrderToBuyerProfile(updatedOrder.buyerId, Number(body.userId));
-          } catch (syncError) {
-          }
-        }
-
-        try {
-          await broadcastOrderUpdate([updatedOrder.orderId]);
-        } catch (error) {
-          // Ignore broadcast errors
-        }
-        try {
-          await broadcastSoldCountUpdates(updatedOrder.orderId);
-        } catch {
-          // Best-effort broadcast
-        }
-
-        // Create notification for order cancellation (for distributor dashboard)
-        if (updatedOrder.userId) {
-          try {
-            await NotificationService.createOrderNotification(
-              updatedOrder.userId,
-              updatedOrder.orderId,
-              'Cancelled',
-              updatedOrder.storeName || 'Unknown Store',
-              decimalToNumber(updatedOrder.totalAmount)
-            );
-          } catch (notifError) {
-            // Don't fail the cancellation if notification creation fails
-          }
-        }
-
-        // Notify marketplace buyer: Expo Push first; if no Expo tokens, fallback to WebSocket (foreground only)
-        try {
-          const marketplaceUserId = parseMarketplaceUserIdFromBuyerId(updatedOrder.buyerId);
-          if (marketplaceUserId != null) {
-            const cancelTranslations = translateMarketplaceBuyerOrderCancelled({
-              orderId: updatedOrder.orderId,
-            });
-            const { tokenCount } = await sendExpoPushToMarketplaceUser(
-              marketplaceUserId,
-              cancelTranslations,
-              { orderId: updatedOrder.orderId, orderStatus: 'Cancelled', type: 'order' },
-            );
-            if (tokenCount === 0) {
-              await broadcastNotification(
-                'order',
-                cancelTranslations.en.title,
-                cancelTranslations.en.body,
-                { orderId: updatedOrder.orderId, orderStatus: 'Cancelled', type: 'order' },
-                marketplaceUserId
-              );
-            }
-          } else if (process.env.NODE_ENV === 'development') {
-            console.warn('[Orders] Cancel: buyerId not parseable for Expo/WebSocket, buyerId=', String(updatedOrder.buyerId ?? ''));
-          }
-        } catch (notifError) {
-          // Don't fail the cancellation if notification fails
-        }
+        scheduleOrderCancelPostCommitEffects(updatedOrder, body.userId ? Number(body.userId) : undefined);
 
         auditOrder(request, {
           action: 'cancel',
@@ -836,24 +740,22 @@ export async function updateOrderHandler(request: NextRequest) {
       return updatedOrder;
     });
 
-    // Run stock notifications best-effort after DB commit.
-    for (const job of stockNotificationJobs) {
-      try {
-        await NotificationService.checkAndNotifyStockLevel(
-          job.userId,
-          job.productId,
-          job.productName,
-          job.previousStock,
-          job.newStock,
-          job.lowStockThreshold,
-          job.variantName,
-        );
-      } catch (notifError) {
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('[Orders] Stock notification failed:', notifError);
-        }
-      }
-    }
+    // Run stock notifications and other side effects best-effort after DB commit.
+    scheduleOrderUpdatePostCommitEffects({
+      order: {
+        orderId: order.orderId,
+        buyerId: order.buyerId,
+        userId: order.userId,
+        storeName: order.storeName,
+        orderStatus: order.orderStatus,
+        paymentStatus: order.paymentStatus,
+        totalAmount: (order as { totalAmount?: unknown }).totalAmount,
+      },
+      sanitizedData,
+      previousOrderStatus,
+      previousPaymentStatus,
+      stockNotificationJobs,
+    });
 
     // Build items from relational rows for response
     const enrichedOrderItemsUpdate = ((order as { orderItemsRel?: Array<{ productId: string | null; subtotal: number | { toNumber?: () => number; toString?: () => string } | unknown; packageQuantity?: number; packageType?: string; piecesPerPackage?: number; pricePerPackage?: number | { toNumber?: () => number; toString?: () => string } | null | unknown; product?: { name: string; productType: string; brand: string; description: string; images: string[] } | null; productNameSnapshot?: string; productSkuSnapshot?: string; productTypeSnapshot?: string }> }).orderItemsRel || []).map((oi) => ({
@@ -874,180 +776,6 @@ export async function updateOrderHandler(request: NextRequest) {
       productTypeSnapshot: oi.productTypeSnapshot || null
     }));
 
-    // Auto-sync order to buyer profile if buyerId exists and order was updated
-    if (order.buyerId && sanitizedData.userId) {
-      try {
-        await syncOrderToBuyerProfile(order.buyerId, sanitizedData.userId as number);
-      } catch (syncError) {
-        // Log error but don't fail the order update
-      }
-    }
-
-    try {
-      await broadcastOrderUpdate([order.orderId]);
-    } catch (error) {
-      // Ignore broadcast errors
-    }
-    if (sanitizedData.orderStatus || sanitizedData.orderItems) {
-      await broadcastSoldCountUpdates(order.orderId);
-    }
-
-    // Create notification for order status change (for distributor dashboard)
-    if (
-      sanitizedData.orderStatus &&
-      sanitizedData.orderStatus !== 'Pending' &&
-      sanitizedData.orderStatus !== 'Received' &&
-      String(sanitizedData.orderStatus) !== (previousOrderStatus ?? '') &&
-      order.userId
-    ) {
-      try {
-        await NotificationService.createOrderNotification(
-          order.userId,
-          order.orderId,
-          String(sanitizedData.orderStatus),
-          order.storeName || 'Unknown Store',
-          decimalToNumber((order as { totalAmount?: unknown }).totalAmount)
-        );
-      } catch (notifError) {
-        // Don't fail the order update if notification creation fails
-      }
-    }
-
-    // Notify marketplace buyer on payment status transitions (dedicated message; mirror orderStatus push behavior).
-    if (
-      sanitizedData.paymentStatus !== undefined &&
-      String(sanitizedData.paymentStatus) === 'Paid' &&
-      previousPaymentStatus !== 'Paid'
-    ) {
-      try {
-        const marketplaceUserId = parseMarketplaceUserIdFromBuyerId(order.buyerId);
-        if (marketplaceUserId != null) {
-          const payload = { orderId: order.orderId, paymentStatus: 'Paid', type: 'payment' };
-          const payTranslations = translateMarketplacePaymentConfirmed({ orderId: order.orderId });
-          const { tokenCount } = await sendExpoPushToMarketplaceUser(
-            marketplaceUserId,
-            payTranslations,
-            payload,
-          );
-          if (tokenCount === 0) {
-            await broadcastNotification(
-              'payment',
-              payTranslations.en.title,
-              payTranslations.en.body,
-              payload,
-              marketplaceUserId,
-            );
-          }
-        } else if (process.env.NODE_ENV === 'development') {
-          console.warn('[Orders] PaymentStatus: buyerId not parseable for Expo/WebSocket, buyerId=', String(order.buyerId ?? ''));
-        }
-      } catch {
-        // best-effort
-      }
-    }
-
-    if (
-      sanitizedData.paymentStatus !== undefined &&
-      String(sanitizedData.paymentStatus) === 'Unpaid' &&
-      previousPaymentStatus !== null &&
-      previousPaymentStatus !== 'Unpaid'
-    ) {
-      try {
-        const marketplaceUserId = parseMarketplaceUserIdFromBuyerId(order.buyerId);
-        if (marketplaceUserId != null) {
-          const payload = { orderId: order.orderId, paymentStatus: 'Unpaid', type: 'payment' };
-          const payTranslations = translateMarketplacePaymentUnpaid({ orderId: order.orderId });
-          const { tokenCount } = await sendExpoPushToMarketplaceUser(
-            marketplaceUserId,
-            payTranslations,
-            payload,
-          );
-          if (tokenCount === 0) {
-            await broadcastNotification(
-              'payment',
-              payTranslations.en.title,
-              payTranslations.en.body,
-              payload,
-              marketplaceUserId,
-            );
-          }
-        } else if (process.env.NODE_ENV === 'development') {
-          console.warn('[Orders] PaymentStatus: buyerId not parseable for Expo/WebSocket, buyerId=', String(order.buyerId ?? ''));
-        }
-      } catch {
-        // best-effort
-      }
-    }
-
-    // Notify marketplace buyer + driver (order status changes)
-    if (sanitizedData.orderStatus) {
-      try {
-        const marketplaceUserId = parseMarketplaceUserIdFromBuyerId(order.buyerId);
-        if (marketplaceUserId != null) {
-          const orderStatus = String(sanitizedData.orderStatus);
-          if (orderStatus === (previousOrderStatus ?? '')) {
-            // Avoid duplicate "Order Update" notifications when client re-sends the same status
-            // (e.g. when only paymentStatus changed).
-            // Still allow broadcastOrderUpdate for data refresh elsewhere.
-            throw new Error('__skip_order_status_notification__');
-          }
-          const orderPushTranslations = translateMarketplaceBuyerOrderStatus({
-            orderId: order.orderId,
-            status: orderStatus,
-          });
-          const orderPayload = { orderId: order.orderId, orderStatus, type: 'order' as const };
-          const { tokenCount } = await sendExpoPushToMarketplaceUser(
-            marketplaceUserId,
-            orderPushTranslations,
-            orderPayload,
-          );
-          if (tokenCount === 0) {
-            await broadcastNotification(
-              'order',
-              orderPushTranslations.en.title,
-              orderPushTranslations.en.body,
-              orderPayload,
-              marketplaceUserId,
-            );
-          }
-        } else if (process.env.NODE_ENV === 'development') {
-          console.warn('[Orders] Status: buyerId not parseable for Expo/WebSocket, buyerId=', String(order.buyerId ?? ''));
-        }
-      } catch (notifError) {
-        if (notifError instanceof Error && notifError.message === '__skip_order_status_notification__') {
-          // no-op
-        } else {
-          // Don't fail the order update if notification fails
-        }
-      }
-
-      try {
-        const orderWithFleet = await prisma.order.findUnique({
-          where: { orderId: order.orderId },
-          select: { fleet: { select: { driverId: true, fleetCode: true } } },
-        });
-        const driverId = orderWithFleet?.fleet?.driverId;
-        const fleetCode = orderWithFleet?.fleet?.fleetCode;
-        if (driverId) {
-          const orderStatus = String(sanitizedData.orderStatus);
-          const translations = translateDriverOrderUpdate({
-            orderId: String(order.orderId),
-            status: orderStatus,
-            fleetCode: fleetCode ?? undefined,
-          });
-          await sendExpoPushToDriver(driverId, translations, {
-            type: 'order_updated',
-            orderId: order.orderId,
-            orderStatus,
-            fleetCode: fleetCode ?? '',
-          });
-        }
-      } catch {
-        // Best-effort
-      }
-    }
-
-    // Convert order-level Decimal fields to numbers
     const orderResponse = {
       ...order,
       subtotal: decimalToNumber((order as { subtotal?: unknown }).subtotal),
@@ -1057,20 +785,6 @@ export async function updateOrderHandler(request: NextRequest) {
       orderItems: enrichedOrderItemsUpdate
     };
     
-    // Invalidate dashboard cache after order update
-    if (order.userId) {
-      try {
-        const { invalidateDashboardCache, invalidateProductCache } = await import('@/lib/queryCache');
-        await Promise.all([
-          invalidateDashboardCache(order.userId),
-          // Order status transitions can restore/deduct stock; clear product list cache so the table refreshes correctly.
-          invalidateProductCache(order.userId),
-        ]);
-      } catch (error) {
-        // Ignore cache invalidation errors
-      }
-    }
-
     const orderStatusChanged =
       previousOrderStatus !== null && previousOrderStatus !== order.orderStatus;
     const paymentStatusChanged =

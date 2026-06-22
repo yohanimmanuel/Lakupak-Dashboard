@@ -305,7 +305,7 @@ const Menu = () => {
         href={item.href || '#'}
         data-tour={DATA_TOUR_BY_LABEL[item.label]}
         className={`flex items-center gap-3 px-2.5 py-2 rounded-lg font-medium transition-colors duration-100 relative group ${getTextColorClasses(isActive)} ${item.color || ''}`}
-        title={!shouldShowExpanded ? item.label : undefined}
+        title={!shouldShowExpanded ? navLabel(item.label) : undefined}
       >
         {renderLineBlock(isActive, true)}
         {renderIcon(item.icon, isActive)}
