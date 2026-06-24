@@ -6,6 +6,7 @@ import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useLogisticsTranslations } from '@/hooks/useLogisticsTranslations';
 import { useOrdersTranslations } from '@/hooks/useOrdersTranslations';
+import FleetDeliveryStepsList from './FleetDeliveryStepsList';
 
 export interface AssignedOrder {
   orderId: string;
@@ -55,7 +56,7 @@ export default function FleetOrderSelection({
   mode,
   currentFleetId,
 }: FleetOrderSelectionProps) {
-  const { tOrderSelection, tShared } = useLogisticsTranslations();
+  const { tOrderSelection, tDeliverySteps, tShared } = useLogisticsTranslations();
   const { translateOrderStatus, translateDeliveryMethod } = useOrdersTranslations();
   const user = useUserStore((s) => s.user);
   const [orders, setOrders] = useState<OrderNode[]>([]);
@@ -64,7 +65,8 @@ export default function FleetOrderSelection({
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [page, setPage] = useState(1);
   const rowsPerPage = 8;
-  const currentFleetIdNum = currentFleetId != null ? parseInt(currentFleetId, 10) : null;
+  const parsedFleetId = currentFleetId != null ? parseInt(currentFleetId, 10) : NaN;
+  const currentFleetIdNum = Number.isFinite(parsedFleetId) ? parsedFleetId : null;
 
   const fetchOrders = useCallback(async () => {
     if (!user?.id) return;
@@ -196,6 +198,17 @@ export default function FleetOrderSelection({
           </div>
         )}
       </div>
+
+      {selectedOrders.length > 0 && (
+        <div className="bg-white border border-[#e6e6e6] rounded-lg p-4">
+          <h4 className="text-sm font-semibold text-gray-900">{tDeliverySteps('title')}</h4>
+          <p className="text-xs text-gray-500 mt-1 mb-3">{tDeliverySteps('subtitle')}</p>
+          <FleetDeliveryStepsList
+            items={selectedOrders}
+            onReorder={(assignedOrders) => onFormChange({ assignedOrders })}
+          />
+        </div>
+      )}
 
       {pagedOrders.length === 0 ? (
         <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg">

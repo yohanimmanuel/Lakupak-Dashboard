@@ -44,7 +44,6 @@ import type { Buyer, Supplier, SupplyDetail } from '@/types/client';
 import MapComponent from '@/components/ordershipment/MapComponent';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
 import {
-  geocodeMultipleAddresses,
   geocodeViaProxy,
   GeocodeResult,
   MapCoordinates,
@@ -1041,7 +1040,7 @@ export default function HomePage() {
 
   useEffect(() => {
     const geocodeLogisticsAddresses = async () => {
-      if (logisticsActiveOrders.length === 0 || !mapboxToken) {
+      if (logisticsActiveOrders.length === 0) {
         return;
       }
 
@@ -1066,9 +1065,7 @@ export default function HomePage() {
 
       setIsLogisticsGeocoding(true);
       try {
-        const newResults = mapboxToken
-          ? await geocodeMultipleAddresses(addressesToGeocode, mapboxToken)
-          : await geocodeViaProxy(addressesToGeocode);
+        const newResults = await geocodeViaProxy(addressesToGeocode);
         setLogisticsGeocodeResults((prev) => {
           const updated = new Map(prev);
           newResults.forEach((result, address) => {
@@ -1091,7 +1088,7 @@ export default function HomePage() {
     };
 
     geocodeLogisticsAddresses();
-  }, [logisticsActiveOrders, mapboxToken]);
+  }, [logisticsActiveOrders]);
 
   useEffect(() => {
     const controller = new AbortController();

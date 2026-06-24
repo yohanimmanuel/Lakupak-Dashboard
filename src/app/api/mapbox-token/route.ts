@@ -5,7 +5,7 @@ import { getAuthenticatedUserId } from '@/utils/auth-helpers';
  * Returns only a public Mapbox token (pk.*) at runtime. Never exposes MAPBOX_ACCESS_TOKEN (sk.*).
  * - If NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN is set and starts with "pk.", return it to the client.
  * - If only MAPBOX_ACCESS_TOKEN is set and starts with "sk.", treat as secret: require auth and
- *   return { token: null }; client must use /api/mapbox-geocode for server-side geocoding.
+ *   return { token: null }; client must use /api/mapbox-geocode for Google geocoding (map tiles only on client).
  */
 export async function GET(request: NextRequest) {
   const publicToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     if (userId == null) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    // No client token available; client should use /api/mapbox-geocode for geocoding.
+    // No client token available; map display may be limited — geocoding uses /api/mapbox-geocode (Google).
     return NextResponse.json(
       { error: 'MAPBOX_ACCESS_TOKEN not configured for client (use server geocode proxy)' },
       { status: 500 }

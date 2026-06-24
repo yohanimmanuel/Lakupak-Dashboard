@@ -19,6 +19,7 @@ export function useLogisticsTranslations() {
   const tTripSummaryModal = useTranslations('dashboard.logistics.tripSummaryModal');
   const tTripInfo = useTranslations('dashboard.logistics.tripInfo');
   const tRouteMap = useTranslations('dashboard.logistics.routeMap');
+  const tDeliverySteps = useTranslations('dashboard.logistics.deliverySteps');
   const tCommon = useTranslations('dashboard.common');
 
   const translateFleetStatus = (status: string) =>
@@ -53,6 +54,7 @@ export function useLogisticsTranslations() {
     tTripSummaryModal,
     tTripInfo,
     tRouteMap,
+    tDeliverySteps,
     tCommon,
     translateFleetStatus,
     translateDeliveryType,

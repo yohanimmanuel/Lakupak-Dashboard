@@ -411,6 +411,7 @@ export default function EditFleetPage() {
         isSubmitting={isSaving}
         onSubmit={handleModalSubmit}
         onCompletedOrderIdsChange={(ids) => handleFormChange({ completedOrderIds: ids })}
+        onAssignedOrdersChange={(assignedOrders) => handleFormChange({ assignedOrders })}
       />
     </div>
   );

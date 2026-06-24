@@ -5,7 +5,7 @@ import { Order } from '@/types/order';
 import MapComponent from './MapComponent';
 import MapFullscreenModal from '@/components/MapFullscreenModal';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
-import { geocodeMultipleAddresses, geocodeViaProxy, GeocodeResult, MapCoordinates, getOrderStatusMarkerColor } from '@/utils/mapboxUtils';
+import { geocodeViaProxy, GeocodeResult, MapCoordinates, getOrderStatusMarkerColor } from '@/utils/mapboxUtils';
 import { useOrdersTranslations } from '@/hooks/useOrdersTranslations';
 
 interface OrdersGPSProps {
@@ -92,9 +92,7 @@ export default function OrdersGPS({ orders }: OrdersGPSProps) {
 
       setIsGeocoding(true);
       try {
-        const newResults = mapboxToken
-          ? await geocodeMultipleAddresses(needGeocoding, mapboxToken)
-          : await geocodeViaProxy(needGeocoding);
+        const newResults = await geocodeViaProxy(needGeocoding);
         setGeocodeResults(prev => {
           const updated = new Map(prev);
           newResults.forEach((result, address) => {
@@ -108,7 +106,7 @@ export default function OrdersGPS({ orders }: OrdersGPSProps) {
     };
 
     geocodeAddresses();
-  }, [filteredOrders, mapboxToken]);
+  }, [filteredOrders]);
 
   const mapMarkers: MapMarker[] = useMemo(() => {
     return filteredOrders

@@ -5,7 +5,7 @@ import { sanitizePagination, buildPaginationInfo } from '../common/utils';
 import { broadcastNotification } from '@/utils/websocketBroadcast';
 import { sendExpoPushToDriver } from '@/utils/expoPush';
 import { translateDriverFleetAssigned, translateDriverOrdersAdded } from '@/utils/driverPushTranslations';
-import { isDeliveryStopComplete } from '@/utils/deliveryCompletion';
+import { buildFleetRouteStops, parseFleetJsonStringArray } from '@/utils/fleetRouteStops';
 
 type DbClient = Pick<typeof prisma, 'order'>;
 
@@ -301,14 +301,7 @@ function validateDriverPassword(password: string): void {
 }
 
 function parseJsonStringArray(val: unknown): string[] {
-  if (Array.isArray(val)) return val.filter((x): x is string => typeof x === 'string');
-  if (typeof val === 'string') {
-    try {
-      const arr = JSON.parse(val) as unknown;
-      return Array.isArray(arr) ? arr.filter((x): x is string => typeof x === 'string') : [];
-    } catch { return []; }
-  }
-  return [];
+  return parseFleetJsonStringArray(val);
 }
 
 function parseJsonCustomers(val: unknown): { storeName?: string; contactName?: string }[] {
@@ -406,17 +399,10 @@ function mapFleet(row: FleetRow) {
 
   const completedOrderIds = rawCompleted.filter((id) => existingOrderIds.has(id));
 
-  const deliveryAddressMap = new Map(
-    row.orders.filter((o) => o.deliveryAddress).map((o) => [o.orderId, o.deliveryAddress as string])
-  );
-  const deliveryAddresses = assignedOrderIds
-    .map((id) => deliveryAddressMap.get(id))
-    .filter((a): a is string => Boolean(a));
-
-  const orderStatusMap = new Map(row.orders.map((o) => [o.orderId, o.orderStatus]));
-  const deliveryStopsCompleted = assignedOrderIds
-    .filter((id) => Boolean(deliveryAddressMap.get(id)))
-    .map((id) => isDeliveryStopComplete(orderStatusMap.get(id)));
+  const { deliveryAddresses, deliveryStopsCompleted } = buildFleetRouteStops({
+    assignedOrderIds: row.assignedOrderIds,
+    orders: row.orders ?? [],
+  });
 
   const d = row.driver;
   return {
@@ -670,7 +656,10 @@ export const logisticsResolvers = {
       const numId = parseInt(id, 10);
       if (!Number.isInteger(numId) || numId <= 0) throw new Error('Invalid fleet id');
 
-      const existingFleet = await prisma.fleet.findFirst({ where: { id: numId, userId }, select: { driverId: true } });
+      const existingFleet = await prisma.fleet.findFirst({
+        where: { id: numId, userId },
+        select: { driverId: true, assignedOrderIds: true, fleetCode: true },
+      });
       if (!existingFleet) throw new Error('Fleet not found');
 
       // Resolve driver changes
@@ -792,14 +781,39 @@ export const logisticsResolvers = {
         ).catch(() => {});
       }
 
+      // Notify driver when completion checklist or fleet status changes (not assignedOrderIds — orders_added handles that).
+      const affectsDriverRoute =
+        input.completedOrderIds !== undefined ||
+        input.status !== undefined;
+
+      if (affectsDriverRoute && row.driverId && row.driverId !== 0) {
+        broadcastNotification(
+          'fleet_updated',
+          'Route updated',
+          `Delivery route for fleet ${row.fleetCode} was updated.`,
+          { fleetId: row.id, fleetCode: row.fleetCode, hint: 'refetch' },
+          row.driverId,
+        ).catch(() => {});
+      }
+
       // Notify when orders are added to an already-assigned fleet
       if (input.assignedOrderIds !== undefined && row.driverId && row.driverId !== 0) {
-        const newOrderIds = Array.isArray(input.assignedOrderIds) ? (input.assignedOrderIds as string[]) : [];
-        if (newOrderIds.length > 0) {
+        const prevAssigned = parseJsonStringArray(existingFleet.assignedOrderIds);
+        const prevSet = new Set(prevAssigned);
+        const nextAssigned = Array.isArray(input.assignedOrderIds) ? (input.assignedOrderIds as string[]) : [];
+        const addedOrderIds = nextAssigned.filter((id) => !prevSet.has(id));
+        if (addedOrderIds.length > 0) {
           sendExpoPushToDriver(
             row.driverId,
-            translateDriverOrdersAdded({ fleetCode: row.fleetCode, count: newOrderIds.length }),
+            translateDriverOrdersAdded({ fleetCode: row.fleetCode, count: addedOrderIds.length }),
             { type: 'orders_added', fleetId: String(row.id), fleetCode: row.fleetCode },
+          ).catch(() => {});
+          broadcastNotification(
+            'orders_added',
+            'Orders added',
+            `New orders were added to fleet ${row.fleetCode}.`,
+            { fleetId: row.id, fleetCode: row.fleetCode, hint: 'refetch' },
+            row.driverId,
           ).catch(() => {});
         }
       }

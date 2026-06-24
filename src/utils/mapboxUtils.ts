@@ -98,65 +98,21 @@ export function getMarkerContainerStyle(hasLabel: boolean): React.CSSProperties 
 }
 
 /**
- * Geocode a single address. Token is passed at runtime (from useMapboxToken /api/mapbox-token).
+ * Geocode a single address via the dashboard Google geocoding proxy.
  */
-export async function geocodeAddress(
-  address: string,
-  accessToken?: string | null
-): Promise<GeocodeResult> {
-  if (!accessToken) {
-    return { coordinates: null, address };
-  }
-
-  try {
-    const encodedAddress = encodeURIComponent(address);
-    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodedAddress}.json?access_token=${accessToken}&limit=1`;
-
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      throw new Error(`Geocoding failed: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-
-    if (data.features && data.features.length > 0) {
-      const [longitude, latitude] = data.features[0].center;
-      return {
-        coordinates: { longitude, latitude },
-        address: data.features[0].place_name || address,
-      };
-    }
-
-    return { coordinates: null, address };
-  } catch {
-    return { coordinates: null, address };
-  }
+export async function geocodeAddress(address: string): Promise<GeocodeResult> {
+  const results = await geocodeViaProxy([address]);
+  return results.get(address) ?? { coordinates: null, address };
 }
 
 export async function geocodeMultipleAddresses(
   addresses: string[],
-  accessToken?: string | null
 ): Promise<Map<string, GeocodeResult>> {
-  const results = new Map<string, GeocodeResult>();
-
-  const geocodePromises = addresses.map(async (address) => {
-    const result = await geocodeAddress(address, accessToken);
-    return { address, result };
-  });
-
-  const geocodeResults = await Promise.all(geocodePromises);
-
-  geocodeResults.forEach(({ address, result }) => {
-    results.set(address, result);
-  });
-
-  return results;
+  return geocodeViaProxy(addresses);
 }
 
 /**
- * Server-side geocoding proxy. Use when no public token is returned (e.g. only sk.* is set).
- * Requires authenticated session; uses server MAPBOX_ACCESS_TOKEN so secret is never sent to client.
+ * Server-side Google geocoding proxy (authenticated dashboard session).
  */
 export async function geocodeViaProxy(
   addresses: string[]

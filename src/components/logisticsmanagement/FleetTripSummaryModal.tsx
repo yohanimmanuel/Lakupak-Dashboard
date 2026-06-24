@@ -5,6 +5,8 @@ import { X, CheckCircle, Package, Truck, User, MapPin, CreditCard, Calendar, Lay
 import { getVehicleTypeInfo } from '@/config/vehicleTypes';
 import { useLogisticsTranslations } from '@/hooks/useLogisticsTranslations';
 import Image from 'next/image';
+import FleetDeliveryStepsList from './FleetDeliveryStepsList';
+import type { AssignedOrder } from './FleetOrderSelection';
 
 export interface FleetTripSummaryData {
   orderCode: string;
@@ -37,7 +39,7 @@ export interface FleetTripSummaryData {
   driverUsername?: string;
   /** Whether a driver app password was set during this form session (never carry plaintext here). */
   driverPasswordSet?: boolean;
-  assignedOrders?: { orderId: string; storeName: string; totalAmount: number }[];
+  assignedOrders?: AssignedOrder[];
   /** IDs of orders marked as delivered (checklist) */
   completedOrderIds?: string[];
 }
@@ -51,6 +53,8 @@ interface FleetTripSummaryModalProps {
   onSubmit: () => void;
   /** Called when distributor toggles completed orders (checklist) */
   onCompletedOrderIdsChange?: (ids: string[]) => void;
+  /** Called when delivery step order changes */
+  onAssignedOrdersChange?: (orders: AssignedOrder[]) => void;
 }
 
 function SummaryRow({ label, value, icon: Icon }: { label: string; value: string; icon?: React.ComponentType<{ className?: string }> }) {
@@ -74,9 +78,11 @@ export default function FleetTripSummaryModal({
   isSubmitting,
   onSubmit,
   onCompletedOrderIdsChange,
+  onAssignedOrdersChange,
 }: FleetTripSummaryModalProps) {
   const {
     tTripSummaryModal,
+    tDeliverySteps,
     tShared,
     translateFleetStatus,
     translateDeliveryType,
@@ -211,6 +217,10 @@ export default function FleetTripSummaryModal({
                 {tTripSummaryModal('assignedOrders', { count: (data.assignedOrders ?? []).length })}
               </h3>
               <div className="border border-gray-200 rounded-lg p-4 space-y-4">
+                <div>
+                  <p className="text-xs font-semibold text-gray-800">{tDeliverySteps('title')}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{tDeliverySteps('subtitle')}</p>
+                </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-gray-700 flex items-center gap-2">
                     <PackageCheck className="w-3.5 h-3.5" />
@@ -220,29 +230,13 @@ export default function FleetTripSummaryModal({
                     {tTripSummaryModal('completedOfTotal', { completed: completedCount, total: totalOrders })}
                   </span>
                 </div>
-                <ul className="space-y-2">
-                  {orders.map((o) => (
-                    <li key={o.orderId} className="flex items-center gap-3 py-2 border-b border-gray-100 last:border-0">
-                      <button
-                        type="button"
-                        onClick={() => handleToggle(o.orderId)}
-                        className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center shrink-0 ${
-                          completedSet.has(o.orderId)
-                            ? 'bg-green-500 border-green-500'
-                            : 'bg-white border-gray-300 hover:border-green-400'
-                        }`}
-                      >
-                        {completedSet.has(o.orderId) && (
-                          <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </button>
-                      <span className="font-medium text-xs text-gray-900 truncate">{o.orderId}</span>
-                      <span className="text-gray-600 text-xs truncate">{o.storeName || tShared('notApplicable')}</span>
-                    </li>
-                  ))}
-                </ul>
+                <FleetDeliveryStepsList
+                  items={orders}
+                  completedIds={completedSet}
+                  showCompletion
+                  onToggleComplete={handleToggle}
+                  onReorder={(next) => onAssignedOrdersChange?.(next)}
+                />
               </div>
             </section>
           ) : (

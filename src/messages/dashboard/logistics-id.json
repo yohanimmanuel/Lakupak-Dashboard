@@ -337,7 +337,7 @@
     "noOrders": "Pesanan tidak ditemukan",
     "assignedElsewhere": "Ditugaskan ke armada lain",
     "tip": "Tips:",
-    "tipBody": "Pilih pesanan dari sistem Anda untuk ditugaskan ke armada ini. Pesanan yang ditugaskan akan muncul di ringkasan perjalanan."
+    "tipBody": "Pilih pesanan dari sistem Anda untuk ditugaskan ke armada ini. Seret langkah pengiriman untuk mengatur urutan kunjungan — rute peta mengikuti urutan tersebut."
   },
   "tripSummaryModal": {
     "title": "Ringkasan Perjalanan",
@@ -395,5 +395,12 @@
     "mapUnavailable": "Peta tidak tersedia",
     "stop": "Perhentian {index}",
     "stopCompleted": "Perhentian {index} selesai"
+  },
+  "deliverySteps": {
+    "title": "Langkah pengiriman",
+    "subtitle": "Seret untuk mengatur urutan kunjungan. Rute peta mengikuti urutan ini.",
+    "dragToReorder": "Seret untuk mengurutkan langkah pengiriman",
+    "reorderHandle": "Urutkan langkah {index}. Seret, atau tekan Alt+Panah atas/bawah untuk memindahkan.",
+    "step": "Langkah {index}"
   }
 }

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUserId } from '@/utils/auth-helpers';
 import { mapboxGeocodeRateLimiter } from '@/utils/rateLimiter';
+import { geocodeAddressesBatch } from '@/utils/geocodeBatch';
+import { getGoogleMapsApiKey } from '@/utils/googleGeocode';
 
 /** Geocode result shape matching client GeocodeResult */
 interface GeocodeResultBody {
@@ -9,8 +11,8 @@ interface GeocodeResultBody {
 }
 
 /**
- * Server-side proxy for Mapbox Geocoding API. Uses MAPBOX_ACCESS_TOKEN (or NEXT_PUBLIC_*)
- * so secret tokens (sk.*) are never sent to the client. Auth required.
+ * Dashboard geocoding proxy (Google Geocoding API + DB cache).
+ * Route name kept for backward compatibility; Mapbox is not used for geocoding.
  */
 export async function POST(request: NextRequest) {
   const userId = await getAuthenticatedUserId(request);
@@ -21,10 +23,8 @@ export async function POST(request: NextRequest) {
   const rateLimitResponse = await mapboxGeocodeRateLimiter(request, userId);
   if (rateLimitResponse) return rateLimitResponse;
 
-  const serverToken =
-    process.env.MAPBOX_ACCESS_TOKEN || process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
-  if (!serverToken) {
-    return NextResponse.json({ error: 'Mapbox not configured' }, { status: 503 });
+  if (!getGoogleMapsApiKey()) {
+    return NextResponse.json({ error: 'Geocoding not configured' }, { status: 503 });
   }
 
   let body: { addresses?: string[] };
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
   }
 
   const MAX_ADDRESSES = 25;
-  const MAX_ADDRESS_LENGTH = 300;
+  const MAX_ADDRESS_LENGTH = 500;
 
   const addresses = Array.isArray(body?.addresses)
     ? body.addresses.filter((a) => typeof a === 'string').map((a) => a.trim()).filter((a) => a.length > 0)
@@ -46,42 +46,19 @@ export async function POST(request: NextRequest) {
   if (addresses.length > MAX_ADDRESSES) {
     return NextResponse.json(
       { error: `Maximum ${MAX_ADDRESSES} addresses allowed per request` },
-      { status: 400 }
+      { status: 400 },
     );
   }
   if (addresses.some((a) => a.length > MAX_ADDRESS_LENGTH)) {
     return NextResponse.json({ error: 'One or more addresses are too long' }, { status: 400 });
   }
 
+  const batch = await geocodeAddressesBatch(addresses);
   const results: Record<string, GeocodeResultBody> = {};
-
-  await Promise.all(
-    addresses.map(async (address) => {
-      const encoded = encodeURIComponent(address);
-      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encoded}.json?access_token=${serverToken}&limit=1`;
-      try {
-        const res = await fetch(url);
-        if (!res.ok) {
-          results[address] = { coordinates: null, address };
-          return;
-        }
-        const data = (await res.json()) as {
-          features?: Array<{ center?: [number, number]; place_name?: string }>;
-        };
-        if (data.features?.length && data.features[0].center) {
-          const [longitude, latitude] = data.features[0].center;
-          results[address] = {
-            coordinates: { longitude, latitude },
-            address: data.features[0].place_name ?? address,
-          };
-        } else {
-          results[address] = { coordinates: null, address };
-        }
-      } catch {
-        results[address] = { coordinates: null, address };
-      }
-    })
-  );
+  for (const address of addresses) {
+    const item = batch[address];
+    results[address] = item ?? { coordinates: null, address };
+  }
 
   return NextResponse.json({ results });
 }

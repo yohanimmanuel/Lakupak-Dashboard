@@ -3,17 +3,15 @@
 /**
  * LogisticsRouteMap — Mapbox map for logistics.
  *
- * Routing uses only:
- * - Driver live GPS (optional): first waypoint + blue dot
- * - Buyer delivery addresses from assigned orders: geocoded stops + line (pending stops only)
- *
- * Fleet `route` text (e.g. "Jakarta → Semarang") is display-only elsewhere — never used here.
+ * Route follows assigned delivery-step order (pending stops only) via Mapbox Directions.
  */
 
 import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
 import { useLogisticsTranslations } from '@/hooks/useLogisticsTranslations';
+import { buildFleetRouteWaypoints, buildPendingDeliveryStepNumbers } from '@/utils/fleetRouteStops';
+import { geocodeMultipleAddresses } from '@/utils/mapboxUtils';
 
 function createDriverDotElement(ariaLabel: string): HTMLDivElement {
   const el = document.createElement('div');
@@ -72,38 +70,19 @@ function escapeHtml(text: string): string {
     .replaceAll("'", '&#039;');
 }
 
-async function geocodePlace(token: string, query: string): Promise<[number, number] | null> {
-  if (!token || !query.trim()) return null;
-  try {
-    const res = await fetch(
-      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query.trim())}.json` +
-        `?access_token=${token}&limit=1`
-    );
-    if (!res.ok) return null;
-    const data = (await res.json()) as {
-      features?: { geometry: { coordinates: [number, number] } }[];
-    };
-    return data.features?.[0]?.geometry.coordinates ?? null;
-  } catch {
-    return null;
-  }
-}
-
-async function fetchDrivingRoute(
-  token: string,
-  waypoints: [number, number][]
+async function fetchDirectionsRoute(
+  mapToken: string,
+  waypoints: [number, number][],
 ): Promise<GeoJSON.Geometry | null> {
-  if (!token || waypoints.length < 2) return null;
+  if (waypoints.length < 2) return null;
+  const coordsParam = waypoints.map(([lng, lat]) => `${lng},${lat}`).join(';');
+  const url =
+    `https://api.mapbox.com/directions/v5/mapbox/driving/${coordsParam}` +
+    `?access_token=${mapToken}&geometries=geojson&overview=full&steps=false`;
   try {
-    const coords = waypoints.map((w) => w.join(',')).join(';');
-    const res = await fetch(
-      `https://api.mapbox.com/directions/v5/mapbox/driving/${coords}` +
-        `?access_token=${token}&geometries=geojson&overview=full&steps=false`
-    );
+    const res = await fetch(url);
     if (!res.ok) return null;
-    const data = (await res.json()) as {
-      routes?: { geometry: GeoJSON.Geometry }[];
-    };
+    const data = (await res.json()) as { routes?: Array<{ geometry: GeoJSON.Geometry }> };
     return data.routes?.[0]?.geometry ?? null;
   } catch {
     return null;
@@ -111,9 +90,7 @@ async function fetchDrivingRoute(
 }
 
 export interface LogisticsRouteMapProps {
-  /** Buyer delivery addresses from assigned orders (only source for stop coordinates). */
   deliveryAddresses: string[];
-  /** Per-stop completion aligned with deliveryAddresses (Delivered or Received). */
   stopsCompleted?: boolean[];
   driverLat?: number | null;
   driverLng?: number | null;
@@ -165,16 +142,23 @@ export default function LogisticsRouteMap({
     let cancelled = false;
 
     (async () => {
-      const stopCoords = await Promise.all(deliveryAddresses.map((addr) => geocodePlace(token, addr)));
+      const geocoded = await geocodeMultipleAddresses(deliveryAddresses);
+      const stopCoords = deliveryAddresses.map((addr) => {
+        const item = geocoded.get(addr);
+        if (!item?.coordinates) return null;
+        return [item.coordinates.longitude, item.coordinates.latitude] as [number, number];
+      });
 
       const stopPairs = deliveryAddresses
         .map((addr, i) => ({
           addr,
           coord: stopCoords[i],
+          routeIndex: i,
           isCompleted: stopsCompleted?.[i] === true,
         }))
         .filter(
-          (p): p is { addr: string; coord: [number, number]; isCompleted: boolean } => p.coord !== null
+          (p): p is { addr: string; coord: [number, number]; routeIndex: number; isCompleted: boolean } =>
+            p.coord !== null,
         );
 
       if (cancelled) return;
@@ -185,15 +169,27 @@ export default function LogisticsRouteMap({
         return;
       }
 
-      const validStops = stopPairs.map((p) => p.coord);
-      const pendingStops = stopPairs.filter((p) => !p.isCompleted).map((p) => p.coord);
-      const allWaypoints: [number, number][] = driverCoord ? [driverCoord, ...validStops] : [...validStops];
-      const routeWaypoints: [number, number][] = driverCoord
-        ? pendingStops.length
-          ? [driverCoord, ...pendingStops]
-          : []
-        : [...pendingStops];
+      const addressCoords = Object.fromEntries(
+        deliveryAddresses.map((addr, i) => [addr, stopCoords[i]] as const).filter(([, c]) => c != null),
+      ) as Record<string, [number, number]>;
 
+      const stepByIndex = buildPendingDeliveryStepNumbers({
+        deliveryAddresses,
+        deliveryStopsCompleted: stopsCompleted ?? [],
+        addressCoords,
+      });
+
+      const waypoints = buildFleetRouteWaypoints({
+        deliveryAddresses,
+        deliveryStopsCompleted: stopsCompleted ?? [],
+        addressCoords,
+        driverCoord,
+      });
+
+      const routeGeometry = await fetchDirectionsRoute(token, waypoints);
+
+      const validStops = stopPairs.map((p) => p.coord);
+      const allWaypoints: [number, number][] = driverCoord ? [driverCoord, ...validStops] : [...validStops];
       const center = allWaypoints[0];
 
       mapboxgl.accessToken = token;
@@ -215,7 +211,7 @@ export default function LogisticsRouteMap({
         resizeObserver.observe(containerRef.current);
       }
 
-      map.on('load', async () => {
+      map.on('load', () => {
         if (cancelled || !map) return;
 
         if (driverCoord) {
@@ -229,13 +225,15 @@ export default function LogisticsRouteMap({
             .addTo(map);
         }
 
-        stopPairs.forEach((p, i) => {
+        stopPairs.forEach((p) => {
+          const stepNumber = stepByIndex[p.routeIndex] ?? p.routeIndex + 1;
+          const displayIndex = p.isCompleted ? p.routeIndex : stepNumber - 1;
           new mapboxgl.Marker({
             element: createStopPinElement(
-              i,
+              displayIndex,
               p.isCompleted,
-              tRouteMap('stop', { index: i + 1 }),
-              tRouteMap('stopCompleted', { index: i + 1 }),
+              tRouteMap('stop', { index: stepNumber }),
+              tRouteMap('stopCompleted', { index: stepNumber }),
             ),
           })
             .setLngLat(p.coord)
@@ -262,11 +260,11 @@ export default function LogisticsRouteMap({
         setIsLoading(false);
         requestAnimationFrame(() => map?.resize());
 
-        if (routeWaypoints.length >= 2) {
-          const capped = routeWaypoints.slice(0, 25);
-          const geometry = await fetchDrivingRoute(token, capped);
-          if (cancelled || !geometry || !map) return;
-          map.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry, properties: {} } });
+        if (routeGeometry) {
+          map.addSource('route', {
+            type: 'geojson',
+            data: { type: 'Feature', geometry: routeGeometry, properties: {} },
+          });
           map.addLayer({
             id: 'route-casing',
             type: 'line',

@@ -18,7 +18,7 @@ import { calculateOrderItemPromotion } from '@/utils/promotionUtils';
 import MapComponent from './MapComponent';
 import MapFullscreenModal from '@/components/MapFullscreenModal';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
-import { geocodeAddress, geocodeViaProxy, GeocodeResult, getOrderStatusMarkerColor } from '@/utils/mapboxUtils';
+import { geocodeAddress, GeocodeResult, getOrderStatusMarkerColor } from '@/utils/mapboxUtils';
 import { useOrdersTranslations } from '@/hooks/useOrdersTranslations';
 
 /** Statuses where POD is shown and can be edited — distributor delivery records after handoff */
@@ -130,12 +130,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
 
       setIsGeocoding(true);
       try {
-        const result = mapboxToken
-          ? await geocodeAddress(deliveryAddressDisplay, mapboxToken)
-          : (await geocodeViaProxy([deliveryAddressDisplay])).get(deliveryAddressDisplay) ?? {
-              coordinates: null,
-              address: deliveryAddressDisplay,
-            };
+        const result = await geocodeAddress(deliveryAddressDisplay);
         setGeocodeResult(result);
       } finally {
         setIsGeocoding(false);
@@ -143,7 +138,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
     };
 
     geocodeDeliveryAddress();
-  }, [deliveryAddressDisplay, mapboxToken]);
+  }, [deliveryAddressDisplay]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

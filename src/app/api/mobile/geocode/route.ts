@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { getAuthenticatedMarketplaceUserId } from '@/utils/auth-helpers';
-import { lookupCachedGeocode, persistGeocodeResult } from '@/utils/addressGeocodeCache';
-import { geocodeWithGoogle, getGoogleMapsApiKey } from '@/utils/googleGeocode';
+import { resolveGeocodeWithCache } from '@/utils/addressGeocodeCache';
+import { getGoogleMapsApiKey } from '@/utils/googleGeocode';
 import { mobileGeocodeRateLimiter } from '@/utils/rateLimiter';
 
 const MAX_ADDRESS_LENGTH = 500;
@@ -44,23 +44,15 @@ export async function POST(req: NextRequest) {
   if (rateLimitResponse) return rateLimitResponse;
 
   try {
-    const cached = await lookupCachedGeocode(address);
-    if (cached?.coordinates) {
-      const { cached: _cached, ...payload } = cached;
-      return NextResponse.json(payload, { status: 200, headers });
-    }
-
-    const result = await geocodeWithGoogle(address, apiKey);
-    if (!result.coordinates) {
-      return NextResponse.json(
-        { coordinates: null, address, precision: result.precision },
-        { status: 200, headers },
-      );
-    }
-
-    await persistGeocodeResult(address, result);
-
-    return NextResponse.json(result, { status: 200, headers });
+    const result = await resolveGeocodeWithCache(address);
+    return NextResponse.json(
+      {
+        coordinates: result.coordinates,
+        address: result.address,
+        precision: result.precision,
+      },
+      { status: 200, headers },
+    );
   } catch {
     return NextResponse.json({ error: 'Geocoding failed' }, { status: 500, headers });
   }

@@ -400,6 +400,7 @@ export default function CreateFleetPage() {
         isSubmitting={isCreating}
         onSubmit={handleModalSubmit}
         onCompletedOrderIdsChange={(ids) => handleFormChange({ completedOrderIds: ids })}
+        onAssignedOrdersChange={(assignedOrders) => handleFormChange({ assignedOrders })}
       />
     </div>
   );

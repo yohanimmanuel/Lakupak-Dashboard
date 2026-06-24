@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '../../../../utils/auth-security';
 import jwt from 'jsonwebtoken';
 import { parseMarketplaceUserIdFromBuyerId } from '@/utils/buyerSync';
+import { buildFleetRouteStops } from '@/utils/fleetRouteStops';
 
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
@@ -65,6 +66,7 @@ export async function GET(req: NextRequest) {
         loadPct: true,
         assignedOrderIds: true,
         customers: true,
+        driver: { select: { lastLat: true, lastLng: true } },
         orders: {
           select: {
             buyerId: true,
@@ -126,19 +128,34 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const enrichedFleets = fleets.map((fleet) => ({
-      ...fleet,
-      orders: fleet.orders.map((order) => {
-        const marketplaceUserId = parseMarketplaceUserIdFromBuyerId(order.buyerId);
-        const profile =
-          marketplaceUserId !== null ? marketplaceProfilesById.get(marketplaceUserId) ?? null : null;
-        const { buyerId, ...rest } = order;
-        return {
-          ...rest,
-          buyerProfile: profile,
-        };
-      }),
-    }));
+    const enrichedFleets = fleets.map((fleet) => {
+      const { deliveryAddresses, deliveryStopsCompleted } = buildFleetRouteStops({
+        assignedOrderIds: fleet.assignedOrderIds,
+        orders: fleet.orders.map((o) => ({
+          orderId: o.orderId,
+          deliveryAddress: o.deliveryAddress,
+          orderStatus: o.orderStatus,
+        })),
+      });
+
+      return {
+        ...fleet,
+        deliveryAddresses,
+        deliveryStopsCompleted,
+        driverLat: fleet.driver?.lastLat ?? null,
+        driverLng: fleet.driver?.lastLng ?? null,
+        orders: fleet.orders.map((order) => {
+          const marketplaceUserId = parseMarketplaceUserIdFromBuyerId(order.buyerId);
+          const profile =
+            marketplaceUserId !== null ? marketplaceProfilesById.get(marketplaceUserId) ?? null : null;
+          const { buyerId, ...rest } = order;
+          return {
+            ...rest,
+            buyerProfile: profile,
+          };
+        }),
+      };
+    });
 
     return NextResponse.json({ fleets: enrichedFleets }, { status: 200, headers });
   } catch (error) {

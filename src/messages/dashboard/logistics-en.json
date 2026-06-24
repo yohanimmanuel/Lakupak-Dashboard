@@ -337,7 +337,7 @@
     "noOrders": "No orders found",
     "assignedElsewhere": "Assigned to another fleet",
     "tip": "Tip:",
-    "tipBody": "Select orders from your system to assign them to this fleet. Assigned orders will appear in the trip summary."
+    "tipBody": "Select orders from your system to assign them to this fleet. Drag delivery steps to set visit order — the map route follows that sequence."
   },
   "tripSummaryModal": {
     "title": "Trip Summary",
@@ -395,5 +395,12 @@
     "mapUnavailable": "Map unavailable",
     "stop": "Stop {index}",
     "stopCompleted": "Stop {index} completed"
+  },
+  "deliverySteps": {
+    "title": "Delivery steps",
+    "subtitle": "Drag to set the visit order. The map route follows this sequence.",
+    "dragToReorder": "Drag to reorder delivery step",
+    "reorderHandle": "Reorder step {index}. Drag, or press Alt+Arrow up/down to move.",
+    "step": "Step {index}"
   }
 }
