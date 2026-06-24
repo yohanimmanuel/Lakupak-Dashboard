@@ -35,6 +35,19 @@ const deliveryMethodTabs = [
   { label: "Buyer-arranged Courier" },
 ];
 
+const bulkOrderStatusOptions = [
+  'Pending',
+  'Confirmed',
+  'Packed',
+  'Shipped',
+  'Delivered',
+  'Failed',
+  'Cancelled',
+  'Returned',
+] as const;
+
+const bulkPaymentStatusOptions = ['Unpaid', 'Paid'] as const;
+
 export default function OrdersTable({ 
   orders = [], 
   setOrdersAction, 
@@ -111,6 +124,9 @@ export default function OrdersTable({
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]); // stores orderId values
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<OrderTableRow | null>(null);
+  const [showBulkOrderStatusDropdown, setShowBulkOrderStatusDropdown] = useState(false);
+  const [showBulkPaymentStatusDropdown, setShowBulkPaymentStatusDropdown] = useState(false);
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
   
   // Handle tab indicator animation
   useLayoutEffect(() => {
@@ -177,6 +193,7 @@ export default function OrdersTable({
   };
 
   const handleOrderSelect = (orderId: string) => {
+    if (isBulkUpdating) return;
     setSelectedOrders(prev => 
       prev.includes(orderId) 
         ? prev.filter(id => id !== orderId)
@@ -185,6 +202,7 @@ export default function OrdersTable({
   };
 
   const handleRowClick = (orderId: string, event: React.MouseEvent) => {
+    if (isBulkUpdating) return;
     // Don't trigger row selection if clicking on action buttons or checkbox
     if ((event.target as HTMLElement).closest('button') || (event.target as HTMLElement).closest('th')) {
       return;
@@ -203,6 +221,7 @@ export default function OrdersTable({
   );
 
   const handleSelectAll = () => {
+    if (isBulkUpdating) return;
     if (allFilteredSelected) {
       // Deselect all filtered orders
       setSelectedOrders(prev => prev.filter(id => !allFilteredOrderIds.includes(id)));
@@ -217,6 +236,72 @@ export default function OrdersTable({
         });
         return newSelection;
       });
+    }
+  };
+
+  const bulkUpdateSelectedOrders = async (
+    field: 'orderStatus' | 'paymentStatus',
+    value: string,
+  ) => {
+    if (selectedOrders.length === 0 || !user?.id || isBulkUpdating) return;
+
+    const batchOrderIds = [...selectedOrders];
+    setIsBulkUpdating(true);
+    setShowBulkOrderStatusDropdown(false);
+    setShowBulkPaymentStatusDropdown(false);
+
+    try {
+      const CONCURRENCY = 10;
+      const results: PromiseSettledResult<string>[] = [];
+
+      for (let i = 0; i < batchOrderIds.length; i += CONCURRENCY) {
+        const chunk = batchOrderIds.slice(i, i + CONCURRENCY);
+        results.push(
+          ...(await Promise.allSettled(
+            chunk.map(async (orderId) => {
+              const res = await fetch('/api/orders', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ orderId, userId: user.id, [field]: value }),
+              });
+              if (!res.ok) throw new Error(String(res.status));
+              return orderId;
+            }),
+          )),
+        );
+      }
+
+      const successes = results
+        .filter((result): result is PromiseFulfilledResult<string> => result.status === 'fulfilled')
+        .map((result) => result.value);
+      const failedCount = batchOrderIds.length - successes.length;
+
+      if (successes.length > 0 && setOrdersAction) {
+        setOrdersAction((prev) =>
+          prev.map((order) =>
+            successes.includes(order.orderId)
+              ? { ...order, [field]: value }
+              : order,
+          ),
+        );
+      }
+
+      setSelectedOrders((prev) => prev.filter((id) => !successes.includes(id)));
+
+      if (failedCount > 0) {
+        const message =
+          successes.length > 0
+            ? tTable('bulkActions.updatePartialSuccess', {
+                success: successes.length,
+                failed: failedCount,
+              })
+            : tTable('bulkActions.updateFailed', { count: failedCount });
+        alert(message);
+      }
+    } catch {
+      alert(tTable('bulkActions.updateFailed', { count: batchOrderIds.length }));
+    } finally {
+      setIsBulkUpdating(false);
     }
   };
 
@@ -304,6 +389,7 @@ export default function OrdersTable({
                 key={tab.label}
                 ref={(el) => { tabRefs.current[idx] = el; }}
                 onClick={() => {
+                  if (isBulkUpdating) return;
                   setSelectedStatusTab(tab.label);
                   setSelectedOrders([]); // Reset selection when switching tabs
                 }}
@@ -403,15 +489,74 @@ export default function OrdersTable({
       </div>
       
       {/* Bulk Action Bar - match ProductTable style */}
-      {selectedOrders.length > 0 && (
-        <div className="bg-gradient-to-r from-green-500 to-green-400 rounded-lg p-3 md:p-4 mb-2 flex items-center justify-between">
+      {(selectedOrders.length > 0 || isBulkUpdating) && (
+        <div className="bg-gradient-to-r from-green-500 to-green-400 rounded-lg p-3 md:p-4 mb-2 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="text-white text-sm font-semibold">
-            {tTable('bulkActions.selected', { count: selectedOrders.length })}
+            {isBulkUpdating
+              ? tTable('bulkActions.updating')
+              : tTable('bulkActions.selected', { count: selectedOrders.length })}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <button
+                type="button"
+                disabled={isBulkUpdating}
+                onClick={() => {
+                  setShowBulkPaymentStatusDropdown(false);
+                  setShowBulkOrderStatusDropdown((v) => !v);
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-800 font-semibold text-sm rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-60"
+              >
+                {tTable('bulkActions.setOrderStatus')}
+                <ChevronDown className="w-4 h-4 text-gray-500" />
+              </button>
+              {showBulkOrderStatusDropdown && (
+                <div className="absolute left-0 md:right-0 md:left-auto mt-2 w-44 bg-white border border-[#e6e6e6] rounded-lg shadow-lg z-30 max-h-64 overflow-y-auto">
+                  {bulkOrderStatusOptions.map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() => bulkUpdateSelectedOrders('orderStatus', status)}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 first:rounded-t-lg last:rounded-b-lg"
+                    >
+                      {translateOrderStatus(status)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="relative">
+              <button
+                type="button"
+                disabled={isBulkUpdating}
+                onClick={() => {
+                  setShowBulkOrderStatusDropdown(false);
+                  setShowBulkPaymentStatusDropdown((v) => !v);
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-800 font-semibold text-sm rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-60"
+              >
+                {tTable('bulkActions.setPaymentStatus')}
+                <ChevronDown className="w-4 h-4 text-gray-500" />
+              </button>
+              {showBulkPaymentStatusDropdown && (
+                <div className="absolute left-0 md:right-0 md:left-auto mt-2 w-40 bg-white border border-[#e6e6e6] rounded-lg shadow-lg z-30">
+                  {bulkPaymentStatusOptions.map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() => bulkUpdateSelectedOrders('paymentStatus', status)}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 first:rounded-t-lg last:rounded-b-lg"
+                    >
+                      {translatePaymentStatus(status)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <button
               onClick={handleBulkArchive}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold text-sm rounded-lg hover:bg-emerald-700 transition-colors"
+              disabled={isBulkUpdating}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold text-sm rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-60"
             >
               <Archive className="w-4 h-4" /> {tTable('bulkActions.archiveOrders')}
             </button>
@@ -422,7 +567,8 @@ export default function OrdersTable({
             }) && (
               <button
                 onClick={() => setShowDeleteModal(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
+                disabled={isBulkUpdating}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors disabled:opacity-60"
               >
                 <Trash className="w-4 h-4" /> {tTable('bulkActions.deleteCancelled')}
               </button>
@@ -443,8 +589,10 @@ export default function OrdersTable({
               <tr>
                 <th className="py-3 px-4 font-medium uppercase">
                   <button
+                    type="button"
+                    disabled={isBulkUpdating}
                     onClick={handleSelectAll}
-                    className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
+                    className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed ${
                       allFilteredSelected
                         ? 'bg-green-500 border-green-500'
                         : 'bg-white border-gray-300 hover:border-green-400'
@@ -473,7 +621,9 @@ export default function OrdersTable({
               {pagedOrders.map((order) => (
               <tr 
                 key={order.orderId} 
-                className={`border-b transition cursor-pointer ${
+                className={`border-b transition ${
+                  isBulkUpdating ? 'cursor-default' : 'cursor-pointer'
+                } ${
                   selectedOrders.includes(order.orderId) 
                     ? 'bg-blue-50' 
                     : 'hover:bg-gray-50'
@@ -482,8 +632,10 @@ export default function OrdersTable({
               >
                 <td className="py-3 px-4 text-xs">
                   <button
+                    type="button"
+                    disabled={isBulkUpdating}
                     onClick={() => handleOrderSelect(order.orderId)}
-                    className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
+                    className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed ${
                       selectedOrders.includes(order.orderId)
                         ? 'bg-green-500 border-green-500'
                         : 'bg-white border-gray-300 hover:border-green-400'
@@ -557,8 +709,10 @@ export default function OrdersTable({
             {/* Select All for Mobile View */}
             <div className="flex items-center gap-2 mb-3">
               <button
+                type="button"
+                disabled={isBulkUpdating}
                 onClick={handleSelectAll}
-                className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
+                className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed ${
                   allFilteredSelected
                     ? 'bg-green-500 border-green-500'
                     : 'bg-white border-gray-300 hover:border-green-400'
@@ -579,7 +733,9 @@ export default function OrdersTable({
               {pagedOrders.map(order => (
             <div 
               key={order.orderId} 
-              className={`rounded-lg border border-[#e6e6e6] p-4 flex flex-col gap-2 relative cursor-pointer transition ${
+              className={`rounded-lg border border-[#e6e6e6] p-4 flex flex-col gap-2 relative transition ${
+                isBulkUpdating ? 'cursor-default' : 'cursor-pointer'
+              } ${
                 selectedOrders.includes(order.orderId) 
                   ? 'bg-blue-50' 
                   : 'bg-white hover:bg-gray-50'
@@ -589,11 +745,13 @@ export default function OrdersTable({
               {/* Checkbox - Top Right Corner */}
               <div className="absolute top-3 right-3 z-10">
                 <button
+                  type="button"
+                  disabled={isBulkUpdating}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleOrderSelect(order.orderId);
                   }}
-                  className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
+                  className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed ${
                     selectedOrders.includes(order.orderId)
                       ? 'bg-green-500 border-green-500'
                       : 'bg-white border-gray-300 hover:border-green-400'

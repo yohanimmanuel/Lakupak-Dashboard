@@ -95,6 +95,11 @@
     },
     "bulkActions": {
       "selected": "{count} selected",
+      "setOrderStatus": "Set Order Status",
+      "setPaymentStatus": "Set Payment Status",
+      "updating": "Updating...",
+      "updatePartialSuccess": "Updated {success} orders. {failed} failed.",
+      "updateFailed": "Failed to update {count} orders.",
       "archiveOrders": "Archive Orders",
       "deleteCancelled": "Delete Cancelled"
     },

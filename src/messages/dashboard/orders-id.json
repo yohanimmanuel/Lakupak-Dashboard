@@ -95,6 +95,11 @@
     },
     "bulkActions": {
       "selected": "{count} dipilih",
+      "setOrderStatus": "Atur Status Pesanan",
+      "setPaymentStatus": "Atur Status Pembayaran",
+      "updating": "Memperbarui...",
+      "updatePartialSuccess": "{success} pesanan diperbarui. {failed} gagal.",
+      "updateFailed": "Gagal memperbarui {count} pesanan.",
       "archiveOrders": "Arsipkan Pesanan",
       "deleteCancelled": "Hapus Dibatalkan"
     },
