@@ -368,7 +368,7 @@
       "sellingPrice": "Selling Price",
       "purchasePrice": "Purchase Price",
       "moq": "MOQ",
-      "stockQty": "Stock Qty",
+      "stockQty": "Stock Qty (pcs)",
       "lowThreshold": "Low Threshold",
       "applyToAll": "Apply To All",
       "status": "Status",

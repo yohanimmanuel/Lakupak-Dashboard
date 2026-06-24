@@ -368,7 +368,7 @@
       "sellingPrice": "Harga Jual",
       "purchasePrice": "Harga Beli",
       "moq": "MOQ",
-      "stockQty": "Jumlah Stok",
+      "stockQty": "Jumlah Stok (pcs)",
       "lowThreshold": "Ambang Bawah",
       "applyToAll": "Terapkan ke Semua",
       "status": "Status",
