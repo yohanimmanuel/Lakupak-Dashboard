@@ -490,8 +490,8 @@ export default function OrdersTable({
       
       {/* Bulk Action Bar - match ProductTable style */}
       {(selectedOrders.length > 0 || isBulkUpdating) && (
-        <div className="bg-gradient-to-r from-green-500 to-green-400 rounded-lg p-3 md:p-4 mb-2 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="text-white text-sm font-semibold">
+        <div className="bg-white border border-[#e6e6e6] border-l-4 border-l-green-500 rounded-lg p-3 md:p-4 mb-2 shadow-sm flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="text-sm font-semibold text-green-700">
             {isBulkUpdating
               ? tTable('bulkActions.updating')
               : tTable('bulkActions.selected', { count: selectedOrders.length })}
@@ -505,10 +505,12 @@ export default function OrdersTable({
                   setShowBulkPaymentStatusDropdown(false);
                   setShowBulkOrderStatusDropdown((v) => !v);
                 }}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-800 font-semibold text-sm rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-60"
+                className={`inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white font-semibold text-sm rounded-lg hover:bg-green-700 transition-colors disabled:opacity-60 ${
+                  showBulkOrderStatusDropdown ? 'ring-2 ring-green-300' : ''
+                }`}
               >
                 {tTable('bulkActions.setOrderStatus')}
-                <ChevronDown className="w-4 h-4 text-gray-500" />
+                <ChevronDown className="w-4 h-4" />
               </button>
               {showBulkOrderStatusDropdown && (
                 <div className="absolute left-0 md:right-0 md:left-auto mt-2 w-44 bg-white border border-[#e6e6e6] rounded-lg shadow-lg z-30 max-h-64 overflow-y-auto">
@@ -533,10 +535,12 @@ export default function OrdersTable({
                   setShowBulkOrderStatusDropdown(false);
                   setShowBulkPaymentStatusDropdown((v) => !v);
                 }}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-800 font-semibold text-sm rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-60"
+                className={`inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white font-semibold text-sm rounded-lg hover:bg-green-700 transition-colors disabled:opacity-60 ${
+                  showBulkPaymentStatusDropdown ? 'ring-2 ring-green-300' : ''
+                }`}
               >
                 {tTable('bulkActions.setPaymentStatus')}
-                <ChevronDown className="w-4 h-4 text-gray-500" />
+                <ChevronDown className="w-4 h-4" />
               </button>
               {showBulkPaymentStatusDropdown && (
                 <div className="absolute left-0 md:right-0 md:left-auto mt-2 w-40 bg-white border border-[#e6e6e6] rounded-lg shadow-lg z-30">
@@ -556,7 +560,7 @@ export default function OrdersTable({
             <button
               onClick={handleBulkArchive}
               disabled={isBulkUpdating}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold text-sm rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-60"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white font-semibold text-sm rounded-lg hover:bg-green-700 transition-colors disabled:opacity-60"
             >
               <Archive className="w-4 h-4" /> {tTable('bulkActions.archiveOrders')}
             </button>

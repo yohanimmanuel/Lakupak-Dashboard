@@ -506,22 +506,17 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
 
       {/* Enhanced Bulk Action Bar */}
       {selectedBuyers.length > 0 && (
-        <div className="bg-gradient-to-r from-green-500 to-green-400 rounded-lg p-3 md:p-4 mb-2">
+        <div className="bg-white border border-[#e6e6e6] border-l-4 border-l-green-500 rounded-lg p-3 md:p-4 mb-2 shadow-sm">
           {/* Mobile Layout */}
           <div className="md:hidden space-y-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1">
-                <div className="flex items-center justify-center text-sm font-semibold text-white">
-                  {selectedBuyers.length}
-                </div>
-                <span className="text-sm font-semibold text-white">
-                  {selectedBuyers.length === 1
-                    ? tShared('selection.buyerSelected', { count: selectedBuyers.length })
-                    : tShared('selection.buyersSelected', { count: selectedBuyers.length })}
-                </span>
-              </div>
+              <span className="text-sm font-semibold text-green-700">
+                {selectedBuyers.length === 1
+                  ? tShared('selection.buyerSelected', { count: selectedBuyers.length })
+                  : tShared('selection.buyersSelected', { count: selectedBuyers.length })}
+              </span>
             </div>
-            <div className="text-white text-xs font-semibold leading-relaxed">
+            <div className="text-gray-600 text-xs font-semibold leading-relaxed">
               {selectedBuyers.length === 1
                 ? tShared('selection.selectBuyerRemove')
                 : tShared('selection.selectBuyersRemove')}
@@ -538,20 +533,13 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
           
           {/* Desktop Layout */}
           <div className="hidden md:flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1">
-                <div className="text-white flex items-center justify-center text-sm font-semibold">
-                  {selectedBuyers.length}
-                </div>
-                <span className="text-sm font-semibold text-white">
-                  {selectedBuyers.length === 1
-                    ? tShared('selection.buyerSelected', { count: selectedBuyers.length })
-                    : tShared('selection.buyersSelected', { count: selectedBuyers.length })}
-                </span>
-              </div>
-            </div>
+            <span className="text-sm font-semibold text-green-700">
+              {selectedBuyers.length === 1
+                ? tShared('selection.buyerSelected', { count: selectedBuyers.length })
+                : tShared('selection.buyersSelected', { count: selectedBuyers.length })}
+            </span>
             <div className="flex items-center gap-4">
-              <span className="text-white text-xs md:text-sm font-semibold">
+              <span className="text-gray-600 text-xs md:text-sm font-semibold">
                 {selectedBuyers.length === 1
                   ? tShared('selection.selectBuyerRemove')
                   : tShared('selection.selectBuyersRemove')}

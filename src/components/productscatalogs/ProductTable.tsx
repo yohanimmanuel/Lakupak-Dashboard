@@ -885,22 +885,18 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
 
       {/* Bulk Action Bar */}
       {selectedProducts.length > 0 && (
-        <div className="bg-gradient-to-r from-green-500 to-green-400 rounded-lg p-3 md:p-4 mb-2">
+        <div className="bg-white border border-[#e6e6e6] border-l-4 border-l-green-500 rounded-lg p-3 md:p-4 mb-2 shadow-sm">
           {/* Mobile Layout */}
           <div className="md:hidden space-y-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1">
-                <div className="text-white flex items-center justify-center text-sm font-semibold">
-                    {selectedProducts.length}
-                </div>
-                <span className="text-sm font-semibold text-white">
-                  {selectedProducts.length === 1
-                    ? tTable('selection.oneProductSelected')
-                    : tTable('selection.multipleProductsSelected')}
-                </span>
-              </div>
+              <span className="text-sm font-semibold text-green-700">
+                {selectedProducts.length}{' '}
+                {selectedProducts.length === 1
+                  ? tTable('selection.oneProductSelected')
+                  : tTable('selection.multipleProductsSelected')}
+              </span>
             </div>
-            <div className="text-white text-xs font-semibold leading-relaxed">
+            <div className="text-gray-600 text-xs font-semibold leading-relaxed">
               {(() => {
                 const buttons = { canPublish: false, canUnpublish: false, canRemove: true };
                 if (selectedProducts.length > 0) {
@@ -950,7 +946,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                           setShowPublishModal(true);
                         }
                       }}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold text-sm rounded-lg hover:bg-emerald-700 transition-colors"
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white font-semibold text-sm rounded-lg hover:bg-green-700 transition-colors"
                     >
                       <Zap className="w-4 h-4 text-white" />
                       {tTable('bulkActions.publish')}
@@ -989,20 +985,14 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
           
           {/* Desktop Layout */}
           <div className="hidden md:flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1">
-                <div className="text-white flex items-center justify-center text-sm font-semibold">
-                  {selectedProducts.length}
-                </div>
-                <span className="text-sm font-semibold text-white">
-                  {selectedProducts.length === 1
-                    ? tTable('selection.oneProductSelected')
-                    : tTable('selection.multipleProductsSelected')}
-                </span>
-              </div>
-            </div>
+            <span className="text-sm font-semibold text-green-700">
+              {selectedProducts.length}{' '}
+              {selectedProducts.length === 1
+                ? tTable('selection.oneProductSelected')
+                : tTable('selection.multipleProductsSelected')}
+            </span>
             <div className="flex items-center gap-4">
-              <span className="text-white text-xs md:text-sm font-semibold">
+              <span className="text-gray-600 text-xs md:text-sm font-semibold">
                 {(() => {
                   const buttons = { canPublish: false, canUnpublish: false, canRemove: true };
                   if (selectedProducts.length > 0) {
@@ -1052,7 +1042,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                             setShowPublishModal(true);
                           }
                         }}
-                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold text-sm rounded-lg hover:bg-emerald-700 transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white font-semibold text-sm rounded-lg hover:bg-green-700 transition-colors"
                       >
                         <Zap className="w-4 h-4 text-white" />
                         {tTable('bulkActions.publish')}

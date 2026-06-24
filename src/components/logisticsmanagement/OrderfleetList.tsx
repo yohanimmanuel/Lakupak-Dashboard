@@ -500,18 +500,15 @@ export default function OrderfleetList({
 
           {/* Bulk Action Bar */}
           {selectedDriverIds.length > 0 && (
-            <div className="bg-gradient-to-r from-green-500 to-green-400 rounded-lg p-3 md:p-4 mx-4 mt-2">
+            <div className="bg-white border border-[#e6e6e6] border-l-4 border-l-green-500 rounded-lg p-3 md:p-4 mx-4 mt-2 shadow-sm">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1">
-                  <span className="text-sm font-semibold text-white">{selectedDriverIds.length}</span>
-                  <span className="text-sm font-semibold text-white ml-1">
-                    {selectedDriverIds.length === 1
-                      ? tList('driverSelected', { count: selectedDriverIds.length })
-                      : tList('driversSelected', { count: selectedDriverIds.length })}
-                  </span>
-                </div>
+                <span className="text-sm font-semibold text-green-700">
+                  {selectedDriverIds.length === 1
+                    ? tList('driverSelected', { count: selectedDriverIds.length })
+                    : tList('driversSelected', { count: selectedDriverIds.length })}
+                </span>
                 <div className="flex items-center gap-4">
-                  <span className="hidden md:block text-white text-xs font-semibold">{tList('selectDriversToRemove')}</span>
+                  <span className="hidden md:block text-gray-600 text-xs font-semibold">{tList('selectDriversToRemove')}</span>
                   <button
                     onClick={handleBulkDriverRemove}
                     className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
@@ -817,20 +814,17 @@ export default function OrderfleetList({
 
       {/* Bulk Action Bar */}
       {selectedFleets.length > 0 && (
-        <div className="bg-gradient-to-r from-green-500 to-green-400 rounded-lg p-3 md:p-4 mx-4 mb-2">
+        <div className="bg-white border border-[#e6e6e6] border-l-4 border-l-green-500 rounded-lg p-3 md:p-4 mx-4 mb-2 shadow-sm">
           {/* Mobile Layout */}
           <div className="md:hidden space-y-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1">
-                <div className="text-white flex items-center justify-center text-sm font-semibold">{selectedFleets.length}</div>
-                <span className="text-sm font-semibold text-white">
-                  {selectedFleets.length === 1
-                    ? tList('fleetSelected', { count: selectedFleets.length })
-                    : tList('fleetsSelected', { count: selectedFleets.length })}
-                </span>
-              </div>
+              <span className="text-sm font-semibold text-green-700">
+                {selectedFleets.length === 1
+                  ? tList('fleetSelected', { count: selectedFleets.length })
+                  : tList('fleetsSelected', { count: selectedFleets.length })}
+              </span>
             </div>
-            <div className="text-white text-xs font-semibold leading-relaxed">{tList('selectFleetsToRemove')}</div>
+            <div className="text-gray-600 text-xs font-semibold leading-relaxed">{tList('selectFleetsToRemove')}</div>
             <div className="flex gap-2">
               <button
                 onClick={handleBulkRemove}
@@ -844,18 +838,13 @@ export default function OrderfleetList({
 
           {/* Desktop Layout */}
           <div className="hidden md:flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1">
-                <div className="text-white flex items-center justify-center text-sm font-semibold">{selectedFleets.length}</div>
-                <span className="text-sm font-semibold text-white">
-                  {selectedFleets.length === 1
-                    ? tList('fleetSelected', { count: selectedFleets.length })
-                    : tList('fleetsSelected', { count: selectedFleets.length })}
-                </span>
-              </div>
-            </div>
+            <span className="text-sm font-semibold text-green-700">
+              {selectedFleets.length === 1
+                ? tList('fleetSelected', { count: selectedFleets.length })
+                : tList('fleetsSelected', { count: selectedFleets.length })}
+            </span>
             <div className="flex items-center gap-4">
-              <span className="text-white text-xs md:text-sm font-semibold">{tList('selectFleetsToRemoveShort')}</span>
+              <span className="text-gray-600 text-xs md:text-sm font-semibold">{tList('selectFleetsToRemoveShort')}</span>
               <div className="flex gap-2">
                 <button
                   onClick={handleBulkRemove}

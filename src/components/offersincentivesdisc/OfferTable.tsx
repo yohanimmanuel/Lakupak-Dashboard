@@ -712,20 +712,17 @@ export default function OfferTable({
 
       {/* Bulk Action Bar */}
       {selectedOffers.length > 0 && (
-        <div className="bg-gradient-to-r from-green-500 to-green-400 rounded-lg p-3 md:p-4 mb-2">
+        <div className="bg-white border border-[#e6e6e6] border-l-4 border-l-green-500 rounded-lg p-3 md:p-4 mb-2 shadow-sm">
           {/* Mobile Layout */}
           <div className="md:hidden space-y-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1">
-                <div className="text-white flex items-center justify-center text-sm font-semibold">
-                  {selectedOffers.length}
-                </div>
-                <span className="text-sm font-semibold text-white">
-                  {selectedOffers.length} {selectedOffers.length === 1 ? tTable('offerSelected') : tTable('offersSelected')} {tTable('selected')}
-                </span>
-              </div>
+              <span className="text-sm font-semibold text-green-700">
+                {selectedOffers.length}{' '}
+                {selectedOffers.length === 1 ? tTable('offerSelected') : tTable('offersSelected')}{' '}
+                {tTable('selected')}
+              </span>
             </div>
-            <div className="text-white text-xs font-semibold leading-relaxed">
+            <div className="text-gray-600 text-xs font-semibold leading-relaxed">
               {tTable('bulkActionHint')}
             </div>
             <div className="flex gap-2">
@@ -766,18 +763,13 @@ export default function OfferTable({
           
           {/* Desktop Layout */}
           <div className="hidden md:flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1">
-                <div className="text-white flex items-center justify-center text-sm font-semibold">
-                  {selectedOffers.length}
-                </div>
-                <span className="text-sm font-semibold text-white">
-                  {selectedOffers.length} {selectedOffers.length === 1 ? tTable('offerSelected') : tTable('offersSelected')} {tTable('selected')}
-                </span>
-              </div>
-            </div>
+            <span className="text-sm font-semibold text-green-700">
+              {selectedOffers.length}{' '}
+              {selectedOffers.length === 1 ? tTable('offerSelected') : tTable('offersSelected')}{' '}
+              {tTable('selected')}
+            </span>
             <div className="flex items-center gap-4">
-              <span className="text-white text-xs md:text-sm font-semibold">
+              <span className="text-gray-600 text-xs md:text-sm font-semibold">
                 {tTable('bulkActionHint')}
               </span>
               <div className="flex gap-2">

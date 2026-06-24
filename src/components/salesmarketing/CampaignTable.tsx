@@ -408,22 +408,18 @@ export default function CampaignTable({
 
         {/* Bulk Action Bar */}
         {selectedCampaigns.size > 0 && (
-          <div className="bg-gradient-to-r from-green-500 to-green-400 rounded-lg p-3 md:p-4 mb-2">
+          <div className="bg-white border border-[#e6e6e6] border-l-4 border-l-green-500 rounded-lg p-3 md:p-4 mb-2 shadow-sm">
             <div className="md:hidden space-y-3">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1">
-                  <div className="flex items-center justify-center text-sm font-semibold text-white">
-                    {selectedCampaigns.size}
-                  </div>
-                  <span className="text-sm font-semibold text-white">
-                    {selectedCampaigns.size === 1
-                      ? tCampaignTable('campaignSelected')
-                      : tCampaignTable('campaignsSelected')}{' '}
-                    {tCampaignTable('selected')}
-                  </span>
-                </div>
+                <span className="text-sm font-semibold text-green-700">
+                  {selectedCampaigns.size}{' '}
+                  {selectedCampaigns.size === 1
+                    ? tCampaignTable('campaignSelected')
+                    : tCampaignTable('campaignsSelected')}{' '}
+                  {tCampaignTable('selected')}
+                </span>
               </div>
-              <div className="text-white text-xs font-semibold leading-relaxed">
+              <div className="text-gray-600 text-xs font-semibold leading-relaxed">
                 {selectedCampaigns.size === 1
                   ? isResendMode()
                     ? tCampaignTable('bulkHintSingleResend')
@@ -434,7 +430,7 @@ export default function CampaignTable({
                 {selectedCampaigns.size === 1 && (
                   <button
                     onClick={handleBulkSend}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold text-sm rounded-lg hover:bg-emerald-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white font-semibold text-sm rounded-lg hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                     aria-label={
                       isResendMode()
                         ? tCampaignTable('resendSelectedAriaLabel')
@@ -461,21 +457,15 @@ export default function CampaignTable({
             </div>
             
             <div className="hidden md:flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1">
-                  <div className="text-white flex items-center justify-center text-sm font-semibold">
-                    {selectedCampaigns.size}
-                  </div>
-                  <span className="text-sm font-semibold text-white">
-                    {selectedCampaigns.size === 1
-                      ? tCampaignTable('campaignSelected')
-                      : tCampaignTable('campaignsSelected')}{' '}
-                    {tCampaignTable('selected')}
-                  </span>
-                </div>
-              </div>
+              <span className="text-sm font-semibold text-green-700">
+                {selectedCampaigns.size}{' '}
+                {selectedCampaigns.size === 1
+                  ? tCampaignTable('campaignSelected')
+                  : tCampaignTable('campaignsSelected')}{' '}
+                {tCampaignTable('selected')}
+              </span>
               <div className="flex items-center gap-4">
-                <span className="text-white text-xs md:text-sm font-semibold">
+                <span className="text-gray-600 text-xs md:text-sm font-semibold">
                   {selectedCampaigns.size === 1
                     ? isResendMode()
                       ? tCampaignTable('bulkHintSingleResend')
@@ -485,7 +475,7 @@ export default function CampaignTable({
                 {selectedCampaigns.size === 1 && (
                   <button
                     onClick={handleBulkSend}
-                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold text-sm rounded-lg hover:bg-emerald-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white font-semibold text-sm rounded-lg hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                     aria-label={
                       isResendMode()
                         ? tCampaignTable('resendSelectedAriaLabel')
