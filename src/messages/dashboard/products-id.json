@@ -13,8 +13,12 @@
     "pleaseWait": "Mohon tunggu...",
     "productsLoaded": "{count} produk dimuat",
     "productsLoadedPlural": "{count} produk dimuat",
-    "importSuccess": "Berhasil mengimpor {count} produk",
-    "importFailed": "Gagal mengimpor produk"
+    "importSuccess": "Berhasil mengimpor {count} produk draf",
+    "importPartialSuccess": "Berhasil mengimpor {succeeded} produk draf. {failed} baris gagal.",
+    "importAllFailed": "Impor gagal — {count} baris tidak dapat disimpan.",
+    "importDraftReminder": "Tinjau dan lengkapi setiap draf (gambar, variasi, detail) sebelum mempublikasikan.",
+    "importFailed": "Gagal mengimpor produk",
+    "importDraftProducts": "Impor Produk Draf"
   },
   "cards": {
     "totalProducts": "Total Produk",
@@ -154,18 +158,27 @@
     }
   },
   "import": {
-    "title": "Impor Data Produk",
+    "title": "Impor Produk Draf",
     "upload": "Klik untuk unggah file .xlsx atau .csv",
     "mapColumnsOptional": "Petakan kolom Anda ke field (semua field opsional):",
-    "flexibleImport": "Impor Fleksibel:",
-    "flexibleImportHint": "Anda dapat memetakan kolom apa pun yang Anda miliki. Field yang tidak dipetakan akan tetap kosong. Impor data apa pun yang tersedia! ID Produk dibuat otomatis dan Status selalu diset ke Draf.",
+    "flexibleImport": "Pemetaan fleksibel:",
+    "flexibleImportHint": "Petakan hanya kolom yang Anda miliki. Field yang tidak dipetakan akan tetap kosong. ID Produk dibuat otomatis (format LKP) dan setiap impor disimpan sebagai Draf — tidak dapat dipublikasikan sampai Anda melengkapi formulir katalog.",
+    "draftNoticeTitle": "Hanya untuk membuat draf",
+    "draftNoticeBody": "Impor ini membuat produk draf yang belum lengkap. Anda harus menyelesaikan setiap produk di editor katalog sebelum mempublikasikan ke marketplace.",
+    "manualCompletion": {
+      "images": "Unggah gambar produk",
+      "variants": "Atur variasi dan daftar variasi (jika diperlukan)",
+      "details": "Lengkapi field wajib yang masih kosong"
+    },
     "field": "Field",
     "mapToColumn": "Petakan ke Kolom",
     "notMapped": "-- Tidak Dipetakan --",
     "back": "Kembali",
     "preview": "Pratinjau",
-    "importButton": "Impor",
-    "previewProducts": "Pratinjau {count} produk untuk diimpor",
+    "importButton": "Impor sebagai Draf",
+    "importing": "Mengimpor draf...",
+    "importError": "Impor gagal. Silakan coba lagi.",
+    "previewProducts": "Pratinjau {count} produk untuk diimpor sebagai draf",
     "fileReadError": "Gagal membaca file.",
     "fileEmpty": "File kosong atau tidak valid.",
     "productFields": {
@@ -178,8 +191,10 @@
       "supplier": "Supplier (Opsional)",
       "purchasePrice": "Harga Beli (Opsional)",
       "sellingPrice": "Harga Jual (Opsional)",
-      "status": "Status (Selalu Draf)",
-      "productCategory": "Kategori Produk (Opsional)",
+      "stockQuantity": "Jumlah Stok (pcs) (Opsional)",
+      "lowStockThreshold": "Ambang Bawah (Opsional)",
+      "moq": "MOQ (Opsional)",
+      "productCategory": "Kategori Produk / Saluran Penjualan (Opsional)",
       "catalogName": "Nama Katalog (Opsional)"
     }
   },

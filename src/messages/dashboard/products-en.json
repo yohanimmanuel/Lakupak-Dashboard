@@ -13,8 +13,12 @@
     "pleaseWait": "Please wait...",
     "productsLoaded": "{count} product loaded",
     "productsLoadedPlural": "{count} products loaded",
-    "importSuccess": "Successfully imported {count} products",
-    "importFailed": "Failed to import products"
+    "importSuccess": "Successfully imported {count} draft product(s)",
+    "importPartialSuccess": "Imported {succeeded} draft product(s). {failed} row(s) failed.",
+    "importAllFailed": "Import failed — {count} row(s) could not be saved.",
+    "importDraftReminder": "Review and complete each draft (images, variants, details) before publishing.",
+    "importFailed": "Failed to import products",
+    "importDraftProducts": "Import Draft Products"
   },
   "cards": {
     "totalProducts": "Total Products",
@@ -154,18 +158,27 @@
     }
   },
   "import": {
-    "title": "Import Products Data",
+    "title": "Import Draft Products",
     "upload": "Click to upload .xlsx or .csv file",
     "mapColumnsOptional": "Map your columns to the fields (all fields are optional):",
-    "flexibleImport": "Flexible Import:",
-    "flexibleImportHint": "You can map any columns you have. Unmapped fields will remain blank. Import whatever data you have available! Product IDs are auto-generated and Status is always set to Draft.",
+    "flexibleImport": "Flexible mapping:",
+    "flexibleImportHint": "Map only the columns you have. Unmapped fields stay blank. Product IDs are auto-generated (LKP format) and every import is saved as Draft — not publishable until you complete the catalog form.",
+    "draftNoticeTitle": "Draft seeding only",
+    "draftNoticeBody": "This import creates incomplete draft products. You must finish each product in the catalog editor before publishing to the marketplace.",
+    "manualCompletion": {
+      "images": "Upload product images",
+      "variants": "Set up variants and variation lists (if needed)",
+      "details": "Fill in any missing required fields"
+    },
     "field": "Field",
     "mapToColumn": "Map to Column",
     "notMapped": "-- Not Mapped --",
     "back": "Back",
     "preview": "Preview",
-    "importButton": "Import",
-    "previewProducts": "Preview {count} products to import",
+    "importButton": "Import as Drafts",
+    "importing": "Importing drafts...",
+    "importError": "Import failed. Please try again.",
+    "previewProducts": "Preview {count} products to import as drafts",
     "fileReadError": "File read error.",
     "fileEmpty": "File is empty or invalid.",
     "productFields": {
@@ -178,8 +191,10 @@
       "supplier": "Supplier (Optional)",
       "purchasePrice": "Purchase Price (Optional)",
       "sellingPrice": "Selling Price (Optional)",
-      "status": "Status (Always Draft)",
-      "productCategory": "Product Category (Optional)",
+      "stockQuantity": "Stock Qty (pcs) (Optional)",
+      "lowStockThreshold": "Low Stock Threshold (Optional)",
+      "moq": "MOQ (Optional)",
+      "productCategory": "Product Category / Sales Channel (Optional)",
       "catalogName": "Catalog Name (Optional)"
     }
   },

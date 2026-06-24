@@ -7,7 +7,7 @@ import { Upload, Download, Check, RefreshCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useUserStore } from "@/store/userStore";
 import * as XLSX from 'xlsx';
-import { Product, ProductImportRow, ProductTableRow } from "@/types/product";
+import { Product, ProductImportRow, ProductImportResult, ProductTableRow } from "@/types/product";
 import { formatDate } from "@/utils/dateUtils";
 import { generateUniqueProductId } from "@/utils/product-security";
 import { formatCurrency, parsePrice } from "@/utils/currencyUtils";
@@ -42,6 +42,7 @@ export default function ProductsPage() {
   const [isSlidingIn, setIsSlidingIn] = useState(false);
   const [isSlidingOut, setIsSlidingOut] = useState(false);
   const overlayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const suppressSocketRefreshRef = useRef(false);
 
   // GraphQL query to fetch products
   const PRODUCTS_QUERY = `
@@ -106,23 +107,23 @@ export default function ProductsPage() {
   `;
 
   // Fetch products from GraphQL API
-  const fetchProducts = useCallback(async (forceRefresh = false) => {
+  const fetchProducts = useCallback(async (forceRefresh = false, silent = false) => {
     if (!user?.id) return;
-    
-    setLoading(true);
-    
-    // Clear any existing timeouts
-    if (overlayTimeoutRef.current) {
-      clearTimeout(overlayTimeoutRef.current);
+
+    if (!silent) {
+      setLoading(true);
+
+      if (overlayTimeoutRef.current) {
+        clearTimeout(overlayTimeoutRef.current);
+      }
+
+      if (products.length > 0) {
+        setIsSlidingOut(false);
+        setIsSlidingIn(true);
+        setOverlayMessage(tList('refreshingOverlay'));
+      }
     }
-    
-    // For refresh button, start slide-in animation
-    if (products.length > 0) {
-      setIsSlidingOut(false);
-      setIsSlidingIn(true);
-      setOverlayMessage(tList('refreshingOverlay'));
-    }
-    
+
     try {
       const data = await fetchGraphQL<{
         products: {
@@ -137,37 +138,40 @@ export default function ProductsPage() {
       }>(PRODUCTS_QUERY, {
         userId: user.id,
         page: 1,
-        limit: 1000, // Fetch all products for the products page
+        limit: 1000,
       }, forceRefresh ? { cache: 'no-store' } : {});
 
       const productsData = data.products.nodes;
-        setProducts(productsData);
+      setProducts(productsData);
+
+      if (!silent) {
         setOverlayMessage(tList('loadedOverlay', { count: productsData.length }));
+      }
     } catch (error) {
       setProducts([]);
-      setOverlayMessage(tList('errorOverlay'));
+      if (!silent) {
+        setOverlayMessage(tList('errorOverlay'));
+      }
     } finally {
-      setLoading(false);
-      
-      // Complete slide-in animation and show overlay
-      setTimeout(() => {
-        setIsSlidingIn(false);
-        setShowOverlay(true);
-      }, 1500);
-      
-      // Auto-hide overlay after 2.5 seconds
-      overlayTimeoutRef.current = setTimeout(() => {
-        // Start slide-out animation
-        setIsSlidingOut(true);
-        setShowOverlay(false);
-        
-        // Remove overlay completely after animation
+      if (!silent) {
+        setLoading(false);
+
         setTimeout(() => {
-          setIsSlidingOut(false);
-        }, 500);
-      }, 2500);
+          setIsSlidingIn(false);
+          setShowOverlay(true);
+        }, 1500);
+
+        overlayTimeoutRef.current = setTimeout(() => {
+          setIsSlidingOut(true);
+          setShowOverlay(false);
+
+          setTimeout(() => {
+            setIsSlidingOut(false);
+          }, 500);
+        }, 2500);
+      }
     }
-  }, [user?.id]); // Removed products.length dependency to avoid stale closures
+  }, [user?.id]);
 
   useEffect(() => {
     // Start slide-in animation immediately for initial page load
@@ -187,6 +191,7 @@ export default function ProductsPage() {
   // Keep product table in sync with stock/price changes triggered elsewhere (e.g. order status transitions).
   // When we receive a product broadcast, force-refresh to bypass any cache.
   useProductUpdateSocket(user?.id, () => {
+    if (suppressSocketRefreshRef.current) return;
     fetchProducts(true);
   });
 
@@ -253,18 +258,89 @@ export default function ProductsPage() {
   // Use the enhanced generateUniqueProductId from security utils
   const generateLKPProductId = () => generateUniqueProductId();
 
-  const handleImport = async (data: ProductImportRow[]) => {
-    if (!user?.id) return;
-    
+  const CREATE_PRODUCT_MUTATION = `
+    mutation CreateProduct(
+      $userId: Int!
+      $productId: String
+      $sku: String
+      $name: String!
+      $description: String!
+      $productType: String!
+      $brand: String!
+      $supplier: String!
+      $status: String
+      $productCategory: String!
+      $catalogName: String
+      $images: [String!]
+      $halalCertified: Boolean
+      $bpomApproved: Boolean
+      $originalProduct: Boolean
+      $returnPolicyDays: Int
+      $currency: String
+      $variantOptions: [VariantOptionInput!]
+    ) {
+      createProduct(
+        userId: $userId
+        productId: $productId
+        sku: $sku
+        name: $name
+        description: $description
+        productType: $productType
+        brand: $brand
+        supplier: $supplier
+        status: $status
+        productCategory: $productCategory
+        catalogName: $catalogName
+        images: $images
+        halalCertified: $halalCertified
+        bpomApproved: $bpomApproved
+        originalProduct: $originalProduct
+        returnPolicyDays: $returnPolicyDays
+        currency: $currency
+        variantOptions: $variantOptions
+      ) {
+        id
+        productId
+        sku
+        name
+      }
+    }
+  `;
+
+  const showImportOverlay = (message: string) => {
+    setOverlayMessage(message);
+    setIsSlidingIn(true);
+    setShowOverlay(true);
+
+    if (overlayTimeoutRef.current) {
+      clearTimeout(overlayTimeoutRef.current);
+    }
+    overlayTimeoutRef.current = setTimeout(() => {
+      setIsSlidingOut(true);
+      setShowOverlay(false);
+      setTimeout(() => {
+        setIsSlidingOut(false);
+      }, 500);
+    }, 4000);
+  };
+
+  const handleImport = async (data: ProductImportRow[]): Promise<ProductImportResult> => {
+    if (!user?.id) {
+      throw new Error('User not authenticated');
+    }
+
+    let succeeded = 0;
+    let failed = 0;
+
+    suppressSocketRefreshRef.current = true;
     try {
-      // Process imported data and save to database
       for (const product of data) {
-        // Always generate new LKP Product ID for imported products (Laku standard)
-        // Calculate stock status dynamically
-        const stockQuantity = parseInt(product['Stock Quantity']) || 0;
-        const lowStockThreshold = parseInt(product['Low Stock Threshold']) || 30;
+        const stockQuantity = parseInt(product['Stock Quantity'], 10) || 0;
+        const lowStockThreshold = parseInt(product['Low Stock Threshold'], 10) || 30;
+        const moqRaw = product['MOQ']?.trim();
+        const moq = moqRaw ? parseInt(moqRaw, 10) : null;
+
         let stockStatus: 'In Stock' | 'Low Stock' | 'Out of Stock';
-        
         if (stockQuantity === 0) {
           stockStatus = 'Out of Stock';
         } else if (lowStockThreshold > 0 && stockQuantity <= lowStockThreshold) {
@@ -281,71 +357,17 @@ export default function ProductsPage() {
           productType: product['Product Type'] || '',
           brand: product['Brand'] || '',
           supplier: product['Supplier'] || '',
-          stockQuantity: stockQuantity,
-          lowStockThreshold: lowStockThreshold,
-          stockStatus: stockStatus,
+          stockQuantity,
+          lowStockThreshold,
+          stockStatus,
           purchasePrice: String(product['Purchase Price'] || ''),
           sellingPrice: String(product['Selling Price'] || ''),
-          status: 'Draft', // Always overwrite status to Draft for imported products
+          status: 'Draft' as const,
           productCategory: product['Product Category'] || '',
           catalogName: product['Catalog Name'] || '',
-          discount: parseFloat(product['Discount']) || 0,
-          discountType: product['Discount Type'] || '',
-          images: [], // Images are not imported via Excel
-          userId: user.id
+          images: [] as string[],
         };
-        
-        // GraphQL mutation to create product
-        const CREATE_PRODUCT_MUTATION = `
-          mutation CreateProduct(
-            $userId: Int!
-            $productId: String
-            $sku: String
-            $name: String!
-            $description: String!
-            $productType: String!
-            $brand: String!
-            $supplier: String!
-            $status: String
-            $productCategory: String!
-            $catalogName: String
-            $images: [String!]
-            $halalCertified: Boolean
-            $bpomApproved: Boolean
-            $originalProduct: Boolean
-            $returnPolicyDays: Int
-            $currency: String
-            $variantOptions: [VariantOptionInput!]
-          ) {
-            createProduct(
-              userId: $userId
-              productId: $productId
-              sku: $sku
-              name: $name
-              description: $description
-              productType: $productType
-              brand: $brand
-              supplier: $supplier
-              status: $status
-              productCategory: $productCategory
-              catalogName: $catalogName
-              images: $images
-              halalCertified: $halalCertified
-              bpomApproved: $bpomApproved
-              originalProduct: $originalProduct
-              returnPolicyDays: $returnPolicyDays
-              currency: $currency
-              variantOptions: $variantOptions
-            ) {
-              id
-              productId
-              sku
-              name
-            }
-          }
-        `;
 
-        // Create variant option from imported data
         const variantOption = {
           variantName: 'Default',
           attributes: {},
@@ -353,7 +375,7 @@ export default function ProductsPage() {
           purchasePrice: payload.purchasePrice,
           sellingPrice: payload.sellingPrice,
           originalSellingPrice: null,
-          moq: null,
+          moq: Number.isFinite(moq) ? moq : null,
           stockQuantity: payload.stockQuantity,
           lowStockThreshold: payload.lowStockThreshold,
           stockStatus: payload.stockStatus,
@@ -382,56 +404,35 @@ export default function ProductsPage() {
             currency: userCurrency,
             variantOptions: [variantOption],
           });
-        } catch (error) {
-          // Failed to save product
+          succeeded += 1;
+        } catch {
+          failed += 1;
         }
       }
-      
-      // Refresh products list
-      await fetchProducts();
-      
-      // Close modal
-      setIsImportModalOpen(false);
-      
-      // Show success overlay
-      setOverlayMessage(tList('importSuccess', { count: data.length }));
-      setIsSlidingIn(true);
-      setShowOverlay(true);
-      
-      // Auto-hide overlay after 2.5 seconds
-      if (overlayTimeoutRef.current) {
-        clearTimeout(overlayTimeoutRef.current);
-      }
-      overlayTimeoutRef.current = setTimeout(() => {
-        setIsSlidingOut(true);
-        setShowOverlay(false);
-        
-        // Remove overlay completely after animation
-        setTimeout(() => {
-          setIsSlidingOut(false);
-        }, 500);
-      }, 2500);
-       
-    } catch (error) {
-      // Show error overlay
-      setOverlayMessage(tList('importFailed'));
-      setIsSlidingIn(true);
-      setShowOverlay(true);
-      
-      // Auto-hide overlay after 2.5 seconds
-      if (overlayTimeoutRef.current) {
-        clearTimeout(overlayTimeoutRef.current);
-      }
-      overlayTimeoutRef.current = setTimeout(() => {
-        setIsSlidingOut(true);
-        setShowOverlay(false);
-        
-        // Remove overlay completely after animation
-        setTimeout(() => {
-          setIsSlidingOut(false);
-        }, 500);
-      }, 2500);
+
+      await fetchProducts(true, true);
+    } finally {
+      suppressSocketRefreshRef.current = false;
     }
+
+    if (succeeded === 0) {
+      showImportOverlay(tList('importAllFailed', { count: failed }));
+      throw new Error('Import failed');
+    }
+
+    if (failed > 0) {
+      showImportOverlay(
+        tList('importPartialSuccess', { succeeded, failed }) +
+          ' ' +
+          tList('importDraftReminder')
+      );
+    } else {
+      showImportOverlay(
+        tList('importSuccess', { count: succeeded }) + ' ' + tList('importDraftReminder')
+      );
+    }
+
+    return { succeeded, failed };
   };
 
   const handleExport = () => {
@@ -522,14 +523,14 @@ export default function ProductsPage() {
             {tList('refresh')}
           </button>
 
-          {/* Import Button */}
-          {/*<button
+          {/* Import Draft Products */}
+          <button
             onClick={() => setIsImportModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2 bg-white border border-[#e6e6e6] text-black rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
           >
             <Upload className="w-4 h-4" />
-            Import Data
-          </button>*/}
+            {tList('importDraftProducts')}
+          </button>
 
           {/* Export Button */}
           <button

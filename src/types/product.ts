@@ -154,6 +154,7 @@ export interface ProductImportRow {
   'Supplier': string;
   'Stock Quantity': string;
   'Low Stock Threshold': string;
+  'MOQ': string;
   'Stock Status': string;
   'Purchase Price': string;
   'Selling Price': string;
@@ -163,6 +164,11 @@ export interface ProductImportRow {
   'Discount': string;
   'Discount Type': string;
 }
+
+export type ProductImportResult = {
+  succeeded: number;
+  failed: number;
+};
 
 export interface ProductFormData {
   id?: number;
