@@ -130,12 +130,6 @@ export default function FleetDeliveryStepsList({
               <p className="text-xs font-semibold text-gray-900 truncate">{item.orderId}</p>
               <p className="text-xs text-gray-600 truncate">{item.storeName || tShared('notApplicable')}</p>
             </div>
-
-            {item.totalAmount != null && item.totalAmount > 0 && (
-              <span className="text-xs font-semibold text-[#0a61d7] shrink-0">
-                IDR {Number(item.totalAmount).toLocaleString()}
-              </span>
-            )}
           </li>
         );
       })}
