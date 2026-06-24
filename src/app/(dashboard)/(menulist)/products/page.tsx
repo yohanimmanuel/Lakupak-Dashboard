@@ -44,6 +44,15 @@ export default function ProductsPage() {
   const overlayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const suppressSocketRefreshRef = useRef(false);
 
+  const withSuppressedAutoRefresh = useCallback(async (action: () => Promise<void>) => {
+    suppressSocketRefreshRef.current = true;
+    try {
+      await action();
+    } finally {
+      suppressSocketRefreshRef.current = false;
+    }
+  }, []);
+
   // GraphQL query to fetch products
   const PRODUCTS_QUERY = `
     query GetProducts($userId: Int!, $page: Int, $limit: Int) {
@@ -594,6 +603,7 @@ export default function ProductsPage() {
           profileToTableRowAction={profileToTableRow}
           onExportXLSXAction={downloadXLSX}
           onRefreshProductsAction={fetchProducts}
+          withSuppressedAutoRefreshAction={withSuppressedAutoRefresh}
         />
       </div>
     </div>

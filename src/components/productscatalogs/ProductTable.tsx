@@ -44,13 +44,14 @@ const getProductCategoryFilters = (products: Product[]) => {
 };
 
 
-export default function ProductTable({ products = [], setProductsAction, onSelectProductAction, onExportXLSXAction, profileToTableRowAction, onRefreshProductsAction }: { 
+export default function ProductTable({ products = [], setProductsAction, onSelectProductAction, onExportXLSXAction, profileToTableRowAction, onRefreshProductsAction, withSuppressedAutoRefreshAction }: { 
   products?: Product[]; 
   setProductsAction?: (fn: (prev: Product[]) => Product[]) => void; 
   onSelectProductAction?: (product: Product) => void; 
   onExportXLSXAction?: (wb: XLSX.WorkBook, filename: string) => void; 
   profileToTableRowAction: (product: Product) => ProductTableRow;
-  onRefreshProductsAction?: (forceRefresh?: boolean) => Promise<void>;
+  onRefreshProductsAction?: (forceRefresh?: boolean, silent?: boolean) => Promise<void>;
+  withSuppressedAutoRefreshAction?: (action: () => Promise<void>) => Promise<void>;
 }) {
   const {
     tShared,
@@ -261,72 +262,58 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
 
   const handleDeleteConfirm = async () => {
     if (!user?.id) return;
-    
-    if (isBulkDelete) {
-      // Bulk delete - delete all selected products
-      const productIdsToDelete: string[] = [];
-      for (const productId of selectedProducts) {
-        const product = tableRows.find(p => String(p.id) === productId);
-        if (product) {
-          try {
-            await fetchGraphQL(DELETE_PRODUCT_MUTATION, {
-              userId: user.id,
-              id: product.productId,
-            });
-            productIdsToDelete.push(product.productId);
-          } catch (error) {
-            // Failed to delete product
-          }
-        }
-      }
-      // Refresh products list from server to ensure UI is synchronized with database
-      // Force refresh to bypass any cache
-      if (productIdsToDelete.length > 0) {
-        if (onRefreshProductsAction) {
-          try {
-            await onRefreshProductsAction(true);
-          } catch (error) {
-            // Refresh failed, fall back to local state update
-            if (setProductsAction) {
-              setProductsAction(prev => prev.filter(p => !productIdsToDelete.includes(p.productId)));
+
+    const runDelete = async () => {
+      if (isBulkDelete) {
+        const productIdsToDelete: string[] = [];
+        for (const productId of selectedProducts) {
+          const product = tableRows.find((p) => String(p.id) === productId);
+          if (product) {
+            try {
+              await fetchGraphQL(DELETE_PRODUCT_MUTATION, {
+                userId: user.id,
+                id: product.productId,
+              });
+              productIdsToDelete.push(product.productId);
+            } catch {
+              // Failed to delete product
             }
           }
-        } else if (setProductsAction) {
-          // Fallback: update local state if refresh function not available
-          setProductsAction(prev => prev.filter(p => !productIdsToDelete.includes(p.productId)));
         }
+
+        if (productIdsToDelete.length > 0 && setProductsAction) {
+          setProductsAction((prev) => prev.filter((p) => !productIdsToDelete.includes(p.productId)));
+        } else if (productIdsToDelete.length > 0 && onRefreshProductsAction) {
+          await onRefreshProductsAction(true, true);
+        }
+
+        setSelectedProducts([]);
+      } else {
+        if (!productToDelete) return;
+        const deletedProductId = productToDelete.productId;
+        try {
+          await fetchGraphQL(DELETE_PRODUCT_MUTATION, {
+            userId: user.id,
+            id: deletedProductId,
+          });
+          if (setProductsAction) {
+            setProductsAction((prev) => prev.filter((p) => p.productId !== deletedProductId));
+          } else if (onRefreshProductsAction) {
+            await onRefreshProductsAction(true, true);
+          }
+        } catch {
+          // Failed to delete product
+        }
+        setProductToDelete(null);
       }
-      setSelectedProducts([]); // Clear selection after deleting
+    };
+
+    if (withSuppressedAutoRefreshAction) {
+      await withSuppressedAutoRefreshAction(runDelete);
     } else {
-      // Single delete - delete one product
-      if (!productToDelete) return;
-      const deletedProductId = productToDelete.productId;
-      try {
-        await fetchGraphQL(DELETE_PRODUCT_MUTATION, {
-          userId: user.id,
-          id: deletedProductId,
-        });
-        // Refresh products list from server to ensure UI is synchronized with database
-        // Force refresh to bypass any cache
-        if (onRefreshProductsAction) {
-          try {
-            await onRefreshProductsAction(true);
-          } catch (error) {
-            // Refresh failed, fall back to local state update
-            if (setProductsAction) {
-              setProductsAction(prev => prev.filter(p => p.productId !== deletedProductId));
-            }
-          }
-        } else if (setProductsAction) {
-          // Fallback: update local state if refresh function not available
-          setProductsAction(prev => prev.filter(p => p.productId !== deletedProductId));
-        }
-      } catch (error) {
-        // Failed to delete product
-      }
-      setProductToDelete(null);
+      await runDelete();
     }
-    
+
     setShowDeleteModal(false);
     setIsBulkDelete(false);
   };
