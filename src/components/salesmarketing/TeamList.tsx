@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
+import React, { useState, useRef, useLayoutEffect, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Edit, Plus, ChevronDown, ChevronRight, Users, User, Trash2, Mail, Phone, ChevronLeft, Filter, X, MapPin } from 'lucide-react';
+import { Search, Edit, Plus, ChevronDown, ChevronRight, Users, User, Trash2, Mail, Phone, ChevronLeft, Filter, X, MapPin, AlertCircle, Loader2 } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
@@ -81,9 +81,10 @@ interface TeamListProps {
   onCreateAgent?: () => void;
   onViewAgent?: (agent: SalesAgent) => void;
   onEditAgent?: (agent: SalesAgent) => void;
-  onDeleteAgent?: (agentId: string) => void;
+  onDeleteAgent?: (agentId: string) => Promise<void>;
   onEditTeam?: (team: SalesTeam) => void;
   onCreateTeam?: () => void;
+  onRefresh?: () => void;
 }
 
 const tabs = [
@@ -100,6 +101,7 @@ export default function TeamList({
   onDeleteAgent,
   onEditTeam,
   onCreateTeam,
+  onRefresh,
 }: TeamListProps) {
   const {
     tTeamList,
@@ -129,6 +131,8 @@ export default function TeamList({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [agentToDelete, setAgentToDelete] = useState<SalesAgent | null>(null);
   const [isBulkDelete, setIsBulkDelete] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   
   // Team modal state
   const [showTeamModal, setShowTeamModal] = useState(false);
@@ -245,30 +249,6 @@ export default function TeamList({
     setAgentToDelete(agent);
     setIsBulkDelete(false);
     setShowDeleteModal(true);
-  };
-
-  const handleDeleteConfirm = () => {
-    if (isBulkDelete) {
-      selectedAgents.forEach(agentId => {
-        if (onDeleteAgent) {
-          onDeleteAgent(agentId);
-        }
-      });
-      setSelectedAgents(new Set());
-    } else {
-      if (agentToDelete && onDeleteAgent) {
-        onDeleteAgent(agentToDelete.id);
-      }
-    }
-    setShowDeleteModal(false);
-    setAgentToDelete(null);
-    setIsBulkDelete(false);
-  };
-
-  const handleDeleteCancel = () => {
-    setShowDeleteModal(false);
-    setAgentToDelete(null);
-    setIsBulkDelete(false);
   };
 
   // Team modal handlers
@@ -421,6 +401,60 @@ export default function TeamList({
   const fromRow = (page - 1) * agentsPerPage + 1;
   const toRow = Math.min(page * agentsPerPage, filteredAgents.length);
   const paginatedAgents = filteredAgents.slice((page - 1) * agentsPerPage, page * agentsPerPage);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!onDeleteAgent) return;
+
+    setIsDeleting(true);
+    setDeleteError('');
+
+    try {
+      if (isBulkDelete) {
+        await Promise.all(
+          Array.from(selectedAgents).map((agentId) => onDeleteAgent(agentId))
+        );
+        setSelectedAgents(new Set());
+      } else {
+        if (!agentToDelete) return;
+        await onDeleteAgent(agentToDelete.id);
+        setAgentToDelete(null);
+      }
+
+      const deletedCount = isBulkDelete ? selectedAgents.size : 1;
+      if (page > 1 && paginatedAgents.length <= deletedCount) {
+        setPage(1);
+      }
+
+      setShowDeleteModal(false);
+      setIsBulkDelete(false);
+
+      if (onRefresh) {
+        onRefresh();
+      }
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : tTeamList('deleteFailed');
+      setDeleteError(errorMessage);
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [
+    onDeleteAgent,
+    isBulkDelete,
+    selectedAgents,
+    agentToDelete,
+    page,
+    paginatedAgents.length,
+    onRefresh,
+    tTeamList,
+  ]);
+
+  const handleDeleteCancel = useCallback(() => {
+    setShowDeleteModal(false);
+    setAgentToDelete(null);
+    setIsBulkDelete(false);
+    setDeleteError('');
+  }, []);
 
   const filteredTeams = teams.filter(team => {
     const searchLower = search.toLowerCase();
@@ -1146,6 +1180,14 @@ export default function TeamList({
             <h2 className="text-lg font-bold mb-2 text-red-500">
               {isBulkDelete ? tTeamList('deleteAgentsTitle') : tTeamList('deleteAgentTitle')}
             </h2>
+
+            {deleteError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-500" />
+                <span className="text-red-700 text-sm">{deleteError}</span>
+              </div>
+            )}
+
             <p className="mb-4 text-gray-500">
               {isBulkDelete 
                 ? tTeamList('deleteBulkConfirm', { count: selectedAgents.size })
@@ -1154,16 +1196,25 @@ export default function TeamList({
             </p>
             <div className="flex justify-end gap-2">
               <button
-                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500"
                 onClick={handleDeleteCancel}
+                disabled={isDeleting}
               >
                 {tShared('cancel')}
               </button>
               <button
-                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 flex items-center gap-2 disabled:opacity-50"
                 onClick={handleDeleteConfirm}
+                disabled={isDeleting}
               >
-                {tShared('delete')}
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    {tShared('deleting')}
+                  </>
+                ) : (
+                  tShared('delete')
+                )}
               </button>
             </div>
           </div>

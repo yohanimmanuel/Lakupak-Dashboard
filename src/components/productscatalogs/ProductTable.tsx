@@ -1,7 +1,7 @@
 'use client';
-import React, { useState, useRef, useLayoutEffect, useEffect } from "react";
+import React, { useState, useRef, useLayoutEffect, useEffect, useCallback } from "react";
 import { useRouter } from 'next/navigation';
-import { Search, Edit, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Trash, Trash2, MoreHorizontal, Grid3X3, List, EyeClosed, Globe, Zap, EyeOff, Gift, Package } from "lucide-react";
+import { Search, Edit, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Trash, Trash2, MoreHorizontal, Grid3X3, List, EyeClosed, Globe, Zap, EyeOff, Gift, Package, AlertCircle, Loader2 } from "lucide-react";
 
 import { useUserStore } from '@/store/userStore';
 import ProductMarketplacePubs from '../productscatalogs/ProductMarketplacePubs';
@@ -193,6 +193,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [productToDelete, setProductToDelete] = useState<ProductTableRow | null>(null);
   const [isBulkDelete, setIsBulkDelete] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [productToPublish, setProductToPublish] = useState<ProductTableRow | null>(null);
   const [showUnpublishModal, setShowUnpublishModal] = useState(false);
@@ -260,69 +262,99 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
     }
   `;
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = useCallback(async () => {
     if (!user?.id) return;
 
+    setIsDeleting(true);
+    setDeleteError('');
+
     const runDelete = async () => {
+      const deletedProductIds: string[] = [];
+
       if (isBulkDelete) {
-        const productIdsToDelete: string[] = [];
-        for (const productId of selectedProducts) {
-          const product = tableRows.find((p) => String(p.id) === productId);
-          if (product) {
-            try {
+        const deleteResults = await Promise.all(
+          selectedProducts.map(async (productId) => {
+            const product = tableRows.find((p) => String(p.id) === productId);
+            if (product) {
               await fetchGraphQL(DELETE_PRODUCT_MUTATION, {
                 userId: user.id,
                 id: product.productId,
               });
-              productIdsToDelete.push(product.productId);
-            } catch {
-              // Failed to delete product
+              return product.productId;
             }
-          }
-        }
+            return null;
+          }),
+        );
 
-        if (productIdsToDelete.length > 0 && setProductsAction) {
-          setProductsAction((prev) => prev.filter((p) => !productIdsToDelete.includes(p.productId)));
-        } else if (productIdsToDelete.length > 0 && onRefreshProductsAction) {
-          await onRefreshProductsAction(true, true);
-        }
-
+        deletedProductIds.push(
+          ...deleteResults.filter((productId): productId is string => Boolean(productId)),
+        );
         setSelectedProducts([]);
       } else {
         if (!productToDelete) return;
         const deletedProductId = productToDelete.productId;
-        try {
-          await fetchGraphQL(DELETE_PRODUCT_MUTATION, {
-            userId: user.id,
-            id: deletedProductId,
-          });
-          if (setProductsAction) {
-            setProductsAction((prev) => prev.filter((p) => p.productId !== deletedProductId));
-          } else if (onRefreshProductsAction) {
-            await onRefreshProductsAction(true, true);
-          }
-        } catch {
-          // Failed to delete product
-        }
+        await fetchGraphQL(DELETE_PRODUCT_MUTATION, {
+          userId: user.id,
+          id: deletedProductId,
+        });
+        deletedProductIds.push(deletedProductId);
         setProductToDelete(null);
+      }
+
+      if (setProductsAction && deletedProductIds.length > 0) {
+        setProductsAction((prev) =>
+          prev.filter((product) => !deletedProductIds.includes(product.productId)),
+        );
+      }
+
+      const currentPageDeleteCount = pagedProducts.filter((product) =>
+        deletedProductIds.includes(product.productId),
+      ).length;
+
+      if (page > 1 && currentPageDeleteCount > 0 && pagedProducts.length <= currentPageDeleteCount) {
+        setPage(1);
+      }
+
+      setShowDeleteModal(false);
+      setIsBulkDelete(false);
+
+      if (onRefreshProductsAction) {
+        await onRefreshProductsAction(true);
       }
     };
 
-    if (withSuppressedAutoRefreshAction) {
-      await withSuppressedAutoRefreshAction(runDelete);
-    } else {
-      await runDelete();
+    try {
+      if (withSuppressedAutoRefreshAction) {
+        await withSuppressedAutoRefreshAction(runDelete);
+      } else {
+        await runDelete();
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : tShared('deleteFailed');
+      setDeleteError(errorMessage);
+    } finally {
+      setIsDeleting(false);
     }
+  }, [
+    user?.id,
+    isBulkDelete,
+    selectedProducts,
+    tableRows,
+    productToDelete,
+    page,
+    pagedProducts,
+    setProductsAction,
+    onRefreshProductsAction,
+    withSuppressedAutoRefreshAction,
+    tShared,
+  ]);
 
-    setShowDeleteModal(false);
-    setIsBulkDelete(false);
-  };
-
-  const handleDeleteCancel = () => {
+  const handleDeleteCancel = useCallback(() => {
     setShowDeleteModal(false);
     setProductToDelete(null);
     setIsBulkDelete(false);
-  };
+    setDeleteError('');
+  }, []);
 
   const handleUnpublishCancel = () => {
     setShowUnpublishModal(false);
@@ -2089,6 +2121,14 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
             <h2 className="text-lg font-bold mb-2 text-red-500">
               {isBulkDelete ? tShared('deleteModal.titleBulkProducts') : tShared('deleteModal.titleSingle')}
             </h2>
+
+            {deleteError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-500" />
+                <span className="text-red-700 text-sm">{deleteError}</span>
+              </div>
+            )}
+
             <p className="mb-4 text-gray-500">
               {isBulkDelete
                 ? tShared('deleteModal.confirmBulkProductsCount', { count: selectedProducts.length })
@@ -2099,18 +2139,25 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
             </p>
             <div className="flex justify-end gap-2">
               <button
-                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500"
                 onClick={handleDeleteCancel}
+                disabled={isDeleting}
               >
                 {tShared('cancel')}
               </button>
               <button
-                className={`px-4 py-2 rounded-lg text-white hover:opacity-90 ${
-                  isBulkDelete ? 'bg-red-600 hover:bg-red-700' : 'bg-red-600 hover:bg-red-700'
-                }`}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 flex items-center gap-2 disabled:opacity-50"
                 onClick={handleDeleteConfirm}
+                disabled={isDeleting}
               >
-                {tShared('deleteModal.deleteButton')}
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    {tShared('deleting')}
+                  </>
+                ) : (
+                  tShared('deleteModal.deleteButton')
+                )}
               </button>
             </div>
           </div>

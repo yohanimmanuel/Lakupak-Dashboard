@@ -74,6 +74,7 @@ export default function SuppliersPage() {
   const [isSlidingIn, setIsSlidingIn] = useState(false);
   const [isSlidingOut, setIsSlidingOut] = useState(false);
   const overlayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasLoadedSuppliersRef = useRef(false);
   const user = useUserStore(state => state.user);
 
   // Utility function to calculate monthly averages (same logic as SupplierProfile)
@@ -146,15 +147,20 @@ export default function SuppliersPage() {
 
   const fetchSuppliers = useCallback(async () => {
     if (!user?.id) return;
-    setLoading(true);
-    
+
+    const isInitialLoad = !hasLoadedSuppliersRef.current;
+
+    if (isInitialLoad) {
+      setLoading(true);
+    }
+
     // Clear any existing timeouts
     if (overlayTimeoutRef.current) {
       clearTimeout(overlayTimeoutRef.current);
     }
-    
-    // For refresh button, start slide-in animation
-    if (suppliers.length > 0) {
+
+    // For refresh after initial load, use overlay only (keep table mounted)
+    if (!isInitialLoad) {
       setIsSlidingOut(false);
       setIsSlidingIn(true);
       setOverlayMessage(tSuppliers('refreshing'));
@@ -195,6 +201,7 @@ export default function SuppliersPage() {
       
       // Suppliers data processed with analytics
       setSuppliers(suppliersWithAnalytics);
+      hasLoadedSuppliersRef.current = true;
       setOverlayMessage(tSuppliers('showingData', { count: suppliersWithAnalytics.length }));
     } catch (error) {
       // Error fetching suppliers
@@ -223,7 +230,7 @@ export default function SuppliersPage() {
         }, 500);
       }, 2500);
     }
-  }, [user?.id, suppliers.length, tSuppliers]); // Removed SUPPLIERS_QUERY - it's now a constant outside the function
+  }, [user?.id, tSuppliers]);
 
   useEffect(() => {
     // Start slide-in animation immediately for initial page load
@@ -240,7 +247,7 @@ export default function SuppliersPage() {
     };
   }, [fetchSuppliers]); // Now fetchSuppliers is properly memoized, so we can include it
 
-  if (loading) {
+  if (loading && !hasLoadedSuppliersRef.current) {
     return (
       <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -261,10 +268,11 @@ export default function SuppliersPage() {
         </div>
         <div className="flex gap-2 items-center">
           <button
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={fetchSuppliers}
+            disabled={loading || isSlidingIn}
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className={`w-4 h-4 ${loading || isSlidingIn ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg> {tShared('refresh')}
           </button>
@@ -289,7 +297,7 @@ export default function SuppliersPage() {
         </div>
       </div>
           <Statcards type="supplier" data={suppliers} />
-          <SupplierTable suppliers={suppliers} setSuppliers={setSuppliers} onExportXLSX={downloadXLSX} profileToTableRow={profileToTableRow} />
+          <SupplierTable suppliers={suppliers} setSuppliers={setSuppliers} onExportXLSX={downloadXLSX} profileToTableRow={profileToTableRow} onRefresh={fetchSuppliers} />
       <SupplierModal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
@@ -498,7 +506,7 @@ export default function SuppliersPage() {
           'translate-x-full opacity-0'
         }`}>
           <div className="flex items-center gap-3">
-            {loading ? (
+            {loading || isSlidingIn ? (
               <div className="w-5 h-5 border-2 border-[#0a61d7] border-t-transparent rounded-full animate-spin"></div>
             ) : (
               <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
@@ -508,7 +516,7 @@ export default function SuppliersPage() {
             <div>
               <p className="text-sm font-medium text-gray-900">{overlayMessage}</p>
               <p className="text-xs text-gray-500">
-                {loading ? tShared('pleaseWait') : tSuppliers('loaded', { count: suppliers.length })}
+                {loading || isSlidingIn ? tShared('pleaseWait') : tSuppliers('loaded', { count: suppliers.length })}
               </p>
             </div>
           </div>

@@ -353,6 +353,7 @@ export default function OffersPage() {
           setOffersAction={setOffers}
           activeTab={activeTab}
           onSelectOfferAction={handleSelectOffer}
+          onRefreshAction={fetchOffers}
         />
     </div>
   );

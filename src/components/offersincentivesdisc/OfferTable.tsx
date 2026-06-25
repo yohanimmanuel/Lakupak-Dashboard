@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useRef, useLayoutEffect, useMemo } from 'react';
+import React, { useState, useRef, useLayoutEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Edit, Filter, ChevronDown, ChevronLeft, ChevronRight, Trash, Trash2, MoreHorizontal, Tag } from 'lucide-react';
+import { Search, Edit, Filter, ChevronDown, ChevronLeft, ChevronRight, Trash, Trash2, MoreHorizontal, Tag, AlertCircle, Loader2 } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { format } from 'date-fns';
@@ -31,12 +31,14 @@ export default function OfferTable({
   offers = [], 
   setOffersAction, 
   activeTab = 'all',
-  onSelectOfferAction
+  onSelectOfferAction,
+  onRefreshAction,
 }: { 
   offers?: Offer[]; 
   setOffersAction?: (fn: (prev: Offer[]) => Offer[]) => void; 
   activeTab?: 'all' | 'discounts' | 'promotions';
   onSelectOfferAction?: (offer: Offer) => void;
+  onRefreshAction?: () => void;
 }) {
   const {
     tTable,
@@ -61,6 +63,8 @@ export default function OfferTable({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [offerToDelete, setOfferToDelete] = useState<OfferTableRow | null>(null);
   const [isBulkDelete, setIsBulkDelete] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const [isActivating, setIsActivating] = useState(false);
   const [isDeactivating, setIsDeactivating] = useState(false);
   
@@ -338,13 +342,15 @@ export default function OfferTable({
     }
   `;
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = useCallback(async () => {
     if (!user?.id) return;
-    
+
+    setIsDeleting(true);
+    setDeleteError('');
+
     try {
       if (isBulkDelete) {
-        // Bulk delete - delete all selected offers using GraphQL
-        const deletePromises = selectedOffers.map(offerId => 
+        const deletePromises = selectedOffers.map((offerId) =>
           fetchGraphQL<{
             deleteOffer: {
               success: boolean;
@@ -359,53 +365,61 @@ export default function OfferTable({
             id: offerId,
           })
         );
-        
+
         const results = await Promise.all(deletePromises);
-        const failedDeletes = results.filter(result => !result.deleteOffer?.success);
-        
+        const failedDeletes = results.filter((result) => !result.deleteOffer?.success);
+
         if (failedDeletes.length > 0) {
-          alert(tTable('deleteFailedBulk', { count: failedDeletes.length }));
-          return;
+          throw new Error(tTable('deleteFailedBulk', { count: failedDeletes.length }));
         }
-        
-        // Update UI state
-        if (setOffersAction) {
-          setOffersAction(prev => prev.filter(offer => !selectedOffers.includes(offer.id)));
-        }
+
         setSelectedOffers([]);
       } else {
-        // Single delete - delete one offer using GraphQL
         if (!offerToDelete) return;
-        
-        try {
-          await fetchGraphQL(DELETE_OFFER_MUTATION, {
-            userId: user.id,
-            id: offerToDelete.id,
-          });
-        
-        // Update UI state
-        if (setOffersAction) {
-          setOffersAction(prev => prev.filter(offer => offer.id !== offerToDelete.id));
-        }
+
+        await fetchGraphQL(DELETE_OFFER_MUTATION, {
+          userId: user.id,
+          id: offerToDelete.id,
+        });
+
         setOfferToDelete(null);
-        } catch (error) {
-          alert(tTable('deleteFailedSingle'));
-          return;
-        }
       }
-      
+
+      const deletedCount = isBulkDelete ? selectedOffers.length : 1;
+      if (page > 1 && pagedRows.length <= deletedCount) {
+        setPage(1);
+      }
+
       setShowDeleteModal(false);
       setIsBulkDelete(false);
-    } catch (error) {
-      alert(tTable('deleteFailedGeneric'));
-    }
-  };
 
-  const handleDeleteCancel = () => {
+      if (onRefreshAction) {
+        onRefreshAction();
+      }
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : tTable('deleteFailedGeneric');
+      setDeleteError(errorMessage);
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [
+    user?.id,
+    isBulkDelete,
+    selectedOffers,
+    offerToDelete,
+    page,
+    pagedRows.length,
+    onRefreshAction,
+    tTable,
+  ]);
+
+  const handleDeleteCancel = useCallback(() => {
     setShowDeleteModal(false);
     setOfferToDelete(null);
     setIsBulkDelete(false);
-  };
+    setDeleteError('');
+  }, []);
 
   const handleOfferSelect = (offerId: string) => {
     setSelectedOffers(prev => 
@@ -1006,6 +1020,14 @@ export default function OfferTable({
             <h2 className="text-lg font-bold mb-2 text-red-500">
               {isBulkDelete ? tTable('deleteOffersTitle') : tTable('deleteOfferTitle')}
             </h2>
+
+            {deleteError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-500" />
+                <span className="text-red-700 text-sm">{deleteError}</span>
+              </div>
+            )}
+
             <p className="mb-4 text-gray-500">
               {isBulkDelete 
                 ? tTable('deleteBulkConfirm', { count: selectedOffers.length })
@@ -1014,16 +1036,25 @@ export default function OfferTable({
             </p>
             <div className="flex justify-end gap-2">
               <button
-                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500"
                 onClick={handleDeleteCancel}
+                disabled={isDeleting}
               >
                 {tShared('cancel')}
               </button>
               <button
-                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 flex items-center gap-2 disabled:opacity-50"
                 onClick={handleDeleteConfirm}
+                disabled={isDeleting}
               >
-                {tTable('delete')}
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    {tShared('deleting')}
+                  </>
+                ) : (
+                  tTable('delete')
+                )}
               </button>
             </div>
           </div>

@@ -115,11 +115,13 @@
       "warningSingle": "This will permanently remove this order from the system.",
       "warningBulk": "This will permanently remove the orders from the system.",
       "deleteButton": "Delete"
-    }
+    },
+    "deleteFailed": "Failed to delete order(s). Please try again."
   },
   "shared": {
     "actions": "Actions",
     "cancel": "Cancel",
+    "deleting": "Deleting...",
     "notAvailable": "N/A",
     "previousPage": "Previous page",
     "nextPage": "Next page",

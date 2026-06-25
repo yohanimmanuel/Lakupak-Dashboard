@@ -48,15 +48,12 @@ export default function MarketingCampaignsPage() {
     }
   `;
 
-  useEffect(() => {
+  const fetchCampaigns = useCallback(async () => {
     if (!user?.id) {
       setLoading(false);
       return;
     }
 
-    let ignore = false;
-
-    const fetchCampaigns = async () => {
     setLoading(true);
     try {
       const data = await fetchGraphQL<{
@@ -75,26 +72,17 @@ export default function MarketingCampaignsPage() {
         limit: 100,
       });
 
-        if (!ignore) {
       setCampaigns(data.campaigns.nodes);
-        }
-    } catch (error) {
-        if (!ignore) {
+    } catch {
       setCampaigns([]);
-        }
     } finally {
-        if (!ignore) {
       setLoading(false);
     }
-      }
-    };
-
-    fetchCampaigns();
-
-    return () => {
-      ignore = true;
-    };
   }, [user?.id]);
+
+  useEffect(() => {
+    fetchCampaigns();
+  }, [fetchCampaigns]);
 
   const campaignToTableRow = (campaign: Campaign): CampaignTableRow => {
     return {
@@ -216,10 +204,8 @@ export default function MarketingCampaignsPage() {
         userId: user.id,
         id: campaign.id,
       });
-      // Refresh campaigns list by removing deleted campaign from state
-      setCampaigns(prev => prev.filter(c => c.id !== campaign.id));
     } catch (error) {
-      // Handle error
+      throw error instanceof Error ? error : new Error('Failed to delete campaign');
     }
   };
 
@@ -286,6 +272,7 @@ export default function MarketingCampaignsPage() {
         onDeleteCampaign={handleDeleteCampaign}
         onUpdateCampaign={handleUpdateCampaign}
         campaignToTableRow={campaignToTableRow}
+        onRefresh={fetchCampaigns}
       />
     </div>
   );

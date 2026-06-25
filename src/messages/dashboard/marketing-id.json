@@ -116,6 +116,7 @@
     "deleteBulkConfirm": "Apakah Anda yakin ingin menghapus {count} kampanye? Tindakan ini tidak dapat dibatalkan.",
     "deleteSingleConfirm": "Apakah Anda yakin ingin menghapus {name}? Tindakan ini tidak dapat dibatalkan.",
     "thisCampaign": "kampanye ini",
+    "deleteFailed": "Gagal menghapus kampanye. Silakan coba lagi.",
     "pagination": {
       "showing": "Menampilkan {from} hingga {to} dari {total}"
     },
@@ -373,6 +374,7 @@
     "deleteBulkConfirm": "Apakah Anda yakin ingin menghapus {count} agen? Tindakan ini tidak dapat dibatalkan.",
     "deleteSingleConfirm": "Apakah Anda yakin ingin menghapus {name}? Tindakan ini tidak dapat dibatalkan.",
     "thisAgent": "agen ini",
+    "deleteFailed": "Gagal menghapus agen. Silakan coba lagi.",
     "columns": {
       "name": "NAMA",
       "phone": "TELEPON",
@@ -592,6 +594,7 @@
   },
   "shared": {
     "cancel": "Batal",
+    "deleting": "Menghapus...",
     "delete": "Hapus",
     "notAvailable": "T/A",
     "previousPage": "Halaman sebelumnya",

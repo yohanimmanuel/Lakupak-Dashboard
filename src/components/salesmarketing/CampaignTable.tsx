@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useLayoutEffect, useCallback, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Trash2, Edit, X, ChevronLeft, ChevronRight, Search, Filter, ChevronDown } from 'lucide-react';
+import { Trash2, Edit, X, ChevronLeft, ChevronRight, Search, Filter, ChevronDown, AlertCircle, Loader2 } from 'lucide-react';
 import { Campaign, CampaignTableRow } from '@/types/campaign';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { useUserStore } from '@/store/userStore';
@@ -21,9 +21,10 @@ interface CampaignTableProps {
   campaigns?: Campaign[];
   onViewCampaign?: (campaign: Campaign) => void;
   onDuplicateCampaign?: (campaign: Campaign) => void;
-  onDeleteCampaign?: (campaign: Campaign) => void;
+  onDeleteCampaign?: (campaign: Campaign) => Promise<void>;
   onUpdateCampaign?: (campaign: Campaign) => void;
   campaignToTableRow: (campaign: Campaign) => CampaignTableRow;
+  onRefresh?: () => void;
 }
 
 export default function CampaignTable({
@@ -33,6 +34,7 @@ export default function CampaignTable({
   onDeleteCampaign,
   onUpdateCampaign,
   campaignToTableRow,
+  onRefresh,
 }: CampaignTableProps) {
   const {
     tCampaignTable,
@@ -52,6 +54,8 @@ export default function CampaignTable({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [campaignToDelete, setCampaignToDelete] = useState<CampaignTableRow | null>(null);
   const [isBulkDelete, setIsBulkDelete] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const [selectedCampaigns, setSelectedCampaigns] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
   const [showSendModal, setShowSendModal] = useState(false);
@@ -211,33 +215,68 @@ export default function CampaignTable({
     setSelectedCampaigns(new Set());
   };
 
-  const confirmDelete = () => {
-    if (isBulkDelete) {
-      selectedCampaigns.forEach(campaignId => {
-        const campaign = campaigns.find((c) => c.id === campaignId);
-        if (campaign && onDeleteCampaign) {
-          onDeleteCampaign(campaign);
-        }
-      });
-      setSelectedCampaigns(new Set());
-    } else {
-      if (campaignToDelete && onDeleteCampaign) {
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!onDeleteCampaign) return;
+
+    setIsDeleting(true);
+    setDeleteError('');
+
+    try {
+      if (isBulkDelete) {
+        await Promise.all(
+          Array.from(selectedCampaigns).map(async (campaignId) => {
+            const campaign = campaigns.find((c) => c.id === campaignId);
+            if (campaign) {
+              await onDeleteCampaign(campaign);
+            }
+          })
+        );
+        setSelectedCampaigns(new Set());
+      } else {
+        if (!campaignToDelete) return;
         const originalCampaign = campaigns.find((c) => c.id === campaignToDelete.id);
         if (originalCampaign) {
-          onDeleteCampaign(originalCampaign);
+          await onDeleteCampaign(originalCampaign);
         }
+        setCampaignToDelete(null);
       }
-    }
-    setShowDeleteModal(false);
-    setCampaignToDelete(null);
-    setIsBulkDelete(false);
-  };
 
-  const handleDeleteCancel = () => {
+      const deletedCount = isBulkDelete ? selectedCampaigns.size : 1;
+      if (page > 1 && pagedCampaigns.length <= deletedCount) {
+        setPage(1);
+      }
+
+      setShowDeleteModal(false);
+      setIsBulkDelete(false);
+
+      if (onRefresh) {
+        onRefresh();
+      }
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : tCampaignTable('deleteFailed');
+      setDeleteError(errorMessage);
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [
+    onDeleteCampaign,
+    isBulkDelete,
+    selectedCampaigns,
+    campaigns,
+    campaignToDelete,
+    page,
+    pagedCampaigns.length,
+    onRefresh,
+    tCampaignTable,
+  ]);
+
+  const handleDeleteCancel = useCallback(() => {
     setShowDeleteModal(false);
     setCampaignToDelete(null);
     setIsBulkDelete(false);
-  };
+    setDeleteError('');
+  }, []);
 
   const handleCampaignSelect = (campaignId: string) => {
     setSelectedCampaigns(prev => {
@@ -666,6 +705,14 @@ export default function CampaignTable({
             <h2 className="text-lg font-bold mb-2 text-red-500">
               {isBulkDelete ? tCampaignTable('deleteCampaignsTitle') : tCampaignTable('deleteCampaignTitle')}
             </h2>
+
+            {deleteError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-500" />
+                <span className="text-red-700 text-sm">{deleteError}</span>
+              </div>
+            )}
+
             <p className="mb-4 text-gray-500">
               {isBulkDelete
                 ? tCampaignTable('deleteBulkConfirm', { count: selectedCampaigns.size })
@@ -675,16 +722,25 @@ export default function CampaignTable({
             </p>
             <div className="flex justify-end gap-2">
               <button
-                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500"
                 onClick={handleDeleteCancel}
+                disabled={isDeleting}
               >
                 {tShared('cancel')}
               </button>
               <button
-                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
-                onClick={confirmDelete}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 flex items-center gap-2 disabled:opacity-50"
+                onClick={handleDeleteConfirm}
+                disabled={isDeleting}
               >
-                {tShared('delete')}
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    {tShared('deleting')}
+                  </>
+                ) : (
+                  tShared('delete')
+                )}
               </button>
             </div>
           </div>

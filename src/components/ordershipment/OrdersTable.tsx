@@ -1,7 +1,7 @@
 'use client';
-import React, { useState, useRef, useLayoutEffect, useEffect } from "react";
+import React, { useState, useRef, useLayoutEffect, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from 'next/navigation';
-import { Search, Edit, Filter, ChevronDown, ChevronLeft, ChevronRight, Archive, Trash, Trash2, ShoppingCart } from "lucide-react";
+import { Search, Edit, Filter, ChevronDown, ChevronLeft, ChevronRight, Archive, Trash, Trash2, ShoppingCart, AlertCircle, Loader2 } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
 import { formatDateLong } from '@/utils/dateUtils';
@@ -52,12 +52,14 @@ export default function OrdersTable({
   orders = [], 
   setOrdersAction, 
   onExportXLSXAction, 
-  orderToTableRowAction 
+  orderToTableRowAction,
+  onRefreshAction,
 }: { 
   orders?: Order[]; 
   setOrdersAction?: (fn: (prev: Order[]) => Order[]) => void; 
   onExportXLSXAction?: (wb: XLSX.WorkBook, filename: string) => void; 
-  orderToTableRowAction: (order: Order) => OrderTableRow 
+  orderToTableRowAction: (order: Order) => OrderTableRow;
+  onRefreshAction?: () => void;
 }) {
   const {
     tShared,
@@ -124,6 +126,9 @@ export default function OrdersTable({
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]); // stores orderId values
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<OrderTableRow | null>(null);
+  const [isBulkDelete, setIsBulkDelete] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const [showBulkOrderStatusDropdown, setShowBulkOrderStatusDropdown] = useState(false);
   const [showBulkPaymentStatusDropdown, setShowBulkPaymentStatusDropdown] = useState(false);
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
@@ -218,6 +223,15 @@ export default function OrdersTable({
   const allFilteredSelected = React.useMemo(() => 
     allFilteredOrderIds.length > 0 && allFilteredOrderIds.every(id => selectedOrders.includes(id)),
     [allFilteredOrderIds, selectedOrders]
+  );
+
+  const selectedCancelledOrderIds = useMemo(
+    () =>
+      selectedOrders.filter((orderId) => {
+        const order = filteredOrders.find((o) => o.orderId === orderId);
+        return order?.orderStatus === 'Cancelled';
+      }),
+    [selectedOrders, filteredOrders],
   );
 
   const handleSelectAll = () => {
@@ -326,46 +340,84 @@ export default function OrdersTable({
   };
 
   const handleDelete = (order: OrderTableRow) => {
-    // Only allow deleting cancelled orders
     if (order.orderStatus !== 'Cancelled') {
       return;
     }
     setOrderToDelete(order);
+    setIsBulkDelete(false);
     setShowDeleteModal(true);
   };
 
-  const handleBulkDelete = async () => {
-    const ordersToDelete = orderToDelete 
+  const handleDeleteCancel = useCallback(() => {
+    setShowDeleteModal(false);
+    setOrderToDelete(null);
+    setIsBulkDelete(false);
+    setDeleteError('');
+  }, []);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    const ordersToDelete = orderToDelete
       ? [orderToDelete.orderId]
-      : selectedOrders.filter(orderId => {
-          const order = pagedOrders.find(o => o.orderId === orderId);
-          return order?.orderStatus === 'Cancelled';
-        });
-    
+      : selectedCancelledOrderIds;
+
     if (ordersToDelete.length === 0) {
       setShowDeleteModal(false);
       setOrderToDelete(null);
       return;
     }
-    
+
+    setIsDeleting(true);
+    setDeleteError('');
+
     try {
-      const successes: string[] = [];
-      for (const orderId of ordersToDelete) {
+      const deletePromises = ordersToDelete.map(async (orderId) => {
         const res = await fetch('/api/orders', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId })
+          body: JSON.stringify({ orderId }),
         });
-        if (res.ok) successes.push(orderId);
+        if (!res.ok) {
+          throw new Error(`Failed to delete order ${orderId}`);
+        }
+        return orderId;
+      });
+
+      await Promise.all(deletePromises);
+
+      if (!onRefreshAction && setOrdersAction) {
+        setOrdersAction((prev) =>
+          prev.filter((order) => !ordersToDelete.includes(order.orderId))
+        );
       }
-      if (successes.length > 0 && setOrdersAction) {
-        setOrdersAction(prev => prev.filter(o => !successes.includes(o.orderId)));
-      }
-      setSelectedOrders(prev => prev.filter(id => !successes.includes(id)));
-      setShowDeleteModal(false);
+
+      setSelectedOrders((prev) => prev.filter((id) => !ordersToDelete.includes(id)));
       setOrderToDelete(null);
-    } catch {}
-  };
+
+      if (page > 1 && pagedOrders.length <= ordersToDelete.length) {
+        setPage(1);
+      }
+
+      setShowDeleteModal(false);
+      setIsBulkDelete(false);
+
+      if (onRefreshAction) {
+        onRefreshAction();
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : tTable('deleteFailed');
+      setDeleteError(errorMessage);
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [
+    orderToDelete,
+    selectedCancelledOrderIds,
+    page,
+    pagedOrders.length,
+    setOrdersAction,
+    onRefreshAction,
+    tTable,
+  ]);
 
   return (
     <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6] p-4 mt-3" data-tour="orders-table">
@@ -565,12 +617,13 @@ export default function OrdersTable({
               <Archive className="w-4 h-4" /> {tTable('bulkActions.archiveOrders')}
             </button>
             {/* Show delete button when cancelled orders are selected (even with mixed statuses) */}
-            {selectedOrders.some(orderId => {
-              const order = pagedOrders.find(o => o.orderId === orderId);
-              return order?.orderStatus === 'Cancelled';
-            }) && (
+            {selectedCancelledOrderIds.length > 0 && (
               <button
-                onClick={() => setShowDeleteModal(true)}
+                onClick={() => {
+                  setIsBulkDelete(true);
+                  setOrderToDelete(null);
+                  setShowDeleteModal(true);
+                }}
                 disabled={isBulkUpdating}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors disabled:opacity-60"
               >
@@ -851,13 +904,8 @@ export default function OrdersTable({
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (() => {
         const isSingleDelete = orderToDelete !== null;
-        const cancelledCount = isSingleDelete 
-          ? 1
-          : selectedOrders.filter(orderId => {
-              const order = pagedOrders.find(o => o.orderId === orderId);
-              return order?.orderStatus === 'Cancelled';
-            }).length;
-        
+        const cancelledCount = isSingleDelete ? 1 : selectedCancelledOrderIds.length;
+
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
             <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 w-full max-w-sm">
@@ -866,36 +914,50 @@ export default function OrdersTable({
                   ? tTable('deleteModal.titleSingle')
                   : tTable('deleteModal.titleBulk')}
               </h2>
+
+              {deleteError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-red-500" />
+                  <span className="text-red-700 text-sm">{deleteError}</span>
+                </div>
+              )}
+
               <p className="mb-4 text-gray-500">
                 {isSingleDelete
                   ? tTable('deleteModal.confirmSingle')
                   : tTable('deleteModal.confirmBulk', { count: cancelledCount })}
               </p>
-            <p className="mb-4 text-xs text-orange-600 bg-orange-50 p-2 rounded">
-              <strong>{tTable('deleteModal.warningLabel')}</strong>{' '}
-              {isSingleDelete
-                ? tTable('deleteModal.warningSingle')
-                : tTable('deleteModal.warningBulk', { count: cancelledCount })}
-            </p>
-            <div className="flex justify-end gap-2">
-              <button
-                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setOrderToDelete(null);
-                }}
-              >
-                {tShared('cancel')}
-              </button>
-              <button
-                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
-                onClick={handleBulkDelete}
-              >
-                {tTable('deleteModal.deleteButton')}
-              </button>
+              <p className="mb-4 text-xs text-orange-600 bg-orange-50 p-2 rounded">
+                <strong>{tTable('deleteModal.warningLabel')}</strong>{' '}
+                {isSingleDelete
+                  ? tTable('deleteModal.warningSingle')
+                  : tTable('deleteModal.warningBulk', { count: cancelledCount })}
+              </p>
+              <div className="flex justify-end gap-2">
+                <button
+                  className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500"
+                  onClick={handleDeleteCancel}
+                  disabled={isDeleting}
+                >
+                  {tShared('cancel')}
+                </button>
+                <button
+                  className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 flex items-center gap-2 disabled:opacity-50"
+                  onClick={handleDeleteConfirm}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      {tShared('deleting')}
+                    </>
+                  ) : (
+                    tTable('deleteModal.deleteButton')
+                  )}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
         );
       })()}
     </div>

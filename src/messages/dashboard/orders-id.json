@@ -115,11 +115,13 @@
       "warningSingle": "Ini akan menghapus pesanan ini secara permanen dari sistem.",
       "warningBulk": "Ini akan menghapus pesanan secara permanen dari sistem.",
       "deleteButton": "Hapus"
-    }
+    },
+    "deleteFailed": "Gagal menghapus pesanan. Silakan coba lagi."
   },
   "shared": {
     "actions": "Aksi",
     "cancel": "Batal",
+    "deleting": "Menghapus...",
     "notAvailable": "T/A",
     "previousPage": "Halaman sebelumnya",
     "nextPage": "Halaman berikutnya",

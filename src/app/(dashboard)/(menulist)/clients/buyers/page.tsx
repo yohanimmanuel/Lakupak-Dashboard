@@ -82,6 +82,7 @@ export default function BuyersPage() {
   const [updateSuccess, setUpdateSuccess] = useState('');
   const [updateError, setUpdateError] = useState('');
   const overlayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasLoadedBuyersRef = useRef(false);
   const user = useUserStore(state => state.user);
 
   // Utility function to calculate monthly averages (same logic as BuyerProfile)
@@ -152,15 +153,20 @@ export default function BuyersPage() {
 
   const fetchBuyers = useCallback(async () => {
     if (!user?.id) return;
-    setLoading(true);
-    
+
+    const isInitialLoad = !hasLoadedBuyersRef.current;
+
+    if (isInitialLoad) {
+      setLoading(true);
+    }
+
     // Clear any existing timeouts
     if (overlayTimeoutRef.current) {
       clearTimeout(overlayTimeoutRef.current);
     }
-    
-    // For refresh button, start slide-in animation
-    if (buyers.length > 0) {
+
+    // For refresh after initial load, use overlay only (keep table mounted)
+    if (!isInitialLoad) {
       setIsSlidingOut(false);
       setIsSlidingIn(true);
       setOverlayMessage(tBuyers('refreshing'));
@@ -201,6 +207,7 @@ export default function BuyersPage() {
       
       // Buyers data processed with analytics
       setBuyers(buyersWithAnalytics);
+      hasLoadedBuyersRef.current = true;
       setOverlayMessage(tBuyers('showingData', { count: buyersWithAnalytics.length }));
     } catch (error) {
       // Error fetching buyers
@@ -229,7 +236,7 @@ export default function BuyersPage() {
         }, 500);
       }, 2500);
     }
-  }, [user?.id, buyers.length, tBuyers]); // Removed BUYERS_QUERY - it's a constant and shouldn't cause re-renders
+  }, [user?.id, tBuyers]);
 
   useEffect(() => {
     // Start slide-in animation immediately for initial page load
@@ -261,7 +268,7 @@ export default function BuyersPage() {
     }
   }, [updateError]);
 
-  if (loading) {
+  if (loading && !hasLoadedBuyersRef.current) {
     return (
       <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -284,9 +291,9 @@ export default function BuyersPage() {
           <button
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm"
             onClick={fetchBuyers}
-            disabled={loading}
+            disabled={loading || isSlidingIn}
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> {tShared('refresh')}
+            <RefreshCw className={`w-4 h-4 ${loading || isSlidingIn ? 'animate-spin' : ''}`} /> {tShared('refresh')}
           </button>
           <button
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm"
@@ -331,7 +338,7 @@ export default function BuyersPage() {
           'translate-x-full opacity-0'
         }`}>
           <div className="flex items-center gap-3">
-            {loading ? (
+            {loading || isSlidingIn ? (
               <div className="w-5 h-5 border-2 border-[#0a61d7] border-t-transparent rounded-full animate-spin"></div>
             ) : (
               <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
@@ -341,7 +348,7 @@ export default function BuyersPage() {
             <div>
               <p className="text-sm font-medium text-gray-900">{overlayMessage}</p>
               <p className="text-xs text-gray-500">
-                {loading ? tShared('pleaseWait') : tBuyers('loaded', { count: buyers.length })}
+                {loading || isSlidingIn ? tShared('pleaseWait') : tBuyers('loaded', { count: buyers.length })}
               </p>
             </div>
           </div>

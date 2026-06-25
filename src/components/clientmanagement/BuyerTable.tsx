@@ -163,60 +163,45 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
     `;
 
     if (isBulkDelete) {
-      // Bulk delete - delete all selected buyers
-        const deletePromises = selectedBuyers.map(async (buyerId) => {
-        const buyer = pagedBuyers.find(b => String(b.id) === buyerId);
+      const deletePromises = selectedBuyers.map(async (buyerId) => {
+        const buyer = filteredBuyers.find(b => String(b.id) === buyerId);
         if (buyer) {
-            await fetchGraphQL(DELETE_BUYER_MUTATION, {
-              userId: user.id,
-              id: buyer.buyerId,
-            });
-            return buyer.buyerId;
-          }
-        });
-        
-        await Promise.all(deletePromises);
-        
-        // After successful bulk delete, refresh the data
-        if (onRefresh) {
-          onRefresh();
+          await fetchGraphQL(DELETE_BUYER_MUTATION, {
+            userId: user.id,
+            id: buyer.buyerId,
+          });
+          return buyer.buyerId;
         }
-        setSelectedBuyers([]);
+      });
+
+      await Promise.all(deletePromises);
+      setSelectedBuyers([]);
     } else {
-      // Single delete - delete one buyer
       if (!buyerToDelete) return;
-        await fetchGraphQL(DELETE_BUYER_MUTATION, {
-          userId: user.id,
-          id: buyerToDelete.buyerId,
-        });
-        
-        // After successful single delete, refresh the data
-        if (onRefresh) {
-          onRefresh();
-      }
+      await fetchGraphQL(DELETE_BUYER_MUTATION, {
+        userId: user.id,
+        id: buyerToDelete.buyerId,
+      });
       setBuyerToDelete(null);
     }
-    
-      // Reset pagination to first page if current page becomes empty
-      if (page > 1 && pagedBuyers.length <= 1) {
-        setPage(1);
-      }
-      
-      // Close modal and reset states immediately
+
+    if (page > 1 && pagedBuyers.length <= 1) {
+      setPage(1);
+    }
+
     setShowDeleteModal(false);
     setIsBulkDelete(false);
-      
-      // Refresh data to ensure UI is in sync
-      if (onRefresh) {
-        onRefresh();
-      }
+
+    if (onRefresh) {
+      onRefresh();
+    }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to delete buyer(s)';
       setDeleteError(errorMessage);
     } finally {
       setIsDeleting(false);
     }
-  }, [user?.id, isBulkDelete, selectedBuyers, pagedBuyers, setBuyers, buyerToDelete]);
+  }, [user?.id, isBulkDelete, selectedBuyers, filteredBuyers, buyerToDelete, page, pagedBuyers.length, onRefresh]);
 
   const handleDeleteCancel = useCallback(() => {
     setShowDeleteModal(false);

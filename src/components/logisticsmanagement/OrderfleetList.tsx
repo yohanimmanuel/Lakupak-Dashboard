@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
-import { Search, Truck, MapPin, Filter, ChevronDown, User, Trash, Trash2, Phone, Briefcase, AtSign, ShieldCheck } from 'lucide-react';
+import { Search, Truck, MapPin, Filter, ChevronDown, User, Trash, Trash2, Phone, Briefcase, AtSign, ShieldCheck, AlertCircle } from 'lucide-react';
 import { getVehicleTypeInfo } from '@/config/vehicleTypes';
 import { useUserStore } from '@/store/userStore';
 import { deleteFleet, deleteDriver, type DriverSummary } from '@/data/logisticsFleetsApi';
@@ -159,6 +159,7 @@ export default function OrderfleetList({
   const [isBulkDriverDelete, setIsBulkDriverDelete] = useState(false);
   const [showDriverDeleteModal, setShowDriverDeleteModal] = useState(false);
   const [isDeletingDriver, setIsDeletingDriver] = useState(false);
+  const [driverDeleteError, setDriverDeleteError] = useState('');
   // Distributor options + always Standard Shipping (every distributor has it)
   const deliveryTypesToShow = (() => {
     const base =
@@ -181,6 +182,7 @@ export default function OrderfleetList({
   const [fleetToDelete, setFleetToDelete] = useState<FleetOrderSummary | null>(null);
   const [isBulkDelete, setIsBulkDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -279,57 +281,52 @@ export default function OrderfleetList({
     setShowDeleteModal(false);
     setFleetToDelete(null);
     setIsBulkDelete(false);
+    setDeleteError('');
   };
 
   const handleDeleteConfirm = async () => {
     if (!user?.id || isDeleting) return;
 
     setIsDeleting(true);
+    setDeleteError('');
+
     try {
       if (isBulkDelete) {
-        const fleetIdsToDelete = selectedFleets;
-        const failedDeletes: string[] = [];
-        const successfulDeletes: string[] = [];
+        const fleetIdsToDelete = [...selectedFleets];
+        const results = await Promise.allSettled(
+          fleetIdsToDelete.map((fleetId) => deleteFleet(user.id!, fleetId)),
+        );
 
-        for (const fleetId of fleetIdsToDelete) {
-          try {
-            await deleteFleet(user.id, fleetId);
-            successfulDeletes.push(fleetId);
-          } catch (error) {
-            failedDeletes.push(fleetId);
-            console.error(`Failed to delete fleet ${fleetId}:`, error);
-          }
+        const succeeded = fleetIdsToDelete.filter((_, index) => results[index].status === 'fulfilled');
+        const failedCount = fleetIdsToDelete.length - succeeded.length;
+
+        if (succeeded.length > 0) {
+          setSelectedFleets((prev) => prev.filter((id) => !succeeded.includes(id)));
+          onFleetsDeleted?.();
         }
 
-        if (failedDeletes.length > 0) {
-          const message =
-            successfulDeletes.length > 0
-              ? tList('deleteFleetPartialSuccess', {
-                  success: successfulDeletes.length,
-                  failed: failedDeletes.length,
-                })
-              : tList('deleteFleetAllFailed', { count: failedDeletes.length });
-          alert(message);
-        }
-
-        setSelectedFleets((prev) => prev.filter((id) => !successfulDeletes.includes(id)));
-        if (successfulDeletes.length > 0 && onFleetsDeleted) {
-          onFleetsDeleted();
+        if (failedCount > 0) {
+          setDeleteError(
+            succeeded.length > 0
+              ? tList('deleteFleetPartialSuccess', { success: succeeded.length, failed: failedCount })
+              : tList('deleteFleetAllFailed', { count: failedCount }),
+          );
+        } else {
+          setShowDeleteModal(false);
+          setIsBulkDelete(false);
         }
       } else if (fleetToDelete) {
         await deleteFleet(user.id, fleetToDelete.id);
-        if (onFleetsDeleted) {
-          onFleetsDeleted();
-        }
+        setFleetToDelete(null);
+        setShowDeleteModal(false);
+        setIsBulkDelete(false);
+        onFleetsDeleted?.();
       }
-    } catch (error) {
-      console.error('Delete error:', error);
-      alert(tList('deleteFleetFailed'));
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : tList('deleteFleetFailed');
+      setDeleteError(errorMessage);
     } finally {
       setIsDeleting(false);
-      setShowDeleteModal(false);
-      setFleetToDelete(null);
-      setIsBulkDelete(false);
     }
   };
 
@@ -384,47 +381,52 @@ export default function OrderfleetList({
     setShowDriverDeleteModal(false);
     setDriverToDelete(null);
     setIsBulkDriverDelete(false);
+    setDriverDeleteError('');
   };
 
   const handleDriverDeleteConfirm = async () => {
     if (!user?.id || isDeletingDriver) return;
+
     setIsDeletingDriver(true);
+    setDriverDeleteError('');
+
     try {
       if (isBulkDriverDelete) {
-        const toDelete = [...selectedDriverIds];
-        const failed: string[] = [];
-        const succeeded: string[] = [];
-        for (const id of toDelete) {
-          try {
-            await deleteDriver(user.id, id);
-            succeeded.push(id);
-          } catch {
-            failed.push(id);
-          }
+        const driverIdsToDelete = [...selectedDriverIds];
+        const results = await Promise.allSettled(
+          driverIdsToDelete.map((id) => deleteDriver(user.id!, id)),
+        );
+
+        const succeeded = driverIdsToDelete.filter((_, index) => results[index].status === 'fulfilled');
+        const failedCount = driverIdsToDelete.length - succeeded.length;
+
+        if (succeeded.length > 0) {
+          setSelectedDriverIds((prev) => prev.filter((id) => !succeeded.includes(id)));
+          onDriverDeleted?.();
         }
-        if (failed.length > 0) {
-          alert(
+
+        if (failedCount > 0) {
+          setDriverDeleteError(
             succeeded.length > 0
-              ? tList('deleteDriverPartialSuccess', {
-                  success: succeeded.length,
-                  failed: failed.length,
-                })
-              : tList('deleteDriverAllFailed', { count: failed.length }),
+              ? tList('deleteDriverPartialSuccess', { success: succeeded.length, failed: failedCount })
+              : tList('deleteDriverAllFailed', { count: failedCount }),
           );
+        } else {
+          setShowDriverDeleteModal(false);
+          setIsBulkDriverDelete(false);
         }
-        setSelectedDriverIds((prev) => prev.filter((id) => !succeeded.includes(id)));
-        if (succeeded.length > 0 && onDriverDeleted) onDriverDeleted();
       } else if (driverToDelete) {
         await deleteDriver(user.id, driverToDelete.id);
-        if (onDriverDeleted) onDriverDeleted();
+        setDriverToDelete(null);
+        setShowDriverDeleteModal(false);
+        setIsBulkDriverDelete(false);
+        onDriverDeleted?.();
       }
-    } catch {
-      alert(tList('deleteDriverFailed'));
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : tList('deleteDriverFailed');
+      setDriverDeleteError(errorMessage);
     } finally {
       setIsDeletingDriver(false);
-      setShowDriverDeleteModal(false);
-      setDriverToDelete(null);
-      setIsBulkDriverDelete(false);
     }
   };
 
@@ -642,6 +644,15 @@ export default function OrderfleetList({
                 <h2 className="text-lg font-bold mb-2 text-red-500">
                   {isBulkDriverDelete ? tList('deleteDriversTitle') : tList('deleteDriverTitle')}
                 </h2>
+                {driverDeleteError && (
+                  <div
+                    role="alert"
+                    className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2"
+                  >
+                    <AlertCircle className="w-5 h-5 text-red-500" aria-hidden="true" />
+                    <span className="text-red-700 text-sm">{driverDeleteError}</span>
+                  </div>
+                )}
                 <p className="mb-4 text-gray-500">
                   {isBulkDriverDelete
                     ? tList('deleteDriversConfirm', { count: selectedDriverIds.length })
@@ -1011,6 +1022,15 @@ export default function OrderfleetList({
             <h2 className="text-lg font-bold mb-2 text-red-500">
               {isBulkDelete ? tList('deleteFleetsTitle') : tList('deleteFleetTitle')}
             </h2>
+            {deleteError && (
+              <div
+                role="alert"
+                className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2"
+              >
+                <AlertCircle className="w-5 h-5 text-red-500" aria-hidden="true" />
+                <span className="text-red-700 text-sm">{deleteError}</span>
+              </div>
+            )}
             <p className="mb-4 text-gray-500">
               {isBulkDelete
                 ? selectedFleets.length === 1

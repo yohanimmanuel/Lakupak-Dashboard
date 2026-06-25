@@ -36,6 +36,8 @@
     "pleaseWait": "Mohon tunggu...",
     "actions": "Aksi",
     "cancel": "Batal",
+    "deleting": "Menghapus...",
+    "deleteFailed": "Gagal menghapus. Silakan coba lagi.",
     "notAvailable": "T/A",
     "previousPage": "Halaman sebelumnya",
     "nextPage": "Halaman berikutnya",

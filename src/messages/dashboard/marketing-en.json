@@ -116,6 +116,7 @@
     "deleteBulkConfirm": "Are you sure you want to delete {count} campaign(s)? This action cannot be undone.",
     "deleteSingleConfirm": "Are you sure you want to delete {name}? This action cannot be undone.",
     "thisCampaign": "this campaign",
+    "deleteFailed": "Failed to delete campaign(s). Please try again.",
     "pagination": {
       "showing": "Showing {from} to {to} of {total}"
     },
@@ -373,6 +374,7 @@
     "deleteBulkConfirm": "Are you sure you want to delete {count} agent(s)? This action cannot be undone.",
     "deleteSingleConfirm": "Are you sure you want to delete {name}? This action cannot be undone.",
     "thisAgent": "this agent",
+    "deleteFailed": "Failed to delete agent(s). Please try again.",
     "columns": {
       "name": "NAME",
       "phone": "PHONE",
@@ -592,6 +594,7 @@
   },
   "shared": {
     "cancel": "Cancel",
+    "deleting": "Deleting...",
     "delete": "Delete",
     "notAvailable": "N/A",
     "previousPage": "Previous page",

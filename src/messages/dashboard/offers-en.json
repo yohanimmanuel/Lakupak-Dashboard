@@ -72,6 +72,7 @@
   },
   "shared": {
     "cancel": "Cancel",
+    "deleting": "Deleting...",
     "delete": "Delete",
     "actions": "Actions",
     "notAvailable": "N/A",

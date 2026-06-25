@@ -36,6 +36,8 @@
     "pleaseWait": "Please wait...",
     "actions": "Actions",
     "cancel": "Cancel",
+    "deleting": "Deleting...",
+    "deleteFailed": "Failed to delete. Please try again.",
     "notAvailable": "N/A",
     "previousPage": "Previous page",
     "nextPage": "Next page",

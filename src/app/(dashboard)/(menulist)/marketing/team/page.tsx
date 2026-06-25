@@ -206,29 +206,19 @@ export default function MarketingTeamPage() {
 
   const handleDeleteAgent = async (agentId: string) => {
     if (!user?.id) return;
-    
-    if (confirm(tTeam('deleteConfirm'))) {
-      try {
-        const DELETE_AGENT_MUTATION = `
-          mutation DeleteSalesAgent($userId: Int!, $id: String!) {
-            deleteSalesAgent(userId: $userId, id: $id) {
-              success
-            }
-          }
-        `;
 
-        await fetchGraphQL(DELETE_AGENT_MUTATION, {
-          userId: user.id,
-          id: agentId,
-        });
-
-        // Refresh data
-        await fetchData();
-      } catch (error) {
-        console.error('Error deleting agent:', error);
-        alert(tTeam('deleteFailed'));
+    const DELETE_AGENT_MUTATION = `
+      mutation DeleteSalesAgent($userId: Int!, $id: String!) {
+        deleteSalesAgent(userId: $userId, id: $id) {
+          success
+        }
       }
-    }
+    `;
+
+    await fetchGraphQL(DELETE_AGENT_MUTATION, {
+      userId: user.id,
+      id: agentId,
+    });
   };
 
   const handleEditTeam = async (team: SalesTeam) => {
@@ -366,6 +356,7 @@ export default function MarketingTeamPage() {
         onDeleteAgent={handleDeleteAgent}
         onEditTeam={handleEditTeam}
         onCreateTeam={handleCreateTeam}
+        onRefresh={fetchData}
       />
     </div>
   );

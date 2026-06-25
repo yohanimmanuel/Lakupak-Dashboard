@@ -1,7 +1,7 @@
 'use client';
-import React, { useState, useRef, useLayoutEffect } from "react";
+import React, { useState, useRef, useLayoutEffect, useCallback } from "react";
 import { useRouter } from 'next/navigation';
-import { Search, Edit, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Trash, Trash2, Users } from "lucide-react";
+import { Search, Edit, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Trash, Trash2, Users, AlertCircle, Loader2 } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
 import { format } from 'date-fns';
@@ -27,9 +27,10 @@ interface SupplierTableProps {
   onSelectSupplier?: (supplier: Supplier) => void;
   onExportXLSX?: (wb: XLSX.WorkBook, filename: string) => void;
   profileToTableRow: (supplier: Supplier) => SupplierTableRow;
+  onRefresh?: () => void;
 }
 
-export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSupplier, onExportXLSX, profileToTableRow }: SupplierTableProps) {
+export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSupplier, onExportXLSX, profileToTableRow, onRefresh }: SupplierTableProps) {
   const user = useUserStore(state => state.user);
   const { tShared, tSuppliers, translateStatus, translateStatusTab, translateFilter, translatePeriod } = useClientsTranslations();
   
@@ -116,64 +117,80 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
   const [supplierToDelete, setSupplierToDelete] = useState<SupplierTableRow | null>(null);
   const [isBulkDelete, setIsBulkDelete] = useState(false);
   const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const handleDeleteClick = (supplier: SupplierTableRow) => {
     setSupplierToDelete(supplier);
     setShowDeleteModal(true);
   };
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = useCallback(async () => {
     if (!user?.id) return;
-    
-    const DELETE_SUPPLIER_MUTATION = `
-      mutation DeleteSupplier($userId: Int!, $id: String!) {
-        deleteSupplier(userId: $userId, id: $id) {
-          success
-          deleted {
-            id
-            supplierId
-          }
-        }
-      }
-    `;
-    
-    if (isBulkDelete) {
-      // Bulk delete - delete all selected suppliers
-      for (const supplierId of selectedSuppliers) {
-        const supplier = pagedSuppliers.find(s => String(s.id) === supplierId);
-        if (supplier) {
-          await fetchGraphQL(DELETE_SUPPLIER_MUTATION, {
-            userId: user.id,
-            id: supplier.supplierId,
-          });
-          if (setSuppliers) {
-            setSuppliers(prev => prev.filter(s => s.supplierId !== supplier.supplierId));
-          }
-        }
-      }
-      setSelectedSuppliers([]); // Clear selection after deleting
-    } else {
-      // Single delete - delete one supplier
-      if (!supplierToDelete) return;
-      await fetchGraphQL(DELETE_SUPPLIER_MUTATION, {
-        userId: user.id,
-        id: supplierToDelete.supplierId,
-      });
-      if (setSuppliers) {
-        setSuppliers(prev => prev.filter(s => s.supplierId !== supplierToDelete.supplierId));
-      }
-      setSupplierToDelete(null);
-    }
-    
-    setShowDeleteModal(false);
-    setIsBulkDelete(false);
-  };
 
-  const handleDeleteCancel = () => {
+    setIsDeleting(true);
+    setDeleteError('');
+
+    try {
+      const DELETE_SUPPLIER_MUTATION = `
+        mutation DeleteSupplier($userId: Int!, $id: String!) {
+          deleteSupplier(userId: $userId, id: $id) {
+            success
+            deleted {
+              id
+              supplierId
+            }
+          }
+        }
+      `;
+
+      if (isBulkDelete) {
+        const deletePromises = selectedSuppliers.map(async (supplierId) => {
+          const supplier = filteredSuppliers.find((s) => String(s.id) === supplierId);
+          if (supplier) {
+            await fetchGraphQL(DELETE_SUPPLIER_MUTATION, {
+              userId: user.id,
+              id: supplier.supplierId,
+            });
+            return supplier.supplierId;
+          }
+        });
+
+        await Promise.all(deletePromises);
+        setSelectedSuppliers([]);
+      } else {
+        if (!supplierToDelete) return;
+        await fetchGraphQL(DELETE_SUPPLIER_MUTATION, {
+          userId: user.id,
+          id: supplierToDelete.supplierId,
+        });
+        setSupplierToDelete(null);
+      }
+
+      if (page > 1 && pagedSuppliers.length <= 1) {
+        setPage(1);
+      }
+
+      setShowDeleteModal(false);
+      setIsBulkDelete(false);
+
+      if (onRefresh) {
+        onRefresh();
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete supplier(s)';
+      setDeleteError(errorMessage);
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [user?.id, isBulkDelete, selectedSuppliers, filteredSuppliers, supplierToDelete, page, pagedSuppliers.length, onRefresh]);
+
+  const handleDeleteCancel = useCallback(() => {
     setShowDeleteModal(false);
     setSupplierToDelete(null);
     setIsBulkDelete(false);
-  };
+    setDeleteError('');
+  }, []);
 
   const handleSupplierSelect = (supplierId: string) => {
     setSelectedSuppliers(prev => 
@@ -884,6 +901,14 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
             <h2 className="text-lg font-bold mb-2 text-red-500">
               {isBulkDelete ? tShared('deleteModal.titleBulkSuppliers') : tShared('deleteModal.titleSingleSupplier')}
             </h2>
+
+            {deleteError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-500" />
+                <span className="text-red-700 text-sm">{deleteError}</span>
+              </div>
+            )}
+
             <p className="mb-4 text-gray-500">
               {isBulkDelete
                 ? tShared('deleteModal.confirmBulkSuppliersCount', { count: selectedSuppliers.length })
@@ -891,16 +916,25 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
             </p>
             <div className="flex justify-end gap-2">
               <button
-                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500"
                 onClick={handleDeleteCancel}
+                disabled={isDeleting}
               >
                 {tShared('cancel')}
               </button>
               <button
-                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 flex items-center gap-2 disabled:opacity-50"
                 onClick={handleDeleteConfirm}
+                disabled={isDeleting}
               >
-                {tShared('deleteModal.deleteButton')}
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    {tShared('deleting')}
+                  </>
+                ) : (
+                  tShared('deleteModal.deleteButton')
+                )}
               </button>
             </div>
           </div>

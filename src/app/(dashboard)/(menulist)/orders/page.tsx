@@ -28,17 +28,16 @@ export default function OrdersPage() {
   const [isSlidingIn, setIsSlidingIn] = useState(false);
   const [isSlidingOut, setIsSlidingOut] = useState(false);
   const overlayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasLoadedOrdersRef = useRef(false);
 
   // Unified fetch function (used on load and by Refresh button)
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
-      // Clear any existing timeouts
       if (overlayTimeoutRef.current) {
         clearTimeout(overlayTimeoutRef.current);
       }
-      // For refresh with existing data, start slide-in animation
-      if (orders.length > 0) {
+      if (hasLoadedOrdersRef.current) {
         setIsSlidingOut(false);
         setIsSlidingIn(true);
         setOverlayMessage(tList('refreshingOverlay'));
@@ -56,6 +55,7 @@ export default function OrdersPage() {
       const data = await response.json();
       const list: Order[] = data.orders || [];
       setOrders(list);
+      hasLoadedOrdersRef.current = true;
       setOverlayMessage(tList('loadedOverlay', { count: list.length }));
       setError(null);
     } catch (err) {
@@ -78,7 +78,7 @@ export default function OrdersPage() {
         }, 500);
       }, 2500);
     }
-  }, [user?.id, orders.length]); // Wrapped in useCallback - added proper dependencies
+  }, [user?.id, tList]);
 
   // Fetch orders from database on mount/user change
   useEffect(() => {
@@ -226,6 +226,7 @@ export default function OrdersPage() {
               setOrdersAction={setOrders}
               onExportXLSXAction={handleExportXLSX}
               orderToTableRowAction={orderToTableRow}
+              onRefreshAction={fetchOrders}
             />
           </>
         )}
