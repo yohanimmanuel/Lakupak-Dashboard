@@ -396,7 +396,7 @@
       "editSubtitle": "Perbarui informasi dan pengaturan pemasok",
       "addSubtitle": "Buat profil pemasok baru",
       "supplierName": "Nama Pemasok",
-      "contactPerson": "Kontak Person",
+      "contactPerson": "Kontak",
       "phone": "Telepon",
       "email": "Email",
       "businessType": "Jenis Bisnis",
@@ -482,7 +482,7 @@
     "supplierFields": {
       "id": "ID (Opsional)",
       "supplierName": "Nama Pemasok (Opsional)",
-      "contact": "Kontak Person (Opsional)",
+      "contact": "Kontak (Opsional)",
       "phone": "Telepon (Opsional)",
       "email": "Email (Opsional)",
       "businessType": "Jenis Bisnis (Opsional)",

@@ -176,8 +176,8 @@
       "Rejected": "Ditolak"
     },
     "fields": {
-      "contactPerson": "Kontak person",
-      "contactPhone": "Telepon kontak",
+      "contactPerson": "Kontak",
+      "contactPhone": "Telepon",
       "deliveryAddress": "Alamat pengiriman",
       "deliveryMethod": "Metode pengiriman",
       "estimatedDelivery": "Estimasi pengiriman"
@@ -327,8 +327,8 @@
       "closeAria": "Tutup edit pesanan",
       "notice": "*Harap lengkapi detail pesanan ini. Pembaruan di sini akan dibagikan kepada pembeli agar mereka mendapat informasi pengiriman dan kontak terbaru.",
       "labels": {
-        "contactPerson": "Kontak Person",
-        "contactPhone": "Telepon Kontak",
+        "contactPerson": "Kontak",
+        "contactPhone": "Telepon",
         "deliveryAddress": "Alamat Pengiriman",
         "preferredDeliveryTime": "Waktu Pengiriman Preferensi",
         "estimatedDeliveryDate": "Estimasi tanggal pengiriman",
