@@ -16,8 +16,15 @@ import {
   Gift,
   RefreshCw,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  Download
 } from "lucide-react";
+import * as XLSX from 'xlsx';
+import VariationListImport, {
+  type VariationImportPayload,
+  type VariationImportRow,
+  type VariationImportResult,
+} from '@/components/productscatalogs/VariationListImport';
 import { useRouter } from "next/navigation";
 import { useUserStore } from "@/store/userStore";
 import { Product, ProductFormData } from "@/types/product";
@@ -71,6 +78,217 @@ interface Combination {
   lowStockThreshold: number;
   stockStatus: 'In Stock' | 'Low Stock' | 'Out of Stock';
   [key: string]: unknown; // For variant columns like variant_color, variant_size, etc.
+}
+
+type CatalogVariant = {
+  id: string;
+  variantType: string;
+  moq?: number;
+  options: Array<{ id: string; name: string }>;
+};
+
+function cartesianProduct(arrays: string[][]): string[][] {
+  if (arrays.length === 0) return [];
+  if (arrays.length === 1) return arrays[0].map((item) => [item]);
+  const [first, ...rest] = arrays;
+  const restProduct = cartesianProduct(rest);
+  return first.flatMap((item) => restProduct.map((combination) => [item, ...combination]));
+}
+
+function rebuildCombinationsFromVariants(
+  validVariants: CatalogVariant[],
+  existingCombinations: Combination[],
+): Combination[] {
+  if (validVariants.length === 0) {
+    return [
+      {
+        id: 'combination-1',
+        sku: '',
+        purchasePrice: '',
+        sellingPrice: '',
+        moq: undefined,
+        stockQuantity: 0,
+        lowStockThreshold: 0,
+        stockStatus: 'In Stock' as const,
+      },
+    ];
+  }
+
+  const optionArrays = validVariants.map((v) =>
+    v.options.filter((opt) => opt.name).map((opt) => opt.name),
+  );
+  const combinationsGenerated = cartesianProduct(optionArrays);
+
+  const keyFor = (valsByVariantId: Record<string, string>, variantIds: string[]) =>
+    variantIds.map((id) => `${id}:${valsByVariantId[id] ?? 'None'}`).join('|');
+
+  const variantIdsInOrder = validVariants.map((v) => v.id);
+
+  const existingFullKeyMap = new Map<string, Combination>();
+  const existingPrefixKeyMap = new Map<string, Combination>();
+
+  existingCombinations.forEach((combo) => {
+    const valsByVariantId: Record<string, string> = {};
+    validVariants.forEach((variant) => {
+      const v = combo[`variant_${variant.id}`];
+      if (typeof v === 'string' && v.trim() !== '') valsByVariantId[variant.id] = v;
+    });
+
+    existingFullKeyMap.set(keyFor(valsByVariantId, variantIdsInOrder), combo);
+
+    for (let len = variantIdsInOrder.length; len >= 1; len -= 1) {
+      const prefixIds = variantIdsInOrder.slice(0, len);
+      const prefixKey = keyFor(valsByVariantId, prefixIds);
+      if (!existingPrefixKeyMap.has(prefixKey)) existingPrefixKeyMap.set(prefixKey, combo);
+    }
+  });
+
+  const usedSourceIds = new Set<string>();
+  const makeStableId = (fullKey: string) => `combination-${fullKey}`;
+
+  return combinationsGenerated.map((combinationValues) => {
+    const valsByVariantId: Record<string, string> = {};
+    validVariants.forEach((variant, idx) => {
+      valsByVariantId[variant.id] = combinationValues[idx];
+    });
+
+    const fullKey = keyFor(valsByVariantId, variantIdsInOrder);
+    const stableId = makeStableId(fullKey);
+
+    let combinationData: Combination | undefined = existingFullKeyMap.get(fullKey);
+    if (!combinationData) {
+      for (let len = variantIdsInOrder.length - 1; len >= 1; len -= 1) {
+        const prefixIds = variantIdsInOrder.slice(0, len);
+        const prefixKey = keyFor(valsByVariantId, prefixIds);
+        const found = existingPrefixKeyMap.get(prefixKey);
+        if (found) {
+          combinationData = found;
+          break;
+        }
+      }
+    }
+
+    const canCopyFromExisting =
+      combinationData && typeof combinationData.id === 'string' && !usedSourceIds.has(combinationData.id);
+    if (canCopyFromExisting && combinationData?.id) usedSourceIds.add(combinationData.id);
+
+    const base: Combination = canCopyFromExisting
+      ? {
+          id: stableId,
+          sku: combinationData!.sku ?? '',
+          purchasePrice: combinationData!.purchasePrice ?? '',
+          sellingPrice: combinationData!.sellingPrice ?? '',
+          originalSellingPrice: combinationData!.originalSellingPrice,
+          dbSellingPrice: combinationData!.dbSellingPrice,
+          moq: combinationData!.moq,
+          stockQuantity: combinationData!.stockQuantity ?? 0,
+          lowStockThreshold: combinationData!.lowStockThreshold ?? 0,
+          stockStatus: (combinationData!.stockStatus ?? 'In Stock') as Combination['stockStatus'],
+          variantName: '',
+        }
+      : {
+          id: stableId,
+          sku: '',
+          purchasePrice: '',
+          sellingPrice: '',
+          moq: undefined,
+          stockQuantity: 0,
+          lowStockThreshold: 0,
+          stockStatus: 'In Stock' as const,
+          variantName: '',
+        };
+
+    validVariants.forEach((variant, idx) => {
+      base[`variant_${variant.id}`] = combinationValues[idx];
+    });
+
+    base.variantName = validVariants
+      .map((v, idx) => `${v.variantType}: ${combinationValues[idx]}`)
+      .join(' | ');
+
+    return base;
+  });
+}
+
+function hasValidVariants(variants: CatalogVariant[]): boolean {
+  return variants.some((v) => v.variantType?.trim() && v.options.some((opt) => opt.name?.trim()));
+}
+
+function buildVariantsFromImport(
+  variantLevels: Array<{ columnId: string; typeName: string }>,
+  rows: VariationImportRow[],
+): CatalogVariant[] {
+  return variantLevels
+    .map((level, levelIndex) => {
+      const uniqueValues: string[] = [];
+      const seen = new Set<string>();
+      for (const row of rows) {
+        const val = (
+          row.variantValues[level.columnId] ??
+          row.variantValuesByPosition[levelIndex] ??
+          ''
+        ).trim();
+        if (val && !seen.has(val.toLowerCase())) {
+          seen.add(val.toLowerCase());
+          uniqueValues.push(val);
+        }
+      }
+      const slug = level.typeName.replace(/[^\w\-]+/g, '-').toLowerCase() || `level-${levelIndex + 1}`;
+      return {
+        id: `variant-${levelIndex + 1}-${slug}`,
+        variantType: level.typeName,
+        moq: undefined,
+        options: uniqueValues.map((name, optIndex) => ({
+          id: `option-${levelIndex}-${optIndex}`,
+          name,
+        })),
+      };
+    })
+    .filter((v) => v.variantType && v.options.length > 0);
+}
+
+function collapseImportStatus(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizeImportedStockStatus(value: string): Combination['stockStatus'] | undefined {
+  const normalized = collapseImportStatus(value);
+  if (!normalized) return undefined;
+
+  const tokens = normalized.split(' ');
+  const isExact = (...phrases: string[]) => phrases.includes(normalized);
+  const hasToken = (...words: string[]) => words.some((w) => tokens.includes(w));
+
+  if (
+    isExact('out of stock', 'sold out', 'habis', 'habis stok', 'oos', 'out') ||
+    hasToken('habis') ||
+    (hasToken('out') && (hasToken('stock') || hasToken('of')))
+  ) {
+    return 'Out of Stock';
+  }
+
+  if (
+    isExact('low stock', 'stok menipis', 'menipis', 'low') ||
+    hasToken('rendah', 'menipis') ||
+    (hasToken('low') && hasToken('stock'))
+  ) {
+    return 'Low Stock';
+  }
+
+  if (
+    isExact('in stock', 'instock', 'tersedia', 'available', 'in') ||
+    hasToken('tersedia', 'available') ||
+    (hasToken('in') && hasToken('stock'))
+  ) {
+    return 'In Stock';
+  }
+
+  return undefined;
 }
 
 interface ProductCatalogProps {
@@ -131,6 +349,7 @@ export default function ProductCatalog({
   const combinationsRef = useRef<Combination[]>([]);
   const [variationRefreshTick, setVariationRefreshTick] = useState(0);
   const didInitVariationListRef = useRef(false);
+  const [showVariationImport, setShowVariationImport] = useState(false);
 
 
   // Initialize variants from product data
@@ -1010,6 +1229,139 @@ export default function ProductCatalog({
     return { ...combo, [`variant_${variantId}`]: nextValue };
   };
 
+  const variationImportColumns = useMemo(
+    () =>
+      variants.map((variant, index) => ({
+        id: variant.id,
+        label: variant.variantType || tCatalog('variants.varFallback', { index: index + 1 }),
+      })),
+    [variants, tCatalog],
+  );
+
+  const deriveComboStockStatus = (stockQuantity: number, lowStockThreshold: number): Combination['stockStatus'] => {
+    if (stockQuantity <= 0) return 'Out of Stock';
+    if (stockQuantity < lowStockThreshold) return 'Low Stock';
+    return 'In Stock';
+  };
+
+  const comboMatchesImportRow = (
+    combo: Combination,
+    row: VariationImportRow,
+    variantsList: CatalogVariant[] = variants,
+  ) => {
+    const importedVariantValue = (variantIndex: number, variantId: string) => {
+      const byId = (row.variantValues[variantId] ?? '').trim();
+      if (byId) return byId;
+      return (row.variantValuesByPosition?.[variantIndex] ?? '').trim();
+    };
+
+    const hasVariantValues = variantsList.some((v, index) => Boolean(importedVariantValue(index, v.id)));
+    const variantMatch =
+      hasVariantValues &&
+      variantsList.every((v, index) => {
+        const imported = importedVariantValue(index, v.id).toLowerCase();
+        if (!imported) return true;
+        const current = String(combo[`variant_${v.id}`] ?? 'None').trim().toLowerCase();
+        return imported === current;
+      });
+    const skuMatch = Boolean(row.sku.trim() && combo.sku.trim() && row.sku.trim() === combo.sku.trim());
+    return variantMatch || skuMatch;
+  };
+
+  const mergeImportRowIntoCombo = (combo: Combination, row: VariationImportRow): Combination => {
+    const stockQuantity = row.stockQuantity ? parseInt(row.stockQuantity, 10) : combo.stockQuantity;
+    const lowStockThreshold = row.lowStockThreshold ? parseInt(row.lowStockThreshold, 10) : combo.lowStockThreshold;
+    const resolvedStockQuantity = Number.isFinite(stockQuantity) ? stockQuantity : combo.stockQuantity;
+    const resolvedLowThreshold = Number.isFinite(lowStockThreshold) ? lowStockThreshold : combo.lowStockThreshold;
+    const parsedMoq = row.moq ? parseInt(row.moq, 10) : combo.moq;
+    const stockStatus =
+      normalizeImportedStockStatus(row.stockStatus) ??
+      deriveComboStockStatus(resolvedStockQuantity, resolvedLowThreshold);
+
+    return {
+      ...combo,
+      sku: row.sku.trim() || combo.sku,
+      sellingPrice: row.sellingPrice.trim() || combo.sellingPrice,
+      purchasePrice: row.purchasePrice.trim() || combo.purchasePrice,
+      moq: Number.isFinite(parsedMoq as number) ? parsedMoq : combo.moq,
+      stockQuantity: resolvedStockQuantity,
+      lowStockThreshold: resolvedLowThreshold,
+      stockStatus,
+    };
+  };
+
+  const handleExportVariationList = () => {
+    const headers = [
+      ...variationImportColumns.map((col) => col.label),
+      tCatalog('variants.sku'),
+      tCatalog('variants.sellingPrice'),
+      tCatalog('variants.purchasePrice'),
+      tCatalog('variants.moq'),
+      tCatalog('variants.stockQty'),
+      tCatalog('variants.lowThreshold'),
+      tCatalog('variants.status'),
+    ];
+    const dataRows = combinations.map((combo) => [
+      ...variants.map((variant) => String(combo[`variant_${variant.id}`] ?? tCatalog('variants.none'))),
+      combo.sku,
+      combo.sellingPrice,
+      combo.purchasePrice,
+      combo.moq ?? '',
+      combo.stockQuantity,
+      combo.lowStockThreshold,
+      combo.stockStatus,
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Variations');
+    const safeName = (formData.name || formData.productId || 'product').replace(/[^\w\-]+/g, '_').slice(0, 40);
+    XLSX.writeFile(wb, `variation-list-${safeName}.xlsx`);
+  };
+
+  const handleVariationImport = async (
+    payload: VariationImportPayload,
+  ): Promise<VariationImportResult> => {
+    const { rows, variantLevels } = payload;
+
+    const applyRowsToCombinations = (
+      combos: Combination[],
+      variantsList: CatalogVariant[],
+    ): { combinations: Combination[]; updated: number } => {
+      const usedRowIndices = new Set<number>();
+      let updated = 0;
+      const combinations = combos.map((combo) => {
+        const rowIndex = rows.findIndex((row, idx) => {
+          if (usedRowIndices.has(idx)) return false;
+          return comboMatchesImportRow(combo, row, variantsList);
+        });
+        if (rowIndex < 0) return combo;
+        usedRowIndices.add(rowIndex);
+        updated += 1;
+        return mergeImportRowIntoCombo(combo, rows[rowIndex]);
+      });
+      return { combinations, updated };
+    };
+
+    if (variantLevels.length > 0 && !hasValidVariants(variants)) {
+      const importedVariants = buildVariantsFromImport(variantLevels, rows);
+      if (importedVariants.length === 0) {
+        return { updated: 0, skipped: rows.length };
+      }
+      const freshCombinations = rebuildCombinationsFromVariants(importedVariants, []);
+      const { combinations: merged, updated } = applyRowsToCombinations(freshCombinations, importedVariants);
+      setVariants(importedVariants);
+      combinationsRef.current = merged;
+      setCombinations(merged);
+      return { updated, skipped: rows.length - updated };
+    }
+
+    const { combinations: merged, updated } = applyRowsToCombinations(combinations, variants);
+    combinationsRef.current = merged;
+    setCombinations(merged);
+
+    return { updated, skipped: rows.length - updated };
+  };
+
   // Keep ref in sync with combinations state
   useEffect(() => {
     combinationsRef.current = combinations;
@@ -1019,135 +1371,8 @@ export default function ProductCatalog({
   useEffect(() => {
     if (variationRefreshTick === 0) return;
 
-    const validVariants = variants.filter(v => v.variantType && v.options.some(opt => opt.name));
-    
-    if (validVariants.length === 0) {
-      setCombinations([{
-        id: 'combination-1',
-        sku: '',
-        purchasePrice: '',
-        sellingPrice: '',
-        moq: undefined,
-        stockQuantity: 0,
-        lowStockThreshold: 0,
-        stockStatus: 'In Stock' as const
-      }]);
-      return;
-    }
-
-    // Generate cartesian product
-    const cartesian = (arrays: string[][]): string[][] => {
-      if (arrays.length === 0) return [];
-      if (arrays.length === 1) return arrays[0].map(item => [item]);
-      const [first, ...rest] = arrays;
-      const restProduct = cartesian(rest);
-      return first.flatMap(item => restProduct.map(combination => [item, ...combination]));
-    };
-
-    const optionArrays = validVariants.map(v => v.options.filter(opt => opt.name).map(opt => opt.name));
-    const combinationsGenerated = cartesian(optionArrays);
-    
-    // Preserve existing row inputs by keying combinations on stable variant ids + values
-    // (so renaming variantType doesn't reset the whole row).
-    const keyFor = (valsByVariantId: Record<string, string>, variantIds: string[]) =>
-      variantIds.map((id) => `${id}:${valsByVariantId[id] ?? 'None'}`).join('|');
-
-    const variantIdsInOrder = validVariants.map((v) => v.id);
-
-    const existingFullKeyMap = new Map<string, Combination>();
-    const existingPrefixKeyMap = new Map<string, Combination>();
-
-    combinationsRef.current.forEach((combo) => {
-      const valsByVariantId: Record<string, string> = {};
-      validVariants.forEach((variant) => {
-        const v = combo[`variant_${variant.id}`];
-        if (typeof v === 'string' && v.trim() !== '') valsByVariantId[variant.id] = v;
-      });
-
-      // Full key (missing values treated as "None")
-      existingFullKeyMap.set(keyFor(valsByVariantId, variantIdsInOrder), combo);
-
-      // Prefix keys allow preserving inputs when new variant dimensions are added later.
-      for (let len = variantIdsInOrder.length; len >= 1; len -= 1) {
-        const prefixIds = variantIdsInOrder.slice(0, len);
-        const prefixKey = keyFor(valsByVariantId, prefixIds);
-        if (!existingPrefixKeyMap.has(prefixKey)) existingPrefixKeyMap.set(prefixKey, combo);
-      }
-    });
-
-    const usedSourceIds = new Set<string>();
-    const makeStableId = (fullKey: string) => `combination-${fullKey}`;
-
-    const newCombinations: Combination[] = combinationsGenerated.map((combinationValues, index) => {
-      const valsByVariantId: Record<string, string> = {};
-      validVariants.forEach((variant, idx) => {
-        valsByVariantId[variant.id] = combinationValues[idx];
-      });
-
-      const fullKey = keyFor(valsByVariantId, variantIdsInOrder);
-      const stableId = makeStableId(fullKey);
-
-      let combinationData: Combination | undefined = existingFullKeyMap.get(fullKey);
-      if (!combinationData) {
-        // Fallback: try to match prefix (helps when a new variant dimension is introduced)
-        for (let len = variantIdsInOrder.length - 1; len >= 1; len -= 1) {
-          const prefixIds = variantIdsInOrder.slice(0, len);
-          const prefixKey = keyFor(valsByVariantId, prefixIds);
-          const found = existingPrefixKeyMap.get(prefixKey);
-          if (found) {
-            combinationData = found;
-            break;
-          }
-        }
-      }
-
-      // Always create a fresh object with a unique id.
-      // If we matched an existing combo, copy its editable fields; never reuse the same source twice.
-      const canCopyFromExisting =
-        combinationData && typeof combinationData.id === 'string' && !usedSourceIds.has(combinationData.id);
-      if (canCopyFromExisting && combinationData?.id) usedSourceIds.add(combinationData.id);
-
-      const base: Combination = canCopyFromExisting
-        ? {
-            id: stableId,
-            sku: combinationData!.sku ?? '',
-            purchasePrice: combinationData!.purchasePrice ?? '',
-            sellingPrice: combinationData!.sellingPrice ?? '',
-            originalSellingPrice: combinationData!.originalSellingPrice,
-            dbSellingPrice: combinationData!.dbSellingPrice,
-            moq: combinationData!.moq,
-            stockQuantity: combinationData!.stockQuantity ?? 0,
-            lowStockThreshold: combinationData!.lowStockThreshold ?? 0,
-            stockStatus: (combinationData!.stockStatus ?? 'In Stock') as 'In Stock' | 'Low Stock' | 'Out of Stock',
-            variantName: '',
-          }
-        : {
-            id: stableId,
-            sku: '',
-            purchasePrice: '',
-            sellingPrice: '',
-            moq: undefined,
-            stockQuantity: 0,
-            lowStockThreshold: 0,
-            stockStatus: 'In Stock' as const,
-            variantName: '',
-          };
-
-      // Set variant values (dynamic columns)
-      validVariants.forEach((variant, idx) => {
-        base[`variant_${variant.id}`] = combinationValues[idx];
-      });
-
-      // Generate variant name
-      const variantName = validVariants
-        .map((v, idx) => `${v.variantType}: ${combinationValues[idx]}`)
-        .join(' | ');
-      base.variantName = variantName;
-
-      return base;
-    });
-    
-    setCombinations(newCombinations);
+    const validVariants = variants.filter((v) => v.variantType && v.options.some((opt) => opt.name));
+    setCombinations(rebuildCombinationsFromVariants(validVariants, combinationsRef.current));
   }, [variationRefreshTick]);
 
 
@@ -2846,16 +3071,38 @@ export default function ProductCatalog({
                     </span>
                   </h2>
                   {!isViewMode && (
-                    <button
-                      type="button"
-                      disabled={isOfferConnected}
-                      onClick={() => setVariationRefreshTick((v) => v + 1)}
-                      className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                      title={tCatalog('variants.refreshTableTitle')}
-                    >
-                      <RefreshCw className="w-4 h-4" />
-                      {tCatalog('variants.refresh')}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={combinations.length === 0}
+                        onClick={handleExportVariationList}
+                        className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={tCatalog('variants.exportVariationsTitle')}
+                      >
+                        <Download className="w-4 h-4" />
+                        {tCatalog('variants.exportVariations')}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isOfferConnected || combinations.length === 0}
+                        onClick={() => setShowVariationImport(true)}
+                        className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={tCatalog('variants.importVariationsTitle')}
+                      >
+                        <Upload className="w-4 h-4" />
+                        {tCatalog('variants.importVariations')}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isOfferConnected}
+                        onClick={() => setVariationRefreshTick((v) => v + 1)}
+                        className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={tCatalog('variants.refreshTableTitle')}
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        {tCatalog('variants.refresh')}
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -3300,6 +3547,14 @@ export default function ProductCatalog({
           </div>
         </div>
       )}
+
+      <VariationListImport
+        open={showVariationImport}
+        onCloseAction={() => setShowVariationImport(false)}
+        variantColumns={variationImportColumns}
+        onImportAction={handleVariationImport}
+      />
     </div>
   );
 }
+
