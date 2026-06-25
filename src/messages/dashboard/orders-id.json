@@ -24,7 +24,7 @@
   "cards": {
     "totalOrders": "Total Pesanan",
     "orderVolume": "Volume Pesanan",
-    "completionRate": "Tingkat Penyelesaian Pesanan",
+    "completionRate": "Penyelesaian Pesanan",
     "averageOrderVolume": "Rata-rata Volume Pesanan"
   },
   "gps": {
