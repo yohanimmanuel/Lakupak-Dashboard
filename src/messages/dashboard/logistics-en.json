@@ -279,6 +279,7 @@
     "selectExisting": "Select Existing Driver",
     "searchDrivers": "Search drivers...",
     "noDriversFound": "No drivers found",
+    "noDriversYetHint": "No registered drivers yet. Choose one below after you create a driver, or fill in the form to add a new driver for this fleet.",
     "fieldsLocked": "Fields are pre-filled and locked.",
     "appCredentials": "Laku Driver App Credentials",
     "name": "Name",

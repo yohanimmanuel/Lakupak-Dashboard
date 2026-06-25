@@ -104,6 +104,14 @@ export default function EditFleetPage() {
     });
   }, [user?.id]);
 
+  useEffect(() => {
+    if (user?.id == null || activeTab !== 'driver') return;
+    fetchDrivers(user.id).then(setDrivers).catch((err) => {
+      console.error('Failed to fetch drivers:', err);
+      setDrivers([]);
+    });
+  }, [user?.id, activeTab]);
+
   const [formData, setFormData] = useState<FleetFormData>({
     status: 'In Transit',
     deliveryType: 'Standard Shipping',

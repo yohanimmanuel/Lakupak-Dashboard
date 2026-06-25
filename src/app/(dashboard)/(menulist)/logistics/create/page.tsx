@@ -88,6 +88,11 @@ export default function CreateFleetPage() {
     fetchDrivers(user.id).then(setDrivers).catch(() => setDrivers([]));
   }, [user?.id]);
 
+  useEffect(() => {
+    if (user?.id == null || activeTab !== 'driver') return;
+    fetchDrivers(user.id).then(setDrivers).catch(() => setDrivers([]));
+  }, [user?.id, activeTab]);
+
   const fleetCode = useMemo(() => generateFleetCode(), []);
 
   const [formData, setFormData] = useState<FleetFormData>({

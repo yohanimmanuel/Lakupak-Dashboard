@@ -309,11 +309,14 @@ export default function FleetDriverInfo({
         <p className="text-sm text-gray-500">{tDriverInfo('subtitle')}</p>
       </div>
 
-      {/* DriverPicker — only shown when there are registered drivers */}
-      {drivers.length > 0 && (
-        <div className="rounded-lg border border-[#e6e6e6] bg-gray-50/60 p-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{tDriverInfo('selectExisting')}</p>
-          <div className="relative" ref={pickerRef}>
+      {/* Driver picker — always shown so create and edit flows can assign an existing driver */}
+      <div className="rounded-lg border border-[#e6e6e6] bg-gray-50/60 p-4">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{tDriverInfo('selectExisting')}</p>
+        {drivers.length === 0 ? (
+          <p className="text-xs text-gray-500">{tDriverInfo('noDriversYetHint')}</p>
+        ) : (
+          <>
+            <div className="relative" ref={pickerRef}>
             <button
               type="button"
               onClick={() => setShowDriverPicker((v) => !v)}
@@ -387,8 +390,8 @@ export default function FleetDriverInfo({
                 </div>
               </div>
             )}
-          </div>
-          {selectedDriver && !isEditingDriver && (
+            </div>
+            {selectedDriver && !isEditingDriver && (
             <div className="mt-2 flex items-center justify-between gap-2">
               <p className="text-[10px] text-gray-500">{tDriverInfo('fieldsLocked')}</p>
               <button
@@ -423,9 +426,10 @@ export default function FleetDriverInfo({
                 </button>
               </div>
             </div>
-          )}
-        </div>
-      )}
+            )}
+          </>
+        )}
+      </div>
 
       {/* Avatar Upload */}
       <div className="flex flex-col items-center">
