@@ -43,7 +43,7 @@ Konfirmasi ke distributor bahwa Anda memakai lingkungan Laku yang benar untuk pe
 | Masalah | Solusi |
 |---------|--------|
 | Peta kosong di Expo Go | Pakai **development build** atau produksi |
-| Peta tidak muncul | Pakai build produksi/dev dari distributor; peta bisa tidak jalan di aplikasi pratinjau |
+| Peta tidak muncul | Pakai build produksi/dev dari distributor; peta bisa tidak jalan di Expo Go |
 | Tidak ada titik driver | Izin lokasi; tunggu fix GPS |
 
 ## Notifikasi

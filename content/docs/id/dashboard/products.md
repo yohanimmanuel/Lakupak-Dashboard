@@ -113,7 +113,7 @@ Dari daftar (**Publish**) atau form (**Save and Publish**):
 
 1. Buka **Marketplace Preview** atau **Bulk Publish**
 2. Cek kelengkapan: SKU, nama, deskripsi, tipe, brand, supplier, harga varian, stok &gt; 0, minimal satu gambar
-3. Pratinjau tampilan di **Laku Marketplace App**
+3. Lihat tampilan di **Laku Marketplace App**
 4. Konfirmasi **Publish**
 
 Produk tidak lengkap tercantum di **Cannot Publish**.

@@ -184,7 +184,7 @@
     "noCustomers": "Tidak ada pelanggan di armada ini",
     "customersHint": "Pelanggan dengan pesanan di armada ini (maks. 3)",
     "fullScreenMap": "Peta layar penuh",
-    "liveRoutePreview": "Pratinjau rute langsung",
+    "liveRoutePreview": "Lihat rute langsung",
     "deliveryRouteTitle": "Rute pengiriman · {code}",
     "openMapAria": "Buka peta layar penuh"
   },
@@ -197,7 +197,7 @@
     "driver": "Driver",
     "vehicle": "Kendaraan",
     "logisticsDetails": "Detail Logistik",
-    "liveRoutePreview": "Pratinjau rute langsung",
+    "liveRoutePreview": "Lihat rute langsung",
     "noActiveRoute": "Tidak ada rute aktif",
     "noOrdersAssigned": "Belum ada pesanan",
     "noOrdersAssignedHint": "Tetapkan pesanan ke armada ini untuk melihat peta. Teks rute di bawah kode armada hanya label — arah menggunakan GPS driver dan alamat pengiriman sebenarnya.",

@@ -5,6 +5,7 @@ import {
 	Bar,
 	BarChart,
 	CartesianGrid,
+	ComposedChart,
 	Pie,
 	PieChart,
 	ResponsiveContainer,
@@ -60,18 +61,193 @@ interface BuyerLite {
 	owner?: string;
 	businessType?: string;
 	avatar?: string | null;
+	status?: string;
+	createdAt?: string;
+	updatedAt?: string;
 }
+
+const CHURNED_BUYER_STATUSES = new Set(['Inactive', 'Blocked']);
+
+function monthBucket(date: Date, dateLocale: string): { key: string; label: string } {
+	const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+	const label = date.toLocaleDateString(dateLocale, { month: 'short', year: 'numeric' });
+	return { key, label };
+}
+
+function monthLabelShort(date: Date, dateLocale: string): string {
+	return date.toLocaleDateString(dateLocale, { month: 'short' });
+}
+
+export type CustomerAcquisitionPoint = {
+	month: string;
+	acquired: number;
+	churned: number;
+	net: number;
+};
+
+export const calculateCustomerAcquisitionTrend = (
+	buyers: BuyerLite[],
+	hasData: boolean,
+	dateLocale = 'en-US'
+): CustomerAcquisitionPoint[] => {
+	if (!hasData || buyers.length === 0) return [];
+
+	const monthly = new Map<string, { acquired: number; churned: number }>();
+
+	buyers.forEach((buyer) => {
+		if (!buyer.createdAt) return;
+		const createdAt = new Date(buyer.createdAt);
+		if (Number.isNaN(createdAt.getTime())) return;
+
+		const createdBucket = monthBucket(createdAt, dateLocale);
+		const createdRow = monthly.get(createdBucket.key) ?? { acquired: 0, churned: 0 };
+		createdRow.acquired += 1;
+		monthly.set(createdBucket.key, createdRow);
+
+		const status = buyer.status ?? 'Active';
+		if (!CHURNED_BUYER_STATUSES.has(status) || !buyer.updatedAt) return;
+
+		const updatedAt = new Date(buyer.updatedAt);
+		if (Number.isNaN(updatedAt.getTime()) || updatedAt.getTime() <= createdAt.getTime()) return;
+
+		const churnBucket = monthBucket(updatedAt, dateLocale);
+		const churnRow = monthly.get(churnBucket.key) ?? { acquired: 0, churned: 0 };
+		churnRow.churned += 1;
+		monthly.set(churnBucket.key, churnRow);
+	});
+
+	const now = new Date();
+	return Array.from({ length: 12 }, (_, index) => {
+		const date = new Date(now.getFullYear(), now.getMonth() - (11 - index), 1);
+		const bucket = monthBucket(date, dateLocale);
+		const row = monthly.get(bucket.key);
+		const acquired = row?.acquired ?? 0;
+		const churned = row?.churned ?? 0;
+		return {
+			month: bucket.label,
+			acquired,
+			churned,
+			net: acquired - churned,
+		};
+	});
+};
+
+export const CustomerAcquisitionChart: React.FC<{ data: CustomerAcquisitionPoint[] }> = ({ data }) => {
+	const { tCharts } = useAnalyticsTranslations();
+
+	if (data.length === 0) {
+		return (
+			<div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
+				<h3 className="text-lg font-semibold text-gray-900 mb-4">{tCharts('customerAcquisition')}</h3>
+				<div className="h-[320px] flex items-center justify-center">
+					<div className="text-center">
+						<Users className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+						<p className="text-gray-500 text-sm">{tCharts('noCustomerAcquisitionData')}</p>
+						<p className="text-gray-400 text-xs">{tCharts('noCustomerAcquisitionHint')}</p>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	const latest = data[data.length - 1];
+
+	return (
+		<div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
+			<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
+				<h3 className="text-lg font-semibold text-gray-900">{tCharts('customerAcquisition')}</h3>
+				<div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+					<div className="flex items-center">
+						<div className="w-3 h-3 rounded-full bg-[#10B981] mr-2" />
+						<span className="text-sm text-gray-600 font-medium">{tCharts('acquiredLegend')}</span>
+					</div>
+					<div className="flex items-center">
+						<div className="w-3 h-3 rounded-full bg-[#EF4444] mr-2" />
+						<span className="text-sm text-gray-600 font-medium">{tCharts('churnedLegend')}</span>
+					</div>
+					<div className="flex items-center">
+						<div className="w-3 h-3 rounded-full bg-[#6366F1] mr-2" />
+						<span className="text-sm text-gray-600 font-medium">{tCharts('netGrowthLegend')}</span>
+					</div>
+				</div>
+			</div>
+			<ResponsiveContainer width="100%" height={320}>
+				<ComposedChart data={data} margin={{ top: 20, right: 30, left: 40, bottom: 20 }}>
+					<defs>
+						<linearGradient id="acquiredGradient" x1="0" y1="0" x2="0" y2="1">
+							<stop offset="0%" stopColor="#10B981" stopOpacity={0.9} />
+							<stop offset="100%" stopColor="#059669" stopOpacity={0.7} />
+						</linearGradient>
+						<linearGradient id="churnedGradient" x1="0" y1="0" x2="0" y2="1">
+							<stop offset="0%" stopColor="#EF4444" stopOpacity={0.9} />
+							<stop offset="100%" stopColor="#DC2626" stopOpacity={0.7} />
+						</linearGradient>
+					</defs>
+					<CartesianGrid strokeDasharray="2 4" stroke="#000000" strokeOpacity={0.2} horizontal vertical={false} />
+					<XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6B7280' }} />
+					<YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6B7280' }} allowDecimals={false} />
+					<Tooltip
+						content={({ active, payload, label }) => {
+							if (!active || !payload?.length) return null;
+							return (
+								<div className="bg-white rounded-xl border border-[#e6e6e6] p-4">
+									<p className="font-semibold text-gray-900 mb-2">{label}</p>
+									{payload.map((entry: { dataKey: string; value: number; color?: string }, index: number) => {
+										let labelText = '';
+										if (entry.dataKey === 'acquired') labelText = tCharts('acquiredLegend');
+										else if (entry.dataKey === 'churned') labelText = tCharts('churnedLegend');
+										else if (entry.dataKey === 'net') labelText = tCharts('netGrowthLegend');
+										return (
+											<div key={index} className="flex items-center space-x-2 mb-1">
+												<div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
+												<span className="text-gray-700">{labelText}: {entry.value}</span>
+											</div>
+										);
+									})}
+								</div>
+							);
+						}}
+						cursor={{ fill: '#F1F5F9', fillOpacity: 0.3 }}
+					/>
+					<Bar dataKey="acquired" name={tCharts('acquiredLegend')} fill="url(#acquiredGradient)" radius={[6, 6, 0, 0]} maxBarSize={36} />
+					<Bar dataKey="churned" name={tCharts('churnedLegend')} fill="url(#churnedGradient)" radius={[6, 6, 0, 0]} maxBarSize={36} />
+					<Line type="monotone" dataKey="net" name={tCharts('netGrowthLegend')} stroke="#6366F1" strokeWidth={2} dot={{ fill: '#6366F1', r: 3 }} />
+				</ComposedChart>
+			</ResponsiveContainer>
+			<div className="mt-4 pt-4 border-t border-[#e6e6e6] flex flex-wrap items-center gap-4 text-sm">
+				<div>
+					<span className="text-xs text-gray-500">{tCharts('latestMonthAcquired')}: </span>
+					<span className="font-semibold text-green-600">{latest.acquired}</span>
+				</div>
+				<div>
+					<span className="text-xs text-gray-500">{tCharts('latestMonthChurned')}: </span>
+					<span className="font-semibold text-red-600">{latest.churned}</span>
+				</div>
+				<div>
+					<span className="text-xs text-gray-500">{tCharts('latestMonthNet')}: </span>
+					<span className={`font-semibold ${latest.net >= 0 ? 'text-indigo-600' : 'text-red-600'}`}>
+						{latest.net >= 0 ? `+${latest.net}` : latest.net}
+					</span>
+				</div>
+			</div>
+		</div>
+	);
+};
 
 // ===== Reusable types & utilities (exported) =====
 export type SalesTrendPoint = { month: string; orders: number; pieces: number; units: number };
 
-export const calculateSalesTrend = (orders: Order[], hasData: boolean): SalesTrendPoint[] => {
+export const calculateSalesTrend = (
+	orders: Order[],
+	hasData: boolean,
+	dateLocale = 'en-US'
+): SalesTrendPoint[] => {
 	if (!hasData || orders.length === 0) return [];
 	const monthly: Record<string, { orders: number; pieces: number; units: number; label: string }> = {};
 	orders.forEach(o => {
 		const d = new Date(o.orderDate);
 		const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}`;
-		const label = d.toLocaleDateString('en-US', { month: 'short' });
+		const label = monthLabelShort(d, dateLocale);
 		if (!monthly[key]) monthly[key] = { orders: 0, pieces: 0, units: 0, label };
 		monthly[key].orders += 1;
 		if (o.orderItems && Array.isArray(o.orderItems)) {
@@ -346,6 +522,9 @@ const CUSTOMER_ANALYTICS_QUERY = `
         owner
         businessType
         avatar
+        status
+        createdAt
+        updatedAt
       }
     }
   }
@@ -353,7 +532,7 @@ const CUSTOMER_ANALYTICS_QUERY = `
 
 const CustomerSalesAnalytics: React.FC = () => {
 	const { user } = useUserStore();
-	const { tShared, tMetrics, tCharts, tTables, translateCategoryFilter, translateForecastTrend } = useAnalyticsTranslations();
+	const { tShared, tMetrics, tCharts, tTables, translateCategoryFilter, translateForecastTrend, dateLocale } = useAnalyticsTranslations();
 	const [orders, setOrders] = useState<Order[]>([]);
 	const [products, setProducts] = useState<Product[]>([]);
 	const [buyers, setBuyers] = useState<BuyerLite[]>([]);
@@ -416,7 +595,7 @@ const CustomerSalesAnalytics: React.FC = () => {
 					userId: user.id,
 					orderLimit: 1000,
 					productLimit: 1000,
-					buyerLimit: 100,
+					buyerLimit: 1000,
 				});
 
 				const ordersList = data.orders?.nodes ?? [];
@@ -441,7 +620,13 @@ const CustomerSalesAnalytics: React.FC = () => {
 	const metrics = useMemo(() => calculateSalesMetrics(orders, products, hasData), [orders, products, hasData, userCurrency]);
 
 	// Sales trend
-	const salesTrend = useMemo(() => calculateSalesTrend(orders, hasData), [orders, hasData]);
+	const salesTrend = useMemo(() => calculateSalesTrend(orders, hasData, dateLocale), [orders, hasData, dateLocale]);
+
+	const hasBuyerData = buyers.length > 0;
+	const customerAcquisitionTrend = useMemo(
+		() => calculateCustomerAcquisitionTrend(buyers, hasBuyerData, dateLocale),
+		[buyers, hasBuyerData, dateLocale]
+	);
 
 	// Sales forecast
 	const salesForecast = useMemo(() => {
@@ -865,6 +1050,9 @@ const CustomerSalesAnalytics: React.FC = () => {
 					</div>
 				)}
 			</div>
+
+			{/* Customer Acquisition */}
+			<CustomerAcquisitionChart data={customerAcquisitionTrend} />
 
 			{/* Top Customers Table */}
 			<div className="bg-white rounded-lg border border-[#e6e6e6] p-4">

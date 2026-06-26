@@ -83,6 +83,6 @@ Jaga data perusahaan dan penagihan tetap mutakhir.
 
 | Tujuan | Ke |
 |--------|-----|
-| Pratinjau storefront | [Marketplace (admin)](/id/docs/dashboard/marketplace-admin) |
+| Lihat storefront | [Marketplace (admin)](/id/docs/dashboard/marketplace-admin) |
 | Publikasi produk | [Produk](/id/docs/dashboard/products) |
 | Agen pemasaran | [Pemasaran](/id/docs/dashboard/marketing) |

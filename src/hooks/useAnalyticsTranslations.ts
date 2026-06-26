@@ -1,8 +1,14 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+
+export function resolveAnalyticsDateLocale(locale: string): string {
+  return locale === 'id' ? 'id-ID' : 'en-US';
+}
 
 export function useAnalyticsTranslations() {
+  const locale = useLocale();
+  const dateLocale = resolveAnalyticsDateLocale(locale);
   const tShared = useTranslations('dashboard.analytics.shared');
   const tOverview = useTranslations('dashboard.analytics.overview');
   const tFinancial = useTranslations('dashboard.analytics.financial');
@@ -41,6 +47,8 @@ export function useAnalyticsTranslations() {
   };
 
   return {
+    locale,
+    dateLocale,
     tShared,
     tOverview,
     tFinancial,

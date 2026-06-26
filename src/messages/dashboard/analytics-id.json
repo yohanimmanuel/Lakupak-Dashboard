@@ -126,7 +126,16 @@
     "insufficientForecastData": "Data tidak cukup untuk prakiraan",
     "insufficientForecastHint": "Diperlukan minimal 2 bulan data",
     "ordersTooltip": "Pesanan: {count}{forecastSuffix}",
-    "forecastSuffix": " (Prakiraan)"
+    "forecastSuffix": " (Prakiraan)",
+    "customerAcquisition": "Akuisisi Pelanggan",
+    "acquiredLegend": "Relasi Baru",
+    "churnedLegend": "Churn",
+    "netGrowthLegend": "Pertumbuhan Bersih",
+    "latestMonthAcquired": "Relasi baru bulan terakhir",
+    "latestMonthChurned": "Churn bulan terakhir",
+    "latestMonthNet": "Bersih bulan terakhir",
+    "noCustomerAcquisitionData": "Belum ada data relasi pelanggan",
+    "noCustomerAcquisitionHint": "Tambahkan pembeli di Klien untuk melacak akuisisi dan churn bulanan"
   },
   "tables": {
     "topPerformingProducts": "Produk Berkinerja Terbaik",

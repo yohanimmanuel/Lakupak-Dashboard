@@ -126,7 +126,16 @@
     "insufficientForecastData": "Insufficient data for forecast",
     "insufficientForecastHint": "Need at least 2 months of data",
     "ordersTooltip": "Orders: {count}{forecastSuffix}",
-    "forecastSuffix": " (Forecast)"
+    "forecastSuffix": " (Forecast)",
+    "customerAcquisition": "Customer Acquisition",
+    "acquiredLegend": "New Relations",
+    "churnedLegend": "Churned",
+    "netGrowthLegend": "Net Growth",
+    "latestMonthAcquired": "Latest month acquired",
+    "latestMonthChurned": "Latest month churned",
+    "latestMonthNet": "Latest month net",
+    "noCustomerAcquisitionData": "No customer relation data yet",
+    "noCustomerAcquisitionHint": "Add buyers in Clients to track monthly acquisition and churn"
   },
   "tables": {
     "topPerformingProducts": "Top Performing Products",

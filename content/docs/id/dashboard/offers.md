@@ -54,7 +54,7 @@ Jalur: `/offers`, `/offers/new`, `/offers/details?id={offerId}`.
 1. **Offer Type** — aturan diskon
 2. **Date Range** — jadwal berlaku
 3. **Products** — pilih SKU
-4. **Analytics** — pratinjau metrik
+4. **Analytics** — lihat metrik
 
 **Tindakan:** **Preview**, **Create Offer**, **Save as Inactive**.
 

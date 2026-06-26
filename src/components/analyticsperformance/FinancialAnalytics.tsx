@@ -1162,10 +1162,131 @@ const FinancialAnalytics: React.FC = () => {
            </div>
          </div>
 
-         {/* Third Row - Cash Flow Trend + Revenue Forecast */}
-         <div className="grid grid-cols-1 lg:grid-cols-11 gap-3">
-           <div className="lg:col-span-5">
-                  {/* Cash Flow Trend */}
+         {/* Third Row - Revenue Forecast + Cash Flow Trend */}
+         <div className="space-y-3">
+           {/* Revenue Forecast */}
+            <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-gray-900">{tCharts('revenueForecast')}</h3>
+                {revenueForecast && revenueForecast.forecast.length > 0 && (
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 bg-gradient-to-r from-[#3b82f6] to-[#0a61d7] rounded-full mr-2"></div>
+                      <span className="text-sm text-gray-600 font-medium">{tCharts('historical')}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 border-2 border-dashed border-[#9CA3AF] rounded-full mr-2"></div>
+                      <span className="text-sm text-gray-600 font-medium">{tCharts('forecast')}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+              {revenueForecast && revenueForecast.forecast.length > 0 ? (
+                <>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart 
+                      data={[
+                        ...revenueData.map(d => ({ month: d.month, revenue: d.revenue, isForecast: false })),
+                        ...(revenueData.length > 0 ? [{ month: revenueData[revenueData.length - 1].month, revenue: revenueData[revenueData.length - 1].revenue, isForecast: false }] : []),
+                        ...revenueForecast.forecast.map(f => ({ month: f.date, revenue: f.value, isForecast: true }))
+                      ]} 
+                      margin={{ top: 20, right: 50, left: 50, bottom: 20 }}
+                    >
+                      <defs>
+                        <linearGradient id="revenueForecastGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#0a61d7" stopOpacity={0.4}/>
+                          <stop offset="50%" stopColor="#0a61d7" stopOpacity={0.2}/>
+                          <stop offset="100%" stopColor="#0a61d7" stopOpacity={0.1}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="2 4" stroke="#000000" strokeOpacity={0.2} horizontal={true} vertical={false} />
+                      <XAxis 
+                        dataKey="month" 
+                        stroke="#64748B" 
+                        fontSize={12}
+                        fontWeight={500}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis 
+                        stroke="#64748B" 
+                        fontSize={12}
+                        fontWeight={500}
+                        tickFormatter={(value) => utilsFormatCurrency(value, userCurrency)}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <Tooltip 
+                        contentStyle={{
+                          backgroundColor: 'white',
+                          border: '1px solid #E5E7EB',
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                        }}
+                        formatter={(value: number) => [
+                          utilsFormatCurrency(value, userCurrency), 
+                          tCharts('orderVolumeLegend')
+                        ]}
+                        labelStyle={{ color: '#374151', fontWeight: '600' }}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="revenue" 
+                        stroke="#0a61d7" 
+                        strokeWidth={2}
+                        fillOpacity={1} 
+                        fill="url(#revenueForecastGradient)" 
+                        dot={{ fill: '#3B82F6', strokeWidth: 2, r: 4, stroke: 'white' }}
+                        activeDot={{ 
+                          r: 6, 
+                          stroke: '#3B82F6', 
+                          strokeWidth: 3,
+                          fill: 'white'
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="revenue"
+                        stroke="#9CA3AF"
+                        strokeWidth={2}
+                        strokeDasharray="5 5"
+                        dot={{ fill: '#9CA3AF', r: 3 }}
+                        data={revenueForecast.forecast.map(f => ({ month: f.date, revenue: f.value, isForecast: true }))}
+                        connectNulls={true}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                  <div className="mt-4 pt-4 border-t border-[#e6e6e6] flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div>
+                        <span className="text-xs text-gray-500">{tShared('trendLabel')} </span>
+                        <span className={`text-sm font-semibold ${
+                          revenueForecast.trend === 'increasing' ? 'text-green-600' : 
+                          revenueForecast.trend === 'decreasing' ? 'text-red-600' : 
+                          'text-gray-600'
+                        }`}>
+                          {translateForecastTrend(revenueForecast.trend)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-xs text-gray-500">{tShared('confidenceLabel')} </span>
+                        <span className="text-sm font-semibold text-black">{revenueForecast.confidence.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="h-[357px] flex items-center justify-center">
+                  <div className="text-center">
+                    <TrendingUp className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                    <p className="text-gray-500 text-sm">{tCharts('insufficientForecastData')}</p>
+                    <p className="text-gray-400 text-xs">{tCharts('insufficientForecastHint')}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+           {/* Cash Flow Trend */}
           <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
            <div className="flex items-center justify-between mb-4">
              <h3 className="text-lg font-semibold text-gray-900">{tCharts('cashFlowTrend')}</h3>
@@ -1298,130 +1419,6 @@ const FinancialAnalytics: React.FC = () => {
              </ComposedChart>
            </ResponsiveContainer>
          </div>
-           </div>
-           <div className="lg:col-span-6">
-         {/* Revenue Forecast */}
-            <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">{tCharts('revenueForecast')}</h3>
-                {revenueForecast && revenueForecast.forecast.length > 0 && (
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center">
-                      <div className="w-3 h-3 bg-gradient-to-r from-[#3b82f6] to-[#0a61d7] rounded-full mr-2"></div>
-                      <span className="text-sm text-gray-600 font-medium">{tCharts('historical')}</span>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="w-3 h-3 border-2 border-dashed border-[#9CA3AF] rounded-full mr-2"></div>
-                      <span className="text-sm text-gray-600 font-medium">{tCharts('forecast')}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-              {revenueForecast && revenueForecast.forecast.length > 0 ? (
-                <>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <AreaChart 
-                      data={[
-                        ...revenueData.map(d => ({ month: d.month, revenue: d.revenue, isForecast: false })),
-                        ...(revenueData.length > 0 ? [{ month: revenueData[revenueData.length - 1].month, revenue: revenueData[revenueData.length - 1].revenue, isForecast: false }] : []),
-                        ...revenueForecast.forecast.map(f => ({ month: f.date, revenue: f.value, isForecast: true }))
-                      ]} 
-                      margin={{ top: 20, right: 50, left: 50, bottom: 20 }}
-                    >
-                      <defs>
-                        <linearGradient id="revenueForecastGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#0a61d7" stopOpacity={0.4}/>
-                          <stop offset="50%" stopColor="#0a61d7" stopOpacity={0.2}/>
-                          <stop offset="100%" stopColor="#0a61d7" stopOpacity={0.1}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="2 4" stroke="#000000" strokeOpacity={0.2} horizontal={true} vertical={false} />
-                      <XAxis 
-                        dataKey="month" 
-                        stroke="#64748B" 
-                        fontSize={12}
-                        fontWeight={500}
-                        tickLine={false}
-                        axisLine={false}
-                      />
-                      <YAxis 
-                        stroke="#64748B" 
-                        fontSize={12}
-                        fontWeight={500}
-                        tickFormatter={(value) => utilsFormatCurrency(value, userCurrency)}
-                        tickLine={false}
-                        axisLine={false}
-                      />
-                      <Tooltip 
-                        contentStyle={{
-                          backgroundColor: 'white',
-                          border: '1px solid #E5E7EB',
-                          borderRadius: '8px',
-                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                        }}
-                        formatter={(value: number) => [
-                          utilsFormatCurrency(value, userCurrency), 
-                          tCharts('orderVolumeLegend')
-                        ]}
-                        labelStyle={{ color: '#374151', fontWeight: '600' }}
-                      />
-                      <Area 
-                        type="monotone" 
-                        dataKey="revenue" 
-                        stroke="#0a61d7" 
-                        strokeWidth={2}
-                        fillOpacity={1} 
-                        fill="url(#revenueForecastGradient)" 
-                        dot={{ fill: '#3B82F6', strokeWidth: 2, r: 4, stroke: 'white' }}
-                        activeDot={{ 
-                          r: 6, 
-                          stroke: '#3B82F6', 
-                          strokeWidth: 3,
-                          fill: 'white'
-                        }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="revenue"
-                        stroke="#9CA3AF"
-                        strokeWidth={2}
-                        strokeDasharray="5 5"
-                        dot={{ fill: '#9CA3AF', r: 3 }}
-                        data={revenueForecast.forecast.map(f => ({ month: f.date, revenue: f.value, isForecast: true }))}
-                        connectNulls={true}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                  <div className="mt-4 pt-4 border-t border-[#e6e6e6] flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div>
-                        <span className="text-xs text-gray-500">{tShared('trendLabel')} </span>
-                        <span className={`text-sm font-semibold ${
-                          revenueForecast.trend === 'increasing' ? 'text-green-600' : 
-                          revenueForecast.trend === 'decreasing' ? 'text-red-600' : 
-                          'text-gray-600'
-                        }`}>
-                          {translateForecastTrend(revenueForecast.trend)}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-xs text-gray-500">{tShared('confidenceLabel')} </span>
-                        <span className="text-sm font-semibold text-black">{revenueForecast.confidence.toFixed(1)}%</span>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="h-[357px] flex items-center justify-center">
-                  <div className="text-center">
-                    <TrendingUp className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-                    <p className="text-gray-500 text-sm">{tCharts('insufficientForecastData')}</p>
-                    <p className="text-gray-400 text-xs">{tCharts('insufficientForecastHint')}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-           </div>
          </div>
 
          {/* Fourth Row - Top Performing Products Table */}

@@ -96,7 +96,7 @@ const ANALYTICS_PAGE_QUERY = `
 
 export default function AnalyticsPage() {
   const { user } = useUserStore();
-  const { tOverview, tMetrics, tShared, translateTimeRange } = useAnalyticsTranslations();
+  const { tOverview, tMetrics, tShared, translateTimeRange, dateLocale } = useAnalyticsTranslations();
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -169,7 +169,10 @@ export default function AnalyticsPage() {
 
   // Customer Sales metrics reused
   const customerMetrics = useMemo(() => calculateSalesMetrics(filteredOrders, filteredProducts, hasData), [filteredOrders, filteredProducts, hasData]);
-  const salesTrend = useMemo(() => calculateSalesTrend(filteredOrders, hasData), [filteredOrders, hasData]);
+  const salesTrend = useMemo(
+    () => calculateSalesTrend(filteredOrders, hasData, dateLocale),
+    [filteredOrders, hasData, dateLocale]
+  );
 
   const orderGrowth = useMemo(() => computeOrderMonthOverMonthGrowth(orders), [orders]);
 

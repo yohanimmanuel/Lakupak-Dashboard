@@ -164,7 +164,7 @@
     "stepDateRange": "Rentang Tanggal",
     "stepProducts": "Produk",
     "completeSteps": "Selesaikan semua langkah untuk membuat penawaran",
-    "preview": "Pratinjau",
+    "preview": "Lihat",
     "statusLabel": "Status:",
     "saving": "Menyimpan...",
     "creating": "Membuat...",
@@ -172,7 +172,7 @@
     "createOffer": "Buat Penawaran",
     "incompleteFields": "Harap lengkapi semua field wajib sebelum membuat penawaran.",
     "createFailed": "Gagal membuat penawaran. Silakan coba lagi.",
-    "previewTitle": "Pratinjau Penawaran",
+    "previewTitle": "Lihat Penawaran",
     "previewSubtitle": "Bagaimana pelanggan akan melihat penawaran ini",
     "offerNamePlaceholder": "Nama Penawaran",
     "offerDescriptionPlaceholder": "Deskripsi penawaran akan muncul di sini",
@@ -183,8 +183,8 @@
     "productsSelected": "{count} produk dipilih",
     "validPeriod": "Periode Berlaku:",
     "previewNote": "Catatan:",
-    "previewNoteText": "Ini adalah pratinjau. Penawaran aktual akan live setelah Anda membuatnya.",
-    "closePreview": "Tutup Pratinjau"
+    "previewNoteText": "Ini hanya simulasi. Penawaran aktual akan live setelah Anda membuatnya.",
+    "closePreview": "Tutup"
   },
   "detailsPage": {
     "loading": "Memuat penawaran...",
@@ -282,7 +282,7 @@
     "discountAmount": "Nominal Diskon",
     "freePackages": "Paket Gratis yang Diberikan",
     "packagesUnit": "paket",
-    "previewDiscount": "Pratinjau: diskon {value}",
+    "previewDiscount": "Diskon: {value}",
     "minPackagesToBuy": "Minimum Paket untuk Dibeli",
     "minPackagesHint": "Pelanggan harus membeli minimal sebanyak ini untuk mendapat paket gratis",
     "limitSettings": "Pengaturan Batas",
