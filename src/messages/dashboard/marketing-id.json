@@ -132,6 +132,13 @@
     "productAlt": "Produk",
     "defaultButton": "Klik di sini"
   },
+  "campaignShare": {
+    "loading": "Memuat kampanye...",
+    "loadFailed": "Gagal memuat kampanye",
+    "notFound": "Kampanye tidak ditemukan",
+    "notFoundDescription": "Kampanye yang Anda cari tidak ada atau telah dihapus.",
+    "poweredBy": "Didukung oleh Laku"
+  },
   "campaignDetails": {
     "loading": "Memuat kampanye...",
     "notFound": "Kampanye tidak ditemukan",

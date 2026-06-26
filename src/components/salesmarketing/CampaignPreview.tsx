@@ -1,10 +1,10 @@
 'use client';
 
 import React from 'react';
+import { useTranslations } from 'next-intl';
 import { Campaign, CampaignContentBlock } from '@/types/campaign';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { useUserStore } from '@/store/userStore';
-import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
 
 interface CampaignPreviewProps {
   campaign: Campaign;
@@ -14,7 +14,7 @@ interface CampaignPreviewProps {
 
 export default function CampaignPreview({ campaign, onTrackClick, currency }: CampaignPreviewProps) {
   const user = useUserStore((state) => state.user);
-  const { tCampaignPreview } = useMarketingTranslations();
+  const tCampaignPreview = useTranslations('dashboard.marketing.campaignPreview');
   
   // Determine currency: prop > user currency > default (IDR)
   const displayCurrency = currency || user?.currency || getDefaultCurrency();
