@@ -18,6 +18,7 @@ const NAV_LABEL_KEYS: Record<string, string> = {
   Marketing: 'marketing',
   Team: 'team',
   Campaigns: 'campaigns',
+  Automations: 'automations',
   Analytics: 'analytics',
   Financial: 'financial',
   Sales: 'sales',
@@ -62,7 +63,7 @@ const mainMenuItems = [
     submenu: [
       { icon: <ListIcon className="w-5 h-5" />, label: 'Team', href: '/marketing/team' },
       { icon: <ListIcon className="w-5 h-5" />, label: 'Campaigns', href: '/marketing/campaigns' },
-      // { icon: <ListIcon className="w-5 h-5" />, label: 'Automations', href: '/marketing/automation' }, Future feature
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Automations', href: '/marketing/automation' },
     ],
   },
   {
