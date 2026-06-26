@@ -1,6 +1,7 @@
 import { describe, beforeEach, expect, it } from 'vitest';
 import { prisma } from '@/lib/db';
-import { addToCart, fetchMobileCart, updateCartItem } from '@/app/api/graphql/modules/marketplace/handlers/cart';
+import { addToCart, clearCart, fetchMobileCart, removeCartItem, updateCartItem } from '@/app/api/graphql/modules/marketplace/handlers/cart';
+import { addUserActivity, fetchMobileUserActivity } from '@/app/api/graphql/modules/marketplace/handlers/activity';
 import { resetDb } from './helpers';
 import { createPublishedProductWithColorVariants, createTestDistributor } from './helpers/productFixtures';
 
@@ -89,5 +90,145 @@ describe('marketplace cart CRUD (integration)', () => {
       where: { userId: buyer.id, productId, activityType: 'cart' },
     });
     expect(stillInDb).toBe(1);
+  });
+
+  it('records cart abandonment when a buyer removes an item manually', async () => {
+    const distributor = await createTestDistributor();
+    const productId = 'P-CART-3';
+    await createPublishedProductWithColorVariants(distributor.id, productId);
+
+    const buyer = await prisma.marketplaceUser.create({
+      data: { username: 'cart_buyer3', phone: '+620000000097' },
+      select: { id: true },
+    });
+
+    const added = await addToCart({
+      userId: buyer.id,
+      productId,
+      productData: { id: productId, name: 'Abandon Test Shirt' },
+      quantity: 1,
+      variant: 'Color: Black | Size: M',
+    });
+
+    await removeCartItem(added.cartItem.id);
+
+    const abandonedCount = await prisma.userActivity.count({
+      where: { productId, activityType: 'cart_abandoned' },
+    });
+    expect(abandonedCount).toBe(1);
+  });
+
+  it('does not record cart abandonment when cart is cleared after checkout', async () => {
+    const distributor = await createTestDistributor();
+    const productId = 'P-CART-4';
+    await createPublishedProductWithColorVariants(distributor.id, productId);
+
+    const buyer = await prisma.marketplaceUser.create({
+      data: { username: 'cart_buyer4', phone: '+620000000096' },
+      select: { id: true },
+    });
+
+    await addToCart({
+      userId: buyer.id,
+      productId,
+      productData: { id: productId, name: 'Checkout Shirt' },
+      quantity: 2,
+      variant: 'Color: Black | Size: M',
+    });
+
+    await clearCart(buyer.id, { trackAbandonment: false });
+
+    const cart = await fetchMobileCart(buyer.id);
+    expect(cart.items).toHaveLength(0);
+
+    const abandonedCount = await prisma.userActivity.count({
+      where: { productId, activityType: 'cart_abandoned' },
+    });
+    expect(abandonedCount).toBe(0);
+
+    const addedCount = await prisma.userActivity.count({
+      where: { productId, activityType: 'cart_added' },
+    });
+    expect(addedCount).toBe(1);
+  });
+
+  it('records a new view event on every product page visit', async () => {
+    const distributor = await createTestDistributor();
+    const productId = 'P-VIEW-1';
+    await createPublishedProductWithColorVariants(distributor.id, productId);
+
+    const buyer = await prisma.marketplaceUser.create({
+      data: { username: 'view_buyer', phone: '+620000000095' },
+      select: { id: true },
+    });
+
+    const snapshot = { id: productId, name: 'View Test Shirt' };
+
+    await addUserActivity({
+      userId: buyer.id,
+      productId,
+      productData: snapshot,
+      activityType: 'viewed',
+    });
+    await addUserActivity({
+      userId: buyer.id,
+      productId,
+      productData: snapshot,
+      activityType: 'viewed',
+    });
+    await addUserActivity({
+      userId: buyer.id,
+      productId,
+      productData: snapshot,
+      activityType: 'viewed',
+    });
+
+    const viewCount = await prisma.userActivity.count({
+      where: { productId, activityType: 'viewed' },
+    });
+    expect(viewCount).toBe(3);
+  });
+
+  it('returns up to 20 unique recently viewed products even when one product dominates views', async () => {
+    const distributor = await createTestDistributor();
+    const buyer = await prisma.marketplaceUser.create({
+      data: { username: 'view_buyer2', phone: '+620000000094' },
+      select: { id: true },
+    });
+
+    const dominantProductId = 'P-VIEW-DOM';
+    await createPublishedProductWithColorVariants(distributor.id, dominantProductId);
+
+    for (let i = 0; i < 210; i += 1) {
+      await addUserActivity({
+        userId: buyer.id,
+        productId: dominantProductId,
+        productData: { id: dominantProductId, name: 'Dominant Product' },
+        activityType: 'viewed',
+      });
+    }
+
+    const otherProductIds: string[] = [];
+    for (let i = 0; i < 19; i += 1) {
+      const productId = `P-VIEW-OTHER-${i}`;
+      otherProductIds.push(productId);
+      await createPublishedProductWithColorVariants(distributor.id, productId);
+      await addUserActivity({
+        userId: buyer.id,
+        productId,
+        productData: { id: productId, name: `Other Product ${i}` },
+        activityType: 'viewed',
+      });
+    }
+
+    const result = await fetchMobileUserActivity({ userId: buyer.id, type: 'viewed' });
+    const productIds = result.activities.map((activity) => activity.productId);
+
+    expect(productIds).toHaveLength(20);
+    expect(new Set(productIds).size).toBe(20);
+    expect(productIds).toContain(dominantProductId);
+    for (const productId of otherProductIds) {
+      expect(productIds).toContain(productId);
+    }
   });
 });

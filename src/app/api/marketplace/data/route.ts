@@ -227,24 +227,28 @@ export async function GET(request: NextRequest) {
     }
     const totalReviews = reviewGroups.reduce((sum, g) => sum + g._count.id, 0);
 
-    // Fetch all order items for all products in one query
-    const orderItems = await prisma.orderItem.findMany({
-      where: {
-        productId: {
-          in: productIds,
-        },
-      },
-      select: {
-        productId: true,
-        packageQuantity: true,
-        pricePerPackage: true,
-        order: {
-          select: {
-            orderStatus: true,
+    // Fetch order items within the selected time range (aligned with overall order metrics)
+    const orderItems = productIds.length > 0
+      ? await prisma.orderItem.findMany({
+          where: {
+            productId: { in: productIds },
+            order: {
+              userId: parsedUserId,
+              orderDate: { gte: since },
+            },
           },
-        },
-      },
-    });
+          select: {
+            productId: true,
+            packageQuantity: true,
+            pricePerPackage: true,
+            order: {
+              select: {
+                orderStatus: true,
+              },
+            },
+          },
+        })
+      : [];
 
     // Build per-product metrics map (activity types match GraphQL/marketplace: 'viewed', 'favorite', 'cart')
     const productMetricsMap = new Map<string, {

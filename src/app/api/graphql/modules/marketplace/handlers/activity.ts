@@ -1,22 +1,59 @@
 import type { Prisma } from '@/lib/db';
 import { prisma } from '../../common/prisma';
-import { getTodayBoundaries } from '@/lib/dateUtils';
 
-// Helper function to cleanup old viewed products
-async function cleanupOldViewedProducts(userId: number) {
-  const { startOfToday } = getTodayBoundaries();
-  
-  const deletedCount = await prisma.userActivity.deleteMany({
-    where: {
-      userId: userId,
-      activityType: 'viewed',
-      createdAt: {
-        lt: startOfToday
-      }
-    }
-  });
-  
-  return deletedCount.count;
+const RECENTLY_VIEWED_PRODUCT_LIMIT = 20;
+
+type UserActivityRow = {
+  id: number;
+  userId: number;
+  productId: string;
+  productData: Prisma.JsonValue;
+  activityType: string;
+  metadata: Prisma.JsonValue | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+async function fetchRecentlyViewedActivities(userId: number): Promise<UserActivityRow[]> {
+  // Latest view per product, ordered by most recent view across products
+  return prisma.$queryRaw<UserActivityRow[]>`
+    SELECT
+      ranked.id,
+      ranked."userId",
+      ranked."productId",
+      ranked."productData",
+      ranked."activityType",
+      ranked.metadata,
+      ranked."createdAt",
+      ranked."updatedAt"
+    FROM (
+      SELECT
+        ua.*,
+        ROW_NUMBER() OVER (
+          PARTITION BY ua."productId"
+          ORDER BY ua."createdAt" DESC, ua.id DESC
+        ) AS rn
+      FROM "public"."UserActivity" ua
+      WHERE ua."userId" = ${userId}
+        AND ua."activityType" = 'viewed'
+    ) ranked
+    WHERE ranked.rn = 1
+    ORDER BY ranked."createdAt" DESC, ranked.id DESC
+    LIMIT ${RECENTLY_VIEWED_PRODUCT_LIMIT}
+  `;
+}
+
+function mapActivityRow(activity: UserActivityRow) {
+  return {
+    id: activity.id,
+    userId: activity.userId,
+    productId: activity.productId,
+    productData: activity.productData as Prisma.InputJsonValue,
+    activityType: activity.activityType as 'favorite' | 'viewed' | 'purchased' | 'cart',
+    metadata: activity.metadata as Prisma.InputJsonValue | null,
+    createdAt: activity.createdAt.toISOString(),
+    updatedAt: activity.updatedAt.toISOString(),
+  };
 }
 
 export const fetchMobileUserActivity = async (args: {
@@ -25,42 +62,25 @@ export const fetchMobileUserActivity = async (args: {
 }) => {
   const { userId, type } = args;
 
-  const whereClause: Record<string, unknown> = { 
-    userId,
-    activityType: type
-  };
-
   if (type === 'viewed') {
-    const { startOfToday, endOfToday } = getTodayBoundaries();
-    
-    whereClause.createdAt = {
-      gte: startOfToday,
-      lte: endOfToday
+    const activities = await fetchRecentlyViewedActivities(userId);
+    return {
+      success: true,
+      activities: activities.map(mapActivityRow),
     };
   }
 
-  if (type === 'viewed') {
-    await cleanupOldViewedProducts(userId);
-  }
-
   const activities = await prisma.userActivity.findMany({
-    where: whereClause,
-    orderBy: { createdAt: 'desc' },
-    take: type === 'viewed' ? 20 : undefined
+    where: {
+      userId,
+      activityType: type,
+    },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
   });
 
   return {
     success: true,
-    activities: activities.map(activity => ({
-      id: activity.id,
-      userId: activity.userId,
-      productId: activity.productId,
-      productData: activity.productData as Prisma.InputJsonValue,
-      activityType: activity.activityType as 'favorite' | 'viewed' | 'purchased' | 'cart',
-      metadata: activity.metadata as Prisma.InputJsonValue | null,
-      createdAt: activity.createdAt.toISOString(),
-      updatedAt: activity.updatedAt.toISOString(),
-    }))
+    activities: activities.map(mapActivityRow),
   };
 };
 
@@ -74,6 +94,21 @@ export const addUserActivity = async (args: {
   const { userId, productId, productData, activityType, metadata } = args;
 
   const result = await prisma.$transaction(async (tx) => {
+    // Each product view is a separate analytics event for seller dashboards
+    if (activityType === 'viewed') {
+      const newActivity = await tx.userActivity.create({
+        data: {
+          userId,
+          productId,
+          productData: productData as Prisma.InputJsonValue,
+          activityType,
+          metadata: (metadata || {}) as Prisma.InputJsonValue,
+        },
+      });
+
+      return { row: newActivity, action: 'created' as const };
+    }
+
     const existingActivity = await tx.userActivity.findFirst({
       where: {
         userId,
@@ -107,15 +142,6 @@ export const addUserActivity = async (args: {
 
     return { row: newActivity, action: 'created' as const };
   });
-
-  if (activityType === 'viewed') {
-    try {
-      await cleanupOldViewedProducts(userId);
-    } catch (error) {
-      // Log but don't fail the request - cleanup is non-critical
-      console.error('Failed to cleanup old viewed products:', error);
-    }
-  }
 
   return {
     success: true,

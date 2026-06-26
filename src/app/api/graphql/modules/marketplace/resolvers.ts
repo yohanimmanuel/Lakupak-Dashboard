@@ -106,7 +106,11 @@ export const marketplaceResolvers = {
 
       return removeCartItem(args.cartItemId);
     },
-    clearCart: async (_: unknown, args: { userId: number }, ctx: unknown) => {
+    clearCart: async (
+      _: unknown,
+      args: { userId: number; trackAbandonment?: boolean | null },
+      ctx: unknown
+    ) => {
       const authedUserId = getContextUserId(ctx);
       if (!authedUserId) {
         return { success: false, cartItem: null, message: 'Unauthorized' };
@@ -114,7 +118,9 @@ export const marketplaceResolvers = {
       if (args.userId !== authedUserId) {
         return { success: false, cartItem: null, message: 'Forbidden' };
       }
-      return clearCart(authedUserId);
+      return clearCart(authedUserId, {
+        trackAbandonment: args.trackAbandonment !== false,
+      });
     },
     addUserActivity: async (_: unknown, args: { input: Parameters<typeof addUserActivity>[0] }, ctx: unknown) => {
       const authedUserId = getContextUserId(ctx);

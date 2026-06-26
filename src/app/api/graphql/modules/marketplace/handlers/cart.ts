@@ -216,7 +216,12 @@ export const removeCartItem = async (cartItemId: number) => {
   };
 };
 
-export const clearCart = async (userId: number) => {
+export const clearCart = async (
+  userId: number,
+  options?: { trackAbandonment?: boolean }
+) => {
+  const trackAbandonment = options?.trackAbandonment !== false;
+
   const cartItems = await prisma.userActivity.findMany({
     where: {
       userId,
@@ -224,17 +229,19 @@ export const clearCart = async (userId: number) => {
     }
   });
 
-  // Record one cart_abandoned per item removed (abandonment = removed without purchasing)
-  for (const item of cartItems) {
-    await prisma.userActivity.create({
-      data: {
-        userId: item.userId,
-        productId: item.productId,
-        productData: item.productData as Prisma.InputJsonValue,
-        activityType: 'cart_abandoned',
-        metadata: item.metadata as Prisma.InputJsonValue
-      }
-    });
+  // Record abandonment only when the buyer clears cart manually — not after checkout
+  if (trackAbandonment) {
+    for (const item of cartItems) {
+      await prisma.userActivity.create({
+        data: {
+          userId: item.userId,
+          productId: item.productId,
+          productData: item.productData as Prisma.InputJsonValue,
+          activityType: 'cart_abandoned',
+          metadata: item.metadata as Prisma.InputJsonValue
+        }
+      });
+    }
   }
 
   await prisma.userActivity.deleteMany({

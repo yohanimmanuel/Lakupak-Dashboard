@@ -333,7 +333,7 @@ export const marketplaceTypeDefs = /* GraphQL */ `
     updateCartItem(input: UpdateCartItemInput!): CartItemResult!
     
     removeCartItem(cartItemId: Int!): CartItemResult!
-    clearCart(userId: Int!): CartItemResult!
+    clearCart(userId: Int!, trackAbandonment: Boolean): CartItemResult!
     
     addUserActivity(input: AddUserActivityInput!): UserActivityResult!
     
