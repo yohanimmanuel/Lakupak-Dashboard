@@ -117,20 +117,20 @@ export const calculateCustomerAcquisitionTrend = (
 		monthly.set(churnBucket.key, churnRow);
 	});
 
-	const now = new Date();
-	return Array.from({ length: 12 }, (_, index) => {
-		const date = new Date(now.getFullYear(), now.getMonth() - (11 - index), 1);
-		const bucket = monthBucket(date, dateLocale);
-		const row = monthly.get(bucket.key);
-		const acquired = row?.acquired ?? 0;
-		const churned = row?.churned ?? 0;
-		return {
-			month: bucket.label,
-			acquired,
-			churned,
-			net: acquired - churned,
-		};
-	});
+	return Array.from(monthly.entries())
+		.filter(([, row]) => row.acquired > 0 || row.churned > 0)
+		.sort(([a], [b]) => a.localeCompare(b))
+		.map(([key, row]) => {
+			const [yearStr, monthStr] = key.split('-');
+			const date = new Date(Number(yearStr), Number(monthStr) - 1, 1);
+			const bucket = monthBucket(date, dateLocale);
+			return {
+				month: bucket.label,
+				acquired: row.acquired,
+				churned: row.churned,
+				net: row.acquired - row.churned,
+			};
+		});
 };
 
 export const CustomerAcquisitionChart: React.FC<{ data: CustomerAcquisitionPoint[] }> = ({ data }) => {
