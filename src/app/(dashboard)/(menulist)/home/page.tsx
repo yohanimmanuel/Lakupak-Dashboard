@@ -930,7 +930,6 @@ export default function HomePage() {
     widgetName,
     widgetDescription,
     widgetText,
-    translateOrderStatus,
     translateRecordStatus,
   } = useHomeTranslations();
   const { user } = useUserStore();
@@ -1973,7 +1972,7 @@ const supplierInsights = useMemo(() => {
                       <span
                         className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${statusClass}`}
                       >
-                        {translateOrderStatus(order.orderStatus)}
+                        {order.orderStatus}
                       </span>
                     </div>
                     <div className="flex items-end justify-between">
