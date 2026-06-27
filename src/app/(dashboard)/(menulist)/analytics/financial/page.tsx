@@ -1,5 +1,6 @@
 'use client';
 import FinancialAnalytics from '@/components/analyticsperformance/FinancialAnalytics';
+import { AnalyticsTimeRange, filterOrdersByTimeRange } from '@/utils/analyticsTimeRange';
 import { Calendar, ChevronDown, Download, DollarSign } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useUserStore } from '@/store/userStore';
@@ -261,8 +262,11 @@ export default function FinancialAnalyticsPage() {
         };
       });
       
+      // Apply the same time-range filter as the UI so export metrics match the selected range
+      const filteredOrders = filterOrdersByTimeRange(orders, timeRange as AnalyticsTimeRange);
+
       // Create export content as HTML (which can be opened in Word)
-      const exportContent = createWordDocument(orders, transformedProducts, timeRange);
+      const exportContent = createWordDocument(filteredOrders, transformedProducts, timeRange);
       
       // Create and download file as HTML (opens in Word)
       const blob = new Blob([exportContent], { type: 'application/msword;charset=utf-8;' });
@@ -913,7 +917,7 @@ export default function FinancialAnalyticsPage() {
         </div>
       </div>
 
-      <FinancialAnalytics />
+      <FinancialAnalytics timeRange={timeRange as AnalyticsTimeRange} />
     </div>
   )
 

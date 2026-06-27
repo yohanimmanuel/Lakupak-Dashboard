@@ -47,6 +47,7 @@ import { Order, OrderItem } from '@/types/order';
 import { Product } from '@/types/product';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useAnalyticsTranslations } from '@/hooks/useAnalyticsTranslations';
+import { AnalyticsTimeRange, filterOrdersByTimeRange } from '@/utils/analyticsTimeRange';
 
 // Types for operational metrics
 interface OperationalMetrics {
@@ -233,10 +234,13 @@ const OPERATIONAL_ANALYTICS_QUERY = `
   }
 `;
 
-const OperationalPerformanceAnalytics: React.FC = () => {
+type OperationalPerformanceAnalyticsProps = {
+  timeRange?: AnalyticsTimeRange;
+};
+
+const OperationalPerformanceAnalytics: React.FC<OperationalPerformanceAnalyticsProps> = ({ timeRange = '1M' }) => {
   const { user } = useUserStore();
   const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState('6M');
   const [currentPage, setCurrentPage] = useState(1);
   // Metrics are calculated directly via useMemo - no need for state
   const [orders, setOrders] = useState<Order[]>([]);
@@ -244,6 +248,10 @@ const OperationalPerformanceAnalytics: React.FC = () => {
   const [hasData, setHasData] = useState(false);
 
   const userCurrency = user?.currency || getDefaultCurrency();
+
+  // Restrict orders to the selected time-range window so order-based graphs react to the dropdown
+  const filteredOrders = useMemo(() => filterOrdersByTimeRange(orders, timeRange), [orders, timeRange]);
+  const hasFilteredData = hasData && filteredOrders.length > 0;
   const {
     tShared,
     tMetrics,
@@ -299,7 +307,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
 
   // Calculate operational metrics
   const calculateMetrics = useMemo(() => {
-    if (!hasData || orders.length === 0) {
+    if (!hasFilteredData || filteredOrders.length === 0) {
       return {
         totalOrders: 0,
         completedOrders: 0,
@@ -317,24 +325,24 @@ const OperationalPerformanceAnalytics: React.FC = () => {
       };
     }
 
-    const totalOrders = orders.length;
-    const completedOrders = orders.filter(order => 
+    const totalOrders = filteredOrders.length;
+    const completedOrders = filteredOrders.filter(order => 
       order.orderStatus === 'Delivered' || order.orderStatus === 'Shipped'
     ).length;
-    const pendingOrders = orders.filter(order => 
+    const pendingOrders = filteredOrders.filter(order => 
       order.orderStatus === 'Pending' || order.orderStatus === 'Confirmed'
     ).length;
     
     // Order acceptance rate: any status beyond Pending (Confirmed, Packed, Shipped, Delivered, etc.)
-    const acceptedOrders = orders.filter((order) => isOrderAcceptedForQuality(order.orderStatus)).length;
+    const acceptedOrders = filteredOrders.filter((order) => isOrderAcceptedForQuality(order.orderStatus)).length;
     const orderAcceptanceRate = totalOrders > 0 ? (acceptedOrders / totalOrders) * 100 : 0;
 
     // Tracking coverage: orders with a tracking number
-    const ordersWithTracking = countOrdersWithTracking(orders);
+    const ordersWithTracking = countOrdersWithTracking(filteredOrders);
     const trackingCoverageRate = totalOrders > 0 ? (ordersWithTracking / totalOrders) * 100 : 0;
     
     // Processing time calculation (acceptedAt - orderDate)
-    const ordersWithProcessingTime = orders.filter(order => 
+    const ordersWithProcessingTime = filteredOrders.filter(order => 
       order.acceptedAt && order.orderDate
     );
     const totalProcessingTime = ordersWithProcessingTime.reduce((sum, order) => {
@@ -353,7 +361,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
     const stockoutRate = computeStockoutRate(products, true);
     const stockHealthScore = computeStockHealthScore(products, true);
 
-    const dataCompletenessScore = computeDataCompletenessScore(orders);
+    const dataCompletenessScore = computeDataCompletenessScore(filteredOrders);
 
     return {
       totalOrders,
@@ -370,11 +378,11 @@ const OperationalPerformanceAnalytics: React.FC = () => {
       activeProducts: totalProducts,
       dataCompletenessScore
     };
-  }, [orders, products, hasData]);
+  }, [filteredOrders, products, hasFilteredData]);
 
   // Calculate order status distribution
   const orderStatusData: OrderStatusData[] = useMemo(() => {
-    if (!hasData || orders.length === 0) return [];
+    if (!hasFilteredData || filteredOrders.length === 0) return [];
 
     const statusCount: { [key: string]: number } = {};
     const statusColors: { [key: string]: string } = {
@@ -388,43 +396,43 @@ const OperationalPerformanceAnalytics: React.FC = () => {
       'Returned': '#6B7280'
     };
 
-    orders.forEach(order => {
+    filteredOrders.forEach(order => {
       statusCount[order.orderStatus] = (statusCount[order.orderStatus] || 0) + 1;
     });
 
-    const total = orders.length;
+    const total = filteredOrders.length;
     return Object.entries(statusCount).map(([status, count]) => ({
       status,
       count,
       percentage: (count / total) * 100,
       color: statusColors[status] || '#6B7280'
     }));
-  }, [orders, hasData]);
+  }, [filteredOrders, hasFilteredData]);
 
   // Calculate delivery method distribution
   const deliveryMethodData: DeliveryMethodData[] = useMemo(() => {
-    if (!hasData || orders.length === 0) return [];
+    if (!hasFilteredData || filteredOrders.length === 0) return [];
 
     const methodCount: { [key: string]: number } = {};
-    orders.forEach(order => {
+    filteredOrders.forEach(order => {
       methodCount[order.deliveryMethod] = (methodCount[order.deliveryMethod] || 0) + 1;
     });
 
-    const total = orders.length;
+    const total = filteredOrders.length;
     return Object.entries(methodCount).map(([method, count]) => ({
       method,
       count,
       percentage: (count / total) * 100
     }));
-  }, [orders, hasData]);
+  }, [filteredOrders, hasFilteredData]);
 
   // Calculate processing time trends (last 6 months dynamically)
   const processingTimeData: ProcessingTimeData[] = useMemo(() => {
-    if (!hasData || orders.length === 0) return [];
+    if (!hasFilteredData || filteredOrders.length === 0) return [];
 
     const monthlyData: { [key: string]: { label: string; totalTime: number; count: number; totalOrders: number; completed: number } } = {};
     
-    orders.forEach(order => {
+    filteredOrders.forEach(order => {
       const date = new Date(order.orderDate);
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2,'0')}`;
       const label = `${date.toLocaleDateString('en-US', { month: 'short' })} ${date.getFullYear()}`;
@@ -455,7 +463,7 @@ const OperationalPerformanceAnalytics: React.FC = () => {
       .sort((a, b) => a.key.localeCompare(b.key))
       .slice(-6);
     return sorted;
-  }, [orders, hasData]);
+  }, [filteredOrders, hasFilteredData]);
 
   // Calculate inventory health by category
   const inventoryHealthData: InventoryHealthData[] = useMemo(() => {

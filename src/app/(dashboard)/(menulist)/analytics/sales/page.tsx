@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import CustomerSalesAnalytics from '@/components/analyticsperformance/CustomerSalesAnalytics';
+import CustomerSalesAnalytics, { SalesTimeRange } from '@/components/analyticsperformance/CustomerSalesAnalytics';
 import { Calendar, ChevronDown, Download, Users } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
@@ -9,6 +9,7 @@ import { Order } from '@/types/order';
 import { Product } from '@/types/product';
 import { parseAmountSafely } from '@/utils/currencyUtils';
 import { useAnalyticsTranslations } from '@/hooks/useAnalyticsTranslations';
+import { filterOrdersByTimeRange } from '@/utils/analyticsTimeRange';
 
 const TIME_RANGE_VALUES = ['1M', '3M', '6M', '1Y'] as const;
 
@@ -496,7 +497,10 @@ export default function SalesAnalyticsPage() {
 				};
 			});
 
-			const content = createWordDocument(orders, products, buyers, timeRange);
+			// Apply the same time-range filter as the UI so export metrics match the selected range
+			const filteredOrders = filterOrdersByTimeRange(orders, timeRange as SalesTimeRange);
+
+			const content = createWordDocument(filteredOrders, products, buyers, timeRange);
 			const blob = new Blob([content], { type: 'application/msword;charset=utf-8;' });
 			const link = document.createElement('a');
 			const url = URL.createObjectURL(blob);
@@ -578,7 +582,7 @@ export default function SalesAnalyticsPage() {
 					</button>
 				</div>
 			</div>
-			<CustomerSalesAnalytics />
+			<CustomerSalesAnalytics timeRange={timeRange as SalesTimeRange} />
 		</div>
 	);
 }

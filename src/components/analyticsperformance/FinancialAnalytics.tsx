@@ -46,6 +46,7 @@ import { calculatePromotionGift, PromotionDetails } from '@/utils/promotionUtils
 import Image from 'next/image';
 import Link from 'next/link';
 import { useAnalyticsTranslations } from '@/hooks/useAnalyticsTranslations';
+import { AnalyticsTimeRange, filterOrdersByTimeRange } from '@/utils/analyticsTimeRange';
 
 function getOrderBucketDate(order: Pick<Order, 'orderDate'>): Date {
   return new Date(order.orderDate);
@@ -200,12 +201,15 @@ export function AnalyticsRevenueTrendChartEmpty() {
   );
 }
 
-const FinancialAnalytics: React.FC = () => {
+type FinancialAnalyticsProps = {
+  timeRange?: AnalyticsTimeRange;
+};
+
+const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M' }) => {
   const { user } = useUserStore();
   const { tShared, tMetrics, tCharts, tTables, translateCategoryFilter, translateForecastTrend } =
     useAnalyticsTranslations();
   const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState('6M');
   const [currentPage, setCurrentPage] = useState(1);
   const [categoryFilter, setCategoryFilter] = useState<'productType' | 'productCategory'>('productCategory');
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
@@ -216,6 +220,15 @@ const FinancialAnalytics: React.FC = () => {
   const [hasData, setHasData] = useState(false);
 
   const userCurrency = user?.currency || getDefaultCurrency();
+
+  // Restrict orders to the selected time-range window so every metric/graph reacts to the dropdown
+  const filteredOrders = useMemo(() => filterOrdersByTimeRange(orders, timeRange), [orders, timeRange]);
+  const hasFilteredData = hasData && filteredOrders.length > 0;
+
+  // Reset table pagination when the time window changes to avoid landing on an empty page
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [timeRange]);
 
   const categoryOptions = useMemo(
     () => [
@@ -368,7 +381,7 @@ const FinancialAnalytics: React.FC = () => {
 
   // Calculate real metrics from orders and products data - using actual product margins
   const calculateMetrics = useMemo(() => {
-    if (!hasData || orders.length === 0) {
+    if (!hasFilteredData || filteredOrders.length === 0) {
       return {
         totalRevenue: 0,
         totalProfit: 0,
@@ -382,7 +395,7 @@ const FinancialAnalytics: React.FC = () => {
     }
 
     // Use consistent revenue calculation with Orders module (handle Decimal types)
-    const totalRevenue = orders.reduce((sum, order) => sum + safeOrderAmount(order.totalAmount), 0);
+    const totalRevenue = filteredOrders.reduce((sum, order) => sum + safeOrderAmount(order.totalAmount), 0);
 
     // Build quick lookup for product purchase prices (as numbers)
     const productCostById: Record<string, number> = {};
@@ -402,7 +415,7 @@ const FinancialAnalytics: React.FC = () => {
     const uniqueBuyers = new Set();
 
     // Collect unique products and buyers
-    orders.forEach(order => {
+    filteredOrders.forEach(order => {
       if (order.buyerId) {
         uniqueBuyers.add(order.buyerId);
       }
@@ -432,7 +445,7 @@ const FinancialAnalytics: React.FC = () => {
     });
 
     const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
-    const totalOrders = orders.length;
+    const totalOrders = filteredOrders.length;
     const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
     return {
@@ -445,11 +458,11 @@ const FinancialAnalytics: React.FC = () => {
       totalBuyers: uniqueBuyers.size,
       totalSuppliers: 0, // Not available from orders alone
     };
-  }, [orders, products, hasData, userCurrency]);
+  }, [filteredOrders, products, hasFilteredData, userCurrency]);
 
   // Calculate real revenue data by month using actual product margins
   const revenueData: RevenueData[] = useMemo(() => {
-    if (!hasData || orders.length === 0) {
+    if (!hasFilteredData || filteredOrders.length === 0) {
       return [];
     }
 
@@ -467,7 +480,7 @@ const FinancialAnalytics: React.FC = () => {
 
     const monthlyData: { [key: string]: { revenue: number; profit: number; orders: number; label: string } } = {};
     
-    orders.forEach(order => {
+    filteredOrders.forEach(order => {
       const date = getOrderBucketDate(order);
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2,'0')}`;
       const label = date.toLocaleDateString('en-US', { month: 'short' }) + ' ' + date.getFullYear();
@@ -504,10 +517,10 @@ const FinancialAnalytics: React.FC = () => {
       .slice(-6)
       .map(({ month, revenue, profit, orders }) => ({ month, revenue, profit, orders }));
     return sorted;
-  }, [orders, products, hasData, userCurrency]);
+  }, [filteredOrders, products, hasFilteredData, userCurrency]);
 
   const growthMetrics = useMemo(() => {
-    if (!hasData || revenueData.length < 2) {
+    if (!hasFilteredData || revenueData.length < 2) {
       return {
         revenueGrowth: null as number | null,
         profitGrowth: null as number | null,
@@ -529,7 +542,7 @@ const FinancialAnalytics: React.FC = () => {
     const aovGrowth = prevAov !== 0 ? ((lastAov - prevAov) / Math.abs(prevAov)) * 100 : null;
 
     return { revenueGrowth, profitGrowth, marginGrowth, aovGrowth };
-  }, [hasData, revenueData]);
+  }, [hasFilteredData, revenueData]);
 
   // Calculate revenue forecast
   const revenueForecast = useMemo(() => {
@@ -539,7 +552,7 @@ const FinancialAnalytics: React.FC = () => {
 
   // Calculate real category revenue using actual product margins
   const categoryData: CategoryData[] = useMemo(() => {
-    if (!hasData || orders.length === 0) {
+    if (!hasFilteredData || filteredOrders.length === 0) {
       return [];
     }
 
@@ -558,7 +571,7 @@ const FinancialAnalytics: React.FC = () => {
       }
     });
     
-    orders.forEach(order => {
+    filteredOrders.forEach(order => {
       if (order.orderItems && Array.isArray(order.orderItems)) {
         order.orderItems.forEach(item => {
           // Calculate actual revenue and profit using product prices
@@ -642,11 +655,11 @@ const FinancialAnalytics: React.FC = () => {
       profit: stats.profit,
       percentage: totalRevenue > 0 ? (stats.revenue / totalRevenue) * 100 : 0
     })).sort((a, b) => b.revenue - a.revenue);
-  }, [orders, products, hasData, userCurrency, categoryFilter]);
+  }, [filteredOrders, products, hasFilteredData, userCurrency, categoryFilter]);
 
   // Calculate real top products using actual product margins
   const allTopProducts: TopProduct[] = useMemo(() => {
-    if (!hasData || orders.length === 0) {
+    if (!hasFilteredData || filteredOrders.length === 0) {
       return [];
     }
 
@@ -665,7 +678,7 @@ const FinancialAnalytics: React.FC = () => {
       }
     });
     
-    orders.forEach(order => {
+    filteredOrders.forEach(order => {
       if (order.orderItems && Array.isArray(order.orderItems)) {
         order.orderItems.forEach(item => {
           const pid = item.productId;
@@ -766,11 +779,11 @@ const FinancialAnalytics: React.FC = () => {
         image: stats.image ?? null,
       };
     }).sort((a, b) => b.orderVolume - a.orderVolume).slice(0, 50);
-  }, [orders, products, hasData, userCurrency]);
+  }, [filteredOrders, products, hasFilteredData, userCurrency]);
 
   // Calculate cash flow data: inflows from totalAmount; outflows from COGS only (shippingFee is part of revenue and often marked up, so actual cost unknown)
   const cashFlowData: CashFlowData[] = useMemo(() => {
-    if (!hasData || orders.length === 0) {
+    if (!hasFilteredData || filteredOrders.length === 0) {
       return [];
     }
 
@@ -787,7 +800,7 @@ const FinancialAnalytics: React.FC = () => {
     });
 
     const monthlyFlow: { [key: string]: { inflows: number; outflows: number; label: string } } = {};
-    orders.forEach(order => {
+    filteredOrders.forEach(order => {
       const date = new Date(order.orderDate);
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2,'0')}`;
       const label = date.toLocaleDateString('en-US', { month: 'short' }) + ' ' + date.getFullYear();
@@ -825,7 +838,7 @@ const FinancialAnalytics: React.FC = () => {
       .slice(-6)
       .map(({ month, inflows, outflows, netFlow }) => ({ month, inflows, outflows, netFlow }));
     return sorted;
-  }, [orders, products, hasData, userCurrency]);
+  }, [filteredOrders, products, hasFilteredData, userCurrency]);
 
   // Pagination logic for Top Products
   const productsPerPage = 6;

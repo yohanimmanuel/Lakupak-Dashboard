@@ -1,10 +1,10 @@
 {
   "shared": {
     "timeRanges": {
-      "1M": "Last Month",
-      "3M": "Last 3 Months",
-      "6M": "Last 6 Months",
-      "1Y": "Last Year"
+      "1M": "Per Month",
+      "3M": "Per Quarter",
+      "6M": "Per 6 Months",
+      "1Y": "Per Year"
     },
     "export": "Export",
     "seeMore": "See More",

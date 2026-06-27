@@ -38,6 +38,7 @@ import { formatCurrency as formatCurrencyShared } from '@/utils/currencyUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { forecastSales } from '@/utils/forecasting';
 import { useAnalyticsTranslations } from '@/hooks/useAnalyticsTranslations';
+import { AnalyticsTimeRange, filterOrdersByTimeRange } from '@/utils/analyticsTimeRange';
 
 // Helper function to parse currency to number (matching FinancialAnalytics)
 const parseCurrencyToNumber = (currencyValue: string | number): number => {
@@ -530,7 +531,13 @@ const CUSTOMER_ANALYTICS_QUERY = `
   }
 `;
 
-const CustomerSalesAnalytics: React.FC = () => {
+export type SalesTimeRange = AnalyticsTimeRange;
+
+type CustomerSalesAnalyticsProps = {
+	timeRange?: SalesTimeRange;
+};
+
+const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRange = '1M' }) => {
 	const { user } = useUserStore();
 	const { tShared, tMetrics, tCharts, tTables, translateCategoryFilter, translateForecastTrend, dateLocale } = useAnalyticsTranslations();
 	const [orders, setOrders] = useState<Order[]>([]);
@@ -616,11 +623,16 @@ const CustomerSalesAnalytics: React.FC = () => {
 		fetchData();
 	}, [user?.id]);
 
+	// Restrict orders to the selected time-range window so every metric/graph reacts to the dropdown
+	const filteredOrders = useMemo(() => filterOrdersByTimeRange(orders, timeRange), [orders, timeRange]);
+
+	const hasFilteredData = hasData && filteredOrders.length > 0;
+
 	// Derived metrics
-	const metrics = useMemo(() => calculateSalesMetrics(orders, products, hasData), [orders, products, hasData, userCurrency]);
+	const metrics = useMemo(() => calculateSalesMetrics(filteredOrders, products, hasFilteredData), [filteredOrders, products, hasFilteredData, userCurrency]);
 
 	// Sales trend
-	const salesTrend = useMemo(() => calculateSalesTrend(orders, hasData, dateLocale), [orders, hasData, dateLocale]);
+	const salesTrend = useMemo(() => calculateSalesTrend(filteredOrders, hasFilteredData, dateLocale), [filteredOrders, hasFilteredData, dateLocale]);
 
 	const hasBuyerData = buyers.length > 0;
 	const customerAcquisitionTrend = useMemo(
@@ -636,7 +648,7 @@ const CustomerSalesAnalytics: React.FC = () => {
 
 	// Month-over-month growth metrics for key cards
 	const growthMetrics = useMemo(() => {
-		if (!hasData || salesTrend.length < 2) {
+		if (!hasFilteredData || salesTrend.length < 2) {
 			return {
 				ordersGrowth: null as number | null,
 				piecesGrowth: null as number | null,
@@ -663,7 +675,7 @@ const CustomerSalesAnalytics: React.FC = () => {
 
 		// For Avg Order Value, compute monthly revenue per order from orders list
 		const monthlyRevenue: Record<string, { revenue: number; orders: number }> = {};
-		orders.forEach(o => {
+		filteredOrders.forEach(o => {
 			const d = new Date(o.orderDate);
 			const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}`;
 			if (!monthlyRevenue[key]) {
@@ -712,13 +724,13 @@ const CustomerSalesAnalytics: React.FC = () => {
 			avgPiecesGrowth,
 			avgOrderValueGrowth,
 		};
-	}, [hasData, salesTrend, orders]);
+	}, [hasFilteredData, salesTrend, filteredOrders]);
 
 	// Category units (better than duplicating Top Products already in financial)
 	const unitsByCategory = useMemo(() => {
-		if (!hasData || orders.length === 0) return [] as { category: string; units: number }[];
+		if (!hasFilteredData || filteredOrders.length === 0) return [] as { category: string; units: number }[];
 		const map: Record<string, number> = {};
-		orders.forEach(o => {
+		filteredOrders.forEach(o => {
 			if (!o.orderItems) return;
 			o.orderItems.forEach(it => {
 				const prod = products.find(p => p.productId === it.productId);
@@ -738,14 +750,14 @@ const CustomerSalesAnalytics: React.FC = () => {
 		return Object.entries(map).map(([category, units]) => ({ category, units }))
 			.sort((a, b) => b.units - a.units)
 			.slice(0, 8);
-	}, [orders, products, hasData, categoryFilter]);
+	}, [filteredOrders, products, hasFilteredData, categoryFilter]);
 
 	// Top customers (exclude deleted/missing buyers)
 	type TopCustomer = { buyerId: string | number; name: string; businessType: string; orders: number; totalValue: number; avatar?: string | null };
 	const topCustomers: TopCustomer[] = useMemo(() => {
-		if (!hasData || orders.length === 0) return [] as TopCustomer[];
+		if (!hasFilteredData || filteredOrders.length === 0) return [] as TopCustomer[];
 		const map = new Map<string | number, { orders: number; totalValue: number }>();
-		orders.forEach(o => {
+		filteredOrders.forEach(o => {
 			const buyerKey = String(o.buyerId);
 			const cur = map.get(buyerKey) || { orders: 0, totalValue: 0 };
 			// Rank by actual purchase volume: use full order total (handle Prisma Decimal types)
@@ -772,7 +784,7 @@ const CustomerSalesAnalytics: React.FC = () => {
 			.flatMap(([buyerId, v]) => {
 				const buyer = buyerIndex.get(String(buyerId));
 				if (!buyer) return [];
-				const orderForBuyer = orders.find(o => String(o.buyerId) === String(buyerId));
+				const orderForBuyer = filteredOrders.find(o => String(o.buyerId) === String(buyerId));
 				const orderDerivedName = orderForBuyer?.storeName || orderForBuyer?.contactPerson;
 				const displayName = (buyer?.storeName && String(buyer.storeName).trim().length > 0)
 					? (buyer.storeName as string)
@@ -789,11 +801,16 @@ const CustomerSalesAnalytics: React.FC = () => {
 				} satisfies TopCustomer];
 			})
 			.sort((a, b) => b.totalValue - a.totalValue);
-	}, [orders, products, buyers, hasData]);
+	}, [filteredOrders, products, buyers, hasFilteredData]);
 
 	// Pagination for Top Customers
 	const customersPerPage = 5;
 	const [customerPage, setCustomerPage] = useState(1);
+
+	// Reset customer pagination when the time window changes to avoid landing on an empty page
+	useEffect(() => {
+		setCustomerPage(1);
+	}, [timeRange]);
 	const totalCustomers = topCustomers.length;
 	const totalCustomerPages = Math.max(1, Math.ceil(totalCustomers / customersPerPage));
 	const fromCustomer = totalCustomers === 0 ? 0 : (customerPage - 1) * customersPerPage + 1;

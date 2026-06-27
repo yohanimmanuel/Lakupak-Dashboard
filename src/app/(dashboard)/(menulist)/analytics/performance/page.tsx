@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import OperationalPerformanceAnalytics from '@/components/analyticsperformance/OperationalPerformanceAnalytics';
+import { AnalyticsTimeRange } from '@/utils/analyticsTimeRange';
 import { Calendar, ChevronDown, BarChart3 } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
@@ -218,7 +219,7 @@ export default function OperationalPerformancePage() {
         </div>
       </div>
 
-      <OperationalPerformanceAnalytics />
+      <OperationalPerformanceAnalytics timeRange={timeRange as AnalyticsTimeRange} />
     </div>
   );
 }

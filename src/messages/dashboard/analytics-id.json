@@ -1,10 +1,10 @@
 {
   "shared": {
     "timeRanges": {
-      "1M": "Bulan Lalu",
-      "3M": "3 Bulan Terakhir",
-      "6M": "6 Bulan Terakhir",
-      "1Y": "Tahun Lalu"
+      "1M": "Per Bulan",
+      "3M": "Per Kuartal",
+      "6M": "Per 6 Bulan",
+      "1Y": "Per Tahun"
     },
     "export": "Ekspor",
     "seeMore": "Lihat Selengkapnya",
