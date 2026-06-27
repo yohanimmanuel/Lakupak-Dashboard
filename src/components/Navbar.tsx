@@ -1,6 +1,7 @@
 'use client';
 
-import Image from "next/image";
+import Image from 'next/image';
+import Link from 'next/link';
 import { MessageCircle, Bell, User, LogOut, Plus, Package, AlertTriangle, Tag, Users, Megaphone, ShoppingBag, Settings, Check, Trash2, X, Truck, Info, Receipt } from 'lucide-react';
 import { Menu as MenuIcon } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -142,7 +143,7 @@ const Navbar = () => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLButtonElement>(null);
   const msgRef = useRef<HTMLButtonElement>(null);
-  const { toggleMenu, isMobileMenuOpen, toggleMobileMenu } = useMenuContext();
+  const { toggleMenu } = useMenuContext();
   const [hasMounted, setHasMounted] = useState(false);
   const router = useRouter();
 
@@ -458,21 +459,36 @@ const Navbar = () => {
   const extraCount = salesAgents.length - maxAvatars;
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 z-30 relative bg-white border-b border-gray-200 h-16">
-      {/* MENU COLLAPSE BUTTON */}
-      <button
-        className="mr-4 p-2 rounded-lg hover:bg-gray-200 transition-all duration-100 flex-shrink-0 group"
-        aria-label={tNavbar('toggleMenu')}
-        onClick={toggleMenu}
-      >
-        <MenuIcon size={20} className="text-gray-700 transition-colors duration-100" />
-      </button>
-      {/* SEARCH BAR - Hidden on Mobile */}
-      <div className="hidden sm:flex flex-1 items-left justify-left" data-tour="quick-search">
-        <DashboardSearchBar placeholder={tCommon('searchPlaceholder')} />
+    <div className="flex items-center justify-between gap-4 px-4 z-30 relative bg-white border-b border-gray-200 h-16">
+      {/* Logo + search (left) */}
+      <div className="flex items-center gap-4 min-w-0 flex-1">
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            className="md:hidden p-2 rounded-lg hover:bg-gray-200 transition-all duration-100"
+            aria-label={tNavbar('toggleMenu')}
+            onClick={toggleMenu}
+          >
+            <MenuIcon size={20} className="text-gray-700" />
+          </button>
+          <Link href="/home" className="flex items-center min-w-0 group">
+            <img
+              src="/LakuTextLogo.svg"
+              alt="Laku"
+              className="h-9 hidden sm:block"
+            />
+            <img
+              src="/LakuIcon.svg"
+              alt="Laku"
+              className="h-9 w-9 sm:hidden"
+            />
+          </Link>
+        </div>
+        <div className="hidden sm:flex min-w-0 w-full max-w-xs md:max-w-sm lg:max-w-md" data-tour="quick-search">
+          <DashboardSearchBar placeholder={tCommon('searchPlaceholder')} className="relative w-full" />
+        </div>
       </div>
       {/* NAVBAR GROUPS */}
-      <div className="flex items-center gap-2 justify-end">
+      <div className="flex items-center gap-2 justify-end shrink-0">
         {/* Salesmen Avatars Group */}
         <div className="flex items-center mr-2 sm:mr-4 pr-2 sm:pr-4 border-r border-gray-200">
           {salesAgents.slice(0, maxAvatars).map((agent, i) => (

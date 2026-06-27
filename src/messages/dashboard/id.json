@@ -83,6 +83,33 @@
     "collapsedHint": "Upgrade ke Premium untuk fitur lebih banyak!",
     "close": "Tutup promo"
   },
+  "help": {
+    "title": "Tentang Laku",
+    "tagline": "Dashboard komersial serba ada Anda",
+    "whatYouCanDo": "Yang bisa Anda lakukan di Laku",
+    "features": {
+      "products": "Kelola produk, stok, dan harga",
+      "orders": "Lacak dan proses pesanan",
+      "clients": "Atur pembeli dan pemasok",
+      "marketing": "Jalankan kampanye dan otomatisasi",
+      "analytics": "Tinjau laporan penjualan dan keuangan",
+      "marketplace": "Terbitkan dan pantau listing toko",
+      "logistics": "Koordinasikan armada dan pengiriman"
+    },
+    "quickTipsTitle": "Tips singkat",
+    "tips": {
+      "search": "Pencarian Cepat (di samping logo) untuk langsung ke halaman mana pun",
+      "sidebar": "Gunakan sidebar kiri untuk berpindah modul",
+      "tours": "Putar ulang tur panduan di Pengaturan → Fitur & Tur"
+    },
+    "docsLink": "Lihat dokumentasi",
+    "close": "Tutup"
+  },
+  "sidebar": {
+    "help": "Bantuan",
+    "collapse": "Ciutkan sidebar",
+    "expand": "Perluas sidebar"
+  },
   "home": {
     "title": "Ringkasan Dashboard",
     "subtitle": "Sesuaikan widget yang paling Anda butuhkan untuk keputusan lebih cepat.",

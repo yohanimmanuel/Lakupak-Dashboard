@@ -83,34 +83,38 @@ export default function DashboardClientLayout({ children }: { children: React.Re
     <MenuContext.Provider value={{ isCollapsed, toggleMenu, isMobileMenuOpen, toggleMobileMenu }}>
       <TourProvider>
       <LanguageChangedModal />
-      <div className="h-screen flex overflow-hidden relative" data-layout>
-        {/* Desktop Sidebar */}
-        <div className={`hidden md:block ${isCollapsed ? 'w-[70px]' : 'w-[15%]'} bg-white transition-all duration-300 border border-gray-200 min-w-[70px]`}>
-          <Menu />
+      <div className="h-screen flex flex-col overflow-hidden relative" data-layout>
+        {/* Full-width navbar */}
+        <div className="flex-shrink-0">
+          <Navbar />
         </div>
 
-        {/* Mobile Menu Overlay */}
-        {isMobile && isMobileMenuOpen && (
-          <div 
-            className="fixed inset-0 bg-black/50 z-40 md:hidden"
-            onClick={toggleMobileMenu}
-          />
-        )}
-
-        {/* Mobile Sidebar */}
-        <div className={`md:hidden fixed top-0 left-0 h-full w-60 bg-white border-r border-gray-200 transform transition-transform duration-300 z-50 ${
-          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}>
-          <Menu />
-        </div>
-
-        {/* Main Content Area */}
-        <div className={`${isMobile ? 'w-full' : (isCollapsed ? 'w-[calc(100%-70px)]' : 'w-[85%]')} bg-white transition-all duration-300 flex flex-col overflow-hidden`}>
-          <div className="flex-shrink-0">
-            <Navbar />
+        <div className="flex flex-1 overflow-hidden min-h-0">
+          {/* Desktop Sidebar */}
+          <div className={`hidden md:block ${isCollapsed ? 'w-[56px]' : 'w-[15%]'} bg-white transition-[width] duration-300 ease-in-out border-r border-gray-200 min-w-[56px] overflow-hidden shrink-0`}>
+            <Menu />
           </div>
-          <div className="flex-1 overflow-auto">
-            {children}
+
+          {/* Mobile Menu Overlay */}
+          {isMobile && isMobileMenuOpen && (
+            <div 
+              className="fixed inset-0 top-16 bg-black/50 z-40 md:hidden"
+              onClick={toggleMobileMenu}
+            />
+          )}
+
+          {/* Mobile Sidebar */}
+          <div className={`md:hidden fixed top-16 left-0 h-[calc(100%-4rem)] w-60 bg-white border-r border-gray-200 transform transition-transform duration-300 z-50 ${
+            isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}>
+            <Menu />
+          </div>
+
+          {/* Main Content Area */}
+          <div className="flex-1 bg-white flex flex-col overflow-hidden min-w-0">
+            <div className="flex-1 overflow-auto">
+              {children}
+            </div>
           </div>
         </div>
       </div>

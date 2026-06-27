@@ -83,6 +83,33 @@
     "collapsedHint": "Upgrade to Premium for more features!",
     "close": "Close promo"
   },
+  "help": {
+    "title": "About Laku",
+    "tagline": "Your all-in-one commerce dashboard",
+    "whatYouCanDo": "What you can do in Laku",
+    "features": {
+      "products": "Manage products, stock, and pricing",
+      "orders": "Track and fulfill orders",
+      "clients": "Organize buyers and suppliers",
+      "marketing": "Run campaigns and automations",
+      "analytics": "Review sales and financial reports",
+      "marketplace": "Publish and monitor storefront listings",
+      "logistics": "Coordinate fleets and deliveries"
+    },
+    "quickTipsTitle": "Quick tips",
+    "tips": {
+      "search": "Quick Search (next to the logo) jumps to any page",
+      "sidebar": "Use the left sidebar to switch between modules",
+      "tours": "Replay guided tours in Settings → Features & Tours"
+    },
+    "docsLink": "View documentation",
+    "close": "Close"
+  },
+  "sidebar": {
+    "help": "Help",
+    "collapse": "Collapse sidebar",
+    "expand": "Expand sidebar"
+  },
   "home": {
     "title": "Dashboard Overview",
     "subtitle": "Customize the widgets you need most for faster decision making.",

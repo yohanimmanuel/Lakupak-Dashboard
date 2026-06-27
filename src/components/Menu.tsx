@@ -4,8 +4,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { BadgePercentIcon, ChartBarIcon, ChevronDown, ChevronRight, FileTextIcon, GiftIcon, HandshakeIcon, HomeIcon, ListIcon, MenuIcon, PackageIcon, SettingsIcon, UsersIcon, X, DollarSign, TrendingUp, Activity, GlobeIcon, StoreIcon, MegaphoneIcon, ChartAreaIcon, TruckIcon } from 'lucide-react';
+import { BadgePercentIcon, ChartBarIcon, ChevronDown, FileTextIcon, GiftIcon, HandshakeIcon, HomeIcon, ListIcon, PackageIcon, SettingsIcon, UsersIcon, X, DollarSign, TrendingUp, Activity, GlobeIcon, StoreIcon, MegaphoneIcon, ChartAreaIcon, TruckIcon, CircleHelp, PanelLeftClose, PanelLeft } from 'lucide-react';
 import { useMenuContext } from '@/app/(dashboard)/(menulist)/DashboardClientLayout';
+import { DashboardHelpModal } from '@/components/dashboard/DashboardHelpModal';
+import { PromoSidePanel } from '@/components/dashboard/PromoSidePanel';
+import { useDashboardTourOptional } from '@/components/tours/TourProvider';
+import { DASHBOARD_TOURS, shellIntroSessionStorageKey } from '@/components/tours/tourIds';
+import { useUserStore } from '@/store/userStore';
 
 const NAV_LABEL_KEYS: Record<string, string> = {
   Home: 'home',
@@ -43,7 +48,7 @@ const DATA_TOUR_BY_LABEL: Record<string, string> = {
 };
 
 const mainMenuItems = [
-  { label: 'Home', href: '/home', color: 'text-[#0a61d7]', icon: <HomeIcon className="w-5 h-5" /> },
+  { label: 'Home', href: '/home', icon: <HomeIcon className="w-5 h-5" /> },
   {
     label: 'Clients',
     href: '/clients',
@@ -88,12 +93,21 @@ const secondaryMenuItems = [
   { label: 'Settings', href: '/settings', icon: <SettingsIcon className="w-5 h-5" /> },
 ];
 
+const LAKU_PRIMARY_TEXT = 'text-[#0a61d7]';
+const LAKU_PRIMARY_BG = 'bg-[#e8f0fe]';
+
+/** Once per full page load — survives client-side route changes, resets on reload. */
+let promoScheduleStarted = false;
+let promoDismissedThisPageLoad = false;
+
 const Menu = () => {
   const pathname = usePathname();
   const currentPath = pathname ?? '';
   const { isCollapsed, toggleMenu, isMobileMenuOpen, toggleMobileMenu } = useMenuContext();
+  const tour = useDashboardTourOptional();
+  const userId = useUserStore((s) => s.user?.id);
   const tNav = useTranslations('dashboard.nav');
-  const tPromo = useTranslations('dashboard.promo');
+  const tSidebar = useTranslations('dashboard.sidebar');
   const navLabel = (label: string) => {
     const key = NAV_LABEL_KEYS[label];
     return key ? tNav(key) : label;
@@ -103,7 +117,8 @@ const Menu = () => {
   const [submenuPosition, setSubmenuPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const submenuTimeout = useRef<NodeJS.Timeout | null>(null);
   const menuItemRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
-  const [showPromo, setShowPromo] = useState(true);
+  const [showPromo, setShowPromo] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   // Check if screen is mobile size
@@ -117,8 +132,67 @@ const Menu = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Force expanded view on mobile, use desktop state on desktop
+  // Show promo once per dashboard reload (not on client-side menu navigation)
+  useEffect(() => {
+    if (promoScheduleStarted || promoDismissedThisPageLoad) return;
+    if (tour && !tour.tourProgressReady) return;
+
+    promoScheduleStarted = true;
+
+    const canShowPromo = () => {
+      if (promoDismissedThisPageLoad) return false;
+      if (userId == null || !Number.isFinite(userId) || userId <= 0) return true;
+      const sessionKey = shellIntroSessionStorageKey(userId);
+      if (sessionStorage.getItem(sessionKey)) return true;
+      if (!tour) return true;
+      return tour.getStatus(DASHBOARD_TOURS.shell.id, DASHBOARD_TOURS.shell.version) !== 'none';
+    };
+
+    const reveal = () => {
+      if (!promoDismissedThisPageLoad) setShowPromo(true);
+    };
+
+    if (canShowPromo()) {
+      const timer = window.setTimeout(reveal, 800);
+      return () => window.clearTimeout(timer);
+    }
+
+    const interval = window.setInterval(() => {
+      if (canShowPromo()) {
+        window.clearInterval(interval);
+        reveal();
+      }
+    }, 500);
+
+    const fallback = window.setTimeout(() => {
+      window.clearInterval(interval);
+      reveal();
+    }, 20000);
+
+    return () => {
+      window.clearInterval(interval);
+      window.clearTimeout(fallback);
+    };
+  }, [tour, tour?.tourProgressReady, userId]);
+
+  // Auto-expand submenus when the current route matches a submenu item
+  useEffect(() => {
+    const autoOpen: { [key: string]: boolean } = {};
+    for (const item of mainMenuItems) {
+      if (item.submenu?.some((sub) => currentPath === sub.href || currentPath.startsWith(sub.href + '/'))) {
+        autoOpen[item.label] = true;
+      }
+    }
+    if (Object.keys(autoOpen).length > 0) {
+      setOpenMenus((prev) => ({ ...prev, ...autoOpen }));
+    }
+  }, [currentPath]);
+
+  // Mobile always shows the full menu; desktop follows collapse state.
+  // Icons stay in a fixed position and only the labels fade + clip, so the
+  // width animation stays smooth in both directions (no layout swap = no twitch).
   const shouldShowExpanded = isMobile ? true : !isCollapsed;
+  const isIconOnly = !isMobile && isCollapsed;
 
   const handleToggle = (label: string) => {
     setOpenMenus(prev => ({ ...prev, [label]: !prev[label] }));
@@ -127,41 +201,31 @@ const Menu = () => {
   type SubItem = { icon: React.ReactNode; label: string; href: string };
   type MenuItem = { label: string; href?: string; color?: string; icon: React.ReactNode; submenu?: SubItem[] };
 
-  // Helper function to get text color classes
-  const getTextColorClasses = (isActive: boolean | undefined) => 
-    isActive ? 'text-[#007bff]' : 'text-gray-500 group-hover:text-blue-400';
+  const getTextColorClasses = (isActive: boolean | undefined) =>
+    isActive ? LAKU_PRIMARY_TEXT : 'text-gray-600 group-hover:text-[#0a61d7]';
 
-  // Helper function to render icon with color
+  const getFontWeightClasses = (isActive: boolean | undefined) =>
+    isActive ? 'font-bold' : 'font-medium';
+
+  const getActiveBgClasses = (isActive: boolean | undefined) =>
+    isActive ? LAKU_PRIMARY_BG : 'hover:bg-gray-100';
+
   const renderIcon = (icon: React.ReactNode, isActive: boolean | undefined) => (
     <span className={`w-[20px] h-[20px] flex items-center justify-center flex-shrink-0 [&>svg]:text-current ${getTextColorClasses(isActive)}`}>
       {icon}
     </span>
   );
 
-  // Helper function to render line block
-  const renderLineBlock = (isActive: boolean | undefined, showHover = false) => {
-    if (isActive) {
-      return <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#007bff] rounded-r"></div>;
-    }
-    if (showHover) {
-      return <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-200 rounded-r opacity-0 group-hover:opacity-100 transition-opacity duration-100"></div>;
-    }
-    return null;
-  };
-
   const renderMenuItem = (item: MenuItem) => {
     const isActive: boolean = Boolean(currentPath === item.href || (item.href && currentPath.startsWith(item.href + '/')));
     if (item.submenu) {
       const isOpen = openMenus[item.label];
       const isAnySubActive = item.submenu.some((sub: SubItem) => currentPath === sub.href || (sub.href && currentPath.startsWith(sub.href + '/')));
-      // For items with submenus:
-      // - Parent is active if: (parent itself is active AND no submenu is active) OR (menu is collapsed AND submenu is active)
-      // - When expanded and submenu is active: parent is inactive (gray), only submenu shows as active
-      // - When collapsed and submenu is active: parent is active (blue) to represent the active submenu
-      const shouldHighlightParent = (isActive && !isAnySubActive) || (!shouldShowExpanded && isAnySubActive);
+      const isParentActive = isActive || isAnySubActive;
+      const shouldHighlightParent = isParentActive;
       // Collapsed: floating submenu on hover
       const handleMouseEnter = () => {
-        if (!shouldShowExpanded) {
+        if (isIconOnly) {
           if (submenuTimeout.current) clearTimeout(submenuTimeout.current);
           setHoveredMenu(item.label);
           const ref = menuItemRefs.current[item.label];
@@ -172,7 +236,7 @@ const Menu = () => {
         }
       };
       const handleMouseLeave = () => {
-        if (!shouldShowExpanded) {
+        if (isIconOnly) {
           submenuTimeout.current = setTimeout(() => {
             setHoveredMenu(null);
           }, 150);
@@ -189,70 +253,56 @@ const Menu = () => {
       return (
         <div
           key={item.label}
-          className="overflow-visible relative"
+          className={`relative ${shouldShowExpanded ? 'overflow-visible' : 'overflow-hidden'}`}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
           ref={el => { if (item.submenu) menuItemRefs.current[item.label] = el; }}
         >
-          {/* Continuous line from parent through all submenu items (expanded mode only) - spans full height */}
-          {/* Show when: parent is active OR any submenu is active */}
-          {shouldShowExpanded && isOpen && (isActive || isAnySubActive) && (
-            <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#007bff] z-0 rounded-r"></div>
-          )}
-          <div className="flex items-center w-full relative group">
-            {renderLineBlock(shouldHighlightParent, !isAnySubActive)}
+          <div className="relative">
             {item.href ? (
               <Link
                 href={item.href}
                 data-tour={DATA_TOUR_BY_LABEL[item.label]}
-                className={`flex items-center gap-3 px-2.5 py-2 rounded-lg font-medium flex-1 text-left transition-colors duration-100 relative ${getTextColorClasses(shouldHighlightParent)}`}
-                title={!shouldShowExpanded ? navLabel(item.label) : undefined}
+                className={`flex w-full min-w-0 items-center gap-3 py-2 pl-2.5 rounded-lg transition-colors duration-150 ${shouldShowExpanded ? 'pr-9' : 'pr-2.5'} ${getTextColorClasses(shouldHighlightParent)} ${getFontWeightClasses(shouldHighlightParent)} ${isActive && !isAnySubActive ? LAKU_PRIMARY_BG : 'hover:bg-gray-100'}`}
+                title={isIconOnly ? navLabel(item.label) : undefined}
               >
                 {renderIcon(item.icon, shouldHighlightParent)}
-                {shouldShowExpanded && (
-                  <span className={`menu-text whitespace-nowrap font-medium transition-all duration-100 ${getTextColorClasses(shouldHighlightParent)}`}>
-                    {navLabel(item.label)}
-                  </span>
-                )}
+                <span className={`menu-text whitespace-nowrap transition-opacity duration-200 ${shouldShowExpanded ? 'opacity-100' : 'opacity-0'} ${getTextColorClasses(shouldHighlightParent)} ${getFontWeightClasses(shouldHighlightParent)}`}>
+                  {navLabel(item.label)}
+                </span>
               </Link>
             ) : (
               <button
                 data-tour={DATA_TOUR_BY_LABEL[item.label]}
                 onClick={() => shouldShowExpanded && handleToggle(item.label)}
-                className={`flex items-center gap-3 px-2.5 py-2 rounded-lg font-medium w-full text-left transition-colors duration-100 relative ${getTextColorClasses(shouldHighlightParent)}`}
-                title={!shouldShowExpanded ? navLabel(item.label) : undefined}
+                className={`flex w-full min-w-0 items-center gap-3 py-2 pl-2.5 rounded-lg text-left transition-colors duration-150 ${shouldShowExpanded ? 'pr-9' : 'pr-2.5'} ${getTextColorClasses(shouldHighlightParent)} ${getFontWeightClasses(shouldHighlightParent)} ${isActive && !isAnySubActive ? LAKU_PRIMARY_BG : 'hover:bg-gray-100'}`}
+                title={isIconOnly ? navLabel(item.label) : undefined}
               >
                 {renderIcon(item.icon, shouldHighlightParent)}
-                {shouldShowExpanded && (
-                  <span className={`menu-text whitespace-nowrap font-medium transition-all duration-100 ${getTextColorClasses(shouldHighlightParent)}`}>
-                    {navLabel(item.label)}
-                  </span>
-                )}
+                <span className={`menu-text whitespace-nowrap transition-opacity duration-200 ${shouldShowExpanded ? 'opacity-100' : 'opacity-0'} ${getTextColorClasses(shouldHighlightParent)} ${getFontWeightClasses(shouldHighlightParent)}`}>
+                  {navLabel(item.label)}
+                </span>
               </button>
             )}
-            {shouldShowExpanded && item.submenu && (
+            {item.submenu && (
               <button
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   handleToggle(item.label);
                 }}
-                className="p-1 rounded hover:bg-gray-200 transition-colors"
+                className={`absolute right-1.5 top-1/2 z-10 -translate-y-1/2 rounded-md p-1 transition-all duration-200 hover:bg-gray-200 ${shouldShowExpanded ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
                 aria-label={tNav('toggleSubmenu')}
               >
-                {isOpen ? <ChevronDown size={14} className="text-gray-500" /> : <ChevronRight size={14} className="text-gray-500" />}
+                <ChevronDown
+                  size={14}
+                  className={`text-gray-500 transition-transform duration-300 ease-in-out ${isOpen ? 'rotate-0' : '-rotate-90'}`}
+                />
               </button>
             )}
           </div>
-          {/* Tooltip for collapsed state */}
-          {!shouldShowExpanded && (
-            <div className="absolute left-full ml-3 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-100 whitespace-nowrap z-50 shadow-lg">
-              {navLabel(item.label)}
-              <div className="absolute top-1/2 -left-1 transform -translate-y-1/2 w-0 h-0 border-r-4 border-r-gray-900 border-t-2 border-t-transparent border-b-2 border-b-transparent"></div>
-            </div>
-          )}
           {/* Floating Submenu Panel (collapsed mode) */}
-          {!shouldShowExpanded && item.submenu && hoveredMenu === item.label && (
+          {isIconOnly && item.submenu && hoveredMenu === item.label && (
             <div
               className="fixed z-50 min-w-[200px] bg-white shadow-xl rounded-lg py-2 border border-gray-100 flex flex-col gap-1"
               style={{ top: submenuPosition.top, left: submenuPosition.left + 4 }}
@@ -265,36 +315,39 @@ const Menu = () => {
                   <Link
                     key={sub.label}
                     href={sub.href}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-md text-[14px] group relative mx-2 ${getTextColorClasses(Boolean(isSubActive))}`}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-md text-[14px] group relative mx-2 transition-all duration-200 ${getTextColorClasses(Boolean(isSubActive))} ${getFontWeightClasses(Boolean(isSubActive))} ${getActiveBgClasses(Boolean(isSubActive))}`}
                   >
-                    {renderLineBlock(Boolean(isSubActive), true)}
                     {renderIcon(sub.icon, Boolean(isSubActive))}
-                    <span className="font-medium">{navLabel(sub.label)}</span>
+                    <span>{navLabel(sub.label)}</span>
                   </Link>
                 );
               })}
             </div>
           )}
-          {/* Submenu Items (expanded mode) */}
-          {item.submenu && shouldShowExpanded && isOpen && (
-            <div className="ml-2 mt-1 space-y-1 pl-1 relative">
-              {item.submenu.map((sub: SubItem) => {
-                const isSubActive = currentPath === sub.href || (sub.href && currentPath.startsWith(sub.href + '/'));
-                return (
-                  <Link
-                    key={sub.label}
-                    href={sub.href}
-                    className={`flex items-center gap-3 px-2 py-2 rounded-lg transition-all duration-100 text-[14px] group relative mx-2 ${getTextColorClasses(Boolean(isSubActive))}`}
-                  >
-                    {/* Only show hover line if not active and continuous line is not showing */}
-                    {!isSubActive && !isAnySubActive && renderLineBlock(false, true)}
-                    {renderIcon(sub.icon, Boolean(isSubActive))}
-                    <span className={`whitespace-nowrap font-medium transition-all duration-100 ${getTextColorClasses(Boolean(isSubActive))}`}>
-                      {navLabel(sub.label)}
-                    </span>
-                  </Link>
-                );
-              })}
+          {/* Submenu Items (expanded mode) — animated open/close */}
+          {item.submenu && shouldShowExpanded && (
+            <div
+              className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
+            >
+              <div className="overflow-hidden">
+                <div className={`ml-2 mt-1 space-y-1 pl-1 relative transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0'}`}>
+                  {item.submenu.map((sub: SubItem) => {
+                    const isSubActive = currentPath === sub.href || (sub.href && currentPath.startsWith(sub.href + '/'));
+                    return (
+                      <Link
+                        key={sub.label}
+                        href={sub.href}
+                        className={`flex items-center gap-3 px-2 py-2 rounded-lg transition-all duration-200 text-[14px] group relative mx-2 ${getTextColorClasses(Boolean(isSubActive))} ${getFontWeightClasses(Boolean(isSubActive))} ${getActiveBgClasses(Boolean(isSubActive))}`}
+                      >
+                        {renderIcon(sub.icon, Boolean(isSubActive))}
+                        <span className={`whitespace-nowrap transition-all duration-200 ${getTextColorClasses(Boolean(isSubActive))} ${getFontWeightClasses(Boolean(isSubActive))}`}>
+                          {navLabel(sub.label)}
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -305,99 +358,74 @@ const Menu = () => {
         key={item.label}
         href={item.href || '#'}
         data-tour={DATA_TOUR_BY_LABEL[item.label]}
-        className={`flex items-center gap-3 px-2.5 py-2 rounded-lg font-medium transition-colors duration-100 relative group ${getTextColorClasses(isActive)} ${item.color || ''}`}
-        title={!shouldShowExpanded ? navLabel(item.label) : undefined}
+        className={`group flex w-full min-w-0 items-center gap-3 px-2.5 py-2 rounded-lg transition-colors duration-150 relative ${getTextColorClasses(isActive)} ${getFontWeightClasses(isActive)} ${getActiveBgClasses(isActive)}`}
+        title={isIconOnly ? navLabel(item.label) : undefined}
       >
-        {renderLineBlock(isActive, true)}
         {renderIcon(item.icon, isActive)}
-        {shouldShowExpanded && (
-          <span className={`menu-text whitespace-nowrap font-medium transition-all duration-100 ${getTextColorClasses(isActive)}`}>
-            {navLabel(item.label)}
-          </span>
-        )}
+        <span className={`menu-text whitespace-nowrap transition-opacity duration-200 ${shouldShowExpanded ? 'opacity-100' : 'opacity-0'} ${getTextColorClasses(isActive)} ${getFontWeightClasses(isActive)}`}>
+          {navLabel(item.label)}
+        </span>
       </Link>
     );
   };
 
   return (
-    <div className="text-sm h-full flex flex-col bg-white relative" data-menu data-tour="nav-sidebar">
-      {/* Logo Section */}
-      <div className="mb-2">
-        {shouldShowExpanded ? (
-          <div className="flex items-center justify-between px-4 mt-3.5 mb-2">
-            <Link href="/home" className="flex items-center min-w-0 group">
-              <div className="flex items-center min-w-0 group-hover:text-blue-700 transition-colors duration-200">
-                <div className="bg-white">
-                  <img src="/LakuTextLogo.svg" alt="Laku Logo" className="h-10" />
-                </div>
-              </div>
-            </Link>
-            {/* Mobile Close Button */}
-            <button
-              onClick={toggleMobileMenu}
-              className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
-              aria-label={tNav('closeMenu')}
-            >
-              <X className="w-5 h-5 text-gray-600" />
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center space-y-3 mt-4 -mb-2">
-            <Link href="/home" className="flex items-center justify-center group">
-              <div className="bg-white">
-                <img src="/LakuIcon.svg" alt="Laku Logo" className="h-10 w-10" />
-              </div>
-            </Link>
-            {/* Mobile Close Button for collapsed view */}
-            <button
-              onClick={toggleMobileMenu}
-              className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
-              aria-label={tNav('closeMenu')}
-            >
-              <X className="w-5 h-5 text-gray-600" />
-            </button>
-          </div>
-        )}
-        {/* Full-width divider below logo/header */}
-        <div className="w-full border-t border-gray-200 mt-1" />
-      </div>
+    <div className="text-sm h-full flex flex-col bg-white relative overflow-x-hidden min-w-0" data-menu data-tour="nav-sidebar">
+      {/* Mobile close row */}
+      {isMobile && (
+        <div className="flex items-center justify-end px-3 py-2 border-b border-gray-200 md:hidden">
+          <button
+            onClick={toggleMobileMenu}
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            aria-label={tNav('closeMenu')}
+          >
+            <X className="w-5 h-5 text-gray-600" />
+          </button>
+        </div>
+      )}
       {/* Menu Items */}
-      <div className="flex-1 overflow-y-auto">
-        <nav className="flex flex-col gap-1 mb-4 px-3.5 text-[14px]">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden min-w-0">
+        <nav className="flex flex-col gap-1 py-3 px-2 text-[14px]">
           {mainMenuItems.map(renderMenuItem)}
           <div className="border-t border-gray-200 my-2" />
           {secondaryMenuItems.map(renderMenuItem)}
         </nav>
       </div>
-      {/* Promo Overlay */}
-      {showPromo && shouldShowExpanded && (
-        <div className="absolute left-0 right-0 bottom-4 flex justify-center z-20">
-          <div className="relative w-[90%] bg-gradient-to-r from-[#0a61d7] to-blue-500 rounded-2xl p-4 flex flex-col items-start shadow-xl">
-            <button
-              className="absolute top-2 right-2 text-white hover:text-gray-300 p-1 rounded"
-              onClick={() => setShowPromo(false)}
-              aria-label={tPromo('close')}
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <div className="text-white text-md font-semibold mb-1 w-38">{tPromo('title')}</div>
-            <div className="text-gray-200 text-xs mb-4">{tPromo('body')}</div>
-            <button className="w-full bg-white text-[#0a61d7] font-bold p-2 rounded-lg shadow hover:bg-gray-200 transition text-sm">{tPromo('cta')}</button>
-          </div>
-        </div>
-      )}
-      {/* Promo Mini Overlay for Collapsed */}
-      {showPromo && !shouldShowExpanded && (
-        <div className="absolute left-1/2 -translate-x-1/2 bottom-4 z-20 flex flex-col items-center group">
-          <div
-            className="w-12 h-12 bg-gradient-to-r from-[#0a61d7] to-blue-500 rounded-xl flex items-center justify-center shadow-xl cursor-pointer relative"
-            onClick={() => { if (!shouldShowExpanded) toggleMenu(); }}
+      {/* Bottom bar: help + collapse */}
+      <div className={`shrink-0 border-t border-gray-200 flex px-2 py-2.5 ${shouldShowExpanded ? 'items-center justify-between' : 'flex-col gap-1'}`}>
+        <button
+          type="button"
+          onClick={() => setShowHelp(true)}
+          className={`flex items-center rounded-lg py-2 px-2.5 text-gray-600 hover:bg-gray-100 hover:text-[#0a61d7] transition-colors ${shouldShowExpanded ? '' : 'w-full'}`}
+          aria-label={tSidebar('help')}
+          title={tSidebar('help')}
+        >
+          <span className="flex h-5 w-5 items-center justify-center">
+            <CircleHelp size={18} />
+          </span>
+        </button>
+        {!isMobile && (
+          <button
+            type="button"
+            onClick={toggleMenu}
+            className={`flex items-center rounded-lg py-2 px-2.5 text-gray-600 hover:bg-gray-100 hover:text-[#0a61d7] transition-colors ${shouldShowExpanded ? '' : 'w-full'}`}
+            aria-label={isCollapsed ? tSidebar('expand') : tSidebar('collapse')}
+            title={isCollapsed ? tSidebar('expand') : tSidebar('collapse')}
           >
-            <span className="text-2xl">🤗</span>
-            <span className="absolute left-[110%] top-1/2 -translate-y-1/2 ml-2 px-4 py-2 rounded-lg bg-blue-500 text-white font-semibold text-xs opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-30">{tPromo('collapsedHint')}</span>
-          </div>
-        </div>
-      )}
+            <span className="flex h-5 w-5 items-center justify-center">
+              {isCollapsed ? <PanelLeft size={18} /> : <PanelLeftClose size={18} />}
+            </span>
+          </button>
+        )}
+      </div>
+      <DashboardHelpModal open={showHelp} onCloseAction={() => setShowHelp(false)} />
+      <PromoSidePanel
+        show={showPromo}
+        onCloseAction={() => {
+          promoDismissedThisPageLoad = true;
+          setShowPromo(false);
+        }}
+      />
     </div>
   );
 };
