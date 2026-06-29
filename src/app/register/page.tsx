@@ -16,8 +16,10 @@ import {
   LoadingButton,
   RegistrationProgressBar,
 } from '@/utils/auth-enhancements';
+import { useAuthTranslations } from '@/hooks/useAuthTranslations';
+import { AuthLanguageSwitcher } from '@/components/auth/AuthLanguageSwitcher';
 
-const steps = ["User Info", "Company Info", "Business Credentials", "Payment", "Shipping & Delivery", "Set Password"];
+const stepsCount = 6;
 
 const SHIPPING_OPTIONS = [
   'Self Pickup',
@@ -114,6 +116,21 @@ const COMPANY_SIZE_OPTIONS = [
 ] as const;
 
 export default function RegisterPage() {
+  const {
+    locale,
+    tRegister,
+    tRegisterStep,
+    tRegisterError,
+    translateIndustry,
+    translateCompanySize,
+    translateShipping,
+    translateTimeSlot,
+    translateDay,
+  } = useAuthTranslations();
+  const steps = React.useMemo(
+    () => Array.from({ length: stepsCount }, (_, index) => tRegisterStep(index)),
+    [tRegisterStep, locale],
+  );
   const [step, setStep] = useState(0);
   const [stepKey, setStepKey] = useState(0);
   
@@ -273,7 +290,7 @@ export default function RegisterPage() {
     
     // Validate current step
     if (!validateCurrentStep()) {
-      handleError({ error: "Please complete all required fields correctly." });
+      handleError({ error: tRegisterError('completeRequired') });
       return;
     }
     
@@ -285,7 +302,7 @@ export default function RegisterPage() {
     }
     
     // Final step - submit registration
-    startLoading('Creating your account...');
+    startLoading(tRegister('creatingAccountLoading'));
     
     try {
       const res = await fetch("/api/auth/register", {
@@ -301,6 +318,7 @@ export default function RegisterPage() {
           phone: userInfo.phone.trim(),
           bio: userInfo.bio.trim(),
           password,
+          language: locale,
           company: companyInfo.company.trim(),
           address: companyInfo.address.trim(),
           region: companyInfo.region,
@@ -337,12 +355,11 @@ export default function RegisterPage() {
       const data = await res.json();
       
       if (!res.ok) {
-        handleError(data, "Registration failed. Please try again.");
+        handleError(data, tRegisterError('registrationFailed'));
         return;
       }
       
-      // Success
-      setSuccess("Registration successful! Redirecting to dashboard...");
+      setSuccess(tRegisterError('registrationSuccess'));
       setUser({
         id: (() => {
           if (typeof data.id === 'number' && Number.isFinite(data.id)) return data.id;
@@ -361,8 +378,8 @@ export default function RegisterPage() {
         company: data.company,
         region: data.region,
         currency: data.currency,
-        language: data.language || 'en',
-      }, true); // Auto-remember new registrations
+        language: data.language || locale,
+      }, true);
       
       // Track successful registration
       if (typeof window !== 'undefined' && window.gtag) {
@@ -391,12 +408,11 @@ export default function RegisterPage() {
       }, 1500);
       
     } catch (err) {
-      // Registration error occurred
-      handleError({ error: "Network error. Please check your connection and try again." });
+      handleError({ error: tRegisterError('networkError') });
     } finally {
       stopLoading();
     }
-  }, [step, userInfo, companyInfo, businessCreds, paymentInfo, shippingConfig, password, validateCurrentStep, router, setUser, handleError, clearError, startLoading, stopLoading]);
+  }, [step, userInfo, companyInfo, businessCreds, paymentInfo, shippingConfig, password, validateCurrentStep, router, setUser, handleError, clearError, startLoading, stopLoading, locale, tRegister, tRegisterError]);
 
   const handleBack = useCallback(() => {
     if (step > 0) {
@@ -407,10 +423,10 @@ export default function RegisterPage() {
   }, [step, clearError]);
 
   const validateConfirmPassword = useCallback((confirmPw: string) => {
-    if (!confirmPw) return { valid: false, error: 'Please confirm your password' };
-    if (confirmPw !== password) return { valid: false, error: 'Passwords do not match' };
+    if (!confirmPw) return { valid: false, error: tRegisterError('confirmPassword') };
+    if (confirmPw !== password) return { valid: false, error: tRegisterError('passwordsMismatch') };
     return { valid: true };
-  }, [password]);
+  }, [password, tRegisterError]);
 
   const toggleShippingConfigArray = useCallback((
     field: 'shippingPreferences' | 'deliveryTimeSlots' | 'preferredDeliveryDays',
@@ -485,11 +501,11 @@ export default function RegisterPage() {
     <div className="min-h-screen w-full bg-white">
       <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-6 py-8 sm:px-8 sm:py-12">
         <div className="mb-8 text-center sm:text-left">
-          <a href="/" aria-label="Go to homepage" className="inline-block mb-4">
+          <a href="/" aria-label={tRegister('goHome')} className="inline-block mb-4">
             <img src="/LakuTextLogo.svg" alt="Laku Logo" className="h-10" />
           </a>
-          <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">Create Distributor Account</h1>
-          <p className="mt-2 text-gray-500">Complete all six steps to start selling on Laku Marketplace.</p>
+          <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">{tRegister('title')}</h1>
+          <p className="mt-2 text-gray-500">{tRegister('subtitle')}</p>
         </div>
 
         <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-xs sm:p-6 animate-fade-in-up">
@@ -509,25 +525,25 @@ export default function RegisterPage() {
                 <div className="flex gap-4">
                   <div className="w-1/2">
                     <ValidatedInput
-                      label="First Name"
+                      label={tRegister('firstName')}
                       type="text"
                       value={userInfo.firstName}
                       onChange={(value) => setUserInfo({ ...userInfo, firstName: value })}
                       onValidation={(valid) => updateValidation('firstName', valid)}
-                      validator={(value) => validateAuthInput.name(value, 'First name')}
-                      placeholder="Enter first name"
+                      validator={(value) => validateAuthInput.name(value, tRegisterError('firstName'))}
+                      placeholder={tRegister('firstNamePlaceholder')}
                       required
                     />
                   </div>
                   <div className="w-1/2">
                     <ValidatedInput
-                      label="Last Name"
+                      label={tRegister('lastName')}
                       type="text"
                       value={userInfo.lastName}
                       onChange={(value) => setUserInfo({ ...userInfo, lastName: value })}
                       onValidation={(valid) => updateValidation('lastName', valid)}
-                      validator={(value) => validateAuthInput.name(value, 'Last name')}
-                      placeholder="Enter last name"
+                      validator={(value) => validateAuthInput.name(value, tRegisterError('lastName'))}
+                      placeholder={tRegister('lastNamePlaceholder')}
                       required
                     />
                   </div>
@@ -535,19 +551,19 @@ export default function RegisterPage() {
                 <div className="flex gap-4">
                   <div className="w-1/2">
                     <ValidatedInput
-                      label="Email"
+                      label={tRegister('email')}
                       type="email"
                       value={userInfo.email}
                       onChange={(value) => setUserInfo({ ...userInfo, email: value })}
                       onValidation={(valid) => updateValidation('email', valid)}
                       validator={validateAuthInput.email}
-                      placeholder="your.email@company.com"
+                      placeholder={tRegister('emailPlaceholder')}
                       required
                     />
                   </div>
                   <div className="w-1/2">
                     <ValidatedInput
-                      label="Phone Number"
+                      label={tRegister('phoneNumber')}
                       type="tel"
                       value={userInfo.phone}
                       onChange={(value) => setUserInfo({ ...userInfo, phone: value })}
@@ -555,30 +571,29 @@ export default function RegisterPage() {
                       validator={(value) => {
                         const raw = String(value ?? '');
                         const t = raw.trim();
-                        if (!t) return { valid: false, error: 'Phone number is required' };
-                        if (t.length > 30) return { valid: false, error: 'Phone number is too long' };
-                        // allow digits/spaces/+()- for international formats
-                        if (!/^[+\d\s().-]+$/.test(t)) return { valid: false, error: 'Invalid phone number format' };
+                        if (!t) return { valid: false, error: tRegisterError('phoneRequired') };
+                        if (t.length > 30) return { valid: false, error: tRegisterError('phoneTooLong') };
+                        if (!/^[+\d\s().-]+$/.test(t)) return { valid: false, error: tRegisterError('phoneInvalid') };
                         return { valid: true };
                       }}
-                      placeholder="e.g. +62 812 3456 7890"
+                      placeholder={tRegister('phonePlaceholder')}
                       required
                     />
                   </div>
                 </div>
                 <ValidatedInput
-                  label="Bio"
+                  label={tRegister('bio')}
                   type="text"
                   value={userInfo.bio}
                   onChange={(value) => setUserInfo({ ...userInfo, bio: value })}
                   onValidation={(valid) => updateValidation('bio', valid)}
                   validator={(value) => {
                     const t = String(value ?? '').trim();
-                    if (!t) return { valid: true }; // optional
-                    if (t.length > 200) return { valid: false, error: 'Bio is too long (max 200 chars)' };
+                    if (!t) return { valid: true };
+                    if (t.length > 200) return { valid: false, error: tRegisterError('bioTooLong') };
                     return { valid: true };
                   }}
-                  placeholder="Optional"
+                  placeholder={tRegister('bioPlaceholder')}
                 />
               </div>
             )}
@@ -590,7 +605,7 @@ export default function RegisterPage() {
                 {/* Region Selection */}
                 <div className="space-y-2">
                   <label className="block text-sm text-gray-500">
-                    Business Region <span className="text-red-500">*</span>
+                    {tRegister('businessRegion')} <span className="text-red-500">*</span>
                   </label>
                   <div className="relative" ref={regionDropdownRef}>
                     <button
@@ -598,7 +613,7 @@ export default function RegisterPage() {
                       onClick={() => setShowRegionDropdown(!showRegionDropdown)}
                       className="w-full px-3 py-2 border border-gray-300 text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-sm flex items-center justify-between hover:bg-gray-50 transition-colors"
                       aria-expanded={showRegionDropdown}
-                      aria-label="Select business region"
+                      aria-label={tRegister('selectBusinessRegion')}
                     >
                       <span>{getRegionDisplayName(getSelectedRegion())}</span>
                       <ChevronDown className="w-4 h-4 text-gray-500" />
@@ -621,40 +636,40 @@ export default function RegisterPage() {
                     )}
                   </div>
                   <p className="text-xs text-gray-500">
-                    Currency will be automatically set based on your region selection
+                    {tRegister('regionCurrencyHint')}
                   </p>
                 </div>
                 <ValidatedInput
-                  label="Company Name"
+                  label={tRegister('companyName')}
                   type="text"
                   value={companyInfo.company}
                   onChange={(value) => setCompanyInfo({ ...companyInfo, company: value })}
                   onValidation={(valid) => updateValidation('company', valid)}
                   validator={validateAuthInput.company}
-                  placeholder="Your Distribution Company"
+                  placeholder={tRegister('companyNamePlaceholder')}
                   required
                 />
                 <ValidatedInput
-                  label="Business Address"
+                  label={tRegister('businessAddress')}
                   type="text"
                   value={companyInfo.address}
                   onChange={(value) => setCompanyInfo({ ...companyInfo, address: value })}
-                  placeholder="Complete business address"
+                  placeholder={tRegister('businessAddressPlaceholder')}
                   required
                 />
                 <ValidatedInput
-                  label="Years in Operation"
+                  label={tRegister('yearsInOperation')}
                   type="text"
                   value={companyInfo.yearsInOperation}
                   onChange={(value) => setCompanyInfo({ ...companyInfo, yearsInOperation: value })}
                   onValidation={(valid) => updateValidation('yearsInOperation', valid)}
                   validator={(value) => {
                     const t = String(value ?? '').trim();
-                    if (!t) return { valid: false, error: 'Years in operation is required' };
-                    if (t.length > 50) return { valid: false, error: 'Too long' };
+                    if (!t) return { valid: false, error: tRegisterError('yearsRequired') };
+                    if (t.length > 50) return { valid: false, error: tRegisterError('tooLong') };
                     return { valid: true };
                   }}
-                  placeholder="e.g. 5 years"
+                  placeholder={tRegister('yearsInOperationPlaceholder')}
                   required
                 />
               </div>
@@ -663,65 +678,65 @@ export default function RegisterPage() {
             {step === 2 && (
               <div className="space-y-4">
                 <ValidatedInput
-                  label="Business Registration Number"
+                  label={tRegister('businessRegistrationNumber')}
                   type="text"
                   value={businessCreds.businessRegistrationNumber}
                   onChange={(value) => setBusinessCreds({ ...businessCreds, businessRegistrationNumber: value })}
                   onValidation={(valid) => updateValidation('businessRegistrationNumber', valid)}
                   validator={(value) => {
                     const t = String(value ?? '').trim();
-                    if (!t) return { valid: false, error: 'Business registration number is required' };
-                    if (t.length > 80) return { valid: false, error: 'Too long' };
+                    if (!t) return { valid: false, error: tRegisterError('businessRegistrationRequired') };
+                    if (t.length > 80) return { valid: false, error: tRegisterError('tooLong') };
                     return { valid: true };
                   }}
-                  placeholder="e.g. NIB123..."
+                  placeholder={tRegister('businessRegistrationPlaceholder')}
                   required
                 />
                 <ValidatedInput
-                  label="Tax ID"
+                  label={tRegister('taxId')}
                   type="text"
                   value={businessCreds.taxId}
                   onChange={(value) => setBusinessCreds({ ...businessCreds, taxId: value })}
                   onValidation={(valid) => updateValidation('taxId', valid)}
                   validator={(value) => {
                     const t = String(value ?? '').trim();
-                    if (!t) return { valid: true }; // optional
-                    if (t.length > 80) return { valid: false, error: 'Too long' };
+                    if (!t) return { valid: true };
+                    if (t.length > 80) return { valid: false, error: tRegisterError('tooLong') };
                     return { valid: true };
                   }}
-                  placeholder="Optional"
+                  placeholder={tRegister('optional')}
                 />
                 <ValidatedInput
-                  label="Business Email"
+                  label={tRegister('businessEmail')}
                   type="email"
                   value={businessCreds.businessEmail}
                   onChange={(value) => setBusinessCreds({ ...businessCreds, businessEmail: value })}
                   onValidation={(valid) => updateValidation('businessEmail', valid)}
                   validator={validateAuthInput.email}
-                  placeholder="contact@yourcompany.com"
+                  placeholder={tRegister('businessEmailPlaceholder')}
                   required
                 />
                 <ValidatedInput
-                  label="Business Phone Number"
+                  label={tRegister('businessPhoneNumber')}
                   type="tel"
                   value={companyInfo.businessPhone}
                   onChange={(value) => setCompanyInfo({ ...companyInfo, businessPhone: value })}
                   onValidation={(valid) => updateValidation('businessPhone', valid)}
                   validator={(value) => {
                     const t = String(value ?? '').trim();
-                    if (!t) return { valid: false, error: 'Business phone number is required' };
-                    if (t.length > 30) return { valid: false, error: 'Phone number is too long' };
-                    if (!/^[+\d\s().-]+$/.test(t)) return { valid: false, error: 'Invalid phone number format' };
+                    if (!t) return { valid: false, error: tRegisterError('businessPhoneRequired') };
+                    if (t.length > 30) return { valid: false, error: tRegisterError('phoneTooLong') };
+                    if (!/^[+\d\s().-]+$/.test(t)) return { valid: false, error: tRegisterError('phoneInvalid') };
                     return { valid: true };
                   }}
-                  placeholder="e.g. +62 812 3456 7890"
+                  placeholder={tRegister('phonePlaceholder')}
                   required
                 />
 
                 <div className="flex gap-4">
                   <div className="w-1/2 space-y-2">
                     <label className="block text-sm text-gray-500">
-                      Industry Type <span className="text-red-500">*</span>
+                      {tRegister('industryType')} <span className="text-red-500">*</span>
                     </label>
                     <div className="relative" ref={industryDropdownRef}>
                       <button
@@ -729,9 +744,9 @@ export default function RegisterPage() {
                         onClick={() => setShowIndustryDropdown(!showIndustryDropdown)}
                         className="w-full px-3 py-2 border border-gray-300 text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-sm flex items-center justify-between hover:bg-gray-50 transition-colors"
                         aria-expanded={showIndustryDropdown}
-                        aria-label="Select industry type"
+                        aria-label={tRegister('selectIndustryType')}
                       >
-                        <span>{businessCreds.industryType}</span>
+                        <span>{translateIndustry(businessCreds.industryType)}</span>
                         <ChevronDown className="w-4 h-4 text-gray-500" />
                       </button>
                       {showIndustryDropdown && (
@@ -749,7 +764,7 @@ export default function RegisterPage() {
                                 businessCreds.industryType === opt ? 'font-bold text-[#0a61d7] bg-blue-50' : 'text-gray-700'
                               }`}
                             >
-                              {opt}
+                              {translateIndustry(opt)}
                             </button>
                           ))}
                         </div>
@@ -758,7 +773,7 @@ export default function RegisterPage() {
                   </div>
                   <div className="w-1/2 space-y-2">
                     <label className="block text-sm text-gray-500">
-                      Company Size <span className="text-red-500">*</span>
+                      {tRegister('companySize')} <span className="text-red-500">*</span>
                     </label>
                     <div className="relative" ref={companySizeDropdownRef}>
                       <button
@@ -766,9 +781,9 @@ export default function RegisterPage() {
                         onClick={() => setShowCompanySizeDropdown(!showCompanySizeDropdown)}
                         className="w-full px-3 py-2 border border-gray-300 text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-sm flex items-center justify-between hover:bg-gray-50 transition-colors"
                         aria-expanded={showCompanySizeDropdown}
-                        aria-label="Select company size"
+                        aria-label={tRegister('selectCompanySize')}
                       >
-                        <span>{businessCreds.companySize}</span>
+                        <span>{translateCompanySize(businessCreds.companySize)}</span>
                         <ChevronDown className="w-4 h-4 text-gray-500" />
                       </button>
                       {showCompanySizeDropdown && (
@@ -786,7 +801,7 @@ export default function RegisterPage() {
                                 businessCreds.companySize === opt ? 'font-bold text-[#0a61d7] bg-blue-50' : 'text-gray-700'
                               }`}
                             >
-                              {opt}
+                              {translateCompanySize(opt)}
                             </button>
                           ))}
                         </div>
@@ -800,56 +815,56 @@ export default function RegisterPage() {
             {step === 3 && (
               <div className="space-y-4">
                 <p className="text-sm font-medium text-gray-700">
-                  Bank details are shown to buyers when they pay for orders.
+                  {tRegister('bankDetailsHint')}
                 </p>
                 <ValidatedInput
-                  label="Bank Name"
+                  label={tRegister('bankName')}
                   type="text"
                   value={paymentInfo.billingBankName}
                   onChange={(value) => setPaymentInfo({ ...paymentInfo, billingBankName: value })}
                   onValidation={(valid) => updateValidation('billingBankName', valid)}
                   validator={(value) => {
                     const t = String(value ?? '').trim();
-                    if (!t) return { valid: false, error: 'Bank name is required' };
-                    if (t.length > 120) return { valid: false, error: 'Too long' };
+                    if (!t) return { valid: false, error: tRegisterError('bankNameRequired') };
+                    if (t.length > 120) return { valid: false, error: tRegisterError('tooLong') };
                     return { valid: true };
                   }}
-                  placeholder="e.g. Bank Central Asia (BCA)"
+                  placeholder={tRegister('bankNamePlaceholder')}
                   required
                 />
                 <ValidatedInput
-                  label="Account Holder Name"
+                  label={tRegister('accountHolderName')}
                   type="text"
                   value={paymentInfo.billingBankAccountName}
                   onChange={(value) => setPaymentInfo({ ...paymentInfo, billingBankAccountName: value })}
                   onValidation={(valid) => updateValidation('billingBankAccountName', valid)}
                   validator={(value) => {
                     const t = String(value ?? '').trim();
-                    if (!t) return { valid: false, error: 'Account holder name is required' };
-                    if (t.length > 120) return { valid: false, error: 'Too long' };
+                    if (!t) return { valid: false, error: tRegisterError('accountHolderRequired') };
+                    if (t.length > 120) return { valid: false, error: tRegisterError('tooLong') };
                     return { valid: true };
                   }}
-                  placeholder="Name on the bank account"
+                  placeholder={tRegister('accountHolderPlaceholder')}
                   required
                 />
                 <ValidatedInput
-                  label="Account Number"
+                  label={tRegister('accountNumber')}
                   type="text"
                   value={paymentInfo.billingBankAccountNumber}
                   onChange={(value) => setPaymentInfo({ ...paymentInfo, billingBankAccountNumber: value })}
                   onValidation={(valid) => updateValidation('billingBankAccountNumber', valid)}
                   validator={(value) => {
                     const t = String(value ?? '').trim();
-                    if (!t) return { valid: false, error: 'Account number is required' };
-                    if (t.length > 80) return { valid: false, error: 'Too long' };
+                    if (!t) return { valid: false, error: tRegisterError('accountNumberRequired') };
+                    if (t.length > 80) return { valid: false, error: tRegisterError('tooLong') };
                     return { valid: true };
                   }}
-                  placeholder="Bank account number for buyer transfers"
+                  placeholder={tRegister('accountNumberPlaceholder')}
                   required
                 />
                 <div>
                   <label className="block text-sm text-gray-500 mb-2">
-                    Term of payment (days)
+                    {tRegister('paymentTermDays')}
                   </label>
                   <div className="flex items-center gap-2 flex-wrap">
                     <input
@@ -871,10 +886,10 @@ export default function RegisterPage() {
                           Number.isInteger(days) && days >= 1,
                         );
                       }}
-                      placeholder="e.g. 14"
+                      placeholder={tRegister('paymentTermPlaceholder')}
                       className="w-full max-w-[120px] px-3 py-2 border border-gray-300 text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-sm"
                     />
-                    <span className="text-sm text-gray-500">days</span>
+                    <span className="text-sm text-gray-500">{tRegister('days')}</span>
                   </div>
                 </div>
               </div>
@@ -884,16 +899,16 @@ export default function RegisterPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm text-gray-500 mb-1">
-                    Shipping Options <span className="text-red-500">*</span>
+                    {tRegister('shippingOptions')} <span className="text-red-500">*</span>
                   </label>
                   <p className="text-xs text-gray-500 mb-2">
-                    Select the shipping methods you offer. Shipping costs are agreed directly between you and the buyer — no fees are set here.
+                    {tRegister('shippingOptionsHint')}
                   </p>
                   <div className="flex flex-col gap-2">
                     {SHIPPING_OPTIONS.map((option) => (
                       <RegisterCheckbox
                         key={option}
-                        label={option}
+                        label={translateShipping(option)}
                         checked={shippingConfig.shippingPreferences.includes(option)}
                         onToggle={() => toggleShippingConfigArray('shippingPreferences', option)}
                       />
@@ -903,31 +918,31 @@ export default function RegisterPage() {
 
                 {shippingConfig.shippingPreferences.includes('Self Pickup') && (
                   <ValidatedInput
-                    label="Pickup Address"
+                    label={tRegister('pickupAddress')}
                     type="text"
                     value={shippingConfig.pickupAddress}
                     onChange={(value) => setShippingConfig({ ...shippingConfig, pickupAddress: value })}
                     onValidation={(valid) => updateValidation('pickupAddress', valid)}
                     validator={(value) => {
                       const t = String(value ?? '').trim();
-                      if (!t) return { valid: false, error: 'Pickup address is required for Self Pickup' };
-                      if (t.length > 500) return { valid: false, error: 'Too long' };
+                      if (!t) return { valid: false, error: tRegisterError('pickupAddressRequired') };
+                      if (t.length > 500) return { valid: false, error: tRegisterError('tooLong') };
                       return { valid: true };
                     }}
-                    placeholder="Where buyers can collect orders"
+                    placeholder={tRegister('pickupAddressPlaceholder')}
                     required
                   />
                 )}
 
                 <div>
                   <label className="block text-sm text-gray-500 mb-2">
-                    Preferred Delivery Time Slots
+                    {tRegister('preferredTimeSlots')}
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {DELIVERY_TIME_SLOTS.map((slot) => (
                       <RegisterCheckbox
                         key={slot}
-                        label={slot}
+                        label={translateTimeSlot(slot)}
                         checked={shippingConfig.deliveryTimeSlots.includes(slot)}
                         onToggle={() => toggleShippingConfigArray('deliveryTimeSlots', slot)}
                       />
@@ -937,13 +952,13 @@ export default function RegisterPage() {
 
                 <div>
                   <label className="block text-sm text-gray-500 mb-2">
-                    Preferred Delivery Days
+                    {tRegister('preferredDeliveryDays')}
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {DELIVERY_DAYS.map((day) => (
                       <RegisterCheckbox
                         key={day}
-                        label={day}
+                        label={translateDay(day)}
                         checked={shippingConfig.preferredDeliveryDays.includes(day)}
                         onToggle={() => toggleShippingConfigArray('preferredDeliveryDays', day)}
                       />
@@ -953,20 +968,20 @@ export default function RegisterPage() {
 
                 <div>
                   <label className="block text-sm text-gray-500 mb-2">
-                    Special Delivery Instructions
+                    {tRegister('specialInstructions')}
                   </label>
                   <textarea
                     value={shippingConfig.specialInstructions}
                     onChange={(e) => setShippingConfig({ ...shippingConfig, specialInstructions: e.target.value })}
                     rows={3}
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-black resize-none"
-                    placeholder="Any special instructions for delivery"
+                    placeholder={tRegister('specialInstructionsPlaceholder')}
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm text-gray-500 mb-2">
-                    Default delivery lead time (days)
+                    {tRegister('defaultLeadTime')}
                   </label>
                   <div className="flex items-center gap-2 flex-wrap">
                     <input
@@ -975,27 +990,27 @@ export default function RegisterPage() {
                       max={90}
                       value={shippingConfig.defaultDeliveryLeadTimeMinDays}
                       onChange={(e) => updateLeadTime('defaultDeliveryLeadTimeMinDays', e.target.value)}
-                      placeholder="Min"
+                      placeholder={tRegister('min')}
                       className="w-full max-w-[80px] px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-black"
                     />
-                    <span className="text-sm text-gray-500">to</span>
+                    <span className="text-sm text-gray-500">{tRegister('to')}</span>
                     <input
                       type="number"
                       min={0}
                       max={90}
                       value={shippingConfig.defaultDeliveryLeadTimeMaxDays}
                       onChange={(e) => updateLeadTime('defaultDeliveryLeadTimeMaxDays', e.target.value)}
-                      placeholder="Max"
+                      placeholder={tRegister('max')}
                       className="w-full max-w-[80px] px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-black"
                     />
-                    <span className="text-sm text-gray-500">days</span>
+                    <span className="text-sm text-gray-500">{tRegister('days')}</span>
                   </div>
                   <p className="mt-1 text-xs text-gray-500">
-                    Used to suggest estimated delivery date when you confirm an order (e.g. 3 to 5 business days from confirmation). Leave empty to use defaults (3–7 days).
+                    {tRegister('leadTimeHint')}
                   </p>
                   {!validationStates.deliveryLeadTime && (
                     <p className="mt-1 text-xs text-red-500">
-                      Lead time must be whole days between 0 and 90, with min not greater than max.
+                      {tRegister('leadTimeError')}
                     </p>
                   )}
                 </div>
@@ -1005,24 +1020,24 @@ export default function RegisterPage() {
             {step === 5 && (
               <div className="space-y-4">
                 <ValidatedInput
-                  label="Password"
+                  label={tRegister('password')}
                   type="password"
                   value={password}
                   onChange={setPassword}
                   onValidation={(valid) => updateValidation('password', valid)}
                   validator={validateAuthInput.password}
-                  placeholder="Create a strong password"
+                  placeholder={tRegister('passwordPlaceholder')}
                   showPasswordStrength
                   required
                 />
                 <ValidatedInput
-                  label="Confirm Password"
+                  label={tRegister('confirmPassword')}
                   type="password"
                   value={confirmPassword}
                   onChange={setConfirmPassword}
                   onValidation={(valid) => updateValidation('confirmPassword', valid)}
                   validator={validateConfirmPassword}
-                  placeholder="Confirm your password"
+                  placeholder={tRegister('confirmPasswordPlaceholder')}
                   required
                 />
               </div>
@@ -1036,25 +1051,24 @@ export default function RegisterPage() {
                   onClick={handleBack}
                   disabled={loading}
                 >
-                  Back
+                  {tRegister('back')}
                 </button>
               )}
               <LoadingButton
                 type="submit"
                 loading={loading}
-                loadingText={step < 5 ? "Processing..." : "Creating Account..."}
+                loadingText={step < 5 ? tRegister('processing') : tRegister('creatingAccount')}
                 disabled={!validateCurrentStep()}
                 className="px-6 py-2 rounded-lg bg-[#0a61d7] text-white font-medium hover:bg-[#084ba6] ml-auto text-sm transition-colors"
               >
-                {step < 5 ? "Next" : "Create Account"}
+                {step < 5 ? tRegister('next') : tRegister('createAccount')}
               </LoadingButton>
             </div>
             
-            {/* Google Sign-in Option */}
             <div className="mt-2">
               <div className="flex items-center my-4">
                 <div className="flex-1 border-t border-gray-300"></div>
-                <span className="px-3 text-sm text-gray-500 bg-white">or</span>
+                <span className="px-3 text-sm text-gray-500 bg-white">{tRegister('or')}</span>
                 <div className="flex-1 border-t border-gray-300"></div>
               </div>
               
@@ -1071,7 +1085,7 @@ export default function RegisterPage() {
                 disabled={loading}
               >
                 <img src="/google.svg" alt="Google" className="h-5 w-5 mr-3" />
-                Sign up with Google
+                {tRegister('signUpWithGoogle')}
               </button>
             </div>
             </div>
@@ -1079,19 +1093,22 @@ export default function RegisterPage() {
 
           <div className="mt-6 flex flex-col items-center gap-3 border-t border-gray-100 pt-6 text-sm sm:flex-row sm:justify-between">
             <span className="text-gray-500">
-              Already have an account?{' '}
+              {tRegister('alreadyHaveAccount')}{' '}
               <a href="/login" className="font-semibold text-[#0a61d7] hover:underline">
-                Log in here
+                {tRegister('logInHere')}
               </a>
             </span>
-            <a
-              href="/en/docs"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[#0a61d7] hover:underline"
-            >
-              Documentation
-            </a>
+            <div className="flex items-center gap-3">
+              <a
+                href={`/${locale}/docs`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#0a61d7] hover:underline"
+              >
+                {tRegister('documentation')}
+              </a>
+              <AuthLanguageSwitcher variant="register" />
+            </div>
           </div>
         </div>
       </main>

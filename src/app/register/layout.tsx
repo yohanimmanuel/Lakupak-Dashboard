@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { AuthIntlProvider } from '@/components/auth/AuthIntlProvider';
 
 export const metadata: Metadata = {
     title: 'Laku | Register'
@@ -9,5 +10,5 @@ export const metadata: Metadata = {
   }: {
     children: React.ReactNode
   }) {
-    return children;
+    return <AuthIntlProvider>{children}</AuthIntlProvider>;
   }

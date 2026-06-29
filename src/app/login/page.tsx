@@ -13,8 +13,11 @@ import {
   LoadingButton
 } from '@/utils/auth-enhancements';
 import { signIn, signOut } from "next-auth/react";
+import { useAuthTranslations } from '@/hooks/useAuthTranslations';
+import { AuthLanguageSwitcher } from '@/components/auth/AuthLanguageSwitcher';
 
 export default function LoginPage() {
+  const { locale, tLogin } = useAuthTranslations();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [emailValid, setEmailValid] = useState(true);
@@ -24,27 +27,24 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const setUser = useUserStore(state => state.setUser);
   
-  // Enhanced hooks for production features
   const { error, handleError, clearError } = useAuthErrorHandler();
   const { loading, startLoading, stopLoading } = useAuthLoading();
   const [success, setSuccess] = useState("");
   
-  // Performance tracking
   useAuthPerformanceTracking('Login');
 
   useEffect(() => {
     const err = searchParams?.get('error');
     if (err === 'ACCOUNT_SUSPENDED') {
-      handleError({ error: "Your account is suspended. Please contact support." });
+      handleError({ error: tLogin('accountSuspended') });
     }
-  }, [searchParams, handleError]);
+  }, [searchParams, handleError, tLogin]);
 
   const handleLogin = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
     setSuccess("");
     
-    // Client-side validation
     const emailValidation = validateAuthInput.email(email);
     if (!emailValidation.valid) {
       handleError({ error: emailValidation.error });
@@ -52,18 +52,16 @@ export default function LoginPage() {
     }
     
     if (!password) {
-      handleError({ error: 'Password is required' });
+      handleError({ error: tLogin('passwordRequired') });
       return;
     }
     
-    startLoading('Signing in...');
+    startLoading(tLogin('signingIn'));
     
     try {
-      // Clear any existing user session first
       const clearUser = useUserStore.getState().clearUser;
       clearUser();
       
-      // Use NextAuth signIn with credentials provider
       const result = await signIn("credentials", {
         email: email.trim(),
         password,
@@ -72,22 +70,20 @@ export default function LoginPage() {
       
       if (result?.error) {
         if (result.error === 'ACCOUNT_SUSPENDED') {
-          handleError({ error: "Your account is suspended. Please contact support." });
+          handleError({ error: tLogin('accountSuspended') });
         } else {
-          handleError({ error: "Invalid email or password" });
+          handleError({ error: tLogin('invalidCredentials') });
         }
         return;
       }
       
       if (!result?.ok) {
-        handleError({ error: "Login failed. Please try again." });
+        handleError({ error: tLogin('loginFailed') });
         return;
       }
       
-      // Success
-      setSuccess("Login successful! Redirecting...");
+      setSuccess(tLogin('success'));
       
-      // Track successful login
       if (typeof window !== 'undefined' && window.gtag) {
         window.gtag('event', 'login', {
           event_category: 'Authentication',
@@ -96,32 +92,28 @@ export default function LoginPage() {
         });
       }
       
-      // Small delay for better UX
       setTimeout(() => {
         router.push("/home");
       }, 1000);
       
     } catch (err) {
-      // Login error occurred
-      handleError({ error: "Network error. Please check your connection and try again." });
+      handleError({ error: tLogin('networkError') });
     } finally {
       stopLoading();
     }
-  }, [email, password, router, handleError, clearError, startLoading, stopLoading]);
+  }, [email, password, router, handleError, clearError, startLoading, stopLoading, tLogin]);
 
   return (
     <div className="min-h-screen w-full bg-white flex flex-col lg:grid lg:grid-cols-9">
-      {/* Left: Login Form */}
       <div className="w-full lg:col-span-4 flex flex-col justify-center px-6 py-10 sm:px-12 lg:px-16 bg-white animate-fade-in-left">
         <div className="flex flex-col items-center justify-center text-center max-w-md mx-auto">
           <a href="/" aria-label="Go to homepage">
             <img src="/LakuIcon.svg" alt="Laku Logo" className="h-13 mb-4" />
           </a>
-          <h2 className="text-3xl text-black font-bold mb-2">Welcome Back</h2>
-          <p className="mb-6 text-gray-500">Enter your email and password to access your account.</p>
+          <h2 className="text-3xl text-black font-bold mb-2">{tLogin('title')}</h2>
+          <p className="mb-6 text-gray-500">{tLogin('subtitle')}</p>
         </div>
         
-        {/* Enhanced Error/Success Messages */}
         {error && (
           <ErrorMessage 
             message={error} 
@@ -136,22 +128,22 @@ export default function LoginPage() {
         )}
         <form className="space-y-4 max-w-md mx-auto w-full" onSubmit={handleLogin}>
           <ValidatedInput
-            label="Email"
+            label={tLogin('email')}
             type="email"
             value={email}
             onChange={setEmail}
             onValidation={(valid) => setEmailValid(valid)}
             validator={validateAuthInput.email}
-            placeholder="you@email.com"
+            placeholder={tLogin('emailPlaceholder')}
             required
           />
           
           <ValidatedInput
-            label="Password"
+            label={tLogin('password')}
             type="password"
             value={password}
             onChange={setPassword}
-            placeholder="Enter your password"
+            placeholder={tLogin('passwordPlaceholder')}
             required
           />
           
@@ -165,7 +157,7 @@ export default function LoginPage() {
                     ? 'bg-green-500 border-green-500'
                     : 'bg-white border-gray-300 hover:border-green-400'
                 }`}
-                aria-label={rememberMe ? 'Deselect Remember Me' : 'Select Remember Me'}
+                aria-label={rememberMe ? tLogin('rememberMeDeselect') : tLogin('rememberMeSelect')}
               >
                 {rememberMe && (
                   <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -173,36 +165,35 @@ export default function LoginPage() {
                   </svg>
                 )}
               </button>
-              <span className="text-sm text-gray-500">Remember Me</span>
+              <span className="text-sm text-gray-500">{tLogin('rememberMe')}</span>
             </label>
             <a 
               href="/forgotpassword" 
               className="text-sm text-[#0a61d7] hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
             >
-              Forgot Password?
+              {tLogin('forgotPassword')}
             </a>
           </div>
           
           <LoadingButton
             type="submit"
             loading={loading}
-            loadingText="Signing in..."
+            loadingText={tLogin('signingIn')}
             disabled={!emailValid || !email || !password}
             className="w-full py-3 bg-[#0a61d7] text-white rounded-lg font-semibold hover:bg-[#084ba6] transition text-sm"
           >
-            Log In
+            {tLogin('logIn')}
           </LoadingButton>
         </form>
         <div className="my-4 flex items-center max-w-md mx-auto w-full">
           <div className="flex-grow h-px bg-gray-200" />
-          <span className="mx-4 text-gray-400 text-sm">Or Login With</span>
+          <span className="mx-4 text-gray-400 text-sm">{tLogin('orLoginWith')}</span>
           <div className="flex-grow h-px bg-gray-200" />
         </div>
         <div className="flex space-x-4 max-w-md mx-auto w-full">
           <button
             type="button"
             onClick={async () => {
-              // Clear user store session
               const clearUser = useUserStore.getState().clearUser;
               clearUser();
               
@@ -214,26 +205,29 @@ export default function LoginPage() {
             }}
             className="flex-1 py-2 text-gray-500 border border-gray-200 rounded-lg flex items-center justify-center hover:bg-gray-50"
           >
-            <img src="/google.svg" alt="Google" className="h-5 w-5 mr-2" /> Google
+            <img src="/google.svg" alt="Google" className="h-5 w-5 mr-2" /> {tLogin('google')}
           </button>
         </div>
         <p className="mt-6 text-center text-sm text-gray-500">
-          Don&apos;t have an account? <a href="/register" className="l-2 text-[#0a61d7] font-semibold hover:underline">Register Now</a>
+          {tLogin('noAccount')}{' '}
+          <a href="/register" className="l-2 text-[#0a61d7] font-semibold hover:underline">
+            {tLogin('registerNow')}
+          </a>
         </p>
         <p className="mt-3 text-center text-sm text-gray-500">
           <a
-            href="/en/docs"
+            href={`/${locale}/docs`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-[#0a61d7] hover:underline"
           >
-            Documentation
+            {tLogin('documentation')}
           </a>
         </p>
+        <AuthLanguageSwitcher variant="login" />
       </div>
-      {/* Right: Placeholder for Distribution/Retailing Image */}
       <div className="hidden lg:flex lg:col-span-5 bg-blue-600 items-center justify-center animate-fade-in-right">
-        <span className="text-white text-2xl font-bold">[Distribution/Retailing Image Placeholder]</span>
+        <span className="text-white text-2xl font-bold">{tLogin('imagePlaceholder')}</span>
       </div>
     </div>
   );
