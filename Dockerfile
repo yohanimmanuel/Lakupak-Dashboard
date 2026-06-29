@@ -11,7 +11,10 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-ENV NODE_ENV=development
+# Next.js expects NODE_ENV to be one of: production | development | test.
+# The builder stage runs `next build`, so keep this as production to avoid
+# non-standard NODE_ENV warnings and ensure consistent optimizations.
+ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Install all deps (including devDependencies for build)
