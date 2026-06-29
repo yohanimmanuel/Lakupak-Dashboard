@@ -19,7 +19,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 # Install all deps (including devDependencies for build)
 COPY package.json package-lock.json* ./
-RUN npm install
+# With NODE_ENV=production, npm may omit devDependencies by default.
+# We need devDependencies (Tailwind/PostCSS, TS tooling) to run `next build`.
+RUN npm install --include=dev
 
 COPY . .
 
