@@ -41,14 +41,14 @@ const SLIDES: SlideConfig[] = [
       {
         src: '/Dashboardproducts2.png',
         altKey: 'showcaseSlideProductsPrimaryAlt',
-        className: 'left-15 top-20 z-10 w-[70%]',
+        className: 'left-10 top-20 z-10 w-[80%]',
         animation: 'animate-showcase-float-slow',
         size: 'md',
       },
       {
         src: '/Dashboardproducts.png',
         altKey: 'showcaseSlideProductsSecondaryAlt',
-        className: 'bottom-5 right-15 z-20 w-[24%]',
+        className: 'bottom-5 right-10 z-20 w-[24%]',
         animation: 'animate-showcase-float-slower animate-delay-700',
         size: 'sm',
       },
@@ -61,14 +61,14 @@ const SLIDES: SlideConfig[] = [
       {
         src: '/Dashboardorders.png',
         altKey: 'showcaseSlideOrdersPrimaryAlt',
-        className: 'left-10 top-25 z-10 w-[70%]',
+        className: 'left-10 top-20 z-10 w-[80%]',
         animation: 'animate-showcase-float-slow',
         size: 'md',
       },
       {
         src: '/Dashboardlogs.png',
         altKey: 'showcaseSlideOrdersSecondaryAlt',
-        className: 'bottom-10 right-10 z-20 w-[30%]',
+        className: 'bottom-5 right-10 z-20 w-[30%]',
         animation: 'animate-showcase-float-slower animate-delay-700',
         size: 'sm',
       },
@@ -81,14 +81,14 @@ const SLIDES: SlideConfig[] = [
       {
         src: '/Dashboardmarketing.png',
         altKey: 'showcaseSlideMarketingPrimaryAlt',
-        className: 'left-30 top-15 z-10 w-[50%]',
+        className: 'left-25 top-15 z-10 w-[50%]',
         animation: 'animate-showcase-float-slow',
         size: 'md',
       },
       {
         src: '/Dashboardmarketing2.png',
         altKey: 'showcaseSlideMarketingSecondaryAlt',
-        className: 'bottom-5 right-30 z-20 w-[26%]',
+        className: 'bottom-5 right-25 z-20 w-[30%]',
         animation: 'animate-showcase-float-slower animate-delay-500',
         size: 'sm',
       },
@@ -101,21 +101,21 @@ const SLIDES: SlideConfig[] = [
       {
         src: '/Dashboardanalytics3.png',
         altKey: 'showcaseSlideAnalyticsTertiaryAlt',
-        className: 'right-[20%] top-[6%] z-10 w-[38%]',
+        className: 'right-[20%] top-[6%] z-10 w-[40%]',
         animation: 'animate-showcase-float-slow',
         size: 'md',
       },
       {
         src: '/Dashboardanalytics.png',
         altKey: 'showcaseSlideAnalyticsSecondaryAlt',
-        className: 'left-[20%] top-[30%] z-20 w-[32%]',
+        className: 'left-[15%] top-[30%] z-20 w-[35%]',
         animation: 'animate-showcase-float animate-delay-300',
         size: 'md',
       },
       {
         src: '/Dashboardanalytics2.png',
         altKey: 'showcaseSlideAnalyticsPrimaryAlt',
-        className: 'right-[20%] bottom-[5%] z-30 w-[32%]',
+        className: 'right-[15%] bottom-[1%] z-30 w-[38%]',
         animation: 'animate-showcase-float-slower animate-delay-700',
         size: 'md',
       },
@@ -197,26 +197,29 @@ export function LoginShowcaseCarousel() {
         <button
           type="button"
           onClick={goToNextSlide}
-          className="relative mx-10 mt-8 flex-1 min-h-[300px] cursor-pointer border-0 bg-transparent p-0 text-left xl:mx-14"
+          className="relative mt-8 flex min-h-[200px] w-full flex-1 cursor-pointer items-center justify-center border-0 bg-transparent p-0 px-10 xl:px-14"
           aria-label={translate('showcaseNextSlide')}
         >
-          {SLIDES.map((slide, index) => (
-            <div
-              key={slide.titleKey}
-              className={`pointer-events-none absolute inset-0 transition-opacity duration-700 ${
-                index === activeSlide ? 'opacity-100' : 'opacity-0'
-              }`}
-              aria-hidden={index !== activeSlide}
-            >
-              {slide.images.map((image) => (
-                <ShowcaseImage
-                  key={image.src}
-                  image={image}
-                  alt={translate(image.altKey)}
-                />
-              ))}
-            </div>
-          ))}
+          {/* Fixed-size stage: image % positions are relative to this box, not the full panel */}
+          <div className="relative mx-auto h-[400px] w-full max-w-[640px] shrink-0">
+            {SLIDES.map((slide, index) => (
+              <div
+                key={slide.titleKey}
+                className={`pointer-events-none absolute inset-0 transition-opacity duration-700 ${
+                  index === activeSlide ? 'opacity-100' : 'opacity-0'
+                }`}
+                aria-hidden={index !== activeSlide}
+              >
+                {slide.images.map((image) => (
+                  <ShowcaseImage
+                    key={image.src}
+                    image={image}
+                    alt={translate(image.altKey)}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
         </button>
 
         <div className="relative z-10 flex flex-col items-center px-10 pb-4 pt-4 text-center xl:px-14">
