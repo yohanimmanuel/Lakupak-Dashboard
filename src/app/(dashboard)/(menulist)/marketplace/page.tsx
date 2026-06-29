@@ -1,5 +1,6 @@
 'use client';
 
+import { SkeletonMarketplacePage } from '@/components/skeleton/SkeletonMarketplacePage';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useUserStore } from '@/store/userStore';
 import ProductsList from '@/components/marketplacecomp/ProductsList';
@@ -159,14 +160,7 @@ export default function MarketplacePage() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">{tPage('loading')}</p>
-        </div>
-      </div>
-    );
+    return <SkeletonMarketplacePage />;
   }
 
   const publishedCount = products.filter(p => p.marketplaceStatus === 'Published').length;

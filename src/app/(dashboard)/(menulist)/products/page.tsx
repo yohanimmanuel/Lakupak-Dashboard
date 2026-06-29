@@ -1,4 +1,5 @@
 'use client';
+import { SkeletonTablePage } from '@/components/skeleton/SkeletonTablePage';
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import ProductCards from "@/components/productscatalogs/ProductCards";
 import ProductTable from "@/components/productscatalogs/ProductTable";
@@ -503,14 +504,7 @@ export default function ProductsPage() {
   };
 
   if (loading) {
-    return (
-      <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">{tList('loading')}</p>
-        </div>
-      </div>
-    );
+    return <SkeletonTablePage statCards={4} rows={8} />;
   }
 
   return (

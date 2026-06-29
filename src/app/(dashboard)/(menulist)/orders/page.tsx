@@ -1,4 +1,5 @@
 'use client';
+import { SkeletonOrdersPage } from '@/components/skeleton/SkeletonOrdersPage';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Download, Archive, Eye, Check, RefreshCw } from 'lucide-react';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
@@ -150,6 +151,10 @@ export default function OrdersPage() {
   const handleExportXLSX = (workbook: XLSX.WorkBook, filename: string) => {
     XLSX.writeFile(workbook, filename);
   };
+
+  if (loading && !hasLoadedOrdersRef.current) {
+    return <SkeletonOrdersPage />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-4">

@@ -1,5 +1,6 @@
 'use client';
 
+import { SkeletonAnalyticsPage } from '@/components/skeleton/SkeletonAnalyticsPage';
 import React, { useEffect, useRef, useState } from 'react';
 import CustomerSalesAnalytics, { SalesTimeRange } from '@/components/analyticsperformance/CustomerSalesAnalytics';
 import { Calendar, ChevronDown, Download, Users } from 'lucide-react';
@@ -83,6 +84,7 @@ export default function SalesAnalyticsPage() {
 	const dropdownRef = useRef<HTMLDivElement>(null);
 	const [loading, setLoading] = useState(true);
 	const [hasData, setHasData] = useState(false);
+	const [childReady, setChildReady] = useState(false);
 
 	const timeRanges = TIME_RANGE_VALUES.map((value) => ({ value, label: translateTimeRange(value) }));
 
@@ -516,14 +518,7 @@ export default function SalesAnalyticsPage() {
 	};
 
 	if (loading) {
-		return (
-			<div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
-				<div className="text-center">
-					<div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-					<p className="text-gray-600">{tSales('loading')}</p>
-				</div>
-			</div>
-		);
+		return <SkeletonAnalyticsPage />;
 	}
 
 	if (!hasData) {
@@ -553,36 +548,39 @@ export default function SalesAnalyticsPage() {
 	}
 
 	return (
-		<div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
-			<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
-				<div>
-					<h1 className="text-2xl font-bold text-gray-900 mb-2">{tSales('title')}</h1>
-					<p className="text-sm text-gray-600">{tSales('subtitle')}</p>
-				</div>
-				<div className="flex items-center gap-3">
-					<div className="relative" ref={dropdownRef}>
-						<button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="flex items-center gap-2 px-4 py-2 bg-white border border-[#e6e6e6] text-black rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
-							<Calendar className="w-4 h-4" />
-							{currentRange?.label}
-							<ChevronDown className="w-4 h-4" />
-						</button>
-						{isDropdownOpen && (
-							<div className="absolute top-full left-0 mt-1 w-full bg-white border border-[#e6e6e6] rounded-lg shadow-lg z-10">
-								{timeRanges.map(range => (
-									<button key={range.value} onClick={() => { setTimeRange(range.value); setIsDropdownOpen(false); }} className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors first:rounded-t-lg last:rounded-b-lg ${timeRange === range.value ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}>
-										{range.label}
-									</button>
-								))}
-							</div>
-						)}
+		<>
+			{!childReady && <SkeletonAnalyticsPage />}
+			<div className={!childReady ? 'h-0 overflow-hidden' : 'w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen'}>
+				<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
+					<div>
+						<h1 className="text-2xl font-bold text-gray-900 mb-2">{tSales('title')}</h1>
+						<p className="text-sm text-gray-600">{tSales('subtitle')}</p>
 					</div>
-					<button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] border border-[#e6e6e6] text-white rounded-lg hover:bg-[#084ba6] transition-colors text-sm font-medium">
-						<Download className="w-4 h-4" />
-						{tShared('export')}
-					</button>
+					<div className="flex items-center gap-3">
+						<div className="relative" ref={dropdownRef}>
+							<button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="flex items-center gap-2 px-4 py-2 bg-white border border-[#e6e6e6] text-black rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
+								<Calendar className="w-4 h-4" />
+								{currentRange?.label}
+								<ChevronDown className="w-4 h-4" />
+							</button>
+							{isDropdownOpen && (
+								<div className="absolute top-full left-0 mt-1 w-full bg-white border border-[#e6e6e6] rounded-lg shadow-lg z-10">
+									{timeRanges.map(range => (
+										<button key={range.value} onClick={() => { setTimeRange(range.value); setIsDropdownOpen(false); }} className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors first:rounded-t-lg last:rounded-b-lg ${timeRange === range.value ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}>
+											{range.label}
+										</button>
+									))}
+								</div>
+							)}
+						</div>
+						<button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] border border-[#e6e6e6] text-white rounded-lg hover:bg-[#084ba6] transition-colors text-sm font-medium">
+							<Download className="w-4 h-4" />
+							{tShared('export')}
+						</button>
+					</div>
 				</div>
+				<CustomerSalesAnalytics timeRange={timeRange as SalesTimeRange} onReadyAction={() => setChildReady(true)} />
 			</div>
-			<CustomerSalesAnalytics timeRange={timeRange as SalesTimeRange} />
-		</div>
+		</>
 	);
 }

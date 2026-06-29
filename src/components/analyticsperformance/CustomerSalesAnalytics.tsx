@@ -535,9 +535,10 @@ export type SalesTimeRange = AnalyticsTimeRange;
 
 type CustomerSalesAnalyticsProps = {
 	timeRange?: SalesTimeRange;
+	onReadyAction?: () => void;
 };
 
-const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRange = '1M' }) => {
+const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRange = '1M', onReadyAction }) => {
 	const { user } = useUserStore();
 	const { tShared, tMetrics, tCharts, tTables, translateCategoryFilter, translateForecastTrend, dateLocale } = useAnalyticsTranslations();
 	const [orders, setOrders] = useState<Order[]>([]);
@@ -548,6 +549,8 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 	const [categoryFilter, setCategoryFilter] = useState<'productType' | 'productCategory'>('productCategory');
 	const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
 	const categoryDropdownRef = useRef<HTMLDivElement>(null);
+	const onReadyRef = useRef(onReadyAction);
+	useEffect(() => { onReadyRef.current = onReadyAction; });
 
 	const userCurrency = user?.currency || 'IDR';
 
@@ -615,13 +618,14 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 				setOrders(ordersList);
 				setProducts(productsList);
 				setBuyers(buyersList);
-				setHasData(ordersList.length > 0);
-			} finally {
-				setLoading(false);
-			}
-		};
-		fetchData();
-	}, [user?.id]);
+			setHasData(ordersList.length > 0);
+		} finally {
+			setLoading(false);
+			onReadyRef.current?.();
+		}
+	};
+	fetchData();
+}, [user?.id]);
 
 	// Restrict orders to the selected time-range window so every metric/graph reacts to the dropdown
 	const filteredOrders = useMemo(() => filterOrdersByTimeRange(orders, timeRange), [orders, timeRange]);

@@ -1,5 +1,6 @@
 "use client";
 
+import { SkeletonHomePage } from '@/components/skeleton/SkeletonHomePage';
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import Image from 'next/image';
@@ -932,7 +933,7 @@ export default function HomePage() {
     widgetText,
     translateRecordStatus,
   } = useHomeTranslations();
-  const { user } = useUserStore();
+  const { user, isHydrated } = useUserStore();
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [buyers, setBuyers] = useState<Buyer[]>([]);
@@ -1090,6 +1091,13 @@ export default function HomePage() {
   }, [logisticsActiveOrders]);
 
   useEffect(() => {
+    // Guard OUTSIDE the try/finally so that the finally block never runs when
+    // the store hasn't hydrated yet. A guard inside try() still triggers finally,
+    // which calls setLoading(false) and kills the skeleton prematurely.
+    if (!isHydrated) {
+      return;
+    }
+
     const controller = new AbortController();
     const fetchData = async () => {
       try {
@@ -1261,13 +1269,20 @@ export default function HomePage() {
           setMarketingSummary(null);
         }
       } finally {
-        setLoading(false);
+        // Only clear loading if THIS run wasn't aborted. When the effect re-runs
+        // (Strict Mode double-invoke, user?.id changing null->X after hydration,
+        // or AuthSync updating the user), the cleanup aborts the stale fetch. Its
+        // finally must NOT flip loading=false, otherwise the skeleton disappears
+        // and zero values flash while the newer fetch is still in flight.
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchData();
     return () => controller.abort();
-  }, [user?.id]);
+  }, [user?.id, isHydrated]);
 
   // Use server-side aggregates (calculated from ALL orders) instead of client-side calculations
   // This ensures accuracy - aggregates are computed from the full dataset, not just the paginated subset
@@ -2790,15 +2805,8 @@ const supplierInsights = useMemo(() => {
           );
         });
 
-  if (loading) {
-    return (
-      <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">{tCommon('loadingDashboard')}</p>
-        </div>
-      </div>
-    );
+  if (loading || !hasHydratedLayout) {
+    return <SkeletonHomePage />;
   }
 
   if (error) {

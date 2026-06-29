@@ -1,5 +1,6 @@
 'use client';
 
+import { SkeletonTablePage } from '@/components/skeleton/SkeletonTablePage';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Gift, Plus, Calendar, Download } from 'lucide-react';
 import OfferStatCards from '@/components/offersincentivesdisc/OfferStatCards';
@@ -278,14 +279,7 @@ export default function OffersPage() {
   };
 
   if (loading) {
-    return (
-      <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">{tList('loading')}</p>
-        </div>
-      </div>
-    );
+    return <SkeletonTablePage statCards={4} rows={8} />;
   }
 
   return (

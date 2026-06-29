@@ -1,4 +1,5 @@
 'use client';
+import { SkeletonAnalyticsPage } from '@/components/skeleton/SkeletonAnalyticsPage';
 import { DollarSign, ShoppingCart, Calendar, ChevronDown } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -235,14 +236,7 @@ export default function AnalyticsPage() {
   }, [user?.id]);
 
   if (loading) {
-    return (
-      <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">{tOverview('loading')}</p>
-        </div>
-      </div>
-    );
+    return <SkeletonAnalyticsPage />;
   }
 
   if (!hasData) {

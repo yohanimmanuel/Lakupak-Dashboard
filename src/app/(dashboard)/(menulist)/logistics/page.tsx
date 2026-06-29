@@ -1,5 +1,6 @@
 'use client';
 
+import { SkeletonLogisticsPage } from '@/components/skeleton/SkeletonLogisticsPage';
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { RefreshCcw, Download, Plus, Check } from 'lucide-react';
@@ -196,6 +197,10 @@ export default function LogisticsPage() {
   const handleOpenTracking = () => {
     if (effectiveSelectedFleetId) router.push(`/logistics/details?id=${effectiveSelectedFleetId}`);
   };
+
+  if (loading && fleets.length === 0) {
+    return <SkeletonLogisticsPage />;
+  }
 
   return (
     <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">

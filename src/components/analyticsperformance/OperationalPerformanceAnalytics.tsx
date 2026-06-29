@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   LineChart, 
   Line, 
@@ -236,12 +236,15 @@ const OPERATIONAL_ANALYTICS_QUERY = `
 
 type OperationalPerformanceAnalyticsProps = {
   timeRange?: AnalyticsTimeRange;
+  onReadyAction?: () => void;
 };
 
-const OperationalPerformanceAnalytics: React.FC<OperationalPerformanceAnalyticsProps> = ({ timeRange = '1M' }) => {
+const OperationalPerformanceAnalytics: React.FC<OperationalPerformanceAnalyticsProps> = ({ timeRange = '1M', onReadyAction }) => {
   const { user } = useUserStore();
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const onReadyRef = useRef(onReadyAction);
+  useEffect(() => { onReadyRef.current = onReadyAction; });
   // Metrics are calculated directly via useMemo - no need for state
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -302,6 +305,7 @@ const OperationalPerformanceAnalytics: React.FC<OperationalPerformanceAnalyticsP
       setHasData(false);
     } finally {
       setLoading(false);
+      onReadyRef.current?.();
     }
   };
 

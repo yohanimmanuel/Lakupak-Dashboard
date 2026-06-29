@@ -203,9 +203,10 @@ export function AnalyticsRevenueTrendChartEmpty() {
 
 type FinancialAnalyticsProps = {
   timeRange?: AnalyticsTimeRange;
+  onReadyAction?: () => void;
 };
 
-const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M' }) => {
+const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M', onReadyAction }) => {
   const { user } = useUserStore();
   const { tShared, tMetrics, tCharts, tTables, translateCategoryFilter, translateForecastTrend } =
     useAnalyticsTranslations();
@@ -214,6 +215,8 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
   const [categoryFilter, setCategoryFilter] = useState<'productType' | 'productCategory'>('productCategory');
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
+  const onReadyRef = useRef(onReadyAction);
+  useEffect(() => { onReadyRef.current = onReadyAction; });
   // Metrics are calculated directly via useMemo - no need for state
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -376,6 +379,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
       setHasData(false);
     } finally {
       setLoading(false);
+      onReadyRef.current?.();
     }
   };
 

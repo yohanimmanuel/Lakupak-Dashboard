@@ -1,5 +1,6 @@
 'use client';
 
+import { SkeletonCampaignsPage } from '@/components/skeleton/SkeletonCampaignsPage';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -210,14 +211,7 @@ export default function MarketingCampaignsPage() {
   };
 
   if (loading) {
-    return (
-      <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">{tCampaigns('loading')}</p>
-        </div>
-      </div>
-    );
+    return <SkeletonCampaignsPage />;
   }
 
   return (

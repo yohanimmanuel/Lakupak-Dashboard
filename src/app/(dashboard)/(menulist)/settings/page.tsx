@@ -1,5 +1,6 @@
 'use client';
 
+import { SkeletonSettingsPage } from '@/components/skeleton/SkeletonSettingsPage';
 import React, { useState } from 'react';
 import { User, Shield, Globe, CreditCard, Users, Building2, Sparkles } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
@@ -32,14 +33,7 @@ export default function SettingsPage() {
   ];
 
   if (!isHydrated || !user) {
-    return (
-      <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">{tPage('loading')}</p>
-        </div>
-      </div>
-    );
+    return <SkeletonSettingsPage />;
   }
 
   const renderContent = () => {

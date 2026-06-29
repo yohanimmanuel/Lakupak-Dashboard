@@ -27,6 +27,18 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
+/* Skeleton shimmer animation (Meta-style wave) */
+@keyframes skeleton-wave {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-wave 1.6s ease-in-out infinite;
+}
+
 /* Logo scroll animation */
 @keyframes scroll {
   0% {
