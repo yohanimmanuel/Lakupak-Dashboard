@@ -30,7 +30,9 @@
       "networkError": "Kesalahan jaringan. Periksa koneksi Anda dan coba lagi.",
       "accountSuspended": "Akun Anda ditangguhkan. Silakan hubungi dukungan.",
       "goHome": "Ke beranda",
-      "logoAlt": "Logo Laku"
+      "logoAlt": "Logo Laku",
+      "welcomeBack": "Selamat datang kembali, {name}",
+      "useAnotherAccount": "Gunakan akun lain"
     },
     "register": {
       "title": "Buat Akun Distributor",

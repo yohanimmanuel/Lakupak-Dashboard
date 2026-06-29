@@ -30,7 +30,9 @@
       "networkError": "Network error. Please check your connection and try again.",
       "accountSuspended": "Your account is suspended. Please contact support.",
       "goHome": "Go to homepage",
-      "logoAlt": "Laku logo"
+      "logoAlt": "Laku logo",
+      "welcomeBack": "Welcome back, {name}",
+      "useAnotherAccount": "Use another account"
     },
     "register": {
       "title": "Create Distributor Account",

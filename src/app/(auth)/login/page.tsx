@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useLayoutEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useUserStore, stashRememberMePreference } from '@/store/userStore';
 import { validateAuthInput } from '@/utils/auth-security';
@@ -12,9 +12,16 @@ import {
   SuccessMessage,
   LoadingButton
 } from '@/utils/auth-enhancements';
-import { signIn, signOut } from "next-auth/react";
+import { getSession, signIn, signOut } from "next-auth/react";
 import { useAuthTranslations } from '@/hooks/useAuthTranslations';
 import { AuthLanguageSwitcher } from '@/components/auth/AuthLanguageSwitcher';
+import {
+  type RememberedLogin,
+  clearRememberedLogin,
+  getRememberedDisplayName,
+  readRememberedLogin,
+  storeRememberedLogin,
+} from '@/lib/rememberedLogin';
 
 export default function LoginPage() {
   const { locale, tLogin } = useAuthTranslations();
@@ -22,6 +29,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [emailValid, setEmailValid] = useState(true);
   const [rememberMe, setRememberMe] = useState(false);
+  const [rememberedAccount, setRememberedAccount] = useState<RememberedLogin | null>(null);
+  const [showRememberedPrompt, setShowRememberedPrompt] = useState(false);
   
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -33,12 +42,30 @@ export default function LoginPage() {
   
   useAuthPerformanceTracking('Login');
 
+  useLayoutEffect(() => {
+    const saved = readRememberedLogin();
+    if (!saved) return;
+    setRememberedAccount(saved);
+    setEmail(saved.email);
+    setRememberMe(true);
+    setShowRememberedPrompt(true);
+  }, []);
+
   useEffect(() => {
     const err = searchParams?.get('error');
     if (err === 'ACCOUNT_SUSPENDED') {
       handleError({ error: tLogin('accountSuspended') });
     }
   }, [searchParams, handleError, tLogin]);
+
+  const handleUseAnotherAccount = useCallback(() => {
+    clearRememberedLogin();
+    setRememberedAccount(null);
+    setShowRememberedPrompt(false);
+    setEmail('');
+    setRememberMe(false);
+    setPassword('');
+  }, []);
 
   const handleLogin = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,6 +110,28 @@ export default function LoginPage() {
       }
 
       stashRememberMePreference(rememberMe);
+
+      if (rememberMe) {
+        const session = await getSession();
+        const sessionUser = session?.user as {
+          email?: string | null;
+          firstName?: string | null;
+          lastName?: string | null;
+          name?: string | null;
+        } | undefined;
+        const sessionEmail = sessionUser?.email?.trim() || email.trim();
+        if (sessionEmail) {
+          const nameParts = (sessionUser?.name || '').trim().split(' ').filter(Boolean);
+          storeRememberedLogin({
+            email: sessionEmail,
+            firstName: sessionUser?.firstName?.trim() || nameParts[0] || '',
+            lastName: sessionUser?.lastName?.trim() || nameParts.slice(1).join(' ') || '',
+          });
+        }
+      } else {
+        clearRememberedLogin();
+      }
+
       setSuccess(tLogin('success'));
       
       if (typeof window !== 'undefined' && window.gtag) {
@@ -169,6 +218,21 @@ export default function LoginPage() {
           />
         )}
         <form className="space-y-4 max-w-md mx-auto w-full" onSubmit={handleLogin}>
+          {showRememberedPrompt && rememberedAccount && (
+            <div className="rounded-lg border border-[#0a61d7]/20 bg-blue-50/60 p-4">
+              <p className="text-sm font-medium text-gray-900">
+                {tLogin('welcomeBack', { name: getRememberedDisplayName(rememberedAccount) })}
+              </p>
+              <p className="mt-0.5 text-sm text-gray-500">{rememberedAccount.email}</p>
+              <button
+                type="button"
+                onClick={handleUseAnotherAccount}
+                className="mt-2 text-sm text-[#0a61d7] hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+              >
+                {tLogin('useAnotherAccount')}
+              </button>
+            </div>
+          )}
           <ValidatedInput
             label={tLogin('email')}
             type="email"
@@ -193,7 +257,15 @@ export default function LoginPage() {
             <label className="flex items-center cursor-pointer">
               <button
                 type="button"
-                onClick={() => setRememberMe(!rememberMe)}
+                onClick={() => {
+                  const next = !rememberMe;
+                  setRememberMe(next);
+                  if (next && rememberedAccount) {
+                    setShowRememberedPrompt(true);
+                  } else {
+                    setShowRememberedPrompt(false);
+                  }
+                }}
                 className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center mr-2 ${
                   rememberMe
                     ? 'bg-green-500 border-green-500'
