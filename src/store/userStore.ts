@@ -116,6 +116,27 @@ interface UserStore {
 
 const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days (default session)
 const REMEMBER_ME_DURATION = 30 * 24 * 60 * 60 * 1000; // 30 days (with "Remember Me")
+const REMEMBER_ME_PREFERENCE_KEY = 'laku.auth.rememberMe';
+
+export function stashRememberMePreference(rememberMe: boolean) {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(REMEMBER_ME_PREFERENCE_KEY, rememberMe ? '1' : '0');
+  } catch {
+    // Ignore unavailable sessionStorage.
+  }
+}
+
+export function consumeRememberMePreference(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const value = sessionStorage.getItem(REMEMBER_ME_PREFERENCE_KEY);
+    sessionStorage.removeItem(REMEMBER_ME_PREFERENCE_KEY);
+    return value === '1';
+  } catch {
+    return false;
+  }
+}
 
 const getInitialUser = (): { user: User | null; sessionExpiry: number | null } => {
   // Always return null during SSR to prevent hydration mismatches

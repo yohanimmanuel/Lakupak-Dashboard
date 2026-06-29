@@ -1,6 +1,6 @@
 "use client";
 import { useSession } from "next-auth/react";
-import { useUserStore } from "@/store/userStore";
+import { useUserStore, consumeRememberMePreference } from "@/store/userStore";
 import { useEffect } from "react";
 
 /** Decimal-like value (Prisma) or number */
@@ -109,7 +109,7 @@ export function AuthSync() {
           region: sessionUser.region || 'ID',
           currency: sessionUser.currency || 'IDR',
           language: sessionUser.language || 'en',
-        });
+        }, consumeRememberMePreference());
       }
     } else if (status === "unauthenticated") {
       // Only clear user store if we don't have a valid user session

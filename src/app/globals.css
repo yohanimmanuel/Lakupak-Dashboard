@@ -231,3 +231,33 @@ body {
 .animate-pulse-slow {
   animation: pulse 3s ease-in-out infinite;
 }
+
+/* Showcase floating animation (login page) */
+@keyframes showcase-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-14px);
+  }
+}
+
+.animate-showcase-float {
+  animation: showcase-float 5s ease-in-out infinite;
+}
+
+.animate-showcase-float-slow {
+  animation: showcase-float 7s ease-in-out infinite;
+}
+
+.animate-showcase-float-slower {
+  animation: showcase-float 6.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-showcase-float,
+  .animate-showcase-float-slow,
+  .animate-showcase-float-slower {
+    animation: none;
+  }
+}

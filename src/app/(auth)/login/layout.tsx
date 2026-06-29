@@ -1,8 +1,7 @@
 import type { Metadata } from 'next';
-import { AuthIntlProvider } from '@/components/auth/AuthIntlProvider';
 
 export const metadata: Metadata = {
-  title: 'Laku - Log in'
+  title: 'Laku - Log in',
 };
 
 export default function LoginLayout({
@@ -10,5 +9,5 @@ export default function LoginLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <AuthIntlProvider>{children}</AuthIntlProvider>;
+  return children;
 }

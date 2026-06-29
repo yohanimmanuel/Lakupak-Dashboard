@@ -7,7 +7,7 @@ import authId from '@/messages/auth-id.json';
 import {
   type AuthLocale,
   normalizeAuthLocale,
-  readStoredAuthLocale,
+  readStoredAuthLocaleIfSet,
   storeAuthLocale,
 } from '@/lib/authLocale';
 
@@ -23,12 +23,21 @@ const MESSAGES: Record<AuthLocale, Record<string, unknown>> = {
   id: authId,
 };
 
-export function AuthIntlProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<AuthLocale>(() => readStoredAuthLocale());
+export function AuthIntlProvider({
+  children,
+  initialLocale = 'en',
+}: {
+  children: React.ReactNode;
+  initialLocale?: AuthLocale;
+}) {
+  const [locale, setLocaleState] = useState<AuthLocale>(initialLocale);
 
   useLayoutEffect(() => {
-    const stored = readStoredAuthLocale();
-    setLocaleState((current) => (current === stored ? current : stored));
+    const stored = readStoredAuthLocaleIfSet();
+    if (stored !== null) {
+      setLocaleState(stored);
+      storeAuthLocale(stored);
+    }
   }, []);
 
   const setLocale = useCallback((next: AuthLocale) => {

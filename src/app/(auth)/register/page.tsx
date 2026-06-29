@@ -71,13 +71,14 @@ function RegisterCheckbox({
     <label className="flex items-center space-x-2 cursor-pointer">
       <button
         type="button"
+        role="checkbox"
+        aria-checked={checked}
         onClick={onToggle}
-        className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none ${
+        className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:ring-offset-2 ${
           checked
             ? 'bg-green-500 border-green-500'
             : 'bg-white border-gray-300 hover:border-green-400'
         }`}
-        aria-pressed={checked}
         aria-label={label}
       >
         {checked && (
@@ -303,6 +304,14 @@ export default function RegisterPage() {
     
     // Final step - submit registration
     startLoading(tRegister('creatingAccountLoading'));
+    let pendingRedirect = false;
+
+    const scheduleRedirect = (path: string) => {
+      pendingRedirect = true;
+      setTimeout(() => {
+        router.push(path);
+      }, 1500);
+    };
     
     try {
       const res = await fetch("/api/auth/register", {
@@ -358,7 +367,28 @@ export default function RegisterPage() {
         handleError(data, tRegisterError('registrationFailed'));
         return;
       }
-      
+
+      let autoLoginResult;
+      try {
+        autoLoginResult = await signIn("credentials", {
+          email: userInfo.email.trim(),
+          password,
+          redirect: false,
+        });
+      } catch (autoLoginError) {
+        console.error("Auto login after registration failed:", autoLoginError);
+        setSuccess(tRegisterError('registrationSuccessLoginManually'));
+        scheduleRedirect("/login");
+        return;
+      }
+
+      if (autoLoginResult?.error || !autoLoginResult?.ok) {
+        console.error("Auto login after registration failed:", autoLoginResult?.error);
+        setSuccess(tRegisterError('registrationSuccessLoginManually'));
+        scheduleRedirect("/login");
+        return;
+      }
+
       setSuccess(tRegisterError('registrationSuccess'));
       setUser({
         id: (() => {
@@ -380,8 +410,7 @@ export default function RegisterPage() {
         currency: data.currency,
         language: data.language || locale,
       }, true);
-      
-      // Track successful registration
+
       if (typeof window !== 'undefined' && window.gtag) {
         window.gtag('event', 'sign_up', {
           event_category: 'Authentication',
@@ -390,27 +419,14 @@ export default function RegisterPage() {
         });
       }
 
-      // Auto sign-in with the newly created credentials so GraphQL / dashboard APIs have a valid session
-      try {
-        await signIn("credentials", {
-          email: userInfo.email.trim(),
-          password,
-          redirect: false,
-        });
-      } catch (autoLoginError) {
-        // Log but don't block the UX; user will be asked to log in manually if needed
-        console.error("Auto login after registration failed:", autoLoginError);
-      }
-
-      // Small delay for better UX
-      setTimeout(() => {
-        router.push("/home");
-      }, 1500);
+      scheduleRedirect("/home");
       
     } catch (err) {
       handleError({ error: tRegisterError('networkError') });
     } finally {
-      stopLoading();
+      if (!pendingRedirect) {
+        stopLoading();
+      }
     }
   }, [step, userInfo, companyInfo, businessCreds, paymentInfo, shippingConfig, password, validateCurrentStep, router, setUser, handleError, clearError, startLoading, stopLoading, locale, tRegister, tRegisterError]);
 
