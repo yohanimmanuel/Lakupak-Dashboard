@@ -38,7 +38,7 @@ export function SkeletonFormPage({ tabs = 4, fields = 6 }: { tabs?: number; fiel
         {Array.from({ length: tabs }).map((_, i) => (
           <div
             key={i}
-            className={`shrink-0 px-5 py-2.5 border-b-2 ${i === 0 ? 'border-[#0a61d7]' : 'border-transparent'}`}
+            className="shrink-0 px-5 py-2.5 border-b-2 border-transparent"
           >
             <Skeleton className="h-4 w-20" />
           </div>

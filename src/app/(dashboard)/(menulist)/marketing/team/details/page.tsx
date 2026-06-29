@@ -7,6 +7,7 @@ import { SalesAgent } from '@/components/salesmarketing/TeamList';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
+import { SkeletonAgentDetailPage } from '@/components/skeleton/SkeletonAgentDetailPage';
 
 const GET_SALES_AGENT_QUERY = `
   query GetSalesAgent($userId: Int!, $id: String!) {
@@ -96,14 +97,7 @@ export default function SalesDetailsPage() {
   }, [agentId, user?.id, router]);
 
   if (loading) {
-    return (
-      <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">{tSalesDetails('loading')}</p>
-        </div>
-      </div>
-    );
+    return <SkeletonAgentDetailPage />;
   }
 
   if (!agent) {

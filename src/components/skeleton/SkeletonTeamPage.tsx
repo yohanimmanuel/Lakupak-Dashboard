@@ -45,7 +45,7 @@ export function SkeletonTeamPage() {
         <div className="flex items-center gap-2">
           <Skeleton className="h-9 w-24 rounded-lg" />
           <Skeleton className="h-9 w-28 rounded-lg" />
-          <Skeleton className="h-9 w-28 rounded-lg bg-[#0a61d7]/20" />
+          <Skeleton className="h-9 w-28 rounded-lg" />
         </div>
       </div>
 
@@ -60,7 +60,7 @@ export function SkeletonTeamPage() {
         {/* Pill tab switcher (Individuals / Teams) */}
         <div className="mb-4">
           <div className="inline-flex bg-gray-100 rounded-xl p-0.5 gap-0">
-            <Skeleton className="h-9 w-28 rounded-xl bg-[#0a61d7]/20" />
+            <Skeleton className="h-9 w-28 rounded-xl" />
             <Skeleton className="h-9 w-24 rounded-xl bg-transparent" />
           </div>
         </div>

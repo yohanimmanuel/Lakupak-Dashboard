@@ -44,11 +44,11 @@ export function SkeletonCampaignsPage() {
           <Skeleton className="h-4 w-72" />
         </div>
         {/* Create Campaign button */}
-        <Skeleton className="h-9 w-40 rounded-lg bg-[#0a61d7]/20" />
+        <Skeleton className="h-9 w-40 rounded-lg" />
       </div>
 
       {/* Tip banner */}
-      <div className="rounded-lg border border-[#e6e6e6] bg-blue-50 p-4 mb-3 flex items-start gap-3">
+      <div className="rounded-lg border border-[#e6e6e6] bg-white p-4 mb-3 flex items-start gap-3">
         <div className="flex-1 space-y-1.5">
           <Skeleton className="h-3.5 w-full max-w-md" />
           <Skeleton className="h-3.5 w-40" />
@@ -63,7 +63,7 @@ export function SkeletonCampaignsPage() {
           {['w-12', 'w-14', 'w-20', 'w-20'].map((w, i) => (
             <div
               key={i}
-              className={`px-4 py-2.5 ${i === 0 ? 'border-b-2 border-[#0a61d7]' : ''}`}
+              className="px-4 py-2.5 border-b-2 border-transparent"
             >
               <Skeleton className={`h-4 ${w}`} />
             </div>

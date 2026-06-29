@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useUserStore } from "@/store/userStore";
 import ProductCatalog from "@/components/productscatalogs/ProductCatalog";
+import { SkeletonProductDetailPage } from "@/components/skeleton/SkeletonProductDetailPage";
 import { Product } from "@/types/product";
 import { fetchGraphQL } from "@/lib/graphqlClient";
 import { useProductsTranslations } from '@/hooks/useProductsTranslations';
@@ -12,7 +13,7 @@ export default function ViewProductPage() {
   const { tDetailsPage } = useProductsTranslations();
   const user = useUserStore(state => state.user);
   const [product, setProduct] = useState<Product | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -97,14 +98,7 @@ export default function ViewProductPage() {
   }, [user?.id, params?.id]);
 
   if (loading) {
-    return (
-      <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">{tDetailsPage('loading')}</p>
-        </div>
-      </div>
-    );
+    return <SkeletonProductDetailPage />;
   }
 
   if (error || !product) {

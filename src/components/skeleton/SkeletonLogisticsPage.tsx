@@ -8,9 +8,9 @@
  */
 import { Skeleton } from '@/components/ui/Skeleton';
 
-function FleetCard({ active = false }: { active?: boolean }) {
+function FleetCard() {
   return (
-    <div className={`flex items-start gap-3 p-3 rounded-lg border ${active ? 'border-[#0a61d7] bg-blue-50' : 'border-[#e6e6e6] bg-white'} mb-2`}>
+    <div className="flex items-start gap-3 p-3 rounded-lg border border-[#e6e6e6] bg-white mb-2">
       {/* Checkbox */}
       <Skeleton className="h-4 w-4 rounded mt-1 shrink-0" />
       {/* Fleet icon */}
@@ -59,7 +59,7 @@ export function SkeletonLogisticsPage() {
         <div className="flex items-center gap-2">
           <Skeleton className="h-9 w-24 rounded-lg" />
           <Skeleton className="h-9 w-28 rounded-lg" />
-          <Skeleton className="h-9 w-36 rounded-lg bg-[#0a61d7]/20" />
+          <Skeleton className="h-9 w-36 rounded-lg" />
         </div>
       </div>
 
@@ -74,7 +74,7 @@ export function SkeletonLogisticsPage() {
           </div>
           {/* Fleets / Drivers tabs */}
           <div className="flex border-b border-[#e6e6e6]">
-            <div className="flex-1 px-4 py-3 border-b-2 border-[#0a61d7]">
+            <div className="flex-1 px-4 py-3 border-b-2 border-transparent">
               <Skeleton className="h-4 w-16 mx-auto" />
             </div>
             <div className="flex-1 px-4 py-3">
@@ -83,7 +83,7 @@ export function SkeletonLogisticsPage() {
           </div>
           {/* Fleet cards */}
           <div className="p-3 flex-1">
-            <FleetCard active />
+            <FleetCard />
             <FleetCard />
             <FleetCard />
             <FleetCard />

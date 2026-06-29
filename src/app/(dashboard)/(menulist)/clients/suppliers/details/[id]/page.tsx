@@ -1,9 +1,10 @@
 'use client';
 
 import SupplierProfile from '@/components/clientmanagement/SupplierProfile';
+import { SkeletonClientProfilePage } from '@/components/skeleton/SkeletonClientProfilePage';
 import useSWR from 'swr';
 import { useParams } from 'next/navigation';
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import type { Supplier } from '@/types/client';
@@ -65,12 +66,9 @@ export default function SupplierDetailsPage() {
   const tPage = (key: string, values?: Record<string, string | number>) =>
     tSuppliers(`detailsPage.${key}` as Parameters<typeof tSuppliers>[0], values);
   const params = useParams();
+  const isHydrated = useUserStore(state => state.isHydrated);
   const user = useUserStore(state => state.user);
-  const [id, setId] = useState<string | undefined>(undefined);
-
-  useEffect(() => {
-    if (params?.id) setId(params.id as string);
-  }, [params]);
+  const id = typeof params?.id === 'string' ? params.id : undefined;
 
   const { data: supplier, error, isLoading, mutate } = useSWR(
     user?.id && id ? `${user.id}|${id}` : null,
@@ -84,23 +82,32 @@ export default function SupplierDetailsPage() {
     },
   );
 
-  if (!user?.id || !id) {
+  const showSkeleton =
+    !isHydrated ||
+    isLoading ||
+    (Boolean(user?.id && id) && !supplier && !error);
+
+  if (showSkeleton) {
+    return <SkeletonClientProfilePage />;
+  }
+
+  if (!id) {
     return (
       <div className="p-4 w-full min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
         <div className="text-center">
-          <div className="text-red-500 text-lg font-semibold mb-2">{tPage('authRequired')}</div>
-          <div className="text-gray-600">{tPage('loginRequired')}</div>
+          <div className="text-gray-500 text-lg font-semibold mb-2">{tPage('notFound')}</div>
+          <div className="text-gray-600">{tPage('notFoundDescription')}</div>
         </div>
       </div>
     );
   }
 
-  if (isLoading) {
+  if (!user?.id) {
     return (
       <div className="p-4 w-full min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
         <div className="text-center">
-          <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <div className="text-gray-600">{tPage('loading')}</div>
+          <div className="text-red-500 text-lg font-semibold mb-2">{tPage('authRequired')}</div>
+          <div className="text-gray-600">{tPage('loginRequired')}</div>
         </div>
       </div>
     );

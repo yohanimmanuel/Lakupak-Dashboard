@@ -35,7 +35,7 @@ export function SkeletonSettingsPage() {
       {/* Tabs */}
       <div className="flex gap-1 overflow-x-auto border-b border-[#e6e6e6] pb-0">
         {['General', 'Profile', 'Team', 'Language', 'Billing', 'Security'].map((_, i) => (
-          <div key={i} className={`px-4 py-2.5 border-b-2 shrink-0 ${i === 0 ? 'border-[#0a61d7]' : 'border-transparent'}`}>
+          <div key={i} className="px-4 py-2.5 border-b-2 shrink-0 border-transparent">
             <Skeleton className="h-4 w-16" />
           </div>
         ))}

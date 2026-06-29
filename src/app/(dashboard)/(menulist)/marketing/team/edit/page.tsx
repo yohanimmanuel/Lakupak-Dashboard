@@ -11,6 +11,7 @@ import { SalesAgent } from '@/components/salesmarketing/TeamList';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
+import { SkeletonWizardPage } from '@/components/skeleton/SkeletonWizardPage';
 
 type TabId = 'profile' | 'products' | 'reporting' | 'target';
 
@@ -339,14 +340,7 @@ export default function EditSalesAgentPage() {
   };
 
   if (loading) {
-    return (
-      <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">{tAgentForm('loading')}</p>
-        </div>
-      </div>
-    );
+    return <SkeletonWizardPage tabs={4} actions={1} />;
   }
 
   return (

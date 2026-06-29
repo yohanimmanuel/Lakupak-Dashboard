@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import OrderDetails from '@/components/ordershipment/OrderDetails';
+import { SkeletonOrderDetailPage } from '@/components/skeleton/SkeletonOrderDetailPage';
 import { Order } from '@/types/order';
 import { useUserStore } from '@/store/userStore';
 
@@ -66,14 +67,7 @@ export default function OrderDetailsPage() {
   };
 
   if (loading) {
-    return (
-      <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
-            <div className="text-center">
-          <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600">{tDetailsPage('loading')}</p>
-        </div>
-      </div>
-    );
+    return <SkeletonOrderDetailPage />;
   }
 
   if (!order) {

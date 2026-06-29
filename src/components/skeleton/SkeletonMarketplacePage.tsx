@@ -75,7 +75,7 @@ export function SkeletonMarketplacePage() {
             <Skeleton className="h-4 w-24 mb-3" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[0, 1].map((i) => (
-                <div key={i} className="rounded-lg bg-blue-50 border border-blue-100 p-4">
+                <div key={i} className="rounded-lg bg-white border border-[#e6e6e6] p-4">
                   <Skeleton className="h-3 w-20 mb-2" />
                   <Skeleton className="h-9 w-12 mb-1" />
                   <Skeleton className="h-3 w-28" />

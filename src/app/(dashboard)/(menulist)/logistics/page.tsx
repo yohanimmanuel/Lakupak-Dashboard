@@ -252,34 +252,16 @@ export default function LogisticsPage() {
 
       {/* Main content: list + details/tracking */}
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {loading ? (
-          <div className="flex items-center justify-center py-12 text-gray-500">
-            <div className="text-center">
-              <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600">{tPage('loadingFleets')}</p>
-            </div>
-          </div>
-        ) : (
-          <OrderfleetList
-            fleets={fleets}
-            selectedFleetId={effectiveSelectedFleetId}
-            onSelectFleet={setSelectedFleetId}
-            availableDeliveryTypes={availableDeliveryTypes}
-            onFleetsDeleted={handleRefresh}
-            drivers={drivers}
-            onDriverDeleted={handleRefresh}
-          />
-        )}
-        {loading ? (
-          <div className="flex items-center justify-center py-12 text-gray-500">
-            <div className="text-center">
-              <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600">{tPage('loadingFleetDetails')}</p>
-            </div>
-          </div>
-        ) : (
-          <FleetDetails key={`${effectiveSelectedFleetId}-${refreshKey}`} fleet={selectedFleet} onOpenTracking={handleOpenTracking} />
-        )}
+        <OrderfleetList
+          fleets={fleets}
+          selectedFleetId={effectiveSelectedFleetId}
+          onSelectFleet={setSelectedFleetId}
+          availableDeliveryTypes={availableDeliveryTypes}
+          onFleetsDeleted={handleRefresh}
+          drivers={drivers}
+          onDriverDeleted={handleRefresh}
+        />
+        <FleetDetails key={`${effectiveSelectedFleetId}-${refreshKey}`} fleet={selectedFleet} onOpenTracking={handleOpenTracking} />
       </div>
 
       {/* Data Status Overlay */}

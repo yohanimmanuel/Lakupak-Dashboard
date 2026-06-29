@@ -7,6 +7,7 @@ import { fetchFleet } from '@/data/logisticsFleetsApi';
 import type { FleetOrderSummary } from '@/components/logisticsmanagement/OrderfleetList';
 import { useUserStore } from '@/store/userStore';
 import { useLogisticsTranslations } from '@/hooks/useLogisticsTranslations';
+import { SkeletonFleetDetailPage } from '@/components/skeleton/SkeletonFleetDetailPage';
 
 export default function LogisticsDetailsPage() {
   const { tDetailsPage } = useLogisticsTranslations();
@@ -42,14 +43,7 @@ export default function LogisticsDetailsPage() {
   }
 
   if (fleet === undefined) {
-    return (
-      <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">{tDetailsPage('loading')}</p>
-        </div>
-      </div>
-    );
+    return <SkeletonFleetDetailPage />;
   }
 
   if (!fleetId) {

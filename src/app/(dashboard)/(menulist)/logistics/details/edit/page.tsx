@@ -12,6 +12,7 @@ import type { FleetOrderSummary, DriverSummary } from '@/components/logisticsman
 import { fetchFleet, updateFleet, fetchDrivers } from '@/data/logisticsFleetsApi';
 import { useUserStore } from '@/store/userStore';
 import { useLogisticsTranslations } from '@/hooks/useLogisticsTranslations';
+import { SkeletonWizardPage } from '@/components/skeleton/SkeletonWizardPage';
 
 type TabId = 'basic' | 'vehicle' | 'driver' | 'orders';
 
@@ -354,14 +355,7 @@ export default function EditFleetPage() {
   };
 
   if (loading) {
-    return (
-      <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">{tEditPage('loading')}</p>
-        </div>
-      </div>
-    );
+    return <SkeletonWizardPage tabs={4} actions={1} />;
   }
 
   return (

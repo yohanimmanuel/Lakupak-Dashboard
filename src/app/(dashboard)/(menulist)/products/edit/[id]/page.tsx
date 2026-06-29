@@ -6,6 +6,7 @@ import ProductCatalog from "@/components/productscatalogs/ProductCatalog";
 import { Product } from "@/types/product";
 import { fetchGraphQL } from "@/lib/graphqlClient";
 import { useProductsTranslations } from '@/hooks/useProductsTranslations';
+import { SkeletonProductDetailPage } from "@/components/skeleton/SkeletonProductDetailPage";
 
 export default function EditProductPage() {
   const params = useParams();
@@ -104,14 +105,7 @@ export default function EditProductPage() {
   }, [user?.id, params?.id]);
 
   if (loading) {
-    return (
-      <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-[#0a61d7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">{tDetailsPage('loading')}</p>
-        </div>
-      </div>
-    );
+    return <SkeletonProductDetailPage />;
   }
 
   if (error || !product) {
