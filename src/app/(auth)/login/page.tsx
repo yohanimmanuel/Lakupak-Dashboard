@@ -15,6 +15,9 @@ import {
 import { getSession, signIn, signOut } from "next-auth/react";
 import { useAuthTranslations } from '@/hooks/useAuthTranslations';
 import { AuthLanguageSwitcher } from '@/components/auth/AuthLanguageSwitcher';
+import { LoginShowcaseCarousel } from '@/components/auth/LoginShowcaseCarousel';
+
+const DESKTOP_SHOWCASE_MQ = '(min-width: 1024px)';
 import {
   type RememberedLogin,
   clearRememberedLogin,
@@ -31,6 +34,8 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [rememberedAccount, setRememberedAccount] = useState<RememberedLogin | null>(null);
   const [showRememberedPrompt, setShowRememberedPrompt] = useState(false);
+  
+  const [showShowcase, setShowShowcase] = useState(false);
   
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -49,6 +54,14 @@ export default function LoginPage() {
     setEmail(saved.email);
     setRememberMe(true);
     setShowRememberedPrompt(true);
+  }, []);
+
+  useLayoutEffect(() => {
+    const mq = window.matchMedia(DESKTOP_SHOWCASE_MQ);
+    const sync = () => setShowShowcase(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
   }, []);
 
   useEffect(() => {
@@ -155,46 +168,7 @@ export default function LoginPage() {
 
   return (
     <div className="relative flex min-h-screen w-full overflow-hidden bg-white lg:bg-[#0a61d7]">
-      <div className="hidden lg:flex absolute inset-y-0 right-0 left-[42%] overflow-hidden bg-[#0a61d7] animate-fade-in-right">
-        <div className="pointer-events-none absolute -right-16 top-16 h-72 w-72 rounded-[2.5rem] bg-white/10" />
-        <div className="pointer-events-none absolute -left-10 bottom-24 h-56 w-56 rounded-[2rem] bg-white/10" />
-        <div className="pointer-events-none absolute right-24 top-1/3 h-40 w-40 rounded-3xl bg-[#084ba6]/40" />
-
-        <div className="relative z-0 flex h-full w-full flex-col px-10 py-12 xl:px-14">
-          <div className="max-w-xl">
-            <h2 className="text-2xl font-bold leading-tight text-white xl:text-3xl">
-              {tLogin('showcaseTitle')}
-            </h2>
-            <p className="mt-3 text-sm text-white/80">
-              {tLogin('showcaseSubtitle')}
-            </p>
-          </div>
-
-          <div className="relative mt-8 flex-1 min-h-[380px]">
-            <div className="absolute left-10 w-[76%] animate-showcase-float-slow rounded-2xl border border-white/20 bg-white p-1.5 shadow-[0_20px_48px_rgba(0,0,0,0.24)]">
-              <img
-                src="/Dashboardhome.png"
-                alt={tLogin('showcaseHomeAlt')}
-                className="w-full rounded-xl border border-gray-100"
-              />
-            </div>
-            <div className="absolute bottom-6 right-2 w-[34%] animate-showcase-float-slower animate-delay-700 rounded-xl border border-white/20 bg-white p-1 shadow-[0_16px_40px_rgba(0,0,0,0.22)]">
-              <img
-                src="/Dashboardlogs.png"
-                alt={tLogin('showcaseLogisticsAlt')}
-                className="w-full rounded-lg border border-gray-100"
-              />
-            </div>
-            <div className="absolute top-[50%] w-[28%] animate-showcase-float animate-delay-300 rounded-lg border border-white/20 bg-white p-1 shadow-[0_12px_32px_rgba(0,0,0,0.2)]">
-              <img
-                src="/Dashboardanalytics.png"
-                alt={tLogin('showcaseAnalyticsAlt')}
-                className="w-full rounded-md border border-gray-100"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+      {showShowcase && <LoginShowcaseCarousel />}
 
       <div className="relative z-10 flex min-h-screen w-full flex-col justify-center bg-white px-6 py-10 sm:px-12 lg:w-[44%] lg:shrink-0 lg:rounded-tl-none lg:rounded-bl-none lg:rounded-tr-2xl lg:rounded-br-2xl lg:px-14 xl:w-[42%] xl:px-16 animate-fade-in-left">
         <div className="flex flex-col items-center justify-center text-center max-w-md mx-auto">
