@@ -14,6 +14,7 @@ import {
   scheduleOrderCancelPostCommitEffects,
   scheduleOrderUpdatePostCommitEffects,
   scheduleReturnRequestRejectedNotification,
+  scheduleReturnItemsReceivedNotification,
 } from './enqueueOrderUpdateSideEffects';
 
 // Move-only extraction of PUT handler from `ordersRouteService.ts`.
@@ -217,6 +218,118 @@ export async function updateOrderHandler(request: NextRequest) {
         }
       } catch (e) {
         return NextResponse.json({ error: 'Failed to update return request status' }, { status: 500, headers: localHeaders });
+      }
+    }
+
+    // Distributor confirms physical receipt of returned items
+    if (body.confirmReturnItemsReceived === true) {
+      const localHeaders = getOrderSecurityHeaders();
+      const orderId = typeof body.orderId === 'string' ? body.orderId.trim() : '';
+      if (!orderId) {
+        return NextResponse.json({ error: 'Missing orderId' }, { status: 400, headers: localHeaders });
+      }
+
+      try {
+        const existing = await prisma.order.findUnique({
+          where: { orderId },
+          include: { returnRequests: true },
+        });
+
+        if (!existing) {
+          return NextResponse.json({ error: 'Order not found' }, { status: 404, headers: localHeaders });
+        }
+
+        if (
+          body.userId &&
+          existing.userId &&
+          existing.userId !== Number(body.userId)
+        ) {
+          return NextResponse.json({ error: 'Forbidden: you do not own this order' }, { status: 403, headers: localHeaders });
+        }
+
+        if (existing.orderStatus !== 'Returned') {
+          return NextResponse.json({ error: 'Order is not in Returned status' }, { status: 400, headers: localHeaders });
+        }
+
+        const hasAcceptedReturn =
+          existing.returnStatus === 'Accepted' ||
+          (existing.returnRequests ?? []).some((rr) => rr.status === 'Accepted');
+        if (!hasAcceptedReturn) {
+          return NextResponse.json({ error: 'No accepted return request for this order' }, { status: 400, headers: localHeaders });
+        }
+
+        const confirmedAt = new Date();
+        const result = await prisma.order.updateMany({
+          where: {
+            orderId,
+            returnItemsReceivedAt: null,
+            orderStatus: 'Returned',
+            ...(existing.fleetId ? { returnCollectedAt: { not: null } } : {}),
+          },
+          data: { returnItemsReceivedAt: confirmedAt },
+        });
+        if (result.count === 0) {
+          const current = await prisma.order.findUnique({
+            where: { orderId },
+            select: {
+              orderStatus: true,
+              returnItemsReceivedAt: true,
+              fleetId: true,
+              returnCollectedAt: true,
+            },
+          });
+          if (!current || current.orderStatus !== 'Returned') {
+            return NextResponse.json(
+              { error: 'Order is not in Returned status' },
+              { status: 400, headers: localHeaders },
+            );
+          }
+          if (current.fleetId && !current.returnCollectedAt) {
+            return NextResponse.json(
+              { error: 'Driver has not collected return items yet' },
+              { status: 400, headers: localHeaders },
+            );
+          }
+          return NextResponse.json(
+            { error: 'Return items already confirmed received' },
+            { status: 400, headers: localHeaders },
+          );
+        }
+        const updated = await prisma.order.findUniqueOrThrow({
+          where: { orderId },
+        });
+
+        const marketplaceUserId = parseMarketplaceUserIdFromBuyerId(updated.buyerId);
+        if (marketplaceUserId != null) {
+          scheduleReturnItemsReceivedNotification({
+            marketplaceUserId,
+            orderId: updated.orderId,
+            orderStatus: String(updated.orderStatus),
+          });
+        }
+
+        enqueueBroadcastOrderUpdates('order-update', [updated.orderId]);
+
+        auditOrder(request, {
+          action: 'return_items_received',
+          resourceId: updated.orderId,
+          actorId: userIdForRateLimit,
+          actorType: 'dashboard',
+          metadata: existing.userId != null ? { targetUserId: existing.userId } : undefined,
+        });
+
+        return NextResponse.json(
+          {
+            success: true,
+            order: {
+              orderId: updated.orderId,
+              returnItemsReceivedAt: updated.returnItemsReceivedAt?.toISOString() ?? null,
+            },
+          },
+          { headers: localHeaders },
+        );
+      } catch {
+        return NextResponse.json({ error: 'Failed to confirm return items received' }, { status: 500, headers: localHeaders });
       }
     }
 

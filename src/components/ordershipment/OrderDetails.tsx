@@ -56,6 +56,15 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [showMapFullscreen, setShowMapFullscreen] = useState(false);
   const [isProcessingReturn, setIsProcessingReturn] = useState(false);
+  const [isConfirmingReturnReceived, setIsConfirmingReturnReceived] = useState(false);
+  const orderWithReturnFlow = order as Order & {
+    fleetId?: number | null;
+    returnCollectedAt?: Date | string | null;
+    returnItemsReceivedAt?: Date | string | null;
+  };
+  const [returnItemsReceivedAt, setReturnItemsReceivedAt] = useState<Date | string | null>(
+    orderWithReturnFlow.returnItemsReceivedAt ?? null,
+  );
   type DeliveryMethod = Order['deliveryMethod'];
   const toDateInputValue = (d?: Date | string | null) => {
     if (!d) return '';
@@ -84,6 +93,16 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
 
   const latestPendingReturnRequest =
     order.returnRequests && order.returnRequests.find((rr) => rr.status === 'Pending');
+
+  const hasAcceptedReturnRequest =
+    order.returnStatus === 'Accepted' ||
+    (order.returnRequests ?? []).some((rr) => rr.status === 'Accepted');
+
+  const canConfirmReturnItemsReceived =
+    orderStatus === 'Returned' &&
+    hasAcceptedReturnRequest &&
+    !returnItemsReceivedAt &&
+    (!orderWithReturnFlow.fleetId || Boolean(orderWithReturnFlow.returnCollectedAt));
 
   // POD file upload handler
   const handlePodUpload = async (file: File) => {
@@ -862,12 +881,15 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 );
               }
 
-              if (order.returnRequests && order.returnRequests.length > 0) {
+              if (
+                (order.returnRequests && order.returnRequests.length > 0) ||
+                (orderStatus === 'Returned' && hasAcceptedReturnRequest)
+              ) {
                 return (
                   <div className="mb-4 p-4 rounded-lg border bg-gray-50 border-[#e6e6e6]">
                     <div className="text-sm font-semibold text-black mb-2">{tDetails('return.title')}</div>
                     <div className="text-xs text-gray-700 space-y-3">
-                      {order.returnRequests.map((rr, index) => (
+                      {(order.returnRequests ?? []).map((rr, index) => (
                         <div key={rr.id ?? index} className="border border-gray-200 rounded-lg p-2 mb-1">
                           <div className="flex items-center justify-between mb-1">
                             <span className="font-medium text-gray-900">
@@ -999,6 +1021,80 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                           </button>
                         </div>
                       )}
+
+                      {orderStatus === 'Returned' && hasAcceptedReturnRequest && (
+                        <div className="mt-4 pt-4 border-t border-gray-200">
+                          <div className="text-sm font-semibold text-black mb-2">
+                            {tDetails('return.itemsReceivedTitle')}
+                          </div>
+                          {returnItemsReceivedAt ? (
+                            <p className="text-xs text-green-700 font-medium">
+                              {tDetails('return.itemsReceivedConfirmed', {
+                                date: new Date(returnItemsReceivedAt).toLocaleString(),
+                              })}
+                            </p>
+                          ) : orderWithReturnFlow.fleetId && !orderWithReturnFlow.returnCollectedAt ? (
+                            <p className="text-xs text-amber-700">
+                              {tDetails('return.itemsReceivedWaitingDriver')}
+                            </p>
+                          ) : (
+                            <>
+                              <p className="text-xs text-gray-700 mb-2">
+                                {tDetails('return.itemsReceivedQuestion')}
+                              </p>
+                              <button
+                                type="button"
+                                disabled={!canConfirmReturnItemsReceived || isConfirmingReturnReceived}
+                                onClick={async () => {
+                                  if (!user?.id || isConfirmingReturnReceived) return;
+                                  setIsConfirmingReturnReceived(true);
+                                  try {
+                                    const res = await fetch('/api/orders', {
+                                      method: 'PUT',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({
+                                        orderId: order.orderId,
+                                        confirmReturnItemsReceived: true,
+                                        userId: user.id,
+                                      }),
+                                    });
+                                    if (!res.ok) {
+                                      const text = await res.text().catch(() => '');
+                                      alert(
+                                        tDetails('return.itemsReceivedFailed', {
+                                          detail: text || String(res.status),
+                                        }),
+                                      );
+                                      return;
+                                    }
+                                    const data = await res.json().catch(() => null);
+                                    const confirmedAt = data?.order?.returnItemsReceivedAt;
+                                    if (confirmedAt) {
+                                      setReturnItemsReceivedAt(confirmedAt);
+                                    } else {
+                                      window.location.reload();
+                                    }
+                                  } catch {
+                                    alert(tDetails('return.itemsReceivedFailed', { detail: '' }));
+                                  } finally {
+                                    setIsConfirmingReturnReceived(false);
+                                  }
+                                }}
+                                className={`px-3 py-1.5 rounded-md text-white text-xs font-semibold ${
+                                  isConfirmingReturnReceived
+                                    ? 'bg-[#0a61d7]/60 cursor-not-allowed'
+                                    : 'bg-[#0a61d7] hover:bg-[#084ba6]'
+                                }`}
+                              >
+                                {isConfirmingReturnReceived
+                                  ? tDetails('return.processing')
+                                  : tDetails('return.itemsReceivedConfirm')}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
+
                     {order.pod && (
                       <div className="mt-4 pt-4 border-t border-gray-200">
                         <div className="text-sm font-semibold text-black mb-2">{tDetails('pod.title')}</div>
@@ -1035,7 +1131,13 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 );
               }
 
-              if (order.pod && !(order.returnRequests && order.returnRequests.length > 0)) {
+              if (
+                order.pod &&
+                !(
+                  (order.returnRequests && order.returnRequests.length > 0) ||
+                  (orderStatus === 'Returned' && hasAcceptedReturnRequest)
+                )
+              ) {
                 return (
                   <div className="mb-4">
                     <div className="text-sm font-semibold text-black mb-2">{tDetails('pod.title')}</div>

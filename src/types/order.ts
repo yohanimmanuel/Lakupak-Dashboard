@@ -61,6 +61,9 @@ export interface Order {
   returnReason?: string | null;
   returnReasonDetail?: string | null;
   returnStatus?: 'Pending' | 'Accepted' | 'Rejected' | null;
+  returnCollectedAt?: Date | string | null;
+  returnItemsReceivedAt?: Date | string | null;
+  returnPod?: string | null;
   /** Multiple return reasons when buyer submitted more than one return request */
   returnRequests?: Array<{
     id: number;

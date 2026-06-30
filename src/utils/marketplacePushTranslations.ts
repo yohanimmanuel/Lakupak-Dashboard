@@ -200,6 +200,23 @@ export function translateMarketplaceReturnRequestRejected(params: { orderId: str
   };
 }
 
+export function translateMarketplaceReturnItemsReceived(params: { orderId: string }): Record<
+  DriverPushLanguage,
+  MarketplacePushPayload
+> {
+  const { orderId } = params;
+  return {
+    id: {
+      title: 'Barang Retur Diterima',
+      body: `Barang retur pesanan #${orderId} sudah diterima distributor.`,
+    },
+    en: {
+      title: 'Return Items Received',
+      body: `Return items for order #${orderId} have been received by the distributor.`,
+    },
+  };
+}
+
 export function translateMarketplacePaymentIntentSubmitted(params: { orderId: string }): Record<
   DriverPushLanguage,
   MarketplacePushPayload

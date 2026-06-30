@@ -76,6 +76,8 @@ export async function GET(req: NextRequest) {
             contactPhone: true,
             deliveryAddress: true,
             orderStatus: true,
+            returnCollectedAt: true,
+            returnItemsReceivedAt: true,
             orderDate: true,
             preferredDeliveryDate: true,
             estimatedDeliveryDate: true,

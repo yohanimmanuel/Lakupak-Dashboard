@@ -106,6 +106,10 @@ export const fetchMobileOrders = async (args: {
       preferredDeliveryDate: order.preferredDeliveryDate?.toISOString() ?? null,
       preferredPickupDate: order.preferredPickupDate?.toISOString() ?? null,
       acceptedAt: order.acceptedAt?.toISOString() ?? null,
+      returnedAt: order.returnedAt?.toISOString() ?? null,
+      returnCollectedAt: order.returnCollectedAt?.toISOString() ?? null,
+      returnItemsReceivedAt: order.returnItemsReceivedAt?.toISOString() ?? null,
+      returnPod: order.returnPod ?? null,
       seller: distributorUser
         ? {
             name:

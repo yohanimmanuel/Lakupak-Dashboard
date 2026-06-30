@@ -332,7 +332,7 @@ export const NotificationService = {
     userId: number,
     orderId: string,
     fleetCode: string | null,
-    orderStatus: 'Shipped' | 'Delivered' | 'Failed',
+    orderStatus: 'Shipped' | 'Delivered' | 'Failed' | 'ReturnCollected',
     failureReason?: string | null
   ) {
     let title = '';
@@ -348,6 +348,9 @@ export const NotificationService = {
       title = 'Delivery Failed';
       const reason = (failureReason && failureReason.trim().length > 0) ? failureReason.trim() : 'an unspecified issue';
       message = `Delivery failed due to ${reason}.`;
+    } else if (orderStatus === 'ReturnCollected') {
+      title = 'Return Items Collected';
+      message = `Your driver has collected return items for order #${orderId}. Please confirm receipt when items arrive.`;
     }
 
     await prisma.notification.create({

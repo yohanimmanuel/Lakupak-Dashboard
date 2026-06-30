@@ -432,6 +432,9 @@ model Order {
   returnReason            String?     // reason code from return request
   returnReasonDetail      String?     // optional detail when reason is "other"
   returnStatus            String?     // Pending | Accepted | Rejected
+  returnCollectedAt       DateTime?   @db.Timestamptz(3) // Driver collected return from buyer
+  returnItemsReceivedAt   DateTime?   @db.Timestamptz(3) // Distributor confirmed return items received
+  returnPod               String?     // Proof of return pickup (driver)
   isDeleted               Boolean     @default(false)
   buyerIdSnapshot         String?
   contactPersonSnapshot   String?

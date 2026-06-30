@@ -285,7 +285,13 @@
       "evidenceAlt": "Bukti pengembalian {index}",
       "accept": "Terima pengembalian",
       "reject": "Tolak pengembalian",
-      "processing": "Memproses..."
+      "processing": "Memproses...",
+      "itemsReceivedTitle": "Konfirmasi barang retur",
+      "itemsReceivedQuestion": "Apakah barang retur sudah diterima oleh distributor?",
+      "itemsReceivedConfirm": "Ya, barang retur sudah diterima",
+      "itemsReceivedConfirmed": "Barang retur dikonfirmasi diterima pada {date}",
+      "itemsReceivedWaitingDriver": "Menunggu driver mengambil barang retur dari pembeli.",
+      "itemsReceivedFailed": "Gagal mengonfirmasi penerimaan barang retur: {detail}"
     },
     "pod": {
       "title": "Bukti Pengiriman (POD)",

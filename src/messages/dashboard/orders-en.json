@@ -285,7 +285,13 @@
       "evidenceAlt": "Return evidence {index}",
       "accept": "Accept return",
       "reject": "Reject return",
-      "processing": "Processing..."
+      "processing": "Processing...",
+      "itemsReceivedTitle": "Confirm return items",
+      "itemsReceivedQuestion": "Have the returned items been received by the distributor?",
+      "itemsReceivedConfirm": "Yes, return items received",
+      "itemsReceivedConfirmed": "Return items confirmed received on {date}",
+      "itemsReceivedWaitingDriver": "Waiting for the driver to collect return items from the buyer.",
+      "itemsReceivedFailed": "Failed to confirm return items received: {detail}"
     },
     "pod": {
       "title": "Proof of Delivery (POD)",

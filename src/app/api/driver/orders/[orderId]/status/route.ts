@@ -64,6 +64,33 @@ function getOrderFailedReasonModel(client: PrismaClient): OrderFailedReasonModel
   return candidate;
 }
 
+async function verifyDriverOrderAccess(
+  orderId: string,
+  driverId: number,
+  headers: Record<string, string>,
+) {
+  const order = await prisma.order.findFirst({
+    where: { orderId: orderId.trim() },
+    include: {
+      fleet: {
+        select: { id: true, driverId: true, fleetCode: true },
+      },
+    },
+  });
+
+  if (!order) {
+    return { error: NextResponse.json({ error: 'Order not found' }, { status: 404, headers }) };
+  }
+  if (!order.fleet) {
+    return { error: NextResponse.json({ error: 'Order is not assigned to a fleet' }, { status: 403, headers }) };
+  }
+  if (order.fleet.driverId !== driverId) {
+    return { error: NextResponse.json({ error: 'Order not in your assigned fleet' }, { status: 403, headers }) };
+  }
+
+  return { order };
+}
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ orderId: string }> }
@@ -83,8 +110,10 @@ export async function PATCH(
 
   let body: {
     orderStatus?: string;
+    collectReturn?: boolean;
     failureReason?: string;
     pod?: string;
+    returnPod?: string;
     failureProof?: string;
     failureEvidenceUrls?: unknown;
   };
@@ -94,9 +123,11 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400, headers });
   }
 
+  const collectReturn = body.collectReturn === true;
   const orderStatus = typeof body.orderStatus === 'string' ? body.orderStatus.trim() : undefined;
   const failureReason = typeof body.failureReason === 'string' ? body.failureReason.trim() : undefined;
   const pod = typeof body.pod === 'string' ? body.pod.trim() : undefined;
+  const returnPod = typeof body.returnPod === 'string' ? body.returnPod.trim() : undefined;
   const failureProof = typeof body.failureProof === 'string' ? body.failureProof.trim() : undefined;
   const rawEvidenceUrls = body.failureEvidenceUrls;
   let failureEvidenceUrls: string[] = [];
@@ -109,6 +140,84 @@ export async function PATCH(
   if (failureEvidenceUrls.length === 0 && failureProof) {
     failureEvidenceUrls = [failureProof];
   }
+
+  if (collectReturn) {
+    try {
+      const access = await verifyDriverOrderAccess(orderId, payload.sub, headers);
+      if (access.error) return access.error;
+      const order = access.order!;
+
+      const collectedAt = new Date();
+      const result = await prisma.order.updateMany({
+        where: {
+          orderId: orderId.trim(),
+          orderStatus: 'Returned',
+          returnCollectedAt: null,
+        },
+        data: {
+          returnCollectedAt: collectedAt,
+          ...(returnPod ? { returnPod } : {}),
+        },
+      });
+
+      if (result.count === 0) {
+        const current = await prisma.order.findUnique({
+          where: { orderId: orderId.trim() },
+          select: { orderStatus: true },
+        });
+        if (!current || current.orderStatus !== 'Returned') {
+          return NextResponse.json(
+            { error: 'Return collection is only available for Returned orders' },
+            { status: 400, headers },
+          );
+        }
+        return NextResponse.json({ error: 'Return items already collected' }, { status: 400, headers });
+      }
+
+      const updated = await prisma.order.findUniqueOrThrow({
+        where: { orderId: orderId.trim() },
+      });
+
+      try {
+        await broadcastOrderUpdate([updated.orderId]);
+      } catch {
+        // best-effort
+      }
+
+      if (updated.userId) {
+        try {
+          const fleetCode = order.fleet?.fleetCode ?? null;
+          await NotificationService.createDriverStatusNotification(
+            updated.userId,
+            updated.orderId,
+            fleetCode,
+            'ReturnCollected',
+          );
+        } catch {
+          // ignore notification errors
+        }
+      }
+
+      auditOrder(req, {
+        action: 'return_collected',
+        resourceId: updated.orderId,
+        actorId: payload.sub,
+        actorType: 'driver',
+      });
+
+      return NextResponse.json(
+        {
+          success: true,
+          returnCollectedAt: updated.returnCollectedAt?.toISOString() ?? null,
+        },
+        { status: 200, headers },
+      );
+    } catch (error) {
+      console.error('[DriverOrderStatus] Failed to collect return', orderId, error);
+      return NextResponse.json({ error: 'Failed to collect return' }, { status: 500, headers });
+    }
+  }
+
   if (!orderStatus || !DRIVER_ALLOWED_STATUSES.includes(orderStatus as (typeof DRIVER_ALLOWED_STATUSES)[number])) {
     return NextResponse.json(
       { error: 'orderStatus must be one of: Shipped, Delivered, Failed' },
@@ -117,24 +226,9 @@ export async function PATCH(
   }
 
   try {
-    const order = await prisma.order.findFirst({
-      where: { orderId: orderId.trim() },
-      include: {
-        fleet: {
-          select: { id: true, driverId: true, fleetCode: true },
-        },
-      },
-    });
-
-    if (!order) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404, headers });
-    }
-    if (!order.fleet) {
-      return NextResponse.json({ error: 'Order is not assigned to a fleet' }, { status: 403, headers });
-    }
-    if (order.fleet.driverId !== payload.sub) {
-      return NextResponse.json({ error: 'Order not in your assigned fleet' }, { status: 403, headers });
-    }
+    const access = await verifyDriverOrderAccess(orderId, payload.sub, headers);
+    if (access.error) return access.error;
+    const order = access.order!;
 
     const currentStatus = order.orderStatus;
     const allowed = ALLOWED_TRANSITIONS[currentStatus];

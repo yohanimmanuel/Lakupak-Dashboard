@@ -533,6 +533,34 @@ export const sanitizeOrderData = (data: unknown) => {
     sanitized.acceptedAt = orderData.acceptedAt ? new Date(String(orderData.acceptedAt)) : null;
   }
 
+  if (orderData.returnedAt !== undefined) {
+    sanitized.returnedAt = orderData.returnedAt ? new Date(String(orderData.returnedAt)) : null;
+  }
+  if (orderData.returnReason !== undefined) {
+    sanitized.returnReason = orderData.returnReason ? String(orderData.returnReason).trim() : null;
+  }
+  if (orderData.returnReasonDetail !== undefined) {
+    sanitized.returnReasonDetail = orderData.returnReasonDetail
+      ? String(orderData.returnReasonDetail).trim()
+      : null;
+  }
+  if (orderData.returnStatus !== undefined) {
+    sanitized.returnStatus = orderData.returnStatus ? String(orderData.returnStatus).trim() : null;
+  }
+  if (orderData.returnCollectedAt !== undefined) {
+    sanitized.returnCollectedAt = orderData.returnCollectedAt
+      ? new Date(String(orderData.returnCollectedAt))
+      : null;
+  }
+  if (orderData.returnItemsReceivedAt !== undefined) {
+    sanitized.returnItemsReceivedAt = orderData.returnItemsReceivedAt
+      ? new Date(String(orderData.returnItemsReceivedAt))
+      : null;
+  }
+  if (orderData.returnPod !== undefined) {
+    sanitized.returnPod = orderData.returnPod ? String(orderData.returnPod).trim() : null;
+  }
+
   if (orderData.estimatedDeliveryDate !== undefined) {
     const value = orderData.estimatedDeliveryDate;
     if (value === null || String(value).trim().length === 0) {

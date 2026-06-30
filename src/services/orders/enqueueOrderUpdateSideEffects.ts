@@ -16,6 +16,7 @@ import {
   translateMarketplacePaymentConfirmed,
   translateMarketplacePaymentUnpaid,
   translateMarketplaceReturnRequestRejected,
+  translateMarketplaceReturnItemsReceived,
 } from '@/utils/marketplacePushTranslations';
 import { NotificationService } from '@/app/api/graphql/modules/notifications';
 import { broadcastSoldCountUpdates, decimalToNumber } from './utils';
@@ -325,6 +326,37 @@ export function scheduleReturnRequestRejectedNotification(input: {
       await broadcastMarketplaceWsFallback(
         input.marketplaceUserId,
         rejectTranslations,
+        'order',
+        payload,
+      );
+    }
+  }, SIDE_EFFECT_OPTS);
+}
+
+export function scheduleReturnItemsReceivedNotification(input: {
+  marketplaceUserId: number;
+  orderId: string;
+  orderStatus: string;
+}) {
+  enqueueSideEffect('returnItemsReceived', async () => {
+    const receivedTranslations = translateMarketplaceReturnItemsReceived({
+      orderId: input.orderId,
+    });
+    const payload = {
+      orderId: input.orderId,
+      orderStatus: input.orderStatus,
+      type: 'order' as const,
+      returnItemsReceived: true as const,
+    };
+    const { tokenCount } = await sendExpoPushToMarketplaceUser(
+      input.marketplaceUserId,
+      receivedTranslations,
+      payload,
+    );
+    if (tokenCount === 0) {
+      await broadcastMarketplaceWsFallback(
+        input.marketplaceUserId,
+        receivedTranslations,
         'order',
         payload,
       );
