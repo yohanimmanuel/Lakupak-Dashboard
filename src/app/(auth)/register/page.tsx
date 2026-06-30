@@ -18,6 +18,7 @@ import {
 } from '@/utils/auth-enhancements';
 import { useAuthTranslations } from '@/hooks/useAuthTranslations';
 import { AuthLanguageSwitcher } from '@/components/auth/AuthLanguageSwitcher';
+import { AuthDecorativeBackground } from '@/components/auth/AuthDecorativeBackground';
 
 const stepsCount = 6;
 
@@ -514,9 +515,10 @@ export default function RegisterPage() {
   }, [showRegionDropdown, showIndustryDropdown, showCompanySizeDropdown]);
 
   return (
-    <div className="min-h-screen w-full bg-white">
-      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-6 py-8 sm:px-8 sm:py-12">
-        <div className="mb-8 text-center sm:text-left">
+    <div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-b from-white via-[#f8fbff] to-[#eef4fd]">
+      <AuthDecorativeBackground variant="light" />
+      <main className="relative z-10 mx-auto flex w-full max-w-5xl flex-1 flex-col p-6 sm:p-6">
+        <div className="mb-4 rounded-xl border border-white/80 bg-white/70 p-6 shadow-lg shadow-[#0a61d7]/5 backdrop-blur-sm text-center sm:text-left animate-fade-in-up">
           <a href="/" aria-label={tRegister('goHome')} className="inline-block mb-4">
             <img src="/LakuTextLogo.svg" alt="Laku Logo" className="h-10" />
           </a>
@@ -524,7 +526,7 @@ export default function RegisterPage() {
           <p className="mt-2 text-gray-500">{tRegister('subtitle')}</p>
         </div>
 
-        <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-xs sm:p-6 animate-fade-in-up">
+        <div className="rounded-xl border border-white/80 bg-white/95 p-4 shadow-lg shadow-[#0a61d7]/5 backdrop-blur-sm sm:p-6 animate-fade-in-up">
           <RegistrationProgressBar steps={steps} currentStep={step} />
 
           {error && (
@@ -537,8 +539,8 @@ export default function RegisterPage() {
           <form onSubmit={handleNext}>
             <div key={stepKey} className="animate-fade-in-up">
             {step === 0 && (
-              <div className="space-y-4">
-                <div className="flex gap-4">
+              <div className="space-y-3">
+                <div className="flex gap-3">
                   <div className="w-1/2">
                     <ValidatedInput
                       label={tRegister('firstName')}
@@ -564,7 +566,7 @@ export default function RegisterPage() {
                     />
                   </div>
                 </div>
-                <div className="flex gap-4">
+                <div className="flex gap-3">
                   <div className="w-1/2">
                     <ValidatedInput
                       label={tRegister('email')}
@@ -615,7 +617,7 @@ export default function RegisterPage() {
             )}
             
             {step === 1 && (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 
                 
                 {/* Region Selection */}
@@ -692,7 +694,7 @@ export default function RegisterPage() {
             )}
             
             {step === 2 && (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <ValidatedInput
                   label={tRegister('businessRegistrationNumber')}
                   type="text"
@@ -829,7 +831,7 @@ export default function RegisterPage() {
             )}
 
             {step === 3 && (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <p className="text-sm font-medium text-gray-700">
                   {tRegister('bankDetailsHint')}
                 </p>
@@ -912,7 +914,7 @@ export default function RegisterPage() {
             )}
 
             {step === 4 && (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div>
                   <label className="block text-sm text-gray-500 mb-1">
                     {tRegister('shippingOptions')} <span className="text-red-500">*</span>
@@ -1034,7 +1036,7 @@ export default function RegisterPage() {
             )}
 
             {step === 5 && (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <ValidatedInput
                   label={tRegister('password')}
                   type="password"
