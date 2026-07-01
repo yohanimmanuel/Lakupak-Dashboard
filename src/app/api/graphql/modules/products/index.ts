@@ -854,6 +854,24 @@ const buildProductData = ({
 // whitespace differences in UI payloads never spawn duplicate rows.
 const normalizeVariantName = (v: string): string => String(v ?? '').replace(/\s+/g, ' ').trim();
 
+/** Expected VariantOption row count from variant type definitions (cartesian product of options). */
+const expectedVariantOptionCount = (
+  variantDefinitions: Array<{ options: string[] }> | null | undefined,
+): number | null => {
+  if (!variantDefinitions?.length) return null;
+
+  let count = 1;
+  for (const def of variantDefinitions) {
+    const opts = Array.isArray(def.options)
+      ? def.options.map((o) => String(o).trim()).filter(Boolean)
+      : [];
+    if (opts.length === 0) return null;
+    count *= opts.length;
+  }
+
+  return count;
+};
+
 const stableStringifyAttributes = (v: unknown): string => {
   if (v === null || v === undefined) return '';
   if (typeof v !== 'object') return String(v);
@@ -1445,28 +1463,36 @@ export const updateProduct = async (args: {
       }
 
       // Guardrail: do not delete VariantOptions referenced by orders. Deactivate instead.
-      const removed = await tx.variantOption.findMany({
-        where: { productId: updated.id, variantName: { notIn: keepNames } },
-        select: { id: true, variantName: true },
-      });
+      // Also skip pruning when the payload does not cover the full variant matrix — an incomplete
+      // list (e.g. user edited variant types but did not refresh the variation table) must not wipe DB rows.
+      const expectedOptionCount = expectedVariantOptionCount(variantDefinitions);
+      const payloadCoversVariantMatrix =
+        expectedOptionCount != null && payload.length >= expectedOptionCount;
 
-      const deactivateIds = removed.filter((vo) => orderedOptionIds.has(vo.id)).map((vo) => vo.id);
-      const removableIds = removed.filter((vo) => !orderedOptionIds.has(vo.id)).map((vo) => vo.id);
-
-      // Options tied to past orders are deactivated (kept for history); the rest are deleted.
-      if (deactivateIds.length > 0) {
-        await tx.variantOption.updateMany({
-          where: { id: { in: deactivateIds } },
-          data: { isActive: false },
+      if (payloadCoversVariantMatrix) {
+        const removed = await tx.variantOption.findMany({
+          where: { productId: updated.id, variantName: { notIn: keepNames } },
+          select: { id: true, variantName: true },
         });
-      }
 
-      if (removableIds.length > 0) {
-        await tx.variantOption.deleteMany({
-          where: {
-            id: { in: removableIds },
-          },
-        });
+        const deactivateIds = removed.filter((vo) => orderedOptionIds.has(vo.id)).map((vo) => vo.id);
+        const removableIds = removed.filter((vo) => !orderedOptionIds.has(vo.id)).map((vo) => vo.id);
+
+        // Options tied to past orders are deactivated (kept for history); the rest are deleted.
+        if (deactivateIds.length > 0) {
+          await tx.variantOption.updateMany({
+            where: { id: { in: deactivateIds } },
+            data: { isActive: false },
+          });
+        }
+
+        if (removableIds.length > 0) {
+          await tx.variantOption.deleteMany({
+            where: {
+              id: { in: removableIds },
+            },
+          });
+        }
       }
     }
 

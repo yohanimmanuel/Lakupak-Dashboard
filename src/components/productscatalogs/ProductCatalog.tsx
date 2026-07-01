@@ -214,6 +214,18 @@ function hasValidVariants(variants: CatalogVariant[]): boolean {
   return variants.some((v) => v.variantType?.trim() && v.options.some((opt) => opt.name?.trim()));
 }
 
+function readVariantAttributeValue(
+  attrs: Record<string, unknown>,
+  variantType: string,
+): string | undefined {
+  const target = String(variantType ?? '').trim().toLowerCase();
+  for (const [key, value] of Object.entries(attrs)) {
+    if (String(key).trim().toLowerCase() !== target) continue;
+    if (value !== undefined && value !== null) return String(value);
+  }
+  return undefined;
+}
+
 function buildVariantsFromImport(
   variantLevels: Array<{ columnId: string; typeName: string }>,
   rows: VariationImportRow[],
@@ -347,8 +359,8 @@ export default function ProductCatalog({
   // Final combinations table (manual entry)
   const [combinations, setCombinations] = useState<Combination[]>([]);
   const combinationsRef = useRef<Combination[]>([]);
+  const skipBeforeUnloadRef = useRef(false);
   const [variationRefreshTick, setVariationRefreshTick] = useState(0);
-  const didInitVariationListRef = useRef(false);
   const [showVariationImport, setShowVariationImport] = useState(false);
 
 
@@ -385,14 +397,6 @@ export default function ProductCatalog({
   // Keep drafts in sync with committed variants (but don't drive the table from drafts)
   useEffect(() => {
     setVariantDrafts(JSON.parse(JSON.stringify(variants)));
-  }, [variants]);
-
-  // Initial build of variation list once variants are loaded.
-  useEffect(() => {
-    if (didInitVariationListRef.current) return;
-    if (!Array.isArray(variants) || variants.length === 0) return;
-    didInitVariationListRef.current = true;
-    setVariationRefreshTick((v) => v + 1);
   }, [variants]);
 
   // Initialize combinations from product data (map attributes -> current variant columns)
@@ -465,9 +469,8 @@ export default function ProductCatalog({
         const attrs = option.attributes && typeof option.attributes === 'object' ? option.attributes as Record<string, unknown> : undefined;
         if (attrs) {
           for (const variant of inferredVariants) {
-            const key = variant.variantType;
-            const value = attrs[key];
-            base[`variant_${variant.id}`] = value !== undefined && value !== null ? String(value) : 'None';
+            const value = readVariantAttributeValue(attrs, variant.variantType);
+            base[`variant_${variant.id}`] = value !== undefined ? value : 'None';
           }
         }
         
@@ -669,15 +672,19 @@ export default function ProductCatalog({
     if (mode !== 'edit') return;
     
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
+      if (skipBeforeUnloadRef.current || !hasUnsavedChanges) return;
+      e.preventDefault();
+      e.returnValue = '';
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasUnsavedChanges, mode]);
+
+  const reloadProductPage = () => {
+    skipBeforeUnloadRef.current = true;
+    window.location.href = window.location.href;
+  };
   const catalogCategoryRef = useRef<HTMLDivElement>(null);
 
   // Generate LKP product ID format: LKP-8 random numbers
@@ -1521,7 +1528,9 @@ export default function ProductCatalog({
 
       // Optimistically update local state immediately
       if (result?.updateProduct) {
-        setFormData(prev => ({ ...prev, status: 'Draft' }));
+        const nextFormData: ProductFormData = { ...formData, status: 'Draft' };
+        setFormData(nextFormData);
+        setOriginalFormData(JSON.parse(JSON.stringify(nextFormData)));
         prevProductStatusRef.current = 'Draft';
       }
 
@@ -1530,7 +1539,7 @@ export default function ProductCatalog({
         setTimeout(() => {
           setShowSuccessModal(false);
         // Force complete page reload to get fresh data
-          window.location.href = window.location.href;
+          reloadProductPage();
         }, 1000);
     } catch (error) {
       alert(tCatalog('alerts.unpublishError'));
@@ -1560,11 +1569,32 @@ export default function ProductCatalog({
         finalData.productId = generateLKPProductId();
       }
 
+      // Rebuild the variation matrix from current variant types before save so publish/save
+      // never sends a partial list that would cause the backend to delete missing rows.
+      const validVariants = variants.filter((v) => v.variantType && v.options.some((opt) => opt.name));
+      const combinationsForSave =
+        validVariants.length > 0
+          ? rebuildCombinationsFromVariants(validVariants, combinations)
+          : combinations;
+
+      const invalidSaveCombination = combinationsForSave.some(
+        (combo) =>
+          !combo.purchasePrice ||
+          String(combo.purchasePrice).trim() === '' ||
+          !combo.sellingPrice ||
+          String(combo.sellingPrice).trim() === '',
+      );
+      if (invalidSaveCombination) {
+        alert(tCatalog('alerts.missingRequiredFields', { fields: translateFieldName('variants') }));
+        setSaving(false);
+        return;
+      }
+
       // Calculate total stock from combinations
-      const totalStock = combinations.reduce((sum, combo) => sum + combo.stockQuantity, 0);
-      const lowStockThreshold = combinations.reduce((max, combo) => Math.max(max, combo.lowStockThreshold), 0);
-      const hasLowStock = combinations.some(combo => combo.stockQuantity < combo.lowStockThreshold);
-      const hasOutOfStock = combinations.some(combo => combo.stockQuantity === 0);
+      const totalStock = combinationsForSave.reduce((sum, combo) => sum + combo.stockQuantity, 0);
+      const lowStockThreshold = combinationsForSave.reduce((max, combo) => Math.max(max, combo.lowStockThreshold), 0);
+      const hasLowStock = combinationsForSave.some(combo => combo.stockQuantity < combo.lowStockThreshold);
+      const hasOutOfStock = combinationsForSave.some(combo => combo.stockQuantity === 0);
       const stockStatus = hasOutOfStock ? 'Out of Stock' : hasLowStock ? 'Low Stock' : 'In Stock';
 
       // Submit the new variant structure
@@ -1589,8 +1619,8 @@ export default function ProductCatalog({
       }
 
       // Only include variant options if combinations exist and are not empty
-      if (combinations && combinations.length > 0) {
-        payload.variantOptions = combinations.map(combo => ({
+      if (combinationsForSave && combinationsForSave.length > 0) {
+        payload.variantOptions = combinationsForSave.map(combo => ({
           variantName: combo.variantName,
           attributes: Object.fromEntries(
             variants.map((variant) => {
@@ -1879,7 +1909,7 @@ export default function ProductCatalog({
           setTimeout(() => {
             setShowSuccessModal(false);
             // Force complete page reload
-            window.location.href = window.location.href;
+            reloadProductPage();
           }, 500);
         } else if (onSave) {
           onSave(savedProduct);
