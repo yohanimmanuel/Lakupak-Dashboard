@@ -1582,7 +1582,7 @@ export default function ProductCatalog({
       // Only include variant definitions if variants exist and are not empty
       if (variants && variants.length > 0) {
         payload.variantDefinitions = variants.map((variant, index) => ({
-          variantType: variant.variantType,
+          variantType: String(variant.variantType ?? '').trim(),
           options: variant.options.map(opt => opt.name).filter(name => name),
           position: index + 1
         }));
@@ -1594,10 +1594,11 @@ export default function ProductCatalog({
           variantName: combo.variantName,
           attributes: Object.fromEntries(
             variants.map((variant) => {
-              const key = variant.variantType;
-              const lowerKey = `variant_${String(key).toLowerCase()}`;
+              const key = String(variant.variantType ?? '').trim();
+              const lowerKey = `variant_${key.toLowerCase()}`;
               const idKey = `variant_${variant.id}`;
-              const value = (combo as Record<string, unknown>)[lowerKey] ?? (combo as Record<string, unknown>)[idKey] ?? 'None';
+              const rawValue = (combo as Record<string, unknown>)[lowerKey] ?? (combo as Record<string, unknown>)[idKey] ?? 'None';
+              const value = String(rawValue).trim();
               return [key, value];
             })
           ),
