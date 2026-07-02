@@ -37,7 +37,7 @@ import {
   ArrowRightIcon
 } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
-import { formatCurrency as utilsFormatCurrency, getDefaultCurrency, parseAmountSafely, type DecimalLike, type CurrencyValue } from '@/utils/currencyUtils';
+import { formatCurrency as utilsFormatCurrency, formatCompactCurrency, getDefaultCurrency, parseAmountSafely, type DecimalLike, type CurrencyValue } from '@/utils/currencyUtils';
 import { Order, OrderItem } from '@/types/order';
 import { Product, ProductVariant } from '@/types/product';
 import { fetchGraphQL } from '@/lib/graphqlClient';
@@ -930,7 +930,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
        <div className="space-y-3">
          {/* Second Row - Revenue Trend (smaller) + Revenue by Category (larger) */}
          <div className="grid grid-cols-1 lg:grid-cols-11 gap-3">
-           <div className="lg:col-span-7">
+           <div className="lg:col-span-6">
                  {/* Revenue Trend */}
          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
            <div className="flex items-center justify-between mb-6">
@@ -947,8 +947,9 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
              </div>
            </div>
            {revenueData.length > 0 ? (
+             <div className="-mx-1">
              <ResponsiveContainer width="100%" height={320}>
-               <AreaChart data={revenueData} margin={{ top: 20, right: 50, left: 50, bottom: 20 }}>
+               <AreaChart data={revenueData} margin={{ top: 16, right: 35, left: 15, bottom: 12 }}>
                  <defs>
                    <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
                      <stop offset="0%" stopColor="#0a61d7" stopOpacity={0.4}/>
@@ -969,14 +970,17 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
                    fontWeight={500}
                    tickLine={false}
                    axisLine={false}
+                   padding={{ left: 0, right: 0 }}
                  />
                  <YAxis 
+                   width={58}
                    stroke="#64748B" 
-                   fontSize={12}
+                   fontSize={11}
                    fontWeight={500}
-                   tickFormatter={(value) => utilsFormatCurrency(value, userCurrency)}
+                   tickFormatter={(value) => formatCompactCurrency(value, userCurrency)}
                    tickLine={false}
                    axisLine={false}
+                   tick={{ style: { whiteSpace: 'nowrap' } }}
                  />
                  <Tooltip 
                    formatter={(value: number, name: string) => [
@@ -1043,12 +1047,13 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
                  />
                </AreaChart>
              </ResponsiveContainer>
+             </div>
            ) : (
              <AnalyticsRevenueTrendChartEmpty />
            )}
          </div>
            </div>
-           <div className="lg:col-span-4">
+           <div className="lg:col-span-5">
          {/* Revenue by Category */}
          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
            <div className="flex items-center justify-between mb-6">
@@ -1207,7 +1212,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
                         ...(revenueData.length > 0 ? [{ month: revenueData[revenueData.length - 1].month, revenue: revenueData[revenueData.length - 1].revenue, isForecast: false }] : []),
                         ...revenueForecast.forecast.map(f => ({ month: f.date, revenue: f.value, isForecast: true }))
                       ]} 
-                      margin={{ top: 20, right: 50, left: 50, bottom: 20 }}
+                      margin={{ top: 20, right: 35, left: 15, bottom: 20 }}
                     >
                       <defs>
                         <linearGradient id="revenueForecastGradient" x1="0" y1="0" x2="0" y2="1">
@@ -1229,7 +1234,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
                         stroke="#64748B" 
                         fontSize={12}
                         fontWeight={500}
-                        tickFormatter={(value) => utilsFormatCurrency(value, userCurrency)}
+                        tickFormatter={(value) => formatCompactCurrency(value, userCurrency)}
                         tickLine={false}
                         axisLine={false}
                       />
@@ -1323,7 +1328,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
              </div>
            </div>
            <ResponsiveContainer width="100%" height={365}>
-             <ComposedChart data={cashFlowData} margin={{ top: 20, right: 50, left: 50, bottom: 20 }}>
+             <ComposedChart data={cashFlowData} margin={{ top: 20, right: 35, left: 15, bottom: 20 }}>
                <defs>
                  <linearGradient id="netFlowGradient" x1="0" y1="0" x2="1" y2="0">
                    <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.8}/>
@@ -1351,7 +1356,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
                  stroke="#64748B" 
                  fontSize={12}
                  fontWeight={500}
-                 tickFormatter={(value) => utilsFormatCurrency(value, userCurrency)}
+                 tickFormatter={(value) => formatCompactCurrency(value, userCurrency)}
                  tickLine={false}
                  axisLine={false}
                />
@@ -1657,7 +1662,7 @@ export const AnalyticsRevenueTrendChart: React.FC<{
     
     {hasData && revenueData.length > 0 ? (
       <ResponsiveContainer width="100%" height={320}>
-        <AreaChart data={revenueData} margin={{ top: 20, right: 50, left: 60, bottom: 20 }}>
+        <AreaChart data={revenueData} margin={{ top: 20, right: 35, left: 15, bottom: 20 }}>
         <defs>
           <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#0a61d7" stopOpacity={0.4}/>
@@ -1682,7 +1687,7 @@ export const AnalyticsRevenueTrendChart: React.FC<{
           axisLine={false}
           tickLine={false}
           tick={{ fontSize: 12, fill: '#6B7280' }}
-          tickFormatter={(value) => utilsFormatCurrency(value, userCurrency)}
+          tickFormatter={(value) => formatCompactCurrency(value, userCurrency)}
         />
         <Tooltip 
           contentStyle={{

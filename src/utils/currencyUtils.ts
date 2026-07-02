@@ -134,6 +134,47 @@ export const getCurrencySymbol = (currency?: string): string => {
   return config.symbol;
 };
 
+const COMPACT_CURRENCY_TIERS = [
+  { threshold: 1_000_000_000, suffix: 'B', divisor: 1_000_000_000 },
+  { threshold: 1_000_000, suffix: 'M', divisor: 1_000_000 },
+  { threshold: 1_000, suffix: 'k', divisor: 1_000 },
+] as const;
+
+function formatCompactValue(value: number): string {
+  const rounded = Math.round(value * 10) / 10;
+  return Number.isInteger(rounded) ? String(Math.round(rounded)) : rounded.toFixed(1);
+}
+
+/** Short axis label format, e.g. Rp 12M or Rp 850k */
+export const formatCompactCurrency = (amount: number, currency?: string): string => {
+  const currencyCode = currency || 'IDR';
+  const symbol = getCurrencySymbol(currencyCode);
+  const abs = Math.abs(amount);
+  const sign = amount < 0 ? '-' : '';
+
+  for (let i = 0; i < COMPACT_CURRENCY_TIERS.length; i++) {
+    const { threshold, suffix, divisor } = COMPACT_CURRENCY_TIERS[i];
+    if (abs >= threshold) {
+      let scaled = abs / divisor;
+      let tierSuffix: string = suffix;
+      // Rounding can push e.g. 999.95k up to "1000k"; bump to the next tier instead.
+      if (i > 0 && Math.round(scaled * 10) / 10 >= 1000) {
+        scaled /= 1000;
+        tierSuffix = COMPACT_CURRENCY_TIERS[i - 1].suffix;
+      }
+      // Non-breaking space + suffix glued to number so ticks stay on one line
+      return `${sign}${symbol}\u00A0${formatCompactValue(scaled)}${tierSuffix}`;
+    }
+  }
+
+  const zeroDecimalCurrencies = new Set(['IDR', 'VND', 'JPY', 'KRW']);
+  if (zeroDecimalCurrencies.has(currencyCode)) {
+    return `${sign}${symbol}\u00A0${Math.round(abs).toLocaleString('id-ID')}`;
+  }
+
+  return `${sign}${symbol}\u00A0${formatCompactValue(abs)}`;
+};
+
 // Type for Decimal-like objects (Prisma Decimal type)
 export type DecimalLike = { toNumber?: () => number; toString?: () => string };
 
