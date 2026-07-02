@@ -2,10 +2,18 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuthTranslations } from '@/hooks/useAuthTranslations';
+import type { AuthLocale } from '@/lib/authLocale';
 
 const SLIDE_COUNT = 5;
 const SLIDE_DURATION_MS = 5500;
 const TICK_MS = 50;
+
+function resolveShowcaseImageSrc(src: string, locale: AuthLocale): string {
+  if (locale === 'en') {
+    return src.replace(/\.png$/i, '-eng.png');
+  }
+  return src;
+}
 
 type SlideImage = {
   src: string;
@@ -142,7 +150,7 @@ function ShowcaseImage({ image, alt }: { image: SlideImage; alt: string }) {
 }
 
 export function LoginShowcaseCarousel() {
-  const { tLogin } = useAuthTranslations();
+  const { locale, tLogin } = useAuthTranslations();
   const [activeSlide, setActiveSlide] = useState(0);
   const [progress, setProgress] = useState(0);
   const activeSlideRef = useRef(0);
@@ -210,13 +218,20 @@ export function LoginShowcaseCarousel() {
                 }`}
                 aria-hidden={index !== activeSlide}
               >
-                {slide.images.map((image) => (
-                  <ShowcaseImage
-                    key={image.src}
-                    image={image}
-                    alt={translate(image.altKey)}
-                  />
-                ))}
+                {slide.images.map((image) => {
+                  const resolvedImage = {
+                    ...image,
+                    src: resolveShowcaseImageSrc(image.src, locale),
+                  };
+
+                  return (
+                    <ShowcaseImage
+                      key={`${image.src}-${locale}`}
+                      image={resolvedImage}
+                      alt={translate(image.altKey)}
+                    />
+                  );
+                })}
               </div>
             ))}
           </div>
