@@ -10,7 +10,7 @@ const TICK_MS = 50;
 
 function resolveShowcaseImageSrc(src: string, locale: AuthLocale): string {
   if (locale === 'en') {
-    return src.replace(/\.png$/i, '-eng.png');
+    return src.replace(/\.png$/i, 'eng.png');
   }
   return src;
 }
