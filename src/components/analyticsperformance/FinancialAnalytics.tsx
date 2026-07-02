@@ -46,7 +46,13 @@ import { calculatePromotionGift, PromotionDetails } from '@/utils/promotionUtils
 import Image from 'next/image';
 import Link from 'next/link';
 import { useAnalyticsTranslations } from '@/hooks/useAnalyticsTranslations';
-import { AnalyticsTimeRange, filterOrdersByTimeRange } from '@/utils/analyticsTimeRange';
+import {
+  AnalyticsTimeRange,
+  filterOrdersByTimeRange,
+  getAnalyticsBucketKey,
+  getAnalyticsGrowthComparisonKey,
+  getAnalyticsPeriodBuckets,
+} from '@/utils/analyticsTimeRange';
 
 function getOrderBucketDate(order: Pick<Order, 'orderDate'>): Date {
   return new Date(order.orderDate);
@@ -208,8 +214,9 @@ type FinancialAnalyticsProps = {
 
 const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M', onReadyAction }) => {
   const { user } = useUserStore();
-  const { tShared, tMetrics, tCharts, tTables, translateCategoryFilter, translateForecastTrend } =
+  const { tShared, tMetrics, tCharts, tTables, translateCategoryFilter, translateForecastTrend, dateLocale } =
     useAnalyticsTranslations();
+  const growthComparisonLabel = tShared(getAnalyticsGrowthComparisonKey(timeRange));
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [categoryFilter, setCategoryFilter] = useState<'productType' | 'productCategory'>('productCategory');
@@ -464,64 +471,10 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
     };
   }, [filteredOrders, products, hasFilteredData, userCurrency]);
 
-  // Calculate real revenue data by month using actual product margins
-  const revenueData: RevenueData[] = useMemo(() => {
-    if (!hasFilteredData || filteredOrders.length === 0) {
-      return [];
-    }
-
-    // Precompute product costs from recorded data only (no estimates)
-    const productCostById: Record<string, number> = {};
-    products.forEach(p => {
-      const firstVariantOption = p.variantOptions?.[0];
-      const cost = parseCurrencyToNumber(
-        firstVariantOption?.purchasePrice || '0'
-      );
-      if (!isNaN(cost) && cost > 0) {
-        productCostById[p.productId] = cost;
-      }
-    });
-
-    const monthlyData: { [key: string]: { revenue: number; profit: number; orders: number; label: string } } = {};
-    
-    filteredOrders.forEach(order => {
-      const date = getOrderBucketDate(order);
-      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2,'0')}`;
-      const label = date.toLocaleDateString('en-US', { month: 'short' }) + ' ' + date.getFullYear();
-
-      if (!monthlyData[key]) {
-        monthlyData[key] = { revenue: 0, profit: 0, orders: 0, label };
-      }
-      monthlyData[key].orders += 1;
-
-      const orderAmount = safeOrderAmount(order.totalAmount);
-
-      let orderCogs = 0;
-      if (order.orderItems && Array.isArray(order.orderItems)) {
-        order.orderItems.forEach(item => {
-          const pid = item.productId;
-          if (!pid) { return; }
-          const cost = productCostById[pid];
-          if (typeof cost === 'number' && cost > 0) {
-            const paidPieces = (item.packageQuantity || 1) * (item.piecesPerPackage || 1);
-            const freePieces = calculateFreeItems(item);
-            const totalPieces = paidPieces + freePieces;
-            orderCogs += cost * totalPieces;
-          }
-        });
-      }
-      const orderProfit = orderAmount - orderCogs;
-      monthlyData[key].revenue += orderAmount;
-      monthlyData[key].profit += orderProfit;
-    });
-
-    const sorted = Object.entries(monthlyData)
-      .map(([key, data]) => ({ month: data.label, revenue: data.revenue, profit: data.profit, orders: data.orders, key }))
-      .sort((a, b) => a.key.localeCompare(b.key))
-      .slice(-6)
-      .map(({ month, revenue, profit, orders }) => ({ month, revenue, profit, orders }));
-    return sorted;
-  }, [filteredOrders, products, hasFilteredData, userCurrency]);
+  const revenueData: RevenueData[] = useMemo(
+    () => calculateRevenueData(filteredOrders, products, hasFilteredData, timeRange, dateLocale),
+    [filteredOrders, products, hasFilteredData, timeRange, dateLocale],
+  );
 
   const growthMetrics = useMemo(() => {
     if (!hasFilteredData || revenueData.length < 2) {
@@ -803,20 +756,15 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
       }
     });
 
-    const monthlyFlow: { [key: string]: { inflows: number; outflows: number; label: string } } = {};
+    const flowByKey = new Map<string, { inflows: number; outflows: number }>();
     filteredOrders.forEach(order => {
       const date = new Date(order.orderDate);
-      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2,'0')}`;
-      const label = date.toLocaleDateString('en-US', { month: 'short' }) + ' ' + date.getFullYear();
-      
-      if (!monthlyFlow[key]) {
-        monthlyFlow[key] = { inflows: 0, outflows: 0, label };
-      }
-      
-      const orderAmount = safeOrderAmount(order.totalAmount);
-      monthlyFlow[key].inflows += orderAmount;
+      const key = getAnalyticsBucketKey(date, timeRange);
+      const current = flowByKey.get(key) ?? { inflows: 0, outflows: 0 };
 
-      // Compute COGS for this order
+      const orderAmount = safeOrderAmount(order.totalAmount);
+      current.inflows += orderAmount;
+
       let orderCogs = 0;
       if (order.orderItems && Array.isArray(order.orderItems)) {
         order.orderItems.forEach(item => {
@@ -824,7 +772,6 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
           if (!pid) { return; }
           const cost = productCostById[pid];
           if (typeof cost === 'number' && cost > 0) {
-            // Calculate COGS: purchasePrice (per piece) × (paid pieces + free pieces)
             const paidPieces = (item.packageQuantity || 1) * (item.piecesPerPackage || 1);
             const freePieces = calculateFreeItems(item);
             const totalPieces = paidPieces + freePieces;
@@ -832,17 +779,20 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
           }
         });
       }
-      // Cash outflows = COGS only (shippingFee is revenue and often marked up, actual cost unknown)
-      monthlyFlow[key].outflows += orderCogs;
+      current.outflows += orderCogs;
+      flowByKey.set(key, current);
     });
 
-    const sorted = Object.entries(monthlyFlow)
-      .map(([key, flow]) => ({ key, month: flow.label, inflows: flow.inflows, outflows: flow.outflows, netFlow: flow.inflows - flow.outflows }))
-      .sort((a, b) => a.key.localeCompare(b.key))
-      .slice(-6)
-      .map(({ month, inflows, outflows, netFlow }) => ({ month, inflows, outflows, netFlow }));
-    return sorted;
-  }, [filteredOrders, products, hasFilteredData, userCurrency]);
+    return getAnalyticsPeriodBuckets(timeRange, { locale: dateLocale }).map((bucket) => {
+      const flow = flowByKey.get(bucket.key) ?? { inflows: 0, outflows: 0 };
+      return {
+        month: bucket.label,
+        inflows: flow.inflows,
+        outflows: flow.outflows,
+        netFlow: flow.inflows - flow.outflows,
+      };
+    });
+  }, [filteredOrders, products, hasFilteredData, timeRange, dateLocale]);
 
   // Pagination logic for Top Products
   const productsPerPage = 6;
@@ -869,7 +819,8 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
     change: number | null;
     icon: React.ReactNode;
     color: string;
-  }> = ({ title, value, change, icon, color }) => (
+    comparisonLabel?: string;
+  }> = ({ title, value, change, icon, color, comparisonLabel }) => (
     <div className={`flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6] ${color}`}>
       <div className="flex items-center gap-4 border-b border-[#e6e6e6] pb-4">
         <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white">
@@ -881,7 +832,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
         </div>
       </div>
     <div className="flex items-center gap-2 mt-4 ml-1">
-      <MetricChangeFooter change={change} />
+      <MetricChangeFooter change={change} comparisonLabel={comparisonLabel ?? growthComparisonLabel} />
     </div>
     </div>
   );
@@ -929,8 +880,8 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
       {/* Charts Grid */}
        <div className="space-y-3">
          {/* Second Row - Revenue Trend (smaller) + Revenue by Category (larger) */}
-         <div className="grid grid-cols-1 lg:grid-cols-11 gap-3">
-           <div className="lg:col-span-6">
+         <div className="grid grid-cols-1 lg:grid-cols-16 gap-3">
+           <div className="lg:col-span-10">
                  {/* Revenue Trend */}
          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
            <div className="flex items-center justify-between mb-6">
@@ -949,7 +900,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
            {revenueData.length > 0 ? (
              <div className="-mx-1">
              <ResponsiveContainer width="100%" height={320}>
-               <AreaChart data={revenueData} margin={{ top: 16, right: 35, left: 15, bottom: 12 }}>
+               <AreaChart data={revenueData} margin={{ top: 16, right: 50, left: 25, bottom: 12 }}>
                  <defs>
                    <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
                      <stop offset="0%" stopColor="#0a61d7" stopOpacity={0.4}/>
@@ -1053,7 +1004,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
            )}
          </div>
            </div>
-           <div className="lg:col-span-5">
+           <div className="lg:col-span-6">
          {/* Revenue by Category */}
          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
            <div className="flex items-center justify-between mb-6">
@@ -1449,7 +1400,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
             <h3 className="text-lg font-semibold text-gray-900 mb-6">{tTables('topPerformingProducts')}</h3>
             <div className="flex-1 overflow-x-auto rounded-lg">
               <table className="min-w-full text-sm text-left whitespace-nowrap text-xs">
-                                <thead className="bg-gray-100 text-gray-500 whitespace-nowrap">
+                <thead className="bg-gray-100 text-gray-500 whitespace-nowrap">
                   <tr>
                     <th className="py-3 px-4 font-medium uppercase text-left">{tTables('rank')}</th>
                     <th className="py-3 px-4 font-medium uppercase text-left">{tTables('productName')}</th>
@@ -1662,7 +1613,7 @@ export const AnalyticsRevenueTrendChart: React.FC<{
     
     {hasData && revenueData.length > 0 ? (
       <ResponsiveContainer width="100%" height={320}>
-        <AreaChart data={revenueData} margin={{ top: 20, right: 35, left: 15, bottom: 20 }}>
+        <AreaChart data={revenueData} margin={{ top: 20, right: 50, left: 25, bottom: 20 }}>
         <defs>
           <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#0a61d7" stopOpacity={0.4}/>
@@ -1834,7 +1785,9 @@ const calculateFreeItemsForOrderItem = (item: OrderItem): number => {
 export const calculateRevenueData = (
   orders: Order[], 
   products: Product[], 
-  hasData: boolean
+  hasData: boolean,
+  timeRange: AnalyticsTimeRange = '1M',
+  dateLocale = 'en-US',
 ): RevenueData[] => {
   if (!hasData || orders.length === 0) {
     return [];
@@ -1852,23 +1805,16 @@ export const calculateRevenueData = (
     }
   });
 
-  const monthlyData: { [key: string]: { revenue: number; profit: number; orders: number; label: string } } = {};
-  
+  const aggregated = new Map<string, { revenue: number; profit: number; orders: number }>();
+
   orders.forEach(order => {
     const date = getOrderBucketDate(order);
-    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2,'0')}`;
-    const label = date.toLocaleDateString('en-US', { month: 'short' }) + ' ' + date.getFullYear();
-    
-    if (!monthlyData[key]) {
-      monthlyData[key] = { revenue: 0, profit: 0, orders: 0, label };
-    }
-    
-    monthlyData[key].orders += 1;
-    
-    const orderAmount = parseAmountSafely(order.totalAmount);
-    monthlyData[key].revenue += orderAmount;
+    const key = getAnalyticsBucketKey(date, timeRange);
+    const current = aggregated.get(key) ?? { revenue: 0, profit: 0, orders: 0 };
+    current.orders += 1;
 
-    // Compute actual profit = revenue - COGS (including free items from promotions)
+    const orderAmount = parseAmountSafely(order.totalAmount);
+
     let orderCogs = 0;
     if (order.orderItems && Array.isArray(order.orderItems)) {
       order.orderItems.forEach(item => {
@@ -1876,7 +1822,6 @@ export const calculateRevenueData = (
         if (!pid) { return; }
         const cost = productCostById[pid];
         if (typeof cost === 'number' && cost > 0) {
-          // Calculate COGS: purchasePrice (per piece) × (paid pieces + free pieces)
           const paidPieces = (item.packageQuantity || 1) * (item.piecesPerPackage || 1);
           const freePieces = calculateFreeItemsForOrderItem(item);
           const totalPieces = paidPieces + freePieces;
@@ -1884,17 +1829,21 @@ export const calculateRevenueData = (
         }
       });
     }
-    // Profit = Revenue - COGS (shippingFee is part of revenue, often marked up, so not subtracted)
     const orderProfit = orderAmount - orderCogs;
-    monthlyData[key].profit += orderProfit;
+    current.revenue += orderAmount;
+    current.profit += orderProfit;
+    aggregated.set(key, current);
   });
 
-  const sorted = Object.entries(monthlyData)
-    .map(([key, data]) => ({ month: data.label, revenue: data.revenue, profit: data.profit, orders: data.orders, key }))
-    .sort((a, b) => a.key.localeCompare(b.key))
-    .slice(-6)
-    .map(({ month, revenue, profit, orders }) => ({ month, revenue, profit, orders }));
-  return sorted;
+  return getAnalyticsPeriodBuckets(timeRange, { locale: dateLocale }).map((bucket) => {
+    const data = aggregated.get(bucket.key) ?? { revenue: 0, profit: 0, orders: 0 };
+    return {
+      month: bucket.label,
+      revenue: data.revenue,
+      profit: data.profit,
+      orders: data.orders,
+    };
+  });
 };
 
 // Shared function to calculate total revenue from orders and products

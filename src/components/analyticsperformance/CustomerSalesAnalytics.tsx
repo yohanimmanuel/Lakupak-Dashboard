@@ -38,7 +38,13 @@ import { formatCurrency as formatCurrencyShared } from '@/utils/currencyUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { forecastSales } from '@/utils/forecasting';
 import { useAnalyticsTranslations } from '@/hooks/useAnalyticsTranslations';
-import { AnalyticsTimeRange, filterOrdersByTimeRange } from '@/utils/analyticsTimeRange';
+import {
+	AnalyticsTimeRange,
+	filterOrdersByTimeRange,
+	getAnalyticsBucketKey,
+	getAnalyticsGrowthComparisonKey,
+	getAnalyticsPeriodBuckets,
+} from '@/utils/analyticsTimeRange';
 
 // Helper function to parse currency to number (matching FinancialAnalytics)
 const parseCurrencyToNumber = (currencyValue: string | number): number => {
@@ -241,30 +247,37 @@ export type SalesTrendPoint = { month: string; orders: number; pieces: number; u
 export const calculateSalesTrend = (
 	orders: Order[],
 	hasData: boolean,
-	dateLocale = 'en-US'
+	dateLocale = 'en-US',
+	timeRange: AnalyticsTimeRange = '1M',
 ): SalesTrendPoint[] => {
 	if (!hasData || orders.length === 0) return [];
-	const monthly: Record<string, { orders: number; pieces: number; units: number; label: string }> = {};
+
+	const aggregated = new Map<string, { orders: number; pieces: number; units: number }>();
 	orders.forEach(o => {
 		const d = new Date(o.orderDate);
-		const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}`;
-		const label = monthLabelShort(d, dateLocale);
-		if (!monthly[key]) monthly[key] = { orders: 0, pieces: 0, units: 0, label };
-		monthly[key].orders += 1;
+		const key = getAnalyticsBucketKey(d, timeRange);
+		const current = aggregated.get(key) ?? { orders: 0, pieces: 0, units: 0 };
+		current.orders += 1;
 		if (o.orderItems && Array.isArray(o.orderItems)) {
 			o.orderItems.forEach(i => {
-				// Calculate pieces and units using piece-based pricing
 				const packageQuantity = i.packageQuantity || 1;
 				const piecesPerPackage = i.piecesPerPackage || 1;
-				monthly[key].pieces += packageQuantity;
-				monthly[key].units += packageQuantity * piecesPerPackage;
+				current.pieces += packageQuantity;
+				current.units += packageQuantity * piecesPerPackage;
 			});
 		}
+		aggregated.set(key, current);
 	});
-	const sorted = Object.entries(monthly)
-		.map(([key, v]) => ({ key, month: `${v.label} ${key.split('-')[0]}`, orders: v.orders, pieces: v.pieces, units: v.units }))
-		.sort((a, b) => a.key.localeCompare(b.key));
-	return sorted.slice(-6);
+
+	return getAnalyticsPeriodBuckets(timeRange, { locale: dateLocale }).map((bucket) => {
+		const data = aggregated.get(bucket.key) ?? { orders: 0, pieces: 0, units: 0 };
+		return {
+			month: bucket.label,
+			orders: data.orders,
+			pieces: data.pieces,
+			units: data.units,
+		};
+	});
 };
 
 export const calculateSalesMetrics = (
@@ -449,7 +462,13 @@ export const SalesTrendChart: React.FC<{ data: SalesTrendPoint[]; showSeeMore?: 
 	);
 };
 
-export const CustomerPiecesSoldCard: React.FC<{ piecesSold: number; unitsSold: number; change: number | null; userCurrency?: string }> = ({ piecesSold, unitsSold, change }) => {
+export const CustomerPiecesSoldCard: React.FC<{
+	piecesSold: number;
+	unitsSold: number;
+	change: number | null;
+	userCurrency?: string;
+	comparisonLabel?: string;
+}> = ({ piecesSold, unitsSold, change, comparisonLabel }) => {
 	const { tMetrics } = useAnalyticsTranslations();
 	return (
 		<AnalyticsMetricCard
@@ -458,6 +477,7 @@ export const CustomerPiecesSoldCard: React.FC<{ piecesSold: number; unitsSold: n
 			change={change}
 			icon={<Package className="w-6 h-6 text-green-600" />}
 			color="bg-[#e6f7ec]"
+			comparisonLabel={comparisonLabel}
 		/>
 	);
 };
@@ -541,6 +561,7 @@ type CustomerSalesAnalyticsProps = {
 const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRange = '1M', onReadyAction }) => {
 	const { user } = useUserStore();
 	const { tShared, tMetrics, tCharts, tTables, translateCategoryFilter, translateForecastTrend, dateLocale } = useAnalyticsTranslations();
+	const growthComparisonLabel = tShared(getAnalyticsGrowthComparisonKey(timeRange));
 	const [orders, setOrders] = useState<Order[]>([]);
 	const [products, setProducts] = useState<Product[]>([]);
 	const [buyers, setBuyers] = useState<BuyerLite[]>([]);
@@ -636,7 +657,10 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 	const metrics = useMemo(() => calculateSalesMetrics(filteredOrders, products, hasFilteredData), [filteredOrders, products, hasFilteredData, userCurrency]);
 
 	// Sales trend
-	const salesTrend = useMemo(() => calculateSalesTrend(filteredOrders, hasFilteredData, dateLocale), [filteredOrders, hasFilteredData, dateLocale]);
+	const salesTrend = useMemo(
+		() => calculateSalesTrend(filteredOrders, hasFilteredData, dateLocale, timeRange),
+		[filteredOrders, hasFilteredData, dateLocale, timeRange],
+	);
 
 	const hasBuyerData = buyers.length > 0;
 	const customerAcquisitionTrend = useMemo(
@@ -667,23 +691,31 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 		const ordersGrowth =
 			prev.orders > 0 ? ((last.orders - prev.orders) / prev.orders) * 100 : null;
 
-		const unitsCurrent = last.units;
-		const unitsPrev = prev.units;
 		const piecesGrowth =
-			unitsPrev > 0 ? ((unitsCurrent - unitsPrev) / unitsPrev) * 100 : null;
+			prev.pieces > 0 ? ((last.pieces - prev.pieces) / prev.pieces) * 100 : null;
 
-		const avgPiecesLast = last.orders > 0 ? last.units / last.orders : 0;
-		const avgPiecesPrev = prev.orders > 0 ? prev.units / prev.orders : 0;
+		const avgPiecesLast = last.orders > 0 ? last.pieces / last.orders : 0;
+		const avgPiecesPrev = prev.orders > 0 ? prev.pieces / prev.orders : 0;
 		const avgPiecesGrowth =
 			avgPiecesPrev !== 0 ? ((avgPiecesLast - avgPiecesPrev) / Math.abs(avgPiecesPrev)) * 100 : null;
 
-		// For Avg Order Value, compute monthly revenue per order from orders list
-		const monthlyRevenue: Record<string, { revenue: number; orders: number }> = {};
+		// For Avg Order Value, compare the last two chart periods using the same buckets
+		const periodBuckets = getAnalyticsPeriodBuckets(timeRange, { locale: dateLocale });
+		if (periodBuckets.length < 2) {
+			return {
+				ordersGrowth,
+				piecesGrowth,
+				avgPiecesGrowth,
+				avgOrderValueGrowth: null,
+			};
+		}
+
+		const revenueByKey: Record<string, { revenue: number; orders: number }> = {};
 		filteredOrders.forEach(o => {
 			const d = new Date(o.orderDate);
-			const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}`;
-			if (!monthlyRevenue[key]) {
-				monthlyRevenue[key] = { revenue: 0, orders: 0 };
+			const key = getAnalyticsBucketKey(d, timeRange);
+			if (!revenueByKey[key]) {
+				revenueByKey[key] = { revenue: 0, orders: 0 };
 			}
 			const amount = o.totalAmount
 				? (typeof o.totalAmount === 'number'
@@ -699,26 +731,17 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 							})()
 							: parseFloat(String(o.totalAmount)) || 0))
 				: 0;
-			monthlyRevenue[key].revenue += amount;
-			monthlyRevenue[key].orders += 1;
+			revenueByKey[key].revenue += amount;
+			revenueByKey[key].orders += 1;
 		});
 
-		const monthlyKeysSorted = Object.keys(monthlyRevenue).sort();
-		if (monthlyKeysSorted.length < 2) {
-			return {
-				ordersGrowth,
-				piecesGrowth,
-				avgPiecesGrowth,
-				avgOrderValueGrowth: null,
-			};
-		}
-		const lastKey = monthlyKeysSorted[monthlyKeysSorted.length - 1];
-		const prevKey = monthlyKeysSorted[monthlyKeysSorted.length - 2];
-		const lastMonth = monthlyRevenue[lastKey];
-		const prevMonth = monthlyRevenue[prevKey];
+		const lastKey = periodBuckets[periodBuckets.length - 1].key;
+		const prevKey = periodBuckets[periodBuckets.length - 2].key;
+		const lastPeriod = revenueByKey[lastKey] ?? { revenue: 0, orders: 0 };
+		const prevPeriod = revenueByKey[prevKey] ?? { revenue: 0, orders: 0 };
 
-		const lastAov = lastMonth.orders > 0 ? lastMonth.revenue / lastMonth.orders : 0;
-		const prevAov = prevMonth.orders > 0 ? prevMonth.revenue / prevMonth.orders : 0;
+		const lastAov = lastPeriod.orders > 0 ? lastPeriod.revenue / lastPeriod.orders : 0;
+		const prevAov = prevPeriod.orders > 0 ? prevPeriod.revenue / prevPeriod.orders : 0;
 		const avgOrderValueGrowth =
 			prevAov !== 0 ? ((lastAov - prevAov) / Math.abs(prevAov)) * 100 : null;
 
@@ -728,7 +751,7 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 			avgPiecesGrowth,
 			avgOrderValueGrowth,
 		};
-	}, [hasFilteredData, salesTrend, filteredOrders]);
+	}, [hasFilteredData, salesTrend, filteredOrders, timeRange, dateLocale]);
 
 	// Category units (better than duplicating Top Products already in financial)
 	const unitsByCategory = useMemo(() => {
@@ -838,12 +861,14 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 					change={growthMetrics.ordersGrowth}
 					icon={<ShoppingCart className="w-6 h-6 text-[#0a61d7]" />}
 					color="bg-[#f7faff]"
+					comparisonLabel={growthComparisonLabel}
 				/>
 				<CustomerPiecesSoldCard
 					piecesSold={metrics.totalPiecesSold || 0}
 					unitsSold={metrics.totalUnitsSold}
 					change={growthMetrics.piecesGrowth}
 					userCurrency={user?.currency}
+					comparisonLabel={growthComparisonLabel}
 				/>
 				<AnalyticsMetricCard
 					title={tMetrics('avgPiecesPerOrder')}
@@ -851,6 +876,7 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 					change={growthMetrics.avgPiecesGrowth}
 					icon={<TrendingUp className="w-6 h-6 text-amber-500" />}
 					color="bg-[#fff7ed]"
+					comparisonLabel={growthComparisonLabel}
 				/>
 				<AnalyticsMetricCard
 					title={tMetrics('avgOrderValue')}
@@ -858,6 +884,7 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 					change={growthMetrics.avgOrderValueGrowth}
 					icon={<Repeat className="w-6 h-6 text-violet-600" />}
 					color="bg-[#f5f3ff]"
+					comparisonLabel={growthComparisonLabel}
 				/>
 			</div>
 

@@ -47,7 +47,12 @@ import { Order, OrderItem } from '@/types/order';
 import { Product } from '@/types/product';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useAnalyticsTranslations } from '@/hooks/useAnalyticsTranslations';
-import { AnalyticsTimeRange, filterOrdersByTimeRange } from '@/utils/analyticsTimeRange';
+import {
+  AnalyticsTimeRange,
+  filterOrdersByTimeRange,
+  getAnalyticsBucketKey,
+  getAnalyticsPeriodBuckets,
+} from '@/utils/analyticsTimeRange';
 
 // Types for operational metrics
 interface OperationalMetrics {
@@ -167,6 +172,43 @@ function computeStockoutRate(products: Product[], useVariantOptions: boolean): n
   return (stockoutPieces / totalProducts) * 100;
 }
 
+function buildProcessingTimeSeries(
+  orders: Order[],
+  timeRange: AnalyticsTimeRange,
+  dateLocale: string,
+): ProcessingTimeData[] {
+  if (!orders?.length) return [];
+
+  const aggregated = new Map<string, { totalTime: number; count: number; totalOrders: number; completed: number }>();
+  orders.forEach(order => {
+    const d = new Date(order.orderDate);
+    const key = getAnalyticsBucketKey(d, timeRange);
+    const current = aggregated.get(key) ?? { totalTime: 0, count: 0, totalOrders: 0, completed: 0 };
+    current.totalOrders += 1;
+    if (order.orderStatus === 'Delivered' || order.orderStatus === 'Shipped') current.completed += 1;
+    if (order.acceptedAt && order.orderDate) {
+      const start = new Date(order.orderDate).getTime();
+      const end = new Date(order.acceptedAt).getTime();
+      const diffH = (end - start) / (1000 * 60 * 60);
+      if (diffH >= 0) {
+        current.totalTime += diffH;
+        current.count += 1;
+      }
+    }
+    aggregated.set(key, current);
+  });
+
+  return getAnalyticsPeriodBuckets(timeRange, { locale: dateLocale }).map((bucket) => {
+    const data = aggregated.get(bucket.key) ?? { totalTime: 0, count: 0, totalOrders: 0, completed: 0 };
+    return {
+      month: bucket.label,
+      avgProcessingTime: data.count > 0 ? data.totalTime / data.count : 0,
+      totalOrders: data.totalOrders,
+      completedOrders: data.completed,
+    };
+  });
+}
+
 const OPERATIONAL_ANALYTICS_QUERY = `
   query OperationalAnalyticsData($userId: Int!, $orderLimit: Int!, $productLimit: Int!) {
     orders(userId: $userId, limit: $orderLimit) {
@@ -263,6 +305,7 @@ const OperationalPerformanceAnalytics: React.FC<OperationalPerformanceAnalyticsP
     tInventoryLegend,
     translateOrderStatus,
     translateQualityMetric,
+    dateLocale,
   } = useAnalyticsTranslations();
 
   // Fetch real data from APIs
@@ -430,44 +473,10 @@ const OperationalPerformanceAnalytics: React.FC<OperationalPerformanceAnalyticsP
     }));
   }, [filteredOrders, hasFilteredData]);
 
-  // Calculate processing time trends (last 6 months dynamically)
-  const processingTimeData: ProcessingTimeData[] = useMemo(() => {
-    if (!hasFilteredData || filteredOrders.length === 0) return [];
-
-    const monthlyData: { [key: string]: { label: string; totalTime: number; count: number; totalOrders: number; completed: number } } = {};
-    
-    filteredOrders.forEach(order => {
-      const date = new Date(order.orderDate);
-      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2,'0')}`;
-      const label = `${date.toLocaleDateString('en-US', { month: 'short' })} ${date.getFullYear()}`;
-      
-      if (!monthlyData[key]) {
-        monthlyData[key] = { label, totalTime: 0, count: 0, totalOrders: 0, completed: 0 };
-      }
-      
-      monthlyData[key].totalOrders += 1;
-      
-      if (order.orderStatus === 'Delivered' || order.orderStatus === 'Shipped') {
-        monthlyData[key].completed += 1;
-      }
-      
-      if (order.acceptedAt && order.orderDate) {
-        const orderDate = new Date(order.orderDate);
-        const acceptedDate = new Date(order.acceptedAt);
-        const diffHours = (acceptedDate.getTime() - orderDate.getTime()) / (1000 * 60 * 60);
-        if (diffHours >= 0) {
-          monthlyData[key].totalTime += diffHours;
-          monthlyData[key].count += 1;
-        }
-      }
-    });
-
-    const sorted = Object.entries(monthlyData)
-      .map(([key, d]) => ({ key, month: d.label, avgProcessingTime: d.count > 0 ? d.totalTime / d.count : 0, totalOrders: d.totalOrders, completedOrders: d.completed }))
-      .sort((a, b) => a.key.localeCompare(b.key))
-      .slice(-6);
-    return sorted;
-  }, [filteredOrders, hasFilteredData]);
+  const processingTimeData: ProcessingTimeData[] = useMemo(
+    () => buildProcessingTimeSeries(filteredOrders, timeRange, dateLocale),
+    [filteredOrders, timeRange, dateLocale, hasFilteredData],
+  );
 
   // Calculate inventory health by category
   const inventoryHealthData: InventoryHealthData[] = useMemo(() => {
@@ -1062,8 +1071,10 @@ export const OperationalMetricCard: React.FC<{
   change: number | null;
   icon: React.ReactNode;
   color: string;
-}> = ({ title, value, change, icon, color }) => {
+  comparisonLabel?: string;
+}> = ({ title, value, change, icon, color, comparisonLabel }) => {
   const { tShared } = useAnalyticsTranslations();
+  const resolvedComparisonLabel = comparisonLabel ?? tShared('vsLastMonth');
 
   return (
 <div className={`flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6] ${color}`}>
@@ -1083,7 +1094,7 @@ export const OperationalMetricCard: React.FC<{
             <>
               <ArrowRight className="w-5 h-5 text-gray-400" />
               <span className="text-gray-400 text-xs font-semibold">{tShared('na')}</span>
-              <span className="text-gray-400 text-xs">{tShared('vsLastMonth')}</span>
+              <span className="text-gray-400 text-xs">{resolvedComparisonLabel}</span>
             </>
           );
         }
@@ -1093,7 +1104,7 @@ export const OperationalMetricCard: React.FC<{
             <>
               <ArrowRight className="w-5 h-5 text-gray-400" />
               <span className="text-gray-400 text-xs font-semibold">0.0%</span>
-              <span className="text-gray-400 text-xs">{tShared('vsLastMonth')}</span>
+              <span className="text-gray-400 text-xs">{resolvedComparisonLabel}</span>
             </>
           );
         }
@@ -1109,7 +1120,7 @@ export const OperationalMetricCard: React.FC<{
             <span className={changeValue >= 0 ? "text-[#3ea73b] text-xs font-semibold" : "text-[#f65911] text-xs font-semibold"}>
               {Math.abs(changeValue).toFixed(1)}%
             </span>
-            <span className="text-gray-400 text-xs">{tShared('vsLastMonth')}</span>
+            <span className="text-gray-400 text-xs">{resolvedComparisonLabel}</span>
           </>
         );
       })()}
@@ -1367,26 +1378,10 @@ export const computeOrderStatusData = (orders: Order[]): OrderStatusData[] => {
   }));
 };
 
-export const computeProcessingTimeData = (orders: Order[]): ProcessingTimeData[] => {
-  if (!orders?.length) return [];
-  const monthly: { [key: string]: { label: string; totalTime: number; count: number; totalOrders: number; completed: number } } = {};
-  orders.forEach(order => {
-    const d = new Date(order.orderDate);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}`;
-    const label = `${d.toLocaleDateString('en-US', { month: 'short' })} ${d.getFullYear()}`;
-    if (!monthly[key]) monthly[key] = { label, totalTime: 0, count: 0, totalOrders: 0, completed: 0 };
-    monthly[key].totalOrders += 1;
-    if (order.orderStatus === 'Delivered' || order.orderStatus === 'Shipped') monthly[key].completed += 1;
-    if (order.acceptedAt && order.orderDate) {
-      const start = new Date(order.orderDate).getTime();
-      const end = new Date(order.acceptedAt).getTime();
-      const diffH = (end - start) / (1000 * 60 * 60);
-      if (diffH >= 0) { monthly[key].totalTime += diffH; monthly[key].count += 1; }
-    }
-  });
-  return Object.entries(monthly)
-    .map(([key, v]) => ({ key, month: v.label, avgProcessingTime: v.count > 0 ? v.totalTime / v.count : 0, totalOrders: v.totalOrders, completedOrders: v.completed }))
-    .sort((a, b) => a.key.localeCompare(b.key))
-    .slice(-6)
-    .map(({ month, avgProcessingTime, totalOrders, completedOrders }) => ({ month, avgProcessingTime, totalOrders, completedOrders }));
+export const computeProcessingTimeData = (
+  orders: Order[],
+  timeRange: AnalyticsTimeRange = '1M',
+  dateLocale = 'en-US',
+): ProcessingTimeData[] => {
+  return buildProcessingTimeSeries(orders, timeRange, dateLocale);
 };

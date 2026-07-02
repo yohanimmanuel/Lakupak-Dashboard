@@ -25,8 +25,9 @@ import {
   computeProcessingTimeData
 } from '@/components/analyticsperformance/OperationalPerformanceAnalytics';
 import { fetchGraphQL } from '@/lib/graphqlClient';
-import { computeOrderMonthOverMonthGrowth } from '@/utils/monthOverMonthGrowth';
+import { computeOrderPeriodGrowth } from '@/utils/monthOverMonthGrowth';
 import { useAnalyticsTranslations } from '@/hooks/useAnalyticsTranslations';
+import { AnalyticsTimeRange, filterOrdersByTimeRange } from '@/utils/analyticsTimeRange';
 
 const TIME_RANGE_VALUES = ['1M', '3M', '6M', '1Y'] as const;
 
@@ -102,7 +103,7 @@ export default function AnalyticsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasData, setHasData] = useState(false);
-  const [timeRange, setTimeRange] = useState('1M');
+  const [timeRange, setTimeRange] = useState<AnalyticsTimeRange>('1M');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -115,34 +116,9 @@ export default function AnalyticsPage() {
 
   const currentRange = timeRanges.find(range => range.value === timeRange);
 
-  // Filter data based on selected time range
   const filteredOrders = useMemo(() => {
     if (!hasData || orders.length === 0) return [];
-    
-    const now = new Date();
-    const filterDate = new Date();
-    
-    switch (timeRange) {
-      case '1M':
-        filterDate.setMonth(now.getMonth() - 1);
-        break;
-      case '3M':
-        filterDate.setMonth(now.getMonth() - 3);
-        break;
-      case '6M':
-        filterDate.setMonth(now.getMonth() - 6);
-        break;
-      case '1Y':
-        filterDate.setFullYear(now.getFullYear() - 1);
-        break;
-      default:
-        return orders;
-    }
-    
-    return orders.filter(order => {
-      const orderDate = new Date(order.orderDate);
-      return orderDate >= filterDate;
-    });
+    return filterOrdersByTimeRange(orders, timeRange);
   }, [orders, timeRange, hasData]);
 
   const filteredProducts = useMemo(() => {
@@ -157,13 +133,16 @@ export default function AnalyticsPage() {
     filteredOrders.length > 0 ? orderVolume / filteredOrders.length : 0;
 
   const revenueData = useMemo(() => {
-    return calculateRevenueData(filteredOrders, filteredProducts, hasData);
-  }, [filteredOrders, filteredProducts, hasData]);
+    return calculateRevenueData(filteredOrders, filteredProducts, hasData, timeRange, dateLocale);
+  }, [filteredOrders, filteredProducts, hasData, timeRange, dateLocale]);
 
   // Operational metrics reused from OperationalPerformanceAnalytics
   const opMetrics = useMemo(() => computeOperationalMetrics(filteredOrders, filteredProducts), [filteredOrders, filteredProducts]);
   const opStatusData = useMemo(() => computeOrderStatusData(filteredOrders), [filteredOrders]);
-  const opProcessingData = useMemo(() => computeProcessingTimeData(filteredOrders), [filteredOrders]);
+  const opProcessingData = useMemo(
+    () => computeProcessingTimeData(filteredOrders, timeRange, dateLocale),
+    [filteredOrders, timeRange, dateLocale],
+  );
 
   // Top products (reused from FinancialAnalytics exports)
   const topProducts = useMemo(() => calculateTopProducts(filteredOrders, filteredProducts, hasData, 10), [filteredOrders, filteredProducts, hasData]);
@@ -171,11 +150,14 @@ export default function AnalyticsPage() {
   // Customer Sales metrics reused
   const customerMetrics = useMemo(() => calculateSalesMetrics(filteredOrders, filteredProducts, hasData), [filteredOrders, filteredProducts, hasData]);
   const salesTrend = useMemo(
-    () => calculateSalesTrend(filteredOrders, hasData, dateLocale),
-    [filteredOrders, hasData, dateLocale]
+    () => calculateSalesTrend(filteredOrders, hasData, dateLocale, timeRange),
+    [filteredOrders, hasData, dateLocale, timeRange],
   );
 
-  const orderGrowth = useMemo(() => computeOrderMonthOverMonthGrowth(orders), [orders]);
+  const orderGrowth = useMemo(
+    () => computeOrderPeriodGrowth(filteredOrders, timeRange, dateLocale),
+    [filteredOrders, timeRange, dateLocale],
+  );
 
   // Handle dropdown click outside
   useEffect(() => {

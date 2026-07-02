@@ -1,6 +1,11 @@
 import { Order } from '@/types/order';
 import { calculateOrderTotalAmount } from '@/utils/orderCalculations';
 import { isDeliveryStopComplete } from '@/utils/deliveryCompletion';
+import {
+  AnalyticsTimeRange,
+  getAnalyticsBucketKey,
+  getAnalyticsPeriodBuckets,
+} from '@/utils/analyticsTimeRange';
 
 export function toMonthKey(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -107,27 +112,39 @@ function orderPieces(order: Order): number {
   }, 0);
 }
 
-export function computeOrderMonthOverMonthGrowth(orders: Order[]) {
-  const empty = {
-    ordersGrowth: null as number | null,
-    orderVolumeGrowth: null as number | null,
-    completionGrowth: null as number | null,
-    averageOrderVolumeGrowth: null as number | null,
-    piecesGrowth: null as number | null,
-  };
+type OrderGrowthBucket = {
+  orders: number;
+  orderVolume: number;
+  completed: number;
+  pieces: number;
+};
 
-  if (!Array.isArray(orders) || orders.length === 0) return empty;
+const EMPTY_ORDER_GROWTH = {
+  ordersGrowth: null as number | null,
+  orderVolumeGrowth: null as number | null,
+  completionGrowth: null as number | null,
+  averageOrderVolumeGrowth: null as number | null,
+  piecesGrowth: null as number | null,
+};
 
-  const byMonth: Record<string, { orders: number; orderVolume: number; completed: number; pieces: number }> = {};
+function emptyOrderGrowthBucket(): OrderGrowthBucket {
+  return { orders: 0, orderVolume: 0, completed: 0, pieces: 0 };
+}
+
+function aggregateOrdersIntoBuckets(
+  orders: Order[],
+  bucketKeyForDate: (date: Date) => string,
+): Record<string, OrderGrowthBucket> {
+  const byKey: Record<string, OrderGrowthBucket> = {};
 
   orders.forEach((order) => {
     const d = parseDate(order.orderDate);
     if (!d) return;
-    const key = toMonthKey(d);
-    if (!byMonth[key]) {
-      byMonth[key] = { orders: 0, orderVolume: 0, completed: 0, pieces: 0 };
+    const key = bucketKeyForDate(d);
+    if (!byKey[key]) {
+      byKey[key] = emptyOrderGrowthBucket();
     }
-    const bucket = byMonth[key];
+    const bucket = byKey[key];
     bucket.orders += 1;
     bucket.orderVolume += calculateOrderTotalAmount(order);
     bucket.pieces += orderPieces(order);
@@ -136,30 +153,35 @@ export function computeOrderMonthOverMonthGrowth(orders: Order[]) {
     }
   });
 
-  const keys = Object.keys(byMonth).sort();
-  if (keys.length < 2) return empty;
+  return byKey;
+}
 
-  const last = byMonth[keys[keys.length - 1]];
-  const prev = byMonth[keys[keys.length - 2]];
-
-  const ordersGrowth = prev.orders > 0 ? ((last.orders - prev.orders) / prev.orders) * 100 : (last.orders > 0 ? null : 0);
+function growthFromBucketPair(last: OrderGrowthBucket, prev: OrderGrowthBucket) {
+  const ordersGrowth =
+    prev.orders > 0 ? ((last.orders - prev.orders) / prev.orders) * 100 : last.orders > 0 ? null : 0;
   const orderVolumeGrowth =
-    prev.orderVolume > 0 ? ((last.orderVolume - prev.orderVolume) / prev.orderVolume) * 100 : (last.orderVolume > 0 ? null : 0);
+    prev.orderVolume > 0
+      ? ((last.orderVolume - prev.orderVolume) / prev.orderVolume) * 100
+      : last.orderVolume > 0
+        ? null
+        : 0;
 
   const completionLast = last.orders > 0 ? (last.completed / last.orders) * 100 : 0;
   const completionPrev = prev.orders > 0 ? (prev.completed / prev.orders) * 100 : 0;
   const completionGrowth =
     completionPrev !== 0
       ? ((completionLast - completionPrev) / Math.abs(completionPrev)) * 100
-      : (completionLast > 0 ? null : 0);
+      : completionLast > 0
+        ? null
+        : 0;
 
   const avgLast = last.orders > 0 ? last.orderVolume / last.orders : 0;
   const avgPrev = prev.orders > 0 ? prev.orderVolume / prev.orders : 0;
   const averageOrderVolumeGrowth =
-    avgPrev !== 0 ? ((avgLast - avgPrev) / Math.abs(avgPrev)) * 100 : (avgLast > 0 ? null : 0);
+    avgPrev !== 0 ? ((avgLast - avgPrev) / Math.abs(avgPrev)) * 100 : avgLast > 0 ? null : 0;
 
   const piecesGrowth =
-    prev.pieces > 0 ? ((last.pieces - prev.pieces) / prev.pieces) * 100 : (last.pieces > 0 ? null : 0);
+    prev.pieces > 0 ? ((last.pieces - prev.pieces) / prev.pieces) * 100 : last.pieces > 0 ? null : 0;
 
   return {
     ordersGrowth,
@@ -168,4 +190,35 @@ export function computeOrderMonthOverMonthGrowth(orders: Order[]) {
     averageOrderVolumeGrowth,
     piecesGrowth,
   };
+}
+
+/** Compare the last two analytics period buckets (week or month, per selected range). */
+export function computeOrderPeriodGrowth(
+  orders: Order[],
+  timeRange: AnalyticsTimeRange,
+  dateLocale = 'en-US',
+) {
+  if (!Array.isArray(orders) || orders.length === 0) return EMPTY_ORDER_GROWTH;
+
+  const periodBuckets = getAnalyticsPeriodBuckets(timeRange, { locale: dateLocale });
+  if (periodBuckets.length < 2) return EMPTY_ORDER_GROWTH;
+
+  const byKey = aggregateOrdersIntoBuckets(orders, (date) => getAnalyticsBucketKey(date, timeRange));
+  const last = byKey[periodBuckets[periodBuckets.length - 1].key] ?? emptyOrderGrowthBucket();
+  const prev = byKey[periodBuckets[periodBuckets.length - 2].key] ?? emptyOrderGrowthBucket();
+
+  return growthFromBucketPair(last, prev);
+}
+
+export function computeOrderMonthOverMonthGrowth(orders: Order[]) {
+  if (!Array.isArray(orders) || orders.length === 0) return EMPTY_ORDER_GROWTH;
+
+  const byMonth = aggregateOrdersIntoBuckets(orders, toMonthKey);
+  const keys = Object.keys(byMonth).sort();
+  if (keys.length < 2) return EMPTY_ORDER_GROWTH;
+
+  const last = byMonth[keys[keys.length - 1]];
+  const prev = byMonth[keys[keys.length - 2]];
+
+  return growthFromBucketPair(last, prev);
 }

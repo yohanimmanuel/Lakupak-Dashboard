@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   computeOrderMonthOverMonthGrowth,
+  computeOrderPeriodGrowth,
   cumulativeCountGrowth,
   formatLegacyTrend,
   growthFromMonthBuckets,
@@ -105,6 +106,22 @@ describe('monthOverMonthGrowth', () => {
       ]);
 
       const growth = computeOrderMonthOverMonthGrowth(orders);
+      expect(growth.ordersGrowth).toBeCloseTo(50, 5);
+    });
+  });
+
+  describe('computeOrderPeriodGrowth', () => {
+    it('compares the last two buckets for the selected range', () => {
+      vi.setSystemTime(new Date('2026-06-15T12:00:00Z'));
+      const orders = asOrders([
+        { orderDate: new Date('2026-04-05'), orderStatus: 'Delivered', totalAmount: 100, orderItems: [] },
+        { orderDate: new Date('2026-04-20'), orderStatus: 'Delivered', totalAmount: 100, orderItems: [] },
+        { orderDate: new Date('2026-05-05'), orderStatus: 'Delivered', totalAmount: 100, orderItems: [] },
+        { orderDate: new Date('2026-05-20'), orderStatus: 'Delivered', totalAmount: 100, orderItems: [] },
+        { orderDate: new Date('2026-05-25'), orderStatus: 'Delivered', totalAmount: 100, orderItems: [] },
+      ]);
+
+      const growth = computeOrderPeriodGrowth(orders, '3M');
       expect(growth.ordersGrowth).toBeCloseTo(50, 5);
     });
   });
