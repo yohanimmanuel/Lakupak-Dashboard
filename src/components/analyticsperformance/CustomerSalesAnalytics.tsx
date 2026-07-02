@@ -675,10 +675,14 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 	const salesForecastChartData = useMemo(() => {
 		if (!salesForecast?.forecast.length) return [];
 
-		const points = salesTrend.map((d) => ({
+		const points: Array<{
+			month: string;
+			historicalOrders: number | null;
+			forecastOrders: number | null;
+		}> = salesTrend.map((d) => ({
 			month: d.month,
 			historicalOrders: d.orders,
-			forecastOrders: null as number | null,
+			forecastOrders: null,
 		}));
 
 		if (points.length > 0) {

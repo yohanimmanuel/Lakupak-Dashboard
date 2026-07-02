@@ -510,10 +510,14 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
   const revenueForecastChartData = useMemo(() => {
     if (!revenueForecast?.forecast.length) return [];
 
-    const points = revenueData.map((d) => ({
+    const points: Array<{
+      month: string;
+      historicalRevenue: number | null;
+      forecastRevenue: number | null;
+    }> = revenueData.map((d) => ({
       month: d.month,
       historicalRevenue: d.revenue,
-      forecastRevenue: null as number | null,
+      forecastRevenue: null,
     }));
 
     if (points.length > 0) {
