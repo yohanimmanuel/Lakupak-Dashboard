@@ -97,28 +97,50 @@ async function loadProducts(userId: number): Promise<ProductWithVariant[]> {
   return products.filter((p) => p.variantOptions.length > 0);
 }
 
-async function ensureDemoBuyers(userId: number, count: number) {
-  const buyers = [];
-  for (let i = 1; i <= count; i += 1) {
-    const buyerId = `${DEMO_BUYER_PREFIX}${String(i).padStart(2, '0')}`;
-    const buyer = await prisma.buyer.upsert({
+async function createDemoBuyer(
+  userId: number,
+  seq: number,
+  createdAt: Date,
+  options?: { status?: string; updatedAt?: Date },
+) {
+  const buyerId = `${DEMO_BUYER_PREFIX}${String(seq).padStart(3, '0')}`;
+  const status = options?.status ?? 'Active';
+
+  const buyer = await prisma.buyer.upsert({
+    where: { buyerId },
+    update: {
+      userId,
+      owner: `Demo Buyer ${seq}`,
+      email: `analytics-demo-buyer-${seq}@laku.local`,
+      phone: `+6281200000${String(seq).padStart(3, '0')}`,
+      storeName: `Demo Store ${seq}`,
+      businessType: seq % 2 === 0 ? 'Wholesale' : 'Retail',
+      address: `Demo Address ${seq}, Jakarta`,
+      status,
+      createdAt,
+    },
+    create: {
+      buyerId,
+      owner: `Demo Buyer ${seq}`,
+      email: `analytics-demo-buyer-${seq}@laku.local`,
+      phone: `+6281200000${String(seq).padStart(3, '0')}`,
+      storeName: `Demo Store ${seq}`,
+      businessType: seq % 2 === 0 ? 'Wholesale' : 'Retail',
+      address: `Demo Address ${seq}, Jakarta`,
+      status,
+      userId,
+      createdAt,
+    },
+  });
+
+  if (options?.updatedAt) {
+    await prisma.buyer.update({
       where: { buyerId },
-      update: { userId },
-      create: {
-        buyerId,
-        owner: `Demo Buyer ${i}`,
-        email: `analytics-demo-buyer-${i}@laku.local`,
-        phone: `+6281200000${String(i).padStart(3, '0')}`,
-        storeName: `Demo Store ${i}`,
-        businessType: i % 2 === 0 ? 'Wholesale' : 'Retail',
-        address: `Demo Address ${i}, Jakarta`,
-        status: 'Active',
-        userId,
-      },
+      data: { updatedAt: options.updatedAt, status },
     });
-    buyers.push(buyer);
   }
-  return buyers;
+
+  return buyer;
 }
 
 function decimal(value: number): Prisma.Decimal {
@@ -140,10 +162,11 @@ async function seedDemoOrders() {
 
   const userId = await resolveUserId();
   const products = await loadProducts(userId);
-  const buyers = await ensureDemoBuyers(userId, 8);
+  const buyers: Awaited<ReturnType<typeof createDemoBuyer>>[] = [];
 
   const now = new Date();
   let orderSeq = 0;
+  let buyerSeq = 0;
   let created = 0;
 
   // Last 12 completed calendar months (exclude the current partial month)
@@ -156,6 +179,25 @@ async function seedDemoOrders() {
     const monthIndex = 12 - monthOffset;
     const growthFactor = 0.55 + monthIndex * 0.04; // ramp volume over time
     const ordersThisMonth = 2 + (monthIndex % 3); // 2–4 orders per month
+    const buyersThisMonth = 1 + (monthIndex % 3); // 1–3 new buyers per month
+
+    for (let b = 0; b < buyersThisMonth; b += 1) {
+      buyerSeq += 1;
+      const createdAt = new Date(baseDate);
+      createdAt.setDate(Math.min(lastDayOfMonth(baseDate), 2 + b * 8 + (buyerSeq % 3)));
+      createdAt.setHours(10, 0, 0, 0);
+
+      const shouldChurn = buyerSeq % 7 === 0;
+      const churnedAt = shouldChurn
+        ? clampToPast(new Date(createdAt.getTime() + 45 * 24 * 60 * 60 * 1000), now)
+        : undefined;
+
+      const buyer = await createDemoBuyer(userId, buyerSeq, createdAt, {
+        status: shouldChurn && churnedAt ? 'Inactive' : 'Active',
+        updatedAt: shouldChurn ? churnedAt : undefined,
+      });
+      buyers.push(buyer);
+    }
 
     for (let n = 0; n < ordersThisMonth; n += 1) {
       orderSeq += 1;
@@ -246,11 +288,11 @@ async function seedDemoOrders() {
       created += 1;
     }
 
-    console.log(`  ${monthLabel(baseDate)}: ${ordersThisMonth} orders`);
+    console.log(`  ${monthLabel(baseDate)}: ${ordersThisMonth} orders, ${buyersThisMonth} new buyers`);
   }
 
-  console.log(`\nCreated ${created} demo orders (${DEMO_ORDER_PREFIX}*) and ${buyers.length} demo buyers.`);
-  console.log('Open Dashboard → Analytics (Financial / Sales / Operational) and set range to "Per Year" or "Per 6 Months".');
+  console.log(`\nCreated ${created} demo orders (${DEMO_ORDER_PREFIX}*) and ${buyers.length} demo buyers (${DEMO_BUYER_PREFIX}*).`);
+  console.log('Open Dashboard → Analytics → Sales for customer acquisition, or Financial/Operational with "Per Year".');
   console.log(`Cleanup: npx tsx src/scripts/analyticsDemoOrders.ts cleanup`);
 }
 

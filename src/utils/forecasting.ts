@@ -3,6 +3,13 @@
  * Implements linear regression, moving averages, and exponential smoothing
  */
 
+import {
+  AnalyticsTimeRange,
+  getAnalyticsPeriodBuckets,
+  getForecastPeriodBuckets,
+  getForecastPeriodCount,
+} from '@/utils/analyticsTimeRange';
+
 export interface ForecastPoint {
   date: string;
   value: number;
@@ -27,7 +34,6 @@ function linearRegression(x: number[], y: number[]): { slope: number; intercept:
   const sumY = y.reduce((a, b) => a + b, 0);
   const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
   const sumXX = x.reduce((sum, xi) => sum + xi * xi, 0);
-  const sumYY = y.reduce((sum, yi) => sum + yi * yi, 0);
 
   // Division by zero protection
   const denominator = n * sumXX - sumX * sumX;
@@ -51,19 +57,38 @@ function linearRegression(x: number[], y: number[]): { slope: number; intercept:
   return { slope, intercept, r2 };
 }
 
-/**
- * Calculate moving average
- */
-function movingAverage(values: number[], window: number): number[] {
-  if (values.length === 0) return [];
-  const result: number[] = [];
-  for (let i = 0; i < values.length; i++) {
-    const start = Math.max(0, i - window + 1);
-    const subset = values.slice(start, i + 1);
-    const avg = subset.reduce((a, b) => a + b, 0) / subset.length;
-    result.push(avg);
-  }
-  return result;
+function computeConfidence(r2: number): number {
+  return Math.min(100, Math.max(0, Math.round(r2 * 1000) / 10));
+}
+
+function buildForecastPoints(
+  historicalDataLength: number,
+  regression: { slope: number; intercept: number },
+  forecastPeriods: number,
+  timeRange: AnalyticsTimeRange,
+  dateLocale: string,
+  roundValue: (value: number) => number,
+): ForecastPoint[] {
+  const rangeBuckets = getAnalyticsPeriodBuckets(timeRange, { locale: dateLocale });
+  const anchorEnd =
+    rangeBuckets.length > 0 ? rangeBuckets[rangeBuckets.length - 1].end : new Date();
+  const forecastBuckets = getForecastPeriodBuckets(
+    timeRange,
+    anchorEnd,
+    forecastPeriods,
+    dateLocale,
+  );
+
+  const lastIndex = historicalDataLength - 1;
+  return forecastBuckets.map((bucket, i) => {
+    const futureIndex = lastIndex + i + 1;
+    const predictedValue = regression.slope * futureIndex + regression.intercept;
+    return {
+      date: bucket.label,
+      value: roundValue(predictedValue),
+      isForecast: true,
+    };
+  });
 }
 
 /**
@@ -71,7 +96,9 @@ function movingAverage(values: number[], window: number): number[] {
  */
 export function forecastRevenue(
   historicalData: Array<{ month: string; revenue: number }>,
-  forecastMonths: number = 3
+  timeRange: AnalyticsTimeRange = '1M',
+  dateLocale = 'en-US',
+  forecastPeriods: number = getForecastPeriodCount(timeRange),
 ): ForecastResult {
   if (historicalData.length < 2) {
     return {
@@ -92,50 +119,20 @@ export function forecastRevenue(
     isForecast: false
   }));
 
-  const forecast: ForecastPoint[] = [];
-  const lastIndex = historicalData.length - 1;
-  
-  // Parse the last month date more robustly
-  const lastMonthStr = historicalData[lastIndex].month;
-  let lastDate: Date;
-  try {
-    // Try parsing formats like "Dec 2025" or "Dec 2025-01"
-    const dateMatch = lastMonthStr.match(/(\w+)\s+(\d{4})/);
-    if (dateMatch) {
-      lastDate = new Date(`${dateMatch[1]} 1, ${dateMatch[2]}`);
-    } else {
-      // Fallback: try direct parsing
-      lastDate = new Date(lastMonthStr);
-    }
-    // Validate date
-    if (isNaN(lastDate.getTime())) {
-      lastDate = new Date(); // Fallback to current date
-    }
-  } catch {
-    lastDate = new Date(); // Fallback to current date
-  }
-  
-  for (let i = 1; i <= forecastMonths; i++) {
-    const futureIndex = lastIndex + i;
-    const predictedValue = regression.slope * futureIndex + regression.intercept;
-    const forecastDate = new Date(lastDate);
-    forecastDate.setMonth(forecastDate.getMonth() + i);
-    const monthLabel = forecastDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-    
-    forecast.push({
-      date: monthLabel,
-      value: Math.max(0, Math.round(predictedValue * 100) / 100), // Round to 2 decimal places
-      isForecast: true
-    });
-  }
+  const forecast = buildForecastPoints(
+    historicalData.length,
+    regression,
+    forecastPeriods,
+    timeRange,
+    dateLocale,
+    (value) => Math.max(0, Math.round(value * 100) / 100),
+  );
 
-  // Use consistent threshold for trend detection (0.01% of average value for better sensitivity)
   const avgValue = y.reduce((a, b) => a + b, 0) / y.length;
-  const threshold = Math.max(0.01, avgValue * 0.001); // At least 0.01, or 0.1% of average
+  const threshold = Math.max(0.01, avgValue * 0.001);
   const trend = regression.slope > threshold ? 'increasing' : regression.slope < -threshold ? 'decreasing' : 'stable';
-  const confidence = Math.min(100, Math.max(0, Math.round(regression.r2 * 100 * 100) / 100)); // Round to 2 decimal places
 
-  return { historical, forecast, trend, confidence };
+  return { historical, forecast, trend, confidence: computeConfidence(regression.r2) };
 }
 
 /**
@@ -144,7 +141,9 @@ export function forecastRevenue(
 export function forecastSales(
   historicalData: Array<{ month: string; orders?: number; units?: number; pieces?: number }>,
   metric: 'orders' | 'units' | 'pieces' = 'orders',
-  forecastMonths: number = 3
+  timeRange: AnalyticsTimeRange = '1M',
+  dateLocale = 'en-US',
+  forecastPeriods: number = getForecastPeriodCount(timeRange),
 ): ForecastResult {
   if (historicalData.length < 2) {
     return {
@@ -169,50 +168,20 @@ export function forecastSales(
     isForecast: false
   }));
 
-  const forecast: ForecastPoint[] = [];
-  const lastIndex = historicalData.length - 1;
-  
-  // Parse the last month date more robustly
-  const lastMonthStr = historicalData[lastIndex].month;
-  let lastDate: Date;
-  try {
-    // Try parsing formats like "Dec 2025" or "Dec 2025-01"
-    const dateMatch = lastMonthStr.match(/(\w+)\s+(\d{4})/);
-    if (dateMatch) {
-      lastDate = new Date(`${dateMatch[1]} 1, ${dateMatch[2]}`);
-    } else {
-      // Fallback: try direct parsing
-      lastDate = new Date(lastMonthStr);
-    }
-    // Validate date
-    if (isNaN(lastDate.getTime())) {
-      lastDate = new Date(); // Fallback to current date
-    }
-  } catch {
-    lastDate = new Date(); // Fallback to current date
-  }
-  
-  for (let i = 1; i <= forecastMonths; i++) {
-    const futureIndex = lastIndex + i;
-    const predictedValue = regression.slope * futureIndex + regression.intercept;
-    const forecastDate = new Date(lastDate);
-    forecastDate.setMonth(forecastDate.getMonth() + i);
-    const monthLabel = forecastDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-    
-    forecast.push({
-      date: monthLabel,
-      value: Math.max(0, Math.round(predictedValue)),
-      isForecast: true
-    });
-  }
+  const forecast = buildForecastPoints(
+    historicalData.length,
+    regression,
+    forecastPeriods,
+    timeRange,
+    dateLocale,
+    (value) => Math.max(0, Math.round(value)),
+  );
 
-  // Use consistent threshold for trend detection (0.01% of average value for better sensitivity)
   const avgValue = y.reduce((a, b) => a + b, 0) / y.length;
-  const threshold = Math.max(0.01, avgValue * 0.001); // At least 0.01, or 0.1% of average
+  const threshold = Math.max(0.01, avgValue * 0.001);
   const trend = regression.slope > threshold ? 'increasing' : regression.slope < -threshold ? 'decreasing' : 'stable';
-  const confidence = Math.min(100, Math.max(0, Math.round(regression.r2 * 100 * 100) / 100)); // Round to 2 decimal places
 
-  return { historical, forecast, trend, confidence };
+  return { historical, forecast, trend, confidence: computeConfidence(regression.r2) };
 }
 
 /**
@@ -245,4 +214,3 @@ export function calculateForecastAccuracy(
 
   return { mae, mape, rmse };
 }
-

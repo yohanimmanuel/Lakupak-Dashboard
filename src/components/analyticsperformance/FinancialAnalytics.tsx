@@ -504,8 +504,44 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
   // Calculate revenue forecast
   const revenueForecast = useMemo(() => {
     if (revenueData.length < 2) return null;
-    return forecastRevenue(revenueData, 3);
-  }, [revenueData]);
+    return forecastRevenue(revenueData, timeRange, dateLocale);
+  }, [revenueData, timeRange, dateLocale]);
+
+  const revenueForecastChartData = useMemo(() => {
+    if (!revenueForecast?.forecast.length) return [];
+
+    const points = revenueData.map((d) => ({
+      month: d.month,
+      historicalRevenue: d.revenue,
+      forecastRevenue: null as number | null,
+    }));
+
+    if (points.length > 0) {
+      const lastIndex = points.length - 1;
+      points[lastIndex] = {
+        ...points[lastIndex],
+        forecastRevenue: points[lastIndex].historicalRevenue,
+      };
+    }
+
+    revenueForecast.forecast.forEach((f) => {
+      points.push({
+        month: f.date,
+        historicalRevenue: null,
+        forecastRevenue: f.value,
+      });
+    });
+
+    return points;
+  }, [revenueData, revenueForecast]);
+
+  const revenueForecastYMax = useMemo(() => {
+    const values = revenueForecastChartData.flatMap((point) =>
+      [point.historicalRevenue, point.forecastRevenue].filter((value): value is number => value != null),
+    );
+    if (values.length === 0) return 1;
+    return Math.ceil(Math.max(...values) * 1.12);
+  }, [revenueForecastChartData]);
 
   // Calculate real category revenue using actual product margins
   const categoryData: CategoryData[] = useMemo(() => {
@@ -1158,11 +1194,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
                 <>
                   <ResponsiveContainer width="100%" height={300}>
                     <AreaChart 
-                      data={[
-                        ...revenueData.map(d => ({ month: d.month, revenue: d.revenue, isForecast: false })),
-                        ...(revenueData.length > 0 ? [{ month: revenueData[revenueData.length - 1].month, revenue: revenueData[revenueData.length - 1].revenue, isForecast: false }] : []),
-                        ...revenueForecast.forecast.map(f => ({ month: f.date, revenue: f.value, isForecast: true }))
-                      ]} 
+                      data={revenueForecastChartData}
                       margin={{ top: 20, right: 35, left: 15, bottom: 20 }}
                     >
                       <defs>
@@ -1182,33 +1214,59 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
                         axisLine={false}
                       />
                       <YAxis 
+                        width={58}
                         stroke="#64748B" 
-                        fontSize={12}
+                        fontSize={11}
                         fontWeight={500}
+                        domain={[0, revenueForecastYMax]}
                         tickFormatter={(value) => formatCompactCurrency(value, userCurrency)}
                         tickLine={false}
                         axisLine={false}
+                        tick={{ style: { whiteSpace: 'nowrap' } }}
                       />
                       <Tooltip 
-                        contentStyle={{
-                          backgroundColor: 'white',
-                          border: '1px solid #E5E7EB',
-                          borderRadius: '8px',
-                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                        content={({ active, payload, label }) => {
+                          if (!active || !payload?.length) return null;
+
+                          const historical = payload.find(
+                            (entry) => entry.dataKey === 'historicalRevenue' && entry.value != null,
+                          );
+                          const forecast = payload.find(
+                            (entry) => entry.dataKey === 'forecastRevenue' && entry.value != null,
+                          );
+
+                          return (
+                            <div className="rounded-lg border border-[#E5E7EB] bg-white p-4 shadow-md">
+                              <p className="mb-2 font-semibold text-gray-900">{label}</p>
+                              {historical ? (
+                                <div className="mb-1 flex items-center gap-2">
+                                  <div className="h-3 w-3 rounded-full bg-[#0a61d7]" />
+                                  <span className="text-gray-700">
+                                    {tCharts('historical')}: {utilsFormatCurrency(Number(historical.value), userCurrency)}
+                                  </span>
+                                </div>
+                              ) : null}
+                              {forecast ? (
+                                <div className="flex items-center gap-2">
+                                  <div className="h-3 w-3 rounded-full border-2 border-dashed border-[#9CA3AF]" />
+                                  <span className="text-gray-700">
+                                    {tCharts('forecast')}: {utilsFormatCurrency(Number(forecast.value), userCurrency)}
+                                  </span>
+                                </div>
+                              ) : null}
+                            </div>
+                          );
                         }}
-                        formatter={(value: number) => [
-                          utilsFormatCurrency(value, userCurrency), 
-                          tCharts('orderVolumeLegend')
-                        ]}
-                        labelStyle={{ color: '#374151', fontWeight: '600' }}
                       />
                       <Area 
                         type="monotone" 
-                        dataKey="revenue" 
+                        dataKey="historicalRevenue" 
+                        name={tCharts('historical')}
                         stroke="#0a61d7" 
                         strokeWidth={2}
                         fillOpacity={1} 
                         fill="url(#revenueForecastGradient)" 
+                        connectNulls={false}
                         dot={{ fill: '#3B82F6', strokeWidth: 2, r: 4, stroke: 'white' }}
                         activeDot={{ 
                           r: 6, 
@@ -1219,13 +1277,13 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
                       />
                       <Line
                         type="monotone"
-                        dataKey="revenue"
+                        dataKey="forecastRevenue"
+                        name={tCharts('forecast')}
                         stroke="#9CA3AF"
                         strokeWidth={2}
                         strokeDasharray="5 5"
+                        connectNulls
                         dot={{ fill: '#9CA3AF', r: 3 }}
-                        data={revenueForecast.forecast.map(f => ({ month: f.date, revenue: f.value, isForecast: true }))}
-                        connectNulls={true}
                       />
                     </AreaChart>
                   </ResponsiveContainer>

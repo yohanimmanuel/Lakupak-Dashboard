@@ -75,16 +75,6 @@ interface BuyerLite {
 
 const CHURNED_BUYER_STATUSES = new Set(['Inactive', 'Blocked']);
 
-function monthBucket(date: Date, dateLocale: string): { key: string; label: string } {
-	const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-	const label = date.toLocaleDateString(dateLocale, { month: 'short', year: 'numeric' });
-	return { key, label };
-}
-
-function monthLabelShort(date: Date, dateLocale: string): string {
-	return date.toLocaleDateString(dateLocale, { month: 'short' });
-}
-
 export type CustomerAcquisitionPoint = {
 	month: string;
 	acquired: number;
@@ -95,48 +85,50 @@ export type CustomerAcquisitionPoint = {
 export const calculateCustomerAcquisitionTrend = (
 	buyers: BuyerLite[],
 	hasData: boolean,
-	dateLocale = 'en-US'
+	dateLocale = 'en-US',
+	timeRange: AnalyticsTimeRange = '1M',
 ): CustomerAcquisitionPoint[] => {
 	if (!hasData || buyers.length === 0) return [];
 
-	const monthly = new Map<string, { acquired: number; churned: number }>();
+	const periodBuckets = getAnalyticsPeriodBuckets(timeRange, { locale: dateLocale });
+	const aggregated = new Map<string, { acquired: number; churned: number }>();
 
 	buyers.forEach((buyer) => {
-		if (!buyer.createdAt) return;
-		const createdAt = new Date(buyer.createdAt);
-		if (Number.isNaN(createdAt.getTime())) return;
-
-		const createdBucket = monthBucket(createdAt, dateLocale);
-		const createdRow = monthly.get(createdBucket.key) ?? { acquired: 0, churned: 0 };
-		createdRow.acquired += 1;
-		monthly.set(createdBucket.key, createdRow);
+		if (buyer.createdAt) {
+			const createdAt = new Date(buyer.createdAt);
+			if (!Number.isNaN(createdAt.getTime())) {
+				const key = getAnalyticsBucketKey(createdAt, timeRange);
+				const row = aggregated.get(key) ?? { acquired: 0, churned: 0 };
+				row.acquired += 1;
+				aggregated.set(key, row);
+			}
+		}
 
 		const status = buyer.status ?? 'Active';
 		if (!CHURNED_BUYER_STATUSES.has(status) || !buyer.updatedAt) return;
 
+		const createdAt = buyer.createdAt ? new Date(buyer.createdAt) : null;
 		const updatedAt = new Date(buyer.updatedAt);
-		if (Number.isNaN(updatedAt.getTime()) || updatedAt.getTime() <= createdAt.getTime()) return;
+		if (Number.isNaN(updatedAt.getTime()) || (createdAt && updatedAt.getTime() <= createdAt.getTime())) return;
 
-		const churnBucket = monthBucket(updatedAt, dateLocale);
-		const churnRow = monthly.get(churnBucket.key) ?? { acquired: 0, churned: 0 };
-		churnRow.churned += 1;
-		monthly.set(churnBucket.key, churnRow);
+		const key = getAnalyticsBucketKey(updatedAt, timeRange);
+		const row = aggregated.get(key) ?? { acquired: 0, churned: 0 };
+		row.churned += 1;
+		aggregated.set(key, row);
 	});
 
-	return Array.from(monthly.entries())
-		.filter(([, row]) => row.acquired > 0 || row.churned > 0)
-		.sort(([a], [b]) => a.localeCompare(b))
-		.map(([key, row]) => {
-			const [yearStr, monthStr] = key.split('-');
-			const date = new Date(Number(yearStr), Number(monthStr) - 1, 1);
-			const bucket = monthBucket(date, dateLocale);
-			return {
-				month: bucket.label,
-				acquired: row.acquired,
-				churned: row.churned,
-				net: row.acquired - row.churned,
-			};
-		});
+	const series = periodBuckets.map((bucket) => {
+		const row = aggregated.get(bucket.key) ?? { acquired: 0, churned: 0 };
+		return {
+			month: bucket.label,
+			acquired: row.acquired,
+			churned: row.churned,
+			net: row.acquired - row.churned,
+		};
+	});
+
+	const hasActivity = series.some((point) => point.acquired > 0 || point.churned > 0);
+	return hasActivity ? series : [];
 };
 
 export const CustomerAcquisitionChart: React.FC<{ data: CustomerAcquisitionPoint[] }> = ({ data }) => {
@@ -348,10 +340,16 @@ export const calculateSalesMetrics = (
 	};
 };
 
-export const SalesTrendChart: React.FC<{ data: SalesTrendPoint[]; showSeeMore?: boolean; showForecast?: boolean }> = ({ data, showSeeMore = false, showForecast = true }) => {
+export const SalesTrendChart: React.FC<{
+	data: SalesTrendPoint[];
+	showSeeMore?: boolean;
+	showForecast?: boolean;
+	timeRange?: AnalyticsTimeRange;
+	dateLocale?: string;
+}> = ({ data, showSeeMore = false, showForecast = true, timeRange = '1M', dateLocale = 'en-US' }) => {
 	const { tShared, tCharts } = useAnalyticsTranslations();
-	const salesForecast = showForecast && data.length >= 2 
-		? forecastSales(data, 'orders', 3) 
+	const salesForecast = showForecast && data.length >= 2
+		? forecastSales(data, 'orders', timeRange, dateLocale)
 		: null;
 
 	const chartData = useMemo(() => {
@@ -664,15 +662,43 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 
 	const hasBuyerData = buyers.length > 0;
 	const customerAcquisitionTrend = useMemo(
-		() => calculateCustomerAcquisitionTrend(buyers, hasBuyerData, dateLocale),
-		[buyers, hasBuyerData, dateLocale]
+		() => calculateCustomerAcquisitionTrend(buyers, hasBuyerData, dateLocale, timeRange),
+		[buyers, hasBuyerData, dateLocale, timeRange],
 	);
 
 	// Sales forecast
 	const salesForecast = useMemo(() => {
 		if (salesTrend.length < 2) return null;
-		return forecastSales(salesTrend, 'orders', 3);
-	}, [salesTrend]);
+		return forecastSales(salesTrend, 'orders', timeRange, dateLocale);
+	}, [salesTrend, timeRange, dateLocale]);
+
+	const salesForecastChartData = useMemo(() => {
+		if (!salesForecast?.forecast.length) return [];
+
+		const points = salesTrend.map((d) => ({
+			month: d.month,
+			historicalOrders: d.orders,
+			forecastOrders: null as number | null,
+		}));
+
+		if (points.length > 0) {
+			const lastIndex = points.length - 1;
+			points[lastIndex] = {
+				...points[lastIndex],
+				forecastOrders: points[lastIndex].historicalOrders,
+			};
+		}
+
+		salesForecast.forecast.forEach((f) => {
+			points.push({
+				month: f.date,
+				historicalOrders: null,
+				forecastOrders: f.value,
+			});
+		});
+
+		return points;
+	}, [salesTrend, salesForecast]);
 
 	// Month-over-month growth metrics for key cards
 	const growthMetrics = useMemo(() => {
@@ -988,11 +1014,7 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 					<>
 						<ResponsiveContainer width="100%" height={320}>
 							<BarChart 
-								data={[
-									...salesTrend.map(d => ({ month: d.month, orders: d.orders, pieces: d.pieces, units: d.units, isForecast: false })),
-									...(salesTrend.length > 0 ? [{ ...salesTrend[salesTrend.length - 1], isForecast: false }] : []),
-									...salesForecast.forecast.map(f => ({ month: f.date, orders: f.value, pieces: 0, units: 0, isForecast: true }))
-								]} 
+								data={salesForecastChartData}
 								margin={{ top: 20, right: 50, left: 50, bottom: 20 }}
 							>
 								<defs>
@@ -1019,53 +1041,66 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 								/>
 								<Tooltip 
 									content={({ active, payload, label }) => {
-										if (active && payload && payload.length) {
-											return (
-												<div className="bg-white rounded-xl border border-[#e6e6e6] p-4">
-													<div className="flex items-center mb-2">
-														<div className="w-3 h-3 rounded-full bg-[#0a61d7] mr-2"></div>
-														<p className="font-semibold text-gray-900">{label}</p>
-													</div>
-													{payload.map((entry: { dataKey: string; value: number; payload?: { isForecast?: boolean } }, index: number) => {
-														if (entry.dataKey === 'orders') {
-															const isForecast = entry.payload?.isForecast;
-															return (
-																<div key={index} className="flex items-center space-x-2 mb-1">
-																	<div className={`w-3 h-3 rounded-full ${isForecast ? 'border-2 border-dashed border-[#9CA3AF]' : 'bg-[#3B82F6]'}`} />
-																	<span className="text-gray-700">
-																		{tCharts('ordersTooltip', {
-																			count: entry.value,
-																			forecastSuffix: isForecast ? tCharts('forecastSuffix') : '',
-																		})}
-																	</span>
-																</div>
-															);
-														}
-														return null;
-													})}
+										if (!active || !payload?.length) return null;
+
+										const historical = payload.find(
+											(entry) => entry.dataKey === 'historicalOrders' && entry.value != null,
+										);
+										const forecast = payload.find(
+											(entry) => entry.dataKey === 'forecastOrders' && entry.value != null,
+										);
+
+										return (
+											<div className="rounded-xl border border-[#e6e6e6] bg-white p-4">
+												<div className="mb-2 flex items-center">
+													<div className="mr-2 h-3 w-3 rounded-full bg-[#0a61d7]" />
+													<p className="font-semibold text-gray-900">{label}</p>
 												</div>
-											);
-										}
-										return null;
+												{historical ? (
+													<div className="mb-1 flex items-center space-x-2">
+														<div className="h-3 w-3 rounded-full bg-[#3B82F6]" />
+														<span className="text-gray-700">
+															{tCharts('ordersTooltip', {
+																count: Number(historical.value),
+																forecastSuffix: '',
+															})}
+															{' '}
+															({tCharts('historicalOrders')})
+														</span>
+													</div>
+												) : null}
+												{forecast ? (
+													<div className="flex items-center space-x-2">
+														<div className="h-3 w-3 rounded-full border-2 border-dashed border-[#9CA3AF]" />
+														<span className="text-gray-700">
+															{tCharts('ordersTooltip', {
+																count: Number(forecast.value),
+																forecastSuffix: tCharts('forecastSuffix'),
+															})}
+														</span>
+													</div>
+												) : null}
+											</div>
+										);
 									}}
 									cursor={{ fill: '#F1F5F9', fillOpacity: 0.3 }}
 								/>
 								<Bar 
-									dataKey="orders" 
-									name={tCharts('ordersLegend')} 
+									dataKey="historicalOrders" 
+									name={tCharts('historicalOrders')} 
 									fill="url(#salesForecastOrdersGradient)" 
 									radius={[6, 6, 0, 0]} 
 									maxBarSize={40}
 								/>
 								<Line
 									type="monotone"
-									dataKey="orders"
+									dataKey="forecastOrders"
+									name={tCharts('forecast')}
 									stroke="#9CA3AF"
 									strokeWidth={2}
 									strokeDasharray="5 5"
+									connectNulls
 									dot={{ fill: '#9CA3AF', r: 3 }}
-									data={salesForecast.forecast.map(f => ({ month: f.date, orders: f.value, isForecast: true }))}
-									connectNulls={true}
 								/>
 							</BarChart>
 						</ResponsiveContainer>
@@ -1083,7 +1118,7 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 								</div>
 								<div>
 									<span className="text-xs text-gray-500">{tShared('confidenceLabel')} </span>
-									<span className="text-sm font-semibold text-black">{(salesForecast.confidence * 100).toFixed(1)}%</span>
+									<span className="text-sm font-semibold text-black">{salesForecast.confidence.toFixed(1)}%</span>
 								</div>
 							</div>
 						</div>

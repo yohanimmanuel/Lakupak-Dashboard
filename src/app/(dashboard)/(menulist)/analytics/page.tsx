@@ -334,7 +334,7 @@ export default function AnalyticsPage() {
           />
         </div>
         <div>
-          <SalesTrendChart data={salesTrend} showSeeMore />
+          <SalesTrendChart data={salesTrend} showSeeMore timeRange={timeRange} dateLocale={dateLocale} />
         </div>
         {/* Reused Operational charts */}
         <div>

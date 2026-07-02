@@ -150,9 +150,71 @@ export function getAnalyticsPeriodBuckets(
 	return buildMonthlyBuckets(cutoff, now, locale);
 }
 
+/** Forward-looking period buckets that match the selected range granularity. */
+export function getForecastPeriodBuckets(
+	timeRange: AnalyticsTimeRange,
+	anchorEnd: Date,
+	count: number,
+	locale = 'en-US',
+): AnalyticsPeriodBucket[] {
+	if (count <= 0) return [];
+
+	const buckets: AnalyticsPeriodBucket[] = [];
+
+	if (timeRange === '1M') {
+		let cursor = getWeekStart(anchorEnd);
+		cursor.setDate(cursor.getDate() + 7);
+
+		for (let i = 0; i < count; i += 1) {
+			const weekEnd = new Date(cursor);
+			weekEnd.setDate(weekEnd.getDate() + 6);
+			weekEnd.setHours(23, 59, 59, 999);
+
+			buckets.push({
+				key: getAnalyticsBucketKey(cursor, '1M'),
+				label: formatWeekLabel(cursor, locale),
+				start: new Date(cursor),
+				end: weekEnd,
+			});
+
+			cursor.setDate(cursor.getDate() + 7);
+		}
+
+		return buckets;
+	}
+
+	let cursor = new Date(anchorEnd.getFullYear(), anchorEnd.getMonth() + 1, 1);
+	cursor.setHours(0, 0, 0, 0);
+
+	for (let i = 0; i < count; i += 1) {
+		const bucketEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0, 23, 59, 59, 999);
+		buckets.push({
+			key: getAnalyticsBucketKey(cursor, '3M'),
+			label: formatMonthLabel(cursor, locale),
+			start: new Date(cursor),
+			end: bucketEnd,
+		});
+		cursor.setMonth(cursor.getMonth() + 1);
+	}
+
+	return buckets;
+}
+
 /** i18n key for KPI growth footers (week-over-week vs month-over-month). */
 export function getAnalyticsGrowthComparisonKey(timeRange: AnalyticsTimeRange): AnalyticsGrowthComparisonKey {
 	return timeRange === '1M' ? 'vsLastWeek' : 'vsLastMonth';
+}
+
+/**
+ * Forward-looking bucket count aligned with the selected analytics range.
+ * - Per Month: ~30 days → 5 weekly buckets
+ * - Per Quarter / 6 Months / Year: 3 / 6 / 12 monthly buckets
+ */
+export function getForecastPeriodCount(timeRange: AnalyticsTimeRange): number {
+	if (timeRange === '1M') {
+		return 5;
+	}
+	return ANALYTICS_TIME_RANGE_MONTHS[timeRange];
 }
 
 /**
