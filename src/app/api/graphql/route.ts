@@ -1,7 +1,6 @@
 import { ApolloServer } from '@apollo/server';
 import { startServerAndCreateNextHandler } from '@as-integrations/next';
-import type { NextRequest } from 'next/server';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { verifyAccessToken } from '@/lib/jwt';
 import { prisma } from '@/lib/db';
 import { setDbSecurityContextFromRequest } from '@/lib/db';
@@ -153,24 +152,35 @@ function extractAuthenticatedUserId(request: NextRequest): number | null {
 }
 
 /**
- * Extract GraphQL operation details from request
+ * Extract GraphQL operation details from a parsed POST body
  */
-async function extractGraphQLOperation(request: NextRequest): Promise<{
+function extractGraphQLOperation(body: unknown): {
   query: string;
   operationName?: string;
   variables?: Record<string, unknown>;
-} | null> {
-  try {
-    const clonedRequest = request.clone();
-    const body = await clonedRequest.json();
-    return {
-      query: body.query || '',
-      operationName: body.operationName,
-      variables: body.variables || {},
-    };
-  } catch {
-    return null;
-  }
+} | null {
+  if (!body || typeof body !== 'object') return null;
+
+  const record = body as Record<string, unknown>;
+  if (typeof record.query !== 'string') return null;
+
+  return {
+    query: record.query,
+    operationName: typeof record.operationName === 'string' ? record.operationName : undefined,
+    variables:
+      record.variables && typeof record.variables === 'object' && !Array.isArray(record.variables)
+        ? (record.variables as Record<string, unknown>)
+        : {},
+  };
+}
+
+/** Rebuild a POST request for Apollo after the original body stream was consumed */
+function createApolloRequest(request: NextRequest, parsedBody: unknown): NextRequest {
+  return new NextRequest(request.url, {
+    method: 'POST',
+    headers: request.headers,
+    body: JSON.stringify(parsedBody),
+  });
 }
 
 
@@ -512,8 +522,18 @@ function isDashboardOperation(query: string): boolean {
 // Wrapper to handle errors and rate limiting
 async function handler(request: NextRequest) {
   try {
-    // Extract GraphQL operation details
-    const operation = await extractGraphQLOperation(request);
+    const isPost = request.method === 'POST';
+    let parsedBody: unknown = null;
+    if (isPost) {
+      try {
+        parsedBody = await request.json();
+      } catch {
+        parsedBody = null;
+      }
+    }
+
+    // Extract GraphQL operation details from the single body read (POST only)
+    const operation = isPost ? extractGraphQLOperation(parsedBody) : null;
     
     if (operation) {
       const { query } = operation;
@@ -811,10 +831,12 @@ async function handler(request: NextRequest) {
       }
     }
     
-    // Clone the request before passing to Apollo Handler to ensure body is available
-    // This prevents "Body has already been read" errors
-    const clonedRequestForApollo = request.clone();
-    return await apolloHandler(clonedRequestForApollo);
+    const requestForApollo = isPost
+      ? parsedBody !== null
+        ? createApolloRequest(request, parsedBody)
+        : new NextRequest(request.url, { method: 'POST', headers: request.headers, body: '' })
+      : request;
+    return await apolloHandler(requestForApollo);
   } catch (error) {
     // Handle JSON parsing errors that escape Apollo Server
     const errorMessage = error instanceof Error ? error.message : String(error);
