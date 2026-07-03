@@ -878,20 +878,22 @@ const deleteSupplier = async (args: { userId: number; id: string }) => {
   };
 };
 
+import { withDashboardAuth } from '../common/auth';
+
 export const contactsResolvers = {
   Query: {
-    buyers: (_: unknown, args: Parameters<typeof fetchBuyersConnection>[0]) => fetchBuyersConnection(args),
-    buyer: (_: unknown, args: Parameters<typeof fetchSingleBuyer>[0]) => fetchSingleBuyer(args),
-    suppliers: (_: unknown, args: Parameters<typeof fetchSuppliersConnection>[0]) => fetchSuppliersConnection(args),
-    supplier: (_: unknown, args: Parameters<typeof fetchSingleSupplier>[0]) => fetchSingleSupplier(args),
+    buyers: withDashboardAuth(fetchBuyersConnection),
+    buyer: withDashboardAuth(fetchSingleBuyer),
+    suppliers: withDashboardAuth(fetchSuppliersConnection),
+    supplier: withDashboardAuth(fetchSingleSupplier),
   },
   Mutation: {
-    createBuyer: (_: unknown, args: Parameters<typeof createBuyer>[0]) => createBuyer(args),
-    updateBuyer: (_: unknown, args: Parameters<typeof updateBuyer>[0]) => updateBuyer(args),
-    deleteBuyer: (_: unknown, args: Parameters<typeof deleteBuyer>[0]) => deleteBuyer(args),
-    createSupplier: (_: unknown, args: Parameters<typeof createSupplier>[0]) => createSupplier(args),
-    updateSupplier: (_: unknown, args: Parameters<typeof updateSupplier>[0]) => updateSupplier(args),
-    deleteSupplier: (_: unknown, args: Parameters<typeof deleteSupplier>[0]) => deleteSupplier(args),
+    createBuyer: withDashboardAuth(createBuyer),
+    updateBuyer: withDashboardAuth(updateBuyer),
+    deleteBuyer: withDashboardAuth(deleteBuyer),
+    createSupplier: withDashboardAuth(createSupplier),
+    updateSupplier: withDashboardAuth(updateSupplier),
+    deleteSupplier: withDashboardAuth(deleteSupplier),
   },
 };
 

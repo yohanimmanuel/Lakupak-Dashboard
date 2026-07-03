@@ -123,7 +123,7 @@ describe('mobile orders - fail fast without partial writes', () => {
     expect(updatedVariant?.stockQuantity).toBe(1);
   });
 
-  it('reserves ordered + free pieces for buy_x_get_y offers', async () => {
+  it('allows buy_x_get_y checkout when stock covers ordered + free pieces (deduct on confirm)', async () => {
     const distributor = await prisma.user.create({
       data: { email: 'dist-promo@example.com', password: 'x' },
       select: { id: true },
@@ -254,7 +254,8 @@ describe('mobile orders - fail fast without partial writes', () => {
     const orderCount = await prisma.order.count();
     expect(orderCount).toBe(1);
     const updatedVariant = await prisma.variantOption.findUnique({ where: { id: variant.id } });
-    expect(updatedVariant?.stockQuantity).toBe(6);
+    // Stock is not decremented at checkout; deduction runs on dashboard confirm (Pending → Confirmed).
+    expect(updatedVariant?.stockQuantity).toBe(10);
   });
 });
 

@@ -1081,15 +1081,17 @@ export const checkAllOffersForExpiry = async () => {
   }
 };
 
+import { requireDashboardUser, withDashboardAuth } from '../common/auth';
+
 export const offersResolvers = {
   Query: {
-    offers: (_: unknown, args: Parameters<typeof fetchOffersConnection>[0]) => fetchOffersConnection(args),
-    offer: (_: unknown, args: Parameters<typeof fetchSingleOffer>[0]) => fetchSingleOffer(args),
+    offers: withDashboardAuth(fetchOffersConnection),
+    offer: withDashboardAuth(fetchSingleOffer),
   },
   Mutation: {
-    createOffer: (_: unknown, args: Parameters<typeof createOffer>[0]) => createOffer(args),
-    updateOffer: (_: unknown, args: Parameters<typeof updateOffer>[0]) => updateOffer(args),
-    deleteOffer: (_: unknown, args: Parameters<typeof deleteOffer>[0]) => deleteOffer(args),
+    createOffer: withDashboardAuth(createOffer),
+    updateOffer: withDashboardAuth(updateOffer),
+    deleteOffer: withDashboardAuth(deleteOffer),
   },
 };
 

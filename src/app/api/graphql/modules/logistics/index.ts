@@ -6,6 +6,7 @@ import { broadcastNotification } from '@/utils/websocketBroadcast';
 import { sendExpoPushToDriver } from '@/utils/expoPush';
 import { translateDriverFleetAssigned, translateDriverOrdersAdded } from '@/utils/driverPushTranslations';
 import { buildFleetRouteStops, parseFleetJsonStringArray } from '@/utils/fleetRouteStops';
+import { requireDashboardUser } from '../common/auth';
 
 type DbClient = Pick<typeof prisma, 'order'>;
 
@@ -460,8 +461,10 @@ export const logisticsResolvers = {
   Query: {
     async fleets(
       _: unknown,
-      args: { userId: number; page?: number; limit?: number; status?: string; deliveryType?: string; search?: string }
+      args: { userId: number; page?: number; limit?: number; status?: string; deliveryType?: string; search?: string },
+      ctx: unknown,
     ) {
+      requireDashboardUser(ctx, args.userId);
       const { userId, page = 1, limit = 50, status, deliveryType, search } = args;
       const { page: p, limit: l } = sanitizePagination(page, limit, 100);
 
@@ -487,7 +490,8 @@ export const logisticsResolvers = {
       };
     },
 
-    async fleet(_: unknown, args: { userId: number; id: string }) {
+    async fleet(_: unknown, args: { userId: number; id: string }, ctx: unknown) {
+      requireDashboardUser(ctx, args.userId);
       const { userId, id } = args;
       const numId = parseInt(id, 10);
       if (!Number.isInteger(numId) || numId <= 0) return null;
@@ -495,7 +499,8 @@ export const logisticsResolvers = {
       return row ? mapFleet(row) : null;
     },
 
-    async drivers(_: unknown, args: { userId: number }) {
+    async drivers(_: unknown, args: { userId: number }, ctx: unknown) {
+      requireDashboardUser(ctx, args.userId);
       const rows = await prisma.driver.findMany({
         where: { userId: args.userId },
         include: { _count: { select: { fleets: true } } },
@@ -504,7 +509,8 @@ export const logisticsResolvers = {
       return rows.map(mapDriver);
     },
 
-    async driver(_: unknown, args: { userId: number; id: string }) {
+    async driver(_: unknown, args: { userId: number; id: string }, ctx: unknown) {
+      requireDashboardUser(ctx, args.userId);
       const numId = parseInt(args.id, 10);
       if (!Number.isInteger(numId) || numId <= 0) return null;
       const row = await prisma.driver.findFirst({
@@ -516,7 +522,8 @@ export const logisticsResolvers = {
   },
 
   Mutation: {
-    async createFleet(_: unknown, args: { userId: number; input: Record<string, unknown> }) {
+    async createFleet(_: unknown, args: { userId: number; input: Record<string, unknown> }, ctx: unknown) {
+      requireDashboardUser(ctx, args.userId);
       const { userId, input } = args;
       const assignedIds = Array.isArray(input.assignedOrderIds) ? (input.assignedOrderIds as string[]) : [];
 
@@ -651,7 +658,8 @@ export const logisticsResolvers = {
       return mapFleet(row);
     },
 
-    async updateFleet(_: unknown, args: { userId: number; id: string; input: Record<string, unknown> }) {
+    async updateFleet(_: unknown, args: { userId: number; id: string; input: Record<string, unknown> }, ctx: unknown) {
+      requireDashboardUser(ctx, args.userId);
       const { userId, id, input } = args;
       const numId = parseInt(id, 10);
       if (!Number.isInteger(numId) || numId <= 0) throw new Error('Invalid fleet id');
@@ -821,7 +829,8 @@ export const logisticsResolvers = {
       return mapFleet(row);
     },
 
-    async deleteFleet(_: unknown, args: { userId: number; id: string }) {
+    async deleteFleet(_: unknown, args: { userId: number; id: string }, ctx: unknown) {
+      requireDashboardUser(ctx, args.userId);
       const { userId, id } = args;
       const numId = parseInt(id, 10);
       if (!Number.isInteger(numId) || numId <= 0) throw new Error('Invalid fleet id');
@@ -839,7 +848,8 @@ export const logisticsResolvers = {
 
     // ---- Driver mutations ----
 
-    async createDriver(_: unknown, args: { userId: number; input: Record<string, unknown> }) {
+    async createDriver(_: unknown, args: { userId: number; input: Record<string, unknown> }, ctx: unknown) {
+      requireDashboardUser(ctx, args.userId);
       const { userId, input } = args;
       const rawPassword = typeof input.password === 'string' ? input.password : '';
       if (!rawPassword) throw new Error('Driver password is required.');
@@ -862,7 +872,8 @@ export const logisticsResolvers = {
       return mapDriver(row);
     },
 
-    async updateDriver(_: unknown, args: { userId: number; id: string; input: Record<string, unknown> }) {
+    async updateDriver(_: unknown, args: { userId: number; id: string; input: Record<string, unknown> }, ctx: unknown) {
+      requireDashboardUser(ctx, args.userId);
       const { userId, id, input } = args;
       const numId = parseInt(id, 10);
       if (!Number.isInteger(numId) || numId <= 0) throw new Error('Invalid driver id');
@@ -891,7 +902,8 @@ export const logisticsResolvers = {
       return mapDriver(row);
     },
 
-    async deleteDriver(_: unknown, args: { userId: number; id: string }) {
+    async deleteDriver(_: unknown, args: { userId: number; id: string }, ctx: unknown) {
+      requireDashboardUser(ctx, args.userId);
       const { userId, id } = args;
       const numId = parseInt(id, 10);
       if (!Number.isInteger(numId) || numId <= 0) throw new Error('Invalid driver id');

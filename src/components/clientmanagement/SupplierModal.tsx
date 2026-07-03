@@ -7,6 +7,16 @@ import { Supplier, SupplyDetail, SupplierFormData } from '@/types/client';
 import { getDefaultCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
+import {
+  validateRequiredEmail,
+  validateRequiredPhone,
+  validateRequiredField,
+  mapSupplierFieldError,
+  clearValidationField,
+} from '@/utils/client-input-validation';
+import { ClientField, ClientInput } from '@/components/clientmanagement/ClientField';
+import { ClientValidatedField } from '@/components/clientmanagement/ClientValidatedField';
+import { CLIENT_SELECT_BUTTON_CLASS } from '@/components/clientmanagement/client-field-styles';
 
 const categories = ["Instant Noodles", "Mineral Water", "Rice", "Bread"];
 const statusOptions = ["Active", "Inactive", "Blocked"];
@@ -97,6 +107,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   
@@ -136,11 +147,23 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
   // Client-side validation - no required fields
   const validateForm = useCallback(() => {
     const errors: Record<string, string> = {};
-    
-    // No validation - all fields are optional
+
+    const supplierNameResult = validateRequiredField(form.supplierName, tSuppliersModal('supplierName'));
+    const contactResult = validateRequiredField(form.contact, tSuppliersModal('contactPerson'));
+    const phoneResult = validateRequiredPhone(form.phone);
+    const emailResult = validateRequiredEmail(form.email);
+    const addressResult = validateRequiredField(form.address, tSuppliersModal('address'));
+
+    if (!supplierNameResult.valid && supplierNameResult.error) errors.supplierName = supplierNameResult.error;
+    if (!contactResult.valid && contactResult.error) errors.contact = contactResult.error;
+    if (!phoneResult.valid && phoneResult.error) errors.phone = phoneResult.error;
+    if (!emailResult.valid && emailResult.error) errors.email = emailResult.error;
+    if (!addressResult.valid && addressResult.error) errors.address = addressResult.error;
+
     setValidationErrors(errors);
-    return true;
-  }, []);
+    setSubmitAttempted(true);
+    return Object.keys(errors).length === 0;
+  }, [form.supplierName, form.contact, form.phone, form.email, form.address, tSuppliersModal]);
 
   // Enhanced error handling
   const handleError = useCallback((message: string) => {
@@ -172,6 +195,14 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
       setSupplyRows((rows: SupplyDetail[]) => rows.filter((_: SupplyDetail, i: number) => i !== idx));
     }
   }, [supplyRows.length]);
+
+  // Reset validation state when modal opens
+  useEffect(() => {
+    if (open) {
+      setSubmitAttempted(false);
+      setValidationErrors({});
+    }
+  }, [open]);
 
   // Handle edit mode initialization
   useEffect(() => {
@@ -227,11 +258,14 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
     if (e) e.preventDefault();
     
     if (isSubmitting) return;
-    
-    setIsSubmitting(true);
-    setSaving(true);
+
     setError('');
     setSuccess('');
+
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+    setSaving(true);
     
     try {
       const isEdit = mode === 'edit';
@@ -445,7 +479,13 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : tSuppliersModal('saveFailed');
-      handleError(errorMessage);
+      const field = mapSupplierFieldError(errorMessage);
+      if (field) {
+        setValidationErrors((prev) => ({ ...prev, [field]: errorMessage }));
+        setSubmitAttempted(true);
+      } else {
+        handleError(errorMessage);
+      }
     } finally {
       setSaving(false);
       setIsSubmitting(false);
@@ -483,39 +523,83 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
         <div className="border-b border-gray-200 -mx-6"></div>
         <form className="flex flex-col gap-2 overflow-y-auto max-h-[60vh]">
           <div className="mt-4">
-            <label className="block text-xs font-medium text-gray-700 mb-1">{tShared('columns.id')}</label>
-            <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100" value={id || ''} onChange={e => setId(e.target.value)} required disabled />
+            <ClientField
+              label={tShared('columns.id')}
+              value={id || ''}
+              onChange={setId}
+              required
+              disabled
+            />
           </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">{tSuppliersModal('supplierName')}</label>
-            <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.supplierName || ''} onChange={e => setForm(f => ({ ...f, supplierName: e.target.value }))} required />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">{tSuppliersModal('contactPerson')}</label>
-            <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.contact || ''} onChange={e => setForm(f => ({ ...f, contact: e.target.value }))} required />
+          <ClientField
+            label={tSuppliersModal('supplierName')}
+            value={form.supplierName || ''}
+            onChange={(supplierName) => {
+              setForm((f) => ({ ...f, supplierName }));
+              setValidationErrors((prev) => clearValidationField(prev, 'supplierName'));
+            }}
+            validator={(value) => validateRequiredField(value, tSuppliersModal('supplierName'))}
+            submitAttempted={submitAttempted}
+            externalError={validationErrors.supplierName}
+            required
+          />
+          <ClientField
+            label={tSuppliersModal('contactPerson')}
+            value={form.contact || ''}
+            onChange={(contact) => {
+              setForm((f) => ({ ...f, contact }));
+              setValidationErrors((prev) => clearValidationField(prev, 'contact'));
+            }}
+            validator={(value) => validateRequiredField(value, tSuppliersModal('contactPerson'))}
+            submitAttempted={submitAttempted}
+            externalError={validationErrors.contact}
+            required
+          />
+          <div className="flex gap-2">
+            <ClientValidatedField
+              className="flex-1"
+              label={tSuppliersModal('phone')}
+              type="tel"
+              value={form.phone || ''}
+              onChange={(phone) => {
+                setForm((f) => ({ ...f, phone }));
+                setValidationErrors((prev) => clearValidationField(prev, 'phone'));
+              }}
+              validator={validateRequiredPhone}
+              required
+              submitAttempted={submitAttempted}
+              externalError={validationErrors.phone}
+            />
+            <ClientValidatedField
+              className="flex-1"
+              label={tSuppliersModal('email')}
+              type="email"
+              value={form.email || ''}
+              onChange={(email) => {
+                setForm((f) => ({ ...f, email }));
+                setValidationErrors((prev) => clearValidationField(prev, 'email'));
+              }}
+              validator={validateRequiredEmail}
+              required
+              submitAttempted={submitAttempted}
+              externalError={validationErrors.email}
+            />
           </div>
           <div className="flex gap-2">
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">{tSuppliersModal('phone')}</label>
-              <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.phone || ''} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} required />
-            </div>
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">{tSuppliersModal('email')}</label>
-              <input type="email" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.email || ''} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required />
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">{tSuppliersModal('businessType')}</label>
-              <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.businessType || ''} onChange={e => setForm(f => ({ ...f, businessType: e.target.value }))} placeholder={tSuppliersModal('businessTypePlaceholder')} />
-            </div>
+            <ClientField
+              className="flex-1"
+              label={tSuppliersModal('businessType')}
+              value={form.businessType || ''}
+              onChange={(businessType) => setForm((f) => ({ ...f, businessType }))}
+              placeholder={tSuppliersModal('businessTypePlaceholder')}
+            />
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">{tSuppliersModal('status')}</label>
               <div className="relative" ref={statusDropdownRef}>
                 <button
                   type="button"
                   onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                  className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg text-black text-left flex items-center justify-between"
+                  className={CLIENT_SELECT_BUTTON_CLASS}
                 >
                   <span className={form.status ? 'text-black' : 'text-gray-500'}>
                     {form.status ? translateStatus(form.status) : tSuppliersModal('selectStatus')}
@@ -544,10 +628,19 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
               </div>
             </div>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">{tSuppliersModal('address')}</label>
-            <textarea className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.address || ''} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} required />
-          </div>
+          <ClientField
+            label={tSuppliersModal('address')}
+            value={form.address || ''}
+            onChange={(address) => {
+              setForm((f) => ({ ...f, address }));
+              setValidationErrors((prev) => clearValidationField(prev, 'address'));
+            }}
+            validator={(value) => validateRequiredField(value, tSuppliersModal('address'))}
+            submitAttempted={submitAttempted}
+            externalError={validationErrors.address}
+            required
+            rows={3}
+          />
           {/* Supplies & Product Data Table */}
           <div className="my-2 border-t border-gray-200 pt-2">
             <label className="block text-sm font-bold text-black mb-2">{tSuppliersModal('suppliesSection')}</label>
@@ -568,16 +661,44 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
                   {supplyRows.map((row: SupplyDetail, idx: number) => (
                     <tr key={idx} className="whitespace-nowrap">
                       <td className="py-2 px-3 font-medium text-black">{idx + 1}</td>
-                      <td className="py-2 px-3"><input type="text" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.sku || ''} onChange={e => handleSupplyChange(idx, 'sku', e.target.value)} /></td>
-                      <td className="py-2 px-3"><input type="text" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.product || ''} onChange={e => handleSupplyChange(idx, 'product', e.target.value)} /></td>
-                      <td className="py-2 px-3"><input type="number" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.totalSupplied || ''} onChange={e => handleSupplyChange(idx, 'totalSupplied', e.target.value)} /></td>
+                      <td className="py-2 px-3">
+                        <ClientInput
+                          value={row.sku || ''}
+                          onChange={(sku) => handleSupplyChange(idx, 'sku', sku)}
+                        />
+                      </td>
+                      <td className="py-2 px-3">
+                        <ClientInput
+                          value={row.product || ''}
+                          onChange={(product) => handleSupplyChange(idx, 'product', product)}
+                        />
+                      </td>
+                      <td className="py-2 px-3">
+                        <ClientInput
+                          type="number"
+                          value={row.totalSupplied || ''}
+                          onChange={(totalSupplied) => handleSupplyChange(idx, 'totalSupplied', totalSupplied)}
+                        />
+                      </td>
                       <td className="py-2 px-3">
                         <div className="flex items-center">
                           <span className="mr-2 text-xs text-gray-500 font-medium">{currencySymbol}</span>
-                          <input type="text" className="flex-1 text-black border border-gray-200 rounded px-1 py-1 focus:ring-blue-500 focus:border-blue-500 transition-colors" value={row.totalValue || ''} onChange={e => handleSupplyChange(idx, 'totalValue', e.target.value)} placeholder="0" />                   
+                          <ClientInput
+                            fullWidth={false}
+                            className="flex-1 min-w-0"
+                            value={row.totalValue || ''}
+                            onChange={(totalValue) => handleSupplyChange(idx, 'totalValue', totalValue)}
+                            placeholder="0"
+                          />
                         </div>
                       </td>
-                      <td className="py-2 px-3"><input type="date" className="w-full text-black border border-gray-200 rounded px-1 py-1" value={row.lastDelivery || ''} onChange={e => handleSupplyChange(idx, 'lastDelivery', e.target.value)} /></td>
+                      <td className="py-2 px-3">
+                        <ClientInput
+                          type="date"
+                          value={row.lastDelivery || ''}
+                          onChange={(lastDelivery) => handleSupplyChange(idx, 'lastDelivery', lastDelivery)}
+                        />
+                      </td>
                       <td className="py-2 px-3">
                         <button type="button" className="text-red-500 font-bold p-1 hover:bg-red-100 rounded-full" onClick={() => deleteSupplyRow(idx)} disabled={supplyRows.length === 1}><Trash className="w-4 h-4" /></button>
                       </td>
@@ -589,37 +710,67 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
             <button type="button" className="mt-2 px-3 py-1 rounded-lg bg-[#0a61d7] text-white text-xs font-semibold hover:bg-[#084ba6]" onClick={addSupplyRow}>{tSuppliersModal('addRow')}</button>
           </div>
           <div className="flex gap-2">
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
-                {tSuppliersModal('createdAt')} 
-                <span className="text-xs text-gray-400">{tSuppliersModal('autoGenerated')}</span>
-                <div className="w-3 h-3 bg-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-500">i</div>
-              </label>
-              <input type="date" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100 cursor-not-allowed" value={form.createdAt || ''} onChange={e => setForm(f => ({ ...f, createdAt: e.target.value }))} required disabled />
-            </div>
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">{tSuppliersModal('preferredDeliveryDays')}</label>
-              <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.preferredDays || ''} onChange={e => setForm(f => ({ ...f, preferredDays: e.target.value }))} placeholder={tSuppliersModal('preferredDaysPlaceholder')} />
-            </div>
+            <ClientField
+              className="flex-1"
+              label={
+                <span className="flex items-center gap-1">
+                  {tSuppliersModal('createdAt')}
+                  <span className="text-xs text-gray-400 font-normal">{tSuppliersModal('autoGenerated')}</span>
+                  <span className="w-3 h-3 bg-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-500">i</span>
+                </span>
+              }
+              type="date"
+              value={form.createdAt || ''}
+              onChange={(createdAt) => setForm((f) => ({ ...f, createdAt }))}
+              required
+              disabled
+            />
+            <ClientField
+              className="flex-1"
+              label={tSuppliersModal('preferredDeliveryDays')}
+              value={form.preferredDays || ''}
+              onChange={(preferredDays) => setForm((f) => ({ ...f, preferredDays }))}
+              placeholder={tSuppliersModal('preferredDaysPlaceholder')}
+            />
           </div>
           <div className="flex gap-2">
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
-                {tSuppliersModal('lastDeliveryDate')} 
-                <span className="text-xs text-gray-400">{tSuppliersModal('autoFromSupplies')}</span>
-                <div className="w-3 h-3 bg-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-500">i</div>
-              </label>
-              <input type="date" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100 cursor-not-allowed" value={computedLastDelivery || ''} onChange={e => setForm(f => ({ ...f, lastDelivery: e.target.value }))} disabled />
-            </div>
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">{tSuppliersModal('deliverySuccessRate')}</label>
-              <input type="number" min="0" max="100" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.deliverySuccess || ''} onChange={e => setForm(f => ({ ...f, deliverySuccess: e.target.value }))} placeholder={tSuppliersModal('deliverySuccessPlaceholder')} />
-            </div>
+            <ClientField
+              className="flex-1"
+              label={
+                <span className="flex items-center gap-1">
+                  {tSuppliersModal('lastDeliveryDate')}
+                  <span className="text-xs text-gray-400 font-normal">{tSuppliersModal('autoFromSupplies')}</span>
+                  <span className="w-3 h-3 bg-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-500">i</span>
+                </span>
+              }
+              type="date"
+              value={computedLastDelivery || ''}
+              onChange={(lastDelivery) => setForm((f) => ({ ...f, lastDelivery }))}
+              disabled
+            />
+            <ClientField
+              className="flex-1"
+              label={tSuppliersModal('deliverySuccessRate')}
+              type="number"
+              min={0}
+              max={100}
+              value={form.deliverySuccess || ''}
+              onChange={(deliverySuccess) => setForm((f) => ({ ...f, deliverySuccess }))}
+              placeholder={tSuppliersModal('deliverySuccessPlaceholder')}
+            />
           </div>
-          <div className="mb-4">
-            <label className="block text-xs font-medium text-gray-700 mb-1">{tSuppliersModal('notesTags')} <span className="text-xs text-gray-400">{tSuppliersModal('commaSeparated')}</span></label>
-            <input type="text" className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2" value={form.notes || ''} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder={tSuppliersModal('notesPlaceholder')} />
-          </div>
+          <ClientField
+            className="mb-4"
+            label={
+              <>
+                {tSuppliersModal('notesTags')}{' '}
+                <span className="text-xs text-gray-400 font-normal">{tSuppliersModal('commaSeparated')}</span>
+              </>
+            }
+            value={form.notes || ''}
+            onChange={(notes) => setForm((f) => ({ ...f, notes }))}
+            placeholder={tSuppliersModal('notesPlaceholder')}
+          />
           
           {/* Success Message */}
           {success && (

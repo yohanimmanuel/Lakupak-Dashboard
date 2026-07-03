@@ -158,8 +158,8 @@ export default function ProductsPage() {
         setOverlayMessage(tList('loadedOverlay', { count: productsData.length }));
       }
     } catch (error) {
-      setProducts([]);
       if (!silent) {
+        setProducts([]);
         setOverlayMessage(tList('errorOverlay'));
       }
     } finally {
@@ -202,7 +202,7 @@ export default function ProductsPage() {
   // When we receive a product broadcast, force-refresh to bypass any cache.
   useProductUpdateSocket(user?.id, () => {
     if (suppressSocketRefreshRef.current) return;
-    fetchProducts(true);
+    fetchProducts(true, true);
   });
 
   usePendingDashboardTourStart('products', { ready: !loading && !!user?.id });

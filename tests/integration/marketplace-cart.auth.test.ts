@@ -54,7 +54,7 @@ describe('marketplace cart mutations - auth/ownership', () => {
     const res = await marketplaceResolvers.Mutation.removeCartItem(
       undefined,
       { cartItemId: item.userActivities[0].id },
-      { user: { id: userB.id } },
+      { user: { id: userB.id, type: 'marketplace' } },
     );
 
     expect(res).toEqual({ success: false, cartItem: null, message: 'Forbidden' });
@@ -94,7 +94,7 @@ describe('marketplace cart mutations - auth/ownership', () => {
     const res = await marketplaceResolvers.Mutation.updateCartItem(
       undefined,
       { input: { cartItemId: item.userActivities[0].id, quantity: 5 } },
-      { user: { id: userB.id } },
+      { user: { id: userB.id, type: 'marketplace' } },
     );
 
     expect(res).toEqual({ success: false, cartItem: null, message: 'Forbidden' });

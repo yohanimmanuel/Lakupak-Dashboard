@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSecurityHeaders } from '../../../../../utils/auth-security';
 import { twilioClient, waFrom, smsFrom } from '../../../../../lib/twilio';
 import { otpRateLimiter } from '../../../../../utils/rateLimiter';
+import { storeMobileOtp } from '@/lib/mobileOtp';
 
 export async function POST(req: NextRequest) {
   const headers = getSecurityHeaders();
@@ -54,7 +55,21 @@ export async function POST(req: NextRequest) {
     
     // Generate OTP code
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    
+    const ipAddress =
+      req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      req.headers.get('x-real-ip') ||
+      null;
+
+    const persistOtp = async (deliveryChannel: string) => {
+      await storeMobileOtp({
+        phone,
+        countryCode,
+        channel: deliveryChannel,
+        code: otpCode,
+        ipAddress,
+      });
+    };
+
     // Send OTP via Twilio WhatsApp
     if (channel === 'whatsapp' && twilioClient && waFrom) {
       try {
@@ -68,6 +83,8 @@ export async function POST(req: NextRequest) {
           to: whatsappPhone,
           body: message
         });
+
+        await persistOtp('whatsapp');
         
         return NextResponse.json({
           ok: true,
@@ -101,8 +118,8 @@ export async function POST(req: NextRequest) {
           to: smsPhone,
           body: message
         });
-        
-        (`SMS OTP sent to ${smsPhone}`);
+
+        await persistOtp('sms');
         
         return NextResponse.json({
           ok: true,

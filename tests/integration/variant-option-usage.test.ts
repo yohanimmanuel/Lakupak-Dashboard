@@ -134,12 +134,14 @@ describe('products.variantOptionUsage (integration)', () => {
       },
     });
 
+    const dashboardCtx = { user: { id: distributor.id, type: 'dashboard' as const } };
+
     const res = await productsResolvers.Query.variantOptionUsage(null as never, {
       userId: distributor.id,
       productId: product.productId,
       variantOptionIds: [used.id, unused.id],
       variantNames: null,
-    });
+    }, dashboardCtx);
 
     const resTyped = res as VariantOptionUsage[];
     const byName = new Map(resTyped.map((r) => [r.variantName, r]));
@@ -264,7 +266,7 @@ describe('products.variantOptionUsage (integration)', () => {
       productId: product.productId,
       variantOptionIds: [renamed.id],
       variantNames: null,
-    });
+    }, { user: { id: distributor.id, type: 'dashboard' as const } });
 
     expect(res).toHaveLength(1);
     expect(res[0].variantName).toBe(renamed.variantName);

@@ -21,6 +21,83 @@ const baseVariantOption = {
   isActive: true,
 };
 
+export async function createDraftProductReadyToPublish(userId: number, productId: string) {
+  return createProduct({
+    userId,
+    productId,
+    sku: `SKU-${productId}`,
+    name: 'Publish Test Product',
+    description: 'Ready for marketplace publish',
+    productType: 'Grocery',
+    brand: 'TestBrand',
+    supplier: 'TestSupplier',
+    status: 'Draft',
+    productCategory: 'Retail',
+    catalogName: 'Default',
+    images: ['https://example.com/product.jpg'],
+    variantOptions: [
+      {
+        ...baseVariantOption,
+        variantName: 'Default',
+        attributes: {},
+        isDefault: true,
+      },
+    ],
+  });
+}
+
+export async function createDraftProductWithoutImages(userId: number, productId: string) {
+  return createProduct({
+    userId,
+    productId,
+    sku: `SKU-${productId}`,
+    name: 'No Image Product',
+    description: 'Missing images',
+    productType: 'Grocery',
+    brand: 'TestBrand',
+    supplier: 'TestSupplier',
+    status: 'Draft',
+    productCategory: 'Retail',
+    catalogName: 'Default',
+    images: [],
+    variantOptions: [
+      {
+        ...baseVariantOption,
+        variantName: 'Default',
+        attributes: {},
+        isDefault: true,
+      },
+    ],
+  });
+}
+
+export async function createDraftProductWithoutStock(userId: number, productId: string) {
+  return createProduct({
+    userId,
+    productId,
+    sku: `SKU-${productId}`,
+    name: 'No Stock Product',
+    description: 'Zero stock',
+    productType: 'Grocery',
+    brand: 'TestBrand',
+    supplier: 'TestSupplier',
+    status: 'Draft',
+    productCategory: 'Retail',
+    catalogName: 'Default',
+    images: ['https://example.com/product.jpg'],
+    variantOptions: [
+      {
+        ...baseVariantOption,
+        variantName: 'Default',
+        attributes: {},
+        stockQuantity: 0,
+        stockStatus: 'Out of Stock',
+        isDefault: true,
+      },
+    ],
+  });
+}
+
 export async function createPublishedProductWithColorVariants(userId: number, productId: string) {
   return createProduct({
     userId,

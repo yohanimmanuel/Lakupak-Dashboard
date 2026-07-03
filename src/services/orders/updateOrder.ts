@@ -568,17 +568,98 @@ export async function updateOrderHandler(request: NextRequest) {
         }
       }
 
-      // Auto-set acceptedAt on status transition to Confirmed when not provided
-      if (!sanitizedData.acceptedAt && typeof sanitizedData.orderId === 'string' && sanitizedData.orderStatus) {
+      // Replace line items before status/stock logic; deduct uses the final SKU set, restore uses a pre-replacement snapshot.
+      let orderItemsBeforeReplacement: Array<{
+        productId: string | null;
+        variantOptionId: number | null;
+        variantId: number | null;
+        packageQuantity: number | null;
+        piecesPerPackage: number | null;
+        promotionDetailsSnapshot: string | null;
+        moqSnapshot: number | null;
+      }> | null = null;
+
+      if (Array.isArray(parsedOrderItems) && typeof sanitizedData.orderId === 'string') {
+        orderItemsBeforeReplacement = await tx.orderItem.findMany({
+          where: { orderId: sanitizedData.orderId as string },
+          select: {
+            productId: true,
+            variantOptionId: true,
+            variantId: true,
+            packageQuantity: true,
+            piecesPerPackage: true,
+            promotionDetailsSnapshot: true,
+            moqSnapshot: true,
+          },
+        });
+
+        await tx.orderItem.deleteMany({
+          where: { orderId: sanitizedData.orderId as string },
+        });
+
+        const orderItemPromises = (parsedOrderItems as Array<{ productId: string; quantity: number }>).map(
+          async (item: { productId: string; quantity: number }) => {
+            const product = await tx.product.findFirst({
+              where: { productId: item.productId },
+              include: { variantOptions: true, variants: true },
+            });
+
+            if (!product) {
+              throw new Error(`Product not found: ${item.productId}`);
+            }
+
+            const itemWithVariant = item as { variantOptionId?: number | null; variantId?: number | null };
+            const selectedVariant = selectVariantOption(product, itemWithVariant);
+            const consistentUnitPrice = selectedVariant ? getUnitPriceFromVariantOption(selectedVariant) : 0;
+            if (!selectedVariant || consistentUnitPrice <= 0) {
+              throw new Error(`No variants with pricing found for product: ${item.productId}`);
+            }
+
+            const consistentSubtotal = consistentUnitPrice * Number(item.quantity || 0);
+
+            return tx.orderItem.create({
+              data: {
+                orderId: sanitizedData.orderId as string,
+                productId: item.productId as string,
+                variantOptionId: selectedVariant.id,
+                variantId: itemWithVariant.variantId ?? null,
+                subtotal: consistentSubtotal,
+                productNameSnapshot: product.name,
+                productSkuSnapshot: product.sku,
+                productTypeSnapshot: product.productType,
+                productImageSnapshot: Array.isArray((product as { images?: string[] }).images)
+                  ? ((product as { images?: string[] }).images ?? [])[0] ?? null
+                  : null,
+                variantNameSnapshot: (selectedVariant as { variantName?: string }).variantName ?? null,
+                variantAttributesSnapshot: (selectedVariant as { attributes?: unknown }).attributes ?? undefined,
+                packageQuantity: (item as { packageQuantity?: number }).packageQuantity || 1,
+                packageType: (item as { packageType?: string }).packageType,
+                piecesPerPackage: (item as { piecesPerPackage?: number }).piecesPerPackage || 1,
+                pricePerPackage: (item as { pricePerPackage?: number }).pricePerPackage || consistentUnitPrice,
+                unitPriceSnapshot: consistentUnitPrice,
+                moqSnapshot: (selectedVariant as { moq?: number | null }).moq ?? null,
+              },
+            });
+          },
+        );
+
+        await Promise.all(orderItemPromises);
+      }
+
+      // Status-driven timestamps and stock adjustments (independent of whether acceptedAt was sent).
+      if (typeof sanitizedData.orderId === 'string' && sanitizedData.orderStatus) {
         const existing = await tx.order.findUnique({ where: { orderId: String(sanitizedData.orderId) } });
         if (existing) {
           const nextStatus = String(sanitizedData.orderStatus);
           const prevStatus = String(existing.orderStatus || '');
-          // keep previousPaymentStatus from the earlier read; do not overwrite
-          if (nextStatus === 'Confirmed' && !existing.acceptedAt) {
-            updateData.acceptedAt = new Date();
-            if (!sanitizedData.acceptedBy && !existing.acceptedBy) {
-              updateData.acceptedBy = 'Admin';
+
+          // Auto-set acceptedAt on status transition to Confirmed when not provided
+          if (!sanitizedData.acceptedAt) {
+            if (nextStatus === 'Confirmed' && !existing.acceptedAt) {
+              updateData.acceptedAt = new Date();
+              if (!sanitizedData.acceptedBy && !existing.acceptedBy) {
+                updateData.acceptedBy = 'Admin';
+              }
             }
           }
 
@@ -601,7 +682,9 @@ export async function updateOrderHandler(request: NextRequest) {
 
           // RESTORE STOCK: Moving TO Pending, Cancelled, or Returned from any other status
           if (!prevStatusNoDeduct && nextStatusNoDeduct && orderWithItems) {
-            for (const orderItem of orderWithItems.orderItemsRel) {
+            const itemsForStockRestore =
+              orderItemsBeforeReplacement ?? orderWithItems.orderItemsRel;
+            for (const orderItem of itemsForStockRestore) {
             if (!orderItem.productId) continue;
             
             // Calculate total quantity to restore (including free items from promotion)
@@ -648,28 +731,28 @@ export async function updateOrderHandler(request: NextRequest) {
             }
             
             // Restore stock at variant level (piece-based system)
-            const newStock = ((variantToRestore as { stockQuantity?: number }).stockQuantity || 0) + totalQtyToRestore;
-            let newStockStatus = (variantToRestore as { stockStatus?: string }).stockStatus || 'In Stock';
-            
-            // Update stock status based on threshold
-            const lowStockThreshold = (variantToRestore as { lowStockThreshold?: number }).lowStockThreshold || 0;
+            const previousStock = (variantToRestore as { stockQuantity?: number }).stockQuantity || 0;
+            const restored = await tx.variantOption.update({
+              where: { id: (variantToRestore as { id: number }).id },
+              data: {
+                stockQuantity: { increment: totalQtyToRestore },
+              },
+              select: { stockQuantity: true, lowStockThreshold: true, stockStatus: true, variantName: true },
+            });
+            const newStock = restored.stockQuantity ?? previousStock + totalQtyToRestore;
+            const lowStockThreshold = restored.lowStockThreshold || 0;
+            let newStockStatus = 'In Stock';
             if (newStock <= 0) {
               newStockStatus = 'Out of Stock';
             } else if (lowStockThreshold > 0 && newStock <= lowStockThreshold) {
               newStockStatus = 'Low Stock';
-            } else {
-              newStockStatus = 'In Stock';
             }
-            
-            // Update using variantOption model
-            const previousStock = (variantToRestore as { stockQuantity?: number }).stockQuantity || 0;
-            await tx.variantOption.update({
-              where: { id: (variantToRestore as { id: number }).id },
-              data: {
-                stockQuantity: newStock,
-                stockStatus: newStockStatus
-              }
-            });
+            if (newStockStatus !== restored.stockStatus) {
+              await tx.variantOption.update({
+                where: { id: (variantToRestore as { id: number }).id },
+                data: { stockStatus: newStockStatus },
+              });
+            }
 
             // Check and notify if stock level crossed a threshold
             if (productForRestore && productForRestore.userId) {
@@ -735,29 +818,42 @@ export async function updateOrderHandler(request: NextRequest) {
               continue;
             }
             
-            // Deduct stock at variant level (piece-based system)
-            const newStock = ((variantToDeduct as { stockQuantity?: number }).stockQuantity || 0) - totalQtyToDeduct;
-            let newStockStatus = (variantToDeduct as { stockStatus?: string }).stockStatus || 'In Stock';
-            
-            // Update stock status based on threshold
+            const previousStock = (variantToDeduct as { stockQuantity?: number }).stockQuantity || 0;
             const lowStockThreshold = (variantToDeduct as { lowStockThreshold?: number }).lowStockThreshold || 0;
+            // Deduct only when enough stock remains (conditional updateMany is the atomic guard).
+            const deductResult = await tx.variantOption.updateMany({
+              where: {
+                id: (variantToDeduct as { id: number }).id,
+                stockQuantity: { gte: totalQtyToDeduct },
+              },
+              data: {
+                stockQuantity: { decrement: totalQtyToDeduct },
+              },
+            });
+
+            if (deductResult.count === 0) {
+              throw new Error(
+                `Insufficient stock for product ${orderItem.productId}. Required: ${totalQtyToDeduct} pieces.`,
+              );
+            }
+
+            const afterDeduct = await tx.variantOption.findUnique({
+              where: { id: (variantToDeduct as { id: number }).id },
+              select: { stockQuantity: true, stockStatus: true },
+            });
+            const newStock = afterDeduct?.stockQuantity ?? Math.max(0, previousStock - totalQtyToDeduct);
+            let newStockStatus = 'In Stock';
             if (newStock <= 0) {
               newStockStatus = 'Out of Stock';
             } else if (lowStockThreshold > 0 && newStock <= lowStockThreshold) {
               newStockStatus = 'Low Stock';
-            } else {
-              newStockStatus = 'In Stock';
             }
-            
-            // Update using variantOption model
-            const previousStock = (variantToDeduct as { stockQuantity?: number }).stockQuantity || 0;
-            await tx.variantOption.update({
-              where: { id: (variantToDeduct as { id: number }).id },
-              data: {
-                stockQuantity: Math.max(0, newStock),
-                stockStatus: newStockStatus
-              }
-            });
+            if (afterDeduct && newStockStatus !== afterDeduct.stockStatus) {
+              await tx.variantOption.update({
+                where: { id: (variantToDeduct as { id: number }).id },
+                data: { stockStatus: newStockStatus },
+              });
+            }
 
             // Check and notify if stock level crossed a threshold
             if (productForDeduct && productForDeduct.userId) {
@@ -788,67 +884,6 @@ export async function updateOrderHandler(request: NextRequest) {
           },
         },
       });
-
-      // Update OrderItem records if orderItems were provided
-      if (Array.isArray(parsedOrderItems)) {
-        // Delete existing OrderItem records for this order
-        await tx.orderItem.deleteMany({
-          where: { orderId: sanitizedData.orderId as string },
-        });
-
-        // Create new OrderItem records with price consistency
-        const orderItemPromises = (parsedOrderItems as Array<{ productId: string; quantity: number }>).map(
-          async (item: { productId: string; quantity: number }) => {
-            // Fetch the product with variants to ensure price consistency
-            const product = await tx.product.findFirst({
-              where: { productId: item.productId },
-              include: { variantOptions: true, variants: true },
-            });
-
-            if (!product) {
-              throw new Error(`Product not found: ${item.productId}`);
-            }
-
-            // Use the selected variant's sellingPrice when available; fall back to first variant only when missing.
-            // Use variantOptions for pricing/stock (new structure) - now Decimal type, not string.
-            const itemWithVariant = item as { variantOptionId?: number | null; variantId?: number | null };
-            const selectedVariant = selectVariantOption(product, itemWithVariant);
-            const consistentUnitPrice = selectedVariant ? getUnitPriceFromVariantOption(selectedVariant) : 0;
-            if (!selectedVariant || consistentUnitPrice <= 0) {
-              throw new Error(`No variants with pricing found for product: ${item.productId}`);
-            }
-
-            const consistentSubtotal = consistentUnitPrice * Number(item.quantity || 0);
-
-            return tx.orderItem.create({
-              data: {
-                orderId: sanitizedData.orderId as string,
-                productId: item.productId as string,
-                variantOptionId: selectedVariant.id,
-                // Keep legacy field for backward compatibility when callers still send variantId.
-                variantId: itemWithVariant.variantId ?? null,
-                subtotal: consistentSubtotal,
-                productNameSnapshot: product.name,
-                productSkuSnapshot: product.sku,
-                productTypeSnapshot: product.productType,
-                productImageSnapshot: Array.isArray((product as { images?: string[] }).images)
-                  ? ((product as { images?: string[] }).images ?? [])[0] ?? null
-                  : null,
-                variantNameSnapshot: (selectedVariant as { variantName?: string }).variantName ?? null,
-                variantAttributesSnapshot: (selectedVariant as { attributes?: unknown }).attributes ?? undefined,
-                packageQuantity: (item as { packageQuantity?: number }).packageQuantity || 1,
-                packageType: (item as { packageType?: string }).packageType,
-                piecesPerPackage: (item as { piecesPerPackage?: number }).piecesPerPackage || 1,
-                pricePerPackage: (item as { pricePerPackage?: number }).pricePerPackage || consistentUnitPrice,
-                unitPriceSnapshot: consistentUnitPrice,
-                moqSnapshot: (selectedVariant as { moq?: number | null }).moq ?? null,
-              },
-            });
-          },
-        );
-
-        await Promise.all(orderItemPromises);
-      }
 
       return updatedOrder;
     });

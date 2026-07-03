@@ -258,6 +258,10 @@ export async function rateLimit(
   req: NextRequest,
   config: RateLimitConfig
 ): Promise<NextResponse | null> {
+  if (process.env.NODE_ENV === 'test') {
+    return null;
+  }
+
   const { 
     windowMs, 
     maxRequests, 

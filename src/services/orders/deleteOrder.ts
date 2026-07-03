@@ -165,13 +165,23 @@ export async function deleteOrderHandler(request: NextRequest) {
       if (body.orderId) {
         await broadcastOrderUpdate([String(body.orderId)]);
       }
-    } catch {}
+    } catch (error) {
+      console.warn('[Orders] Post-delete broadcast/cache failed:', {
+        orderId: body.orderId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
 
-    if (body.userId) {
+    if (existingOrder.userId) {
       try {
         const { invalidateDashboardCache } = await import('@/lib/queryCache');
-        await invalidateDashboardCache(Number(body.userId));
-      } catch {}
+        await invalidateDashboardCache(existingOrder.userId);
+      } catch (error) {
+        console.warn('[Orders] Post-delete cache invalidation failed:', {
+          userId: existingOrder.userId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
 
     auditOrder(request, {

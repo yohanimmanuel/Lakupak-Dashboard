@@ -1,14 +1,69 @@
 // WebSocket broadcast utility for real-time updates
-import { prisma } from '@/lib/db';
-import { normalizeDriverPushLanguage, type DriverPushLanguage } from '@/utils/driverPushTranslations';
-import type { MarketplacePushPayload } from '@/utils/marketplacePushTranslations';
 import { wsServer } from '../server/websocket';
+import { WS_INTERNAL_SECRET_HEADER, getWsInternalSecret } from '@/lib/wsInternalAuth';
 
-// Check if WebSocket server is running in this process
-// Note: When running via `npm run dev:all`, the server runs in a separate process
-// API routes should NOT try to start the server - it's already running separately
-function isServerRunning(): boolean {
-  return wsServer.getWss() !== null;
+/**
+ * Next.js API routes run in a separate process from `npm run ws` / `dev:all`.
+ * Always HTTP-post broadcasts to the WS server from Next.js; use in-process
+ * broadcast only when code runs inside the standalone WS server process.
+ */
+function shouldPostToWsServer(): boolean {
+  if (typeof process.env.NEXT_RUNTIME !== 'undefined') {
+    return true;
+  }
+  return wsServer.getWss() === null;
+}
+
+async function postWsBroadcast(body: Record<string, unknown>): Promise<Response | null> {
+  const wsPort = process.env.WS_PORT || '3001';
+  const wsHost = process.env.WS_HOST || 'localhost';
+  const secret = getWsInternalSecret();
+  if (!secret) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[WebSocket] WS_INTERNAL_SECRET / JWT_SECRET not set; skipping HTTP broadcast');
+    }
+    return null;
+  }
+  try {
+    return await fetch(`http://${wsHost}:${wsPort}/api/marketplace/broadcast`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        [WS_INTERNAL_SECRET_HEADER]: secret,
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(5000),
+    });
+  } catch (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[WebSocket] postWsBroadcast error:', error);
+    }
+    return null;
+  }
+}
+
+async function dispatchBroadcast(
+  body: Record<string, unknown>,
+  directBroadcast: () => void,
+): Promise<void> {
+  if (shouldPostToWsServer()) {
+    const response = await postWsBroadcast(body);
+    if (response && !response.ok && process.env.NODE_ENV === 'development') {
+      let detail = response.statusText;
+      try {
+        const json = (await response.json()) as { error?: string };
+        detail = json.error ?? detail;
+      } catch {
+        // ignore
+      }
+      console.warn(
+        `[WebSocket] Broadcast failed (${response.status}): ${detail}`,
+        body.type,
+      );
+    }
+    return;
+  }
+  directBroadcast();
 }
 
 /**
@@ -16,39 +71,14 @@ function isServerRunning(): boolean {
  */
 export async function broadcastOfferUpdate(
   offerId: string,
-  productIds: string[]
+  productIds: string[],
 ): Promise<void> {
   try {
-    if (isServerRunning()) {
-      // Server is running in this process - broadcast directly
-      if (wsServer.getConnectedCount() > 0) {
-        wsServer.broadcastOfferUpdate(offerId, productIds);
-      }
-    } else {
-      // Server is running in a separate process - send HTTP request to trigger broadcast
-      // The WebSocket server has an internal HTTP endpoint for this
-      const wsPort = process.env.WS_PORT || '3001';
-      const wsHost = process.env.WS_HOST || 'localhost';
-      const response = await fetch(`http://${wsHost}:${wsPort}/api/marketplace/broadcast`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'offer_updated',
-            offerId,
-            productIds
-        }),
-        // Add timeout to prevent hanging
-        signal: AbortSignal.timeout(5000)
-      });
-      
-      if (!response.ok) {
-        if (process.env.NODE_ENV === 'development') {
-          console.warn(`[WebSocket] Broadcast failed: ${response.status} ${response.statusText}`);
-        }
-      }
-    }
+    await dispatchBroadcast(
+      { type: 'offer_updated', offerId, productIds },
+      () => wsServer.broadcastOfferUpdate(offerId, productIds),
+    );
   } catch (error) {
-    // Log in development to help debug
     if (process.env.NODE_ENV === 'development') {
       console.warn('[WebSocket] broadcastOfferUpdate error:', error);
     }
@@ -60,32 +90,11 @@ export async function broadcastOfferUpdate(
  */
 export async function broadcastProductUpdate(productIds: string[]): Promise<void> {
   try {
-    if (isServerRunning()) {
-      if (wsServer.getConnectedCount() > 0) {
-        wsServer.broadcastProductUpdate(productIds);
-      }
-    } else {
-      const wsPort = process.env.WS_PORT || '3001';
-      const wsHost = process.env.WS_HOST || 'localhost';
-      const response = await fetch(`http://${wsHost}:${wsPort}/api/marketplace/broadcast`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'product_updated',
-            productIds
-        }),
-        // Add timeout to prevent hanging
-        signal: AbortSignal.timeout(5000)
-        });
-      
-      if (!response.ok) {
-        if (process.env.NODE_ENV === 'development') {
-          console.warn(`[WebSocket] Broadcast failed: ${response.status} ${response.statusText}`);
-        }
-      }
-    }
+    await dispatchBroadcast(
+      { type: 'product_updated', productIds },
+      () => wsServer.broadcastProductUpdate(productIds),
+    );
   } catch (error) {
-    // Log in development to help debug
     if (process.env.NODE_ENV === 'development') {
       console.warn('[WebSocket] broadcastProductUpdate error:', error);
     }
@@ -97,32 +106,11 @@ export async function broadcastProductUpdate(productIds: string[]): Promise<void
  */
 export async function broadcastPriceUpdate(productIds: string[]): Promise<void> {
   try {
-    if (isServerRunning()) {
-      if (wsServer.getConnectedCount() > 0) {
-        wsServer.broadcastPriceUpdate(productIds);
-      }
-    } else {
-      const wsPort = process.env.WS_PORT || '3001';
-      const wsHost = process.env.WS_HOST || 'localhost';
-      const response = await fetch(`http://${wsHost}:${wsPort}/api/marketplace/broadcast`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'prices_updated',
-            productIds
-        }),
-        // Add timeout to prevent hanging
-        signal: AbortSignal.timeout(5000)
-        });
-      
-      if (!response.ok) {
-        if (process.env.NODE_ENV === 'development') {
-          console.warn(`[WebSocket] Broadcast failed: ${response.status} ${response.statusText}`);
-        }
-      }
-    }
+    await dispatchBroadcast(
+      { type: 'prices_updated', productIds },
+      () => wsServer.broadcastPriceUpdate(productIds),
+    );
   } catch (error) {
-    // Log in development to help debug
     if (process.env.NODE_ENV === 'development') {
       console.warn('[WebSocket] broadcastPriceUpdate error:', error);
     }
@@ -134,28 +122,12 @@ export async function broadcastPriceUpdate(productIds: string[]): Promise<void> 
  */
 export async function broadcastOrderUpdate(orderIds: string[]): Promise<void> {
   try {
-    if (isServerRunning()) {
-      if (wsServer.getConnectedCount() > 0) {
-        wsServer.broadcastOrderUpdate(orderIds);
-      }
-    } else {
-      const wsPort = process.env.WS_PORT || '3001';
-      const wsHost = process.env.WS_HOST || 'localhost';
-      try {
-        await fetch(`http://${wsHost}:${wsPort}/api/marketplace/broadcast`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'order_updated',
-            orderIds
-          })
-        });
-      } catch (error) {
-        // Silently fail
-      }
-    }
+    await dispatchBroadcast(
+      { type: 'order_updated', orderIds },
+      () => wsServer.broadcastOrderUpdate(orderIds),
+    );
   } catch (error) {
-    // Silently fail
+    // best-effort
   }
 }
 
@@ -167,14 +139,6 @@ export async function broadcastDashboardNotification(userId: number): Promise<vo
   return broadcastNotification('dashboard_new', 'New notification', '', { hint: 'refetch' }, userId);
 }
 
-/**
- * Broadcast notification to connected WebSocket clients
- * @param type - Notification type (order, inventory, offer, etc.)
- * @param title - Notification title
- * @param body - Notification message body
- * @param data - Additional data to include
- * @param targetUserId - Optional: send only to specific user
- */
 export type PlatformAnnouncementBroadcastPayload = {
   id: number;
   title: string;
@@ -186,30 +150,14 @@ export type PlatformAnnouncementBroadcastPayload = {
   createdAt: string;
 };
 
-/**
- * Broadcast a newly published platform announcement to all connected marketplace WebSocket clients.
- */
 export async function broadcastPlatformAnnouncementPublished(
-  announcement: PlatformAnnouncementBroadcastPayload
+  announcement: PlatformAnnouncementBroadcastPayload,
 ): Promise<void> {
   try {
-    if (isServerRunning()) {
-      if (wsServer.getConnectedCount() > 0) {
-        wsServer.broadcastPlatformAnnouncementPublished(announcement);
-      }
-    } else {
-      const wsPort = process.env.WS_PORT || '3001';
-      const wsHost = process.env.WS_HOST || 'localhost';
-      await fetch(`http://${wsHost}:${wsPort}/api/marketplace/broadcast`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'platform_announcement_published',
-          announcement,
-        }),
-        signal: AbortSignal.timeout(5000),
-      });
-    }
+    await dispatchBroadcast(
+      { type: 'platform_announcement_published', announcement },
+      () => wsServer.broadcastPlatformAnnouncementPublished(announcement),
+    );
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
       console.warn('[WebSocket] broadcastPlatformAnnouncementPublished error:', error);
@@ -217,25 +165,12 @@ export async function broadcastPlatformAnnouncementPublished(
   }
 }
 
-/**
- * Broadcast that the homepage sale banner (“Offers”) changed; Marketplace refetches `/api/mobile/offers/home`.
- */
 export async function broadcastMarketplaceHomeOffersRefresh(): Promise<void> {
   try {
-    if (isServerRunning()) {
-      if (wsServer.getConnectedCount() > 0) {
-        wsServer.broadcastHomeOffersUpdated();
-      }
-    } else {
-      const wsPort = process.env.WS_PORT || '3001';
-      const wsHost = process.env.WS_HOST || 'localhost';
-      await fetch(`http://${wsHost}:${wsPort}/api/marketplace/broadcast`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'home_offers_updated' }),
-        signal: AbortSignal.timeout(5000),
-      });
-    }
+    await dispatchBroadcast(
+      { type: 'home_offers_updated' },
+      () => wsServer.broadcastHomeOffersUpdated(),
+    );
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
       console.warn('[WebSocket] broadcastMarketplaceHomeOffersRefresh error:', error);
@@ -243,28 +178,14 @@ export async function broadcastMarketplaceHomeOffersRefresh(): Promise<void> {
   }
 }
 
-/**
- * Broadcast an unpublished (removed) platform announcement so connected marketplace clients can remove it immediately.
- */
-export async function broadcastPlatformAnnouncementUnpublished(announcementId: number): Promise<void> {
+export async function broadcastPlatformAnnouncementUnpublished(
+  announcementId: number,
+): Promise<void> {
   try {
-    if (isServerRunning()) {
-      if (wsServer.getConnectedCount() > 0) {
-        wsServer.broadcastPlatformAnnouncementUnpublished(announcementId);
-      }
-    } else {
-      const wsPort = process.env.WS_PORT || '3001';
-      const wsHost = process.env.WS_HOST || 'localhost';
-      await fetch(`http://${wsHost}:${wsPort}/api/marketplace/broadcast`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'platform_announcement_unpublished',
-          announcementId,
-        }),
-        signal: AbortSignal.timeout(5000),
-      });
-    }
+    await dispatchBroadcast(
+      { type: 'platform_announcement_unpublished', announcementId },
+      () => wsServer.broadcastPlatformAnnouncementUnpublished(announcementId),
+    );
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
       console.warn('[WebSocket] broadcastPlatformAnnouncementUnpublished error:', error);
@@ -272,23 +193,12 @@ export async function broadcastPlatformAnnouncementUnpublished(announcementId: n
   }
 }
 
-/** Push to platform admin dashboard WebSocket clients so inbox (e.g. buyer reports) refetches immediately. */
 export async function broadcastPlatformAdminInboxRefresh(): Promise<void> {
   try {
-    if (isServerRunning()) {
-      if (wsServer.getConnectedCount() > 0) {
-        wsServer.broadcastPlatformAdminInbox();
-      }
-    } else {
-      const wsPort = process.env.WS_PORT || '3001';
-      const wsHost = process.env.WS_HOST || 'localhost';
-      await fetch(`http://${wsHost}:${wsPort}/api/marketplace/broadcast`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'platform_admin_inbox' }),
-        signal: AbortSignal.timeout(5000),
-      });
-    }
+    await dispatchBroadcast(
+      { type: 'platform_admin_inbox' },
+      () => wsServer.broadcastPlatformAdminInbox(),
+    );
   } catch {
     /* best-effort */
   }
@@ -299,38 +209,17 @@ export async function broadcastNotification(
   title: string,
   body: string,
   data?: Record<string, unknown>,
-  targetUserId?: number
+  targetUserId?: number,
 ): Promise<void> {
   try {
-    if (isServerRunning()) {
-      if (wsServer.getConnectedCount() > 0) {
-        wsServer.broadcastNotification(type, title, body, data, targetUserId);
-      }
-    } else {
-      const wsPort = process.env.WS_PORT || '3001';
-      const wsHost = process.env.WS_HOST || 'localhost';
-      try {
-        await fetch(`http://${wsHost}:${wsPort}/api/marketplace/broadcast`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'notification',
-            notification: {
-              type,
-              title,
-              body,
-              data,
-              targetUserId
-            }
-          }),
-          signal: AbortSignal.timeout(5000)
-        });
-      } catch (error) {
-        // Silently fail
-      }
-    }
-  } catch (error) {
-    // Silently fail
+    await dispatchBroadcast(
+      {
+        type: 'notification',
+        notification: { type, title, body, data, targetUserId },
+      },
+      () => wsServer.broadcastNotification(type, title, body, data, targetUserId),
+    );
+  } catch {
+    // best-effort
   }
 }
-

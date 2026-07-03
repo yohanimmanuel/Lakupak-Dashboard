@@ -334,11 +334,19 @@ const fetchMarketplaceOrdersConnection = async (args: {
   };
 };
 
+import { withDashboardAuth, requireDashboardUser } from '../common/auth';
+
 export const ordersResolvers = {
   Query: {
-    orders: (_: unknown, args: Parameters<typeof fetchOrdersConnection>[0]) => fetchOrdersConnection(args),
-    marketplaceOrders: (_: unknown, args: Parameters<typeof fetchMarketplaceOrdersConnection>[0]) =>
-      fetchMarketplaceOrdersConnection(args),
+    orders: withDashboardAuth(fetchOrdersConnection),
+    marketplaceOrders: async (
+      _: unknown,
+      args: Parameters<typeof fetchMarketplaceOrdersConnection>[0],
+      ctx: unknown,
+    ) => {
+      requireDashboardUser(ctx);
+      return fetchMarketplaceOrdersConnection(args);
+    },
   },
 };
 

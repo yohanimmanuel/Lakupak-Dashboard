@@ -37,7 +37,7 @@ describe('POST /api/mobile/auth/register', () => {
   });
 
   it('creates a marketplace user with a default address', async () => {
-    const response = await POST(makeRegisterRequest(validPayload));
+    const response = await POST(makeRegisterRequest(validPayload, '127.0.0.1.101'));
     const body = (await response.json()) as {
       token?: string;
       user?: { id: number; email: string };
@@ -62,7 +62,7 @@ describe('POST /api/mobile/auth/register', () => {
 
   it('returns 400 when phone is missing', async () => {
     const { phone: _phone, ...withoutPhone } = validPayload;
-    const response = await POST(makeRegisterRequest(withoutPhone));
+    const response = await POST(makeRegisterRequest(withoutPhone, '127.0.0.1.102'));
     const body = (await response.json()) as { code?: string };
 
     expect(response.status).toBe(400);
@@ -70,7 +70,9 @@ describe('POST /api/mobile/auth/register', () => {
   });
 
   it('returns 409 when email is already registered', async () => {
-    await POST(makeRegisterRequest(validPayload));
+    const first = await POST(makeRegisterRequest(validPayload, '127.0.0.1.103'));
+    expect(first.status).toBe(201);
+
     const response = await POST(
       makeRegisterRequest(
         {
@@ -78,7 +80,7 @@ describe('POST /api/mobile/auth/register', () => {
           username: 'integration_register_2',
           phone: '81234567891',
         },
-        '127.0.0.1.11',
+        '127.0.0.1.104',
       ),
     );
     const body = (await response.json()) as { code?: string };

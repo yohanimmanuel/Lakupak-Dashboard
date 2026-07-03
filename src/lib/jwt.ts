@@ -7,24 +7,41 @@ function getJwtSecret(): Secret {
   if (!secret) {
     throw new Error('JWT_SECRET is not set');
   }
-  return secret;
+  // Env files must be single-line; strip accidental line breaks for header-safe use elsewhere too.
+  return secret.replace(/\s+/g, '').trim();
 }
 
 /** Identifies which account namespace `sub` refers to. */
 export type JwtPrincipalType = 'dashboard' | 'marketplace' | 'driver'
+
+export const JWT_ISSUER_DASHBOARD = 'laku-dashboard'
+export const JWT_ISSUER_MARKETPLACE = 'laku-marketplace'
+export const JWT_AUDIENCE_LAKU = 'laku-api'
 
 export type AppJwtPayload = {
   sub: number
   phone?: string
   /** Omitted on legacy tokens; callers must fall back to a DB existence check. */
   type?: JwtPrincipalType
+  /** Standard JWT iss claim when present (legacy tokens may omit). */
+  iss?: string
+  aud?: string | string[]
 }
 
 export function signAccessToken(payload: AppJwtPayload, expiresIn: string = '30d'): string {
   const secret = getJwtSecret();
-  // jsonwebtoken types for expiresIn accept string or number
-  // Pass options directly to avoid type issues with SignOptions
-  return jwt.sign(payload as Record<string, unknown>, secret, { expiresIn } as SignOptions)
+  const { iss: _iss, aud: _aud, ...body } = payload;
+  const issuer =
+    payload.type === 'dashboard'
+      ? JWT_ISSUER_DASHBOARD
+      : payload.type === 'marketplace'
+        ? JWT_ISSUER_MARKETPLACE
+        : undefined;
+
+  return jwt.sign(body as Record<string, unknown>, secret, {
+    expiresIn,
+    ...(issuer ? { issuer, audience: JWT_AUDIENCE_LAKU } : {}),
+  } as SignOptions);
 }
 
 export function verifyAccessToken(token: string): AppJwtPayload {
@@ -44,7 +61,16 @@ export function verifyAccessToken(token: string): AppJwtPayload {
     type = rawType
   }
 
-  return { sub: subValue, phone: (decoded as { phone?: string }).phone, type }
+  const iss = typeof decoded.iss === 'string' ? decoded.iss : undefined
+  const aud = decoded.aud as string | string[] | undefined
+
+  return {
+    sub: subValue,
+    phone: (decoded as { phone?: string }).phone,
+    type,
+    iss,
+    aud,
+  }
 }
 
 

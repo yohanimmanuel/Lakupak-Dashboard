@@ -4,7 +4,17 @@ import { Trash, User, Upload, X, AlertCircle, CheckCircle, Loader2, ChevronDown 
 import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/store/userStore';
 import { Buyer, BuyerFormData, OrderDetail } from '@/types/client';
-import { validateBuyerInput, generateSecureBuyerId } from '@/utils/buyer-security';
+import { generateSecureBuyerId } from '@/utils/buyer-security';
+import {
+  validateRequiredEmail,
+  validateRequiredPhone,
+  validateRequiredField,
+  mapBuyerFieldError,
+  clearValidationField,
+} from '@/utils/client-input-validation';
+import { ClientField, ClientInput } from '@/components/clientmanagement/ClientField';
+import { ClientValidatedField } from '@/components/clientmanagement/ClientValidatedField';
+import { CLIENT_SELECT_BUTTON_CLASS } from '@/components/clientmanagement/client-field-styles';
 import { getDefaultCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { fetchGraphQL } from '@/lib/graphqlClient';
@@ -104,6 +114,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
   const [success, setSuccess] = useState('');
   const [avatar, setAvatar] = useState(initialData?.avatar || '');
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
@@ -142,15 +153,25 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
     };
   }, []);
 
-  // Enhanced form validation
-  // Client-side validation - no required fields
   const validateForm = useCallback(() => {
     const errors: Record<string, string> = {};
-    
-    // No validation - all fields are optional
+
+    const storeNameResult = validateRequiredField(form.storeName, tBuyersModal('storeName'));
+    const ownerResult = validateRequiredField(form.owner, tBuyersModal('ownerName'));
+    const phoneResult = validateRequiredPhone(form.phone);
+    const emailResult = validateRequiredEmail(form.email);
+    const addressResult = validateRequiredField(form.address, tBuyersModal('address'));
+
+    if (!storeNameResult.valid && storeNameResult.error) errors.storeName = storeNameResult.error;
+    if (!ownerResult.valid && ownerResult.error) errors.owner = ownerResult.error;
+    if (!phoneResult.valid && phoneResult.error) errors.phone = phoneResult.error;
+    if (!emailResult.valid && emailResult.error) errors.email = emailResult.error;
+    if (!addressResult.valid && addressResult.error) errors.address = addressResult.error;
+
     setValidationErrors(errors);
-    return true;
-  }, []);
+    setSubmitAttempted(true);
+    return Object.keys(errors).length === 0;
+  }, [form.storeName, form.owner, form.phone, form.email, form.address, tBuyersModal]);
 
   // Enhanced error handling
   const handleError = useCallback((message: string) => {
@@ -188,11 +209,14 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
     if (e) e.preventDefault();
     
     if (isSubmitting) return;
-    
-    setIsSubmitting(true);
-    setSaving(true);
+
     setError('');
     setSuccess('');
+
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+    setSaving(true);
     
     try {
       const isEdit = mode === 'edit';
@@ -408,7 +432,13 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : tBuyersModal('saveFailed');
-      handleError(errorMessage);
+      const field = mapBuyerFieldError(errorMessage);
+      if (field) {
+        setValidationErrors((prev) => ({ ...prev, [field]: errorMessage }));
+        setSubmitAttempted(true);
+      } else {
+        handleError(errorMessage);
+      }
     } finally {
       setSaving(false);
       setIsSubmitting(false);
@@ -447,6 +477,14 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
       onClose();
     }
   }, [onClose]);
+
+  // Reset validation state when modal opens
+  useEffect(() => {
+    if (open) {
+      setSubmitAttempted(false);
+      setValidationErrors({});
+    }
+  }, [open]);
 
   // Reset form when modal opens/closes
   useEffect(() => {
@@ -587,91 +625,94 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
           </div>
           
           {/* ID Field */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">{tShared('columns.id')}</label>
-            <input 
-              type="text" 
-              className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100" 
-              value={id || ''} 
-              onChange={e => setId(e.target.value)} 
-              disabled 
-              aria-describedby="id-description"
-            />
-            <p id="id-description" className="text-xs text-gray-500 mt-1">{tBuyersModal('autoIdHint')}</p>
-          </div>
+          <ClientField
+            label={tShared('columns.id')}
+            value={String(id ?? '')}
+            onChange={(value) => setId(value)}
+            disabled
+            required
+            hint={tBuyersModal('autoIdHint')}
+            id="buyer-id"
+            aria-describedby="buyer-id-hint"
+          />
           
           {/* Store Name and Owner */}
           <div className="flex gap-2">
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                {tBuyersModal('storeName')}
-              </label>
-              <input 
-                type="text" 
-                className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                value={form.storeName || ''} 
-                onChange={e => setForm(f => ({ ...f, storeName: e.target.value }))}
-              />
-            </div>
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                {tBuyersModal('ownerName')}
-              </label>
-              <input 
-                type="text" 
-                className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                value={form.owner || ''} 
-                onChange={e => setForm(f => ({ ...f, owner: e.target.value }))}
-              />
-            </div>
+            <ClientField
+              className="flex-1"
+              label={tBuyersModal('storeName')}
+              value={form.storeName || ''}
+              onChange={(storeName) => {
+                setForm((f) => ({ ...f, storeName }));
+                setValidationErrors((prev) => clearValidationField(prev, 'storeName'));
+              }}
+              validator={(value) => validateRequiredField(value, tBuyersModal('storeName'))}
+              submitAttempted={submitAttempted}
+              externalError={validationErrors.storeName}
+              required
+            />
+            <ClientField
+              className="flex-1"
+              label={tBuyersModal('ownerName')}
+              value={form.owner || ''}
+              onChange={(owner) => {
+                setForm((f) => ({ ...f, owner }));
+                setValidationErrors((prev) => clearValidationField(prev, 'owner'));
+              }}
+              validator={(value) => validateRequiredField(value, tBuyersModal('ownerName'))}
+              submitAttempted={submitAttempted}
+              externalError={validationErrors.owner}
+              required
+            />
           </div>
           
           {/* Phone and Email */}
           <div className="flex gap-2">
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                {tBuyersModal('phone')}
-              </label>
-              <input 
-                type="tel" 
-                className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                value={form.phone || ''} 
-                onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-              />
-            </div>
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                {tBuyersModal('email')}
-              </label>
-              <input 
-                type="email" 
-                className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                value={form.email || ''} 
-                onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-              />
-            </div>
+            <ClientValidatedField
+              className="flex-1"
+              label={tBuyersModal('phone')}
+              type="tel"
+              value={form.phone || ''}
+              onChange={(phone) => {
+                setForm((f) => ({ ...f, phone }));
+                setValidationErrors((prev) => clearValidationField(prev, 'phone'));
+              }}
+              validator={validateRequiredPhone}
+              required
+              submitAttempted={submitAttempted}
+              externalError={validationErrors.phone}
+            />
+            <ClientValidatedField
+              className="flex-1"
+              label={tBuyersModal('email')}
+              type="email"
+              value={form.email || ''}
+              onChange={(email) => {
+                setForm((f) => ({ ...f, email }));
+                setValidationErrors((prev) => clearValidationField(prev, 'email'));
+              }}
+              validator={validateRequiredEmail}
+              required
+              submitAttempted={submitAttempted}
+              externalError={validationErrors.email}
+            />
           </div>
           
           {/* Business Type and Status */}
           <div className="flex gap-2">
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                {tBuyersModal('businessType')}
-              </label>
-              <input 
-                type="text" 
-                className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                value={form.businessType || ''} 
-                onChange={e => setForm(f => ({ ...f, businessType: e.target.value }))}
-              />
-            </div>
+            <ClientField
+              className="flex-1"
+              label={tBuyersModal('businessType')}
+              value={form.businessType || ''}
+              onChange={(businessType) => setForm((f) => ({ ...f, businessType }))}
+            />
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">{tBuyersModal('status')}</label>
               <div className="relative" ref={statusDropdownRef}>
                 <button
                   type="button"
                   onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                  className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg text-black text-left flex items-center justify-between"
+                  className={CLIENT_SELECT_BUTTON_CLASS}
                 >
                   <span className={form.status ? 'text-black' : 'text-gray-500'}>
                     {form.status ? translateStatus(form.status) : tBuyersModal('selectStatus')}
@@ -702,17 +743,19 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
           </div>
           
           {/* Address */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              {tBuyersModal('address')}
-            </label>
-            <textarea 
-              className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-              value={form.address || ''} 
-              onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
-              rows={3}
-            />
-          </div>
+          <ClientField
+            label={tBuyersModal('address')}
+            value={form.address || ''}
+            onChange={(address) => {
+              setForm((f) => ({ ...f, address }));
+              setValidationErrors((prev) => clearValidationField(prev, 'address'));
+            }}
+            validator={(value) => validateRequiredField(value, tBuyersModal('address'))}
+            submitAttempted={submitAttempted}
+            externalError={validationErrors.address}
+            required
+            rows={3}
+          />
           
           {/* Order & Product Details Table */}
           <div className="my-2 border-t border-gray-200 pt-2">
@@ -735,49 +778,45 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
                     <tr key={idx} className="whitespace-nowrap">
                       <td className="py-2 px-3 font-medium text-black">{idx + 1}</td>
                       <td className="py-2 px-3">
-                        <input 
-                          type="text" 
-                          className="w-full text-black border border-gray-200 rounded px-1 py-1 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
-                          value={row.product || ''} 
-                          onChange={e => handleOrderChange(idx, 'product', e.target.value)} 
+                        <ClientInput
+                          value={row.product || ''}
+                          onChange={(product) => handleOrderChange(idx, 'product', product)}
                         />
                       </td>
                       <td className="py-2 px-3">
-                        <input 
-                          type="number" 
-                          className="w-full text-black border border-gray-200 rounded px-1 py-1 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
-                          value={row.totalOrders || ''} 
-                          onChange={e => handleOrderChange(idx, 'totalOrders', e.target.value)} 
+                        <ClientInput
+                          type="number"
+                          value={row.totalOrders || ''}
+                          onChange={(totalOrders) => handleOrderChange(idx, 'totalOrders', totalOrders)}
                         />
                       </td>
                       <td className="py-2 px-3">
                         <div className="flex items-center">
                           <span className="mr-2 text-xs text-gray-500 font-medium">{currencySymbol}</span>
-                          <input 
-                            type="text" 
-                            className="flex-1 text-black border border-gray-200 rounded px-1 py-1 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
-                            value={row.totalSpend || ''} 
-                            onChange={e => handleOrderChange(idx, 'totalSpend', e.target.value)} 
+                          <ClientInput
+                            fullWidth={false}
+                            className="flex-1 min-w-0"
+                            value={row.totalSpend || ''}
+                            onChange={(totalSpend) => handleOrderChange(idx, 'totalSpend', totalSpend)}
                             placeholder="0"
                           />
                         </div>
                       </td>
                       <td className="py-2 px-3">
-                        <input 
-                          type="date" 
-                          className="w-full text-black border border-gray-200 rounded px-1 py-1 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
-                          value={row.lastOrderDate || ''} 
-                          onChange={e => handleOrderChange(idx, 'lastOrderDate', e.target.value)} 
+                        <ClientInput
+                          type="date"
+                          value={row.lastOrderDate || ''}
+                          onChange={(lastOrderDate) => handleOrderChange(idx, 'lastOrderDate', lastOrderDate)}
                         />
                       </td>
                       <td className="py-2 px-3">
                         <div className="flex items-center">
                           <span className="mr-2 text-xs text-gray-500 font-medium">{currencySymbol}</span>
-                          <input 
-                            type="text" 
-                            className="flex-1 text-black border border-gray-200 rounded px-1 py-1 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
-                            value={row.outstanding || ''} 
-                            onChange={e => handleOrderChange(idx, 'outstanding', e.target.value)} 
+                          <ClientInput
+                            fullWidth={false}
+                            className="flex-1 min-w-0"
+                            value={row.outstanding || ''}
+                            onChange={(outstanding) => handleOrderChange(idx, 'outstanding', outstanding)}
                             placeholder="0"
                           />
                         </div>
@@ -809,79 +848,74 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
           
           {/* Created At and Preferred Days */}
           <div className="flex gap-2">
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
-                {tBuyersModal('createdAt')} 
-                <span className="text-xs text-gray-400">{tBuyersModal('autoGenerated')}</span>
-                <div className="w-3 h-3 bg-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-500">i</div>
-              </label>
-              <input 
-                type="date" 
-                className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100 cursor-not-allowed" 
-                value={form.createdAt || ''} 
-                onChange={e => setForm(f => ({ ...f, createdAt: e.target.value }))} 
-                disabled 
-                aria-describedby="createdAt-description"
-              />
-              <p id="createdAt-description" className="text-xs text-gray-500 mt-1">{tBuyersModal('createdAtHint')}</p>
-            </div>
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">{tBuyersModal('preferredDeliveryDays')}</label>
-              <input 
-                type="text" 
-                className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
-                value={form.preferredDays || ''} 
-                onChange={e => setForm(f => ({ ...f, preferredDays: e.target.value }))} 
-                placeholder={tBuyersModal('preferredDaysPlaceholder')} 
-              />
-            </div>
+            <ClientField
+              className="flex-1"
+              label={
+                <span className="flex items-center gap-1">
+                  {tBuyersModal('createdAt')}
+                  <span className="text-xs text-gray-400 font-normal">{tBuyersModal('autoGenerated')}</span>
+                  <span className="w-3 h-3 bg-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-500">i</span>
+                </span>
+              }
+              type="date"
+              value={form.createdAt || ''}
+              onChange={(createdAt) => setForm((f) => ({ ...f, createdAt }))}
+              disabled
+              hint={tBuyersModal('createdAtHint')}
+              id="buyer-created-at"
+            />
+            <ClientField
+              className="flex-1"
+              label={tBuyersModal('preferredDeliveryDays')}
+              value={form.preferredDays || ''}
+              onChange={(preferredDays) => setForm((f) => ({ ...f, preferredDays }))}
+              placeholder={tBuyersModal('preferredDaysPlaceholder')}
+            />
           </div>
           
           {/* Last Shipment and Success Rate */}
           <div className="flex gap-2">
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
-                {tBuyersModal('lastOrderDate')} 
-                <span className="text-xs text-gray-400">{tBuyersModal('autoFromOrders')}</span>
-                <div className="w-3 h-3 bg-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-500">i</div>
-              </label>
-              <input 
-                type="date" 
-                className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-100 cursor-not-allowed" 
-                value={computedLastShipment || ''} 
-                onChange={e => setForm(f => ({ ...f, lastShipment: e.target.value }))} 
-                disabled 
-                aria-describedby="lastShipment-description"
-              />
-              <p id="lastShipment-description" className="text-xs text-gray-500 mt-1">{tBuyersModal('lastOrderDateHint')}</p>
-            </div>
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">{tBuyersModal('shipmentSuccessRate')}</label>
-              <input 
-                type="number" 
-                min="0" 
-                max="100" 
-                className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
-                value={form.shipmentSuccess || ''} 
-                onChange={e => setForm(f => ({ ...f, shipmentSuccess: e.target.value }))} 
-                placeholder={tBuyersModal('shipmentSuccessPlaceholder')} 
-              />
-            </div>
+            <ClientField
+              className="flex-1"
+              label={
+                <span className="flex items-center gap-1">
+                  {tBuyersModal('lastOrderDate')}
+                  <span className="text-xs text-gray-400 font-normal">{tBuyersModal('autoFromOrders')}</span>
+                  <span className="w-3 h-3 bg-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-500">i</span>
+                </span>
+              }
+              type="date"
+              value={computedLastShipment || ''}
+              onChange={(lastShipment) => setForm((f) => ({ ...f, lastShipment }))}
+              disabled
+              hint={tBuyersModal('lastOrderDateHint')}
+              id="buyer-last-shipment"
+            />
+            <ClientField
+              className="flex-1"
+              label={tBuyersModal('shipmentSuccessRate')}
+              type="number"
+              min={0}
+              max={100}
+              value={form.shipmentSuccess || ''}
+              onChange={(shipmentSuccess) => setForm((f) => ({ ...f, shipmentSuccess }))}
+              placeholder={tBuyersModal('shipmentSuccessPlaceholder')}
+            />
           </div>
           
           {/* Notes */}
-          <div className="mb-4">
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              {tBuyersModal('notesTags')} <span className="text-xs text-gray-400">{tBuyersModal('commaSeparated')}</span>
-            </label>
-            <input 
-              type="text" 
-              className="text-black text-xs w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
-              value={form.notes || ''} 
-              onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} 
-              placeholder={tBuyersModal('notesPlaceholder')} 
-            />
-          </div>
+          <ClientField
+            className="mb-4"
+            label={
+              <>
+                {tBuyersModal('notesTags')}{' '}
+                <span className="text-xs text-gray-400 font-normal">{tBuyersModal('commaSeparated')}</span>
+              </>
+            }
+            value={form.notes || ''}
+            onChange={(notes) => setForm((f) => ({ ...f, notes }))}
+            placeholder={tBuyersModal('notesPlaceholder')}
+          />
         </form>
         
         {/* Footer Border */}

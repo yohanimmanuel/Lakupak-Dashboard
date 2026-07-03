@@ -88,11 +88,10 @@ export default function OrdersGPS({ orders }: OrdersGPSProps) {
 
       if (needGeocoding.length === 0) return;
 
-      needGeocoding.forEach(addr => geocodedAddressesRef.current.add(addr));
-
       setIsGeocoding(true);
       try {
         const newResults = await geocodeViaProxy(needGeocoding);
+        needGeocoding.forEach((addr) => geocodedAddressesRef.current.add(addr));
         setGeocodeResults(prev => {
           const updated = new Map(prev);
           newResults.forEach((result, address) => {

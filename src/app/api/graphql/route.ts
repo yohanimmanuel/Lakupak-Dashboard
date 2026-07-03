@@ -22,7 +22,12 @@ import { salesTypeDefs, salesResolvers } from './modules/sales';
 import { campaignsTypeDefs, campaignsResolvers } from './modules/campaigns';
 import { notificationsTypeDefs, notificationsResolvers } from './modules/notifications';
 import { logisticsTypeDefs, logisticsResolvers } from './modules/logistics';
-import { 
+import {
+  resolveGraphQLUserFromAccessToken,
+  resolveDashboardGraphQLUser,
+  type GraphQLAuthContext,
+} from './modules/common/auth';
+import {
   offerCreationRateLimiter,
   offerUpdateRateLimiter,
   offerQueryRateLimiter,
@@ -93,32 +98,22 @@ const server = new ApolloServer({
 });
 
 const apolloHandler = startServerAndCreateNextHandler<NextRequest>(server, {
-  context: async (req: NextRequest) => {
-    // Marketplace mobile JWT auth
+  context: async (req: NextRequest): Promise<GraphQLAuthContext> => {
     try {
       const authHeader = req.headers.get('authorization');
       if (authHeader?.startsWith('Bearer ')) {
         const token = authHeader.replace('Bearer ', '');
         const payload = verifyAccessToken(token);
-        const jwtId = payload.sub;
-        if (typeof jwtId === 'number' && jwtId > 0 && Number.isInteger(jwtId)) {
-          // Block suspended marketplace accounts from GraphQL (expensive ops: search, products, etc.)
-          const u = await prisma.marketplaceUser.findUnique({
-            where: { id: jwtId },
-            select: { isSuspended: true, suspensionReason: true },
-          });
-          if (u?.isSuspended) {
-            // Surface an auth-like error to the client; this also avoids expensive resolver work.
-            throw new GraphQLError('ACCOUNT_SUSPENDED', {
-              extensions: { code: 'ACCOUNT_SUSPENDED', reason: u.suspensionReason ?? null },
-            });
-          }
-          return { user: { id: jwtId } };
+
+        if (payload.type === 'driver') {
+          return { user: null };
         }
+
+        const user = await resolveGraphQLUserFromAccessToken(payload);
+        return { user };
       }
     } catch (e) {
       if (e instanceof GraphQLError && e.extensions?.code === 'ACCOUNT_SUSPENDED') throw e;
-      // ignore invalid token; fall through to NextAuth
     }
 
     const { getServerSession } = await import('next-auth');
@@ -128,7 +123,8 @@ const apolloHandler = startServerAndCreateNextHandler<NextRequest>(server, {
     if (id == null) return { user: null };
     const numId = typeof id === 'string' ? parseInt(id, 10) : Number(id);
     if (!Number.isInteger(numId) || numId <= 0) return { user: null };
-    return { user: { id: numId } };
+    const dashboardId = await resolveDashboardGraphQLUser(numId);
+    return dashboardId ? { user: { id: dashboardId, type: 'dashboard' } } : { user: null };
   },
 });
 

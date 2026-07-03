@@ -442,7 +442,14 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
               </tr>
             </thead>
             <tbody>
-              {pagedSupplies.map((supply: SupplyDetail, idx: number) => (
+              {pagedSupplies.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-10 px-4 text-center text-sm text-gray-500">
+                    {tSuppliersProfile('noSupplies')}
+                  </td>
+                </tr>
+              ) : (
+                pagedSupplies.map((supply: SupplyDetail, idx: number) => (
                 <tr key={idx + (supplyPage - 1) * supplyRowsPerPage} className="border-b last:border-b-0">
                   <td className="py-4 px-4 font-medium text-black">{(supplyPage - 1) * supplyRowsPerPage + idx + 1}</td>
                   <td className="py-4 px-4 font-medium text-black">{String(supply.sku)}</td>
@@ -451,7 +458,8 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                   <td className="py-4 px-4 text-[#0a61d7] font-semibold">{formatCurrency(parseNumberByCurrency(String(supply.totalValue), userCurrency), userCurrency)}</td>
                   <td className="py-4 px-4 text-black">{String(supply.lastDelivery)}</td>
                 </tr>
-              ))}
+                ))
+              )}
             </tbody>
           </table>
           {/* Pagination Info and Controls */}
@@ -499,6 +507,12 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
       <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
         <div className="font-semibold text-black mb-2">{tSuppliersProfile('analytics')}</div>
         
+        {supplies.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 py-12 text-center text-sm text-gray-500">
+            {tSuppliersProfile('noAnalytics')}
+          </div>
+        ) : (
+        <>
         {/* Analytics Cards Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           {/* Monthly Purchase Analytics */}
@@ -686,6 +700,8 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
             </ResponsiveContainer>
           </div>
         </div>
+        </>
+        )}
       </div>
       <SupplierModal
         open={showEditModal}

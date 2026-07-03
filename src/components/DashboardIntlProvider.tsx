@@ -24,6 +24,7 @@ import logisticsEn from '@/messages/dashboard/logistics-en.json';
 import logisticsId from '@/messages/dashboard/logistics-id.json';
 import settingsEn from '@/messages/dashboard/settings-en.json';
 import settingsId from '@/messages/dashboard/settings-id.json';
+import { DEFAULT_TIME_ZONE } from '@/i18n/config';
 
 type SupportedLocale = 'en' | 'id';
 
@@ -41,7 +42,7 @@ export function DashboardIntlProvider({ children }: { children: React.ReactNode 
   const locale = normalizeLocale(userLanguage);
 
   return (
-    <NextIntlClientProvider locale={locale} messages={MESSAGES[locale]}>
+    <NextIntlClientProvider locale={locale} messages={MESSAGES[locale]} timeZone={DEFAULT_TIME_ZONE}>
       {children}
     </NextIntlClientProvider>
   );

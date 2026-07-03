@@ -10,6 +10,7 @@ import {
   readStoredAuthLocaleIfSet,
   storeAuthLocale,
 } from '@/lib/authLocale';
+import { DEFAULT_TIME_ZONE } from '@/i18n/config';
 
 type AuthIntlContextValue = {
   locale: AuthLocale;
@@ -50,7 +51,7 @@ export function AuthIntlProvider({
 
   return (
     <AuthIntlContext.Provider value={value}>
-      <NextIntlClientProvider locale={locale} messages={MESSAGES[locale]}>
+      <NextIntlClientProvider locale={locale} messages={MESSAGES[locale]} timeZone={DEFAULT_TIME_ZONE}>
         {children}
       </NextIntlClientProvider>
     </AuthIntlContext.Provider>

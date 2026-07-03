@@ -8,6 +8,7 @@ import {
   normalizeCampaignShareLocale,
   type CampaignShareLocale,
 } from '@/lib/campaignShareMessages';
+import { DEFAULT_TIME_ZONE } from '@/i18n/config';
 
 function resolveLocale(searchParams: URLSearchParams | null): CampaignShareLocale {
   const fromUrl = searchParams?.get('lang');
@@ -24,7 +25,7 @@ function CampaignShareIntlProviderInner({ children }: { children: React.ReactNod
   const locale = resolveLocale(searchParams);
 
   return (
-    <NextIntlClientProvider locale={locale} messages={CAMPAIGN_SHARE_MESSAGES[locale]}>
+    <NextIntlClientProvider locale={locale} messages={CAMPAIGN_SHARE_MESSAGES[locale]} timeZone={DEFAULT_TIME_ZONE}>
       {children}
     </NextIntlClientProvider>
   );

@@ -1,5 +1,6 @@
 import { NextIntlClientProvider } from 'next-intl';
 import type { Metadata } from 'next';
+import { DEFAULT_TIME_ZONE } from '@/i18n/config';
 
 export const metadata: Metadata = {
   title: "Laku | Distribute More. Restock Faster. Grow Smarter."
@@ -16,7 +17,7 @@ export default async function LocaleLayout(props: { children: React.ReactNode; p
   }
 
   return (
-    <NextIntlClientProvider locale={locale} messages={messages}>
+    <NextIntlClientProvider locale={locale} messages={messages} timeZone={DEFAULT_TIME_ZONE}>
       {children}
     </NextIntlClientProvider>
   );

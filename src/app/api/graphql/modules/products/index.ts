@@ -23,6 +23,7 @@ import {
   invalidateSearchCache,
 } from '@/utils/searchCache';
 import { auditCatalog } from '@/lib/audit';
+import { requireDashboardUser, withDashboardAuth } from '@/app/api/graphql/modules/common/auth';
 
 /** Best-effort extraction of a product business identifier from a resolver result. */
 function extractProductId(result: unknown): string | undefined {
@@ -2047,13 +2048,14 @@ export const publishMarketplaceProduct = async (args: {
 
 export const productsResolvers = {
   Query: {
-    products: (_: unknown, args: Parameters<typeof fetchProductsConnection>[0]) =>
-      fetchProductsConnection(args),
-    product: (_: unknown, args: Parameters<typeof fetchSingleProduct>[0]) => fetchSingleProduct(args),
+    products: withDashboardAuth(fetchProductsConnection),
+    product: withDashboardAuth(fetchSingleProduct),
     variantOptionUsage: async (
       _: unknown,
       args: { userId: number; productId: string; variantNames?: string[] | null; variantOptionIds?: number[] | null },
+      ctx: unknown,
     ) => {
+      requireDashboardUser(ctx, args.userId);
       const { userId, productId } = args;
       const variantNames = Array.isArray(args.variantNames) ? args.variantNames.filter(Boolean).map(String) : [];
       const variantOptionIds = Array.isArray(args.variantOptionIds)
@@ -2105,11 +2107,14 @@ export const productsResolvers = {
         };
       });
     },
-    marketplaceProducts: (_: unknown, args: Parameters<typeof fetchMarketplaceProductsConnection>[0]) =>
-      fetchMarketplaceProductsConnection(args),
+    marketplaceProducts: (
+      _: unknown,
+      args: Parameters<typeof fetchMarketplaceProductsConnection>[0],
+    ) => fetchMarketplaceProductsConnection(args),
   },
   Mutation: {
-    createProduct: async (_: unknown, args: Parameters<typeof createProduct>[0]) => {
+    createProduct: async (_: unknown, args: Parameters<typeof createProduct>[0], ctx: unknown) => {
+      requireDashboardUser(ctx, args.userId);
       const result = await createProduct(args);
       auditCatalog({
         action: 'product.create',
@@ -2120,7 +2125,8 @@ export const productsResolvers = {
       });
       return result;
     },
-    updateProduct: async (_: unknown, args: Parameters<typeof updateProduct>[0]) => {
+    updateProduct: async (_: unknown, args: Parameters<typeof updateProduct>[0], ctx: unknown) => {
+      requireDashboardUser(ctx, args.userId);
       const result = await updateProduct(args);
       auditCatalog({
         action: 'product.update',
@@ -2130,7 +2136,8 @@ export const productsResolvers = {
       });
       return result;
     },
-    deleteProduct: async (_: unknown, args: Parameters<typeof deleteProduct>[0]) => {
+    deleteProduct: async (_: unknown, args: Parameters<typeof deleteProduct>[0], ctx: unknown) => {
+      requireDashboardUser(ctx, args.userId);
       const result = await deleteProduct(args);
       auditCatalog({
         action: 'product.delete',
@@ -2140,12 +2147,24 @@ export const productsResolvers = {
       });
       return result;
     },
-    resetOriginalPrices: (_: unknown, args: { userId: number }) => resetOriginalPrices(args.userId),
-    applyOffersToAllProducts: (_: unknown, args: { userId: number }) => applyOffersToAllProducts(args.userId),
-    forceUpdatePrices: (_: unknown, args: { userId: number }) => forceUpdatePrices(args.userId),
-    resetProductPrices: (_: unknown, args: { userId: number; productId: string }) =>
-      resetProductPrices(args.userId, args.productId),
-    publishMarketplaceProduct: async (_: unknown, args: Parameters<typeof publishMarketplaceProduct>[0]) => {
+    resetOriginalPrices: (_: unknown, args: { userId: number }, ctx: unknown) => {
+      requireDashboardUser(ctx, args.userId);
+      return resetOriginalPrices(args.userId);
+    },
+    applyOffersToAllProducts: (_: unknown, args: { userId: number }, ctx: unknown) => {
+      requireDashboardUser(ctx, args.userId);
+      return applyOffersToAllProducts(args.userId);
+    },
+    forceUpdatePrices: (_: unknown, args: { userId: number }, ctx: unknown) => {
+      requireDashboardUser(ctx, args.userId);
+      return forceUpdatePrices(args.userId);
+    },
+    resetProductPrices: (_: unknown, args: { userId: number; productId: string }, ctx: unknown) => {
+      requireDashboardUser(ctx, args.userId);
+      return resetProductPrices(args.userId, args.productId);
+    },
+    publishMarketplaceProduct: async (_: unknown, args: Parameters<typeof publishMarketplaceProduct>[0], ctx: unknown) => {
+      requireDashboardUser(ctx, args.userId);
       const result = await publishMarketplaceProduct(args);
       auditCatalog({
         action: 'product.publish',
@@ -2156,7 +2175,8 @@ export const productsResolvers = {
       });
       return result;
     },
-    bulkPublishMarketplaceProducts: async (_: unknown, args: Parameters<typeof bulkPublishMarketplaceProducts>[0]) => {
+    bulkPublishMarketplaceProducts: async (_: unknown, args: Parameters<typeof bulkPublishMarketplaceProducts>[0], ctx: unknown) => {
+      requireDashboardUser(ctx, args.userId);
       const result = await bulkPublishMarketplaceProducts(args);
       auditCatalog({
         action: 'product.bulk_publish',

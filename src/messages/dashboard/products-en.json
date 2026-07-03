@@ -37,6 +37,7 @@
     "actions": "Actions",
     "cancel": "Cancel",
     "deleting": "Deleting...",
+    "unpublishing": "Unpublishing...",
     "deleteFailed": "Failed to delete. Please try again.",
     "notAvailable": "N/A",
     "previousPage": "Previous page",

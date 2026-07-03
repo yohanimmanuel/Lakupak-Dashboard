@@ -7,7 +7,17 @@ import {
 } from '../../../../../utils/auth-security';
 import { otpVerifyRateLimiter } from '@/utils/rateLimiter';
 import { auditAuth } from '@/lib/audit';
+import { verifyMobileOtp } from '@/lib/mobileOtp';
 
+const DUMMY_PHONE_ALLOWLIST = new Set(['+0000000000', '+1234567890']);
+
+/** Dev/test-only: skip OTP verification for fixed placeholder numbers. Never enabled in production. */
+function isDummyPhoneBypassAllowed(phoneWithPlus: string): boolean {
+  if (!DUMMY_PHONE_ALLOWLIST.has(phoneWithPlus)) return false;
+  if (process.env.NODE_ENV === 'production') return false;
+  const flag = process.env.MOBILE_OTP_ALLOW_DUMMY_PHONES?.trim().toLowerCase();
+  return flag === '1' || flag === 'true' || flag === 'yes';
+}
 
 export async function POST(req: NextRequest) {
   const headers = getSecurityHeaders();
@@ -58,16 +68,24 @@ export async function POST(req: NextRequest) {
 
     const rateLimitResponse = await otpVerifyRateLimiter(req, String(phone));
     if (rateLimitResponse) return rateLimitResponse;
-    
-    // For now, accept any 6-digit code (in production, you'd verify against stored OTP)
-    // TODO: Implement proper OTP storage and verification with expiration
-    const isValidCode = true;
-    
-    if (!isValidCode) {
-      return NextResponse.json(
-        { error: 'Invalid verification code' }, 
-        { status: 400, headers }
-      );
+
+    const phoneWithPlus = phone.startsWith('+') ? phone : `+${phone.replace(/\D/g, '')}`;
+
+    if (!isDummyPhoneBypassAllowed(phoneWithPlus)) {
+      const otpResult = await verifyMobileOtp(phoneWithPlus, code);
+
+      if (!otpResult.ok) {
+        const messages: Record<typeof otpResult.reason, string> = {
+          not_found: 'No verification code found. Please request a new code.',
+          expired: 'Verification code has expired. Please request a new code.',
+          invalid: 'Invalid verification code.',
+          too_many_attempts: 'Too many failed attempts. Please request a new code.',
+        };
+        return NextResponse.json(
+          { error: messages[otpResult.reason] },
+          { status: 400, headers },
+        );
+      }
     }
     
     // Handle signup mode with complete profile
@@ -139,13 +157,12 @@ export async function POST(req: NextRequest) {
       }
 
       // Check if phone already exists (skip dummy placeholders used to skip verification)
-      const phoneWithPlus = phone.startsWith('+') ? phone : `+${phone}`;
-      const isDummyPhone = phoneWithPlus === '+0000000000' || phoneWithPlus === '+1234567890';
+      const dummyPhone = isDummyPhoneBypassAllowed(phoneWithPlus);
 
       let finalPhone: string | null = null;
       let finalCountry: string | null = null;
 
-      if (!isDummyPhone) {
+      if (!dummyPhone) {
         finalPhone = phoneWithPlus;
         finalCountry = countryCode || null;
 
@@ -213,11 +230,7 @@ export async function POST(req: NextRequest) {
     }
     
     // Handle login mode (existing user verification)
-    // Check if marketplace user exists by phone
-    // Try both formats: with + and without +
-    const cleanPhone = phone.replace(/\D/g, ''); // Remove all non-digits
-    const phoneWithPlus = phone.startsWith('+') ? phone : `+${phone}`;
-    
+    const cleanPhone = phone.replace(/\D/g, '');
     
     // Try to find user with either format
     let existingUser = await prisma.marketplaceUser.findUnique({

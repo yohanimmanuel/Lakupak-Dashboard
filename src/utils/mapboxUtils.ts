@@ -113,9 +113,12 @@ export async function geocodeMultipleAddresses(
 
 /**
  * Server-side Google geocoding proxy (authenticated dashboard session).
+ * Batches requests to stay within /api/mapbox-geocode limits.
  */
-export async function geocodeViaProxy(
-  addresses: string[]
+const GEOCODE_PROXY_BATCH_SIZE = 25;
+
+async function geocodeViaProxyChunk(
+  addresses: string[],
 ): Promise<Map<string, GeocodeResult>> {
   if (addresses.length === 0) return new Map();
 
@@ -157,5 +160,19 @@ export async function geocodeViaProxy(
     addresses.forEach((a) => out.set(a, { coordinates: null, address: a }));
     return out;
   }
+}
+
+export async function geocodeViaProxy(
+  addresses: string[],
+): Promise<Map<string, GeocodeResult>> {
+  if (addresses.length === 0) return new Map();
+
+  const merged = new Map<string, GeocodeResult>();
+  for (let i = 0; i < addresses.length; i += GEOCODE_PROXY_BATCH_SIZE) {
+    const chunk = addresses.slice(i, i + GEOCODE_PROXY_BATCH_SIZE);
+    const chunkResults = await geocodeViaProxyChunk(chunk);
+    chunkResults.forEach((value, key) => merged.set(key, value));
+  }
+  return merged;
 }
 

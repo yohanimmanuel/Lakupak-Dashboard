@@ -34,6 +34,17 @@ export default async function globalSetup() {
     },
   });
 
+  const { Client } = await import('pg');
+  const extClient = new Client({ connectionString: databaseUrl });
+  await extClient.connect();
+  try {
+    await extClient.query('CREATE EXTENSION IF NOT EXISTS pg_trgm');
+  } catch (err) {
+    console.warn('[vitest] pg_trgm extension not available:', err);
+  } finally {
+    await extClient.end();
+  }
+
   // Vitest teardown hook: run after all tests in this run.
   return async () => {
     try {

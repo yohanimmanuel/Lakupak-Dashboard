@@ -16,59 +16,68 @@ import {
   clearSearchHistory,
 } from './handlers/searchHistory';
 import { prisma } from '../common/prisma';
-
-function getContextUserId(ctx: unknown): number | null {
-  const id = (ctx as { user?: { id?: unknown } } | null | undefined)?.user?.id;
-  return typeof id === 'number' && Number.isInteger(id) && id > 0 ? id : null;
-}
+import {
+  getContextUser,
+  requireMarketplaceUser,
+  withMarketplaceAuth,
+} from '../common/auth';
 
 export const marketplaceResolvers = {
   Query: {
-    marketplaceUser: (_: unknown, args: { userId: number }) => fetchMarketplaceUserProfile(args.userId),
-    marketplaceAddresses: async (_: unknown, args: { userId: number }) => ({
-      success: true,
-      addresses: await fetchMarketplaceAddresses(args.userId),
-    }),
-    mobileMarketplaceProducts: (_: unknown, args: Parameters<typeof fetchMarketplaceProducts>[0]) => fetchMarketplaceProducts(args),
-    mobileCart: (_: unknown, args: { userId: number }) => fetchMobileCart(args.userId),
-    mobileUserActivity: (_: unknown, args: Parameters<typeof fetchMobileUserActivity>[0]) => fetchMobileUserActivity(args),
-    mobileOrders: (_: unknown, args: Parameters<typeof fetchMobileOrders>[0]) => fetchMobileOrders(args),
-    mobileSearchHistory: (_: unknown, args: Parameters<typeof fetchMobileSearchHistory>[0]) => fetchMobileSearchHistory(args),
+    marketplaceUser: (_: unknown, args: { userId: number }, ctx: unknown) => {
+      requireMarketplaceUser(ctx, args.userId);
+      return fetchMarketplaceUserProfile(args.userId);
+    },
+    marketplaceAddresses: async (_: unknown, args: { userId: number }, ctx: unknown) => {
+      requireMarketplaceUser(ctx, args.userId);
+      return {
+        success: true,
+        addresses: await fetchMarketplaceAddresses(args.userId),
+      };
+    },
+    mobileMarketplaceProducts: (_: unknown, args: Parameters<typeof fetchMarketplaceProducts>[0]) =>
+      fetchMarketplaceProducts(args),
+    mobileCart: withMarketplaceAuth((args: { userId: number }) => fetchMobileCart(args.userId)),
+    mobileUserActivity: withMarketplaceAuth(fetchMobileUserActivity),
+    mobileOrders: withMarketplaceAuth(fetchMobileOrders),
+    mobileSearchHistory: withMarketplaceAuth(fetchMobileSearchHistory),
   },
   Mutation: {
-    updateMarketplaceUser: (_: unknown, args: Parameters<typeof updateMarketplaceUser>[0]) => updateMarketplaceUser(args),
-    createMarketplaceAddress: async (_: unknown, args: Parameters<typeof createMarketplaceAddress>[0]) => {
+    updateMarketplaceUser: withMarketplaceAuth(updateMarketplaceUser),
+    createMarketplaceAddress: async (_: unknown, args: Parameters<typeof createMarketplaceAddress>[0], ctx: unknown) => {
+      requireMarketplaceUser(ctx, args.userId);
       const address = await createMarketplaceAddress(args);
       if (!address) {
         return { success: false, message: 'Failed to create address', address: null };
       }
       return { success: true, message: 'Address created', address };
     },
-    updateMarketplaceAddress: async (_: unknown, args: Parameters<typeof updateMarketplaceAddress>[0]) => ({
-      success: true,
-      message: 'Address updated',
-      address: await updateMarketplaceAddress(args),
-    }),
-    deleteMarketplaceAddress: async (_: unknown, args: Parameters<typeof deleteMarketplaceAddress>[0]) => ({
-      success: true,
-      message: 'Address deleted',
-      address: await deleteMarketplaceAddress(args),
-    }),
+    updateMarketplaceAddress: async (_: unknown, args: Parameters<typeof updateMarketplaceAddress>[0], ctx: unknown) => {
+      requireMarketplaceUser(ctx, args.userId);
+      return {
+        success: true,
+        message: 'Address updated',
+        address: await updateMarketplaceAddress(args),
+      };
+    },
+    deleteMarketplaceAddress: async (_: unknown, args: Parameters<typeof deleteMarketplaceAddress>[0], ctx: unknown) => {
+      requireMarketplaceUser(ctx, args.userId);
+      return {
+        success: true,
+        message: 'Address deleted',
+        address: await deleteMarketplaceAddress(args),
+      };
+    },
     addToCart: async (_: unknown, args: { input: Parameters<typeof addToCart>[0] }, ctx: unknown) => {
-      const authedUserId = getContextUserId(ctx);
-      if (!authedUserId) {
-        return { success: false, cartItem: null, message: 'Unauthorized' };
-      }
-      if (args.input.userId !== authedUserId) {
-        return { success: false, cartItem: null, message: 'Forbidden' };
-      }
+      const authedUserId = requireMarketplaceUser(ctx, args.input.userId);
       return addToCart({ ...args.input, userId: authedUserId });
     },
     updateCartItem: async (_: unknown, args: { input: Parameters<typeof updateCartItem>[0] }, ctx: unknown) => {
-      const authedUserId = getContextUserId(ctx);
-      if (!authedUserId) {
+      const user = getContextUser(ctx);
+      if (!user || user.type !== 'marketplace') {
         return { success: false, cartItem: null, message: 'Unauthorized' };
       }
+      const authedUserId = user.id;
 
       const existingItem = await prisma.userActivity.findUnique({
         where: { id: args.input.cartItemId },
@@ -86,10 +95,11 @@ export const marketplaceResolvers = {
       return updateCartItem(args.input);
     },
     removeCartItem: async (_: unknown, args: { cartItemId: number }, ctx: unknown) => {
-      const authedUserId = getContextUserId(ctx);
-      if (!authedUserId) {
+      const user = getContextUser(ctx);
+      if (!user || user.type !== 'marketplace') {
         return { success: false, cartItem: null, message: 'Unauthorized' };
       }
+      const authedUserId = user.id;
 
       const existingItem = await prisma.userActivity.findUnique({
         where: { id: args.cartItemId },
@@ -109,33 +119,20 @@ export const marketplaceResolvers = {
     clearCart: async (
       _: unknown,
       args: { userId: number; trackAbandonment?: boolean | null },
-      ctx: unknown
+      ctx: unknown,
     ) => {
-      const authedUserId = getContextUserId(ctx);
-      if (!authedUserId) {
-        return { success: false, cartItem: null, message: 'Unauthorized' };
-      }
-      if (args.userId !== authedUserId) {
-        return { success: false, cartItem: null, message: 'Forbidden' };
-      }
+      const authedUserId = requireMarketplaceUser(ctx, args.userId);
       return clearCart(authedUserId, {
         trackAbandonment: args.trackAbandonment !== false,
       });
     },
     addUserActivity: async (_: unknown, args: { input: Parameters<typeof addUserActivity>[0] }, ctx: unknown) => {
-      const authedUserId = getContextUserId(ctx);
-      if (!authedUserId) {
-        return { success: false, activity: null, message: 'Unauthorized' };
-      }
-      if (args.input.userId !== authedUserId) {
-        return { success: false, activity: null, message: 'Forbidden' };
-      }
+      const authedUserId = requireMarketplaceUser(ctx, args.input.userId);
       return addUserActivity({ ...args.input, userId: authedUserId });
     },
-    deleteUserActivity: (_: unknown, args: Parameters<typeof deleteUserActivity>[0]) => deleteUserActivity(args),
-    addSearchHistory: (_: unknown, args: Parameters<typeof addSearchHistory>[0]) => addSearchHistory(args),
-    removeSearchHistory: (_: unknown, args: Parameters<typeof removeSearchHistory>[0]) => removeSearchHistory(args),
-    clearSearchHistory: (_: unknown, args: Parameters<typeof clearSearchHistory>[0]) => clearSearchHistory(args),
+    deleteUserActivity: withMarketplaceAuth(deleteUserActivity),
+    addSearchHistory: withMarketplaceAuth(addSearchHistory),
+    removeSearchHistory: withMarketplaceAuth(removeSearchHistory),
+    clearSearchHistory: withMarketplaceAuth(clearSearchHistory),
   },
 };
-

@@ -550,7 +550,14 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
               </tr>
             </thead>
             <tbody>
-              {pagedOrderDetails.map((order: OrderDetail, idx: number) => (
+              {pagedOrderDetails.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-10 px-4 text-center text-sm text-gray-500">
+                    {tBuyersProfile('noOrders')}
+                  </td>
+                </tr>
+              ) : (
+                pagedOrderDetails.map((order: OrderDetail, idx: number) => (
                 <tr key={idx + (orderPage - 1) * orderRowsPerPage} className="border-b last:border-b-0">
                   <td className="py-4 px-4 font-medium text-black">{(orderPage - 1) * orderRowsPerPage + idx + 1}</td>
                   <td className="py-4 px-4 text-black">
@@ -569,7 +576,8 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
                     {formatCurrency(parseNumberByCurrency(String(order.outstanding), userCurrency), userCurrency)}
                   </td>
                 </tr>
-              ))}
+                ))
+              )}
             </tbody>
           </table>
           {/* Pagination Info and Controls */}
@@ -617,6 +625,12 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
       <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
         <div className="font-semibold text-black mb-2">{tBuyersProfile('analytics')}</div>
         
+        {orderDetails.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 py-12 text-center text-sm text-gray-500">
+            {tBuyersProfile('noAnalytics')}
+          </div>
+        ) : (
+        <>
         {/* Analytics Cards Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           
@@ -807,6 +821,8 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
             </ResponsiveContainer>
           </div>
         </div>
+        </>
+        )}
       </div>
       <BuyerModal
         open={showEditModal}

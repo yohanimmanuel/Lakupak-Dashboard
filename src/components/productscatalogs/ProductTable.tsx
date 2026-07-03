@@ -199,6 +199,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
   const [productToPublish, setProductToPublish] = useState<ProductTableRow | null>(null);
   const [showUnpublishModal, setShowUnpublishModal] = useState(false);
   const [isBulkUnpublish, setIsBulkUnpublish] = useState(false);
+  const [isUnpublishing, setIsUnpublishing] = useState(false);
   
   const router = useRouter();
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -357,6 +358,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
   }, []);
 
   const handleUnpublishCancel = () => {
+    if (isUnpublishing) return;
     setShowUnpublishModal(false);
     setIsBulkUnpublish(false);
   };
@@ -465,8 +467,9 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
   };
 
   const handleUnpublishProducts = async () => {
-    if (!user?.id || selectedProducts.length === 0) return;
-    
+    if (!user?.id || selectedProducts.length === 0 || isUnpublishing) return;
+
+    setIsUnpublishing(true);
     try {
       // Bulk unpublish - use single bulk mutation to avoid browser connection limits
       const productsToUnpublish = selectedProducts
@@ -507,7 +510,9 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
       setIsBulkUnpublish(false);
           } catch (error) {
         // Error unpublishing products
-      }
+      } finally {
+      setIsUnpublishing(false);
+    }
   };
 
   const handleProductSelect = (productId: string) => {
@@ -2185,14 +2190,23 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
               <button
                 className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
                 onClick={handleUnpublishCancel}
+                disabled={isUnpublishing}
               >
                 {tShared('cancel')}
               </button>
               <button
-                className="px-4 py-2 rounded-lg bg-orange-600 text-white hover:bg-orange-700"
+                className="px-4 py-2 rounded-lg bg-orange-600 text-white hover:bg-orange-700 flex items-center gap-2 disabled:opacity-50"
                 onClick={handleUnpublishProducts}
+                disabled={isUnpublishing}
               >
-                {tTable('bulkActions.unpublish')}
+                {isUnpublishing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    {tShared('unpublishing')}
+                  </>
+                ) : (
+                  tTable('bulkActions.unpublish')
+                )}
               </button>
             </div>
           </div>

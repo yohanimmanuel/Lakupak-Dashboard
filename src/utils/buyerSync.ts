@@ -208,5 +208,9 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number) {
     });
 
   } catch (error) {
+    console.warn('[buyerSync] syncBuyerOrderDetails failed:', {
+      buyerId,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 }

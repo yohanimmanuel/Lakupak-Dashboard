@@ -17,6 +17,7 @@ if (require.main === module) {
 // Import jwt AFTER loading environment variables
 import { validateDashboardEnv } from '../lib/validateEnv';
 import { verifyAccessToken } from '../lib/jwt';
+import { WS_INTERNAL_SECRET_HEADER, isValidWsInternalSecret } from '../lib/wsInternalAuth';
 import { verifyPlatformAdminToken } from '../lib/platform-admin-jwt';
 import { 
   websocketConnectionRateLimiter, 
@@ -86,6 +87,13 @@ class MarketplaceWebSocketServer {
       // Create HTTP server for handling broadcast requests from API routes
       this.httpServer = createServer((req: HttpIncomingMessage, res: ServerResponse) => {
         if (req.url === '/api/marketplace/broadcast' && req.method === 'POST') {
+          const secretHeader = req.headers[WS_INTERNAL_SECRET_HEADER];
+          const providedSecret = Array.isArray(secretHeader) ? secretHeader[0] : secretHeader;
+          if (!isValidWsInternalSecret(providedSecret)) {
+            res.writeHead(403, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Forbidden' }));
+            return;
+          }
           let body = '';
           req.on('data', (chunk) => {
             body += chunk.toString();
@@ -138,7 +146,9 @@ class MarketplaceWebSocketServer {
       });
 
       // Start HTTP server (which also serves WebSocket)
-      this.httpServer.listen(port);
+      this.httpServer.listen(port, () => {
+        console.info(`[WebSocket] Server listening on port ${port} (ws path: /api/marketplace/ws)`);
+      });
 
       this.wss.on('connection', async (ws: WebSocket, request: IncomingMessage) => {
         // Extract IP address for rate limiting
@@ -168,29 +178,30 @@ class MarketplaceWebSocketServer {
         }
 
         // Authenticate client (dashboard user JWT or platform admin JWT)
-        if (token) {
-          try {
-            if (!process.env.JWT_SECRET) {
-              ws.close(1008, 'Server configuration error: JWT_SECRET not set');
-              return;
-            }
-            const cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token;
-            try {
-              const pa = verifyPlatformAdminToken(cleanToken);
-              userId = pa.sub;
-              isPlatformAdmin = true;
-            } catch (err) {
-              // Only fall back if it's a signature/type mismatch, not a config error
-              if (err instanceof Error && err.message?.includes('secret')) {
-                throw err; // Re-throw configuration errors
-              }
-              const payload = verifyAccessToken(cleanToken);
-              userId = payload.sub;
-            }
-          } catch (error) {
-            ws.close(1008, 'Invalid token');
+        if (!token) {
+          ws.close(1008, 'Authentication required');
+          return;
+        }
+        try {
+          if (!process.env.JWT_SECRET) {
+            ws.close(1008, 'Server configuration error: JWT_SECRET not set');
             return;
           }
+          const cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token;
+          try {
+            const pa = verifyPlatformAdminToken(cleanToken);
+            userId = pa.sub;
+            isPlatformAdmin = true;
+          } catch (err) {
+            if (err instanceof Error && err.message?.includes('secret')) {
+              throw err;
+            }
+            const payload = verifyAccessToken(cleanToken);
+            userId = payload.sub;
+          }
+        } catch (error) {
+          ws.close(1008, 'Invalid token');
+          return;
         }
 
         // Apply WebSocket connection rate limiting

@@ -285,7 +285,12 @@ export const fetchMarketplaceProducts = async (args: {
         const index = client.index(MEILI_PRODUCTS_INDEX);
         const filterParts: string[] = [];
         if (category && category !== 'All') {
-          filterParts.push(`productType = "${String(category).replace(/"/g, '\\"')}"`);
+          const raw = String(category).trim();
+          const safeCategory =
+            raw.length > 0 && raw.length <= 64 && /^[\p{L}\p{N}\s&\-_/]+$/u.test(raw) ? raw : null;
+          if (safeCategory) {
+            filterParts.push(`productType = "${safeCategory.replace(/"/g, '\\"')}"`);
+          }
         }
         const filter = filterParts.length ? filterParts.join(' AND ') : undefined;
         const primaryQ = search.trim();

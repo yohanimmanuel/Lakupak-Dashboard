@@ -48,7 +48,9 @@ export default function OrdersPage() {
       }
 
       // For backward compatibility, fetch orders without userId if user not authenticated
-      const url = user?.id ? `/api/orders?userId=${user.id}` : '/api/orders';
+      const url = user?.id
+        ? `/api/orders?userId=${user.id}&limit=1000`
+        : '/api/orders?limit=1000';
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error('Failed to fetch orders');
@@ -96,7 +98,9 @@ export default function OrdersPage() {
   const fetchArchived = async () => {
     try {
       const ts = Date.now();
-      const url = user?.id ? `/api/orders?userId=${user.id}&archived=1&_=${ts}` : `/api/orders?archived=1&_=${ts}`;
+      const url = user?.id
+        ? `/api/orders?userId=${user.id}&archived=1&limit=1000&_=${ts}`
+        : `/api/orders?archived=1&limit=1000&_=${ts}`;
       const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch archived orders');
       const data = await response.json();

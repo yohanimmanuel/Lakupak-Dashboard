@@ -9,6 +9,19 @@ import { PLATFORM_ADMIN_COOKIE } from '@/utils/platform-admin-auth';
 import { resetDb } from './helpers';
 import { createPublishedProductWithColorVariants, createTestDistributor } from './helpers/productFixtures';
 
+async function waitForSearchQueryLog(query: string, timeoutMs = 3000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const log = await prisma.marketplaceSearchQueryLog.findFirst({
+      where: { query },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (log) return log;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  return null;
+}
+
 async function makePlatformAdminRequest(url: string) {
   const passwordHash = await hash('test-admin-pass', 10);
   const admin = await prisma.platformAdmin.create({
@@ -99,12 +112,7 @@ describe('marketplace search engine mode (integration)', () => {
       limit: 10,
     });
 
-    await new Promise((r) => setTimeout(r, 50));
-
-    const log = await prisma.marketplaceSearchQueryLog.findFirst({
-      where: { query: 'Sync Test Shirt' },
-      orderBy: { createdAt: 'desc' },
-    });
+    const log = await waitForSearchQueryLog('Sync Test Shirt');
     expect(log).not.toBeNull();
     expect(log!.engine).toBe(res.engine);
     expect(log!.resultCount).toBe(res.nodes.length);
@@ -115,7 +123,8 @@ describe('marketplace search engine mode (integration)', () => {
     await createPublishedProductWithColorVariants(distributor.id, 'P-SEARCH-4');
 
     await fetchMarketplaceProducts({ search: 'Sync Test Shirt', limit: 10 });
-    await new Promise((r) => setTimeout(r, 50));
+    const log = await waitForSearchQueryLog('Sync Test Shirt');
+    expect(log).not.toBeNull();
 
     const response = await getEngineStatus(
       await makePlatformAdminRequest('http://localhost/api/platform-admin/search/engine-status?days=1'),

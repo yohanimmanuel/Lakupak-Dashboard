@@ -29,7 +29,7 @@ export function useProductUpdateSocket(
 
     const maxReconnect = 5;
     const reconnectDelayMs = 3000;
-    const authCloseCodes = new Set([4001, 4003]);
+    const authCloseCodes = new Set([1008, 4001, 4003]);
     const resetTokenAfterFailedReconnects =
       Number.parseInt(process.env.NEXT_PUBLIC_WS_TOKEN_RESET_AFTER ?? '2', 10) || 2;
 

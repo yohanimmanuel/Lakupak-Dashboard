@@ -127,6 +127,63 @@ function buildOrderItemCreateData(params: {
   return baseData;
 }
 
+function normalizeLeadTimeDays(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.floor(n);
+}
+
+function addCalendarDays(baseDate: Date, days: number): Date {
+  const result = new Date(baseDate);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+async function resolveEstimatedDeliveryForDistributor(
+  distributorUserId: number,
+  orderDate: Date,
+  clientMinDays: number | null,
+  clientMaxDays: number | null,
+): Promise<{
+  estimatedDeliveryMinDays: number | null;
+  estimatedDeliveryMaxDays: number | null;
+  estimatedDeliveryDate: Date | null;
+}> {
+  let minDays = clientMinDays;
+  let maxDays = clientMaxDays;
+
+  if (minDays == null || maxDays == null) {
+    const company = await prisma.company.findFirst({
+      where: { users: { some: { id: distributorUserId } } },
+      select: {
+        defaultDeliveryLeadTimeMinDays: true,
+        defaultDeliveryLeadTimeMaxDays: true,
+      },
+    });
+
+    if (minDays == null) {
+      minDays = normalizeLeadTimeDays(company?.defaultDeliveryLeadTimeMinDays) ?? 3;
+    }
+    if (maxDays == null) {
+      maxDays = normalizeLeadTimeDays(company?.defaultDeliveryLeadTimeMaxDays) ?? 7;
+    }
+  }
+
+  if (minDays != null && maxDays != null && minDays > maxDays) {
+    [minDays, maxDays] = [maxDays, minDays];
+  }
+
+  const estimatedDeliveryDate =
+    maxDays != null ? addCalendarDays(orderDate, maxDays) : null;
+
+  return {
+    estimatedDeliveryMinDays: minDays,
+    estimatedDeliveryMaxDays: maxDays,
+    estimatedDeliveryDate,
+  };
+}
+
 export async function getMobileMarketplaceOrders(request: NextRequest, tokenUserId: number) {
   const headers = getSecurityHeaders();
 
@@ -412,6 +469,12 @@ export async function createMobileMarketplaceOrders(
 
     const groupOrderId = String(orderId);
     const orderDateValue = parseOptionalDate(orderDate) ?? new Date();
+    const estimatedDelivery = await resolveEstimatedDeliveryForDistributor(
+      distributorUserIdFromClient,
+      orderDateValue,
+      normalizedEstimatedMinDays,
+      normalizedEstimatedMaxDays,
+    );
     const orderData = {
       orderId: groupOrderId,
       buyerId: buyerPerDistributorId,
@@ -444,8 +507,9 @@ export async function createMobileMarketplaceOrders(
       preferredPickupTime: normalizedPreferredPickupTime,
       shippingMethodLabel: normalizedShippingLabel,
       shippingMethod: normalizedShippingMethod,
-      estimatedDeliveryMinDays: normalizedEstimatedMinDays,
-      estimatedDeliveryMaxDays: normalizedEstimatedMaxDays,
+      estimatedDeliveryMinDays: estimatedDelivery.estimatedDeliveryMinDays,
+      estimatedDeliveryMaxDays: estimatedDelivery.estimatedDeliveryMaxDays,
+      estimatedDeliveryDate: estimatedDelivery.estimatedDeliveryDate,
       userId: distributorUserIdFromClient,
     };
     const order = await prisma.order.create({ data: orderData });
@@ -686,7 +750,7 @@ export async function createMobileMarketplaceOrders(
   }
 
   // Validate items (variants + promo free qty + stock precheck) BEFORE creating any orders to avoid partial writes.
-  // NOTE: Stock is also reserved/decremented atomically during order creation to prevent oversells (TOCTOU).
+  // Stock precheck here is advisory only — no reservation or decrement; inventory is deducted on dashboard confirm.
   if (Array.isArray(orderItems) && orderItems.length > 0) {
     for (const item of orderItems) {
       const product = await prisma.product.findFirst({
@@ -859,6 +923,12 @@ export async function createMobileMarketplaceOrders(
 
     const groupOrderId = distributorToItems.size > 1 ? `${String(orderId)}-${groupIndex}` : String(orderId);
     const orderDateValue = parseOptionalDate(orderDate) ?? new Date();
+    const estimatedDelivery = await resolveEstimatedDeliveryForDistributor(
+      distributorUserId,
+      orderDateValue,
+      normalizedEstimatedMinDays,
+      normalizedEstimatedMaxDays,
+    );
     const orderData = {
       orderId: groupOrderId,
       buyerId: buyerPerDistributorId,
@@ -891,6 +961,9 @@ export async function createMobileMarketplaceOrders(
       preferredPickupTime: normalizedPreferredPickupTime,
       shippingMethodLabel: normalizedShippingLabel,
       shippingMethod: normalizedShippingMethod,
+      estimatedDeliveryMinDays: estimatedDelivery.estimatedDeliveryMinDays,
+      estimatedDeliveryMaxDays: estimatedDelivery.estimatedDeliveryMaxDays,
+      estimatedDeliveryDate: estimatedDelivery.estimatedDeliveryDate,
       userId: distributorUserId,
     };
 
@@ -962,29 +1035,9 @@ export async function createMobileMarketplaceOrders(
               }
             }
 
-            // Atomically reserve/decrement stock to avoid TOCTOU oversells.
-            const stockUpdate = await tx.variantOption.updateMany({
-              where: {
-                id: variantOption.id,
-                stockQuantity: { gte: totalQtyNeeded },
-              },
-              data: {
-                stockQuantity: { decrement: totalQtyNeeded },
-              },
-            });
-
-            if (stockUpdate.count === 0) {
-              const variantName = variantOption.attributes
-                ? Object.entries(variantOption.attributes as Record<string, unknown>)
-                    .map(([k, v]) => `${k}: ${String(v)}`)
-                    .join(', ')
-                : 'Default';
-              const freeItems = totalQtyNeeded - orderedPieces;
-              throw new Error(
-                `Insufficient stock for ${product.name} (${variantName}). Required: ${totalQtyNeeded} pieces (${orderedPieces} ordered + ${freeItems} free)`,
-              );
-            }
-
+            // No stock decrement here. Checkout pre-check (above) is advisory only; deduction runs when the
+            // dashboard confirms the order (Pending → Confirmed via updateOrder). Concurrent oversells are
+            // possible until that confirmation.
             const totalQuantity = orderedPieces;
             const orderTotal = groupTotalAmount;
             const variantForValidation = {
@@ -1084,7 +1137,13 @@ export async function createMobileMarketplaceOrders(
           order.storeName || 'Unknown Store',
           groupTotalAmount,
         );
-      } catch (_) {}
+      } catch (err) {
+        console.warn('[Mobile Orders] Failed to create order notification:', {
+          userId: order.userId,
+          orderId: order.orderId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
 
       if (order.buyerId) {
         try {
