@@ -31,10 +31,16 @@ const FINANCIAL_ANALYTICS_PAGE_QUERY = `
         trackingNumber
         orderItems {
           productId
+          subtotal
           packageQuantity
           packageType
           piecesPerPackage
           pricePerPackage
+          variantId
+          variantOptionId
+          variantNameSnapshot
+          promotionDetailsSnapshot
+          moqSnapshot
         }
       }
     }
@@ -168,10 +174,16 @@ export default function FinancialAnalyticsPage() {
               totalAmount
               orderItems {
                 productId
+                subtotal
                 packageQuantity
                 pricePerPackage
                 piecesPerPackage
                 packageType
+                variantId
+                variantOptionId
+                variantNameSnapshot
+                promotionDetailsSnapshot
+                moqSnapshot
                 productTypeSnapshot
               }
             }
@@ -191,10 +203,16 @@ export default function FinancialAnalyticsPage() {
             totalAmount?: number | null;
             orderItems?: Array<{
               productId: string;
+              subtotal?: number | null;
               packageQuantity?: number | null;
               pricePerPackage?: number | null;
               piecesPerPackage?: number | null;
               packageType?: string | null;
+              variantId?: number | null;
+              variantOptionId?: number | null;
+              variantNameSnapshot?: string | null;
+              promotionDetailsSnapshot?: string | null;
+              moqSnapshot?: number | null;
               productTypeSnapshot?: string | null;
             }>;
           }>;
@@ -245,10 +263,16 @@ export default function FinancialAnalyticsPage() {
         totalAmount: order.totalAmount ?? undefined,
         orderItems: order.orderItems?.map((item) => ({
           productId: item.productId,
+          subtotal: item.subtotal ?? 0,
           packageQuantity: item.packageQuantity ?? 0,
           pricePerPackage: item.pricePerPackage ?? 0,
           piecesPerPackage: item.piecesPerPackage ?? undefined,
           packageType: item.packageType ?? undefined,
+          variantId: item.variantId ?? undefined,
+          variantOptionId: item.variantOptionId ?? undefined,
+          variantNameSnapshot: item.variantNameSnapshot ?? undefined,
+          promotionDetailsSnapshot: item.promotionDetailsSnapshot ?? undefined,
+          moqSnapshot: item.moqSnapshot ?? undefined,
           productTypeSnapshot: item.productTypeSnapshot ?? undefined,
         })),
       }));
@@ -288,7 +312,20 @@ export default function FinancialAnalyticsPage() {
   };
 
   // Types for export generation (explicit, no any)
-  type ExportOrderItem = { productId: string; packageQuantity: number; pricePerPackage: number; piecesPerPackage?: number; packageType?: string; productTypeSnapshot?: string };
+  type ExportOrderItem = {
+    productId: string;
+    subtotal?: number;
+    packageQuantity: number;
+    pricePerPackage: number;
+    piecesPerPackage?: number;
+    packageType?: string;
+    variantId?: number;
+    variantOptionId?: number;
+    variantNameSnapshot?: string;
+    promotionDetailsSnapshot?: string;
+    moqSnapshot?: number;
+    productTypeSnapshot?: string;
+  };
   type ExportOrder = {
     buyerId: string;
     orderDate: string | Date;
@@ -307,6 +344,22 @@ export default function FinancialAnalyticsPage() {
     // Helper: safely parse totals coming from GraphQL (Decimal/string/number)
     const safeTotalAmount = (amount: unknown): number => {
       return parseAmountSafely(amount as unknown);
+    };
+
+    const getItemPackageQuantity = (item: ExportOrderItem): number => {
+      const quantity = Number(item.packageQuantity || 1);
+      return Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
+    };
+
+    const getItemPiecesPerPackage = (item: ExportOrderItem): number => {
+      const pieces = Number(item.piecesPerPackage || 1);
+      return Number.isFinite(pieces) && pieces > 0 ? pieces : 1;
+    };
+
+    const getItemRevenue = (item: ExportOrderItem): number => {
+      const subtotal = safeTotalAmount(item.subtotal);
+      if (subtotal > 0) return subtotal;
+      return safeTotalAmount(item.pricePerPackage) * getItemPackageQuantity(item);
     };
 
     // Helper function to parse currency strings to numbers (for product prices)
@@ -438,27 +491,14 @@ export default function FinancialAnalyticsPage() {
         order.orderItems.forEach((item: ExportOrderItem) => {
           const product = products.find(p => p.productId === item.productId);
           const category = product?.productType || 'Uncategorized';
-          const sellingPrice = parseCurrencyToNumber(product?.sellingPrice || '0');
           const purchasePrice = parseCurrencyToNumber(product?.purchasePrice || '0');
           
-          let itemRevenue = 0;
-          let itemProfit = 0;
-          
-          if (sellingPrice > 0 && purchasePrice > 0) {
-            // Calculate revenue and cost using package-based pricing
-            const piecesPerPackage = item.piecesPerPackage || 1;
-            const packageQuantity = item.packageQuantity || 1;
-            itemRevenue = sellingPrice * packageQuantity * piecesPerPackage;
-            const itemCost = purchasePrice * packageQuantity * piecesPerPackage;
+          const itemRevenue = getItemRevenue(item);
+          let itemProfit = itemRevenue * 0.3;
+
+          if (purchasePrice > 0) {
+            const itemCost = purchasePrice * getItemPackageQuantity(item) * getItemPiecesPerPackage(item);
             itemProfit = itemRevenue - itemCost;
-          } else {
-            // Use unitPrice from order item if product prices are not available
-            // Calculate revenue using package-based pricing
-            const piecesPerPackage = item.piecesPerPackage || 1;
-            const packageQuantity = item.packageQuantity || 1;
-            itemRevenue = (item.pricePerPackage || 0) * packageQuantity;
-            const fallbackMargin = 30;
-            itemProfit = itemRevenue * (fallbackMargin / 100);
           }
           
           if (!categoryStats[category]) categoryStats[category] = { revenue: 0, profit: 0 };
@@ -474,7 +514,6 @@ export default function FinancialAnalyticsPage() {
         order.orderItems.forEach((item: ExportOrderItem) => {
           const product = products.find(p => p.productId === item.productId);
           if (product) {
-            const sellingPrice = parseCurrencyToNumber(product.sellingPrice || '0');
             const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
             
             if (!productStats[item.productId]) {
@@ -487,26 +526,16 @@ export default function FinancialAnalyticsPage() {
               };
             }
             
-            if (sellingPrice > 0 && purchasePrice > 0) {
-              const piecesPerPackage = item.piecesPerPackage || 1;
-              const packageQuantity = item.packageQuantity || 1;
-              const itemRevenue = sellingPrice * packageQuantity * piecesPerPackage;
-              const itemCost = purchasePrice * packageQuantity * piecesPerPackage;
-              const itemProfit = itemRevenue - itemCost;
-              productStats[item.productId].orderVolume += itemRevenue;
-              productStats[item.productId].profit += itemProfit;
-            } else {
-              const piecesPerPackage = item.piecesPerPackage || 1;
-              const packageQuantity = item.packageQuantity || 1;
-              const revenue = (item.pricePerPackage || 0) * packageQuantity;
-              const fallbackMargin = 30;
-              const profit = revenue * (fallbackMargin / 100);
-              productStats[item.productId].orderVolume += revenue;
-              productStats[item.productId].profit += profit;
-            }
+            const itemRevenue = getItemRevenue(item);
+            const itemCost = purchasePrice > 0
+              ? purchasePrice * getItemPackageQuantity(item) * getItemPiecesPerPackage(item)
+              : 0;
+            const itemProfit = itemCost > 0 ? itemRevenue - itemCost : itemRevenue * 0.3;
+            productStats[item.productId].orderVolume += itemRevenue;
+            productStats[item.productId].profit += itemProfit;
             
-            const piecesPerPackage = item.piecesPerPackage || 1;
-            const packageQuantity = item.packageQuantity || 1;
+            const piecesPerPackage = getItemPiecesPerPackage(item);
+            const packageQuantity = getItemPackageQuantity(item);
             productStats[item.productId].unitsSold += packageQuantity * piecesPerPackage;
           }
         });

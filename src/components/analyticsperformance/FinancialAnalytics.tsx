@@ -141,10 +141,14 @@ const FINANCIAL_ANALYTICS_QUERY = `
         pod
         orderItems {
           productId
+          subtotal
           packageQuantity
           packageType
           piecesPerPackage
           pricePerPackage
+          variantId
+          variantOptionId
+          variantNameSnapshot
           promotionDetailsSnapshot
           moqSnapshot
         }
@@ -408,17 +412,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
     // Use consistent revenue calculation with Orders module (handle Decimal types)
     const totalRevenue = filteredOrders.reduce((sum, order) => sum + safeOrderAmount(order.totalAmount), 0);
 
-    // Build quick lookup for product purchase prices (as numbers)
-    const productCostById: Record<string, number> = {};
-    products.forEach(p => {
-      const firstVariantOption = p.variantOptions?.[0];
-      const cost = parseCurrencyToNumber(
-        firstVariantOption?.purchasePrice || '0'
-      );
-      if (!isNaN(cost) && cost > 0) {
-        productCostById[p.productId] = cost;
-      }
-    });
+    const productById = createProductLookup(products);
 
     // Profit and margin: all orders (recorded when buyer places order)
     let totalProfit = 0;
@@ -437,16 +431,8 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
         order.orderItems.forEach(item => {
           const pid = item.productId;
           if (!pid) { return; }
-          const cost = productCostById[pid];
-          // Only include COGS when product exists and purchasePrice > 0
-          if (typeof cost === 'number' && cost > 0) {
-            // Calculate COGS: purchasePrice (per piece) × (paid pieces + free pieces)
-            const paidPieces = (item.packageQuantity || 1) * (item.piecesPerPackage || 1);
-            const freePieces = calculateFreeItems(item);
-            const totalPieces = paidPieces + freePieces;
-            orderCogs += cost * totalPieces;
-            uniqueProducts.add(pid);
-          }
+          orderCogs += calculateOrderItemCost(item, productById.get(pid), calculateFreeItems(item));
+          uniqueProducts.add(pid);
         });
       }
 
@@ -555,25 +541,14 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
 
     const categoryStats: { [key: string]: { revenue: number; profit: number } } = {};
     
-    // Calculate product margins first
-    const productMargins: { [key: string]: number } = {};
-    products.forEach(product => {
-      const firstVariantOption = product.variantOptions?.[0];
-      const sellingPrice = parseCurrencyToNumber(firstVariantOption?.sellingPrice || '0');
-      const purchasePrice = parseCurrencyToNumber(firstVariantOption?.purchasePrice || '0');
-      
-      if (sellingPrice > 0 && purchasePrice > 0) {
-        const margin = ((sellingPrice - purchasePrice) / sellingPrice) * 100;
-        productMargins[product.productId] = margin;
-      }
-    });
+    const productById = createProductLookup(products);
+    const avgMargin = getAverageProductMargin(products);
     
     filteredOrders.forEach(order => {
       if (order.orderItems && Array.isArray(order.orderItems)) {
         order.orderItems.forEach(item => {
           // Calculate actual revenue and profit using product prices
-          const product = products.find(p => p.productId === item.productId) as Product | undefined;
-          const variantOption = product?.variantOptions?.[0];
+          const product = item.productId ? productById.get(item.productId) : undefined;
           
           // Get category based on selected filter
           let category = 'Uncategorized';
@@ -583,63 +558,15 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
             category = product?.productCategory || 'Uncategorized';
           }
           
-          if (product) {
-            const sellingPrice = parseCurrencyToNumber(
-              variantOption?.sellingPrice || '0'
-            );
-            const purchasePrice = parseCurrencyToNumber(
-              variantOption?.purchasePrice || '0'
-            );
-            
-            if (sellingPrice > 0 && purchasePrice > 0) {
-              // Calculate revenue and cost using piece-based pricing
-              const piecesPerPackage = item.piecesPerPackage || 1;
-              const packageQuantity = item.packageQuantity || 1;
-              const itemRevenue = sellingPrice * packageQuantity * piecesPerPackage;
-              const itemCost = purchasePrice * packageQuantity * piecesPerPackage;
-              const itemProfit = itemRevenue - itemCost;
-              
-              if (!categoryStats[category]) {
-                categoryStats[category] = { revenue: 0, profit: 0 };
-              }
-              categoryStats[category].revenue += itemRevenue;
-              categoryStats[category].profit += itemProfit;
-            } else {
-              // Fallback to item pricing if product prices are invalid
-              // Calculate revenue using piece-based pricing
-              const piecesPerPackage = item.piecesPerPackage || 1;
-              const packageQuantity = item.packageQuantity || 1;
-              const revenue = (item.pricePerPackage || 0) * packageQuantity;
-              // Use average margin from other products, otherwise 0%
-              const avgMargin = Object.values(productMargins).length > 0 
-                ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-                : 0;
-              const profit = revenue * (avgMargin / 100);
-              
-              if (!categoryStats[category]) {
-                categoryStats[category] = { revenue: 0, profit: 0 };
-              }
-              categoryStats[category].revenue += revenue;
-              categoryStats[category].profit += profit;
-            }
-          } else {
-            // Fallback to item pricing if product not found
-            // Calculate revenue using piece-based pricing
-            const piecesPerPackage = item.piecesPerPackage || 1;
-            const packageQuantity = item.packageQuantity || 1;
-            const revenue = (item.pricePerPackage || 0) * packageQuantity;
-            // Use average margin from other products, otherwise 0%
-            const avgMargin = Object.values(productMargins).length > 0 
-              ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-              : 0;
-            const profit = revenue * (avgMargin / 100);
-            
-            if (!categoryStats[category]) {
-              categoryStats[category] = { revenue: 0, profit: 0 };
-            }
-            categoryStats[category].revenue += revenue;
-            categoryStats[category].profit += profit;
+          const revenue = calculateOrderItemRevenue(item, findOrderItemVariantOption(product, item));
+          const cost = calculateOrderItemCost(item, product, calculateFreeItems(item));
+          const profit = cost > 0 ? revenue - cost : revenue * (avgMargin / 100);
+
+          if (!categoryStats[category]) {
+            categoryStats[category] = { revenue: 0, profit: 0 };
           }
+          categoryStats[category].revenue += revenue;
+          categoryStats[category].profit += profit;
         });
       }
     });
@@ -662,18 +589,8 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
 
     const productStats: { [key: string]: { orderVolume: number; unitsSold: number; piecesSold: number; category: string; productCategory: string; name: string; profit: number; image?: string | null } } = {};
     
-    // Calculate product margins first
-    const productMargins: { [key: string]: number } = {};
-    products.forEach(product => {
-      const firstVariantOption = product.variantOptions?.[0];
-      const sellingPrice = parseCurrencyToNumber(firstVariantOption?.sellingPrice || '0');
-      const purchasePrice = parseCurrencyToNumber(firstVariantOption?.purchasePrice || '0');
-      
-      if (sellingPrice > 0 && purchasePrice > 0) {
-        const margin = ((sellingPrice - purchasePrice) / sellingPrice) * 100;
-        productMargins[product.productId] = margin;
-      }
-    });
+    const productById = createProductLookup(products);
+    const avgMargin = getAverageProductMargin(products);
     
     filteredOrders.forEach(order => {
       if (order.orderItems && Array.isArray(order.orderItems)) {
@@ -683,8 +600,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
           const productId = pid as string;
           if (!productStats[productId]) {
             // Find the product to get its name and category
-                const product = products.find(p => p.productId === productId) as Product | undefined;
-                const variantOption = product?.variantOptions?.[0];
+                const product = productById.get(productId);
             
             // Get category - use the same simple logic as CustomerSalesAnalytics
             const category = product?.productCategory || 'Uncategorized';
@@ -701,59 +617,16 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
             };
           }
           
-          // Calculate actual revenue and profit using product prices
-          const product = products.find(p => p.productId === productId) as Product | undefined;
-          
-          if (product) {
-            const variantOption = product.variantOptions?.[0];
-            const sellingPrice = parseCurrencyToNumber(
-              variantOption?.sellingPrice || '0'
-            );
-            const purchasePrice = parseCurrencyToNumber(
-              variantOption?.purchasePrice || '0'
-            );
-            
-            if (sellingPrice > 0 && purchasePrice > 0) {
-              // Calculate revenue and cost using piece-based pricing
-              const piecesPerPackage = item.piecesPerPackage || 1;
-              const packageQuantity = item.packageQuantity || 1;
-              const itemRevenue = sellingPrice * packageQuantity * piecesPerPackage;
-              const itemCost = purchasePrice * packageQuantity * piecesPerPackage;
-              const itemProfit = itemRevenue - itemCost;
-              productStats[productId].orderVolume += itemRevenue;
-              productStats[productId].profit += itemProfit;
-            } else {
-              // Fallback to item pricing if product prices are invalid
-              // Calculate revenue using piece-based pricing
-              const piecesPerPackage = item.piecesPerPackage || 1;
-              const packageQuantity = item.packageQuantity || 1;
-              const itemRevenue = (item.pricePerPackage || 0) * packageQuantity;
-              // Use average margin from other products, otherwise 0%
-              const avgMargin = Object.values(productMargins).length > 0 
-                ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-                : 0;
-              const itemProfit = itemRevenue * (avgMargin / 100);
-              productStats[productId].orderVolume += itemRevenue;
-              productStats[productId].profit += itemProfit;
-            }
-          } else {
-            // Fallback to item pricing if product not found
-            // Calculate revenue using piece-based pricing
-            const piecesPerPackage = item.piecesPerPackage || 1;
-            const packageQuantity = item.packageQuantity || 1;
-            const itemRevenue = (item.pricePerPackage || 0) * packageQuantity;
-            // Use average margin from other products, otherwise 0%
-            const avgMargin = Object.values(productMargins).length > 0 
-              ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-              : 0;
-            const itemProfit = itemRevenue * (avgMargin / 100);
-            productStats[productId].orderVolume += itemRevenue;
-            productStats[productId].profit += itemProfit;
-          }
+          const product = productById.get(productId);
+          const itemRevenue = calculateOrderItemRevenue(item, findOrderItemVariantOption(product, item));
+          const itemCost = calculateOrderItemCost(item, product, calculateFreeItems(item));
+          const itemProfit = itemCost > 0 ? itemRevenue - itemCost : itemRevenue * (avgMargin / 100);
+          productStats[productId].orderVolume += itemRevenue;
+          productStats[productId].profit += itemProfit;
           
           // Calculate units sold using piece-based pricing
-          const piecesPerPackage = item.piecesPerPackage || 1;
-          const packageQuantity = item.packageQuantity || 1;
+          const piecesPerPackage = getOrderItemPiecesPerPackage(item);
+          const packageQuantity = getOrderItemPackageQuantity(item);
           productStats[productId].unitsSold += packageQuantity * piecesPerPackage;
           productStats[productId].piecesSold += packageQuantity;
         });
@@ -784,17 +657,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
       return [];
     }
 
-    // Precompute product costs
-    const productCostById: Record<string, number> = {};
-    products.forEach(p => {
-      const firstVariantOption = p.variantOptions?.[0];
-      const cost = parseCurrencyToNumber(
-        firstVariantOption?.purchasePrice || '0'
-      );
-      if (!isNaN(cost) && cost > 0) {
-        productCostById[p.productId] = cost;
-      }
-    });
+    const productById = createProductLookup(products);
 
     const flowByKey = new Map<string, { inflows: number; outflows: number }>();
     filteredOrders.forEach(order => {
@@ -810,13 +673,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
         order.orderItems.forEach(item => {
           const pid = item.productId;
           if (!pid) { return; }
-          const cost = productCostById[pid];
-          if (typeof cost === 'number' && cost > 0) {
-            const paidPieces = (item.packageQuantity || 1) * (item.piecesPerPackage || 1);
-            const freePieces = calculateFreeItems(item);
-            const totalPieces = paidPieces + freePieces;
-            orderCogs += cost * totalPieces;
-          }
+          orderCogs += calculateOrderItemCost(item, productById.get(pid), calculateFreeItems(item));
         });
       }
       current.outflows += orderCogs;
@@ -1843,6 +1700,91 @@ const calculateFreeItemsForOrderItem = (item: OrderItem): number => {
   }
 };
 
+type AnalyticsVariantOption = NonNullable<Product['variantOptions']>[number];
+
+const getOrderItemPackageQuantity = (item: OrderItem): number => {
+  const quantity = Number(item.packageQuantity ?? 1);
+  return Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
+};
+
+const getOrderItemPiecesPerPackage = (item: OrderItem): number => {
+  const pieces = Number(item.piecesPerPackage ?? 1);
+  return Number.isFinite(pieces) && pieces > 0 ? pieces : 1;
+};
+
+const getOrderItemPaidPieces = (item: OrderItem): number =>
+  getOrderItemPackageQuantity(item) * getOrderItemPiecesPerPackage(item);
+
+const createProductLookup = (products: Product[]): Map<string, Product> =>
+  new Map(products.map((product) => [product.productId, product]));
+
+const findOrderItemVariantOption = (
+  product: Product | undefined,
+  item: OrderItem,
+): AnalyticsVariantOption | undefined => {
+  const variantOptions = product?.variantOptions ?? [];
+  if (variantOptions.length === 0) return undefined;
+
+  const variantId = item.variantOptionId ?? item.variantId;
+  if (variantId != null) {
+    const matchedById = variantOptions.find((variant) => variant.id === variantId);
+    if (matchedById) return matchedById;
+  }
+
+  if (item.variantNameSnapshot) {
+    const matchedByName = variantOptions.find((variant) => variant.variantName === item.variantNameSnapshot);
+    if (matchedByName) return matchedByName;
+  }
+
+  return variantOptions.find((variant) => variant.isDefault) ?? variantOptions[0];
+};
+
+const calculateOrderItemRevenue = (
+  item: OrderItem,
+  variantOption?: AnalyticsVariantOption,
+): number => {
+  const subtotal = parseAmountSafely(item.subtotal);
+  if (subtotal > 0) return subtotal;
+
+  const pricePerPackage = parseAmountSafely(item.pricePerPackage);
+  if (pricePerPackage > 0) {
+    return pricePerPackage * getOrderItemPackageQuantity(item);
+  }
+
+  const sellingPrice = parseCurrencyToNumber(variantOption?.sellingPrice || '0');
+  return sellingPrice * getOrderItemPaidPieces(item);
+};
+
+const calculateOrderItemCost = (
+  item: OrderItem,
+  product: Product | undefined,
+  freePieces: number,
+): number => {
+  const variantOption = findOrderItemVariantOption(product, item);
+  const purchasePrice = parseCurrencyToNumber(variantOption?.purchasePrice || '0');
+  if (purchasePrice <= 0) return 0;
+
+  return purchasePrice * (getOrderItemPaidPieces(item) + Math.max(0, freePieces));
+};
+
+const getAverageProductMargin = (products: Product[]): number => {
+  const margins = products.flatMap((product) =>
+    (product.variantOptions ?? [])
+      .map((variantOption) => {
+        const sellingPrice = parseCurrencyToNumber(variantOption.sellingPrice || '0');
+        const purchasePrice = parseCurrencyToNumber(variantOption.purchasePrice || '0');
+        return sellingPrice > 0 && purchasePrice > 0
+          ? ((sellingPrice - purchasePrice) / sellingPrice) * 100
+          : null;
+      })
+      .filter((margin): margin is number => margin != null),
+  );
+
+  return margins.length > 0
+    ? margins.reduce((sum, margin) => sum + margin, 0) / margins.length
+    : 0;
+};
+
 // Shared function to calculate revenue data from orders and products
 export const calculateRevenueData = (
   orders: Order[], 
@@ -1856,16 +1798,7 @@ export const calculateRevenueData = (
   }
 
   // Precompute product costs from recorded data only (no estimates)
-  const productCostById: Record<string, number> = {};
-  products.forEach(p => {
-    const firstVariantOption = p.variantOptions?.[0];
-    const cost = parseCurrencyToNumber(
-      firstVariantOption?.purchasePrice || '0'
-    );
-    if (!isNaN(cost) && cost > 0) {
-      productCostById[p.productId] = cost;
-    }
-  });
+  const productById = createProductLookup(products);
 
   const aggregated = new Map<string, { revenue: number; profit: number; orders: number }>();
 
@@ -1882,13 +1815,7 @@ export const calculateRevenueData = (
       order.orderItems.forEach(item => {
         const pid = item.productId;
         if (!pid) { return; }
-        const cost = productCostById[pid];
-        if (typeof cost === 'number' && cost > 0) {
-          const paidPieces = (item.packageQuantity || 1) * (item.piecesPerPackage || 1);
-          const freePieces = calculateFreeItemsForOrderItem(item);
-          const totalPieces = paidPieces + freePieces;
-          orderCogs += cost * totalPieces;
-        }
+        orderCogs += calculateOrderItemCost(item, productById.get(pid), calculateFreeItemsForOrderItem(item));
       });
     }
     const orderProfit = orderAmount - orderCogs;
@@ -1966,17 +1893,8 @@ export const calculateTopProducts = (
   }
 
   const productStats: { [key: string]: { orderVolume: number; unitsSold: number; piecesSold: number; category: string; productCategory: string; name: string; profit: number; image?: string | null } } = {};
-
-  const productMargins: { [key: string]: number } = {};
-  products.forEach(product => {
-    const firstVariantOption = product.variantOptions?.[0];
-    const sellingPrice = parseCurrencyToNumber(firstVariantOption?.sellingPrice || '0');
-    const purchasePrice = parseCurrencyToNumber(firstVariantOption?.purchasePrice || '0');
-    if (sellingPrice > 0 && purchasePrice > 0) {
-      const margin = ((sellingPrice - purchasePrice) / sellingPrice) * 100;
-      productMargins[product.productId] = margin;
-    }
-  });
+  const productById = createProductLookup(products);
+  const avgMargin = getAverageProductMargin(products);
 
   orders.forEach(order => {
     if (order.orderItems && Array.isArray(order.orderItems)) {
@@ -1985,7 +1903,7 @@ export const calculateTopProducts = (
         if (!pid) { return; }
         const productId = pid as string;
         if (!productStats[productId]) {
-          const product = products.find(p => p.productId === productId) as Product | undefined;
+          const product = productById.get(productId);
           const category = product?.productCategory || 'Uncategorized';
             productStats[productId] = {
               orderVolume: 0,
@@ -1999,49 +1917,15 @@ export const calculateTopProducts = (
             };
         }
 
-        const product = products.find(p => p.productId === productId) as Product | undefined;
-        const variantOption = product?.variantOptions?.[0];
+        const product = productById.get(productId);
+        const itemRevenue = calculateOrderItemRevenue(item, findOrderItemVariantOption(product, item));
+        const itemCost = calculateOrderItemCost(item, product, calculateFreeItemsForOrderItem(item));
+        const itemProfit = itemCost > 0 ? itemRevenue - itemCost : itemRevenue * (avgMargin / 100);
+        productStats[productId].orderVolume += itemRevenue;
+        productStats[productId].profit += itemProfit;
 
-        if (product) {
-          const sellingPrice = parseCurrencyToNumber(
-            variantOption?.sellingPrice || '0'
-          );
-          const purchasePrice = parseCurrencyToNumber(
-            variantOption?.purchasePrice || '0'
-          );
-          if (sellingPrice > 0 && purchasePrice > 0) {
-            const piecesPerPackage = item.piecesPerPackage || 1;
-            const packageQuantity = item.packageQuantity || 1;
-            const itemRevenue = sellingPrice * packageQuantity * piecesPerPackage;
-            const itemCost = purchasePrice * packageQuantity * piecesPerPackage;
-            const itemProfit = itemRevenue - itemCost;
-            productStats[productId].orderVolume += itemRevenue;
-            productStats[productId].profit += itemProfit;
-          } else {
-            const piecesPerPackage = item.piecesPerPackage || 1;
-            const packageQuantity = item.packageQuantity || 1;
-            const itemRevenue = (item.pricePerPackage || 0) * packageQuantity;
-            const avgMargin = Object.values(productMargins).length > 0 
-              ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-              : 0;
-            const itemProfit = itemRevenue * (avgMargin / 100);
-            productStats[productId].orderVolume += itemRevenue;
-            productStats[productId].profit += itemProfit;
-          }
-        } else {
-          const piecesPerPackage = item.piecesPerPackage || 1;
-          const packageQuantity = item.packageQuantity || 1;
-          const itemRevenue = (item.pricePerPackage || 0) * packageQuantity;
-          const avgMargin = Object.values(productMargins).length > 0 
-            ? Object.values(productMargins).reduce((a, b) => a + b, 0) / Object.values(productMargins).length
-            : 0;
-          const itemProfit = itemRevenue * (avgMargin / 100);
-          productStats[productId].orderVolume += itemRevenue;
-          productStats[productId].profit += itemProfit;
-        }
-
-        const piecesPerPackage = item.piecesPerPackage || 1;
-        const packageQuantity = item.packageQuantity || 1;
+        const piecesPerPackage = getOrderItemPiecesPerPackage(item);
+        const packageQuantity = getOrderItemPackageQuantity(item);
         productStats[productId].unitsSold += packageQuantity * piecesPerPackage;
         productStats[productId].piecesSold += packageQuantity;
       });

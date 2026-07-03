@@ -49,10 +49,14 @@ const ANALYTICS_PAGE_QUERY = `
         trackingNumber
         orderItems {
           productId
+          subtotal
           packageQuantity
           packageType
           piecesPerPackage
           pricePerPackage
+          variantId
+          variantOptionId
+          variantNameSnapshot
           promotionDetailsSnapshot
           moqSnapshot
         }
