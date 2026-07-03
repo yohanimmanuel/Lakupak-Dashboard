@@ -78,8 +78,8 @@ export async function resetDb() {
   await prisma.marketplaceSearchTermMap.deleteMany();
   await prisma.platformAdmin.deleteMany();
   await prisma.orderCancellation.deleteMany();
-  await prisma.order.deleteMany();
   await prisma.buyer.deleteMany();
+  await prisma.order.deleteMany();
   await prisma.variantOption.deleteMany();
   await prisma.productVariant.deleteMany();
   await prisma.product.deleteMany();
