@@ -34,12 +34,12 @@ export const validateOrderInput = (data: unknown): { valid: boolean; error?: str
   
   // Order ID format validation
   if (orderData.orderId && !validateOrderId(String(orderData.orderId))) {
-    return { valid: false, error: 'Invalid order ID format. Must be LKO- followed by digits' };
+    return { valid: false, error: 'Invalid order ID format. Must be LKO- followed by digits (optional -N group suffix)' };
   }
   
   // Buyer ID format validation
   if (orderData.buyerId && !validateBuyerId(String(orderData.buyerId))) {
-    return { valid: false, error: 'Invalid buyer ID format. Must be LKB- followed by digits' };
+    return { valid: false, error: 'Invalid buyer ID format. Must be LKB- followed by digits (optional distributor suffix)' };
   }
   
   // Email format validation
@@ -166,12 +166,12 @@ export const validateOrderUpdate = (data: unknown): { valid: boolean; error?: st
   
   // Order ID format validation if provided
   if (orderData.orderId && !validateOrderId(String(orderData.orderId))) {
-    return { valid: false, error: 'Invalid order ID format. Must be LKO- followed by digits' };
+    return { valid: false, error: 'Invalid order ID format. Must be LKO- followed by digits (optional -N group suffix)' };
   }
   
   // Buyer ID format validation if provided
   if (orderData.buyerId && !validateBuyerId(String(orderData.buyerId))) {
-    return { valid: false, error: 'Invalid buyer ID format. Must be LKB- followed by digits' };
+    return { valid: false, error: 'Invalid buyer ID format. Must be LKB- followed by digits (optional distributor suffix)' };
   }
   
   // Email format validation if provided
@@ -597,17 +597,15 @@ export const orderRateLimit = {
   message: 'Too many order operations from this IP, please try again later.'
 };
 
-// Validate order ID format
+// Validate order ID format (supports multi-distributor checkout suffix: LKO-<digits>-<groupIndex>)
 export const validateOrderId = (orderId: string): boolean => {
-  // LKO- followed by digits (allowing variable length)
-  const orderIdRegex = /^LKO-\d+$/;
+  const orderIdRegex = /^LKO-\d+(?:-\d+)?$/;
   return orderIdRegex.test(orderId);
 };
 
-// Validate buyer ID format
+// Validate buyer ID format (supports per-distributor suffix from buildMobileBuyerId)
 export const validateBuyerId = (buyerId: string): boolean => {
-  // LKB- followed by digits (allowing variable length)
-  const buyerIdRegex = /^LKB-\d+$/;
+  const buyerIdRegex = /^LKB-\d+(?:-\d+)?$/;
   return buyerIdRegex.test(buyerId);
 };
 
