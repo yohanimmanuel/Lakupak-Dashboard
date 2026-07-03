@@ -31,6 +31,44 @@ export function makeAuthenticatedDashboardPutRequest(
   return new NextRequest(req);
 }
 
+export function makeAuthenticatedMarketplacePutRequest(
+  url: string,
+  body: unknown,
+  marketplaceUserId: number,
+): NextRequest {
+  ensureIntegrationAuthEnv();
+  const token = signAccessToken({ sub: marketplaceUserId, type: 'marketplace' });
+  const req = new Request(url, {
+    method: 'PUT',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${token}`,
+      'x-forwarded-for': '127.0.0.1',
+    },
+    body: JSON.stringify(body),
+  });
+  return new NextRequest(req);
+}
+
+export function makeAuthenticatedLegacyPutRequest(
+  url: string,
+  body: unknown,
+  subjectUserId: number,
+): NextRequest {
+  ensureIntegrationAuthEnv();
+  const token = signAccessToken({ sub: subjectUserId });
+  const req = new Request(url, {
+    method: 'PUT',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${token}`,
+      'x-forwarded-for': '127.0.0.1',
+    },
+    body: JSON.stringify(body),
+  });
+  return new NextRequest(req);
+}
+
 export async function resetDb() {
   // Order matters because of FKs.
   await prisma.userActivity.deleteMany();
@@ -39,8 +77,9 @@ export async function resetDb() {
   await prisma.marketplaceSearchQueryLog.deleteMany();
   await prisma.marketplaceSearchTermMap.deleteMany();
   await prisma.platformAdmin.deleteMany();
-  await prisma.orderItem.deleteMany();
+  await prisma.orderCancellation.deleteMany();
   await prisma.order.deleteMany();
+  await prisma.buyer.deleteMany();
   await prisma.variantOption.deleteMany();
   await prisma.productVariant.deleteMany();
   await prisma.product.deleteMany();

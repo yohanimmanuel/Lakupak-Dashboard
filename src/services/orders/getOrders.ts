@@ -111,6 +111,8 @@ export async function getOrdersHandler(request: NextRequest) {
 
       const orderResponse = {
         ...order,
+        sellerUserId: order.userId,
+        distributorUserId: order.userId,
         subtotal: decimalToNumber(order.subtotal),
         discounts: decimalToNumber(order.discounts),
         shippingFee: decimalToNumber(order.shippingFee),

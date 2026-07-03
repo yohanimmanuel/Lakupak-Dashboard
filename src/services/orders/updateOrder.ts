@@ -26,8 +26,13 @@ export async function updateOrderHandler(request: NextRequest) {
 
     // Authenticate the caller (dashboard NextAuth session or JWT). Platform admins
     // are resolved separately so they may act across tenants.
-    const { getAuthenticatedUserId } = await import('@/utils/auth-helpers');
+    const { getAuthenticatedUserId, getAuthenticatedMarketplaceUserId } = await import('@/utils/auth-helpers');
     const authenticatedUserId = await getAuthenticatedUserId(request);
+    let marketplaceUserId: number | null = null;
+    if (body.cancel === true) {
+      const marketplaceAuth = await getAuthenticatedMarketplaceUserId(request);
+      if (marketplaceAuth.ok) marketplaceUserId = marketplaceAuth.userId;
+    }
     let isPlatformAdmin = false;
     try {
       const { requirePlatformAdminId } = await import('@/utils/platform-admin-auth');
@@ -44,7 +49,7 @@ export async function updateOrderHandler(request: NextRequest) {
       return rateLimitResponse;
     }
 
-    if (!authenticatedUserId && !isPlatformAdmin) {
+    if (!authenticatedUserId && !isPlatformAdmin && !(body.cancel === true && marketplaceUserId)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers });
     }
 
@@ -354,8 +359,20 @@ export async function updateOrderHandler(request: NextRequest) {
         return NextResponse.json({ error: 'Order not found' }, { status: 404, headers });
       }
 
-      if (ownerScopeUserId != null && existingOrder.userId !== ownerScopeUserId) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers });
+      if (!isPlatformAdmin) {
+        const orderBuyerMarketplaceId = parseMarketplaceUserIdFromBuyerId(existingOrder.buyerId);
+        const authorizedAsBuyer =
+          marketplaceUserId != null &&
+          orderBuyerMarketplaceId != null &&
+          orderBuyerMarketplaceId === marketplaceUserId;
+        const authorizedAsOwner =
+          ownerScopeUserId != null && existingOrder.userId === ownerScopeUserId;
+
+        // Marketplace JWT and dashboard session can coexist (Bearer buyer + NextAuth owner).
+        // Allow cancel when either identity is authorized for this order.
+        if (!authorizedAsBuyer && !authorizedAsOwner) {
+          return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers });
+        }
       }
 
       // Check if order can be cancelled (only Pending or Confirmed orders)
@@ -393,13 +410,17 @@ export async function updateOrderHandler(request: NextRequest) {
         });
 
         // Persist structured cancel data (marketplace buyer id from order's buyerId)
-        const marketplaceUserId = parseMarketplaceUserIdFromBuyerId(updatedOrder.buyerId);
-        if (marketplaceUserId != null && Number.isInteger(marketplaceUserId) && marketplaceUserId > 0) {
+        const orderBuyerMarketplaceId = parseMarketplaceUserIdFromBuyerId(updatedOrder.buyerId);
+        if (
+          orderBuyerMarketplaceId != null &&
+          Number.isInteger(orderBuyerMarketplaceId) &&
+          orderBuyerMarketplaceId > 0
+        ) {
           try {
             await prisma.orderCancellation.create({
               data: {
                 orderId: updatedOrder.orderId,
-                marketplaceUserId,
+                marketplaceUserId: orderBuyerMarketplaceId,
                 reason: reasonCode,
                 reasonDetail,
                 cancelledAt
@@ -410,13 +431,19 @@ export async function updateOrderHandler(request: NextRequest) {
           }
         }
         
-        scheduleOrderCancelPostCommitEffects(updatedOrder, body.userId ? Number(body.userId) : undefined);
+        scheduleOrderCancelPostCommitEffects(
+          updatedOrder,
+          marketplaceUserId ?? ownerScopeUserId ?? updatedOrder.userId ?? undefined,
+        );
 
         auditOrder(request, {
           action: 'cancel',
           resourceId: updatedOrder.orderId,
-          actorId: body.userId && !isNaN(Number(body.userId)) ? Number(body.userId) : null,
-          actorType: 'dashboard',
+          actorId:
+            marketplaceUserId ??
+            ownerScopeUserId ??
+            (body.userId && !isNaN(Number(body.userId)) ? Number(body.userId) : null),
+          actorType: marketplaceUserId != null ? 'marketplace' : 'dashboard',
           metadata: { reasonCode, cancelledBy: updateData.cancelledBy },
         });
 
