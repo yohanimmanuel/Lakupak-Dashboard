@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Package, Search, Check, ChevronDown, ChevronLeft, ChevronRight, Grid, List } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Package, Search, Check, ChevronLeft, ChevronRight, Grid, List } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useLogisticsTranslations } from '@/hooks/useLogisticsTranslations';
@@ -99,9 +99,16 @@ export default function FleetOrderSelection({
       o.orderId.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (o.storeName ?? '').toLowerCase().includes(searchQuery.toLowerCase())
   );
-  const totalPages = Math.ceil(filteredOrders.length / rowsPerPage);
+  const totalRows = filteredOrders.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
   const startIndex = (page - 1) * rowsPerPage;
   const pagedOrders = filteredOrders.slice(startIndex, startIndex + rowsPerPage);
+  const fromRow = totalRows === 0 ? 0 : startIndex + 1;
+  const toRow = Math.min(startIndex + rowsPerPage, totalRows);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const isOrderSelected = (orderId: string) => selectedOrders.some((o) => o.orderId === orderId);
 
@@ -327,29 +334,50 @@ export default function FleetOrderSelection({
             </div>
           )}
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-6">
-              <span className="text-sm text-gray-500">
-                {startIndex + 1}–{Math.min(startIndex + rowsPerPage, filteredOrders.length)} of {filteredOrders.length}
-              </span>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-6 gap-2">
+            <div className="text-sm text-gray-500">
+              {tShared('pagination.showing', { from: fromRow, to: toRow, total: totalRows })}
+              {searchQuery && (
+                <span className="ml-2 text-blue-600">
+                  {tShared('pagination.filteredFrom', { total: orders.length })}
+                </span>
+              )}
             </div>
-          )}
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                aria-label={tShared('previousPage')}
+              >
+                <ChevronLeft className="w-4 h-4 text-gray-500" />
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  className={`px-3 py-2 rounded-lg font-semibold text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    p === page ? 'bg-[#0a61d7] text-white' : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
+                  }`}
+                  onClick={() => setPage(p)}
+                  aria-label={`Page ${p}`}
+                  aria-current={p === page ? 'page' : undefined}
+                >
+                  {p}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                aria-label={tShared('nextPage')}
+              >
+                <ChevronRight className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
+          </div>
         </>
       )}
 

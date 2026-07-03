@@ -49,6 +49,12 @@
       "kg": "kg",
       "cubicMeters": "m³",
       "percent": "%"
+    },
+    "previousPage": "Halaman sebelumnya",
+    "nextPage": "Halaman berikutnya",
+    "pagination": {
+      "showing": "Menampilkan {from}–{to} dari {total}",
+      "filteredFrom": "(difilter dari {total} total)"
     }
   },
   "page": {

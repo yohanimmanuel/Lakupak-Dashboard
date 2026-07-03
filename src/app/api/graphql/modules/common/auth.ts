@@ -90,6 +90,16 @@ export async function resolveMarketplaceGraphQLUser(userId: number): Promise<num
   return user.id;
 }
 
+/** Existence-only lookup for legacy namespace disambiguation (must not enforce suspension). */
+async function findMarketplaceUserIdForLegacyProbe(userId: number): Promise<number | null> {
+  if (!Number.isInteger(userId) || userId <= 0) return null;
+  const user = await prisma.marketplaceUser.findUnique({
+    where: { id: userId },
+    select: { id: true },
+  });
+  return user?.id ?? null;
+}
+
 /**
  * Infer principal namespace when the token carries an explicit discriminator (`type` or `iss`).
  * Typeless legacy tokens return null and must be resolved via DB lookup.
@@ -117,8 +127,7 @@ async function resolveLegacyJwtPrincipalNamespace(
   payload: AppJwtPayload,
 ): Promise<GraphQLPrincipalType | null> {
   const dashboardId = await resolveDashboardGraphQLUser(payload.sub);
-  let marketplaceId: number | null = null;
-  marketplaceId = await resolveMarketplaceGraphQLUser(payload.sub);
+  const marketplaceId = await findMarketplaceUserIdForLegacyProbe(payload.sub);
 
   if (dashboardId && marketplaceId) {
     if (!payload.phone?.trim()) return null;

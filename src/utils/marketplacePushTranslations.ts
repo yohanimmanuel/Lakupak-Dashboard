@@ -217,6 +217,22 @@ export function translateMarketplaceReturnItemsReceived(params: { orderId: strin
   };
 }
 
+export function translateMarketplaceFleetAssigned(params: {
+  orderId: string;
+}): Record<DriverPushLanguage, MarketplacePushPayload> {
+  const { orderId } = params;
+  return {
+    id: {
+      title: 'Armada Ditugaskan',
+      body: `Pesanan #${orderId} telah ditugaskan ke salah satu armada distributor. Lacak pengiriman untuk info terbaru.`,
+    },
+    en: {
+      title: 'Fleet Assigned',
+      body: `Your order #${orderId} has been assigned to a distributor fleet. Track your delivery for updates.`,
+    },
+  };
+}
+
 export function translateMarketplacePaymentIntentSubmitted(params: { orderId: string }): Record<
   DriverPushLanguage,
   MarketplacePushPayload

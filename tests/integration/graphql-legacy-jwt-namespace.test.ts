@@ -97,6 +97,30 @@ describe('GraphQL legacy JWT namespace (integration)', () => {
     expect(user).toBeNull();
   });
 
+  it('disambiguates shared id before enforcing marketplace suspension', async () => {
+    const sharedId = 999_004;
+    const phone = '+620000000099';
+
+    await prisma.user.create({
+      data: { id: sharedId, email: 'suspended-collision-dashboard@example.com', password: 'x' },
+    });
+    await prisma.marketplaceUser.create({
+      data: {
+        id: sharedId,
+        username: 'suspended-collision-mp',
+        phone,
+        isSuspended: true,
+        suspensionReason: 'policy',
+      },
+    });
+
+    await expect(
+      resolveGraphQLUserFromAccessToken({ sub: sharedId, phone }),
+    ).rejects.toMatchObject({
+      extensions: { code: 'ACCOUNT_SUSPENDED', reason: 'policy' },
+    });
+  });
+
   it('embeds iss on newly signed typed tokens', () => {
     const token = signAccessToken({ sub: 42, type: 'marketplace', phone: '+620000000001' });
     const payload = verifyAccessToken(token);

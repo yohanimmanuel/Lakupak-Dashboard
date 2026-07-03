@@ -34,6 +34,8 @@ async function broadcastMarketplaceWsFallback(
   await broadcastNotification(type, wsCopy.title, wsCopy.body, payload, marketplaceUserId);
 }
 
+export { broadcastMarketplaceWsFallback };
+
 export function enqueueBroadcastOrderUpdates(label: string, orderIds: string[]) {
   if (orderIds.length === 0) return;
   const ids = [...orderIds];

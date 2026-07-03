@@ -5,6 +5,7 @@ import { sanitizePagination, buildPaginationInfo } from '../common/utils';
 import { broadcastNotification } from '@/utils/websocketBroadcast';
 import { sendExpoPushToDriver } from '@/utils/expoPush';
 import { translateDriverFleetAssigned, translateDriverOrdersAdded } from '@/utils/driverPushTranslations';
+import { scheduleFleetOrderAssignmentSideEffects } from '@/services/logistics/fleetOrderSyncSideEffects';
 import { buildFleetRouteStops, parseFleetJsonStringArray } from '@/utils/fleetRouteStops';
 import { requireDashboardUser } from '../common/auth';
 
@@ -655,6 +656,10 @@ export const logisticsResolvers = {
         ).catch(() => {});
       }
 
+      if (assignedIds.length > 0) {
+        scheduleFleetOrderAssignmentSideEffects(assignedIds, [], row.fleetCode).catch(() => {});
+      }
+
       return mapFleet(row);
     },
 
@@ -804,13 +809,20 @@ export const logisticsResolvers = {
         ).catch(() => {});
       }
 
-      // Notify when orders are added to an already-assigned fleet
-      if (input.assignedOrderIds !== undefined && row.driverId && row.driverId !== 0) {
+      if (input.assignedOrderIds !== undefined) {
         const prevAssigned = parseJsonStringArray(existingFleet.assignedOrderIds);
         const prevSet = new Set(prevAssigned);
         const nextAssigned = Array.isArray(input.assignedOrderIds) ? (input.assignedOrderIds as string[]) : [];
+        const nextSet = new Set(nextAssigned);
         const addedOrderIds = nextAssigned.filter((id) => !prevSet.has(id));
-        if (addedOrderIds.length > 0) {
+        const removedOrderIds = prevAssigned.filter((id) => !nextSet.has(id));
+
+        scheduleFleetOrderAssignmentSideEffects(addedOrderIds, removedOrderIds, row.fleetCode).catch(
+          () => {},
+        );
+
+        // Notify driver when orders are added to an already-assigned fleet
+        if (addedOrderIds.length > 0 && row.driverId && row.driverId !== 0) {
           sendExpoPushToDriver(
             row.driverId,
             translateDriverOrdersAdded({ fleetCode: row.fleetCode, count: addedOrderIds.length }),

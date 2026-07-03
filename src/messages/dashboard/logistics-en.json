@@ -49,6 +49,12 @@
       "kg": "kg",
       "cubicMeters": "m³",
       "percent": "%"
+    },
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "pagination": {
+      "showing": "Showing {from} to {to} of {total}",
+      "filteredFrom": "(filtered from {total} total)"
     }
   },
   "page": {
