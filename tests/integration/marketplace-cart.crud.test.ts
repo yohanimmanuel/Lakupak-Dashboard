@@ -199,27 +199,35 @@ describe('marketplace cart CRUD (integration)', () => {
     const dominantProductId = 'P-VIEW-DOM';
     await createPublishedProductWithColorVariants(distributor.id, dominantProductId);
 
-    for (let i = 0; i < 210; i += 1) {
-      await addUserActivity({
+    // Seed the 210 dominant-product views in a single round-trip. The subject under
+    // test is the read-side dedup in fetchMobileUserActivity, not the write path, and
+    // a per-view transaction loop against a remote DB blows past the test timeout.
+    await prisma.userActivity.createMany({
+      data: Array.from({ length: 210 }, () => ({
         userId: buyer.id,
         productId: dominantProductId,
         productData: { id: dominantProductId, name: 'Dominant Product' },
         activityType: 'viewed',
-      });
-    }
+        metadata: {},
+      })),
+    });
 
     const otherProductIds: string[] = [];
     for (let i = 0; i < 19; i += 1) {
       const productId = `P-VIEW-OTHER-${i}`;
       otherProductIds.push(productId);
       await createPublishedProductWithColorVariants(distributor.id, productId);
-      await addUserActivity({
+    }
+
+    await prisma.userActivity.createMany({
+      data: otherProductIds.map((productId, i) => ({
         userId: buyer.id,
         productId,
         productData: { id: productId, name: `Other Product ${i}` },
         activityType: 'viewed',
-      });
-    }
+        metadata: {},
+      })),
+    });
 
     const result = await fetchMobileUserActivity({ userId: buyer.id, type: 'viewed' });
     const productIds = result.activities.map((activity) => activity.productId);
