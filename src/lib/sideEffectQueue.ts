@@ -70,3 +70,17 @@ export function enqueueSideEffect(
   void drainQueue();
 }
 
+/**
+ * Wait until the queue has no pending jobs and no drain in progress.
+ * Intended for tests: call before tearing down the DB so post-commit side effects
+ * (buyer sync, notifications) finish against still-existing rows instead of racing
+ * table truncation. Polls with a timeout so a stuck retry cannot hang the suite.
+ */
+export async function waitForSideEffectQueueIdle(timeoutMs = 15_000): Promise<void> {
+  const q = getQueue();
+  const start = Date.now();
+  while ((q.running || q.jobs.length > 0) && Date.now() - start < timeoutMs) {
+    await sleep(25);
+  }
+}
+

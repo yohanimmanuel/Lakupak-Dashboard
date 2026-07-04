@@ -11,6 +11,7 @@ import { syncMarketplaceUserToBuyerProfiles } from '@/utils/buyerSync';
 import { normalizeMarketplacePhone } from '@/utils/marketplacePhone';
 import { isDuplicateAddressIdError, resetAddressIdSequence } from '@/utils/addressSequence';
 import { attachGeocodeToAddress, normalizeAddressKey } from '@/utils/addressGeocodeCache';
+import { enqueueSideEffect } from '@/lib/sideEffectQueue';
 import { Prisma } from '@/lib/prisma-generated';
 
 type RegisterUserWithAddressParams = {
@@ -208,9 +209,11 @@ export async function POST(req: NextRequest) {
       select: { id: true },
     });
     if (registeredAddress) {
-      void attachGeocodeToAddress(registeredAddress.id, trimmedAddress).catch((err) => {
-        console.error('Geocode attach after registration failed:', err);
-      });
+      enqueueSideEffect(
+        'attachGeocodeToAddress(register)',
+        () => attachGeocodeToAddress(registeredAddress.id, trimmedAddress),
+        { retries: 2 },
+      );
     }
 
     auditAuth(req, {

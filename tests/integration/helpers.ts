@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { signAccessToken } from '@/lib/jwt';
+import { waitForSideEffectQueueIdle } from '@/lib/sideEffectQueue';
 
 /** JWT + auth secrets for handlers that call `getAuthenticatedUserId` / `verifyAccessToken`. */
 export function ensureIntegrationAuthEnv(): void {
@@ -70,6 +71,11 @@ export function makeAuthenticatedLegacyPutRequest(
 }
 
 export async function resetDb() {
+  // Let any fire-and-forget post-commit side effects (buyer sync, notifications)
+  // from a prior test finish first. Otherwise they drain after this truncation and
+  // hit missing Buyer/User rows, spewing P2003/"record not found" errors into stderr.
+  await waitForSideEffectQueueIdle();
+
   // Order matters because of FKs.
   await prisma.userActivity.deleteMany();
   await prisma.searchHistory.deleteMany();

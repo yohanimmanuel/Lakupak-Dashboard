@@ -6,6 +6,7 @@ import {
   clearGeocodeFieldsForAddressUpdate,
   normalizeAddressKey,
 } from '@/utils/addressGeocodeCache';
+import { enqueueSideEffect } from '@/lib/sideEffectQueue';
 import type { Prisma } from '@/lib/prisma-generated';
 
 export type CreateMarketplaceAddressInput = {
@@ -99,18 +100,22 @@ export const createMarketplaceAddress = async (args: { userId: number; input: Cr
   try {
     const created = mapMarketplaceAddress(await executeCreate());
     await syncMarketplaceUserToBuyerProfiles(userId);
-    void attachGeocodeToAddress(created.id, address).catch((err) => {
-      console.error('Geocode attach after address create failed:', err);
-    });
+    enqueueSideEffect(
+      'attachGeocodeToAddress(create)',
+      () => attachGeocodeToAddress(created.id, address),
+      { retries: 2 },
+    );
     return created;
   } catch (error) {
     if (isDuplicateAddressIdError(error)) {
       await resetAddressIdSequence();
       const created = mapMarketplaceAddress(await executeCreate());
       await syncMarketplaceUserToBuyerProfiles(userId);
-      void attachGeocodeToAddress(created.id, address).catch((err) => {
-        console.error('Geocode attach after address create failed:', err);
-      });
+      enqueueSideEffect(
+        'attachGeocodeToAddress(create)',
+        () => attachGeocodeToAddress(created.id, address),
+        { retries: 2 },
+      );
       return created;
     }
     throw error;
@@ -177,9 +182,12 @@ export const updateMarketplaceAddress = async (args: {
   const result = mapMarketplaceAddress(updated);
   await syncMarketplaceUserToBuyerProfiles(userId);
   if (typeof input.address === 'string') {
-    void attachGeocodeToAddress(result.id, input.address.trim()).catch((err) => {
-      console.error('Geocode attach after address update failed:', err);
-    });
+    const trimmedAddressForGeocode = input.address.trim();
+    enqueueSideEffect(
+      'attachGeocodeToAddress(update)',
+      () => attachGeocodeToAddress(result.id, trimmedAddressForGeocode),
+      { retries: 2 },
+    );
   }
   return result;
 };
