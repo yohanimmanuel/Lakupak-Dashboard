@@ -18,7 +18,7 @@
     "importAllFailed": "Import failed — {count} row(s) could not be saved.",
     "importDraftReminder": "Review and complete each draft (images, variants, details) before publishing.",
     "importFailed": "Failed to import products",
-    "importDraftProducts": "Import data"
+    "importDraftProducts": "Import Data"
   },
   "cards": {
     "totalProducts": "Total Products",
