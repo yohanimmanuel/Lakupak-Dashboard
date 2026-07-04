@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createHash } from 'crypto';
 import { prisma } from '@/lib/db';
 import { 
   validateAuthInput, 
   getSecurityHeaders 
 } from '../../../../utils/auth-security';
 import { passwordResetVerifyRateLimiter } from '../../../../utils/rateLimiter';
+import { resetCodeHashCandidates } from '@/lib/passwordResetCode';
 
 /**
  * POST /api/auth/verify-reset-code
@@ -63,7 +63,6 @@ export async function POST(req: NextRequest) {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
-    const tokenHash = createHash('sha256').update(tokenStr).digest('hex');
 
     const user = await prisma.user.findUnique({
       where: { email: normalizedEmail },
@@ -84,7 +83,7 @@ export async function POST(req: NextRequest) {
     const resetRecord = await prisma.passwordResetToken.findFirst({
       where: {
         userId: user.id,
-        tokenHash,
+        tokenHash: { in: resetCodeHashCandidates(tokenStr) },
         expiresAt: { gt: new Date() },
       },
     });

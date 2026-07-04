@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createHash } from 'crypto';
 import { hash } from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { validateAuthInput, getSecurityHeaders } from '@/utils/auth-security';
 import { passwordResetRateLimiter } from '@/utils/rateLimiter';
 import { auditAuth } from '@/lib/audit';
+import { resetCodeHashCandidates } from '@/lib/passwordResetCode';
 
 /**
  * POST /api/mobile/auth/reset-password
@@ -66,15 +66,16 @@ export async function POST(req: NextRequest) {
     }
 
     const normalizedEmail = (email as string).trim().toLowerCase();
-    const tokenHash = createHash('sha256').update(tokenStr).digest('hex');
 
     const user = await prisma.marketplaceUser.findUnique({
       where: { email: normalizedEmail },
     });
 
+    // Use the identical generic response for both "no such user" and "bad/expired
+    // token" so the endpoint cannot be used to enumerate registered marketplace emails.
     if (!user) {
       return NextResponse.json(
-        { error: 'Invalid or expired reset link. Please request a new password reset.', code: 'INVALID_OR_EXPIRED_CODE' },
+        { error: 'Invalid or expired verification code. Please request a new password reset.', code: 'INVALID_OR_EXPIRED_CODE' },
         { status: 400, headers }
       );
     }
@@ -82,7 +83,7 @@ export async function POST(req: NextRequest) {
     const resetRecord = await prisma.marketplacePasswordResetToken.findFirst({
       where: {
         marketplaceUserId: user.id,
-        tokenHash,
+        tokenHash: { in: resetCodeHashCandidates(tokenStr) },
         expiresAt: { gt: new Date() },
       },
     });
@@ -95,13 +96,36 @@ export async function POST(req: NextRequest) {
     }
 
     const hashedPassword = await hash(password as string, 12);
-    await prisma.marketplaceUser.update({
-      where: { id: user.id },
-      data: { password: hashedPassword },
+    const resetApplied = await prisma.$transaction(async (tx) => {
+      const consumed = await tx.marketplacePasswordResetToken.deleteMany({
+        where: {
+          id: resetRecord.id,
+          marketplaceUserId: user.id,
+          expiresAt: { gt: new Date() },
+        },
+      });
+
+      if (consumed.count !== 1) {
+        return false;
+      }
+
+      await tx.marketplaceUser.update({
+        where: { id: user.id },
+        data: { password: hashedPassword },
+      });
+      await tx.marketplacePasswordResetToken.deleteMany({
+        where: { marketplaceUserId: user.id },
+      });
+
+      return true;
     });
-    await prisma.marketplacePasswordResetToken.delete({
-      where: { id: resetRecord.id },
-    });
+
+    if (!resetApplied) {
+      return NextResponse.json(
+        { error: 'Invalid or expired verification code. Please request a new password reset.', code: 'INVALID_OR_EXPIRED_CODE' },
+        { status: 400, headers }
+      );
+    }
 
     auditAuth(req, {
       action: 'password.reset',

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { randomInt, createHash } from 'crypto';
+import { randomInt } from 'crypto';
 import { prisma } from '@/lib/db';
 import { 
   validateAuthInput, 
@@ -7,6 +7,7 @@ import {
 } from '../../../../utils/auth-security';
 import { passwordResetRateLimiter } from '../../../../utils/rateLimiter';
 import { sendPasswordResetEmail } from '@/lib/email';
+import { hashResetCode } from '@/lib/passwordResetCode';
 
 const RESET_TOKEN_EXPIRY_HOURS = 1;
 
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest) {
       try {
         // Cryptographically secure 6-digit verification code.
         const verificationCode = String(randomInt(100000, 1000000));
-        const tokenHash = createHash('sha256').update(verificationCode).digest('hex');
+        const tokenHash = hashResetCode(verificationCode);
         const expiresAt = new Date(Date.now() + RESET_TOKEN_EXPIRY_HOURS * 60 * 60 * 1000);
 
         // Invalidate any outstanding codes before issuing a new one.

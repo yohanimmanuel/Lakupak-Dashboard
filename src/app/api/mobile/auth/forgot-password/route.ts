@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { randomInt, createHash } from 'crypto';
+import { randomInt } from 'crypto';
 import { prisma } from '@/lib/db';
 import { validateAuthInput, getSecurityHeaders } from '@/utils/auth-security';
 import { passwordResetRateLimiter } from '@/utils/rateLimiter';
 import { sendPasswordResetEmail } from '@/lib/email';
+import { hashResetCode } from '@/lib/passwordResetCode';
 
 const RESET_TOKEN_EXPIRY_HOURS = 1;
 
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
       try {
         // 6-digit OTP for in-app entry and link — CSPRNG (Math.random is predictable)
         const verificationCode = String(randomInt(100000, 1000000));
-        const otpHash = createHash('sha256').update(verificationCode).digest('hex');
+        const otpHash = hashResetCode(verificationCode);
         const expiresAt = new Date(Date.now() + RESET_TOKEN_EXPIRY_HOURS * 60 * 60 * 1000);
 
         await prisma.marketplacePasswordResetToken.deleteMany({
