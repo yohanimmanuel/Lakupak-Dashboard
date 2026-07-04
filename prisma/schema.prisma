@@ -49,6 +49,7 @@ model User {
   distributorFollowers       DistributorFollowing[]
   fleets        Fleet[]
   drivers       Driver[]
+  passwordResetTokens PasswordResetToken[]
 
   @@index([companyId])
 }
@@ -337,6 +338,19 @@ model MarketplacePasswordResetToken {
   marketplaceUser   MarketplaceUser @relation(fields: [marketplaceUserId], references: [id], onDelete: Cascade)
 
   @@index([marketplaceUserId])
+  @@index([expiresAt])
+}
+
+/// Password reset token for dashboard (distributor) users (hashed code + expiry).
+model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  tokenHash String   // SHA-256 hash of the raw code sent by email
+  expiresAt DateTime @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
   @@index([expiresAt])
 }
 

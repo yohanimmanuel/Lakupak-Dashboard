@@ -838,6 +838,26 @@ export async function passwordResetRateLimiter(
 }
 
 /**
+ * Password reset code verification - 10 attempts per 15 minutes per email+IP.
+ * More lenient than the reset-request limiter (this is a non-consuming check used
+ * by the multi-step reset wizard) but still throttles brute-forcing the 6-digit code.
+ */
+export async function passwordResetVerifyRateLimiter(
+  req: NextRequest,
+  email: string
+): Promise<NextResponse | null> {
+  const ip = getClientIp(req);
+  const key = `password-reset-verify:${email}:${ip}`;
+
+  return rateLimit(req, {
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    maxRequests: 10,
+    message: 'Too many verification attempts. Please try again in a few minutes.',
+    keyGenerator: () => key,
+  });
+}
+
+/**
  * Orders: Creation - 100 per hour per user (or IP if userId is null)
  */
 export async function orderCreationRateLimiter(

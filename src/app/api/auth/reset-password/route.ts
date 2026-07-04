@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createHash } from 'crypto';
 import { hash } from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { 
@@ -8,6 +9,12 @@ import {
 import { passwordResetRateLimiter } from '../../../../utils/rateLimiter';
 import { auditAuth } from '@/lib/audit';
 
+/**
+ * POST /api/auth/reset-password
+ * Body: { email: string, token: string, password: string }
+ * For dashboard (distributor) users. Requires a valid, unexpired verification
+ * code previously issued by /api/auth/forgot-password.
+ */
 export async function POST(req: NextRequest) {
   const headers = getSecurityHeaders();
   
@@ -34,9 +41,9 @@ export async function POST(req: NextRequest) {
     }
     
     // Validate required fields
-    if (!email || !password) {
+    if (!email || !password || !token) {
       return NextResponse.json(
-        { error: 'Email and new password are required' }, 
+        { error: 'Email, verification code, and new password are required' }, 
         { status: 400, headers }
       );
     }
@@ -58,32 +65,57 @@ export async function POST(req: NextRequest) {
         { status: 400, headers }
       );
     }
+
+    const tokenStr = typeof token === 'string' ? token.trim() : '';
+    if (!tokenStr) {
+      return NextResponse.json(
+        { error: 'Verification code is required' },
+        { status: 400, headers }
+      );
+    }
     
     const normalizedEmail = email.trim().toLowerCase();
+    const tokenHash = createHash('sha256').update(tokenStr).digest('hex');
     
     // Find user
     const user = await prisma.user.findUnique({ 
       where: { email: normalizedEmail } 
     });
     
+    // Use a single generic error for both "no user" and "bad/expired code" so the
+    // endpoint cannot be used to enumerate accounts or probe code validity.
     if (!user) {
-      // Don't reveal if email exists
       return NextResponse.json(
-        { error: 'Invalid reset request' }, 
+        { error: 'Invalid or expired verification code. Please request a new password reset.', code: 'INVALID_OR_EXPIRED_CODE' }, 
+        { status: 400, headers }
+      );
+    }
+
+    const resetRecord = await prisma.passwordResetToken.findFirst({
+      where: {
+        userId: user.id,
+        tokenHash,
+        expiresAt: { gt: new Date() },
+      },
+    });
+
+    if (!resetRecord) {
+      return NextResponse.json(
+        { error: 'Invalid or expired verification code. Please request a new password reset.', code: 'INVALID_OR_EXPIRED_CODE' },
         { status: 400, headers }
       );
     }
     
-    // In production, validate the reset token here
-    // For MVP, we'll proceed with password reset
-    
     // Hash new password with 12 rounds (production strength)
     const hashedPassword = await hash(password, 12);
     
-    // Update user password
+    // Update password and consume the token so it cannot be replayed.
     await prisma.user.update({ 
-      where: { email: normalizedEmail }, 
+      where: { id: user.id }, 
       data: { password: hashedPassword } 
+    });
+    await prisma.passwordResetToken.deleteMany({
+      where: { userId: user.id },
     });
 
     auditAuth(req, {

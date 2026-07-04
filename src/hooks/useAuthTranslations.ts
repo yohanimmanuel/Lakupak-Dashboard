@@ -38,6 +38,8 @@ export function useAuthTranslations() {
       t(`login.${key}` as Parameters<typeof t>[0], values),
     tRegister: (key: string, values?: Record<string, string | number>) =>
       t(`register.${key}` as Parameters<typeof t>[0], values),
+    tForgot: (key: string, values?: Record<string, string | number>) =>
+      t(`forgotPassword.${key}` as Parameters<typeof t>[0], values),
     tRegisterStep: (index: number) =>
       t(`register.steps.${index}` as Parameters<typeof t>[0]),
     tRegisterError: (key: string, values?: Record<string, string | number>) =>
