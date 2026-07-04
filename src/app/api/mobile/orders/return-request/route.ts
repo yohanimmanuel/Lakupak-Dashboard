@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
       await sendExpoPushToMarketplaceUser(marketplaceUserId, returnTranslations, payload);
       const wsLang = await getMarketplaceUserPushLanguage(marketplaceUserId);
       const wsCopy = returnTranslations[wsLang];
-      await broadcastNotification('order', wsCopy.title, wsCopy.body, payload, marketplaceUserId);
+      await broadcastNotification('order', wsCopy.title, wsCopy.body, payload, marketplaceUserId, 'marketplace');
     } catch {
       // Don't fail the return request if notification fails
     }

@@ -7,7 +7,13 @@ import { parsePrice } from '@/utils/currencyUtils';
 import { parseMarketplaceUserIdFromBuyerId } from '@/utils/buyerSync';
 import { orderUpdateRateLimiter } from '@/utils/rateLimiter';
 import { auditOrder } from '@/lib/audit';
-import { decimalToNumber, calculateTotalQuantityWithPromotions } from './utils';
+import {
+  decimalToNumber,
+  calculateTotalQuantityWithPromotions,
+  restoreStockForOrderItems,
+  STOCK_NO_DEDUCT_STATUSES,
+  type StockNotificationJob,
+} from './utils';
 import { getUnitPriceFromVariantOption, selectVariantOption } from '@/domain/marketplace/orderItemRules';
 import {
   enqueueBroadcastOrderUpdates,
@@ -403,11 +409,43 @@ export async function updateOrderHandler(request: NextRequest) {
         ? body.reasonDetail.trim()
         : null;
 
+      // If the order already had stock deducted (any status outside the no-deduct set, i.e.
+      // Confirmed among the cancellable statuses), cancelling must return that stock. The
+      // generic orderStatus path handles this, but this dedicated cancel branch previously did
+      // not — silently leaking inventory when a Confirmed order was cancelled here.
+      const shouldRestoreStock = !(
+        STOCK_NO_DEDUCT_STATUSES as readonly string[]
+      ).includes(existingOrder.orderStatus);
+
       try {
-        const updatedOrder = await prisma.order.update({
-          where: whereClause,
-          data: updateData
-        });
+        const { updatedOrder, stockNotificationJobs } = await prisma.$transaction(
+          async (tx: Prisma.TransactionClient) => {
+            const stockJobs: StockNotificationJob[] = [];
+
+            if (shouldRestoreStock) {
+              const itemsForStockRestore = await tx.orderItem.findMany({
+                where: { orderId: existingOrder.orderId },
+                select: {
+                  productId: true,
+                  variantOptionId: true,
+                  variantId: true,
+                  packageQuantity: true,
+                  piecesPerPackage: true,
+                  promotionDetailsSnapshot: true,
+                  moqSnapshot: true,
+                },
+              });
+              stockJobs.push(...(await restoreStockForOrderItems(tx, itemsForStockRestore)));
+            }
+
+            const updated = await tx.order.update({
+              where: whereClause,
+              data: updateData,
+            });
+
+            return { updatedOrder: updated, stockNotificationJobs: stockJobs };
+          },
+        );
 
         // Persist structured cancel data (marketplace buyer id from order's buyerId)
         const orderBuyerMarketplaceId = parseMarketplaceUserIdFromBuyerId(updatedOrder.buyerId);
@@ -434,6 +472,7 @@ export async function updateOrderHandler(request: NextRequest) {
         scheduleOrderCancelPostCommitEffects(
           updatedOrder,
           marketplaceUserId ?? ownerScopeUserId ?? updatedOrder.userId ?? undefined,
+          stockNotificationJobs,
         );
 
         auditOrder(request, {
@@ -703,7 +742,7 @@ export async function updateOrderHandler(request: NextRequest) {
             },
           });
 
-          const noDeductStatuses = ['Pending', 'Cancelled', 'Returned', 'Failed'];
+          const noDeductStatuses = STOCK_NO_DEDUCT_STATUSES as readonly string[];
           const prevStatusNoDeduct = noDeductStatuses.includes(prevStatus);
           const nextStatusNoDeduct = noDeductStatuses.includes(nextStatus);
 
@@ -711,90 +750,9 @@ export async function updateOrderHandler(request: NextRequest) {
           if (!prevStatusNoDeduct && nextStatusNoDeduct && orderWithItems) {
             const itemsForStockRestore =
               orderItemsBeforeReplacement ?? orderWithItems.orderItemsRel;
-            for (const orderItem of itemsForStockRestore) {
-            if (!orderItem.productId) continue;
-            
-            // Calculate total quantity to restore (including free items from promotion)
-            const totalQtyToRestore = calculateTotalQuantityWithPromotions(orderItem);
-            
-            // Get the product and variant for stock restoration
-            const productForRestore = await tx.product.findFirst({
-              where: { productId: orderItem.productId || '' },
-              include: { variantOptions: true, variants: true }
-            });
-            
-            if (!productForRestore) {
-              continue; // Skip if product not found
-            }
-            
-            // Find the specific variant to restore stock to
-            let variantToRestore = null;
-            
-            // First try variantOptionId (most accurate)
-            if (orderItem.variantOptionId) {
-              variantToRestore = productForRestore.variantOptions.find(
-                (v: { id: number }) => v.id === orderItem.variantOptionId
-              ) || null;
-            }
-            
-            // If not found, try variantId
-            if (!variantToRestore && orderItem.variantId) {
-              variantToRestore = productForRestore.variantOptions.find(
-                (v: { id: number }) => v.id === orderItem.variantId
-              ) || null;
-            }
-            
-            // Do not fall back to "first variant" because it can update the wrong SKU.
-            if (!variantToRestore) {
-              console.warn(
-                '[Orders] Stock restore skipped: variant not found',
-                JSON.stringify({
-                  productId: orderItem.productId,
-                  variantOptionId: orderItem.variantOptionId ?? null,
-                  variantId: orderItem.variantId ?? null,
-                }),
-              );
-              continue;
-            }
-            
-            // Restore stock at variant level (piece-based system)
-            const previousStock = (variantToRestore as { stockQuantity?: number }).stockQuantity || 0;
-            const restored = await tx.variantOption.update({
-              where: { id: (variantToRestore as { id: number }).id },
-              data: {
-                stockQuantity: { increment: totalQtyToRestore },
-              },
-              select: { stockQuantity: true, lowStockThreshold: true, stockStatus: true, variantName: true },
-            });
-            const newStock = restored.stockQuantity ?? previousStock + totalQtyToRestore;
-            const lowStockThreshold = restored.lowStockThreshold || 0;
-            let newStockStatus = 'In Stock';
-            if (newStock <= 0) {
-              newStockStatus = 'Out of Stock';
-            } else if (lowStockThreshold > 0 && newStock <= lowStockThreshold) {
-              newStockStatus = 'Low Stock';
-            }
-            if (newStockStatus !== restored.stockStatus) {
-              await tx.variantOption.update({
-                where: { id: (variantToRestore as { id: number }).id },
-                data: { stockStatus: newStockStatus },
-              });
-            }
-
-            // Check and notify if stock level crossed a threshold
-            if (productForRestore && productForRestore.userId) {
-              const variantName = (variantToRestore as { variantName?: string }).variantName || undefined;
-              stockNotificationJobs.push({
-                userId: productForRestore.userId,
-                productId: productForRestore.productId,
-                productName: productForRestore.name,
-                previousStock,
-                newStock,
-                lowStockThreshold,
-                variantName,
-              });
-            }
-          }
+            stockNotificationJobs.push(
+              ...(await restoreStockForOrderItems(tx, itemsForStockRestore)),
+            );
         }
         
         // DEDUCT STOCK: Moving FROM Pending, Cancelled, or Returned TO any other status

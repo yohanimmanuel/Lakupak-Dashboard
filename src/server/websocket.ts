@@ -25,10 +25,19 @@ import {
   getClientIp 
 } from '../utils/rateLimiter';
 
+/**
+ * Which account namespace a connection's `userId` belongs to. Dashboard users,
+ * marketplace buyers, and drivers each have independent id sequences, so the same
+ * numeric id can exist in every namespace — targeting must compare this too.
+ */
+export type WsPrincipalType = 'dashboard' | 'marketplace' | 'driver' | 'platform-admin' | 'unknown';
+
 interface ClientConnection {
   ws: WebSocket;
   userId: number | null;
   isAlive: boolean;
+  /** Namespace of `userId` (from the JWT `type` claim / platform-admin token). */
+  principalType: WsPrincipalType;
   /** True when JWT is a platform admin session (distinct from dashboard User.id). */
   isPlatformAdmin?: boolean;
 }
@@ -68,6 +77,8 @@ interface WebSocketMessage {
     body: string;
     data?: Record<string, unknown>;
     targetUserId?: number;
+    /** Account namespace the target id belongs to; prevents cross-principal delivery. */
+    targetType?: WsPrincipalType;
   };
 }
 
@@ -115,7 +126,8 @@ class MarketplaceWebSocketServer {
                   data.notification?.title || '',
                   data.notification?.body || '',
                   data.notification?.data,
-                  data.notification?.targetUserId
+                  data.notification?.targetUserId,
+                  data.notification?.targetType
                 );
               } else if (data.type === 'platform_announcement_published' && data.announcement) {
                 this.broadcastPlatformAnnouncementPublished(data.announcement as PlatformAnnouncementWsPayload);
@@ -163,6 +175,7 @@ class MarketplaceWebSocketServer {
         let token: string | null = null;
         let userId: number | null = null;
         let isPlatformAdmin = false;
+        let principalType: WsPrincipalType = 'unknown';
 
         try {
           const url = new URL(request.url || '', `http://${request.headers.host}`);
@@ -192,12 +205,16 @@ class MarketplaceWebSocketServer {
             const pa = verifyPlatformAdminToken(cleanToken);
             userId = pa.sub;
             isPlatformAdmin = true;
+            principalType = 'platform-admin';
           } catch (err) {
             if (err instanceof Error && err.message?.includes('secret')) {
               throw err;
             }
             const payload = verifyAccessToken(cleanToken);
             userId = payload.sub;
+            // Legacy tokens omit `type`; such clients simply won't receive
+            // namespace-targeted notifications until they re-authenticate.
+            principalType = payload.type ?? 'unknown';
           }
         } catch (error) {
           ws.close(1008, 'Invalid token');
@@ -215,6 +232,7 @@ class MarketplaceWebSocketServer {
           ws,
           userId,
           isAlive: true,
+          principalType,
           isPlatformAdmin,
         };
 
@@ -402,7 +420,8 @@ class MarketplaceWebSocketServer {
     title: string,
     body: string,
     data?: Record<string, unknown>,
-    targetUserId?: number
+    targetUserId?: number,
+    targetType?: WsPrincipalType
   ): void {
     const message: WebSocketMessage = {
       type: 'notification',
@@ -411,30 +430,39 @@ class MarketplaceWebSocketServer {
         title,
         body,
         data,
-        targetUserId
+        targetUserId,
+        targetType
       }
     };
 
     // If targetUserId is specified, only send to that user
     if (targetUserId) {
-      this.broadcastToUser(message, targetUserId);
+      this.broadcastToUser(message, targetUserId, targetType);
     } else {
       this.broadcast(message);
     }
   }
 
-  // Broadcast message to a specific user
-  private broadcastToUser(message: WebSocketMessage, userId: number): void {
+  // Broadcast message to a specific user within a principal namespace.
+  private broadcastToUser(
+    message: WebSocketMessage,
+    userId: number,
+    targetType?: WsPrincipalType,
+  ): void {
     const messageStr = JSON.stringify(message);
 
     this.clients.forEach((client) => {
-      if (client.userId === userId && client.ws.readyState === WebSocket.OPEN) {
-        try {
-          client.ws.send(messageStr);
-        } catch (error) {
-          // Client disconnected, remove it
-          this.clients.delete(client);
-        }
+      if (client.userId !== userId) return;
+      // When the caller declares the target namespace, require an exact match so a
+      // buyer / driver / dashboard user sharing the same numeric id can't receive
+      // each other's notifications. Missing targetType keeps legacy id-only routing.
+      if (targetType && client.principalType !== targetType) return;
+      if (client.ws.readyState !== WebSocket.OPEN) return;
+      try {
+        client.ws.send(messageStr);
+      } catch (error) {
+        // Client disconnected, remove it
+        this.clients.delete(client);
       }
     });
   }

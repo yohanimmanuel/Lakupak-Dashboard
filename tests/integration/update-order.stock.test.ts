@@ -353,6 +353,240 @@ describe('orders update - stock deduct/restore', () => {
     expect(updatedVariant?.stockQuantity).toBe(10);
   });
 
+  it('restores stock when cancelling a Confirmed order via the cancel:true path', async () => {
+    const distributor = await prisma.user.create({
+      data: { email: 'dist-cancel-stock@example.com', password: 'x' },
+      select: { id: true },
+    });
+
+    const product = await prisma.product.create({
+      data: {
+        productId: 'P-CANCEL-STOCK-1',
+        sku: 'SKU-CANCEL-STOCK-1',
+        name: 'Cancel Stock Product',
+        description: 'Test',
+        productType: 'TestType',
+        brand: 'TestBrand',
+        supplier: 'TestSupplier',
+        status: 'Published',
+        productCategory: 'Retail',
+        catalogName: 'Default',
+        images: [],
+        marketplaceStatus: 'Published',
+        userId: distributor.id,
+      },
+      select: { id: true, productId: true },
+    });
+
+    const variant = await prisma.variantOption.create({
+      data: {
+        productId: product.id,
+        variantName: 'Default',
+        attributes: {},
+        purchasePrice: 1000,
+        sellingPrice: 2000,
+        originalSellingPrice: 2000,
+        moq: 1,
+        stockQuantity: 8, // 2 pieces already deducted at Pending -> Confirmed
+        lowStockThreshold: 0,
+        stockStatus: 'In Stock',
+        isDefault: true,
+        isActive: true,
+      },
+      select: { id: true },
+    });
+
+    const orderId = 'LKO-CANCEL-STOCK-1';
+    await prisma.order.create({
+      data: {
+        orderId,
+        orderDate: new Date(),
+        orderStatus: 'Confirmed',
+        paymentStatus: 'Unpaid',
+        deliveryMethod: 'Seller/Distributor Delivery',
+        deliveryOption: null,
+        subtotal: 2000,
+        discounts: 0,
+        shippingFee: 0,
+        totalAmount: 2000,
+        paymentTerms: 'Cash on Delivery',
+        totalOrders: 1,
+        contactPerson: 'Tester',
+        storeName: 'Test Store',
+        contactPhone: '123',
+        customerEmail: null,
+        deliveryAddress: 'Addr',
+        preferredDeliveryDate: null,
+        preferredDeliveryTime: null,
+        preferredPickupDate: null,
+        preferredPickupTime: null,
+        shippingMethodLabel: null,
+        shippingMethod: null,
+        userId: distributor.id,
+        buyerId: null,
+        buyerIdSnapshot: null,
+        contactPersonSnapshot: null,
+        contactPhoneSnapshot: null,
+        customerEmailSnapshot: null,
+        deliveryAddressSnapshot: null,
+        orderDateSnapshot: null,
+        storeNameSnapshot: null,
+      },
+    });
+
+    await prisma.orderItem.create({
+      data: {
+        orderId,
+        productId: product.productId,
+        subtotal: 2000,
+        packageType: 'Box',
+        piecesPerPackage: 1,
+        packageQuantity: 2, // restore 2 pieces
+        pricePerPackage: 1000,
+        productNameSnapshot: 'Cancel Stock Product',
+        productSkuSnapshot: 'SKU-CANCEL-STOCK-1',
+        productTypeSnapshot: 'TestType',
+        variantOptionId: variant.id,
+        variantNameSnapshot: 'Default',
+        offerApplied: false,
+        promotionDetailsSnapshot: null,
+        moqSnapshot: 1,
+      },
+    });
+
+    const res = await updateOrderHandler(
+      makeAuthenticatedDashboardPutRequest('http://localhost/api/orders', {
+        cancel: true,
+        orderId,
+        reason: 'Seller cancelled',
+        reasonCode: 'seller_issues',
+      }, distributor.id),
+    );
+
+    expect(res.status).toBe(200);
+    const updatedOrder = await prisma.order.findFirst({ where: { orderId } });
+    expect(updatedOrder?.orderStatus).toBe('Cancelled');
+    const updatedVariant = await prisma.variantOption.findUnique({ where: { id: variant.id } });
+    expect(updatedVariant?.stockQuantity).toBe(10);
+  });
+
+  it('does not change stock when cancelling a Pending order via the cancel:true path', async () => {
+    const distributor = await prisma.user.create({
+      data: { email: 'dist-cancel-pending@example.com', password: 'x' },
+      select: { id: true },
+    });
+
+    const product = await prisma.product.create({
+      data: {
+        productId: 'P-CANCEL-PENDING-1',
+        sku: 'SKU-CANCEL-PENDING-1',
+        name: 'Cancel Pending Product',
+        description: 'Test',
+        productType: 'TestType',
+        brand: 'TestBrand',
+        supplier: 'TestSupplier',
+        status: 'Published',
+        productCategory: 'Retail',
+        catalogName: 'Default',
+        images: [],
+        marketplaceStatus: 'Published',
+        userId: distributor.id,
+      },
+      select: { id: true, productId: true },
+    });
+
+    const variant = await prisma.variantOption.create({
+      data: {
+        productId: product.id,
+        variantName: 'Default',
+        attributes: {},
+        purchasePrice: 1000,
+        sellingPrice: 2000,
+        originalSellingPrice: 2000,
+        moq: 1,
+        stockQuantity: 10, // Pending never deducted, so cancel must not change stock
+        lowStockThreshold: 0,
+        stockStatus: 'In Stock',
+        isDefault: true,
+        isActive: true,
+      },
+      select: { id: true },
+    });
+
+    const orderId = 'LKO-CANCEL-PENDING-1';
+    await prisma.order.create({
+      data: {
+        orderId,
+        orderDate: new Date(),
+        orderStatus: 'Pending',
+        paymentStatus: 'Unpaid',
+        deliveryMethod: 'Seller/Distributor Delivery',
+        deliveryOption: null,
+        subtotal: 2000,
+        discounts: 0,
+        shippingFee: 0,
+        totalAmount: 2000,
+        paymentTerms: 'Cash on Delivery',
+        totalOrders: 1,
+        contactPerson: 'Tester',
+        storeName: 'Test Store',
+        contactPhone: '123',
+        customerEmail: null,
+        deliveryAddress: 'Addr',
+        preferredDeliveryDate: null,
+        preferredDeliveryTime: null,
+        preferredPickupDate: null,
+        preferredPickupTime: null,
+        shippingMethodLabel: null,
+        shippingMethod: null,
+        userId: distributor.id,
+        buyerId: null,
+        buyerIdSnapshot: null,
+        contactPersonSnapshot: null,
+        contactPhoneSnapshot: null,
+        customerEmailSnapshot: null,
+        deliveryAddressSnapshot: null,
+        orderDateSnapshot: null,
+        storeNameSnapshot: null,
+      },
+    });
+
+    await prisma.orderItem.create({
+      data: {
+        orderId,
+        productId: product.productId,
+        subtotal: 2000,
+        packageType: 'Box',
+        piecesPerPackage: 1,
+        packageQuantity: 2,
+        pricePerPackage: 1000,
+        productNameSnapshot: 'Cancel Pending Product',
+        productSkuSnapshot: 'SKU-CANCEL-PENDING-1',
+        productTypeSnapshot: 'TestType',
+        variantOptionId: variant.id,
+        variantNameSnapshot: 'Default',
+        offerApplied: false,
+        promotionDetailsSnapshot: null,
+        moqSnapshot: 1,
+      },
+    });
+
+    const res = await updateOrderHandler(
+      makeAuthenticatedDashboardPutRequest('http://localhost/api/orders', {
+        cancel: true,
+        orderId,
+        reason: 'Changed mind',
+        reasonCode: 'changed_mind',
+      }, distributor.id),
+    );
+
+    expect(res.status).toBe(200);
+    const updatedOrder = await prisma.order.findFirst({ where: { orderId } });
+    expect(updatedOrder?.orderStatus).toBe('Cancelled');
+    const updatedVariant = await prisma.variantOption.findUnique({ where: { id: variant.id } });
+    expect(updatedVariant?.stockQuantity).toBe(10);
+  });
+
   it('restores stock from pre-replacement items when cancelling and rebuilding line items', async () => {
     const distributor = await prisma.user.create({
       data: { email: 'dist4@example.com', password: 'x' },

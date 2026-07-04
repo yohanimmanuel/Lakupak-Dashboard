@@ -132,11 +132,18 @@ export async function broadcastOrderUpdate(orderIds: string[]): Promise<void> {
 }
 
 /**
+ * Account namespace a targeted notification's id belongs to. Dashboard users,
+ * marketplace buyers, and drivers have independent id spaces, so this must be passed
+ * with every targeted notification to prevent cross-principal delivery.
+ */
+export type WsNotificationTargetType = 'dashboard' | 'marketplace' | 'driver';
+
+/**
  * Notify a dashboard user that a new notification was created (real-time).
  * Sends to WebSocket clients with matching userId so the Dashboard can refetch.
  */
 export async function broadcastDashboardNotification(userId: number): Promise<void> {
-  return broadcastNotification('dashboard_new', 'New notification', '', { hint: 'refetch' }, userId);
+  return broadcastNotification('dashboard_new', 'New notification', '', { hint: 'refetch' }, userId, 'dashboard');
 }
 
 export type PlatformAnnouncementBroadcastPayload = {
@@ -210,14 +217,15 @@ export async function broadcastNotification(
   body: string,
   data?: Record<string, unknown>,
   targetUserId?: number,
+  targetType?: WsNotificationTargetType,
 ): Promise<void> {
   try {
     await dispatchBroadcast(
       {
         type: 'notification',
-        notification: { type, title, body, data, targetUserId },
+        notification: { type, title, body, data, targetUserId, targetType },
       },
-      () => wsServer.broadcastNotification(type, title, body, data, targetUserId),
+      () => wsServer.broadcastNotification(type, title, body, data, targetUserId, targetType),
     );
   } catch {
     // best-effort

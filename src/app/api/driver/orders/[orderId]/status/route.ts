@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import type { PrismaClient } from '@prisma/client';
+import { Prisma } from '@/lib/prisma-generated';
 import { getSecurityHeaders } from '../../../../../../utils/auth-security';
 import jwt from 'jsonwebtoken';
 import { broadcastOrderUpdate, broadcastNotification } from '@/utils/websocketBroadcast';
 import { NotificationService } from '@/app/api/graphql/modules/notifications';
 import { driverMutationRateLimiter } from '@/utils/rateLimiter';
 import { auditOrder } from '@/lib/audit';
+import {
+  restoreStockForOrderItems,
+  STOCK_NO_DEDUCT_STATUSES,
+  type StockNotificationJob,
+} from '@/services/orders/utils';
 
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
@@ -264,10 +270,58 @@ export async function PATCH(
       updateData.cancellationReason = `[Delivery failed] ${failureReason}${evidenceNote}`;
     }
 
-    const updated = await prisma.order.update({
-      where: { orderId: orderId.trim() },
-      data: updateData,
-    });
+    // A driver-marked "Failed" delivery moves the order OUT of a stock-deducted status
+    // (Packed/Shipped) into Failed (no-deduct), so the reserved inventory must be returned.
+    // Do the restore + status write atomically to avoid losing stock on this path.
+    const shouldRestoreStock =
+      orderStatus === 'Failed' &&
+      !(STOCK_NO_DEDUCT_STATUSES as readonly string[]).includes(currentStatus);
+
+    const { updated, stockNotificationJobs } = await prisma.$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        const stockJobs: StockNotificationJob[] = [];
+
+        if (shouldRestoreStock) {
+          const itemsForStockRestore = await tx.orderItem.findMany({
+            where: { orderId: orderId.trim() },
+            select: {
+              productId: true,
+              variantOptionId: true,
+              variantId: true,
+              packageQuantity: true,
+              piecesPerPackage: true,
+              promotionDetailsSnapshot: true,
+              moqSnapshot: true,
+            },
+          });
+          stockJobs.push(...(await restoreStockForOrderItems(tx, itemsForStockRestore)));
+        }
+
+        const updatedOrder = await tx.order.update({
+          where: { orderId: orderId.trim() },
+          data: updateData,
+        });
+
+        return { updated: updatedOrder, stockNotificationJobs: stockJobs };
+      },
+    );
+
+    // Notify the distributor of any low-stock threshold crossed by the restore (best-effort).
+    for (const job of stockNotificationJobs) {
+      try {
+        await NotificationService.checkAndNotifyStockLevel(
+          job.userId,
+          job.productId,
+          job.productName,
+          job.previousStock,
+          job.newStock,
+          job.lowStockThreshold,
+          job.variantName,
+        );
+      } catch {
+        // best-effort
+      }
+    }
 
     // Broadcast order update so marketplace + dashboards refresh
     try {
@@ -350,6 +404,7 @@ export async function PATCH(
             driverPushTranslations.en.body,
             payload,
             marketplaceUserId,
+            'marketplace',
           );
         }
       }

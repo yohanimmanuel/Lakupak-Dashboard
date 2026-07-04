@@ -68,6 +68,8 @@ export default function LoginPage() {
     const err = searchParams?.get('error');
     if (err === 'ACCOUNT_SUSPENDED') {
       handleError({ error: tLogin('accountSuspended') });
+    } else if (err === 'TOO_MANY_ATTEMPTS') {
+      handleError({ error: tLogin('tooManyAttempts') });
     }
   }, [searchParams, handleError, tLogin]);
 
@@ -111,6 +113,8 @@ export default function LoginPage() {
       if (result?.error) {
         if (result.error === 'ACCOUNT_SUSPENDED') {
           handleError({ error: tLogin('accountSuspended') });
+        } else if (result.error === 'TOO_MANY_ATTEMPTS') {
+          handleError({ error: tLogin('tooManyAttempts') });
         } else {
           handleError({ error: tLogin('invalidCredentials') });
         }

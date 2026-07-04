@@ -133,6 +133,7 @@ export async function POST(
           `Order #${order.orderId}: buyer initiated payment. Verify incoming transfer and mark as Paid when received.${proofNote}`,
           { orderId: order.orderId, type: 'payment' },
           distributorUserId,
+          'dashboard',
         );
       } catch {
         // best-effort
@@ -159,6 +160,7 @@ export async function POST(
           `Order #${order.orderId}: buyer updated payment proof. Review the new receipt.`,
           { orderId: order.orderId, type: 'payment' },
           distributorUserId,
+          'dashboard',
         );
       } catch {
         // best-effort
@@ -181,6 +183,7 @@ export async function POST(
             payIntentTranslations.en.body,
             payload,
             marketplaceUserId,
+            'marketplace',
           );
         }
       } catch {

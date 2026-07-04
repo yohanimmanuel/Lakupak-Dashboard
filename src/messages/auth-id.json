@@ -52,6 +52,7 @@
       "loginFailed": "Gagal masuk. Silakan coba lagi.",
       "networkError": "Kesalahan jaringan. Periksa koneksi Anda dan coba lagi.",
       "accountSuspended": "Akun Anda ditangguhkan. Silakan hubungi dukungan.",
+      "tooManyAttempts": "Terlalu banyak percobaan masuk. Silakan coba lagi dalam beberapa menit.",
       "goHome": "Ke beranda",
       "logoAlt": "Logo Laku",
       "welcomeBack": "Selamat datang kembali, {name}",

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { randomBytes, createHash } from 'crypto';
+import { randomInt, createHash } from 'crypto';
 import { prisma } from '@/lib/db';
 import { validateAuthInput, getSecurityHeaders } from '@/utils/auth-security';
 import { passwordResetRateLimiter } from '@/utils/rateLimiter';
@@ -52,10 +52,8 @@ export async function POST(req: NextRequest) {
 
     if (marketplaceUser) {
       try {
-        // 6-digit OTP for in-app entry and link
-        const verificationCode = String(
-          Math.floor(100000 + Math.random() * 900000)
-        );
+        // 6-digit OTP for in-app entry and link — CSPRNG (Math.random is predictable)
+        const verificationCode = String(randomInt(100000, 1000000));
         const otpHash = createHash('sha256').update(verificationCode).digest('hex');
         const expiresAt = new Date(Date.now() + RESET_TOKEN_EXPIRY_HOURS * 60 * 60 * 1000);
 

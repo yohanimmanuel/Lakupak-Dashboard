@@ -653,6 +653,7 @@ export const logisticsResolvers = {
           `Fleet ${row.fleetCode} has been assigned to you.`,
           { fleetId: row.id, fleetCode: row.fleetCode },
           row.driverId,
+          'driver',
         ).catch(() => {});
       }
 
@@ -791,6 +792,7 @@ export const logisticsResolvers = {
           `Fleet ${fleetCode} has been assigned to you.`,
           { fleetId: row.id, fleetCode },
           driverIdUpdate,
+          'driver',
         ).catch(() => {});
       }
 
@@ -806,6 +808,7 @@ export const logisticsResolvers = {
           `Delivery route for fleet ${row.fleetCode} was updated.`,
           { fleetId: row.id, fleetCode: row.fleetCode, hint: 'refetch' },
           row.driverId,
+          'driver',
         ).catch(() => {});
       }
 
@@ -834,6 +837,7 @@ export const logisticsResolvers = {
             `New orders were added to fleet ${row.fleetCode}.`,
             { fleetId: row.id, fleetCode: row.fleetCode, hint: 'refetch' },
             row.driverId,
+            'driver',
           ).catch(() => {});
         }
       }

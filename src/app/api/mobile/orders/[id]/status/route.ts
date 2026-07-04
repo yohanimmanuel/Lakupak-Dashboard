@@ -158,6 +158,7 @@ export async function PUT(
           receivedTranslations.en.body,
           payload,
           marketplaceUserId,
+          'marketplace',
         );
       }
     } catch {

@@ -4,6 +4,24 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db";
 import { compare } from "bcryptjs";
+import type { NextRequest } from "next/server";
+import { loginRateLimiter } from "@/utils/rateLimiter";
+
+/**
+ * NextAuth's `authorize(credentials, req)` passes a partial request whose `headers`
+ * is a plain object. Adapt it to the minimal shape the rate limiter needs — a
+ * `Headers` instance exposing `.get()` for client-IP extraction.
+ */
+function toRateLimitRequest(req: unknown): NextRequest {
+  const raw =
+    (req as { headers?: Record<string, string | string[] | undefined> } | undefined)?.headers ?? {};
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(raw)) {
+    if (Array.isArray(value)) headers.set(key, value.join(","));
+    else if (typeof value === "string") headers.set(key, value);
+  }
+  return { headers } as unknown as NextRequest;
+}
 
 const raw = process.env.AUTH_SECRET;
 if (typeof raw !== "string" || raw.trim() === "") {
@@ -30,9 +48,16 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" }
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) {
           return null;
+        }
+
+        // Throttle brute-force password guessing from the browser login form.
+        // Parity with the mobile/driver login routes, which all apply loginRateLimiter.
+        const rateLimited = await loginRateLimiter(toRateLimitRequest(req));
+        if (rateLimited) {
+          throw new Error("TOO_MANY_ATTEMPTS");
         }
 
         const email = credentials.email.trim().toLowerCase();

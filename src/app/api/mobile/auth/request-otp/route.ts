@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { randomInt } from 'crypto';
 import { getSecurityHeaders } from '../../../../../utils/auth-security';
 import { twilioClient, waFrom, smsFrom } from '../../../../../lib/twilio';
 import { otpRateLimiter } from '../../../../../utils/rateLimiter';
@@ -53,8 +54,8 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // Generate OTP code
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate OTP code with a CSPRNG (Math.random is predictable and unsuitable for secrets)
+    const otpCode = String(randomInt(100000, 1000000));
     const ipAddress =
       req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
       req.headers.get('x-real-ip') ||

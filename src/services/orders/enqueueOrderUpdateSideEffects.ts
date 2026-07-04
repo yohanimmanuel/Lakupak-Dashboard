@@ -20,6 +20,7 @@ import {
 } from '@/utils/marketplacePushTranslations';
 import { NotificationService } from '@/app/api/graphql/modules/notifications';
 import { broadcastSoldCountUpdates, decimalToNumber } from './utils';
+import type { StockNotificationJob } from './utils';
 
 const SIDE_EFFECT_OPTS = { retries: 2 } as const;
 
@@ -31,7 +32,7 @@ async function broadcastMarketplaceWsFallback(
 ) {
   const wsLang = await getMarketplaceUserPushLanguage(marketplaceUserId);
   const wsCopy = translations[wsLang] ?? translations.en;
-  await broadcastNotification(type, wsCopy.title, wsCopy.body, payload, marketplaceUserId);
+  await broadcastNotification(type, wsCopy.title, wsCopy.body, payload, marketplaceUserId, 'marketplace');
 }
 
 export { broadcastMarketplaceWsFallback };
@@ -57,16 +58,6 @@ export function enqueueSoldCountBroadcast(orderId: string, label: string) {
     SIDE_EFFECT_OPTS,
   );
 }
-
-type StockNotificationJob = {
-  userId: number;
-  productId: string;
-  productName: string;
-  previousStock: number;
-  newStock: number;
-  lowStockThreshold: number;
-  variantName?: string;
-};
 
 type OrderUpdatePostCommitInput = {
   order: {
@@ -252,7 +243,26 @@ export function scheduleOrderCancelPostCommitEffects(updatedOrder: {
   userId: number | null;
   storeName: string | null;
   totalAmount: unknown;
-}, bodyUserId: number | undefined) {
+}, bodyUserId: number | undefined, stockNotificationJobs: StockNotificationJob[] = []) {
+  // Dispatch low-stock notifications for any inventory returned by the cancel (Confirmed → Cancelled).
+  for (const job of stockNotificationJobs) {
+    enqueueSideEffect(
+      `stockNotification(cancel:${job.productId})`,
+      async () => {
+        await NotificationService.checkAndNotifyStockLevel(
+          job.userId,
+          job.productId,
+          job.productName,
+          job.previousStock,
+          job.newStock,
+          job.lowStockThreshold,
+          job.variantName,
+        );
+      },
+      SIDE_EFFECT_OPTS,
+    );
+  }
+
   if (updatedOrder.buyerId && bodyUserId) {
     const buyerId = updatedOrder.buyerId;
     const userId = bodyUserId;

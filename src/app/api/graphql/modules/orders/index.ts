@@ -305,15 +305,20 @@ const fetchOrdersConnection = async (args: {
 
 const fetchMarketplaceOrdersConnection = async (args: {
   marketplaceUserId: number;
+  sellerUserId: number;
   page?: number;
   limit?: number;
 }) => {
-  const { marketplaceUserId, page = 1, limit = 10 } = args;
+  const { marketplaceUserId, sellerUserId, page = 1, limit = 10 } = args;
   const { page: safePage, limit: safeLimit } = sanitizePagination(page, limit, 100);
 
   const baseBuyerId = buildMobileBuyerId(marketplaceUserId);
 
+  // Seller-scoped: a distributor may only read orders that this marketplace buyer placed
+  // WITH THEM. Without the userId filter, `buyerId startsWith LKB-<id>` matches the buyer's
+  // per-distributor rows across every distributor, leaking cross-tenant order history + PII.
   const whereClause = {
+    userId: sellerUserId,
     buyerId: { startsWith: baseBuyerId },
   };
 
@@ -341,11 +346,11 @@ export const ordersResolvers = {
     orders: withDashboardAuth(fetchOrdersConnection),
     marketplaceOrders: async (
       _: unknown,
-      args: Parameters<typeof fetchMarketplaceOrdersConnection>[0],
+      args: { marketplaceUserId: number; page?: number; limit?: number },
       ctx: unknown,
     ) => {
-      requireDashboardUser(ctx);
-      return fetchMarketplaceOrdersConnection(args);
+      const sellerUserId = requireDashboardUser(ctx);
+      return fetchMarketplaceOrdersConnection({ ...args, sellerUserId });
     },
   },
 };
