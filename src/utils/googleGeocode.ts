@@ -89,6 +89,42 @@ export async function geocodeWithGoogle(
   };
 }
 
+/**
+ * Reverse-geocode GPS coordinates into a formatted address (server-side only).
+ * The coordinates come from the device GPS, so we keep them as the pin and only
+ * borrow Google's formatted_address for the human-readable text.
+ */
+export async function reverseGeocodeWithGoogle(
+  latitude: number,
+  longitude: number,
+  apiKey: string,
+): Promise<GoogleGeocodeResult> {
+  const params = new URLSearchParams({
+    latlng: `${latitude},${longitude}`,
+    key: apiKey,
+  });
+
+  const url = `https://maps.googleapis.com/maps/api/geocode/json?${params.toString()}`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+  if (!res.ok) {
+    return { coordinates: { latitude, longitude }, address: '', precision: 'exact' };
+  }
+
+  const data = (await res.json()) as GoogleGeocodeResponse;
+  if (data.status !== 'OK' || !data.results?.length) {
+    return { coordinates: { latitude, longitude }, address: '', precision: 'exact' };
+  }
+
+  // Prefer the most specific result (street address) over broad areas.
+  const top = data.results[0];
+
+  return {
+    coordinates: { latitude, longitude },
+    address: top.formatted_address,
+    precision: 'exact',
+  };
+}
+
 export function getGoogleMapsApiKey(): string | null {
   const key =
     process.env.GOOGLE_MAPS_API_KEY?.trim() ||
