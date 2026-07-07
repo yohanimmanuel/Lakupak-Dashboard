@@ -57,12 +57,10 @@ export default function LandingLayout({
             {/* Support */}
             <div className="animate-fade-in-up animate-delay-400">
               <h3 className="text-lg font-semibold mb-4">{t("support.title")}</h3>
-              <ul className="space-y-3">
-                <li><a href="#help" className="text-gray-400 hover:text-white transition-colors">{t("support.help")}</a></li>
-                <li><a href="#contact" className="text-gray-400 hover:text-white transition-colors">{t("support.contact")}</a></li>
-                <li><a href={`/${locale}/docs`} className="text-gray-400 hover:text-white transition-colors">{t("support.docs")}</a></li>
-                <li><a href="#status" className="text-gray-400 hover:text-white transition-colors">{t("support.status")}</a></li>
-              </ul>
+                <ul className="space-y-3">
+                  <li><a href={`/${locale}/landing/legal/privacy-policy`} className="text-gray-400 hover:text-white transition-colors">{t("support.help")}</a></li>
+                  <li><a href={`/${locale}/landing/legal/terms-and-conditions`} className="text-gray-400 hover:text-white transition-colors">{t("support.contact")}</a></li>
+                </ul>
             </div>
           </div>
           <div className="border-t border-gray-800 mt-12 pt-8 text-center">

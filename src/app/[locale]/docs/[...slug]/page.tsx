@@ -5,6 +5,7 @@ import { DocsSidebar } from '@/components/docs/DocsSidebar';
 import { DocsMarkdown } from '@/components/docs/DocsMarkdown';
 import { DocsTableOfContents } from '@/components/docs/DocsTableOfContents';
 import { DocsBreadcrumb } from '@/components/docs/DocsBreadcrumb';
+import { DOCS_VIEWPORT_CALC } from '@/lib/docs/headerHeight';
 import type { Metadata } from 'next';
 
 export function generateStaticParams() {
@@ -43,10 +44,12 @@ export default async function DocArticlePage(props: {
   const nav = getDocsNav(locale as DocLocale);
 
   return (
-    <div className="flex w-full min-h-[calc(100vh-5rem)]">
-      <DocsSidebar locale={locale as DocLocale} sections={nav} />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex min-w-0 flex-1 w-full flex-col px-6 py-6 lg:px-10">
+    <div className="flex w-full" style={{ height: DOCS_VIEWPORT_CALC }}>
+      <div className="flex h-full">
+        <DocsSidebar locale={locale as DocLocale} sections={nav} />
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="flex min-w-0 flex-1 w-full flex-col px-6 py-6 lg:px-10 overflow-auto">
           <DocsBreadcrumb
             locale={locale as DocLocale}
             section={doc.frontmatter.section}

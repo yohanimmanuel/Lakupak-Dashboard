@@ -543,11 +543,11 @@
       "about": "About"
     },
     "support": {
-      "title": "Support",
-      "help": "Help Center",
-      "contact": "Contact Us",
+      "title": "Legal",
+      "help": "Privacy Policy",
+      "contact": "Terms & Conditions",
       "docs": "Documentation",
-      "status": "System Status"
+      "status": ""
     },
     "copyright": "© 2024 Laku. All rights reserved. Made with ❤️ for Indonesia's Distribution and Retail industry."
   },
@@ -572,6 +572,18 @@
       "onThisPage": "On this page",
       "expand": "Expand section",
       "collapse": "Collapse section"
+    }
+  },
+  "legal": {
+    "privacy": {
+      "title": "Privacy Policy",
+      "content": "PASTE_EN_PRIVACY_HERE",
+      "updated": "Last updated on 8 July, 2026"
+    },
+    "terms": {
+      "title": "Terms & Conditions",
+      "content": "PASTE_EN_TERMS_HERE",
+      "updated": "Last updated on 8 July, 2026"
     }
   }
 }

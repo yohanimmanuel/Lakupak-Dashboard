@@ -68,7 +68,7 @@ function PieChartBlock() {
         <Skeleton className="h-8 w-32 rounded-lg" />
       </div>
       <div className="flex items-center justify-center py-6">
-        <Skeleton className="h-44 w-44 rounded-full" />
+        <Skeleton className="h-66 w-66 rounded-full" />
       </div>
       <div className="flex flex-wrap justify-center gap-4 mt-2">
         {[...Array(4)].map((_, i) => (
@@ -86,7 +86,7 @@ export function SkeletonAnalyticsPage() {
   return (
     <div className="w-full p-4 space-y-3 bg-gradient-to-b from-gray-50 to-white min-h-screen">
       {/* Page header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
         <div className="space-y-2">
           <Skeleton className="h-7 w-56" />
           <Skeleton className="h-4 w-72" />
@@ -103,11 +103,11 @@ export function SkeletonAnalyticsPage() {
       </div>
 
       {/* Two side-by-side charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-11 gap-3">
-        <div className="lg:col-span-7">
+      <div className="grid grid-cols-1 lg:grid-cols-16 gap-3">
+        <div className="lg:col-span-10">
           <ChartBlock tall />
         </div>
-        <div className="lg:col-span-4">
+        <div className="lg:col-span-6">
           <PieChartBlock />
         </div>
       </div>

@@ -543,11 +543,11 @@
       "about": "Tentang"
     },
     "support": {
-      "title": "Dukungan",
-      "help": "Pusat Bantuan",
-      "contact": "Hubungi Kami",
+      "title": "Legal",
+      "help": "Kebijakan Privasi",
+      "contact": "Syarat & Ketentuan",
       "docs": "Dokumentasi",
-      "status": "Status Sistem"
+      "status": ""
     },
     "copyright": "© 2024 Laku. Hak cipta dilindungi. Dibuat dengan ❤️ untuk distribusi & retail Indonesia."
   },
@@ -572,6 +572,18 @@
       "onThisPage": "Di halaman ini",
       "expand": "Buka bagian",
       "collapse": "Tutup bagian"
+    }
+  },
+  "legal": {
+    "privacy": {
+      "title": "Kebijakan Privasi",
+      "content": "PASTE_ID_PRIVACY_HERE",
+      "updated": "Terakhir diperbarui pada 8 Juli, 2026"
+    },
+    "terms": {
+      "title": "Syarat & Ketentuan",
+      "content": "PASTE_ID_TERMS_HERE",
+      "updated": "Terakhir diperbarui pada 8 Juli, 2026"
     }
   }
 }

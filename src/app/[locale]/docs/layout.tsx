@@ -1,5 +1,6 @@
 import { DocsHeader } from '@/components/docs/DocsHeader';
 import type { Metadata } from 'next';
+import { DOCS_VIEWPORT_CALC } from '@/lib/docs/headerHeight';
 
 export const metadata: Metadata = {
   title: 'Documentation | Laku',
@@ -10,7 +11,9 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
   return (
     <div className="min-h-screen bg-white font-sans text-gray-900 antialiased">
       <DocsHeader />
-      {children}
+      <div style={{ minHeight: DOCS_VIEWPORT_CALC }}>
+        {children}
+      </div>
     </div>
   );
 }
