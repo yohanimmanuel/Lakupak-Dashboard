@@ -46,6 +46,8 @@ import { calculatePromotionGift, PromotionDetails } from '@/utils/promotionUtils
 import Image from 'next/image';
 import Link from 'next/link';
 import { useAnalyticsTranslations } from '@/hooks/useAnalyticsTranslations';
+import TopProductVariantDetailModal from './TopProductVariantDetailModal';
+import type { TopProductVariantRow } from './TopProductVariantDetailModal';
 import {
   AnalyticsTimeRange,
   filterOrdersByTimeRange,
@@ -225,6 +227,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
   const [currentPage, setCurrentPage] = useState(1);
   const [categoryFilter, setCategoryFilter] = useState<'productType' | 'productCategory'>('productCategory');
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const [selectedTopProduct, setSelectedTopProduct] = useState<TopProduct | null>(null);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const onReadyRef = useRef(onReadyAction);
   useEffect(() => { onReadyRef.current = onReadyAction; });
@@ -698,6 +701,11 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
   const fromProduct = totalProducts === 0 ? 0 : (currentPage - 1) * productsPerPage + 1;
   const toProduct = Math.min(currentPage * productsPerPage, totalProducts);
   const pagedProducts = allTopProducts.slice((currentPage - 1) * productsPerPage, currentPage * productsPerPage);
+
+  const selectedProductVariants = useMemo(() => {
+    if (!selectedTopProduct) return [];
+    return calculateTopProductVariantBreakdown(selectedTopProduct.productId, filteredOrders, products);
+  }, [selectedTopProduct, filteredOrders, products]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -1331,7 +1339,15 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
                 </thead>
                <tbody className="bg-white">
                  {pagedProducts.map((product, index) => (
-                   <tr key={index} className="border-b transition-colors">
+                   <tr
+                     key={product.productId}
+                     role="button"
+                     tabIndex={0}
+                     className="cursor-pointer border-b transition-colors hover:bg-[#f7faff] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#0a61d7]"
+                     onClick={() => setSelectedTopProduct(product)}
+                     onKeyDown={(event) => handleTopProductRowKeyDown(event, () => setSelectedTopProduct(product))}
+                     title={tTables('viewVariantDetails', { name: product.name })}
+                   >
                      <td className="py-3 px-4 text-left text-black">
                        {(currentPage - 1) * productsPerPage + index + 1}
                      </td>
@@ -1342,6 +1358,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
                              href={`/products/catalog/${product.productId}`}
                              className="truncate font-semibold text-[#0a61d7] transition-all duration-200 hover:text-blue-800"
                              title={tShared('viewProduct', { name: product.name })}
+                             onClick={(e) => e.stopPropagation()}
                            >
                              {product.name}
                            </Link>
@@ -1400,6 +1417,14 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
            </div>
           </div>
          </div>
+
+         <TopProductVariantDetailModal
+           isOpen={selectedTopProduct != null}
+           onClose={() => setSelectedTopProduct(null)}
+           product={selectedTopProduct}
+           variants={selectedProductVariants}
+           userCurrency={userCurrency}
+         />
        </div>
      </div>
    );
@@ -1869,6 +1894,16 @@ function ProductImageThumb({ src, alt, size = 'md' }: { src?: string | null; alt
   );
 }
 
+function handleTopProductRowKeyDown(
+  event: React.KeyboardEvent<HTMLTableRowElement>,
+  action: () => void,
+) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault();
+    action();
+  }
+}
+
 export type TopProductRow = {
   name: string;
   productType: string;
@@ -1949,15 +1984,90 @@ export const calculateTopProducts = (
   }).sort((a, b) => b.orderVolume - a.orderVolume).slice(0, limit);
 };
 
+export type { TopProductVariantRow } from './TopProductVariantDetailModal';
+
+export const calculateTopProductVariantBreakdown = (
+  productId: string,
+  orders: Order[],
+  products: Product[],
+): TopProductVariantRow[] => {
+  const productById = createProductLookup(products);
+  const product = productById.get(productId);
+  const avgMargin = getAverageProductMargin(products);
+
+  const variantStats: Record<
+    string,
+    { variantName: string; orderVolume: number; piecesSold: number; freeItems: number; profit: number }
+  > = {};
+
+  orders.forEach((order) => {
+    if (!order.orderItems || !Array.isArray(order.orderItems)) return;
+
+    order.orderItems.forEach((item) => {
+      if (item.productId !== productId) return;
+
+      const variantOption = findOrderItemVariantOption(product, item);
+      const variantKey = String(
+        item.variantOptionId ?? item.variantId ?? item.variantNameSnapshot ?? variantOption?.id ?? 'default',
+      );
+      const variantName = item.variantNameSnapshot?.trim() || variantOption?.variantName || 'Default';
+
+      if (!variantStats[variantKey]) {
+        variantStats[variantKey] = {
+          variantName,
+          orderVolume: 0,
+          piecesSold: 0,
+          freeItems: 0,
+          profit: 0,
+        };
+      }
+
+      const freePieces = calculateFreeItemsForOrderItem(item);
+      const itemRevenue = calculateOrderItemRevenue(item, variantOption);
+      const itemCost = calculateOrderItemCost(item, product, freePieces);
+      const itemProfit = itemCost > 0 ? itemRevenue - itemCost : itemRevenue * (avgMargin / 100);
+
+      variantStats[variantKey].orderVolume += itemRevenue;
+      variantStats[variantKey].profit += itemProfit;
+      variantStats[variantKey].piecesSold += getOrderItemPackageQuantity(item);
+      variantStats[variantKey].freeItems += freePieces;
+
+      if (variantName && variantName !== 'Default') {
+        variantStats[variantKey].variantName = variantName;
+      }
+    });
+  });
+
+  return Object.entries(variantStats)
+    .map(([variantKey, stats]) => ({
+      variantKey,
+      variantName: stats.variantName,
+      piecesSold: stats.piecesSold,
+      freeItems: stats.freeItems,
+      orderVolume: stats.orderVolume,
+      profit: stats.profit,
+      margin: stats.orderVolume > 0 ? (stats.profit / stats.orderVolume) * 100 : 0,
+    }))
+    .sort((a, b) => b.orderVolume - a.orderVolume);
+};
+
 export const AnalyticsTopProductsTable: React.FC<{
   products: TopProductRow[];
   userCurrency: string;
   maxRows?: number;
   seeMoreHref?: string;
-}> = ({ products, userCurrency, maxRows = 5, seeMoreHref = '/analytics/financial' }) => {
+  orders?: Order[];
+  catalogProducts?: Product[];
+}> = ({ products, userCurrency, maxRows = 5, seeMoreHref = '/analytics/financial', orders = [], catalogProducts = [] }) => {
   const { tShared, tTables } = useAnalyticsTranslations();
+  const [selectedProduct, setSelectedProduct] = useState<TopProductRow | null>(null);
 
+  const selectedVariants = useMemo(() => {
+    if (!selectedProduct || orders.length === 0 || catalogProducts.length === 0) return [];
+    return calculateTopProductVariantBreakdown(selectedProduct.productId, orders, catalogProducts);
+  }, [selectedProduct, orders, catalogProducts]);
   return (
+  <>
   <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
     <div className="flex items-center justify-between mb-6">
       <h3 className="text-lg font-semibold text-gray-900">{tTables('topPerformingProducts')}</h3>
@@ -1984,7 +2094,15 @@ export const AnalyticsTopProductsTable: React.FC<{
         </thead>
         <tbody className="bg-white">
           {products.slice(0, maxRows).map((product, index) => (
-            <tr key={product.productId} className="border-b transition-colors">
+            <tr
+              key={product.productId}
+              role="button"
+              tabIndex={0}
+              className="cursor-pointer border-b transition-colors hover:bg-[#f7faff] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#0a61d7]"
+              onClick={() => setSelectedProduct(product)}
+              onKeyDown={(event) => handleTopProductRowKeyDown(event, () => setSelectedProduct(product))}
+              title={tTables('viewVariantDetails', { name: product.name })}
+            >
               <td className="py-3 px-4 text-left text-black">{index + 1}</td>
               <td className="py-3 px-4 text-left min-w-0">
                 <div className="flex items-center gap-2 min-w-0">
@@ -1993,6 +2111,7 @@ export const AnalyticsTopProductsTable: React.FC<{
                     href={`/products/catalog/${product.productId}`}
                     className="truncate font-semibold text-[#0a61d7] transition-all duration-200 hover:text-blue-800"
                     title={tShared('viewProduct', { name: product.name })}
+                    onClick={(e) => e.stopPropagation()}
                   >
                     {product.name}
                   </Link>
@@ -2008,5 +2127,14 @@ export const AnalyticsTopProductsTable: React.FC<{
       </table>
     </div>
   </div>
+
+  <TopProductVariantDetailModal
+    isOpen={selectedProduct != null}
+    onClose={() => setSelectedProduct(null)}
+    product={selectedProduct}
+    variants={selectedVariants}
+    userCurrency={userCurrency}
+  />
+  </>
   );
 };

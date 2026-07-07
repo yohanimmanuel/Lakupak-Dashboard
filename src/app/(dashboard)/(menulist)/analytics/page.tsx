@@ -351,7 +351,14 @@ export default function AnalyticsPage() {
 
       {/* Row 4: Top Performing Products Table */}
       <div className="mt-3">
-        <AnalyticsTopProductsTable products={topProducts} userCurrency={userCurrency} maxRows={5} seeMoreHref="/analytics/financial" />
+        <AnalyticsTopProductsTable
+          products={topProducts}
+          userCurrency={userCurrency}
+          maxRows={5}
+          seeMoreHref="/analytics/financial"
+          orders={filteredOrders}
+          catalogProducts={filteredProducts}
+        />
       </div>
     </div>
   );
