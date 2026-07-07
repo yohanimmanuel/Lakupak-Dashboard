@@ -6,6 +6,8 @@ import { formatCurrency, getDefaultCurrency, getCurrencySymbol } from '@/utils/c
 import { useUserStore } from '@/store/userStore';
 import { useOffersTranslations } from '@/hooks/useOffersTranslations';
 
+export type PromotionApplyMode = 'from_zero' | 'after_moq';
+
 interface OfferTypeData {
   name: string;
   description: string;
@@ -13,6 +15,7 @@ interface OfferTypeData {
   discountValue: number;
   minOrderValue?: string;
   minQuantity?: number;
+  promotionApplyMode?: PromotionApplyMode;
 }
 
 interface CreateOfferTypeModalProps {
@@ -31,6 +34,7 @@ function getInitialOfferTypeData(editingType?: Partial<OfferTypeData>): OfferTyp
       discountValue: editingType.discountValue ?? 0,
       minOrderValue: editingType.minOrderValue ?? '',
       minQuantity: editingType.minQuantity ?? undefined,
+      promotionApplyMode: editingType.promotionApplyMode ?? 'after_moq',
     };
   }
   return {
@@ -40,6 +44,7 @@ function getInitialOfferTypeData(editingType?: Partial<OfferTypeData>): OfferTyp
     discountValue: 0,
     minOrderValue: '',
     minQuantity: undefined,
+    promotionApplyMode: 'after_moq',
   };
 }
 
@@ -261,6 +266,38 @@ export default function CreateOfferTypeModal({
                 />
                 <div className="mt-2 text-xs text-gray-600">
                   {tTypeModal('minPackagesHint')}
+                </div>
+
+                <div className="mt-4 space-y-2">
+                  <label className="block text-xs font-medium text-black">
+                    {tTypeModal('promotionApplyModeLabel')}
+                  </label>
+                  <div className="space-y-2">
+                    {([
+                      { value: 'from_zero' as const, label: tTypeModal('promotionFromZero') },
+                      { value: 'after_moq' as const, label: tTypeModal('promotionAfterMoq') },
+                    ]).map((option) => (
+                      <label
+                        key={option.value}
+                        className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                          (formData.promotionApplyMode ?? 'after_moq') === option.value
+                            ? 'border-purple-300 bg-purple-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="promotionApplyMode"
+                          value={option.value}
+                          checked={(formData.promotionApplyMode ?? 'after_moq') === option.value}
+                          onChange={() => handleInputChange('promotionApplyMode', option.value)}
+                          className="mt-0.5"
+                        />
+                        <span className="text-xs text-gray-700 leading-5">{option.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500">{tTypeModal('promotionApplyModeHint')}</p>
                 </div>
               </div>
             )}

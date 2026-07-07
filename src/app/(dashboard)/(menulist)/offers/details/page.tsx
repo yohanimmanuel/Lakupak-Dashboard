@@ -81,6 +81,7 @@ export default function OffersDetailsPage() {
           discountValue
           minOrderValue
           minQuantity
+          promotionApplyMode
           isActive
           priority
         }
@@ -133,6 +134,7 @@ export default function OffersDetailsPage() {
               discountValue: number;
               minOrderValue: number | null;
               minQuantity: number | null;
+              promotionApplyMode?: string | null;
               isActive: boolean;
               priority: number;
             }>;
@@ -165,6 +167,7 @@ export default function OffersDetailsPage() {
             discountValue: dt.discountValue,
             minOrderValue: dt.minOrderValue || undefined,
             minQuantity: dt.minQuantity || undefined,
+            promotionApplyMode: (dt.promotionApplyMode as 'from_zero' | 'after_moq' | null) || 'after_moq',
             isActive: dt.isActive,
             priority: dt.priority,
           }));
@@ -291,6 +294,7 @@ export default function OffersDetailsPage() {
             discountValue: number;
             minOrderValue: number | null;
             minQuantity: number | null;
+            promotionApplyMode?: string | null;
             isActive: boolean;
             priority: number;
           }>;
@@ -323,6 +327,7 @@ export default function OffersDetailsPage() {
           discountValue: dt.discountValue,
           minOrderValue: dt.minOrderValue || undefined,
           minQuantity: dt.minQuantity || undefined,
+          promotionApplyMode: (dt.promotionApplyMode as 'from_zero' | 'after_moq' | null) || 'after_moq',
           isActive: dt.isActive,
           priority: dt.priority,
         }));
@@ -483,6 +488,8 @@ export default function OffersDetailsPage() {
         description: dt.description || null,
         minOrderValue: dt.minOrderValue ? parseFloat(String(dt.minOrderValue).replace(/\./g, '')) : null,
         minQuantity: dt.minQuantity || null,
+        promotionApplyMode:
+          dt.discountType === 'buy_x_get_y' ? (dt.promotionApplyMode || 'after_moq') : null,
         isActive: dt.isActive !== false,
         priority: dt.priority || 1,
       }));

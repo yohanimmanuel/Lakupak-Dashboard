@@ -10,7 +10,7 @@ import {
   updateOfferStatusesBasedOnLimits,
 } from '@/utils/offerValidation';
 import type { OfferValidationResult } from '@/utils/offerValidation';
-import { calculateOrderItemPromotion } from '@/utils/promotionUtils';
+import { buildBuyXGetYPromotionDetails, calculateOrderItemPromotion } from '@/utils/promotionUtils';
 import { validateVariant } from '@/services/variantService';
 import { parsePrice } from '@/utils/currencyUtils';
 import { broadcastOrderUpdate } from '@/utils/websocketBroadcast';
@@ -820,19 +820,7 @@ export async function createMobileMarketplaceOrders(
         const buyXGetYPromo = productOffers[0].offerDiscountTypes.find((dt) => dt.discountType === 'buy_x_get_y');
 
         if (buyXGetYPromo) {
-          const promotionDetails = {
-            minQuantity: buyXGetYPromo.minQuantity || 1,
-            freeQuantity: buyXGetYPromo.discountValue
-              ? parsePrice(
-                  buyXGetYPromo.discountValue as
-                    | string
-                    | number
-                    | { toNumber?: () => number; toString?: () => string }
-                    | null
-                    | undefined,
-                )
-              : 0,
-          };
+          const promotionDetails = buildBuyXGetYPromotionDetails(buyXGetYPromo);
 
           const promoQty = computeTotalQtyNeededWithBuyXGetY({
             packageQuantity: orderedQty,
@@ -1011,19 +999,7 @@ export async function createMobileMarketplaceOrders(
                 (dt) => dt.discountType === 'buy_x_get_y',
               );
               if (buyXGetYPromo) {
-                const promotionDetails = {
-                  minQuantity: buyXGetYPromo.minQuantity || 1,
-                  freeQuantity: buyXGetYPromo.discountValue
-                    ? parsePrice(
-                        buyXGetYPromo.discountValue as
-                          | string
-                          | number
-                          | { toNumber?: () => number; toString?: () => string }
-                          | null
-                          | undefined,
-                      )
-                    : 0,
-                };
+                const promotionDetails = buildBuyXGetYPromotionDetails(buyXGetYPromo);
                 const qty = computeTotalQtyNeededWithBuyXGetY({
                   packageQuantity,
                   piecesPerPackage,

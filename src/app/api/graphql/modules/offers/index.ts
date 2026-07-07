@@ -15,6 +15,7 @@ export const offersTypeDefs = /* GraphQL */ `
     discountValue: Float!
     minOrderValue: Float
     minQuantity: Int
+    promotionApplyMode: String
     isActive: Boolean!
     priority: Int!
   }
@@ -60,6 +61,7 @@ export const offersTypeDefs = /* GraphQL */ `
     description: String
     minOrderValue: Float
     minQuantity: Int
+    promotionApplyMode: String
     isActive: Boolean
     priority: Int
   }
@@ -169,6 +171,7 @@ const mapOffer = (
       discountValue: parseMoney(discount.discountValue), // Convert Decimal to number
       minOrderValue: discount.minOrderValue ? parseMoney(discount.minOrderValue) : null, // Convert Decimal to number
       minQuantity: discount.minQuantity,
+      promotionApplyMode: discount.promotionApplyMode ?? 'after_moq',
       isActive: discount.isActive,
       priority: discount.priority,
     })),
@@ -522,6 +525,7 @@ const createOffer = async (args: {
     description?: string | null;
     minOrderValue?: number | null;
     minQuantity?: number | null;
+    promotionApplyMode?: string | null;
     isActive?: boolean | null;
     priority?: number | null;
   }>;
@@ -614,6 +618,7 @@ const createOffer = async (args: {
         description: dt.description || null,
         minOrderValue: dt.minOrderValue || null,
         minQuantity: dt.minQuantity || null,
+        promotionApplyMode: dt.promotionApplyMode || 'after_moq',
         isActive: dt.isActive !== false,
         priority: dt.priority || 1,
       })),
@@ -725,6 +730,7 @@ const updateOffer = async (args: {
     description?: string | null;
     minOrderValue?: number | null;
     minQuantity?: number | null;
+    promotionApplyMode?: string | null;
     isActive?: boolean | null;
     priority?: number | null;
   }> | null;
@@ -811,6 +817,7 @@ const updateOffer = async (args: {
           description: dt.description || null,
           minOrderValue: dt.minOrderValue || null,
           minQuantity: dt.minQuantity || null,
+          promotionApplyMode: dt.promotionApplyMode || 'after_moq',
           isActive: dt.isActive !== false,
           priority: dt.priority || 1,
         })),

@@ -39,6 +39,7 @@ export default function OffersPage() {
             discountValue
             minOrderValue
             minQuantity
+            promotionApplyMode
             isActive
             priority
           }
@@ -87,6 +88,7 @@ export default function OffersPage() {
               discountValue: number;
               minOrderValue: number | null;
               minQuantity: number | null;
+              promotionApplyMode?: string | null;
               isActive: boolean;
               priority: number;
             }>;
@@ -151,6 +153,7 @@ export default function OffersPage() {
             discountValue: dt.discountValue,
             minOrderValue: dt.minOrderValue || undefined,
             minQuantity: dt.minQuantity || undefined,
+            promotionApplyMode: (dt.promotionApplyMode as 'from_zero' | 'after_moq' | null) || 'after_moq',
             isActive: dt.isActive,
             priority: dt.priority,
           })),

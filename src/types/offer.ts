@@ -17,6 +17,7 @@ export interface OfferDiscountType {
   minOrderValue?: number | string | null;
   minQuantity?: number | null;
   freeQuantity?: number | null;
+  promotionApplyMode?: 'from_zero' | 'after_moq' | null;
   isActive: boolean;
   priority: number;
   currentUsage?: number; // Individual usage count for this discount type

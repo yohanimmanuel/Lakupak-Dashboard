@@ -22,6 +22,7 @@ import {
   setCachedMarketplaceSearch,
   invalidateSearchCache,
 } from '@/utils/searchCache';
+import { buildBuyXGetYPromotionDetails } from '@/utils/promotionUtils';
 import { auditCatalog } from '@/lib/audit';
 import { requireDashboardUser, withDashboardAuth } from '@/app/api/graphql/modules/common/auth';
 
@@ -392,25 +393,14 @@ const buildOfferMetadata = (discountTypes: OfferDiscountType[]): {
       ? percentageDiscount.discountValue
       : undefined;
 
-  const buyXGetY = discountTypes.find((dt) => dt.discountType === 'buy_x_get_y');
-  
-  // Convert Decimal to number for discountValue
   const discountValueNum = discountValue !== undefined
     ? parseMoney(discountValue as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined)
     : undefined;
-  
-  // Convert Decimal to number for freeQuantity in buy_x_get_y
-  const freeQuantityNum = buyXGetY?.discountValue !== undefined
-    ? parseMoney(buyXGetY.discountValue as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined)
-    : undefined;
-  
+
+  const buyXGetY = discountTypes.find((dt) => dt.discountType === 'buy_x_get_y');
+
   const promotionDetails = buyXGetY
-    ? {
-        minQuantity: buyXGetY.minQuantity ?? 0,
-        freeQuantity: freeQuantityNum ?? 0,
-        description:
-          buyXGetY.description ?? `Buy ${buyXGetY.minQuantity ?? 0} Get ${freeQuantityNum ?? 0} Free`,
-      }
+    ? (buildBuyXGetYPromotionDetails(buyXGetY) as unknown as Record<string, unknown>)
     : null;
 
   return {

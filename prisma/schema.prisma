@@ -791,6 +791,8 @@ model OfferDiscountType {
   description   String? // e.g., "4% discount on all items"
   minOrderValue Decimal? @db.Decimal(12, 2) // minimum order value for this discount type
   minQuantity   Int? // minimum quantity required
+  /// When buy_x_get_y: `from_zero` counts sets from first unit; `after_moq` only after product MOQ is met (>=).
+  promotionApplyMode String? @default("after_moq")
   // per-customer usage limit removed
   isActive      Boolean  @default(true)
   priority      Int      @default(1) // Higher number = higher priority

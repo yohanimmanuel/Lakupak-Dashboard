@@ -7,6 +7,7 @@ import { prisma } from '@/lib/db';
 import type { Prisma } from '@/lib/db';
 import { getTodayBoundaries } from '@/lib/dateUtils';
 import { parsePrice } from '@/utils/currencyUtils';
+import { buildBuyXGetYPromotionDetails, calculatePromotionGift } from '@/utils/promotionUtils';
 
 export interface OfferValidationResult {
   isValid: boolean;
@@ -23,6 +24,7 @@ export interface OfferValidationResult {
     minQuantity?: number;
     freeQuantity?: number;
     description?: string;
+    applyMode?: 'from_zero' | 'after_moq';
     moq?: number | null;
   };
   // Add array of all applicable discount types for tracking
@@ -224,37 +226,24 @@ export async function validateOfferForProduct(
           discountAmount: discountAmount
         });
       } else if (discountType.discountType === 'buy_x_get_y') {
-        // For buy_x_get_y, we don't change the price but provide promotion details
-        const minQuantity = discountType.minQuantity;
-        // Convert Decimal to number for freeQuantity
-        const freeItemsPerSet = discountType.discountValue 
-          ? parsePrice(discountType.discountValue as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined)
-          : 1; // Number of free items per qualifying set
-        
-        // Use package quantity for buy_x_get_y calculations, not total pieces
-        const quantityForCalculation = packageQuantity || Math.floor(orderQuantity / 100) || 1; // Fallback to approximate packages
-        
-        // Only apply promotion if minQuantity is properly set and package quantity meets the requirement
-        if (minQuantity && minQuantity > 0 && quantityForCalculation >= minQuantity) {
-          // Simple calculation: if you buy X and qualify, you get X free items
-          // For "buy 2 get 2": if you buy 4, you get 4 free
-          const totalFreeItems = freeItemsPerSet;
-          
+        const built = buildBuyXGetYPromotionDetails(discountType);
+        const moqPieces = variant?.moq ?? null;
+        const quantityInPieces = orderQuantity > 0 ? orderQuantity : (packageQuantity || 1);
+        const gift = calculatePromotionGift(built, quantityInPieces, moqPieces);
+
+        if (gift) {
           currentPromotionDetails = {
-            minQuantity: minQuantity,
-            freeQuantity: Number(totalFreeItems), // Ensure it's a number, not Decimal
-            description: discountType.description || `Buy ${minQuantity}, get ${freeItemsPerSet} free`,
-            moq: variant?.moq || null
+            ...built,
+            moq: moqPieces,
           };
-          
+
           promotionDetails = currentPromotionDetails;
-          
-          // Add to applicable discount types
+
           applicableDiscountTypes.push({
             id: discountType.id,
             discountType: discountType.discountType,
-            discountAmount: 0, // Buy X Get Y doesn't change price
-            promotionDetails: currentPromotionDetails
+            discountAmount: 0,
+            promotionDetails: currentPromotionDetails,
           });
         }
       }

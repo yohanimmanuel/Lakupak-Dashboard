@@ -153,6 +153,7 @@ export default function CreateOfferPage() {
               discountValue
               minOrderValue
               minQuantity
+              promotionApplyMode
               isActive
               priority
             }
@@ -168,6 +169,8 @@ export default function CreateOfferPage() {
         description: dt.description || null,
         minOrderValue: dt.minOrderValue ? parseFloat(String(dt.minOrderValue).replace(/\./g, '')) : null,
         minQuantity: dt.minQuantity || null,
+        promotionApplyMode:
+          dt.discountType === 'buy_x_get_y' ? (dt.promotionApplyMode || 'after_moq') : null,
         isActive: dt.isActive !== false,
         priority: dt.priority || discountTypes.length + 1,
       }));

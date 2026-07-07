@@ -18,6 +18,7 @@ import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { validateVariant } from '@/services/variantService';
 import { syncOrderToBuyerProfile, buildMobileBuyerId } from '@/utils/buyerSync';
 import { broadcastOrderUpdate } from '@/utils/websocketBroadcast';
+import { buildBuyXGetYPromotionDetails } from '@/utils/promotionUtils';
 import { enqueueSideEffect } from '@/lib/sideEffectQueue';
 
 type OfferForMarketplace = Prisma.OfferGetPayload<{
@@ -936,13 +937,7 @@ export const fetchMarketplaceProducts = async (args: {
         // Set promotion details if there are buy X get Y promotions
         const buyXGetYPromo = activeDiscountTypes.find((dt) => dt.discountType === 'buy_x_get_y');
         if (buyXGetYPromo) {
-          // Convert Decimal discountValue to number
-          const freeQty = safeParsePrice(buyXGetYPromo.discountValue as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
-          promotionDetails = {
-            minQuantity: buyXGetYPromo.minQuantity,
-            freeQuantity: freeQty,
-            description: buyXGetYPromo.description || `Buy ${buyXGetYPromo.minQuantity} Get ${freeQty} Free`
-          };
+          promotionDetails = buildBuyXGetYPromotionDetails(buyXGetYPromo);
         }
       
         hasActiveOffer = true;

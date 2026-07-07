@@ -9,6 +9,7 @@ export interface OfferDiscountType {
   discountValue: number;
   minOrderValue?: string;
   minQuantity?: number;
+  promotionApplyMode?: 'from_zero' | 'after_moq';
   perCustomerLimit?: number;
   isActive: boolean;
   priority: number;

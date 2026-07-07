@@ -17,6 +17,7 @@ interface DiscountTypeData {
   discountValue: number;
   minOrderValue?: string | number | null | undefined;
   minQuantity?: number | null | undefined;
+  promotionApplyMode?: 'from_zero' | 'after_moq' | null | undefined;
   freeQuantity?: number | null | undefined;
   perCustomerLimit?: number | null | undefined;
   isActive: boolean;
@@ -54,6 +55,7 @@ interface OfferType {
   discountValue: number;
   minOrderValue?: string | number | null;
   minQuantity?: number | null;
+  promotionApplyMode?: 'from_zero' | 'after_moq' | null;
   isActive: boolean;
   createdAt: string;
 }
@@ -107,6 +109,7 @@ export default function OfferType({
         discountValue: dt.discountValue,
         minOrderValue: dt.minOrderValue,
         minQuantity: dt.minQuantity,
+        promotionApplyMode: dt.promotionApplyMode ?? 'after_moq',
         isActive: dt.isActive,
         createdAt: new Date().toISOString(),
       };
@@ -296,10 +299,21 @@ export default function OfferType({
                 </div>
               )}
 
-              {type.minQuantity && (
+              {type.minQuantity && type.discountType === 'buy_x_get_y' && (
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-600">{tType('minQuantity')}</span>
                   <span className="font-medium text-black text-xs">{type.minQuantity} {tType('items')}</span>
+                </div>
+              )}
+
+              {type.discountType === 'buy_x_get_y' && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-600">{tType('promotionApplyMode')}</span>
+                  <span className="font-medium text-black text-xs">
+                    {(type.promotionApplyMode ?? 'after_moq') === 'from_zero'
+                      ? tType('promotionFromZeroShort')
+                      : tType('promotionAfterMoqShort')}
+                  </span>
                 </div>
               )}
 
@@ -351,6 +365,7 @@ export default function OfferType({
             discountValue: editingType.discountValue || 0,
             minOrderValue: editingType.minOrderValue ? String(editingType.minOrderValue) : undefined,
             minQuantity: editingType.minQuantity ?? undefined,
+            promotionApplyMode: editingType.promotionApplyMode ?? 'after_moq',
           } : undefined}
           onSave={async (typeData) => {
             // Enforce single offer per type: update if exists, else add
@@ -362,6 +377,10 @@ export default function OfferType({
               discountValue: typeData.discountValue,
               minOrderValue: typeData.minOrderValue,
               minQuantity: typeData.minQuantity,
+              promotionApplyMode:
+                typeData.discountType === 'buy_x_get_y'
+                  ? (typeData.promotionApplyMode ?? 'after_moq')
+                  : undefined,
               isActive: true,
               priority: 1,
             };
