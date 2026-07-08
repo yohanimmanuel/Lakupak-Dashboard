@@ -1343,7 +1343,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
                      key={product.productId}
                      role="button"
                      tabIndex={0}
-                     className="cursor-pointer border-b transition-colors hover:bg-[#f7faff] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#0a61d7]"
+                     className="cursor-pointer border-b transition-colors hover:bg-[#f7faff]"
                      onClick={() => setSelectedTopProduct(product)}
                      onKeyDown={(event) => handleTopProductRowKeyDown(event, () => setSelectedTopProduct(product))}
                      title={tTables('viewVariantDetails', { name: product.name })}
@@ -1420,7 +1420,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
 
          <TopProductVariantDetailModal
            isOpen={selectedTopProduct != null}
-           onClose={() => setSelectedTopProduct(null)}
+           onCloseAction={() => setSelectedTopProduct(null)}
            product={selectedTopProduct}
            variants={selectedProductVariants}
            userCurrency={userCurrency}
@@ -2130,7 +2130,7 @@ export const AnalyticsTopProductsTable: React.FC<{
 
   <TopProductVariantDetailModal
     isOpen={selectedProduct != null}
-    onClose={() => setSelectedProduct(null)}
+    onCloseAction={() => setSelectedProduct(null)}
     product={selectedProduct}
     variants={selectedVariants}
     userCurrency={userCurrency}

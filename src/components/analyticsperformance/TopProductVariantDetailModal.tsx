@@ -6,7 +6,7 @@ import { X, Package, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react'
 import { formatCurrency as utilsFormatCurrency } from '@/utils/currencyUtils';
 import { useAnalyticsTranslations } from '@/hooks/useAnalyticsTranslations';
 
-const VARIANTS_PER_PAGE = 8;
+const VARIANTS_PER_PAGE = 5;
 
 export type TopProductSummary = {
   name: string;
@@ -31,7 +31,7 @@ export type TopProductVariantRow = {
 
 type TopProductVariantDetailModalProps = {
   isOpen: boolean;
-  onClose: () => void;
+  onCloseAction: () => void;
   product: TopProductSummary | null;
   variants: TopProductVariantRow[];
   userCurrency: string;
@@ -71,7 +71,7 @@ function marginTone(margin: number, baseline: number): string {
 
 export default function TopProductVariantDetailModal({
   isOpen,
-  onClose,
+  onCloseAction,
   product,
   variants,
   userCurrency,
@@ -101,7 +101,7 @@ export default function TopProductVariantDetailModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onClick={onClose}
+      onClick={onCloseAction}
       role="presentation"
     >
       <div
@@ -111,7 +111,7 @@ export default function TopProductVariantDetailModal({
         aria-modal="true"
         aria-labelledby="top-product-variant-modal-title"
       >
-        <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-5 py-4">
+        <div className="flex items-start justify-between gap-4 border-b border-gray-200 p-4">
           <div className="flex min-w-0 items-start gap-3">
             <ProductImageThumb src={product.image} alt={product.name} />
             <div className="min-w-0">
@@ -124,7 +124,7 @@ export default function TopProductVariantDetailModal({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={onCloseAction}
             className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
             aria-label={tTables('close')}
           >
@@ -132,7 +132,7 @@ export default function TopProductVariantDetailModal({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className="flex-1 overflow-y-auto p-4">
           <div className="mb-4 rounded-xl border border-[#0a61d7]/20 bg-[#f7faff] p-4">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#0a61d7]">
               {tTables('productTotalSummary')}
@@ -166,7 +166,7 @@ export default function TopProductVariantDetailModal({
           </div>
 
           <div className="rounded-lg border border-[#e6e6e6]">
-            <div className="border-b border-[#e6e6e6] px-4 py-3">
+            <div className="border-b border-[#e6e6e6] p-4">
               <h4 className="text-sm font-semibold text-gray-900">{tTables('variantBreakdown')}</h4>
               <p className="text-xs text-gray-500">{tTables('variantBreakdownHint')}</p>
             </div>
@@ -193,32 +193,32 @@ export default function TopProductVariantDetailModal({
                     <tbody className="bg-white">
                       {pagedVariants.map((variant) => (
                         <tr key={variant.variantKey} className="border-b border-gray-100 last:border-b-0">
-                          <td className="max-w-[220px] px-4 py-3 text-black">
+                          <td className="max-w-[220px] p-4 text-black">
                             <span className="block truncate font-medium" title={variant.variantName}>
                               {variant.variantName}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-center text-black">
+                          <td className="p-4 text-center text-black">
                             {variant.piecesSold.toLocaleString()}
                           </td>
                           <td
-                            className={`px-4 py-3 text-center font-medium ${
+                            className={`p-4 text-center font-medium ${
                               variant.freeItems > 0 ? 'text-purple-700' : 'text-black'
                             }`}
                           >
                             {variant.freeItems.toLocaleString()}
                           </td>
-                          <td className="px-4 py-3 text-center font-semibold text-black">
+                          <td className="p-4 text-center font-semibold text-black">
                             {utilsFormatCurrency(variant.orderVolume, userCurrency)}
                           </td>
                           <td
-                            className={`px-4 py-3 text-center font-medium ${
+                            className={`p-4 text-center font-medium ${
                               variant.profit < 0 ? 'text-red-600' : 'text-black'
                             }`}
                           >
                             {utilsFormatCurrency(variant.profit, userCurrency)}
                           </td>
-                          <td className={`px-4 py-3 text-center font-semibold ${marginTone(variant.margin, baselineMargin)}`}>
+                          <td className={`p-4 text-center font-semibold ${marginTone(variant.margin, baselineMargin)}`}>
                             {variant.margin.toFixed(2)}%
                           </td>
                         </tr>
@@ -227,7 +227,7 @@ export default function TopProductVariantDetailModal({
                   </table>
                 </div>
 
-                <div className="flex flex-col gap-2 border-t border-gray-100 px-4 py-3 md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-col gap-2 border-t border-gray-100 p-4 md:flex-row md:items-center md:justify-between">
                   <p className="text-sm text-gray-500">
                     {tShared('pagination.showing', { from: fromVariant, to: toVariant, total: totalVariants })}
                   </p>
@@ -264,11 +264,10 @@ export default function TopProductVariantDetailModal({
             )}
           </div>
         </div>
-
-        <div className="border-t border-gray-200 px-5 py-3">
+        <div className="border-t border-gray-200 p-4">
           <button
             type="button"
-            onClick={onClose}
+            onClick={onCloseAction}
             className="w-full rounded-lg bg-gray-100 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200"
           >
             {tTables('close')}
