@@ -28,6 +28,26 @@ type ProfileFieldKey =
   | 'shipmentSuccess'
   | 'orderDetails';
 
+/**
+ * Collapse repeated product names into a single entry. Order product strings are
+ * stored as a ', '-joined list of per-item product names, so ordering multiple
+ * variants of the same product would otherwise repeat the same name.
+ */
+function dedupeProductNames(product: string | null | undefined): string {
+  if (!product) return '';
+  const seen = new Set<string>();
+  const unique: string[] = [];
+  for (const rawName of product.split(',')) {
+    const name = rawName.trim();
+    if (!name) continue;
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(name);
+  }
+  return unique.join(', ');
+}
+
 function getBuyerAnalytics(orderDetailsStr: string, locale: string) {
   if (!orderDetailsStr) return [];
   
@@ -140,7 +160,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
     text += `Notes: ${notes.join(', ')}\n`;
     text += `\nOrder & Product Details:\n`;
     for (const row of orderDetails) {
-      text += `- Order No: ${row.orderNo}, Product: ${row.product}, Total Orders: ${row.totalOrders}, Total Spend: ${row.totalSpend}, Last Order Date: ${row.lastOrderDate}, Outstanding: ${row.outstanding}\n`;
+      text += `- Order No: ${row.orderNo}, Product: ${dedupeProductNames(row.product)}, Total Orders: ${row.totalOrders}, Total Spend: ${row.totalSpend}, Last Order Date: ${row.lastOrderDate}, Outstanding: ${row.outstanding}\n`;
     }
     navigator.clipboard.writeText(text);
   };
@@ -165,7 +185,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
   function handleExportOrders() {
     const headers = ['Product', 'Total Orders', 'Total Spend', 'Last Order Date', 'Outstanding'];
     const rows = orderDetails.map((o: OrderDetail) => [
-      o.product,
+      dedupeProductNames(o.product),
       o.totalOrders,
       o.totalSpend,
       o.lastOrderDate,
@@ -562,7 +582,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
                   <td className="py-4 px-4 font-medium text-black">{(orderPage - 1) * orderRowsPerPage + idx + 1}</td>
                   <td className="py-4 px-4 text-black">
                     <div className="text-xsfont-medium text-black">
-                      {order.product}
+                      {dedupeProductNames(order.product)}
                     </div>
                   </td>
                   <td className="py-4 px-4 text-black">

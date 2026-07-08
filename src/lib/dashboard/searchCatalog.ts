@@ -123,12 +123,12 @@ export const DASHBOARD_SEARCH_CATALOG: DashboardSearchEntry[] = [
     keywords: ['new', 'whatsapp'],
   },
   {
-    id: 'marketing-automation',
+    id: 'automation',
     title: 'Automations',
-    description: 'Marketing automation workflows',
-    section: 'Marketing',
-    href: '/marketing/automation',
-    keywords: ['workflow', 'otomatis'],
+    description: 'Agentic workflows across products, offers, leads, orders, logistics, and marketing',
+    section: 'Secondary',
+    href: '/automation',
+    keywords: ['workflow', 'otomatis', 'agentic', 'automation'],
   },
   {
     id: 'analytics',

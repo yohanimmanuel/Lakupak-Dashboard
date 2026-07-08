@@ -65,10 +65,6 @@
       "campaigns": {
         "name": "Campaigns",
         "description": "Create and manage marketing campaigns to reach your customers."
-      },
-      "automation": {
-        "name": "Automation",
-        "description": "Set up automated marketing workflows and reminders."
       }
     }
   },
@@ -593,11 +589,6 @@
       "defaultMonth": "Oktober, 2024",
       "defaultYear": "Tahun ini (2024)"
     }
-  },
-  "automation": {
-    "title": "Automations",
-    "subtitle": "Manage your marketing automation workflows",
-    "loading": "Loading automations..."
   },
   "shared": {
     "cancel": "Cancel",

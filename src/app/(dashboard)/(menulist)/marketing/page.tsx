@@ -10,7 +10,6 @@ import {
   UserPlus,
   Gift,
   ShoppingCart,
-  Zap,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
@@ -37,7 +36,6 @@ interface MarketingTip {
 const TOOL_CONFIG = [
   { id: 'teams' as const, icon: Users, link: '/marketing/team' },
   { id: 'campaigns' as const, icon: Megaphone, link: '/marketing/campaigns' },
-  { id: 'automation' as const, icon: Zap, link: '/marketing/automation' },
 ];
 
 export default function MarketingPage() {

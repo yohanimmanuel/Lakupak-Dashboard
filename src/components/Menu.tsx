@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { BadgePercentIcon, ChartBarIcon, ChevronDown, FileTextIcon, GiftIcon, HandshakeIcon, HomeIcon, ListIcon, PackageIcon, SettingsIcon, UsersIcon, X, DollarSign, TrendingUp, Activity, GlobeIcon, StoreIcon, MegaphoneIcon, ChartAreaIcon, TruckIcon, CircleHelp, PanelLeftClose, PanelLeft } from 'lucide-react';
+import { BadgePercentIcon, ChartBarIcon, ChevronDown, FileTextIcon, GiftIcon, HandshakeIcon, HomeIcon, ListIcon, PackageIcon, SettingsIcon, UsersIcon, X, DollarSign, TrendingUp, Activity, GlobeIcon, StoreIcon, MegaphoneIcon, ChartAreaIcon, TruckIcon, CircleHelp, PanelLeftClose, PanelLeft, WorkflowIcon } from 'lucide-react';
 import { useMenuContext } from '@/app/(dashboard)/(menulist)/DashboardClientLayout';
 import { DashboardHelpModal } from '@/components/dashboard/DashboardHelpModal';
 import { PromoSidePanel } from '@/components/dashboard/PromoSidePanel';
@@ -23,7 +23,7 @@ const NAV_LABEL_KEYS: Record<string, string> = {
   Marketing: 'marketing',
   Team: 'team',
   Campaigns: 'campaigns',
-  Automations: 'automations',
+  Automation: 'automation',
   Analytics: 'analytics',
   Financial: 'financial',
   Sales: 'sales',
@@ -42,6 +42,7 @@ const DATA_TOUR_BY_LABEL: Record<string, string> = {
   Offers: 'nav-offers',
   Marketing: 'nav-marketing',
   Analytics: 'nav-analytics',
+  Automation: 'nav-automation',
   Marketplace: 'nav-marketplace',
   Logistics: 'nav-logistics',
   Settings: 'nav-settings',
@@ -68,7 +69,6 @@ const mainMenuItems = [
     submenu: [
       { icon: <ListIcon className="w-5 h-5" />, label: 'Team', href: '/marketing/team' },
       { icon: <ListIcon className="w-5 h-5" />, label: 'Campaigns', href: '/marketing/campaigns' },
-      { icon: <ListIcon className="w-5 h-5" />, label: 'Automations', href: '/marketing/automation' },
     ],
   },
   {
@@ -84,6 +84,11 @@ const mainMenuItems = [
 ];
 
 const secondaryMenuItems = [
+  {
+    label: 'Automation',
+    icon: <WorkflowIcon className="w-5 h-5" />,
+    href: '/automation',
+  },
   {
     label: 'Marketplace',
     icon: <StoreIcon className="w-5 h-5" />,

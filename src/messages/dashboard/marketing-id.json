@@ -65,10 +65,6 @@
       "campaigns": {
         "name": "Kampanye",
         "description": "Buat dan kelola kampanye marketing untuk menjangkau pelanggan Anda."
-      },
-      "automation": {
-        "name": "Otomatisasi",
-        "description": "Atur alur kerja marketing otomatis dan pengingat."
       }
     }
   },
@@ -593,11 +589,6 @@
       "defaultMonth": "Oktober, 2024",
       "defaultYear": "Tahun ini (2024)"
     }
-  },
-  "automation": {
-    "title": "Otomatisasi",
-    "subtitle": "Kelola alur kerja otomatisasi marketing Anda",
-    "loading": "Memuat otomatisasi..."
   },
   "shared": {
     "cancel": "Batal",

@@ -147,9 +147,18 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number) {
 
     // Process orders into orderDetails format for the buyer profile
     const orderDetails = orders.map(order => {
-      const productNames = order.orderItemsRel.map(item => 
-        item.productNameSnapshot || 'Unknown Product'
-      ).join(', ');
+      // Combine items that share the same product (different variants) into a
+      // single product name so the same product isn't listed multiple times.
+      const seenProductKeys = new Set<string>();
+      const productNames = order.orderItemsRel
+        .filter(item => {
+          const key = item.productId || item.productNameSnapshot || 'Unknown Product';
+          if (seenProductKeys.has(key)) return false;
+          seenProductKeys.add(key);
+          return true;
+        })
+        .map(item => item.productNameSnapshot || 'Unknown Product')
+        .join(', ');
       
       // Calculate total orders (packages) including free pieces from promotions
       const totalOrders = order.orderItemsRel.reduce((sum: number, item: { 

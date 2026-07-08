@@ -17,7 +17,6 @@ export function useMarketingTranslations() {
   const tSalesReporting = useTranslations('dashboard.marketing.salesReporting');
   const tSalesTarget = useTranslations('dashboard.marketing.salesTarget');
   const tSalesDetails = useTranslations('dashboard.marketing.salesDetails');
-  const tAutomation = useTranslations('dashboard.marketing.automation');
   const tShared = useTranslations('dashboard.marketing.shared');
   const tCampaignPreview = useTranslations('dashboard.marketing.campaignPreview');
   const tCommon = useTranslations('dashboard.common');
@@ -92,7 +91,6 @@ export function useMarketingTranslations() {
     tSalesReporting,
     tSalesTarget,
     tSalesDetails,
-    tAutomation,
     tShared,
     tCampaignPreview,
     tCommon,
