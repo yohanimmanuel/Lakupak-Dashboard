@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { BadgePercentIcon, ChartBarIcon, ChevronDown, FileTextIcon, GiftIcon, HandshakeIcon, HomeIcon, ListIcon, PackageIcon, SettingsIcon, UsersIcon, X, DollarSign, TrendingUp, Activity, GlobeIcon, StoreIcon, MegaphoneIcon, ChartAreaIcon, TruckIcon, CircleHelp, PanelLeftClose, PanelLeft, WorkflowIcon } from 'lucide-react';
+import { BadgePercentIcon, ChartBarIcon, ChevronDown, FileTextIcon, GiftIcon, HandshakeIcon, HomeIcon, ListIcon, PackageIcon, SettingsIcon, UsersIcon, X, DollarSign, TrendingUp, Activity, GlobeIcon, StoreIcon, MegaphoneIcon, ChartAreaIcon, TruckIcon, CircleHelp, PanelLeftClose, PanelLeft, NetworkIcon } from 'lucide-react';
 import { useMenuContext } from '@/app/(dashboard)/(menulist)/DashboardClientLayout';
 import { DashboardHelpModal } from '@/components/dashboard/DashboardHelpModal';
 import { PromoSidePanel } from '@/components/dashboard/PromoSidePanel';
@@ -86,7 +86,7 @@ const mainMenuItems = [
 const secondaryMenuItems = [
   {
     label: 'Automation',
-    icon: <WorkflowIcon className="w-5 h-5" />,
+    icon: <NetworkIcon className="w-5 h-5" />,
     href: '/automation',
   },
   {
