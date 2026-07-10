@@ -1,6 +1,81 @@
 {
   "page": {
     "title": "Automations",
-    "subtitle": "Build agentic workflows that automate product creation and offers, lead management, order and logistics operations, and marketing across Laku."
+    "subtitle": "Build agentic workflows that automate product creation and offers, lead management, order and logistics operations, and marketing across Laku.",
+    "newWorkflow": "New Workflow",
+    "refresh": "Refresh"
+  },
+  "stats": {
+    "totalWorkflows": "Total Workflows",
+    "active": "Active",
+    "paused": "Paused",
+    "draft": "Draft",
+    "allWorkflows": "All automation workflows",
+    "shareOfTotal": "{percent}% of all workflows",
+    "noWorkflows": "No workflows yet"
+  },
+  "table": {
+    "title": "Workflows",
+    "searchPlaceholder": "Search workflows...",
+    "empty": "No workflows yet",
+    "emptyHint": "Create your first automation workflow to get started.",
+    "never": "Never",
+    "runs": "{count} runs",
+    "editWorkflow": "Edit workflow",
+    "deleteWorkflow": "Delete workflow",
+    "deleteTitle": "Delete Workflow",
+    "deleteConfirm": "Are you sure you want to delete {name}? This action cannot be undone.",
+    "deleteBulkTitle": "Delete Workflows",
+    "deleteBulkConfirm": "Are you sure you want to delete {count} workflow(s)? This action cannot be undone.",
+    "thisWorkflow": "this workflow",
+    "delete": "Delete",
+    "columns": {
+      "name": "Workflow",
+      "type": "Type",
+      "trigger": "Trigger",
+      "status": "Status",
+      "runs": "Runs",
+      "lastRun": "Last Run"
+    }
+  },
+  "bulk": {
+    "selectedSingular": "workflow",
+    "selectedPlural": "workflows",
+    "selected": "selected",
+    "hint": "Choose an action to apply to the selected workflows.",
+    "activate": "Activate",
+    "pause": "Pause",
+    "remove": "Remove",
+    "selectAll": "Select all workflows",
+    "selectRow": "Select workflow"
+  },
+  "filters": {
+    "allTypes": "All Types"
+  },
+  "statusTabs": {
+    "All": "All",
+    "Active": "Active",
+    "Paused": "Paused",
+    "Draft": "Draft"
+  },
+  "status": {
+    "active": "Active",
+    "paused": "Paused",
+    "draft": "Draft"
+  },
+  "types": {
+    "product_offers": "Product & Offers",
+    "lead_management": "Lead Management",
+    "order_logistics": "Order & Logistics",
+    "marketing": "Marketing"
+  },
+  "shared": {
+    "actions": "Actions",
+    "cancel": "Cancel",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "pagination": {
+      "showing": "Showing {from} to {to} of {total}"
+    }
   }
 }

@@ -1,6 +1,81 @@
 {
   "page": {
     "title": "Otomatisasi",
-    "subtitle": "Bangun alur kerja agentik yang mengotomatiskan pembuatan produk dan penawaran, manajemen prospek, operasi pesanan dan logistik, serta pemasaran di seluruh Laku."
+    "subtitle": "Bangun alur kerja agentik yang mengotomatiskan pembuatan produk dan penawaran, manajemen prospek, operasi pesanan dan logistik, serta pemasaran di seluruh Laku.",
+    "newWorkflow": "Alur Kerja Baru",
+    "refresh": "Segarkan"
+  },
+  "stats": {
+    "totalWorkflows": "Total Alur Kerja",
+    "active": "Aktif",
+    "paused": "Dijeda",
+    "draft": "Draf",
+    "allWorkflows": "Semua alur kerja otomatisasi",
+    "shareOfTotal": "{percent}% dari semua alur kerja",
+    "noWorkflows": "Belum ada alur kerja"
+  },
+  "table": {
+    "title": "Alur Kerja",
+    "searchPlaceholder": "Cari alur kerja...",
+    "empty": "Belum ada alur kerja",
+    "emptyHint": "Buat alur kerja otomatisasi pertama Anda untuk memulai.",
+    "never": "Tidak pernah",
+    "runs": "{count} kali dijalankan",
+    "editWorkflow": "Edit alur kerja",
+    "deleteWorkflow": "Hapus alur kerja",
+    "deleteTitle": "Hapus Alur Kerja",
+    "deleteConfirm": "Apakah Anda yakin ingin menghapus {name}? Tindakan ini tidak dapat dibatalkan.",
+    "deleteBulkTitle": "Hapus Alur Kerja",
+    "deleteBulkConfirm": "Apakah Anda yakin ingin menghapus {count} alur kerja? Tindakan ini tidak dapat dibatalkan.",
+    "thisWorkflow": "alur kerja ini",
+    "delete": "Hapus",
+    "columns": {
+      "name": "Alur Kerja",
+      "type": "Tipe",
+      "trigger": "Pemicu",
+      "status": "Status",
+      "runs": "Dijalankan",
+      "lastRun": "Terakhir Dijalankan"
+    }
+  },
+  "bulk": {
+    "selectedSingular": "alur kerja",
+    "selectedPlural": "alur kerja",
+    "selected": "dipilih",
+    "hint": "Pilih tindakan untuk diterapkan pada alur kerja terpilih.",
+    "activate": "Aktifkan",
+    "pause": "Jeda",
+    "remove": "Hapus",
+    "selectAll": "Pilih semua alur kerja",
+    "selectRow": "Pilih alur kerja"
+  },
+  "filters": {
+    "allTypes": "Semua Tipe"
+  },
+  "statusTabs": {
+    "All": "Semua",
+    "Active": "Aktif",
+    "Paused": "Dijeda",
+    "Draft": "Draf"
+  },
+  "status": {
+    "active": "Aktif",
+    "paused": "Dijeda",
+    "draft": "Draf"
+  },
+  "types": {
+    "product_offers": "Produk & Penawaran",
+    "lead_management": "Manajemen Prospek",
+    "order_logistics": "Pesanan & Logistik",
+    "marketing": "Pemasaran"
+  },
+  "shared": {
+    "actions": "Tindakan",
+    "cancel": "Batal",
+    "previousPage": "Halaman sebelumnya",
+    "nextPage": "Halaman berikutnya",
+    "pagination": {
+      "showing": "Menampilkan {from} sampai {to} dari {total}"
+    }
   }
 }

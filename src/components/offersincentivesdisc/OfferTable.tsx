@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useLayoutEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Edit, Filter, ChevronDown, ChevronLeft, ChevronRight, Trash, Trash2, MoreHorizontal, Tag, AlertCircle, Loader2 } from 'lucide-react';
+import { Search, Edit, Filter, ChevronDown, ChevronLeft, ChevronRight, Trash, Trash2, MoreHorizontal, Tag, AlertCircle, Loader2, PlayCircle, PauseCircle } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { format } from 'date-fns';
@@ -750,6 +750,7 @@ export default function OfferTable({
                 }`}
                 title={hasSelectedOffersWithExpiredRanges ? tTable('cannotActivateExpired') : tTable('activateSelected')}
               >
+                <PlayCircle className="w-4 h-4" />
                 {isActivating ? tTable('activating') : tTable('activate')}
               </button>
               <button
@@ -762,6 +763,7 @@ export default function OfferTable({
                 }`}
                 title={hasSelectedOffersWithExpiredRanges ? tTable('cannotDeactivateExpired') : tTable('deactivateSelected')}
               >
+                <PauseCircle className="w-4 h-4" />
                 {isDeactivating ? tTable('deactivating') : tTable('deactivate')}
               </button>
               <button
@@ -797,6 +799,7 @@ export default function OfferTable({
                   }`}
                   title={hasSelectedOffersWithExpiredRanges ? tTable('cannotActivateExpired') : tTable('activateSelected')}
                 >
+                  <PlayCircle className="w-4 h-4" />
                   {isActivating ? tTable('activating') : tTable('activate')}
                 </button>
                 <button
@@ -809,6 +812,7 @@ export default function OfferTable({
                   }`}
                   title={hasSelectedOffersWithExpiredRanges ? tTable('cannotDeactivateExpired') : tTable('deactivateSelected')}
                 >
+                  <PauseCircle className="w-4 h-4" />
                   {isDeactivating ? tTable('deactivating') : tTable('deactivate')}
                 </button>
                 <button
