@@ -141,14 +141,14 @@ export default function Statcards({ type, data }: StatcardsProps) {
             value: formatCurrency(cleanDecimals(avgMonthlySpend), userCurrency),
             change: null,
             icon: <DollarSign className="w-6 h-6 text-yellow-500" />,
-            color: 'bg-[#f7faff]',
+            color: 'bg-[#fefce8]',
           },
           {
             label: tShared('stats.avgOrderFrequency'),
             value: `${avgOrderFreq}${perMonth}`,
             change: null,
             icon: <Repeat className="w-6 h-6 text-gray-500" />,
-            color: 'bg-[#e6e6e6]',
+            color: 'bg-[#f3f4f6]',
           },
         ];
       }
@@ -257,14 +257,14 @@ export default function Statcards({ type, data }: StatcardsProps) {
           value: formatCurrency(cleanDecimals(avgMonthlyValue), userCurrency),
           change: null,
           icon: <DollarSign className="w-6 h-6 text-yellow-500" />,
-          color: 'bg-[#f7faff]',
+          color: 'bg-[#fefce8]',
         },
         {
           label: tShared('stats.onTimeDeliveryRate'),
           value: `${onTimeRate}%`,
           change: null,
           icon: <Clock className="w-6 h-6 text-gray-500" />,
-          color: 'bg-[#e6e6e6]',
+          color: 'bg-[#f3f4f6]',
         },
       ];
     } catch {
@@ -294,14 +294,14 @@ export default function Statcards({ type, data }: StatcardsProps) {
             value: naLabel,
             change: null,
             icon: <DollarSign className="w-6 h-6 text-yellow-500" />,
-            color: 'bg-[#f7faff]',
+            color: 'bg-[#fefce8]',
           },
           {
             label: tShared('stats.avgOrderFrequency'),
             value: naLabel,
             change: null,
             icon: <Repeat className="w-6 h-6 text-gray-500" />,
-            color: 'bg-[#e6e6e6]',
+            color: 'bg-[#f3f4f6]',
           },
         ];
       }
@@ -326,14 +326,14 @@ export default function Statcards({ type, data }: StatcardsProps) {
           value: naLabel,
           change: null,
           icon: <DollarSign className="w-6 h-6 text-yellow-500" />,
-          color: 'bg-[#f7faff]',
+          color: 'bg-[#fefce8]',
         },
         {
           label: tShared('stats.onTimeDeliveryRate'),
           value: naLabel,
           change: null,
           icon: <Clock className="w-6 h-6 text-gray-500" />,
-          color: 'bg-[#e6e6e6]',
+          color: 'bg-[#f3f4f6]',
         },
       ];
     }

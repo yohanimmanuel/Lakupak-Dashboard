@@ -1727,7 +1727,7 @@ const supplierInsights = useMemo(() => {
         value: totalOrderCount.toLocaleString(),
         change: orderGrowth.ordersGrowth,
         icon: <ShoppingCart className="w-6 h-6 text-emerald-600" />,
-        color: 'bg-white',
+        color: 'bg-[#e6f7ec]',
       },
       {
         id: 'piecesSold',
@@ -1735,7 +1735,7 @@ const supplierInsights = useMemo(() => {
         value: safeSalesMetrics.totalUnitsSold.toLocaleString(),
         change: orderGrowth.piecesGrowth,
         icon: <Package className="w-6 h-6 text-purple-600" />,
-        color: 'bg-white',
+        color: 'bg-[#f3e8ff]',
       },
       {
         id: 'averageOrderVolume',

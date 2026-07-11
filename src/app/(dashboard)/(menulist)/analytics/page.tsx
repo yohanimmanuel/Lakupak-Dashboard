@@ -316,7 +316,7 @@ export default function AnalyticsPage() {
               value={`${opMetrics.completionRate.toFixed(1)}%`}
               change={orderGrowth.completionGrowth}
               icon={<ShoppingCart className="w-6 h-6 text-green-600" />}
-              color="bg-white"
+              color="bg-[#e6f7ec]"
             />
             <AnalyticsMetricCard
               title={tMetrics('averageOrderValue')}

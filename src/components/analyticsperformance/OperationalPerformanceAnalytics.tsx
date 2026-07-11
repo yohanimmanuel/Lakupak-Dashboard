@@ -567,9 +567,9 @@ const OperationalPerformanceAnalytics: React.FC<OperationalPerformanceAnalyticsP
     icon: React.ReactNode;
     color: string;
   }> = ({ title, value, icon, color }) => (
-    <div className={`flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6] ${color}`}>
+    <div className="flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6]">
       <div className="flex items-center gap-4">
-        <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white">
+        <div className={`flex items-center justify-center w-12 h-12 rounded-lg ${color}`}>
           {icon}
         </div>
         <div>
@@ -1077,9 +1077,9 @@ export const OperationalMetricCard: React.FC<{
   const resolvedComparisonLabel = comparisonLabel ?? tShared('vsLastMonth');
 
   return (
-<div className={`flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6] ${color}`}>
+<div className="flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6]">
       <div className="flex items-center gap-4 border-b border-[#e6e6e6] pb-4">
-        <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white">
+        <div className={`flex items-center justify-center w-12 h-12 rounded-lg ${color}`}>
         {icon}
       </div>
       <div>

@@ -726,9 +726,9 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
     color: string;
     comparisonLabel?: string;
   }> = ({ title, value, change, icon, color, comparisonLabel }) => (
-    <div className={`flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6] ${color}`}>
+    <div className="flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6]">
       <div className="flex items-center gap-4 border-b border-[#e6e6e6] pb-4">
-        <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white">
+        <div className={`flex items-center justify-center w-12 h-12 rounded-lg ${color}`}>
           {icon}
         </div>
         <div>
@@ -771,14 +771,14 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
           value={`${calculateMetrics.profitMargin.toFixed(1)}%`}
           change={growthMetrics.marginGrowth}
           icon={<TrendingUp className="w-6 h-6 text-yellow-500" />}
-          color="bg-[#f7faff]"
+          color="bg-[#fefce8]"
         />
         <MetricCard
           title={tMetrics('averageOrderValue')}
           value={utilsFormatCurrency(calculateMetrics.averageOrderValue, userCurrency)}
           change={growthMetrics.aovGrowth}
           icon={<ShoppingCart className="w-6 h-6 text-gray-500" />}
-          color="bg-[#e6e6e6]"
+          color="bg-[#f3f4f6]"
         />
       </div>
 
@@ -1507,9 +1507,9 @@ export const AnalyticsMetricCard: React.FC<{
   const resolvedNaLabel = naLabel ?? tShared('na');
 
   return (
-  <div className={`flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6] ${color}`}>
+  <div className="flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6]">
     <div className="flex items-center gap-4 border-b border-[#e6e6e6] pb-4">
-      <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white">
+      <div className={`flex items-center justify-center w-12 h-12 rounded-lg ${color}`}>
         {icon}
       </div>
       <div>

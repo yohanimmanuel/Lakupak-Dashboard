@@ -79,10 +79,10 @@ export default function ProductCards({ products = [] }: ProductCardsProps) {
         {stats.map((stat) => (
           <div
             key={stat.label}
-            className={`flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6] ${stat.color}`}
+            className="flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6]"
           >
             <div className="flex items-center gap-4 border-b border-[#e6e6e6] pb-4">
-              <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white">
+              <div className={`flex items-center justify-center w-12 h-12 rounded-lg ${stat.color}`}>
                 {stat.icon}
               </div>
               <div>

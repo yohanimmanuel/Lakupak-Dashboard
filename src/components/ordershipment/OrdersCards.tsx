@@ -43,7 +43,7 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
         value={totalOrders.toLocaleString()}
         change={growth.ordersGrowth}
         icon={<Package className="w-6 h-6 text-emerald-600" />}
-        color="bg-white"
+        color="bg-[#e6f7ec]"
       />
       <AnalyticsMetricCard
         title={tCards('orderVolume')}
@@ -57,7 +57,7 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
         value={`${completionRate.toFixed(1)}%`}
         change={growth.completionGrowth}
         icon={<ShoppingCart className="w-6 h-6 text-green-600" />}
-        color="bg-white"
+        color="bg-[#e6f7ec]"
       />
       <AnalyticsMetricCard
         title={tCards('averageOrderVolume')}
