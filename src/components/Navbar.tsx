@@ -490,7 +490,7 @@ const Navbar = () => {
       {/* NAVBAR GROUPS */}
       <div className="flex items-center gap-2 justify-end shrink-0">
         {/* Salesmen Avatars Group */}
-        <div className="flex items-center mr-2 sm:mr-4 pr-2 sm:pr-4 border-r border-gray-200">
+        <div className="flex items-center">
           {salesAgents.slice(0, maxAvatars).map((agent, i) => (
             <button
               key={agent.id}
@@ -535,7 +535,7 @@ const Navbar = () => {
           </button>
         </div>
         {/* Message & Notification Group */}
-        <div className="flex items-center gap-2 sm:gap-3 px-2 sm:px-4 border-r border-gray-200">
+        <div className="flex items-center gap-3 px-4">
           <button
             type="button"
             className="p-2 w-9 h-9 rounded-full bg-white flex items-center justify-center cursor-pointer relative hover:bg-gray-100 transition border border-gray-200"
@@ -795,12 +795,8 @@ const Navbar = () => {
           )}
         </div>
         {/* User Group */}
-        <div className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-4" data-tour="user-menu">
-          <div className="hidden sm:flex flex-col text-black max-w-[80px] truncate text-xs text-right">
-            <span className="text-xs leading-3 font-medium truncate">{user?.firstName || tNavbar('userFallback')}</span>
-            <span className="text-[10px] text-gray-500 text-right truncate">{user?.email || ''}</span>
-          </div>
-          <div className="w-9 h-9 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center cursor-pointer relative hover:bg-gray-100 transition overflow-hidden" ref={dropdownRef}>
+        <div className="flex items-center -ml-3" data-tour="user-menu">
+          <div className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center cursor-pointer relative hover:bg-gray-100 transition overflow-hidden" ref={dropdownRef}>
             <div
               className="w-full h-full flex items-center justify-center"
               onClick={() => { setShowDropdown(v => !v); setShowNotifDropdown(false); setShowMsgDropdown(false); }}
