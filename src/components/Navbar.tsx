@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { MessageCircle, Bell, User, LogOut, Plus, Package, AlertTriangle, Tag, Users, Megaphone, ShoppingBag, Settings, Check, Trash2, X, Truck, Info, Receipt } from 'lucide-react';
+import { MessageCircle, Bell, User, LogOut, Plus, Package, AlertTriangle, Tag, Users, Megaphone, ShoppingBag, Settings, Check, Trash2, X, Truck, Info, Receipt, Bot, Send } from 'lucide-react';
 import { Menu as MenuIcon } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useUserStore } from '@/store/userStore';
@@ -16,6 +16,7 @@ import { DashboardSearchBar } from '@/components/dashboard/DashboardSearchBar';
 import { useTranslations } from 'next-intl';
 
 const DROPDOWN_WIDTH = 300;
+const AI_PANEL_ID = 'navbar-ai-agent-panel';
 
 interface SalesAgent {
   id: string;
@@ -132,6 +133,7 @@ const Navbar = () => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const [showMsgDropdown, setShowMsgDropdown] = useState(false);
+  const [showAiPanel, setShowAiPanel] = useState(false);
   const [salesAgents, setSalesAgents] = useState<SalesAgent[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -143,6 +145,8 @@ const Navbar = () => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLButtonElement>(null);
   const msgRef = useRef<HTMLButtonElement>(null);
+  const aiRef = useRef<HTMLButtonElement>(null);
+  const aiPanelRef = useRef<HTMLDivElement>(null);
   const { toggleMenu } = useMenuContext();
   const [hasMounted, setHasMounted] = useState(false);
   const router = useRouter();
@@ -421,12 +425,20 @@ const Navbar = () => {
       if (msgRef.current && !msgRef.current.contains(target)) {
         setShowMsgDropdown(false);
       }
+
+      if (showAiPanel) {
+        const isClickOnAiButton = aiRef.current?.contains(target);
+        const isClickOnAiPanel = aiPanelRef.current?.contains(target);
+        if (!isClickOnAiButton && !isClickOnAiPanel) {
+          setShowAiPanel(false);
+        }
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showDropdown, showNotifDropdown]);
+  }, [showDropdown, showNotifDropdown, showAiPanel]);
 
   const handleSignOut = async () => {
     // Clear NextAuth session first
@@ -487,319 +499,359 @@ const Navbar = () => {
           <DashboardSearchBar placeholder={tCommon('searchPlaceholder')} className="relative w-full" />
         </div>
       </div>
-      {/* NAVBAR GROUPS */}
+      {/* NAVBAR ACTIONS — single group with consistent gap */}
       <div className="flex items-center gap-2 justify-end shrink-0">
-        {/* Salesmen Avatars Group */}
-        <div className="flex items-center">
-          {salesAgents.slice(0, maxAvatars).map((agent, i) => (
-            <button
-              key={agent.id}
-              onClick={() => handleSalesmanClick(agent.id)}
-              className={`cursor-pointer hover:opacity-80 transition-opacity relative flex-shrink-0 ${i > 0 ? '-ml-2 sm:-ml-3' : ''}`}
-              style={{ zIndex: 10 - i }}
-              title={agent.name}
-            >
-              {agent.avatar ? (
-                <img
-                  src={agent.avatar}
-                  alt={agent.name}
-                  className="w-6 h-6 sm:w-7 sm:h-7 rounded-full border-2 border-white shadow-sm object-cover"
-                />
-              ) : (
-                <div
-                  className="w-6 h-6 sm:w-7 sm:h-7 rounded-full border-2 border-white shadow-sm bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-600"
-                  title={agent.name}
-                >
-                  {agent.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-                </div>
-              )}
-            </button>
-          ))}
-          {extraCount > 0 && (
-            <button
-              onClick={handleSalesTeamClick}
-              className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-xs text-gray-500 font-semibold -ml-2 sm:-ml-3 cursor-pointer hover:bg-gray-200 transition-colors relative flex-shrink-0"
-              style={{ zIndex: 8 }}
-              title={tNavbar('viewAllSalesAgents', { count: salesAgents.length })}
-            >
-              +{extraCount}
-            </button>
-          )}
+        {/* Sales agents */}
+        <div className="flex items-center gap-2">
+          <div className="hidden sm:flex items-center">
+            {salesAgents.slice(0, maxAvatars).map((agent, i) => (
+              <button
+                key={agent.id}
+                onClick={() => handleSalesmanClick(agent.id)}
+                className={`cursor-pointer hover:opacity-80 transition-opacity relative flex-shrink-0 ${i > 0 ? '-ml-2' : ''}`}
+                style={{ zIndex: 10 - i }}
+                title={agent.name}
+              >
+                {agent.avatar ? (
+                  <img
+                    src={agent.avatar}
+                    alt={agent.name}
+                    className="w-7 h-7 rounded-full border-2 border-white shadow-sm object-cover"
+                  />
+                ) : (
+                  <div
+                    className="w-7 h-7 rounded-full border-2 border-white shadow-sm bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-600"
+                    title={agent.name}
+                  >
+                    {agent.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                  </div>
+                )}
+              </button>
+            ))}
+            {extraCount > 0 && (
+              <button
+                onClick={handleSalesTeamClick}
+                className="w-7 h-7 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-xs text-gray-500 font-semibold -ml-2 cursor-pointer hover:bg-gray-200 transition-colors relative flex-shrink-0"
+                style={{ zIndex: 8 }}
+                title={tNavbar('viewAllSalesAgents', { count: salesAgents.length })}
+              >
+                {extraCount}
+              </button>
+            )}
+          </div>
           <button
             onClick={handleAddSalesman}
-            className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center text-gray-500 hover:bg-blue-50 ml-2 sm:ml-2 shadow-sm transition-colors relative flex-shrink-0"
-            style={{ zIndex: 7 }}
+            className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-blue-50 shadow-sm transition-colors relative flex-shrink-0"
             title={tNavbar('addSalesAgent')}
           >
-            <Plus size={14} className="sm:w-4 sm:h-4" />
+            <Plus size={16} />
           </button>
         </div>
-        {/* Message & Notification Group */}
-        <div className="flex items-center gap-3 px-4">
-          <button
-            type="button"
-            className="p-2 w-9 h-9 rounded-full bg-white flex items-center justify-center cursor-pointer relative hover:bg-gray-100 transition border border-gray-200"
-            ref={msgRef}
-            onClick={() => { setShowMsgDropdown(v => !v); setShowNotifDropdown(false); setShowDropdown(false); }}
-            aria-label={tNavbar('messages')}
-          >
-            <MessageCircle className="w-5 h-5 text-gray-500" />
-          </button>
-          <DropdownPortal anchorRef={msgRef} show={showMsgDropdown}>
-            <div className="px-2 pt-2 text-center">
-              <div className="font-bold text-xs text-gray-800 mb-2">{tNavbar('yourMessages')}</div>
+
+        {/* AI Agent */}
+        <button
+          type="button"
+          ref={aiRef}
+          className={`p-2 w-9 h-9 rounded-full flex items-center justify-center cursor-pointer relative transition border ${
+            showAiPanel
+              ? 'bg-[#0a61d7] border-[#0a61d7] text-white'
+              : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-100'
+          }`}
+          onClick={() => {
+            setShowAiPanel(v => !v);
+            setShowMsgDropdown(false);
+            setShowNotifDropdown(false);
+            setShowDropdown(false);
+          }}
+          aria-label={tNavbar('aiAgent')}
+          title={tNavbar('aiAgent')}
+          aria-haspopup="dialog"
+          aria-expanded={showAiPanel}
+          aria-controls={AI_PANEL_ID}
+        >
+          <Bot className="w-5 h-5" />
+        </button>
+
+        {/* Messages */}
+        <button
+          type="button"
+          className="p-2 w-9 h-9 rounded-full bg-white flex items-center justify-center cursor-pointer relative hover:bg-gray-100 transition border border-gray-200"
+          ref={msgRef}
+          onClick={() => {
+            setShowMsgDropdown(v => !v);
+            setShowNotifDropdown(false);
+            setShowDropdown(false);
+            setShowAiPanel(false);
+          }}
+          aria-label={tNavbar('messages')}
+        >
+          <MessageCircle className="w-5 h-5 text-gray-500" />
+        </button>
+        <DropdownPortal anchorRef={msgRef} show={showMsgDropdown}>
+          <div className="px-2 pt-2 text-center">
+            <div className="font-bold text-xs text-gray-800 mb-2">{tNavbar('yourMessages')}</div>
+          </div>
+          <div className="border-t border-gray-200" />
+          <div className="px-6 py-6 text-gray-500 text-xs text-center">{tNavbar('noMessages')}</div>
+          <div className="border-t border-gray-200" />
+          <div className="flex justify-center py-2">
+            <button className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-2 rounded-full text-xs shadow transition">{tNavbar('viewAllMessages')}</button>
+          </div>
+        </DropdownPortal>
+
+        {/* Notifications */}
+        <button
+          type="button"
+          className="p-2 w-9 h-9 rounded-full bg-white flex items-center justify-center cursor-pointer relative hover:bg-gray-100 transition border border-gray-200"
+          ref={notifRef}
+          onClick={() => {
+            setShowNotifDropdown(v => !v);
+            setShowMsgDropdown(false);
+            setShowDropdown(false);
+            setShowAiPanel(false);
+          }}
+          aria-label={tNavbar('notifications')}
+        >
+          <Bell className="w-5 h-5 text-gray-500" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center bg-green-500 text-white rounded-full text-[9px] font-semibold px-0.5">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </button>
+        <DropdownPortal anchorRef={notifRef} show={showNotifDropdown} dataPortalType="notif">
+          <div className="px-3 py-2 flex items-center justify-between border-b border-gray-200">
+            <div className="font-semibold text-sm text-gray-800">{tNavbar('notifications')}</div>
+            <div className="flex items-center gap-2">
+              {unreadCount > 0 && (
+                <button 
+                  onClick={handleMarkAllAsRead}
+                  className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                  title={tNavbar('markAllRead')}
+                >
+                  <Check size={12} />
+                  {tNavbar('markAllRead')}
+                </button>
+              )}
+              <button
+                onClick={() => setShowNotifDropdown(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100"
+                title={tNavbar('close')}
+              >
+                <X size={14} />
+              </button>
             </div>
-            <div className="border-t border-gray-200" />
-            <div className="px-6 py-6 text-gray-500 text-xs text-center">{tNavbar('noMessages')}</div>
-            <div className="border-t border-gray-200" />
-            <div className="flex justify-center py-2">
-              <button className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-2 rounded-full text-xs shadow transition">{tNavbar('viewAllMessages')}</button>
-            </div>
-          </DropdownPortal>
-          <button
-            type="button"
-            className="p-2 w-9 h-9 rounded-full bg-white flex items-center justify-center cursor-pointer relative hover:bg-gray-100 transition border border-gray-200"
-            ref={notifRef}
-            onClick={() => { setShowNotifDropdown(v => !v); setShowMsgDropdown(false); setShowDropdown(false); }}
-            aria-label={tNavbar('notifications')}
-          >
-            <Bell className="w-5 h-5 text-gray-500" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center bg-green-500 text-white rounded-full text-[9px] font-semibold px-0.5">
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </span>
-            )}
-          </button>
-          <DropdownPortal anchorRef={notifRef} show={showNotifDropdown} dataPortalType="notif">
-            <div className="px-3 py-2 flex items-center justify-between border-b border-gray-200">
-              <div className="font-semibold text-sm text-gray-800">{tNavbar('notifications')}</div>
-              <div className="flex items-center gap-2">
-                {unreadCount > 0 && (
-                  <button 
-                    onClick={handleMarkAllAsRead}
-                    className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
-                    title={tNavbar('markAllRead')}
+          </div>
+          <div className="max-h-[360px] overflow-y-auto">
+            {isLoadingNotifications ? (
+              <div className="px-4 py-8 text-gray-500 text-xs text-center">{tNavbar('loading')}</div>
+            ) : notifications.length === 0 ? (
+              <div className="px-4 py-8 text-gray-500 text-xs text-center flex flex-col items-center gap-2">
+                <Bell size={24} className="text-gray-300" />
+                <span>{tNavbar('noNotificationsYet')}</span>
+              </div>
+            ) : (
+              notifications.map((notification) => (
+                <div
+                  key={notification.id}
+                  className={`px-3 py-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition relative group ${
+                    !notification.isRead ? 'bg-blue-50/50' : ''
+                  }`}
+                >
+                  {!notification.isRead && (
+                    <div className="absolute top-2 left-2 w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 z-10" />
+                  )}
+                  <div className="flex gap-3" onClick={() => handleNotificationClick(notification)}>
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                      {getNotificationIcon(notification.type, notification.metadata)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className={`text-xs font-medium text-gray-900 truncate ${!notification.isRead ? 'font-semibold' : ''}`}>
+                          {notification.title}
+                        </p>
+                      </div>
+                      <p className="text-xs text-gray-600 line-clamp-2 mt-0.5">
+                        {notification.message}
+                      </p>
+                      <p className="text-[10px] text-gray-400 mt-1">
+                        {formatTimeAgo(notification.createdAt)}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={(e) => handleDeleteNotification(notification.id, e)}
+                    className="absolute top-2 right-2 p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600 z-10"
+                    title={tNavbar('deleteNotification')}
                   >
-                    <Check size={12} />
-                    {tNavbar('markAllRead')}
+                    <X size={14} />
                   </button>
+                </div>
+              ))
+            )}
+          </div>
+          {notifications.length > 0 && (
+            <div className="border-t border-gray-200 px-3 py-2 flex items-center justify-between gap-2">
+              <button 
+                onClick={handleClearAllNotifications}
+                className="text-xs text-red-600 hover:text-red-700 flex items-center gap-1"
+                title={tNavbar('clearAllNotifications')}
+              >
+                <Trash2 size={12} />
+                {tNavbar('clearAll')}
+              </button>
+              <button 
+                onClick={() => {
+                  setShowNotifDropdown(false);
+                  setShowAllNotifModal(true);
+                }}
+                className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+              >
+                {tNavbar('viewAllNotifications')}
+              </button>
+            </div>
+          )}
+        </DropdownPortal>
+
+        {/* All Notifications Modal */}
+        {showAllNotifModal && ReactDOM.createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center" data-portal-type="notif-modal">
+            <div className="absolute inset-0 bg-black/30" onClick={() => setShowAllNotifModal(false)} aria-hidden />
+            <div className="relative z-10 bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col mx-4" onClick={e => e.stopPropagation()}>
+              <div className="px-4 py-3 flex items-center justify-between border-b shrink-0">
+                <h2 className="font-semibold text-base text-gray-800">{tNavbar('allNotifications')}</h2>
+                <div className="flex items-center gap-2">
+                  {allNotifications.length > 0 && (
+                    <>
+                      <button onClick={handleClearAllNotifications} className="text-xs text-red-600 hover:text-red-700 flex items-center gap-1" title={tNavbar('clearAll')}>
+                        <Trash2 size={12} /> {tNavbar('clearAll')}
+                      </button>
+                      {unreadCount > 0 && (
+                        <button onClick={handleMarkAllAsRead} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1" title={tNavbar('markAllRead')}>
+                          <Check size={12} /> {tNavbar('markAllRead')}
+                        </button>
+                      )}
+                    </>
+                  )}
+                  <button onClick={() => setShowAllNotifModal(false)} className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100" title={tNavbar('close')}>
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+              <div className="overflow-y-auto flex-1 min-h-0">
+                {isLoadingAllNotifications ? (
+                  <div className="px-4 py-8 text-gray-500 text-xs text-center">{tNavbar('loading')}</div>
+                ) : allNotifications.length === 0 ? (
+                  <div className="px-4 py-8 text-gray-500 text-xs text-center">{tNavbar('noNotifications')}</div>
+                ) : (
+                  allNotifications.map((n) => (
+                    <div key={n.id} className={`px-4 py-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition relative group ${!n.isRead ? 'bg-blue-50/50' : ''}`}>
+                      {!n.isRead && <div className="absolute top-3 left-3 w-2 h-2 rounded-full bg-blue-500 z-10" />}
+                      <div className="flex gap-3" onClick={() => handleNotificationClick(n)}>
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">{getNotificationIcon(n.type, n.metadata)}</div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-xs font-medium text-gray-900 truncate ${!n.isRead ? 'font-semibold' : ''}`}>{n.title}</p>
+                          <p className="text-xs text-gray-600 line-clamp-2 mt-0.5">{n.message}</p>
+                          <p className="text-[10px] text-gray-400 mt-1">{formatTimeAgo(n.createdAt)}</p>
+                        </div>
+                      </div>
+                      <button onClick={(e) => handleDeleteNotification(n.id, e)} className="absolute top-3 right-3 p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600 z-10" title={tNavbar('delete')}><X size={14} /></button>
+                    </div>
+                  ))
                 )}
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+        {/* Driver request detail modal */}
+        {driverRequestModalNotif && ReactDOM.createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center" data-portal-type="driver-request-modal">
+            <div
+              className="absolute inset-0 bg-black/30"
+              onClick={() => setDriverRequestModalNotif(null)}
+              aria-hidden
+            />
+            <div
+              className="relative z-10 bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-4"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+                    <Truck size={20} className="text-blue-600" />
+                  </div>
+                  <h2 className="font-semibold text-base text-gray-900">{tNavbar('driverAccessRequest')}</h2>
+                </div>
                 <button
-                  onClick={() => setShowNotifDropdown(false)}
+                  onClick={() => setDriverRequestModalNotif(null)}
                   className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100"
                   title={tNavbar('close')}
                 >
-                  <X size={14} />
+                  <X size={18} />
                 </button>
               </div>
-            </div>
-            <div className="max-h-[360px] overflow-y-auto">
-              {isLoadingNotifications ? (
-                <div className="px-4 py-8 text-gray-500 text-xs text-center">{tNavbar('loading')}</div>
-              ) : notifications.length === 0 ? (
-                <div className="px-4 py-8 text-gray-500 text-xs text-center flex flex-col items-center gap-2">
-                  <Bell size={24} className="text-gray-300" />
-                  <span>{tNavbar('noNotificationsYet')}</span>
-                </div>
-              ) : (
-                notifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    className={`px-3 py-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition relative group ${
-                      !notification.isRead ? 'bg-blue-50/50' : ''
-                    }`}
-                  >
-                    {/* Blue dot indicator - moved to top left */}
-                    {!notification.isRead && (
-                      <div className="absolute top-2 left-2 w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 z-10" />
-                    )}
-                    <div className="flex gap-3" onClick={() => handleNotificationClick(notification)}>
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                        {getNotificationIcon(notification.type, notification.metadata)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className={`text-xs font-medium text-gray-900 truncate ${!notification.isRead ? 'font-semibold' : ''}`}>
-                            {notification.title}
-                          </p>
-                        </div>
-                        <p className="text-xs text-gray-600 line-clamp-2 mt-0.5">
-                          {notification.message}
-                        </p>
-                        <p className="text-[10px] text-gray-400 mt-1">
-                          {formatTimeAgo(notification.createdAt)}
-                        </p>
-                      </div>
+              {(() => {
+                const meta = (driverRequestModalNotif.metadata || {}) as DriverRequestMetadata;
+                return (
+                  <div className="space-y-3 text-sm">
+                    <div>
+                      <span className="text-gray-500 block text-xs font-medium mb-0.5">{tNavbar('name')}</span>
+                      <p className="text-gray-900 font-medium">{meta.driverName ?? '—'}</p>
                     </div>
-                    {/* X button - top right (always visible so deletion works on touch) */}
-                    <button
-                      onClick={(e) => handleDeleteNotification(notification.id, e)}
-                      className="absolute top-2 right-2 p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600 z-10"
-                      title={tNavbar('deleteNotification')}
-                    >
-                      <X size={14} />
-                    </button>
+                    <div>
+                      <span className="text-gray-500 block text-xs font-medium mb-0.5">{tNavbar('phone')}</span>
+                      <p className="text-gray-900">{meta.driverPhone ?? '—'}</p>
+                    </div>
+                    {meta.message && (
+                      <div>
+                        <span className="text-gray-500 block text-xs font-medium mb-0.5">{tNavbar('message')}</span>
+                        <p className="text-gray-700 whitespace-pre-wrap">{meta.message}</p>
+                      </div>
+                    )}
                   </div>
-                ))
-              )}
-            </div>
-            {notifications.length > 0 && (
-              <div className="border-t border-gray-200 px-3 py-2 flex items-center justify-between gap-2">
-                <button 
-                  onClick={handleClearAllNotifications}
-                  className="text-xs text-red-600 hover:text-red-700 flex items-center gap-1"
-                  title={tNavbar('clearAllNotifications')}
+                );
+              })()}
+              <div className="mt-4 p-3 rounded-lg bg-blue-50 border border-blue-100 flex gap-2">
+                <Info size={18} className="text-blue-600 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-blue-800">
+                  {tNavbar('driverHowToAdd')}
+                </p>
+              </div>
+              <div className="mt-5 flex gap-2 justify-end border-t border-gray-100 pt-4">
+                <button
+                  onClick={() => setDriverRequestModalNotif(null)}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition"
                 >
-                  <Trash2 size={12} />
-                  {tNavbar('clearAll')}
+                  {tNavbar('close')}
                 </button>
-                <button 
+                <button
                   onClick={() => {
-                    setShowNotifDropdown(false);
-                    setShowAllNotifModal(true);
+                    setDriverRequestModalNotif(null);
+                    router.push('/logistics/create');
                   }}
-                  className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                  className="px-4 py-2 text-sm font-medium text-white bg-[#0a61d7] hover:bg-[#084ba6] rounded-lg transition"
                 >
-                  {tNavbar('viewAllNotifications')}
+                  {tNavbar('addFleetAndDriver')}
                 </button>
               </div>
-            )}
-          </DropdownPortal>
+            </div>
+          </div>,
+          document.body
+        )}
 
-          {/* All Notifications Modal */}
-          {showAllNotifModal && ReactDOM.createPortal(
-            <div className="fixed inset-0 z-[100] flex items-center justify-center" data-portal-type="notif-modal">
-              <div className="absolute inset-0 bg-black/30" onClick={() => setShowAllNotifModal(false)} aria-hidden />
-              <div className="relative z-10 bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col mx-4" onClick={e => e.stopPropagation()}>
-                <div className="px-4 py-3 flex items-center justify-between border-b shrink-0">
-                  <h2 className="font-semibold text-base text-gray-800">{tNavbar('allNotifications')}</h2>
-                  <div className="flex items-center gap-2">
-                    {allNotifications.length > 0 && (
-                      <>
-                        <button onClick={handleClearAllNotifications} className="text-xs text-red-600 hover:text-red-700 flex items-center gap-1" title={tNavbar('clearAll')}>
-                          <Trash2 size={12} /> {tNavbar('clearAll')}
-                        </button>
-                        {unreadCount > 0 && (
-                          <button onClick={handleMarkAllAsRead} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1" title={tNavbar('markAllRead')}>
-                            <Check size={12} /> {tNavbar('markAllRead')}
-                          </button>
-                        )}
-                      </>
-                    )}
-                    <button onClick={() => setShowAllNotifModal(false)} className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100" title={tNavbar('close')}>
-                      <X size={16} />
-                    </button>
-                  </div>
-                </div>
-                <div className="overflow-y-auto flex-1 min-h-0">
-                  {isLoadingAllNotifications ? (
-                    <div className="px-4 py-8 text-gray-500 text-xs text-center">{tNavbar('loading')}</div>
-                  ) : allNotifications.length === 0 ? (
-                    <div className="px-4 py-8 text-gray-500 text-xs text-center">{tNavbar('noNotifications')}</div>
-                  ) : (
-                    allNotifications.map((n) => (
-                      <div key={n.id} className={`px-4 py-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition relative group ${!n.isRead ? 'bg-blue-50/50' : ''}`}>
-                        {!n.isRead && <div className="absolute top-3 left-3 w-2 h-2 rounded-full bg-blue-500 z-10" />}
-                        <div className="flex gap-3" onClick={() => handleNotificationClick(n)}>
-                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">{getNotificationIcon(n.type, n.metadata)}</div>
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-xs font-medium text-gray-900 truncate ${!n.isRead ? 'font-semibold' : ''}`}>{n.title}</p>
-                            <p className="text-xs text-gray-600 line-clamp-2 mt-0.5">{n.message}</p>
-                            <p className="text-[10px] text-gray-400 mt-1">{formatTimeAgo(n.createdAt)}</p>
-                          </div>
-                        </div>
-                        <button onClick={(e) => handleDeleteNotification(n.id, e)} className="absolute top-3 right-3 p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600 z-10" title={tNavbar('delete')}><X size={14} /></button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>,
-            document.body
-          )}
-
-          {/* Driver request detail modal — opens when user clicks a driver_request notification */}
-          {driverRequestModalNotif && ReactDOM.createPortal(
-            <div className="fixed inset-0 z-[100] flex items-center justify-center" data-portal-type="driver-request-modal">
-              <div
-                className="absolute inset-0 bg-black/30"
-                onClick={() => setDriverRequestModalNotif(null)}
-                aria-hidden
-              />
-              <div
-                className="relative z-10 bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-4"
-                onClick={e => e.stopPropagation()}
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
-                      <Truck size={20} className="text-blue-600" />
-                    </div>
-                    <h2 className="font-semibold text-base text-gray-900">{tNavbar('driverAccessRequest')}</h2>
-                  </div>
-                  <button
-                    onClick={() => setDriverRequestModalNotif(null)}
-                    className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100"
-                    title={tNavbar('close')}
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-                {(() => {
-                  const meta = (driverRequestModalNotif.metadata || {}) as DriverRequestMetadata;
-                  return (
-                    <div className="space-y-3 text-sm">
-                      <div>
-                        <span className="text-gray-500 block text-xs font-medium mb-0.5">{tNavbar('name')}</span>
-                        <p className="text-gray-900 font-medium">{meta.driverName ?? '—'}</p>
-                      </div>
-                      <div>
-                        <span className="text-gray-500 block text-xs font-medium mb-0.5">{tNavbar('phone')}</span>
-                        <p className="text-gray-900">{meta.driverPhone ?? '—'}</p>
-                      </div>
-                      {meta.message && (
-                        <div>
-                          <span className="text-gray-500 block text-xs font-medium mb-0.5">{tNavbar('message')}</span>
-                          <p className="text-gray-700 whitespace-pre-wrap">{meta.message}</p>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-                <div className="mt-4 p-3 rounded-lg bg-blue-50 border border-blue-100 flex gap-2">
-                  <Info size={18} className="text-blue-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-blue-800">
-                    {tNavbar('driverHowToAdd')}
-                  </p>
-                </div>
-                <div className="mt-5 flex gap-2 justify-end border-t border-gray-100 pt-4">
-                  <button
-                    onClick={() => setDriverRequestModalNotif(null)}
-                    className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition"
-                  >
-                    {tNavbar('close')}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setDriverRequestModalNotif(null);
-                      router.push('/logistics/create');
-                    }}
-                    className="px-4 py-2 text-sm font-medium text-white bg-[#0a61d7] hover:bg-[#084ba6] rounded-lg transition"
-                  >
-                    {tNavbar('addFleetAndDriver')}
-                  </button>
-                </div>
-              </div>
-            </div>,
-            document.body
-          )}
-        </div>
-        {/* User Group */}
-        <div className="flex items-center -ml-3" data-tour="user-menu">
+        {/* User */}
+        <div className="flex items-center" data-tour="user-menu">
           <div className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center cursor-pointer relative hover:bg-gray-100 transition overflow-hidden" ref={dropdownRef}>
             <div
               className="w-full h-full flex items-center justify-center"
-              onClick={() => { setShowDropdown(v => !v); setShowNotifDropdown(false); setShowMsgDropdown(false); }}
+              onClick={() => {
+                setShowDropdown(v => !v);
+                setShowNotifDropdown(false);
+                setShowMsgDropdown(false);
+                setShowAiPanel(false);
+              }}
             >
               {user?.avatar && user.avatar !== null && user.avatar.trim() !== '' ? (
                 <Image
@@ -814,7 +866,6 @@ const Navbar = () => {
               )}
             </div>
           </div>
-          {/* User dropdown menu using portal */}
           <DropdownPortal anchorRef={dropdownRef} show={showDropdown}>
             <div className="px-4 py-2 border-b">
               <p className="text-xs font-medium text-gray-900 truncate" title={user?.firstName}>{user?.firstName || tNavbar('userFallback')}</p>
@@ -839,6 +890,67 @@ const Navbar = () => {
           </DropdownPortal>
         </div>
       </div>
+
+      {/* AI Agent chat panel — top right below navbar */}
+      {showAiPanel && ReactDOM.createPortal(
+        <div
+          ref={aiPanelRef}
+          id={AI_PANEL_ID}
+          data-portal-type="ai-agent"
+          className="fixed top-16 right-4 z-50 w-[min(100vw-2rem,380px)] h-[min(70vh,520px)] flex flex-col bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden"
+          role="dialog"
+          aria-label={tNavbar('aiAgentTitle')}
+        >
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-200 shrink-0">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-lg bg-[#e8f1fc] flex items-center justify-center shrink-0">
+                <Bot className="w-5 h-5 text-[#0a61d7]" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-sm font-semibold text-gray-900 truncate">{tNavbar('aiAgentTitle')}</h2>
+                <p className="text-xs text-gray-500 truncate">{tNavbar('aiAgentSubtitle')}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowAiPanel(false)}
+              className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100 shrink-0"
+              title={tNavbar('close')}
+              aria-label={tNavbar('close')}
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto px-4 py-6 flex flex-col items-center justify-center text-center gap-2">
+            <div className="w-12 h-12 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center mb-1">
+              <Bot className="w-6 h-6 text-gray-300" />
+            </div>
+            <p className="text-sm font-medium text-gray-700">{tNavbar('aiAgentComingSoon')}</p>
+            <p className="text-xs text-gray-500 max-w-[260px] leading-relaxed">{tNavbar('aiAgentEmpty')}</p>
+          </div>
+
+          <div className="shrink-0 border-t border-gray-200 p-3">
+            <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+              <input
+                type="text"
+                disabled
+                placeholder={tNavbar('aiAgentInputPlaceholder')}
+                className="flex-1 min-w-0 bg-transparent text-sm text-gray-700 placeholder:text-gray-400 outline-none cursor-not-allowed"
+              />
+              <button
+                type="button"
+                disabled
+                className="p-1.5 rounded-md text-gray-300 cursor-not-allowed"
+                aria-label={tNavbar('aiAgentComingSoon')}
+              >
+                <Send size={16} />
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };
