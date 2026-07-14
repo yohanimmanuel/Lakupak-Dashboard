@@ -45,6 +45,7 @@ import {
 	getAnalyticsGrowthComparisonKey,
 	getAnalyticsPeriodBuckets,
 } from '@/utils/analyticsTimeRange';
+import { percentChange } from '@/utils/monthOverMonthGrowth';
 
 // Helper function to parse currency to number (matching FinancialAnalytics)
 const parseCurrencyToNumber = (currencyValue: string | number): number => {
@@ -704,7 +705,7 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 		return points;
 	}, [salesTrend, salesForecast]);
 
-	// Month-over-month growth metrics for key cards
+	// Period-over-period growth metrics for key cards
 	const growthMetrics = useMemo(() => {
 		if (!hasFilteredData || salesTrend.length < 2) {
 			return {
@@ -718,18 +719,16 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 		const last = salesTrend[salesTrend.length - 1];
 		const prev = salesTrend[salesTrend.length - 2];
 
-		const ordersGrowth =
-			prev.orders > 0 ? ((last.orders - prev.orders) / prev.orders) * 100 : null;
+		const ordersGrowth = percentChange(last.orders, prev.orders);
+		const piecesGrowth = percentChange(last.pieces, prev.pieces);
 
-		const piecesGrowth =
-			prev.pieces > 0 ? ((last.pieces - prev.pieces) / prev.pieces) * 100 : null;
-
-		const avgPiecesLast = last.orders > 0 ? last.pieces / last.orders : 0;
-		const avgPiecesPrev = prev.orders > 0 ? prev.pieces / prev.orders : 0;
+		const avgPiecesLast = last.orders > 0 ? last.pieces / last.orders : null;
+		const avgPiecesPrev = prev.orders > 0 ? prev.pieces / prev.orders : null;
 		const avgPiecesGrowth =
-			avgPiecesPrev !== 0 ? ((avgPiecesLast - avgPiecesPrev) / Math.abs(avgPiecesPrev)) * 100 : null;
+			avgPiecesLast !== null && avgPiecesPrev !== null
+				? percentChange(avgPiecesLast, avgPiecesPrev)
+				: null;
 
-		// For Avg Order Value, compare the last two chart periods using the same buckets
 		const periodBuckets = getAnalyticsPeriodBuckets(timeRange, { locale: dateLocale });
 		if (periodBuckets.length < 2) {
 			return {
@@ -770,10 +769,10 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 		const lastPeriod = revenueByKey[lastKey] ?? { revenue: 0, orders: 0 };
 		const prevPeriod = revenueByKey[prevKey] ?? { revenue: 0, orders: 0 };
 
-		const lastAov = lastPeriod.orders > 0 ? lastPeriod.revenue / lastPeriod.orders : 0;
-		const prevAov = prevPeriod.orders > 0 ? prevPeriod.revenue / prevPeriod.orders : 0;
+		const lastAov = lastPeriod.orders > 0 ? lastPeriod.revenue / lastPeriod.orders : null;
+		const prevAov = prevPeriod.orders > 0 ? prevPeriod.revenue / prevPeriod.orders : null;
 		const avgOrderValueGrowth =
-			prevAov !== 0 ? ((lastAov - prevAov) / Math.abs(prevAov)) * 100 : null;
+			lastAov !== null && prevAov !== null ? percentChange(lastAov, prevAov) : null;
 
 		return {
 			ordersGrowth,

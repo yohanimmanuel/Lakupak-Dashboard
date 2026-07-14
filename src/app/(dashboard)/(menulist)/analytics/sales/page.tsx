@@ -140,7 +140,7 @@ export default function SalesAnalyticsPage() {
   // ===== Types for export calculations (explicit, no any) =====
 	interface ExportOrderItem { productId: string; packageQuantity: number; pricePerPackage: number; piecesPerPackage?: number; packageType?: string; category?: string; productTypeSnapshot?: string }
 	interface ExportOrder { buyerId: string; orderDate: string; totalAmount?: number; orderItems?: ExportOrderItem[]; storeName?: string; contactPerson?: string }
-	interface ExportProduct { productId: string; name: string; category?: string; productType?: string; sellingPrice?: string; purchasePrice?: string }
+	interface ExportProduct { productId: string; name: string; category?: string; productType?: string; productCategory?: string; sellingPrice?: string; purchasePrice?: string }
 	interface ExportBuyer { buyerId: string; storeName?: string; owner?: string; businessType?: string }
 
 	const createWordDocument = (
@@ -208,23 +208,54 @@ export default function SalesAnalyticsPage() {
 		const monthlyEntries = Object.entries(monthly).sort(([a],[b]) => a.localeCompare(b));
 		const last6 = monthlyEntries.slice(-6);
 
-		// Units by category
-    const unitsByCategoryMap = new Map<string, number>();
-		orders.forEach(o => {
-			if (!o.orderItems) return;
-			o.orderItems.forEach(it => {
-				const prod = productIndex.get(String(it.productId));
-				const category = it.productTypeSnapshot || prod?.productType || 'Uncategorized';
-				// Calculate units using package-based pricing
-				const piecesPerPackage = it.piecesPerPackage || 1;
-				const packageQuantity = it.packageQuantity || 1;
-				unitsByCategoryMap.set(category, (unitsByCategoryMap.get(category) || 0) + (packageQuantity * piecesPerPackage));
-			});
-		});
-		const unitsByCategory = Array.from(unitsByCategoryMap.entries())
-			.map(([category, units]) => ({ category, units }))
-			.sort((a, b) => b.units - a.units)
-			.slice(0, 8);
+	// Units by product category and product type (both rankings, independent of UI dropdown).
+    // Prefer live product catalog fields (same as sales analytics UI). Treat blank /
+    // "Uncategorized" snapshots as missing so they don't hide real productType values.
+    const normalizeLabel = (value?: string | null): string => {
+      const trimmed = (value || '').trim();
+      if (!trimmed || trimmed.toLowerCase() === 'uncategorized') return '';
+      return trimmed;
+    };
+
+    const buildUnitsRanking = (resolveLabel: (it: ExportOrderItem, prod?: ExportProduct) => string) => {
+      const map = new Map<string, number>();
+      orders.forEach(o => {
+        if (!o.orderItems) return;
+        o.orderItems.forEach(it => {
+          const prod = productIndex.get(String(it.productId));
+          const label = resolveLabel(it, prod) || 'Uncategorized';
+          const piecesPerPackage = it.piecesPerPackage || 1;
+          const packageQuantity = it.packageQuantity || 1;
+          map.set(label, (map.get(label) || 0) + (packageQuantity * piecesPerPackage));
+        });
+      });
+      return Array.from(map.entries())
+        .map(([category, units]) => ({ category, units }))
+        .sort((a, b) => b.units - a.units)
+        .slice(0, 8);
+    };
+
+    const unitsByProductCategory = buildUnitsRanking(
+      (it, prod) =>
+        normalizeLabel(prod?.productCategory) ||
+        normalizeLabel(prod?.category) ||
+        normalizeLabel(it.category),
+    );
+    const unitsByProductType = buildUnitsRanking(
+      (it, prod) =>
+        normalizeLabel(prod?.productType) ||
+        normalizeLabel(it.productTypeSnapshot),
+    );
+
+    const renderUnitsTable = (rows: { category: string; units: number }[]) => {
+      if (rows.length === 0) {
+        return `<tr><td colspan="4">No data</td></tr>`;
+      }
+      return rows.map((c, i) => {
+        const pct = totalUnitsSold > 0 ? (c.units / totalUnitsSold) * 100 : 0;
+        return `<tr><td>${i + 1}</td><td>${c.category}</td><td>${c.units}</td><td>${pct.toFixed(1)}%</td></tr>`;
+      }).join('');
+    };
 
 		// Top customers by revenue
 		type TopCustomer = { buyerId: string; name: string; businessType: string; orders: number; revenue: number };
@@ -309,17 +340,21 @@ export default function SalesAnalyticsPage() {
   </div>
 
   <div class="section">
-    <h2>Units by Category (Top 8)</h2>
+    <h2>Units by Product Category (Top 8)</h2>
     <table>
-      <thead><tr><th>Rank</th><th>Category</th><th>Units</th><th>% of Total Units</th></tr></thead>
+      <thead><tr><th>Rank</th><th>Product Category</th><th>Units</th><th>% of Total Units</th></tr></thead>
       <tbody>
-        ${(() => {
-          const totalUnits = unitsByCategory.reduce((s, c) => s + c.units, 0);
-          return unitsByCategory.map((c, i) => {
-            const pct = totalUnits > 0 ? (c.units / totalUnits) * 100 : 0;
-            return `<tr><td>${i+1}</td><td>${c.category}</td><td>${c.units}</td><td>${pct.toFixed(1)}%</td></tr>`;
-          }).join('');
-        })()}
+        ${renderUnitsTable(unitsByProductCategory)}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Units by Product Type (Top 8)</h2>
+    <table>
+      <thead><tr><th>Rank</th><th>Product Type</th><th>Units</th><th>% of Total Units</th></tr></thead>
+      <tbody>
+        ${renderUnitsTable(unitsByProductType)}
       </tbody>
     </table>
   </div>
@@ -409,6 +444,7 @@ export default function SalesAnalyticsPage() {
 							productId
 							name
 							productType
+							productCategory
 							variantOptions {
 								sellingPrice
 								purchasePrice
@@ -424,6 +460,7 @@ export default function SalesAnalyticsPage() {
 						productId: string;
 						name: string;
 						productType?: string | null;
+						productCategory?: string | null;
 						variantOptions?: Array<{
 							sellingPrice?: string | number | null;
 							purchasePrice?: string | number | null;
@@ -494,6 +531,7 @@ export default function SalesAnalyticsPage() {
 					productId: product.productId,
 					name: product.name,
 					productType: product.productType || undefined,
+					productCategory: product.productCategory || undefined,
 					sellingPrice: firstVariant?.sellingPrice ? String(firstVariant.sellingPrice) : '0',
 					purchasePrice: firstVariant?.purchasePrice ? String(firstVariant.purchasePrice) : '0',
 				};

@@ -1,15 +1,20 @@
 'use client';
 import { SkeletonAnalyticsPage } from '@/components/skeleton/SkeletonAnalyticsPage';
-import FinancialAnalytics from '@/components/analyticsperformance/FinancialAnalytics';
+import FinancialAnalytics, {
+  buildProductLookup,
+  calculateOrderItemCogs,
+  getCatalogAverageMargin,
+} from '@/components/analyticsperformance/FinancialAnalytics';
 import { AnalyticsTimeRange, filterOrdersByTimeRange } from '@/utils/analyticsTimeRange';
 import { Calendar, ChevronDown, Download, DollarSign } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
-import { Order } from '@/types/order';
+import { Order, OrderItem } from '@/types/order';
 import { Product } from '@/types/product';
 import { parseAmountSafely } from '@/utils/currencyUtils';
 import { useAnalyticsTranslations } from '@/hooks/useAnalyticsTranslations';
+import { percentChange, percentagePointChange } from '@/utils/monthOverMonthGrowth';
 
 const TIME_RANGE_VALUES = ['1M', '3M', '6M', '1Y'] as const;
 
@@ -226,9 +231,13 @@ export default function FinancialAnalyticsPage() {
               productId
               name
               productType
+              productCategory
               variantOptions {
-                sellingPrice
+                id
+                variantName
                 purchasePrice
+                sellingPrice
+                isDefault
               }
             }
           }
@@ -237,15 +246,7 @@ export default function FinancialAnalyticsPage() {
 
       type ProductsQueryResult = {
         products: {
-          nodes: Array<{
-            productId: string;
-            name: string;
-            productType?: string | null;
-            variantOptions?: Array<{
-              sellingPrice?: string | number | null;
-              purchasePrice?: string | number | null;
-            }>;
-          }>;
+          nodes: Product[];
         };
       };
 
@@ -278,23 +279,11 @@ export default function FinancialAnalyticsPage() {
       }));
       const products = productsData.products?.nodes || [];
       
-      // Transform GraphQL products to match expected format
-      const transformedProducts: ExportProduct[] = products.map((product) => {
-        const firstVariant = product.variantOptions?.[0];
-        return {
-          productId: product.productId,
-          name: product.name,
-          productType: product.productType ?? undefined,
-          sellingPrice: firstVariant?.sellingPrice ? String(firstVariant.sellingPrice) : '0',
-          purchasePrice: firstVariant?.purchasePrice ? String(firstVariant.purchasePrice) : '0',
-        };
-      });
-      
       // Apply the same time-range filter as the UI so export metrics match the selected range
       const filteredOrders = filterOrdersByTimeRange(orders, timeRange as AnalyticsTimeRange);
 
       // Create export content as HTML (which can be opened in Word)
-      const exportContent = createWordDocument(filteredOrders, transformedProducts, timeRange);
+      const exportContent = createWordDocument(filteredOrders, products, timeRange);
       
       // Create and download file as HTML (opens in Word)
       const blob = new Blob([exportContent], { type: 'application/msword;charset=utf-8;' });
@@ -334,14 +323,11 @@ export default function FinancialAnalyticsPage() {
     orderItems?: ExportOrderItem[];
     paymentStatus?: string | null;
   };
-  type ExportProduct = { productId: string; name: string; category?: string; productType?: string; sellingPrice?: string; purchasePrice?: string };
-
   // Helper function to create Word document content
-  const createWordDocument = (orders: ExportOrder[], products: ExportProduct[], timeRange: string): string => {
+  const createWordDocument = (orders: ExportOrder[], products: Product[], timeRange: string): string => {
     const timestamp = new Date().toLocaleString();
     const timeRangeLabel = timeRanges.find(range => range.value === timeRange)?.label || timeRange;
     
-    // Helper: safely parse totals coming from GraphQL (Decimal/string/number)
     const safeTotalAmount = (amount: unknown): number => {
       return parseAmountSafely(amount as unknown);
     };
@@ -362,56 +348,36 @@ export default function FinancialAnalyticsPage() {
       return safeTotalAmount(item.pricePerPackage) * getItemPackageQuantity(item);
     };
 
-    // Helper function to parse currency strings to numbers (for product prices)
-    const parseCurrencyToNumber = (currencyString: string | undefined): number => {
-      if (!currencyString || currencyString === '0' || currencyString === '0,00') return 0;
-      const cleanString = currencyString
-        .replace(/[^\d.,-]/g, '')
-        .replace(/\./g, '')
-        .trim();
-      const parsed = parseFloat(cleanString);
-      return Number.isNaN(parsed) ? 0 : parsed;
-    };
-
-    // Calculate comprehensive metrics like FinancialAnalytics component
+    const productById = buildProductLookup(products);
+    const avgMargin = getCatalogAverageMargin(products);
     const totalOrders = orders.length;
     const totalProducts = products.length;
-    
-    // Build product cost lookup using recorded purchase prices only
-    const productCostById: Record<string, number> = {};
-    products.forEach(product => {
-      const purchasePrice = parseCurrencyToNumber(product.purchasePrice);
-      if (purchasePrice > 0) {
-        productCostById[product.productId] = purchasePrice;
-      }
-    });
 
-    // Order volume and profit: all orders (recorded when buyer places order)
+    const getItemCogs = (item: ExportOrderItem): number =>
+      calculateOrderItemCogs(item as OrderItem, productById.get(item.productId));
+
+    const getItemProfit = (item: ExportOrderItem): number => {
+      const itemRevenue = getItemRevenue(item);
+      const itemCost = getItemCogs(item);
+      return itemCost > 0 ? itemRevenue - itemCost : itemRevenue * (avgMargin / 100);
+    };
+
+    const getOrderItemProfit = (order: ExportOrder): number => {
+      if (!order.orderItems || !Array.isArray(order.orderItems)) return 0;
+      return order.orderItems.reduce((sum, item) => sum + getItemProfit(item), 0);
+    };
+
+    // Revenue stays order-total based; profit aggregates item-level getItemProfit
+    // (same avg-margin fallback as category/product breakdowns) so export totals reconcile.
     let totalRevenue = 0;
     let totalProfit = 0;
     const uniqueBuyers = new Set<string>();
 
     orders.forEach(order => {
       uniqueBuyers.add(String(order.buyerId));
-
       const orderRevenue = safeTotalAmount(order.totalAmount);
       totalRevenue += orderRevenue;
-
-      let orderCogs = 0;
-      if (order.orderItems && Array.isArray(order.orderItems)) {
-        order.orderItems.forEach((item: ExportOrderItem) => {
-          const cost = productCostById[item.productId];
-          if (typeof cost === 'number' && cost > 0) {
-            const piecesPerPackage = item.piecesPerPackage || 1;
-            const packageQuantity = item.packageQuantity || 1;
-            const totalPieces = packageQuantity * piecesPerPackage;
-            orderCogs += cost * totalPieces;
-          }
-        });
-      }
-
-      const orderProfit = orderRevenue - orderCogs;
-      totalProfit += orderProfit;
+      totalProfit += getOrderItemProfit(order);
     });
 
     const totalBuyers = uniqueBuyers.size;
@@ -429,23 +395,8 @@ export default function FinancialAnalyticsPage() {
       monthlyAll[monthKey].orders += 1;
 
       const orderRevenue = safeTotalAmount(order.totalAmount);
-
-      let orderCogs = 0;
-      if (order.orderItems && Array.isArray(order.orderItems)) {
-        order.orderItems.forEach((item: ExportOrderItem) => {
-          const cost = productCostById[item.productId];
-          if (typeof cost === 'number' && cost > 0) {
-            const piecesPerPackage = item.piecesPerPackage || 1;
-            const packageQuantity = item.packageQuantity || 1;
-            const totalPieces = packageQuantity * piecesPerPackage;
-            orderCogs += cost * totalPieces;
-          }
-        });
-      }
-
-      const orderProfit = orderRevenue - orderCogs;
       monthlyAll[monthKey].revenue += orderRevenue;
-      monthlyAll[monthKey].profit += orderProfit;
+      monthlyAll[monthKey].profit += getOrderItemProfit(order);
     });
 
     const monthlyEntriesAll = Object.entries(monthlyAll)
@@ -456,50 +407,34 @@ export default function FinancialAnalyticsPage() {
     const prevAll = monthlyEntriesAll[monthlyEntriesAll.length - 2];
 
     const revenueGrowth =
-      lastAll && prevAll && prevAll.revenue > 0
-        ? ((lastAll.revenue - prevAll.revenue) / prevAll.revenue) * 100
-        : null;
+      lastAll && prevAll ? percentChange(lastAll.revenue, prevAll.revenue) : null;
     const profitGrowth =
-      lastAll && prevAll && prevAll.profit > 0
-        ? ((lastAll.profit - prevAll.profit) / prevAll.profit) * 100
-        : null;
+      lastAll && prevAll ? percentChange(lastAll.profit, prevAll.profit) : null;
 
-    const lastMarginExport = lastAll && lastAll.revenue > 0 ? (lastAll.profit / lastAll.revenue) * 100 : 0;
-    const prevMarginExport = prevAll && prevAll.revenue > 0 ? (prevAll.profit / prevAll.revenue) * 100 : 0;
+    const lastMarginExport = lastAll && lastAll.revenue > 0 ? (lastAll.profit / lastAll.revenue) * 100 : null;
+    const prevMarginExport = prevAll && prevAll.revenue > 0 ? (prevAll.profit / prevAll.revenue) * 100 : null;
     const marginGrowth =
-      lastAll &&
-      prevAll &&
-      prevMarginExport !== 0
-        ? ((lastMarginExport - prevMarginExport) / Math.abs(prevMarginExport)) * 100
+      lastMarginExport !== null && prevMarginExport !== null
+        ? percentagePointChange(lastMarginExport, prevMarginExport)
         : null;
 
-    const lastAovExport = lastAll && lastAll.orders > 0 ? lastAll.revenue / lastAll.orders : 0;
-    const prevAovExport = prevAll && prevAll.orders > 0 ? prevAll.revenue / prevAll.orders : 0;
+    const lastAovExport = lastAll && lastAll.orders > 0 ? lastAll.revenue / lastAll.orders : null;
+    const prevAovExport = prevAll && prevAll.orders > 0 ? prevAll.revenue / prevAll.orders : null;
     const aovGrowth =
-      lastAll &&
-      prevAll &&
-      prevAovExport !== 0
-        ? ((lastAovExport - prevAovExport) / Math.abs(prevAovExport)) * 100
+      lastAovExport !== null && prevAovExport !== null
+        ? percentChange(lastAovExport, prevAovExport)
         : null;
 
     const monthlyData = monthlyAll;
 
-    // Calculate category data
     const categoryStats: { [key: string]: { revenue: number; profit: number } } = {};
     orders.forEach(order => {
       if (order.orderItems && Array.isArray(order.orderItems)) {
         order.orderItems.forEach((item: ExportOrderItem) => {
-          const product = products.find(p => p.productId === item.productId);
-          const category = product?.productType || 'Uncategorized';
-          const purchasePrice = parseCurrencyToNumber(product?.purchasePrice || '0');
-          
+          const product = productById.get(item.productId);
+          const category = product?.productType || item.productTypeSnapshot || 'Uncategorized';
           const itemRevenue = getItemRevenue(item);
-          let itemProfit = itemRevenue * 0.3;
-
-          if (purchasePrice > 0) {
-            const itemCost = purchasePrice * getItemPackageQuantity(item) * getItemPiecesPerPackage(item);
-            itemProfit = itemRevenue - itemCost;
-          }
+          const itemProfit = getItemProfit(item);
           
           if (!categoryStats[category]) categoryStats[category] = { revenue: 0, profit: 0 };
           categoryStats[category].revenue += itemRevenue;
@@ -512,31 +447,23 @@ export default function FinancialAnalyticsPage() {
     orders.forEach(order => {
       if (order.orderItems && Array.isArray(order.orderItems)) {
         order.orderItems.forEach((item: ExportOrderItem) => {
-          const product = products.find(p => p.productId === item.productId);
+          const product = productById.get(item.productId);
           if (product) {
-            const purchasePrice = parseCurrencyToNumber(product.purchasePrice || '0');
-            
             if (!productStats[item.productId]) {
               productStats[item.productId] = {
                 orderVolume: 0,
                 unitsSold: 0,
-                category: product.productType || 'Uncategorized',
+                category: product.productCategory || product.productType || 'Uncategorized',
                 name: product.name,
                 profit: 0
               };
             }
             
             const itemRevenue = getItemRevenue(item);
-            const itemCost = purchasePrice > 0
-              ? purchasePrice * getItemPackageQuantity(item) * getItemPiecesPerPackage(item)
-              : 0;
-            const itemProfit = itemCost > 0 ? itemRevenue - itemCost : itemRevenue * 0.3;
             productStats[item.productId].orderVolume += itemRevenue;
-            productStats[item.productId].profit += itemProfit;
+            productStats[item.productId].profit += getItemProfit(item);
             
-            const piecesPerPackage = getItemPiecesPerPackage(item);
-            const packageQuantity = getItemPackageQuantity(item);
-            productStats[item.productId].unitsSold += packageQuantity * piecesPerPackage;
+            productStats[item.productId].unitsSold += getItemPackageQuantity(item) * getItemPiecesPerPackage(item);
           }
         });
       }
@@ -765,6 +692,7 @@ export default function FinancialAnalyticsPage() {
                     <th>Category</th>
                     <th>Order Volume</th>
                     <th>Units Sold</th>
+                    <th>Total Profit</th>
                     <th>Profit Margin</th>
                     <th>Conversion Rate</th>
                 </tr>
@@ -792,6 +720,7 @@ export default function FinancialAnalyticsPage() {
                       <td>${product.productType}</td>
                       <td>$${product.orderVolume.toLocaleString()}</td>
                       <td>${product.unitsSold}</td>
+                      <td>$${product.profit.toLocaleString()}</td>
                       <td>${product.margin.toFixed(1)}%</td>
                       <td>${conversionRate.toFixed(1)}%</td>
                     </tr>

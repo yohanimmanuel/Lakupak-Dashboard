@@ -17,6 +17,21 @@ export function parseDate(value: Date | string | null | undefined): Date | null 
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+/** Relative period-over-period % change. Null when baseline is 0/invalid. Clamped to ±100. */
+export function percentChange(current: number, previous: number): number | null {
+  if (!Number.isFinite(current) || !Number.isFinite(previous) || previous === 0) return null;
+  const raw = ((current - previous) / Math.abs(previous)) * 100;
+  return Number.isFinite(raw) ? raw : null;
+}
+
+/** Absolute change for values already in percent (margin, completion). Clamped to ±100. */
+export function percentagePointChange(current: number, previous: number): number | null {
+  if (!Number.isFinite(current) || !Number.isFinite(previous)) return null;
+  const raw = current - previous;
+  if (!Number.isFinite(raw)) return null;
+  return Math.max(-100, Math.min(100, raw));
+}
+
 export function growthFromMonthBuckets(buckets: Record<string, number>): number | null {
   const keys = Object.keys(buckets).sort();
   if (keys.length < 2) return null;
@@ -157,31 +172,23 @@ function aggregateOrdersIntoBuckets(
 }
 
 function growthFromBucketPair(last: OrderGrowthBucket, prev: OrderGrowthBucket) {
-  const ordersGrowth =
-    prev.orders > 0 ? ((last.orders - prev.orders) / prev.orders) * 100 : last.orders > 0 ? null : 0;
-  const orderVolumeGrowth =
-    prev.orderVolume > 0
-      ? ((last.orderVolume - prev.orderVolume) / prev.orderVolume) * 100
-      : last.orderVolume > 0
-        ? null
-        : 0;
+  const ordersGrowth = percentChange(last.orders, prev.orders);
+  const orderVolumeGrowth = percentChange(last.orderVolume, prev.orderVolume);
 
   const completionLast = last.orders > 0 ? (last.completed / last.orders) * 100 : 0;
   const completionPrev = prev.orders > 0 ? (prev.completed / prev.orders) * 100 : 0;
   const completionGrowth =
-    completionPrev !== 0
-      ? ((completionLast - completionPrev) / Math.abs(completionPrev)) * 100
-      : completionLast > 0
+    prev.orders > 0
+      ? percentagePointChange(completionLast, completionPrev)
+      : last.orders > 0
         ? null
         : 0;
 
   const avgLast = last.orders > 0 ? last.orderVolume / last.orders : 0;
   const avgPrev = prev.orders > 0 ? prev.orderVolume / prev.orders : 0;
-  const averageOrderVolumeGrowth =
-    avgPrev !== 0 ? ((avgLast - avgPrev) / Math.abs(avgPrev)) * 100 : avgLast > 0 ? null : 0;
+  const averageOrderVolumeGrowth = percentChange(avgLast, avgPrev);
 
-  const piecesGrowth =
-    prev.pieces > 0 ? ((last.pieces - prev.pieces) / prev.pieces) * 100 : last.pieces > 0 ? null : 0;
+  const piecesGrowth = percentChange(last.pieces, prev.pieces);
 
   return {
     ordersGrowth,

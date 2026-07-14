@@ -55,6 +55,7 @@ import {
   getAnalyticsGrowthComparisonKey,
   getAnalyticsPeriodBuckets,
 } from '@/utils/analyticsTimeRange';
+import { percentChange, percentagePointChange } from '@/utils/monthOverMonthGrowth';
 
 function getOrderBucketDate(order: Pick<Order, 'orderDate'>): Date {
   return new Date(order.orderDate);
@@ -478,14 +479,21 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
     const last = revenueData[revenueData.length - 1];
     const prev = revenueData[revenueData.length - 2];
 
-    const revenueGrowth = prev.revenue > 0 ? ((last.revenue - prev.revenue) / prev.revenue) * 100 : null;
-    const profitGrowth = prev.profit > 0 ? ((last.profit - prev.profit) / prev.profit) * 100 : null;
-    const lastMargin = last.revenue > 0 ? (last.profit / last.revenue) * 100 : 0;
-    const prevMargin = prev.revenue > 0 ? (prev.profit / prev.revenue) * 100 : 0;
-    const marginGrowth = prevMargin !== 0 ? ((lastMargin - prevMargin) / Math.abs(prevMargin)) * 100 : null;
-    const lastAov = last.orders > 0 ? last.revenue / last.orders : 0;
-    const prevAov = prev.orders > 0 ? prev.revenue / prev.orders : 0;
-    const aovGrowth = prevAov !== 0 ? ((lastAov - prevAov) / Math.abs(prevAov)) * 100 : null;
+    const revenueGrowth = percentChange(last.revenue, prev.revenue);
+    // Use abs(prev.profit) so negative prior-week profit still compares (was N/A when prev.profit ≤ 0).
+    const profitGrowth = percentChange(last.profit, prev.profit);
+
+    const lastMargin = last.revenue > 0 ? (last.profit / last.revenue) * 100 : null;
+    const prevMargin = prev.revenue > 0 ? (prev.profit / prev.revenue) * 100 : null;
+    const marginGrowth =
+      lastMargin !== null && prevMargin !== null
+        ? percentagePointChange(lastMargin, prevMargin)
+        : null;
+
+    const lastAov = last.orders > 0 ? last.revenue / last.orders : null;
+    const prevAov = prev.orders > 0 ? prev.revenue / prev.orders : null;
+    const aovGrowth =
+      lastAov !== null && prevAov !== null ? percentChange(lastAov, prevAov) : null;
 
     return { revenueGrowth, profitGrowth, marginGrowth, aovGrowth };
   }, [hasFilteredData, revenueData]);
@@ -1334,6 +1342,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
                     <th className="py-3 px-4 font-medium uppercase text-center">{tTables('category')}</th>
                     <th className="py-3 px-4 font-medium uppercase text-center">{tTables('piecesSold')}</th>
                     <th className="py-3 px-4 font-medium uppercase text-center">{tTables('orderVolume')}</th>
+                    <th className="py-3 px-4 font-medium uppercase text-center">{tTables('profit')}</th>
                     <th className="py-3 px-4 font-medium uppercase text-center">{tTables('margin')}</th>
                   </tr>
                 </thead>
@@ -1372,6 +1381,9 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
                       </td>
                      <td className="py-3 px-4 text-center font-semibold text-black">
                        {utilsFormatCurrency(product.orderVolume, userCurrency)}
+                     </td>
+                     <td className="py-3 px-4 text-center font-semibold text-black">
+                       {utilsFormatCurrency(product.profit, userCurrency)}
                      </td>
                      <td className="py-3 px-4 text-center text-black">
                        {product.margin.toFixed(2)}%
@@ -1792,6 +1804,15 @@ const calculateOrderItemCost = (
   return purchasePrice * (getOrderItemPaidPieces(item) + Math.max(0, freePieces));
 };
 
+/** Shared COGS for an order line — matches dashboard KPI (variant price + free promo pieces). */
+export const calculateOrderItemCogs = (
+  item: OrderItem,
+  product: Product | undefined,
+): number => calculateOrderItemCost(item, product, calculateFreeItemsForOrderItem(item));
+
+export const buildProductLookup = (products: Product[]): Map<string, Product> =>
+  createProductLookup(products);
+
 const getAverageProductMargin = (products: Product[]): number => {
   const margins = products.flatMap((product) =>
     (product.variantOptions ?? [])
@@ -1809,6 +1830,9 @@ const getAverageProductMargin = (products: Product[]): number => {
     ? margins.reduce((sum, margin) => sum + margin, 0) / margins.length
     : 0;
 };
+
+/** Catalog-wide average margin — used when a line has no purchase price. */
+export const getCatalogAverageMargin = getAverageProductMargin;
 
 // Shared function to calculate revenue data from orders and products
 export const calculateRevenueData = (
@@ -2089,6 +2113,7 @@ export const AnalyticsTopProductsTable: React.FC<{
             <th className="py-3 px-4 font-medium uppercase text-center">{tTables('category')}</th>
             <th className="py-3 px-4 font-medium uppercase text-center">{tTables('piecesSold')}</th>
             <th className="py-3 px-4 font-medium uppercase text-center">{tTables('orderVolume')}</th>
+            <th className="py-3 px-4 font-medium uppercase text-center">{tTables('profit')}</th>
             <th className="py-3 px-4 font-medium uppercase text-center">{tTables('margin')}</th>
           </tr>
         </thead>
@@ -2120,6 +2145,7 @@ export const AnalyticsTopProductsTable: React.FC<{
               <td className="py-3 px-4 text-center text-gray-600">{product.productCategory}</td>
               <td className="py-3 px-4 text-center text-black">{product.piecesSold.toLocaleString()}</td>
               <td className="py-3 px-4 text-center font-semibold text-black">{utilsFormatCurrency(product.orderVolume, userCurrency)}</td>
+              <td className="py-3 px-4 text-center font-semibold text-black">{utilsFormatCurrency(product.profit, userCurrency)}</td>
               <td className="py-3 px-4 text-center text-black">{product.margin.toFixed(2)}%</td>
             </tr>
           ))}
