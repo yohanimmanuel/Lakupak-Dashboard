@@ -883,7 +883,7 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 	return (
 		<div className="space-y-3">
 			{/* Key Metrics */}
-			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
+			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
 				<AnalyticsMetricCard
 					title={tMetrics('totalOrders')}
 					value={String(metrics.totalOrders)}
