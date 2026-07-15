@@ -168,7 +168,6 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
           </Link>
           <div>
             <h2 className="text-2xl font-bold text-black mb-1">{tSuppliersProfile('title')}</h2>
-            <p className="text-sm text-gray-500">{tSuppliersProfile('subtitle')}</p>
           </div>
         </div>
         <div className="flex gap-2 items-center mt-2 md:mt-0">

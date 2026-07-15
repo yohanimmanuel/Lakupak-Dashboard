@@ -80,7 +80,6 @@ export default function DistributorInfo({
             <Store className="w-5 h-5 text-[#0a61d7]" />
             {tDistributor('title')}
           </h2>
-          <p className="text-sm text-gray-600">{tDistributor('subtitle')}</p>
         </div>
         <Link
           href="/settings"

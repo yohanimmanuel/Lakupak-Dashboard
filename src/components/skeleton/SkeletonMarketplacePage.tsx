@@ -40,9 +40,8 @@ export function SkeletonMarketplacePage() {
     <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
       {/* Page header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-3">
-        <div className="space-y-1.5">
+        <div>
           <Skeleton className="h-7 w-48" />
-          <Skeleton className="h-4 w-64" />
         </div>
         <div className="flex items-center gap-2">
           {/* Time range dropdown */}

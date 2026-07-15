@@ -14,7 +14,6 @@ import { generateUniqueSupplierId } from '@/utils/supplier-security';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 
-
 function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
   const blob = new Blob([wbout], { type: 'application/octet-stream' });
@@ -254,11 +253,9 @@ export default function SuppliersPage() {
 
   return (
     <div className="p-4 w-full min-h-screen flex flex-col items-right bg-gradient-to-b from-gray-50 to-white">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
         <div>
           <h2 className="text-2xl font-bold text-black mb-2">{tSuppliers('title')}</h2>
-          <p className="text-sm text-gray-500 mb-4">{tSuppliers('subtitle')}</p>
-
         </div>
         <div className="flex gap-2 items-center">
           <button

@@ -110,7 +110,6 @@ export default function SecurityPass() {
     );
   };
 
-
   const handleCurrentPasswordValidation = async () => {
     try {
       setIsLoading(true);
@@ -293,13 +292,11 @@ export default function SecurityPass() {
     }
   };
 
-
   return (
     <div className="space-y-4 p-4">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">{tSecurity('title')}</h1>
-        <p className="text-gray-600 mt-1">{tSecurity('subtitle')}</p>
       </div>
 
       {/* Error/Success Messages */}

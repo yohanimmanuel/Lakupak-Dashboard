@@ -275,11 +275,9 @@ export default function BuyersPage() {
 
   return (
     <div className="p-4 w-full min-h-screen flex flex-col items-right bg-gradient-to-b from-gray-50 to-white">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
         <div>
           <h2 className="text-2xl font-bold text-black mb-2">{tBuyers('title')}</h2>
-          <p className="text-sm text-gray-500 mb-4">{tBuyers('subtitle')}</p>
-
         </div>
         <div className="flex gap-2 items-center">
           <button

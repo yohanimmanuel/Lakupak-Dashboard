@@ -33,7 +33,6 @@ export default function AutomationPage() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
         <div>
           <h2 className="text-2xl font-bold text-black mb-2">{tPage('title')}</h2>
-          <p className="text-sm text-gray-500 max-w-3xl">{tPage('subtitle')}</p>
         </div>
         <div className="flex gap-2 items-center">
           <button

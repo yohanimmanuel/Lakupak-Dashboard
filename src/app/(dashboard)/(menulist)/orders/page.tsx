@@ -170,9 +170,6 @@ export default function OrdersPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div data-tour="orders-page-header">
               <h1 className="text-2xl font-bold text-gray-900">{tList('title')}</h1>
-              <p className="text-sm text-gray-600 mt-2">
-                {tList('subtitle')}
-              </p>
             </div>
             <div className="flex flex-wrap items-center gap-3" data-tour="orders-actions">
               <button

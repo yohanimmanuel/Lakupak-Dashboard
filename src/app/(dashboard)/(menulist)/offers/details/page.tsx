@@ -779,7 +779,6 @@ export default function OffersDetailsPage() {
               {currentOffer?.name || tDetailsPage('defaultTitle')}
             </h1>
             <p className="text-gray-500 text-sm">
-              {tDetailsPage('subtitle')}
               {hasUnsavedChanges && <span className="ml-2 text-orange-600 font-medium">• {tDetailsPage('unsavedChanges')}</span>}
             </p>
           </div>

@@ -345,7 +345,6 @@ export default function CreateOfferPage() {
     setShowCreateRangeModal(false);
   };
 
-
   return (
     <div className="p-4 space-y-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
       {/* Header */}
@@ -360,8 +359,6 @@ export default function CreateOfferPage() {
           </button>
           <div>
             <h1 className="text-2xl font-bold text-black">{tCreatePage('title')}</h1>
-            <p className="text-gray-500 text-sm">{tCreatePage('subtitle')}</p>
-            
             {/* Status Indicator */}
             <div className="flex items-center gap-4 mt-2">
               <div className="flex items-center gap-2">
@@ -516,7 +513,6 @@ export default function CreateOfferPage() {
         onSave={handleSaveDateRange}
       />
 
-
       {/* Preview Modal */}
       {showPreview && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
@@ -525,7 +521,6 @@ export default function CreateOfferPage() {
             <div className="sticky top-0 bg-white border-b border-[#e6e6e6] p-4 flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-black">{tCreatePage('previewTitle')}</h3>
-                <p className="text-sm text-gray-500">{tCreatePage('previewSubtitle')}</p>
               </div>
               <button
                 onClick={() => setShowPreview(false)}

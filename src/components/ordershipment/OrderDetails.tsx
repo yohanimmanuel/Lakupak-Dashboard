@@ -269,8 +269,6 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const calculateTotalAmount = () => calculateOrderTotalAmount(order);
   const calculateTotalQuantity = () => calculateOrderTotalQuantity(order);
 
-
-
   // Calculate pagination for earnings table
   const earningsPerPage = 4;
   const totalEarningsPages = Math.ceil(order.orderItems.length / earningsPerPage);

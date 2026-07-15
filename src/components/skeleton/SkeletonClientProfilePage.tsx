@@ -37,9 +37,8 @@ export function SkeletonClientProfilePage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
           <div className="flex items-center gap-4">
             <Skeleton className="h-5 w-5 rounded" />
-            <div className="space-y-1.5">
+            <div>
               <Skeleton className="h-7 w-48" />
-              <Skeleton className="h-3.5 w-64" />
             </div>
           </div>
           <div className="flex gap-2 items-center">

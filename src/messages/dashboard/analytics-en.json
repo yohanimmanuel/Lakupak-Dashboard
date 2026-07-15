@@ -56,28 +56,24 @@
   },
   "overview": {
     "title": "Analytics Dashboard",
-    "subtitle": "Key insights and performance metrics for your business",
     "loading": "Loading analytics...",
     "emptyTitle": "No Analytics Data",
     "emptyBody": "Add products and track orders to see revenue and sales analytics for your account."
   },
   "financial": {
     "title": "Financial Analytics",
-    "subtitle": "Comprehensive financial overview and insights",
     "loading": "Loading financial analytics...",
     "emptyTitle": "No Financial Data Available",
     "emptyBody": "Start by adding products and tracking orders to see your financial analytics. Your revenue, profit, and performance metrics will appear here once you have data."
   },
   "sales": {
     "title": "Customer & Sales Analytics",
-    "subtitle": "Insights on customers, sales volume, and product performance",
     "loading": "Loading sales analytics...",
     "emptyTitle": "No Customer/Sales Data",
     "emptyBody": "Add products and track orders to see customer and sales analytics."
   },
   "operational": {
     "title": "Operational Performance",
-    "subtitle": "End-to-end operations insights: orders, logistics, and inventory",
     "loading": "Loading operational performance...",
     "emptyTitle": "No Operational Data Available",
     "emptyBody": "Start by creating orders and managing products to see your operational performance metrics. Order processing, delivery tracking, and inventory insights will appear here once you have data."

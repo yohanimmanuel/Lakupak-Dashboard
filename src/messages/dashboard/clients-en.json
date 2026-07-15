@@ -1,7 +1,6 @@
 {
   "hub": {
     "title": "Clients",
-    "subtitle": "Manage your buyer and supplier relationships to build a strong network and drive business growth.",
     "tips": "Tips",
     "tools": "Tools",
     "dismissTip": "Dismiss tip",
@@ -188,7 +187,6 @@
   },
   "buyers": {
     "title": "Buyers List",
-    "subtitle": "Manage your buyers and their information.",
     "loading": "Loading buyers...",
     "addBuyer": "Add Buyer",
     "refreshing": "Refreshing buyer data",
@@ -220,7 +218,6 @@
     },
     "profile": {
       "title": "Buyer Details",
-      "subtitle": "View and manage buyer information.",
       "copyData": "Copy Data",
       "editDetails": "Edit Details",
       "profileCompletion": "Profile Completion",
@@ -274,8 +271,6 @@
     "modal": {
       "editTitle": "Edit Buyer",
       "addTitle": "Add Buyer",
-      "editSubtitle": "Update buyer information and settings",
-      "addSubtitle": "Create a new buyer profile",
       "uploadPhoto": "Upload Photo",
       "autoIdHint": "Auto-generated unique identifier",
       "storeName": "Store Name",
@@ -321,7 +316,6 @@
   },
   "suppliers": {
     "title": "Suppliers List",
-    "subtitle": "Manage your suppliers and their information.",
     "loading": "Loading suppliers...",
     "addSupplier": "Add Supplier",
     "refreshing": "Refreshing supplier data",
@@ -343,7 +337,6 @@
     },
     "profile": {
       "title": "Supplier Details",
-      "subtitle": "View and manage supplier information.",
       "copyData": "Copy Data",
       "editDetails": "Edit Details",
       "profileCompletion": "Profile Completion",
@@ -397,8 +390,6 @@
     "modal": {
       "editTitle": "Edit Supplier",
       "addTitle": "Add Supplier",
-      "editSubtitle": "Update supplier information and settings",
-      "addSubtitle": "Create a new supplier profile",
       "supplierName": "Supplier Name",
       "contactPerson": "Contact Person",
       "phone": "Phone",

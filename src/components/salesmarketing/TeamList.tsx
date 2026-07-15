@@ -229,7 +229,6 @@ export default function TeamList({
     handleAgentSelect(agent.id);
   };
 
-
   const handleSelectAll = () => {
     if (selectedAgents.size === filteredAgents.length && filteredAgents.length > 0) {
       setSelectedAgents(new Set());
@@ -371,7 +370,6 @@ export default function TeamList({
       alert(error instanceof Error ? error.message : tTeamList('teamModal.saveFailed'));
     }
   };
-
 
   // Get unique roles and statuses from agents
   const uniqueRoles = Array.from(new Set(agents.map(agent => agent.role))).sort();
@@ -1058,7 +1056,6 @@ export default function TeamList({
                   {editingTeam ? tTeamList('teamModal.editTitle') : tTeamList('teamModal.createTitle')}
                 </h2>
                 <p className="text-gray-500 text-sm">
-                  {editingTeam ? tTeamList('teamModal.editSubtitle') : tTeamList('teamModal.createSubtitle')}
                 </p>
               </div>
             </div>

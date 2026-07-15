@@ -515,9 +515,6 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
             <h2 className="text-xl font-bold text-black">
               {mode === 'edit' ? tSuppliersModal('editTitle') : tSuppliersModal('addTitle')}
             </h2>
-            <p className="text-gray-500 text-sm">
-              {mode === 'edit' ? tSuppliersModal('editSubtitle') : tSuppliersModal('addSubtitle')}
-            </p>
           </div>
         </div>
         <div className="border-b border-gray-200 -mx-6"></div>

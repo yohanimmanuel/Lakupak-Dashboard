@@ -1,7 +1,6 @@
 {
   "page": {
     "title": "Pengaturan Akun",
-    "subtitle": "Kelola preferensi dan pengaturan akun Anda",
     "loading": "Memuat pengaturan...",
     "tabs": {
       "general": "Info Umum",
@@ -15,7 +14,6 @@
   },
   "general": {
     "title": "Informasi Umum",
-    "subtitle": "Kelola informasi pribadi dan detail profil Anda",
     "personalInformation": "Informasi Pribadi",
     "edit": "Edit",
     "save": "Simpan",
@@ -61,7 +59,6 @@
   },
   "language": {
     "title": "Bahasa & Wilayah",
-    "subtitle": "Kelola preferensi bahasa dan wilayah Anda",
     "sectionTitle": "Pengaturan Bahasa & Wilayah",
     "language": "Bahasa",
     "region": "Wilayah",
@@ -102,7 +99,6 @@
   },
   "security": {
     "title": "Keamanan & Kata Sandi",
-    "subtitle": "Kelola pengaturan keamanan akun Anda",
     "accountSecurity": "Keamanan Akun",
     "emailAddress": "Alamat Email",
     "password": "Kata Sandi",
@@ -151,7 +147,6 @@
   },
   "distributor": {
     "title": "Operasi Distributor",
-    "subtitle": "Kelola operasi distributor dan detail bisnis Anda",
     "edit": "Edit",
     "save": "Simpan",
     "saving": "Menyimpan...",
@@ -278,7 +273,6 @@
   },
   "team": {
     "title": "Tim & Penjualan",
-    "subtitle": "Kelola tim penjualan, wilayah, target, dan pelacakan kinerja",
     "loadingTeamData": "Memuat data tim...",
     "salesTeamOverview": "Ringkasan Tim Penjualan",
     "salesTeamDirectory": "Direktori Tim Penjualan",
@@ -343,7 +337,6 @@
       "ewallet": "E-wallet"
     },
     "title": "Tagihan & Pembayaran",
-    "subtitle": "Kelola metode pembayaran, informasi tagihan, dan faktur",
     "loading": "Memuat data tagihan...",
     "refreshing": "Memperbarui data tagihan",
     "showingBillingDataSingular": "Menampilkan data tagihan ({count} metode pembayaran dimuat)",
@@ -490,7 +483,6 @@
   },
   "tours": {
     "title": "Fitur & Tur",
-    "subtitle": "Putar ulang panduan singkat kapan saja. Progres disimpan untuk akun ini dan disinkronkan saat Anda masuk di browser lain.",
     "items": {
       "shell": {
         "title": "Ringkasan Dashboard",

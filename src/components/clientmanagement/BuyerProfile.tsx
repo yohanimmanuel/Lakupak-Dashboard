@@ -206,7 +206,6 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
           </Link>
           <div>
             <h2 className="text-2xl font-bold text-black mb-1">{tBuyersProfile('title')}</h2>
-            <p className="text-sm text-gray-500">{tBuyersProfile('subtitle')}</p>
           </div>
         </div>
         <div className="flex gap-2 items-center mt-2 md:mt-0">

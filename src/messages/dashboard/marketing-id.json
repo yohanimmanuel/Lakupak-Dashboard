@@ -1,7 +1,6 @@
 {
   "hub": {
     "title": "Marketing",
-    "subtitle": "Bangun hubungan dengan pelanggan dan dorong pesanan melalui peluang marketing, alat, dan sumber daya.",
     "tipsSection": "Tips",
     "toolsSection": "Alat",
     "dismissTip": "Tutup tip",
@@ -70,7 +69,6 @@
   },
   "campaigns": {
     "title": "Kampanye",
-    "subtitle": "Kirim kampanye pesan konten kaya sekali kirim ke retailer Anda.",
     "loading": "Memuat kampanye...",
     "createCampaign": "Buat kampanye",
     "tipBanner": "Undang 22 pelanggan yang bergabung di Faire minggu lalu untuk berbelanja — jika mereka melakukan pesanan, Anda bisa mendapatkan pelanggan baru melalui Faire Direct Rewards.",
@@ -321,7 +319,6 @@
   },
   "team": {
     "title": "Tim",
-    "subtitle": "Kelola anggota tim marketing dan peran",
     "refresh": "Segarkan",
     "exportData": "Ekspor Data",
     "addAgent": "Tambah Agen",
@@ -354,8 +351,6 @@
     "teamModal": {
       "createTitle": "Buat Tim Baru",
       "editTitle": "Edit Tim",
-      "createSubtitle": "Tetapkan agen penjualan ke wilayah",
-      "editSubtitle": "Perbarui informasi tim/wilayah",
       "teamNameLabel": "Nama Tim/Wilayah",
       "teamNamePlaceholder": "contoh: Tim Jakarta, Tim Regional",
       "salesAgentsLabel": "Agen Penjualan",
@@ -400,9 +395,7 @@
   },
   "agentForm": {
     "createTitle": "Buat Agen Penjualan Baru",
-    "createSubtitle": "Tambahkan agen penjualan baru ke tim Anda",
     "editTitle": "Edit Agen Penjualan",
-    "editSubtitle": "Perbarui informasi agen",
     "backToTeam": "Kembali ke Tim",
     "backToDetails": "Kembali ke Detail",
     "createAgent": "Buat Agen",
@@ -444,7 +437,6 @@
   },
   "basicProfile": {
     "title": "Informasi Profil Dasar",
-    "subtitle": "Masukkan detail pribadi dan kontak agen",
     "uploadAvatar": "Unggah Avatar",
     "changeAvatar": "Ganti Avatar",
     "uploading": "Mengunggah...",
@@ -476,7 +468,6 @@
   },
   "favouriteProducts": {
     "title": "Produk Favorit yang Dijual",
-    "subtitle": "Pilih hingga 3 produk (urutan bebas) dari katalog yang menjadi spesialisasi agen ini.",
     "loading": "Memuat produk...",
     "searchPlaceholder": "Cari produk berdasarkan nama, SKU, atau merek...",
     "selectedCount": "{count} produk dipilih sebagai favorit",
@@ -493,7 +484,6 @@
   },
   "salesReporting": {
     "title": "Laporan Lapangan Harian",
-    "subtitle": "Kelola laporan aktivitas lapangan harian untuk agen ini",
     "addReport": "Tambah Laporan",
     "startTime": "Waktu Mulai",
     "endTime": "Waktu Selesai",
@@ -511,7 +501,6 @@
   },
   "salesTarget": {
     "title": "Target Penjualan",
-    "subtitle": "Tetapkan target dan sasaran penjualan untuk agen ini",
     "addRow": "Tambah Baris",
     "period": "Periode",
     "periodPlaceholder": "contoh: Oktober",

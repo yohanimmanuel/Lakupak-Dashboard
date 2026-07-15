@@ -118,10 +118,9 @@
   },
   "home": {
     "title": "Dashboard Overview",
-    "subtitle": "Customize the widgets you need most for faster decision making.",
+    "subtitle": "Here's what's happening with your business today",
     "dragWidgets": "Drag widgets to rearrange",
     "widgetLibrary": "Widget Library",
-    "widgetLibraryHint": "Drag widgets above to rearrange or add new modules.",
     "dragToAdd": "Drag to add",
     "dragToReorder": "Drag to reorder",
     "noWidgetsSelected": "No widgets selected",
@@ -140,7 +139,6 @@
       "analytics": {
         "name": "Analytics Overview",
         "description": "Monitor revenue growth and sales momentum at a glance.",
-        "subtitle": "Revenue performance over time",
         "action": "Open analytics hub",
         "thisYear": "This year",
         "totalOrderVolume": "Total order volume:"
@@ -148,7 +146,6 @@
       "orders": {
         "name": "Orders Pipeline",
         "description": "Track latest orders, statuses, and order value trends.",
-        "subtitle": "Showing 4 latest customer activity and order status",
         "action": "View all orders",
         "emptyTitle": "No orders recorded yet",
         "emptyHint": "Create your first order to start tracking activity here."
@@ -156,7 +153,6 @@
       "products": {
         "name": "Product Performance",
         "description": "See which catalog items generate the most revenue.",
-        "subtitle": "Products ranked by order volume",
         "action": "Manage catalog",
         "emptyTitle": "No product performance yet",
         "emptyHint": "Add products and record orders to see insights here.",
@@ -166,7 +162,6 @@
       "inventory": {
         "name": "Inventory Alerts",
         "description": "Highlight stock risks and replenishment priorities.",
-        "subtitle": "Inventory management and stock alerts",
         "viewCatalog": "View catalog",
         "manageProducts": "Manage products",
         "totalProducts": "Total products",
@@ -198,7 +193,6 @@
       "buyers": {
         "name": "Buyer Engagement",
         "description": "Understand buyer activity, retention, and top spenders.",
-        "subtitle": "Monitor buyer growth and engagement",
         "action": "Manage buyers",
         "totalBuyers": "Total buyers",
         "avgOrderValue": "Avg. order value",
@@ -211,7 +205,6 @@
       "suppliers": {
         "name": "Supplier Network",
         "description": "Stay aligned with supplier capacity and reliability.",
-        "subtitle": "Supplier reliability and fulfillment performance",
         "action": "Manage suppliers",
         "totalSuppliers": "Total suppliers",
         "onTimeDelivery": "On-time delivery",
@@ -225,7 +218,6 @@
       "logistics": {
         "name": "Logistics Tracking",
         "description": "Visualize shipment routes and delivery milestones.",
-        "subtitle": "Logistics tracking and delivery milestones",
         "action": "View logistics",
         "totalShipments": "Total shipments",
         "sellerDelivery": "Seller / Distributor Delivery",
@@ -249,7 +241,6 @@
       "marketing": {
         "name": "Marketing Performance",
         "description": "Teams, campaigns, and channel performance at a glance.",
-        "subtitle": "Teams, campaigns, and channel performance",
         "teams": "Teams",
         "campaigns": "Campaigns",
         "noTeamsTitle": "No teams yet",

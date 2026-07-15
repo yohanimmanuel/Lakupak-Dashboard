@@ -47,9 +47,8 @@ export function SkeletonTablePage({ rows = 8, statCards = 4 }: { rows?: number; 
       <span className="sr-only">Loading page content…</span>
       {/* Page header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="space-y-2">
+        <div>
           <Skeleton className="h-7 w-48" />
-          <Skeleton className="h-4 w-64" />
         </div>
         <div className="flex items-center gap-2">
           <Skeleton className="h-9 w-24 rounded-lg" />

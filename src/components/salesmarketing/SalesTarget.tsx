@@ -181,7 +181,6 @@ export default function SalesTarget({
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold text-gray-900 mb-1">{tSalesTarget('title')}</h3>
-          <p className="text-sm text-gray-500">{tSalesTarget('subtitle')}</p>
         </div>
         <button
           onClick={handleAddRow}

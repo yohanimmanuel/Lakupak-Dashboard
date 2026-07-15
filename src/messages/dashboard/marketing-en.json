@@ -1,7 +1,6 @@
 {
   "hub": {
     "title": "Marketing",
-    "subtitle": "Build customer relationships and drive orders with marketing opportunities, tools, and resources.",
     "tipsSection": "Tips",
     "toolsSection": "Tools",
     "dismissTip": "Dismiss tip",
@@ -70,7 +69,6 @@
   },
   "campaigns": {
     "title": "Campaigns",
-    "subtitle": "Send one-time rich content message campaigns to your retailers.",
     "loading": "Loading campaigns...",
     "createCampaign": "Create campaign",
     "tipBanner": "Invite 22 customers who joined Faire in the past week to shop if they place an order, you could earn new customers through Faire Direct Rewards.",
@@ -321,7 +319,6 @@
   },
   "team": {
     "title": "Teams",
-    "subtitle": "Manage your marketing team members and roles",
     "refresh": "Refresh",
     "exportData": "Export Data",
     "addAgent": "Add Agent",
@@ -354,8 +351,6 @@
     "teamModal": {
       "createTitle": "Create New Team",
       "editTitle": "Edit Team",
-      "createSubtitle": "Assign sales agents to a region",
-      "editSubtitle": "Update team/region information",
       "teamNameLabel": "Team/Region Name",
       "teamNamePlaceholder": "e.g., Jakarta Team, Regional Team",
       "salesAgentsLabel": "Sales Agents",
@@ -400,9 +395,7 @@
   },
   "agentForm": {
     "createTitle": "Create New Sales Agent",
-    "createSubtitle": "Add a new sales agent to your team",
     "editTitle": "Edit Sales Agent",
-    "editSubtitle": "Update agent information",
     "backToTeam": "Back to Team",
     "backToDetails": "Back to Details",
     "createAgent": "Create Agent",
@@ -444,7 +437,6 @@
   },
   "basicProfile": {
     "title": "Basic Profile Information",
-    "subtitle": "Enter the agent's personal and contact details",
     "uploadAvatar": "Upload Avatar",
     "changeAvatar": "Change Avatar",
     "uploading": "Uploading...",
@@ -476,7 +468,6 @@
   },
   "favouriteProducts": {
     "title": "Favourite Products to be Sold",
-    "subtitle": "Select products top 3 (can be unordered) from your catalog that this agent specializes in selling.",
     "loading": "Loading products...",
     "searchPlaceholder": "Search products by name, SKU, or brand...",
     "selectedCount": "{count} product(s) selected as favorites",
@@ -493,7 +484,6 @@
   },
   "salesReporting": {
     "title": "Daily Field Reports",
-    "subtitle": "Manage daily field activity reports for this agent",
     "addReport": "Add Report",
     "startTime": "Start Time",
     "endTime": "End Time",
@@ -511,7 +501,6 @@
   },
   "salesTarget": {
     "title": "Sales Target",
-    "subtitle": "Set sales goals and targets for this agent",
     "addRow": "Add Row",
     "period": "Period",
     "periodPlaceholder": "e.g., October",

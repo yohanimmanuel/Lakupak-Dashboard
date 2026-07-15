@@ -357,8 +357,6 @@ export default function EditSalesAgentPage() {
           </button>
           <div>
             <h1 className="text-2xl font-bold text-black">{tAgentForm('editTitle')}</h1>
-            <p className="text-gray-500 text-sm">{tAgentForm('editSubtitle')}</p>
-            
             {/* Status Indicator */}
             <div className="flex items-center gap-4 mt-2">
               <div className="flex items-center gap-2">

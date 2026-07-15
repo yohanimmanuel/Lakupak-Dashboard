@@ -152,7 +152,6 @@ export default function RangeManagement({
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-black">{isNewOffer ? tRange('titleNew') : tRange('titleEdit')}</h2>
-          <p className="text-gray-500 text-sm">{isNewOffer ? tRange('subtitleNew') : tRange('subtitleEdit')}</p>
         </div>
         <div className="flex items-center gap-2">
           {isNewOffer && dateRanges.length === 0 && (

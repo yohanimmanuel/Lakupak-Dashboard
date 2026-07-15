@@ -12,9 +12,8 @@ export function SkeletonWizardPage({ tabs = 4, actions = 3 }: { tabs?: number; a
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Skeleton className="h-9 w-20 rounded-lg" />
-          <div className="space-y-1.5">
+          <div>
             <Skeleton className="h-7 w-56" />
-            <Skeleton className="h-3.5 w-44" />
           </div>
         </div>
         <div className="flex items-center gap-2">

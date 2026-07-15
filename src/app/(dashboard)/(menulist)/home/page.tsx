@@ -851,7 +851,6 @@ interface MarketingSummary {
 
 interface WidgetRenderResult {
   content: ReactNode;
-  subtitle?: string;
   action?: ReactNode;
 }
 
@@ -1913,7 +1912,6 @@ const supplierInsights = useMemo(() => {
     switch (id) {
       case 'analytics':
         return {
-          subtitle: widgetText('analytics', 'subtitle'),
           action: (
             <Link
               href="/analytics"
@@ -1946,7 +1944,6 @@ const supplierInsights = useMemo(() => {
         };
       case 'orders':
         return {
-          subtitle: widgetText('orders', 'subtitle'),
           action: (
             <Link
               href="/orders"
@@ -2011,7 +2008,6 @@ const supplierInsights = useMemo(() => {
         };
       case 'products':
         return {
-          subtitle: widgetText('products', 'subtitle'),
           action: (
             <Link
               href="/products"
@@ -2113,7 +2109,6 @@ const supplierInsights = useMemo(() => {
         };
       case 'buyers':
         return {
-          subtitle: widgetText('buyers', 'subtitle'),
           action: (
             <Link
               href="/clients/buyers"
@@ -2223,7 +2218,6 @@ const supplierInsights = useMemo(() => {
         };
       case 'suppliers':
         return {
-          subtitle: widgetText('suppliers', 'subtitle'),
           action: (
             <Link
               href="/clients/suppliers"
@@ -2320,7 +2314,6 @@ const supplierInsights = useMemo(() => {
         };
       case 'logistics':
         return {
-          subtitle: widgetText('logistics', 'subtitle'),
           action: (
             <Link
               href="/orders"
@@ -2449,7 +2442,6 @@ const supplierInsights = useMemo(() => {
         const lowStockPreview = lowStockItems.slice(0, 3);
  
         return {
-          subtitle: widgetText('inventory', 'subtitle'),
           action: (
             <Link
               href="/products"
@@ -2556,7 +2548,6 @@ const supplierInsights = useMemo(() => {
         const hasTeams = summary.teams.length > 0 || summary.totalAgents > 0;
         const hasCampaigns = campaignMetrics.totalCampaigns > 0;
         return {
-          subtitle: widgetText('marketing', 'subtitle'),
           action: (
             <Link
               href="/marketing"
@@ -2757,7 +2748,7 @@ const supplierInsights = useMemo(() => {
           if (!meta) {
             return null;
           }
-          const { content, subtitle, action } = renderWidget(id);
+          const { content, action } = renderWidget(id);
           const Icon = meta.icon;
           return (
             <div
@@ -2792,9 +2783,6 @@ const supplierInsights = useMemo(() => {
                         <h2 className="text-sm font-semibold text-black">
                           {widgetName(id)}
                         </h2>
-                        {subtitle ? (
-                          <p className="mt-1 text-xs text-gray-500">{subtitle}</p>
-                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -2851,9 +2839,6 @@ const supplierInsights = useMemo(() => {
           <div className="flex items-start justify-between p-4 -mb-2">
             <div>
               <h3 className="text-md font-semibold text-black">{t('widgetLibrary')}</h3>
-              <p className="text-xs text-gray-500">
-                {t('widgetLibraryHint')}
-              </p>
             </div>
             <button
               type="button"
@@ -2918,12 +2903,10 @@ const supplierInsights = useMemo(() => {
 
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-4">
         <div className="mx-auto flex flex-col gap-3">
-          <header className="flex flex-wrap items-center justify-between gap-4">
+          <header className="flex flex-wrap items-center justify-between gap-4 mb-2">
             <div>
-              <h1 className="text-2xl font-bold text-black">{t('title')}</h1>
-              <p className="text-sm text-gray-600">
-                {t('subtitle')}
-              </p>
+              <h1 className="text-2xl font-bold text-black mb-1">{t('title')}</h1>
+              <p className="text-sm text-gray-600">{t('subtitle')}</p>
             </div>
             <button
               type="button"

@@ -100,7 +100,6 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
     }
   };
 
-
   const formatCurrencyAmount = (amount: number) => {
     return formatCurrency(amount, userCurrency);
   };

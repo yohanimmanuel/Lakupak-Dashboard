@@ -108,9 +108,6 @@ export default function CreateDateRangeModal({
               <h3 className="text-lg font-semibold text-black">
                 {editingRange ? tDateRangeModal('editTitle') : tDateRangeModal('createTitle')}
               </h3>
-              <p className="text-gray-500 text-sm">
-                {editingRange ? tDateRangeModal('editSubtitle') : tDateRangeModal('createSubtitle')}
-              </p>
             </div>
           </div>
           <button
@@ -281,5 +278,4 @@ export default function CreateDateRangeModal({
     </div>
   );
 }
-
 

@@ -156,7 +156,6 @@ export default function DistributorOperations() {
   const [showIndustryDropdown, setShowIndustryDropdown] = useState(false);
   const [showCompanySizeDropdown, setShowCompanySizeDropdown] = useState(false);
 
-
   useEffect(() => {
     if (user) {
       const company = user?.company;
@@ -484,7 +483,6 @@ export default function DistributorOperations() {
         defaultDeliveryLeadTimeMaxDays: formData.defaultDeliveryLeadTimeMaxDays === '' ? null : Number(formData.defaultDeliveryLeadTimeMaxDays),
       };
 
-
       const response = await fetch('/api/company/update', {
         method: 'PUT',
         headers: {
@@ -537,7 +535,6 @@ export default function DistributorOperations() {
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-black mb-2">{tDistributor('title')}</h1>
-          <p className="text-sm text-gray-600">{tDistributor('subtitle')}</p>
         </div>
         
         {!isEditing ? (
@@ -1087,8 +1084,6 @@ export default function DistributorOperations() {
                     ))}
                   </div>
                 </div>
-
-
 
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-2">

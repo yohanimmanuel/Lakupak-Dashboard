@@ -142,9 +142,6 @@ export default function CreateOfferTypeModal({
               <h3 className="text-lg font-semibold text-black">
                 {editingType ? tTypeModal('editTitle') : tTypeModal('createTitle')}
               </h3>
-              <p className="text-gray-500 text-sm">
-                {editingType ? tTypeModal('editSubtitle') : tTypeModal('createSubtitle')}
-              </p>
             </div>
           </div>
           <button
@@ -327,7 +324,6 @@ export default function CreateOfferTypeModal({
                   />
                 </div>
               </div>
-
 
             </div>
           </div>

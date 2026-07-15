@@ -1,7 +1,6 @@
 {
   "list": {
     "title": "Penawaran & Insentif",
-    "subtitle": "Kelola diskon dan promosi untuk produk Anda",
     "loading": "Memuat penawaran...",
     "exportData": "Ekspor Data",
     "createOffer": "Buat Penawaran",
@@ -159,7 +158,6 @@
   "createPage": {
     "backToOffers": "Kembali ke Penawaran",
     "title": "Buat Penawaran Baru",
-    "subtitle": "Manajemen penawaran dan analitik lanjutan",
     "stepOfferType": "Tipe Penawaran",
     "stepDateRange": "Rentang Tanggal",
     "stepProducts": "Produk",
@@ -173,7 +171,6 @@
     "incompleteFields": "Harap lengkapi semua field wajib sebelum membuat penawaran.",
     "createFailed": "Gagal membuat penawaran. Silakan coba lagi.",
     "previewTitle": "Lihat Penawaran",
-    "previewSubtitle": "Bagaimana pelanggan akan melihat penawaran ini",
     "offerNamePlaceholder": "Nama Penawaran",
     "offerDescriptionPlaceholder": "Deskripsi penawaran akan muncul di sini",
     "percentOff": "DISKON {value}%",
@@ -193,7 +190,6 @@
     "backToOffers": "Kembali ke Penawaran",
     "back": "Kembali",
     "defaultTitle": "Penawaran & Insentif",
-    "subtitle": "Manajemen penawaran dan analitik lanjutan",
     "unsavedChanges": "Perubahan belum disimpan",
     "changeStatusTitle": "Ubah status penawaran",
     "setActiveTitle": "Atur ke Aktif",
@@ -210,7 +206,6 @@
   },
   "type": {
     "title": "Tipe Penawaran",
-    "subtitle": "Konfigurasi berbagai tipe diskon dan promosi",
     "createType": "Buat Tipe",
     "emptyTitle": "Belum Ada Tipe Penawaran",
     "emptyDescription": "Buat tipe penawaran untuk menentukan aturan diskon atau promosi.",
@@ -242,8 +237,6 @@
   },
   "analytics": {
     "title": "Analitik Penawaran",
-    "subtitleNew": "Analitik akan tersedia setelah penawaran dibuat dan aktif",
-    "subtitle": "Pantau kinerja dan optimalkan penawaran Anda",
     "emptyTitle": "Belum Ada Analitik",
     "emptyDescription": "Data analitik akan muncul di sini setelah penawaran dibuat dan mulai menerima penukaran.",
     "emptyHint": "Anda dapat melacak metrik kinerja, tren penukaran, dan efektivitas penawaran.",
@@ -266,8 +259,6 @@
   "typeModal": {
     "editTitle": "Edit Tipe Penawaran",
     "createTitle": "Buat Tipe Penawaran",
-    "editSubtitle": "Perbarui konfigurasi diskon Anda",
-    "createSubtitle": "Tentukan aturan diskon untuk penawaran Anda",
     "basicInfo": "Informasi Dasar",
     "offerName": "Nama Penawaran *",
     "offerNamePlaceholder": "contoh: Diskon Sale Musim Panas",
@@ -303,8 +294,6 @@
   "dateRangeModal": {
     "editTitle": "Edit Rentang Tanggal",
     "createTitle": "Buat Rentang Tanggal",
-    "editSubtitle": "Perbarui pengaturan rentang tanggal Anda",
-    "createSubtitle": "Tentukan kapan penawaran akan aktif",
     "basicInfo": "Informasi Dasar",
     "rangeName": "Nama Rentang *",
     "rangeNamePlaceholder": "contoh: Sale Musim Panas 2024",
@@ -333,8 +322,6 @@
   "range": {
     "titleNew": "Rentang Tanggal",
     "titleEdit": "Manajemen Rentang",
-    "subtitleNew": "Atur periode aktif untuk penawaran baru (opsional)",
-    "subtitleEdit": "Kelola rentang tanggal untuk penawaran",
     "skip": "Lewati",
     "emptyTitle": "Belum Ada Rentang Tanggal",
     "emptyDescription": "Penawaran mungkin memiliki atau tidak memiliki batas tanggal dan akan tetap aktif atau nonaktif berdasarkan statusnya. Anda dapat membuat rentang tanggal secara opsional untuk membatasi ketersediaan penawaran.",
@@ -357,8 +344,6 @@
     "loading": "Memuat produk...",
     "titleNew": "Pilih Produk untuk Penawaran",
     "titleEdit": "Produk Anda",
-    "subtitleNew": "Pilih produk yang akan disertakan dalam penawaran baru",
-    "subtitleEdit": "Pilih produk untuk penawaran ini (satu penawaran per produk)",
     "applyOffer": "Terapkan Penawaran ({count})",
     "searchPlaceholder": "Cari produk...",
     "selectAllAvailable": "Pilih Semua Tersedia ({selected}/{total})",

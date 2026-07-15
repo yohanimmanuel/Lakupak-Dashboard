@@ -224,7 +224,6 @@ export default function GeneralInfo() {
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-black mb-2">{tGeneral('title')}</h1>
-          <p className="text-sm text-gray-600">{tGeneral('subtitle')}</p>
         </div>
         
         {!isEditing ? (

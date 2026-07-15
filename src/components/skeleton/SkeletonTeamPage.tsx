@@ -40,7 +40,6 @@ export function SkeletonTeamPage() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
         <div className="space-y-1.5">
           <Skeleton className="h-7 w-48" />
-          <Skeleton className="h-4 w-72" />
         </div>
         <div className="flex items-center gap-2">
           <Skeleton className="h-9 w-24 rounded-lg" />

@@ -510,10 +510,9 @@ export default function ProductsPage() {
   return (
     <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
         <div data-tour="products-page-header">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">{tList('title')}</h1>
-          <p className="text-sm text-gray-500 mb-4">{tList('subtitle')}</p>
         </div>
         {/* Action Buttons */}
         <div className="flex items-center gap-3" data-tour="products-actions">

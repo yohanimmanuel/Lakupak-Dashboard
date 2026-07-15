@@ -84,7 +84,6 @@ export default function MarketingPage() {
     <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-black mb-2">{tHub('title')}</h1>
-        <p className="text-sm text-gray-600">{tHub('subtitle')}</p>
       </div>
 
       {visibleTips.length > 0 && (

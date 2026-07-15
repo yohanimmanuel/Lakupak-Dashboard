@@ -288,11 +288,10 @@ export default function OffersPage() {
   return (
     <div className="p-4 space-y-3 bg-gradient-to-b from-gray-50 to-white">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div data-tour="offers-page-header">
             <h1 className="text-2xl font-bold text-black">{tList('title')}</h1>
-            <p className="text-gray-500 text-sm">{tList('subtitle')}</p>
           </div>
         </div>
         <div className="flex items-center gap-3" data-tour="offers-actions">

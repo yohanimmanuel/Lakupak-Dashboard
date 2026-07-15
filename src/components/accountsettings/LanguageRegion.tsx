@@ -219,7 +219,6 @@ export default function LanguageRegion() {
     }
   };
 
-
   const handleDismissSuccess = () => {
     setSuccessMessage('');
   };
@@ -250,7 +249,6 @@ export default function LanguageRegion() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">{tLanguage('title')}</h1>
-        <p className="text-gray-600 mt-1">{tLanguage('subtitle')}</p>
       </div>
 
       {/* Error/Success Messages */}

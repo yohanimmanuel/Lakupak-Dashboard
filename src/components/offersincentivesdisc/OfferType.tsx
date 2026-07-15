@@ -211,14 +211,12 @@ export default function OfferType({
     }
   };
 
-
   return (
     <div className="p-4 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-black">{tType('title')}</h2>
-          <p className="text-gray-500 text-sm">{tType('subtitle')}</p>
         </div>
         {offerTypes.length > 0 && offerTypes.length < 3 && (
         <button

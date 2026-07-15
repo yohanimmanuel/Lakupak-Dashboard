@@ -833,7 +833,6 @@ export default function BillingPayment() {
     <div className="p-4">
       <div className="mb-4">
         <h2 className="text-2xl font-bold text-black mb-2">{tBilling('title')}</h2>
-        <p className="text-sm text-gray-600">{tBilling('subtitle')}</p>
       </div>
 
       {success && (

@@ -42,7 +42,6 @@
   },
   "page": {
     "title": "Dashboard Marketplace",
-    "subtitle": "Pantau kinerja marketplace dan perilaku pelanggan Anda",
     "loading": "Memuat data marketplace...",
     "publishedProducts": "Produk Dipublikasikan",
     "publishedHint": "Aktif di marketplace",
@@ -85,7 +84,6 @@
     "loadingReviews": "Memuat ulasan…",
     "noReviews": "Belum ada ulasan.",
     "viewReviews": "Lihat ulasan",
-    "totalViews": "Total Tayangan",
     "favorites": "Favorit",
     "sales": "Penjualan",
     "reviews": "Ulasan",
@@ -102,7 +100,6 @@
   },
   "distributor": {
     "title": "Informasi distributor",
-    "subtitle": "Bagaimana distributor Anda tampil di marketplace",
     "editSettings": "Edit pengaturan",
     "customers": "Pelanggan",
     "buyers": "Pembeli",

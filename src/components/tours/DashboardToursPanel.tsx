@@ -18,7 +18,6 @@ export function DashboardToursPanel() {
   return (
     <div className="p-4 max-w-6xl">
       <h2 className="text-2xl font-bold text-black">{tTours('title')}</h2>
-      <p className="mt-2 text-sm text-gray-600">{tTours('subtitle')}</p>
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-2">
         {TOUR_IDS.map((id) => {
           const row = {

@@ -43,7 +43,6 @@ const getProductCategoryFilters = (products: Product[]) => {
   return ["All Categories", ...Array.from(cats)];
 };
 
-
 export default function ProductTable({ products = [], setProductsAction, onSelectProductAction, onExportXLSXAction, profileToTableRowAction, onRefreshProductsAction, withSuppressedAutoRefreshAction }: { 
   products?: Product[]; 
   setProductsAction?: (fn: (prev: Product[]) => Product[]) => void; 
@@ -568,7 +567,6 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
     setIsBulkUnpublish(true);
     setShowUnpublishModal(true);
   };
-
 
   const handleOpenPublishModal = (product: ProductTableRow) => {
     // Always show the modal - let ProductMarketplacePubs handle smart identification

@@ -519,7 +519,6 @@ const OperationalPerformanceAnalytics: React.FC<OperationalPerformanceAnalyticsP
     }).sort((a, b) => b.totalPieces - a.totalPieces);
   }, [products, hasData]);
 
-
   // Calculate quality metrics
   const qualityMetrics: QualityMetric[] = useMemo(() => {
     const getStatus = (value: number, target: number): 'good' | 'warning' | 'critical' => {

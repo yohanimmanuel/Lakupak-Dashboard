@@ -61,7 +61,6 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
     const usedOffers = offers.filter(offer => (offer.totalUsage || 0) > 0).length;
     const conversionRate = totalOffers > 0 ? (usedOffers / totalOffers) * 100 : 0;
 
-
     // Calculate redemption trends (show current month and future months)
     const now = new Date();
     const monthlyTrends = [];
@@ -114,7 +113,6 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold text-black">{tAnalytics('title')}</h2>
-            <p className="text-gray-500 text-sm">{tAnalytics('subtitleNew')}</p>
           </div>
         </div>
 
@@ -141,7 +139,6 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-black">{tAnalytics('title')}</h2>
-          <p className="text-gray-500 text-sm">{tAnalytics('subtitle')}</p>
         </div>
       </div>
 

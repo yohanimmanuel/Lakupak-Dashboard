@@ -195,7 +195,6 @@ export default function SalesReporting({
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold text-gray-900 mb-1">{tSalesReporting('title')}</h3>
-          <p className="text-sm text-gray-500">{tSalesReporting('subtitle')}</p>
         </div>
         <button
           onClick={handleAddReport}

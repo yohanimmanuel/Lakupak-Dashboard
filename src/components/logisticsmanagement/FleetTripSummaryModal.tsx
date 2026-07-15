@@ -219,7 +219,6 @@ export default function FleetTripSummaryModal({
               <div className="border border-gray-200 rounded-lg p-4 space-y-4">
                 <div>
                   <p className="text-xs font-semibold text-gray-800">{tDeliverySteps('title')}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{tDeliverySteps('subtitle')}</p>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-gray-700 flex items-center gap-2">

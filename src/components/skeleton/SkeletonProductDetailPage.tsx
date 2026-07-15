@@ -26,11 +26,6 @@ export function SkeletonProductDetailPage() {
           </div>
         </div>
 
-        {/* Mode description bar */}
-        <div className="px-4 py-3 bg-gray-50 border-b border-[#e6e6e6]">
-          <Skeleton className="h-3.5 w-80 max-w-full" />
-        </div>
-
         {/* Completion progress bar */}
         <div className="mx-4 mt-4 mb-4 p-4 rounded-lg border border-[#e6e6e6] bg-gray-50">
           <div className="flex items-center justify-between mb-2">

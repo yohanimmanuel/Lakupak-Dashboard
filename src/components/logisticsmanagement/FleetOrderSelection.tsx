@@ -155,7 +155,6 @@ export default function FleetOrderSelection({
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-1">{tOrderSelection('title')}</h3>
-        <p className="text-sm text-gray-500">{tOrderSelection('subtitle')}</p>
       </div>
 
       <div className="bg-white border border-[#e6e6e6] rounded-lg p-4">
@@ -209,7 +208,6 @@ export default function FleetOrderSelection({
       {selectedOrders.length > 0 && (
         <div className="bg-white border border-[#e6e6e6] rounded-lg p-4">
           <h4 className="text-sm font-semibold text-gray-900">{tDeliverySteps('title')}</h4>
-          <p className="text-xs text-gray-500 mt-1 mb-3">{tDeliverySteps('subtitle')}</p>
           <FleetDeliveryStepsList
             items={selectedOrders}
             onReorder={(assignedOrders) => onFormChange({ assignedOrders })}

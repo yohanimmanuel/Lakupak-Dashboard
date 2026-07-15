@@ -41,7 +41,6 @@ export function SkeletonCampaignsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
         <div className="space-y-1.5">
           <Skeleton className="h-7 w-52" />
-          <Skeleton className="h-4 w-72" />
         </div>
         {/* Create Campaign button */}
         <Skeleton className="h-9 w-40 rounded-lg" />

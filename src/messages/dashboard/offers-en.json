@@ -1,7 +1,6 @@
 {
   "list": {
     "title": "Offers & Incentives",
-    "subtitle": "Manage discounts and promotions for your products",
     "loading": "Loading offers...",
     "exportData": "Export Data",
     "createOffer": "Create Offer",
@@ -159,7 +158,6 @@
   "createPage": {
     "backToOffers": "Back to Offers",
     "title": "Create New Offer",
-    "subtitle": "Advanced offer management and analytics",
     "stepOfferType": "Offer Type",
     "stepDateRange": "Date Range",
     "stepProducts": "Products",
@@ -173,7 +171,6 @@
     "incompleteFields": "Please complete all required fields before creating the offer.",
     "createFailed": "Failed to create offer. Please try again.",
     "previewTitle": "Offer Preview",
-    "previewSubtitle": "How customers will see this offer",
     "offerNamePlaceholder": "Offer Name",
     "offerDescriptionPlaceholder": "Offer description will appear here",
     "percentOff": "{value}% OFF",
@@ -193,7 +190,6 @@
     "backToOffers": "Back to Offers",
     "back": "Back",
     "defaultTitle": "Offers & Incentives",
-    "subtitle": "Advanced offer management and analytics",
     "unsavedChanges": "Unsaved changes",
     "changeStatusTitle": "Change offer status",
     "setActiveTitle": "Set to Active",
@@ -210,7 +206,6 @@
   },
   "type": {
     "title": "Offer Types",
-    "subtitle": "Configure different types of discounts and promotions",
     "createType": "Create Type",
     "emptyTitle": "No Offer Type Configured",
     "emptyDescription": "Create an offer type to define the discount or promotion rules for your offer.",
@@ -242,8 +237,6 @@
   },
   "analytics": {
     "title": "Offer Analytics",
-    "subtitleNew": "Analytics will be available after the offer is created and active",
-    "subtitle": "Track performance and optimize your offers",
     "emptyTitle": "No Analytics Yet",
     "emptyDescription": "Analytics data will appear here once your offer is created and starts receiving redemptions.",
     "emptyHint": "You'll be able to track performance metrics, redemption trends, and offer effectiveness.",
@@ -266,8 +259,6 @@
   "typeModal": {
     "editTitle": "Edit Offer Type",
     "createTitle": "Create Offer Type",
-    "editSubtitle": "Update your discount configuration",
-    "createSubtitle": "Define the discount rules for your offer",
     "basicInfo": "Basic Information",
     "offerName": "Offer Name *",
     "offerNamePlaceholder": "e.g., Summer Sale Discount",
@@ -303,8 +294,6 @@
   "dateRangeModal": {
     "editTitle": "Edit Date Range",
     "createTitle": "Create Date Range",
-    "editSubtitle": "Update your date range settings",
-    "createSubtitle": "Set when your offer will be active",
     "basicInfo": "Basic Information",
     "rangeName": "Range Name *",
     "rangeNamePlaceholder": "e.g., Summer Sale 2024",
@@ -333,8 +322,6 @@
   "range": {
     "titleNew": "Date Range",
     "titleEdit": "Range Management",
-    "subtitleNew": "Set the active period for your new offer (optional)",
-    "subtitleEdit": "Manage date ranges for offers",
     "skip": "Skip",
     "emptyTitle": "No Date Range Configured",
     "emptyDescription": "Offers may or may not have date restrictions and will remain active or inactive based on its status. You can optionally create date ranges to limit when the offer is available.",
@@ -357,8 +344,6 @@
     "loading": "Loading products...",
     "titleNew": "Select Products for Offer",
     "titleEdit": "Your Products",
-    "subtitleNew": "Choose which products to include in your new offer",
-    "subtitleEdit": "Select products for this offer (one offer per product)",
     "applyOffer": "Apply Offer ({count})",
     "searchPlaceholder": "Search products...",
     "selectAllAvailable": "Select All Available ({selected}/{total})",

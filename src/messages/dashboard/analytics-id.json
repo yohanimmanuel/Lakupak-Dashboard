@@ -56,28 +56,24 @@
   },
   "overview": {
     "title": "Dashboard Analitik",
-    "subtitle": "Wawasan utama dan metrik kinerja untuk bisnis Anda",
     "loading": "Memuat analitik...",
     "emptyTitle": "Tidak Ada Data Analitik",
     "emptyBody": "Tambahkan produk dan lacak pesanan untuk melihat analitik pendapatan dan penjualan untuk akun Anda."
   },
   "financial": {
     "title": "Analitik Keuangan",
-    "subtitle": "Ringkasan dan wawasan keuangan komprehensif",
     "loading": "Memuat analitik keuangan...",
     "emptyTitle": "Tidak Ada Data Keuangan",
     "emptyBody": "Mulai dengan menambahkan produk dan melacak pesanan untuk melihat analitik keuangan Anda. Pendapatan, laba, dan metrik kinerja akan muncul di sini setelah Anda memiliki data."
   },
   "sales": {
     "title": "Analitik Pelanggan & Penjualan",
-    "subtitle": "Wawasan tentang pelanggan, volume penjualan, dan kinerja produk",
     "loading": "Memuat analitik penjualan...",
     "emptyTitle": "Tidak Ada Data Pelanggan/Penjualan",
     "emptyBody": "Tambahkan produk dan lacak pesanan untuk melihat analitik pelanggan dan penjualan."
   },
   "operational": {
     "title": "Kinerja Operasional",
-    "subtitle": "Wawasan operasional end-to-end: pesanan, logistik, dan inventaris",
     "loading": "Memuat kinerja operasional...",
     "emptyTitle": "Tidak Ada Data Operasional",
     "emptyBody": "Mulai dengan membuat pesanan dan mengelola produk untuk melihat metrik kinerja operasional Anda. Pemrosesan pesanan, pelacakan pengiriman, dan wawasan inventaris akan muncul di sini setelah Anda memiliki data."

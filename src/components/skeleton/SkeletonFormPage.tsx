@@ -22,9 +22,8 @@ export function SkeletonFormPage({ tabs = 4, fields = 6 }: { tabs?: number; fiel
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Skeleton className="h-9 w-9 rounded-lg" />
-          <div className="space-y-1.5">
+          <div>
             <Skeleton className="h-6 w-44" />
-            <Skeleton className="h-3.5 w-60" />
           </div>
         </div>
         <div className="flex gap-2">

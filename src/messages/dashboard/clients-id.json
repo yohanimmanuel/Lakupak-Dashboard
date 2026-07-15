@@ -1,7 +1,6 @@
 {
   "hub": {
     "title": "Klien",
-    "subtitle": "Kelola hubungan pembeli dan pemasok Anda untuk membangun jaringan yang kuat dan mendorong pertumbuhan bisnis.",
     "tips": "Tips",
     "tools": "Alat",
     "dismissTip": "Tutup tip",
@@ -188,7 +187,6 @@
   },
   "buyers": {
     "title": "Daftar Pembeli",
-    "subtitle": "Kelola pembeli dan informasinya.",
     "loading": "Memuat pembeli...",
     "addBuyer": "Tambah Pembeli",
     "refreshing": "Menyegarkan data pembeli",
@@ -220,7 +218,6 @@
     },
     "profile": {
       "title": "Detail Pembeli",
-      "subtitle": "Lihat dan kelola informasi pembeli.",
       "copyData": "Salin Data",
       "editDetails": "Edit Detail",
       "profileCompletion": "Kelengkapan Profil",
@@ -274,8 +271,6 @@
     "modal": {
       "editTitle": "Edit Pembeli",
       "addTitle": "Tambah Pembeli",
-      "editSubtitle": "Perbarui informasi dan pengaturan pembeli",
-      "addSubtitle": "Buat profil pembeli baru",
       "uploadPhoto": "Unggah Foto",
       "autoIdHint": "Pengenal unik otomatis",
       "storeName": "Nama Toko",
@@ -321,7 +316,6 @@
   },
   "suppliers": {
     "title": "Daftar Pemasok",
-    "subtitle": "Kelola pemasok dan informasinya.",
     "loading": "Memuat pemasok...",
     "addSupplier": "Tambah Pemasok",
     "refreshing": "Menyegarkan data pemasok",
@@ -343,7 +337,6 @@
     },
     "profile": {
       "title": "Detail Pemasok",
-      "subtitle": "Lihat dan kelola informasi pemasok.",
       "copyData": "Salin Data",
       "editDetails": "Edit Detail",
       "profileCompletion": "Kelengkapan Profil",
@@ -397,8 +390,6 @@
     "modal": {
       "editTitle": "Edit Pemasok",
       "addTitle": "Tambah Pemasok",
-      "editSubtitle": "Perbarui informasi dan pengaturan pemasok",
-      "addSubtitle": "Buat profil pemasok baru",
       "supplierName": "Nama Pemasok",
       "contactPerson": "Kontak",
       "phone": "Telepon",

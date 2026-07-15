@@ -172,9 +172,6 @@ export default function MarketplacePage() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div data-tour="marketplace-page-header">
             <h1 className="text-2xl font-bold text-gray-900 mb-2">{tPage('title')}</h1>
-            <p className="text-sm text-gray-600">
-              {tPage('subtitle')}
-            </p>
           </div>
           <div className="flex items-center gap-3" data-tour="marketplace-actions">
             {/* Time Range Selector */}

@@ -208,9 +208,6 @@ export default function LogisticsPage() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
         <div data-tour="logistics-page-header">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">{tPage('title')}</h1>
-          <p className="text-sm text-gray-500 mb-4">
-            {tPage('subtitle')}
-          </p>
         </div>
 
         {/* Action Buttons */}

@@ -1,7 +1,6 @@
 {
   "page": {
-    "title": "Account Settings",
-    "subtitle": "Manage your account preferences and settings",
+    "title": "Settings",
     "loading": "Loading settings...",
     "tabs": {
       "general": "General Info",
@@ -15,7 +14,6 @@
   },
   "general": {
     "title": "General Information",
-    "subtitle": "Manage your personal information and profile details",
     "personalInformation": "Personal Information",
     "edit": "Edit",
     "save": "Save",
@@ -61,7 +59,6 @@
   },
   "language": {
     "title": "Language & Region",
-    "subtitle": "Manage your language and regional preferences",
     "sectionTitle": "Language & Regional Settings",
     "language": "Language",
     "region": "Region",
@@ -102,7 +99,6 @@
   },
   "security": {
     "title": "Security & Password",
-    "subtitle": "Manage your account security settings",
     "accountSecurity": "Account Security",
     "emailAddress": "Email Address",
     "password": "Password",
@@ -151,7 +147,6 @@
   },
   "distributor": {
     "title": "Distributor Operations",
-    "subtitle": "Manage your distributor operations and business details",
     "edit": "Edit",
     "save": "Save",
     "saving": "Saving...",
@@ -278,7 +273,6 @@
   },
   "team": {
     "title": "Team & Sales",
-    "subtitle": "Manage your sales team, territories, targets, and performance tracking",
     "loadingTeamData": "Loading team data...",
     "salesTeamOverview": "Sales Team Overview",
     "salesTeamDirectory": "Sales Team Directory",
@@ -343,7 +337,6 @@
       "ewallet": "E-wallet"
     },
     "title": "Billing & Payment",
-    "subtitle": "Manage your payment methods, billing information, and invoices",
     "loading": "Loading billing data...",
     "refreshing": "Refreshing billing data",
     "showingBillingDataSingular": "Showing billing data ({count} payment method loaded)",
@@ -490,7 +483,6 @@
   },
   "tours": {
     "title": "Features & Tours",
-    "subtitle": "Replay a short walkthrough anytime. Progress is saved for this account and synced when you use another browser, once signed in.",
     "items": {
       "shell": {
         "title": "Dashboard overview",

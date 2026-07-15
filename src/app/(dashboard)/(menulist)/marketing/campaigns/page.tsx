@@ -217,12 +217,9 @@ export default function MarketingCampaignsPage() {
   return (
     <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
         <div>
           <h1 className="text-2xl font-bold text-black mb-2">{tCampaigns('title')}</h1>
-          <p className="text-sm text-gray-600">
-            {tCampaigns('subtitle')}
-          </p>
         </div>
         <Link
           href="/marketing/campaigns/create"

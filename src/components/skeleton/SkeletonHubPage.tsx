@@ -26,9 +26,8 @@ export function SkeletonHubPage({ cards = 3 }: { cards?: number }) {
   return (
     <div className="w-full p-4 space-y-5 bg-gradient-to-b from-gray-50 to-white min-h-screen">
       {/* Header */}
-      <div className="space-y-2">
+      <div>
         <Skeleton className="h-7 w-40" />
-        <Skeleton className="h-4 w-72" />
       </div>
 
       {/* Tip / info banner */}

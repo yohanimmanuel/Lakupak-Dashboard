@@ -146,9 +146,8 @@ export default function OperationalPerformancePage() {
   if (!hasData) {
     return (
       <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
-        <div className="mb-6">
+        <div className="mb-4">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">{tOperational('title')}</h1>
-          <p className="text-sm text-gray-600">{tOperational('subtitle')}</p>
         </div>
         <div className="text-center mt-30">
           <div className="w-20 h-20 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
@@ -176,10 +175,9 @@ export default function OperationalPerformancePage() {
       {!childReady && <SkeletonAnalyticsPage />}
       <div className={!childReady ? 'h-0 overflow-hidden' : 'w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen'}>
         {/* Page Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">{tOperational('title')}</h1>
-            <p className="text-sm text-gray-500 mb-4">{tOperational('subtitle')}</p>
           </div>
 
           {/* Time Range Dropdown */}
@@ -221,5 +219,4 @@ export default function OperationalPerformancePage() {
     </>
   );
 }
-
 

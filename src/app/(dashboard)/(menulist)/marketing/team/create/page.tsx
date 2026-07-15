@@ -216,8 +216,6 @@ export default function CreateSalesAgentPage() {
           </button>
           <div>
             <h1 className="text-2xl font-bold text-black">{tAgentForm('createTitle')}</h1>
-            <p className="text-gray-500 text-sm">{tAgentForm('createSubtitle')}</p>
-            
             {/* Status Indicator */}
             <div className="flex items-center gap-4 mt-2">
               <div className="flex items-center gap-2">

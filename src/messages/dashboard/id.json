@@ -118,10 +118,9 @@
   },
   "home": {
     "title": "Ringkasan Dashboard",
-    "subtitle": "Sesuaikan widget yang paling Anda butuhkan untuk keputusan lebih cepat.",
+    "subtitle": "Berikut yang terjadi dengan bisnis Anda hari ini",
     "dragWidgets": "Seret widget untuk mengatur ulang",
     "widgetLibrary": "Pustaka Widget",
-    "widgetLibraryHint": "Seret widget di atas untuk mengatur ulang atau menambah modul baru.",
     "dragToAdd": "Seret untuk menambah",
     "dragToReorder": "Seret untuk mengurutkan",
     "noWidgetsSelected": "Belum ada widget dipilih",
@@ -140,7 +139,6 @@
       "analytics": {
         "name": "Ringkasan Analitik",
         "description": "Pantau pertumbuhan pendapatan dan momentum penjualan sekilas.",
-        "subtitle": "Performa pendapatan dari waktu ke waktu",
         "action": "Buka pusat analitik",
         "thisYear": "Tahun ini",
         "totalOrderVolume": "Total volume pesanan:"
@@ -148,7 +146,6 @@
       "orders": {
         "name": "Pipeline Pesanan",
         "description": "Lacak pesanan terbaru, status, dan tren nilai pesanan.",
-        "subtitle": "Menampilkan 4 aktivitas pelanggan dan status pesanan terbaru",
         "action": "Lihat semua pesanan",
         "emptyTitle": "Belum ada pesanan tercatat",
         "emptyHint": "Buat pesanan pertama Anda untuk mulai melacak aktivitas di sini."
@@ -156,7 +153,6 @@
       "products": {
         "name": "Performa Produk",
         "description": "Lihat produk katalog yang menghasilkan pendapatan terbanyak.",
-        "subtitle": "Produk diurutkan berdasarkan volume pesanan",
         "action": "Kelola katalog",
         "emptyTitle": "Belum ada performa produk",
         "emptyHint": "Tambahkan produk dan catat pesanan untuk melihat insight di sini.",
@@ -166,7 +162,6 @@
       "inventory": {
         "name": "Peringatan Stok",
         "description": "Sorot risiko stok dan prioritas restock.",
-        "subtitle": "Manajemen inventaris dan peringatan stok",
         "viewCatalog": "Lihat katalog",
         "manageProducts": "Kelola produk",
         "totalProducts": "Total produk",
@@ -198,7 +193,6 @@
       "buyers": {
         "name": "Keterlibatan Pembeli",
         "description": "Pahami aktivitas pembeli, retensi, dan top spender.",
-        "subtitle": "Pantau pertumbuhan dan keterlibatan pembeli",
         "action": "Kelola pembeli",
         "totalBuyers": "Total pembeli",
         "avgOrderValue": "Rata-rata nilai pesanan",
@@ -211,7 +205,6 @@
       "suppliers": {
         "name": "Jaringan Pemasok",
         "description": "Selaras dengan kapasitas dan keandalan pemasok.",
-        "subtitle": "Keandalan pemasok dan performa pemenuhan",
         "action": "Kelola pemasok",
         "totalSuppliers": "Total pemasok",
         "onTimeDelivery": "Pengiriman tepat waktu",
@@ -225,7 +218,6 @@
       "logistics": {
         "name": "Pelacakan Logistik",
         "description": "Visualisasikan rute pengiriman dan milestone delivery.",
-        "subtitle": "Pelacakan logistik dan milestone pengiriman",
         "action": "Lihat logistik",
         "totalShipments": "Total pengiriman",
         "sellerDelivery": "Pengiriman Penjual / Distributor",
@@ -249,7 +241,6 @@
       "marketing": {
         "name": "Performa Pemasaran",
         "description": "Tim, kampanye, dan performa channel sekilas.",
-        "subtitle": "Tim, kampanye, dan performa channel",
         "teams": "Tim",
         "campaigns": "Kampanye",
         "noTeamsTitle": "Belum ada tim",

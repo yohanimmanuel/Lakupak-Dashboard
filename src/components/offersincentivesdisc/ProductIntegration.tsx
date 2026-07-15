@@ -152,7 +152,6 @@ export default function ProductIntegration({
     type: dt.discountType,
   }));
 
-
   // Handlers for toggling selections
   const toggleOfferType = (discountType: string) => {
     setSelectedOfferTypes(prev =>
@@ -170,7 +169,6 @@ export default function ProductIntegration({
     );
   };
 
-
   const selectAllOfferTypes = () => {
     if (selectedOfferTypes.length === offerTypes.length) {
       setSelectedOfferTypes([]);
@@ -186,7 +184,6 @@ export default function ProductIntegration({
       setSelectedDateRanges(dateRanges.map((dr) => dr.id));
     }
   };
-
 
   // Determine badge label to apply to selected products
   const computeOfferBadge = (): string => {
@@ -858,9 +855,6 @@ export default function ProductIntegration({
           <h2 className="text-xl font-bold text-black">
             {isNewOffer ? tProducts('titleNew') : tProducts('titleEdit')}
           </h2>
-          <p className="text-gray-500 text-sm">
-            {isNewOffer ? tProducts('subtitleNew') : tProducts('subtitleEdit')}
-          </p>
         </div>
         {selectedProducts.length > 0 && (
           <button

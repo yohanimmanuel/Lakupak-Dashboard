@@ -567,9 +567,6 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
             <h2 id="buyer-modal-title" className="text-xl font-bold text-black">
               {mode === 'edit' ? tBuyersModal('editTitle') : tBuyersModal('addTitle')}
             </h2>
-            <p className="text-gray-500 text-sm">
-              {mode === 'edit' ? tBuyersModal('editSubtitle') : tBuyersModal('addSubtitle')}
-            </p>
           </div>
         </div>
         <div className="border-b border-gray-200 -mx-6"></div>

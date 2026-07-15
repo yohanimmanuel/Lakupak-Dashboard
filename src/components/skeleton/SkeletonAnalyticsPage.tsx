@@ -87,9 +87,8 @@ export function SkeletonAnalyticsPage() {
     <div className="w-full p-4 space-y-3 bg-gradient-to-b from-gray-50 to-white min-h-screen">
       {/* Page header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
-        <div className="space-y-2">
+        <div>
           <Skeleton className="h-7 w-56" />
-          <Skeleton className="h-4 w-72" />
         </div>
         <div className="flex gap-2">
           <Skeleton className="h-9 w-32 rounded-lg" />

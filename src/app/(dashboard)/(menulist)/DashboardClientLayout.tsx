@@ -68,7 +68,6 @@ export default function DashboardClientLayout({ children }: { children: React.Re
 
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
 
-
   // Show loading state while checking authentication
   if (isCheckingAuth) {
     return (

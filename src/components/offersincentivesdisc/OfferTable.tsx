@@ -26,7 +26,6 @@ const dateRangeFilters = [
   { label: "This Year", value: "year" },
 ];
 
-
 export default function OfferTable({ 
   offers = [], 
   setOffersAction, 

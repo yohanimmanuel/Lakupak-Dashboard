@@ -45,9 +45,8 @@ export function SkeletonOrdersPage() {
       <div className="w-full mx-auto">
         {/* Page header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-          <div className="space-y-1.5">
+          <div>
             <Skeleton className="h-7 w-36" />
-            <Skeleton className="h-4 w-64" />
           </div>
           <div className="flex items-center gap-2">
             <Skeleton className="h-9 w-24 rounded-lg" />

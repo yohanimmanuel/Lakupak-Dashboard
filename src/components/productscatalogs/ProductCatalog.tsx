@@ -363,7 +363,6 @@ export default function ProductCatalog({
   const [variationRefreshTick, setVariationRefreshTick] = useState(0);
   const [showVariationImport, setShowVariationImport] = useState(false);
 
-
   // Initialize variants from product data
   useEffect(() => {
     if (product?.variants && product.variants.length > 0) {
@@ -498,7 +497,6 @@ export default function ProductCatalog({
       }]);
     }
   }, [product]);
-
 
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
@@ -703,7 +701,6 @@ export default function ProductCatalog({
     }
   }, [mode, product]);
 
-
   // Click outside to close dropdowns
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -721,7 +718,6 @@ export default function ProductCatalog({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
-
 
   const statusOptions = ['Draft', 'Published'];
 
@@ -1381,7 +1377,6 @@ export default function ProductCatalog({
     const validVariants = variants.filter((v) => v.variantType && v.options.some((opt) => opt.name));
     setCombinations(rebuildCombinationsFromVariants(validVariants, combinationsRef.current));
   }, [variationRefreshTick]);
-
 
   const handleImageUpload = async (files: FileList) => {
     setUploadingImages(true);

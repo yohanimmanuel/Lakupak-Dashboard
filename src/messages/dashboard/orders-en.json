@@ -1,7 +1,6 @@
 {
   "list": {
     "title": "Orders Management",
-    "subtitle": "Track and manage all your B2B marketplace orders",
     "refresh": "Refresh",
     "archivedOrders": "Archived Orders",
     "exportData": "Export Data",
