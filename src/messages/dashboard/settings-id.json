@@ -397,7 +397,7 @@
     },
     "subscription": {
       "sectionTitle": "Langganan",
-      "sectionSubtitle": "Paket Anda didasarkan pada jumlah retailer aktif. Checkout produk penagihan segera hadir.",
+      "sectionSubtitle": "Paket Anda didasarkan pada jumlah retailer aktif. Semua fitur tersedia — paket berbeda pada kapasitas penggunaan.",
       "currentPlan": "Paket saat ini",
       "trialBadge": "Uji coba",
       "trialPlanName": "Uji coba gratis 30 hari",
@@ -407,6 +407,7 @@
       "viewPlans": "Lihat paket",
       "plansTitle": "Paket tersedia",
       "plansModalSubtitle": "Pilih paket berdasarkan jumlah retailer aktif Anda. Checkout segera hadir.",
+      "softCapNote": "Batas penggunaan masih soft cap: Anda akan melihat peringatan sekitar 80% kuota. Belum ada hard block di tengah siklus.",
       "closePlans": "Tutup",
       "connectionsLabel": "Retailer aktif",
       "perMonth": "/bulan",
@@ -416,7 +417,18 @@
       "comingSoonCta": "Checkout segera hadir",
       "custom": "Kustom",
       "from": "Mulai",
-      "featurePlaceholder": "Detail fitur segera tersedia",
+      "quotaBullets": {
+        "allFeatures": "Semua fitur tersedia — yang dibatasi hanya kapasitas penggunaan",
+        "retailers": "Hingga {band} retailer aktif",
+        "products": "{count} produk marketplace",
+        "productsCustom": "Kapasitas produk marketplace kustom",
+        "salesAgents": "{count} sales agent",
+        "salesAgentsCustom": "Kapasitas sales agent kustom",
+        "drivers": "{count} driver",
+        "driversCustom": "Kapasitas driver kustom",
+        "orders": "{count} pesanan / bulan",
+        "support": "SLA dan onboarding khusus"
+      },
       "plans": {
         "starter": {
           "name": "Starter",

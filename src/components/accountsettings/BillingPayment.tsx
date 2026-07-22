@@ -30,7 +30,9 @@ import { useSettingsTranslations } from '@/hooks/useSettingsTranslations';
 import {
   SUBSCRIPTION_PLANS,
   formatPlanPrice,
+  getPlanQuotaHighlights,
   planHasFixedPrice,
+  type PlanQuotaHighlightKey,
 } from '@/config/subscriptionPlans';
 import {
   isCompanyBillingApiResponse,
@@ -989,7 +991,11 @@ export default function BillingPayment() {
             <div className="bg-white rounded-lg border border-gray-200 p-4">
               <div className="mb-4">
                 <h3 className="text-md font-semibold text-black mb-1">{tBilling('subscription.plansTitle')}</h3>
-                <p className="text-xs text-gray-600">{tBilling('subscription.plansModalSubtitle')}</p>
+                <p className="text-xs text-gray-600 mb-2">{tBilling('subscription.plansModalSubtitle')}</p>
+                <div className="flex items-start gap-2 rounded-lg border border-blue-100 bg-blue-50/60 px-3 py-2">
+                  <Info className="h-3.5 w-3.5 text-[#0a61d7] mt-0.5 shrink-0" />
+                  <p className="text-[11px] text-gray-700 leading-snug">{tBilling('subscription.softCapNote')}</p>
+                </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
                 {SUBSCRIPTION_PLANS.map((plan) => {
@@ -997,6 +1003,22 @@ export default function BillingPayment() {
                     customLabel: tBilling('subscription.custom'),
                   });
                   const isEnterprise = plan.id === 'enterprise';
+                  const highlights = getPlanQuotaHighlights(plan).map((item) => {
+                    const count = item.params?.count;
+                    if (item.key === 'products' && count === 'custom') {
+                      return tBilling('subscription.quotaBullets.productsCustom');
+                    }
+                    if (item.key === 'salesAgents' && count === 'custom') {
+                      return tBilling('subscription.quotaBullets.salesAgentsCustom');
+                    }
+                    if (item.key === 'drivers' && count === 'custom') {
+                      return tBilling('subscription.quotaBullets.driversCustom');
+                    }
+                    return tBilling(
+                      `subscription.quotaBullets.${item.key}` as `subscription.quotaBullets.${PlanQuotaHighlightKey}`,
+                      item.params ?? {},
+                    );
+                  });
                   return (
                     <div
                       key={plan.id}
@@ -1020,10 +1042,12 @@ export default function BillingPayment() {
                         {tBilling('subscription.connectionsLabel')}: {plan.connections}
                       </p>
                       <ul className="space-y-1 mb-3 flex-1">
-                        <li className="flex items-start gap-1.5 text-[11px] text-gray-600">
-                          <Check className="w-3 h-3 text-[#0a61d7] mt-0.5 shrink-0" />
-                          {tBilling('subscription.featurePlaceholder')}
-                        </li>
+                        {highlights.map((line, idx) => (
+                          <li key={`${plan.id}-quota-${idx}`} className="flex items-start gap-1.5 text-[11px] text-gray-600">
+                            <Check className="w-3 h-3 text-[#0a61d7] mt-0.5 shrink-0" />
+                            {line}
+                          </li>
+                        ))}
                       </ul>
                       <button
                         type="button"

@@ -267,55 +267,59 @@
     "tiers": {
       "starter": {
         "name": "Starter",
-        "description": "Grosir lokal, operasi digital awal, tim pengiriman kecil",
-        "features": [
-          "Detail fitur segera tersedia",
-          "Dashboard, Marketplace & Driver Laku lengkap",
-          "Diharga berdasarkan koneksi ritel aktif"
-        ]
+        "description": "Grosir lokal, operasi digital awal, tim pengiriman kecil"
       },
       "growth": {
         "name": "Growth",
-        "description": "Distributor FMCG regional dengan penjualan dan armada terstruktur",
-        "features": [
-          "Detail fitur segera tersedia",
-          "Dashboard, Marketplace & Driver Laku lengkap",
-          "Diharga berdasarkan koneksi ritel aktif"
-        ]
+        "description": "Distributor FMCG regional dengan penjualan dan armada terstruktur"
       },
       "scale": {
         "name": "Scale",
-        "description": "Operasi multi-rute, volume order tinggi, berbasis analitik",
-        "features": [
-          "Detail fitur segera tersedia",
-          "Dashboard, Marketplace & Driver Laku lengkap",
-          "Diharga berdasarkan koneksi ritel aktif"
-        ]
+        "description": "Operasi multi-rute, volume order tinggi, berbasis analitik"
       },
       "enterprise": {
         "name": "Enterprise",
-        "description": "Cakupan regional atau nasional besar dengan SLA dan onboarding",
-        "features": [
-          "Detail fitur segera tersedia",
-          "Dashboard, Marketplace & Driver Laku lengkap",
-          "Harga dinegosiasikan sesuai volume"
-        ]
+        "description": "Cakupan regional atau nasional besar dengan SLA dan onboarding"
       }
+    },
+    "quotaBullets": {
+      "allFeatures": "Semua fitur tersedia — yang dibatasi hanya kapasitas penggunaan",
+      "retailers": "Hingga {band} retailer aktif",
+      "products": "{count} produk marketplace",
+      "productsCustom": "Kapasitas produk marketplace kustom",
+      "salesAgents": "{count} sales agent",
+      "salesAgentsCustom": "Kapasitas sales agent kustom",
+      "drivers": "{count} driver",
+      "driversCustom": "Kapasitas driver kustom",
+      "orders": "{count} pesanan / bulan",
+      "support": "SLA dan onboarding khusus"
     },
     "comparison": {
       "title": "Perbandingan paket",
-      "subtitle": "Bandingkan rentang koneksi dan harga antar paket. Detail fitur akan dipublikasikan segera.",
+      "subtitle": "Setiap paket mencakup platform penuh. Tier berbeda pada kapasitas penggunaan.",
       "featureColumn": "Detail",
-      "comingSoon": "Segera hadir",
+      "custom": "Kustom",
       "rows": {
         "connections": "Retailer aktif",
         "price": "Harga",
         "platformAccess": "Akses platform",
-        "featurePack": "Kapabilitas termasuk",
+        "marketplaceProducts": "Produk marketplace",
+        "ordersPerMonth": "Pesanan / bulan",
+        "salesAgents": "Sales agent",
+        "drivers": "Driver",
+        "activeOffers": "Penawaran aktif",
+        "activeCampaigns": "Kampanye aktif",
+        "mediaStorageGb": "Penyimpanan media",
+        "automationRules": "Aturan otomasi",
         "support": "Dukungan"
       },
       "platformAll": "Platform penuh",
-      "placeholder": "—"
+      "support": {
+        "standard_email": "Email standar",
+        "priority_email": "Email prioritas",
+        "priority_chat": "Prioritas + chat",
+        "sla_csm": "SLA + CSM"
+      }
     },
     "faq": {
       "title": "Pertanyaan yang Sering Diajukan",
@@ -342,11 +346,15 @@
       },
       "6": {
         "q": "Apakah semua paket termasuk Marketplace dan Driver?",
-        "a": "Ya. Setiap paket mencakup loop Laku penuh — Dashboard, aplikasi pembeli Marketplace, dan Driver — tanpa pembatasan fitur per tier."
+        "a": "Ya. Setiap paket mencakup loop Laku penuh — Dashboard, aplikasi pembeli Marketplace, dan Driver — tanpa pembatasan fitur per tier. Paket hanya berbeda pada kapasitas penggunaan (produk, agent, driver, pesanan, dan batas serupa)."
       },
       "7": {
         "q": "Kapan saya harus memilih Enterprise?",
         "a": "Enterprise untuk distributor dengan 10.000+ retailer aktif yang membutuhkan harga kustom, SLA, dan dukungan onboarding. Hubungi sales untuk penawaran."
+      },
+      "8": {
+        "q": "Apa yang terjadi jika saya mencapai batas penggunaan?",
+        "a": "Kami memakai soft cap selama MVP: peringatan sekitar 80% kuota dan ajakan upgrade jika melebihi. Belum ada hard block di tengah siklus. Hard cap opsional (misalnya publikasi produk baru) dapat ditambahkan nanti."
       }
     },
     "cta": {

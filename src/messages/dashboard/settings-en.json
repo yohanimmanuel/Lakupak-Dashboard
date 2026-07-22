@@ -397,7 +397,7 @@
     },
     "subscription": {
       "sectionTitle": "Subscription",
-      "sectionSubtitle": "Your plan is based on active retailers. Billing product checkout is coming soon.",
+      "sectionSubtitle": "Your plan is based on active retailers. All features are included — plans differ by usage capacity.",
       "currentPlan": "Current plan",
       "trialBadge": "Trial",
       "trialPlanName": "30-day free trial",
@@ -407,6 +407,7 @@
       "viewPlans": "View plans",
       "plansTitle": "Available plans",
       "plansModalSubtitle": "Choose a plan based on your active retailer count. Checkout is coming soon.",
+      "softCapNote": "Usage limits are soft caps for now: you will see a warning around 80% of a quota. We do not hard-block mid-cycle yet.",
       "closePlans": "Close",
       "connectionsLabel": "Active retailers",
       "perMonth": "/month",
@@ -416,7 +417,18 @@
       "comingSoonCta": "Checkout coming soon",
       "custom": "Custom",
       "from": "From",
-      "featurePlaceholder": "Feature details coming soon",
+      "quotaBullets": {
+        "allFeatures": "All features included",
+        "retailers": "Up to {band} active retailers",
+        "products": "{count} marketplace products",
+        "productsCustom": "Custom marketplace product capacity",
+        "salesAgents": "{count} sales agents",
+        "salesAgentsCustom": "Custom sales agent capacity",
+        "drivers": "{count} drivers",
+        "driversCustom": "Custom driver capacity",
+        "orders": "{count} orders / month",
+        "support": "SLA and dedicated onboarding"
+      },
       "plans": {
         "starter": {
           "name": "Starter",

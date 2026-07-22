@@ -16,9 +16,15 @@ import { useTranslations } from 'next-intl';
 import { usePagePerformanceTracking, createTrackConversion, createErrorBoundary } from '@/utils/landing-enhancements';
 import {
   ANNUAL_SAVINGS_PERCENT,
+  PLAN_QUOTA_COMPARISON_KEYS,
   SUBSCRIPTION_PLANS,
+  formatMediaStorageGb,
   formatPlanPrice,
+  formatQuotaCount,
+  getPlanQuotaHighlights,
   planHasFixedPrice,
+  type PlanQuotaHighlightKey,
+  type PlanSupportTier,
   type SubscriptionPlanId,
 } from '@/config/subscriptionPlans';
 
@@ -44,12 +50,25 @@ export default function PricingPage() {
   const periodLabel = isAnnual ? t('card.perYear') : t('card.perMonth');
 
   const pricingTiers = SUBSCRIPTION_PLANS.map((plan) => {
-    const features = t.raw(`tiers.${plan.id}.features`) as string[];
+    const customLabel = t('comparison.custom');
+    const features = getPlanQuotaHighlights(plan).map((item) => {
+      const count = item.params?.count;
+      if (item.key === 'products' && count === 'custom') {
+        return t('quotaBullets.productsCustom');
+      }
+      if (item.key === 'salesAgents' && count === 'custom') {
+        return t('quotaBullets.salesAgentsCustom');
+      }
+      if (item.key === 'drivers' && count === 'custom') {
+        return t('quotaBullets.driversCustom');
+      }
+      return t(`quotaBullets.${item.key}` as `quotaBullets.${PlanQuotaHighlightKey}`, item.params ?? {});
+    });
     return {
       plan,
       name: t(`tiers.${plan.id}.name`),
       description: t(`tiers.${plan.id}.description`),
-      features: Array.isArray(features) ? features : [],
+      features,
       priceLabel: formatPlanPrice(plan, billing, {
         customLabel: t('card.custom'),
       }),
@@ -59,34 +78,39 @@ export default function PricingPage() {
     };
   });
 
-  const comparisonRows: { key: string; values: string[] }[] = [
-    {
-      key: 'connections',
-      values: SUBSCRIPTION_PLANS.map((p) => p.connections),
-    },
-    {
-      key: 'price',
-      values: SUBSCRIPTION_PLANS.map((p) =>
-        formatPlanPrice(p, billing, {
-          customLabel: t('card.custom'),
-        }),
-      ),
-    },
-    {
-      key: 'platformAccess',
-      values: SUBSCRIPTION_PLANS.map(() => t('comparison.platformAll')),
-    },
-    {
-      key: 'featurePack',
-      values: SUBSCRIPTION_PLANS.map(() => t('comparison.comingSoon')),
-    },
-    {
-      key: 'support',
-      values: SUBSCRIPTION_PLANS.map(() => t('comparison.placeholder')),
-    },
-  ];
+  const comparisonRows: { key: string; values: string[] }[] = PLAN_QUOTA_COMPARISON_KEYS.map((key) => {
+    const customLabel = t('comparison.custom');
+    if (key === 'connections') {
+      return { key, values: SUBSCRIPTION_PLANS.map((p) => p.connections) };
+    }
+    if (key === 'platformAccess') {
+      return { key, values: SUBSCRIPTION_PLANS.map(() => t('comparison.platformAll')) };
+    }
+    if (key === 'support') {
+      return {
+        key,
+        values: SUBSCRIPTION_PLANS.map((p) =>
+          t(`comparison.support.${p.quotas.support}` as `comparison.support.${PlanSupportTier}`),
+        ),
+      };
+    }
+    if (key === 'mediaStorageGb') {
+      return {
+        key,
+        values: SUBSCRIPTION_PLANS.map((p) => formatMediaStorageGb(p.quotas.mediaStorageGb, customLabel)),
+      };
+    }
+    const quotaKey = key as Exclude<
+      typeof key,
+      'connections' | 'platformAccess' | 'support' | 'mediaStorageGb'
+    >;
+    return {
+      key,
+      values: SUBSCRIPTION_PLANS.map((p) => formatQuotaCount(p.quotas[quotaKey], customLabel)),
+    };
+  });
 
-  const faqs = Array.from({ length: 7 }, (_, i) => ({
+  const faqs = Array.from({ length: 8 }, (_, i) => ({
     question: t(`faq.${i + 1}.q`),
     answer: t(`faq.${i + 1}.a`),
   }));
