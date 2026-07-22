@@ -354,7 +354,7 @@ export default function AnnouncementsTable({
                 {bulkState.mixed
                   ? 'Mixed draft and published selected. Only deletion is allowed for safety.'
                   : bulkState.canPublish
-                    ? 'Your update will be published in the Marketplace app. 😉'
+                    ? 'Your update will be published in the Marketplace app.'
                     : bulkState.canUnpublish
                       ? 'Select announcements to unpublish from the marketplace.'
                       : 'Select announcements to delete.'}
@@ -408,7 +408,7 @@ export default function AnnouncementsTable({
                   {bulkState.mixed
                     ? 'Mixed draft and published selected. Only deletion is allowed for safety.'
                     : bulkState.canPublish
-                      ? 'Your update will be published in the Marketplace app. 😉'
+                      ? 'Your update will be published in the Marketplace app.'
                       : bulkState.canUnpublish
                         ? 'Select announcements to unpublish (change to Draft status).'
                         : 'Select announcements to delete.'}

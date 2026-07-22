@@ -38,11 +38,11 @@ type DriverPushI18n = {
 const I18N: DriverPushI18n = {
   orderUpdated: {
     title: {
-      Packed: { id: '📦 Pengiriman Baru Siap', en: '📦 New Delivery Ready' },
-      Shipped: { id: '🚛 Pengiriman Sedang Berlangsung', en: '🚛 Delivery In Progress' },
-      Delivered: { id: '✅ Pengiriman Dikonfirmasi', en: '✅ Delivery Confirmed' },
-      Cancelled: { id: '❌ Pesanan Dibatalkan', en: '❌ Order Cancelled' },
-      Failed: { id: '⚠️ Pengiriman Gagal', en: '⚠️ Delivery Failed' },
+      Packed: { id: 'Pengiriman Baru Siap', en: 'New Delivery Ready' },
+      Shipped: { id: 'Pengiriman Sedang Berlangsung', en: 'Delivery In Progress' },
+      Delivered: { id: 'Pengiriman Dikonfirmasi', en: 'Delivery Confirmed' },
+      Cancelled: { id: 'Pesanan Dibatalkan', en: 'Order Cancelled' },
+      Failed: { id: 'Pengiriman Gagal', en: 'Delivery Failed' },
       default: { id: 'Pembaruan Pesanan', en: 'Order Update' },
     },
     body: {
@@ -71,22 +71,22 @@ const I18N: DriverPushI18n = {
 
   fleetAssigned: ({ fleetCode, route }) => ({
     id: {
-      title: '🚛 Armada Baru Ditugaskan',
+      title: 'Armada Baru Ditugaskan',
       body: `Armada ${fleetCode}${route ? ` · ${route}` : ''} telah ditugaskan untuk Anda.`,
     },
     en: {
-      title: '🚛 New Fleet Assigned',
+      title: 'New Fleet Assigned',
       body: `Fleet ${fleetCode}${route ? ` · ${route}` : ''} has been assigned to you.`,
     },
   }),
 
   ordersAdded: ({ fleetCode, count }) => ({
     id: {
-      title: '📦 Armada Diperbarui',
+      title: 'Armada Diperbarui',
       body: `${count} pesanan ditambahkan ke armada ${fleetCode}.`,
     },
     en: {
-      title: '📦 Fleet Updated',
+      title: 'Fleet Updated',
       body: `${count} order${count > 1 ? 's' : ''} added to fleet ${fleetCode}.`,
     },
   }),

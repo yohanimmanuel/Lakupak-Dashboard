@@ -1,6 +1,23 @@
 'use client';
 import React from 'react';
-import { X, Heart, Share2, Star, ShoppingCart, ArrowLeft, Zap } from 'lucide-react';
+import {
+  X,
+  Heart,
+  Share2,
+  Star,
+  ShoppingCart,
+  ArrowLeft,
+  Zap,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  Building2,
+  Lock,
+  Undo2,
+  MessageCircle,
+  Info,
+  BadgeCheck,
+} from 'lucide-react';
 import { Product, ProductTableRow } from "@/types/product";
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
@@ -178,7 +195,7 @@ export default function ProductMarketplacePubs({
           {!isBulkPublish && isProductComplete && !isProductComplete(product.productId) && (
             <div className="mx-4 mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
               <div className="flex items-center gap-2">
-                <span className="text-amber-500">⚠️</span>
+                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
                 <p className="text-sm text-amber-800 font-medium">{tMarketplace('incompleteWarningTitle')}</p>
               </div>
               <p className="text-xs text-amber-700 mt-1">
@@ -195,7 +212,7 @@ export default function ProductMarketplacePubs({
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                   <div className="flex items-start gap-2">
                     <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center mt-0.5">
-                      <span className="text-green-600 text-xs">✅</span>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
                     </div>
                     <div className="flex-1">
                       <p className="text-sm text-green-800 font-medium">
@@ -225,7 +242,7 @@ export default function ProductMarketplacePubs({
                 <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
                   <div className="flex items-start gap-2">
                     <div className="w-5 h-5 bg-amber-100 rounded-full flex items-center justify-center mt-0.5">
-                      <span className="text-amber-600 text-xs">⚠️</span>
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
                     </div>
                     <div className="flex-1">
                       <p className="text-sm text-amber-800 font-medium">
@@ -298,7 +315,7 @@ export default function ProductMarketplacePubs({
                 <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
                   <div className="flex items-start gap-2">
                     <div className="w-5 h-5 bg-red-100 rounded-full flex items-center justify-center mt-0.5">
-                      <span className="text-red-600 text-xs">❌</span>
+                      <XCircle className="w-3.5 h-3.5 text-red-600" />
                     </div>
                     <div>
                       <p className="text-sm text-red-800 font-medium">{tMarketplace('noProductsReady')}</p>
@@ -315,7 +332,7 @@ export default function ProductMarketplacePubs({
           <div className="text-center mb-4 p-4">
              <p className="text-sm text-gray-600 mb-2">{tMarketplace('previewIntro')}</p>
              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
-               📱 {tMarketplace('marketplaceApp')}
+                {tMarketplace('marketplaceApp')}
              </div>
            </div>
 
@@ -435,19 +452,19 @@ export default function ProductMarketplacePubs({
             <h4 className="font-semibold text-gray-900 mb-3">{tMarketplace('productAssurance')}</h4>
             <div className="grid grid-cols-2 gap-3">
               <div className="flex items-center gap-2 p-2 bg-green-50 rounded-lg">
-                <span className="text-green-600">✅</span>
+                <BadgeCheck className="w-4 h-4 text-green-600 shrink-0" />
                 <span className="text-sm font-medium text-green-700">{tMarketplace('halalCertified')}</span>
               </div>
               <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg">
-                <span className="text-blue-600">🏛️</span>
+                <Building2 className="w-4 h-4 text-blue-600 shrink-0" />
                 <span className="text-sm font-medium text-blue-700">{tMarketplace('bpomApproved')}</span>
               </div>
               <div className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg">
-                <span className="text-purple-600">🔒</span>
+                <Lock className="w-4 h-4 text-purple-600 shrink-0" />
                 <span className="text-sm font-medium text-purple-700">{tMarketplace('originalProduct')}</span>
               </div>
               <div className="flex items-center gap-2 p-2 bg-orange-50 rounded-lg">
-                <span className="text-orange-600">↩️</span>
+                <Undo2 className="w-4 h-4 text-orange-600 shrink-0" />
                 <span className="text-sm font-medium text-orange-700">{tMarketplace('daysReturn', { days: 7 })}</span>
               </div>
             </div>
@@ -474,7 +491,10 @@ export default function ProductMarketplacePubs({
               <div className="flex-1 space-y-1">
                 {[5,4,3,2,1].map((rating) => (
                   <div key={rating} className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500 w-4">{rating}⭐</span>
+                    <span className="text-xs text-gray-500 w-4 inline-flex items-center gap-0.5">
+                      {rating}
+                      <Star className="w-3 h-3 text-yellow-400 fill-current" />
+                    </span>
                     <div className="flex-1 bg-gray-200 rounded-full h-2">
                       <div 
                         className="bg-yellow-400 h-2 rounded-full" 
@@ -537,7 +557,7 @@ export default function ProductMarketplacePubs({
           <div className="p-4">
             <div className="flex gap-2">
               <button className="flex-1 bg-gray-100 text-gray-800 py-1 px-2 rounded-lg font-semibold transition-colors flex flex-col items-center justify-center gap-1">
-                <span className="text-sm">💬</span>
+                <MessageCircle className="w-4 h-4" />
                 <span className="text-xs">{tMarketplace('chatNow')}</span>
               </button>
               <button className="flex-1 bg-[#0a61d7] text-white py-1 px-2 rounded-lg font-semibold transition-colors flex flex-col items-center justify-center gap-1">
@@ -555,7 +575,7 @@ export default function ProductMarketplacePubs({
            <div className="mx-4 mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
              <div className="flex items-start gap-2">
                <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center mt-0.5">
-                 <span className="text-blue-600 text-xs">ℹ</span>
+                 <Info className="w-3.5 h-3.5 text-blue-600" />
                </div>
                <div>
                  <p className="text-sm text-blue-800 font-medium">{tMarketplace('templateTitle')}</p>
@@ -571,14 +591,14 @@ export default function ProductMarketplacePubs({
       {/* Error/Success Messages */}
       {error && (
         <div className="mx-4 mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-          <span className="text-red-500">⚠️</span>
+          <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
           <span className="text-red-700 text-sm">{error}</span>
         </div>
       )}
       
       {success && (
         <div className="mx-4 mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
-          <span className="text-green-500">✅</span>
+          <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
           <span className="text-green-700 text-sm">{tMarketplace('publishSuccess')}</span>
         </div>
       )}

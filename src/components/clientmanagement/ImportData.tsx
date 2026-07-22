@@ -319,8 +319,11 @@ export default function ImportData({ open, onClose, onImport, type = 'Buyers' }:
           <div className="flex flex-col gap-1 max-h-[550px] overflow-y-auto">
             <div className="mb-2 font-semibold text-black">{tImport('mapColumnsOptional')}</div>
             <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-blue-700 text-sm">
-                💡 <strong>{tImport('flexibleImport')}</strong> {tImport('flexibleImportHint')}
+              <p className="text-blue-700 text-sm flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                <span>
+                  <strong>{tImport('flexibleImport')}</strong> {tImport('flexibleImportHint')}
+                </span>
               </p>
             </div>
             <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white p-2">

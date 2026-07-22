@@ -118,7 +118,7 @@ const CAMPAIGN_TEMPLATES: Array<{
         id: 'template-text-1',
         type: 'text',
         order: 1,
-        text: '🎉 New Products Available! 🎉\n\nWe\'re excited to introduce our latest collection. Check out these amazing products!',
+        text: 'New Products Available!\n\nWe\'re excited to introduce our latest collection. Check out these amazing products!',
         textStyle: 'normal',
       },
       {
@@ -153,7 +153,7 @@ const CAMPAIGN_TEMPLATES: Array<{
         id: 'template-text-2',
         type: 'text',
         order: 1,
-        text: '🔥 Special Promotion! 🔥\n\nLimited time offer! Get amazing discounts on selected items.',
+        text: 'Special Promotion!\n\nLimited time offer! Get amazing discounts on selected items.',
         textStyle: 'bold',
       },
       {
@@ -192,7 +192,7 @@ const CAMPAIGN_TEMPLATES: Array<{
         id: 'template-text-3',
         type: 'text',
         order: 1,
-        text: '📢 Important Announcement\n\nWe have some exciting news to share with you!',
+        text: 'Important Announcement\n\nWe have some exciting news to share with you!',
         textStyle: 'normal',
       },
       {
@@ -225,7 +225,7 @@ const CAMPAIGN_TEMPLATES: Array<{
         id: 'template-text-5',
         type: 'text',
         order: 1,
-        text: '⚡ FLASH SALE ⚡\n\nLimited time only! Don\'t miss out on these incredible deals!',
+        text: 'FLASH SALE\n\nLimited time only! Don\'t miss out on these incredible deals!',
         textStyle: 'bold',
       },
       {
@@ -270,7 +270,7 @@ const CAMPAIGN_TEMPLATES: Array<{
         id: 'template-text-6',
         type: 'text',
         order: 1,
-        text: '👋 Welcome to Laku!\n\nThank you for joining us. We\'re excited to have you as part of our community!',
+        text: 'Welcome to Laku!\n\nThank you for joining us. We\'re excited to have you as part of our community!',
         textStyle: 'normal',
       },
       {

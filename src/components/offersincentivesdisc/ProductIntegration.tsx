@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Package, Search, Filter, Plus, Check, X, Target, Tag, Grid, List, ChevronDown, ChevronLeft, ChevronRight, Calendar, ChevronUp } from 'lucide-react';
+import { Package, Search, Filter, Plus, Check, X, Target, Tag, Grid, List, ChevronDown, ChevronLeft, ChevronRight, Calendar, ChevronUp, AlertTriangle } from 'lucide-react';
 import { formatCurrency, getDefaultCurrency, parsePrice } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { useUserStore } from '@/store/userStore';
@@ -1562,8 +1562,9 @@ export default function ProductIntegration({
             <div className="flex flex-col gap-3 p-4 border-t border-gray-200 text-sm flex-shrink-0 rounded-b-lg">
               {/* Validation Message - Date ranges are now optional */}
               {selectedOfferTypes.length === 0 && (
-                <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-2">
-                  ⚠️ {tProducts('selectOfferTypeWarning')}
+                <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-2 flex items-start gap-2">
+                  <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  <span>{tProducts('selectOfferTypeWarning')}</span>
                 </div>
               )}
               

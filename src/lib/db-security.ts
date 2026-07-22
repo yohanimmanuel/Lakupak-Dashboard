@@ -263,10 +263,10 @@ function getOrCreateRuntimeSecret(): string {
     // Generate a cryptographically secure random secret
     runtimeSecret = randomBytes(32).toString('hex');
     // Log prominent warning to alert operators immediately
-    console.error('[AUDIT] ⚠️  CRITICAL: AUDIT_HASH_SECRET and JWT_SECRET not configured!');
-    console.error('[AUDIT] ⚠️  Using runtime-generated secret - this is NOT secure for production!');
-    console.error('[AUDIT] ⚠️  Secret will change on restart, breaking pseudonymization consistency.');
-    console.error('[AUDIT] ⚠️  Please configure AUDIT_HASH_SECRET or JWT_SECRET immediately.');
+    console.error('[AUDIT] CRITICAL: AUDIT_HASH_SECRET and JWT_SECRET not configured!');
+    console.error('[AUDIT] Using runtime-generated secret - this is NOT secure for production!');
+    console.error('[AUDIT] Secret will change on restart, breaking pseudonymization consistency.');
+    console.error('[AUDIT] Please configure AUDIT_HASH_SECRET or JWT_SECRET immediately.');
   }
   return runtimeSecret;
 }

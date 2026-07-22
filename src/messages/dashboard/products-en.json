@@ -147,7 +147,7 @@
       "multipleProductsSelected": "products selected",
       "selectAllCount": "Select All ({count} products)",
       "mixedStatuses": "Mixed product statuses selected. Only removal is allowed for safety.",
-      "publishHint": "Your product will be published in our B2B Marketplace Mobile app. 😉",
+      "publishHint": "Your product will be published in our B2B Marketplace Mobile app.",
       "unpublishHint": "Select products to unpublish (change to Draft status).",
       "unpublishHintDesktop": "Select products to unpublish from the marketplace.",
       "removeHint": "Select products to be removed.",

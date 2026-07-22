@@ -620,9 +620,12 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
         
         return missingDataCount > 0 ? (
           <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-            <p className="text-amber-700 text-sm">
-              ⚠️ <strong>{tShared('missing.dataCompletion')}</strong>{' '}
-              {tShared('missing.buyersIncomplete', { count: missingDataCount })}
+            <p className="text-amber-700 text-sm flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>
+                <strong>{tShared('missing.dataCompletion')}</strong>{' '}
+                {tShared('missing.buyersIncomplete', { count: missingDataCount })}
+              </span>
             </p>
           </div>
         ) : null;

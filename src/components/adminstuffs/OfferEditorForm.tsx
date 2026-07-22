@@ -277,7 +277,7 @@ export default function OfferEditorForm({
           <h2 className="text-sm font-semibold text-gray-900">Banner copy</h2>
           <p className="text-xs text-gray-600 mt-1">
             These fields map to the Marketplace home card: main headline, supporting line, pill label, and urgency line
-            (e.g. “Ends Sunday”). Use emoji in the title if you want extra pop.
+            (e.g. “Ends Sunday”). Keep the title short and clear.
           </p>
         </div>
 
@@ -287,7 +287,7 @@ export default function OfferEditorForm({
             className={inputClass}
             value={values.title}
             onChange={(e) => set('title')(e.target.value)}
-            placeholder="e.g. 🎉 Weekend stock-up sale"
+            placeholder="e.g. Weekend stock-up sale"
           />
         </label>
 
