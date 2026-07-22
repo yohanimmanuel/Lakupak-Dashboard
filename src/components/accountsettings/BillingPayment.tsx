@@ -19,7 +19,6 @@ import {
   Mail,
   Calendar,
   Clock,
-  Shield,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -28,6 +27,11 @@ import {
 } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { useSettingsTranslations } from '@/hooks/useSettingsTranslations';
+import {
+  SUBSCRIPTION_PLANS,
+  formatPlanPrice,
+  planHasFixedPrice,
+} from '@/config/subscriptionPlans';
 import {
   isCompanyBillingApiResponse,
   isCompanyPaymentMethodApiRowArray,
@@ -62,10 +66,15 @@ interface Invoice {
   status: 'paid' | 'pending' | 'overdue';
   dueDate: string | null;
   description: string;
+  /** Document category shown in Documents tab. */
+  documentType: 'subscription' | 'commission';
   documentUrl?: string;
   downloadName?: string;
   downloadUrl?: string;
 }
+
+type BillingPanelTab = 'billing' | 'payments' | 'documents';
+type DocumentTypeFilter = 'all' | 'subscription' | 'commission';
 
 type PaymentMethodFormKind = CompanyPaymentMethodKind;
 
@@ -271,6 +280,8 @@ export default function BillingPayment() {
   const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
   const [showEditAddressModal, setShowEditAddressModal] = useState(false);
   const [showEditBankModal, setShowEditBankModal] = useState(false);
+  const [billingPanelTab, setBillingPanelTab] = useState<BillingPanelTab>('billing');
+  const [documentTypeFilter, setDocumentTypeFilter] = useState<DocumentTypeFilter>('all');
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
   const [paymentForm, setPaymentForm] = useState<PaymentMethodFormState>(emptyPaymentMethodForm());
   const [showPaymentKindDropdown, setShowPaymentKindDropdown] = useState(false);
@@ -474,6 +485,7 @@ export default function BillingPayment() {
                   ? String((r as { description?: unknown }).description)
                   : tBilling('invoices.defaultDescription')
               ).trim() || tBilling('invoices.defaultDescription')),
+            documentType: 'commission' as const,
             documentUrl: String((r as { documentUrl?: unknown }).documentUrl ?? ''),
             downloadName: (r as { downloadName?: unknown }).downloadName ? String((r as { downloadName?: unknown }).downloadName) : undefined,
             downloadUrl: (r as { downloadUrl?: unknown }).downloadUrl ? String((r as { downloadUrl?: unknown }).downloadUrl) : undefined,
@@ -494,14 +506,29 @@ export default function BillingPayment() {
     void reloadInvoices();
   }, [reloadInvoices]);
 
-  const invoiceTotalRows = invoices.length;
-  const invoiceTotalPages = Math.max(1, Math.ceil(invoiceTotalRows / invoicesPerPage));
-  const invoiceFromRow = invoiceTotalRows === 0 ? 0 : (invoicePage - 1) * invoicesPerPage + 1;
-  const invoiceToRow = Math.min(invoicePage * invoicesPerPage, invoiceTotalRows);
+  const filteredInvoices = useMemo(() => {
+    if (documentTypeFilter === 'all') return invoices;
+    return invoices.filter((inv) => inv.documentType === documentTypeFilter);
+  }, [invoices, documentTypeFilter]);
+  const filteredInvoiceTotalRows = filteredInvoices.length;
+  const filteredInvoiceTotalPages = Math.max(1, Math.ceil(filteredInvoiceTotalRows / invoicesPerPage));
+  const filteredInvoiceFromRow =
+    filteredInvoiceTotalRows === 0 ? 0 : (invoicePage - 1) * invoicesPerPage + 1;
+  const filteredInvoiceToRow = Math.min(invoicePage * invoicesPerPage, filteredInvoiceTotalRows);
   const pagedInvoices = useMemo(() => {
     const start = (invoicePage - 1) * invoicesPerPage;
-    return invoices.slice(start, start + invoicesPerPage);
-  }, [invoices, invoicePage]);
+    return filteredInvoices.slice(start, start + invoicesPerPage);
+  }, [filteredInvoices, invoicePage]);
+
+  useEffect(() => {
+    setInvoicePage(1);
+  }, [documentTypeFilter]);
+
+  useEffect(() => {
+    if (invoicePage > filteredInvoiceTotalPages) {
+      setInvoicePage(filteredInvoiceTotalPages);
+    }
+  }, [invoicePage, filteredInvoiceTotalPages]);
 
   useEffect(() => {
     if (success) {
@@ -883,463 +910,588 @@ export default function BillingPayment() {
       )}
 
       <div className="space-y-4">
-        {/*
-        ================================================================================================
-        | Subscription & Payment — entire section commented out (no subscription product yet).        |
-        | Restore this block when subscriptions / saved payment methods in this UI are in scope.    |
-        ================================================================================================
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="text-md font-semibold text-black mb-1">Subscription & Payment</h3>
-              <p className="text-xs text-gray-600">Manage your subscription plan and payment methods</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
-              >
-                <Shield className="h-4 w-4" />
-                Upgrade Plan
-              </button>
-              <button
-                type="button"
-                onClick={handleAddPaymentMethod}
-                disabled={!companyForDisplay || isLoading}
-                className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white text-sm font-medium rounded-lg hover:bg-[#0a52c0] transition-colors disabled:opacity-50"
-              >
-                <Plus className="h-4 w-4" />
-                Add Payment Method
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div className="p-4 border border-gray-200 rounded-lg">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-sm font-medium text-black">Current Plan</h4>
-                <span className="px-2 py-1 text-xs font-medium text-green-600 bg-green-50 rounded-lg">Active</span>
-              </div>
-              <p className="text-sm font-bold text-black mb-1">Pro Plan</p>
-              <p className="text-xs text-gray-600">Rp 1,500,000/month</p>
-            </div>
-            <div className="p-4 border border-gray-200 rounded-lg">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-sm font-medium text-black">Next Billing</h4>
-                <Calendar className="h-4 w-4 text-gray-400" />
-              </div>
-              <p className="text-sm font-semibold text-black mb-1">March 15, 2024</p>
-              <p className="text-xs text-gray-600">Auto-renewal enabled</p>
-            </div>
-            <div className="p-4 border border-gray-200 rounded-lg">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-sm font-medium text-black">Default Payment</h4>
-                <CreditCard className="h-4 w-4 text-gray-400" />
-              </div>
-              {defaultMethod ? (
-                <>
-                  <p className="text-sm font-medium text-black mb-1">{defaultMethod.label}</p>
-                  {defaultMethodSubtitle ? (
-                    <p className="text-xs text-gray-600">{defaultMethodSubtitle}</p>
-                  ) : null}
-                </>
-              ) : (
-                <p className="text-sm text-gray-600">No payment method on file</p>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <h4 className="text-sm font-medium text-black mb-4">Payment Methods</h4>
-            <div className="space-y-3">
-              {paymentMethods.length === 0 && (
-                <p className="text-sm text-gray-600">No saved payment methods yet.</p>
-              )}
-              {paymentMethods.map((method) => {
-                const subtitle = paymentMethodSubtitle(method);
-                return (
-                  <div
-                    key={method.id}
-                    className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-gray-100 rounded-lg">{getPaymentIcon(method.kind)}</div>
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm font-medium text-black">{method.label}</span>
-                          {method.isDefault && (
-                            <span className="px-2 py-1 text-xs font-medium text-[#0a61d7] bg-blue-50 rounded">Default</span>
-                          )}
-                        </div>
-                        {subtitle ? <p className="text-xs text-gray-600">{subtitle}</p> : null}
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className={`px-2 py-1 text-xs font-medium rounded ${getStatusColor(method.status)}`}>
-                        {method.status.toLowerCase()}
-                      </span>
-                      {!method.isDefault && (
-                        <button
-                          type="button"
-                          onClick={() => void handleSetDefaultPayment(method.id)}
-                          className="p-1 text-gray-400 hover:text-[#0a61d7] transition-colors"
-                          title="Set as default"
-                        >
-                          <Check className="h-4 w-4" />
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => handleEditPaymentMethod(method.id)}
-                        className="p-1 text-gray-400 hover:text-[#0a61d7] transition-colors"
-                        title="Edit"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void handleDeletePaymentMethod(method.id)}
-                        className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-        ================================================================================================
-        */}
-
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-md font-semibold text-black">{tBilling('invoices.sectionTitle')}</h3>
-                <span className="relative group inline-flex items-center">
-                  <Info
-                    tabIndex={0}
-                    aria-describedby="commission-invoices-info-tooltip"
-                    aria-label={tBilling('invoices.infoAriaLabel')}
-                    className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0a61d7]/40 rounded"
-                  />
-                  <span
-                    id="commission-invoices-info-tooltip"
-                    role="tooltip"
-                    className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 w-[340px] -translate-x-1/2 rounded-lg border border-gray-200 bg-white p-3 text-[11px] leading-4 text-gray-700 shadow-xl opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
-                  >
-                    <span className="block font-medium">
-                      {tBilling('invoices.policyTitle')}
-                    </span>
-                    <span className="mt-1 block">
-                      {tBilling('invoices.policyBody', {
-                        dueDateLabel: tBilling('invoices.dueDateLabel'),
-                        billingMonthEndLabel: tBilling('invoices.billingMonthEndLabel'),
-                      })}
-                    </span>
-                    <span className="mt-2 block">
-                      {tBilling('invoices.gracePeriod', {
-                        gracePeriodLabel: tBilling('invoices.gracePeriodLabel'),
-                      })}
-                    </span>
-                    <span className="mt-2 block text-red-700">
-                      {tBilling('invoices.warning', {
-                        warningLabel: tBilling('invoices.warningLabel'),
-                        suspensionLabel: tBilling('invoices.suspensionLabel'),
-                      })}
-                    </span>
-                  </span>
-                </span>
-              </div>
-              <p className="text-xs text-gray-600">{tBilling('invoices.sectionSubtitle')}</p>
-            </div>
+        <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg w-fit">
+          {(
+            [
+              { id: 'billing' as const, label: tBilling('panelTabs.billing') },
+              { id: 'payments' as const, label: tBilling('panelTabs.payments') },
+              { id: 'documents' as const, label: tBilling('panelTabs.documents') },
+            ] as const
+          ).map((tab) => (
             <button
+              key={tab.id}
               type="button"
-              disabled={invoices.length === 0}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+              onClick={() => setBillingPanelTab(tab.id)}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                billingPanelTab === tab.id
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
             >
-              <Download className="h-4 w-4" />
-              {tBilling('invoices.downloadAll')}
+              {tab.label}
             </button>
-          </div>
+          ))}
+        </div>
 
-          <div className="space-y-3">
-            {invoices.length === 0 ? (
-              <div className="p-6 border border-dashed border-gray-200 rounded-lg bg-gray-50">
-                <p className="text-sm font-medium text-gray-900">{tBilling('invoices.emptyTitle')}</p>
-                <p className="text-xs text-gray-600 mt-1">
-                  {tBilling('invoices.emptyDescription')}
-                </p>
+        {billingPanelTab === 'billing' && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="mb-4">
+                <h3 className="text-md font-semibold text-black mb-1">{tBilling('subscription.sectionTitle')}</h3>
+                <p className="text-xs text-gray-600">{tBilling('subscription.sectionSubtitle')}</p>
               </div>
-            ) : null}
-            {pagedInvoices.map((invoice) => (
-              <div
-                key={invoice.id}
-                className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center space-x-4">
-                  <div className="p-2 bg-gray-100 rounded-lg">
-                    <Receipt className="h-4 w-4 text-gray-600" />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                <div className="p-3 border border-gray-200 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-medium text-black">{tBilling('subscription.currentPlan')}</h4>
+                    <span className="px-2 py-0.5 text-xs font-medium text-green-700 bg-green-50 rounded-lg">
+                      {tBilling('subscription.trialBadge')}
+                    </span>
                   </div>
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-medium text-black">{invoice.invoiceNo}</span>
-                      <span className={`px-2 py-1 text-xs font-medium rounded ${getStatusColor(invoice.status)}`}>
-                        {translateInvoiceStatus(invoice.status)}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-600 mb-1">{invoice.description}</p>
-                    <div className="flex items-center space-x-4 text-xs text-gray-500">
-                      <span className="flex items-center">
-                        <Calendar className="h-3 w-3 mr-1" />
-                        {new Date(invoice.date).toLocaleDateString()}
-                      </span>
-                      <span className="flex items-center">
-                        <Clock className="h-3 w-3 mr-1" />
-                        {invoice.dueDate
-                          ? tBilling('invoices.dueDate', {
-                              date: new Date(invoice.dueDate).toLocaleDateString(),
-                            })
-                          : tBilling('invoices.noDueDate')}
-                      </span>
-                    </div>
-                  </div>
+                  <p className="text-sm font-bold text-black mb-1">{tBilling('subscription.trialPlanName')}</p>
+                  <p className="text-xs text-gray-600">{tBilling('subscription.trialHint')}</p>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <div className="text-right text-sm">
-                    <div className="font-semibold text-black">Rp {invoice.amount.toLocaleString('id-ID')}</div>
+                <div className="p-3 border border-gray-200 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-medium text-black">{tBilling('subscription.nextBilling')}</h4>
+                    <Calendar className="h-4 w-4 text-gray-400" />
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleDownloadInvoice(invoice.id)}
-                    className="flex items-center gap-1 px-3 py-1 text-[#0a61d7] text-sm font-medium rounded hover:bg-blue-50 transition-colors"
-                  >
-                    <Download className="h-3 w-3" />
-                    {tBilling('invoices.download')}
-                  </button>
+                  <p className="text-sm font-semibold text-black mb-1">{tBilling('subscription.nextBillingHint')}</p>
+                  <p className="text-xs text-gray-500">{tBilling('subscription.comingSoonCta')}</p>
                 </div>
               </div>
-            ))}
-          </div>
 
-          {invoiceTotalRows > 0 ? (
-            <div className="flex items-center justify-between mt-4">
-              <div className="text-sm text-gray-500">
-                {tBilling('invoices.showing', {
-                  from: invoiceFromRow,
-                  to: invoiceToRow,
-                  total: invoiceTotalRows,
+              <div className="p-3 border border-gray-200 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-medium text-black">{tBilling('payments.defaultPayment')}</h4>
+                  <CreditCard className="h-4 w-4 text-gray-400" />
+                </div>
+                {defaultMethod ? (
+                  <>
+                    <p className="text-sm font-medium text-black mb-1">{defaultMethod.label}</p>
+                    {defaultMethodSubtitle ? (
+                      <p className="text-xs text-gray-600">{defaultMethodSubtitle}</p>
+                    ) : null}
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-600">{tBilling('payments.noDefaultPayment')}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="mb-4">
+                <h3 className="text-md font-semibold text-black mb-1">{tBilling('subscription.plansTitle')}</h3>
+                <p className="text-xs text-gray-600">{tBilling('subscription.plansModalSubtitle')}</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                {SUBSCRIPTION_PLANS.map((plan) => {
+                  const price = formatPlanPrice(plan, 'monthly', {
+                    customLabel: tBilling('subscription.custom'),
+                  });
+                  const isEnterprise = plan.id === 'enterprise';
+                  return (
+                    <div
+                      key={plan.id}
+                      className={`relative rounded-lg border p-3 flex flex-col ${
+                        plan.popular ? 'border-[#0a61d7] bg-blue-50/40' : 'border-gray-200'
+                      }`}
+                    >
+                      {plan.popular && (
+                        <span className="absolute -top-2 left-3 bg-[#0a61d7] text-white text-[10px] font-medium px-2 py-0.5 rounded-full">
+                          {tBilling('subscription.mostPopular')}
+                        </span>
+                      )}
+                      <p className="text-sm font-semibold text-black mb-0.5">
+                        {tBilling(`subscription.plans.${plan.id}.name`)}
+                      </p>
+                      <p className="text-xs text-gray-600 mb-2">
+                        {tBilling(`subscription.plans.${plan.id}.description`)}
+                      </p>
+                      <p className="text-sm font-bold text-black mb-1 whitespace-nowrap">
+                        {price}
+                        {planHasFixedPrice(plan) && (
+                          <span className="text-xs font-medium text-gray-500 ml-1">
+                            {tBilling('subscription.perMonth')}
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-[11px] text-gray-500 mb-3">
+                        {tBilling('subscription.connectionsLabel')}: {plan.connections}
+                      </p>
+                      <ul className="space-y-1 mb-3 flex-1">
+                        <li className="flex items-start gap-1.5 text-[11px] text-gray-600">
+                          <Check className="w-3 h-3 text-[#0a61d7] mt-0.5 shrink-0" />
+                          {tBilling('subscription.featurePlaceholder')}
+                        </li>
+                      </ul>
+                      <button
+                        type="button"
+                        disabled
+                        title={tBilling('subscription.comingSoonCta')}
+                        className={`w-full py-1.5 rounded-lg text-xs font-medium disabled:opacity-60 disabled:cursor-not-allowed ${
+                          plan.popular
+                            ? 'bg-[#0a61d7] text-white'
+                            : 'border border-gray-300 text-gray-700'
+                        }`}
+                      >
+                        {isEnterprise
+                          ? tBilling('subscription.contactSales')
+                          : tBilling('subscription.upgrade')}
+                      </button>
+                    </div>
+                  );
                 })}
               </div>
-              <div className="flex items-center gap-2">
+            </div>
+          </div>
+        )}
+
+        {billingPanelTab === 'payments' && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <div>
+                  <h3 className="text-md font-semibold text-black mb-1">{tBilling('payments.sectionTitle')}</h3>
+                  <p className="text-xs text-gray-600">{tBilling('payments.sectionSubtitle')}</p>
+                </div>
                 <button
                   type="button"
-                  onClick={() => setInvoicePage(Math.max(1, invoicePage - 1))}
-                  disabled={invoicePage === 1}
-                  className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  aria-label={tBilling('invoices.previousPage')}
+                  onClick={handleAddPaymentMethod}
+                  disabled={!companyForDisplay || isLoading}
+                  className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white text-sm font-medium rounded-lg hover:bg-[#0a52c0] transition-colors disabled:opacity-50 self-start"
                 >
-                  <ChevronLeft className="w-4 h-4" />
+                  <Plus className="h-4 w-4" />
+                  {tBilling('payments.addPaymentMethod')}
                 </button>
+              </div>
 
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: Math.min(5, invoiceTotalPages) }, (_, i) => {
-                    const pageNum = i + 1;
-                    return (
-                      <button
-                        key={pageNum}
-                        type="button"
-                        onClick={() => setInvoicePage(pageNum)}
-                        className={`px-3 py-2 text-sm rounded-lg ${
-                          invoicePage === pageNum
-                            ? 'bg-[#0a61d7] text-white'
-                            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                        }`}
-                        aria-label={tBilling('invoices.goToPage', { page: pageNum })}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
-                  {invoiceTotalPages > 5 && (
-                    <>
-                      {invoiceTotalPages > 6 ? <span className="px-2 text-gray-500">...</span> : null}
-                      <button
-                        type="button"
-                        onClick={() => setInvoicePage(invoiceTotalPages)}
-                        className={`px-3 py-1 text-sm rounded ${
-                          invoicePage === invoiceTotalPages
-                            ? 'bg-[#0a61d7] text-white'
-                            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                        }`}
-                        aria-label={tBilling('invoices.goToPage', { page: invoiceTotalPages })}
-                      >
-                        {invoiceTotalPages}
-                      </button>
-                    </>
-                  )}
+              <h4 className="text-sm font-medium text-black mb-3">{tBilling('payments.paymentMethodsTitle')}</h4>
+              <div className="space-y-3">
+                {paymentMethods.length === 0 && (
+                  <p className="text-sm text-gray-600">{tBilling('payments.empty')}</p>
+                )}
+                {paymentMethods.map((method) => {
+                  const subtitle = paymentMethodSubtitle(method);
+                  return (
+                    <div
+                      key={method.id}
+                      className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-gray-100 rounded-lg">{getPaymentIcon(method.kind)}</div>
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-medium text-black">{method.label}</span>
+                            {method.isDefault && (
+                              <span className="px-2 py-1 text-xs font-medium text-[#0a61d7] bg-blue-50 rounded">
+                                {tBilling('payments.defaultBadge')}
+                              </span>
+                            )}
+                          </div>
+                          {subtitle ? <p className="text-xs text-gray-600">{subtitle}</p> : null}
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className={`px-2 py-1 text-xs font-medium rounded ${getStatusColor(method.status)}`}>
+                          {method.status.toLowerCase()}
+                        </span>
+                        {!method.isDefault && (
+                          <button
+                            type="button"
+                            onClick={() => void handleSetDefaultPayment(method.id)}
+                            className="p-1 text-gray-400 hover:text-[#0a61d7] transition-colors"
+                            title={tBilling('payments.setAsDefault')}
+                          >
+                            <Check className="h-4 w-4" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleEditPaymentMethod(method.id)}
+                          className="p-1 text-gray-400 hover:text-[#0a61d7] transition-colors"
+                          title={tBilling('payments.edit')}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDeletePaymentMethod(method.id)}
+                          className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                          title={tBilling('payments.delete')}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-md font-semibold text-black mb-1">{tBilling('billingAccount.sectionTitle')}</h3>
+                  <p className="text-xs text-gray-600">{tBilling('billingAccount.sectionSubtitle')}</p>
                 </div>
-
                 <button
                   type="button"
-                  onClick={() => setInvoicePage(Math.min(invoiceTotalPages, invoicePage + 1))}
-                  disabled={invoicePage === invoiceTotalPages}
-                  className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  aria-label={tBilling('invoices.nextPage')}
+                  onClick={handleEditBillingBank}
+                  disabled={!companyForDisplay || isLoading}
+                  className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
                 >
-                  <ChevronRight className="w-4 h-4" />
+                  <Edit className="h-4 w-4" />
+                  {tBilling('billingAccount.editAccount')}
                 </button>
               </div>
-            </div>
-          ) : null}
-        </div>
-
-        {/* Billing Account — bank details for buyer transfers & future platform billing */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-md font-semibold text-black mb-1">{tBilling('billingAccount.sectionTitle')}</h3>
-              <p className="text-xs text-gray-600">{tBilling('billingAccount.sectionSubtitle')}</p>
-            </div>
-            <button
-              type="button"
-              onClick={handleEditBillingBank}
-              disabled={!companyForDisplay || isLoading}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-            >
-              <Edit className="h-4 w-4" />
-              {tBilling('billingAccount.editAccount')}
-            </button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="flex items-center gap-2 text-xs font-medium text-gray-700 mb-2">
-                <Building2 className="h-4 w-4 text-gray-400" />
-                {tBilling('billingAccount.bankName')}
-              </label>
-              <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
-                <span className="text-xs text-gray-900">{billingBankDisplay.bankName || tBilling('billingAccount.emptyValue')}</span>
-              </div>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-gray-700 mb-2">{tBilling('billingAccount.accountHolder')}</label>
-              <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
-                <span className="text-xs text-gray-900">{billingBankDisplay.accountName || tBilling('billingAccount.emptyValue')}</span>
-              </div>
-            </div>
-            <div className="md:col-span-2">
-              <label className="text-xs font-medium text-gray-700 mb-2">{tBilling('billingAccount.accountNumber')}</label>
-              <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
-                <span className="text-xs text-gray-900">{billingBankDisplay.accountNumber || tBilling('billingAccount.emptyValue')}</span>
-              </div>
-            </div>
-            <div className="md:col-span-2 pt-2 border-t border-gray-100">
-              <label className="text-xs font-medium text-gray-700 mb-2">{tBilling('billingAccount.termOfPaymentDays')}</label>
-              <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
-                <span className="text-xs text-gray-900">
-                  {companyForDisplay?.buyerPaymentTermDays != null && companyForDisplay.buyerPaymentTermDays > 0
-                    ? tBilling('billingAccount.termDaysValue', { days: companyForDisplay.buyerPaymentTermDays })
-                    : tBilling('billingAccount.emptyValue')}
-                </span>
-              </div>
-              <p className="mt-1 text-[11px] text-gray-500">
-                {tBilling('billingAccount.termHint')}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-md font-semibold text-black mb-1">{tBilling('billingAddress.sectionTitle')}</h3>
-              <p className="text-xs text-gray-600">{tBilling('billingAddress.sectionSubtitle')}</p>
-            </div>
-            <button
-              type="button"
-              onClick={handleEditBillingAddress}
-              disabled={!companyForDisplay || isLoading}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-            >
-              <Edit className="h-4 w-4" />
-              {tBilling('billingAddress.editAddress')}
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-4">
-              <div>
-                <label className="flex items-center gap-2 text-xs font-medium text-gray-700 mb-2">
-                  <Building2 className="h-4 w-4 text-gray-400" />
-                  {tBilling('billingAddress.companyName')}
-                </label>
-                <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex items-center">
-                  <span className="text-xs text-gray-900">{billingAddressDisplay.companyName || tBilling('billingAccount.emptyValue')}</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="flex items-center gap-2 text-xs font-medium text-gray-700 mb-2">
+                    <Building2 className="h-4 w-4 text-gray-400" />
+                    {tBilling('billingAccount.bankName')}
+                  </label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+                    <span className="text-xs text-gray-900">{billingBankDisplay.bankName || tBilling('billingAccount.emptyValue')}</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-700 mb-2">{tBilling('billingAccount.accountHolder')}</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+                    <span className="text-xs text-gray-900">{billingBankDisplay.accountName || tBilling('billingAccount.emptyValue')}</span>
+                  </div>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="text-xs font-medium text-gray-700 mb-2">{tBilling('billingAccount.accountNumber')}</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+                    <span className="text-xs text-gray-900">{billingBankDisplay.accountNumber || tBilling('billingAccount.emptyValue')}</span>
+                  </div>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="text-xs font-medium text-gray-700 mb-2">{tBilling('billingAccount.termOfPaymentDays')}</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+                    <span className="text-xs text-gray-900">
+                      {companyForDisplay?.buyerPaymentTermDays
+                        ? tBilling('billingAccount.termDaysValue', { days: companyForDisplay.buyerPaymentTermDays })
+                        : tBilling('billingAccount.emptyValue')}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    {tBilling('billingAccount.termHint')}
+                  </p>
                 </div>
               </div>
-              <div>
-                <label className="flex items-center gap-2 text-xs font-medium text-gray-700 mb-2">
-                  <MapPin className="h-4 w-4 text-gray-400" />
-                  {tBilling('billingAddress.address')}
-                </label>
-                <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex items-center">
-                  <span className="text-xs text-gray-900">{billingAddressDisplay.address || tBilling('billingAccount.emptyValue')}</span>
+            </div>
+
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-md font-semibold text-black mb-1">{tBilling('billingAddress.sectionTitle')}</h3>
+                  <p className="text-xs text-gray-600">{tBilling('billingAddress.sectionSubtitle')}</p>
                 </div>
+                <button
+                  type="button"
+                  onClick={handleEditBillingAddress}
+                  disabled={!companyForDisplay || isLoading}
+                  className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  <Edit className="h-4 w-4" />
+                  {tBilling('billingAddress.editAddress')}
+                </button>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="flex items-center gap-2 text-xs font-medium text-gray-700 mb-2">
+                    <Building2 className="h-4 w-4 text-gray-400" />
+                    {tBilling('billingAddress.companyName')}
+                  </label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+                    <span className="text-xs text-gray-900">{billingAddressDisplay.companyName || tBilling('billingAccount.emptyValue')}</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="flex items-center gap-2 text-xs font-medium text-gray-700 mb-2">
+                    <MapPin className="h-4 w-4 text-gray-400" />
+                    {tBilling('billingAddress.address')}
+                  </label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+                    <span className="text-xs text-gray-900">{billingAddressDisplay.address || tBilling('billingAccount.emptyValue')}</span>
+                  </div>
+                </div>
                 <div>
                   <label className="text-xs font-medium text-gray-700 mb-2">{tBilling('billingAddress.city')}</label>
-                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex items-center">
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
                     <span className="text-xs text-gray-900">{billingAddressDisplay.city || tBilling('billingAccount.emptyValue')}</span>
                   </div>
                 </div>
                 <div>
                   <label className="text-xs font-medium text-gray-700 mb-2">{tBilling('billingAddress.state')}</label>
-                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex items-center">
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
                     <span className="text-xs text-gray-900">{billingAddressDisplay.state || tBilling('billingAccount.emptyValue')}</span>
                   </div>
                 </div>
-              </div>
-            </div>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-700 mb-2">{tBilling('billingAddress.postalCode')}</label>
-                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex items-center">
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
                     <span className="text-xs text-gray-900">{billingAddressDisplay.postalCode || tBilling('billingAccount.emptyValue')}</span>
                   </div>
                 </div>
                 <div>
                   <label className="text-xs font-medium text-gray-700 mb-2">{tBilling('billingAddress.country')}</label>
-                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex items-center">
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
                     <span className="text-xs text-gray-900">{billingAddressDisplay.country || tBilling('billingAccount.emptyValue')}</span>
                   </div>
                 </div>
-              </div>
-              <div>
-                <label className="flex items-center gap-2 text-xs font-medium text-gray-700 mb-2">
-                  <Phone className="h-4 w-4 text-gray-400" />
-                  {tBilling('billingAddress.phone')}
-                </label>
-                <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex items-center">
-                  <span className="text-xs text-gray-900">{billingAddressDisplay.phone || tBilling('billingAccount.emptyValue')}</span>
+                <div>
+                  <label className="flex items-center gap-2 text-xs font-medium text-gray-700 mb-2">
+                    <Phone className="h-4 w-4 text-gray-400" />
+                    {tBilling('billingAddress.phone')}
+                  </label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex items-center">
+                    <span className="text-xs text-gray-900">{billingAddressDisplay.phone || tBilling('billingAccount.emptyValue')}</span>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <label className="flex items-center gap-2 text-xs font-medium text-gray-700 mb-2">
-                  <Mail className="h-4 w-4 text-gray-400" />
-                  {tBilling('billingAddress.email')}
-                </label>
-                <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex items-center">
-                  <span className="text-xs text-gray-900">{billingAddressDisplay.email || tBilling('billingAccount.emptyValue')}</span>
+                <div>
+                  <label className="flex items-center gap-2 text-xs font-medium text-gray-700 mb-2">
+                    <Mail className="h-4 w-4 text-gray-400" />
+                    {tBilling('billingAddress.email')}
+                  </label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg flex items-center">
+                    <span className="text-xs text-gray-900">{billingAddressDisplay.email || tBilling('billingAccount.emptyValue')}</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
+
+        {billingPanelTab === 'documents' && (
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-md font-semibold text-black">{tBilling('documents.sectionTitle')}</h3>
+                  <span className="relative group inline-flex items-center">
+                    <Info
+                      tabIndex={0}
+                      aria-describedby="documents-info-tooltip"
+                      aria-label={tBilling('invoices.infoAriaLabel')}
+                      className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0a61d7]/40 rounded"
+                    />
+                    <span
+                      id="documents-info-tooltip"
+                      role="tooltip"
+                      className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 w-[340px] -translate-x-1/2 rounded-lg border border-gray-200 bg-white p-3 text-[11px] leading-4 text-gray-700 shadow-xl opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                    >
+                      <span className="block font-medium">{tBilling('invoices.policyTitle')}</span>
+                      <span className="mt-1 block">
+                        {tBilling('invoices.policyBody', {
+                          dueDateLabel: tBilling('invoices.dueDateLabel'),
+                          billingMonthEndLabel: tBilling('invoices.billingMonthEndLabel'),
+                        })}
+                      </span>
+                      <span className="mt-2 block">
+                        {tBilling('invoices.gracePeriod', {
+                          gracePeriodLabel: tBilling('invoices.gracePeriodLabel'),
+                        })}
+                      </span>
+                      <span className="mt-2 block text-red-700">
+                        {tBilling('invoices.warning', {
+                          warningLabel: tBilling('invoices.warningLabel'),
+                          suspensionLabel: tBilling('invoices.suspensionLabel'),
+                        })}
+                      </span>
+                    </span>
+                  </span>
+                </div>
+                <p className="text-xs text-gray-600">{tBilling('documents.sectionSubtitle')}</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {(
+                  [
+                    { id: 'all' as const, label: tBilling('documents.filters.all') },
+                    { id: 'subscription' as const, label: tBilling('documents.filters.subscription') },
+                    { id: 'commission' as const, label: tBilling('documents.filters.commission') },
+                  ] as const
+                ).map((filter) => (
+                  <button
+                    key={filter.id}
+                    type="button"
+                    onClick={() => setDocumentTypeFilter(filter.id)}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                      documentTypeFilter === filter.id
+                        ? 'border-[#0a61d7] bg-blue-50 text-[#0a61d7]'
+                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  disabled={filteredInvoiceTotalRows === 0}
+                  className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  {tBilling('invoices.downloadAll')}
+                </button>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto rounded-lg">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-100 text-gray-500 whitespace-nowrap">
+                    <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tBilling('documents.table.invoice')}</th>
+                    <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tBilling('documents.table.type')}</th>
+                    <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tBilling('documents.table.date')}</th>
+                    <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tBilling('documents.table.due')}</th>
+                    <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tBilling('documents.table.amount')}</th>
+                    <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tBilling('documents.table.status')}</th>
+                    <th className="text-center py-3 px-4 font-medium text-xs uppercase">{tBilling('documents.table.action')}</th>
+                  </tr>
+                </thead>
+                <tbody className="text-xs whitespace-nowrap">
+                  {filteredInvoiceTotalRows === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center text-gray-500">
+                        <Receipt className="w-8 h-8 mx-auto mb-3 text-gray-400" />
+                        <p className="text-sm font-medium text-gray-900">{tBilling('documents.emptyTitle')}</p>
+                        <p className="text-xs text-gray-500 mt-1">{tBilling('documents.emptyDescription')}</p>
+                      </td>
+                    </tr>
+                  ) : (
+                    pagedInvoices.map((invoice) => (
+                      <tr
+                        key={invoice.id}
+                        className="border-b border-[#e6e6e6] transition hover:bg-gray-50"
+                      >
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <Receipt className="h-3 w-3 text-gray-400 shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium text-black">{invoice.invoiceNo}</p>
+                              <p className="text-[11px] text-gray-500 truncate max-w-[220px]">{invoice.description}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span
+                            className={`inline-flex px-2 py-0.5 text-[11px] font-medium rounded ${
+                              invoice.documentType === 'subscription'
+                                ? 'bg-blue-50 text-[#0a61d7]'
+                                : 'bg-amber-50 text-amber-700'
+                            }`}
+                          >
+                            {invoice.documentType === 'subscription'
+                              ? tBilling('documents.types.subscription')
+                              : tBilling('documents.types.commission')}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-xs text-gray-700">
+                          {new Date(invoice.date).toLocaleDateString()}
+                        </td>
+                        <td className="py-3 px-4 text-xs text-gray-700">
+                          {invoice.dueDate
+                            ? new Date(invoice.dueDate).toLocaleDateString()
+                            : tBilling('invoices.noDueDate')}
+                        </td>
+                        <td className="py-3 px-4 text-xs font-semibold text-black">
+                          Rp {invoice.amount.toLocaleString('id-ID')}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`px-2 py-1 text-xs font-medium rounded ${getStatusColor(invoice.status)}`}>
+                            {translateInvoiceStatus(invoice.status)}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadInvoice(invoice.id)}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-[#0a61d7] text-xs font-medium rounded hover:bg-blue-50 transition-colors"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                            {tBilling('invoices.download')}
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {filteredInvoiceTotalRows > 0 ? (
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-gray-500">
+                  {tBilling('invoices.showing', {
+                    from: filteredInvoiceFromRow,
+                    to: filteredInvoiceToRow,
+                    total: filteredInvoiceTotalRows,
+                  })}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setInvoicePage(Math.max(1, invoicePage - 1))}
+                    disabled={invoicePage === 1}
+                    className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    aria-label={tBilling('invoices.previousPage')}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, filteredInvoiceTotalPages) }, (_, i) => {
+                      const pageNum = i + 1;
+                      return (
+                        <button
+                          key={pageNum}
+                          type="button"
+                          onClick={() => setInvoicePage(pageNum)}
+                          className={`px-3 py-2 text-sm rounded-lg ${
+                            invoicePage === pageNum
+                              ? 'bg-[#0a61d7] text-white'
+                              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                          }`}
+                          aria-label={tBilling('invoices.goToPage', { page: pageNum })}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                    {filteredInvoiceTotalPages > 5 && (
+                      <>
+                        {filteredInvoiceTotalPages > 6 ? <span className="px-2 text-gray-500">...</span> : null}
+                        <button
+                          type="button"
+                          onClick={() => setInvoicePage(filteredInvoiceTotalPages)}
+                          className={`px-3 py-1 text-sm rounded ${
+                            invoicePage === filteredInvoiceTotalPages
+                              ? 'bg-[#0a61d7] text-white'
+                              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                          }`}
+                          aria-label={tBilling('invoices.goToPage', { page: filteredInvoiceTotalPages })}
+                        >
+                          {filteredInvoiceTotalPages}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setInvoicePage(Math.min(filteredInvoiceTotalPages, invoicePage + 1))}
+                    disabled={invoicePage === filteredInvoiceTotalPages}
+                    className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    aria-label={tBilling('invoices.nextPage')}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        )}
       </div>
 
       {showAddPaymentModal && (

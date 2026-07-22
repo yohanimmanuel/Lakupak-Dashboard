@@ -239,156 +239,119 @@
   },
   "pricing": {
     "hero": {
-      "title": "Simple & Predictable Pricing",
-      "subtitle": "No Surprises. Choose the plan that fits your business needs.",
-      "trial": "14-day free trial. No credit card required."
+      "badge": "Pricing",
+      "title": "Flexible pricing plans for every need",
+      "subtitle": "Pay for the scale of your retail network. Every plan includes the full Laku platform — Dashboard, Marketplace, and Driver.",
+      "trial": "30-day free trial. No credit card required."
     },
     "toggle": {
-      "monthly": "Monthly",
-      "annual": "Annual",
-      "save": "Save up to 20%"
+      "monthly": "Billed monthly",
+      "annual": "Billed annually",
+      "save": "Save {percent}%"
     },
     "card": {
-      "free": "Free",
-      "starter": "Starter",
-      "business": "Business",
-      "enterprise": "Enterprise",
-      "getstarted": "Get Started",
-      "mostpopular": "Most Popular",
-      "savings": "Save {percent}%",
-      "commission": "{percent}% commission fee"
+      "getstarted": "Get started",
+      "contactSales": "Contact sales",
+      "mostpopular": "Popular Plan",
+      "savings": "Save ~{percent}%",
+      "perMonth": "/month",
+      "perYear": "/year",
+      "connectionsLabel": "Active retailers",
+      "retailersBand": "{band} retailers",
+      "custom": "Custom",
+      "from": "From",
+      "includes": "{name} plan includes:",
+      "priceHint": "Pause or cancel anytime",
+      "enterpriseHint": "Custom terms and onboarding support"
     },
-    "description": {
-      "free": "Perfect for getting started",
-      "starter": "For small sellers testing the platform",
-      "business": "For growing sellers with consistent volume",
-      "enterprise": "For top-tier partners, incentivizing loyalty"
-    },
-    "tiers": [
-      {
-        "name": "Free",
-        "description": "Perfect for getting started",
-        "features": [
-          "50 SKUs Marketplace Listing",
-          "Basic Transaction Analytics",
-          "Basic Seller Dashboard",
-          "Manual Order Entry",
-          "Email Customer Support",
-          "Basic Coupons Marketing",
-          "7 days Payment Settlement",
-          "1 Warehouse Support",
-          "1 Staff Account"
-        ],
-        "commission": "3% commission fee"
-      },
-      {
+    "tiers": {
+      "starter": {
         "name": "Starter",
-        "description": "For small sellers testing the platform",
+        "description": "Local grosir, early digital ops, small delivery team",
         "features": [
-          "200 SKUs Marketplace Listing",
-          "Standard Transaction Analytics",
-          "Standard Seller Dashboard",
-          "Bulk Upload Order Management",
-          "Email & Chat Support",
-          "Coupons + Discounts",
-          "5 days Payment Settlement",
-          "1 Warehouse Support",
-          "5 Staff Accounts"
-        ],
-        "commission": "2% commission fee"
+          "Feature details coming soon",
+          "Full Laku Dashboard, Marketplace & Driver",
+          "Priced by active retail connections"
+        ]
       },
-      {
-        "name": "Business",
-        "description": "For growing sellers with consistent volume",
+      "growth": {
+        "name": "Growth",
+        "description": "Regional FMCG distributor with structured sales and fleet",
         "features": [
-          "1,000 SKUs Marketplace Listing",
-          "Advanced Transaction Analytics",
-          "Premium Seller Dashboard",
-          "Bulk Upload + Auto Sync",
-          "Priority Chat Support",
-          "Campaigns + Ads Marketing",
-          "3 days Payment Settlement",
-          "3 Warehouses Support",
-          "15 Staff Accounts",
-          "Custom Branding Available"
-        ],
-        "commission": "1% commission fee"
+          "Feature details coming soon",
+          "Full Laku Dashboard, Marketplace & Driver",
+          "Priced by active retail connections"
+        ]
       },
-      {
+      "scale": {
+        "name": "Scale",
+        "description": "Multi-route operation, high order volume, analytics-driven",
+        "features": [
+          "Feature details coming soon",
+          "Full Laku Dashboard, Marketplace & Driver",
+          "Priced by active retail connections"
+        ]
+      },
+      "enterprise": {
         "name": "Enterprise",
-        "description": "For top-tier partners, incentivizing loyalty",
+        "description": "Large regional or national coverage with SLA and onboarding",
         "features": [
-          "Unlimited Marketplace Listing",
-          "Advanced + Custom Reports",
-          "Premium + API Access Dashboard",
-          "Full API Integration",
-          "Dedicated Manager Support",
-          "Custom Campaign Support",
-          "Instant/Custom Settlement",
-          "Unlimited Warehouses",
-          "Unlimited Staff Accounts",
-          "Fully Branded Experience"
-        ],
-        "commission": "0.5% commission fee"
+          "Feature details coming soon",
+          "Full Laku Dashboard, Marketplace & Driver",
+          "Volume-negotiated pricing"
+        ]
       }
-    ],
+    },
     "comparison": {
-      "title": "Feature Comparison",
-      "subtitle": "Comparison of features across all plans",
-      "plan": {
-        "free": "Free",
-        "starter": "Starter",
-        "business": "Business",
-        "enterprise": "Enterprise"
+      "title": "Plan comparison",
+      "subtitle": "Compare connection bands and pricing across plans. Feature details will be published soon.",
+      "featureColumn": "Detail",
+      "comingSoon": "Coming soon",
+      "rows": {
+        "connections": "Active retailers",
+        "price": "Price",
+        "platformAccess": "Platform access",
+        "featurePack": "Included capabilities",
+        "support": "Support"
       },
-      "features": [
-      { "feature": "Marketplace Listing", "free": "50 SKUs", "starter": "200 SKUs", "business": "1,000 SKUs", "enterprise": "Unlimited" },
-      { "feature": "Transaction Analytics", "free": "Basic", "starter": "Standard", "business": "Advanced", "enterprise": "Advanced + Custom Reports" },
-      { "feature": "Seller Dashboard", "free": "Basic", "starter": "Standard", "business": "Premium", "enterprise": "Premium + API Access" },
-      { "feature": "Order Management", "free": "Manual Entry", "starter": "Bulk Upload", "business": "Bulk Upload + Auto Sync", "enterprise": "Full API Integration" },
-      { "feature": "Customer Support", "free": "Email", "starter": "Email & Chat", "business": "Priority Chat", "enterprise": "Dedicated Manager" },
-      { "feature": "Marketing Tools", "free": "Basic Coupons", "starter": "Coupons + Discounts", "business": "Campaigns + Ads", "enterprise": "Custom Campaign Support" },
-      { "feature": "Payment Settlement", "free": "7 days", "starter": "5 days", "business": "3 days", "enterprise": "Instant/Custom" },
-      { "feature": "Multi-Warehouse Support", "free": "1 Warehouse", "starter": "1 Warehouse", "business": "3 Warehouses", "enterprise": "Unlimited" },
-      { "feature": "Staff Accounts", "free": "1", "starter": "5", "business": "15", "enterprise": "Unlimited" },
-      { "feature": "Custom Branding", "free": "-", "starter": "-", "business": "Available", "enterprise": "Fully Branded" }
-    ]
-  },
+      "platformAll": "Full platform",
+      "placeholder": "—"
+    },
     "faq": {
       "title": "Frequently Asked Questions",
       "subtitle": "Everything you need to know about our pricing",
       "1": {
-        "q": "Do I need to pay both the monthly fee and commission?",
-        "a": "Yes, Laku uses a dual monetization model. The monthly fee covers SaaS features, and the commission is applied per transaction to keep our marketplace growing."
+        "q": "How is my plan determined?",
+        "a": "Plans are based on active retail connections — buyers in your Clients module that have placed at least one order in the last 90 days. Your tier is applied from that count on each billing date."
       },
       "2": {
         "q": "Is there a free trial?",
-        "a": "Yes, Starter and Business plans include a 14-day free trial with no credit card required."
+        "a": "Yes. Every new distributor gets a 30-day free trial with full Dashboard access. Billing starts on day 31 if you continue."
       },
       "3": {
         "q": "What are the benefits of annual billing?",
-        "a": "Annual billing offers significant savings: 10% off Starter plan, 16% off Business plan, and 8% off Enterprise plan. You also get the convenience of paying once per year."
+        "a": "Annual billing is priced at 10× the monthly rate (2 months free), about 17% savings versus paying month to month."
       },
       "4": {
         "q": "What payment methods do you accept?",
         "a": "We accept bank transfer (BCA, Mandiri, BRI), virtual accounts, and credit/debit cards."
       },
       "5": {
-        "q": "Can I upgrade or downgrade my plan anytime?",
-        "a": "Yes, you can switch plans at the end of your billing cycle with no penalties."
+        "q": "Can I upgrade or downgrade my plan?",
+        "a": "Yes. As your active retail connections grow, you can move to a higher tier. Downgrades take effect at the next billing cycle."
       },
       "6": {
-        "q": "How are commissions calculated?",
-        "a": "Commissions are calculated as a percentage of the order value (excluding shipping)."
+        "q": "Do all plans include Marketplace and Driver?",
+        "a": "Yes. Every plan includes the full Laku loop — Dashboard, Marketplace buyer app, and Driver — with no feature gating by tier."
       },
       "7": {
-        "q": "Does Enterprise include integrations with my ERP/WMS?",
-        "a": "Yes, Enterprise sellers get full API access and onboarding support for system integrations."
+        "q": "When should I choose Enterprise?",
+        "a": "Enterprise is for distributors with 10,000+ active retailers who need custom pricing, SLA, and onboarding support. Contact sales for a quote."
       }
     },
     "cta": {
       "title": "Ready to get started?",
-      "subtitle": "Join thousands of sellers growing their business with Laku",
+      "subtitle": "Start your 30-day trial and run your distribution network on Laku",
       "trial": "Start Free Trial",
       "contact": "Contact Sales"
     }

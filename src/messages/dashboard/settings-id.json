@@ -336,6 +336,35 @@
       "bankTransfer": "Transfer bank",
       "ewallet": "E-wallet"
     },
+    "panelTabs": {
+      "billing": "Tagihan",
+      "payments": "Pembayaran",
+      "documents": "Dokumen"
+    },
+    "documents": {
+      "sectionTitle": "Dokumen",
+      "sectionSubtitle": "Unduh faktur langganan dan komisi untuk akun Anda",
+      "emptyTitle": "Belum ada dokumen",
+      "emptyDescription": "Faktur langganan dan komisi akan muncul di sini bila tersedia.",
+      "filters": {
+        "all": "Semua",
+        "subscription": "Langganan",
+        "commission": "Komisi"
+      },
+      "types": {
+        "subscription": "Langganan",
+        "commission": "Komisi"
+      },
+      "table": {
+        "invoice": "Faktur",
+        "type": "Tipe",
+        "date": "Diterbitkan",
+        "due": "Jatuh tempo",
+        "amount": "Jumlah",
+        "status": "Status",
+        "action": "Aksi"
+      }
+    },
     "title": "Tagihan & Pembayaran",
     "loading": "Memuat data tagihan...",
     "refreshing": "Memperbarui data tagihan",
@@ -365,6 +394,60 @@
       "paymentMethodUpdated": "Metode pembayaran diperbarui",
       "paymentMethodAdded": "Metode pembayaran ditambahkan",
       "invoiceDownloaded": "Faktur {invoiceNo} berhasil diunduh"
+    },
+    "subscription": {
+      "sectionTitle": "Langganan",
+      "sectionSubtitle": "Paket Anda didasarkan pada jumlah retailer aktif. Checkout produk penagihan segera hadir.",
+      "currentPlan": "Paket saat ini",
+      "trialBadge": "Uji coba",
+      "trialPlanName": "Uji coba gratis 30 hari",
+      "trialHint": "Akses platform penuh selama uji coba. Pilih paket sebelum hari ke-31 untuk melanjutkan.",
+      "nextBilling": "Penagihan berikutnya",
+      "nextBillingHint": "Dimulai setelah uji coba berakhir",
+      "viewPlans": "Lihat paket",
+      "plansTitle": "Paket tersedia",
+      "plansModalSubtitle": "Pilih paket berdasarkan jumlah retailer aktif Anda. Checkout segera hadir.",
+      "closePlans": "Tutup",
+      "connectionsLabel": "Retailer aktif",
+      "perMonth": "/bulan",
+      "mostPopular": "Paling populer",
+      "upgrade": "Upgrade",
+      "contactSales": "Hubungi sales",
+      "comingSoonCta": "Checkout segera hadir",
+      "custom": "Kustom",
+      "from": "Mulai",
+      "featurePlaceholder": "Detail fitur segera tersedia",
+      "plans": {
+        "starter": {
+          "name": "Starter",
+          "description": "Grosir lokal dan operasi digital awal"
+        },
+        "growth": {
+          "name": "Growth",
+          "description": "Distributor regional dengan penjualan terstruktur"
+        },
+        "scale": {
+          "name": "Scale",
+          "description": "Operasi multi-rute dengan volume tinggi"
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "description": "Cakupan besar dengan ketentuan kustom"
+        }
+      }
+    },
+    "payments": {
+      "sectionTitle": "Pembayaran",
+      "sectionSubtitle": "Metode pembayaran tersimpan untuk penagihan langganan",
+      "addPaymentMethod": "Tambah Metode Pembayaran",
+      "defaultPayment": "Pembayaran default",
+      "noDefaultPayment": "Belum ada metode pembayaran",
+      "paymentMethodsTitle": "Metode pembayaran",
+      "empty": "Belum ada metode pembayaran tersimpan.",
+      "defaultBadge": "Default",
+      "setAsDefault": "Jadikan default",
+      "edit": "Edit",
+      "delete": "Hapus"
     },
     "invoices": {
       "sectionTitle": "Faktur & Riwayat Tagihan",

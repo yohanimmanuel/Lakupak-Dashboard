@@ -336,6 +336,35 @@
       "bankTransfer": "Bank transfer",
       "ewallet": "E-wallet"
     },
+    "panelTabs": {
+      "billing": "Billing",
+      "payments": "Payments",
+      "documents": "Documents"
+    },
+    "documents": {
+      "sectionTitle": "Documents",
+      "sectionSubtitle": "Download subscription and commission invoices for your account",
+      "emptyTitle": "No documents yet",
+      "emptyDescription": "Subscription and commission invoices will appear here when available.",
+      "filters": {
+        "all": "All",
+        "subscription": "Subscription",
+        "commission": "Commission"
+      },
+      "types": {
+        "subscription": "Subscription",
+        "commission": "Commission"
+      },
+      "table": {
+        "invoice": "Invoice",
+        "type": "Type",
+        "date": "Issued",
+        "due": "Due",
+        "amount": "Amount",
+        "status": "Status",
+        "action": "Action"
+      }
+    },
     "title": "Billing & Payment",
     "loading": "Loading billing data...",
     "refreshing": "Refreshing billing data",
@@ -365,6 +394,60 @@
       "paymentMethodUpdated": "Payment method updated",
       "paymentMethodAdded": "Payment method added",
       "invoiceDownloaded": "Invoice {invoiceNo} downloaded successfully"
+    },
+    "subscription": {
+      "sectionTitle": "Subscription",
+      "sectionSubtitle": "Your plan is based on active retailers. Billing product checkout is coming soon.",
+      "currentPlan": "Current plan",
+      "trialBadge": "Trial",
+      "trialPlanName": "30-day free trial",
+      "trialHint": "Full platform access during trial. Choose a plan before day 31 to continue.",
+      "nextBilling": "Next billing",
+      "nextBillingHint": "Starts after your trial ends",
+      "viewPlans": "View plans",
+      "plansTitle": "Available plans",
+      "plansModalSubtitle": "Choose a plan based on your active retailer count. Checkout is coming soon.",
+      "closePlans": "Close",
+      "connectionsLabel": "Active retailers",
+      "perMonth": "/month",
+      "mostPopular": "Most popular",
+      "upgrade": "Upgrade",
+      "contactSales": "Contact sales",
+      "comingSoonCta": "Checkout coming soon",
+      "custom": "Custom",
+      "from": "From",
+      "featurePlaceholder": "Feature details coming soon",
+      "plans": {
+        "starter": {
+          "name": "Starter",
+          "description": "Local grosir and early digital ops"
+        },
+        "growth": {
+          "name": "Growth",
+          "description": "Regional distributor, structured sales"
+        },
+        "scale": {
+          "name": "Scale",
+          "description": "Multi-route, high-volume operations"
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "description": "Large coverage with custom terms"
+        }
+      }
+    },
+    "payments": {
+      "sectionTitle": "Payments",
+      "sectionSubtitle": "Saved payment methods for subscription billing",
+      "addPaymentMethod": "Add Payment Method",
+      "defaultPayment": "Default payment",
+      "noDefaultPayment": "No payment method on file",
+      "paymentMethodsTitle": "Payment methods",
+      "empty": "No saved payment methods yet.",
+      "defaultBadge": "Default",
+      "setAsDefault": "Set as default",
+      "edit": "Edit",
+      "delete": "Delete"
     },
     "invoices": {
       "sectionTitle": "Invoices & Billing History",

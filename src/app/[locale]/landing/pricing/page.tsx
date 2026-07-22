@@ -1,341 +1,341 @@
 'use client';
 
-import { useState } from 'react';
-import { Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import {
+  ArrowRight,
+  BarChart3,
+  Building2,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Store,
+  TrendingUp,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useTranslations } from "next-intl";
+import { useTranslations } from 'next-intl';
 import { usePagePerformanceTracking, createTrackConversion, createErrorBoundary } from '@/utils/landing-enhancements';
+import {
+  ANNUAL_SAVINGS_PERCENT,
+  SUBSCRIPTION_PLANS,
+  formatPlanPrice,
+  planHasFixedPrice,
+  type SubscriptionPlanId,
+} from '@/config/subscriptionPlans';
 
 const ErrorBoundary = createErrorBoundary('Pricing');
 
+const PLAN_ICONS: Record<SubscriptionPlanId, ReactNode> = {
+  starter: <Store className="w-5 h-5 text-[#0a61d7]" />,
+  growth: <TrendingUp className="w-5 h-5 text-[#0a61d7]" />,
+  scale: <BarChart3 className="w-5 h-5 text-[#0a61d7]" />,
+  enterprise: <Building2 className="w-5 h-5 text-[#0a61d7]" />,
+};
+
 export default function PricingPage() {
   const router = useRouter();
-  const t = useTranslations("pricing");
+  const t = useTranslations('pricing');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [isAnnual, setIsAnnual] = useState(false);
-  
-  // Use performance tracking
+
   usePagePerformanceTracking('Pricing');
-  
-  // Create conversion tracker
   const trackConversion = createTrackConversion('Pricing');
 
-  const toggleFaq = (index: number) => {
-    setOpenFaq(openFaq === index ? null : index);
-  };
+  const billing = isAnnual ? 'annual' : 'monthly';
+  const periodLabel = isAnnual ? t('card.perYear') : t('card.perMonth');
 
-  // Use translated pricing tiers from JSON
-  type Tier = { name: string; description: string; features: string[]; commission: string };
-  const tiers = t.raw('tiers') as Tier[];
-  const pricingTiers = tiers.map((tier: Tier, idx: number) => ({
-    name: tier.name,
-    monthlyPrice: [
-      'Rp 0',
-      'Rp 150,000',
-      'Rp 500,000',
-      'Rp 1,000,000'
-    ][idx],
-    annualPrice: [
-      'Rp 0',
-      'Rp 1,705,000',
-      'Rp 5,040,000',
-      'Rp 10,100,000'
-    ][idx],
-    description: tier.description,
-    features: tier.features,
-    buttonText: t('card.getstarted'),
-    buttonVariant: idx === 1 ? 'primary' : 'outline',
-    commission: tier.commission,
-    popular: idx === 1,
-    savings: [0, 8, 16, 20][idx]
-  }));
+  const pricingTiers = SUBSCRIPTION_PLANS.map((plan) => {
+    const features = t.raw(`tiers.${plan.id}.features`) as string[];
+    return {
+      plan,
+      name: t(`tiers.${plan.id}.name`),
+      description: t(`tiers.${plan.id}.description`),
+      features: Array.isArray(features) ? features : [],
+      priceLabel: formatPlanPrice(plan, billing, {
+        customLabel: t('card.custom'),
+      }),
+      showPeriod: planHasFixedPrice(plan),
+      isEnterprise: plan.id === 'enterprise',
+      popular: Boolean(plan.popular),
+    };
+  });
 
-  // Use translated comparison table from JSON
-  type ComparisonRow = { feature: string; free: string; starter: string; business: string; enterprise: string };
-  const comparisonFeatures = t.raw('comparison') as { features: ComparisonRow[] };
+  const comparisonRows: { key: string; values: string[] }[] = [
+    {
+      key: 'connections',
+      values: SUBSCRIPTION_PLANS.map((p) => p.connections),
+    },
+    {
+      key: 'price',
+      values: SUBSCRIPTION_PLANS.map((p) =>
+        formatPlanPrice(p, billing, {
+          customLabel: t('card.custom'),
+        }),
+      ),
+    },
+    {
+      key: 'platformAccess',
+      values: SUBSCRIPTION_PLANS.map(() => t('comparison.platformAll')),
+    },
+    {
+      key: 'featurePack',
+      values: SUBSCRIPTION_PLANS.map(() => t('comparison.comingSoon')),
+    },
+    {
+      key: 'support',
+      values: SUBSCRIPTION_PLANS.map(() => t('comparison.placeholder')),
+    },
+  ];
 
-  // Use translated FAQ from JSON
   const faqs = Array.from({ length: 7 }, (_, i) => ({
     question: t(`faq.${i + 1}.q`),
-    answer: t(`faq.${i + 1}.a`)
+    answer: t(`faq.${i + 1}.a`),
   }));
+
+  const goRegister = () => {
+    trackConversion('cta_click', 'free_trial');
+    router.push('/register');
+  };
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-gray-50 animate-fade-in">
-      {/* Hero Section */}
-      <div className="bg-white py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h1 className="text-5xl font-bold text-gray-900 mb-4 animate-fade-in-up animation-delay-200">
-              {t('hero.title')}
-            </h1>
-            <p className="text-xl text-gray-600 mb-12 animate-fade-in-up animation-delay-400">
-              {t('hero.subtitle')}
-            </p>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-12 inline-block animate-fade-in-up animation-delay-600 hover:scale-105 transition-transform duration-300">
-              <p className="text-blue-800 font-medium">
-                {t('hero.trial')}
+      <div className="min-h-screen bg-[#f7f8fa]">
+        {/* Hero + cards */}
+        <section className="pt-16 pb-20 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center max-w-3xl mx-auto mb-10">
+              <span className="inline-flex items-center rounded-full border border-[#0a61d7]/25 bg-[#0a61d7]/10 px-3 py-1 text-xs font-semibold text-[#0a61d7] mb-5">
+                {t('hero.badge')}
+              </span>
+              <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 tracking-tight mb-4">
+                {t('hero.title')}
+              </h1>
+              <p className="text-base sm:text-lg text-gray-500 leading-relaxed mb-4">
+                {t('hero.subtitle')}
               </p>
+              <p className="text-sm font-medium text-[#0a61d7] mb-8">{t('hero.trial')}</p>
+
+              <div className="inline-flex items-center gap-1 rounded-full bg-white border border-gray-200 p-1 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setIsAnnual(false)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                    !isAnnual ? 'bg-[#0a61d7] text-white' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  {t('toggle.monthly')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsAnnual(true)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-2 ${
+                    isAnnual ? 'bg-[#0a61d7] text-white' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  {t('toggle.annual')}
+                  <span
+                    className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                      isAnnual ? 'bg-white/20 text-white' : 'bg-[#0a61d7]/10 text-[#0a61d7]'
+                    }`}
+                  >
+                    {t('toggle.save', { percent: ANNUAL_SAVINGS_PERCENT })}
+                  </span>
+                </button>
+              </div>
             </div>
 
-             {/* Billing Toggle */}
-             <div className="flex items-center justify-center mb-8 animate-fade-in-up animation-delay-800">
-               <span className={`text-lg font-medium ${!isAnnual ? 'text-gray-900' : 'text-gray-500'} mr-4 transition-colors duration-300`}>
-                 {t('toggle.monthly')}
-               </span>
-               <button
-                 onClick={() => setIsAnnual(!isAnnual)}
-                 className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-300 hover:scale-110 ${
-                   isAnnual ? 'bg-blue-600' : 'bg-gray-300'
-                 }`}
-               >
-                 <span
-                   className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform duration-300 ${
-                     isAnnual ? 'translate-x-7' : 'translate-x-1'
-                   }`}
-                 />
-               </button>
-               <span className={`text-lg font-medium ${isAnnual ? 'text-gray-900' : 'text-gray-500'} ml-4 transition-colors duration-300`}>
-                 {t('toggle.annual')}
-               </span>
-               {isAnnual && (
-                 <span className="ml-3 bg-green-100 text-green-800 text-sm font-medium px-3 py-1 rounded-full animate-bounce-in animate-pulse">
-                   {t('toggle.save')}
-                 </span>
-               )}
-             </div>
-           </div>
-
-          {/* Pricing Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mt-16">
-            {pricingTiers.map((tier, index: number) => {
-               let borderColor = 'border-gray-200';
-               if (index === 1) borderColor = 'border-blue-500';
-               else if (index === 2) borderColor = 'border-orange-500';
-               else if (index === 3) borderColor = 'border-purple-500';
-               
-               return (
-                 <div
-                   key={tier.name}
-                   className={`relative bg-white rounded-2xl shadow-lg border-2 ${borderColor} p-8 transition-all duration-500 hover:shadow-2xl hover:scale-105 hover:-translate-y-2 animate-fade-in-up`}
-                   style={{ animationDelay: `${(index + 1) * 200}ms` }}
-                 >
-                                 {tier.popular && (
-                   <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                     <span className="bg-blue-500 text-white px-4 py-2 rounded-full text-sm font-medium animate-pulse">
-                       {t('card.mostpopular')}
-                     </span>
-                   </div>
-                 )}
-                <div className="text-center">
-                   <h3 className="text-2xl font-bold text-gray-900 mb-2">{tier.name}</h3>
-                   <div className="mb-4">
-                     <div className="flex flex-col items-center">
-                       <span className="text-2xl font-bold text-gray-900">
-                         {isAnnual ? tier.annualPrice : tier.monthlyPrice}
-                         <span className="text-gray-600 font-medium text-sm ml-1">
-                           {tier.monthlyPrice !== 'Custom' && tier.monthlyPrice !== 'Rp 0' ? (isAnnual ? '/year' : '/month') : ''}
-                         </span>
-                       </span>
-                       {isAnnual && tier.savings > 0 && tier.monthlyPrice !== 'Custom' && tier.monthlyPrice !== 'Rp 0' && (
-                         <span className="text-green-600 text-sm font-medium bg-green-50 px-2 py-1 rounded-md mt-1 animate-bounce-in">
-                           {t('card.savings', { percent: tier.savings })}
-                         </span>
-                       )}
-                     </div>
-                   </div>
-                   <p className="text-gray-600 mb-2">{tier.description}</p>
-                   <p className="text-sm font-medium text-blue-600 mb-6">{tier.commission}</p>
-                 </div>
-
-                <ul className="space-y-3 mb-8">
-                  {tier.features.map((feature: string, featureIndex: number) => (
-                    <li key={featureIndex} className="flex items-start">
-                      <Check className="h-5 w-5 text-green-500 mr-3 mt-0.5 flex-shrink-0" />
-                      <span className="text-gray-700 text-sm">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                                 <button
-                   className={`w-full py-3 px-6 rounded-lg font-medium transition-all duration-300 transform hover:scale-105 hover:shadow-lg ${
-                     tier.buttonVariant === 'primary'
-                       ? 'bg-[#0a61d7] text-white hover:bg-[#084ba6] hover:shadow-blue-500/25'
-                       : 'bg-white-100 text-blue-600 hover:bg-blue-50 border border-blue-600 hover:shadow-blue-500/25'
-                   }`}
-                 >
-                   {tier.buttonText}
-                 </button>
-               </div>
-             );
-           })}
-          </div>
-        </div>
-      </div>
-
-      {/* Feature Comparison Table */}
-      <div className="bg-white py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16 animate-fade-in-up">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              {t('comparison.title')}
-            </h2>
-            <p className="text-xl text-gray-600">
-              {t('comparison.subtitle')}
-            </p>
-          </div>
-          <div className="overflow-x-auto bg-white rounded-lg shadow-lg border border-gray-200 animate-fade-in-up animation-delay-400">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
-                    {t('comparison.plan.free')}
-                  </th>
-                  <th className="px-6 py-4 text-center">
-                    <div className="text-blue-600 text-lg font-medium mb-1">{t('comparison.plan.starter')}</div>
-                    <div className="text-gray-900 text-xl font-bold mb-1">{isAnnual ? 'Rp 1,705,000' : 'Rp 150,000'} <span className="text-gray-600 font-medium text-sm">{isAnnual ? '/year' : '/month'}</span></div>
-                    <button className="border border-blue-600 text-blue-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-50 transition-all duration-300 hover:scale-105 hover:shadow-lg">
-                      {t('card.getstarted')}
-                    </button>
-                  </th>
-                  <th className="px-6 py-4 text-center">
-                    <div className="text-blue-600 text-lg font-medium mb-1">{t('comparison.plan.business')}</div>
-                    <div className="text-gray-900 text-xl font-bold mb-1">
-                      {isAnnual ? 'Rp 5,040,000' : 'Rp 500,000'} <span className="text-gray-600 font-medium text-sm">{isAnnual ? '/year' : '/month'}</span>
-                    </div>
-                    <button className="bg-[#0a61d7] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#084ba6] transition-all duration-300 hover:scale-105 hover:shadow-lg">
-                      {t('card.getstarted')}
-                    </button>
-                  </th>
-                  <th className="px-6 py-4 text-center">
-                    <div className="text-orange-600 text-lg font-medium mb-1">{t('comparison.plan.enterprise')}</div>
-                    <div className="text-gray-900 text-xl font-bold mb-1">
-                      {isAnnual ? 'Rp 10,100,000' : 'Rp 1,000,000'} <span className="text-gray-600 font-medium text-sm">{isAnnual ? '/year' : '/month'}</span>
-                    </div>
-                    <button className="border border-blue-600 text-blue-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-50 transition-all duration-300 hover:scale-105 hover:shadow-lg">
-                      {t('card.getstarted')}
-                    </button>
-                  </th>
-                  <th className="px-6 py-4 text-center">
-                    <div className="text-purple-600 text-lg font-medium mb-1">Unlimited+</div>
-                    <div className="text-gray-900 text-xl font-bold mb-1">
-                      {isAnnual ? 'Rp 10,100,000' : 'Rp 1,000,000'} <span className="text-gray-600 font-medium text-sm">{isAnnual ? '/year' : '/month'}</span>
-                    </div>
-                    <button className="border border-blue-600 text-blue-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-50 transition-all duration-300 hover:scale-105 hover:shadow-lg">
-                      Get Started
-                    </button>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {comparisonFeatures.features.map((row: ComparisonRow, index: number) => (
-                  <tr key={index} className="hover:bg-gray-50 transition-colors duration-200">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {row.feature}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-center">
-                      {row.free === '-' ? (
-                        <span className="text-gray-400">-</span>
-                      ) : (
-                        row.free
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-center">
-                      {row.starter === '-' ? (
-                        <span className="text-gray-400">-</span>
-                      ) : (
-                        row.starter
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-center">
-                      {row.business === '-' ? (
-                        <span className="text-gray-400">-</span>
-                      ) : (
-                        row.business
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-center">
-                      {row.enterprise}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      {/* FAQ Section */}
-      <div className="bg-gray-50 py-24">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16 animate-fade-in-up">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              {t('faq.title')}
-            </h2>
-            <p className="text-xl text-gray-600">
-              {t('faq.subtitle')}
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            {faqs.map((faq, index) => (
-              <div
-                key={index}
-                className="bg-white rounded-lg shadow-md border border-gray-200 animate-fade-in-up hover:shadow-lg transition-all duration-300"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <button
-                  className="w-full px-6 py-4 text-left flex justify-between items-center hover:bg-gray-50 rounded-lg transition-all duration-300"
-                  onClick={() => toggleFaq(index)}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+              {pricingTiers.map((tier) => (
+                <article
+                  key={tier.plan.id}
+                  className={`relative flex flex-col rounded-2xl bg-white pt-6 shadow-sm border transition-shadow hover:shadow-md overflow-hidden ${
+                    tier.popular ? 'border-[#0a61d7] ring-1 ring-[#0a61d7]/20' : 'border-gray-200'
+                  }`}
                 >
-                  <h3 className="text-lg font-bold text-gray-900 pr-4">
-                    {faq.question}
-                  </h3>
-                  {openFaq === index ? (
-                    <ChevronUp className="h-5 w-5 text-gray-500 flex-shrink-0 transition-transform duration-300 rotate-180" />
-                  ) : (
-                    <ChevronDown className="h-5 w-5 text-gray-500 flex-shrink-0 transition-transform duration-300" />
-                  )}
-                </button>
-                {openFaq === index && (
-                  <div className="px-6 pb-4 mt-4 animate-fade-in-down">
-                    <p className="text-gray-700 leading-relaxed">
-                      {faq.answer}
-                    </p>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+                  <div className="px-6">
+                    <div className="flex items-start justify-between gap-2 mb-4">
+                      <div className="w-10 h-10 rounded-xl bg-[#0a61d7]/10 flex items-center justify-center">
+                        {PLAN_ICONS[tier.plan.id]}
+                      </div>
+                      {tier.popular && (
+                        <span className="rounded-full bg-[#0a61d7]/10 px-2.5 py-1 text-[11px] font-semibold text-[#0a61d7]">
+                          {t('card.mostpopular')}
+                        </span>
+                      )}
+                    </div>
 
-      {/* CTA Section */}
-      <div className="bg-gradient-to-r from-[#0a61d7] to-[#084ba6] py-16">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold text-white mb-4 animate-fade-in-up">
-            {t('cta.title')}
-          </h2>
-          <p className="text-xl text-blue-100 mb-8 animate-fade-in-up animation-delay-200">
-            {t('cta.subtitle')}
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in-up animation-delay-400">
-            <button 
-              onClick={() => {
-                trackConversion('cta_click', 'free_trial');
-                router.push('/register');
-              }}
-              className="bg-orange-500 text-white px-10 py-4 rounded-lg text-md font-bold hover:bg-orange-600 transition-all duration-300 shadow-2xl hover:shadow-orange-500/25 transform hover:-translate-y-2 hover:scale-105"
-              aria-label="Start free trial">
-              {t('cta.trial')}
-            </button>
-            <button className="bg-white text-blue-600 px-10 py-4 rounded-lg text-md font-medium hover:bg-gray-100 transition-all duration-300 shadow-2xl hover:shadow-blue-500/25 transform hover:-translate-y-2 hover:scale-105">
-              {t('cta.contact')}
-            </button>
+                    <div className="mb-5">
+                      <h3 className="text-lg font-bold text-gray-900 mb-1">{tier.name}</h3>
+                      <p className="text-sm text-gray-500 leading-snug min-h-[40px]">{tier.description}</p>
+                    </div>
+
+                    <div className="mb-5">
+                      <div className="flex items-baseline gap-1 whitespace-nowrap">
+                        <span className="text-2xl font-bold text-gray-900 tracking-tight">{tier.priceLabel}</span>
+                        {tier.showPeriod && (
+                          <span className="text-sm font-medium text-gray-500">{periodLabel}</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1.5">
+                        {tier.isEnterprise ? t('card.enterpriseHint') : t('card.priceHint')}
+                      </p>
+                      <p className="text-xs font-medium text-gray-700 mt-2">
+                        {t('card.retailersBand', { band: tier.plan.connections })}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={tier.isEnterprise ? undefined : goRegister}
+                      className={`w-full inline-flex items-center justify-center gap-2 rounded-xl py-2.5 px-4 text-sm font-semibold transition-colors mb-6 ${
+                        tier.isEnterprise
+                          ? 'bg-white text-gray-900 border border-gray-300 hover:bg-gray-50'
+                          : 'bg-[#0a61d7] text-white hover:bg-[#084ba6]'
+                      }`}
+                    >
+                      {tier.isEnterprise ? t('card.contactSales') : t('card.getstarted')}
+                      {tier.isEnterprise && <ArrowRight className="w-4 h-4" />}
+                    </button>
+                  </div>
+
+                  <div className="border-t border-gray-200 px-6 pt-5 pb-6 flex-1">
+                    <p className="text-sm font-semibold text-gray-900 mb-3">
+                      {t('card.includes', { name: tier.name })}
+                    </p>
+                    <ul className="space-y-2.5">
+                      {tier.features.map((feature, featureIndex) => (
+                        <li key={featureIndex} className="flex items-start gap-2.5">
+                          <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#0a61d7]/10">
+                            <Check className="h-2.5 w-2.5 text-[#0a61d7]" strokeWidth={3} />
+                          </span>
+                          <span className="text-sm text-gray-600 leading-snug">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </article>
+              ))}
+            </div>
           </div>
-        </div>
-      </div>
+        </section>
+
+        {/* Comparison */}
+        <section className="pb-16 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">{t('comparison.title')}</h2>
+              <p className="text-gray-500">{t('comparison.subtitle')}</p>
+            </div>
+            <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
+              <table className="w-full min-w-[720px]">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50/80">
+                    <th className="px-5 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {t('comparison.featureColumn')}
+                    </th>
+                    {pricingTiers.map((tier) => (
+                      <th key={tier.plan.id} className="px-5 py-4 text-center">
+                        <div
+                          className={`text-sm font-semibold mb-1 ${
+                            tier.popular ? 'text-[#0a61d7]' : 'text-gray-900'
+                          }`}
+                        >
+                          {tier.name}
+                        </div>
+                        <div className="text-sm font-bold text-gray-900 mb-2 whitespace-nowrap">
+                          {tier.priceLabel}
+                          {tier.showPeriod && (
+                            <span className="text-gray-500 font-medium text-xs ml-1">{periodLabel}</span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={tier.isEnterprise ? undefined : goRegister}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                            tier.popular
+                              ? 'bg-[#0a61d7] text-white hover:bg-[#084ba6]'
+                              : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {tier.isEnterprise ? t('card.contactSales') : t('card.getstarted')}
+                        </button>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {comparisonRows.map((row) => (
+                    <tr key={row.key} className="hover:bg-gray-50/60">
+                      <td className="px-5 py-3.5 text-sm font-medium text-gray-900 whitespace-nowrap">
+                        {t(`comparison.rows.${row.key}`)}
+                      </td>
+                      {row.values.map((value, i) => (
+                        <td key={`${row.key}-${i}`} className="px-5 py-3.5 text-sm text-gray-600 text-center">
+                          {value}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        {/* FAQ */}
+        <section className="pb-20 px-4 sm:px-6 lg:px-8 bg-white border-t border-gray-100">
+          <div className="max-w-3xl mx-auto pt-16">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">{t('faq.title')}</h2>
+              <p className="text-gray-500">{t('faq.subtitle')}</p>
+            </div>
+            <div className="space-y-3">
+              {faqs.map((faq, index) => (
+                <div key={index} className="rounded-xl border border-gray-200 bg-[#f7f8fa]/50">
+                  <button
+                    type="button"
+                    className="w-full px-5 py-4 text-left flex justify-between items-center hover:bg-gray-50 rounded-xl"
+                    onClick={() => setOpenFaq(openFaq === index ? null : index)}
+                  >
+                    <h3 className="text-sm font-semibold text-gray-900 pr-4">{faq.question}</h3>
+                    {openFaq === index ? (
+                      <ChevronUp className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                    )}
+                  </button>
+                  {openFaq === index && (
+                    <div className="px-5 pb-4">
+                      <p className="text-sm text-gray-600 leading-relaxed">{faq.answer}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* CTA */}
+        <section className="bg-[#0a61d7] py-14 px-4">
+          <div className="max-w-3xl mx-auto text-center">
+            <h2 className="text-3xl font-bold text-white mb-3">{t('cta.title')}</h2>
+            <p className="text-blue-100 mb-8">{t('cta.subtitle')}</p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                type="button"
+                onClick={goRegister}
+                className="bg-white text-[#0a61d7] px-8 py-3 rounded-xl text-sm font-semibold hover:bg-blue-50 transition-colors"
+              >
+                {t('cta.trial')}
+              </button>
+              <button
+                type="button"
+                className="bg-transparent text-white px-8 py-3 rounded-xl text-sm font-medium border border-white/40 hover:bg-white/10 transition-colors"
+              >
+                {t('cta.contact')}
+              </button>
+            </div>
+          </div>
+        </section>
       </div>
     </ErrorBoundary>
   );

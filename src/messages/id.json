@@ -239,156 +239,119 @@
   },
   "pricing": {
     "hero": {
-      "title": "Harga Sederhana & Transparan",
-      "subtitle": "Tanpa kejutan. Pilih paket yang sesuai dengan kebutuhan bisnis Anda.",
-      "trial": "Uji coba gratis 14 hari. Tidak perlu kartu kredit."
+      "badge": "Harga",
+      "title": "Paket harga fleksibel untuk setiap kebutuhan",
+      "subtitle": "Bayar sesuai skala jaringan ritel Anda. Setiap paket mencakup platform Laku penuh — Dashboard, Marketplace, dan Driver.",
+      "trial": "Uji coba gratis 30 hari. Tidak perlu kartu kredit."
     },
     "toggle": {
-      "monthly": "Bulanan",
-      "annual": "Tahunan",
-      "save": "Hemat hingga 20%"
+      "monthly": "Tagihan bulanan",
+      "annual": "Tagihan tahunan",
+      "save": "Hemat {percent}%"
     },
     "card": {
-      "free": "Gratis",
-      "starter": "Starter",
-      "business": "Bisnis",
-      "enterprise": "Enterprise",
       "getstarted": "Mulai",
-      "mostpopular": "Paling Populer",
-      "savings": "Hemat {percent}%",
-      "commission": "Biaya komisi {percent}%"
+      "contactSales": "Hubungi sales",
+      "mostpopular": "Paket Populer",
+      "savings": "Hemat ~{percent}%",
+      "perMonth": "/bulan",
+      "perYear": "/tahun",
+      "connectionsLabel": "Retailer aktif",
+      "retailersBand": "{band} retailer",
+      "custom": "Kustom",
+      "from": "Mulai",
+      "includes": "Paket {name} mencakup:",
+      "priceHint": "Jeda atau batalkan kapan saja",
+      "enterpriseHint": "Ketentuan kustom dan dukungan khusus"
     },
-    "description": {
-      "free": "Cocok untuk pemula",
-      "starter": "Untuk penjual kecil yang ingin mencoba platform",
-      "business": "Untuk penjual berkembang dengan volume stabil",
-      "enterprise": "Untuk mitra utama, loyalitas terinspirasi"
-    },
-    "tiers": [
-      {
-        "name": "Gratis",
-        "description": "Cocok untuk pemula",
-        "features": [
-          "50 SKU Listing Marketplace",
-          "Analitik Transaksi Dasar",
-          "Dashboard Penjual Dasar",
-          "Input Order Manual",
-          "Dukungan Email",
-          "Kupon Marketing Dasar",
-          "Pencairan 7 hari",
-          "1 Gudang",
-          "1 Akun Staf"
-        ],
-        "commission": "Biaya komisi 3%"
-      },
-      {
+    "tiers": {
+      "starter": {
         "name": "Starter",
-        "description": "Untuk penjual kecil yang ingin mencoba platform",
+        "description": "Grosir lokal, operasi digital awal, tim pengiriman kecil",
         "features": [
-          "200 SKU Listing Marketplace",
-          "Analitik Transaksi Standar",
-          "Dashboard Penjual Standar",
-          "Manajemen Order Upload Massal",
-          "Dukungan Email & Chat",
-          "Kupon + Diskon",
-          "Pencairan 5 hari",
-          "1 Gudang",
-          "5 Akun Staf"
-        ],
-        "commission": "Biaya komisi 2%"
+          "Detail fitur segera tersedia",
+          "Dashboard, Marketplace & Driver Laku lengkap",
+          "Diharga berdasarkan koneksi ritel aktif"
+        ]
       },
-      {
-        "name": "Bisnis",
-        "description": "Untuk penjual berkembang dengan volume stabil",
+      "growth": {
+        "name": "Growth",
+        "description": "Distributor FMCG regional dengan penjualan dan armada terstruktur",
         "features": [
-          "1.000 SKU Listing Marketplace",
-          "Analitik Transaksi Lanjutan",
-          "Dashboard Penjual Premium",
-          "Upload Massal + Sinkronisasi Otomatis",
-          "Dukungan Chat Prioritas",
-          "Kampanye + Iklan Marketing",
-          "Pencairan 3 hari",
-          "3 Gudang",
-          "15 Akun Staf",
-          "Branding Kustom Tersedia"
-        ],
-        "commission": "Biaya komisi 1%"
+          "Detail fitur segera tersedia",
+          "Dashboard, Marketplace & Driver Laku lengkap",
+          "Diharga berdasarkan koneksi ritel aktif"
+        ]
       },
-      {
+      "scale": {
+        "name": "Scale",
+        "description": "Operasi multi-rute, volume order tinggi, berbasis analitik",
+        "features": [
+          "Detail fitur segera tersedia",
+          "Dashboard, Marketplace & Driver Laku lengkap",
+          "Diharga berdasarkan koneksi ritel aktif"
+        ]
+      },
+      "enterprise": {
         "name": "Enterprise",
-        "description": "Untuk mitra utama, loyalitas terinspirasi",
+        "description": "Cakupan regional atau nasional besar dengan SLA dan onboarding",
         "features": [
-          "Listing Marketplace Tak Terbatas",
-          "Laporan Lanjutan + Kustom",
-          "Dashboard Premium + Akses API",
-          "Integrasi API Penuh",
-          "Dukungan Manajer Khusus",
-          "Dukungan Kampanye Kustom",
-          "Pencairan Instan/Kustom",
-          "Gudang Tak Terbatas",
-          "Akun Staf Tak Terbatas",
-          "Pengalaman Full Branding"
-        ],
-        "commission": "Biaya komisi 0,5%"
+          "Detail fitur segera tersedia",
+          "Dashboard, Marketplace & Driver Laku lengkap",
+          "Harga dinegosiasikan sesuai volume"
+        ]
       }
-    ],
+    },
     "comparison": {
-      "title": "Perbandingan Fitur",
-      "subtitle": "Perbandingan fitur antara semua paket",
-      "plan": {
-        "free": "Gratis",
-        "starter": "Starter",
-        "business": "Bisnis",
-        "enterprise": "Enterprise"
+      "title": "Perbandingan paket",
+      "subtitle": "Bandingkan rentang koneksi dan harga antar paket. Detail fitur akan dipublikasikan segera.",
+      "featureColumn": "Detail",
+      "comingSoon": "Segera hadir",
+      "rows": {
+        "connections": "Retailer aktif",
+        "price": "Harga",
+        "platformAccess": "Akses platform",
+        "featurePack": "Kapabilitas termasuk",
+        "support": "Dukungan"
       },
-      "features": [
-      { "feature": "Listing Marketplace", "free": "50 SKU", "starter": "200 SKU", "business": "1.000 SKU", "enterprise": "Tak Terbatas" },
-      { "feature": "Analitik Transaksi", "free": "Dasar", "starter": "Standar", "business": "Lanjutan", "enterprise": "Lanjutan + Laporan Kustom" },
-      { "feature": "Dashboard Penjual", "free": "Dasar", "starter": "Standar", "business": "Premium", "enterprise": "Premium + Akses API" },
-      { "feature": "Manajemen Order", "free": "Input Manual", "starter": "Upload Massal", "business": "Upload Massal + Sinkronisasi", "enterprise": "Integrasi API Penuh" },
-      { "feature": "Dukungan Pelanggan", "free": "Email", "starter": "Email & Chat", "business": "Chat Prioritas", "enterprise": "Manajer Khusus" },
-      { "feature": "Alat Marketing", "free": "Kupon Dasar", "starter": "Kupon + Diskon", "business": "Kampanye + Iklan", "enterprise": "Dukungan Kampanye Kustom" },
-      { "feature": "Pencairan Pembayaran", "free": "7 hari", "starter": "5 hari", "business": "3 hari", "enterprise": "Instan/Kustom" },
-      { "feature": "Dukungan Multi-Gudang", "free": "1 Gudang", "starter": "1 Gudang", "business": "3 Gudang", "enterprise": "Tak Terbatas" },
-      { "feature": "Akun Staf", "free": "1", "starter": "5", "business": "15", "enterprise": "Tak Terbatas" },
-      { "feature": "Branding Kustom", "free": "-", "starter": "-", "business": "Tersedia", "enterprise": "Full Branding" }
-    ]
-  },
+      "platformAll": "Platform penuh",
+      "placeholder": "—"
+    },
     "faq": {
       "title": "Pertanyaan yang Sering Diajukan",
       "subtitle": "Semua yang perlu Anda ketahui tentang harga kami",
       "1": {
-        "q": "Apakah saya harus membayar biaya bulanan dan komisi?",
-        "a": "Ya, Laku menggunakan model monetisasi ganda. Biaya bulanan untuk fitur SaaS, dan komisi per transaksi untuk mendukung pertumbuhan marketplace."
+        "q": "Bagaimana paket saya ditentukan?",
+        "a": "Paket didasarkan pada koneksi ritel aktif — pembeli di modul Klien yang memiliki minimal satu pesanan dalam 90 hari terakhir. Tier diterapkan dari jumlah tersebut pada setiap tanggal penagihan."
       },
       "2": {
         "q": "Apakah ada uji coba gratis?",
-        "a": "Ya, paket Starter dan Bisnis termasuk uji coba gratis 14 hari tanpa kartu kredit."
+        "a": "Ya. Setiap distributor baru mendapat uji coba gratis 30 hari dengan akses Dashboard penuh. Penagihan dimulai hari ke-31 jika Anda melanjutkan."
       },
       "3": {
         "q": "Apa keuntungan pembayaran tahunan?",
-        "a": "Pembayaran tahunan menawarkan penghematan besar: 10% untuk Starter, 16% untuk Bisnis, dan 8% untuk Enterprise. Anda juga cukup membayar sekali setahun."
+        "a": "Pembayaran tahunan dihargai 10× tarif bulanan (gratis 2 bulan), sekitar 17% lebih hemat dibanding bayar bulanan."
       },
       "4": {
         "q": "Metode pembayaran apa saja yang diterima?",
         "a": "Kami menerima transfer bank (BCA, Mandiri, BRI), virtual account, dan kartu kredit/debit."
       },
       "5": {
-        "q": "Bisakah saya upgrade/downgrade paket kapan saja?",
-        "a": "Ya, Anda bisa ganti paket di akhir siklus tagihan tanpa penalti."
+        "q": "Bisakah saya upgrade atau downgrade paket?",
+        "a": "Ya. Seiring bertambahnya koneksi ritel aktif, Anda dapat naik ke tier lebih tinggi. Downgrade berlaku pada siklus penagihan berikutnya."
       },
       "6": {
-        "q": "Bagaimana komisi dihitung?",
-        "a": "Komisi dihitung sebagai persentase dari nilai pesanan (tidak termasuk ongkir)."
+        "q": "Apakah semua paket termasuk Marketplace dan Driver?",
+        "a": "Ya. Setiap paket mencakup loop Laku penuh — Dashboard, aplikasi pembeli Marketplace, dan Driver — tanpa pembatasan fitur per tier."
       },
       "7": {
-        "q": "Apakah Enterprise termasuk integrasi ERP/WMS?",
-        "a": "Ya, penjual Enterprise mendapat akses API penuh dan dukungan onboarding integrasi sistem."
+        "q": "Kapan saya harus memilih Enterprise?",
+        "a": "Enterprise untuk distributor dengan 10.000+ retailer aktif yang membutuhkan harga kustom, SLA, dan dukungan onboarding. Hubungi sales untuk penawaran."
       }
     },
     "cta": {
       "title": "Siap mulai?",
-      "subtitle": "Bergabunglah dengan ribuan penjual yang mengembangkan bisnisnya bersama Laku",
+      "subtitle": "Mulai uji coba 30 hari dan kelola jaringan distribusi Anda dengan Laku",
       "trial": "Coba Gratis",
       "contact": "Hubungi Sales"
     }
