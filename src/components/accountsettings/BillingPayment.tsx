@@ -1000,15 +1000,8 @@ export default function BillingPayment() {
                   return (
                     <div
                       key={plan.id}
-                      className={`relative rounded-lg border p-3 flex flex-col ${
-                        plan.popular ? 'border-[#0a61d7] bg-blue-50/40' : 'border-gray-200'
-                      }`}
+                      className="relative rounded-lg border border-gray-200 p-3 flex flex-col"
                     >
-                      {plan.popular && (
-                        <span className="absolute -top-2 left-3 bg-[#0a61d7] text-white text-[10px] font-medium px-2 py-0.5 rounded-full">
-                          {tBilling('subscription.mostPopular')}
-                        </span>
-                      )}
                       <p className="text-sm font-semibold text-black mb-0.5">
                         {tBilling(`subscription.plans.${plan.id}.name`)}
                       </p>
@@ -1034,12 +1027,14 @@ export default function BillingPayment() {
                       </ul>
                       <button
                         type="button"
-                        disabled
-                        title={tBilling('subscription.comingSoonCta')}
-                        className={`w-full py-1.5 rounded-lg text-xs font-medium disabled:opacity-60 disabled:cursor-not-allowed ${
-                          plan.popular
-                            ? 'bg-[#0a61d7] text-white'
-                            : 'border border-gray-300 text-gray-700'
+                        onClick={() => {
+                          setError(null);
+                          setSuccess(tBilling('subscription.comingSoonCta'));
+                        }}
+                        className={`w-full py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                          isEnterprise
+                            ? 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                            : 'bg-[#0a61d7] text-white hover:bg-[#0a52c0]'
                         }`}
                       >
                         {isEnterprise
