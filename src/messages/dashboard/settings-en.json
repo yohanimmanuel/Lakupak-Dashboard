@@ -383,7 +383,7 @@
       "saveFailed": "Save failed",
       "companyNotLoaded": "Company profile is not loaded yet",
       "paymentTermInvalid": "Payment term must be a whole number of days (1 or more), or left empty",
-      "expiryInvalid": "Please enter valid expiry month (01-12) and year",
+      "expiryInvalid": "Please enter a valid expiry month (01–12) and a 4-digit year (e.g. 2028)",
       "cardNumberRequired": "Enter the full card number (at least 4 digits). Only the last 4 digits are stored."
     },
     "success": {

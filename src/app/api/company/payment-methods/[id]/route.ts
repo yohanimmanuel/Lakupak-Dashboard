@@ -11,6 +11,9 @@ import {
   readOptionalTrimmedStringOrNull,
   lastDigitsFromAccountInput,
   parseStatus,
+  parseKind,
+  buildPaymentMethodLabel,
+  isValidCardExpiry,
   type CompanyPaymentMethodResponseJson,
 } from '../paymentMethodRouteTypes';
 import { broadcastProductUpdatesForCompanyId } from '@/utils/broadcastCompanyProductUpdates';
@@ -106,48 +109,131 @@ export async function PATCH(
 
     const isDefault = body.isDefault === true ? true : body.isDefault === false ? false : undefined;
 
-    const data: Prisma.CompanyPaymentMethodUpdateInput = {};
-
-    if ('label' in body) {
-      const next = readOptionalTrimmedString(body.label);
-      if (!next) {
-        return NextResponse.json({ error: 'Label cannot be empty' }, { status: 400, headers });
-      }
-      data.label = next;
+    const nextKindParsed = 'kind' in body ? parseKind(body.kind) : undefined;
+    if ('kind' in body && nextKindParsed === null) {
+      return NextResponse.json({ error: 'Invalid payment method kind' }, { status: 400, headers });
     }
+    const kind = nextKindParsed ?? owned.method.kind;
+    const kindChanged = nextKindParsed != null && nextKindParsed !== owned.method.kind;
+
+    let last4 = owned.method.last4;
+    let expiryMonth = owned.method.expiryMonth;
+    let expiryYear = owned.method.expiryYear;
+    let bankName = owned.method.bankName;
+    let accountHolderName = owned.method.accountHolderName;
+    let accountNumberLast4 = owned.method.accountNumberLast4;
+    let ewalletProvider = owned.method.ewalletProvider;
+    let status = owned.method.status;
+
     if ('cardNumber' in body) {
       const cardNumberInput = readOptionalTrimmedString(body.cardNumber);
       if (cardNumberInput) {
-        data.last4 = lastDigitsFromAccountInput(cardNumberInput, 4);
+        last4 = lastDigitsFromAccountInput(cardNumberInput, 4);
       }
+    } else if ('last4' in body) {
+      last4 = readOptionalTrimmedStringOrNull(body.last4) ?? null;
     }
-    if ('last4' in body && !('cardNumber' in body)) {
-      data.last4 = readOptionalTrimmedStringOrNull(body.last4) ?? null;
+    if ('expiryMonth' in body) expiryMonth = readOptionalInt(body.expiryMonth) ?? null;
+    if ('expiryYear' in body) expiryYear = readOptionalInt(body.expiryYear) ?? null;
+    if ('bankName' in body) bankName = readOptionalTrimmedStringOrNull(body.bankName) ?? null;
+    if ('accountHolderName' in body) {
+      accountHolderName = readOptionalTrimmedStringOrNull(body.accountHolderName) ?? null;
     }
-    if ('expiryMonth' in body) data.expiryMonth = readOptionalInt(body.expiryMonth) ?? null;
-    if ('expiryYear' in body) data.expiryYear = readOptionalInt(body.expiryYear) ?? null;
-    if ('bankName' in body) data.bankName = readOptionalTrimmedStringOrNull(body.bankName) ?? null;
-    if ('accountHolderName' in body) data.accountHolderName = readOptionalTrimmedStringOrNull(body.accountHolderName) ?? null;
-    if ('ewalletProvider' in body) data.ewalletProvider = readOptionalTrimmedStringOrNull(body.ewalletProvider) ?? null;
+    if ('ewalletProvider' in body) {
+      ewalletProvider = readOptionalTrimmedStringOrNull(body.ewalletProvider) ?? null;
+    }
     if ('status' in body) {
       const nextStatus = parseStatus(body.status);
       if (nextStatus === null) {
         return NextResponse.json({ error: 'Invalid status' }, { status: 400, headers });
       }
-      data.status = nextStatus;
+      status = nextStatus;
     }
-
     if ('accountNumberLast4' in body || 'accountNumber' in body) {
-      let nextLast4 = 'accountNumberLast4' in body ? readOptionalTrimmedStringOrNull(body.accountNumberLast4) : undefined;
+      let nextLast4 =
+        'accountNumberLast4' in body ? readOptionalTrimmedStringOrNull(body.accountNumberLast4) : undefined;
       const accountNumberInput = readOptionalTrimmedString(body.accountNumber);
       if (accountNumberInput) {
         nextLast4 = lastDigitsFromAccountInput(accountNumberInput, 4);
       }
       if ('accountNumberLast4' in body || accountNumberInput) {
-        data.accountNumberLast4 = nextLast4 ?? null;
+        accountNumberLast4 = nextLast4 ?? null;
       }
     }
 
+    if (kindChanged) {
+      if (kind === 'CARD') {
+        bankName = null;
+        accountHolderName = null;
+        accountNumberLast4 = null;
+        ewalletProvider = null;
+      } else if (kind === 'BANK_TRANSFER') {
+        last4 = null;
+        expiryMonth = null;
+        expiryYear = null;
+        ewalletProvider = null;
+      } else {
+        last4 = null;
+        expiryMonth = null;
+        expiryYear = null;
+        bankName = null;
+        accountHolderName = null;
+        accountNumberLast4 = null;
+      }
+    }
+
+    if (kind === 'CARD') {
+      if (!last4 || last4.length < 4) {
+        return NextResponse.json(
+          { error: 'Card number (at least 4 digits) is required for cards' },
+          { status: 400, headers }
+        );
+      }
+      if (!isValidCardExpiry(expiryMonth, expiryYear)) {
+        return NextResponse.json(
+          { error: 'Valid card expiry month (1–12) and year are required' },
+          { status: 400, headers }
+        );
+      }
+    }
+    if (kind === 'BANK_TRANSFER') {
+      if (!bankName || !accountHolderName) {
+        return NextResponse.json(
+          { error: 'Bank name and account holder name are required for bank transfer' },
+          { status: 400, headers }
+        );
+      }
+      if (!accountNumberLast4 || accountNumberLast4.length < 4) {
+        return NextResponse.json(
+          { error: 'Account number (at least 4 digits) is required for bank transfer' },
+          { status: 400, headers }
+        );
+      }
+    }
+    if (kind === 'EWALLET' && !ewalletProvider) {
+      return NextResponse.json({ error: 'E-wallet provider is required' }, { status: 400, headers });
+    }
+
+    const labelFromBody = 'label' in body ? readOptionalTrimmedString(body.label) : undefined;
+    if ('label' in body && !labelFromBody) {
+      return NextResponse.json({ error: 'Label cannot be empty' }, { status: 400, headers });
+    }
+    const label =
+      labelFromBody ??
+      buildPaymentMethodLabel({ kind, last4, bankName, ewalletProvider });
+
+    const data: Prisma.CompanyPaymentMethodUpdateInput = {
+      kind,
+      label,
+      last4: kind === 'CARD' ? last4 : null,
+      expiryMonth: kind === 'CARD' ? expiryMonth : null,
+      expiryYear: kind === 'CARD' ? expiryYear : null,
+      bankName: kind === 'BANK_TRANSFER' ? bankName : null,
+      accountHolderName: kind === 'BANK_TRANSFER' ? accountHolderName : null,
+      accountNumberLast4: kind === 'BANK_TRANSFER' ? accountNumberLast4 : null,
+      ewalletProvider: kind === 'EWALLET' ? ewalletProvider : null,
+      status,
+    };
     if (isDefault !== undefined) data.isDefault = isDefault;
 
     const updated = await prisma.$transaction(async (tx) => {
@@ -156,10 +242,6 @@ export async function PATCH(
           where: { companyId: owned.companyId },
           data: { isDefault: false },
         });
-      }
-
-      if (Object.keys(data).length === 0) {
-        return tx.companyPaymentMethod.findUniqueOrThrow({ where: { id: methodId } });
       }
 
       return tx.companyPaymentMethod.update({

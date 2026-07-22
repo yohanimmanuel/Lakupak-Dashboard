@@ -114,16 +114,20 @@ enum CompanyPaymentMethodStatus {
 }
 
 /// Saved payment methods for a distributor company (cards, bank debit accounts, e-wallets).
+/// Clients submit type + details only; full PANs / account numbers are never stored.
 model CompanyPaymentMethod {
   id                 String                     @id @default(cuid())
   companyId          Int
   kind               CompanyPaymentMethodKind
+  /// System-generated from kind + details (e.g. "Card ····4242"). Not a user-facing display label input.
   label              String
+  /// Card last 4 digits only (derived from cardNumber on create/update).
   last4              String?
   expiryMonth        Int?
   expiryYear         Int?
   bankName           String?
   accountHolderName  String?
+  /// Bank account last 4 digits only (derived from accountNumber on create/update).
   accountNumberLast4 String?
   ewalletProvider    String?
   isDefault          Boolean                    @default(false)

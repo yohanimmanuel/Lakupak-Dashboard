@@ -3,8 +3,23 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutGrid, Megaphone, Tag, Users, Shield, UserRound, ChartArea, Search, LogOut } from 'lucide-react';
+import {
+  LayoutGrid,
+  Megaphone,
+  Tag,
+  Users,
+  UserRound,
+  ChartArea,
+  Search,
+  LogOut,
+  X,
+  PanelLeft,
+  PanelLeftClose,
+} from 'lucide-react';
 import { useAdminMenuContext } from './AdminClientLayout';
+
+const LAKU_PRIMARY_TEXT = 'text-[#0a61d7]';
+const LAKU_PRIMARY_BG = 'bg-[#e8f0fe]';
 
 const items = [
   { href: '/admin', label: 'Home', icon: <LayoutGrid className="w-5 h-5" /> },
@@ -18,20 +33,18 @@ const items = [
 
 export default function AdminMenu() {
   const pathname = usePathname() ?? '';
-  const { isCollapsed } = useAdminMenuContext();
-  const shouldShowExpanded = !isCollapsed;
+  const { isCollapsed, toggleMenu, toggleMobileMenu } = useAdminMenuContext();
+  const [isMobile, setIsMobile] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
-  // Keep the menu footer info consistent with the navbar (name/email).
-  const [me, setMe] = useState<{ name: string | null; email: string } | null>(null);
+  const shouldShowExpanded = isMobile || !isCollapsed;
+  const isIconOnly = !shouldShowExpanded;
+
   useEffect(() => {
-    fetch('/api/platform-admin/me')
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((d) => {
-        const admin = d?.admin as { name?: string | null; email?: string } | undefined;
-        if (admin?.email) setMe({ name: admin.name ?? null, email: admin.email });
-      })
-      .catch(() => {});
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   const logout = async () => {
@@ -45,59 +58,97 @@ export default function AdminMenu() {
   };
 
   return (
-    <div className="text-sm h-full flex flex-col bg-white relative" data-admin-menu>
-      <div className="px-4 h-16 border-b border-gray-200 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-[#0a61d7] flex items-center justify-center">
-          <Shield className="w-5 h-5 text-white" />
+    <div className="text-sm h-full flex flex-col bg-white relative overflow-x-hidden min-w-0" data-admin-menu>
+      {isMobile && (
+        <div className="flex items-center justify-end px-3 py-2 border-b border-gray-200 md:hidden">
+          <button
+            type="button"
+            onClick={toggleMobileMenu}
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            aria-label="Close menu"
+          >
+            <X className="w-5 h-5 text-gray-600" />
+          </button>
         </div>
-        {shouldShowExpanded && (
-          <div>
-            <p className="text-sm font-semibold text-gray-900 leading-tight">Laku Admin</p>
-            <p className="text-xs text-gray-500 leading-tight">Platform controls</p>
-          </div>
-        )}
+      )}
+
+      <div className="flex-1 overflow-y-auto overflow-x-hidden min-w-0">
+        <nav className="flex flex-col gap-1 py-3 px-2 text-[14px]">
+          {items.map((item) => {
+            const isActive =
+              item.href === '/admin'
+                ? pathname === '/admin'
+                : pathname === item.href || pathname.startsWith(item.href + '/');
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => {
+                  if (isMobile) toggleMobileMenu();
+                }}
+                className={`group flex w-full min-w-0 items-center gap-3 px-2.5 py-2 rounded-lg font-medium transition-colors duration-150 relative ${
+                  isActive
+                    ? `${LAKU_PRIMARY_TEXT} ${LAKU_PRIMARY_BG}`
+                    : 'text-gray-500 hover:text-[#0a61d7] hover:bg-gray-100'
+                }`}
+                title={isIconOnly ? item.label : undefined}
+              >
+                <span className="w-[20px] h-[20px] flex items-center justify-center flex-shrink-0 [&>svg]:text-current">
+                  {item.icon}
+                </span>
+                <span
+                  className={`whitespace-nowrap transition-opacity duration-200 ${
+                    shouldShowExpanded ? 'opacity-100' : 'opacity-0'
+                  }`}
+                >
+                  {item.label}
+                </span>
+              </Link>
+            );
+          })}
+        </nav>
       </div>
 
-      <div className="p-2 space-y-1 flex-1 overflow-y-auto">
-        {items.map((item) => {
-          const isActive =
-            item.href === '/admin'
-              ? pathname === '/admin'
-              : pathname === item.href || pathname.startsWith(item.href + '/');
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-2.5 py-2 rounded-lg font-medium transition-colors duration-100 relative group ${
-                isActive ? 'text-[#007bff]' : 'text-gray-500 hover:text-blue-400'
-              }`}
-              title={!shouldShowExpanded ? item.label : undefined}
-            >
-              {isActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#007bff] rounded-r" />}
-              <span className="w-[20px] h-[20px] flex items-center justify-center flex-shrink-0 [&>svg]:text-current">
-                {item.icon}
-              </span>
-              {shouldShowExpanded && <span className="whitespace-nowrap">{item.label}</span>}
-            </Link>
-          );
-        })}
-      </div>
-
-      <div className="p-3">
+      <div
+        className={`shrink-0 border-t border-gray-200 flex px-2 py-2.5 ${
+          shouldShowExpanded ? 'items-center justify-between' : 'flex-col gap-1'
+        }`}
+      >
         <button
-          onClick={logout}
+          type="button"
+          onClick={() => void logout()}
           disabled={signingOut}
-          className={`w-full mt-2 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60 ${
-            !shouldShowExpanded ? 'px-2' : ''
+          className={`flex items-center rounded-lg py-2 px-2.5 text-gray-600 hover:bg-gray-100 hover:text-[#0a61d7] transition-colors disabled:opacity-60 ${
+            shouldShowExpanded ? '' : 'w-full'
           }`}
-          title={!shouldShowExpanded ? (signingOut ? 'Signing out…' : 'Sign out') : undefined}
-          aria-label={!shouldShowExpanded ? (signingOut ? 'Signing out…' : 'Sign out') : undefined}
+          title={signingOut ? 'Signing out…' : 'Sign out'}
+          aria-label={signingOut ? 'Signing out…' : 'Sign out'}
         >
-          <LogOut className="w-4 h-4" />
-          {shouldShowExpanded ? (signingOut ? 'Signing out…' : 'Sign out') : null}
+          <span className="flex h-5 w-5 items-center justify-center">
+            <LogOut size={18} />
+          </span>
+          {shouldShowExpanded ? (
+            <span className="ml-2 text-sm whitespace-nowrap">
+              {signingOut ? 'Signing out…' : 'Sign out'}
+            </span>
+          ) : null}
         </button>
+        {!isMobile && (
+          <button
+            type="button"
+            onClick={toggleMenu}
+            className={`flex items-center rounded-lg py-2 px-2.5 text-gray-600 hover:bg-gray-100 hover:text-[#0a61d7] transition-colors ${
+              shouldShowExpanded ? '' : 'w-full'
+            }`}
+            aria-label={isCollapsed ? 'Expand menu' : 'Collapse menu'}
+            title={isCollapsed ? 'Expand menu' : 'Collapse menu'}
+          >
+            <span className="flex h-5 w-5 items-center justify-center">
+              {isCollapsed ? <PanelLeft size={18} /> : <PanelLeftClose size={18} />}
+            </span>
+          </button>
+        )}
       </div>
     </div>
   );
 }
-

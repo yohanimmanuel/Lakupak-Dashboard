@@ -11,6 +11,8 @@ import {
   readOptionalTrimmedString,
   readOptionalTrimmedStringOrNull,
   lastDigitsFromAccountInput,
+  buildPaymentMethodLabel,
+  isValidCardExpiry,
   type CompanyPaymentMethodResponseJson,
 } from './paymentMethodRouteTypes';
 import { broadcastProductUpdatesForCompanyId } from '@/utils/broadcastCompanyProductUpdates';
@@ -126,11 +128,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid payment method kind' }, { status: 400, headers });
     }
 
-    const labelRaw = readOptionalTrimmedString(body.label);
-    if (!labelRaw) {
-      return NextResponse.json({ error: 'Label is required' }, { status: 400, headers });
-    }
-
     const cardNumberInput = readOptionalTrimmedString(body.cardNumber);
     let last4 = readOptionalTrimmedStringOrNull(body.last4) ?? null;
     if (cardNumberInput) {
@@ -157,6 +154,12 @@ export async function POST(request: NextRequest) {
           { status: 400, headers }
         );
       }
+      if (!isValidCardExpiry(expiryMonth, expiryYear)) {
+        return NextResponse.json(
+          { error: 'Valid card expiry month (1–12) and year are required' },
+          { status: 400, headers }
+        );
+      }
     }
     if (kind === 'BANK_TRANSFER') {
       if (!bankName || !accountHolderName) {
@@ -178,6 +181,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const label =
+      readOptionalTrimmedString(body.label) ??
+      buildPaymentMethodLabel({ kind, last4, bankName, ewalletProvider });
+
     const created = await prisma.$transaction(async (tx) => {
       if (isDefault) {
         await tx.companyPaymentMethod.updateMany({
@@ -190,14 +197,14 @@ export async function POST(request: NextRequest) {
         data: {
           companyId,
           kind,
-          label: labelRaw,
-          last4,
-          expiryMonth: expiryMonth ?? null,
-          expiryYear: expiryYear ?? null,
-          bankName,
-          accountHolderName,
-          accountNumberLast4,
-          ewalletProvider,
+          label,
+          last4: kind === 'CARD' ? last4 : null,
+          expiryMonth: kind === 'CARD' ? (expiryMonth ?? null) : null,
+          expiryYear: kind === 'CARD' ? (expiryYear ?? null) : null,
+          bankName: kind === 'BANK_TRANSFER' ? bankName : null,
+          accountHolderName: kind === 'BANK_TRANSFER' ? accountHolderName : null,
+          accountNumberLast4: kind === 'BANK_TRANSFER' ? accountNumberLast4 : null,
+          ewalletProvider: kind === 'EWALLET' ? ewalletProvider : null,
           isDefault,
           status: 'ACTIVE',
         },

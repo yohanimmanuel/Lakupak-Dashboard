@@ -383,7 +383,7 @@
       "saveFailed": "Gagal menyimpan",
       "companyNotLoaded": "Profil perusahaan belum dimuat",
       "paymentTermInvalid": "Termin pembayaran harus bilangan bulat hari (1 atau lebih), atau dikosongkan",
-      "expiryInvalid": "Harap masukkan bulan (01-12) dan tahun kedaluwarsa yang valid",
+      "expiryInvalid": "Harap masukkan bulan kedaluwarsa yang valid (01–12) dan tahun 4 digit (mis. 2028)",
       "cardNumberRequired": "Masukkan nomor kartu lengkap (minimal 4 digit). Hanya 4 digit terakhir yang disimpan."
     },
     "success": {

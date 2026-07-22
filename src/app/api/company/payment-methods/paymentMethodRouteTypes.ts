@@ -75,3 +75,29 @@ export function lastDigitsFromAccountInput(raw: string, maxLen: number): string 
   if (digits.length === 0) return null;
   return digits.slice(-Math.min(maxLen, digits.length));
 }
+
+/** System display string derived from type + details (no custom display label from clients). */
+export function buildPaymentMethodLabel(input: {
+  kind: CompanyPaymentMethodKindJson;
+  last4?: string | null;
+  bankName?: string | null;
+  ewalletProvider?: string | null;
+}): string {
+  if (input.kind === 'CARD') {
+    const last4 = input.last4?.trim();
+    return last4 && last4.length >= 4 ? `Card ····${last4.slice(-4)}` : 'Card';
+  }
+  if (input.kind === 'BANK_TRANSFER') {
+    const bank = input.bankName?.trim();
+    return bank || 'Bank transfer';
+  }
+  const provider = input.ewalletProvider?.trim();
+  return provider || 'E-Wallet';
+}
+
+export function isValidCardExpiry(month: number | null | undefined, year: number | null | undefined): boolean {
+  if (month == null || year == null) return false;
+  if (!Number.isInteger(month) || month < 1 || month > 12) return false;
+  if (!Number.isInteger(year) || year < 2000 || year > 2100) return false;
+  return true;
+}

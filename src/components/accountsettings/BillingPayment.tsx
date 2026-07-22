@@ -80,7 +80,6 @@ type PaymentMethodFormKind = CompanyPaymentMethodKind;
 
 interface PaymentMethodFormState {
   kind: PaymentMethodFormKind;
-  label: string;
   /** Full card number as entered; only last 4 digits are sent to the API. */
   cardNumber: string;
   expiryMonth: string;
@@ -94,7 +93,6 @@ interface PaymentMethodFormState {
 
 const emptyPaymentMethodForm = (): PaymentMethodFormState => ({
   kind: 'CARD',
-  label: '',
   cardNumber: '',
   expiryMonth: '',
   expiryYear: '',
@@ -198,8 +196,12 @@ function paymentMethodSubtitle(row: CompanyPaymentMethodApiRow): string | undefi
     const tail = row.last4 ? `•••• ${row.last4}` : '';
     return [tail, exp].filter(Boolean).join(' · ') || undefined;
   }
-  if (row.kind === 'BANK_TRANSFER' && row.accountNumberLast4) {
-    return `Account ****${row.accountNumberLast4}`;
+  if (row.kind === 'BANK_TRANSFER') {
+    const parts = [
+      row.bankName?.trim() || null,
+      row.accountNumberLast4 ? `•••• ${row.accountNumberLast4}` : null,
+    ].filter(Boolean);
+    return parts.length ? parts.join(' · ') : undefined;
   }
   if (row.kind === 'EWALLET' && row.ewalletProvider) {
     return row.ewalletProvider;
@@ -250,6 +252,7 @@ export default function BillingPayment() {
   );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [modalError, setModalError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   const [companySnapshot, setCompanySnapshot] = useState<CompanyBillingApiResponse | null>(null);
@@ -562,6 +565,7 @@ export default function BillingPayment() {
     setEditingPaymentId(null);
     setPaymentForm(emptyPaymentMethodForm());
     setShowPaymentKindDropdown(false);
+    setModalError(null);
     setShowAddPaymentModal(true);
   };
 
@@ -571,7 +575,6 @@ export default function BillingPayment() {
     setEditingPaymentId(id);
     setPaymentForm({
       kind: row.kind,
-      label: row.label,
       cardNumber: '',
       expiryMonth: row.expiryMonth != null ? String(row.expiryMonth) : '',
       expiryYear: row.expiryYear != null ? String(row.expiryYear) : '',
@@ -582,6 +585,7 @@ export default function BillingPayment() {
       isDefault: row.isDefault,
     });
     setShowPaymentKindDropdown(false);
+    setModalError(null);
     setShowAddPaymentModal(true);
   };
 
@@ -627,22 +631,22 @@ export default function BillingPayment() {
 
   const handleEditBillingAddress = () => {
     if (companyForDisplay) setBillingAddress(mapCompanyToBillingAddress(companyForDisplay));
+    setModalError(null);
     setShowEditAddressModal(true);
   };
 
   const handleEditBillingBank = () => {
     if (companyForDisplay) setBillingBank(mapCompanyToBillingBank(companyForDisplay));
+    setModalError(null);
     setShowEditBankModal(true);
   };
 
   const persistCompanyFields = async (partial: Record<string, string | number | null>) => {
     const companyId = companySnapshot?.id ?? companyFromSession?.id;
     if (!user?.id || !companyId) {
-      setError(tBilling('errors.companyNotLoaded'));
-      return;
+      throw new Error(tBilling('errors.companyNotLoaded'));
     }
 
-    setError(null);
     const res = await fetch('/api/company/update', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -679,7 +683,7 @@ export default function BillingPayment() {
   const handleSaveBillingAddress = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError(null);
+    setModalError(null);
     try {
       await persistCompanyFields({
         billingCompanyName: billingAddress.companyName.trim() || null,
@@ -694,7 +698,7 @@ export default function BillingPayment() {
       setShowEditAddressModal(false);
       setSuccess(tBilling('success.billingAddressUpdated'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : tBilling('errors.saveFailed'));
+      setModalError(err instanceof Error ? err.message : tBilling('errors.saveFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -703,7 +707,7 @@ export default function BillingPayment() {
   const handleSaveBillingBank = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError(null);
+    setModalError(null);
     try {
       if (billingBank.buyerPaymentTermDays !== '') {
         const termDays = Number(billingBank.buyerPaymentTermDays);
@@ -722,7 +726,7 @@ export default function BillingPayment() {
       setShowEditBankModal(false);
       setSuccess(tBilling('success.billingAccountUpdated'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : tBilling('errors.saveFailed'));
+      setModalError(err instanceof Error ? err.message : tBilling('errors.saveFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -733,21 +737,19 @@ export default function BillingPayment() {
     if (!user?.id) return;
 
     setIsLoading(true);
-    setError(null);
-    const wasEditing = editingPaymentId !== null;
+    setModalError(null);
 
     try {
       const payload: Record<string, unknown> = {
         userId: user.id,
         kind: paymentForm.kind,
-        label: paymentForm.label.trim(),
         isDefault: paymentForm.isDefault,
       };
 
       if (paymentForm.kind === 'CARD') {
         const m = parseInt(paymentForm.expiryMonth, 10);
         const y = parseInt(paymentForm.expiryYear, 10);
-        if (!Number.isFinite(m) || !Number.isFinite(y) || m < 1 || m > 12) {
+        if (!Number.isFinite(m) || !Number.isFinite(y) || m < 1 || m > 12 || y < 2000 || y > 2100) {
           throw new Error(tBilling('errors.expiryInvalid'));
         }
         payload.expiryMonth = m;
@@ -793,10 +795,11 @@ export default function BillingPayment() {
 
       setShowAddPaymentModal(false);
       setEditingPaymentId(null);
-      setSuccess(wasEditing ? tBilling('success.paymentMethodUpdated') : tBilling('success.paymentMethodAdded'));
-      await reloadBillingSettings({ withMainLoader: false, skipPageLoad: true });
+      setModalError(null);
+      window.location.reload();
+      return;
     } catch (err) {
-      setError(err instanceof Error ? err.message : tBilling('errors.saveFailed'));
+      setModalError(err instanceof Error ? err.message : tBilling('errors.saveFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -968,12 +971,15 @@ export default function BillingPayment() {
                   <CreditCard className="h-4 w-4 text-gray-400" />
                 </div>
                 {defaultMethod ? (
-                  <>
-                    <p className="text-sm font-medium text-black mb-1">{defaultMethod.label}</p>
-                    {defaultMethodSubtitle ? (
-                      <p className="text-xs text-gray-600">{defaultMethodSubtitle}</p>
-                    ) : null}
-                  </>
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 shrink-0 text-[#0a61d7]">{getPaymentIcon(defaultMethod.kind)}</div>
+                    <div>
+                      <p className="text-sm font-medium text-black mb-1">{paymentKindLabel(defaultMethod.kind)}</p>
+                      {defaultMethodSubtitle ? (
+                        <p className="text-xs text-gray-600">{defaultMethodSubtitle}</p>
+                      ) : null}
+                    </div>
+                  </div>
                 ) : (
                   <p className="text-sm text-gray-600">{tBilling('payments.noDefaultPayment')}</p>
                 )}
@@ -1080,10 +1086,10 @@ export default function BillingPayment() {
                       className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                     >
                       <div className="flex items-center space-x-3">
-                        <div className="p-2 bg-gray-100 rounded-lg">{getPaymentIcon(method.kind)}</div>
+                        <div className="shrink-0 text-[#0a61d7]">{getPaymentIcon(method.kind)}</div>
                         <div>
                           <div className="flex items-center space-x-2">
-                            <span className="text-sm font-medium text-black">{method.label}</span>
+                            <span className="text-sm font-medium text-black">{paymentKindLabel(method.kind)}</span>
                             {method.isDefault && (
                               <span className="px-2 py-1 text-xs font-medium text-[#0a61d7] bg-blue-50 rounded">
                                 {tBilling('payments.defaultBadge')}
@@ -1507,6 +1513,7 @@ export default function BillingPayment() {
                   setShowPaymentKindDropdown(false);
                   setShowAddPaymentModal(false);
                   setEditingPaymentId(null);
+                  setModalError(null);
                 }}
                 className="text-gray-400 hover:text-gray-600"
               >
@@ -1515,51 +1522,48 @@ export default function BillingPayment() {
             </div>
 
             <form onSubmit={(e) => void handleSavePaymentMethod(e)} className="space-y-4">
-              <div ref={paymentKindDropdownRef} className="relative">
-                <label className="text-xs font-medium text-gray-700 mb-2 block">{tBilling('paymentMethodModal.type')}</label>
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between gap-1 rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-left text-xs text-gray-700 hover:bg-gray-100"
-                  onClick={() => setShowPaymentKindDropdown((v) => !v)}
-                >
-                  <span className="flex items-center gap-1 min-w-0">
-                    <span className="truncate">{paymentKindLabel(paymentForm.kind)}</span>
-                  </span>
-                  <ChevronDown className="h-4 w-4 shrink-0 text-gray-500" />
-                </button>
-                {showPaymentKindDropdown && (
-                  <div className="absolute left-0 right-0 z-20 mt-2 rounded-lg border border-[#e6e6e6] bg-white shadow">
-                    {paymentKindOptions.map((opt) => (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => {
-                          setPaymentForm((prev) => ({ ...prev, kind: opt.value }));
-                          setShowPaymentKindDropdown(false);
-                        }}
-                        className={`w-full px-4 py-2 text-left text-xs first:rounded-t-lg last:rounded-b-lg ${
-                          paymentForm.kind === opt.value
-                            ? 'font-semibold text-[#0a61d7] hover:bg-gray-100'
-                            : 'text-gray-700 hover:bg-gray-100'
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
+              {modalError ? (
+                <div className="flex items-start rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+                  <AlertCircle className="mt-0.5 mr-2 h-4 w-4 shrink-0 text-red-600" />
+                  <p className="text-sm text-red-700">{modalError}</p>
+                </div>
+              ) : null}
               <div>
-                <label className="text-xs font-medium text-gray-700 mb-2 block">{tBilling('paymentMethodModal.displayLabel')}</label>
-                <input
-                  type="text"
-                  value={paymentForm.label}
-                  onChange={(e) => setPaymentForm((p) => ({ ...p, label: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-900"
-                  placeholder={tBilling('paymentMethodModal.displayLabelPlaceholder')}
-                  required
-                />
+                <label className="text-xs font-medium text-gray-700 mb-2 block">{tBilling('paymentMethodModal.type')}</label>
+                <div className="flex items-center gap-3">
+                  <div className="shrink-0 text-[#0a61d7]">{getPaymentIcon(paymentForm.kind)}</div>
+                  <div ref={paymentKindDropdownRef} className="relative min-w-0 flex-1">
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between gap-1 rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-left text-xs text-gray-700 hover:bg-gray-100"
+                      onClick={() => setShowPaymentKindDropdown((v) => !v)}
+                    >
+                      <span className="truncate">{paymentKindLabel(paymentForm.kind)}</span>
+                      <ChevronDown className="h-4 w-4 shrink-0 text-gray-500" />
+                    </button>
+                    {showPaymentKindDropdown && (
+                      <div className="absolute left-0 right-0 z-20 mt-2 rounded-lg border border-[#e6e6e6] bg-white shadow">
+                        {paymentKindOptions.map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => {
+                              setPaymentForm((prev) => ({ ...prev, kind: opt.value }));
+                              setShowPaymentKindDropdown(false);
+                            }}
+                            className={`w-full px-4 py-2 text-left text-xs first:rounded-t-lg last:rounded-b-lg ${
+                              paymentForm.kind === opt.value
+                                ? 'font-semibold text-[#0a61d7] hover:bg-gray-100'
+                                : 'text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {paymentForm.kind === 'CARD' && (
@@ -1715,6 +1719,7 @@ export default function BillingPayment() {
                     setShowPaymentKindDropdown(false);
                     setShowAddPaymentModal(false);
                     setEditingPaymentId(null);
+                    setModalError(null);
                   }}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
@@ -1738,11 +1743,17 @@ export default function BillingPayment() {
           <div className="bg-white rounded-lg p-4 w-full max-w-lg mx-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-black">{tBilling('editBillingAccountModal.title')}</h3>
-              <button type="button" onClick={() => setShowEditBankModal(false)} className="text-gray-400 hover:text-gray-600">
+              <button type="button" onClick={() => { setShowEditBankModal(false); setModalError(null); }} className="text-gray-400 hover:text-gray-600">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <form onSubmit={(e) => void handleSaveBillingBank(e)} className="space-y-4">
+              {modalError ? (
+                <div className="flex items-start rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+                  <AlertCircle className="mt-0.5 mr-2 h-4 w-4 shrink-0 text-red-600" />
+                  <p className="text-sm text-red-700">{modalError}</p>
+                </div>
+              ) : null}
               <div>
                 <label className="text-xs font-medium text-gray-700 mb-2 block">{tBilling('editBillingAccountModal.bankName')}</label>
                 <input
@@ -1796,7 +1807,7 @@ export default function BillingPayment() {
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowEditBankModal(false)}
+                  onClick={() => { setShowEditBankModal(false); setModalError(null); }}
                   className="px-4 py-2 text-sm text-black border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   {tBilling('editBillingAccountModal.cancel')}
@@ -1815,12 +1826,18 @@ export default function BillingPayment() {
           <div className="bg-white rounded-lg p-4 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-black">{tBilling('editBillingAddressModal.title')}</h3>
-              <button type="button" onClick={() => setShowEditAddressModal(false)} className="text-gray-400 hover:text-gray-600">
+              <button type="button" onClick={() => { setShowEditAddressModal(false); setModalError(null); }} className="text-gray-400 hover:text-gray-600">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <form onSubmit={(e) => void handleSaveBillingAddress(e)} className="space-y-4">
+              {modalError ? (
+                <div className="flex items-start rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+                  <AlertCircle className="mt-0.5 mr-2 h-4 w-4 shrink-0 text-red-600" />
+                  <p className="text-sm text-red-700">{modalError}</p>
+                </div>
+              ) : null}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-4">
                   <div>
@@ -1943,7 +1960,7 @@ export default function BillingPayment() {
               <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200">
                 <button
                   type="button"
-                  onClick={() => setShowEditAddressModal(false)}
+                  onClick={() => { setShowEditAddressModal(false); setModalError(null); }}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   {tBilling('editBillingAddressModal.cancel')}
