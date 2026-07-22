@@ -4,8 +4,9 @@ import { useRouter } from "next/navigation";
 import { signIn, signOut } from "next-auth/react";
 import { useUserStore } from '@/store/userStore';
 import { validateAuthInput } from '@/utils/auth-security';
-import { REGIONS, getRegionByCode, getRegionDisplayName, getCurrencyDisplayName } from '@/config/regionConfig';
+import { REGIONS, getRegionByCode } from '@/config/regionConfig';
 import { ChevronDown, Truck } from 'lucide-react';
+import ReactCountryFlag from 'react-country-flag';
 import { 
   useAuthErrorHandler, 
   useAuthLoading, 
@@ -633,7 +634,18 @@ export default function RegisterPage() {
                       aria-expanded={showRegionDropdown}
                       aria-label={tRegister('selectBusinessRegion')}
                     >
-                      <span>{getRegionDisplayName(getSelectedRegion())}</span>
+                      <div className="flex items-center gap-2">
+                        <ReactCountryFlag
+                          countryCode={getSelectedRegion().code}
+                          svg
+                          style={{
+                            width: '20px',
+                            height: '15px',
+                            borderRadius: '2px',
+                          }}
+                        />
+                        <span>{getSelectedRegion().name}</span>
+                      </div>
                       <ChevronDown className="w-4 h-4 text-gray-500" />
                     </button>
                     {showRegionDropdown && (
@@ -643,11 +655,20 @@ export default function RegisterPage() {
                             key={region.code}
                             type="button"
                             onClick={() => handleRegionChange(region.code)}
-                            className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors ${
+                            className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors flex items-center gap-2 ${
                               companyInfo.region === region.code ? 'font-bold text-[#0a61d7] bg-blue-50' : 'text-gray-700'
                             }`}
                           >
-                            {getRegionDisplayName(region)}
+                            <ReactCountryFlag
+                              countryCode={region.code}
+                              svg
+                              style={{
+                                width: '20px',
+                                height: '15px',
+                                borderRadius: '2px',
+                              }}
+                            />
+                            <span>{region.name}</span>
                           </button>
                         ))}
                       </div>
