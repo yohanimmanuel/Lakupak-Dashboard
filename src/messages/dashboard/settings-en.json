@@ -397,7 +397,7 @@
     },
     "subscription": {
       "sectionTitle": "Subscription",
-      "sectionSubtitle": "Your plan is based on active retailers. All features are included — plans differ by usage capacity.",
+      "sectionSubtitle": "Your plan is based on active retailers. All features are included.",
       "currentPlan": "Current plan",
       "trialBadge": "Trial",
       "trialPlanName": "30-day free trial",

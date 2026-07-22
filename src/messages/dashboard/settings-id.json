@@ -397,7 +397,7 @@
     },
     "subscription": {
       "sectionTitle": "Langganan",
-      "sectionSubtitle": "Paket Anda didasarkan pada jumlah retailer aktif. Semua fitur tersedia — paket berbeda pada kapasitas penggunaan.",
+      "sectionSubtitle": "Paket Anda didasarkan pada jumlah retailer aktif. Semua fitur tersedia",
       "currentPlan": "Paket saat ini",
       "trialBadge": "Uji coba",
       "trialPlanName": "Uji coba gratis 30 hari",
@@ -418,7 +418,7 @@
       "custom": "Kustom",
       "from": "Mulai",
       "quotaBullets": {
-        "allFeatures": "Semua fitur tersedia — yang dibatasi hanya kapasitas penggunaan",
+        "allFeatures": "Semua fitur tersedia",
         "retailers": "Hingga {band} retailer aktif",
         "products": "{count} produk marketplace",
         "productsCustom": "Kapasitas produk marketplace kustom",
