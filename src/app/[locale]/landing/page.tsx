@@ -129,40 +129,189 @@ function HeroStagger({
   );
 }
 
-function ClientsDiagonalStack({ alt }: { alt: string }) {
+type SellingMediaLayer = {
+  src: string;
+  width: number;
+  height: number;
+  className?: string;
+};
+
+function SellingDiagonalStack({
+  alt,
+  back,
+  front,
+  orientation = 'tl-br',
+}: {
+  alt: string;
+  back: SellingMediaLayer;
+  front: SellingMediaLayer;
+  /** tl-br: back top-left → front bottom-right; tr-bl: mirrored */
+  orientation?: 'tl-br' | 'tr-bl';
+}) {
+  const mirrored = orientation === 'tr-bl';
+
   return (
-    <div className="relative mx-auto w-full max-w-4xl aspect-[16/10] sm:aspect-[16/9]">
-      {/* Back — supplier */}
-      <div className="absolute left-[2%] top-[6%] z-0 w-[68%] sm:w-[64%] -rotate-[5deg] rounded-xl border border-gray-200/90 bg-white p-1 shadow-[0_14px_36px_-16px_rgba(15,23,42,0.35)] overflow-hidden">
-        <Image
-          src="/Dashboardclientbuyer1.png"
-          alt=""
-          width={1488}
-          height={692}
-          quality={85}
-          className="w-full h-auto block rounded-lg"
-          sizes="(min-width: 1024px) 640px, 70vw"
-        />
+    <div className="relative mx-auto h-full w-full max-w-4xl">
+      <div
+        className={`absolute z-0 w-[68%] sm:w-[64%] animate-fade-in motion-reduce:animate-none ${
+          mirrored ? 'right-[2%] top-[8%]' : 'left-[2%] top-[8%]'
+        }`}
+        style={{ animationDuration: '0.45s' }}
+      >
+        <div
+          className={`rounded-xl border border-gray-200/90 bg-white p-1 overflow-hidden shadow-[0_16px_40px_-16px_rgba(15,23,42,0.32)] ${
+            mirrored ? 'rotate-[5deg]' : '-rotate-[5deg]'
+          }`}
+        >
+          <Image
+            src={back.src}
+            alt=""
+            width={back.width}
+            height={back.height}
+            quality={85}
+            className="w-full h-auto block rounded-lg"
+            sizes="(min-width: 1024px) 640px, 70vw"
+          />
+        </div>
       </div>
-      {/* Front — buyer */}
-      <div className="absolute right-[2%] bottom-[4%] z-10 w-[72%] sm:w-[68%] rotate-[3deg] rounded-xl border border-gray-200/90 bg-white p-1 shadow-[0_20px_48px_-14px_rgba(10,97,215,0.35)] overflow-hidden">
-        <Image
-          src="/Dashboardclientbuyer.png"
-          alt={alt}
-          width={1530}
-          height={642}
-          quality={90}
-          className="w-full h-auto block rounded-lg"
-          sizes="(min-width: 1024px) 700px, 75vw"
-        />
+      <div
+        className={`absolute z-10 w-[72%] sm:w-[68%] animate-fade-in-up motion-reduce:animate-none ${
+          mirrored ? 'left-[2%] bottom-[6%]' : 'right-[2%] bottom-[6%]'
+        }`}
+        style={{ animationDuration: '0.55s', animationDelay: '0.12s', opacity: 0 }}
+      >
+        <div
+          className={`rounded-xl border border-gray-200/90 bg-white p-1 overflow-hidden shadow-[0_20px_48px_-14px_rgba(10,97,215,0.35)] ${
+            mirrored ? '-rotate-[3deg]' : 'rotate-[3deg]'
+          }`}
+        >
+          <Image
+            src={front.src}
+            alt={alt}
+            width={front.width}
+            height={front.height}
+            quality={90}
+            className="w-full h-auto block rounded-lg"
+            sizes="(min-width: 1024px) 700px, 75vw"
+          />
+        </div>
       </div>
     </div>
   );
 }
 
+/** Product on top, two offers below with dotted connectors. */
+function ProductsOffersFlow({ alt }: { alt: string }) {
+  return (
+    <div className="relative mx-auto flex h-full w-full max-w-3xl items-center px-3 sm:px-6">
+      <div className="flex w-full flex-col items-center">
+        {/* Product — top center */}
+        <div
+          className="relative z-10 w-[52%] sm:w-[42%] rounded-xl border border-gray-200/90 bg-white p-1 shadow-[0_16px_40px_-16px_rgba(15,23,42,0.28)] overflow-hidden animate-scale-in motion-reduce:animate-none"
+          style={{ animationDuration: '0.5s' }}
+        >
+          <Image
+            src="/Dashboardproducts3.png"
+            alt={alt}
+            width={735}
+            height={602}
+            quality={90}
+            className="w-full h-auto block rounded-lg"
+            sizes="(min-width: 1024px) 380px, 50vw"
+          />
+        </div>
+
+        {/* Dotted Y-connectors */}
+        <div
+          className="relative z-0 h-9 w-full sm:h-11 animate-fade-in motion-reduce:animate-none"
+          style={{ animationDuration: '0.4s', animationDelay: '0.15s', opacity: 0 }}
+          aria-hidden
+        >
+          <svg
+            className="absolute inset-0 h-full w-full"
+            viewBox="0 0 400 56"
+            preserveAspectRatio="none"
+          >
+            <path
+              d="M200 0 V18 C200 18 100 28 100 56"
+              fill="none"
+              stroke="#94a3b8"
+              strokeWidth="3"
+              strokeDasharray="0 8"
+              strokeLinecap="round"
+            />
+            <path
+              d="M200 0 V18 C200 18 300 28 300 56"
+              fill="none"
+              stroke="#94a3b8"
+              strokeWidth="3"
+              strokeDasharray="0 8"
+              strokeLinecap="round"
+            />
+          </svg>
+        </div>
+
+        {/* Offers — left & right with center gap */}
+        <div className="relative z-10 mx-auto grid w-[82%] sm:w-[72%] grid-cols-2 gap-6 sm:gap-12 lg:gap-16">
+          <div
+            className="rounded-xl border border-gray-200/90 bg-white p-1 shadow-[0_14px_36px_-16px_rgba(10,97,215,0.28)] overflow-hidden animate-fade-in-left motion-reduce:animate-none"
+            style={{ animationDuration: '0.5s', animationDelay: '0.22s', opacity: 0 }}
+          >
+            <Image
+              src="/Dashboardoffers.png"
+              alt=""
+              width={487}
+              height={303}
+              quality={90}
+              className="w-full h-auto block rounded-lg"
+              sizes="(min-width: 1024px) 280px, 34vw"
+            />
+          </div>
+          <div
+            className="rounded-xl border border-gray-200/90 bg-white p-1 shadow-[0_14px_36px_-16px_rgba(10,97,215,0.28)] overflow-hidden animate-fade-in-right motion-reduce:animate-none"
+            style={{ animationDuration: '0.5s', animationDelay: '0.28s', opacity: 0 }}
+          >
+            <Image
+              src="/Dashboardoffers1.png"
+              alt=""
+              width={486}
+              height={305}
+              quality={90}
+              className="w-full h-auto block rounded-lg"
+              sizes="(min-width: 1024px) 280px, 34vw"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const SELLING_MEDIA: Partial<
+  Record<
+    SellingTab,
+    {
+      back: SellingMediaLayer;
+      front: SellingMediaLayer;
+    }
+  >
+> = {
+  clients: {
+    back: { src: '/Dashboardclientbuyer1.png', width: 1488, height: 692 },
+    front: { src: '/Dashboardclientbuyer.png', width: 1530, height: 642 },
+  },
+  orders: {
+    back: { src: '/Dashboardorders1.png', width: 1490, height: 792 },
+    front: { src: '/Dashboardorders2.png', width: 1530, height: 660 },
+  },
+};
+
 function SellingSection() {
   const t = useTranslations('landing');
   const [active, setActive] = useState<SellingTab>('clients');
+  const media = SELLING_MEDIA[active];
+  /** Fixed stage size so tab switches don’t jump the background. */
+  const sellingStageClass = 'h-[500px] sm:h-[600px]';
 
   return (
     <section id="features" className="py-16 sm:py-20 bg-white">
@@ -177,22 +326,32 @@ function SellingSection() {
         </Reveal>
 
         <Reveal>
-          {active === 'clients' ? (
-            <FeatureMediaFrame
-              className="mb-10"
-              framed={false}
-              minHeightClass="min-h-[260px] sm:min-h-[420px]"
-            >
-              <ClientsDiagonalStack alt={t('features.selling.clients.title')} />
-            </FeatureMediaFrame>
-          ) : (
-            <FeatureMediaFrame className="mb-10">
-              <ImagePlaceholder
-                label={t(`features.selling.placeholders.${active}`)}
-                className="min-h-[220px] sm:min-h-[320px] w-full border-0 bg-white rounded-none"
+          <FeatureMediaFrame
+            className="mb-10"
+            framed={false}
+            minHeightClass={sellingStageClass}
+          >
+            {active === 'products' ? (
+              <ProductsOffersFlow
+                key={active}
+                alt={t('features.selling.products.title')}
               />
-            </FeatureMediaFrame>
-          )}
+            ) : media ? (
+              <SellingDiagonalStack
+                key={active}
+                alt={t(`features.selling.${active}.title`)}
+                back={media.back}
+                front={media.front}
+                orientation={active === 'orders' ? 'tr-bl' : 'tl-br'}
+              />
+            ) : (
+              <ImagePlaceholder
+                key={active}
+                label={t(`features.selling.placeholders.${active}`)}
+                className="min-h-[220px] sm:min-h-[320px] w-full border-0 bg-white/80 rounded-xl animate-fade-in motion-reduce:animate-none"
+              />
+            )}
+          </FeatureMediaFrame>
         </Reveal>
 
         <Reveal>
@@ -301,19 +460,43 @@ function SplitFeatureSection({
   titleKey: string;
   subtitleKey: string;
   placeholderKey: string;
-  points: { titleKey: string; descKey: string }[];
+  points: {
+    titleKey: string;
+    descKey: string;
+    image?: { src: string; width: number; height: number };
+  }[];
   mediaPosition: 'left' | 'right';
   tone?: 'muted' | 'white';
 }) {
   const t = useTranslations('landing');
   const [activeIndex, setActiveIndex] = useState(0);
+  const activePoint = points[activeIndex] ?? points[0];
+  const activeImage = activePoint?.image;
 
   const media = (
     <FeatureMediaFrame minHeightClass="min-h-[280px] sm:min-h-[360px]">
-      <ImagePlaceholder
-        label={t(placeholderKey)}
-        className="min-h-[240px] sm:min-h-[300px] w-full border-0 bg-white rounded-none"
-      />
+      {activeImage ? (
+        <div
+          key={activeImage.src}
+          className="animate-fade-in motion-reduce:animate-none"
+          style={{ animationDuration: '0.45s' }}
+        >
+          <Image
+            src={activeImage.src}
+            alt={t(activePoint.titleKey)}
+            width={activeImage.width}
+            height={activeImage.height}
+            quality={90}
+            className="w-full h-auto block"
+            sizes="(min-width: 1024px) 560px, 100vw"
+          />
+        </div>
+      ) : (
+        <ImagePlaceholder
+          label={t(placeholderKey)}
+          className="min-h-[240px] sm:min-h-[300px] w-full border-0 bg-white rounded-none"
+        />
+      )}
     </FeatureMediaFrame>
   );
 
@@ -540,11 +723,20 @@ export default function LandingPage() {
           mediaPosition="left"
           tone="muted"
           points={[
-            { titleKey: 'features.analytics.financial.title', descKey: 'features.analytics.financial.desc' },
-            { titleKey: 'features.analytics.sales.title', descKey: 'features.analytics.sales.desc' },
+            {
+              titleKey: 'features.analytics.financial.title',
+              descKey: 'features.analytics.financial.desc',
+              image: { src: '/Dashboardanalyticsfin.png', width: 952, height: 513 },
+            },
+            {
+              titleKey: 'features.analytics.sales.title',
+              descKey: 'features.analytics.sales.desc',
+              image: { src: '/Dashboardanalyticscus.png', width: 887, height: 581 },
+            },
             {
               titleKey: 'features.analytics.operational.title',
               descKey: 'features.analytics.operational.desc',
+              image: { src: '/Dashboardanalyticsops.png', width: 835, height: 477 },
             },
           ]}
         />

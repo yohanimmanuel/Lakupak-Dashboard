@@ -20,13 +20,13 @@ export function FeatureMediaFrame({
     >
       <AuthDecorativeBackground variant="light" />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-white/40 via-transparent to-white/20" />
-      <div className="relative z-10 flex h-full min-h-[inherit] items-center justify-center p-3 sm:p-5">
+      <div className="relative z-10 flex h-full min-h-[inherit] items-center justify-center overflow-hidden p-3 sm:p-5">
         {framed ? (
           <div className="w-full rounded-xl border border-white/90 bg-white/95 shadow-[0_16px_40px_-18px_rgba(10,97,215,0.28)] overflow-hidden backdrop-blur-[2px]">
             {children}
           </div>
         ) : (
-          <div className="w-full">{children}</div>
+          <div className="h-full w-full">{children}</div>
         )}
       </div>
     </div>

@@ -140,17 +140,8 @@ export default function OfferType({
     return formatCurrency((value as number) || 0, userCurrency);
   };
 
-  const getDiscountTypeColor = (type: string) => {
-    switch (type) {
-      case 'percentage':
-        return 'bg-blue-50 border-blue-200';
-      case 'fixed':
-        return 'bg-green-50 border-green-200';
-      case 'buy_x_get_y':
-        return 'bg-purple-50 border-purple-200';
-      default:
-        return 'bg-gray-50 border-gray-200';
-    }
+  const getDiscountTypeColor = (_type: string) => {
+    return 'bg-white border-gray-200';
   };
 
   const handleEdit = (type: OfferType) => {
