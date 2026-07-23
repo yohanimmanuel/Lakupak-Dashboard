@@ -148,8 +148,8 @@ export default function PricingPage() {
                 <button
                   type="button"
                   onClick={() => setIsAnnual(false)}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                    !isAnnual ? 'bg-[#0a61d7] text-white' : 'text-gray-600 hover:text-gray-900'
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ${
+                    !isAnnual ? 'bg-[#0a61d7] text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
                   {t('toggle.monthly')}
@@ -157,13 +157,13 @@ export default function PricingPage() {
                 <button
                   type="button"
                   onClick={() => setIsAnnual(true)}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors inline-flex items-center gap-2 ${
-                    isAnnual ? 'bg-[#0a61d7] text-white' : 'text-gray-600 hover:text-gray-900'
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 inline-flex items-center gap-2 ${
+                    isAnnual ? 'bg-[#0a61d7] text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
                   {t('toggle.annual')}
                   <span
-                    className={`text-[11px] font-semibold ${
+                    className={`text-[11px] font-semibold transition-colors duration-300 ${
                       isAnnual ? 'text-white/90' : 'text-[#0a61d7]'
                     }`}
                   >
@@ -201,7 +201,11 @@ export default function PricingPage() {
                       <p className="text-sm text-gray-600 leading-snug min-h-[40px]">{tier.description}</p>
 
                       <div className="mt-5 mb-5">
-                        <div className="flex items-baseline gap-1 whitespace-nowrap">
+                        <div
+                          key={billing}
+                          className="flex items-baseline gap-1 whitespace-nowrap animate-fade-in-up motion-reduce:animate-none"
+                          style={{ animationDuration: '0.4s' }}
+                        >
                           <span className="text-2xl font-bold tracking-tight text-gray-900">
                             {tier.priceLabel}
                           </span>
@@ -282,7 +286,11 @@ export default function PricingPage() {
                           >
                             {tier.name}
                           </div>
-                          <div className="text-sm font-bold text-gray-900 mb-2 whitespace-nowrap">
+                          <div
+                            key={`${tier.plan.id}-${billing}`}
+                            className="text-sm font-bold text-gray-900 mb-2 whitespace-nowrap animate-fade-in-up motion-reduce:animate-none"
+                            style={{ animationDuration: '0.4s' }}
+                          >
                             {tier.priceLabel}
                             {tier.showPeriod && (
                               <span className="text-gray-500 font-medium text-xs ml-1">{periodLabel}</span>
