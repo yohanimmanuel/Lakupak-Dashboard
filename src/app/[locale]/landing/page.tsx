@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { measurePerformance, trackScrollDepth, lazyLoadSection } from '@/utils/performance';
 import { AuthDecorativeBackground } from '@/components/auth/AuthDecorativeBackground';
+import { FeatureMediaFrame } from './FeatureMediaFrame';
 import { Reveal } from './Reveal';
 
 type SellingTab = 'clients' | 'products' | 'orders';
@@ -127,6 +129,37 @@ function HeroStagger({
   );
 }
 
+function ClientsDiagonalStack({ alt }: { alt: string }) {
+  return (
+    <div className="relative mx-auto w-full max-w-4xl aspect-[16/10] sm:aspect-[16/9]">
+      {/* Back — supplier */}
+      <div className="absolute left-[2%] top-[6%] z-0 w-[68%] sm:w-[64%] -rotate-[5deg] rounded-xl border border-gray-200/90 bg-white p-1 shadow-[0_14px_36px_-16px_rgba(15,23,42,0.35)] overflow-hidden">
+        <Image
+          src="/Dashboardclientbuyer1.png"
+          alt=""
+          width={1488}
+          height={692}
+          quality={85}
+          className="w-full h-auto block rounded-lg"
+          sizes="(min-width: 1024px) 640px, 70vw"
+        />
+      </div>
+      {/* Front — buyer */}
+      <div className="absolute right-[2%] bottom-[4%] z-10 w-[72%] sm:w-[68%] rotate-[3deg] rounded-xl border border-gray-200/90 bg-white p-1 shadow-[0_20px_48px_-14px_rgba(10,97,215,0.35)] overflow-hidden">
+        <Image
+          src="/Dashboardclientbuyer.png"
+          alt={alt}
+          width={1530}
+          height={642}
+          quality={90}
+          className="w-full h-auto block rounded-lg"
+          sizes="(min-width: 1024px) 700px, 75vw"
+        />
+      </div>
+    </div>
+  );
+}
+
 function SellingSection() {
   const t = useTranslations('landing');
   const [active, setActive] = useState<SellingTab>('clients');
@@ -144,12 +177,22 @@ function SellingSection() {
         </Reveal>
 
         <Reveal>
-          <div className="rounded-2xl border border-gray-200 bg-[#f7f9fc] p-3 sm:p-4 mb-10">
-            <ImagePlaceholder
-              label={t(`features.selling.placeholders.${active}`)}
-              className="min-h-[240px] sm:min-h-[360px] w-full bg-white"
-            />
-          </div>
+          {active === 'clients' ? (
+            <FeatureMediaFrame
+              className="mb-10"
+              framed={false}
+              minHeightClass="min-h-[260px] sm:min-h-[420px]"
+            >
+              <ClientsDiagonalStack alt={t('features.selling.clients.title')} />
+            </FeatureMediaFrame>
+          ) : (
+            <FeatureMediaFrame className="mb-10">
+              <ImagePlaceholder
+                label={t(`features.selling.placeholders.${active}`)}
+                className="min-h-[220px] sm:min-h-[320px] w-full border-0 bg-white rounded-none"
+              />
+            </FeatureMediaFrame>
+          )}
         </Reveal>
 
         <Reveal>
@@ -220,16 +263,12 @@ function FeatureBlock({
         </Reveal>
 
         <Reveal>
-          <div
-            className={`rounded-2xl border border-gray-200 p-3 sm:p-4 mb-10 ${
-              tone === 'muted' ? 'bg-white' : 'bg-[#f7f9fc]'
-            }`}
-          >
+          <FeatureMediaFrame className="mb-10">
             <ImagePlaceholder
               label={t(placeholderKey)}
-              className={`min-h-[240px] sm:min-h-[360px] w-full ${tone === 'muted' ? 'bg-[#f7f9fc]' : 'bg-white'}`}
+              className="min-h-[220px] sm:min-h-[320px] w-full border-0 bg-white rounded-none"
             />
-          </div>
+          </FeatureMediaFrame>
         </Reveal>
 
         <Reveal>
@@ -270,16 +309,12 @@ function SplitFeatureSection({
   const [activeIndex, setActiveIndex] = useState(0);
 
   const media = (
-    <div
-      className={`rounded-2xl border border-gray-200 p-3 sm:p-4 ${
-        tone === 'muted' ? 'bg-white' : 'bg-[#f7f9fc]'
-      }`}
-    >
+    <FeatureMediaFrame minHeightClass="min-h-[280px] sm:min-h-[360px]">
       <ImagePlaceholder
         label={t(placeholderKey)}
-        className={`min-h-[280px] sm:min-h-[360px] w-full ${tone === 'muted' ? 'bg-[#f7f9fc]' : 'bg-white'}`}
+        className="min-h-[240px] sm:min-h-[300px] w-full border-0 bg-white rounded-none"
       />
-    </div>
+    </FeatureMediaFrame>
   );
 
   const description = (
@@ -414,12 +449,53 @@ export default function LandingPage() {
             </HeroStagger>
           </div>
 
-          <HeroStagger delayMs={420} className="relative z-10 mx-auto mt-12 sm:mt-14 max-w-6xl px-4 sm:px-6 lg:px-8">
-            <div className="rounded-2xl border border-white/80 bg-white/90 p-2 sm:p-3 shadow-[0_12px_40px_-12px_rgba(10,97,215,0.18)] backdrop-blur-sm">
-              <ImagePlaceholder
-                label={t('hero.productPlaceholder')}
-                className="min-h-[220px] sm:min-h-[360px] lg:min-h-[420px] w-full rounded-xl"
-              />
+          <HeroStagger delayMs={420} className="relative z-10 mx-auto mt-12 sm:mt-16 max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="relative pt-6 sm:pt-8">
+              {/* Back layer — top edge only */}
+              <div
+                aria-hidden
+                className="pointer-events-none absolute left-[6%] right-[6%] top-0 z-0 h-10 sm:h-12 overflow-hidden rounded-t-2xl border border-gray-200/80 bg-white shadow-[0_8px_24px_-12px_rgba(15,23,42,0.2)]"
+              >
+                <Image
+                  src="/Dashboardhomeeng.png"
+                  alt=""
+                  width={1845}
+                  height={877}
+                  quality={60}
+                  className="w-full h-auto block opacity-50"
+                  sizes="(min-width: 1024px) 1000px, 90vw"
+                />
+              </div>
+
+              {/* Middle layer — top edge only */}
+              <div
+                aria-hidden
+                className="pointer-events-none absolute left-[3%] right-[3%] top-3 sm:top-3.5 z-[1] h-10 sm:h-12 overflow-hidden rounded-t-2xl border border-gray-200/90 bg-white shadow-[0_10px_28px_-12px_rgba(15,23,42,0.22)]"
+              >
+                <Image
+                  src="/Dashboardhomeeng.png"
+                  alt=""
+                  width={1845}
+                  height={877}
+                  quality={65}
+                  className="w-full h-auto block opacity-70"
+                  sizes="(min-width: 1024px) 1080px, 95vw"
+                />
+              </div>
+
+              {/* Front layer */}
+              <div className="relative z-[2] rounded-2xl border border-gray-200/90 bg-white p-1.5 sm:p-2 shadow-[0_18px_50px_-14px_rgba(10,97,215,0.3)] overflow-hidden">
+                <Image
+                  src="/Dashboardhomeeng.png"
+                  alt={t('hero.productPlaceholder')}
+                  width={1845}
+                  height={877}
+                  priority
+                  quality={90}
+                  className="w-full h-auto rounded-xl block"
+                  sizes="(min-width: 1024px) 1152px, 100vw"
+                />
+              </div>
             </div>
           </HeroStagger>
         </section>

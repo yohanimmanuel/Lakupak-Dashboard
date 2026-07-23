@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { AuthDecorativeBackground } from '@/components/auth/AuthDecorativeBackground';
+import { FeatureMediaFrame } from '../FeatureMediaFrame';
 import { Reveal } from '../Reveal';
 import type { FeatureModuleSlug } from './modules';
 import { FEATURE_MODULES, featurePath, getFeatureModule } from './modules';
@@ -191,12 +192,12 @@ export function FeatureModulePage({
               const imageLeft = i % 2 === 1;
               const title = t(`${slug}.points.${n}.title`);
               const media = (
-                <div className="rounded-2xl border border-gray-200 bg-[#f7f9fc] p-3 sm:p-4 shadow-[0_8px_30px_-12px_rgba(10,97,215,0.12)]">
+                <FeatureMediaFrame minHeightClass="min-h-[240px] sm:min-h-[320px]">
                   <ImagePlaceholder
                     label={t('usesPlaceholder', { title })}
-                    className="min-h-[220px] sm:min-h-[300px] w-full bg-white"
+                    className="min-h-[200px] sm:min-h-[280px] w-full border-0 bg-white rounded-none"
                   />
-                </div>
+                </FeatureMediaFrame>
               );
               const copy = (
                 <div>
