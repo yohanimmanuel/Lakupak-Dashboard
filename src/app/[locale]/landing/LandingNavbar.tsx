@@ -168,14 +168,14 @@ export default function LandingNavbar() {
                 </button>
 
                 {featuresOpen && (
-                  <div className="absolute left-1/2 -translate-x-1/2 top-full pt-4 w-[min(92vw,28rem)]">
+                  <div className="absolute left-1/2 -translate-x-1/2 top-full pt-4 w-[min(94vw,40rem)]">
                     <div className="rounded-2xl border border-gray-200 bg-white shadow-xl overflow-hidden">
                       <div className="grid grid-cols-[1fr_13rem]">
                         <div className="p-4">
                           <p className="px-2 mb-2 text-[11px] font-semibold tracking-widest uppercase text-gray-400">
                             {tf('menu.modulesLabel')}
                           </p>
-                          <ul className="space-y-0.5">
+                          <ul className="grid grid-cols-2 gap-x-1 gap-y-0.5">
                             {FEATURE_MODULES.filter((m) => m.slug !== 'marketplace').map((m) => {
                               const Icon = m.icon;
                               return (
@@ -185,10 +185,10 @@ export default function LandingNavbar() {
                                     onClick={() => goToFeature(m.slug)}
                                     className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 hover:text-[#0a61d7] transition-colors"
                                   >
-                                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
+                                    <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
                                       <Icon className="w-4 h-4" strokeWidth={1.75} />
                                     </span>
-                                    {tf(`${m.slug}.menuLabel`)}
+                                    <span className="leading-snug">{tf(`${m.slug}.menuLabel`)}</span>
                                   </button>
                                 </li>
                               );

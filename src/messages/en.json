@@ -26,7 +26,7 @@
     },
     "hub": {
       "title": "Every module to run distribution on Laku",
-      "subtitle": "From client management to delivery, explore the full loop across Dashboard, Marketplace, and Driver.",
+      "subtitle": "From client management to delivery and automations, explore the full loop across Dashboard, Marketplace, and Driver.",
       "exploreMore": "Explore more modules"
     },
     "overview": {
@@ -44,260 +44,398 @@
     },
     "clients": {
       "menuLabel": "Client management",
-      "title": "Client management for your retail network",
-      "subtitle": "Organize buyers and suppliers, track relationships, and keep every retailer ready to order from one place.",
+      "title": "Client management for buyers and suppliers",
+      "subtitle": "Keep retailers and supply partners in one CRM, with contacts, statuses, and order data that stay in sync across Dashboard and Marketplace.",
       "placeholder": "Clients module preview. Replace image",
       "overview": {
-        "summary": "Client management helps distributors keep every retailer and supplier organized in one place. Track contacts, account status, and relationship health so your network stays ready to order without spreadsheet chase.",
+        "summary": "Client management is Laku's buyer and supplier CRM. Every Marketplace order can create or update a buyer record automatically, so contacts, network status, profiles, and order history stay aligned across the platform without spreadsheet chase.",
         "highlights": {
           "1": {
-            "title": "Buyer and supplier in one network",
-            "desc": "Keep retail accounts and supply partners structured for everyday distribution work."
+            "title": "Orders build your buyer network",
+            "desc": "When a retailer orders, Laku records or updates their buyer profile so contacts, status, and order data stay current across the platform."
           },
           "2": {
-            "title": "Know who needs attention",
-            "desc": "Spot inactive stores, pending follow-ups, and relationship gaps before orders stall."
+            "title": "Buyers and suppliers together",
+            "desc": "Manage retail accounts and upstream suppliers under one Clients hub with Active, Inactive, and Blocked statuses."
           },
           "3": {
-            "title": "Hand off into selling",
-            "desc": "Move from contact records into catalog, offers, and orders without rebuilding context."
+            "title": "Live order history on buyers",
+            "desc": "Spend, outstanding balance, and product lines sync from Orders onto each buyer detail view with monthly charts."
           }
         }
       },
       "points": {
         "1": {
-          "title": "Buyer and supplier records",
-          "desc": "Keep retailer profiles, contacts, and status clear across your network."
+          "title": "Every order strengthens the network",
+          "desc": "Buyer or retailer orders are automatically recorded so contacts, network status, profiles, and order data stay aligned across Dashboard and Marketplace without manual re-entry."
         },
         "2": {
-          "title": "Relationship visibility",
-          "desc": "See who is active, who needs follow-up, and how accounts are connected."
+          "title": "Buyers and suppliers in one CRM",
+          "desc": "Run retail accounts and upstream partners from the same Clients module, with shared Active, Inactive, and Blocked statuses for everyday follow-up."
         },
         "3": {
-          "title": "Ready-to-order network",
-          "desc": "Move from contact lists to a live distribution network that can place orders."
+          "title": "Complete profiles ready for ops",
+          "desc": "Capture store or company details, owners, phones, emails, addresses, business type, logistics preferences, and notes, with a completion bar that flags missing fields."
+        },
+        "4": {
+          "title": "Order history on every buyer",
+          "desc": "Each buyer profile shows synced order lines, total spend, outstanding balance, and monthly order and spending charts drawn from live Orders."
+        },
+        "5": {
+          "title": "Supplier lines and purchase analytics",
+          "desc": "Record SKUs, volumes, and purchase value per supplier, then review monthly supply and purchase charts plus on-time delivery signals on the list."
         }
       }
     },
     "products": {
       "menuLabel": "Products",
-      "title": "Product catalog built for wholesale",
-      "subtitle": "Manage SKUs, pricing, and assortment so retailers always see the right catalog.",
+      "title": "Wholesale catalog that publishes to Marketplace",
+      "subtitle": "Build variants with price, MOQ, and stock in Dashboard, then publish ready products so retailers see the same catalog in the buyer app.",
       "placeholder": "Products module preview. Replace image",
       "overview": {
-        "summary": "Products keeps your wholesale catalog centralized so pricing, SKUs, and assortment stay consistent for every connected store. Publish once, update with confidence, and help retailers find what is ready to buy.",
+        "summary": "Products is your wholesale catalog control room. Draft until variants, pricing, stock, and images are ready, then publish to your Marketplace so retailers buy from the same SKUs your team manages in Dashboard.",
         "highlights": {
           "1": {
-            "title": "Publish once for every store",
-            "desc": "Maintain SKUs and assortment in Dashboard so Marketplace buyers see the same truth."
+            "title": "Publish to your buyer Marketplace",
+            "desc": "Complete the catalog once in Dashboard. Publish with readiness checks so retailers see the same SKUs, images, and stock in the Laku buyer app."
           },
           "2": {
-            "title": "Protect wholesale pricing",
-            "desc": "Control list prices and deal-ready catalog structure across your connected network."
+            "title": "Wholesale variants with MOQ and stock",
+            "desc": "Each size or flavor combination carries its own SKU, selling price, minimum order quantity, and piece-level stock buyers must meet at checkout."
           },
           "3": {
-            "title": "Reduce catalog chaos",
-            "desc": "Stop patching product lists in spreadsheets and chat threads."
+            "title": "Offers that reshape live list prices",
+            "desc": "Attach promotions to products. Active deals update catalog prices and lock variants so deal integrity holds on Marketplace cards."
           }
         }
       },
       "points": {
         "1": {
-          "title": "Centralized catalog",
-          "desc": "Publish and update products without spreadsheet fragmentation."
+          "title": "Draft until the catalog is ready",
+          "desc": "Incomplete products stay in draft. Publish only when name, variants, pricing, stock greater than zero, and images pass Marketplace readiness gates."
         },
         "2": {
-          "title": "Pricing control",
-          "desc": "Keep wholesale pricing consistent across your connected stores."
+          "title": "Per-variant wholesale economics",
+          "desc": "Set selling price, purchase price, MOQ, and low-stock thresholds on every variation combination, not a single flat SKU."
         },
         "3": {
-          "title": "Assortment clarity",
-          "desc": "Help retailers discover what is available and ready to order."
+          "title": "Trust signals buyers recognize",
+          "desc": "Show Halal, BPOM, original-product assurance, and return-policy days on product detail so retailers order with more confidence."
+        },
+        "4": {
+          "title": "Offer-safe live pricing",
+          "desc": "While a promotion is active, Laku locks variants and updates selling prices from the offer so deals stay consistent until you disconnect them."
+        },
+        "5": {
+          "title": "Stock that follows orders",
+          "desc": "Inventory moves with order fulfillment and stays visible as In, Low, or Out of stock for your team and for Marketplace buyers."
         }
       }
     },
     "orders": {
       "menuLabel": "Orders",
-      "title": "Orders from request to fulfillment",
-      "subtitle": "Process wholesale orders end to end with clear status for your team and buyers.",
+      "title": "Orders from Marketplace to Driver",
+      "subtitle": "Take wholesale demand from checkout into one Dashboard pipeline, then hand off to fleets with payment proof, POD, and returns on the same trail.",
       "placeholder": "Orders module preview. Replace image",
       "overview": {
-        "summary": "Orders replaces WhatsApp and spreadsheet chaos with one digital flow from request to fulfillment. Sales, ops, and logistics share the same status so buyers and your team always know what is next.",
+        "summary": "Orders is the fulfillment spine of Laku. Marketplace checkout lands in Dashboard immediately, sales and ops share one status path, stock and buyer records move with the order, and fleets close delivery with proof you can audit.",
         "highlights": {
           "1": {
-            "title": "One order spine",
-            "desc": "Take wholesale demand from Marketplace into a single fulfillment track in Dashboard."
+            "title": "Marketplace to one fulfillment spine",
+            "desc": "Retailer checkout becomes a live Dashboard order with shared status for sales, ops, and logistics."
           },
           "2": {
-            "title": "Shared status for every team",
-            "desc": "Sales, ops, and logistics work from the same order state instead of parallel chats."
+            "title": "Stock and buyers that move with the order",
+            "desc": "Confirm, cancel, or return adjusts inventory, and Marketplace buyers feed Clients profiles and spend history without re-entry."
           },
           "3": {
-            "title": "Ready for Driver handoff",
-            "desc": "Pass confirmed orders into fleet assignment and live delivery without retyping."
+            "title": "Driver handoff with proof you can audit",
+            "desc": "Assign fleets, collect photo POD or failure evidence, and close returns from pickup to warehouse confirm."
           }
         }
       },
       "points": {
         "1": {
-          "title": "Digital order intake",
-          "desc": "Replace WhatsApp and spreadsheet order chaos with one flow."
+          "title": "Status everyone shares",
+          "desc": "One pipeline from Pending through Delivered, with buyer and driver alerts on the same state instead of parallel chats."
         },
         "2": {
-          "title": "Status tracking",
-          "desc": "Follow every order as it moves through confirmation and fulfillment."
+          "title": "Payment proof, not guesswork",
+          "desc": "Buyers submit bank-transfer proof for review, or pay COD, so your team marks Paid after verification."
         },
         "3": {
-          "title": "Team coordination",
-          "desc": "Give sales, ops, and logistics the same source of truth."
+          "title": "POD on delivery and return",
+          "desc": "Capture proof in Driver or Dashboard so Delivered, Received, and Returned orders keep a file trail."
+        },
+        "4": {
+          "title": "Returns with evidence and stock restore",
+          "desc": "Accept or reject return requests, optional driver pickup, confirm goods back, and restore inventory with the Returned status."
+        },
+        "5": {
+          "title": "Fleet-ready fulfillment",
+          "desc": "Packed and Shipped work hands off to Laku Driver for Start and Complete Delivery without retyping the order."
         }
       }
     },
     "offers": {
       "menuLabel": "Offers",
-      "title": "Offers that move product faster",
-      "subtitle": "Create promotions and deal structures that retailers can act on inside the platform.",
+      "title": "Offers that rewrite live catalog prices",
+      "subtitle": "Attach percentage, fixed, or Buy X Get Y deals to products so Marketplace cards show the promotion while list prices and variants stay deal-safe.",
       "placeholder": "Offers module preview. Replace image",
       "overview": {
-        "summary": "Offers lets you launch promotions next to the products retailers already browse. Target the right stores, protect catalog structure, and drive faster reorder loops without leaving Laku.",
+        "summary": "Offers sits on your product catalog. Schedule discounts or Buy X Get Y, rewrite live selling prices when money deals activate, lock connected variants while the deal runs, and surface badges on Marketplace product cards.",
         "highlights": {
           "1": {
-            "title": "Deals where retailers already buy",
-            "desc": "Attach promotions to catalog items buyers browse in Marketplace."
+            "title": "Live list prices from active deals",
+            "desc": "Percentage and fixed offers rewrite Marketplace selling prices and show the original as strikethrough."
           },
           "2": {
-            "title": "Target the right stores",
-            "desc": "Push incentives to the retailers that need volume, not a blanket blast."
+            "title": "Deal integrity lock",
+            "desc": "Connected products cannot silently change variants or prices until the offer is removed or deactivated."
           },
           "3": {
-            "title": "Keep margin structure intact",
-            "desc": "Run promotions without breaking your core wholesale pricing model."
+            "title": "Schedule to the shelf",
+            "desc": "Date windows auto schedule, activate, and expire so Discount and Promotion badges appear on published SKUs when deals go live."
           }
         }
       },
       "points": {
         "1": {
-          "title": "Promotional pricing",
-          "desc": "Launch deals that sit next to the products retailers already browse."
+          "title": "Three deal structures in one place",
+          "desc": "Build percentage off, fixed off, and Buy X Get Y with MOQ-aware free packs, then attach them to catalog SKUs retailers already browse."
         },
         "2": {
-          "title": "Targeted incentives",
-          "desc": "Push the right offer to the right stores without leaving Laku."
+          "title": "Catalog stays the source of truth",
+          "desc": "Promotions sit on products. Money discounts update list price automatically, and structure stays locked while the deal runs."
         },
         "3": {
-          "title": "Faster reorder loops",
-          "desc": "Use offers to drive volume while protecting your catalog structure."
+          "title": "Buyer-visible urgency on Marketplace",
+          "desc": "Published products show offer badges, strikethrough pricing when discounts apply, and Buy X Get Y labels without a separate promo site."
+        },
+        "4": {
+          "title": "See what redeemed",
+          "desc": "Track usage and redemptions on each offer so you know which promotions actually moved volume."
         }
       }
     },
     "marketing": {
       "menuLabel": "Marketing",
-      "title": "Marketing that drives reorder",
-      "subtitle": "Run campaigns and promotions inside the platform to grow reach across connected retailers.",
+      "title": "WhatsApp campaigns tied to your catalog",
+      "subtitle": "Build rich WhatsApp messages with products from your catalog, share a trackable campaign page, and manage the sales team that follows up.",
       "placeholder": "Marketing module preview. Replace image",
       "overview": {
-        "summary": "Marketing keeps campaigns inside the same platform where retailers buy. Plan promotions, stay close to catalog and orders, and keep your retail network engaged with consistent touchpoints.",
+        "summary": "Marketing helps distributors run outreach next to the catalog they already sell. Design WhatsApp-ready campaigns with product blocks, share a public page that tracks opens and clicks, and keep sales agents and teams organized in the same hub.",
         "highlights": {
           "1": {
-            "title": "Campaigns inside the loop",
-            "desc": "Reach connected retailers in the same system where they reorder."
+            "title": "WhatsApp campaign builder",
+            "desc": "Design rich messages with templates, images, CTAs, and catalog products in a WhatsApp-style preview."
           },
           "2": {
-            "title": "Stay close to catalog and orders",
-            "desc": "Plan promotions without losing sight of what is selling and shipping."
+            "title": "Shareable campaign pages",
+            "desc": "Send via WhatsApp with a public campaign link, then track opens and clicks on the shared view."
           },
           "3": {
-            "title": "Build reorder habits",
-            "desc": "Keep the network warm with consistent touchpoints between bulk buys."
+            "title": "Sales teams in one place",
+            "desc": "Manage agents, roles, teams, and favorite products next to the campaigns they share."
           }
         }
       },
       "points": {
         "1": {
-          "title": "In-platform campaigns",
-          "desc": "Reach retailers where they already buy, not in a disconnected channel."
+          "title": "Block builder with catalog products",
+          "desc": "Compose headers, text, images, product cards, buttons, and lists, then preview how the message reads before you share."
         },
         "2": {
-          "title": "Promotion control",
-          "desc": "Plan and launch campaigns without losing sight of catalog and orders."
+          "title": "WhatsApp share with a public page",
+          "desc": "Open WhatsApp with your campaign link so retailers land on a page that counts opens and clicks."
         },
         "3": {
-          "title": "Network engagement",
-          "desc": "Keep your retail loop active with consistent marketing touchpoints."
+          "title": "Drafts until you are ready",
+          "desc": "Save campaigns as drafts, then send or resend when the message and product picks are set."
+        },
+        "4": {
+          "title": "Sales capacity beside campaigns",
+          "desc": "Organize agents and teams with roles, territory, and favorite products so follow-up stays close to what you promote."
         }
       }
     },
     "marketplace": {
-      "menuLabel": "Marketplace performance",
-      "title": "Marketplace performance with the buyer app",
-      "subtitle": "Track how your catalog performs in Marketplace and give retailers a clear wholesale buying experience in the app.",
+      "menuLabel": "Marketplace",
+      "title": "Your controlled storefront and buyer app",
+      "subtitle": "Publish an isolated wholesale catalog retailers buy from on mobile, and read storefront performance from views to cart to purchases in Dashboard.",
       "placeholder": "Marketplace performance and app preview. Replace image",
       "overview": {
-        "summary": "Marketplace performance connects distributor insights with the retailer buyer app. See what converts, help stores browse and order on mobile, and keep Dashboard and Marketplace in one loop.",
+        "summary": "Marketplace is Laku's controlled B2B storefront, not an open price war. Each distributor runs an isolated catalog with their own pricing and offers. Retailers browse, meet MOQ, and order in the buyer app while Dashboard shows funnel and product traction that feed Orders and fulfillment.",
         "highlights": {
           "1": {
-            "title": "See what converts",
-            "desc": "Read product traction and engagement from the Marketplace buyer experience."
+            "title": "Controlled storefront, not a price war",
+            "desc": "Sell from an isolated catalog with your pricing and offers. Buyer relationships stay bilateral B2B, not a race across unrelated distributors."
           },
           "2": {
-            "title": "Mobile wholesale for retailers",
-            "desc": "Give stores a clear app path to browse, compare, and place bulk orders."
+            "title": "Storefront performance with a real funnel",
+            "desc": "Track sales, views, and conversion, then follow Views to Cart to Purchases and product-level traction in Dashboard."
           },
           "3": {
-            "title": "Close the Dashboard loop",
-            "desc": "Connect buyer activity back to distributor catalog, offers, and fulfillment."
+            "title": "Retailer mobile wholesale loop",
+            "desc": "Buyers browse, follow distributors, shop offers, and place MOQ-aware orders that land in your Dashboard Orders."
           }
         }
       },
       "points": {
         "1": {
-          "title": "Performance insights",
-          "desc": "See product traction, engagement, and what is converting in Marketplace."
+          "title": "Product traction you can act on",
+          "desc": "See views, cart adds, favorites, sold units, reviews, sales, and conversion per product, including cart abandonment signals."
         },
         "2": {
-          "title": "Retailer marketplace app",
-          "desc": "Buyers browse, compare, and order from a mobile-first wholesale experience."
+          "title": "Buyer app path to checkout",
+          "desc": "Retailers go from Home, Categories, and Search to product detail, then Add to Cart or Buy Now with MOQ gates, bank transfer or COD, and your shipping rules."
         },
         "3": {
-          "title": "One loop with Dashboard",
-          "desc": "Distributor catalog and retailer buying stay connected in the same system."
+          "title": "Offers and followed stores",
+          "desc": "Dashboard promotions surface as Special Offers and badges. Retailers follow distributors and keep a network of regular suppliers."
+        },
+        "4": {
+          "title": "Orders that mirror Dashboard",
+          "desc": "Mobile order tabs cover pay, ship, receive, rate, return, and cancel, with invoice download and delivery timeline feeding the same order spine."
+        },
+        "5": {
+          "title": "Storefront profile for buyers",
+          "desc": "Published counts, unique buyers, followers, marketplace URL, shipping options, lead time, and return policy present your store clearly on Marketplace."
+        }
+      }
+    },
+    "analytics": {
+      "menuLabel": "Analytics",
+      "title": "Analytics across financial, sales, and ops",
+      "subtitle": "Read sales, paid profit, demand, buyers, fulfillment, and stock health in shared month, quarter, six-month, and year ranges.",
+      "placeholder": "Analytics module preview. Replace image",
+      "overview": {
+        "summary": "Analytics turns your Laku orders and catalog into three report surfaces: Financial, Customer and Sales, and Operational Performance. Compare KPIs to the prior period, slice by category, and forecast once you have enough history.",
+        "highlights": {
+          "1": {
+            "title": "Financial clarity",
+            "desc": "Track total sales, paid profit, margin, average order value, cash flow, and revenue forecast for the selected period."
+          },
+          "2": {
+            "title": "Demand and customers",
+            "desc": "See order and unit trends, category mix, top buyers, and how client relations grow or churn."
+          },
+          "3": {
+            "title": "Fulfillment and stock health",
+            "desc": "Monitor completion rate, processing time, tracking coverage, inventory health, and delivery-method mix."
+          }
+        }
+      },
+      "points": {
+        "1": {
+          "title": "Three views, one set of ranges",
+          "desc": "Switch Financial, Sales, and Operational reports while keeping the same month, quarter, six-month, or year window."
+        },
+        "2": {
+          "title": "Compare to the prior period",
+          "desc": "KPI deltas show growth or slippage against the previous equal-length window so changes are obvious at a glance."
+        },
+        "3": {
+          "title": "Slice revenue and units by category",
+          "desc": "Break performance by product category or type, and open top products into variant-level profit detail."
+        },
+        "4": {
+          "title": "Forecast when history is ready",
+          "desc": "Project revenue and order volume once you have at least two months of data to ground the forecast."
+        },
+        "5": {
+          "title": "Operational quality beside the charts",
+          "desc": "Quality scores for acceptance, tracking, data completeness, and stock sit next to status and processing trends."
+        }
+      }
+    },
+    "automations": {
+      "menuLabel": "Automations",
+      "title": "Workflow automations scoped to Laku",
+      "subtitle": "Build trigger-based workflows like other SaaS engines, but scoped to distribution: catalog and offers, clients, orders and logistics, and marketing.",
+      "placeholder": "Automations module preview. Replace image",
+      "overview": {
+        "summary": "Automations is Laku's workflow engine for ecommerce distribution. Design trigger-to-action flows across product offers, lead and client follow-up, order logistics, and marketing, then run them as active, paused, or draft workflows your team controls.",
+        "highlights": {
+          "1": {
+            "title": "A workflow engine for distribution",
+            "desc": "Create, activate, pause, and track runs from one Dashboard view, the same pattern as modern SaaS automation tools."
+          },
+          "2": {
+            "title": "Scoped to the Laku loop",
+            "desc": "Automate product and offers, client leads, order logistics, and marketing inside the platform you already operate."
+          },
+          "3": {
+            "title": "Triggers instead of chase",
+            "desc": "Hand off repeat ops to events so your team focuses on exceptions and growth, not retyping the same steps."
+          }
+        }
+      },
+      "points": {
+        "1": {
+          "title": "Trigger then action",
+          "desc": "Start workflows from events that matter in Laku, then run the follow-up steps without rebuilding them in chat or spreadsheets."
+        },
+        "2": {
+          "title": "Product and offers flows",
+          "desc": "Automate catalog and promotion routines so pricing and deal follow-ups stay consistent with what retailers see."
+        },
+        "3": {
+          "title": "Client and lead follow-up",
+          "desc": "Keep buyer and supplier network work moving with workflows that support lead and account follow-up."
+        },
+        "4": {
+          "title": "Order and logistics handoffs",
+          "desc": "Connect fulfillment steps so order and fleet routines can advance without manual coordination every time."
+        },
+        "5": {
+          "title": "Active, paused, and draft control",
+          "desc": "Manage workflow status, run counts, and last-run history so you know what is live and what is waiting."
         }
       }
     },
     "logistics": {
       "menuLabel": "Logistics and Driver",
-      "title": "Logistics with live Driver delivery",
-      "subtitle": "Assign fleets, give drivers app access, and share real-time delivery updates with your team and buyers.",
+      "title": "Fleets with Laku Driver in the field",
+      "subtitle": "Build trips from orders, give drivers app credentials and routes, and keep POD, GPS, and status synced for ops and buyers.",
       "placeholder": "Logistics and Driver app preview. Replace image",
       "overview": {
-        "summary": "Logistics and Driver give fleets and field teams one place to move shipments. Drivers get routes on the app, ops assigns fleets with less chase, and buyers see real-time delivery updates as goods move.",
+        "summary": "Logistics turns confirmed orders into fleet trips. Assign a vehicle and driver, sequence stops, and run delivery on the Laku Driver app with photo POD, failure evidence, and live location that feeds Dashboard and Marketplace visibility.",
         "highlights": {
           "1": {
-            "title": "Fleet without the chase",
-            "desc": "Assign shipments to the right fleet from confirmed orders in Dashboard."
+            "title": "Fleet trips from orders",
+            "desc": "Build a trip with vehicle, driver credentials, and assigned orders in one wizard."
           },
           "2": {
-            "title": "Driver app in the field",
-            "desc": "Give drivers routes and order context on the Laku Driver app."
+            "title": "Laku Driver in the field",
+            "desc": "Drivers get routes, status updates, photo POD, and failure evidence on the mobile app."
           },
           "3": {
-            "title": "Delivery visibility for buyers",
-            "desc": "Share live status so retailers know what is coming and when."
+            "title": "Live delivery visibility",
+            "desc": "Dashboard and Marketplace stay aligned as GPS and status sync while the trip runs."
           }
         }
       },
       "points": {
         "1": {
-          "title": "Driver app access",
-          "desc": "Drivers get routes and order context on the go from the Laku Driver app."
+          "title": "Active fleets and drivers in one place",
+          "desc": "Filter trips and open summary, vehicle, driver, and customer detail without leaving Logistics."
         },
         "2": {
-          "title": "Fleet assignment",
-          "desc": "Match shipments to the right fleet without manual chase."
+          "title": "Drag the stop order",
+          "desc": "Sequence delivery steps so the map visit order matches how the driver should run the route."
         },
         "3": {
-          "title": "Real-time delivery updates",
-          "desc": "Track status as goods move so retailers know what is coming."
+          "title": "Credentials you issue",
+          "desc": "Create driver logins in Logistics for the Laku Driver app. Access is distributor-managed, not open self-signup."
+        },
+        "4": {
+          "title": "Start, complete, or report failure",
+          "desc": "Packed to Start Delivery to Shipped, then photo POD to Delivered, or failure with a reason and photo evidence."
+        },
+        "5": {
+          "title": "Live location without phone chase",
+          "desc": "GPS and status updates keep ops and buyers informed; offline actions can queue until the driver reconnects."
         }
       }
     }
@@ -566,7 +704,7 @@
     "hero": {
       "badge": "Pricing",
       "title": "Flexible pricing plans for every need",
-      "subtitle": "Pay for the scale of your retail network. Every plan includes the full Laku platform — Dashboard, Marketplace, and Driver.",
+      "subtitle": "Choose a plan that fits your retail network scale. Every plan includes the full Laku platform: Dashboard, Marketplace, and Driver.",
       "trial": "30-day free trial. No credit card required."
     },
     "toggle": {
@@ -608,7 +746,7 @@
       }
     },
     "quotaBullets": {
-      "allFeatures": "All features included — limits are usage only",
+      "allFeatures": "All features included. Limits are usage only",
       "retailers": "Up to {band} active retailers",
       "products": "{count} marketplace products",
       "productsCustom": "Custom marketplace product capacity",
@@ -649,7 +787,7 @@
     "faq": {
       "1": {
         "q": "How is my plan determined?",
-        "a": "Plans are based on active retail connections — buyers in your Clients module that have placed at least one order in the last 90 days. Your tier is applied from that count on each billing date."
+        "a": "Plans are based on active retail connections: buyers in your Clients module that have placed at least one order in the last 90 days. Your tier is applied from that count on each billing date."
       },
       "2": {
         "q": "Is there a free trial?",
@@ -669,7 +807,7 @@
       },
       "6": {
         "q": "Do all plans include Marketplace and Driver?",
-        "a": "Yes. Every plan includes the full Laku loop — Dashboard, Marketplace buyer app, and Driver — with no feature gating by tier. Plans only differ by usage capacity (products, agents, drivers, orders, and similar limits)."
+        "a": "Yes. Every plan includes the full Laku loop (Dashboard, Marketplace buyer app, and Driver) with no feature gating by tier. Plans only differ by usage capacity (products, agents, drivers, orders, and similar limits)."
       },
       "7": {
         "q": "When should I choose Enterprise?",
@@ -824,24 +962,24 @@
       "subtitle": "Empowering Indonesia’s distributors and retailers with technology that truly works for them."
     },
     "story": {
-      "1": "For as long as I can remember, <b>trade has been the lifeblood of local communities</b>. In Indonesia, thousands of distributors, warungs, small shops, and independent retailers play a vital role in keeping daily essentials accessible and affordable. Yet, behind this vibrant economy lies a reality that few outsiders see — <b>the struggle of managing sales, inventory, and orders in a world that is still largely offline, manual, and fragmented</b>.",
-      "2": "As I observed how distribution and retail worked, I noticed the same patterns everywhere. Distributors had to juggle spreadsheets for their product listings, rely on countless WhatsApp messages for order-taking, make endless phone calls to confirm payments, and keep manual notes to track stock. Scheduling shipments was a puzzle in itself — no single system could give them clarity over what was coming in, what was going out, and when. This constant switching between disconnected tools created bottlenecks, wasted time, and left plenty of room for costly mistakes.",
-      "3": "On the other side of the trade, small retailers — the warungs, kiosks, and mom-and-pop shops that form the backbone of our communities — faced equally daunting challenges. For many of them, securing reliable supply was not easy. They often depended on local distributors or middlemen, leaving them with limited access to product variety and fluctuating prices. They lacked visibility into shipments, and often didn’t know if their orders would arrive on time. For businesses running on tight margins, even the smallest disruption meant lost sales and disappointed customers.",
+      "1": "For as long as I can remember, <b>trade has been the lifeblood of local communities</b>. In Indonesia, thousands of distributors, warungs, small shops, and independent retailers play a vital role in keeping daily essentials accessible and affordable. Yet, behind this vibrant economy lies a reality that few outsiders see: <b>the struggle of managing sales, inventory, and orders in a world that is still largely offline, manual, and fragmented</b>.",
+      "2": "As I observed how distribution and retail worked, I noticed the same patterns everywhere. Distributors had to juggle spreadsheets for their product listings, rely on countless WhatsApp messages for order-taking, make endless phone calls to confirm payments, and keep manual notes to track stock. Scheduling shipments was a puzzle in itself: no single system could give them clarity over what was coming in, what was going out, and when. This constant switching between disconnected tools created bottlenecks, wasted time, and left plenty of room for costly mistakes.",
+      "3": "On the other side of the trade, small retailers (the warungs, kiosks, and mom-and-pop shops that form the backbone of our communities) faced equally daunting challenges. For many of them, securing reliable supply was not easy. They often depended on local distributors or middlemen, leaving them with limited access to product variety and fluctuating prices. They lacked visibility into shipments, and often didn’t know if their orders would arrive on time. For businesses running on tight margins, even the smallest disruption meant lost sales and disappointed customers.",
       "4": "Another challenge I saw was in the way sales happened on the ground. Distributors’ salespeople often had to physically visit retail shops, waiting their turn among a line of other salesmen from different brands or suppliers. This meant that shop owners and buyers were bombarded with product pitches in quick succession, leading to information overload and decision fatigue. Many times, salesmen would have to leave the shop before even getting a chance to present, simply because the buyer was overwhelmed or out of time. This not only wasted effort, but also meant that great products and deals could be missed entirely.",
       "5": "It became clear to me that the problem wasn’t with the people, but with the system. Sales, inventory, and logistics were happening in silos. There was no single platform to bring order to the chaos. And because of this gap, growth was harder than it needed to be. Distributors couldn’t scale efficiently, and retailers couldn’t compete fairly.",
-      "6": "I didn’t set out to build just another B2B marketplace. Instead, I wanted to reimagine how distribution and retail could work if technology truly empowered both sides. Laku was designed as more than a place to transact. It is a platform where distributors can sell smarter, manage their stock in real-time, schedule and track shipments, and analyze performance — all in one place. At the same time, it gives retailers a simpler, more reliable way to discover products, place orders, and restock with confidence.",
-      "7": "The name <b>Laku</b> itself reflects this spirit. In Indonesian, “laku” means both sale and movement. Trade is all about movement — of goods, of opportunities, of livelihoods. Our platform exists to ensure that this movement happens seamlessly, transparently, and with trust.",
-      "8": "What drives me most is the belief that technology should make life easier, not more complicated. Laku is about bringing modern tools — automation, real-time visibility, and smart data — into a space that has long been underserved. It’s about giving distributors back the time and clarity they need to focus on growth. It’s about giving retailers the access and reliability they deserve to serve their customers better.",
+      "6": "I didn’t set out to build just another B2B marketplace. Instead, I wanted to reimagine how distribution and retail could work if technology truly empowered both sides. Laku was designed as more than a place to transact. It is a platform where distributors can sell smarter, manage their stock in real-time, schedule and track shipments, and analyze performance, all in one place. At the same time, it gives retailers a simpler, more reliable way to discover products, place orders, and restock with confidence.",
+      "7": "The name <b>Laku</b> itself reflects this spirit. In Indonesian, “laku” means both sale and movement. Trade is all about movement: of goods, of opportunities, of livelihoods. Our platform exists to ensure that this movement happens seamlessly, transparently, and with trust.",
+      "8": "What drives me most is the belief that technology should make life easier, not more complicated. Laku is about bringing modern tools (automation, real-time visibility, and smart data) into a space that has long been underserved. It’s about giving distributors back the time and clarity they need to focus on growth. It’s about giving retailers the access and reliability they deserve to serve their customers better.",
       "9": "Every feature in Laku comes from this simple vision: to integrate what was once scattered, and to simplify what was once complicated.",
       "10": "This is not just about building software. It’s about building trust, efficiency, and opportunity for millions of businesses who keep our economy moving every day.",
       "vision": "That realization sparked the vision for Laku.",
-      "mission": "We are just at the beginning of this journey, but the mission is clear. Trade in Indonesia, and beyond, deserves a platform built for its unique challenges — one that empowers both sellers and buyers equally. With Laku, I believe we can create an ecosystem where distribution thrives, retailers grow, and communities benefit.",
+      "mission": "We are just at the beginning of this journey, but the mission is clear. Trade in Indonesia, and beyond, deserves a platform built for its unique challenges: one that empowers both sellers and buyers equally. With Laku, I believe we can create an ecosystem where distribution thrives, retailers grow, and communities benefit.",
       "end": "And this is just the start."
     },
     "carousel": {
       "1": {
         "title": "Our Mission",
-        "content": "To empower businesses of every size — from large distributors to small warungs and kiosks — by giving them tools to trade smarter, faster, and more profitably."
+        "content": "To empower businesses of every size, from large distributors to small warungs and kiosks, by giving them tools to trade smarter, faster, and more profitably."
       },
       "2": {
         "title": "Our Vision",
@@ -855,12 +993,12 @@
       },
       "4": {
         "title": "Why 'Laku'?",
-        "content": "In Indonesian, laku means 'to sell' or 'to move.' Laku is about creating momentum — helping products move, helping businesses grow, and helping trade thrive."
+        "content": "In Indonesian, laku means 'to sell' or 'to move.' Laku is about creating momentum: helping products move, helping businesses grow, and helping trade thrive."
       }
     },
     "cta": {
       "title": "Join us in building the future of distribution and retail.",
-      "subtitle": "At Laku, we’re not just creating software — we’re shaping a smarter, fairer marketplace for everyone.",
+      "subtitle": "At Laku, we’re not just creating software. We’re shaping a smarter, fairer marketplace for everyone.",
       "button": "See Our Solutions"
     }
   },

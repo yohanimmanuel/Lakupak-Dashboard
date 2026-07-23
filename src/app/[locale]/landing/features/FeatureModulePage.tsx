@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { AuthDecorativeBackground } from '@/components/auth/AuthDecorativeBackground';
 import { Reveal } from '../Reveal';
 import type { FeatureModuleSlug } from './modules';
 import { FEATURE_MODULES, featurePath, getFeatureModule } from './modules';
@@ -29,14 +30,18 @@ export function FeatureModulePage({
   const router = useRouter();
   const moduleDef = getFeatureModule(slug);
   const Icon = moduleDef?.icon;
-  const points = [1, 2, 3] as const;
+  const pointsCount = Math.min(6, Math.max(1, moduleDef?.pointsCount ?? 3));
+  const highlightsCount = Math.min(6, Math.max(1, moduleDef?.highlightsCount ?? 3));
+  const points = Array.from({ length: pointsCount }, (_, i) => i + 1);
+  const highlights = Array.from({ length: highlightsCount }, (_, i) => i + 1);
 
   if (!Icon) return null;
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      <section className="relative overflow-hidden pt-10 pb-14 sm:pt-14 sm:pb-16 bg-gradient-to-b from-white via-[#f8fbff] to-white">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 text-center">
+      <section className="relative overflow-hidden pt-24 sm:pt-28 pb-14 sm:pb-16 bg-gradient-to-b from-white via-[#f8fbff] to-white">
+        <AuthDecorativeBackground variant="light" />
+        <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 text-center">
           <Reveal className="mx-auto max-w-3xl">
             <div className="inline-flex items-center justify-center gap-2 text-sm font-medium text-[#0a61d7] mb-4">
               <Icon className="w-4 h-4" strokeWidth={1.75} />
@@ -130,8 +135,12 @@ export function FeatureModulePage({
 
             <div className="mt-10">
               <p className="text-sm font-semibold text-gray-900 mb-4">{t('overview.unlocksLabel')}</p>
-              <div className="grid sm:grid-cols-3 gap-4">
-                {([1, 2, 3] as const).map((n) => (
+              <div
+                className={`grid gap-4 ${
+                  highlightsCount > 3 ? 'sm:grid-cols-2 lg:grid-cols-3' : 'sm:grid-cols-3'
+                }`}
+              >
+                {highlights.map((n) => (
                   <div
                     key={n}
                     className="rounded-2xl border border-gray-200 bg-[#f7f9fc] p-5"

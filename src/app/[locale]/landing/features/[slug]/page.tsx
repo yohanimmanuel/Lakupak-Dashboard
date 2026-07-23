@@ -10,6 +10,8 @@ export function generateStaticParams() {
     { slug: 'offers' },
     { slug: 'marketing' },
     { slug: 'marketplace' },
+    { slug: 'analytics' },
+    { slug: 'automations' },
     { slug: 'logistics' },
   ];
 }

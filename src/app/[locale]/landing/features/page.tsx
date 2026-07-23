@@ -12,7 +12,7 @@ export default function FeaturesHubPage() {
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      <section className="pt-10 pb-14 sm:pt-14 sm:pb-16 bg-gradient-to-b from-white via-[#f8fbff] to-white">
+      <section className="pt-24 sm:pt-28 pb-14 sm:pb-16 bg-gradient-to-b from-white via-[#f8fbff] to-white">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <Reveal className="max-w-3xl">
             <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-bold tracking-tight text-gray-900 leading-tight">

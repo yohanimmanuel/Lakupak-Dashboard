@@ -20,11 +20,36 @@ export default function LandingLayout({
     pathname === `/${locale}/landing/` ||
     pathname === '/landing' ||
     pathname === '/landing/';
+  const isPricing =
+    pathname === `/${locale}/landing/pricing` ||
+    pathname === `/${locale}/landing/pricing/` ||
+    pathname === '/landing/pricing' ||
+    pathname === '/landing/pricing/' ||
+    Boolean(pathname?.includes('/landing/pricing'));
+  const isSolutions =
+    pathname === `/${locale}/landing/solutions` ||
+    pathname === `/${locale}/landing/solutions/` ||
+    pathname === '/landing/solutions' ||
+    pathname === '/landing/solutions/' ||
+    Boolean(pathname?.includes('/landing/solutions'));
+  const isAbout =
+    pathname === `/${locale}/landing/about` ||
+    pathname === `/${locale}/landing/about/` ||
+    pathname === '/landing/about' ||
+    pathname === '/landing/about/' ||
+    Boolean(pathname?.includes('/landing/about'));
+  const isFeatures =
+    pathname === `/${locale}/landing/features` ||
+    pathname === `/${locale}/landing/features/` ||
+    pathname === '/landing/features' ||
+    pathname === '/landing/features/' ||
+    Boolean(pathname?.includes('/landing/features'));
+  const underlayNav = isHome || isPricing || isSolutions || isAbout || isFeatures;
 
   return (
     <div className="min-h-screen bg-white">
       <LandingNavbar />
-      <div className={isHome ? undefined : 'pt-16'}>{children}</div>
+      <div className={underlayNav ? undefined : 'pt-16'}>{children}</div>
       <footer className="bg-gray-950 text-white py-14">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-4 gap-10">
