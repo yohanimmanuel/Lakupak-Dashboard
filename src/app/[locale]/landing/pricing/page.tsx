@@ -179,26 +179,91 @@ export default function PricingPage() {
               {pricingTiers.map((tier, i) => (
                 <Reveal key={tier.plan.id} delayMs={i * 70}>
                   <article
-                    className={`relative flex h-full flex-col rounded-2xl bg-white/95 backdrop-blur-sm border transition-colors ${
+                    className={`relative flex h-full flex-col overflow-hidden rounded-2xl border backdrop-blur-sm transition-colors ${
                       tier.popular
-                        ? 'border-[#0a61d7] shadow-[0_12px_40px_-16px_rgba(10,97,215,0.25)]'
-                        : 'border-gray-200 hover:border-[#0a61d7]/30'
+                        ? 'bg-gradient-to-br from-[#3b82f6] via-[#0a61d7] to-[#063a82] border-white/20 shadow-[0_16px_48px_-12px_rgba(10,97,215,0.55)] text-white'
+                        : 'bg-white/95 border-gray-200 hover:border-[#0a61d7]/30'
                     }`}
                   >
-                    <div className="px-5 pt-6 pb-5">
+                    {tier.popular && (
+                      <svg
+                        aria-hidden
+                        className="pointer-events-none absolute inset-0 h-full w-full opacity-50"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        {[
+                          [8, 6, 1.2],
+                          [22, 14, 0.8],
+                          [41, 4, 1],
+                          [63, 11, 0.7],
+                          [78, 7, 1.1],
+                          [91, 18, 0.9],
+                          [12, 28, 0.7],
+                          [35, 24, 1.1],
+                          [54, 32, 0.8],
+                          [71, 26, 1],
+                          [88, 35, 0.7],
+                          [5, 44, 1],
+                          [28, 48, 0.8],
+                          [48, 42, 1.2],
+                          [67, 52, 0.7],
+                          [84, 46, 0.9],
+                          [16, 62, 0.8],
+                          [39, 68, 1],
+                          [58, 61, 0.7],
+                          [76, 70, 1.1],
+                          [94, 64, 0.8],
+                          [9, 78, 0.9],
+                          [31, 84, 0.7],
+                          [52, 80, 1],
+                          [70, 88, 0.8],
+                          [87, 82, 1.1],
+                          [19, 94, 0.7],
+                          [44, 92, 0.9],
+                          [62, 96, 0.8],
+                          [81, 93, 1],
+                        ].map(([cx, cy, r], i) => (
+                          <circle
+                            key={i}
+                            cx={`${cx}%`}
+                            cy={`${cy}%`}
+                            r={r}
+                            fill="white"
+                            opacity={0.45 + (i % 5) * 0.1}
+                          />
+                        ))}
+                      </svg>
+                    )}
+                    <div className="relative z-10 px-5 pt-6 pb-5">
                       <div className="flex items-start justify-between gap-2 mb-4">
-                        <div className="w-10 h-10 rounded-xl bg-[#f7faff] flex items-center justify-center">
+                        <div
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                            tier.popular ? 'bg-white/15 [&_svg]:text-white' : 'bg-[#f7faff]'
+                          }`}
+                        >
                           {PLAN_ICONS[tier.plan.id]}
                         </div>
                         {tier.popular && (
-                          <span className="text-[11px] font-semibold text-[#0a61d7]">
+                          <span className="text-[11px] font-semibold text-white/90">
                             {t('card.mostpopular')}
                           </span>
                         )}
                       </div>
 
-                      <h3 className="text-lg font-bold text-gray-900 mb-1">{tier.name}</h3>
-                      <p className="text-sm text-gray-600 leading-snug min-h-[40px]">{tier.description}</p>
+                      <h3
+                        className={`text-lg font-bold mb-1 ${
+                          tier.popular ? 'text-white' : 'text-gray-900'
+                        }`}
+                      >
+                        {tier.name}
+                      </h3>
+                      <p
+                        className={`text-sm leading-snug min-h-[40px] ${
+                          tier.popular ? 'text-white/80' : 'text-gray-600'
+                        }`}
+                      >
+                        {tier.description}
+                      </p>
 
                       <div className="mt-5 mb-5">
                         <div
@@ -206,17 +271,35 @@ export default function PricingPage() {
                           className="flex items-baseline gap-1 whitespace-nowrap animate-fade-in-up motion-reduce:animate-none"
                           style={{ animationDuration: '0.4s' }}
                         >
-                          <span className="text-2xl font-bold tracking-tight text-gray-900">
+                          <span
+                            className={`text-2xl font-bold tracking-tight ${
+                              tier.popular ? 'text-white' : 'text-gray-900'
+                            }`}
+                          >
                             {tier.priceLabel}
                           </span>
                           {tier.showPeriod && (
-                            <span className="text-sm font-medium text-gray-500">{periodLabel}</span>
+                            <span
+                              className={`text-sm font-medium ${
+                                tier.popular ? 'text-white/70' : 'text-gray-500'
+                              }`}
+                            >
+                              {periodLabel}
+                            </span>
                           )}
                         </div>
-                        <p className="text-xs text-gray-500 mt-1.5">
+                        <p
+                          className={`text-xs mt-1.5 ${
+                            tier.popular ? 'text-white/65' : 'text-gray-500'
+                          }`}
+                        >
                           {tier.isEnterprise ? t('card.enterpriseHint') : t('card.priceHint')}
                         </p>
-                        <p className="text-xs font-medium text-gray-700 mt-2">
+                        <p
+                          className={`text-xs font-medium mt-2 ${
+                            tier.popular ? 'text-white/85' : 'text-gray-700'
+                          }`}
+                        >
                           {t('card.retailersBand', { band: tier.plan.connections })}
                         </p>
                       </div>
@@ -227,7 +310,9 @@ export default function PricingPage() {
                         className={`w-full inline-flex items-center justify-center gap-2 rounded-xl py-2.5 px-4 text-sm font-semibold transition-colors ${
                           tier.isEnterprise
                             ? 'bg-white text-gray-900 border border-gray-300 hover:bg-gray-50'
-                            : 'bg-[#0a61d7] text-white hover:bg-[#084ba6]'
+                            : tier.popular
+                              ? 'bg-white text-[#0a61d7] hover:bg-white/90'
+                              : 'bg-[#0a61d7] text-white hover:bg-[#084ba6]'
                         }`}
                       >
                         {tier.isEnterprise ? t('card.contactSales') : t('card.getstarted')}
@@ -235,17 +320,42 @@ export default function PricingPage() {
                       </button>
                     </div>
 
-                    <div className="border-t border-gray-100 px-5 pt-5 pb-6 flex-1 bg-[#f7f9fc]/50 rounded-b-2xl">
-                      <p className="text-sm font-semibold text-gray-900 mb-3">
+                    <div
+                      className={`relative z-10 border-t px-5 pt-5 pb-6 flex-1 rounded-b-2xl ${
+                        tier.popular
+                          ? 'border-white/15 bg-black/10'
+                          : 'border-gray-100 bg-[#f7f9fc]/50'
+                      }`}
+                    >
+                      <p
+                        className={`text-sm font-semibold mb-3 ${
+                          tier.popular ? 'text-white' : 'text-gray-900'
+                        }`}
+                      >
                         {t('card.includes', { name: tier.name })}
                       </p>
                       <ul className="space-y-2.5">
                         {tier.features.map((feature, featureIndex) => (
                           <li key={featureIndex} className="flex items-start gap-2.5">
-                            <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#0a61d7]/10">
-                              <Check className="h-2.5 w-2.5 text-[#0a61d7]" strokeWidth={3} />
+                            <span
+                              className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${
+                                tier.popular ? 'bg-white/20' : 'bg-[#0a61d7]/10'
+                              }`}
+                            >
+                              <Check
+                                className={`h-2.5 w-2.5 ${
+                                  tier.popular ? 'text-white' : 'text-[#0a61d7]'
+                                }`}
+                                strokeWidth={3}
+                              />
                             </span>
-                            <span className="text-sm text-gray-600 leading-snug">{feature}</span>
+                            <span
+                              className={`text-sm leading-snug ${
+                                tier.popular ? 'text-white/85' : 'text-gray-600'
+                              }`}
+                            >
+                              {feature}
+                            </span>
                           </li>
                         ))}
                       </ul>
