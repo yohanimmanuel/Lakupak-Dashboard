@@ -401,6 +401,7 @@ function FeatureBlock({
   placeholderKey,
   points,
   tone = 'muted',
+  media,
 }: {
   id: string;
   titleKey: string;
@@ -408,6 +409,7 @@ function FeatureBlock({
   placeholderKey: string;
   points: { titleKey: string; descKey: string }[];
   tone?: 'muted' | 'white';
+  media?: React.ReactNode;
 }) {
   const t = useTranslations('landing');
 
@@ -422,11 +424,13 @@ function FeatureBlock({
         </Reveal>
 
         <Reveal>
-          <FeatureMediaFrame className="mb-10">
-            <ImagePlaceholder
-              label={t(placeholderKey)}
-              className="min-h-[220px] sm:min-h-[320px] w-full border-0 bg-white rounded-none"
-            />
+          <FeatureMediaFrame className="mb-10" framed={!media} minHeightClass="min-h-[280px] sm:min-h-[400px]">
+            {media ?? (
+              <ImagePlaceholder
+                label={t(placeholderKey)}
+                className="min-h-[220px] sm:min-h-[320px] w-full border-0 bg-white rounded-none"
+              />
+            )}
           </FeatureMediaFrame>
         </Reveal>
 
@@ -447,6 +451,56 @@ function FeatureBlock({
   );
 }
 
+/** Two marketing screenshots side by side with a circle-dotted connector. */
+function MarketingSideBySide({ alt }: { alt: string }) {
+  return (
+    <div className="relative mx-auto flex h-full w-full max-w-5xl items-center px-2 py-4 sm:px-4 sm:py-6">
+      <div className="relative flex w-full items-center gap-2 sm:gap-3">
+        <div className="relative z-10 w-[56%] sm:w-[58%] rounded-xl border border-gray-200/90 bg-white p-1 shadow-[0_14px_36px_-16px_rgba(15,23,42,0.28)] overflow-hidden">
+          <Image
+            src="/Dashboardmarketing3.png"
+            alt={alt}
+            width={1477}
+            height={780}
+            quality={90}
+            className="w-full h-auto block rounded-lg"
+            sizes="(min-width: 1024px) 520px, 55vw"
+          />
+        </div>
+
+        <div className="relative z-0 h-8 w-[6%] min-w-[24px] sm:h-10 sm:w-[8%]" aria-hidden>
+          <svg
+            className="absolute inset-0 h-full w-full"
+            viewBox="0 0 80 40"
+            preserveAspectRatio="none"
+          >
+            <path
+              d="M0 20 H80"
+              fill="none"
+              stroke="#94a3b8"
+              strokeWidth="3"
+              strokeDasharray="0 8"
+              strokeLinecap="round"
+            />
+          </svg>
+        </div>
+
+        <div className="relative z-10 w-[36%] sm:w-[32%] rounded-xl border border-gray-200/90 bg-white p-1 shadow-[0_14px_36px_-16px_rgba(10,97,215,0.28)] overflow-hidden">
+          <Image
+            src="/Dashboardmarketingeng.png"
+            alt=""
+            width={665}
+            height={571}
+            quality={90}
+            className="w-full h-auto block rounded-lg"
+            sizes="(min-width: 1024px) 300px, 32vw"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SplitFeatureSection({
   id,
   titleKey,
@@ -455,6 +509,7 @@ function SplitFeatureSection({
   points,
   mediaPosition,
   tone = 'white',
+  mediaStageClass = 'h-[420px] sm:h-[500px]',
 }: {
   id: string;
   titleKey: string;
@@ -463,33 +518,107 @@ function SplitFeatureSection({
   points: {
     titleKey: string;
     descKey: string;
-    image?: { src: string; width: number; height: number };
+    image?: {
+      src: string;
+      width: number;
+      height: number;
+      /** phone = tall mobile shot; fill = use full media width */
+      fit?: 'phone' | 'fill';
+      /** Extra sizing classes for the image wrapper (e.g. smaller width). */
+      className?: string;
+    };
+    /** Two images side by side with a circle-dotted connector between them. */
+    images?: [{ src: string; width: number; height: number }, { src: string; width: number; height: number }];
   }[];
   mediaPosition: 'left' | 'right';
   tone?: 'muted' | 'white';
+  /** Fixed stage height so tab switches don’t jump (same idea as selling section). */
+  mediaStageClass?: string;
 }) {
   const t = useTranslations('landing');
   const [activeIndex, setActiveIndex] = useState(0);
   const activePoint = points[activeIndex] ?? points[0];
   const activeImage = activePoint?.image;
+  const activePair = activePoint?.images;
+  const mediaKey = activePair
+    ? `${activePair[0].src}-${activePair[1].src}`
+    : activeImage?.src ?? 'placeholder';
+  const isPhone =
+    activeImage?.fit === 'phone' ||
+    (!activeImage?.fit && activeImage != null && activeImage.height / activeImage.width > 1.4);
 
   const media = (
-    <FeatureMediaFrame minHeightClass="min-h-[280px] sm:min-h-[360px]">
-      {activeImage ? (
+    <FeatureMediaFrame framed={false} minHeightClass={mediaStageClass}>
+      {activePair ? (
         <div
-          key={activeImage.src}
-          className="animate-fade-in motion-reduce:animate-none"
+          key={mediaKey}
+          className="flex h-full w-full items-center justify-center gap-2 px-2 py-3 sm:gap-3 sm:px-3 animate-fade-in motion-reduce:animate-none"
           style={{ animationDuration: '0.45s' }}
         >
-          <Image
-            src={activeImage.src}
-            alt={t(activePoint.titleKey)}
-            width={activeImage.width}
-            height={activeImage.height}
-            quality={90}
-            className="w-full h-auto block"
-            sizes="(min-width: 1024px) 560px, 100vw"
-          />
+          <div className="w-[42%] max-w-[170px] sm:max-w-[200px] rounded-xl border border-gray-200/90 bg-white p-0.5 shadow-[0_14px_36px_-16px_rgba(15,23,42,0.28)] overflow-hidden">
+            <Image
+              src={activePair[0].src}
+              alt={t(activePoint.titleKey)}
+              width={activePair[0].width}
+              height={activePair[0].height}
+              quality={90}
+              className="w-full h-auto block rounded-lg"
+              sizes="200px"
+            />
+          </div>
+          <div className="h-8 w-8 shrink-0 sm:h-10 sm:w-12" aria-hidden>
+            <svg className="h-full w-full" viewBox="0 0 80 40" preserveAspectRatio="none">
+              <path
+                d="M0 20 H80"
+                fill="none"
+                stroke="#94a3b8"
+                strokeWidth="3"
+                strokeDasharray="0 8"
+                strokeLinecap="round"
+              />
+            </svg>
+          </div>
+          <div className="w-[42%] max-w-[170px] sm:max-w-[200px] rounded-xl border border-gray-200/90 bg-white p-0.5 shadow-[0_14px_36px_-16px_rgba(10,97,215,0.28)] overflow-hidden">
+            <Image
+              src={activePair[1].src}
+              alt=""
+              width={activePair[1].width}
+              height={activePair[1].height}
+              quality={90}
+              className="w-full h-auto block rounded-lg"
+              sizes="200px"
+            />
+          </div>
+        </div>
+      ) : activeImage ? (
+        <div
+          key={mediaKey}
+          className="flex h-full w-full items-center justify-center animate-fade-in motion-reduce:animate-none"
+          style={{ animationDuration: '0.45s' }}
+        >
+          <div
+            className={
+              isPhone
+                ? `max-h-full w-auto rounded-2xl border border-gray-200/90 bg-white p-0.5 shadow-[0_14px_36px_-16px_rgba(15,23,42,0.28)] overflow-hidden ${activeImage.className ?? ''}`
+                : `overflow-hidden rounded-xl border border-gray-200/90 bg-white shadow-[0_14px_36px_-16px_rgba(15,23,42,0.28)] ${
+                    activeImage.className ?? 'w-full'
+                  }`
+            }
+          >
+            <Image
+              src={activeImage.src}
+              alt={t(activePoint.titleKey)}
+              width={activeImage.width}
+              height={activeImage.height}
+              quality={90}
+              className={
+                isPhone
+                  ? 'max-h-[360px] sm:max-h-[440px] w-auto h-auto object-contain block rounded-xl'
+                  : 'w-full h-auto block'
+              }
+              sizes="(min-width: 1024px) 560px, 100vw"
+            />
+          </div>
         </div>
       ) : (
         <ImagePlaceholder
@@ -747,6 +876,7 @@ export default function LandingPage() {
           subtitleKey="features.marketing.subtitle"
           placeholderKey="features.marketing.placeholder"
           tone="white"
+          media={<MarketingSideBySide alt={t('features.marketing.title')} />}
           points={[
             { titleKey: 'features.marketing.1.title', descKey: 'features.marketing.1.desc' },
             { titleKey: 'features.marketing.2.title', descKey: 'features.marketing.2.desc' },
@@ -762,9 +892,35 @@ export default function LandingPage() {
           mediaPosition="right"
           tone="muted"
           points={[
-            { titleKey: 'features.logistics.1.title', descKey: 'features.logistics.1.desc' },
-            { titleKey: 'features.logistics.2.title', descKey: 'features.logistics.2.desc' },
-            { titleKey: 'features.logistics.3.title', descKey: 'features.logistics.3.desc' },
+            {
+              titleKey: 'features.logistics.1.title',
+              descKey: 'features.logistics.1.desc',
+              image: {
+                src: '/Drivermobile1.jpeg',
+                width: 1000,
+                height: 2048,
+                fit: 'phone',
+              },
+            },
+            {
+              titleKey: 'features.logistics.2.title',
+              descKey: 'features.logistics.2.desc',
+              image: {
+                src: '/Dashboardlogs.png',
+                width: 751,
+                height: 790,
+                fit: 'fill',
+                className: 'w-[72%] sm:w-[68%]',
+              },
+            },
+            {
+              titleKey: 'features.logistics.3.title',
+              descKey: 'features.logistics.3.desc',
+              images: [
+                { src: '/Drivermobile.jpeg', width: 1006, height: 2048 },
+                { src: '/Drivermobile2.jpeg', width: 1000, height: 2048 },
+              ],
+            },
           ]}
         />
 
