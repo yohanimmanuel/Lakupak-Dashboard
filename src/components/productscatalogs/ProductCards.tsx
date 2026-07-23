@@ -2,9 +2,13 @@
 import React from "react";
 import { Package, CheckCircle, AlertTriangle, XCircle, X, Gift } from "lucide-react";
 import { Product } from "@/types/product";
-import { cumulativeCountGrowth, formatLegacyTrend } from "@/utils/monthOverMonthGrowth";
-import { StatCardTrendRow } from "@/components/stats/StatCardTrendRow";
 import { useProductsTranslations } from '@/hooks/useProductsTranslations';
+import {
+  STAT_ICON_BG_BLUE,
+  STAT_ICON_BG_GREEN,
+  STAT_ICON_BLUE,
+  STAT_ICON_GREEN,
+} from '@/utils/statCardStyles';
 
 interface ProductCardsProps {
   products: Product[];
@@ -46,30 +50,24 @@ export default function ProductCards({ products = [] }: ProductCardsProps) {
     product.promotionDetails
   ).length;
 
-  const totalProductsGrowth = cumulativeCountGrowth(products, (product) => product.createdAt);
-  const unavailableTrend = formatLegacyTrend(null);
-
   const stats = [
     {
       label: tCards('totalProducts'),
       value: totalProducts,
-      icon: <Package className="w-6 h-6 text-[#0a61d7]" />,
-      color: 'bg-[#f7faff]',
-      trend: formatLegacyTrend(totalProductsGrowth),
+      icon: <Package className={`w-6 h-6 ${STAT_ICON_BLUE}`} />,
+      color: STAT_ICON_BG_BLUE,
     },
     {
       label: tCards('publishedProducts'),
       value: activeProducts,
-      icon: <CheckCircle className="w-6 h-6 text-green-500" />,
-      color: 'bg-[#e6f7ec]',
-      trend: unavailableTrend,
+      icon: <CheckCircle className={`w-6 h-6 ${STAT_ICON_GREEN}`} />,
+      color: STAT_ICON_BG_GREEN,
     },
     {
       label: tCards('productsWithOffers'),
       value: productsWithOffers,
-      icon: <Gift className="w-6 h-6 text-purple-500" />,
-      color: 'bg-[#f3e8ff]',
-      trend: unavailableTrend,
+      icon: <Gift className={`w-6 h-6 ${STAT_ICON_BLUE}`} />,
+      color: STAT_ICON_BG_BLUE,
     }
   ];
 
@@ -79,18 +77,15 @@ export default function ProductCards({ products = [] }: ProductCardsProps) {
         {stats.map((stat) => (
           <div
             key={stat.label}
-            className="flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6]"
+            className="flex items-center gap-4 p-4 rounded-lg bg-white border border-[#e6e6e6]"
           >
-            <div className="flex items-center gap-4 border-b border-[#e6e6e6] pb-4">
-              <div className={`flex items-center justify-center w-12 h-12 rounded-lg ${stat.color}`}>
-                {stat.icon}
-              </div>
-              <div>
-                <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">{stat.label}</div>
-                <div className="text-xl font-bold text-black">{stat.value}</div>
-              </div>
+            <div className={`flex items-center justify-center w-12 h-12 rounded-lg ${stat.color}`}>
+              {stat.icon}
             </div>
-            <StatCardTrendRow trend={stat.trend} />
+            <div>
+              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">{stat.label}</div>
+              <div className="text-xl font-bold text-black">{stat.value}</div>
+            </div>
           </div>
         ))}
       </div>
@@ -99,19 +94,22 @@ export default function ProductCards({ products = [] }: ProductCardsProps) {
          <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
            <div className="flex items-center justify-between">
              <div className="flex items-center gap-3">
-               <AlertTriangle className="w-5 h-5 text-orange-600" />
-               <span className="text-sm text-orange-700 font-medium">
-                 {lowStockAlerts > 1
-                   ? tCards('lowStockAlertPlural', { count: lowStockAlerts })
-                   : tCards('lowStockAlert', { count: lowStockAlerts })}
-               </span>
+               <AlertTriangle className="w-5 h-5 text-orange-500" />
+               <div>
+                 <div className="text-sm font-semibold text-orange-800">
+                   {tCards(lowStockAlerts === 1 ? 'lowStockAlert' : 'lowStockAlertPlural', {
+                     count: lowStockAlerts,
+                   })}
+                 </div>
+               </div>
              </div>
              <button
+               type="button"
                onClick={() => setDismissedLowStock(true)}
-               className="p-1 hover:bg-orange-100 rounded-full transition-colors"
-               title={tCards('dismissNotification')}
+               className="text-orange-400 hover:text-orange-600"
+               aria-label="Dismiss"
              >
-               <X className="w-4 h-4 text-orange-600" />
+               <X className="w-4 h-4" />
              </button>
            </div>
          </div>
@@ -121,19 +119,22 @@ export default function ProductCards({ products = [] }: ProductCardsProps) {
          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
            <div className="flex items-center justify-between">
              <div className="flex items-center gap-3">
-               <XCircle className="w-5 h-5 text-red-600" />
-               <span className="text-sm text-red-700 font-medium">
-                 {outOfStock > 1
-                   ? tCards('outOfStockAlertPlural', { count: outOfStock })
-                   : tCards('outOfStockAlert', { count: outOfStock })}
-             </span>
+               <XCircle className="w-5 h-5 text-red-500" />
+               <div>
+                 <div className="text-sm font-semibold text-red-800">
+                   {tCards(outOfStock === 1 ? 'outOfStockAlert' : 'outOfStockAlertPlural', {
+                     count: outOfStock,
+                   })}
+                 </div>
+               </div>
              </div>
              <button
+               type="button"
                onClick={() => setDismissedOutOfStock(true)}
-               className="p-1 hover:bg-red-100 rounded-full transition-colors"
-               title={tCards('dismissNotification')}
+               className="text-red-400 hover:text-red-600"
+               aria-label="Dismiss"
              >
-               <X className="w-4 h-4 text-red-600" />
+               <X className="w-4 h-4" />
              </button>
            </div>
          </div>

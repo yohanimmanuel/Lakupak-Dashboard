@@ -1,15 +1,21 @@
 'use client';
 import React, { useMemo } from 'react';
-import { Package, DollarSign, ShoppingCart } from 'lucide-react';
+import { Package, DollarSign, CheckCircle } from 'lucide-react';
 import { Order } from '@/types/order';
-import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
+import { formatCurrency, formatCompactCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { calculateOrderTotalAmount } from '@/utils/orderCalculations';
 import { useUserStore } from '@/store/userStore';
 import { AnalyticsMetricCard } from '@/components/analyticsperformance/FinancialAnalytics';
 import { OperationalMetricCard } from '@/components/analyticsperformance/OperationalPerformanceAnalytics';
 import { isDeliveryStopComplete } from '@/utils/deliveryCompletion';
-import { computeOrderMonthOverMonthGrowth } from '@/utils/monthOverMonthGrowth';
+import { computeOrdersListGrowth } from '@/utils/monthOverMonthGrowth';
 import { useOrdersTranslations } from '@/hooks/useOrdersTranslations';
+import {
+  STAT_ICON_BG_BLUE,
+  STAT_ICON_BG_GREEN,
+  STAT_ICON_BLUE,
+  STAT_ICON_GREEN,
+} from '@/utils/statCardStyles';
 
 interface OrdersCardsProps {
   orders: Order[];
@@ -32,7 +38,7 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
   const orderVolume = validOrders.reduce((sum, order) => sum + calculateOrderTotalAmount(order), 0);
   const averageOrderVolume = totalOrders > 0 ? orderVolume / totalOrders : 0;
 
-  const growth = useMemo(() => computeOrderMonthOverMonthGrowth(validOrders), [validOrders]);
+  const growth = useMemo(() => computeOrdersListGrowth(validOrders), [validOrders]);
 
   const displayCurrency = user?.currency || getDefaultCurrency();
 
@@ -42,29 +48,47 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
         title={tCards('totalOrders')}
         value={totalOrders.toLocaleString()}
         change={growth.ordersGrowth}
-        icon={<Package className="w-6 h-6 text-emerald-600" />}
-        color="bg-[#e6f7ec]"
+        previousValue={
+          growth.ordersPrevious != null ? growth.ordersPrevious.toLocaleString() : undefined
+        }
+        icon={<Package className={`w-6 h-6 ${STAT_ICON_BLUE}`} />}
+        color={STAT_ICON_BG_BLUE}
       />
       <AnalyticsMetricCard
         title={tCards('orderVolume')}
         value={formatCurrency(orderVolume, displayCurrency)}
         change={growth.orderVolumeGrowth}
-        icon={<DollarSign className="w-6 h-6 text-[#0a61d7]" />}
-        color="bg-[#f7faff]"
+        previousValue={
+          growth.orderVolumePrevious != null
+            ? formatCompactCurrency(growth.orderVolumePrevious, displayCurrency)
+            : undefined
+        }
+        icon={<DollarSign className={`w-6 h-6 ${STAT_ICON_BLUE}`} />}
+        color={STAT_ICON_BG_BLUE}
       />
       <OperationalMetricCard
         title={tCards('completionRate')}
         value={`${completionRate.toFixed(1)}%`}
         change={growth.completionGrowth}
-        icon={<ShoppingCart className="w-6 h-6 text-green-600" />}
-        color="bg-[#e6f7ec]"
+        previousValue={
+          growth.completionPrevious != null
+            ? `${growth.completionPrevious.toFixed(1)}%`
+            : undefined
+        }
+        icon={<CheckCircle className={`w-6 h-6 ${STAT_ICON_GREEN}`} />}
+        color={STAT_ICON_BG_GREEN}
       />
       <AnalyticsMetricCard
         title={tCards('averageOrderVolume')}
         value={formatCurrency(averageOrderVolume, displayCurrency)}
         change={growth.averageOrderVolumeGrowth}
-        icon={<DollarSign className="w-6 h-6 text-emerald-600" />}
-        color="bg-[#e6f7ec]"
+        previousValue={
+          growth.averageOrderVolumePrevious != null
+            ? formatCompactCurrency(growth.averageOrderVolumePrevious, displayCurrency)
+            : undefined
+        }
+        icon={<DollarSign className={`w-6 h-6 ${STAT_ICON_BLUE}`} />}
+        color={STAT_ICON_BG_BLUE}
       />
     </div>
   );

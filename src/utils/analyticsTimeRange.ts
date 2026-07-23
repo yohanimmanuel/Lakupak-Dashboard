@@ -20,7 +20,12 @@ export type AnalyticsPeriodBucket = {
 	end: Date;
 };
 
-export type AnalyticsGrowthComparisonKey = 'vsLastWeek' | 'vsLastMonth';
+export type AnalyticsGrowthComparisonKey =
+	| 'vsLastWeek'
+	| 'vsLastMonth'
+	| 'vsLastQuarter'
+	| 'vsLast6Months'
+	| 'vsLastYear';
 
 /**
  * Cutoff date N months before `from`, with day-of-month clamped so month-end dates
@@ -200,9 +205,21 @@ export function getForecastPeriodBuckets(
 	return buckets;
 }
 
-/** i18n key for KPI growth footers (week-over-week vs month-over-month). */
-export function getAnalyticsGrowthComparisonKey(timeRange: AnalyticsTimeRange): AnalyticsGrowthComparisonKey {
-	return timeRange === '1M' ? 'vsLastWeek' : 'vsLastMonth';
+/** i18n key for KPI growth footers — matches the selected look-back range. */
+export function getAnalyticsGrowthComparisonKey(
+	timeRange: AnalyticsTimeRange,
+): AnalyticsGrowthComparisonKey {
+	switch (timeRange) {
+		case '3M':
+			return 'vsLastQuarter';
+		case '6M':
+			return 'vsLast6Months';
+		case '1Y':
+			return 'vsLastYear';
+		case '1M':
+		default:
+			return 'vsLastMonth';
+	}
 }
 
 /**
@@ -224,10 +241,38 @@ export function getForecastPeriodCount(timeRange: AnalyticsTimeRange): number {
 export function filterOrdersByTimeRange<T extends { orderDate: string | Date }>(
 	orders: T[],
 	timeRange: AnalyticsTimeRange,
+	from: Date = new Date(),
 ): T[] {
-	const cutoff = getAnalyticsCutoffDate(timeRange);
+	const cutoff = getAnalyticsCutoffDate(timeRange, from);
 	return orders.filter((order) => {
 		const date = new Date(order.orderDate);
-		return !Number.isNaN(date.getTime()) && date >= cutoff;
+		return !Number.isNaN(date.getTime()) && date >= cutoff && date <= from;
+	});
+}
+
+/**
+ * Equal-length window immediately before the current analytics look-back.
+ * Example for 1M: if current is [now-1month, now], previous is [now-2months, now-1month).
+ */
+export function getPreviousAnalyticsWindow(
+	timeRange: AnalyticsTimeRange,
+	from: Date = new Date(),
+): { start: Date; end: Date } {
+	const currentStart = getAnalyticsCutoffDate(timeRange, from);
+	const previousStart = getAnalyticsCutoffDate(timeRange, currentStart);
+	const previousEnd = new Date(currentStart.getTime() - 1);
+	return { start: previousStart, end: previousEnd };
+}
+
+/** Orders in the previous equal-length analytics window (for KPI period-over-period growth). */
+export function filterOrdersByPreviousTimeRange<T extends { orderDate: string | Date }>(
+	orders: T[],
+	timeRange: AnalyticsTimeRange,
+	from: Date = new Date(),
+): T[] {
+	const { start, end } = getPreviousAnalyticsWindow(timeRange, from);
+	return orders.filter((order) => {
+		const date = new Date(order.orderDate);
+		return !Number.isNaN(date.getTime()) && date >= start && date <= end;
 	});
 }

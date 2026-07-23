@@ -41,6 +41,13 @@ import {
   ClipboardCheck,
   Zap
 } from 'lucide-react';
+import { MetricChangeFooter } from '@/components/stats/MetricChangeFooter';
+import {
+  STAT_ICON_BG_BLUE,
+  STAT_ICON_BG_GREEN,
+  STAT_ICON_BLUE,
+  STAT_ICON_GREEN,
+} from '@/utils/statCardStyles';
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency as utilsFormatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { Order, OrderItem } from '@/types/order';
@@ -591,26 +598,26 @@ const OperationalPerformanceAnalytics: React.FC<OperationalPerformanceAnalyticsP
         <MetricCard
           title={tMetrics('orderCompletionRate')}
           value={`${calculateMetrics.completionRate.toFixed(1)}%`}
-          icon={<CheckCircle className="w-6 h-6 text-green-500" />}
-          color="bg-[#e6f7ec]"
+          icon={<CheckCircle className={`w-6 h-6 ${STAT_ICON_GREEN}`} />}
+          color={STAT_ICON_BG_GREEN}
         />
         <MetricCard
           title={tMetrics('avgProcessingTime')}
           value={`${calculateMetrics.averageProcessingTime.toFixed(1)}h`}
-          icon={<Clock className="w-6 h-6 text-blue-500" />}
-          color="bg-[#f7faff]"
+          icon={<Clock className={`w-6 h-6 ${STAT_ICON_BLUE}`} />}
+          color={STAT_ICON_BG_BLUE}
         />
         <MetricCard
           title={tMetrics('trackingCoverage')}
           value={`${calculateMetrics.trackingCoverageRate.toFixed(1)}%`}
-          icon={<Truck className="w-6 h-6 text-purple-500" />}
-          color="bg-[#f3f4f6]"
+          icon={<Truck className={`w-6 h-6 ${STAT_ICON_BLUE}`} />}
+          color={STAT_ICON_BG_BLUE}
         />
         <MetricCard
           title={tMetrics('stockHealth')}
           value={`${calculateMetrics.stockHealthScore.toFixed(1)}%`}
-          icon={<Package className="w-6 h-6 text-orange-500" />}
-          color="bg-[#fff7ed]"
+          icon={<Package className={`w-6 h-6 ${STAT_ICON_BLUE}`} />}
+          color={STAT_ICON_BG_BLUE}
         />
       </div>
 
@@ -1071,7 +1078,8 @@ export const OperationalMetricCard: React.FC<{
   icon: React.ReactNode;
   color: string;
   comparisonLabel?: string;
-}> = ({ title, value, change, icon, color, comparisonLabel }) => {
+  previousValue?: string;
+}> = ({ title, value, change, icon, color, comparisonLabel, previousValue }) => {
   const { tShared } = useAnalyticsTranslations();
   const resolvedComparisonLabel = comparisonLabel ?? tShared('vsLastMonth');
 
@@ -1086,43 +1094,12 @@ export const OperationalMetricCard: React.FC<{
         <div className="text-xl font-bold text-black">{value}</div>
       </div>
     </div>
-    <div className="flex items-center gap-2 mt-4 ml-1">
-      {(() => {
-        if (change === null || change === undefined) {
-          return (
-            <>
-              <ArrowRight className="w-5 h-5 text-gray-400" />
-              <span className="text-gray-400 text-xs font-semibold">{tShared('na')}</span>
-              <span className="text-gray-400 text-xs">{resolvedComparisonLabel}</span>
-            </>
-          );
-        }
-
-        if (change === 0) {
-          return (
-            <>
-              <ArrowRight className="w-5 h-5 text-gray-400" />
-              <span className="text-gray-400 text-xs font-semibold">0.0%</span>
-              <span className="text-gray-400 text-xs">{resolvedComparisonLabel}</span>
-            </>
-          );
-        }
-
-        const changeValue = change;
-        return (
-          <>
-            {changeValue >= 0 ? (
-              <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
-            ) : (
-              <TrendingDown className="w-5 h-5 text-[#f65911]" />
-            )}
-            <span className={changeValue >= 0 ? "text-[#3ea73b] text-xs font-semibold" : "text-[#f65911] text-xs font-semibold"}>
-              {Math.abs(changeValue).toFixed(1)}%
-            </span>
-            <span className="text-gray-400 text-xs">{resolvedComparisonLabel}</span>
-          </>
-        );
-      })()}
+    <div className="mt-4 ml-1">
+      <MetricChangeFooter
+        change={change}
+        comparisonLabel={resolvedComparisonLabel}
+        previousValue={previousValue}
+      />
     </div>
   </div>
   );

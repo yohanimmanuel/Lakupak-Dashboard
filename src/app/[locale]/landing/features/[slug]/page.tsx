@@ -1,0 +1,30 @@
+import { notFound } from 'next/navigation';
+import { FeatureModulePage } from '../FeatureModulePage';
+import { getFeatureModule, type FeatureModuleSlug } from '../modules';
+
+export function generateStaticParams() {
+  return [
+    { slug: 'clients' },
+    { slug: 'products' },
+    { slug: 'orders' },
+    { slug: 'offers' },
+    { slug: 'marketing' },
+    { slug: 'marketplace' },
+    { slug: 'logistics' },
+  ];
+}
+
+export default async function FeatureSlugPage({
+  params,
+}: {
+  params: Promise<{ slug: string; locale: string }> | { slug: string; locale: string };
+}) {
+  const resolved = await Promise.resolve(params);
+  const moduleDef = getFeatureModule(resolved.slug);
+
+  if (!moduleDef) {
+    notFound();
+  }
+
+  return <FeatureModulePage slug={moduleDef.slug as FeatureModuleSlug} locale={resolved.locale} />;
+}

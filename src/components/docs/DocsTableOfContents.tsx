@@ -66,7 +66,7 @@ export function DocsTableOfContents({
   };
 
   return (
-    <aside className="hidden xl:block w-56 shrink-0 self-start sticky top-24 pr-6 lg:pr-8">
+    <aside className="hidden xl:block w-56 shrink-0 self-start sticky top-20 pr-6 lg:pr-8">
       <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{t('onThisPage')}</p>
       <ul className="mt-3 space-y-2 border-l border-gray-200">
         {sections.map((section) => {

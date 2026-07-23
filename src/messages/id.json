@@ -9,64 +9,389 @@
     "signin": "Masuk",
     "getstarted": "Daftar"
   },
+  "featureModules": {
+    "cta": "Mulai uji coba gratis",
+    "usesTitle": "Bagaimana modul ini membantu",
+    "usesPlaceholder": "Pratinjau {title}. Ganti gambar",
+    "menu": {
+      "viewAll": "Lihat semua fitur",
+      "featuredLabel": "Unggulan",
+      "featuredCta": "Jelajahi fitur",
+      "modulesLabel": "Modul",
+      "groups": {
+        "sell": "Jual",
+        "grow": "Tumbuh",
+        "deliver": "Kirim"
+      }
+    },
+    "hub": {
+      "title": "Setiap modul untuk menjalankan distribusi di Laku",
+      "subtitle": "Dari manajemen klien hingga pengiriman, jelajahi loop lengkap di Dashboard, Marketplace, dan Driver.",
+      "exploreMore": "Jelajahi modul lainnya"
+    },
+    "overview": {
+      "home": "Beranda",
+      "features": "Fitur",
+      "trusted": "Dipercaya distributor dan brand di seluruh Indonesia.",
+      "logoPlaceholder": "Logo mitra",
+      "loopLabel": "Bekerja di loop Laku",
+      "unlocksLabel": "Apa yang terbuka",
+      "surfaces": {
+        "dashboard": "Dashboard",
+        "marketplace": "Marketplace",
+        "driver": "Driver"
+      }
+    },
+    "clients": {
+      "menuLabel": "Manajemen klien",
+      "title": "Manajemen klien untuk jaringan ritel Anda",
+      "subtitle": "Organisir pembeli dan pemasok, pantau hubungan, dan jaga setiap retailer siap memesan dari satu tempat.",
+      "placeholder": "Pratinjau modul klien. Ganti gambar",
+      "overview": {
+        "summary": "Manajemen klien membantu distributor menjaga setiap retailer dan pemasok tetap terorganisir di satu tempat. Pantau kontak, status akun, dan kesehatan hubungan agar jaringan siap memesan tanpa kejar-kejaran spreadsheet.",
+        "highlights": {
+          "1": {
+            "title": "Pembeli dan pemasok dalam satu jaringan",
+            "desc": "Jaga akun ritel dan mitra pasokan tetap terstruktur untuk kerja distribusi harian."
+          },
+          "2": {
+            "title": "Tahu siapa yang perlu perhatian",
+            "desc": "Temukan toko tidak aktif, follow-up tertunda, dan celah hubungan sebelum order macet."
+          },
+          "3": {
+            "title": "Siap masuk ke penjualan",
+            "desc": "Pindah dari data kontak ke katalog, penawaran, dan pesanan tanpa membangun ulang konteks."
+          }
+        }
+      },
+      "points": {
+        "1": {
+          "title": "Data pembeli dan pemasok",
+          "desc": "Jaga profil retailer, kontak, dan status tetap jelas di seluruh jaringan."
+        },
+        "2": {
+          "title": "Visibilitas hubungan",
+          "desc": "Lihat siapa yang aktif, siapa yang perlu follow-up, dan bagaimana akun terhubung."
+        },
+        "3": {
+          "title": "Jaringan siap order",
+          "desc": "Pindah dari daftar kontak ke jaringan distribusi yang bisa langsung memesan."
+        }
+      }
+    },
+    "products": {
+      "menuLabel": "Produk",
+      "title": "Katalog produk untuk grosir",
+      "subtitle": "Kelola SKU, harga, dan assortment agar retailer selalu melihat katalog yang tepat.",
+      "placeholder": "Pratinjau modul produk. Ganti gambar",
+      "overview": {
+        "summary": "Produk menjaga katalog grosir tetap terpusat agar harga, SKU, dan assortment konsisten untuk setiap toko terhubung. Publikasikan sekali, perbarui dengan percaya diri, dan bantu retailer menemukan apa yang siap dibeli.",
+        "highlights": {
+          "1": {
+            "title": "Publikasi sekali untuk setiap toko",
+            "desc": "Kelola SKU dan assortment di Dashboard agar pembeli Marketplace melihat kebenaran yang sama."
+          },
+          "2": {
+            "title": "Lindungi harga grosir",
+            "desc": "Kontrol harga daftar dan struktur katalog siap deal di seluruh jaringan terhubung."
+          },
+          "3": {
+            "title": "Kurangi kekacauan katalog",
+            "desc": "Berhenti menambal daftar produk di spreadsheet dan chat."
+          }
+        }
+      },
+      "points": {
+        "1": {
+          "title": "Katalog terpusat",
+          "desc": "Publikasikan dan perbarui produk tanpa fragmentasi spreadsheet."
+        },
+        "2": {
+          "title": "Kontrol harga",
+          "desc": "Jaga harga grosir tetap konsisten di toko terhubung."
+        },
+        "3": {
+          "title": "Assortment yang jelas",
+          "desc": "Bantu retailer menemukan apa yang tersedia dan siap dipesan."
+        }
+      }
+    },
+    "orders": {
+      "menuLabel": "Pesanan",
+      "title": "Pesanan dari permintaan hingga pemenuhan",
+      "subtitle": "Proses pesanan grosir end to end dengan status yang jelas untuk tim dan pembeli.",
+      "placeholder": "Pratinjau modul pesanan. Ganti gambar",
+      "overview": {
+        "summary": "Pesanan mengganti kekacauan WhatsApp dan spreadsheet dengan satu alur digital dari permintaan hingga pemenuhan. Sales, ops, dan logistik berbagi status yang sama agar pembeli dan tim selalu tahu langkah berikutnya.",
+        "highlights": {
+          "1": {
+            "title": "Satu tulang punggung pesanan",
+            "desc": "Ambil permintaan grosir dari Marketplace ke satu jalur pemenuhan di Dashboard."
+          },
+          "2": {
+            "title": "Status bersama untuk setiap tim",
+            "desc": "Sales, ops, dan logistik bekerja dari status pesanan yang sama, bukan chat paralel."
+          },
+          "3": {
+            "title": "Siap diserahkan ke Driver",
+            "desc": "Teruskan pesanan terkonfirmasi ke penugasan armada dan pengiriman live tanpa mengetik ulang."
+          }
+        }
+      },
+      "points": {
+        "1": {
+          "title": "Intake order digital",
+          "desc": "Ganti kekacauan order WhatsApp dan spreadsheet dengan satu alur."
+        },
+        "2": {
+          "title": "Pelacakan status",
+          "desc": "Ikuti setiap pesanan dari konfirmasi hingga pemenuhan."
+        },
+        "3": {
+          "title": "Koordinasi tim",
+          "desc": "Berikan sales, ops, dan logistik sumber data yang sama."
+        }
+      }
+    },
+    "offers": {
+      "menuLabel": "Penawaran",
+      "title": "Penawaran yang mempercepat penjualan",
+      "subtitle": "Buat promosi dan struktur deal yang bisa langsung ditindaklanjuti retailer di dalam platform.",
+      "placeholder": "Pratinjau modul penawaran. Ganti gambar",
+      "overview": {
+        "summary": "Penawaran memungkinkan Anda meluncurkan promosi di samping produk yang sudah dibrowse retailer. Target toko yang tepat, jaga struktur katalog, dan dorong loop reorder lebih cepat tanpa meninggalkan Laku.",
+        "highlights": {
+          "1": {
+            "title": "Deal di tempat retailer berbelanja",
+            "desc": "Tempalkan promosi pada item katalog yang dibrowse pembeli di Marketplace."
+          },
+          "2": {
+            "title": "Target toko yang tepat",
+            "desc": "Dorong insentif ke retailer yang butuh volume, bukan blast merata."
+          },
+          "3": {
+            "title": "Jaga struktur margin",
+            "desc": "Jalankan promosi tanpa merusak model harga grosir inti Anda."
+          }
+        }
+      },
+      "points": {
+        "1": {
+          "title": "Harga promosi",
+          "desc": "Luncurkan deal di samping produk yang sudah dibrowse retailer."
+        },
+        "2": {
+          "title": "Insentif tertarget",
+          "desc": "Dorong penawaran yang tepat ke toko yang tepat tanpa meninggalkan Laku."
+        },
+        "3": {
+          "title": "Loop reorder lebih cepat",
+          "desc": "Gunakan penawaran untuk mendorong volume sambil menjaga struktur katalog."
+        }
+      }
+    },
+    "marketing": {
+      "menuLabel": "Marketing",
+      "title": "Marketing yang mendorong reorder",
+      "subtitle": "Jalankan kampanye dan promosi di dalam platform untuk memperluas jangkauan ke retailer terhubung.",
+      "placeholder": "Pratinjau modul marketing. Ganti gambar",
+      "overview": {
+        "summary": "Marketing menjaga kampanye di platform yang sama tempat retailer berbelanja. Rencanakan promosi, tetap dekat dengan katalog dan pesanan, dan jaga jaringan ritel tetap aktif dengan sentuhan yang konsisten.",
+        "highlights": {
+          "1": {
+            "title": "Kampanye di dalam loop",
+            "desc": "Jangkau retailer terhubung di sistem yang sama tempat mereka reorder."
+          },
+          "2": {
+            "title": "Dekat dengan katalog dan pesanan",
+            "desc": "Rencanakan promosi tanpa kehilangan pandangan ke apa yang terjual dan terkirim."
+          },
+          "3": {
+            "title": "Bangun kebiasaan reorder",
+            "desc": "Jaga jaringan tetap hangat dengan sentuhan konsisten di antara pembelian grosir."
+          }
+        }
+      },
+      "points": {
+        "1": {
+          "title": "Kampanye di platform",
+          "desc": "Jangkau retailer di tempat mereka sudah berbelanja, bukan di kanal terpisah."
+        },
+        "2": {
+          "title": "Kontrol promosi",
+          "desc": "Rencanakan dan luncurkan kampanye tanpa kehilangan pandangan ke katalog dan pesanan."
+        },
+        "3": {
+          "title": "Engagement jaringan",
+          "desc": "Jaga loop ritel tetap aktif dengan sentuhan marketing yang konsisten."
+        }
+      }
+    },
+    "marketplace": {
+      "menuLabel": "Performa Marketplace",
+      "title": "Performa Marketplace bersama aplikasi pembeli",
+      "subtitle": "Pantau performa katalog di Marketplace dan berikan retailer pengalaman belanja grosir yang jelas di aplikasi.",
+      "placeholder": "Pratinjau performa Marketplace dan aplikasi. Ganti gambar",
+      "overview": {
+        "summary": "Performa Marketplace menghubungkan insight distributor dengan aplikasi pembeli retailer. Lihat apa yang mengonversi, bantu toko browse dan order di mobile, dan jaga Dashboard serta Marketplace dalam satu loop.",
+        "highlights": {
+          "1": {
+            "title": "Lihat apa yang mengonversi",
+            "desc": "Baca traksi produk dan engagement dari pengalaman pembeli Marketplace."
+          },
+          "2": {
+            "title": "Grosir mobile untuk retailer",
+            "desc": "Beri toko jalur app yang jelas untuk browse, bandingkan, dan pasang order grosir."
+          },
+          "3": {
+            "title": "Tutup loop Dashboard",
+            "desc": "Hubungkan aktivitas pembeli kembali ke katalog, penawaran, dan pemenuhan distributor."
+          }
+        }
+      },
+      "points": {
+        "1": {
+          "title": "Insight performa",
+          "desc": "Lihat traksi produk, engagement, dan apa yang mengonversi di Marketplace."
+        },
+        "2": {
+          "title": "Aplikasi marketplace retailer",
+          "desc": "Pembeli browse, bandingkan, dan order dari pengalaman grosir yang mobile-first."
+        },
+        "3": {
+          "title": "Satu loop dengan Dashboard",
+          "desc": "Katalog distributor dan pembelian retailer tetap terhubung dalam sistem yang sama."
+        }
+      }
+    },
+    "logistics": {
+      "menuLabel": "Logistik dan Driver",
+      "title": "Logistik dengan pengiriman Driver yang live",
+      "subtitle": "Tugaskan armada, beri akses app ke driver, dan bagikan update pengiriman real-time ke tim dan pembeli.",
+      "placeholder": "Pratinjau Logistik dan aplikasi Driver. Ganti gambar",
+      "overview": {
+        "summary": "Logistik dan Driver memberi armada dan tim lapangan satu tempat untuk menggerakkan pengiriman. Driver mendapat rute di app, ops menugaskan armada dengan lebih sedikit kejar-kejaran, dan pembeli melihat update pengiriman real-time saat barang bergerak.",
+        "highlights": {
+          "1": {
+            "title": "Armada tanpa kejar-kejaran",
+            "desc": "Tugaskan pengiriman ke armada yang tepat dari pesanan terkonfirmasi di Dashboard."
+          },
+          "2": {
+            "title": "App Driver di lapangan",
+            "desc": "Beri driver rute dan konteks pesanan lewat aplikasi Laku Driver."
+          },
+          "3": {
+            "title": "Visibilitas pengiriman untuk pembeli",
+            "desc": "Bagikan status live agar retailer tahu apa yang datang dan kapan."
+          }
+        }
+      },
+      "points": {
+        "1": {
+          "title": "Akses app Driver",
+          "desc": "Driver mendapat rute dan konteks pesanan di lapangan lewat aplikasi Laku Driver."
+        },
+        "2": {
+          "title": "Penugasan armada",
+          "desc": "Cocokkan pengiriman ke armada yang tepat tanpa kejar-kejaran manual."
+        },
+        "3": {
+          "title": "Update pengiriman real-time",
+          "desc": "Lacak status saat barang bergerak agar retailer tahu apa yang datang."
+        }
+      }
+    }
+  },
   "landing": {
     "hero": {
-      "titleParts": [
-        "Tempat Distributor ",
-        "Bertransaksi",
-        " & Retailer ",
-        "Belanja",
-        " ",
-        "10X Lebih Cerdas"
-      ],
-      "subtitle": "Terhubung instan, pesan grosir, tingkatkan margin, dorong penjualan, dan analisa performa bisnis — semua dalam satu platform.",
-      "cta": "Mulai Gratis",
-      "learnmore": "Jelajahi Pasar →",
-      "socialproof": "4.9 bintang • 2.000+ ulasan",
-      "screenshot": "Tempatkan Screenshot Produk di Sini"
+      "titleBefore": "Tempat distributor dan retailer berdagang lebih ",
+      "titleAccent": "cerdas",
+      "subtitle": "Hubungkan jaringan ritel, pesan grosir, dan kelola distribusi dari satu platform: Dashboard, Marketplace, dan Driver.",
+      "cta": "Mulai uji coba gratis",
+      "learnmore": "Jelajahi marketplace",
+      "productPlaceholder": "Pratinjau dashboard. Ganti dengan gambar produk"
     },
-    "painpoints": {
-      "title": "Transformasi Bisnis Distribusi Anda",
-      "subtitle": "Lihat bagaimana Laku menyelesaikan tantangan terbesar di distribusi FMCG",
-      "without": {
-        "title": "Tanpa Laku",
-        "1": "Proses order manual dengan spreadsheet dan WhatsApp",
-        "2": "Tidak ada visibilitas stok & performa penjualan",
-        "3": "Perang harga & margin menipis karena persaingan terbuka",
-        "4": "Penjualan hilang akibat siklus restock yang tidak efisien"
-      },
-      "with": {
-        "title": "Dengan Laku",
-        "1": "Order digital otomatis dengan sinkronisasi stok real-time",
-        "2": "Analitik & insight performa menyeluruh",
-        "3": "Harga terlindungi & akses marketplace terkontrol",
-        "4": "Restock cerdas dengan prediksi kebutuhan"
-      }
+    "trust": {
+      "title": "Dipercaya distributor di seluruh Indonesia",
+      "logoPlaceholder": "Logo mitra"
+    },
+    "platformMessage": {
+      "title": "Satu platform untuk menjalankan loop distribusi lengkap",
+      "subtitle": "Laku mengintegrasikan manajemen klien, katalog dan penawaran, pemesanan, pemasaran, analitik, serta logistik, sehingga distributor dan pengecer dapat bekerja menggunakan sistem yang sama. Layanan SaaS kami didukung oleh agen AI yang memungkinkan pengguna menyusun alur kerja dan otomatisasi sendiri untuk menjalankan operasional bisnis sehari-hari secara otomatis."
     },
     "features": {
-      "title": "Dua Platform Kuat, Satu Pengalaman Mulus",
-      "subtitle": "Dibangun khusus untuk distribusi FMCG di Indonesia",
-      "distributor": {
-        "title": "Dashboard Distributor",
-        "desc": "Manajemen Bisnis Lengkap",
-        "1": "Katalog Digital & Kontrol Harga",
-        "2": "Analitik & Laporan Penjualan",
-        "3": "Kampanye Marketing di Platform",
-        "screenshot": "Screenshot Dashboard"
+      "selling": {
+        "title": "Jual lebih cerdas di seluruh jaringan ritel",
+        "subtitle": "Kelola klien, produk, dan pesanan dalam satu loop penjualan.",
+        "clients": {
+          "title": "Manajemen klien",
+          "desc": "Organisir retailer, pantau hubungan, dan jaga jaringan siap memesan."
+        },
+        "products": {
+          "title": "Produk dan penawaran",
+          "desc": "Kontrol katalog, harga, dan penawaran agar setiap toko melihat assortment yang tepat."
+        },
+        "orders": {
+          "title": "Pesanan",
+          "desc": "Proses pesanan grosir dari permintaan hingga pemenuhan tanpa kekacauan spreadsheet."
+        },
+        "placeholders": {
+          "clients": "Pratinjau klien. Ganti gambar",
+          "products": "Pratinjau produk dan penawaran. Ganti gambar",
+          "orders": "Pratinjau pesanan. Ganti gambar"
+        }
       },
-      "retailer": {
-        "title": "Marketplace Retailer",
-        "desc": "Pengalaman Belanja Cerdas",
-        "1": "Pesan Grosir Sekali Klik",
-        "2": "Saran Restock Otomatis",
-        "3": "Update Pengiriman Real-Time",
-        "screenshot": "Screenshot Marketplace"
+      "marketing": {
+        "1": {
+          "title": "Kampanye di platform",
+          "desc": "Luncurkan promosi di tempat retailer sudah berbelanja."
+        },
+        "2": {
+          "title": "Penawaran tertarget",
+          "desc": "Dorong deal yang tepat ke toko yang tepat pada waktu yang tepat."
+        },
+        "3": {
+          "title": "Momentum reorder",
+          "desc": "Jaga jaringan tetap aktif tanpa meninggalkan Laku."
+        },
+        "title": "Marketing yang mendorong reorder",
+        "subtitle": "Jalankan kampanye dan promosi di dalam platform untuk memperluas jangkauan ke retailer terhubung.",
+        "placeholder": "Pratinjau marketing. Ganti gambar"
+      },
+      "analytics": {
+        "title": "Analytics di setiap sinyal",
+        "subtitle": "Pantau data finansial, penjualan, dan operasional agar keputusan tetap berdasar kondisi terkini.",
+        "placeholder": "Pratinjau analytics. Ganti gambar",
+        "financial": {
+          "title": "Finansial",
+          "desc": "Pantau margin, pendapatan, dan kesehatan pembayaran di seluruh jaringan."
+        },
+        "sales": {
+          "title": "Penjualan",
+          "desc": "Lihat apa yang bergerak, retailer mana yang reorder, dan di mana permintaan tumbuh."
+        },
+        "operational": {
+          "title": "Operasional",
+          "desc": "Monitor kecepatan pemenuhan, cakupan, dan kesehatan distribusi harian."
+        }
+      },
+      "logistics": {
+        "1": {
+          "title": "Akses app driver",
+          "desc": "Driver mendapat rute dan konteks pesanan di lapangan."
+        },
+        "2": {
+          "title": "Penugasan armada",
+          "desc": "Cocokkan pengiriman ke armada yang tepat tanpa kejar-kejaran manual."
+        },
+        "3": {
+          "title": "Update pengiriman real-time",
+          "desc": "Lacak status saat barang bergerak agar retailer tahu apa yang datang."
+        },
+        "title": "Logistik dengan visibilitas pengiriman live",
+        "subtitle": "Beri akses app ke driver, tugaskan armada, dan bagikan update pengiriman real-time ke tim dan pembeli.",
+        "placeholder": "Pratinjau logistik. Ganti gambar"
       }
-    },
-    "socialproof": {
-      "title": "Dipercaya Distributor Terkemuka",
-      "subtitle": "Bergabunglah dengan ribuan bisnis yang sudah berkembang bersama Laku",
-      "logo": "Logo {number}"
     },
     "testimonials": {
       "1": {
@@ -77,30 +402,30 @@
       "2": {
         "name": "Siti Nurhaliza",
         "role": "Pemilik, Warung Makmur",
-        "text": "Order sekarang sangat mudah! Saya dapat harga lebih baik dan pengiriman lebih cepat. Pelanggan saya juga lebih puas."
-      }
+        "text": "Order lebih mudah, harga lebih jelas, dan update pengiriman menjaga rak tetap terisi."
+      },
+      "title": "Apa kata mereka"
     },
     "howitworks": {
-      "title": "Mulai dalam 3 Langkah Mudah",
-      "subtitle": "Bergabunglah dengan ribuan distributor & retailer yang sudah pakai Laku",
       "1": {
-        "title": "Daftar & verifikasi",
-        "desc": "Buat akun dan verifikasi bisnis Anda dalam hitungan menit"
+        "title": "Daftar dan verifikasi",
+        "desc": "Buat akun dan selesaikan verifikasi bisnis dalam hitungan menit."
       },
       "2": {
-        "title": "List atau cari produk grosir",
-        "desc": "Distributor listing produk, retailer membandingkan & memilih"
+        "title": "Listing atau cari produk",
+        "desc": "Distributor mempublikasikan katalog; retailer membandingkan opsi grosir."
       },
       "3": {
-        "title": "Order & pantau dengan mudah",
-        "desc": "Order, lacak pengiriman, dan kelola bisnis dalam satu platform"
-      }
+        "title": "Order dan pantau",
+        "desc": "Pasang pesanan, lacak pengiriman, dan kelola operasi di satu tempat."
+      },
+      "title": "Mulai dalam tiga langkah",
+      "subtitle": "Dari daftar akun hingga order aktif tanpa onboarding yang berbelit."
     },
     "finalcta": {
-      "title1": "Berhenti jualan cara lama.",
-      "title2": "Mulai berdagang cara baru.",
-      "subtitle": "Gabung revolusi digital distribusi FMCG. Transformasi bisnismu hari ini.",
-      "cta": "Mulai Gratis"
+      "title": "Kelola jaringan distribusi Anda di Laku",
+      "subtitle": "Mulai uji coba gratis 30 hari dengan akses platform penuh. Tanpa kartu kredit.",
+      "cta": "Mulai uji coba gratis"
     }
   },
   "features": {
@@ -116,41 +441,41 @@
       "title": "Transformasi Bisnis Distribusi Anda",
       "subtitle": "Lihat bagaimana Laku menyelesaikan tantangan terbesar di distribusi FMCG",
       "without": {
-        "title": "Tanpa Laku",
         "1": "Proses order manual dengan spreadsheet dan WhatsApp",
         "2": "Tidak ada visibilitas stok & performa penjualan",
         "3": "Perang harga & margin menipis karena persaingan terbuka",
-        "4": "Penjualan hilang akibat siklus restock yang tidak efisien"
+        "4": "Penjualan hilang akibat siklus restock yang tidak efisien",
+        "title": "Tanpa Laku"
       },
       "with": {
-        "title": "Dengan Laku",
         "1": "Order digital otomatis dengan sinkronisasi stok real-time",
         "2": "Analitik & insight performa menyeluruh",
         "3": "Harga terlindungi & akses marketplace terkontrol",
-        "4": "Restock cerdas dengan prediksi kebutuhan"
+        "4": "Restock cerdas dengan prediksi kebutuhan",
+        "title": "Dengan Laku"
       }
     },
     "platforms": {
       "title": "Dua Platform Kuat, Satu Pengalaman Mulus",
       "subtitle": "Dibangun khusus untuk distribusi FMCG di Indonesia",
       "distributor": {
-        "title": "Dashboard Distributor",
-        "desc": "Manajemen Bisnis Lengkap",
         "1": "Katalog Digital & Kontrol Harga",
         "2": "Analitik & Laporan Penjualan",
         "3": "Kampanye Marketing di Platform",
         "4": "Prediksi Penjualan & Manajemen AI",
         "5": "Manajemen Produk Terpusat",
+        "title": "Dashboard Distributor",
+        "desc": "Manajemen Bisnis Lengkap",
         "screenshot": "Screenshot Dashboard"
       },
       "retailer": {
-        "title": "Marketplace Retailer",
-        "desc": "Pengalaman Belanja Cerdas",
         "1": "Pesan Grosir Sekali Klik",
         "2": "Saran Restock Otomatis",
         "3": "Update Pengiriman Real-Time",
         "4": "Pengalaman Mobile-First",
         "5": "Pengalaman Belanja Cerdas",
+        "title": "Marketplace Retailer",
+        "desc": "Pengalaman Belanja Cerdas",
         "screenshot": "Screenshot Marketplace"
       }
     },
@@ -322,8 +647,6 @@
       }
     },
     "faq": {
-      "title": "Pertanyaan yang Sering Diajukan",
-      "subtitle": "Semua yang perlu Anda ketahui tentang harga kami",
       "1": {
         "q": "Bagaimana paket saya ditentukan?",
         "a": "Paket didasarkan pada koneksi ritel aktif — pembeli di modul Klien yang memiliki minimal satu pesanan dalam 90 hari terakhir. Tier diterapkan dari jumlah tersebut pada setiap tanggal penagihan."
@@ -355,7 +678,9 @@
       "8": {
         "q": "Apa yang terjadi jika saya mencapai batas penggunaan?",
         "a": "Kami memakai soft cap selama MVP: peringatan sekitar 80% kuota dan ajakan upgrade jika melebihi. Belum ada hard block di tengah siklus. Hard cap opsional (misalnya publikasi produk baru) dapat ditambahkan nanti."
-      }
+      },
+      "title": "Pertanyaan yang Sering Diajukan",
+      "subtitle": "Semua yang perlu Anda ketahui tentang harga kami"
     },
     "cta": {
       "title": "Siap mulai?",
@@ -373,35 +698,72 @@
     "badges": {
       "left": {
         "main": "Akses Retailer Nasional",
-        "sub": ["Jual ke ", "10.000+", " toko"]
+        "sub": [
+          "Jual ke ",
+          "10.000+",
+          " toko"
+        ]
       },
       "right": {
         "main": "Hemat Besar & Pengiriman Cepat",
-        "sub": ["Hemat hingga ", "30%", " di setiap order"]
+        "sub": [
+          "Hemat hingga ",
+          "30%",
+          " di setiap order"
+        ]
       }
     },
     "twocol": {
       "title": "Solusi untuk Setiap Bisnis",
       "subtitle": "Baik Anda distributor maupun retailer, Laku membantu Anda tumbuh, hemat, dan sukses di pasar grosir Indonesia.",
       "distributor": {
-        "title": "Jual Lebih Cerdas, Tumbuh Lebih Cepat (Untuk Distributor)",
-        "1": { "label": "Akses ke Ribuan Retailer", "desc": "Produk Anda tampil di jaringan retail nasional terverifikasi." },
-        "2": { "label": "Dashboard Terpusat", "desc": "Kelola stok, harga, dan order di satu tempat." },
-        "3": { "label": "Pembayaran & Penagihan Otomatis", "desc": "Dibayar lebih cepat tanpa repot administrasi." },
-        "4": { "label": "Analitik Kinerja", "desc": "Lihat produk terlaris dan optimalkan penawaran." },
-        "5": { "label": "Promosi & Penawaran Grosir", "desc": "Jalankan kampanye untuk tingkatkan penjualan." }
+        "1": {
+          "label": "Akses ke Ribuan Retailer",
+          "desc": "Produk Anda tampil di jaringan retail nasional terverifikasi."
+        },
+        "2": {
+          "label": "Dashboard Terpusat",
+          "desc": "Kelola stok, harga, dan order di satu tempat."
+        },
+        "3": {
+          "label": "Pembayaran & Penagihan Otomatis",
+          "desc": "Dibayar lebih cepat tanpa repot administrasi."
+        },
+        "4": {
+          "label": "Analitik Kinerja",
+          "desc": "Lihat produk terlaris dan optimalkan penawaran."
+        },
+        "5": {
+          "label": "Promosi & Penawaran Grosir",
+          "desc": "Jalankan kampanye untuk tingkatkan penjualan."
+        },
+        "title": "Jual Lebih Cerdas, Tumbuh Lebih Cepat (Untuk Distributor)"
       },
       "retailer": {
-        "title": "Belanja Lebih Baik, Hemat Lebih Banyak (Untuk Retailer)",
-        "1": { "label": "Belanja Grosir Satu Pintu", "desc": "Banyak supplier, satu keranjang, satu pembayaran." },
-        "2": { "label": "Harga Grosir Eksklusif", "desc": "Promo grosir & diskon musiman khusus." },
-        "3": { "label": "Update Stok Real-Time", "desc": "Lihat ketersediaan sebelum order." },
-        "4": { "label": "Pembayaran Fleksibel", "desc": "Bayar langsung atau ajukan kredit usaha." },
-        "5": { "label": "Pengiriman Cepat & Andal", "desc": "Rute optimal & pengiriman terjadwal." }
+        "1": {
+          "label": "Belanja Grosir Satu Pintu",
+          "desc": "Banyak supplier, satu keranjang, satu pembayaran."
+        },
+        "2": {
+          "label": "Harga Grosir Eksklusif",
+          "desc": "Promo grosir & diskon musiman khusus."
+        },
+        "3": {
+          "label": "Update Stok Real-Time",
+          "desc": "Lihat ketersediaan sebelum order."
+        },
+        "4": {
+          "label": "Pembayaran Fleksibel",
+          "desc": "Bayar langsung atau ajukan kredit usaha."
+        },
+        "5": {
+          "label": "Pengiriman Cepat & Andal",
+          "desc": "Rute optimal & pengiriman terjadwal."
+        },
+        "title": "Belanja Lebih Baik, Hemat Lebih Banyak (Untuk Retailer)"
       }
     },
     "testimonials": {
-      "title": "Client Testimonials",
       "1": {
         "name": "Andi",
         "role": "Distributor dari Surabaya",
@@ -431,11 +793,10 @@
         "name": "Maya Dewi",
         "role": "Distributor, Medan",
         "text": "Promo grosir & analitik bantu bisnis saya tumbuh lebih cepat."
-      }
+      },
+      "title": "Client Testimonials"
     },
     "steps": {
-      "title": "Mulai dalam 3 Langkah Mudah",
-      "subtitle": "Bergabunglah dengan ribuan distributor & retailer yang sudah pakai Laku",
       "1": {
         "title": "Daftar & verifikasi",
         "desc": "Buat akun dan verifikasi bisnis Anda dalam hitungan menit"
@@ -447,7 +808,9 @@
       "3": {
         "title": "Order & pantau dengan mudah",
         "desc": "Order, lacak pengiriman, dan kelola bisnis dalam satu platform"
-      }
+      },
+      "title": "Mulai dalam 3 Langkah Mudah",
+      "subtitle": "Bergabunglah dengan ribuan distributor & retailer yang sudah pakai Laku"
     },
     "cta": {
       "title": "Siap Naik Level Bisnis Grosir Anda?",
@@ -466,13 +829,13 @@
       "3": "Di sisi lain, retailer kecil — warung, kios, toko kelontong — juga punya tantangan berat. Banyak yang kesulitan dapat pasokan andal, tergantung distributor lokal atau makelar, akses produk terbatas, harga fluktuatif. Mereka tak tahu pasti kapan order sampai. Margin tipis, gangguan kecil saja bisa bikin rugi dan pelanggan kecewa.",
       "4": "Tantangan lain yang saya lihat adalah proses penjualan di lapangan. Sales distributor harus keliling toko, antre dengan sales merek lain. Pemilik toko dibanjiri penawaran produk berturut-turut, jadi overload informasi dan lelah. Seringkali sales harus pergi sebelum sempat presentasi, karena pembeli sudah kewalahan atau kehabisan waktu. Akhirnya, banyak produk dan promo bagus terlewat.",
       "5": "Saya sadar masalahnya bukan di orangnya, tapi di sistemnya. Penjualan, stok, logistik berjalan sendiri-sendiri. Tidak ada satu platform yang menyatukan. Akibatnya, pertumbuhan jadi lebih sulit. Distributor susah scale, retailer susah bersaing.",
-      "vision": "Dari situlah visi Laku lahir.",
       "6": "Saya tidak ingin sekadar bikin marketplace B2B. Saya ingin membayangkan ulang distribusi dan retail jika teknologi benar-benar memberdayakan kedua sisi. Laku bukan sekadar tempat transaksi. Distributor bisa jual lebih cerdas, kelola stok real-time, jadwalkan & lacak pengiriman, analisa performa — semua di satu platform. Retailer pun lebih mudah cari produk, order, dan restock dengan percaya diri.",
       "7": "Nama <b>Laku</b> sendiri mencerminkan semangat ini. Dalam bahasa Indonesia, “laku” berarti terjual dan bergerak. Perdagangan adalah pergerakan — barang, peluang, penghidupan. Platform kami hadir agar pergerakan ini lancar, transparan, dan penuh kepercayaan.",
       "8": "Yang paling mendorong saya adalah keyakinan bahwa teknologi harus memudahkan hidup, bukan mempersulit. Laku membawa alat modern — otomatisasi, visibilitas real-time, data cerdas — ke ruang yang lama terabaikan. Distributor dapat waktu & kejelasan untuk fokus tumbuh. Retailer dapat akses & keandalan untuk layani pelanggan lebih baik.",
       "9": "Setiap fitur Laku lahir dari visi sederhana: menyatukan yang tercecer, menyederhanakan yang rumit.",
-      "mission": "Ini baru permulaan, tapi misinya jelas. Perdagangan di Indonesia (dan lebih luas) butuh platform yang dibangun untuk tantangan uniknya — yang memberdayakan penjual dan pembeli sama-sama. Dengan Laku, saya yakin kita bisa ciptakan ekosistem di mana distribusi maju, retailer tumbuh, dan komunitas sejahtera.",
       "10": "Ini bukan sekadar software. Ini tentang membangun kepercayaan, efisiensi, dan peluang bagi jutaan bisnis yang menggerakkan ekonomi kita setiap hari.",
+      "vision": "Dari situlah visi Laku lahir.",
+      "mission": "Ini baru permulaan, tapi misinya jelas. Perdagangan di Indonesia (dan lebih luas) butuh platform yang dibangun untuk tantangan uniknya — yang memberdayakan penjual dan pembeli sama-sama. Dengan Laku, saya yakin kita bisa ciptakan ekosistem di mana distribusi maju, retailer tumbuh, dan komunitas sejahtera.",
       "end": "Dan ini baru permulaan."
     },
     "carousel": {
@@ -485,10 +848,10 @@
         "content": "Masa depan di mana setiap retailer di Indonesia, sekecil apapun, punya akses setara ke produk, harga, dan peluang, serta setiap distributor bisa menjangkau pasar baru dengan mudah."
       },
       "3": {
-        "title": "Yang Kami Percaya",
         "1": "Teknologi harus memberdayakan, bukan mempersulit.",
         "2": "Bisnis kecil berhak mendapat peluang besar.",
-        "3": "Perdagangan yang adil membangun komunitas yang kuat."
+        "3": "Perdagangan yang adil membangun komunitas yang kuat.",
+        "title": "Yang Kami Percaya"
       },
       "4": {
         "title": "Kenapa 'Laku'?",

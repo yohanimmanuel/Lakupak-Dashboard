@@ -26,8 +26,9 @@ import {
 } from '@/components/analyticsperformance/OperationalPerformanceAnalytics';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { computeOrderPeriodGrowth } from '@/utils/monthOverMonthGrowth';
+import { formatCompactCurrency } from '@/utils/currencyUtils';
 import { useAnalyticsTranslations } from '@/hooks/useAnalyticsTranslations';
-import { AnalyticsTimeRange, filterOrdersByTimeRange } from '@/utils/analyticsTimeRange';
+import { AnalyticsTimeRange, filterOrdersByTimeRange, getAnalyticsGrowthComparisonKey } from '@/utils/analyticsTimeRange';
 
 const TIME_RANGE_VALUES = ['1M', '3M', '6M', '1Y'] as const;
 
@@ -159,9 +160,10 @@ export default function AnalyticsPage() {
   );
 
   const orderGrowth = useMemo(
-    () => computeOrderPeriodGrowth(filteredOrders, timeRange, dateLocale),
-    [filteredOrders, timeRange, dateLocale],
+    () => computeOrderPeriodGrowth(orders, timeRange, dateLocale),
+    [orders, timeRange, dateLocale],
   );
+  const growthComparisonLabel = tShared(getAnalyticsGrowthComparisonKey(timeRange));
 
   // Handle dropdown click outside
   useEffect(() => {
@@ -300,28 +302,52 @@ export default function AnalyticsPage() {
               title={tMetrics('orderVolume')}
               value={formatCurrency(orderVolume, userCurrency)}
               change={orderGrowth.orderVolumeGrowth}
+              previousValue={
+                orderGrowth.orderVolumePrevious != null
+                  ? formatCompactCurrency(orderGrowth.orderVolumePrevious, userCurrency)
+                  : undefined
+              }
               icon={<DollarSign className="w-6 h-6 text-[#0a61d7]" />}
               color="bg-[#f7faff]"
+              comparisonLabel={growthComparisonLabel}
             />
             <CustomerPiecesSoldCard 
               piecesSold={customerMetrics.totalPiecesSold || 0} 
               unitsSold={customerMetrics.totalUnitsSold} 
               change={orderGrowth.piecesGrowth}
+              previousValue={
+                orderGrowth.piecesPrevious != null
+                  ? orderGrowth.piecesPrevious.toLocaleString()
+                  : undefined
+              }
+              comparisonLabel={growthComparisonLabel}
             />
             {/* Operational metric card reused */}
             <OperationalMetricCard
               title={tMetrics('orderCompletionRate')}
               value={`${opMetrics.completionRate.toFixed(1)}%`}
               change={orderGrowth.completionGrowth}
-              icon={<ShoppingCart className="w-6 h-6 text-green-600" />}
+              previousValue={
+                orderGrowth.completionPrevious != null
+                  ? `${orderGrowth.completionPrevious.toFixed(1)}%`
+                  : undefined
+              }
+              icon={<ShoppingCart className="w-6 h-6 text-[#059669]" />}
               color="bg-[#e6f7ec]"
+              comparisonLabel={growthComparisonLabel}
             />
             <AnalyticsMetricCard
               title={tMetrics('averageOrderValue')}
               value={formatCurrency(averageOrderVolume, userCurrency)}
               change={orderGrowth.averageOrderVolumeGrowth}
-              icon={<DollarSign className="w-6 h-6 text-emerald-600" />}
-              color="bg-[#e6f7ec]"
+              previousValue={
+                orderGrowth.averageOrderVolumePrevious != null
+                  ? formatCompactCurrency(orderGrowth.averageOrderVolumePrevious, userCurrency)
+                  : undefined
+              }
+              icon={<DollarSign className="w-6 h-6 text-[#0a61d7]" />}
+              color="bg-[#f7faff]"
+              comparisonLabel={growthComparisonLabel}
             />
           </>
       </div>

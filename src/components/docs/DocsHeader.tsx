@@ -32,7 +32,6 @@ export function DocsHeader() {
   const [dropdownOpen, setDropdownOpen] = React.useState(false);
   const [focusIndex, setFocusIndex] = React.useState<number>(-1);
   const currentLang = LANG_OPTIONS.find((l) => l.code === locale);
-  const dropdownContainerRef = React.useRef<HTMLDivElement | null>(null);
   const toggleButtonRef = React.useRef<HTMLButtonElement | null>(null);
   const optionRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
 
@@ -44,8 +43,7 @@ export function DocsHeader() {
     } else {
       segments.splice(1, 0, newLocale);
     }
-    const newPath = segments.join('/') || '/';
-    router.push(newPath);
+    router.push(segments.join('/') || '/');
     setDropdownOpen(false);
   };
 
@@ -106,105 +104,109 @@ export function DocsHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-white/30 bg-white/30 shadow-sm backdrop-blur-lg">
-      <div
-        className={
-          showContentChrome
-            ? 'w-full px-4 sm:px-6 lg:px-8'
-            : 'mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'
-        }
-      >
-        <div className="flex h-20 items-center gap-3 sm:gap-6 lg:gap-8">
-          <Link href={`/${locale}/landing`} className="flex shrink-0 items-center">
+    <header className="sticky top-0 z-30 w-full bg-white border-b border-gray-200">
+      <div className="flex items-center justify-between gap-4 px-4 h-16">
+        <div className="flex items-center gap-4 min-w-0 flex-1">
+          <Link href={`/${locale}/landing`} className="flex items-center min-w-0 shrink-0">
             <Image
               src="/LakuTextLogo.svg"
-              alt="Laku Logo"
-              width={150}
-              height={80}
-              className="h-10 w-auto sm:h-12"
+              alt="Laku"
+              width={120}
+              height={36}
+              className="h-9 w-auto hidden sm:block"
+              priority
+            />
+            <Image
+              src="/LakuIcon.svg"
+              alt="Laku"
+              width={36}
+              height={36}
+              className="h-9 w-9 sm:hidden"
+              priority
             />
           </Link>
 
           {showContentChrome ? (
-            <div className="w-full max-w-[600px] sm:max-w-sm md:max-w-md">
+            <div className="hidden sm:flex min-w-0 w-full max-w-xs md:max-w-sm lg:max-w-md">
               <DocsSearchBar
                 locale={locale}
-                className="max-w-none w-full"
+                className="relative w-full max-w-none"
                 placeholder={tDocs('landing.searchPlaceholder')}
               />
             </div>
           ) : null}
+        </div>
 
-          <div className="ml-auto flex shrink-0 items-center space-x-4 sm:space-x-6">
-            <div
-              className="relative"
-              ref={dropdownContainerRef}
-              data-dropdown-container="lang"
-              onKeyDown={handleKeyDown}
+        <div className="flex items-center gap-2 justify-end shrink-0">
+          <div
+            className="relative"
+            data-dropdown-container="lang"
+            onKeyDown={handleKeyDown}
+          >
+            <button
+              ref={toggleButtonRef}
+              onClick={() => setDropdownOpen((open) => !open)}
+              className="flex items-center px-2.5 py-1.5 rounded-full bg-white border border-gray-200 hover:bg-gray-50 transition-colors shadow-sm"
+              aria-label="Select language"
+              aria-haspopup="menu"
+              aria-expanded={dropdownOpen}
+              type="button"
             >
-              <button
-                ref={toggleButtonRef}
-                onClick={() => setDropdownOpen((open) => !open)}
-                className="flex items-center px-3 py-2 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50 transition min-w-[64px]"
-                aria-label="Select language"
-                aria-haspopup="menu"
-                aria-expanded={dropdownOpen}
-                type="button"
+              <Image
+                src={currentLang?.icon || ''}
+                alt={currentLang?.label || ''}
+                width={20}
+                height={20}
+                className="mr-1.5"
+              />
+              <ChevronUpIcon
+                className={`w-3.5 h-3.5 text-gray-500 transition-transform ${
+                  dropdownOpen ? '' : 'rotate-180'
+                }`}
+              />
+            </button>
+            {dropdownOpen && (
+              <div
+                role="menu"
+                aria-label="Language options"
+                className="absolute right-0 mt-2 w-40 bg-white rounded-xl shadow-lg border border-gray-200 z-50 overflow-hidden"
               >
-                <Image
-                  src={currentLang?.icon || ''}
-                  alt={currentLang?.label || ''}
-                  width={24}
-                  height={24}
-                  className="mr-2"
-                />
-                <ChevronUpIcon
-                  className={`w-4 h-4 ml-1 text-gray-500 transition-transform ${
-                    dropdownOpen ? '' : 'rotate-180'
-                  }`}
-                />
-              </button>
-              {dropdownOpen && (
-                <div
-                  role="menu"
-                  aria-label="Language options"
-                  className="absolute right-0 mt-2 w-40 bg-white rounded-xl shadow-lg border border-gray-100 z-50 animate-fade-in-up"
-                >
-                  {LANG_OPTIONS.map((option, index) => (
-                    <button
-                      key={option.code}
-                      ref={(el) => {
-                        optionRefs.current[index] = el;
-                      }}
-                      role="menuitem"
-                      tabIndex={-1}
-                      onClick={() => handleLocaleChange(option.code)}
-                      className={`flex items-center w-full px-4 py-2 text-sm rounded-xl hover:bg-blue-50 focus:bg-blue-50 focus:outline-none transition-colors ${
-                        locale === option.code ? 'font-bold text-blue-700' : 'text-gray-700'
-                      }`}
-                    >
-                      <Image src={option.icon} alt={option.label} width={22} height={22} className="mr-2" />
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => router.push('/login')}
-              className="text-gray-700 transition-colors hover:text-[#0a61d7] bg-transparent border-none cursor-pointer"
-            >
-              {tNav('signin')}
-            </button>
-            <button
-              type="button"
-              onClick={() => router.push('/register')}
-              className="bg-[#0a61d7] text-white px-6 py-2.5 rounded-lg hover:bg-[#084ba6] transition-colors shadow-lg hover:shadow-xl"
-            >
-              {tNav('getstarted')}
-            </button>
+                {LANG_OPTIONS.map((option, index) => (
+                  <button
+                    key={option.code}
+                    ref={(el) => {
+                      optionRefs.current[index] = el;
+                    }}
+                    role="menuitem"
+                    tabIndex={-1}
+                    type="button"
+                    onClick={() => handleLocaleChange(option.code)}
+                    className={`flex items-center w-full px-3 py-2 text-sm hover:bg-gray-50 focus:bg-gray-50 focus:outline-none transition-colors ${
+                      locale === option.code ? 'font-semibold text-[#0a61d7]' : 'text-gray-700'
+                    }`}
+                  >
+                    <Image src={option.icon} alt={option.label} width={18} height={18} className="mr-2" />
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
+
+          <button
+            type="button"
+            onClick={() => router.push('/login')}
+            className="hidden sm:inline text-sm text-gray-600 hover:text-[#0a61d7] transition-colors"
+          >
+            {tNav('signin')}
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push('/register')}
+            className="bg-[#0a61d7] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#084ba6] transition-colors"
+          >
+            {tNav('getstarted')}
+          </button>
         </div>
       </div>
     </header>

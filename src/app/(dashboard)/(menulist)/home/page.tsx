@@ -37,8 +37,8 @@ import {
 } from '@/components/analyticsperformance/FinancialAnalytics';
 import { calculateSalesMetrics } from '@/components/analyticsperformance/CustomerSalesAnalytics';
 import { getProductTotalStock } from '@/utils/stockUtils';
-import { getDefaultCurrency } from '@/utils/currencyUtils';
-import { computeOrderMonthOverMonthGrowth } from '@/utils/monthOverMonthGrowth';
+import { getDefaultCurrency, formatCompactCurrency } from '@/utils/currencyUtils';
+import { computeOrdersListGrowth } from '@/utils/monthOverMonthGrowth';
 import type { Order, OrderItem } from '@/types/order';
 import type { Product } from '@/types/product';
 import type { Buyer, Supplier, SupplyDetail } from '@/types/client';
@@ -1700,7 +1700,7 @@ const supplierInsights = useMemo(() => {
     }
   };
 
-  const orderGrowth = useMemo(() => computeOrderMonthOverMonthGrowth(orders), [orders]);
+  const orderGrowth = useMemo(() => computeOrdersListGrowth(orders), [orders]);
 
   const statCards = useMemo(() => {
     // Don't calculate if still loading to avoid showing 0 values
@@ -1717,6 +1717,10 @@ const supplierInsights = useMemo(() => {
         title: t('stats.orderVolume'),
         value: formatCurrency(totalRevenue, userCurrency),
         change: orderGrowth.orderVolumeGrowth,
+        previousValue:
+          orderGrowth.orderVolumePrevious != null
+            ? formatCompactCurrency(orderGrowth.orderVolumePrevious, userCurrency)
+            : undefined,
         icon: <DollarSign className="w-6 h-6 text-[#0a61d7]" />,
         color: 'bg-[#f7faff]',
       },
@@ -1725,24 +1729,36 @@ const supplierInsights = useMemo(() => {
         title: t('stats.totalOrders'),
         value: totalOrderCount.toLocaleString(),
         change: orderGrowth.ordersGrowth,
-        icon: <ShoppingCart className="w-6 h-6 text-emerald-600" />,
-        color: 'bg-[#e6f7ec]',
+        previousValue:
+          orderGrowth.ordersPrevious != null
+            ? orderGrowth.ordersPrevious.toLocaleString()
+            : undefined,
+        icon: <ShoppingCart className="w-6 h-6 text-[#0a61d7]" />,
+        color: 'bg-[#f7faff]',
       },
       {
         id: 'piecesSold',
         title: t('stats.piecesSold'),
         value: safeSalesMetrics.totalUnitsSold.toLocaleString(),
         change: orderGrowth.piecesGrowth,
-        icon: <Package className="w-6 h-6 text-purple-600" />,
-        color: 'bg-[#f3e8ff]',
+        previousValue:
+          orderGrowth.piecesPrevious != null
+            ? orderGrowth.piecesPrevious.toLocaleString()
+            : undefined,
+        icon: <Package className="w-6 h-6 text-[#0a61d7]" />,
+        color: 'bg-[#f7faff]',
       },
       {
         id: 'averageOrderVolume',
         title: t('stats.averageOrderVolume'),
         value: formatCurrency(averageOrderVolume, userCurrency),
         change: orderGrowth.averageOrderVolumeGrowth,
-        icon: <DollarSign className="w-6 h-6 text-emerald-600" />,
-        color: 'bg-[#e6f7ec]',
+        previousValue:
+          orderGrowth.averageOrderVolumePrevious != null
+            ? formatCompactCurrency(orderGrowth.averageOrderVolumePrevious, userCurrency)
+            : undefined,
+        icon: <DollarSign className="w-6 h-6 text-[#0a61d7]" />,
+        color: 'bg-[#f7faff]',
       },
     ];
   }, [
@@ -2926,6 +2942,7 @@ const supplierInsights = useMemo(() => {
                   title={card.title}
                   value={card.value}
                   change={card.change}
+                  previousValue={card.previousValue}
                   icon={card.icon}
                   color={card.color}
                   comparisonLabel={tCommon('vsLastMonth')}

@@ -9,64 +9,389 @@
     "signin": "Sign In",
     "getstarted": "Get Started"
   },
+  "featureModules": {
+    "cta": "Start free trial",
+    "usesTitle": "How this module helps",
+    "usesPlaceholder": "{title} preview. Replace image",
+    "menu": {
+      "viewAll": "See all features",
+      "featuredLabel": "Featured",
+      "featuredCta": "Explore feature",
+      "modulesLabel": "Modules",
+      "groups": {
+        "sell": "Sell",
+        "grow": "Grow",
+        "deliver": "Deliver"
+      }
+    },
+    "hub": {
+      "title": "Every module to run distribution on Laku",
+      "subtitle": "From client management to delivery, explore the full loop across Dashboard, Marketplace, and Driver.",
+      "exploreMore": "Explore more modules"
+    },
+    "overview": {
+      "home": "Home",
+      "features": "Features",
+      "trusted": "Trusted by distributors and brands across Indonesia.",
+      "logoPlaceholder": "Partner logo",
+      "loopLabel": "Works in the Laku loop",
+      "unlocksLabel": "What this unlocks",
+      "surfaces": {
+        "dashboard": "Dashboard",
+        "marketplace": "Marketplace",
+        "driver": "Driver"
+      }
+    },
+    "clients": {
+      "menuLabel": "Client management",
+      "title": "Client management for your retail network",
+      "subtitle": "Organize buyers and suppliers, track relationships, and keep every retailer ready to order from one place.",
+      "placeholder": "Clients module preview. Replace image",
+      "overview": {
+        "summary": "Client management helps distributors keep every retailer and supplier organized in one place. Track contacts, account status, and relationship health so your network stays ready to order without spreadsheet chase.",
+        "highlights": {
+          "1": {
+            "title": "Buyer and supplier in one network",
+            "desc": "Keep retail accounts and supply partners structured for everyday distribution work."
+          },
+          "2": {
+            "title": "Know who needs attention",
+            "desc": "Spot inactive stores, pending follow-ups, and relationship gaps before orders stall."
+          },
+          "3": {
+            "title": "Hand off into selling",
+            "desc": "Move from contact records into catalog, offers, and orders without rebuilding context."
+          }
+        }
+      },
+      "points": {
+        "1": {
+          "title": "Buyer and supplier records",
+          "desc": "Keep retailer profiles, contacts, and status clear across your network."
+        },
+        "2": {
+          "title": "Relationship visibility",
+          "desc": "See who is active, who needs follow-up, and how accounts are connected."
+        },
+        "3": {
+          "title": "Ready-to-order network",
+          "desc": "Move from contact lists to a live distribution network that can place orders."
+        }
+      }
+    },
+    "products": {
+      "menuLabel": "Products",
+      "title": "Product catalog built for wholesale",
+      "subtitle": "Manage SKUs, pricing, and assortment so retailers always see the right catalog.",
+      "placeholder": "Products module preview. Replace image",
+      "overview": {
+        "summary": "Products keeps your wholesale catalog centralized so pricing, SKUs, and assortment stay consistent for every connected store. Publish once, update with confidence, and help retailers find what is ready to buy.",
+        "highlights": {
+          "1": {
+            "title": "Publish once for every store",
+            "desc": "Maintain SKUs and assortment in Dashboard so Marketplace buyers see the same truth."
+          },
+          "2": {
+            "title": "Protect wholesale pricing",
+            "desc": "Control list prices and deal-ready catalog structure across your connected network."
+          },
+          "3": {
+            "title": "Reduce catalog chaos",
+            "desc": "Stop patching product lists in spreadsheets and chat threads."
+          }
+        }
+      },
+      "points": {
+        "1": {
+          "title": "Centralized catalog",
+          "desc": "Publish and update products without spreadsheet fragmentation."
+        },
+        "2": {
+          "title": "Pricing control",
+          "desc": "Keep wholesale pricing consistent across your connected stores."
+        },
+        "3": {
+          "title": "Assortment clarity",
+          "desc": "Help retailers discover what is available and ready to order."
+        }
+      }
+    },
+    "orders": {
+      "menuLabel": "Orders",
+      "title": "Orders from request to fulfillment",
+      "subtitle": "Process wholesale orders end to end with clear status for your team and buyers.",
+      "placeholder": "Orders module preview. Replace image",
+      "overview": {
+        "summary": "Orders replaces WhatsApp and spreadsheet chaos with one digital flow from request to fulfillment. Sales, ops, and logistics share the same status so buyers and your team always know what is next.",
+        "highlights": {
+          "1": {
+            "title": "One order spine",
+            "desc": "Take wholesale demand from Marketplace into a single fulfillment track in Dashboard."
+          },
+          "2": {
+            "title": "Shared status for every team",
+            "desc": "Sales, ops, and logistics work from the same order state instead of parallel chats."
+          },
+          "3": {
+            "title": "Ready for Driver handoff",
+            "desc": "Pass confirmed orders into fleet assignment and live delivery without retyping."
+          }
+        }
+      },
+      "points": {
+        "1": {
+          "title": "Digital order intake",
+          "desc": "Replace WhatsApp and spreadsheet order chaos with one flow."
+        },
+        "2": {
+          "title": "Status tracking",
+          "desc": "Follow every order as it moves through confirmation and fulfillment."
+        },
+        "3": {
+          "title": "Team coordination",
+          "desc": "Give sales, ops, and logistics the same source of truth."
+        }
+      }
+    },
+    "offers": {
+      "menuLabel": "Offers",
+      "title": "Offers that move product faster",
+      "subtitle": "Create promotions and deal structures that retailers can act on inside the platform.",
+      "placeholder": "Offers module preview. Replace image",
+      "overview": {
+        "summary": "Offers lets you launch promotions next to the products retailers already browse. Target the right stores, protect catalog structure, and drive faster reorder loops without leaving Laku.",
+        "highlights": {
+          "1": {
+            "title": "Deals where retailers already buy",
+            "desc": "Attach promotions to catalog items buyers browse in Marketplace."
+          },
+          "2": {
+            "title": "Target the right stores",
+            "desc": "Push incentives to the retailers that need volume, not a blanket blast."
+          },
+          "3": {
+            "title": "Keep margin structure intact",
+            "desc": "Run promotions without breaking your core wholesale pricing model."
+          }
+        }
+      },
+      "points": {
+        "1": {
+          "title": "Promotional pricing",
+          "desc": "Launch deals that sit next to the products retailers already browse."
+        },
+        "2": {
+          "title": "Targeted incentives",
+          "desc": "Push the right offer to the right stores without leaving Laku."
+        },
+        "3": {
+          "title": "Faster reorder loops",
+          "desc": "Use offers to drive volume while protecting your catalog structure."
+        }
+      }
+    },
+    "marketing": {
+      "menuLabel": "Marketing",
+      "title": "Marketing that drives reorder",
+      "subtitle": "Run campaigns and promotions inside the platform to grow reach across connected retailers.",
+      "placeholder": "Marketing module preview. Replace image",
+      "overview": {
+        "summary": "Marketing keeps campaigns inside the same platform where retailers buy. Plan promotions, stay close to catalog and orders, and keep your retail network engaged with consistent touchpoints.",
+        "highlights": {
+          "1": {
+            "title": "Campaigns inside the loop",
+            "desc": "Reach connected retailers in the same system where they reorder."
+          },
+          "2": {
+            "title": "Stay close to catalog and orders",
+            "desc": "Plan promotions without losing sight of what is selling and shipping."
+          },
+          "3": {
+            "title": "Build reorder habits",
+            "desc": "Keep the network warm with consistent touchpoints between bulk buys."
+          }
+        }
+      },
+      "points": {
+        "1": {
+          "title": "In-platform campaigns",
+          "desc": "Reach retailers where they already buy, not in a disconnected channel."
+        },
+        "2": {
+          "title": "Promotion control",
+          "desc": "Plan and launch campaigns without losing sight of catalog and orders."
+        },
+        "3": {
+          "title": "Network engagement",
+          "desc": "Keep your retail loop active with consistent marketing touchpoints."
+        }
+      }
+    },
+    "marketplace": {
+      "menuLabel": "Marketplace performance",
+      "title": "Marketplace performance with the buyer app",
+      "subtitle": "Track how your catalog performs in Marketplace and give retailers a clear wholesale buying experience in the app.",
+      "placeholder": "Marketplace performance and app preview. Replace image",
+      "overview": {
+        "summary": "Marketplace performance connects distributor insights with the retailer buyer app. See what converts, help stores browse and order on mobile, and keep Dashboard and Marketplace in one loop.",
+        "highlights": {
+          "1": {
+            "title": "See what converts",
+            "desc": "Read product traction and engagement from the Marketplace buyer experience."
+          },
+          "2": {
+            "title": "Mobile wholesale for retailers",
+            "desc": "Give stores a clear app path to browse, compare, and place bulk orders."
+          },
+          "3": {
+            "title": "Close the Dashboard loop",
+            "desc": "Connect buyer activity back to distributor catalog, offers, and fulfillment."
+          }
+        }
+      },
+      "points": {
+        "1": {
+          "title": "Performance insights",
+          "desc": "See product traction, engagement, and what is converting in Marketplace."
+        },
+        "2": {
+          "title": "Retailer marketplace app",
+          "desc": "Buyers browse, compare, and order from a mobile-first wholesale experience."
+        },
+        "3": {
+          "title": "One loop with Dashboard",
+          "desc": "Distributor catalog and retailer buying stay connected in the same system."
+        }
+      }
+    },
+    "logistics": {
+      "menuLabel": "Logistics and Driver",
+      "title": "Logistics with live Driver delivery",
+      "subtitle": "Assign fleets, give drivers app access, and share real-time delivery updates with your team and buyers.",
+      "placeholder": "Logistics and Driver app preview. Replace image",
+      "overview": {
+        "summary": "Logistics and Driver give fleets and field teams one place to move shipments. Drivers get routes on the app, ops assigns fleets with less chase, and buyers see real-time delivery updates as goods move.",
+        "highlights": {
+          "1": {
+            "title": "Fleet without the chase",
+            "desc": "Assign shipments to the right fleet from confirmed orders in Dashboard."
+          },
+          "2": {
+            "title": "Driver app in the field",
+            "desc": "Give drivers routes and order context on the Laku Driver app."
+          },
+          "3": {
+            "title": "Delivery visibility for buyers",
+            "desc": "Share live status so retailers know what is coming and when."
+          }
+        }
+      },
+      "points": {
+        "1": {
+          "title": "Driver app access",
+          "desc": "Drivers get routes and order context on the go from the Laku Driver app."
+        },
+        "2": {
+          "title": "Fleet assignment",
+          "desc": "Match shipments to the right fleet without manual chase."
+        },
+        "3": {
+          "title": "Real-time delivery updates",
+          "desc": "Track status as goods move so retailers know what is coming."
+        }
+      }
+    }
+  },
   "landing": {
     "hero": {
-      "titleParts": [
-        "Where Distributors ",
-        "Trade",
-        " & Retailers ",
-        "Shop",
-        " ",
-        "10X Smarter"
-      ],
-      "subtitle": "Instantly connect, order in bulk, grow your margins, power up sales and analyze business performance — all in one platform.",
-      "cta": "Get Started Free",
-      "learnmore": "Explore Markets →",
-      "socialproof": "4.9 stars • 2,000+ reviews",
-      "screenshot": "Put Product Screenshot Here"
+      "titleBefore": "Where distributors and retailers trade ",
+      "titleAccent": "smarter",
+      "subtitle": "Connect your retail network, order in bulk, and run distribution from one platform: Dashboard, Marketplace, and Driver.",
+      "cta": "Start free trial",
+      "learnmore": "Explore marketplace",
+      "productPlaceholder": "Dashboard preview. Replace with product image"
     },
-    "painpoints": {
-      "title": "Transform Your Distribution Business",
-      "subtitle": "See how Laku solves the biggest challenges in FMCG distribution",
-      "without": {
-        "title": "Without Laku",
-        "1": "Manual order processing with spreadsheets and WhatsApp",
-        "2": "No visibility into inventory levels and sales performance",
-        "3": "Price wars and margin erosion from open competition",
-        "4": "Lost sales from inefficient replenishment cycles"
-      },
-      "with": {
-        "title": "With Laku",
-        "1": "Automated digital ordering with real-time inventory sync",
-        "2": "Comprehensive analytics and performance insights",
-        "3": "Protected pricing and controlled marketplace access",
-        "4": "Smart replenishment with predictive ordering"
-      }
+    "trust": {
+      "title": "Trusted by distributors across Indonesia",
+      "logoPlaceholder": "Partner logo"
+    },
+    "platformMessage": {
+      "title": "One platform to run your full distribution loop",
+      "subtitle": "Laku brings client management, catalog and offers, orders, marketing, analytics, and logistics together so distributors and retailers work from the same system. Our SaaS is powered by AI agents, where users can build their own workflows and automations to automate their daily business operations."
     },
     "features": {
-      "title": "Two Powerful Platforms, One Seamless Experience",
-      "subtitle": "Built specifically for FMCG distribution in Indonesia",
-      "distributor": {
-        "title": "Distributor Dashboard",
-        "desc": "Complete Business Management",
-        "1": "Digital Catalog & Pricing Controls",
-        "2": "Analytics & Sales Reports",
-        "3": "Marketing Campaigns Inside Platform",
-        "screenshot": "Dashboard Screenshot"
+      "selling": {
+        "title": "Sell smarter across your retail network",
+        "subtitle": "Manage clients, products, and orders in one selling loop.",
+        "clients": {
+          "title": "Client management",
+          "desc": "Organize retailers, track relationships, and keep your network ready to order."
+        },
+        "products": {
+          "title": "Products and offers",
+          "desc": "Control catalog, pricing, and offers so every store sees the right assortment."
+        },
+        "orders": {
+          "title": "Orders",
+          "desc": "Process wholesale orders from request through fulfillment without spreadsheet chaos."
+        },
+        "placeholders": {
+          "clients": "Clients preview. Replace image",
+          "products": "Products and offers preview. Replace image",
+          "orders": "Orders preview. Replace image"
+        }
       },
-      "retailer": {
-        "title": "Retailer Marketplace",
-        "desc": "Smart Shopping Experience",
-        "1": "Bulk Ordering in One Click",
-        "2": "Auto-Replenishment Suggestions",
-        "3": "Real-Time Delivery Updates",
-        "screenshot": "Marketplace Screenshot"
+      "marketing": {
+        "1": {
+          "title": "In-platform campaigns",
+          "desc": "Launch promotions where your retailers already buy."
+        },
+        "2": {
+          "title": "Targeted offers",
+          "desc": "Push the right deals to the right stores at the right time."
+        },
+        "3": {
+          "title": "Reorder momentum",
+          "desc": "Keep your network engaged without leaving Laku."
+        },
+        "title": "Marketing that drives reorder",
+        "subtitle": "Run campaigns and promotions inside the platform to grow reach across your connected retailers.",
+        "placeholder": "Marketing preview. Replace image"
+      },
+      "analytics": {
+        "title": "Analytics across every signal",
+        "subtitle": "Track financial, sales, and operational data so decisions stay grounded in what is happening now.",
+        "placeholder": "Analytics preview. Replace image",
+        "financial": {
+          "title": "Financial",
+          "desc": "Watch margins, revenue, and payment health across the network."
+        },
+        "sales": {
+          "title": "Sales",
+          "desc": "See what moves, which retailers reorder, and where demand is growing."
+        },
+        "operational": {
+          "title": "Operational",
+          "desc": "Monitor fulfillment speed, coverage, and day-to-day distribution health."
+        }
+      },
+      "logistics": {
+        "1": {
+          "title": "Driver app access",
+          "desc": "Drivers get routes and order context on the go."
+        },
+        "2": {
+          "title": "Fleet assignment",
+          "desc": "Match shipments to the right fleet without manual chase."
+        },
+        "3": {
+          "title": "Real-time delivery updates",
+          "desc": "Track status as goods move so retailers know what is coming."
+        },
+        "title": "Logistics with live delivery visibility",
+        "subtitle": "Give drivers app access, assign fleets, and share real-time delivery updates with your team and buyers.",
+        "placeholder": "Logistics preview. Replace image"
       }
-    },
-    "socialproof": {
-      "title": "Trusted by Leading Distributors",
-      "subtitle": "Join thousands of businesses already growing with Laku",
-      "logo": "Logo {number}"
     },
     "testimonials": {
       "1": {
@@ -77,30 +402,30 @@
       "2": {
         "name": "Siti Nurhaliza",
         "role": "Owner, Warung Makmur",
-        "text": "Ordering is now so easy! I get better prices and faster delivery. My customers are happier too."
-      }
+        "text": "Ordering is easier, prices are clearer, and delivery updates keep my shelves stocked."
+      },
+      "title": "What teams are saying"
     },
     "howitworks": {
-      "title": "Get Started in 3 Simple Steps",
-      "subtitle": "Join thousands of businesses already using Laku",
       "1": {
-        "title": "Sign up & verify",
-        "desc": "Create your account and complete business verification in minutes"
+        "title": "Sign up and verify",
+        "desc": "Create your account and complete business verification in minutes."
       },
       "2": {
-        "title": "List or browse bulk products",
-        "desc": "Distributors list products, retailers browse and compare options"
+        "title": "List or browse products",
+        "desc": "Distributors publish catalog; retailers browse and compare wholesale options."
       },
       "3": {
-        "title": "Order & track seamlessly",
-        "desc": "Place orders, track deliveries, and manage your business all in one place"
-      }
+        "title": "Order and track",
+        "desc": "Place orders, track deliveries, and manage operations in one place."
+      },
+      "title": "Get started in three steps",
+      "subtitle": "From signup to live orders without a long onboarding maze."
     },
     "finalcta": {
-      "title1": "Stop selling like it's 1990.",
-      "title2": "Start trading like it's 2030.",
-      "subtitle": "Join the digital revolution in FMCG distribution. Transform your business today.",
-      "cta": "Get Started Free"
+      "title": "Run your distribution network on Laku",
+      "subtitle": "Start a 30-day free trial with full platform access. No credit card required.",
+      "cta": "Start free trial"
     }
   },
   "features": {
@@ -116,53 +441,53 @@
       "title": "Transform Your Distribution Business",
       "subtitle": "See how Laku solves the biggest challenges in FMCG distribution",
       "without": {
-        "title": "Without Laku",
         "1": "Manual order processing with spreadsheets and WhatsApp",
         "2": "No visibility into inventory levels and sales performance",
         "3": "Price wars and margin erosion from open competition",
-        "4": "Lost sales from inefficient replenishment cycles"
+        "4": "Lost sales from inefficient replenishment cycles",
+        "title": "Without Laku"
       },
       "with": {
-        "title": "With Laku",
         "1": "Automated digital ordering with real-time inventory sync",
         "2": "Comprehensive analytics and performance insights",
         "3": "Protected pricing and controlled marketplace access",
-        "4": "Smart replenishment with predictive ordering"
+        "4": "Smart replenishment with predictive ordering",
+        "title": "With Laku"
       }
     },
     "platforms": {
       "title": "Two Powerful Platforms, One Seamless Experience",
       "subtitle": "Built specifically for FMCG distribution in Indonesia",
       "distributor": {
-        "title": "Distributor Dashboard",
-        "desc": "Complete Business Management",
         "1": "Digital Catalog & Pricing Controls",
         "2": "Analytics & Sales Reports",
         "3": "Marketing Campaigns Inside Platform",
         "4": "AI Sales Forecasting and Management",
         "5": "Centralized Product Management",
+        "title": "Distributor Dashboard",
+        "desc": "Complete Business Management",
         "screenshot": "Dashboard Screenshot"
       },
       "retailer": {
-        "title": "Retailer Marketplace",
-        "desc": "Smart Shopping Experience",
         "1": "Bulk Ordering in One Click",
         "2": "Auto-Replenishment Suggestions",
         "3": "Real-Time Delivery Updates",
         "4": "Mobile-First Experience",
         "5": "Smart Shopping Experience",
+        "title": "Retailer Marketplace",
+        "desc": "Smart Shopping Experience",
         "screenshot": "Marketplace Screenshot"
       }
     },
     "sticky": {
-        "distributor": {
-          "title": "For Distributors",
-          "subtitle": "Supercharge your business with AI, automation, and centralized control."
-        },
-        "retailer": {
-          "title": "For Retailers",
-          "subtitle": "Shop smarter, restock faster, and manage your store from anywhere."
-        }
+      "distributor": {
+        "title": "For Distributors",
+        "subtitle": "Supercharge your business with AI, automation, and centralized control."
+      },
+      "retailer": {
+        "title": "For Retailers",
+        "subtitle": "Shop smarter, restock faster, and manage your store from anywhere."
+      }
     },
     "distributorFeatures": [
       {
@@ -322,8 +647,6 @@
       }
     },
     "faq": {
-      "title": "Frequently Asked Questions",
-      "subtitle": "Everything you need to know about our pricing",
       "1": {
         "q": "How is my plan determined?",
         "a": "Plans are based on active retail connections — buyers in your Clients module that have placed at least one order in the last 90 days. Your tier is applied from that count on each billing date."
@@ -355,7 +678,9 @@
       "8": {
         "q": "What happens if I reach a usage limit?",
         "a": "We use soft caps during MVP: you get a warning around 80% of a quota and an upgrade nudge if you go over. We do not hard-block mid-cycle yet. Optional hard caps (for example new product publishes) may be added later."
-      }
+      },
+      "title": "Frequently Asked Questions",
+      "subtitle": "Everything you need to know about our pricing"
     },
     "cta": {
       "title": "Ready to get started?",
@@ -373,35 +698,72 @@
     "badges": {
       "left": {
         "main": "Nationwide Retailer Access",
-        "sub": ["Sell to ", "10,000+", " stores"]
+        "sub": [
+          "Sell to ",
+          "10,000+",
+          " stores"
+        ]
       },
       "right": {
         "main": "Bulk Savings & Fast Delivery",
-        "sub": ["Save up to ", "30%", " on every order"]
+        "sub": [
+          "Save up to ",
+          "30%",
+          " on every order"
+        ]
       }
     },
     "twocol": {
       "title": "Solutions for Every Business",
       "subtitle": "Whether you’re a distributor or retailer, Laku empowers you to grow, save, and succeed in Indonesia’s wholesale market.",
       "distributor": {
-        "title": "Sell Smarter, Grow Faster (For Distributors)",
-        "1": { "label": "Access to Thousands of Retailers", "desc": "Your products in front of a verified nationwide retail network." },
-        "2": { "label": "Centralized Dashboard", "desc": "Manage stock, pricing, and orders in one place." },
-        "3": { "label": "Automated Payments & Invoicing", "desc": "Get paid faster with less admin work." },
-        "4": { "label": "Performance Analytics", "desc": "See which products perform best and optimize your offers." },
-        "5": { "label": "Promotions & Bulk Deals", "desc": "Run targeted campaigns to boost sales." }
+        "1": {
+          "label": "Access to Thousands of Retailers",
+          "desc": "Your products in front of a verified nationwide retail network."
+        },
+        "2": {
+          "label": "Centralized Dashboard",
+          "desc": "Manage stock, pricing, and orders in one place."
+        },
+        "3": {
+          "label": "Automated Payments & Invoicing",
+          "desc": "Get paid faster with less admin work."
+        },
+        "4": {
+          "label": "Performance Analytics",
+          "desc": "See which products perform best and optimize your offers."
+        },
+        "5": {
+          "label": "Promotions & Bulk Deals",
+          "desc": "Run targeted campaigns to boost sales."
+        },
+        "title": "Sell Smarter, Grow Faster (For Distributors)"
       },
       "retailer": {
-        "title": "Buy Better, Save More (For Retailers)",
-        "1": { "label": "One-Stop Wholesale Shopping", "desc": "Multiple suppliers, one cart, one payment." },
-        "2": { "label": "Exclusive Wholesale Pricing", "desc": "Bulk deals and seasonal promos you can’t find elsewhere." },
-        "3": { "label": "Real-Time Stock Updates", "desc": "See exactly what’s available before ordering." },
-        "4": { "label": "Flexible Payments", "desc": "Pay instantly or apply for trade credit." },
-        "5": { "label": "Fast, Reliable Delivery", "desc": "Optimized routes and consolidated shipments save time and money." }
+        "1": {
+          "label": "One-Stop Wholesale Shopping",
+          "desc": "Multiple suppliers, one cart, one payment."
+        },
+        "2": {
+          "label": "Exclusive Wholesale Pricing",
+          "desc": "Bulk deals and seasonal promos you can’t find elsewhere."
+        },
+        "3": {
+          "label": "Real-Time Stock Updates",
+          "desc": "See exactly what’s available before ordering."
+        },
+        "4": {
+          "label": "Flexible Payments",
+          "desc": "Pay instantly or apply for trade credit."
+        },
+        "5": {
+          "label": "Fast, Reliable Delivery",
+          "desc": "Optimized routes and consolidated shipments save time and money."
+        },
+        "title": "Buy Better, Save More (For Retailers)"
       }
     },
     "testimonials": {
-      "title": "What Our Users Say",
       "1": {
         "name": "Andi",
         "role": "Distributor from Surabaya",
@@ -431,11 +793,10 @@
         "name": "Maya Dewi",
         "role": "Distributor, Medan",
         "text": "Bulk deals and analytics helped me grow my business faster than ever."
-      }
+      },
+      "title": "What Our Users Say"
     },
     "steps": {
-      "title": "Get Started in 3 Simple Steps",
-      "subtitle": "Join thousands of distributors and retailers already using Laku",
       "1": {
         "title": "Sign up & verify",
         "desc": "Create your account and complete business verification in minutes"
@@ -447,7 +808,9 @@
       "3": {
         "title": "Order & track seamlessly",
         "desc": "Place orders, track deliveries, and manage your business all in one place"
-      }
+      },
+      "title": "Get Started in 3 Simple Steps",
+      "subtitle": "Join thousands of distributors and retailers already using Laku"
     },
     "cta": {
       "title": "Ready to Level Up Your Wholesale Business?",
@@ -466,35 +829,35 @@
       "3": "On the other side of the trade, small retailers — the warungs, kiosks, and mom-and-pop shops that form the backbone of our communities — faced equally daunting challenges. For many of them, securing reliable supply was not easy. They often depended on local distributors or middlemen, leaving them with limited access to product variety and fluctuating prices. They lacked visibility into shipments, and often didn’t know if their orders would arrive on time. For businesses running on tight margins, even the smallest disruption meant lost sales and disappointed customers.",
       "4": "Another challenge I saw was in the way sales happened on the ground. Distributors’ salespeople often had to physically visit retail shops, waiting their turn among a line of other salesmen from different brands or suppliers. This meant that shop owners and buyers were bombarded with product pitches in quick succession, leading to information overload and decision fatigue. Many times, salesmen would have to leave the shop before even getting a chance to present, simply because the buyer was overwhelmed or out of time. This not only wasted effort, but also meant that great products and deals could be missed entirely.",
       "5": "It became clear to me that the problem wasn’t with the people, but with the system. Sales, inventory, and logistics were happening in silos. There was no single platform to bring order to the chaos. And because of this gap, growth was harder than it needed to be. Distributors couldn’t scale efficiently, and retailers couldn’t compete fairly.",
-      "vision": "That realization sparked the vision for Laku.",
       "6": "I didn’t set out to build just another B2B marketplace. Instead, I wanted to reimagine how distribution and retail could work if technology truly empowered both sides. Laku was designed as more than a place to transact. It is a platform where distributors can sell smarter, manage their stock in real-time, schedule and track shipments, and analyze performance — all in one place. At the same time, it gives retailers a simpler, more reliable way to discover products, place orders, and restock with confidence.",
       "7": "The name <b>Laku</b> itself reflects this spirit. In Indonesian, “laku” means both sale and movement. Trade is all about movement — of goods, of opportunities, of livelihoods. Our platform exists to ensure that this movement happens seamlessly, transparently, and with trust.",
       "8": "What drives me most is the belief that technology should make life easier, not more complicated. Laku is about bringing modern tools — automation, real-time visibility, and smart data — into a space that has long been underserved. It’s about giving distributors back the time and clarity they need to focus on growth. It’s about giving retailers the access and reliability they deserve to serve their customers better.",
       "9": "Every feature in Laku comes from this simple vision: to integrate what was once scattered, and to simplify what was once complicated.",
-      "mission": "We are just at the beginning of this journey, but the mission is clear. Trade in Indonesia, and beyond, deserves a platform built for its unique challenges — one that empowers both sellers and buyers equally. With Laku, I believe we can create an ecosystem where distribution thrives, retailers grow, and communities benefit.",
       "10": "This is not just about building software. It’s about building trust, efficiency, and opportunity for millions of businesses who keep our economy moving every day.",
+      "vision": "That realization sparked the vision for Laku.",
+      "mission": "We are just at the beginning of this journey, but the mission is clear. Trade in Indonesia, and beyond, deserves a platform built for its unique challenges — one that empowers both sellers and buyers equally. With Laku, I believe we can create an ecosystem where distribution thrives, retailers grow, and communities benefit.",
       "end": "And this is just the start."
     },
     "carousel": {
-        "1": {
-          "title": "Our Mission",
-          "content": "To empower businesses of every size — from large distributors to small warungs and kiosks — by giving them tools to trade smarter, faster, and more profitably."
-        },
-        "2": {
-          "title": "Our Vision",
-          "content": "A future where every retailer in Indonesia, no matter how small, has equal access to products, prices, and opportunities, and every distributor can reach new markets effortlessly."
-        },
-        "3": {
-          "title": "What We Believe",
-          "1": "Technology should empower, not complicate.",
-          "2": "Small businesses deserve big opportunities.",
-          "3": "Fair trade grows stronger communities."
-        },
-        "4": {
-          "title": "Why 'Laku'?",
-          "content": "In Indonesian, laku means 'to sell' or 'to move.' Laku is about creating momentum — helping products move, helping businesses grow, and helping trade thrive."
-        }
+      "1": {
+        "title": "Our Mission",
+        "content": "To empower businesses of every size — from large distributors to small warungs and kiosks — by giving them tools to trade smarter, faster, and more profitably."
       },
+      "2": {
+        "title": "Our Vision",
+        "content": "A future where every retailer in Indonesia, no matter how small, has equal access to products, prices, and opportunities, and every distributor can reach new markets effortlessly."
+      },
+      "3": {
+        "1": "Technology should empower, not complicate.",
+        "2": "Small businesses deserve big opportunities.",
+        "3": "Fair trade grows stronger communities.",
+        "title": "What We Believe"
+      },
+      "4": {
+        "title": "Why 'Laku'?",
+        "content": "In Indonesian, laku means 'to sell' or 'to move.' Laku is about creating momentum — helping products move, helping businesses grow, and helping trade thrive."
+      }
+    },
     "cta": {
       "title": "Join us in building the future of distribution and retail.",
       "subtitle": "At Laku, we’re not just creating software — we’re shaping a smarter, fairer marketplace for everyone.",

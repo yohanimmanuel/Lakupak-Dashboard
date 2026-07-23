@@ -36,6 +36,8 @@ import {
   ChevronDown,
   ArrowRightIcon
 } from 'lucide-react';
+import { MetricChangeFooter } from '@/components/stats/MetricChangeFooter';
+import { STAT_ICON_BG_BLUE, STAT_ICON_BLUE } from '@/utils/statCardStyles';
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency as utilsFormatCurrency, formatCompactCurrency, getDefaultCurrency, parseAmountSafely, type DecimalLike, type CurrencyValue } from '@/utils/currencyUtils';
 import { Order, OrderItem } from '@/types/order';
@@ -50,6 +52,7 @@ import TopProductVariantDetailModal from './TopProductVariantDetailModal';
 import type { TopProductVariantRow } from './TopProductVariantDetailModal';
 import {
   AnalyticsTimeRange,
+  filterOrdersByPreviousTimeRange,
   filterOrdersByTimeRange,
   getAnalyticsBucketKey,
   getAnalyticsGrowthComparisonKey,
@@ -241,6 +244,10 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
 
   // Restrict orders to the selected time-range window so every metric/graph reacts to the dropdown
   const filteredOrders = useMemo(() => filterOrdersByTimeRange(orders, timeRange), [orders, timeRange]);
+  const previousPeriodOrders = useMemo(
+    () => filterOrdersByPreviousTimeRange(orders, timeRange),
+    [orders, timeRange],
+  );
   const hasFilteredData = hasData && filteredOrders.length > 0;
 
   // Reset table pagination when the time window changes to avoid landing on an empty page
@@ -467,36 +474,63 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
   );
 
   const growthMetrics = useMemo(() => {
-    if (!hasFilteredData || revenueData.length < 2) {
-      return {
-        revenueGrowth: null as number | null,
-        profitGrowth: null as number | null,
-        marginGrowth: null as number | null,
-        aovGrowth: null as number | null,
-      };
-    }
+    const empty = {
+      revenueGrowth: null as number | null,
+      revenuePrevious: null as number | null,
+      profitGrowth: null as number | null,
+      profitPrevious: null as number | null,
+      marginGrowth: null as number | null,
+      marginPrevious: null as number | null,
+      aovGrowth: null as number | null,
+      aovPrevious: null as number | null,
+    };
 
-    const last = revenueData[revenueData.length - 1];
-    const prev = revenueData[revenueData.length - 2];
+    if (!hasFilteredData) return empty;
 
-    const revenueGrowth = percentChange(last.revenue, prev.revenue);
-    // Use abs(prev.profit) so negative prior-week profit still compares (was N/A when prev.profit ≤ 0).
-    const profitGrowth = percentChange(last.profit, prev.profit);
+    const productById = createProductLookup(products);
 
-    const lastMargin = last.revenue > 0 ? (last.profit / last.revenue) * 100 : null;
-    const prevMargin = prev.revenue > 0 ? (prev.profit / prev.revenue) * 100 : null;
-    const marginGrowth =
-      lastMargin !== null && prevMargin !== null
-        ? percentagePointChange(lastMargin, prevMargin)
-        : null;
+    const summarize = (list: Order[]) => {
+      let revenue = 0;
+      let profit = 0;
+      list.forEach((order) => {
+        const orderRevenue = safeOrderAmount(order.totalAmount);
+        let orderCogs = 0;
+        if (order.orderItems && Array.isArray(order.orderItems)) {
+          order.orderItems.forEach((item) => {
+            const pid = item.productId;
+            if (!pid) return;
+            orderCogs += calculateOrderItemCost(item, productById.get(pid), calculateFreeItems(item));
+          });
+        }
+        revenue += orderRevenue;
+        profit += orderRevenue - orderCogs;
+      });
+      const ordersCount = list.length;
+      const margin = revenue > 0 ? (profit / revenue) * 100 : null;
+      const aov = ordersCount > 0 ? revenue / ordersCount : null;
+      return { revenue, profit, margin, aov, ordersCount };
+    };
 
-    const lastAov = last.orders > 0 ? last.revenue / last.orders : null;
-    const prevAov = prev.orders > 0 ? prev.revenue / prev.orders : null;
-    const aovGrowth =
-      lastAov !== null && prevAov !== null ? percentChange(lastAov, prevAov) : null;
+    const current = summarize(filteredOrders);
+    const previous = summarize(previousPeriodOrders);
 
-    return { revenueGrowth, profitGrowth, marginGrowth, aovGrowth };
-  }, [hasFilteredData, revenueData]);
+    return {
+      revenueGrowth: percentChange(current.revenue, previous.revenue),
+      revenuePrevious: previous.ordersCount > 0 || previous.revenue !== 0 ? previous.revenue : null,
+      profitGrowth: percentChange(current.profit, previous.profit),
+      profitPrevious: previous.ordersCount > 0 || previous.profit !== 0 ? previous.profit : null,
+      marginGrowth:
+        current.margin !== null && previous.margin !== null
+          ? percentagePointChange(current.margin, previous.margin)
+          : null,
+      marginPrevious: previous.margin,
+      aovGrowth:
+        current.aov !== null && previous.aov !== null
+          ? percentChange(current.aov, previous.aov)
+          : null,
+      aovPrevious: previous.aov,
+    };
+  }, [hasFilteredData, filteredOrders, previousPeriodOrders, products]);
 
   // Calculate revenue forecast
   const revenueForecast = useMemo(() => {
@@ -733,7 +767,8 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
     icon: React.ReactNode;
     color: string;
     comparisonLabel?: string;
-  }> = ({ title, value, change, icon, color, comparisonLabel }) => (
+    previousValue?: string;
+  }> = ({ title, value, change, icon, color, comparisonLabel, previousValue }) => (
     <div className="flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6]">
       <div className="flex items-center gap-4 border-b border-[#e6e6e6] pb-4">
         <div className={`flex items-center justify-center w-12 h-12 rounded-lg ${color}`}>
@@ -744,8 +779,12 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
           <div className="text-xl font-bold text-black">{value}</div>
         </div>
       </div>
-    <div className="flex items-center gap-2 mt-4 ml-1">
-      <MetricChangeFooter change={change} comparisonLabel={comparisonLabel ?? growthComparisonLabel} />
+    <div className="mt-4 ml-1">
+      <MetricChangeFooter
+        change={change}
+        comparisonLabel={comparisonLabel ?? growthComparisonLabel}
+        previousValue={previousValue}
+      />
     </div>
     </div>
   );
@@ -764,29 +803,49 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
           title={tMetrics('orderVolume')}
           value={utilsFormatCurrency(calculateMetrics.totalRevenue, userCurrency)}
           change={growthMetrics.revenueGrowth}
-          icon={<DollarSign className="w-6 h-6 text-[#0a61d7]" />}
-          color="bg-[#f7faff]"
+          previousValue={
+            growthMetrics.revenuePrevious != null
+              ? formatCompactCurrency(growthMetrics.revenuePrevious, userCurrency)
+              : undefined
+          }
+          icon={<DollarSign className={`w-6 h-6 ${STAT_ICON_BLUE}`} />}
+          color={STAT_ICON_BG_BLUE}
         />
         <MetricCard
           title={tMetrics('totalProfit')}
           value={utilsFormatCurrency(calculateMetrics.totalProfit, userCurrency)}
           change={growthMetrics.profitGrowth}
-          icon={<TrendingUp className="w-6 h-6 text-green-500" />}
-          color="bg-[#e6f7ec]"
+          previousValue={
+            growthMetrics.profitPrevious != null
+              ? formatCompactCurrency(growthMetrics.profitPrevious, userCurrency)
+              : undefined
+          }
+          icon={<TrendingUp className={`w-6 h-6 ${STAT_ICON_BLUE}`} />}
+          color={STAT_ICON_BG_BLUE}
         />
         <MetricCard
           title={tMetrics('profitMargin')}
           value={`${calculateMetrics.profitMargin.toFixed(1)}%`}
           change={growthMetrics.marginGrowth}
-          icon={<TrendingUp className="w-6 h-6 text-yellow-500" />}
-          color="bg-[#fefce8]"
+          previousValue={
+            growthMetrics.marginPrevious != null
+              ? `${growthMetrics.marginPrevious.toFixed(1)}%`
+              : undefined
+          }
+          icon={<TrendingUp className={`w-6 h-6 ${STAT_ICON_BLUE}`} />}
+          color={STAT_ICON_BG_BLUE}
         />
         <MetricCard
           title={tMetrics('averageOrderValue')}
           value={utilsFormatCurrency(calculateMetrics.averageOrderValue, userCurrency)}
           change={growthMetrics.aovGrowth}
-          icon={<ShoppingCart className="w-6 h-6 text-gray-500" />}
-          color="bg-[#f3f4f6]"
+          previousValue={
+            growthMetrics.aovPrevious != null
+              ? formatCompactCurrency(growthMetrics.aovPrevious, userCurrency)
+              : undefined
+          }
+          icon={<ShoppingCart className={`w-6 h-6 ${STAT_ICON_BLUE}`} />}
+          color={STAT_ICON_BG_BLUE}
         />
       </div>
 
@@ -1444,58 +1503,6 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
 
 // ===== REUSABLE COMPONENTS FOR ANALYTICS PAGES =====
 
-function MetricChangeFooter({
-  change,
-  comparisonLabel,
-  naLabel,
-}: {
-  change: number | null;
-  comparisonLabel?: string;
-  naLabel?: string;
-}) {
-  const { tShared } = useAnalyticsTranslations();
-  const resolvedComparisonLabel = comparisonLabel ?? tShared('vsLastMonth');
-  const resolvedNaLabel = naLabel ?? tShared('na');
-
-  if (change === null || change === undefined) {
-    return (
-      <>
-        <ArrowRight className="w-5 h-5 text-gray-400" />
-        <span className="text-gray-400 text-xs font-semibold">{resolvedNaLabel}</span>
-        <span className="text-gray-400 text-xs">{resolvedComparisonLabel}</span>
-      </>
-    );
-  }
-
-  if (change === 0) {
-    return (
-      <>
-        <ArrowRight className="w-5 h-5 text-gray-400" />
-        <span className="text-gray-400 text-xs font-semibold">0.0%</span>
-        <span className="text-gray-400 text-xs">{resolvedComparisonLabel}</span>
-      </>
-    );
-  }
-
-  return (
-    <>
-      {change >= 0 ? (
-        <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
-      ) : (
-        <TrendingDown className="w-5 h-5 text-[#f65911]" />
-      )}
-      <span
-        className={
-          change >= 0 ? 'text-[#3ea73b] text-xs font-semibold' : 'text-[#f65911] text-xs font-semibold'
-        }
-      >
-        {Math.abs(change).toFixed(1)}%
-      </span>
-      <span className="text-gray-400 text-xs">{resolvedComparisonLabel}</span>
-    </>
-  );
-}
-
 // Shared MetricCard component
 export const AnalyticsMetricCard: React.FC<{
   title: string;
@@ -1505,6 +1512,7 @@ export const AnalyticsMetricCard: React.FC<{
   color: string;
   comparisonLabel?: string;
   naLabel?: string;
+  previousValue?: string;
 }> = ({
   title,
   value,
@@ -1513,6 +1521,7 @@ export const AnalyticsMetricCard: React.FC<{
   color,
   comparisonLabel,
   naLabel,
+  previousValue,
 }) => {
   const { tShared } = useAnalyticsTranslations();
   const resolvedComparisonLabel = comparisonLabel ?? tShared('vsLastMonth');
@@ -1529,8 +1538,13 @@ export const AnalyticsMetricCard: React.FC<{
         <div className="text-xl font-bold text-black">{value}</div>
       </div>
     </div>
-    <div className="flex items-center gap-2 mt-4 ml-1">
-      <MetricChangeFooter change={change} comparisonLabel={resolvedComparisonLabel} naLabel={resolvedNaLabel} />
+    <div className="mt-4 ml-1">
+      <MetricChangeFooter
+        change={change}
+        comparisonLabel={resolvedComparisonLabel}
+        naLabel={resolvedNaLabel}
+        previousValue={previousValue}
+      />
     </div>
   </div>
   );

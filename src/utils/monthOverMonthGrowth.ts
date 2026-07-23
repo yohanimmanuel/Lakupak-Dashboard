@@ -3,8 +3,9 @@ import { calculateOrderTotalAmount } from '@/utils/orderCalculations';
 import { isDeliveryStopComplete } from '@/utils/deliveryCompletion';
 import {
   AnalyticsTimeRange,
-  getAnalyticsBucketKey,
-  getAnalyticsPeriodBuckets,
+  filterOrdersByPreviousTimeRange,
+  filterOrdersByTimeRange,
+  getAnalyticsCutoffDate,
 } from '@/utils/analyticsTimeRange';
 
 export function toMonthKey(date: Date): string {
@@ -17,7 +18,7 @@ export function parseDate(value: Date | string | null | undefined): Date | null 
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-/** Relative period-over-period % change. Null when baseline is 0/invalid. Clamped to ±100. */
+/** Relative period-over-period % change. Null when baseline is 0/invalid. */
 export function percentChange(current: number, previous: number): number | null {
   if (!Number.isFinite(current) || !Number.isFinite(previous) || previous === 0) return null;
   const raw = ((current - previous) / Math.abs(previous)) * 100;
@@ -74,42 +75,63 @@ export function countByMonth<T>(
   return buckets;
 }
 
+/**
+ * Growth for list KPI cards that show all-time totals.
+ * Compares current list size vs how many items existed one month ago
+ * (created before the current 1M look-back cutoff).
+ */
+export function cumulativeCountGrowthDetail<T>(
+  items: T[],
+  getDate: (item: T) => Date | string | null | undefined,
+  from: Date = new Date(),
+): { growth: number | null; previous: number | null } {
+  if (!Array.isArray(items) || items.length === 0) {
+    return { growth: null, previous: null };
+  }
+
+  const cutoff = getAnalyticsCutoffDate('1M', from);
+  const current = items.length;
+  const previous = items.filter((item) => {
+    const d = parseDate(getDate(item));
+    return d !== null && d < cutoff;
+  }).length;
+
+  if (previous === 0) {
+    return { growth: null, previous: null };
+  }
+
+  return {
+    growth: percentChange(current, previous),
+    previous,
+  };
+}
+
 export function cumulativeCountGrowth<T>(
   items: T[],
   getDate: (item: T) => Date | string | null | undefined,
 ): number | null {
-  if (!Array.isArray(items) || items.length === 0) return null;
-
-  const dated = items
-    .map((item) => ({ date: parseDate(getDate(item)) }))
-    .filter((entry): entry is { date: Date } => entry.date !== null);
-  if (dated.length === 0) return null;
-
-  const now = new Date();
-  const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
-  const endOfPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 0, 23, 59, 59, 999);
-
-  const countAsOf = (end: Date) => dated.filter(({ date }) => date <= end).length;
-  const last = countAsOf(endOfLastMonth);
-  const prev = countAsOf(endOfPrevMonth);
-
-  // No records through end of last month — not enough history for MoM
-  if (last === 0 && prev === 0) return null;
-  if (prev === 0) return null;
-
-  return ((last - prev) / prev) * 100;
+  return cumulativeCountGrowthDetail(items, getDate).growth;
 }
 
-export function formatLegacyTrend(growth: number | null): { percent: string; label: string; up: boolean } {
+export function formatLegacyTrend(
+  growth: number | null,
+  options?: { previousValue?: string; periodLabel?: string },
+): { percent: string; label: string; up: boolean } {
+  const periodLabel = options?.periodLabel ?? 'last month';
+  const previousValue = options?.previousValue?.trim();
+  const periodPart = `(${periodLabel})`;
+  const label = previousValue ? `${previousValue} ${periodPart}` : periodPart;
+
   if (growth === null || Number.isNaN(growth)) {
-    return { percent: 'N/A', label: 'vs last month', up: true };
+    return { percent: 'N/A', label: periodPart, up: true };
   }
   if (growth === 0) {
-    return { percent: '0.0%', label: 'vs last month', up: true };
+    return { percent: '0.0%', label, up: true };
   }
+  const sign = growth >= 0 ? '+' : '-';
   return {
-    percent: `${Math.abs(growth).toFixed(1)}%`,
-    label: 'from last month',
+    percent: `${sign}${Math.abs(growth).toFixed(1)}%`,
+    label,
     up: growth >= 0,
   };
 }
@@ -136,10 +158,15 @@ type OrderGrowthBucket = {
 
 const EMPTY_ORDER_GROWTH = {
   ordersGrowth: null as number | null,
+  ordersPrevious: null as number | null,
   orderVolumeGrowth: null as number | null,
+  orderVolumePrevious: null as number | null,
   completionGrowth: null as number | null,
+  completionPrevious: null as number | null,
   averageOrderVolumeGrowth: null as number | null,
+  averageOrderVolumePrevious: null as number | null,
   piecesGrowth: null as number | null,
+  piecesPrevious: null as number | null,
 };
 
 function emptyOrderGrowthBucket(): OrderGrowthBucket {
@@ -172,49 +199,64 @@ function aggregateOrdersIntoBuckets(
 }
 
 function growthFromBucketPair(last: OrderGrowthBucket, prev: OrderGrowthBucket) {
+  const hasPrevious = prev.orders > 0;
   const ordersGrowth = percentChange(last.orders, prev.orders);
   const orderVolumeGrowth = percentChange(last.orderVolume, prev.orderVolume);
 
   const completionLast = last.orders > 0 ? (last.completed / last.orders) * 100 : 0;
-  const completionPrev = prev.orders > 0 ? (prev.completed / prev.orders) * 100 : 0;
-  const completionGrowth =
-    prev.orders > 0
-      ? percentagePointChange(completionLast, completionPrev)
-      : last.orders > 0
-        ? null
-        : 0;
+  const completionPrev = hasPrevious ? (prev.completed / prev.orders) * 100 : 0;
+  const completionGrowth = hasPrevious
+    ? percentagePointChange(completionLast, completionPrev)
+    : last.orders > 0
+      ? null
+      : 0;
 
   const avgLast = last.orders > 0 ? last.orderVolume / last.orders : 0;
-  const avgPrev = prev.orders > 0 ? prev.orderVolume / prev.orders : 0;
-  const averageOrderVolumeGrowth = percentChange(avgLast, avgPrev);
+  const avgPrev = hasPrevious ? prev.orderVolume / prev.orders : 0;
+  const averageOrderVolumeGrowth = hasPrevious ? percentChange(avgLast, avgPrev) : null;
 
   const piecesGrowth = percentChange(last.pieces, prev.pieces);
 
   return {
     ordersGrowth,
+    ordersPrevious: hasPrevious ? prev.orders : null,
     orderVolumeGrowth,
+    orderVolumePrevious: hasPrevious ? prev.orderVolume : null,
     completionGrowth,
+    completionPrevious: hasPrevious ? completionPrev : null,
     averageOrderVolumeGrowth,
+    averageOrderVolumePrevious: hasPrevious ? avgPrev : null,
     piecesGrowth,
+    piecesPrevious: hasPrevious ? prev.pieces : null,
   };
 }
 
-/** Compare the last two analytics period buckets (week or month, per selected range). */
+/** Compare current look-back window totals vs the previous equal-length window. */
 export function computeOrderPeriodGrowth(
   orders: Order[],
   timeRange: AnalyticsTimeRange,
-  dateLocale = 'en-US',
+  _dateLocale = 'en-US',
 ) {
   if (!Array.isArray(orders) || orders.length === 0) return EMPTY_ORDER_GROWTH;
 
-  const periodBuckets = getAnalyticsPeriodBuckets(timeRange, { locale: dateLocale });
-  if (periodBuckets.length < 2) return EMPTY_ORDER_GROWTH;
+  const now = new Date();
+  const currentOrders = filterOrdersByTimeRange(orders, timeRange, now);
+  const previousOrders = filterOrdersByPreviousTimeRange(orders, timeRange, now);
 
-  const byKey = aggregateOrdersIntoBuckets(orders, (date) => getAnalyticsBucketKey(date, timeRange));
-  const last = byKey[periodBuckets[periodBuckets.length - 1].key] ?? emptyOrderGrowthBucket();
-  const prev = byKey[periodBuckets[periodBuckets.length - 2].key] ?? emptyOrderGrowthBucket();
+  const toBucket = (list: Order[]): OrderGrowthBucket => {
+    const bucket = emptyOrderGrowthBucket();
+    list.forEach((order) => {
+      bucket.orders += 1;
+      bucket.orderVolume += calculateOrderTotalAmount(order);
+      bucket.pieces += orderPieces(order);
+      if (isCompletedOrderStatus(order.orderStatus)) {
+        bucket.completed += 1;
+      }
+    });
+    return bucket;
+  };
 
-  return growthFromBucketPair(last, prev);
+  return growthFromBucketPair(toBucket(currentOrders), toBucket(previousOrders));
 }
 
 export function computeOrderMonthOverMonthGrowth(orders: Order[]) {
@@ -228,4 +270,38 @@ export function computeOrderMonthOverMonthGrowth(orders: Order[]) {
   const prev = byMonth[keys[keys.length - 2]];
 
   return growthFromBucketPair(last, prev);
+}
+
+/**
+ * Growth for Orders list KPI cards (all-time totals on the page).
+ * Compares current list totals vs the same metrics as of one month ago
+ * (orders dated before the current 1M look-back cutoff).
+ */
+export function computeOrdersListGrowth(orders: Order[], from: Date = new Date()) {
+  if (!Array.isArray(orders) || orders.length === 0) return EMPTY_ORDER_GROWTH;
+
+  const cutoff = getAnalyticsCutoffDate('1M', from);
+
+  const toBucket = (list: Order[]): OrderGrowthBucket => {
+    const bucket = emptyOrderGrowthBucket();
+    list.forEach((order) => {
+      bucket.orders += 1;
+      bucket.orderVolume += calculateOrderTotalAmount(order);
+      bucket.pieces += orderPieces(order);
+      if (isCompletedOrderStatus(order.orderStatus)) {
+        bucket.completed += 1;
+      }
+    });
+    return bucket;
+  };
+
+  const current = toBucket(orders);
+  const previous = toBucket(
+    orders.filter((order) => {
+      const d = parseDate(order.orderDate);
+      return d !== null && d < cutoff;
+    }),
+  );
+
+  return growthFromBucketPair(current, previous);
 }

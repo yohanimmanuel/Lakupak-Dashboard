@@ -4,6 +4,12 @@ import React, { useMemo } from 'react';
 import { Workflow, PlayCircle, PauseCircle, FileEdit } from 'lucide-react';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
 import { AutomationWorkflow } from './automationTypes';
+import {
+  STAT_ICON_BG_BLUE,
+  STAT_ICON_BG_GREEN,
+  STAT_ICON_BLUE,
+  STAT_ICON_GREEN,
+} from '@/utils/statCardStyles';
 
 type StatCardConfig = {
   key: string;
@@ -26,8 +32,10 @@ function AutomationStatCard({ label, count, hint, icon, iconBg }: Omit<StatCardC
           <div className="text-xl font-bold text-black">{count.toLocaleString()}</div>
         </div>
       </div>
-      <div className="flex items-center gap-2 mt-4 ml-1">
-        <span className="text-gray-400 text-xs">{hint}</span>
+      <div className="mt-4 ml-1">
+        <span className="inline-flex items-center rounded-md bg-[#f3f4f6] px-2 py-1 text-xs text-gray-500">
+          {hint}
+        </span>
       </div>
     </div>
   );
@@ -50,32 +58,32 @@ export default function AutomationStatcards({ workflows }: { workflows: Automati
         label: tStats('totalWorkflows'),
         count: total,
         hint: tStats('allWorkflows'),
-        icon: <Workflow className="w-6 h-6 text-[#0a61d7]" />,
-        iconBg: 'bg-[#f7faff]',
+        icon: <Workflow className={`w-6 h-6 ${STAT_ICON_BLUE}`} />,
+        iconBg: STAT_ICON_BG_BLUE,
       },
       {
         key: 'active',
         label: tStats('active'),
         count: active,
         hint: total > 0 ? tStats('shareOfTotal', { percent: share(active) }) : tStats('noWorkflows'),
-        icon: <PlayCircle className="w-6 h-6 text-[#059669]" />,
-        iconBg: 'bg-[#e6f7ec]',
+        icon: <PlayCircle className={`w-6 h-6 ${STAT_ICON_GREEN}`} />,
+        iconBg: STAT_ICON_BG_GREEN,
       },
       {
         key: 'paused',
         label: tStats('paused'),
         count: paused,
         hint: total > 0 ? tStats('shareOfTotal', { percent: share(paused) }) : tStats('noWorkflows'),
-        icon: <PauseCircle className="w-6 h-6 text-[#d97706]" />,
-        iconBg: 'bg-[#fff4e6]',
+        icon: <PauseCircle className={`w-6 h-6 ${STAT_ICON_BLUE}`} />,
+        iconBg: STAT_ICON_BG_BLUE,
       },
       {
         key: 'draft',
         label: tStats('draft'),
         count: draft,
         hint: total > 0 ? tStats('shareOfTotal', { percent: share(draft) }) : tStats('noWorkflows'),
-        icon: <FileEdit className="w-6 h-6 text-gray-500" />,
-        iconBg: 'bg-[#f2f2f2]',
+        icon: <FileEdit className={`w-6 h-6 ${STAT_ICON_BLUE}`} />,
+        iconBg: STAT_ICON_BG_BLUE,
       },
     ];
   }, [workflows, tStats]);

@@ -4,9 +4,15 @@ import { useMemo } from 'react';
 import { Buyer, Supplier, OrderDetail, SupplyDetail } from '@/types/client';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { useUserStore } from '@/store/userStore';
-import { cumulativeCountGrowth } from '@/utils/monthOverMonthGrowth';
+import { cumulativeCountGrowthDetail } from '@/utils/monthOverMonthGrowth';
 import { AnalyticsMetricCard } from '@/components/analyticsperformance/FinancialAnalytics';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
+import {
+  STAT_ICON_BG_BLUE,
+  STAT_ICON_BG_GREEN,
+  STAT_ICON_BLUE,
+  STAT_ICON_GREEN,
+} from '@/utils/statCardStyles';
 
 /**
  * Statcards Component - Single Source of Truth Currency
@@ -50,6 +56,7 @@ type StatCardConfig = {
   label: string;
   value: string;
   change: number | null;
+  previousValue?: string;
   icon: React.ReactNode;
   color: string;
 };
@@ -67,7 +74,7 @@ export default function Statcards({ type, data }: StatcardsProps) {
       if (type === 'buyer') {
         const totalBuyers = data.length;
         const activeBuyers = data.filter(b => b.status === 'Active').length;
-        const totalBuyersGrowth = cumulativeCountGrowth(data, (buyer) => buyer.createdAt);
+        const totalBuyersGrowth = cumulativeCountGrowthDetail(data, (buyer) => buyer.createdAt);
         
         let totalAvgMonthlySpend = 0;
         let totalAvgMonthlyOrders = 0;
@@ -125,37 +132,41 @@ export default function Statcards({ type, data }: StatcardsProps) {
           {
             label: tShared('stats.totalBuyers'),
             value: totalBuyers.toLocaleString(),
-            change: totalBuyersGrowth,
-            icon: <Users className="w-6 h-6 text-[#0a61d7]" />,
-            color: 'bg-[#f7faff]',
+            change: totalBuyersGrowth.growth,
+            previousValue:
+              totalBuyersGrowth.previous != null
+                ? totalBuyersGrowth.previous.toLocaleString()
+                : undefined,
+            icon: <Users className={`w-6 h-6 ${STAT_ICON_BLUE}`} />,
+            color: STAT_ICON_BG_BLUE,
           },
           {
             label: tShared('stats.activeBuyers'),
             value: activeBuyers.toLocaleString(),
             change: null,
-            icon: <UserCheck className="w-6 h-6 text-green-500" />,
-            color: 'bg-[#e6f7ec]',
+            icon: <UserCheck className={`w-6 h-6 ${STAT_ICON_GREEN}`} />,
+            color: STAT_ICON_BG_GREEN,
           },
           {
             label: tShared('stats.monthlyBuyerSpend'),
             value: formatCurrency(cleanDecimals(avgMonthlySpend), userCurrency),
             change: null,
-            icon: <DollarSign className="w-6 h-6 text-yellow-500" />,
-            color: 'bg-[#fefce8]',
+            icon: <DollarSign className={`w-6 h-6 ${STAT_ICON_BLUE}`} />,
+            color: STAT_ICON_BG_BLUE,
           },
           {
             label: tShared('stats.avgOrderFrequency'),
             value: `${avgOrderFreq}${perMonth}`,
             change: null,
-            icon: <Repeat className="w-6 h-6 text-gray-500" />,
-            color: 'bg-[#f3f4f6]',
+            icon: <Repeat className={`w-6 h-6 ${STAT_ICON_BLUE}`} />,
+            color: STAT_ICON_BG_BLUE,
           },
         ];
       }
 
       const totalSuppliers = data.length;
       const activeSuppliers = data.filter(s => s.status === 'Active').length;
-      const totalSuppliersGrowth = cumulativeCountGrowth(data, (supplier) => supplier.createdAt);
+      const totalSuppliersGrowth = cumulativeCountGrowthDetail(data, (supplier) => supplier.createdAt);
       
       let totalAvgMonthlyValue = 0;
       let suppliersWithPurchases = 0;
@@ -241,34 +252,38 @@ export default function Statcards({ type, data }: StatcardsProps) {
         {
           label: tShared('stats.totalSuppliers'),
           value: totalSuppliers.toLocaleString(),
-          change: totalSuppliersGrowth,
-          icon: <Truck className="w-6 h-6 text-[#0a61d7]" />,
-          color: 'bg-[#f7faff]',
+          change: totalSuppliersGrowth.growth,
+          previousValue:
+            totalSuppliersGrowth.previous != null
+              ? totalSuppliersGrowth.previous.toLocaleString()
+              : undefined,
+          icon: <Truck className={`w-6 h-6 ${STAT_ICON_BLUE}`} />,
+          color: STAT_ICON_BG_BLUE,
         },
         {
           label: tShared('stats.activeSuppliers'),
           value: activeSuppliers.toLocaleString(),
           change: null,
-          icon: <CheckCircle className="w-6 h-6 text-green-500" />,
-          color: 'bg-[#e6f7ec]',
+          icon: <CheckCircle className={`w-6 h-6 ${STAT_ICON_GREEN}`} />,
+          color: STAT_ICON_BG_GREEN,
         },
         {
           label: tShared('stats.monthlyPurchaseValue'),
           value: formatCurrency(cleanDecimals(avgMonthlyValue), userCurrency),
           change: null,
-          icon: <DollarSign className="w-6 h-6 text-yellow-500" />,
-          color: 'bg-[#fefce8]',
+          icon: <DollarSign className={`w-6 h-6 ${STAT_ICON_BLUE}`} />,
+          color: STAT_ICON_BG_BLUE,
         },
         {
           label: tShared('stats.onTimeDeliveryRate'),
           value: `${onTimeRate}%`,
           change: null,
-          icon: <Clock className="w-6 h-6 text-gray-500" />,
-          color: 'bg-[#f3f4f6]',
+          icon: <Clock className={`w-6 h-6 ${STAT_ICON_BLUE}`} />,
+          color: STAT_ICON_BG_BLUE,
         },
       ];
     } catch {
-      const totalGrowth = cumulativeCountGrowth(
+      const totalGrowth = cumulativeCountGrowthDetail(
         data,
         (entry) => entry.createdAt,
       );
@@ -278,30 +293,32 @@ export default function Statcards({ type, data }: StatcardsProps) {
           {
             label: tShared('stats.totalBuyers'),
             value: data.length.toLocaleString(),
-            change: totalGrowth,
-            icon: <Users className="w-6 h-6 text-[#0a61d7]" />,
-            color: 'bg-[#f7faff]',
+            change: totalGrowth.growth,
+            previousValue:
+              totalGrowth.previous != null ? totalGrowth.previous.toLocaleString() : undefined,
+            icon: <Users className={`w-6 h-6 ${STAT_ICON_BLUE}`} />,
+            color: STAT_ICON_BG_BLUE,
           },
           {
             label: tShared('stats.activeBuyers'),
             value: data.filter(b => b.status === 'Active').length.toLocaleString(),
             change: null,
-            icon: <UserCheck className="w-6 h-6 text-green-500" />,
-            color: 'bg-[#e6f7ec]',
+            icon: <UserCheck className={`w-6 h-6 ${STAT_ICON_GREEN}`} />,
+            color: STAT_ICON_BG_GREEN,
           },
           {
             label: tShared('stats.monthlyBuyerSpend'),
             value: naLabel,
             change: null,
-            icon: <DollarSign className="w-6 h-6 text-yellow-500" />,
-            color: 'bg-[#fefce8]',
+            icon: <DollarSign className={`w-6 h-6 ${STAT_ICON_BLUE}`} />,
+            color: STAT_ICON_BG_BLUE,
           },
           {
             label: tShared('stats.avgOrderFrequency'),
             value: naLabel,
             change: null,
-            icon: <Repeat className="w-6 h-6 text-gray-500" />,
-            color: 'bg-[#f3f4f6]',
+            icon: <Repeat className={`w-6 h-6 ${STAT_ICON_BLUE}`} />,
+            color: STAT_ICON_BG_BLUE,
           },
         ];
       }
@@ -310,30 +327,32 @@ export default function Statcards({ type, data }: StatcardsProps) {
         {
           label: tShared('stats.totalSuppliers'),
           value: data.length.toLocaleString(),
-          change: totalGrowth,
-          icon: <Truck className="w-6 h-6 text-[#0a61d7]" />,
-          color: 'bg-[#f7faff]',
+          change: totalGrowth.growth,
+          previousValue:
+            totalGrowth.previous != null ? totalGrowth.previous.toLocaleString() : undefined,
+          icon: <Truck className={`w-6 h-6 ${STAT_ICON_BLUE}`} />,
+          color: STAT_ICON_BG_BLUE,
         },
         {
           label: tShared('stats.activeSuppliers'),
           value: data.filter(s => s.status === 'Active').length.toLocaleString(),
           change: null,
-          icon: <CheckCircle className="w-6 h-6 text-green-500" />,
-          color: 'bg-[#e6f7ec]',
+          icon: <CheckCircle className={`w-6 h-6 ${STAT_ICON_GREEN}`} />,
+          color: STAT_ICON_BG_GREEN,
         },
         {
           label: tShared('stats.monthlyPurchaseValue'),
           value: naLabel,
           change: null,
-          icon: <DollarSign className="w-6 h-6 text-yellow-500" />,
-          color: 'bg-[#fefce8]',
+          icon: <DollarSign className={`w-6 h-6 ${STAT_ICON_BLUE}`} />,
+          color: STAT_ICON_BG_BLUE,
         },
         {
           label: tShared('stats.onTimeDeliveryRate'),
           value: naLabel,
           change: null,
-          icon: <Clock className="w-6 h-6 text-gray-500" />,
-          color: 'bg-[#f3f4f6]',
+          icon: <Clock className={`w-6 h-6 ${STAT_ICON_BLUE}`} />,
+          color: STAT_ICON_BG_BLUE,
         },
       ];
     }
@@ -347,6 +366,7 @@ export default function Statcards({ type, data }: StatcardsProps) {
           title={stat.label}
           value={stat.value}
           change={stat.change}
+          previousValue={stat.previousValue}
           icon={stat.icon}
           color={stat.color}
           comparisonLabel={comparisonLabel}

@@ -529,8 +529,8 @@ export default function FinancialAnalyticsPage() {
                 <div class="metric-label">Order Volume</div>
                 <div class="metric-change">${
                   revenueGrowth == null
-                    ? 'N/A vs last month'
-                    : `${revenueGrowth >= 0 ? '+' : ''}${revenueGrowth.toFixed(1)}% vs last month`
+                    ? 'N/A last month'
+                    : `${revenueGrowth >= 0 ? '+' : ''}${revenueGrowth.toFixed(1)}% last month`
                 }</div>
             </div>
             <div class="metric-card">
@@ -538,8 +538,8 @@ export default function FinancialAnalyticsPage() {
                 <div class="metric-label">Total Profit</div>
                 <div class="metric-change">${
                   profitGrowth == null
-                    ? 'N/A vs last month'
-                    : `${profitGrowth >= 0 ? '+' : ''}${profitGrowth.toFixed(1)}% vs last month`
+                    ? 'N/A last month'
+                    : `${profitGrowth >= 0 ? '+' : ''}${profitGrowth.toFixed(1)}% last month`
                 }</div>
             </div>
             <div class="metric-card">
@@ -547,8 +547,8 @@ export default function FinancialAnalyticsPage() {
                 <div class="metric-label">Profit Margin</div>
                 <div class="metric-change">${
                   marginGrowth == null
-                    ? 'N/A vs last month'
-                    : `${marginGrowth >= 0 ? '+' : ''}${marginGrowth.toFixed(1)}% vs last month`
+                    ? 'N/A last month'
+                    : `${marginGrowth >= 0 ? '+' : ''}${marginGrowth.toFixed(1)}% last month`
                 }</div>
             </div>
             <div class="metric-card">
@@ -556,8 +556,8 @@ export default function FinancialAnalyticsPage() {
                 <div class="metric-label">Average Order Value</div>
                 <div class="metric-change">${
                   aovGrowth == null
-                    ? 'N/A vs last month'
-                    : `${aovGrowth >= 0 ? '+' : ''}${aovGrowth.toFixed(1)}% vs last month`
+                    ? 'N/A last month'
+                    : `${aovGrowth >= 0 ? '+' : ''}${aovGrowth.toFixed(1)}% last month`
                 }</div>
             </div>
         </div>

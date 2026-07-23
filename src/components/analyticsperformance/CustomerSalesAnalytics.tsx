@@ -40,6 +40,7 @@ import { forecastSales } from '@/utils/forecasting';
 import { useAnalyticsTranslations } from '@/hooks/useAnalyticsTranslations';
 import {
 	AnalyticsTimeRange,
+	filterOrdersByPreviousTimeRange,
 	filterOrdersByTimeRange,
 	getAnalyticsBucketKey,
 	getAnalyticsGrowthComparisonKey,
@@ -283,8 +284,10 @@ export const calculateSalesMetrics = (
 			totalOrders: 0,
 			totalPackagesSold: 0,
 			totalUnitsSold: 0,
+			totalPiecesSold: 0,
 			avgPackagesPerOrder: 0,
 			avgUnitsPerOrder: 0,
+			avgPiecesPerOrder: 0,
 			avgOrderValue: 0,
 			uniqueCustomers: 0,
 			repeatCustomerRate: 0
@@ -467,15 +470,17 @@ export const CustomerPiecesSoldCard: React.FC<{
 	change: number | null;
 	userCurrency?: string;
 	comparisonLabel?: string;
-}> = ({ piecesSold, unitsSold, change, comparisonLabel }) => {
+	previousValue?: string;
+}> = ({ piecesSold, unitsSold, change, comparisonLabel, previousValue }) => {
 	const { tMetrics } = useAnalyticsTranslations();
 	return (
 		<AnalyticsMetricCard
 			title={tMetrics('piecesSold')}
 			value={`${piecesSold.toLocaleString()}`}
 			change={change}
-			icon={<Package className="w-6 h-6 text-green-600" />}
-			color="bg-[#e6f7ec]"
+			previousValue={previousValue}
+			icon={<Package className="w-6 h-6 text-[#0a61d7]" />}
+			color="bg-[#f7faff]"
 			comparisonLabel={comparisonLabel}
 		/>
 	);
@@ -649,6 +654,10 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 
 	// Restrict orders to the selected time-range window so every metric/graph reacts to the dropdown
 	const filteredOrders = useMemo(() => filterOrdersByTimeRange(orders, timeRange), [orders, timeRange]);
+	const previousPeriodOrders = useMemo(
+		() => filterOrdersByPreviousTimeRange(orders, timeRange),
+		[orders, timeRange],
+	);
 
 	const hasFilteredData = hasData && filteredOrders.length > 0;
 
@@ -705,82 +714,35 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 		return points;
 	}, [salesTrend, salesForecast]);
 
-	// Period-over-period growth metrics for key cards
+	// Period-over-period growth for KPI cards: current range totals vs previous equal window
 	const growthMetrics = useMemo(() => {
-		if (!hasFilteredData || salesTrend.length < 2) {
-			return {
-				ordersGrowth: null as number | null,
-				piecesGrowth: null as number | null,
-				avgPiecesGrowth: null as number | null,
-				avgOrderValueGrowth: null as number | null,
-			};
-		}
+		const empty = {
+			ordersGrowth: null as number | null,
+			ordersPrevious: null as number | null,
+			piecesGrowth: null as number | null,
+			piecesPrevious: null as number | null,
+			avgPiecesGrowth: null as number | null,
+			avgPiecesPrevious: null as number | null,
+			avgOrderValueGrowth: null as number | null,
+			avgOrderValuePrevious: null as number | null,
+		};
 
-		const last = salesTrend[salesTrend.length - 1];
-		const prev = salesTrend[salesTrend.length - 2];
+		if (!hasFilteredData) return empty;
 
-		const ordersGrowth = percentChange(last.orders, prev.orders);
-		const piecesGrowth = percentChange(last.pieces, prev.pieces);
-
-		const avgPiecesLast = last.orders > 0 ? last.pieces / last.orders : null;
-		const avgPiecesPrev = prev.orders > 0 ? prev.pieces / prev.orders : null;
-		const avgPiecesGrowth =
-			avgPiecesLast !== null && avgPiecesPrev !== null
-				? percentChange(avgPiecesLast, avgPiecesPrev)
-				: null;
-
-		const periodBuckets = getAnalyticsPeriodBuckets(timeRange, { locale: dateLocale });
-		if (periodBuckets.length < 2) {
-			return {
-				ordersGrowth,
-				piecesGrowth,
-				avgPiecesGrowth,
-				avgOrderValueGrowth: null,
-			};
-		}
-
-		const revenueByKey: Record<string, { revenue: number; orders: number }> = {};
-		filteredOrders.forEach(o => {
-			const d = new Date(o.orderDate);
-			const key = getAnalyticsBucketKey(d, timeRange);
-			if (!revenueByKey[key]) {
-				revenueByKey[key] = { revenue: 0, orders: 0 };
-			}
-			const amount = o.totalAmount
-				? (typeof o.totalAmount === 'number'
-						? (Number.isFinite(o.totalAmount) && !isNaN(o.totalAmount) ? o.totalAmount : 0)
-						: (typeof o.totalAmount === 'object' && o.totalAmount !== null && 'toNumber' in o.totalAmount
-							? (() => {
-								try {
-									const num = (o.totalAmount as { toNumber: () => number }).toNumber();
-									return Number.isFinite(num) && !isNaN(num) ? num : 0;
-								} catch {
-									return 0;
-								}
-							})()
-							: parseFloat(String(o.totalAmount)) || 0))
-				: 0;
-			revenueByKey[key].revenue += amount;
-			revenueByKey[key].orders += 1;
-		});
-
-		const lastKey = periodBuckets[periodBuckets.length - 1].key;
-		const prevKey = periodBuckets[periodBuckets.length - 2].key;
-		const lastPeriod = revenueByKey[lastKey] ?? { revenue: 0, orders: 0 };
-		const prevPeriod = revenueByKey[prevKey] ?? { revenue: 0, orders: 0 };
-
-		const lastAov = lastPeriod.orders > 0 ? lastPeriod.revenue / lastPeriod.orders : null;
-		const prevAov = prevPeriod.orders > 0 ? prevPeriod.revenue / prevPeriod.orders : null;
-		const avgOrderValueGrowth =
-			lastAov !== null && prevAov !== null ? percentChange(lastAov, prevAov) : null;
+		const current = calculateSalesMetrics(filteredOrders, products, true);
+		const previous = calculateSalesMetrics(previousPeriodOrders, products, previousPeriodOrders.length > 0);
 
 		return {
-			ordersGrowth,
-			piecesGrowth,
-			avgPiecesGrowth,
-			avgOrderValueGrowth,
+			ordersGrowth: percentChange(current.totalOrders, previous.totalOrders),
+			ordersPrevious: previous.totalOrders > 0 ? previous.totalOrders : null,
+			piecesGrowth: percentChange(current.totalPiecesSold || 0, previous.totalPiecesSold || 0),
+			piecesPrevious: previous.totalOrders > 0 ? previous.totalPiecesSold || 0 : null,
+			avgPiecesGrowth: percentChange(current.avgPiecesPerOrder || 0, previous.avgPiecesPerOrder || 0),
+			avgPiecesPrevious: previous.totalOrders > 0 ? previous.avgPiecesPerOrder || 0 : null,
+			avgOrderValueGrowth: percentChange(current.avgOrderValue, previous.avgOrderValue),
+			avgOrderValuePrevious: previous.totalOrders > 0 ? previous.avgOrderValue : null,
 		};
-	}, [hasFilteredData, salesTrend, filteredOrders, timeRange, dateLocale]);
+	}, [hasFilteredData, filteredOrders, previousPeriodOrders, products]);
 
 	// Category units (better than duplicating Top Products already in financial)
 	const unitsByCategory = useMemo(() => {
@@ -888,6 +850,11 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 					title={tMetrics('totalOrders')}
 					value={String(metrics.totalOrders)}
 					change={growthMetrics.ordersGrowth}
+					previousValue={
+						growthMetrics.ordersPrevious != null
+							? growthMetrics.ordersPrevious.toLocaleString()
+							: undefined
+					}
 					icon={<ShoppingCart className="w-6 h-6 text-[#0a61d7]" />}
 					color="bg-[#f7faff]"
 					comparisonLabel={growthComparisonLabel}
@@ -896,6 +863,11 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 					piecesSold={metrics.totalPiecesSold || 0}
 					unitsSold={metrics.totalUnitsSold}
 					change={growthMetrics.piecesGrowth}
+					previousValue={
+						growthMetrics.piecesPrevious != null
+							? growthMetrics.piecesPrevious.toLocaleString()
+							: undefined
+					}
 					userCurrency={user?.currency}
 					comparisonLabel={growthComparisonLabel}
 				/>
@@ -903,16 +875,26 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 					title={tMetrics('avgPiecesPerOrder')}
 					value={`${(metrics.avgPiecesPerOrder || 0).toFixed(2)}`}
 					change={growthMetrics.avgPiecesGrowth}
-					icon={<TrendingUp className="w-6 h-6 text-amber-500" />}
-					color="bg-[#fff7ed]"
+					previousValue={
+						growthMetrics.avgPiecesPrevious != null
+							? growthMetrics.avgPiecesPrevious.toFixed(2)
+							: undefined
+					}
+					icon={<TrendingUp className="w-6 h-6 text-[#0a61d7]" />}
+					color="bg-[#f7faff]"
 					comparisonLabel={growthComparisonLabel}
 				/>
 				<AnalyticsMetricCard
 					title={tMetrics('avgOrderValue')}
 					value={formatCurrencyShared(metrics.avgOrderValue, userCurrency)}
 					change={growthMetrics.avgOrderValueGrowth}
-					icon={<Repeat className="w-6 h-6 text-violet-600" />}
-					color="bg-[#f5f3ff]"
+					previousValue={
+						growthMetrics.avgOrderValuePrevious != null
+							? formatCurrencyShared(growthMetrics.avgOrderValuePrevious, userCurrency)
+							: undefined
+					}
+					icon={<Repeat className="w-6 h-6 text-[#0a61d7]" />}
+					color="bg-[#f7faff]"
 					comparisonLabel={growthComparisonLabel}
 				/>
 			</div>

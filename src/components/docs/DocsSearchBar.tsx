@@ -151,7 +151,9 @@ export function DocsSearchBar({
     >
       <form onSubmit={onSubmit} className="relative">
         <Search
-          className={`absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 ${large ? 'h-5 w-5' : 'h-4 w-4'}`}
+          className={`absolute top-1/2 -translate-y-1/2 text-gray-400 ${
+            large ? 'left-4 h-5 w-5' : 'left-3 h-4 w-4'
+          }`}
           aria-hidden
         />
         <input
@@ -165,8 +167,10 @@ export function DocsSearchBar({
             }
           }}
           placeholder={placeholder ?? t('placeholder')}
-          className={`w-full rounded-xl border border-gray-200 bg-white pl-11 pr-4 text-gray-900 shadow-sm outline-none ring-[#0a61d7]/20 focus:border-[#0a61d7] focus:ring-2 ${
-            large ? 'py-3.5 text-base' : 'py-2 text-sm'
+          className={`w-full border border-gray-200 bg-white text-gray-900 outline-none focus:border-[#0a61d7] focus:ring-2 focus:ring-[#0a61d7] ${
+            large
+              ? 'rounded-xl py-3.5 pl-11 pr-4 text-base shadow-sm ring-[#0a61d7]/20'
+              : 'rounded-lg py-2 pl-9 pr-4 text-xs'
           }`}
           aria-label={t('ariaLabel')}
           aria-expanded={showDropdown}

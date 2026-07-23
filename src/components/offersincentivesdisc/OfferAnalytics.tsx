@@ -143,10 +143,10 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
       </div>
 
       {/* Key Metrics Cards */}
-      <div className="w-full mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6] bg-[#f7faff]">
+      <div className="w-full mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6]">
           <div className="flex items-center gap-4 border-b border-[#e6e6e6] pb-4">
-            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white">
+            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-[#f7faff]">
               <Target className="w-6 h-6 text-[#0a61d7]" />
             </div>
             <div>
@@ -154,19 +154,20 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
               <div className="text-xl font-bold text-black">{analyticsData.totalOffers}</div>
             </div>
           </div>
-          <div className="flex items-center gap-2 mt-4 ml-1">
-            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
-            <span className="text-[#3ea73b] text-xs font-semibold">
-              {analyticsData.totalOffers > 0 ? tAnalytics('active') : '0'}
+          <div className="mt-4 ml-1">
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-[#f3f4f6] px-2 py-1 text-xs text-gray-500">
+              <span className="font-semibold text-[#3ea73b]">
+                {analyticsData.totalOffers > 0 ? tAnalytics('active') : '0'}
+              </span>
+              <span>{tAnalytics('offersCreated')}</span>
             </span>
-            <span className="text-gray-400 text-xs">{tAnalytics('offersCreated')}</span>
           </div>
         </div>
 
-        <div className="flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6] bg-[#fff7ed]">
+        <div className="flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6]">
           <div className="flex items-center gap-4 border-b border-[#e6e6e6] pb-4">
-            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white">
-              <Percent className="w-6 h-6 text-orange-500" />
+            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-[#f7faff]">
+              <Percent className="w-6 h-6 text-[#0a61d7]" />
             </div>
             <div>
               <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">{tAnalytics('conversionRate')}</div>
@@ -175,50 +176,53 @@ export default function OfferAnalytics({ offers = [], orders = [], isNewOffer = 
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 mt-4 ml-1">
-            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
-            <span className="text-[#3ea73b] text-xs font-semibold">
-              {analyticsData.conversionRate > 0 ? tAnalytics('active') : tAnalytics('noUsage')}
+          <div className="mt-4 ml-1">
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-[#f3f4f6] px-2 py-1 text-xs text-gray-500">
+              <span className="font-semibold text-[#3ea73b]">
+                {analyticsData.conversionRate > 0 ? tAnalytics('active') : tAnalytics('noUsage')}
+              </span>
+              <span>{tAnalytics('offersConverted')}</span>
             </span>
-            <span className="text-gray-400 text-xs">{tAnalytics('offersConverted')}</span>
           </div>
         </div>
 
-        <div className="flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6] bg-[#f3f0ff]">
+        <div className="flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6]">
           <div className="flex items-center gap-4 border-b border-[#e6e6e6] pb-4">
-            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white">
-              <Users className="w-6 h-6 text-purple-500" />
+            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-[#f7faff]">
+              <Users className="w-6 h-6 text-[#0a61d7]" />
             </div>
             <div>
               <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">{tAnalytics('totalRedemptions')}</div>
               <div className="text-xl font-bold text-black">{analyticsData.totalRedemptions}</div>
             </div>
           </div>
-          <div className="flex items-center gap-2 mt-4 ml-1">
-            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
-            <span className="text-[#3ea73b] text-xs font-semibold">
-              {analyticsData.totalRedemptions > 0 ? tAnalytics('active') : tAnalytics('noUsage')}
+          <div className="mt-4 ml-1">
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-[#f3f4f6] px-2 py-1 text-xs text-gray-500">
+              <span className="font-semibold text-[#3ea73b]">
+                {analyticsData.totalRedemptions > 0 ? tAnalytics('active') : tAnalytics('noUsage')}
+              </span>
+              <span>{tAnalytics('redemptionStatus')}</span>
             </span>
-            <span className="text-gray-400 text-xs">{tAnalytics('redemptionStatus')}</span>
           </div>
         </div>
 
-        <div className="flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6] bg-[#e6f7ec]">
+        <div className="flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6]">
           <div className="flex items-center gap-4 border-b border-[#e6e6e6] pb-4">
-            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-white">
-              <TrendingUp className="w-6 h-6 text-green-500" />
+            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-[#e6f7ec]">
+              <TrendingUp className="w-6 h-6 text-[#059669]" />
             </div>
             <div>
               <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">{tAnalytics('redemptionRate')}</div>
               <div className="text-xl font-bold text-black">{analyticsData.redemptionRate.toFixed(1)}</div>
             </div>
           </div>
-          <div className="flex items-center gap-2 mt-4 ml-1">
-            <TrendingUp className="w-5 h-5 text-[#3ea73b]" />
-            <span className="text-[#3ea73b] text-xs font-semibold">
-              {analyticsData.redemptionRate > 0 ? tAnalytics('active') : '0.0'}
+          <div className="mt-4 ml-1">
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-[#e6f7ec] px-2 py-1 text-xs text-[#3ea73b]">
+              <span className="font-semibold">
+                {analyticsData.redemptionRate > 0 ? tAnalytics('active') : '0.0'}
+              </span>
+              <span className="opacity-80">{tAnalytics('avgPerOffer')}</span>
             </span>
-            <span className="text-gray-400 text-xs">{tAnalytics('avgPerOffer')}</span>
           </div>
         </div>
       </div>
