@@ -17,11 +17,16 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Match package.json packageManager / engines (avoids npm 11+ lockfile drift).
+RUN npm install -g npm@10.8.2
+
 # Install all deps (including devDependencies for build)
-COPY package.json package-lock.json* ./
+COPY package.json package-lock.json ./
 # With NODE_ENV=production, npm may omit devDependencies by default.
 # We need devDependencies (Tailwind/PostCSS, TS tooling) to run `next build`.
-RUN npm install --include=dev
+# Retry once: esbuild's postinstall can hit ETXTBSY on Docker Desktop (Windows).
+RUN npm ci --include=dev --no-audit --no-fund \
+  || (rm -rf node_modules && npm ci --include=dev --no-audit --no-fund)
 
 COPY . .
 
@@ -39,12 +44,20 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+RUN npm install -g npm@10.8.2
+
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 # Production deps only; install prisma CLI (devDep) at same version as @prisma/client to avoid CLI/client mismatch; tsx to run WebSocket server
-COPY package.json package-lock.json* ./
-RUN npm install --omit=dev && npm install prisma@7.3.0 tsx --no-save --ignore-scripts && npm cache clean --force
+COPY package.json package-lock.json ./
+# Serialize after builder so BuildKit does not run two npm installs in parallel
+# (parallel native-binary postinstalls frequently cause esbuild ETXTBSY on Docker Desktop).
+COPY --from=builder /app/package.json /tmp/.builder-ready
+RUN npm ci --omit=dev --no-audit --no-fund \
+  || (rm -rf node_modules && npm ci --omit=dev --no-audit --no-fund) \
+  && npm install prisma@7.3.0 tsx --no-save --ignore-scripts \
+  && npm cache clean --force
 
 # Copy built app and runtime assets from builder
 COPY --from=builder /app/.next          ./.next

@@ -19,9 +19,9 @@ export function generateStaticParams() {
 export default async function FeatureSlugPage({
   params,
 }: {
-  params: Promise<{ slug: string; locale: string }> | { slug: string; locale: string };
+  params: Promise<{ slug: string; locale: string }>;
 }) {
-  const resolved = await Promise.resolve(params);
+  const resolved = await params;
   const moduleDef = getFeatureModule(resolved.slug);
 
   if (!moduleDef) {
