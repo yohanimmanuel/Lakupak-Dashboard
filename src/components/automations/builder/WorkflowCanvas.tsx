@@ -561,8 +561,8 @@ function WorkflowCanvasInner({
           workflowType={workflowType}
           screenX={pending.screenX}
           screenY={pending.screenY}
-          onPick={handlePick}
-          onClose={() => setPending(null)}
+          onPickAction={handlePick}
+          onCloseAction={() => setPending(null)}
         />
       )}
     </div>

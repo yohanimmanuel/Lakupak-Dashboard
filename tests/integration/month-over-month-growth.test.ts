@@ -67,7 +67,7 @@ describe('monthOverMonthGrowth', () => {
     it('maps null growth to N/A', () => {
       expect(formatLegacyTrend(null)).toEqual({
         percent: 'N/A',
-        label: 'vs last month',
+        label: '(last month)',
         up: true,
       });
     });
@@ -89,10 +89,15 @@ describe('monthOverMonthGrowth', () => {
 
       expect(computeOrderMonthOverMonthGrowth(orders)).toEqual({
         ordersGrowth: null,
+        ordersPrevious: null,
         orderVolumeGrowth: null,
+        orderVolumePrevious: null,
         completionGrowth: null,
+        completionPrevious: null,
         averageOrderVolumeGrowth: null,
+        averageOrderVolumePrevious: null,
         piecesGrowth: null,
+        piecesPrevious: null,
       });
     });
 
@@ -111,15 +116,15 @@ describe('monthOverMonthGrowth', () => {
   });
 
   describe('computeOrderPeriodGrowth', () => {
-    it('compares the last two buckets for the selected range', () => {
+    it('compares equal-length windows for the selected range', () => {
       vi.setSystemTime(new Date('2026-06-15T12:00:00Z'));
+      // 3M current = [Mar 15, Jun 15], previous = [Dec 15, Mar 14]
       const orders = asOrders([
+        { orderDate: new Date('2026-01-10'), orderStatus: 'Delivered', totalAmount: 100, orderItems: [] },
+        { orderDate: new Date('2026-02-10'), orderStatus: 'Delivered', totalAmount: 100, orderItems: [] },
         { orderDate: new Date('2026-04-05'), orderStatus: 'Delivered', totalAmount: 100, orderItems: [] },
         { orderDate: new Date('2026-05-05'), orderStatus: 'Delivered', totalAmount: 100, orderItems: [] },
-        { orderDate: new Date('2026-05-20'), orderStatus: 'Delivered', totalAmount: 100, orderItems: [] },
         { orderDate: new Date('2026-06-05'), orderStatus: 'Delivered', totalAmount: 100, orderItems: [] },
-        { orderDate: new Date('2026-06-10'), orderStatus: 'Delivered', totalAmount: 100, orderItems: [] },
-        { orderDate: new Date('2026-06-12'), orderStatus: 'Delivered', totalAmount: 100, orderItems: [] },
       ]);
 
       const growth = computeOrderPeriodGrowth(orders, '3M');

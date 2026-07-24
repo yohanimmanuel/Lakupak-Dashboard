@@ -23,14 +23,14 @@ export function NodeAddMenu({
   workflowType,
   screenX,
   screenY,
-  onPick,
-  onClose,
+  onPickAction,
+  onCloseAction,
 }: {
   workflowType: WorkflowType;
   screenX: number;
   screenY: number;
-  onPick: (choice: NodePickerChoice) => void;
-  onClose: () => void;
+  onPickAction: (choice: NodePickerChoice) => void;
+  onCloseAction: () => void;
 }) {
   const { tBuilder, translateTrigger, translateAction } = useAutomationTranslations();
   const triggers = getTriggersForType(workflowType);
@@ -96,7 +96,7 @@ export function NodeAddMenu({
         type="button"
         className="fixed inset-0 z-[60] cursor-default bg-transparent"
         aria-label={tBuilder('closePicker')}
-        onClick={onClose}
+        onClick={onCloseAction}
       />
       <div
         className="fixed z-[70] flex items-center gap-1 rounded-full border border-[#e6e6e6] bg-white/95 px-2 py-1.5 shadow-md backdrop-blur-sm"
@@ -111,7 +111,7 @@ export function NodeAddMenu({
             role="menuitem"
             title={item.subtitle}
             aria-label={item.subtitle}
-            onClick={() => onPick(item)}
+            onClick={() => onPickAction(item)}
             className="group relative flex h-9 w-9 items-center justify-center rounded-full text-[#0a61d7] hover:bg-[#f7faff]"
           >
             {item.icon}

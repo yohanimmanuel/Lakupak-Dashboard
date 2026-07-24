@@ -9,20 +9,20 @@ export function WorkflowNodeCard({
   title,
   subtitle,
   selected,
-  onClick,
+  onClickAction,
 }: {
   kind: BuilderNodeKind;
   title: string;
   subtitle: string;
   selected: boolean;
-  onClick: () => void;
+  onClickAction: () => void;
 }) {
   const isAgent = kind === 'agent';
 
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={onClickAction}
       className={`w-full max-w-sm text-left rounded-xl border p-4 transition-shadow ${
         isAgent
           ? selected

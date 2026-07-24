@@ -370,7 +370,7 @@ async function testWorkflow(args: { userId: number; id: string }) {
     throw new GraphQLError('Workflow not found', { extensions: { code: 'NOT_FOUND' } });
   }
 
-  const run = await prisma.$transaction(async (tx) => {
+  const run = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const created = await tx.automationRun.create({
       data: {
         workflowId: existing.id,
