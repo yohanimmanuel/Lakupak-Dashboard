@@ -17,19 +17,18 @@ function formatRunTimestamp(value: string | null | undefined, locale: string): s
   });
 }
 
+/** Run history list — sits inside StepDetailsPanel, not as its own card. */
 export function WorkflowRunsPanel({ runs }: { runs: AutomationRun[] }) {
   const { tRuns } = useAutomationTranslations();
   const locale = useLocale();
 
   return (
-    <div className="mt-4 rounded-lg border border-[#e6e6e6] bg-white">
-      <div className="border-b border-gray-100 px-3 py-3">
-        <h4 className="text-xs font-semibold text-black">{tRuns('title')}</h4>
-      </div>
+    <div>
+      <h4 className="text-xs font-semibold text-black">{tRuns('title')}</h4>
       {runs.length === 0 ? (
-        <p className="px-3 py-3 text-xs text-gray-500">{tRuns('empty')}</p>
+        <p className="mt-2 text-xs text-gray-500">{tRuns('empty')}</p>
       ) : (
-        <ul className="divide-y divide-gray-100">
+        <ul className="mt-2 divide-y divide-gray-100 rounded-lg border border-[#e6e6e6]">
           {runs.map((run) => (
             <li key={run.id} className="px-3 py-3">
               <div className="flex items-center justify-between gap-2">

@@ -11,6 +11,8 @@ import {
   useStore,
   ReactFlowProvider,
   Panel,
+  Handle,
+  Position,
   type Connection,
   type EdgeChange,
   type NodeChange,
@@ -41,7 +43,28 @@ import {
 } from './canvasTypes';
 import { newNodeId } from './canvasTypes';
 
-const nodeTypes = { workflow: WorkflowFlowNodeView };
+const PENDING_NODE_ID = '__pending_drop__';
+const PENDING_EDGE_ID = '__pending_edge__';
+
+function PendingDropAnchor() {
+  return (
+    <div className="pointer-events-none relative h-3 w-3">
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="pending-target"
+        className="!pointer-events-none !h-3 !w-3 !min-h-0 !min-w-0 !border-0 !bg-transparent !opacity-0"
+        style={{ top: 6, left: 6, transform: 'translate(-50%, -50%)' }}
+      />
+      <div className="absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#0a61d7] shadow-[0_0_0_4px_rgba(10,97,215,0.18)]" />
+    </div>
+  );
+}
+
+const nodeTypes = {
+  workflow: WorkflowFlowNodeView,
+  pendingDrop: PendingDropAnchor,
+};
 
 const edgeDefaults = {
   type: DEFAULT_EDGE_TYPE,
@@ -81,7 +104,7 @@ function CanvasZoomControl() {
   return (
     <Panel position="bottom-left" className="!m-3 !z-20">
       <div
-        className="nopan nodrag nowheel flex h-9 items-stretch overflow-hidden rounded-lg border border-[#e6e6e6] bg-white text-gray-600 shadow-sm"
+        className="nopan nodrag nowheel flex h-9 items-stretch overflow-hidden rounded-lg border border-[#e6e6e6] bg-white text-gray-600"
         onMouseDown={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
       >
@@ -286,9 +309,71 @@ function WorkflowCanvasInner({
     [edges, selectedEdgeId],
   );
 
+  const displayNodes = useMemo(() => {
+    if (!pending) return selectedNodes;
+    return [
+      ...selectedNodes,
+      {
+        id: PENDING_NODE_ID,
+        type: 'pendingDrop',
+        position: { x: pending.flowX - 6, y: pending.flowY - 6 },
+        data: {
+          kind: 'action' as const,
+          catalogType: '',
+          title: '',
+          subtitle: '',
+          config: {},
+        },
+        draggable: false,
+        selectable: false,
+        focusable: false,
+        connectable: false,
+      } satisfies WorkflowFlowNode,
+    ];
+  }, [selectedNodes, pending]);
+
+  const displayEdges = useMemo(() => {
+    if (!pending) return styledEdges;
+    const sourceNode = nodes.find((n) => n.id === pending.sourceId);
+    const label =
+      sourceNode?.data.kind === 'condition'
+        ? nextConditionBranchLabel(sourceNode, edges)
+        : undefined;
+    const branchStyle = withBranchLabelStyle(label);
+    const yes = isYesBranch(label);
+    const no = isNoBranch(label);
+    const stroke = yes ? '#10b981' : no ? '#f43f5e' : '#0a61d7';
+    const previewEdge: WorkflowFlowEdge = {
+      id: PENDING_EDGE_ID,
+      source: pending.sourceId,
+      target: PENDING_NODE_ID,
+      sourceHandle: pending.sourceHandle ?? undefined,
+      targetHandle: 'pending-target',
+      type: DEFAULT_EDGE_TYPE,
+      animated: true,
+      focusable: false,
+      selectable: false,
+      ...branchStyle,
+      style: {
+        stroke,
+        strokeWidth: 1.75,
+        strokeDasharray: '6 4',
+      },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        width: 16,
+        height: 16,
+        color: stroke,
+      },
+    };
+    return [...styledEdges, previewEdge];
+  }, [styledEdges, pending, nodes, edges]);
+
   const handleNodesChange = useCallback(
     (changes: NodeChange<WorkflowFlowNode>[]) => {
-      const removals = changes.filter((c) => c.type === 'remove');
+      const realChanges = changes.filter((c) => !('id' in c) || c.id !== PENDING_NODE_ID);
+      if (realChanges.length === 0) return;
+      const removals = realChanges.filter((c) => c.type === 'remove');
       if (removals.length > 0) {
         const removedIds = new Set(removals.map((c) => c.id));
         onNodesChangeAction(nodes.filter((n) => !removedIds.has(n.id)));
@@ -299,21 +384,23 @@ function WorkflowCanvasInner({
         setSelectedEdgeId(null);
         return;
       }
-      onNodesChangeAction(applyNodeChanges(changes, nodes));
+      onNodesChangeAction(applyNodeChanges(realChanges, nodes));
     },
     [nodes, edges, selectedNodeId, onNodesChangeAction, onEdgesChangeAction, onSelectNodeAction],
   );
 
   const handleEdgesChange = useCallback(
     (changes: EdgeChange<WorkflowFlowEdge>[]) => {
-      const removals = changes.filter((c) => c.type === 'remove');
+      const realChanges = changes.filter((c) => !('id' in c) || c.id !== PENDING_EDGE_ID);
+      if (realChanges.length === 0) return;
+      const removals = realChanges.filter((c) => c.type === 'remove');
       if (removals.length > 0) {
         const removedIds = new Set(removals.map((c) => c.id));
         onEdgesChangeAction(edges.filter((e) => !removedIds.has(e.id)));
         setSelectedEdgeId((prev) => (prev && removedIds.has(prev) ? null : prev));
         return;
       }
-      onEdgesChangeAction(applyEdgeChanges(changes, edges));
+      onEdgesChangeAction(applyEdgeChanges(realChanges, edges));
     },
     [edges, onEdgesChangeAction],
   );
@@ -444,8 +531,8 @@ function WorkflowCanvasInner({
   return (
     <div className="relative h-full w-full" ref={wrapperRef}>
       <ReactFlow
-        nodes={selectedNodes}
-        edges={styledEdges}
+        nodes={displayNodes}
+        edges={displayEdges}
         nodeTypes={nodeTypes}
         onNodesChange={handleNodesChange}
         onEdgesChange={handleEdgesChange}

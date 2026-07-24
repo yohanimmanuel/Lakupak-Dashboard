@@ -9,7 +9,6 @@ import {
   StepDetailsPanel,
   type WorkflowDraft,
 } from '@/components/automations/builder/WorkflowInspector';
-import { WorkflowRunsPanel } from '@/components/automations/builder/WorkflowRunsPanel';
 import {
   createDefaultCanvas,
   deriveFlatFieldsFromCanvas,
@@ -424,18 +423,14 @@ function DetailsInner() {
         </>
       }
       rightPanel={
-        <>
-          <StepDetailsPanel
-            draft={draft}
-            selectedNodeId={selectedNodeId}
-            onUpdateNodeAction={updateNode}
-            onDeleteNodeAction={deleteNode}
-            onDisconnectNodeAction={disconnectNode}
-          />
-          <div className="rounded-xl border border-[#e6e6e6] bg-white/95 px-4 pb-4 shadow-sm backdrop-blur-sm">
-            <WorkflowRunsPanel runs={runs} />
-          </div>
-        </>
+        <StepDetailsPanel
+          draft={draft}
+          selectedNodeId={selectedNodeId}
+          onUpdateNodeAction={updateNode}
+          onDeleteNodeAction={deleteNode}
+          onDisconnectNodeAction={disconnectNode}
+          runs={runs}
+        />
       }
     />
   );

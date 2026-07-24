@@ -2,12 +2,13 @@
 
 import React from 'react';
 import { Trash2, Unplug } from 'lucide-react';
-import type { WorkflowStatus, WorkflowType } from '../automationTypes';
+import type { AutomationRun, WorkflowStatus, WorkflowType } from '../automationTypes';
 import { WORKFLOW_TYPES } from '../automationTypes';
 import { getActionsForType, getTriggersForType } from '@/lib/automations/catalog';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
 import { BuilderSelect } from './BuilderSelect';
 import type { WorkflowFlowEdge, WorkflowFlowNode } from './canvasTypes';
+import { WorkflowRunsPanel } from './WorkflowRunsPanel';
 
 export type WorkflowDraft = {
   name: string;
@@ -31,7 +32,7 @@ function PanelCard({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-[#e6e6e6] bg-white/95 shadow-sm backdrop-blur-sm">
+    <section className="rounded-xl border border-[#e6e6e6] bg-white/95 backdrop-blur-sm">
       <div className="border-b border-gray-100 px-4 py-3">
         <h3 className="text-sm font-semibold text-black">{title}</h3>
         {hint && <p className="mt-0.5 text-xs text-gray-500">{hint}</p>}
@@ -116,19 +117,21 @@ export function WorkflowDetailsPanel({
   );
 }
 
-/** Right panel: selected step / action / trigger / condition config */
+/** Right panel: selected step config + run history in one section */
 export function StepDetailsPanel({
   draft,
   selectedNodeId,
   onUpdateNodeAction,
   onDeleteNodeAction,
   onDisconnectNodeAction,
+  runs,
 }: {
   draft: WorkflowDraft;
   selectedNodeId: string | null;
   onUpdateNodeAction: (nodeId: string, dataPatch: Partial<WorkflowFlowNode['data']>) => void;
   onDeleteNodeAction?: (nodeId: string) => void;
   onDisconnectNodeAction?: (nodeId: string) => void;
+  runs?: AutomationRun[];
 }) {
   const { tBuilder, tFields, translateTrigger, translateAction } = useAutomationTranslations();
   const selected = draft.nodes.find((n) => n.id === selectedNodeId) ?? null;
@@ -357,6 +360,12 @@ export function StepDetailsPanel({
             </>
           )}
         </>
+      )}
+
+      {runs && (
+        <div className="-mx-4 border-t border-gray-100 px-4 pt-4">
+          <WorkflowRunsPanel runs={runs} />
+        </div>
       )}
     </PanelCard>
   );
