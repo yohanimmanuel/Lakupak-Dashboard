@@ -15,6 +15,8 @@ import {
   type Supplier,
   type Company,
   type Campaign,
+  type AutomationWorkflow,
+  type AutomationRun,
 } from '@prisma/client';
 
 export { PrismaClient, Prisma };
@@ -29,4 +31,6 @@ export type {
   Supplier,
   Company,
   Campaign,
+  AutomationWorkflow,
+  AutomationRun,
 };

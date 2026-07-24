@@ -6,17 +6,43 @@ export type WorkflowType =
 
 export type WorkflowStatus = 'active' | 'paused' | 'draft';
 
+export type BuilderNodeKind = 'trigger' | 'agent' | 'action';
+
 export interface AutomationWorkflow {
+  id: string;
+  userId: number;
+  name: string;
+  description: string;
+  type: WorkflowType;
+  status: WorkflowStatus;
+  triggerType: string;
+  triggerConfig: Record<string, unknown> | null;
+  agentConfig: Record<string, unknown> | null;
+  actionType: string;
+  actionConfig: Record<string, unknown> | null;
+  runs: number;
+  lastRunAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AutomationRun {
+  id: string;
+  workflowId: string;
+  status: string;
+  message: string | null;
+  createdAt: string;
+}
+
+/** Table row shape used by AutomationTable (derived trigger label). */
+export interface AutomationWorkflowRow {
   id: string;
   name: string;
   description: string;
   type: WorkflowType;
-  /** Human-readable trigger label (mock string for now). */
   trigger: string;
   status: WorkflowStatus;
-  /** Total number of times this workflow has executed. */
   runs: number;
-  /** ISO date string of the last execution, or null if it never ran. */
   lastRun: string | null;
   createdAt: string;
 }
@@ -27,3 +53,20 @@ export const WORKFLOW_TYPES: WorkflowType[] = [
   'order_logistics',
   'marketing',
 ];
+
+export function toWorkflowRow(
+  workflow: AutomationWorkflow,
+  triggerLabel: string,
+): AutomationWorkflowRow {
+  return {
+    id: workflow.id,
+    name: workflow.name,
+    description: workflow.description,
+    type: workflow.type,
+    trigger: triggerLabel,
+    status: workflow.status,
+    runs: workflow.runs,
+    lastRun: workflow.lastRunAt,
+    createdAt: workflow.createdAt,
+  };
+}

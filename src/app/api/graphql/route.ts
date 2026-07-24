@@ -21,6 +21,7 @@ import { salesTypeDefs, salesResolvers } from './modules/sales';
 import { campaignsTypeDefs, campaignsResolvers } from './modules/campaigns';
 import { notificationsTypeDefs, notificationsResolvers } from './modules/notifications';
 import { logisticsTypeDefs, logisticsResolvers } from './modules/logistics';
+import { automationsTypeDefs, automationsResolvers } from './modules/automations';
 import {
   resolveGraphQLUserFromAccessToken,
   resolveDashboardGraphQLUser,
@@ -64,6 +65,7 @@ const typeDefs = mergeTypeDefs([
   campaignsTypeDefs,
   notificationsTypeDefs,
   logisticsTypeDefs,
+  automationsTypeDefs,
 ]);
 
 const resolvers = mergeResolvers([
@@ -79,6 +81,7 @@ const resolvers = mergeResolvers([
   campaignsResolvers,
   notificationsResolvers,
   logisticsResolvers,
+  automationsResolvers,
 ]);
 
 const server = new ApolloServer({

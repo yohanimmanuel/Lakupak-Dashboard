@@ -3,7 +3,7 @@
 import React, { useMemo } from 'react';
 import { Workflow, PlayCircle, PauseCircle, FileEdit } from 'lucide-react';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
-import { AutomationWorkflow } from './automationTypes';
+import { AutomationWorkflowRow } from './automationTypes';
 import {
   STAT_ICON_BG_BLUE,
   STAT_ICON_BG_GREEN,
@@ -41,7 +41,7 @@ function AutomationStatCard({ label, count, hint, icon, iconBg }: Omit<StatCardC
   );
 }
 
-export default function AutomationStatcards({ workflows }: { workflows: AutomationWorkflow[] }) {
+export default function AutomationStatcards({ workflows }: { workflows: AutomationWorkflowRow[] }) {
   const { tStats } = useAutomationTranslations();
 
   const stats = useMemo((): StatCardConfig[] => {

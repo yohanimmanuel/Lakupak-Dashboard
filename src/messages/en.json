@@ -529,6 +529,27 @@
         "title": "Logistics with live delivery visibility",
         "subtitle": "Give drivers app access, assign fleets, and share real-time delivery updates with your team and buyers.",
         "placeholder": "Logistics preview. Replace image"
+      },
+      "automations": {
+        "title": "Laku Agent automations for daily ops",
+        "subtitle": "Build AI-powered workflows that automate catalog, clients, orders, and marketing inside Laku.",
+        "workflows": {
+          "title": "Build your own workflows",
+          "desc": "Design trigger-to-action flows the same way modern SaaS automation tools do, scoped to distribution."
+        },
+        "triggers": {
+          "title": "Agents that act on events",
+          "desc": "Hand off repeat ops to triggers across offers, leads, orders, logistics, and marketing."
+        },
+        "control": {
+          "title": "Activate, pause, and track",
+          "desc": "Run workflows as active, paused, or draft and see run history so your team stays in control."
+        },
+        "placeholders": {
+          "workflows": "Automations workflows preview. Replace image",
+          "triggers": "Automations triggers preview. Replace image",
+          "control": "Automations control preview. Replace image"
+        }
       }
     },
     "testimonials": {
@@ -1021,7 +1042,7 @@
       "docs": "Documentation",
       "status": ""
     },
-    "copyright": "© 2024 Laku. All rights reserved. Built for Indonesia's Distribution and Retail industry."
+    "copyright": "© 2026 Laku. All rights reserved. Built for Indonesia's Distribution and Retail industry."
   },
   "docs": {
     "landing": {

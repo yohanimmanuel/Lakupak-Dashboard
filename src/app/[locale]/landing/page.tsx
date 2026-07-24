@@ -10,17 +10,19 @@ import { FeatureMediaFrame } from './FeatureMediaFrame';
 import { Reveal } from './Reveal';
 
 type SellingTab = 'clients' | 'products' | 'orders';
+type AutomationsTab = 'workflows' | 'triggers' | 'control';
 
 const SELLING_TABS: SellingTab[] = ['clients', 'products', 'orders'];
+const AUTOMATIONS_TABS: AutomationsTab[] = ['workflows', 'triggers', 'control'];
 
 const usePerformanceTracking = () => {
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const trackPerformance = () => {
-      const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+      const trackPerformance = () => {
+        const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
       if (navigation && window.gtag) {
-        const loadTime = navigation.loadEventEnd - navigation.fetchStart;
-        window.gtag('event', 'page_load_time', {
+          const loadTime = navigation.loadEventEnd - navigation.fetchStart;
+            window.gtag('event', 'page_load_time', {
           custom_parameter: Math.round(loadTime),
         });
       }
@@ -65,9 +67,9 @@ function ErrorBoundary({ children }: { children: React.ReactNode }) {
             Something went wrong
           </h2>
           <p className="text-gray-600 mb-6">Please refresh the page and try again.</p>
-          <button
+          <button 
             type="button"
-            onClick={() => window.location.reload()}
+            onClick={() => window.location.reload()} 
             className="bg-[#0a61d7] text-white px-6 py-2.5 rounded-xl hover:bg-[#084ba6] transition-colors"
           >
             Refresh page
@@ -394,6 +396,77 @@ function SellingSection() {
   );
 }
 
+function AutomationsSection() {
+  const t = useTranslations('landing');
+  const [active, setActive] = useState<AutomationsTab>('workflows');
+  const automationsStageClass = 'h-[500px] sm:h-[600px]';
+
+  return (
+    <section id="automations" className="py-16 sm:py-20 bg-white">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <Reveal className="mb-10 max-w-3xl">
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">
+            {t('features.automations.title')}
+          </h2>
+          <p className="mt-3 text-base sm:text-lg text-gray-600 leading-relaxed">
+            {t('features.automations.subtitle')}
+          </p>
+        </Reveal>
+
+        <Reveal>
+          <FeatureMediaFrame
+            className="mb-10"
+            framed={false}
+            minHeightClass={automationsStageClass}
+          >
+            <ImagePlaceholder
+              key={active}
+              label={t(`features.automations.placeholders.${active}`)}
+              className="min-h-[220px] sm:min-h-[320px] w-full border-0 bg-white/80 rounded-xl animate-fade-in motion-reduce:animate-none"
+            />
+          </FeatureMediaFrame>
+        </Reveal>
+
+        <Reveal>
+          <div className="grid md:grid-cols-3 gap-6 md:gap-8">
+            {AUTOMATIONS_TABS.map((tab) => {
+              const isActive = active === tab;
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActive(tab)}
+                  className="text-left group"
+                >
+                  <div
+                    className={`h-0.5 w-full mb-4 transition-colors ${
+                      isActive ? 'bg-gray-900' : 'bg-gray-200 group-hover:bg-gray-300'
+                    }`}
+                  />
+                  <h3
+                    className={`text-base sm:text-lg font-bold leading-snug transition-colors ${
+                      isActive ? 'text-gray-900' : 'text-gray-500'
+                    }`}
+                  >
+                    {t(`features.automations.${tab}.title`)}
+                  </h3>
+                  <p
+                    className={`mt-2 text-sm leading-relaxed transition-colors ${
+                      isActive ? 'text-gray-600' : 'text-gray-400'
+                    }`}
+                  >
+                    {t(`features.automations.${tab}.desc`)}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
 function FeatureBlock({
   id,
   titleKey,
@@ -695,9 +768,9 @@ function SplitFeatureSection({
 export default function LandingPage() {
   const router = useRouter();
   const t = useTranslations('landing');
-
+  
   usePerformanceTracking();
-
+  
   useEffect(() => {
     measurePerformance();
     const cleanup = trackScrollDepth();
@@ -705,12 +778,12 @@ export default function LandingPage() {
     lazyLoadSection('socialproof', () => undefined);
     return cleanup;
   }, []);
-
+  
   const handleRegisterClick = () => {
     trackConversion('cta_click', 'register_button');
     router.push('/register');
   };
-
+  
   const handleLearnMoreClick = () => {
     trackConversion('cta_click', 'explore_marketplace_button');
     document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
@@ -730,7 +803,7 @@ export default function LandingPage() {
               <h1 className="text-4xl sm:text-5xl lg:text-[3.25rem] font-bold tracking-tight text-gray-900 leading-[1.12]">
                 {t('hero.titleBefore')}
                 <span className="text-[#0a61d7]">{t('hero.titleAccent')}</span>
-              </h1>
+                     </h1>
             </HeroStagger>
 
             <HeroStagger delayMs={160}>
@@ -741,25 +814,25 @@ export default function LandingPage() {
 
             <HeroStagger delayMs={280}>
               <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-                <button
+                 <button
                   type="button"
-                  onClick={handleRegisterClick}
+                   onClick={handleRegisterClick}
                   className="w-full sm:w-auto bg-[#0a61d7] text-white px-7 py-3 rounded-xl text-sm font-semibold hover:bg-[#084ba6] transition-colors"
                   aria-label={t('hero.cta')}
-                >
+                 >
                   {t('hero.cta')}
-                </button>
-                <button
+                 </button>
+                 <button 
                   type="button"
-                  onClick={handleLearnMoreClick}
+                   onClick={handleLearnMoreClick}
                   className="w-full sm:w-auto border border-gray-300 bg-white/80 text-gray-800 px-7 py-3 rounded-xl text-sm font-semibold hover:border-gray-400 hover:bg-white transition-colors"
                   aria-label={t('hero.learnmore')}
-                >
+                 >
                   {t('hero.learnmore')}
-                </button>
+                 </button>
               </div>
             </HeroStagger>
-          </div>
+            </div>
 
           <HeroStagger delayMs={420} className="relative z-10 mx-auto mt-12 sm:mt-16 max-w-6xl px-4 sm:px-6 lg:px-8">
             <div className="relative pt-6 sm:pt-8">
@@ -793,7 +866,7 @@ export default function LandingPage() {
                   className="w-full h-auto block opacity-70"
                   sizes="(min-width: 1024px) 1080px, 95vw"
                 />
-              </div>
+            </div>
 
               {/* Front layer */}
               <div className="relative z-[2] rounded-2xl border border-gray-200/90 bg-white p-1.5 sm:p-2 shadow-[0_18px_50px_-14px_rgba(10,97,215,0.3)] overflow-hidden">
@@ -825,19 +898,19 @@ export default function LandingPage() {
                   </div>
                 </Reveal>
               ))}
-            </div>
           </div>
-        </section>
+        </div>
+      </section>
 
         <section className="py-16 sm:py-20 bg-white border-t border-b border-gray-200">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <Reveal className="max-w-3xl">
               <h2 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-bold tracking-tight text-gray-900 leading-tight">
                 {t('platformMessage.title')}
-              </h2>
+            </h2>
               <p className="mt-5 text-base sm:text-lg text-gray-600 leading-relaxed max-w-2xl">
                 {t('platformMessage.subtitle')}
-              </p>
+            </p>
             </Reveal>
           </div>
         </section>
@@ -924,6 +997,8 @@ export default function LandingPage() {
           ]}
         />
 
+        <AutomationsSection />
+
         <section id="how-it-works" className="py-16 sm:py-20 bg-white">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <Reveal className="text-center mb-12 max-w-2xl mx-auto">
@@ -946,17 +1021,17 @@ export default function LandingPage() {
                     <p className="text-sm text-gray-600 leading-relaxed">{t(`howitworks.${i}.desc`)}</p>
                   </div>
                 </Reveal>
-              ))}
-            </div>
-          </div>
-        </section>
+            ))}
+           </div>
+        </div>
+      </section>
 
         <section className="py-16 sm:py-20 bg-[#f7f9fc]">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <Reveal className="text-center mb-12">
               <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">
                 {t('testimonials.title')}
-              </h2>
+            </h2>
             </Reveal>
             <div className="grid md:grid-cols-2 gap-6">
               {[1, 2].map((i) => (
@@ -969,28 +1044,28 @@ export default function LandingPage() {
                     </footer>
                   </blockquote>
                 </Reveal>
-              ))}
-            </div>
+            ))}
           </div>
-        </section>
+        </div>
+      </section>
 
         <section className="py-16 sm:py-20 bg-gradient-to-b from-[#0a61d7] to-[#084ba6]">
           <Reveal className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">
               {t('finalcta.title')}
-            </h2>
+          </h2>
             <p className="mt-4 text-base sm:text-lg text-blue-100 leading-relaxed">{t('finalcta.subtitle')}</p>
-            <button
+          <button
               type="button"
-              onClick={handleRegisterClick}
+            onClick={handleRegisterClick}
               className="mt-8 bg-white text-[#0a61d7] px-8 py-3.5 rounded-xl text-sm font-semibold hover:bg-blue-50 transition-colors"
               aria-label={t('finalcta.cta')}
-            >
+          >
               {t('finalcta.cta')}
-            </button>
+          </button>
           </Reveal>
-        </section>
-      </div>
+      </section>
+    </div>
     </ErrorBoundary>
   );
 }

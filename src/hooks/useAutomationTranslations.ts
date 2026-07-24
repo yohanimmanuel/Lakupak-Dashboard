@@ -1,5 +1,6 @@
 'use client';
 
+import { useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 
 export function useAutomationTranslations() {
@@ -12,15 +13,38 @@ export function useAutomationTranslations() {
   const tStatus = useTranslations('dashboard.automation.status');
   const tTypes = useTranslations('dashboard.automation.types');
   const tShared = useTranslations('dashboard.automation.shared');
+  const tBuilder = useTranslations('dashboard.automation.builder');
+  const tTriggers = useTranslations('dashboard.automation.triggers');
+  const tActions = useTranslations('dashboard.automation.actions');
+  const tFields = useTranslations('dashboard.automation.fields');
+  const tRuns = useTranslations('dashboard.automation.runs');
 
-  const translateStatusTab = (tab: string) =>
-    tStatusTabs.has(tab) ? tStatusTabs(tab) : tab;
+  const translateStatusTab = useCallback(
+    (tab: string) => (tStatusTabs.has(tab) ? tStatusTabs(tab) : tab),
+    [tStatusTabs],
+  );
 
-  const translateStatus = (status: string) =>
-    tStatus.has(status) ? tStatus(status) : status;
+  const translateStatus = useCallback(
+    (status: string) => (tStatus.has(status) ? tStatus(status) : status),
+    [tStatus],
+  );
 
-  const translateType = (type: string) =>
-    tTypes.has(type) ? tTypes(type) : type;
+  const translateType = useCallback(
+    (type: string) => (tTypes.has(type) ? tTypes(type) : type),
+    [tTypes],
+  );
+
+  const translateTrigger = useCallback(
+    (triggerType: string) =>
+      tTriggers.has(triggerType) ? tTriggers(triggerType) : triggerType,
+    [tTriggers],
+  );
+
+  const translateAction = useCallback(
+    (actionType: string) =>
+      tActions.has(actionType) ? tActions(actionType) : actionType,
+    [tActions],
+  );
 
   return {
     tPage,
@@ -31,8 +55,15 @@ export function useAutomationTranslations() {
     tStatus,
     tTypes,
     tShared,
+    tBuilder,
+    tTriggers,
+    tActions,
+    tFields,
+    tRuns,
     translateStatusTab,
     translateStatus,
     translateType,
+    translateTrigger,
+    translateAction,
   };
 }

@@ -49,6 +49,7 @@ model User {
   distributorFollowers       DistributorFollowing[]
   fleets        Fleet[]
   drivers       Driver[]
+  automationWorkflows AutomationWorkflow[]
   passwordResetTokens PasswordResetToken[]
 
   @@index([companyId])
@@ -1280,3 +1281,46 @@ model MarketplaceHomeOffer {
 
   @@index([isPublished, sortOrder, publishedAt])
 }
+
+/// Distributor automation workflow (trigger → Laku Agent → action). Execution engine is Phase 2.
+model AutomationWorkflow {
+  id            String   @id @default(cuid())
+  userId        Int
+  name          String
+  description   String   @default("")
+  /// 'product_offers' | 'lead_management' | 'order_logistics' | 'marketing'
+  type          String
+  /// 'active' | 'paused' | 'draft'
+  status        String   @default("draft")
+  triggerType   String
+  triggerConfig Json     @default("{}")
+  /// Optional Laku Agent middle-step config
+  agentConfig   Json?
+  actionType    String
+  actionConfig  Json     @default("{}")
+  runs          Int      @default(0)
+  lastRunAt     DateTime? @db.Timestamptz(3)
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+
+  user User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  runsLog AutomationRun[]
+
+  @@index([userId, status])
+  @@index([userId, type])
+  @@index([createdAt])
+}
+
+model AutomationRun {
+  id         String   @id @default(cuid())
+  workflowId String
+  /// 'success' | 'failed' | 'skipped'
+  status     String
+  message    String?
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  workflow AutomationWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([workflowId, createdAt])
+}
+

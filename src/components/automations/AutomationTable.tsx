@@ -4,7 +4,7 @@ import React, { useMemo, useRef, useState, useLayoutEffect } from 'react';
 import { Search, Filter, ChevronDown, ChevronLeft, ChevronRight, Edit, Trash2, Trash, Workflow, PlayCircle, PauseCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
-import { AutomationWorkflow, WorkflowStatus, WorkflowType, WORKFLOW_TYPES } from './automationTypes';
+import { AutomationWorkflowRow, WorkflowStatus, WorkflowType, WORKFLOW_TYPES } from './automationTypes';
 
 const statusTabs: { label: string; status: WorkflowStatus | 'all' }[] = [
   { label: 'All', status: 'all' },
@@ -33,11 +33,13 @@ export default function AutomationTable({
   onDeleteAction,
   onBulkDeleteAction,
   onStatusChangeAction,
+  onEditAction,
 }: {
-  workflows: AutomationWorkflow[];
+  workflows: AutomationWorkflowRow[];
   onDeleteAction?: (id: string) => void;
   onBulkDeleteAction?: (ids: string[]) => void;
   onStatusChangeAction?: (ids: string[], status: WorkflowStatus) => void;
+  onEditAction?: (id: string) => void;
 }) {
   const {
     tTable,
@@ -55,7 +57,7 @@ export default function AutomationTable({
   const [typeFilter, setTypeFilter] = useState<WorkflowType | 'all'>('all');
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [workflowToDelete, setWorkflowToDelete] = useState<AutomationWorkflow | null>(null);
+  const [workflowToDelete, setWorkflowToDelete] = useState<AutomationWorkflowRow | null>(null);
   const [isBulkDelete, setIsBulkDelete] = useState(false);
 
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -387,6 +389,10 @@ export default function AutomationTable({
                   <td className="py-4 px-4">
                     <div className="flex items-center gap-2 justify-center">
                       <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEditAction?.(row.id);
+                        }}
                         className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 transition-colors focus:outline-none"
                         title={tTable('editWorkflow')}
                       >

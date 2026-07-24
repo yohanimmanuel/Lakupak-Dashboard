@@ -10,7 +10,7 @@
     "getstarted": "Daftar"
   },
   "featureModules": {
-    "cta": "Mulai uji coba gratis",
+    "cta": "Coba gratis",
     "usesTitle": "Bagaimana modul ini membantu",
     "usesPlaceholder": "Pratinjau {title}. Ganti gambar",
     "menu": {
@@ -445,7 +445,7 @@
       "titleBefore": "Tempat distributor dan retailer berdagang lebih ",
       "titleAccent": "cerdas",
       "subtitle": "Hubungkan jaringan ritel, pesan grosir, dan kelola distribusi dari satu platform: Dashboard, Marketplace, dan Driver.",
-      "cta": "Mulai uji coba gratis",
+      "cta": "Coba gratis",
       "learnmore": "Jelajahi marketplace",
       "productPlaceholder": "Pratinjau dashboard. Ganti dengan gambar produk"
     },
@@ -529,6 +529,27 @@
         "title": "Logistik dengan visibilitas pengiriman live",
         "subtitle": "Beri akses app ke driver, tugaskan armada, dan bagikan update pengiriman real-time ke tim dan pembeli.",
         "placeholder": "Pratinjau logistik. Ganti gambar"
+      },
+      "automations": {
+        "title": "Otomasi Laku Agent untuk operasional harian",
+        "subtitle": "Bangun alur kerja berbasis AI yang mengotomatiskan katalog, klien, pesanan, dan marketing di dalam Laku.",
+        "workflows": {
+          "title": "Bangun workflow sendiri",
+          "desc": "Desain alur trigger-ke-aksi seperti tool otomasi SaaS modern, dengan scope distribusi."
+        },
+        "triggers": {
+          "title": "Agen yang bereaksi ke event",
+          "desc": "Serahkan pekerjaan berulang ke trigger di penawaran, lead, pesanan, logistik, dan marketing."
+        },
+        "control": {
+          "title": "Aktifkan, jeda, dan lacak",
+          "desc": "Jalankan workflow sebagai aktif, dijeda, atau draf dan lihat riwayat run agar tim tetap mengontrol."
+        },
+        "placeholders": {
+          "workflows": "Pratinjau workflow otomasi. Ganti gambar",
+          "triggers": "Pratinjau trigger otomasi. Ganti gambar",
+          "control": "Pratinjau kontrol otomasi. Ganti gambar"
+        }
       }
     },
     "testimonials": {
@@ -562,8 +583,8 @@
     },
     "finalcta": {
       "title": "Kelola jaringan distribusi Anda di Laku",
-      "subtitle": "Mulai uji coba gratis 30 hari dengan akses platform penuh. Tanpa kartu kredit.",
-      "cta": "Mulai uji coba gratis"
+      "subtitle": "Coba gratis 30 hari dengan akses platform penuh. Tanpa kartu kredit.",
+      "cta": "Coba gratis"
     }
   },
   "features": {
@@ -630,7 +651,7 @@
     "cta": {
       "title": "Siap tingkatkan distribusi Anda?",
       "subtitle": "Gabung revolusi digital distribusi FMCG. Transformasi bisnismu hari ini.",
-      "button": "Mulai Gratis",
+      "button": "Coba Gratis",
       "dashboard": "[Screenshot Dashboard]",
       "mobile": "[Screenshot Aplikasi Mobile]",
       "marketplace": "[Screenshot Marketplace]"
@@ -705,7 +726,7 @@
       "badge": "Harga",
       "title": "Paket harga fleksibel untuk setiap kebutuhan",
       "subtitle": "Pilih paket yang sesuai dengan skala jaringan ritel Anda. Setiap paket mencakup platform Laku penuh: Dashboard, Marketplace, dan Driver.",
-      "trial": "Uji coba gratis 30 hari. Tidak perlu kartu kredit."
+      "trial": "Coba gratis 30 hari. Tidak perlu kartu kredit."
     },
     "toggle": {
       "monthly": "Tagihan bulanan",
@@ -713,7 +734,7 @@
       "save": "Hemat {percent}%"
     },
     "card": {
-      "getstarted": "Mulai",
+      "getstarted": "Coba Gratis",
       "contactSales": "Hubungi sales",
       "mostpopular": "Paket Populer",
       "savings": "Hemat ~{percent}%",
@@ -973,7 +994,7 @@
       "9": "Setiap fitur Laku lahir dari visi sederhana: menyatukan yang tercecer, menyederhanakan yang rumit.",
       "10": "Ini bukan sekadar software. Ini tentang membangun kepercayaan, efisiensi, dan peluang bagi jutaan bisnis yang menggerakkan ekonomi kita setiap hari.",
       "vision": "Dari situlah visi Laku lahir.",
-      "mission": "Ini baru permulaan, tapi misinya jelas. Perdagangan di Indonesia (dan lebih luas) butuh platform yang dibangun untuk tantangan uniknya: yang memberdayakan penjual dan pembeli sama-sama. Dengan Laku, saya yakin kita bisa ciptakan ekosistem di mana distribusi maju, retailer tumbuh, dan komunitas sejahtera.",
+      "mission": "Ini baru permulaan, tapi misinya jelas. Perdagangan di Indonesia dan lebih luas butuh platform yang dibangun untuk tantangan uniknya: yang memberdayakan penjual dan pembeli sama-sama. Dengan Laku, saya yakin kita bisa ciptakan ekosistem di mana distribusi maju, retailer tumbuh, dan komunitas sejahtera.",
       "end": "Dan ini baru permulaan."
     },
     "carousel": {
@@ -1021,7 +1042,7 @@
       "docs": "Dokumentasi",
       "status": ""
     },
-    "copyright": "© 2024 Laku. Hak cipta dilindungi. Dibangun untuk distribusi & retail Indonesia."
+    "copyright": "© 2026 Laku. Hak cipta dilindungi. Dibangun untuk distribusi & retail Indonesia."
   },
   "docs": {
     "landing": {
