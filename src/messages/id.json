@@ -545,6 +545,12 @@
           "title": "Aktifkan, jeda, dan lacak",
           "desc": "Jalankan workflow sebagai aktif, dijeda, atau draf dan lihat riwayat run agar tim tetap mengontrol."
         },
+        "controlCards": {
+          "autoUpdateStock": "Auto update stok",
+          "welcomeMessage": "Pesan selamat datang",
+          "distributorInfo": "Info distributor",
+          "autoUpdateOrderStatus": "Auto-update status pesanan"
+        },
         "placeholders": {
           "workflows": "Pratinjau workflow otomasi. Ganti gambar",
           "triggers": "Pratinjau trigger otomasi. Ganti gambar",

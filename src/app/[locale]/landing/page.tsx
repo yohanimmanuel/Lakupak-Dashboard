@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { Bell, Building2, MessageSquareText, Package } from 'lucide-react';
 import { measurePerformance, trackScrollDepth, lazyLoadSection } from '@/utils/performance';
 import { AuthDecorativeBackground } from '@/components/auth/AuthDecorativeBackground';
 import { FeatureMediaFrame } from './FeatureMediaFrame';
@@ -16,9 +17,24 @@ const SELLING_TABS: SellingTab[] = ['clients', 'products', 'orders'];
 const AUTOMATIONS_TABS: AutomationsTab[] = ['workflows', 'triggers', 'control'];
 
 const AUTOMATIONS_MEDIA: Partial<
-  Record<AutomationsTab, { src: string; width: number; height: number }>
+  Record<
+    AutomationsTab,
+    { src: string; width: number; height: number; layout?: 'full' | 'bottomLeftStack' | 'triggersFork' }
+  >
 > = {
-  workflows: { src: '/Dashboardautomations.png', width: 1552, height: 650 },
+  workflows: { src: '/Dashboardautomations.png', width: 1552, height: 650, layout: 'full' },
+  triggers: {
+    src: '/Dashboardmarketing2eng.png',
+    width: 486,
+    height: 726,
+    layout: 'triggersFork',
+  },
+  control: {
+    src: '/Dashboardautomations1.png',
+    width: 1140,
+    height: 791,
+    layout: 'bottomLeftStack',
+  },
 };
 
 const usePerformanceTracking = () => {
@@ -402,11 +418,279 @@ function SellingSection() {
   );
 }
 
+function AutomationsTriggersForkFlow({ alt }: { alt: string }) {
+  return (
+    <div className="relative mx-auto flex h-full w-full max-w-4xl items-center justify-center px-4 py-4 sm:px-8">
+      <div className="flex w-full flex-col items-center">
+        {/* Laku icon */}
+        <div
+          className="relative z-10 flex h-14 w-14 items-center justify-center rounded-full border border-gray-200/90 bg-white shadow-[0_12px_28px_-14px_rgba(10,97,215,0.3)] animate-scale-in motion-reduce:animate-none sm:h-16 sm:w-16"
+          style={{ animationDuration: '0.5s' }}
+        >
+          <Image src="/LakuIcon.svg" alt={alt} width={40} height={40} className="h-8 w-8 sm:h-9 sm:w-9" />
+        </div>
+
+        {/* Dotted stem — Laku → marketing */}
+        <div
+          className="relative z-0 h-12 w-8 sm:h-14 animate-fade-in motion-reduce:animate-none"
+          style={{ animationDuration: '0.4s', animationDelay: '0.1s', opacity: 0 }}
+          aria-hidden
+        >
+          <svg className="h-full w-full" viewBox="0 0 32 56" fill="none" preserveAspectRatio="none">
+            <path
+              d="M16 0 V56"
+              stroke="#94a3b8"
+              strokeWidth="3"
+              strokeDasharray="0 8"
+              strokeLinecap="round"
+            />
+          </svg>
+        </div>
+
+        {/* Marketing flanked by product examples — wide spacing + side dotted lines */}
+        <div className="relative z-10 flex w-full max-w-3xl items-center px-2 sm:px-6 lg:px-10">
+          <div
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-gray-200/90 bg-white p-2 shadow-[0_14px_36px_-16px_rgba(10,97,215,0.28)] animate-fade-in-left motion-reduce:animate-none sm:h-16 sm:w-16"
+            style={{ animationDuration: '0.5s', animationDelay: '0.18s', opacity: 0 }}
+          >
+            <Image
+              src="/Productexample.png"
+              alt=""
+              width={95}
+              height={97}
+              quality={90}
+              className="h-9 w-9 object-contain sm:h-10 sm:w-10"
+            />
+          </div>
+
+          <div
+            className="mx-2 h-8 min-w-[2.5rem] flex-1 sm:mx-4 sm:min-w-[3.5rem] animate-fade-in motion-reduce:animate-none"
+            style={{ animationDuration: '0.4s', animationDelay: '0.16s', opacity: 0 }}
+            aria-hidden
+          >
+            <svg className="h-full w-full" viewBox="0 0 120 32" fill="none" preserveAspectRatio="none">
+              <path
+                d="M0 16 H120"
+                stroke="#94a3b8"
+                strokeWidth="3"
+                strokeDasharray="0 8"
+                strokeLinecap="round"
+              />
+            </svg>
+          </div>
+
+          <div
+            className="w-[38%] max-w-[10.5rem] shrink-0 overflow-hidden rounded-xl border border-gray-200/90 bg-white p-1 shadow-[0_16px_40px_-16px_rgba(15,23,42,0.28)] animate-fade-in-up motion-reduce:animate-none sm:w-[32%] sm:max-w-[11.5rem]"
+            style={{ animationDuration: '0.55s', animationDelay: '0.12s', opacity: 0 }}
+          >
+            <Image
+              src="/Dashboardmarketing2eng.png"
+              alt=""
+              width={486}
+              height={726}
+              quality={90}
+              className="w-full h-auto block rounded-lg"
+              sizes="(min-width: 1024px) 184px, 32vw"
+            />
+          </div>
+
+          <div
+            className="mx-2 h-8 min-w-[2.5rem] flex-1 sm:mx-4 sm:min-w-[3.5rem] animate-fade-in motion-reduce:animate-none"
+            style={{ animationDuration: '0.4s', animationDelay: '0.16s', opacity: 0 }}
+            aria-hidden
+          >
+            <svg className="h-full w-full" viewBox="0 0 120 32" fill="none" preserveAspectRatio="none">
+              <path
+                d="M0 16 H120"
+                stroke="#94a3b8"
+                strokeWidth="3"
+                strokeDasharray="0 8"
+                strokeLinecap="round"
+              />
+            </svg>
+          </div>
+
+          <div
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-gray-200/90 bg-white p-2 shadow-[0_14px_36px_-16px_rgba(10,97,215,0.28)] animate-fade-in-right motion-reduce:animate-none sm:h-16 sm:w-16"
+            style={{ animationDuration: '0.5s', animationDelay: '0.2s', opacity: 0 }}
+          >
+            <Image
+              src="/Productexample1.png"
+              alt=""
+              width={92}
+              height={93}
+              quality={90}
+              className="h-9 w-9 object-contain sm:h-10 sm:w-10"
+            />
+          </div>
+        </div>
+
+        {/* Dotted Y-connectors — marketing → WhatsApp / Gmail */}
+        <div
+          className="relative z-0 h-12 w-full max-w-md sm:h-14 sm:max-w-lg animate-fade-in motion-reduce:animate-none"
+          style={{ animationDuration: '0.4s', animationDelay: '0.22s', opacity: 0 }}
+          aria-hidden
+        >
+          <svg
+            className="absolute inset-0 h-full w-full"
+            viewBox="0 0 400 64"
+            preserveAspectRatio="none"
+          >
+            <path
+              d="M200 0 V20 C200 20 80 32 80 64"
+              fill="none"
+              stroke="#94a3b8"
+              strokeWidth="3"
+              strokeDasharray="0 8"
+              strokeLinecap="round"
+            />
+            <path
+              d="M200 0 V20 C200 20 320 32 320 64"
+              fill="none"
+              stroke="#94a3b8"
+              strokeWidth="3"
+              strokeDasharray="0 8"
+              strokeLinecap="round"
+            />
+          </svg>
+        </div>
+
+        {/* WhatsApp + Gmail — spread wider */}
+        <div className="relative z-10 mx-auto grid w-[78%] max-w-md grid-cols-2 gap-12 sm:w-[70%] sm:max-w-lg sm:gap-20">
+          <div
+            className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-gray-200/90 bg-white shadow-[0_14px_36px_-16px_rgba(10,97,215,0.28)] animate-fade-in-left motion-reduce:animate-none sm:h-14 sm:w-14"
+            style={{ animationDuration: '0.5s', animationDelay: '0.28s', opacity: 0 }}
+          >
+            <Image
+              src="/Whatsappicon.png"
+              alt="WhatsApp"
+              width={48}
+              height={48}
+              quality={90}
+              className="h-7 w-7 sm:h-8 sm:w-8"
+            />
+          </div>
+          <div
+            className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-gray-200/90 bg-white shadow-[0_14px_36px_-16px_rgba(10,97,215,0.28)] animate-fade-in-right motion-reduce:animate-none sm:h-14 sm:w-14"
+            style={{ animationDuration: '0.5s', animationDelay: '0.32s', opacity: 0 }}
+          >
+            <Image
+              src="/Gmailicon.png"
+              alt="Gmail"
+              width={48}
+              height={48}
+              quality={90}
+              className="h-7 w-7 sm:h-8 sm:w-8"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AutomationsBottomLeftStack({
+  alt,
+  src,
+  width,
+  height,
+  cards,
+}: {
+  alt: string;
+  src: string;
+  width: number;
+  height: number;
+  cards: { key: string; label: string; icon: React.ReactNode }[];
+}) {
+  return (
+    <div className="relative h-full w-full min-h-[inherit]">
+      {/* Soft ghost — slight top-right offset, kept small */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute bottom-2 left-1 z-0 w-[88%] max-w-2xl sm:bottom-3 sm:left-2 sm:w-[84%] animate-fade-in motion-reduce:animate-none"
+        style={{ animationDuration: '0.45s' }}
+      >
+        <div className="origin-bottom-left translate-x-3 -translate-y-3 overflow-hidden rounded-xl opacity-40 sm:translate-x-4 sm:-translate-y-4">
+          <Image
+            src={src}
+            alt=""
+            width={width}
+            height={height}
+            quality={55}
+            className="w-full h-auto block"
+            sizes="(min-width: 1024px) 720px, 88vw"
+          />
+        </div>
+      </div>
+
+      {/* Front image — enlarged */}
+      <div
+        className="absolute bottom-2 left-1 z-[2] w-[90%] max-w-2xl sm:bottom-3 sm:left-2 sm:w-[86%] animate-fade-in-up motion-reduce:animate-none"
+        style={{ animationDuration: '0.55s', animationDelay: '0.06s', opacity: 0 }}
+      >
+        <Image
+          src={src}
+          alt={alt}
+          width={width}
+          height={height}
+          quality={90}
+          className="w-full h-auto rounded-xl block shadow-[0_16px_40px_-16px_rgba(10,97,215,0.28)]"
+          sizes="(min-width: 1024px) 740px, 90vw"
+        />
+      </div>
+
+      {/* Feature cards — overlap the right edge of the picture */}
+      <div className="absolute left-[min(58%,calc(100%-15.5rem))] top-1/2 z-20 flex w-[min(100%,14.75rem)] -translate-y-1/2 flex-col gap-2 sm:left-[min(62%,calc(100%-16rem))] sm:w-[15.25rem] sm:gap-2.5">
+        {cards.map((card, index) => (
+          <div
+            key={card.key}
+            className="flex items-center gap-2.5 rounded-xl border border-white/90 bg-white/95 px-2.5 py-2 shadow-[0_12px_28px_-14px_rgba(15,23,42,0.35)] backdrop-blur-sm animate-fade-in-right motion-reduce:animate-none"
+            style={{
+              animationDuration: '0.5s',
+              animationDelay: `${0.12 + index * 0.07}s`,
+              opacity: 0,
+            }}
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0a61d7] text-white">
+              {card.icon}
+            </div>
+            <span className="text-xs font-semibold leading-snug text-gray-900 sm:text-[13px]">
+              {card.label}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AutomationsSection() {
   const t = useTranslations('landing');
   const [active, setActive] = useState<AutomationsTab>('workflows');
   const media = AUTOMATIONS_MEDIA[active];
   const automationsStageClass = 'h-[500px] sm:h-[600px]';
+  const controlCards = [
+    {
+      key: 'autoUpdateStock',
+      label: t('features.automations.controlCards.autoUpdateStock'),
+      icon: <Package className="h-4 w-4" strokeWidth={2.25} />,
+    },
+    {
+      key: 'welcomeMessage',
+      label: t('features.automations.controlCards.welcomeMessage'),
+      icon: <MessageSquareText className="h-4 w-4" strokeWidth={2.25} />,
+    },
+    {
+      key: 'distributorInfo',
+      label: t('features.automations.controlCards.distributorInfo'),
+      icon: <Building2 className="h-4 w-4" strokeWidth={2.25} />,
+    },
+    {
+      key: 'autoUpdateOrderStatus',
+      label: t('features.automations.controlCards.autoUpdateOrderStatus'),
+      icon: <Bell className="h-4 w-4" strokeWidth={2.25} />,
+    },
+  ];
 
   return (
     <section id="automations" className="py-16 sm:py-20 bg-white">
@@ -426,7 +710,21 @@ function AutomationsSection() {
             framed={false}
             minHeightClass={automationsStageClass}
           >
-            {media ? (
+            {media?.layout === 'bottomLeftStack' ? (
+              <AutomationsBottomLeftStack
+                key={active}
+                alt={t(`features.automations.${active}.title`)}
+                src={media.src}
+                width={media.width}
+                height={media.height}
+                cards={controlCards}
+              />
+            ) : media?.layout === 'triggersFork' ? (
+              <AutomationsTriggersForkFlow
+                key={active}
+                alt={t(`features.automations.${active}.title`)}
+              />
+            ) : media ? (
               <div
                 key={active}
                 className="flex h-full w-full items-center justify-center animate-fade-in motion-reduce:animate-none"

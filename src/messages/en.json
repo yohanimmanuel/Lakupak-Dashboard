@@ -545,6 +545,12 @@
           "title": "Activate, pause, and track",
           "desc": "Run workflows as active, paused, or draft and see run history so your team stays in control."
         },
+        "controlCards": {
+          "autoUpdateStock": "Auto update stock",
+          "welcomeMessage": "Welcome message",
+          "distributorInfo": "Distributor info",
+          "autoUpdateOrderStatus": "Auto-update order status"
+        },
         "placeholders": {
           "workflows": "Automations workflows preview. Replace image",
           "triggers": "Automations triggers preview. Replace image",
