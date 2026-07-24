@@ -348,7 +348,7 @@
       "totalStock": "Total Stock (Pieces)",
       "totalStockHint": "Sum of all combination stocks",
       "lowStockThreshold": "Low Stock Threshold",
-      "lowStockThresholdHint": "Minimum threshold across combinations",
+      "lowStockThresholdHint": "Sum of thresholds across combinations",
       "overallStatus": "Overall Status",
       "overallStatusHint": "Overall product status"
     },

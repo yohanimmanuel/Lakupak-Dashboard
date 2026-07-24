@@ -379,7 +379,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
     // Check variant-level stock (piece-based system)
     const variantOptionsStock = product.variantOptions?.reduce((total, option) => ({
       totalStock: total.totalStock + (option.stockQuantity || 0),
-      lowStockThreshold: Math.max(total.lowStockThreshold, option.lowStockThreshold || 0)
+      lowStockThreshold: total.lowStockThreshold + (option.lowStockThreshold || 0)
     }), { totalStock: 0, lowStockThreshold: 0 }) || { totalStock: 0, lowStockThreshold: 0 };
     
     const totalStock = variantOptionsStock.totalStock;
@@ -871,7 +871,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
           // Check variant-level stock (piece-based system)
           const variantOptionsStock = product.variantOptions?.reduce((total, option) => ({
             totalStock: total.totalStock + (option.stockQuantity || 0),
-            lowStockThreshold: Math.max(total.lowStockThreshold, option.lowStockThreshold || 0)
+            lowStockThreshold: total.lowStockThreshold + (option.lowStockThreshold || 0)
           }), { totalStock: 0, lowStockThreshold: 0 }) || { totalStock: 0, lowStockThreshold: 0 };
           
           const totalStock = variantOptionsStock.totalStock;
@@ -1168,7 +1168,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                 // Check variant-level stock (piece-based system)
                 const variantOptionsStock = originalProduct.variantOptions?.reduce((total, option) => ({
                   totalStock: total.totalStock + (option.stockQuantity || 0),
-                  lowStockThreshold: Math.max(total.lowStockThreshold, option.lowStockThreshold || 0)
+                  lowStockThreshold: total.lowStockThreshold + (option.lowStockThreshold || 0)
                 }), { totalStock: 0, lowStockThreshold: 0 }) || { totalStock: 0, lowStockThreshold: 0 };
                 
                 const totalStock = variantOptionsStock.totalStock;
@@ -1458,7 +1458,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                
                const variantOptionsStock = originalProduct.variantOptions?.reduce((total, option) => ({
                  totalStock: total.totalStock + (option.stockQuantity ?? 0),
-                 lowStockThreshold: Math.max(total.lowStockThreshold, option.lowStockThreshold || 0)
+                 lowStockThreshold: total.lowStockThreshold + (option.lowStockThreshold || 0)
                }), { totalStock: 0, lowStockThreshold: 0 }) || { totalStock: 0, lowStockThreshold: 0 };
                
                const hasMissingStock = Boolean(
@@ -1787,7 +1787,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                
                const variantOptionsStock = originalProduct.variantOptions?.reduce((total, option) => ({
                  totalStock: total.totalStock + (option.stockQuantity || 0),
-                 lowStockThreshold: Math.max(total.lowStockThreshold, option.lowStockThreshold || 0)
+                 lowStockThreshold: total.lowStockThreshold + (option.lowStockThreshold || 0)
                }), { totalStock: 0, lowStockThreshold: 0 }) || { totalStock: 0, lowStockThreshold: 0 };
                
                const totalStock = variantOptionsStock.totalStock;

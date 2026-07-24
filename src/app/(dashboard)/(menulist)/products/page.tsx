@@ -213,7 +213,7 @@ export default function ProductsPage() {
     const variantOptionsStock = variantOptions.reduce(
       (total, option) => ({
         totalStock: total.totalStock + (option.stockQuantity || 0),
-        lowStockThreshold: Math.max(total.lowStockThreshold, option.lowStockThreshold || 0),
+        lowStockThreshold: total.lowStockThreshold + (option.lowStockThreshold || 0),
       }),
       { totalStock: 0, lowStockThreshold: 0 },
     );
@@ -472,7 +472,7 @@ export default function ProductsPage() {
       // Calculate total stock
       const variantOptionsStock = variantOptions.reduce((total, option) => ({
         totalStock: total.totalStock + (option.stockQuantity || 0),
-        lowStockThreshold: Math.max(total.lowStockThreshold, option.lowStockThreshold || 0)
+        lowStockThreshold: total.lowStockThreshold + (option.lowStockThreshold || 0)
       }), { totalStock: 0, lowStockThreshold: 0 }) || { totalStock: 0, lowStockThreshold: 0 };
       
       const totalStock = variantOptionsStock.totalStock;

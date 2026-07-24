@@ -15,6 +15,12 @@ type AutomationsTab = 'workflows' | 'triggers' | 'control';
 const SELLING_TABS: SellingTab[] = ['clients', 'products', 'orders'];
 const AUTOMATIONS_TABS: AutomationsTab[] = ['workflows', 'triggers', 'control'];
 
+const AUTOMATIONS_MEDIA: Partial<
+  Record<AutomationsTab, { src: string; width: number; height: number }>
+> = {
+  workflows: { src: '/Dashboardautomations.png', width: 1552, height: 650 },
+};
+
 const usePerformanceTracking = () => {
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -399,6 +405,7 @@ function SellingSection() {
 function AutomationsSection() {
   const t = useTranslations('landing');
   const [active, setActive] = useState<AutomationsTab>('workflows');
+  const media = AUTOMATIONS_MEDIA[active];
   const automationsStageClass = 'h-[500px] sm:h-[600px]';
 
   return (
@@ -419,11 +426,31 @@ function AutomationsSection() {
             framed={false}
             minHeightClass={automationsStageClass}
           >
-            <ImagePlaceholder
-              key={active}
-              label={t(`features.automations.placeholders.${active}`)}
-              className="min-h-[220px] sm:min-h-[320px] w-full border-0 bg-white/80 rounded-xl animate-fade-in motion-reduce:animate-none"
-            />
+            {media ? (
+              <div
+                key={active}
+                className="flex h-full w-full items-center justify-center animate-fade-in motion-reduce:animate-none"
+                style={{ animationDuration: '0.45s' }}
+              >
+                <div className="w-full overflow-hidden rounded-xl border border-gray-200/90 bg-white shadow-[0_14px_36px_-16px_rgba(15,23,42,0.28)]">
+                  <Image
+                    src={media.src}
+                    alt={t(`features.automations.${active}.title`)}
+                    width={media.width}
+                    height={media.height}
+                    quality={90}
+                    className="w-full h-auto block"
+                    sizes="(min-width: 1024px) 1024px, 100vw"
+                  />
+                </div>
+              </div>
+            ) : (
+              <ImagePlaceholder
+                key={active}
+                label={t(`features.automations.placeholders.${active}`)}
+                className="min-h-[220px] sm:min-h-[320px] w-full border-0 bg-white/80 rounded-xl animate-fade-in motion-reduce:animate-none"
+              />
+            )}
           </FeatureMediaFrame>
         </Reveal>
 

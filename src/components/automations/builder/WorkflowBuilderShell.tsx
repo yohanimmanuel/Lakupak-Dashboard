@@ -25,7 +25,7 @@ function SideToggle({
       <button
         type="button"
         onClick={onToggle}
-        className="rounded-full border border-[#e6e6e6] bg-white p-1.5 text-gray-600 shadow-sm transition-transform duration-300 hover:scale-105 hover:bg-gray-50"
+        className="rounded-full border border-[#e6e6e6] bg-white p-1.5 text-gray-600 transition-transform duration-300 hover:scale-105 hover:bg-gray-50"
         aria-label={open ? collapseLabel : expandLabel}
         title={open ? collapseLabel : expandLabel}
         aria-expanded={open}
@@ -84,7 +84,7 @@ export function WorkflowBuilderShell({
     <div className="relative h-[calc(100dvh-4rem)] w-full overflow-hidden bg-[#f7f9fc]">
       <div className="absolute inset-0 z-0">{canvas}</div>
 
-      <div className="absolute left-3 right-3 top-3 z-30 flex flex-col gap-3 rounded-xl border border-[#e6e6e6] bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+      <div className="absolute left-3 right-3 top-3 z-30 flex flex-col gap-3 rounded-xl border border-[#e6e6e6] bg-white p-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <button
             type="button"
@@ -94,11 +94,11 @@ export function WorkflowBuilderShell({
             <ArrowLeft className="h-4 w-4" />
             {tBuilder('back')}
           </button>
-          <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-2">
             <h1 className="truncate text-sm font-bold text-black">
               {title || tBuilder('untitled')}
             </h1>
-            <span className="mt-0.5 inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-700">
+            <span className="inline-flex shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-700">
               {translateStatus(status)}
             </span>
           </div>
@@ -140,7 +140,7 @@ export function WorkflowBuilderShell({
       </div>
 
       {/* Left: workflow details — leave bottom gap so zoom controls stay clickable */}
-      <div className="pointer-events-none absolute bottom-16 left-3 top-24 z-30 flex items-start gap-2">
+      <div className="pointer-events-none absolute bottom-16 left-3 top-18 z-30 flex items-start gap-2">
         <aside
           className={`pointer-events-auto flex max-h-full min-h-0 flex-col overflow-hidden transition-all duration-300 ease-in-out ${
             leftOpen
@@ -162,7 +162,7 @@ export function WorkflowBuilderShell({
       </div>
 
       {/* Right: step details */}
-      <div className="pointer-events-none absolute bottom-16 right-3 top-24 z-30 flex items-start gap-2">
+      <div className="pointer-events-none absolute bottom-16 right-3 top-18 z-30 flex items-start gap-2">
         <SideToggle
           open={rightOpen}
           side="right"

@@ -348,7 +348,7 @@
       "totalStock": "Total Stok (Pcs)",
       "totalStockHint": "Jumlah stok semua kombinasi",
       "lowStockThreshold": "Ambang Stok Menipis",
-      "lowStockThresholdHint": "Ambang minimum di semua kombinasi",
+      "lowStockThresholdHint": "Jumlah ambang dari semua kombinasi",
       "overallStatus": "Status Keseluruhan",
       "overallStatusHint": "Status produk secara keseluruhan"
     },

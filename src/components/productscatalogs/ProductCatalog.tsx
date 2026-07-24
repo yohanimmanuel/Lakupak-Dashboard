@@ -34,6 +34,7 @@ import { getAvailableCategories, getCategoryByValue, getCategoryColor, getCatego
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { useProductsTranslations } from '@/hooks/useProductsTranslations';
+import { getProductStockStatus, getVariantStockStatus } from '@/utils/stockUtils';
 
 const MARKETPLACE_STATUS_MUTATION = `
   mutation PublishMarketplaceProduct($userId: Int!, $productId: String!, $action: String!) {
@@ -462,7 +463,7 @@ export default function ProductCatalog({
           moq: option.moq,
           stockQuantity: option.stockQuantity || 0,
           lowStockThreshold: option.lowStockThreshold || 0,
-          stockStatus: option.stockStatus || 'In Stock'
+          stockStatus: getVariantStockStatus(option.stockQuantity || 0, option.lowStockThreshold || 0),
         };
         
         const attrs = option.attributes && typeof option.attributes === 'object' ? option.attributes as Record<string, unknown> : undefined;
@@ -1221,6 +1222,10 @@ export default function ProductCatalog({
         }).join(' | ');
         
         updated.variantName = selectedOptions;
+
+        if (field === 'stockQuantity' || field === 'lowStockThreshold') {
+          updated.stockStatus = getVariantStockStatus(updated.stockQuantity, updated.lowStockThreshold);
+        }
         
         return updated;
       }
@@ -1241,11 +1246,8 @@ export default function ProductCatalog({
     [variants, tCatalog],
   );
 
-  const deriveComboStockStatus = (stockQuantity: number, lowStockThreshold: number): Combination['stockStatus'] => {
-    if (stockQuantity <= 0) return 'Out of Stock';
-    if (stockQuantity < lowStockThreshold) return 'Low Stock';
-    return 'In Stock';
-  };
+  const deriveComboStockStatus = (stockQuantity: number, lowStockThreshold: number): Combination['stockStatus'] =>
+    getVariantStockStatus(stockQuantity, lowStockThreshold);
 
   const comboMatchesImportRow = (
     combo: Combination,
@@ -1585,12 +1587,10 @@ export default function ProductCatalog({
         return;
       }
 
-      // Calculate total stock from combinations
+      // Product-level stock from all variants (not "any variant out of stock")
       const totalStock = combinationsForSave.reduce((sum, combo) => sum + combo.stockQuantity, 0);
-      const lowStockThreshold = combinationsForSave.reduce((max, combo) => Math.max(max, combo.lowStockThreshold), 0);
-      const hasLowStock = combinationsForSave.some(combo => combo.stockQuantity < combo.lowStockThreshold);
-      const hasOutOfStock = combinationsForSave.some(combo => combo.stockQuantity === 0);
-      const stockStatus = hasOutOfStock ? 'Out of Stock' : hasLowStock ? 'Low Stock' : 'In Stock';
+      const lowStockThreshold = combinationsForSave.reduce((sum, combo) => sum + combo.lowStockThreshold, 0);
+      const stockStatus = getProductStockStatus(combinationsForSave);
 
       // Submit the new variant structure
       const payload: Record<string, unknown> = {
@@ -1643,7 +1643,7 @@ export default function ProductCatalog({
           moq: combo.moq,
           stockQuantity: combo.stockQuantity,
           lowStockThreshold: combo.lowStockThreshold,
-          stockStatus: combo.stockStatus as 'In Stock' | 'Low Stock' | 'Out of Stock',
+          stockStatus: getVariantStockStatus(combo.stockQuantity, combo.lowStockThreshold),
           isDefault: false,
           isActive: true
         }));
@@ -2815,7 +2815,7 @@ export default function ProductCatalog({
                       {tCatalog('stockSummary.lowStockThreshold')}
                     </label>
                     <div className="px-3 py-2 text-xs border border-gray-300 rounded-lg bg-white text-gray-900 font-medium">
-                      {combinations.reduce((max, combo) => Math.max(max, combo.lowStockThreshold), 0).toLocaleString()}
+                      {combinations.reduce((sum, combo) => sum + combo.lowStockThreshold, 0).toLocaleString()}
                     </div>
                     <p className="text-xs text-gray-500 mt-1">{tCatalog('stockSummary.lowStockThresholdHint')}</p>
                   </div>
@@ -2823,30 +2823,20 @@ export default function ProductCatalog({
                     <label className="block text-xs font-medium text-gray-700 mb-2">
                       {tCatalog('stockSummary.overallStatus')}
                     </label>
+                    {(() => {
+                      const overallStatus = getProductStockStatus(combinations);
+                      return (
                     <div className={`px-3 py-2 text-xs border rounded-lg font-medium ${
-                      (() => {
-                        const hasLowStock = combinations.some(combo => combo.stockQuantity < combo.lowStockThreshold);
-                        const hasOutOfStock = combinations.some(combo => combo.stockQuantity === 0);
-                        const status = hasOutOfStock ? 'Out of Stock' : hasLowStock ? 'Low Stock' : 'In Stock';
-                        return status;
-                      })() === 'Out of Stock' 
+                      overallStatus === 'Out of Stock'
                         ? 'bg-red-50 border-red-200 text-red-800'
-                        : (() => {
-                            const hasLowStock = combinations.some(combo => (combo.stockQuantity || 0) < (combo.lowStockThreshold || 0));
-                            const hasOutOfStock = combinations.some(combo => (combo.stockQuantity || 0) === 0);
-                            const status = hasOutOfStock ? 'Out of Stock' : hasLowStock ? 'Low Stock' : 'In Stock';
-                            return status;
-                          })() === 'Low Stock'
+                        : overallStatus === 'Low Stock'
                         ? 'bg-yellow-50 border-yellow-200 text-yellow-800'
                         : 'bg-green-50 border-green-200 text-green-800'
                     }`}>
-                      {translateStockStatus((() => {
-                        const hasLowStock = combinations.some(combo => combo.stockQuantity < combo.lowStockThreshold);
-                        const hasOutOfStock = combinations.some(combo => combo.stockQuantity === 0);
-                        const status = hasOutOfStock ? 'Out of Stock' : hasLowStock ? 'Low Stock' : 'In Stock';
-                        return status;
-                      })())}
+                      {translateStockStatus(overallStatus)}
                     </div>
+                      );
+                    })()}
                     <p className="text-xs text-gray-500 mt-1">{tCatalog('stockSummary.overallStatusHint')}</p>
                   </div>
                 </div>
@@ -3251,15 +3241,21 @@ export default function ProductCatalog({
                         const stock = (document.getElementById('apply-stock') as HTMLInputElement)?.value || '';
                         const threshold = (document.getElementById('apply-threshold') as HTMLInputElement)?.value || '';
                         
-                        setCombinations(prev => prev.map(combo => ({
-                          ...combo,
-                          sku: sku || combo.sku,
-                          sellingPrice: selling || combo.sellingPrice,
-                          purchasePrice: purchase || combo.purchasePrice,
-                          moq: moq ? parseInt(moq) : combo.moq,
-                          stockQuantity: stock ? parseInt(stock) : combo.stockQuantity,
-                          lowStockThreshold: threshold ? parseInt(threshold) : combo.lowStockThreshold,
-                        })));
+                        setCombinations(prev => prev.map(combo => {
+                          const next = {
+                            ...combo,
+                            sku: sku || combo.sku,
+                            sellingPrice: selling || combo.sellingPrice,
+                            purchasePrice: purchase || combo.purchasePrice,
+                            moq: moq ? parseInt(moq) : combo.moq,
+                            stockQuantity: stock ? parseInt(stock) : combo.stockQuantity,
+                            lowStockThreshold: threshold ? parseInt(threshold) : combo.lowStockThreshold,
+                          };
+                          return {
+                            ...next,
+                            stockStatus: getVariantStockStatus(next.stockQuantity, next.lowStockThreshold),
+                          };
+                        }));
                       }}
                        disabled={isOfferConnected}
                        className="bg-orange-500 text-white px-6 py-2 text-sm font-semibold rounded-lg hover:bg-orange-600 transition-colors whitespace-nowrap disabled:bg-orange-300 disabled:cursor-not-allowed"
@@ -3426,15 +3422,23 @@ export default function ProductCatalog({
                             />
                           </td>
                           <td className="p-3 border-r border-b border-gray-300">
+                            {(() => {
+                              const rowStatus = getVariantStockStatus(
+                                combination.stockQuantity,
+                                combination.lowStockThreshold,
+                              );
+                              return (
                             <span className={`text-xs font-medium ${
-                              combination.stockStatus === 'Out of Stock' 
+                              rowStatus === 'Out of Stock' 
                                 ? 'text-red-600'
-                                : combination.stockStatus === 'Low Stock'
+                                : rowStatus === 'Low Stock'
                                 ? 'text-yellow-600'
                                 : 'text-green-600'
                             }`}>
-                              {translateStockStatus(combination.stockStatus)}
+                              {translateStockStatus(rowStatus)}
                             </span>
+                              );
+                            })()}
                           </td>
                           {!isViewMode && (
                             <td className="p-3 text-center border-b border-gray-300">
