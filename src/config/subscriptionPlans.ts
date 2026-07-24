@@ -75,8 +75,8 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
     id: 'growth',
     connections: '1,000 – 5,000',
-    monthlyIdr: 2_299_000,
-    annualIdr: 22_990_000,
+    monthlyIdr: 3_299_000,
+    annualIdr: 32_990_000,
     popular: true,
     quotas: {
       marketplaceProducts: 1000,
@@ -93,8 +93,8 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
     id: 'scale',
     connections: '5,000 – 10,000',
-    monthlyIdr: 3_490_000,
-    annualIdr: 34_900_000,
+    monthlyIdr: 5_490_000,
+    annualIdr: 54_900_000,
     quotas: {
       marketplaceProducts: 4_000,
       ordersPerMonth: 25_000,
