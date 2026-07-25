@@ -320,6 +320,7 @@ function WorkflowCanvasInner({
         data: {
           kind: 'action' as const,
           catalogType: '',
+          name: '',
           title: '',
           subtitle: '',
           config: {},
@@ -478,6 +479,7 @@ function WorkflowCanvasInner({
         data: {
           kind: choice.kind,
           catalogType: choice.catalogType,
+          name: choice.name,
           title: choice.title,
           subtitle: choice.subtitle,
           config: choice.config,
@@ -557,7 +559,8 @@ function WorkflowCanvasInner({
         elementsSelectable
         connectionMode={ConnectionMode.Loose}
         fitView
-        fitViewOptions={{ padding: 0.25 }}
+        fitViewOptions={{ padding: 0.35, maxZoom: 1 }}
+        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
         proOptions={{ hideAttribution: true }}
         defaultEdgeOptions={edgeDefaults}
         connectionLineStyle={{ stroke: '#0a61d7', strokeWidth: 1.5 }}

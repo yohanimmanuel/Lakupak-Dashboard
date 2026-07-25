@@ -2,7 +2,8 @@
 
 import React, { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { AppWindow, Bolt, Bot, GitBranch, Trash2, Unplug, Zap } from 'lucide-react';
+import { AppWindow, Bolt, Bot, GitBranch, Mail, Trash2, Unplug, Zap } from 'lucide-react';
+import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
 import type { WorkflowFlowNode } from './canvasTypes';
 
 const handleClass =
@@ -21,12 +22,37 @@ function FourSideHandles() {
 }
 
 function WorkflowFlowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNode>) {
+  const { tBuilder, translateTrigger, translateAction } = useAutomationTranslations();
   const isAgent = data.kind === 'agent';
   const isCondition = data.kind === 'condition';
+  const isApp = data.kind === 'app';
+
+  const kindLabel =
+    data.kind === 'trigger'
+      ? tBuilder('nodeTrigger')
+      : data.kind === 'agent'
+        ? tBuilder('nodeAgent')
+        : data.kind === 'app'
+          ? tBuilder('nodeApp')
+          : data.kind === 'condition'
+            ? tBuilder('nodeCondition')
+            : tBuilder('nodeAction');
+
+  const typeDetail = (() => {
+    if (data.name) return data.name;
+    if (data.kind === 'trigger') return translateTrigger(data.catalogType);
+    if (data.kind === 'action') return translateAction(data.catalogType);
+    if (data.kind === 'app') {
+      return data.catalogType === 'app_email' ? tBuilder('appEmail') : tBuilder('appWebhook');
+    }
+    if (data.kind === 'condition') return tBuilder('conditionSubtitle');
+    if (data.kind === 'agent') return tBuilder('agentSubtitle');
+    return data.title;
+  })();
 
   return (
     <div
-      className={`relative w-[240px] rounded-xl border p-3 shadow-sm transition-shadow ${
+      className={`relative w-[230px] rounded-xl border px-3 py-2.5 shadow-sm transition-shadow ${
         isCondition
           ? selected
             ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-400/30'
@@ -35,9 +61,13 @@ function WorkflowFlowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNod
             ? selected
               ? 'border-[#084ba6] bg-[#0a61d7] text-white shadow-[0_12px_28px_-14px_rgba(10,97,215,0.55)]'
               : 'border-slate-800 bg-slate-900 text-white'
-            : selected
-              ? 'border-[#0a61d7] bg-white ring-2 ring-[#0a61d7]/25'
-              : 'border-[#e6e6e6] bg-white hover:border-[#0a61d7]/40'
+            : isApp
+              ? selected
+                ? 'border-violet-500 bg-violet-50 ring-2 ring-violet-400/25'
+                : 'border-violet-200 bg-white hover:border-violet-400'
+              : selected
+                ? 'border-[#0a61d7] bg-white ring-2 ring-[#0a61d7]/25'
+                : 'border-[#e6e6e6] bg-white hover:border-[#0a61d7]/40'
       }`}
     >
       {selected && (
@@ -79,12 +109,16 @@ function WorkflowFlowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNod
 
       <div className="flex items-start gap-2.5">
         <div
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+          className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
             isAgent
               ? 'bg-white/15'
               : isCondition
                 ? 'bg-amber-100 text-amber-700'
-                : 'bg-[#f7faff] text-[#0a61d7]'
+                : isApp
+                  ? 'bg-violet-100 text-violet-700'
+                  : data.kind === 'trigger'
+                    ? 'bg-sky-50 text-[#0a61d7]'
+                    : 'bg-emerald-50 text-emerald-700'
           }`}
         >
           {data.kind === 'trigger' ? (
@@ -92,27 +126,31 @@ function WorkflowFlowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNod
           ) : data.kind === 'agent' ? (
             <Bot className="h-4 w-4" />
           ) : data.kind === 'app' ? (
-            <AppWindow className="h-4 w-4" />
+            data.catalogType === 'app_email' ? (
+              <Mail className="h-4 w-4" />
+            ) : (
+              <AppWindow className="h-4 w-4" />
+            )
           ) : isCondition ? (
             <GitBranch className="h-4 w-4" />
           ) : (
             <Zap className="h-4 w-4" />
           )}
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p
-            className={`text-xs font-semibold ${
+            className={`truncate text-xs font-semibold ${
               isAgent ? 'text-white' : isCondition ? 'text-amber-950' : 'text-black'
             }`}
           >
-            {data.title}
+            {typeDetail}
           </p>
           <p
-            className={`mt-0.5 text-[11px] leading-snug ${
+            className={`mt-0.5 truncate text-[11px] leading-snug ${
               isAgent ? 'text-white/75' : isCondition ? 'text-amber-800/80' : 'text-gray-500'
             }`}
           >
-            {data.subtitle}
+            {kindLabel}
           </p>
         </div>
       </div>

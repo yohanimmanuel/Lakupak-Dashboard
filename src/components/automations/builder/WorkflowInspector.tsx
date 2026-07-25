@@ -1,14 +1,16 @@
 'use client';
 
 import React from 'react';
-import { Trash2, Unplug } from 'lucide-react';
+import { Lightbulb, Trash2, Unplug, X } from 'lucide-react';
 import type { AutomationRun, WorkflowStatus, WorkflowType } from '../automationTypes';
 import { WORKFLOW_TYPES } from '../automationTypes';
-import { getActionsForType, getTriggersForType } from '@/lib/automations/catalog';
+import { getActionsForType, getTriggersForType, defaultConfigForFields } from '@/lib/automations/catalog';
+import type { CatalogField } from '@/lib/automations/catalog';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
 import { BuilderSelect } from './BuilderSelect';
 import type { WorkflowFlowEdge, WorkflowFlowNode } from './canvasTypes';
 import { WorkflowRunsPanel } from './WorkflowRunsPanel';
+import { useBuilderPanelControls } from './WorkflowBuilderShell';
 
 export type WorkflowDraft = {
   name: string;
@@ -22,20 +24,111 @@ export type WorkflowDraft = {
 const fieldClassName =
   'w-full rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-xs text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7]';
 
+function CatalogFieldInput({
+  field,
+  value,
+  onChange,
+  label,
+  optionLabel,
+}: {
+  field: CatalogField;
+  value: unknown;
+  onChange: (next: string | number) => void;
+  label: string;
+  optionLabel: (option: string) => string;
+}) {
+  const selectFallback = field.kind === 'select' ? (field.options?.[0] ?? '') : '';
+  const selectValueMissing =
+    field.kind === 'select' &&
+    (value === undefined || value === null || String(value) === '');
+
+  // Display already falls back to options[0]; persist that once so saves/export see it.
+  React.useEffect(() => {
+    if (!selectValueMissing || !selectFallback) return;
+    onChange(selectFallback);
+  }, [selectValueMissing, selectFallback, onChange]);
+
+  if (field.kind === 'select') {
+    return (
+      <div>
+        <span className="mb-1 block text-xs font-medium text-gray-600">{label}</span>
+        <BuilderSelect
+          aria-label={label}
+          value={String(value ?? selectFallback)}
+          options={(field.options ?? []).map((option) => ({
+            value: option,
+            label: optionLabel(option),
+          }))}
+          onChangeAction={(next) => onChange(next)}
+        />
+      </div>
+    );
+  }
+
+  if (field.kind === 'textarea') {
+    return (
+      <label className="block">
+        <span className="mb-1 block text-xs font-medium text-gray-600">{label}</span>
+        <textarea
+          value={String(value ?? '')}
+          onChange={(e) => onChange(e.target.value)}
+          rows={3}
+          className={fieldClassName}
+        />
+      </label>
+    );
+  }
+
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-medium text-gray-600">{label}</span>
+      <input
+        type={field.kind === 'number' ? 'number' : 'text'}
+        value={String(value ?? '')}
+        onChange={(e) => {
+          if (field.kind !== 'number') return onChange(e.target.value);
+          const raw = e.target.value;
+          if (raw === '') return onChange('');
+          const parsed = Number(raw);
+          if (!Number.isNaN(parsed)) onChange(parsed);
+        }}
+        className={fieldClassName}
+      />
+    </label>
+  );
+}
+
 function PanelCard({
   title,
   hint,
   children,
+  onClose,
+  closeLabel,
 }: {
   title: string;
   hint?: string;
   children: React.ReactNode;
+  onClose?: () => void;
+  closeLabel?: string;
 }) {
   return (
-    <section className="rounded-xl border border-[#e6e6e6] bg-white/95 backdrop-blur-sm">
-      <div className="border-b border-gray-100 px-4 py-3">
-        <h3 className="text-sm font-semibold text-black">{title}</h3>
-        {hint && <p className="mt-0.5 text-xs text-gray-500">{hint}</p>}
+    <section className="min-h-0 max-h-full flex-1 overflow-y-auto rounded-xl border border-[#e6e6e6] bg-white/95 backdrop-blur-sm">
+      <div className="sticky top-0 z-10 flex items-start gap-2 border-b border-gray-100 bg-white/95 px-4 py-3 backdrop-blur-sm">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-sm font-semibold text-black">{title}</h3>
+          {hint && <p className="mt-0.5 text-xs text-gray-500">{hint}</p>}
+        </div>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="-mr-1 shrink-0 rounded-lg p-1 text-gray-500 hover:bg-gray-50 hover:text-black"
+            aria-label={closeLabel}
+            title={closeLabel}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
       </div>
       <div className="space-y-4 px-4 py-4">{children}</div>
     </section>
@@ -55,11 +148,14 @@ export function WorkflowDetailsPanel({
   formError?: string | null;
 }) {
   const { tBuilder, translateType, translateStatus } = useAutomationTranslations();
+  const panelControls = useBuilderPanelControls();
 
   return (
     <PanelCard
       title={tBuilder('workflowDetailsTitle')}
       hint={tBuilder('workflowDetailsHint')}
+      onClose={panelControls?.closeWorkflowDetails}
+      closeLabel={tBuilder('collapseWorkflowDetails')}
     >
       <label className="block">
         <span className="mb-1 block text-xs font-medium text-gray-600">{tBuilder('name')}</span>
@@ -124,6 +220,7 @@ export function StepDetailsPanel({
   onUpdateNodeAction,
   onDeleteNodeAction,
   onDisconnectNodeAction,
+  onCloseAction,
   runs,
 }: {
   draft: WorkflowDraft;
@@ -131,6 +228,7 @@ export function StepDetailsPanel({
   onUpdateNodeAction: (nodeId: string, dataPatch: Partial<WorkflowFlowNode['data']>) => void;
   onDeleteNodeAction?: (nodeId: string) => void;
   onDisconnectNodeAction?: (nodeId: string) => void;
+  onCloseAction?: () => void;
   runs?: AutomationRun[];
 }) {
   const { tBuilder, tFields, translateTrigger, translateAction } = useAutomationTranslations();
@@ -150,8 +248,33 @@ export function StepDetailsPanel({
             : tBuilder('nodeAction')
     : tBuilder('stepDetailsTitle');
 
+  const elementDescription = (() => {
+    if (!selected) return null;
+    if (selected.data.kind === 'trigger') {
+      const key = `triggerHints.${selected.data.catalogType}`;
+      return tBuilder.has(key) ? tBuilder(key) : null;
+    }
+    if (selected.data.kind === 'action') {
+      const key = `actionHints.${selected.data.catalogType}`;
+      return tBuilder.has(key) ? tBuilder(key) : null;
+    }
+    if (selected.data.kind === 'agent') return tBuilder('agentHint');
+    if (selected.data.kind === 'condition') return tBuilder('conditionHint');
+    if (selected.data.kind === 'app') {
+      return selected.data.catalogType === 'app_email'
+        ? tBuilder('appEmailHint')
+        : tBuilder('appWebhookHint');
+    }
+    return null;
+  })();
+
   return (
-    <PanelCard title={stepTitle} hint={tBuilder('stepDetailsHint')}>
+    <PanelCard
+      title={stepTitle}
+      hint={tBuilder('stepDetailsHint')}
+      onClose={onCloseAction}
+      closeLabel={tBuilder('collapseStepDetails')}
+    >
       {!selected ? (
         <p className="text-xs text-gray-500">{tBuilder('selectNodeHint')}</p>
       ) : (
@@ -181,6 +304,16 @@ export function StepDetailsPanel({
             )}
           </div>
 
+          {elementDescription && (
+            <div className="flex items-start gap-2 rounded-lg bg-[#f7faff] px-3 py-2">
+              <Lightbulb
+                className="mt-0.5 h-4 w-4 shrink-0 text-amber-500"
+                aria-hidden
+              />
+              <p className="text-xs leading-relaxed text-gray-600">{elementDescription}</p>
+            </div>
+          )}
+
           {selected.data.kind === 'trigger' && (
             <>
               <div>
@@ -194,37 +327,35 @@ export function StepDetailsPanel({
                     value: t.type,
                     label: translateTrigger(t.type),
                   }))}
-                  onChangeAction={(next) =>
+                  onChangeAction={(next) => {
+                    const def = triggers.find((t) => t.type === next);
                     onUpdateNodeAction(selected.id, {
                       catalogType: next,
-                      subtitle: translateTrigger(next),
-                      config: {},
-                    })
-                  }
+                      config: defaultConfigForFields(def?.fields ?? []),
+                    });
+                  }}
                 />
               </div>
               {triggers
                 .find((t) => t.type === selected.data.catalogType)
                 ?.fields.map((field) => (
-                  <label key={field.key} className="block">
-                    <span className="mb-1 block text-xs font-medium text-gray-600">
-                      {tFields.has(field.key) ? tFields(field.key) : field.key}
-                    </span>
-                    <input
-                      type={field.kind === 'number' ? 'number' : 'text'}
-                      value={String(selected.data.config?.[field.key] ?? '')}
-                      onChange={(e) =>
-                        onUpdateNodeAction(selected.id, {
-                          config: {
-                            ...selected.data.config,
-                            [field.key]:
-                              field.kind === 'number' ? Number(e.target.value) : e.target.value,
-                          },
-                        })
-                      }
-                      className={fieldClassName}
-                    />
-                  </label>
+                  <CatalogFieldInput
+                    key={field.key}
+                    field={field}
+                    value={selected.data.config?.[field.key]}
+                    label={tFields.has(field.key) ? tFields(field.key) : field.key}
+                    optionLabel={(option) =>
+                      tFields.has(`options.${option}`) ? tFields(`options.${option}`) : option
+                    }
+                    onChange={(next) =>
+                      onUpdateNodeAction(selected.id, {
+                        config: {
+                          ...selected.data.config,
+                          [field.key]: next,
+                        },
+                      })
+                    }
+                  />
                 ))}
             </>
           )}
@@ -245,7 +376,6 @@ export function StepDetailsPanel({
                 className={fieldClassName}
                 placeholder={tBuilder('agentNotePlaceholder')}
               />
-              <p className="mt-2 text-xs text-gray-500">{tBuilder('agentHint')}</p>
             </label>
           )}
 
@@ -262,62 +392,56 @@ export function StepDetailsPanel({
                     value: a.type,
                     label: translateAction(a.type),
                   }))}
-                  onChangeAction={(next) =>
+                  onChangeAction={(next) => {
+                    const def = actions.find((a) => a.type === next);
                     onUpdateNodeAction(selected.id, {
                       catalogType: next,
-                      subtitle: translateAction(next),
-                      config: next === 'notify_dashboard' ? { message: '' } : {},
-                    })
-                  }
+                      config: defaultConfigForFields(def?.fields ?? []),
+                    });
+                  }}
                 />
               </div>
               {actions
                 .find((a) => a.type === selected.data.catalogType)
                 ?.fields.map((field) => (
-                  <label key={field.key} className="block">
-                    <span className="mb-1 block text-xs font-medium text-gray-600">
-                      {tFields.has(field.key) ? tFields(field.key) : field.key}
-                    </span>
-                    <input
-                      type={field.kind === 'number' ? 'number' : 'text'}
-                      value={String(selected.data.config?.[field.key] ?? '')}
-                      onChange={(e) =>
-                        onUpdateNodeAction(selected.id, {
-                          config: {
-                            ...selected.data.config,
-                            [field.key]:
-                              field.kind === 'number' ? Number(e.target.value) : e.target.value,
-                          },
-                        })
-                      }
-                      className={fieldClassName}
-                    />
-                  </label>
+                  <CatalogFieldInput
+                    key={field.key}
+                    field={field}
+                    value={selected.data.config?.[field.key]}
+                    label={tFields.has(field.key) ? tFields(field.key) : field.key}
+                    optionLabel={(option) =>
+                      tFields.has(`options.${option}`) ? tFields(`options.${option}`) : option
+                    }
+                    onChange={(next) =>
+                      onUpdateNodeAction(selected.id, {
+                        config: {
+                          ...selected.data.config,
+                          [field.key]: next,
+                        },
+                      })
+                    }
+                  />
                 ))}
             </>
           )}
 
           {selected.data.kind === 'condition' && (
-            <>
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-gray-600">
-                  {tBuilder('conditionExpression')}
-                </span>
-                <textarea
-                  value={String(selected.data.config?.expression ?? '')}
-                  onChange={(e) =>
-                    onUpdateNodeAction(selected.id, {
-                      config: { ...selected.data.config, expression: e.target.value },
-                      subtitle: e.target.value.trim() || tBuilder('conditionSubtitle'),
-                    })
-                  }
-                  rows={2}
-                  className={fieldClassName}
-                  placeholder={tBuilder('conditionExpressionPlaceholder')}
-                />
-              </label>
-              <p className="text-xs text-gray-500">{tBuilder('conditionHint')}</p>
-            </>
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-gray-600">
+                {tBuilder('conditionExpression')}
+              </span>
+              <textarea
+                value={String(selected.data.config?.expression ?? '')}
+                onChange={(e) =>
+                  onUpdateNodeAction(selected.id, {
+                    config: { ...selected.data.config, expression: e.target.value },
+                  })
+                }
+                rows={2}
+                className={fieldClassName}
+                placeholder={tBuilder('conditionExpressionPlaceholder')}
+              />
+            </label>
           )}
 
           {selected.data.kind === 'app' && (

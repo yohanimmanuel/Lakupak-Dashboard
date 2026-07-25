@@ -10,7 +10,7 @@ import {
   type WorkflowDraft,
 } from '@/components/automations/builder/WorkflowInspector';
 import {
-  createDefaultCanvas,
+  createLegacyFlatCanvas,
   deriveFlatFieldsFromCanvas,
   packAgentConfig,
   unpackCanvasFromAgentConfig,
@@ -161,48 +161,25 @@ function DetailsInner() {
         nodes = unpacked.nodes;
         edges = unpacked.edges;
       } else {
-        const canvas = createDefaultCanvas(type, {
-          triggerTitle: tBuilder('nodeTrigger'),
-          triggerSubtitle: translateTrigger(w.triggerType),
-          agentTitle: tBuilder('nodeAgent'),
-          agentSubtitle: tBuilder('agentSubtitle'),
-          actionTitle: tBuilder('nodeAction'),
-          actionSubtitle: translateAction(w.actionType),
-        });
-        nodes = canvas.nodes.map((n) => {
-          if (n.data.kind === 'trigger') {
-            return {
-              ...n,
-              data: {
-                ...n.data,
-                catalogType: w.triggerType,
-                subtitle: translateTrigger(w.triggerType),
-                config: asRecord(w.triggerConfig),
-              },
-            };
-          }
-          if (n.data.kind === 'action') {
-            return {
-              ...n,
-              data: {
-                ...n.data,
-                catalogType: w.actionType,
-                subtitle: translateAction(w.actionType),
-                config: asRecord(w.actionConfig),
-              },
-            };
-          }
-          if (n.data.kind === 'agent') {
-            return {
-              ...n,
-              data: {
-                ...n.data,
-                config: { note: String(agentConfig.note ?? '') },
-              },
-            };
-          }
-          return n;
-        });
+        const canvas = createLegacyFlatCanvas(
+          type,
+          {
+            triggerTitle: tBuilder('nodeTrigger'),
+            triggerSubtitle: translateTrigger(w.triggerType),
+            agentTitle: tBuilder('nodeAgent'),
+            agentSubtitle: tBuilder('nodeAgent'),
+            actionTitle: tBuilder('nodeAction'),
+            actionSubtitle: translateAction(w.actionType),
+          },
+          {
+            triggerType: w.triggerType,
+            triggerConfig: asRecord(w.triggerConfig),
+            actionType: w.actionType,
+            actionConfig: asRecord(w.actionConfig),
+            agentNote: String(agentConfig.note ?? ''),
+          },
+        );
+        nodes = canvas.nodes;
         edges = canvas.edges;
       }
 
@@ -295,12 +272,12 @@ function DetailsInner() {
   const save = async (
     statusOverride?: 'draft' | 'active',
     opts?: { manageSaving?: boolean },
-  ) => {
-    if (!user?.id || !id || !draft) return;
+  ): Promise<boolean> => {
+    if (!user?.id || !id || !draft) return false;
     if (!draft.name.trim()) {
       setNameError(tBuilder('nameRequired'));
       setFormError(null);
-      return;
+      return false;
     }
     const manageSaving = opts?.manageSaving !== false;
     if (manageSaving) setSaving(true);
@@ -320,16 +297,16 @@ function DetailsInner() {
         actionType: flat.actionType,
         actionConfig: flat.actionConfig,
       });
-      if (statusOverride === 'draft') {
-        window.location.reload();
-        return;
-      }
       if (statusOverride) {
         setDraft((prev) => (prev ? { ...prev, status: statusOverride } : prev));
       }
+      // Refresh runs/metadata in place — do not full-reload (that remounts the
+      // builder and clears the "Saved just now" indicator).
       await load({ silent: true });
+      return true;
     } catch (e) {
       setFormError(e instanceof Error ? e.message : tBuilder('saveFailed'));
+      return false;
     } finally {
       if (manageSaving) setSaving(false);
     }
@@ -422,6 +399,7 @@ function DetailsInner() {
           />
         </>
       }
+      rightPanelOpen={selectedNodeId !== null}
       rightPanel={
         <StepDetailsPanel
           draft={draft}
@@ -429,6 +407,7 @@ function DetailsInner() {
           onUpdateNodeAction={updateNode}
           onDeleteNodeAction={deleteNode}
           onDisconnectNodeAction={disconnectNode}
+          onCloseAction={() => setSelectedNodeId(null)}
           runs={runs}
         />
       }

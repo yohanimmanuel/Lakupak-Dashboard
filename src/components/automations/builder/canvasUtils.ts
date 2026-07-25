@@ -3,15 +3,52 @@ import { getDefaultAction, getDefaultTrigger } from '@/lib/automations/catalog';
 import type { WorkflowFlowEdge, WorkflowFlowNode, WorkflowNodeData } from './canvasTypes';
 import { CANVAS_STORAGE_KEY, DEFAULT_EDGE_TYPE, newNodeId } from './canvasTypes';
 
+type CanvasLabels = {
+  triggerTitle: string;
+  triggerSubtitle: string;
+  agentTitle: string;
+  agentSubtitle: string;
+  actionTitle: string;
+  actionSubtitle: string;
+};
+
+/** New workflows start with only the Laku Agent node — users add triggers/actions from the canvas. */
 export function createDefaultCanvas(
+  _type: WorkflowType,
+  labels: CanvasLabels,
+): { nodes: WorkflowFlowNode[]; edges: WorkflowFlowEdge[] } {
+  const agentId = newNodeId('agent');
+
+  return {
+    nodes: [
+      {
+        id: agentId,
+        type: 'workflow',
+        position: { x: 280, y: 200 },
+        data: {
+          kind: 'agent',
+          catalogType: 'laku_agent',
+          name: '',
+          title: labels.agentTitle,
+          subtitle: labels.agentSubtitle,
+          config: { note: '' },
+        },
+      },
+    ],
+    edges: [],
+  };
+}
+
+/** Rebuild a simple linear canvas for older workflows that only stored flat trigger/action fields. */
+export function createLegacyFlatCanvas(
   type: WorkflowType,
-  labels: {
-    triggerTitle: string;
-    triggerSubtitle: string;
-    agentTitle: string;
-    agentSubtitle: string;
-    actionTitle: string;
-    actionSubtitle: string;
+  labels: CanvasLabels,
+  flat?: {
+    triggerType?: string;
+    triggerConfig?: Record<string, unknown>;
+    actionType?: string;
+    actionConfig?: Record<string, unknown>;
+    agentNote?: string;
   },
 ): { nodes: WorkflowFlowNode[]; edges: WorkflowFlowEdge[] } {
   const trigger = getDefaultTrigger(type);
@@ -27,10 +64,11 @@ export function createDefaultCanvas(
       position: { x: 280, y: 40 },
       data: {
         kind: 'trigger',
-        catalogType: trigger.triggerType,
-        title: labels.triggerTitle,
-        subtitle: labels.triggerSubtitle,
-        config: trigger.triggerConfig,
+        catalogType: flat?.triggerType ?? trigger.triggerType,
+        name: '',
+        title: labels.triggerSubtitle,
+        subtitle: labels.triggerTitle,
+        config: flat?.triggerConfig ?? trigger.triggerConfig,
       },
     },
     {
@@ -40,9 +78,10 @@ export function createDefaultCanvas(
       data: {
         kind: 'agent',
         catalogType: 'laku_agent',
+        name: '',
         title: labels.agentTitle,
         subtitle: labels.agentSubtitle,
-        config: { note: '' },
+        config: { note: flat?.agentNote ?? '' },
       },
     },
     {
@@ -51,10 +90,11 @@ export function createDefaultCanvas(
       position: { x: 280, y: 360 },
       data: {
         kind: 'action',
-        catalogType: action.actionType,
-        title: labels.actionTitle,
-        subtitle: labels.actionSubtitle,
-        config: action.actionConfig,
+        catalogType: flat?.actionType ?? action.actionType,
+        name: '',
+        title: labels.actionSubtitle,
+        subtitle: labels.actionTitle,
+        config: flat?.actionConfig ?? action.actionConfig,
       },
     },
   ];
@@ -140,7 +180,10 @@ export function unpackCanvasFromAgentConfig(
       id: n.id,
       type: n.type ?? 'workflow',
       position: n.position,
-      data: n.data,
+      data: {
+        ...n.data,
+        name: typeof n.data?.name === 'string' ? n.data.name : '',
+      },
     })),
     edges: (canvas.edges ?? []).map((e) => ({
       id: e.id,
@@ -168,7 +211,7 @@ export function deriveFlatFieldsFromCanvas(nodes: WorkflowFlowNode[]) {
   return {
     triggerType: trigger?.data.catalogType ?? 'stock_below',
     triggerConfig: trigger?.data.config ?? {},
-    actionType: action?.data.catalogType ?? 'notify_dashboard',
+    actionType: action?.data.catalogType ?? getDefaultAction('product_offers').actionType,
     actionConfig: action?.data.config ?? {},
     agentNote: String(agent?.data.config?.note ?? ''),
   };

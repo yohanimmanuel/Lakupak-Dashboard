@@ -6,6 +6,8 @@ export type FlowNodeKind = BuilderNodeKind | 'app' | 'condition';
 export type WorkflowNodeData = {
   kind: FlowNodeKind;
   catalogType: string;
+  /** Custom display name shown on the canvas card. */
+  name: string;
   title: string;
   subtitle: string;
   config: Record<string, unknown>;

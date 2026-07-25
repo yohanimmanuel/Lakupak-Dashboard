@@ -61,18 +61,18 @@ function buildInitialDraft(
 export default function NewAutomationPage() {
   const router = useRouter();
   const user = useUserStore((s) => s.user);
-  const { tBuilder, translateTrigger, translateAction } = useAutomationTranslations();
+  const { tBuilder } = useAutomationTranslations();
 
   const labels = useMemo(
     () => ({
       triggerTitle: tBuilder('nodeTrigger'),
-      triggerSubtitle: translateTrigger('stock_below'),
+      triggerSubtitle: tBuilder('nodeTrigger'),
       agentTitle: tBuilder('nodeAgent'),
-      agentSubtitle: tBuilder('agentSubtitle'),
+      agentSubtitle: tBuilder('nodeAgent'),
       actionTitle: tBuilder('nodeAction'),
-      actionSubtitle: translateAction('notify_dashboard'),
+      actionSubtitle: tBuilder('nodeAction'),
     }),
-    [tBuilder, translateAction, translateTrigger],
+    [tBuilder],
   );
 
   const [draft, setDraft] = useState<WorkflowDraft>(() => buildInitialDraft(labels));
@@ -113,12 +113,12 @@ export default function NewAutomationPage() {
     }));
   };
 
-  const save = async (status: 'draft' | 'active') => {
-    if (!user?.id) return;
+  const save = async (status: 'draft' | 'active'): Promise<boolean> => {
+    if (!user?.id) return false;
     if (!draft.name.trim()) {
       setNameError(tBuilder('nameRequired'));
       setFormError(null);
-      return;
+      return false;
     }
     setSaving(true);
     setNameError(null);
@@ -141,11 +141,13 @@ export default function NewAutomationPage() {
       );
       if (status === 'draft') {
         window.location.href = `/automation/details?id=${result.createAutomationWorkflow.id}`;
-        return;
+        return true;
       }
       router.push(`/automation/details?id=${result.createAutomationWorkflow.id}`);
+      return true;
     } catch (e) {
       setFormError(e instanceof Error ? e.message : tBuilder('saveFailed'));
+      return false;
     } finally {
       setSaving(false);
     }
@@ -177,6 +179,7 @@ export default function NewAutomationPage() {
           formError={formError}
         />
       }
+      rightPanelOpen={selectedNodeId !== null}
       rightPanel={
         <StepDetailsPanel
           draft={draft}
@@ -184,6 +187,7 @@ export default function NewAutomationPage() {
           onUpdateNodeAction={updateNode}
           onDeleteNodeAction={deleteNode}
           onDisconnectNodeAction={disconnectNode}
+          onCloseAction={() => setSelectedNodeId(null)}
         />
       }
     />

@@ -769,7 +769,7 @@
       },
       "enterprise": {
         "name": "Enterprise",
-        "description": "Large regional or national coverage with SLA and onboarding"
+        "description": "Regional or national coverage with SLA and onboarding"
       }
     },
     "quotaBullets": {

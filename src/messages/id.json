@@ -752,7 +752,7 @@
       "from": "Mulai",
       "includes": "Paket {name} mencakup:",
       "priceHint": "Jeda atau batalkan kapan saja",
-      "enterpriseHint": "Ketentuan kustom dan dukungan khusus"
+      "enterpriseHint": "Dukungan kustom"
     },
     "tiers": {
       "starter": {
@@ -769,7 +769,7 @@
       },
       "enterprise": {
         "name": "Enterprise",
-        "description": "Cakupan regional atau nasional besar dengan SLA dan onboarding"
+        "description": "Regional atau nasional besar dengan SLA dan onboarding"
       }
     },
     "quotaBullets": {
