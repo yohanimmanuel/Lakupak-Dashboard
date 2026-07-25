@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Bolt, Bot, GitBranch, MessageSquare, Zap } from 'lucide-react';
+import { Bolt, Bot, GitBranch, Zap } from 'lucide-react';
 import type { WorkflowType } from '../automationTypes';
 import {
   defaultConfigForFields,
@@ -33,9 +33,21 @@ type PickerSection = {
 };
 
 const FRAME_MARGIN = 12;
+/** Clear the dashboard header (4rem) so the fixed picker is not clipped underneath. */
+const FRAME_TOP = 125 + FRAME_MARGIN;
 const CARD_WIDTH = 320;
 const PREFERRED_MAX_HEIGHT = 420;
 const MIN_VISIBLE_HEIGHT = 140;
+
+function WhatsAppIcon({ className }: { className?: string }) {
+  return (
+    <img src="/whatsapp.svg" alt="" className={className} width={16} height={16} />
+  );
+}
+
+function GmailIcon({ className }: { className?: string }) {
+  return <img src="/gmail.svg" alt="" className={className} width={16} height={16} />;
+}
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(Math.max(n, min), max);
@@ -46,7 +58,7 @@ function computePlacement(screenX: number, screenY: number, measuredHeight?: num
   const vh = window.innerHeight;
   const frameLeft = FRAME_MARGIN;
   const frameRight = vw - FRAME_MARGIN;
-  const frameTop = FRAME_MARGIN;
+  const frameTop = FRAME_TOP;
   const frameBottom = vh - FRAME_MARGIN;
   const frameWidth = Math.max(0, frameRight - frameLeft);
 
@@ -91,7 +103,7 @@ export function NodeAddMenu({
   // Avoid window access during SSR; useLayoutEffect sets the real placement on the client.
   const [placement, setPlacement] = useState({
     left: FRAME_MARGIN,
-    top: FRAME_MARGIN,
+    top: FRAME_TOP,
     width: CARD_WIDTH,
     maxHeight: PREFERRED_MAX_HEIGHT,
   });
@@ -173,7 +185,7 @@ export function NodeAddMenu({
           subtitle: tBuilder('nodeApp'),
           description: tBuilder('appWebhookHint'),
           config: { url: '' },
-          icon: <MessageSquare className="h-4 w-4 shrink-0 text-[#0a61d7]" />,
+          icon: <WhatsAppIcon className="h-4 w-4 shrink-0" />,
         },
         {
           kind: 'app' as const,
@@ -183,7 +195,7 @@ export function NodeAddMenu({
           subtitle: tBuilder('nodeApp'),
           description: tBuilder('appEmailHint'),
           config: { to: '' },
-          icon: <MessageSquare className="h-4 w-4 shrink-0 text-[#0a61d7]" />,
+          icon: <GmailIcon className="h-4 w-4 shrink-0" />,
         },
       ],
     },
@@ -243,7 +255,15 @@ export function NodeAddMenu({
                     onClick={() => onPickAction(item)}
                     className="flex w-full items-start gap-2.5 rounded-lg px-2 py-2 text-left hover:bg-[#f7faff]"
                   >
-                    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#f0f6ff]">
+                    <span
+                      className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                        item.catalogType === 'app_webhook'
+                          ? 'bg-[#25D366]'
+                          : item.catalogType === 'app_email'
+                            ? 'bg-white ring-1 ring-[#e6e6e6]'
+                            : 'bg-[#f0f6ff]'
+                      }`}
+                    >
                       {item.icon}
                     </span>
                     <span className="min-w-0 flex-1">

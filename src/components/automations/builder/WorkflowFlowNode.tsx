@@ -2,7 +2,7 @@
 
 import React, { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { AppWindow, Bolt, Bot, GitBranch, Mail, Trash2, Unplug, Zap } from 'lucide-react';
+import { Bolt, Bot, GitBranch, Trash2, Unplug, Zap } from 'lucide-react';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
 import type { WorkflowFlowNode } from './canvasTypes';
 
@@ -115,8 +115,10 @@ function WorkflowFlowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNod
               : isCondition
                 ? 'bg-amber-100 text-amber-700'
                 : isApp
-                  ? 'bg-violet-100 text-violet-700'
-                  : data.kind === 'trigger'
+                ? data.catalogType === 'app_webhook'
+                  ? 'bg-[#25D366] text-white'
+                  : 'bg-white ring-1 ring-violet-100'
+                : data.kind === 'trigger'
                     ? 'bg-sky-50 text-[#0a61d7]'
                     : 'bg-emerald-50 text-emerald-700'
           }`}
@@ -127,9 +129,9 @@ function WorkflowFlowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNod
             <Bot className="h-4 w-4" />
           ) : data.kind === 'app' ? (
             data.catalogType === 'app_email' ? (
-              <Mail className="h-4 w-4" />
+              <img src="/gmail.svg" alt="" className="h-4 w-4" width={16} height={16} />
             ) : (
-              <AppWindow className="h-4 w-4" />
+              <img src="/whatsapp.svg" alt="" className="h-4 w-4" width={16} height={16} />
             )
           ) : isCondition ? (
             <GitBranch className="h-4 w-4" />
