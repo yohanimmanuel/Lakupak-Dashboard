@@ -32,7 +32,7 @@ export type ActionType =
 
 export type CatalogField = {
   key: string;
-  kind: 'number' | 'text' | 'textarea' | 'select';
+  kind: 'number' | 'text' | 'textarea' | 'select' | 'buyer';
   options?: string[];
 };
 
@@ -105,7 +105,7 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
     {
       type: 'whatsapp_buyer',
       fields: [
-        { key: 'buyerId', kind: 'text' },
+        { key: 'buyerId', kind: 'buyer' },
         { key: 'messageTemplate', kind: 'textarea' },
       ],
     },

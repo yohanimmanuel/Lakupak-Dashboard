@@ -184,7 +184,7 @@ export function NodeAddMenu({
           title: tBuilder('appWebhook'),
           subtitle: tBuilder('nodeApp'),
           description: tBuilder('appWebhookHint'),
-          config: { url: '' },
+          config: { connected: false },
           icon: <WhatsAppIcon className="h-4 w-4 shrink-0" />,
         },
         {
@@ -194,7 +194,7 @@ export function NodeAddMenu({
           title: tBuilder('appEmail'),
           subtitle: tBuilder('nodeApp'),
           description: tBuilder('appEmailHint'),
-          config: { to: '' },
+          config: { connected: false },
           icon: <GmailIcon className="h-4 w-4 shrink-0" />,
         },
       ],

@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useRef, useLayoutEffect, useCallback } from "react";
+import React, { useState, useRef, useLayoutEffect, useCallback, useEffect } from "react";
 import { useRouter } from 'next/navigation';
 import { Search, Edit, Filter, Calendar, ChevronDown, ChevronLeft, ChevronRight, Trash, Trash2, Users, AlertCircle, Loader2 } from "lucide-react";
 import * as XLSX from 'xlsx';
@@ -119,6 +119,10 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
   const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [statusUpdateError, setStatusUpdateError] = useState('');
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
 
   const handleDeleteClick = (supplier: SupplierTableRow) => {
     setSupplierToDelete(supplier);
@@ -240,6 +244,79 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
     setIsBulkDelete(true);
     setShowDeleteModal(true);
   };
+
+  const BULK_STATUS_OPTIONS = ['Active', 'Inactive', 'Blocked'] as const;
+
+  const handleBulkStatusUpdate = useCallback(
+    async (status: (typeof BULK_STATUS_OPTIONS)[number]) => {
+      if (!user?.id || selectedSuppliers.length === 0) return;
+
+      setIsUpdatingStatus(true);
+      setStatusUpdateError('');
+      setShowStatusDropdown(false);
+
+      const UPDATE_SUPPLIER_STATUS_MUTATION = `
+        mutation UpdateSupplier($userId: Int!, $supplierId: String!, $status: String!) {
+          updateSupplier(userId: $userId, supplierId: $supplierId, status: $status) {
+            id
+            supplierId
+            status
+          }
+        }
+      `;
+
+      try {
+        const targets = selectedSuppliers
+          .map((id) => tableRows.find((s) => String(s.id) === id))
+          .filter((s): s is SupplierTableRow => Boolean(s));
+
+        const results = await Promise.allSettled(
+          targets.map((supplier) =>
+            fetchGraphQL(UPDATE_SUPPLIER_STATUS_MUTATION, {
+              userId: user.id,
+              supplierId: supplier.supplierId,
+              status,
+            }),
+          ),
+        );
+        const updatedIds = new Set(
+          results.flatMap((result, index) =>
+            result.status === 'fulfilled' ? [String(targets[index].id)] : [],
+          ),
+        );
+
+        setSuppliers?.((prev) =>
+          prev.map((supplier) =>
+            updatedIds.has(String(supplier.id))
+              ? { ...supplier, status }
+              : supplier,
+          ),
+        );
+        setSelectedSuppliers([]);
+
+        if (onRefresh) onRefresh();
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : tShared('selection.bulkStatusFailed');
+        setStatusUpdateError(errorMessage);
+      } finally {
+        setIsUpdatingStatus(false);
+      }
+    },
+    [user?.id, selectedSuppliers, filteredSuppliers, setSuppliers, onRefresh, tShared],
+  );
+
+  useEffect(() => {
+    if (!showStatusDropdown) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (!statusDropdownRef.current?.contains(event.target as Node)) {
+        setShowStatusDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [showStatusDropdown]);
+
   const handleExportXLSX = () => {
     const headers = ['ID', 'Name', 'Contact Person', 'Business Type', 'Location', 'Total Purchases', 'No. SKU Supplied', 'Created At', 'Status'];
     const rows = filteredSuppliers.map((s: SupplierTableRow) => [
@@ -374,7 +451,10 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
 
       {/* Bulk Action Bar */}
       {selectedSuppliers.length > 0 && (
-        <div className="bg-white border border-[#e6e6e6] border-l-4 border-l-green-500 rounded-lg p-3 md:p-4 mb-2 shadow-sm">
+        <div
+          ref={statusDropdownRef}
+          className="bg-white border border-[#e6e6e6] border-l-4 border-l-green-500 rounded-lg p-3 md:p-4 mb-2 shadow-sm"
+        >
           {/* Mobile Layout */}
           <div className="md:hidden space-y-3">
             <div className="flex items-center justify-between">
@@ -386,12 +466,58 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
             </div>
             <div className="text-gray-600 text-xs font-semibold leading-relaxed">
               {selectedSuppliers.length === 1
-                ? tShared('selection.selectSupplierRemove')
-                : tShared('selection.selectSuppliersRemove')}
+                ? tShared('selection.selectSupplierActions')
+                : tShared('selection.selectSuppliersActions')}
+            </div>
+            {statusUpdateError && (
+              <p className="text-xs font-medium text-red-600">{statusUpdateError}</p>
+            )}
+            <div className="relative">
+              <button
+                type="button"
+                disabled={isUpdatingStatus}
+                onClick={() => setShowStatusDropdown((open) => !open)}
+                className="mb-2 flex w-full items-center justify-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-gray-50 disabled:opacity-50"
+                aria-haspopup="listbox"
+                aria-expanded={showStatusDropdown}
+              >
+                {isUpdatingStatus ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+                {isUpdatingStatus
+                  ? tShared('selection.updatingStatus')
+                  : tShared('selection.updateStatus')}
+              </button>
+              {showStatusDropdown && !isUpdatingStatus && (
+                <div className="absolute bottom-full left-0 right-0 z-30 mb-2 overflow-hidden rounded-lg border border-[#e6e6e6] bg-white shadow-lg">
+                  {BULK_STATUS_OPTIONS.map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() => void handleBulkStatusUpdate(status)}
+                      className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      <span
+                        className={`inline-block h-2 w-2 rounded-full ${
+                          status === 'Active'
+                            ? 'bg-green-500'
+                            : status === 'Blocked'
+                              ? 'bg-red-500'
+                              : 'bg-gray-400'
+                        }`}
+                      />
+                      {translateStatus(status)}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <button
               onClick={handleBulkRemove}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
+              disabled={isUpdatingStatus}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
             >
               <Trash className="w-4 h-4" />
               {selectedSuppliers.length === 1 ? tShared('selection.removeSupplier') : tShared('selection.removeSuppliers')}
@@ -399,21 +525,69 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
           </div>
           
           {/* Desktop Layout */}
-          <div className="hidden md:flex items-center justify-between">
-            <span className="text-sm font-semibold text-green-700">
-              {selectedSuppliers.length === 1
-                ? tShared('selection.supplierSelected', { count: selectedSuppliers.length })
-                : tShared('selection.suppliersSelected', { count: selectedSuppliers.length })}
-            </span>
-            <div className="flex items-center gap-4">
-              <span className="text-gray-600 text-xs md:text-sm font-semibold">
+          <div className="hidden md:flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <span className="text-sm font-semibold text-green-700">
                 {selectedSuppliers.length === 1
-                  ? tShared('selection.selectSupplierRemove')
-                  : tShared('selection.selectSuppliersRemove')}
+                  ? tShared('selection.supplierSelected', { count: selectedSuppliers.length })
+                  : tShared('selection.suppliersSelected', { count: selectedSuppliers.length })}
               </span>
+              <p className="mt-0.5 text-xs font-semibold text-gray-600">
+                {selectedSuppliers.length === 1
+                  ? tShared('selection.selectSupplierActions')
+                  : tShared('selection.selectSuppliersActions')}
+              </p>
+              {statusUpdateError && (
+                <p className="mt-1 text-xs font-medium text-red-600">{statusUpdateError}</p>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <div className="relative">
+                <button
+                  type="button"
+                  disabled={isUpdatingStatus}
+                  onClick={() => setShowStatusDropdown((open) => !open)}
+                  className="inline-flex items-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-gray-50 disabled:opacity-50"
+                  aria-haspopup="listbox"
+                  aria-expanded={showStatusDropdown}
+                >
+                  {isUpdatingStatus ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                  {isUpdatingStatus
+                    ? tShared('selection.updatingStatus')
+                    : tShared('selection.updateStatus')}
+                </button>
+                {showStatusDropdown && !isUpdatingStatus && (
+                  <div className="absolute right-0 z-30 mt-2 w-44 overflow-hidden rounded-lg border border-[#e6e6e6] bg-white shadow-lg">
+                    {BULK_STATUS_OPTIONS.map((status) => (
+                      <button
+                        key={status}
+                        type="button"
+                        onClick={() => void handleBulkStatusUpdate(status)}
+                        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        <span
+                          className={`inline-block h-2 w-2 rounded-full ${
+                            status === 'Active'
+                              ? 'bg-green-500'
+                              : status === 'Blocked'
+                                ? 'bg-red-500'
+                                : 'bg-gray-400'
+                          }`}
+                        />
+                        {translateStatus(status)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button
                 onClick={handleBulkRemove}
-                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
+                disabled={isUpdatingStatus}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
               >
                 <Trash className="w-4 h-4" />
                 {selectedSuppliers.length === 1 ? tShared('selection.removeSupplier') : tShared('selection.removeSuppliers')}
@@ -424,13 +598,14 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
       )}
 
       
-      {/* Missing Data Indicator - Only show when there's missing data */}
+      {/* Missing Data Indicator - count across all filtered suppliers, not only this page */}
       {(() => {
-        // Get the original supplier data for the current page
-        const currentPageSupplierIds = pagedSuppliers.map(s => s.supplierId);
-        const currentPageOriginalSuppliers = suppliers.filter(s => currentPageSupplierIds.includes(s.supplierId));
-        
-        const missingDataCount = currentPageOriginalSuppliers.filter(supplier => {
+        const filteredSupplierIds = filteredSuppliers.map((s) => s.supplierId);
+        const filteredOriginalSuppliers = suppliers.filter((s) =>
+          filteredSupplierIds.includes(s.supplierId),
+        );
+
+        const missingDataCount = filteredOriginalSuppliers.filter((supplier) => {
           // Check all profile fields for missing data
           const basicFields = [
             !String(supplier.name).trim(),

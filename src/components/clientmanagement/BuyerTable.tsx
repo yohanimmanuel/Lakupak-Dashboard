@@ -25,9 +25,31 @@ interface BuyerTableProps {
   onExportXLSX?: (wb: XLSX.WorkBook, filename: string) => void;
   profileToTableRow: (buyer: Buyer) => BuyerTableRow;
   onRefresh?: () => void;
+  /**
+   * Automation / picker modal: multi-select with checkboxes, bulk status,
+   * and confirm via onConfirmPickerSelection (delete is hidden).
+   */
+  pickerMode?: boolean;
+  pickerSelectLabel?: string;
+  pickerConfirmLabel?: string;
+  onConfirmPickerSelection?: (buyers: Buyer[]) => void;
+  /** Business buyerIds to pre-check when opening in pickerMode. */
+  initialSelectedBuyerIds?: string[];
 }
 
-export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onExportXLSX, profileToTableRow, onRefresh }: BuyerTableProps) {
+export default function BuyerTable({
+  buyers = [],
+  setBuyers,
+  onSelectBuyer,
+  onExportXLSX,
+  profileToTableRow,
+  onRefresh,
+  pickerMode = false,
+  pickerSelectLabel = 'Select',
+  pickerConfirmLabel = 'Use selected',
+  onConfirmPickerSelection,
+  initialSelectedBuyerIds,
+}: BuyerTableProps) {
   const user = useUserStore(state => state.user);
   const router = useRouter();
   const { tShared, tBuyers, translateStatus, translateStatusTab, translateFilter, translatePeriod } = useClientsTranslations();
@@ -49,6 +71,27 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
   const [selectedBuyers, setSelectedBuyers] = useState<string[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [statusUpdateError, setStatusUpdateError] = useState('');
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
+  const pickerSeededRef = useRef(false);
+
+  // Restore previously picked buyers when the automation picker opens.
+  useEffect(() => {
+    if (!pickerMode) {
+      pickerSeededRef.current = false;
+      return;
+    }
+    if (pickerSeededRef.current || buyers.length === 0) return;
+    if (initialSelectedBuyerIds && initialSelectedBuyerIds.length > 0) {
+      const ids = buyers
+        .filter((b) => initialSelectedBuyerIds.includes(b.buyerId))
+        .map((b) => String(b.id));
+      setSelectedBuyers(ids);
+    }
+    pickerSeededRef.current = true;
+  }, [pickerMode, buyers, initialSelectedBuyerIds]);
   
   // Enhanced refs
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -223,8 +266,24 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
     if ((event.target as HTMLElement).closest('button') || (event.target as HTMLElement).closest('th')) {
       return;
     }
+    // Picker and normal table both multi-select via checkboxes.
     handleBuyerSelect(buyerId);
   }, [handleBuyerSelect]);
+
+  const handlePickBuyer = useCallback(
+    (row: BuyerTableRow) => {
+      handleBuyerSelect(String(row.id));
+    },
+    [handleBuyerSelect],
+  );
+
+  const handleConfirmPickerSelection = useCallback(() => {
+    if (!onConfirmPickerSelection || selectedBuyers.length === 0) return;
+    const picked = selectedBuyers
+      .map((id) => buyers.find((b) => String(b.id) === id))
+      .filter((b): b is Buyer => Boolean(b));
+    onConfirmPickerSelection(picked);
+  }, [onConfirmPickerSelection, selectedBuyers, buyers]);
 
   // Check if all filtered buyers are selected (not just current page)
   const allFilteredBuyerIds = React.useMemo(() => 
@@ -258,6 +317,75 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
     setIsBulkDelete(true);
     setShowDeleteModal(true);
   }, []);
+
+  const BULK_STATUS_OPTIONS = ['Active', 'Inactive', 'Blocked'] as const;
+
+  const handleBulkStatusUpdate = useCallback(
+    async (status: (typeof BULK_STATUS_OPTIONS)[number]) => {
+      if (!user?.id || selectedBuyers.length === 0) return;
+
+      setIsUpdatingStatus(true);
+      setStatusUpdateError('');
+      setShowStatusDropdown(false);
+
+      const UPDATE_BUYER_STATUS_MUTATION = `
+        mutation UpdateBuyer($userId: Int!, $buyerId: String!, $status: String!) {
+          updateBuyer(userId: $userId, buyerId: $buyerId, status: $status) {
+            id
+            buyerId
+            status
+          }
+        }
+      `;
+
+      try {
+        const targets = selectedBuyers
+          .map((id) => filteredBuyers.find((b) => String(b.id) === id))
+          .filter((b): b is BuyerTableRow => Boolean(b));
+
+        const results = await Promise.allSettled(
+          targets.map((buyer) =>
+            fetchGraphQL(UPDATE_BUYER_STATUS_MUTATION, {
+              userId: user.id,
+              buyerId: buyer.buyerId,
+              status,
+            }).then(() => buyer.buyerId),
+          ),
+        );
+        const updatedIds = new Set(
+          results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : [])),
+        );
+        setBuyers?.((prev) =>
+          prev.map((buyer) => (updatedIds.has(buyer.buyerId) ? { ...buyer, status } : buyer)),
+        );
+        const failed = results.length - updatedIds.size;
+        if (failed > 0) setStatusUpdateError(tShared('selection.bulkStatusFailed'));
+
+        // Keep selection in picker so users can still confirm buyers for the workflow.
+        if (!pickerMode) setSelectedBuyers([]);
+
+        if (onRefresh) onRefresh();
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : tShared('selection.bulkStatusFailed');
+        setStatusUpdateError(errorMessage);
+      } finally {
+        setIsUpdatingStatus(false);
+      }
+    },
+    [user?.id, selectedBuyers, filteredBuyers, setBuyers, onRefresh, tShared, pickerMode],
+  );
+
+  useEffect(() => {
+    if (!showStatusDropdown) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (!statusDropdownRef.current?.contains(event.target as Node)) {
+        setShowStatusDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [showStatusDropdown]);
 
   const handleView = useCallback((buyer: BuyerTableRow) => {
     router.push(`/clients/buyers/details/${buyer.buyerId}`);
@@ -491,7 +619,10 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
 
       {/* Enhanced Bulk Action Bar */}
       {selectedBuyers.length > 0 && (
-        <div className="bg-white border border-[#e6e6e6] border-l-4 border-l-green-500 rounded-lg p-3 md:p-4 mb-2 shadow-sm">
+        <div
+          ref={statusDropdownRef}
+          className="bg-white border border-[#e6e6e6] border-l-4 border-l-green-500 rounded-lg p-3 md:p-4 mb-2 shadow-sm"
+        >
           {/* Mobile Layout */}
           <div className="md:hidden space-y-3">
             <div className="flex items-center justify-between">
@@ -502,53 +633,170 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
               </span>
             </div>
             <div className="text-gray-600 text-xs font-semibold leading-relaxed">
-              {selectedBuyers.length === 1
-                ? tShared('selection.selectBuyerRemove')
-                : tShared('selection.selectBuyersRemove')}
+              {pickerMode
+                ? tShared('selection.selectBuyerPickerActions')
+                : selectedBuyers.length === 1
+                  ? tShared('selection.selectBuyerActions')
+                  : tShared('selection.selectBuyersActions')}
             </div>
-            <button
-              onClick={handleBulkRemove}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
-              aria-label={selectedBuyers.length === 1 ? tShared('selection.removeBuyer') : tShared('selection.removeBuyers')}
-            >
-              <Trash className="w-4 h-4" />
-              {selectedBuyers.length === 1 ? tShared('selection.removeBuyer') : tShared('selection.removeBuyers')}
-            </button>
-          </div>
-          
-          {/* Desktop Layout */}
-          <div className="hidden md:flex items-center justify-between">
-            <span className="text-sm font-semibold text-green-700">
-              {selectedBuyers.length === 1
-                ? tShared('selection.buyerSelected', { count: selectedBuyers.length })
-                : tShared('selection.buyersSelected', { count: selectedBuyers.length })}
-            </span>
-            <div className="flex items-center gap-4">
-              <span className="text-gray-600 text-xs md:text-sm font-semibold">
-                {selectedBuyers.length === 1
-                  ? tShared('selection.selectBuyerRemove')
-                  : tShared('selection.selectBuyersRemove')}
-              </span>
+            {statusUpdateError && (
+              <p className="text-xs font-medium text-red-600">{statusUpdateError}</p>
+            )}
+            <div className="relative">
+              <button
+                type="button"
+                disabled={isUpdatingStatus}
+                onClick={() => setShowStatusDropdown((open) => !open)}
+                className="mb-2 flex w-full items-center justify-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-gray-50 disabled:opacity-50"
+                aria-haspopup="listbox"
+                aria-expanded={showStatusDropdown}
+              >
+                {isUpdatingStatus ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+                {isUpdatingStatus
+                  ? tShared('selection.updatingStatus')
+                  : tShared('selection.updateStatus')}
+              </button>
+              {showStatusDropdown && !isUpdatingStatus && (
+                <div className="absolute left-0 right-0 z-30 mb-2 overflow-hidden rounded-lg border border-[#e6e6e6] bg-white shadow-lg bottom-full">
+                  {BULK_STATUS_OPTIONS.map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() => void handleBulkStatusUpdate(status)}
+                      className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      <span className={`inline-block h-2 w-2 rounded-full ${
+                        status === 'Active'
+                          ? 'bg-green-500'
+                          : status === 'Blocked'
+                            ? 'bg-red-500'
+                            : 'bg-gray-400'
+                      }`} />
+                      {translateStatus(status)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            {pickerMode ? (
+              <button
+                type="button"
+                disabled={isUpdatingStatus}
+                onClick={handleConfirmPickerSelection}
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-semibold text-white hover:bg-[#084ba6] disabled:opacity-50"
+              >
+                {pickerConfirmLabel}
+              </button>
+            ) : (
               <button
                 onClick={handleBulkRemove}
-                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
+                disabled={isUpdatingStatus}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50"
                 aria-label={selectedBuyers.length === 1 ? tShared('selection.removeBuyer') : tShared('selection.removeBuyers')}
               >
                 <Trash className="w-4 h-4" />
                 {selectedBuyers.length === 1 ? tShared('selection.removeBuyer') : tShared('selection.removeBuyers')}
               </button>
+            )}
+          </div>
+          
+          {/* Desktop Layout */}
+          <div className="hidden md:flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <span className="text-sm font-semibold text-green-700">
+                {selectedBuyers.length === 1
+                  ? tShared('selection.buyerSelected', { count: selectedBuyers.length })
+                  : tShared('selection.buyersSelected', { count: selectedBuyers.length })}
+              </span>
+              <p className="mt-0.5 text-xs font-semibold text-gray-600">
+                {pickerMode
+                  ? tShared('selection.selectBuyerPickerActions')
+                  : selectedBuyers.length === 1
+                    ? tShared('selection.selectBuyerActions')
+                    : tShared('selection.selectBuyersActions')}
+              </p>
+              {statusUpdateError && (
+                <p className="mt-1 text-xs font-medium text-red-600">{statusUpdateError}</p>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <div className="relative">
+                <button
+                  type="button"
+                  disabled={isUpdatingStatus}
+                  onClick={() => setShowStatusDropdown((open) => !open)}
+                  className="inline-flex items-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-gray-50 disabled:opacity-50"
+                  aria-haspopup="listbox"
+                  aria-expanded={showStatusDropdown}
+                >
+                  {isUpdatingStatus ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                  {isUpdatingStatus
+                    ? tShared('selection.updatingStatus')
+                    : tShared('selection.updateStatus')}
+                </button>
+                {showStatusDropdown && !isUpdatingStatus && (
+                  <div className="absolute right-0 z-30 mt-2 w-44 overflow-hidden rounded-lg border border-[#e6e6e6] bg-white shadow-lg">
+                    {BULK_STATUS_OPTIONS.map((status) => (
+                      <button
+                        key={status}
+                        type="button"
+                        onClick={() => void handleBulkStatusUpdate(status)}
+                        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        <span className={`inline-block h-2 w-2 rounded-full ${
+                          status === 'Active'
+                            ? 'bg-green-500'
+                            : status === 'Blocked'
+                              ? 'bg-red-500'
+                              : 'bg-gray-400'
+                        }`} />
+                        {translateStatus(status)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {pickerMode ? (
+                <button
+                  type="button"
+                  disabled={isUpdatingStatus}
+                  onClick={handleConfirmPickerSelection}
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-semibold text-white hover:bg-[#084ba6] disabled:opacity-50"
+                >
+                  {pickerConfirmLabel}
+                </button>
+              ) : (
+                <button
+                  onClick={handleBulkRemove}
+                  disabled={isUpdatingStatus}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50"
+                  aria-label={selectedBuyers.length === 1 ? tShared('selection.removeBuyer') : tShared('selection.removeBuyers')}
+                >
+                  <Trash className="w-4 h-4" />
+                  {selectedBuyers.length === 1 ? tShared('selection.removeBuyer') : tShared('selection.removeBuyers')}
+                </button>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* Missing Data Indicator - Only show when there's missing data */}
+      {/* Missing Data Indicator - count across all filtered buyers, not only this page */}
       {(() => {
-        // Get the original buyer data for the current page
-        const currentPageBuyerIds = pagedBuyers.map(b => b.id).filter(id => id !== undefined);
-        const currentPageOriginalBuyers = buyers.filter(b => b.id && currentPageBuyerIds.includes(b.id));
-        
-        const missingDataCount = currentPageOriginalBuyers.filter(buyer => {
+        const filteredBuyerIds = filteredBuyers.map((b) => b.id).filter((id) => id !== undefined);
+        const filteredOriginalBuyers = buyers.filter(
+          (b) => b.id && filteredBuyerIds.includes(b.id),
+        );
+
+        const missingDataCount = filteredOriginalBuyers.filter((buyer) => {
           // Check all profile fields for missing data
           const basicFields = [
             !String(buyer.storeName).trim(),
@@ -844,6 +1092,10 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                 </td>
                 <td className="py-3 px-4 text-center">
                   <div className="flex items-center justify-center gap-2">
+                    {pickerMode ? (
+                      <span className="text-[11px] text-gray-400">—</span>
+                    ) : (
+                      <>
                     <button
                       className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 transition-colors focus:outline-none"
                       onClick={() => handleView(buyer)}
@@ -861,6 +1113,8 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                     >
                       <Trash2 className="w-4 h-4 text-red-600" />
                     </button>
+                      </>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -1041,6 +1295,8 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {!pickerMode && (
+                  <>
                 <button
                   className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 transition-colors focus:outline-none"
                   onClick={() => handleView(buyer)}
@@ -1058,6 +1314,8 @@ export default function BuyerTable({ buyers = [], setBuyers, onSelectBuyer, onEx
                 >
                   <Trash2 className="w-4 h-4 text-red-600" />
                 </button>
+                  </>
+                )}
               </div>
               </div>
               <div className="text-xs text-gray-500">{tShared('mobileLabels.address')} <span className={`font-medium w-30 truncate ${String(buyer.address).trim() ? 'text-black' : 'text-red-600 font-bold'}`}>{String(buyer.address).trim() ? buyer.address : tShared('missing.address')}</span></div>

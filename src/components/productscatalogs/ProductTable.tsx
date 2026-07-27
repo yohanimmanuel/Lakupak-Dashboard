@@ -853,12 +853,14 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
         </div>
       </div>
 
-      {/* Data Completion Indicator */}
+      {/* Data Completion Indicator - count across all filtered products, not only this page */}
       {(() => {
-        const currentPageProductIds = pagedProducts.map(p => p.productId);
-          const currentPageOriginalProducts = products.filter(p => currentPageProductIds.includes(p.productId));
-        
-        const missingDataCount = currentPageOriginalProducts.filter(product => {
+        const filteredProductIds = filteredProducts.map((p) => p.productId);
+        const filteredOriginalProducts = products.filter((p) =>
+          filteredProductIds.includes(p.productId),
+        );
+
+        const missingDataCount = filteredOriginalProducts.filter((product) => {
             // Check if product has at least one complete variant (piece-based system)
           const hasCompleteVariant =
             (product.variantOptions && product.variantOptions.length > 0 &&

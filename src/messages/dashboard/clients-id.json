@@ -116,8 +116,16 @@
     "selection": {
       "selectBuyerRemove": "Pilih pembeli yang akan dihapus.",
       "selectBuyersRemove": "Pilih pembeli yang akan dihapus.",
+      "selectBuyerActions": "Perbarui status atau hapus pembeli ini.",
+      "selectBuyersActions": "Perbarui status atau hapus pembeli yang dipilih.",
+      "selectBuyerPickerActions": "Perbarui status atau konfirmasi pembeli untuk langkah alur kerja ini.",
+      "updateStatus": "Perbarui status",
+      "updatingStatus": "Memperbarui status…",
+      "bulkStatusFailed": "Gagal memperbarui status.",
       "selectSupplierRemove": "Pilih pemasok yang akan dihapus.",
       "selectSuppliersRemove": "Pilih pemasok yang akan dihapus.",
+      "selectSupplierActions": "Perbarui status atau hapus pemasok ini.",
+      "selectSuppliersActions": "Perbarui status atau hapus pemasok yang dipilih.",
       "removeBuyer": "Hapus Pembeli",
       "removeBuyers": "Hapus Terpilih",
       "removeSupplier": "Hapus Pemasok",
@@ -152,8 +160,8 @@
       "lastDelivery": "Pengiriman Terakhir Kosong",
       "deliverySuccess": "Keberhasilan Pengiriman Kosong",
       "dataCompletion": "Kelengkapan Data:",
-      "buyersIncomplete": "{count} pembeli dalam tampilan ini memiliki data yang belum lengkap.",
-      "suppliersIncomplete": "{count} pemasok dalam tampilan ini memiliki data yang belum lengkap."
+      "buyersIncomplete": "{count} pembeli memiliki data yang belum lengkap.",
+      "suppliersIncomplete": "{count} pemasok memiliki data yang belum lengkap."
     },
     "pagination": {
       "showing": "Menampilkan {from}–{to} dari {total}",

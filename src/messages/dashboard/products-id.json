@@ -92,8 +92,8 @@
     },
     "missing": {
       "dataCompletion": "Kelengkapan Data:",
-      "productsIncomplete": "{count} produk dalam tampilan ini memiliki data yang belum lengkap (field wajib atau gambar) yang dapat dilengkapi.",
-      "productsIncompletePlural": "{count} produk dalam tampilan ini memiliki data yang belum lengkap (field wajib atau gambar) yang dapat dilengkapi.",
+      "productsIncomplete": "{count} produk memiliki data yang belum lengkap (field wajib atau gambar) yang dapat dilengkapi.",
+      "productsIncompletePlural": "{count} produk memiliki data yang belum lengkap (field wajib atau gambar) yang dapat dilengkapi.",
       "sku": "SKU Hilang",
       "productName": "Nama Hilang",
       "type": "Tipe Hilang",

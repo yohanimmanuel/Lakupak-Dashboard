@@ -11,6 +11,8 @@ import { BuilderSelect } from './BuilderSelect';
 import type { WorkflowFlowEdge, WorkflowFlowNode } from './canvasTypes';
 import { WorkflowRunsPanel } from './WorkflowRunsPanel';
 import { useBuilderPanelControls } from './WorkflowBuilderShell';
+import { BuyerPickerField, normalizePickedBuyers, toPickedBuyer } from './BuyerPickerField';
+import type { Buyer } from '@/types/client';
 
 export type WorkflowDraft = {
   name: string;
@@ -403,25 +405,56 @@ export function StepDetailsPanel({
               </div>
               {actions
                 .find((a) => a.type === selected.data.catalogType)
-                ?.fields.map((field) => (
-                  <CatalogFieldInput
-                    key={field.key}
-                    field={field}
-                    value={selected.data.config?.[field.key]}
-                    label={tFields.has(field.key) ? tFields(field.key) : field.key}
-                    optionLabel={(option) =>
-                      tFields.has(`options.${option}`) ? tFields(`options.${option}`) : option
-                    }
-                    onChange={(next) =>
-                      onUpdateNodeAction(selected.id, {
-                        config: {
-                          ...selected.data.config,
-                          [field.key]: next,
-                        },
-                      })
-                    }
-                  />
-                ))}
+                ?.fields.map((field) =>
+                  field.kind === 'buyer' ? (
+                    <BuyerPickerField
+                      key={field.key}
+                      label={tFields.has(field.key) ? tFields(field.key) : field.key}
+                      selectedBuyers={normalizePickedBuyers(selected.data.config)}
+                      onSelectAction={(buyers: Buyer[]) => {
+                        const picked = buyers.map(toPickedBuyer);
+                        onUpdateNodeAction(selected.id, {
+                          config: {
+                            ...selected.data.config,
+                            selectedBuyers: picked,
+                            buyerId: picked[0]?.buyerId ?? '',
+                            buyerLabel: picked[0]?.buyerLabel ?? '',
+                            buyerPhone: picked[0]?.buyerPhone ?? '',
+                          },
+                        });
+                      }}
+                      onClearAction={() =>
+                        onUpdateNodeAction(selected.id, {
+                          config: {
+                            ...selected.data.config,
+                            selectedBuyers: [],
+                            buyerId: '',
+                            buyerLabel: '',
+                            buyerPhone: '',
+                          },
+                        })
+                      }
+                    />
+                  ) : (
+                    <CatalogFieldInput
+                      key={field.key}
+                      field={field}
+                      value={selected.data.config?.[field.key]}
+                      label={tFields.has(field.key) ? tFields(field.key) : field.key}
+                      optionLabel={(option) =>
+                        tFields.has(`options.${option}`) ? tFields(`options.${option}`) : option
+                      }
+                      onChange={(next) =>
+                        onUpdateNodeAction(selected.id, {
+                          config: {
+                            ...selected.data.config,
+                            [field.key]: next,
+                          },
+                        })
+                      }
+                    />
+                  ),
+                )}
             </>
           )}
 
@@ -447,40 +480,105 @@ export function StepDetailsPanel({
           {selected.data.kind === 'app' && (
             <>
               {selected.data.catalogType === 'app_webhook' && (
-                <label className="block">
-                  <span className="mb-1 block text-xs font-medium text-gray-600">
-                    {tBuilder('appWebhookUrl')}
-                  </span>
-                  <input
-                    value={String(selected.data.config?.url ?? '')}
-                    onChange={(e) =>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2 rounded-lg border border-[#e6e6e6] bg-[#fafafa] px-3 py-2.5">
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-black">
+                        {tBuilder('appWhatsAppAccount')}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-gray-500">
+                        {selected.data.config?.connected
+                          ? tBuilder('appConnected')
+                          : tBuilder('appNotConnected')}
+                      </p>
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                        selected.data.config?.connected
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      {selected.data.config?.connected
+                        ? tBuilder('appStatusConnected')
+                        : tBuilder('appStatusNotConnected')}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
                       onUpdateNodeAction(selected.id, {
-                        config: { ...selected.data.config, url: e.target.value },
+                        config: {
+                          ...selected.data.config,
+                          connected: !selected.data.config?.connected,
+                        },
                       })
                     }
-                    className={fieldClassName}
-                    placeholder="https://"
-                  />
-                </label>
+                    className={`inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold ${
+                      selected.data.config?.connected
+                        ? 'border border-[#e6e6e6] bg-white text-black hover:bg-gray-50'
+                        : 'bg-[#25D366] text-white hover:bg-[#1ebe57]'
+                    }`}
+                  >
+                    {selected.data.config?.connected
+                      ? tBuilder('appDisconnectWhatsApp')
+                      : tBuilder('appConnectWhatsApp')}
+                  </button>
+                  <p className="text-[11px] leading-snug text-gray-500">
+                    {tBuilder('appWhatsAppConnectHint')}
+                  </p>
+                </div>
               )}
               {selected.data.catalogType === 'app_email' && (
-                <label className="block">
-                  <span className="mb-1 block text-xs font-medium text-gray-600">
-                    {tBuilder('appEmailTo')}
-                  </span>
-                  <input
-                    value={String(selected.data.config?.to ?? '')}
-                    onChange={(e) =>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2 rounded-lg border border-[#e6e6e6] bg-[#fafafa] px-3 py-2.5">
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-black">
+                        {tBuilder('appGmailAccount')}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-gray-500">
+                        {selected.data.config?.connected
+                          ? tBuilder('appConnected')
+                          : tBuilder('appNotConnected')}
+                      </p>
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                        selected.data.config?.connected
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      {selected.data.config?.connected
+                        ? tBuilder('appStatusConnected')
+                        : tBuilder('appStatusNotConnected')}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
                       onUpdateNodeAction(selected.id, {
-                        config: { ...selected.data.config, to: e.target.value },
+                        config: {
+                          ...selected.data.config,
+                          connected: !selected.data.config?.connected,
+                        },
                       })
                     }
-                    className={fieldClassName}
-                    placeholder="ops@company.com"
-                  />
-                </label>
+                    className={`inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold ${
+                      selected.data.config?.connected
+                        ? 'border border-[#e6e6e6] bg-white text-black hover:bg-gray-50'
+                        : 'bg-[#0a61d7] text-white hover:bg-[#084ba6]'
+                    }`}
+                  >
+                    {selected.data.config?.connected
+                      ? tBuilder('appDisconnectGmail')
+                      : tBuilder('appConnectGmail')}
+                  </button>
+                  <p className="text-[11px] leading-snug text-gray-500">
+                    {tBuilder('appGmailConnectHint')}
+                  </p>
+                </div>
               )}
-              <p className="text-xs text-gray-500">{tBuilder('appHint')}</p>
             </>
           )}
         </>

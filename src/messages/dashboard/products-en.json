@@ -92,8 +92,8 @@
     },
     "missing": {
       "dataCompletion": "Data Completion:",
-      "productsIncomplete": "{count} product in this view has missing data (required fields or images) that could be completed.",
-      "productsIncompletePlural": "{count} products in this view have missing data (required fields or images) that could be completed.",
+      "productsIncomplete": "{count} product has missing data (required fields or images) that could be completed.",
+      "productsIncompletePlural": "{count} products have missing data (required fields or images) that could be completed.",
       "sku": "Missing SKU",
       "productName": "Missing Name",
       "type": "Missing Type",

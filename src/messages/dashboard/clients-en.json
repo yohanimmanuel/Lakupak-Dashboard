@@ -116,8 +116,16 @@
     "selection": {
       "selectBuyerRemove": "Select buyer to be removed.",
       "selectBuyersRemove": "Select buyers to be removed.",
+      "selectBuyerActions": "Update status or remove this buyer.",
+      "selectBuyersActions": "Update status or remove selected buyers.",
+      "selectBuyerPickerActions": "Update status or confirm buyers for this workflow step.",
+      "updateStatus": "Update status",
+      "updatingStatus": "Updating status…",
+      "bulkStatusFailed": "Failed to update status.",
       "selectSupplierRemove": "Select supplier to be removed.",
       "selectSuppliersRemove": "Select suppliers to be removed.",
+      "selectSupplierActions": "Update status or remove this supplier.",
+      "selectSuppliersActions": "Update status or remove selected suppliers.",
       "removeBuyer": "Remove Buyer",
       "removeBuyers": "Remove Selected",
       "removeSupplier": "Remove Supplier",
@@ -152,8 +160,8 @@
       "lastDelivery": "Missing Last Delivery",
       "deliverySuccess": "Missing Delivery Success",
       "dataCompletion": "Data Completion:",
-      "buyersIncomplete": "{count} buyer(s) in this view have missing data that could be completed.",
-      "suppliersIncomplete": "{count} supplier(s) in this view have missing data that could be completed."
+      "buyersIncomplete": "{count} buyer(s) have missing data that could be completed.",
+      "suppliersIncomplete": "{count} supplier(s) have missing data that could be completed."
     },
     "pagination": {
       "showing": "Showing {from} to {to} of {total}",
