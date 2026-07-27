@@ -168,10 +168,6 @@
           "desc": "Capture proof in Driver or Dashboard so Delivered, Received, and Returned orders keep a file trail."
         },
         "4": {
-          "title": "Returns with evidence and stock restore",
-          "desc": "Accept or reject return requests, optional driver pickup, confirm goods back, and restore inventory with the Returned status."
-        },
-        "5": {
           "title": "Fleet-ready fulfillment",
           "desc": "Packed and Shipped work hands off to Laku Driver for Start and Complete Delivery without retyping the order."
         }

@@ -56,7 +56,7 @@ export const FEATURE_MODULES: FeatureModuleDef[] = [
     pointsCount: 5,
     highlightsCount: 3,
   },
-  { slug: 'orders', group: 'sell', icon: ShoppingCart, surfaces: ['dashboard', 'marketplace', 'driver'], pointsCount: 5, highlightsCount: 3 },
+  { slug: 'orders', group: 'sell', icon: ShoppingCart, surfaces: ['dashboard', 'marketplace', 'driver'], pointsCount: 4, highlightsCount: 3 },
   { slug: 'offers', group: 'sell', icon: Tag, surfaces: ['dashboard', 'marketplace'], pointsCount: 4, highlightsCount: 3 },
   { slug: 'marketing', group: 'grow', icon: Megaphone, surfaces: ['dashboard'], pointsCount: 4, highlightsCount: 3 },
   { slug: 'marketplace', group: 'grow', icon: Store, featured: true, surfaces: ['dashboard', 'marketplace'], pointsCount: 5, highlightsCount: 3 },

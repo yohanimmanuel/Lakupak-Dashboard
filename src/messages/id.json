@@ -168,10 +168,6 @@
           "desc": "Tangkap bukti di Driver atau Dashboard agar pesanan Delivered, Received, dan Returned punya jejak file."
         },
         "4": {
-          "title": "Retur dengan bukti dan pemulihan stok",
-          "desc": "Terima atau tolak permintaan retur, penjemputan driver opsional, konfirmasi barang kembali, dan pulihkan inventori saat status Returned."
-        },
-        "5": {
           "title": "Pemenuhan siap armada",
           "desc": "Kerja Packed dan Shipped diserahkan ke Laku Driver untuk Mulai dan Selesaikan Pengiriman tanpa mengetik ulang pesanan."
         }

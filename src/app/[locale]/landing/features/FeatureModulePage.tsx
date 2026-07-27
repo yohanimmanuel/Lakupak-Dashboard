@@ -17,6 +17,8 @@ type PointMediaConfig =
       back: PointMedia;
       front: PointMedia;
       orientation?: 'tl-br' | 'tr-bl';
+      /** Smaller stack so taller screenshots stay inside the stage. */
+      scale?: 'sm' | 'md';
     };
 
 /** Real screenshots for specific detail steps; the rest fall back to placeholders. */
@@ -76,6 +78,30 @@ const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaCo
       image: { src: '/Dashboardproducts9.png', width: 1457, height: 203 },
     },
   },
+  orders: {
+    1: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardorders3.png', width: 1505, height: 675 },
+    },
+    2: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardorders4.png', width: 947, height: 762 },
+    },
+    3: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardorders6.png', width: 1000, height: 2048 },
+    },
+    4: {
+      type: 'diagonal',
+      back: { src: '/Dashboardorders5.png', width: 492, height: 727 },
+      front: { src: '/Dashboardlogs.png', width: 751, height: 790 },
+      orientation: 'tr-bl',
+      scale: 'sm',
+    },
+  },
 };
 
 function ImagePlaceholder({ label, className = '' }: { label: string; className?: string }) {
@@ -94,19 +120,36 @@ function PointDiagonalStack({
   back,
   front,
   orientation = 'tl-br',
+  scale = 'md',
 }: {
   back: PointMedia;
   front: PointMedia;
   orientation?: 'tl-br' | 'tr-bl';
+  scale?: 'sm' | 'md';
 }) {
   const mirrored = orientation === 'tr-bl';
+  const compact = scale === 'sm';
+  const backWidth = compact ? 'w-[42%] sm:w-[40%]' : 'w-[66%] sm:w-[62%]';
+  const frontWidth = compact ? 'w-[52%] sm:w-[48%]' : 'w-[78%] sm:w-[72%]';
+  const backPos = mirrored
+    ? compact
+      ? 'right-[8%] top-[12%]'
+      : 'right-[4%] top-[10%]'
+    : compact
+      ? 'left-[8%] top-[12%]'
+      : 'left-[4%] top-[10%]';
+  const frontPos = mirrored
+    ? compact
+      ? 'left-[10%] bottom-[10%]'
+      : 'left-[2%] bottom-[6%]'
+    : compact
+      ? 'right-[10%] bottom-[10%]'
+      : 'right-[2%] bottom-[6%]';
 
   return (
     <div className="relative mx-auto h-full w-full">
       <div
-        className={`absolute z-0 w-[66%] sm:w-[62%] animate-fade-in motion-reduce:animate-none ${
-          mirrored ? 'right-[4%] top-[10%]' : 'left-[4%] top-[10%]'
-        }`}
+        className={`absolute z-0 ${backWidth} animate-fade-in motion-reduce:animate-none ${backPos}`}
         style={{ animationDuration: '0.45s' }}
       >
         <div
@@ -121,14 +164,12 @@ function PointDiagonalStack({
             height={back.height}
             quality={90}
             className="block h-auto w-full rounded-lg"
-            sizes="(min-width: 1024px) 360px, 62vw"
+            sizes={compact ? '(min-width: 1024px) 220px, 42vw' : '(min-width: 1024px) 360px, 62vw'}
           />
         </div>
       </div>
       <div
-        className={`absolute z-10 w-[78%] sm:w-[72%] animate-fade-in-up motion-reduce:animate-none ${
-          mirrored ? 'left-[2%] bottom-[6%]' : 'right-[2%] bottom-[6%]'
-        }`}
+        className={`absolute z-10 ${frontWidth} animate-fade-in-up motion-reduce:animate-none ${frontPos}`}
         style={{ animationDuration: '0.55s', animationDelay: '0.12s', opacity: 0 }}
       >
         <div
@@ -143,7 +184,7 @@ function PointDiagonalStack({
             height={front.height}
             quality={92}
             className="block h-auto w-full rounded-lg"
-            sizes="(min-width: 1024px) 420px, 74vw"
+            sizes={compact ? '(min-width: 1024px) 280px, 52vw' : '(min-width: 1024px) 420px, 74vw'}
           />
         </div>
       </div>
@@ -366,6 +407,7 @@ export function FeatureModulePage({
                       back={pointMedia.back}
                       front={pointMedia.front}
                       orientation={pointMedia.orientation}
+                      scale={pointMedia.scale}
                     />
                   </FeatureMediaFrame>
                 )
