@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { AuthDecorativeBackground } from '@/components/auth/AuthDecorativeBackground';
@@ -7,6 +8,48 @@ import { FeatureMediaFrame } from '../FeatureMediaFrame';
 import { Reveal } from '../Reveal';
 import type { FeatureModuleSlug } from './modules';
 import { FEATURE_MODULES, featurePath, getFeatureModule } from './modules';
+
+type PointMedia = { src: string; width: number; height: number };
+type PointMediaConfig =
+  | { type: 'single'; image: PointMedia; placement?: 'corner' | 'center' }
+  | {
+      type: 'diagonal';
+      back: PointMedia;
+      front: PointMedia;
+      orientation?: 'tl-br' | 'tr-bl';
+    };
+
+/** Real screenshots for specific detail steps; the rest fall back to placeholders. */
+const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaConfig>>> = {
+  clients: {
+    1: {
+      type: 'single',
+      placement: 'corner',
+      image: { src: '/Dashboardclientbuyer2.png', width: 740, height: 345 },
+    },
+    2: {
+      type: 'diagonal',
+      back: { src: '/Dashboardclientbuyer3.png', width: 488, height: 295 },
+      front: { src: '/Dashboardclientbuyer4.png', width: 736, height: 287 },
+      orientation: 'tr-bl',
+    },
+    3: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardclientbuyer5.png', width: 486, height: 297 },
+    },
+    4: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardclientbuyer7.png', width: 1488, height: 378 },
+    },
+    5: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardclientbuyer8.png', width: 1488, height: 761 },
+    },
+  },
+};
 
 function ImagePlaceholder({ label, className = '' }: { label: string; className?: string }) {
   return (
@@ -16,6 +59,67 @@ function ImagePlaceholder({ label, className = '' }: { label: string; className?
       aria-label={label}
     >
       <p className="text-sm text-gray-500 max-w-sm leading-relaxed">{label}</p>
+    </div>
+  );
+}
+
+function PointDiagonalStack({
+  back,
+  front,
+  orientation = 'tl-br',
+}: {
+  back: PointMedia;
+  front: PointMedia;
+  orientation?: 'tl-br' | 'tr-bl';
+}) {
+  const mirrored = orientation === 'tr-bl';
+
+  return (
+    <div className="relative mx-auto h-full w-full">
+      <div
+        className={`absolute z-0 w-[66%] sm:w-[62%] animate-fade-in motion-reduce:animate-none ${
+          mirrored ? 'right-[4%] top-[10%]' : 'left-[4%] top-[10%]'
+        }`}
+        style={{ animationDuration: '0.45s' }}
+      >
+        <div
+          className={`overflow-hidden rounded-xl border border-gray-200/90 bg-white p-1 shadow-[0_16px_40px_-16px_rgba(15,23,42,0.32)] ${
+            mirrored ? 'rotate-[5deg]' : '-rotate-[5deg]'
+          }`}
+        >
+          <Image
+            src={back.src}
+            alt=""
+            width={back.width}
+            height={back.height}
+            quality={90}
+            className="block h-auto w-full rounded-lg"
+            sizes="(min-width: 1024px) 360px, 62vw"
+          />
+        </div>
+      </div>
+      <div
+        className={`absolute z-10 w-[78%] sm:w-[72%] animate-fade-in-up motion-reduce:animate-none ${
+          mirrored ? 'left-[2%] bottom-[6%]' : 'right-[2%] bottom-[6%]'
+        }`}
+        style={{ animationDuration: '0.55s', animationDelay: '0.12s', opacity: 0 }}
+      >
+        <div
+          className={`overflow-hidden rounded-xl border border-white/90 bg-white p-1.5 shadow-[0_20px_44px_-18px_rgba(10,97,215,0.34)] ${
+            mirrored ? '-rotate-[3deg]' : 'rotate-[3deg]'
+          }`}
+        >
+          <Image
+            src={front.src}
+            alt=""
+            width={front.width}
+            height={front.height}
+            quality={92}
+            className="block h-auto w-full rounded-lg"
+            sizes="(min-width: 1024px) 420px, 74vw"
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -191,11 +295,57 @@ export function FeatureModulePage({
             {points.map((n, i) => {
               const imageLeft = i % 2 === 1;
               const title = t(`${slug}.points.${n}.title`);
-              const media = (
-                <FeatureMediaFrame minHeightClass="min-h-[240px] sm:min-h-[320px]">
+              const pointMedia = POINT_MEDIA[slug]?.[n];
+              /** Fixed stage size so screenshot steps match placeholder steps. */
+              const stageHeightClass = 'h-[240px] sm:h-[320px]';
+              const media = pointMedia ? (
+                pointMedia.type === 'single' ? (
+                  <FeatureMediaFrame framed={false} minHeightClass={stageHeightClass}>
+                    {pointMedia.placement === 'center' ? (
+                      <div className="flex h-full w-full items-center justify-center p-3 sm:p-4">
+                        <div className="w-[88%] max-h-full overflow-hidden rounded-xl border border-white/90 bg-white/95 p-1 shadow-[0_16px_40px_-18px_rgba(10,97,215,0.28)]">
+                          <Image
+                            src={pointMedia.image.src}
+                            alt={title}
+                            width={pointMedia.image.width}
+                            height={pointMedia.image.height}
+                            quality={90}
+                            className="block h-auto max-h-[200px] sm:max-h-[280px] w-full object-contain rounded-lg"
+                            sizes="(min-width: 1024px) 480px, 88vw"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      /* Bottom-right corner pin (step 1 style). */
+                      <div className="absolute inset-0">
+                        <div className="absolute -bottom-2 -right-2 sm:-bottom-3 sm:-right-3 w-[96%] max-h-[96%] overflow-hidden rounded-tl-2xl border-l border-t border-white/90 bg-white/95 p-1 shadow-[0_18px_44px_-18px_rgba(10,97,215,0.32)]">
+                          <Image
+                            src={pointMedia.image.src}
+                            alt={title}
+                            width={pointMedia.image.width}
+                            height={pointMedia.image.height}
+                            quality={90}
+                            className="block h-auto w-full max-h-full object-cover object-top rounded-tl-xl"
+                            sizes="(min-width: 1024px) 520px, 92vw"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </FeatureMediaFrame>
+                ) : (
+                  <FeatureMediaFrame framed={false} minHeightClass={stageHeightClass}>
+                    <PointDiagonalStack
+                      back={pointMedia.back}
+                      front={pointMedia.front}
+                      orientation={pointMedia.orientation}
+                    />
+                  </FeatureMediaFrame>
+                )
+              ) : (
+                <FeatureMediaFrame minHeightClass={stageHeightClass}>
                   <ImagePlaceholder
                     label={t('usesPlaceholder', { title })}
-                    className="min-h-[200px] sm:min-h-[280px] w-full border-0 bg-white rounded-none"
+                    className="h-full w-full border-0 bg-white rounded-none"
                   />
                 </FeatureMediaFrame>
               );
