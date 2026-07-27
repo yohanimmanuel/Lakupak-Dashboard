@@ -49,6 +49,33 @@ const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaCo
       image: { src: '/Dashboardclientbuyer8.png', width: 1488, height: 761 },
     },
   },
+  products: {
+    1: {
+      type: 'single',
+      placement: 'corner',
+      image: { src: '/Dashboardproducts6.png', width: 1517, height: 761 },
+    },
+    2: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardproducts7.png', width: 1477, height: 721 },
+    },
+    3: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardproducts8.png', width: 1080, height: 924 },
+    },
+    4: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardproducts3.png', width: 735, height: 602 },
+    },
+    5: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardproducts9.png', width: 1457, height: 203 },
+    },
+  },
 };
 
 function ImagePlaceholder({ label, className = '' }: { label: string; className?: string }) {
@@ -302,31 +329,32 @@ export function FeatureModulePage({
                 pointMedia.type === 'single' ? (
                   <FeatureMediaFrame framed={false} minHeightClass={stageHeightClass}>
                     {pointMedia.placement === 'center' ? (
-                      <div className="flex h-full w-full items-center justify-center p-3 sm:p-4">
-                        <div className="w-[88%] max-h-full overflow-hidden rounded-xl border border-white/90 bg-white/95 p-1 shadow-[0_16px_40px_-18px_rgba(10,97,215,0.28)]">
+                      /* Card shrink-wraps the image so there is no letterboxed whitespace. */
+                      <div className="flex h-full w-full items-center justify-center p-2 sm:p-3">
+                        <span className="inline-flex max-w-full overflow-hidden rounded-xl border border-gray-200/90 bg-white shadow-[0_14px_36px_-16px_rgba(15,23,42,0.28)]">
                           <Image
                             src={pointMedia.image.src}
                             alt={title}
                             width={pointMedia.image.width}
                             height={pointMedia.image.height}
                             quality={90}
-                            className="block h-auto max-h-[200px] sm:max-h-[280px] w-full object-contain rounded-lg"
-                            sizes="(min-width: 1024px) 480px, 88vw"
+                            className="block h-auto w-auto max-h-[224px] max-w-full sm:max-h-[296px]"
+                            sizes="(min-width: 1024px) 560px, 92vw"
                           />
-                        </div>
+                        </span>
                       </div>
                     ) : (
                       /* Bottom-right corner pin (step 1 style). */
                       <div className="absolute inset-0">
-                        <div className="absolute -bottom-2 -right-2 sm:-bottom-3 sm:-right-3 w-[96%] max-h-[96%] overflow-hidden rounded-tl-2xl border-l border-t border-white/90 bg-white/95 p-1 shadow-[0_18px_44px_-18px_rgba(10,97,215,0.32)]">
+                        <div className="absolute -bottom-2 -right-2 w-[96%] overflow-hidden rounded-tl-2xl border-l border-t border-gray-200/90 bg-white shadow-[0_18px_44px_-18px_rgba(10,97,215,0.32)] sm:-bottom-3 sm:-right-3">
                           <Image
                             src={pointMedia.image.src}
                             alt={title}
                             width={pointMedia.image.width}
                             height={pointMedia.image.height}
                             quality={90}
-                            className="block h-auto w-full max-h-full object-cover object-top rounded-tl-xl"
-                            sizes="(min-width: 1024px) 520px, 92vw"
+                            className="block h-auto w-full"
+                            sizes="(min-width: 1024px) 560px, 96vw"
                           />
                         </div>
                       </div>
