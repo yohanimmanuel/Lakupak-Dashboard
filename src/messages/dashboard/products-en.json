@@ -318,6 +318,7 @@
       "promotionGetFree": "Get Free:",
       "promotionFreeItem": "{count} item",
       "promotionFreeItems": "{count} items",
+      "promotionNoteLabel": "Note:",
       "promotionHint": "Customers must purchase at least {minQuantity} items to receive {freeQuantity} free item.",
       "promotionHintPlural": "Customers must purchase at least {minQuantity} items to receive {freeQuantity} free items."
     },

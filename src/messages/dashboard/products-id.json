@@ -318,6 +318,7 @@
       "promotionGetFree": "Gratis:",
       "promotionFreeItem": "{count} item",
       "promotionFreeItems": "{count} item",
+      "promotionNoteLabel": "Catatan:",
       "promotionHint": "Pelanggan harus membeli minimal {minQuantity} item untuk mendapatkan {freeQuantity} item gratis.",
       "promotionHintPlural": "Pelanggan harus membeli minimal {minQuantity} item untuk mendapatkan {freeQuantity} item gratis."
     },

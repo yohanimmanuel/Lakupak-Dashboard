@@ -19,6 +19,14 @@ type PointMediaConfig =
       orientation?: 'tl-br' | 'tr-bl';
       /** Smaller stack so taller screenshots stay inside the stage. */
       scale?: 'sm' | 'md';
+    }
+  | {
+      type: 'straight';
+      back: PointMedia;
+      front: PointMedia;
+      /** Width classes for each layer (back sits behind, front on top). */
+      backWidthClass?: string;
+      frontWidthClass?: string;
     };
 
 /** Real screenshots for specific detail steps; the rest fall back to placeholders. */
@@ -100,6 +108,27 @@ const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaCo
       front: { src: '/Dashboardlogs.png', width: 751, height: 790 },
       orientation: 'tr-bl',
       scale: 'sm',
+    },
+  },
+  offers: {
+    1: {
+      type: 'diagonal',
+      back: { src: '/Dashboardoffers2.png', width: 737, height: 781 },
+      front: { src: '/Dashboardoffers.png', width: 487, height: 303 },
+      orientation: 'tr-bl',
+      scale: 'sm',
+    },
+    2: {
+      type: 'straight',
+      back: { src: '/Dashboardproducts10.png', width: 360, height: 601 },
+      front: { src: '/Dashboardproducts1.png', width: 650, height: 87 },
+      backWidthClass: 'w-[52%] sm:w-[48%]',
+      frontWidthClass: 'w-[72%] sm:w-[68%]',
+    },
+    4: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardoffers4.png', width: 1505, height: 502 },
     },
   },
 };
@@ -185,6 +214,56 @@ function PointDiagonalStack({
             quality={92}
             className="block h-auto w-full rounded-lg"
             sizes={compact ? '(min-width: 1024px) 280px, 52vw' : '(min-width: 1024px) 420px, 74vw'}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PointStraightStack({
+  back,
+  front,
+  backWidthClass = 'w-[52%] sm:w-[48%]',
+  frontWidthClass = 'w-[72%] sm:w-[68%]',
+}: {
+  back: PointMedia;
+  front: PointMedia;
+  backWidthClass?: string;
+  frontWidthClass?: string;
+}) {
+  /** Side-by-side overlap like login showcase slide 2: primary left, secondary bottom-right. */
+  return (
+    <div className="relative mx-auto h-full w-full">
+      <div
+        className={`absolute left-[4%] top-[10%] z-10 sm:left-[5%] sm:top-[12%] ${backWidthClass} animate-fade-in motion-reduce:animate-none`}
+        style={{ animationDuration: '0.45s' }}
+      >
+        <div className="overflow-hidden rounded-xl border border-gray-200/90 bg-white p-1 shadow-[0_16px_40px_-16px_rgba(15,23,42,0.28)]">
+          <Image
+            src={back.src}
+            alt=""
+            width={back.width}
+            height={back.height}
+            quality={90}
+            className="block h-auto w-full rounded-lg"
+            sizes="(min-width: 1024px) 280px, 52vw"
+          />
+        </div>
+      </div>
+      <div
+        className={`absolute bottom-[10%] right-[2%] z-20 sm:bottom-[12%] sm:right-[3%] ${frontWidthClass} animate-fade-in-up motion-reduce:animate-none`}
+        style={{ animationDuration: '0.55s', animationDelay: '0.1s', opacity: 0 }}
+      >
+        <div className="overflow-hidden rounded-xl border border-white/90 bg-white p-1 shadow-[0_18px_40px_-16px_rgba(10,97,215,0.3)]">
+          <Image
+            src={front.src}
+            alt=""
+            width={front.width}
+            height={front.height}
+            quality={92}
+            className="block h-auto w-full rounded-lg"
+            sizes="(min-width: 1024px) 400px, 72vw"
           />
         </div>
       </div>
@@ -400,6 +479,15 @@ export function FeatureModulePage({
                         </div>
                       </div>
                     )}
+                  </FeatureMediaFrame>
+                ) : pointMedia.type === 'straight' ? (
+                  <FeatureMediaFrame framed={false} minHeightClass={stageHeightClass}>
+                    <PointStraightStack
+                      back={pointMedia.back}
+                      front={pointMedia.front}
+                      backWidthClass={pointMedia.backWidthClass}
+                      frontWidthClass={pointMedia.frontWidthClass}
+                    />
                   </FeatureMediaFrame>
                 ) : (
                   <FeatureMediaFrame framed={false} minHeightClass={stageHeightClass}>

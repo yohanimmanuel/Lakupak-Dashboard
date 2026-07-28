@@ -2494,42 +2494,47 @@ export default function ProductCatalog({
 
               {/* Buy X Get Y Promotion Notice */}
               {product?.promotionDetails && (
-                <div className="mt-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg">
+                <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
                   <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0">
-                      <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                        <Gift className="w-4 h-4 text-white" />
-                      </div>
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-purple-50 ring-1 ring-purple-100">
+                      <Gift className="h-4 w-4 text-purple-600" strokeWidth={1.75} />
                     </div>
-                    <div className="flex-1">
-                      <h4 className="text-sm font-semibold text-green-900 mb-1">
-                        {tCatalog('generalInfo.promotionTitle')}
-                      </h4>
-                      <p className="text-xs text-green-800 mb-2">
-                        {product.promotionDetails.description}
-                      </p>
-                      <div className="flex items-center gap-4 text-xs">
-                        <div className="flex items-center gap-1">
-                          <span className="font-medium text-green-900">{tCatalog('generalInfo.promotionBuy')}</span>
-                          <span className="px-2 py-0.5 bg-green-200 text-green-900 rounded font-semibold">
-                            {tCatalog('generalInfo.promotionBuyItems', { count: product.promotionDetails.minQuantity })}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                        <h4 className="text-sm font-semibold text-gray-900">
+                          {tCatalog('generalInfo.promotionTitle')}
+                        </h4>
+                        <div className="flex items-center gap-2 text-xs text-gray-600">
+                          <span className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-2 py-0.5">
+                            <span className="text-gray-500">{tCatalog('generalInfo.promotionBuy')}</span>
+                            <span className="font-semibold text-gray-900">
+                              {tCatalog('generalInfo.promotionBuyItems', { count: product.promotionDetails.minQuantity })}
+                            </span>
                           </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="font-medium text-green-900">{tCatalog('generalInfo.promotionGetFree')}</span>
-                          <span className="px-2 py-0.5 bg-green-200 text-green-900 rounded font-semibold">
-                            {product.promotionDetails.freeQuantity > 1
-                              ? tCatalog('generalInfo.promotionFreeItems', { count: product.promotionDetails.freeQuantity })
-                              : tCatalog('generalInfo.promotionFreeItem', { count: product.promotionDetails.freeQuantity })}
+                          <span className="text-gray-300" aria-hidden>
+                            →
+                          </span>
+                          <span className="inline-flex items-center gap-1.5 rounded-md border border-purple-100 bg-purple-50 px-2 py-0.5">
+                            <span className="text-purple-600">{tCatalog('generalInfo.promotionGetFree')}</span>
+                            <span className="font-semibold text-purple-700">
+                              {product.promotionDetails.freeQuantity > 1
+                                ? tCatalog('generalInfo.promotionFreeItems', { count: product.promotionDetails.freeQuantity })
+                                : tCatalog('generalInfo.promotionFreeItem', { count: product.promotionDetails.freeQuantity })}
+                            </span>
                           </span>
                         </div>
                       </div>
-                      <p className="text-xs text-green-700 mt-2 flex items-center gap-1">
-                        <Info className="w-4 h-4 text-green-500" /> <span className="italic">
-                          {product.promotionDetails.freeQuantity > 1
-                            ? tCatalog('generalInfo.promotionHintPlural', { minQuantity: product.promotionDetails.minQuantity, freeQuantity: product.promotionDetails.freeQuantity })
-                            : tCatalog('generalInfo.promotionHint', { minQuantity: product.promotionDetails.minQuantity, freeQuantity: product.promotionDetails.freeQuantity })}
-                        </span>
+                      <p className="mt-2 text-xs text-gray-500">
+                        <span className="font-medium text-gray-700">{tCatalog('generalInfo.promotionNoteLabel')}</span>{' '}
+                        {product.promotionDetails.freeQuantity > 1
+                          ? tCatalog('generalInfo.promotionHintPlural', {
+                              minQuantity: product.promotionDetails.minQuantity,
+                              freeQuantity: product.promotionDetails.freeQuantity,
+                            })
+                          : tCatalog('generalInfo.promotionHint', {
+                              minQuantity: product.promotionDetails.minQuantity,
+                              freeQuantity: product.promotionDetails.freeQuantity,
+                            })}
                       </p>
                     </div>
                   </div>
