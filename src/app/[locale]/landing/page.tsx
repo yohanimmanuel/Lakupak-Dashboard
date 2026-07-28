@@ -1111,7 +1111,10 @@ export default function LandingPage() {
   
   const handleLearnMoreClick = () => {
     trackConversion('cta_click', 'explore_marketplace_button');
-    document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
+    const marketplaceUrl = (
+      process.env.NEXT_PUBLIC_MARKETPLACE_URL || 'http://localhost:3002'
+    ).replace(/\/$/, '');
+    window.location.assign(marketplaceUrl);
   };
 
   return (
