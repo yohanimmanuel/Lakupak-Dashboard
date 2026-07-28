@@ -7,8 +7,6 @@ const withNextIntl = require('next-intl/plugin')({
 
 const nextConfig: NextConfig = {
   /* config options here */
-  // TODO: Set to false and fix lint errors when ready (e.g. ticket/owner/deadline). Until then builds skip ESLint.
-  eslint: { ignoreDuringBuilds: true },
   async redirects() {
     return [
       {
@@ -19,7 +17,7 @@ const nextConfig: NextConfig = {
     ];
   },
   // Allow external connections for mobile development
-  serverExternalPackages: ['@prisma/client'],
+  serverExternalPackages: ['@prisma/client', 'winston', 'pino'],
   // Configure Cloudinary images and Google profile images
   images: {
     remotePatterns: [
@@ -34,20 +32,6 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
     ],
-  },
-  webpack: (config, { isServer }) => {
-    if (isServer) {
-      // Mark winston and pino as externals so Next.js doesn't try to bundle them
-      // These are optional dependencies that may not be installed
-      config.externals = config.externals || [];
-      if (Array.isArray(config.externals)) {
-        config.externals.push('winston', 'pino');
-      } else if (typeof config.externals === 'object') {
-        config.externals.winston = 'commonjs winston';
-        config.externals.pino = 'commonjs pino';
-      }
-    }
-    return config;
   },
 };
 

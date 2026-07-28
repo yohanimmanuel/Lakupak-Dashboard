@@ -3,7 +3,8 @@ import { securityMiddleware } from './src/middleware/security';
 import { NextResponse } from 'next/server';
 import { getPlatformAdminIdFromRequest } from './src/utils/platform-admin-auth';
 
-export function middleware(request: NextRequest) {
+/** Next.js 16 renamed the middleware file convention to proxy. */
+export function proxy(request: NextRequest) {
   const url = request.nextUrl;
 
   // Protect admin routes with PlatformAdmin cookie JWT.
