@@ -55,7 +55,14 @@ export default function LandingLayout({
           <div className="grid md:grid-cols-4 gap-10">
             <div className="md:col-span-2">
               <div className="flex items-center mb-4">
-                <Image src="/LakuWTextLogo.svg" alt="Laku" width={140} height={36} />
+                <Image
+                  src="/LakuWTextLogo.svg"
+                  alt="Laku"
+                  width={140}
+                  height={36}
+                  className="h-9"
+                  style={{ width: 'auto', height: 'auto' }}
+                />
               </div>
               <p className="text-gray-400 text-sm leading-relaxed max-w-md">
                 {t('company.description1')}

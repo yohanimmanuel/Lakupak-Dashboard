@@ -38,7 +38,7 @@ export default function AdminNavbar() {
             <img
               src="/LakuTextLogo.svg"
               alt="Laku"
-              className="h-9 hidden sm:block"
+              className="h-9 hidden sm:block w-auto"
             />
             <img
               src="/LakuIcon.svg"

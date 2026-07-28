@@ -1009,11 +1009,13 @@ function SplitFeatureSection({
               width={activeImage.width}
               height={activeImage.height}
               quality={90}
+              loading="eager"
               className={
                 isPhone
                   ? 'max-h-[360px] sm:max-h-[440px] w-auto h-auto object-contain block rounded-xl'
                   : 'w-full h-auto block'
               }
+              style={isPhone ? { width: 'auto', height: 'auto' } : { height: 'auto' }}
               sizes="(min-width: 1024px) 560px, 100vw"
             />
           </div>
@@ -1114,7 +1116,7 @@ export default function LandingPage() {
     const marketplaceUrl = (
       process.env.NEXT_PUBLIC_MARKETPLACE_URL || 'http://localhost:3002'
     ).replace(/\/$/, '');
-    window.location.assign(marketplaceUrl);
+    window.open(marketplaceUrl, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -1175,7 +1177,8 @@ export default function LandingPage() {
                   width={1845}
                   height={877}
                   quality={60}
-                  className="w-full h-auto block opacity-50"
+                  className="w-full block opacity-50"
+                  style={{ height: 'auto' }}
                   sizes="(min-width: 1024px) 1000px, 90vw"
                 />
               </div>
@@ -1191,7 +1194,8 @@ export default function LandingPage() {
                   width={1845}
                   height={877}
                   quality={65}
-                  className="w-full h-auto block opacity-70"
+                  className="w-full block opacity-70"
+                  style={{ height: 'auto' }}
                   sizes="(min-width: 1024px) 1080px, 95vw"
                 />
             </div>
@@ -1203,9 +1207,11 @@ export default function LandingPage() {
                   alt={t('hero.productPlaceholder')}
                   width={1845}
                   height={877}
-                  priority
+                  loading="eager"
+                  fetchPriority="high"
                   quality={90}
-                  className="w-full h-auto rounded-xl block"
+                  className="w-full rounded-xl block"
+                  style={{ height: 'auto' }}
                   sizes="(min-width: 1024px) 1152px, 100vw"
                 />
               </div>

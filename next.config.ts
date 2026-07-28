@@ -20,6 +20,8 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ['@prisma/client', 'winston', 'pino'],
   // Configure Cloudinary images and Google profile images
   images: {
+    // Landing pages use custom quality values beyond the Next default (75).
+    qualities: [55, 60, 65, 75, 85, 90, 92, 100],
     remotePatterns: [
       {
         protocol: 'https',

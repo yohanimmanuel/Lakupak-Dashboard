@@ -108,21 +108,24 @@ export function DocsHeader() {
       <div className="flex items-center justify-between gap-4 px-4 h-16">
         <div className="flex items-center gap-4 min-w-0 flex-1">
           <Link href={`/${locale}/landing`} className="flex items-center min-w-0 shrink-0">
-            <Image
+            <img
               src="/LakuTextLogo.svg"
               alt="Laku"
               width={120}
               height={36}
               className="h-9 w-auto hidden sm:block"
-              priority
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
             />
-            <Image
+            <img
               src="/LakuIcon.svg"
               alt="Laku"
               width={36}
               height={36}
               className="h-9 w-9 sm:hidden"
-              priority
+              loading="eager"
+              decoding="async"
             />
           </Link>
 
