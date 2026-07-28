@@ -1,13 +1,5 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
 
 /** Selected rules relaxed for development velocity. Review before enabling in CI. */
 const relaxedRules = {
@@ -17,6 +9,14 @@ const relaxedRules = {
   "@typescript-eslint/no-explicit-any": "off",
   "react/no-unescaped-entities": "off",
   "react-hooks/exhaustive-deps": "off",
+  // React Hooks 7 (via eslint-config-next 16) — keep off until codebase is upgraded intentionally.
+  "react-hooks/set-state-in-effect": "off",
+  "react-hooks/preserve-manual-memoization": "off",
+  "react-hooks/static-components": "off",
+  "react-hooks/refs": "off",
+  "react-hooks/error-boundaries": "off",
+  "react-hooks/purity": "off",
+  "react-hooks/immutability": "off",
   "@next/next/no-html-link-for-pages": "off",
   "@next/next/no-assign-module-variable": "off",
   "@next/next/no-img-element": "off",
@@ -28,9 +28,14 @@ const relaxedRules = {
 };
 
 const eslintConfig = [
-  { ignores: ["src/generated/**", "node_modules/**", ".next/**"] },
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
-  { rules: relaxedRules },
+  ...nextVitals,
+  ...nextTs,
+  {
+    ignores: ["src/generated/**", "node_modules/**", ".next/**"],
+  },
+  {
+    rules: relaxedRules,
+  },
 ];
 
 export default eslintConfig;
