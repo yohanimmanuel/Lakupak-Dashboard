@@ -125,6 +125,11 @@ const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaCo
       backWidthClass: 'w-[52%] sm:w-[48%]',
       frontWidthClass: 'w-[72%] sm:w-[68%]',
     },
+    3: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardproducts11.png', width: 1236, height: 792 },
+    },
     4: {
       type: 'single',
       placement: 'center',
