@@ -284,6 +284,7 @@ export const marketplaceTypeDefs = /* GraphQL */ `
       limit: Int = 20
       category: String
       search: String
+      productId: String
       marketplaceUserId: Int
     ): MobileMarketplaceProductConnection!
     

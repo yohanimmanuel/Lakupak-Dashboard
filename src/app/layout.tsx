@@ -15,11 +15,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// The icon comes from src/app/icon.svg, which Next serves with a content hash so
+// browsers refetch it instead of reusing a stale favicon entry.
 export const metadata: Metadata = {
   title: "Laku",
-  icons: {
-    icon: "/LakuIcon.svg",
-  },
 };
 
 export default function RootLayout({

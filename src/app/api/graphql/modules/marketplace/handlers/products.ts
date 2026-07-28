@@ -223,9 +223,10 @@ export const fetchMarketplaceProducts = async (args: {
   limit?: number;
   category?: string;
   search?: string;
+  productId?: string;
   marketplaceUserId?: number;
 }) => {
-  const { page = 1, limit = 20, category, search } = args;
+  const { page = 1, limit = 20, category, search, productId } = args;
   // Deterministic search mode: 'auto' allows silent fallback; 'meili' (strict) flags any non-Meili
   // result as degraded so relevance/latency drops are observable instead of silent.
   const engineRequested = getMarketplaceSearchEngineMode();
@@ -426,6 +427,12 @@ export const fetchMarketplaceProducts = async (args: {
     marketplaceStatus: 'Published',
     status: 'Published',
   };
+
+  // Direct lookup by productId: neither Prisma substring search nor the Meili index
+  // covers the id, so shareable product links resolve through this exact match.
+  if (productId && productId.trim()) {
+    whereClause.productId = productId.trim();
+  }
 
   // Search term = OR across searchable fields (Meili/pg_trgm handle relevance; Prisma path is substring match).
   if (search && search.trim()) {
