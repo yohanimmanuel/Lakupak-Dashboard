@@ -46,8 +46,10 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const [earningsPage, setEarningsPage] = useState(1);
   const [orderStatus, setOrderStatus] = useState<string>(order.orderStatus);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [isUpdatingOrderStatus, setIsUpdatingOrderStatus] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<Order['paymentStatus']>(order.paymentStatus);
   const [showPaymentDropdown, setShowPaymentDropdown] = useState(false);
+  const [isUpdatingPaymentStatus, setIsUpdatingPaymentStatus] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPaymentProofModal, setShowPaymentProofModal] = useState(false);
   const [showDeliveryMethodDropdown, setShowDeliveryMethodDropdown] = useState(false);
@@ -433,15 +435,22 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             {/* Order Status Dropdown */}
             <div className="relative group">
               <button
-                className={`flex items-center gap-1 py-2 px-4 rounded-lg text-sm font-medium min-w-[120px] ${getStatusColor(orderStatus)} hover:opacity-80 transition-all duration-200`}
+                type="button"
+                disabled={isUpdatingOrderStatus}
+                className={`flex items-center gap-1 py-2 px-4 rounded-lg text-sm font-medium min-w-[120px] ${getStatusColor(orderStatus)} hover:opacity-80 transition-all duration-200 disabled:cursor-wait disabled:opacity-80`}
                 onClick={() => {
+                  if (isUpdatingOrderStatus) return;
                   setShowPaymentDropdown(false);
                   setShowStatusDropdown((v) => !v);
                 }}
                 title={tDetails('statusTooltip')}
               >
                 {translateOrderStatus(orderStatus)}
-                <ChevronDown className="w-4 h-4 ml-3 text-gray-500" />
+                {isUpdatingOrderStatus ? (
+                  <Loader2 className="w-4 h-4 ml-3 animate-spin text-gray-500" aria-hidden />
+                ) : (
+                  <ChevronDown className="w-4 h-4 ml-3 text-gray-500" aria-hidden />
+                )}
               </button>
               
               {/* Hover tooltip */}
@@ -451,12 +460,20 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               </div>
               
               {/* Dropdown Menu */}
-              {showStatusDropdown && (
+              {showStatusDropdown && !isUpdatingOrderStatus && (
                 <div className="absolute right-0 mt-2 w-32 bg-white border border-[#e6e6e6] rounded-lg shadow-lg z-20">
                   {['Pending', 'Confirmed', 'Packed', 'Shipped', 'Delivered', 'Failed', 'Cancelled', 'Returned'].map(status => (
                     <button
                       key={status}
+                      type="button"
+                      disabled={isUpdatingOrderStatus}
                       onClick={async () => {
+                        if (status === orderStatus) {
+                          setShowStatusDropdown(false);
+                          return;
+                        }
+                        setShowStatusDropdown(false);
+                        setIsUpdatingOrderStatus(true);
                         try {
                           const requestBody: Record<string, unknown> = {
                             orderId: order.orderId,
@@ -482,16 +499,15 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                             throw new Error(`Failed to update order status: ${response.status}`);
                           }
                           
-                          const result = await response.json();
+                          await response.json();
                           
                           setOrderStatus(status);
-                          setShowStatusDropdown(false);
-                          // Mirror ProductCatalog pattern: force full reload so state re-initializes cleanly
-                          window.location.href = window.location.href;
                         } catch (error) {
+                        } finally {
+                          setIsUpdatingOrderStatus(false);
                         }
                       }}
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 first:rounded-t-lg last:rounded-b-lg ${
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 first:rounded-t-lg last:rounded-b-lg disabled:opacity-60 ${
                         orderStatus === status ? 'font-bold text-[#0a61d7] bg-blue-50' : 'text-gray-700'
                       }`}
                     >
@@ -506,23 +522,36 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             <div className="relative">
               <button
                 type="button"
+                disabled={isUpdatingPaymentStatus}
                 onClick={() => {
+                  if (isUpdatingPaymentStatus) return;
                   setShowStatusDropdown(false);
                   setShowPaymentDropdown((v) => !v);
                 }}
-                className={`py-2 px-4 rounded-lg text-sm font-medium min-w-[120px] flex items-center justify-between gap-2 ${getPaymentStatusColor(paymentStatus)}`}
+                className={`py-2 px-4 rounded-lg text-sm font-medium min-w-[120px] flex items-center justify-between gap-2 ${getPaymentStatusColor(paymentStatus)} disabled:cursor-wait disabled:opacity-80`}
               >
                 {translatePaymentStatus(paymentStatus)}
-                <ChevronDown className="w-4 h-4" />
+                {isUpdatingPaymentStatus ? (
+                  <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+                ) : (
+                  <ChevronDown className="w-4 h-4" aria-hidden />
+                )}
               </button>
 
-              {showPaymentDropdown && (
+              {showPaymentDropdown && !isUpdatingPaymentStatus && (
                 <div className="absolute right-0 mt-2 w-40 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
                   {PAYMENT_STATUS_OPTIONS.map((status) => (
                     <button
                       key={status}
                       type="button"
+                      disabled={isUpdatingPaymentStatus}
                       onClick={async () => {
+                        if (status === paymentStatus) {
+                          setShowPaymentDropdown(false);
+                          return;
+                        }
+                        setShowPaymentDropdown(false);
+                        setIsUpdatingPaymentStatus(true);
                         try {
                           const response = await fetch('/api/orders', {
                             method: 'PUT',
@@ -535,14 +564,13 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                           });
                           if (!response.ok) return;
                           setPaymentStatus(status);
-                          setShowPaymentDropdown(false);
-                          // Mirror ProductCatalog pattern: force full reload so state re-initializes cleanly
-                          window.location.href = window.location.href;
                         } catch {
                           // ignore
+                        } finally {
+                          setIsUpdatingPaymentStatus(false);
                         }
                       }}
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 first:rounded-t-lg last:rounded-b-lg ${
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 first:rounded-t-lg last:rounded-b-lg disabled:opacity-60 ${
                         paymentStatus === status ? 'font-bold text-[#0a61d7] bg-blue-50' : 'text-gray-700'
                       }`}
                     >
@@ -647,15 +675,15 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                       {tDetails('totalOrder.paymentProof')}
                     </button>
                   )}
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${getPaymentStatusColor(order.paymentStatus)}`}>
-                    {translatePaymentStatus(order.paymentStatus).toUpperCase()}
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${getPaymentStatusColor(paymentStatus)}`}>
+                    {translatePaymentStatus(paymentStatus).toUpperCase()}
                   </span>
                 </div>
               </div>
               <div className="text-xs text-gray-500">
-                {showPaymentProof && order.paymentStatus === 'Unpaid'
+                {showPaymentProof && paymentStatus === 'Unpaid'
                   ? tDetails('totalOrder.paymentAuth.proofUnpaid')
-                  : order.paymentStatus === 'Paid'
+                  : paymentStatus === 'Paid'
                     ? tDetails('totalOrder.paymentAuth.paid')
                     : tDetails('totalOrder.paymentAuth.unpaid')}
               </div>
@@ -785,12 +813,13 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 </div>
               ) : geocodeResult?.coordinates ? (
                 <MapComponent
+                  key={`order-map-${orderStatus}`}
                   accessToken={mapboxToken}
                   markers={[{
                     id: order.id,
                     coordinates: geocodeResult.coordinates,
-                    label: `${order.orderId} - ${translateOrderStatus(order.orderStatus)}`,
-                    color: getOrderStatusMarkerColor(order.orderStatus),
+                    label: `${order.orderId} - ${translateOrderStatus(orderStatus)}`,
+                    color: getOrderStatusMarkerColor(orderStatus),
                   }]}
                   center={geocodeResult.coordinates}
                   zoom={14}
@@ -1932,14 +1961,14 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
       >
         {geocodeResult?.coordinates ? (
           <MapComponent
-            key="order-details-map-fullscreen"
+            key={`order-details-map-fullscreen-${orderStatus}`}
             accessToken={mapboxToken}
             markers={[
               {
                 id: order.id,
                 coordinates: geocodeResult.coordinates,
-                label: `${order.orderId} - ${translateOrderStatus(order.orderStatus)}`,
-                color: getOrderStatusMarkerColor(order.orderStatus),
+                label: `${order.orderId} - ${translateOrderStatus(orderStatus)}`,
+                color: getOrderStatusMarkerColor(orderStatus),
               },
             ]}
             center={geocodeResult.coordinates}
