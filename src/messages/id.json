@@ -246,10 +246,6 @@
           "desc": "Buka WhatsApp dengan tautan kampanye agar retailer mendarat di halaman yang menghitung open dan klik."
         },
         "3": {
-          "title": "Draf sampai Anda siap",
-          "desc": "Simpan kampanye sebagai draf, lalu kirim atau kirim ulang saat pesan dan pilihan produk sudah siap."
-        },
-        "4": {
           "title": "Kapasitas sales di samping kampanye",
           "desc": "Organisir agent dan tim dengan peran, wilayah, dan produk favorit agar follow-up tetap dekat dengan apa yang Anda promosikan."
         }
@@ -328,18 +324,14 @@
           "desc": "Beralih laporan Keuangan, Penjualan, dan Operasional sambil menjaga jendela bulan, kuartal, enam bulan, atau tahun yang sama."
         },
         "2": {
-          "title": "Bandingkan dengan periode sebelumnya",
-          "desc": "Delta KPI menunjukkan pertumbuhan atau penurunan terhadap jendela panjang yang sama sebelumnya agar perubahan langsung terlihat."
-        },
-        "3": {
           "title": "Potong pendapatan dan unit per kategori",
           "desc": "Pecah performa menurut kategori atau tipe produk, dan buka produk teratas ke detail laba tingkat varian."
         },
-        "4": {
+        "3": {
           "title": "Forecast saat riwayat siap",
           "desc": "Proyeksikan pendapatan dan volume pesanan setelah Anda punya minimal dua bulan data sebagai dasar forecast."
         },
-        "5": {
+        "4": {
           "title": "Kualitas operasional di samping grafik",
           "desc": "Skor kualitas untuk penerimaan, tracking, kelengkapan data, dan stok duduk di samping tren status dan pemrosesan."
         }

@@ -58,9 +58,9 @@ export const FEATURE_MODULES: FeatureModuleDef[] = [
   },
   { slug: 'orders', group: 'sell', icon: ShoppingCart, surfaces: ['dashboard', 'marketplace', 'driver'], pointsCount: 4, highlightsCount: 3 },
   { slug: 'offers', group: 'sell', icon: Tag, surfaces: ['dashboard', 'marketplace'], pointsCount: 4, highlightsCount: 3 },
-  { slug: 'marketing', group: 'grow', icon: Megaphone, surfaces: ['dashboard'], pointsCount: 4, highlightsCount: 3 },
+  { slug: 'marketing', group: 'grow', icon: Megaphone, surfaces: ['dashboard'], pointsCount: 3, highlightsCount: 3 },
   { slug: 'marketplace', group: 'grow', icon: Store, featured: true, surfaces: ['dashboard', 'marketplace'], pointsCount: 5, highlightsCount: 3 },
-  { slug: 'analytics', group: 'grow', icon: BarChart3, surfaces: ['dashboard'], pointsCount: 5, highlightsCount: 3 },
+  { slug: 'analytics', group: 'grow', icon: BarChart3, surfaces: ['dashboard'], pointsCount: 4, highlightsCount: 3 },
   { slug: 'automations', group: 'grow', icon: Zap, surfaces: ['dashboard'], pointsCount: 5, highlightsCount: 3 },
   { slug: 'logistics', group: 'deliver', icon: Truck, surfaces: ['dashboard', 'driver'], pointsCount: 5, highlightsCount: 3 },
 ];

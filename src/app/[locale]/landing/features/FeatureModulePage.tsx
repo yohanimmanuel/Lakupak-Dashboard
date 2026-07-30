@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -9,7 +10,7 @@ import { Reveal } from '../Reveal';
 import type { FeatureModuleSlug } from './modules';
 import { FEATURE_MODULES, featurePath, getFeatureModule } from './modules';
 
-type PointMedia = { src: string; width: number; height: number };
+type PointMedia = { src: string; width: number; height: number; label?: string };
 type PointMediaConfig =
   | { type: 'single'; image: PointMedia; placement?: 'corner' | 'center' }
   | {
@@ -27,6 +28,14 @@ type PointMediaConfig =
       /** Width classes for each layer (back sits behind, front on top). */
       backWidthClass?: string;
       frontWidthClass?: string;
+      /** side = login-style left+bottom-right; iconRight = main image with icon overlapping the right edge. */
+      layout?: 'side' | 'iconRight';
+    }
+  | {
+      type: 'carousel';
+      images: PointMedia[];
+      /** Auto-advance interval in ms. */
+      intervalMs?: number;
     };
 
 /** Real screenshots for specific detail steps; the rest fall back to placeholders. */
@@ -136,6 +145,56 @@ const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaCo
       image: { src: '/Dashboardoffers4.png', width: 1505, height: 502 },
     },
   },
+  marketing: {
+    1: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardmarketing3.png', width: 1477, height: 780 },
+    },
+    2: {
+      type: 'straight',
+      layout: 'iconRight',
+      back: { src: '/Dashboardmarketing4.png', width: 1163, height: 785 },
+      front: { src: '/Whatsappicon.png', width: 48, height: 48 },
+      backWidthClass: 'w-[82%] sm:w-[78%]',
+      frontWidthClass: 'w-12 sm:w-14',
+    },
+    3: {
+      type: 'diagonal',
+      back: { src: '/Dashboardmarketing2eng.png', width: 486, height: 726 },
+      front: { src: '/Dashboardmarketing5.png', width: 987, height: 737 },
+      orientation: 'tr-bl',
+      scale: 'sm',
+    },
+  },
+  analytics: {
+    1: {
+      type: 'carousel',
+      intervalMs: 3500,
+      images: [
+        { src: '/Dashboardanalyticsfin.png', width: 952, height: 513, label: 'Financial' },
+        { src: '/Dashboardanalyticscus.png', width: 887, height: 581, label: 'Customer' },
+        { src: '/Dashboardanalyticsops.png', width: 835, height: 477, label: 'Operational' },
+      ],
+    },
+    2: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardanalytics1.png', width: 1265, height: 577 },
+    },
+    3: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardanalytics4.png', width: 1513, height: 540 },
+    },
+    4: {
+      type: 'diagonal',
+      back: { src: '/Dashboardanalyticseng.png', width: 811, height: 702 },
+      front: { src: '/Dashboardanalytics5.png', width: 670, height: 702 },
+      orientation: 'tr-bl',
+      scale: 'sm',
+    },
+  },
 };
 
 function ImagePlaceholder({ label, className = '' }: { label: string; className?: string }) {
@@ -231,12 +290,57 @@ function PointStraightStack({
   front,
   backWidthClass = 'w-[52%] sm:w-[48%]',
   frontWidthClass = 'w-[72%] sm:w-[68%]',
+  layout = 'side',
 }: {
   back: PointMedia;
   front: PointMedia;
   backWidthClass?: string;
   frontWidthClass?: string;
+  layout?: 'side' | 'iconRight';
 }) {
+  if (layout === 'iconRight') {
+    return (
+      <div className="relative mx-auto flex h-full w-full items-center justify-center">
+        <div
+          className={`relative z-10 ${backWidthClass} animate-fade-in motion-reduce:animate-none`}
+          style={{ animationDuration: '0.45s' }}
+        >
+          <div className="overflow-hidden rounded-xl border border-gray-200/90 bg-white p-1 shadow-[0_16px_40px_-16px_rgba(15,23,42,0.28)]">
+            <Image
+              src={back.src}
+              alt=""
+              width={back.width}
+              height={back.height}
+              quality={90}
+              className="block h-auto w-full rounded-lg"
+              sizes="(min-width: 1024px) 460px, 82vw"
+            />
+          </div>
+          {/* Compact channel icon, no chrome — sits on the screenshot’s right edge. */}
+          <div
+            className={`pointer-events-none absolute top-1/2 z-20 -translate-y-1/2 ${frontWidthClass} animate-fade-in-up motion-reduce:animate-none`}
+            style={{
+              right: '-4%',
+              animationDuration: '0.55s',
+              animationDelay: '0.1s',
+              opacity: 0,
+            }}
+          >
+            <Image
+              src={front.src}
+              alt=""
+              width={front.width}
+              height={front.height}
+              quality={92}
+              className="block h-auto w-full drop-shadow-[0_10px_20px_rgba(0,0,0,0.28)]"
+              sizes="56px"
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   /** Side-by-side overlap like login showcase slide 2: primary left, secondary bottom-right. */
   return (
     <div className="relative mx-auto h-full w-full">
@@ -272,6 +376,58 @@ function PointStraightStack({
           />
         </div>
       </div>
+    </div>
+  );
+}
+
+function PointAutoCarousel({
+  images,
+  intervalMs = 3500,
+  alt,
+}: {
+  images: PointMedia[];
+  intervalMs?: number;
+  alt: string;
+}) {
+  const [active, setActive] = useState(0);
+
+  useEffect(() => {
+    if (images.length <= 1) return;
+    const reduce =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) return;
+
+    const id = window.setInterval(() => {
+      setActive((prev) => (prev + 1) % images.length);
+    }, intervalMs);
+    return () => window.clearInterval(id);
+  }, [images.length, intervalMs]);
+
+  return (
+    <div className="relative h-full w-full">
+      {images.map((image, index) => (
+        <div
+          key={image.src}
+          className={`absolute inset-0 flex items-center justify-center p-2 sm:p-3 transition-opacity duration-700 ease-out ${
+            index === active ? 'opacity-100' : 'pointer-events-none opacity-0'
+          }`}
+          aria-hidden={index !== active}
+        >
+          <span className="inline-flex max-w-full overflow-hidden rounded-xl border border-gray-200/90 bg-white shadow-[0_14px_36px_-16px_rgba(15,23,42,0.28)]">
+            <Image
+              src={image.src}
+              alt={image.label ? `${alt} — ${image.label}` : alt}
+              width={image.width}
+              height={image.height}
+              quality={90}
+              className="block h-auto w-auto max-h-[224px] max-w-full sm:max-h-[296px]"
+              sizes="(min-width: 1024px) 560px, 92vw"
+              priority={index === 0}
+            />
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -485,6 +641,14 @@ export function FeatureModulePage({
                       </div>
                     )}
                   </FeatureMediaFrame>
+                ) : pointMedia.type === 'carousel' ? (
+                  <FeatureMediaFrame framed={false} minHeightClass={stageHeightClass}>
+                    <PointAutoCarousel
+                      images={pointMedia.images}
+                      intervalMs={pointMedia.intervalMs}
+                      alt={title}
+                    />
+                  </FeatureMediaFrame>
                 ) : pointMedia.type === 'straight' ? (
                   <FeatureMediaFrame framed={false} minHeightClass={stageHeightClass}>
                     <PointStraightStack
@@ -492,6 +656,7 @@ export function FeatureModulePage({
                       front={pointMedia.front}
                       backWidthClass={pointMedia.backWidthClass}
                       frontWidthClass={pointMedia.frontWidthClass}
+                      layout={pointMedia.layout}
                     />
                   </FeatureMediaFrame>
                 ) : (

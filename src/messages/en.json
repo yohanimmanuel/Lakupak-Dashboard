@@ -246,10 +246,6 @@
           "desc": "Open WhatsApp with your campaign link so retailers land on a page that counts opens and clicks."
         },
         "3": {
-          "title": "Drafts until you are ready",
-          "desc": "Save campaigns as drafts, then send or resend when the message and product picks are set."
-        },
-        "4": {
           "title": "Sales capacity beside campaigns",
           "desc": "Organize agents and teams with roles, territory, and favorite products so follow-up stays close to what you promote."
         }
@@ -328,18 +324,14 @@
           "desc": "Switch Financial, Sales, and Operational reports while keeping the same month, quarter, six-month, or year window."
         },
         "2": {
-          "title": "Compare to the prior period",
-          "desc": "KPI deltas show growth or slippage against the previous equal-length window so changes are obvious at a glance."
-        },
-        "3": {
           "title": "Slice revenue and units by category",
           "desc": "Break performance by product category or type, and open top products into variant-level profit detail."
         },
-        "4": {
+        "3": {
           "title": "Forecast when history is ready",
           "desc": "Project revenue and order volume once you have at least two months of data to ground the forecast."
         },
-        "5": {
+        "4": {
           "title": "Operational quality beside the charts",
           "desc": "Quality scores for acceptance, tracking, data completeness, and stock sit next to status and processing trends."
         }
