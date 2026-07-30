@@ -58,6 +58,123 @@ export async function calculateSoldCounts(
   return result;
 }
 
+function round1(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
+export type ProductReviewStats = {
+  overallRating: number;
+  totalReviews: number;
+  breakdown: Record<1 | 2 | 3 | 4 | 5, number>;
+};
+
+/** Batch product-review aggregates for marketplace list cards (avoids N+1). */
+export async function calculateProductReviewStats(
+  prisma: PrismaClient,
+  productIds: string[],
+): Promise<Map<string, ProductReviewStats>> {
+  const emptyBreakdown = (): Record<1 | 2 | 3 | 4 | 5, number> => ({
+    1: 0,
+    2: 0,
+    3: 0,
+    4: 0,
+    5: 0,
+  });
+
+  if (!productIds.length) return new Map();
+
+  const [averages, byRating] = await prisma.$transaction(
+    async (tx) =>
+      Promise.all([
+        tx.productReview.groupBy({
+          by: ['productId'],
+          where: { productId: { in: productIds } },
+          _avg: { rating: true },
+          _count: { id: true },
+        }),
+        tx.productReview.groupBy({
+          by: ['productId', 'rating'],
+          where: { productId: { in: productIds } },
+          _count: { id: true },
+        }),
+      ]),
+    { isolationLevel: 'RepeatableRead' },
+  );
+
+  const map = new Map<string, ProductReviewStats>();
+  for (const row of averages) {
+    map.set(row.productId, {
+      overallRating: round1(row._avg.rating ?? 0),
+      totalReviews: row._count.id,
+      breakdown: emptyBreakdown(),
+    });
+  }
+
+  for (const row of byRating) {
+    let stats = map.get(row.productId);
+    // Keep breakdown keys even if this product only appeared in the rating groupBy.
+    if (!stats) {
+      stats = {
+        overallRating: 0,
+        totalReviews: 0,
+        breakdown: emptyBreakdown(),
+      };
+      map.set(row.productId, stats);
+    }
+    const rating = row.rating as 1 | 2 | 3 | 4 | 5;
+    if (rating >= 1 && rating <= 5) {
+      stats.breakdown[rating] = row._count.id;
+    }
+  }
+
+  // Reconstruct aggregates for products that only appeared in byRating.
+  for (const stats of map.values()) {
+    if (stats.totalReviews > 0) continue;
+    let sum = 0;
+    let count = 0;
+    ([1, 2, 3, 4, 5] as const).forEach((star) => {
+      const n = stats.breakdown[star];
+      sum += star * n;
+      count += n;
+    });
+    if (count > 0) {
+      stats.totalReviews = count;
+      stats.overallRating = round1(sum / count);
+    }
+  }
+
+  return map;
+}
+
+export type DistributorReviewStats = {
+  overallRating: number;
+  totalReviews: number;
+};
+
+/** Batch distributor-review aggregates for seller badges on product cards. */
+export async function calculateDistributorReviewStats(
+  prisma: PrismaClient,
+  distributorIds: number[],
+): Promise<Map<number, DistributorReviewStats>> {
+  if (!distributorIds.length) return new Map();
+
+  const averages = await prisma.distributorReview.groupBy({
+    by: ['distributorId'],
+    where: { distributorId: { in: distributorIds } },
+    _avg: { overallRating: true },
+    _count: { id: true },
+  });
+
+  const map = new Map<number, DistributorReviewStats>();
+  for (const row of averages) {
+    map.set(row.distributorId, {
+      overallRating: round1(row._avg.overallRating ?? 0),
+      totalReviews: row._count.id,
+    });
+  }
+  return map;
+}
+
 /**
  * Automatically manage offer lifecycle based on date ranges
  * - Deactivate 'active' offers that have expired → set to 'inactive'

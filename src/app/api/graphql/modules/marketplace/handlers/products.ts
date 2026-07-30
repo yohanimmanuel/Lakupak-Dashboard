@@ -1,7 +1,7 @@
 import type { Prisma } from '@/lib/db';
 import { prisma } from '../../common/prisma';
 import { safeParsePrice } from '@/utils/currencyUtils';
-import { calculateSoldCounts, updateProductPricesFromOffers, deactivateExpiredOffers } from '@/utils/marketplaceMetrics';
+import { calculateSoldCounts, calculateProductReviewStats, calculateDistributorReviewStats, updateProductPricesFromOffers, deactivateExpiredOffers } from '@/utils/marketplaceMetrics';
 import { sanitizePagination, buildPaginationInfo } from '../../common/utils';
 import { getTodayBoundaries, getStartOfDay, getEndOfDay } from '@/lib/dateUtils';
 import {
@@ -685,7 +685,11 @@ export const fetchMarketplaceProducts = async (args: {
   // Get active offers for all products
   const productIds = resolvedProducts.map((p) => p.productId);
   const userIds = [...new Set(resolvedProducts.map((p) => p.userId).filter((id): id is number => id != null))];
-  const soldCountMap = await calculateSoldCounts(prisma, productIds);
+  const [soldCountMap, productReviewStats, distributorReviewStats] = await Promise.all([
+    calculateSoldCounts(prisma, productIds),
+    calculateProductReviewStats(prisma, productIds),
+    calculateDistributorReviewStats(prisma, userIds),
+  ]);
   
   // Get only ACTIVE offers to check real-time status
   const { startOfToday, endOfToday } = getTodayBoundaries(); // Uses Asia/Jakarta timezone by default
@@ -970,6 +974,16 @@ export const fetchMarketplaceProducts = async (args: {
     if (totalStock === 0) stockStatus = 'Out of Stock';
     else if (totalLowStockThreshold > 0 && totalStock <= totalLowStockThreshold) stockStatus = 'Low Stock';
     
+    const reviewStats = productReviewStats.get(product.productId) ?? {
+      overallRating: 0,
+      totalReviews: 0,
+      breakdown: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
+    };
+    const sellerStats =
+      product.userId != null
+        ? distributorReviewStats.get(product.userId)
+        : undefined;
+
     return {
       id: product.productId,
       name: product.name,
@@ -986,8 +1000,8 @@ export const fetchMarketplaceProducts = async (args: {
       discountType,
       discountValue,
       promotionDetails,
-      rating: 0,
-      reviewCount: 0,
+      rating: reviewStats.overallRating,
+      reviewCount: reviewStats.totalReviews,
       soldCount: soldCountMap.get(product.productId) || '0',
       stock: totalStock,
       stockStatus,
@@ -1022,8 +1036,8 @@ export const fetchMarketplaceProducts = async (args: {
       seller: {
         name: product.user?.company?.name || 'Unknown Company',
         avatar: '/default-avatar.png',
-        rating: 0,
-        reviewCount: 0,
+        rating: sellerStats?.overallRating ?? 0,
+        reviewCount: sellerStats?.totalReviews ?? 0,
         isOfficial: true,
         responseTime: 'N/A',
         deliverySpeed: 'N/A',
@@ -1081,11 +1095,11 @@ export const fetchMarketplaceProducts = async (args: {
         originalProduct: product.originalProduct !== false
       },
       reviews: {
-        overallRating: 0,
-        totalReviews: 0,
-        breakdown: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
+        overallRating: reviewStats.overallRating,
+        totalReviews: reviewStats.totalReviews,
+        breakdown: reviewStats.breakdown,
         sampleReview: null,
-        hasReviews: false
+        hasReviews: reviewStats.totalReviews > 0
       }
     };
   }));

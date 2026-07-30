@@ -5,10 +5,14 @@ import { getAuthenticatedMarketplaceUserId } from '@/utils/auth-helpers';
 import { marketplaceMutationRateLimiter } from '@/utils/rateLimiter';
 
 const WOULD_ORDER_AGAIN_VALUES = ['yes', 'no', 'maybe'] as const;
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 10;
+const MAX_LIMIT = 50;
 
 /**
- * GET /api/mobile/reviews/distributor?distributorId=xxx
- * Public: returns distributor reviews and aggregate rating for display.
+ * GET /api/mobile/reviews/distributor?distributorId=xxx&page=1&limit=10
+ * Public: paginated distributor reviews + aggregate rating/breakdown.
+ * Aggregates cover all reviews; `reviews` is the current page.
  */
 export async function GET(request: NextRequest) {
   const headers = getSecurityHeaders();
@@ -24,17 +28,52 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid distributorId' }, { status: 400, headers });
     }
 
-    const reviews = await prisma.distributorReview.findMany({
-      where: { distributorId },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        user: { select: { name: true, username: true, image: true } },
-      },
-    });
+    const page = Math.max(
+      1,
+      parseInt(searchParams.get('page') ?? String(DEFAULT_PAGE), 10) || DEFAULT_PAGE,
+    );
+    const limit = Math.min(
+      MAX_LIMIT,
+      Math.max(1, parseInt(searchParams.get('limit') ?? String(DEFAULT_LIMIT), 10) || DEFAULT_LIMIT),
+    );
+    const skip = (page - 1) * limit;
+    const where = { distributorId };
 
-    const totalReviews = reviews.length;
-    const sumRating = reviews.reduce((acc, r) => acc + r.overallRating, 0);
-    const overallRating = totalReviews > 0 ? Math.round((sumRating / totalReviews) * 10) / 10 : 0;
+    const [aggregateResult, ratingGroups, reviews] = await Promise.all([
+      prisma.distributorReview.aggregate({
+        where,
+        _count: { id: true },
+        _avg: { overallRating: true },
+      }),
+      prisma.distributorReview.groupBy({
+        by: ['overallRating'],
+        where,
+        _count: { id: true },
+      }),
+      prisma.distributorReview.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          user: { select: { name: true, username: true, image: true } },
+        },
+      }),
+    ]);
+
+    const totalReviews = aggregateResult._count.id;
+    const avgRating = aggregateResult._avg.overallRating;
+    const overallRating =
+      totalReviews > 0 && avgRating != null
+        ? Math.round(Number(avgRating) * 10) / 10
+        : 0;
+
+    const breakdown: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    for (const g of ratingGroups) {
+      if (g.overallRating >= 1 && g.overallRating <= 5) {
+        breakdown[g.overallRating] = g._count.id;
+      }
+    }
 
     const list = reviews.map((r) => ({
       id: r.id,
@@ -46,19 +85,32 @@ export async function GET(request: NextRequest) {
       comment: r.comment ?? undefined,
       createdAt: r.createdAt.toISOString(),
       reviewerDisplayName:
-        (r.user?.name && r.user.name.trim()) || (r.user?.username && r.user.username.trim()) || 'Customer',
+        (r.user?.name && r.user.name.trim()) ||
+        (r.user?.username && r.user.username.trim()) ||
+        'Customer',
       reviewerProfileImage: r.user?.image ?? undefined,
     }));
 
+    const totalPages = totalReviews === 0 ? 0 : Math.ceil(totalReviews / limit);
+
     return NextResponse.json(
-      { distributorId, totalReviews, overallRating, reviews: list },
-      { status: 200, headers }
+      {
+        distributorId,
+        totalReviews,
+        overallRating,
+        breakdown,
+        reviews: list,
+        page,
+        limit,
+        totalPages,
+      },
+      { status: 200, headers },
     );
   } catch (e) {
     console.error('Distributor reviews fetch error:', e);
     return NextResponse.json(
       { error: 'Failed to load reviews.' },
-      { status: 500, headers }
+      { status: 500, headers },
     );
   }
 }
@@ -160,10 +212,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Cannot review yourself' }, { status: 400, headers });
     }
 
-    if (userId === distributorId) {
-      return NextResponse.json({ error: 'Cannot review yourself' }, { status: 400, headers });
-    }
-
     await prisma.distributorReview.upsert({
       where: {
         userId_distributorId: { userId, distributorId },
@@ -195,7 +243,7 @@ export async function POST(request: NextRequest) {
     console.error('Distributor review submission error:', e);
     return NextResponse.json(
       { error: 'Failed to submit review. Please try again.' },
-      { status: 500, headers }
+      { status: 500, headers },
     );
   }
 }
