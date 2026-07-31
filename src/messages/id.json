@@ -283,14 +283,10 @@
           "desc": "Retailer dari Home, Categories, dan Search ke detail produk, lalu Add to Cart atau Buy Now dengan gerbang MOQ, transfer bank atau COD, dan aturan pengiriman Anda."
         },
         "3": {
-          "title": "Penawaran dan toko yang di-follow",
-          "desc": "Promosi Dashboard muncul sebagai Special Offers dan badge. Retailer follow distributor dan menjaga jaringan pemasok rutin."
-        },
-        "4": {
           "title": "Pesanan yang mencerminkan Dashboard",
           "desc": "Tab pesanan mobile mencakup bayar, kirim, terima, nilai, retur, dan batal, dengan unduhan invoice dan timeline pengiriman yang mengisi tulang punggung pesanan yang sama."
         },
-        "5": {
+        "4": {
           "title": "Profil storefront untuk pembeli",
           "desc": "Jumlah terbit, pembeli unik, followers, URL marketplace, opsi pengiriman, lead time, dan kebijakan retur menampilkan toko Anda dengan jelas di Marketplace."
         }
@@ -410,18 +406,14 @@
           "desc": "Filter trip dan buka ringkasan, kendaraan, driver, serta detail pelanggan tanpa meninggalkan Logistik."
         },
         "2": {
-          "title": "Seret urutan stop",
-          "desc": "Urutkan langkah pengiriman agar urutan kunjungan di peta sesuai cara driver harus menjalankan rute."
-        },
-        "3": {
           "title": "Kredensial yang Anda terbitkan",
           "desc": "Buat login driver di Logistik untuk aplikasi Laku Driver. Akses dikelola distributor, bukan self-signup terbuka."
         },
-        "4": {
+        "3": {
           "title": "Mulai, selesaikan, atau laporkan gagal",
           "desc": "Packed ke Mulai Pengiriman ke Shipped, lalu foto POD ke Delivered, atau gagal dengan alasan dan bukti foto."
         },
-        "5": {
+        "4": {
           "title": "Lokasi live tanpa kejar telepon",
           "desc": "Update GPS dan status menjaga ops dan pembeli tetap terinformasi; aksi offline bisa mengantri sampai driver terhubung kembali."
         }

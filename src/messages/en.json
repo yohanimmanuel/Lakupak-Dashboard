@@ -283,14 +283,10 @@
           "desc": "Retailers go from Home, Categories, and Search to product detail, then Add to Cart or Buy Now with MOQ gates, bank transfer or COD, and your shipping rules."
         },
         "3": {
-          "title": "Offers and followed stores",
-          "desc": "Dashboard promotions surface as Special Offers and badges. Retailers follow distributors and keep a network of regular suppliers."
-        },
-        "4": {
           "title": "Orders that mirror Dashboard",
           "desc": "Mobile order tabs cover pay, ship, receive, rate, return, and cancel, with invoice download and delivery timeline feeding the same order spine."
         },
-        "5": {
+        "4": {
           "title": "Storefront profile for buyers",
           "desc": "Published counts, unique buyers, followers, marketplace URL, shipping options, lead time, and return policy present your store clearly on Marketplace."
         }
@@ -410,18 +406,14 @@
           "desc": "Filter trips and open summary, vehicle, driver, and customer detail without leaving Logistics."
         },
         "2": {
-          "title": "Drag the stop order",
-          "desc": "Sequence delivery steps so the map visit order matches how the driver should run the route."
-        },
-        "3": {
           "title": "Credentials you issue",
           "desc": "Create driver logins in Logistics for the Laku Driver app. Access is distributor-managed, not open self-signup."
         },
-        "4": {
+        "3": {
           "title": "Start, complete, or report failure",
           "desc": "Packed to Start Delivery to Shipped, then photo POD to Delivered, or failure with a reason and photo evidence."
         },
-        "5": {
+        "4": {
           "title": "Live location without phone chase",
           "desc": "GPS and status updates keep ops and buyers informed; offline actions can queue until the driver reconnects."
         }

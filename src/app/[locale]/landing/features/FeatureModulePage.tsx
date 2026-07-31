@@ -19,7 +19,7 @@ type PointMediaConfig =
       front: PointMedia;
       orientation?: 'tl-br' | 'tr-bl';
       /** Smaller stack so taller screenshots stay inside the stage. */
-      scale?: 'sm' | 'md';
+      scale?: 'xs' | 'sm' | 'md';
     }
   | {
       type: 'straight';
@@ -28,8 +28,8 @@ type PointMediaConfig =
       /** Width classes for each layer (back sits behind, front on top). */
       backWidthClass?: string;
       frontWidthClass?: string;
-      /** side = login-style left+bottom-right; iconRight = main image with icon overlapping the right edge. */
-      layout?: 'side' | 'iconRight';
+      /** side = login-style left+bottom-right; iconRight = main image with icon overlapping the right edge; row = flat side-by-side. */
+      layout?: 'side' | 'iconRight' | 'row';
     }
   | {
       type: 'carousel';
@@ -195,6 +195,57 @@ const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaCo
       scale: 'sm',
     },
   },
+  logistics: {
+    1: {
+      type: 'straight',
+      back: { src: '/Dashboardlogseng.png', width: 750, height: 787 },
+      front: { src: '/Dashboardlogs3.png', width: 697, height: 207 },
+      backWidthClass: 'w-[52%] sm:w-[48%]',
+      frontWidthClass: 'w-[72%] sm:w-[68%]',
+    },
+    2: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardlogs4.png', width: 1512, height: 753 },
+    },
+    3: {
+      type: 'straight',
+      layout: 'row',
+      back: { src: '/Dashboardlogs5.png', width: 492, height: 487 },
+      front: { src: '/Drivermobile.jpeg', width: 1006, height: 2048 },
+      backWidthClass: 'w-[48%] sm:w-[46%]',
+      frontWidthClass: 'w-[28%] sm:w-[26%]',
+    },
+    4: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardlogs6.png', width: 1588, height: 767 },
+    },
+  },
+  marketplace: {
+    1: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardmarketplace.png', width: 1512, height: 617 },
+    },
+    2: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardmarketplace1.png', width: 1112, height: 685 },
+    },
+    3: {
+      type: 'straight',
+      back: { src: '/Dashboardmarketplace4.png', width: 906, height: 740 },
+      front: { src: '/Dashboardmarketplace3.png', width: 917, height: 388 },
+      backWidthClass: 'w-[52%] sm:w-[48%]',
+      frontWidthClass: 'w-[72%] sm:w-[68%]',
+    },
+    4: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardmarketplace2.png', width: 1050, height: 770 },
+    },
+  },
 };
 
 function ImagePlaceholder({ label, className = '' }: { label: string; className?: string }) {
@@ -218,26 +269,43 @@ function PointDiagonalStack({
   back: PointMedia;
   front: PointMedia;
   orientation?: 'tl-br' | 'tr-bl';
-  scale?: 'sm' | 'md';
+  scale?: 'xs' | 'sm' | 'md';
 }) {
   const mirrored = orientation === 'tr-bl';
-  const compact = scale === 'sm';
-  const backWidth = compact ? 'w-[42%] sm:w-[40%]' : 'w-[66%] sm:w-[62%]';
-  const frontWidth = compact ? 'w-[52%] sm:w-[48%]' : 'w-[78%] sm:w-[72%]';
+  const tiny = scale === 'xs';
+  const compact = scale === 'sm' || tiny;
+  const backWidth = tiny
+    ? 'w-[26%] sm:w-[24%]'
+    : compact
+      ? 'w-[42%] sm:w-[40%]'
+      : 'w-[66%] sm:w-[62%]';
+  const frontWidth = tiny
+    ? 'w-[44%] sm:w-[40%]'
+    : compact
+      ? 'w-[52%] sm:w-[48%]'
+      : 'w-[78%] sm:w-[72%]';
   const backPos = mirrored
-    ? compact
-      ? 'right-[8%] top-[12%]'
-      : 'right-[4%] top-[10%]'
-    : compact
-      ? 'left-[8%] top-[12%]'
-      : 'left-[4%] top-[10%]';
+    ? tiny
+      ? 'right-[14%] top-[8%]'
+      : compact
+        ? 'right-[8%] top-[12%]'
+        : 'right-[4%] top-[10%]'
+    : tiny
+      ? 'left-[14%] top-[8%]'
+      : compact
+        ? 'left-[8%] top-[12%]'
+        : 'left-[4%] top-[10%]';
   const frontPos = mirrored
-    ? compact
-      ? 'left-[10%] bottom-[10%]'
-      : 'left-[2%] bottom-[6%]'
-    : compact
-      ? 'right-[10%] bottom-[10%]'
-      : 'right-[2%] bottom-[6%]';
+    ? tiny
+      ? 'left-[12%] bottom-[8%]'
+      : compact
+        ? 'left-[10%] bottom-[10%]'
+        : 'left-[2%] bottom-[6%]'
+    : tiny
+      ? 'right-[12%] bottom-[8%]'
+      : compact
+        ? 'right-[10%] bottom-[10%]'
+        : 'right-[2%] bottom-[6%]';
 
   return (
     <div className="relative mx-auto h-full w-full">
@@ -256,8 +324,14 @@ function PointDiagonalStack({
             width={back.width}
             height={back.height}
             quality={90}
-            className="block h-auto w-full rounded-lg"
-            sizes={compact ? '(min-width: 1024px) 220px, 42vw' : '(min-width: 1024px) 360px, 62vw'}
+            className={`block h-auto w-full rounded-lg ${tiny ? 'max-h-[210px] sm:max-h-[270px] object-contain' : ''}`}
+            sizes={
+              tiny
+                ? '(min-width: 1024px) 140px, 26vw'
+                : compact
+                  ? '(min-width: 1024px) 220px, 42vw'
+                  : '(min-width: 1024px) 360px, 62vw'
+            }
           />
         </div>
       </div>
@@ -277,7 +351,13 @@ function PointDiagonalStack({
             height={front.height}
             quality={92}
             className="block h-auto w-full rounded-lg"
-            sizes={compact ? '(min-width: 1024px) 280px, 52vw' : '(min-width: 1024px) 420px, 74vw'}
+            sizes={
+              tiny
+                ? '(min-width: 1024px) 240px, 44vw'
+                : compact
+                  ? '(min-width: 1024px) 280px, 52vw'
+                  : '(min-width: 1024px) 420px, 74vw'
+            }
           />
         </div>
       </div>
@@ -296,7 +376,7 @@ function PointStraightStack({
   front: PointMedia;
   backWidthClass?: string;
   frontWidthClass?: string;
-  layout?: 'side' | 'iconRight';
+  layout?: 'side' | 'iconRight' | 'row';
 }) {
   if (layout === 'iconRight') {
     return (
@@ -334,6 +414,45 @@ function PointStraightStack({
               quality={92}
               className="block h-auto w-full drop-shadow-[0_10px_20px_rgba(0,0,0,0.28)]"
               sizes="56px"
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (layout === 'row') {
+    return (
+      <div className="flex h-full w-full items-center justify-center gap-3 px-3 sm:gap-4 sm:px-4">
+        <div
+          className={`${backWidthClass} animate-fade-in motion-reduce:animate-none`}
+          style={{ animationDuration: '0.45s' }}
+        >
+          <div className="overflow-hidden rounded-xl border border-gray-200/90 bg-white p-1 shadow-[0_16px_40px_-16px_rgba(15,23,42,0.28)]">
+            <Image
+              src={back.src}
+              alt=""
+              width={back.width}
+              height={back.height}
+              quality={90}
+              className="block h-auto max-h-[210px] w-full rounded-lg object-contain sm:max-h-[280px]"
+              sizes="(min-width: 1024px) 260px, 48vw"
+            />
+          </div>
+        </div>
+        <div
+          className={`${frontWidthClass} animate-fade-in-up motion-reduce:animate-none`}
+          style={{ animationDuration: '0.55s', animationDelay: '0.1s', opacity: 0 }}
+        >
+          <div className="overflow-hidden rounded-xl border border-white/90 bg-white p-1 shadow-[0_18px_40px_-16px_rgba(10,97,215,0.3)]">
+            <Image
+              src={front.src}
+              alt=""
+              width={front.width}
+              height={front.height}
+              quality={92}
+              className="block h-auto max-h-[210px] w-full rounded-lg object-contain sm:max-h-[280px]"
+              sizes="(min-width: 1024px) 150px, 28vw"
             />
           </div>
         </div>
