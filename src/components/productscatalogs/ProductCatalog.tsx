@@ -577,17 +577,18 @@ export default function ProductCatalog({
       .filter((id) => Number.isFinite(id));
   };
   
-  // Derive current mode and status from props - use directly instead of state
-  // Logic: Published products are view-only, Draft products are editable
-  const currentMode = useMemo(() => {
-    if (product?.status === 'Published') return 'view';
-    if (product && product.status === 'Draft') return 'edit';
-    return mode;
-  }, [mode, product, product?.status]);
-
+  // Prefer local form status so publish/unpublish can switch UI without a full reload.
+  // Published products are view-only; Draft products are editable.
   const currentProductStatus = useMemo(() => {
-    return product?.status || 'Draft';
-  }, [product?.status]);
+    return formData.status || product?.status || 'Draft';
+  }, [formData.status, product?.status]);
+
+  const currentMode = useMemo(() => {
+    if (mode === 'add' && !product) return 'add';
+    if (currentProductStatus === 'Published') return 'view';
+    if (currentProductStatus === 'Draft') return 'edit';
+    return mode;
+  }, [mode, product, currentProductStatus]);
 
   // Compute hasUnsavedChanges during render (not in useEffect) - follows React best practices
   const hasUnsavedChanges = useMemo(() => {
@@ -696,9 +697,9 @@ export default function ProductCatalog({
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasUnsavedChanges, mode]);
 
-  const reloadProductPage = () => {
-    skipBeforeUnloadRef.current = true;
-    window.location.href = window.location.href;
+  const showSuccessNotice = (durationMs = 1200) => {
+    setShowSuccessModal(true);
+    window.setTimeout(() => setShowSuccessModal(false), durationMs);
   };
   const catalogCategoryRef = useRef<HTMLDivElement>(null);
 
@@ -1547,13 +1548,7 @@ export default function ProductCatalog({
         prevProductStatusRef.current = 'Draft';
       }
 
-        // Show success modal and reload page
-        setShowSuccessModal(true);
-        setTimeout(() => {
-          setShowSuccessModal(false);
-        // Force complete page reload to get fresh data
-          reloadProductPage();
-        }, 1000);
+      showSuccessNotice();
     } catch (error) {
       alert(tCatalog('alerts.unpublishError'));
     } finally {
@@ -1913,15 +1908,17 @@ export default function ProductCatalog({
         }
         
         if (currentMode === 'edit') {
-          // Show success modal and reload page
-          // Update originalFormData to match current formData - this will make hasUnsavedChanges false
-          setOriginalFormData(JSON.parse(JSON.stringify(formData)));
-          setShowSuccessModal(true);
-          setTimeout(() => {
-            setShowSuccessModal(false);
-            // Force complete page reload
-            reloadProductPage();
-          }, 500);
+          const nextFormData: ProductFormData = {
+            ...formData,
+            ...finalData,
+            id: savedProduct.id ?? formData.id,
+            productId: savedProduct.productId || formData.productId,
+            status,
+          };
+          setFormData(nextFormData);
+          setOriginalFormData(JSON.parse(JSON.stringify(nextFormData)));
+          prevProductStatusRef.current = status;
+          showSuccessNotice(status === 'Published' ? 1200 : 800);
         } else if (onSave) {
           onSave(savedProduct);
         } else {
@@ -2222,8 +2219,8 @@ export default function ProductCatalog({
       {(currentMode === 'view' || currentMode === 'edit' || currentMode === 'add') && (
         <div className="mx-4 mt-4 mb-4 p-4 bg-gradient-to-r from-blue-50 to-amber-50 border border-blue-200 rounded-lg">
           {(() => {
-            // Calculate completion progress - use formData for all modes
-            const dataSource = currentMode === 'add' ? formData : product;
+            // Use formData so publish/unpublish without reload keeps completion in sync
+            const dataSource = formData;
             const requiredFields = [
               { nameKey: 'sku', value: String(dataSource?.sku || '').trim() },
               { nameKey: 'name', value: String(dataSource?.name || '').trim() },

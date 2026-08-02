@@ -1475,22 +1475,19 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
              return (
                <div 
                  key={product.id} 
-                 className={`rounded-lg border border-[#e6e6e6] p-4 relative cursor-pointer transition ${
+                 className={`rounded-lg border border-[#e6e6e6] p-4 relative transition ${
                    selectedProducts.includes(String(product.id)) 
                      ? 'bg-blue-50' 
                      : hasIncompleteData
                      ? 'bg-amber-50' // Highlight incomplete cards with amber background
-                     : 'bg-white hover:bg-gray-50'
+                     : 'bg-white'
                  }`}
-                 onClick={() => handleProductSelect(String(product.id))}
                >
                {/* Checkbox - Top Right Corner */}
                <div className="absolute top-3 right-3 z-10">
                  <button
-                   onClick={(e) => {
-                     e.stopPropagation();
-                     handleProductSelect(String(product.id));
-                   }}
+                   type="button"
+                   onClick={() => handleProductSelect(String(product.id))}
                    className={`w-5 h-5 border-2 rounded transition-all duration-200 flex items-center justify-center ${
                      selectedProducts.includes(String(product.id))
                        ? 'bg-green-500 border-green-500'
@@ -1712,13 +1709,19 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                    {/* Action Buttons */}
                    <div className="flex items-center gap-1">
                      <button
-                       onClick={() => product.status === 'Published' ? handleView(product) : handleEdit(product)}
+                       type="button"
+                       onClick={(e) => {
+                         e.stopPropagation();
+                         if (product.status === 'Published') handleView(product);
+                         else handleEdit(product);
+                       }}
                        className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors focus:outline-none"
                        title={product.status === 'Published' ? tTable('viewProduct') : tTable('editProduct')}
                      >
                        <Edit className="w-4 h-4 text-gray-500" />
                      </button>
                      <button
+                       type="button"
                        onClick={(e) => {
                          e.stopPropagation();
                          handleDelete(product);
@@ -1801,22 +1804,19 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
              return (
                <div 
                  key={product.id} 
-                 className={`rounded-lg border border-[#e6e6e6] p-3 relative cursor-pointer transition ${
+                 className={`rounded-lg border border-[#e6e6e6] p-3 relative transition ${
                    selectedProducts.includes(String(product.id)) 
                      ? 'bg-blue-50' 
                      : hasIncompleteData
                      ? 'bg-amber-50' // Highlight incomplete cards with amber background
-                     : 'bg-white hover:bg-gray-50'
+                     : 'bg-white'
                  }`}
-                 onClick={() => handleProductSelect(String(product.id))}
                >
                {/* Checkbox - Top Right Corner */}
                <div className="absolute top-2 right-2 z-10">
                  <button
-                   onClick={(e) => {
-                     e.stopPropagation();
-                     handleProductSelect(String(product.id));
-                   }}
+                   type="button"
+                   onClick={() => handleProductSelect(String(product.id))}
                    className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
                      selectedProducts.includes(String(product.id))
                        ? 'bg-green-500 border-green-500'
@@ -2035,13 +2035,19 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                    {/* Action Buttons */}
                    <div className="flex items-center gap-1">
                      <button
-                       onClick={() => product.status === 'Published' ? handleView(product) : handleEdit(product)}
+                       type="button"
+                       onClick={(e) => {
+                         e.stopPropagation();
+                         if (product.status === 'Published') handleView(product);
+                         else handleEdit(product);
+                       }}
                        className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors focus:outline-none"
                        title={product.status === 'Published' ? tTable('viewProduct') : tTable('editProduct')}
                      >
                        <Edit className="w-4 h-4 text-gray-500" />
                      </button>
                      <button
+                       type="button"
                        onClick={(e) => {
                          e.stopPropagation();
                          handleDelete(product);
