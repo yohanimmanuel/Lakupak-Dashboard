@@ -5,6 +5,7 @@ export type TriggerType =
   | 'new_buyer'
   | 'buyer_questions'
   | 'order_paid'
+  | 'order_packed'
   | 'return_accepted'
   | 'cart_idle'
   | 'campaign_schedule'
@@ -20,19 +21,21 @@ export type ActionType =
   | 'draft_activate_offer'
   | 'assign_agent_whatsapp'
   | 'buyer_question_reply'
-  | 'assign_fleet'
+  | 'assign_logistic'
+  | 'assign_driver'
   | 'return_confirm_whatsapp'
   | 'cart_winback'
   | 'send_campaign'
   | 'notify_dashboard'
   // Legacy
+  | 'assign_fleet'
   | 'draft_offer_flag'
   | 'assign_sales_agent_flag'
   | 'flag_for_fleet';
 
 export type CatalogField = {
   key: string;
-  kind: 'number' | 'text' | 'textarea' | 'select' | 'buyer';
+  kind: 'number' | 'text' | 'textarea' | 'select' | 'buyer' | 'fleet';
   options?: string[];
 };
 
@@ -89,6 +92,7 @@ const TRIGGERS_BY_WORKFLOW: Record<WorkflowType, TriggerDefinition[]> = {
     { type: 'buyer_questions', fields: [] },
   ],
   order_logistics: [
+    { type: 'order_packed', fields: [] },
     { type: 'return_accepted', fields: [] },
   ],
   marketing: [
@@ -146,15 +150,12 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
   ],
   order_logistics: [
     {
-      type: 'assign_fleet',
-      fields: [
-        {
-          key: 'matchBy',
-          kind: 'select',
-          options: ['capacity', 'area', 'load'],
-        },
-        { key: 'etaNote', kind: 'text' },
-      ],
+      type: 'assign_logistic',
+      fields: [{ key: 'fleetId', kind: 'fleet' }],
+    },
+    {
+      type: 'assign_driver',
+      fields: [{ key: 'fleetId', kind: 'fleet' }],
     },
     {
       type: 'return_confirm_whatsapp',
@@ -197,8 +198,26 @@ const LEGACY_TRIGGERS_BY_WORKFLOW: Record<WorkflowType, TriggerType[]> = {
 const LEGACY_ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionType[]> = {
   product_offers: ['draft_offer_flag'],
   lead_management: ['assign_sales_agent_flag'],
-  order_logistics: ['flag_for_fleet'],
+  order_logistics: ['flag_for_fleet', 'assign_fleet'],
   marketing: [],
+};
+
+/** Field schemas for legacy action types still present on saved workflows. */
+const LEGACY_ACTION_DEFINITIONS: Partial<Record<ActionType, ActionDefinition>> = {
+  assign_fleet: {
+    type: 'assign_fleet',
+    fields: [
+      {
+        key: 'matchBy',
+        kind: 'select',
+        options: ['capacity', 'area', 'load'],
+      },
+      { key: 'etaNote', kind: 'text' },
+    ],
+  },
+  flag_for_fleet: { type: 'flag_for_fleet', fields: [] },
+  draft_offer_flag: { type: 'draft_offer_flag', fields: [] },
+  assign_sales_agent_flag: { type: 'assign_sales_agent_flag', fields: [] },
 };
 
 export function getTriggersForType(type: WorkflowType): TriggerDefinition[] {
@@ -209,6 +228,33 @@ export function getTriggersForType(type: WorkflowType): TriggerDefinition[] {
 
 export function getActionsForType(type: WorkflowType): ActionDefinition[] {
   return ACTIONS_BY_WORKFLOW[type] ?? [];
+}
+
+/** Resolve current or legacy action field definitions for an existing node. */
+export function getActionDefinition(
+  type: WorkflowType,
+  actionType: string,
+): ActionDefinition | undefined {
+  const current = getActionsForType(type).find((a) => a.type === actionType);
+  if (current) return current;
+  if (!isActionAllowed(type, actionType)) return undefined;
+  return LEGACY_ACTION_DEFINITIONS[actionType as ActionType];
+}
+
+/**
+ * Actions shown in the inspector for a selected node.
+ * Includes a legacy action only when that node already uses it (not for new picks).
+ */
+export function getActionsForInspector(
+  type: WorkflowType,
+  currentActionType?: string,
+): ActionDefinition[] {
+  const actions = getActionsForType(type);
+  if (!currentActionType || actions.some((a) => a.type === currentActionType)) {
+    return actions;
+  }
+  const legacy = getActionDefinition(type, currentActionType);
+  return legacy ? [...actions, legacy] : actions;
 }
 
 export function getDefaultTrigger(type: WorkflowType): {
@@ -252,6 +298,35 @@ export function isActionAllowed(type: WorkflowType, actionType: string): boolean
   if (getActionsForType(type).some((a) => a.type === actionType)) return true;
   return (LEGACY_ACTIONS_BY_WORKFLOW[type] ?? []).includes(actionType as ActionType);
 }
+
+/** assign_driver must target a fleet that already has a driverId. */
+export function assignDriverNeedsDriver(
+  actionType: string,
+  config: Record<string, unknown> | null | undefined,
+): boolean {
+  if (actionType !== 'assign_driver') return false;
+  return !String(config?.driverId ?? '').trim();
+}
+
+/**
+ * True when any action node is assign_driver without a driverId.
+ * Also checks the flat first-action pair used by the API columns.
+ */
+export function hasAssignDriverWithoutDriver(args: {
+  actionType?: string | null;
+  actionConfig?: Record<string, unknown> | null;
+  nodes?: Array<{ data?: { kind?: string; catalogType?: string; config?: Record<string, unknown> } }>;
+}): boolean {
+  if (assignDriverNeedsDriver(args.actionType ?? '', args.actionConfig)) return true;
+  return (args.nodes ?? []).some(
+    (n) =>
+      n.data?.kind === 'action' &&
+      assignDriverNeedsDriver(String(n.data.catalogType ?? ''), n.data.config),
+  );
+}
+
+export const ASSIGN_DRIVER_REQUIRES_DRIVER_MESSAGE =
+  'Auto-assign driver requires a fleet that already has a driver assigned.';
 
 export const ALL_TRIGGER_TYPES = Array.from(
   new Set([

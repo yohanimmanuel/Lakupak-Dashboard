@@ -246,6 +246,30 @@ const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaCo
       image: { src: '/Dashboardmarketplace2.png', width: 1050, height: 770 },
     },
   },
+  automations: {
+    1: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardautomations4.png', width: 1558, height: 783 },
+    },
+    2: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardautomations3.png', width: 1143, height: 632 },
+    },
+    3: {
+      type: 'straight',
+      back: { src: '/Dashboardautomations5.png', width: 752, height: 637 },
+      front: { src: '/Dashboardautomations6.png', width: 1247, height: 528 },
+      backWidthClass: 'w-[52%] sm:w-[48%]',
+      frontWidthClass: 'w-[72%] sm:w-[68%]',
+    },
+    5: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardautomations7.png', width: 1492, height: 371 },
+    },
+  },
 };
 
 function ImagePlaceholder({ label, className = '' }: { label: string; className?: string }) {

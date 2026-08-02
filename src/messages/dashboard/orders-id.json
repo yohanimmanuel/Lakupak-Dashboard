@@ -365,7 +365,9 @@
       "podBrowse": "telusuri",
       "podAcceptedFormats": "Diterima: JPG, PNG, PDF.",
       "cancel": "Batal",
+      "canceling": "Membatalkan...",
       "saveChanges": "Simpan Perubahan",
+      "saving": "Menyimpan...",
       "errors": {
         "minGreaterThanMax": "Hari min tidak boleh lebih besar dari hari maks. Perbaiki nilainya.",
         "invalidDuration": "Masukkan angka non-negatif yang valid untuk hari min dan maks."

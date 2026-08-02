@@ -5,8 +5,10 @@ import { GraphQLError } from 'graphql';
 import { Prisma, type AutomationWorkflow, type AutomationRun } from '@/lib/prisma-generated';
 import { SUBSCRIPTION_PLANS } from '@/config/subscriptionPlans';
 import {
+  ASSIGN_DRIVER_REQUIRES_DRIVER_MESSAGE,
   getDefaultAction,
   getDefaultTrigger,
+  hasAssignDriverWithoutDriver,
   isActionAllowed,
   isTriggerAllowed,
 } from '@/lib/automations/catalog';
@@ -15,6 +17,51 @@ import type { WorkflowType } from '@/components/automations/automationTypes';
 const WORKFLOW_TYPES = new Set(['product_offers', 'lead_management', 'order_logistics', 'marketing']);
 const WORKFLOW_STATUSES = new Set(['active', 'paused', 'draft']);
 const RUN_STATUSES = new Set(['success', 'failed', 'skipped']);
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function canvasNodesFromAgentConfig(agentConfig: unknown): Array<{
+  data?: { kind?: string; catalogType?: string; config?: Record<string, unknown> };
+}> {
+  const root = asRecord(agentConfig);
+  const canvas = asRecord(root?.__canvas);
+  const nodes = canvas?.nodes;
+  if (!Array.isArray(nodes)) return [];
+  return nodes.map((n) => {
+    const row = asRecord(n);
+    const data = asRecord(row?.data) ?? undefined;
+    return {
+      data: data
+        ? {
+            kind: typeof data.kind === 'string' ? data.kind : undefined,
+            catalogType: typeof data.catalogType === 'string' ? data.catalogType : undefined,
+            config: asRecord(data.config) ?? undefined,
+          }
+        : undefined,
+    };
+  });
+}
+
+function assertAssignDriverHasDriver(args: {
+  actionType?: string | null;
+  actionConfig?: unknown;
+  agentConfig?: unknown;
+}) {
+  if (
+    hasAssignDriverWithoutDriver({
+      actionType: args.actionType,
+      actionConfig: asRecord(args.actionConfig) ?? undefined,
+      nodes: canvasNodesFromAgentConfig(args.agentConfig),
+    })
+  ) {
+    throw new GraphQLError(ASSIGN_DRIVER_REQUIRES_DRIVER_MESSAGE, {
+      extensions: { code: 'BAD_USER_INPUT' },
+    });
+  }
+}
 
 /** Until billing plan is stored on User, enforce starter automationRules quota. */
 function getAutomationRulesQuota(): number | null {
@@ -267,6 +314,15 @@ async function createWorkflow(args: {
     });
   }
 
+  const actionConfig = asJsonObject(args.actionConfig ?? defaultsAction.actionConfig);
+  const agentConfig =
+    args.agentConfig == null ? null : asJsonObject(args.agentConfig);
+  assertAssignDriverHasDriver({
+    actionType,
+    actionConfig,
+    agentConfig,
+  });
+
   const row = await prisma.automationWorkflow.create({
     data: {
       userId: args.userId,
@@ -276,9 +332,9 @@ async function createWorkflow(args: {
       status,
       triggerType,
       triggerConfig: asJsonObject(args.triggerConfig ?? defaultsTrigger.triggerConfig),
-      agentConfig: args.agentConfig == null ? Prisma.JsonNull : asJsonObject(args.agentConfig),
+      agentConfig: agentConfig == null ? Prisma.JsonNull : agentConfig,
       actionType,
-      actionConfig: asJsonObject(args.actionConfig ?? defaultsAction.actionConfig),
+      actionConfig,
     },
   });
 
@@ -321,6 +377,20 @@ async function updateWorkflow(args: {
       extensions: { code: 'BAD_USER_INPUT' },
     });
   }
+
+  const nextActionConfig =
+    args.actionConfig !== undefined ? asJsonObject(args.actionConfig) : existing.actionConfig;
+  const nextAgentConfig =
+    args.agentConfig !== undefined
+      ? args.agentConfig == null
+        ? null
+        : asJsonObject(args.agentConfig)
+      : existing.agentConfig;
+  assertAssignDriverHasDriver({
+    actionType: nextAction,
+    actionConfig: nextActionConfig,
+    agentConfig: nextAgentConfig,
+  });
 
   const data: Prisma.AutomationWorkflowUpdateInput = {};
   if (args.name != null) data.name = args.name.trim();

@@ -4,7 +4,7 @@ import React from 'react';
 import { Lightbulb, Trash2, Unplug, X } from 'lucide-react';
 import type { AutomationRun, WorkflowStatus, WorkflowType } from '../automationTypes';
 import { WORKFLOW_TYPES } from '../automationTypes';
-import { getActionsForType, getTriggersForType, defaultConfigForFields } from '@/lib/automations/catalog';
+import { getActionsForInspector, getTriggersForType, defaultConfigForFields } from '@/lib/automations/catalog';
 import type { CatalogField } from '@/lib/automations/catalog';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
 import { BuilderSelect } from './BuilderSelect';
@@ -12,6 +12,7 @@ import type { WorkflowFlowEdge, WorkflowFlowNode } from './canvasTypes';
 import { WorkflowRunsPanel } from './WorkflowRunsPanel';
 import { useBuilderPanelControls } from './WorkflowBuilderShell';
 import { BuyerPickerField, normalizePickedBuyers, toPickedBuyer } from './BuyerPickerField';
+import { FleetPickerField, normalizePickedFleet } from './FleetPickerField';
 import type { Buyer } from '@/types/client';
 
 export type WorkflowDraft = {
@@ -236,7 +237,10 @@ export function StepDetailsPanel({
   const { tBuilder, tFields, translateTrigger, translateAction } = useAutomationTranslations();
   const selected = draft.nodes.find((n) => n.id === selectedNodeId) ?? null;
   const triggers = getTriggersForType(draft.type);
-  const actions = getActionsForType(draft.type);
+  const actions = getActionsForInspector(
+    draft.type,
+    selected?.data.kind === 'action' ? selected.data.catalogType : undefined,
+  );
 
   const stepTitle = selected
     ? selected.data.kind === 'trigger'
@@ -431,6 +435,39 @@ export function StepDetailsPanel({
                             buyerId: '',
                             buyerLabel: '',
                             buyerPhone: '',
+                          },
+                        })
+                      }
+                    />
+                  ) : field.kind === 'fleet' ? (
+                    <FleetPickerField
+                      key={field.key}
+                      label={tFields.has(field.key) ? tFields(field.key) : field.key}
+                      value={normalizePickedFleet(selected.data.config)}
+                      requireDriver={selected.data.catalogType === 'assign_driver'}
+                      onSelectAction={(fleet) =>
+                        onUpdateNodeAction(selected.id, {
+                          config: {
+                            ...selected.data.config,
+                            fleetId: fleet.fleetId,
+                            fleetLabel: fleet.fleetLabel,
+                            fleetStatus: fleet.fleetStatus,
+                            driverId: fleet.driverId,
+                            driverName: fleet.driverName,
+                            assignedLogistics: fleet.assignedLogistics,
+                          },
+                        })
+                      }
+                      onClearAction={() =>
+                        onUpdateNodeAction(selected.id, {
+                          config: {
+                            ...selected.data.config,
+                            fleetId: '',
+                            fleetLabel: '',
+                            fleetStatus: '',
+                            driverId: '',
+                            driverName: '',
+                            assignedLogistics: '',
                           },
                         })
                       }

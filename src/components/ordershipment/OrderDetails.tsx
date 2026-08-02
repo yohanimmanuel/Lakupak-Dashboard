@@ -75,20 +75,24 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
     return date.toISOString().slice(0, 10);
   };
   const orderWithDuration = order as Order & { estimatedDeliveryMinDays?: number | null; estimatedDeliveryMaxDays?: number | null };
-  const [formFields, setFormFields] = useState({
-    deliveryAddress: order.deliveryAddress,
-    contactPerson: order.contactPerson,
-    contactPhone: order.contactPhone,
-    preferredDeliveryTime: order.preferredDeliveryTime || '',
-    estimatedDeliveryDate: toDateInputValue(orderWithDuration.estimatedDeliveryDate),
-    estimatedDeliveryMinDays: orderWithDuration.estimatedDeliveryMinDays != null ? String(orderWithDuration.estimatedDeliveryMinDays) : '',
-    estimatedDeliveryMaxDays: orderWithDuration.estimatedDeliveryMaxDays != null ? String(orderWithDuration.estimatedDeliveryMaxDays) : '',
-    deliveryNote: order.deliveryNote || '',
-    assignedLogistics: order.assignedLogistics || '',
-    trackingNumber: order.trackingNumber || '',
-    deliveryMethod: order.deliveryMethod as DeliveryMethod,
-    pod: order.pod || ''
+  const buildEditFields = (source: typeof orderWithDuration) => ({
+    deliveryAddress: source.deliveryAddress,
+    contactPerson: source.contactPerson,
+    contactPhone: source.contactPhone,
+    preferredDeliveryTime: source.preferredDeliveryTime || '',
+    estimatedDeliveryDate: toDateInputValue(source.estimatedDeliveryDate),
+    estimatedDeliveryMinDays: source.estimatedDeliveryMinDays != null ? String(source.estimatedDeliveryMinDays) : '',
+    estimatedDeliveryMaxDays: source.estimatedDeliveryMaxDays != null ? String(source.estimatedDeliveryMaxDays) : '',
+    deliveryNote: source.deliveryNote || '',
+    assignedLogistics: source.assignedLogistics || '',
+    trackingNumber: source.trackingNumber || '',
+    deliveryMethod: source.deliveryMethod as DeliveryMethod,
+    pod: source.pod || '',
   });
+  const [committedFields, setCommittedFields] = useState(() => buildEditFields(orderWithDuration));
+  const [formFields, setFormFields] = useState(() => buildEditFields(orderWithDuration));
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isCancelingEdit, setIsCancelingEdit] = useState(false);
   const [podFileName, setPodFileName] = useState<string>('');
   const [showPodPreview, setShowPodPreview] = useState(false);
   const [durationError, setDurationError] = useState<string | null>(null);
@@ -127,6 +131,19 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
       }));
     }
   };
+
+  const handleCancelEdit = () => {
+    if (isSavingEdit || isCancelingEdit) return;
+    setIsCancelingEdit(true);
+    setTimeout(() => {
+      setFormFields(committedFields);
+      setDurationError(null);
+      setPodFileName('');
+      setShowDeliveryMethodDropdown(false);
+      setShowEditModal(false);
+      setIsCancelingEdit(false);
+    }, 250);
+  };
   
   // Use buyerId snapshot when buyer is deleted (FK set null)
   const buyerIdDisplay = order.buyerId || order.buyerIdSnapshot || '';
@@ -135,12 +152,12 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
     : `/clients/buyers/deleted?id=${buyerIdDisplay}`;
 
   // Snapshot fallbacks for buyer-related display fields
-  const contactPersonDisplay = order.buyerId ? order.contactPerson : (order.contactPersonSnapshot || order.contactPerson);
+  const contactPersonDisplay = order.buyerId ? committedFields.contactPerson : (order.contactPersonSnapshot || committedFields.contactPerson);
   const storeNameDisplay = order.buyerId ? order.storeName : (order.storeNameSnapshot || order.storeName);
-  const contactPhoneDisplay = order.buyerId ? order.contactPhone : (order.contactPhoneSnapshot || order.contactPhone);
+  const contactPhoneDisplay = order.buyerId ? committedFields.contactPhone : (order.contactPhoneSnapshot || committedFields.contactPhone);
   const customerEmailDisplay = order.buyerId ? order.customerEmail : (order.customerEmailSnapshot || order.customerEmail);
   const orderDateDisplay = order.buyerId ? order.orderDate : (order.orderDateSnapshot || order.orderDate);
-  const deliveryAddressDisplay = order.buyerId ? order.deliveryAddress : (order.deliveryAddressSnapshot || order.deliveryAddress);
+  const deliveryAddressDisplay = order.buyerId ? committedFields.deliveryAddress : (order.deliveryAddressSnapshot || committedFields.deliveryAddress);
 
   // Buyer avatar from included buyer relation (API returns order with buyer: true)
   const buyerAvatar = (order as OrderWithSnapshots & { buyer?: { avatar?: string | null } }).buyer?.avatar ?? null;
@@ -328,6 +345,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   };
 
   const shippingMethodLabel =
+    committedFields.deliveryMethod ||
     order.shippingMethodLabel ||
     order.shippingMethod ||
     (typeof order.deliveryOption === 'string' ? order.deliveryOption : '') ||
@@ -345,8 +363,8 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
     : order.preferredDeliveryDate || order.preferredPickupDate || null;
 
   const scheduleTimeCandidate = isPickupMethod
-    ? order.preferredPickupTime || order.preferredDeliveryTime || null
-    : order.preferredDeliveryTime || order.preferredPickupTime || null;
+    ? order.preferredPickupTime || committedFields.preferredDeliveryTime || null
+    : committedFields.preferredDeliveryTime || order.preferredPickupTime || null;
 
   const formattedSchedule = formatSchedule(scheduleDateCandidate, scheduleTimeCandidate);
   // Show notice for any method whenever a scheduled date/time exists
@@ -354,12 +372,28 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const highlightShipping = isPickupMethod || isScheduledMethod || isSellerDelivery || isBuyerCourier;
   const shippingAccentClass = highlightShipping ? 'text-yellow-600 font-semibold' : 'text-black font-medium';
 
+  const estimatedDeliveryDateValue = committedFields.estimatedDeliveryDate
+    ? new Date(`${committedFields.estimatedDeliveryDate}T12:00:00.000Z`)
+    : null;
+  const estimatedDeliveryMinDaysValue =
+    committedFields.estimatedDeliveryMinDays !== '' ? Number(committedFields.estimatedDeliveryMinDays) : null;
+  const estimatedDeliveryMaxDaysValue =
+    committedFields.estimatedDeliveryMaxDays !== '' ? Number(committedFields.estimatedDeliveryMaxDays) : null;
+
   const requiredOrderFields = [
-    { name: 'contactPerson', value: String(order.contactPerson || '').trim() },
-    { name: 'contactPhone', value: String(order.contactPhone || '').trim() },
-    { name: 'deliveryAddress', value: String(order.deliveryAddress || '').trim() },
-    { name: 'deliveryMethod', value: String(order.deliveryMethod || '').trim() },
-    { name: 'estimatedDelivery', value: Boolean(orderWithDuration.estimatedDeliveryDate) || (typeof orderWithDuration.estimatedDeliveryMinDays === 'number' && typeof orderWithDuration.estimatedDeliveryMaxDays === 'number') },
+    { name: 'contactPerson', value: String(committedFields.contactPerson || '').trim() },
+    { name: 'contactPhone', value: String(committedFields.contactPhone || '').trim() },
+    { name: 'deliveryAddress', value: String(committedFields.deliveryAddress || '').trim() },
+    { name: 'deliveryMethod', value: String(committedFields.deliveryMethod || '').trim() },
+    {
+      name: 'estimatedDelivery',
+      value:
+        Boolean(committedFields.estimatedDeliveryDate) ||
+        (estimatedDeliveryMinDaysValue != null &&
+          !Number.isNaN(estimatedDeliveryMinDaysValue) &&
+          estimatedDeliveryMaxDaysValue != null &&
+          !Number.isNaN(estimatedDeliveryMaxDaysValue)),
+    },
   ];
   const completedOrderFields = requiredOrderFields.filter(f => typeof f.value === 'boolean' ? f.value : f.value !== '');
   const orderCompletionPercentage = Math.round((completedOrderFields.length / requiredOrderFields.length) * 100);
@@ -584,7 +618,13 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             
             {/* Edit Button */}
             <button
-              onClick={() => setShowEditModal(true)}
+              onClick={() => {
+                setFormFields(committedFields);
+                setDurationError(null);
+                setPodFileName('');
+                setShowDeliveryMethodDropdown(false);
+                setShowEditModal(true);
+              }}
               className="flex items-center gap-2 py-2 px-4 rounded-lg text-sm text-black font-medium border border-gray-300 hover:bg-gray-50"
               title={tDetails('editButtonTitle')}
             >
@@ -743,19 +783,22 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             {/* Service Provider Card */}
             <div className="bg-blue-50 rounded-lg p-4 border border-blue-200 mt-4">
               <div className="text-sm font-semibold text-blue-800 mb-1">{tDetails('deliveryService.title')}</div>
-              <div className="text-lg font-bold text-blue-900 mb-2">{order.assignedLogistics || tDetails('deliveryService.noneAssigned')}</div>
+              <div className="text-lg font-bold text-blue-900 mb-2">{committedFields.assignedLogistics || tDetails('deliveryService.noneAssigned')}</div>
               <div className="text-xs space-y-2">
                 <div>
                   <span className="text-blue-700">{tDetails('deliveryService.estimatedDelivery')}</span>
                   <span className="ml-2 font-medium text-blue-900">
-                    {orderWithDuration.estimatedDeliveryDate
-                      ? new Date(orderWithDuration.estimatedDeliveryDate as string | Date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+                    {estimatedDeliveryDateValue
+                      ? estimatedDeliveryDateValue.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
                       : tDetails('deliveryService.notSet')}
-                    {orderWithDuration.estimatedDeliveryMinDays != null && orderWithDuration.estimatedDeliveryMaxDays != null && (
+                    {estimatedDeliveryMinDaysValue != null &&
+                      !Number.isNaN(estimatedDeliveryMinDaysValue) &&
+                      estimatedDeliveryMaxDaysValue != null &&
+                      !Number.isNaN(estimatedDeliveryMaxDaysValue) && (
                       <span className="ml-1 text-blue-600">
                         {tDetails('deliveryService.daysRange', {
-                          min: orderWithDuration.estimatedDeliveryMinDays,
-                          max: orderWithDuration.estimatedDeliveryMaxDays,
+                          min: estimatedDeliveryMinDaysValue,
+                          max: estimatedDeliveryMaxDaysValue,
                         })}
                       </span>
                     )}
@@ -763,20 +806,20 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 </div>
                 <div>
                   <span className="text-blue-700">{tDetails('deliveryService.preferredTime')}</span>
-                  <span className="ml-2 font-medium text-blue-900">{order.preferredDeliveryTime || tDetails('deliveryService.noPreferredTime')}</span>
+                  <span className="ml-2 font-medium text-blue-900">{committedFields.preferredDeliveryTime || tDetails('deliveryService.noPreferredTime')}</span>
                 </div>
                 <div>
                   <span className="text-blue-700">{tDetails('deliveryService.tracking')}</span>
-                  {order.fleetId != null && order.trackingNumber ? (
+                  {order.fleetId != null && committedFields.trackingNumber ? (
                     <Link
                       href={`/logistics/details?id=${order.fleetId}`}
                       className="ml-2 font-semibold text-[#0a61d7] hover:text-[#084ba6] underline focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:ring-offset-1 rounded"
                       title={tDetails('deliveryService.viewFleetDetails')}
                     >
-                      {order.trackingNumber.replace(/^#/, '')}
+                      {committedFields.trackingNumber.replace(/^#/, '')}
                     </Link>
                   ) : (
-                    <span className="ml-2 font-semibold text-blue-900">{(order.trackingNumber || '').replace(/^#/, '') || tDetails('deliveryService.noTrackingNumber')}</span>
+                    <span className="ml-2 font-semibold text-blue-900">{(committedFields.trackingNumber || '').replace(/^#/, '') || tDetails('deliveryService.noTrackingNumber')}</span>
                   )}
                 </div>
               </div>
@@ -841,7 +884,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             <div className="mb-4 border-b border-[#e6e6e6] pb-4 mb-4">
               <span className="font-semibold text-sm text-black">{storeNameDisplay}</span>
               <p className="text-xs font-medium text-gray-600 mt-1">{deliveryAddressDisplay}</p>
-              <p className="text-xs font-medium text-gray-600 mt-1 italic">{tDetails('updatesStatus.notePrefix')} {order.deliveryNote}</p>
+              <p className="text-xs font-medium text-gray-600 mt-1 italic">{tDetails('updatesStatus.notePrefix')} {committedFields.deliveryNote}</p>
             </div>
 
             {/* Proof of Delivery / Cancellation / Return */}
@@ -1122,10 +1165,10 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         </div>
                       )}
 
-                    {order.pod && (
+                    {committedFields.pod && (
                       <div className="mt-4 pt-4 border-t border-gray-200">
                         <div className="text-sm font-semibold text-black mb-2">{tDetails('pod.title')}</div>
-                        {String(order.pod).startsWith('data:') ? (
+                        {String(committedFields.pod).startsWith('data:') ? (
                           <button
                             type="button"
                             className="inline-block px-3 py-2 text-xs font-semibold text-white bg-[#0a61d7] rounded-lg hover:bg-[#084ba6]"
@@ -1135,7 +1178,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                           </button>
                         ) : (
                           <a
-                            href={order.pod as string}
+                            href={committedFields.pod as string}
                             target="_blank"
                             rel="noreferrer"
                             className="inline-block px-3 py-2 text-xs font-semibold text-white bg-[#0a61d7] rounded-lg hover:bg-[#084ba6]"
@@ -1145,7 +1188,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         )}
                       </div>
                     )}
-                    {!order.pod &&
+                    {!committedFields.pod &&
                       (POD_TRACKING_STATUSES as readonly string[]).includes(orderStatus) && (
                         <div className="mt-4 pt-4 border-t border-dashed border-gray-200 text-xs text-gray-600">
                           {tDetails.rich('pod.missingInline', {
@@ -1159,7 +1202,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               }
 
               if (
-                order.pod &&
+                committedFields.pod &&
                 !(
                   (order.returnRequests && order.returnRequests.length > 0) ||
                   (orderStatus === 'Returned' && hasAcceptedReturnRequest)
@@ -1168,7 +1211,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 return (
                   <div className="mb-4">
                     <div className="text-sm font-semibold text-black mb-2">{tDetails('pod.title')}</div>
-                    {String(order.pod).startsWith('data:') ? (
+                    {String(committedFields.pod).startsWith('data:') ? (
                       <button
                         type="button"
                         className="inline-block px-3 py-2 text-xs font-semibold text-white bg-[#0a61d7] rounded-lg hover:bg-[#084ba6]"
@@ -1178,7 +1221,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                       </button>
                     ) : (
                       <a
-                        href={order.pod as string}
+                        href={committedFields.pod as string}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-block px-3 py-2 text-xs font-semibold text-white bg-[#0a61d7] rounded-lg hover:bg-[#084ba6]"
@@ -1191,7 +1234,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               }
 
               if (
-                !order.pod &&
+                !committedFields.pod &&
                 (POD_TRACKING_STATUSES as readonly string[]).includes(orderStatus)
               ) {
                 return (
@@ -1601,8 +1644,9 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             <div className="flex items-center justify-between p-4 border-b border-[#e6e6e6]">
               <h2 className="text-xl font-semibold text-gray-900">{tDetails('editModal.title')}</h2>
               <button
-                onClick={() => setShowEditModal(false)}
-                className="text-gray-700 hover:bg-gray-200 rounded-lg p-2 transition-colors"
+                onClick={handleCancelEdit}
+                className="text-gray-700 hover:bg-gray-200 rounded-lg p-2 transition-colors disabled:opacity-60"
+                disabled={isSavingEdit || isCancelingEdit}
                 aria-label={tDetails('editModal.closeAria')}
               >
                 <X className="w-6 h-6" />
@@ -1797,16 +1841,25 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             </div>
             <div className="p-4 border-t border-[#e6e6e6] flex justify-end gap-2">
               <button
-                onClick={() => {
-                  setShowEditModal(false);
-                  setDurationError(null);
-                }}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-black border border-gray-300 hover:bg-gray-50"
+                type="button"
+                disabled={isSavingEdit || isCancelingEdit}
+                onClick={handleCancelEdit}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-black border border-gray-300 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
               >
-                {tDetails('editModal.cancel')}
+                {isCancelingEdit ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    {tDetails('editModal.canceling')}
+                  </>
+                ) : (
+                  tDetails('editModal.cancel')
+                )}
               </button>
               <button
+                type="button"
+                disabled={isSavingEdit || isCancelingEdit}
                 onClick={async () => {
+                  if (isSavingEdit || isCancelingEdit) return;
                   setDurationError(null);
                   const minRaw = formFields.estimatedDeliveryMinDays === '' ? null : formFields.estimatedDeliveryMinDays;
                   const maxRaw = formFields.estimatedDeliveryMaxDays === '' ? null : formFields.estimatedDeliveryMaxDays;
@@ -1824,41 +1877,62 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                     return;
                   }
 
-                  const requestBody: Record<string, unknown> = {
-                    orderId: order.orderId,
-                    deliveryAddress: formFields.deliveryAddress,
-                    contactPerson: formFields.contactPerson,
-                    contactPhone: formFields.contactPhone,
-                    preferredDeliveryTime: formFields.preferredDeliveryTime,
-                    estimatedDeliveryDate: formFields.estimatedDeliveryDate ? `${formFields.estimatedDeliveryDate}T12:00:00.000Z` : null,
-                    estimatedDeliveryMinDays: minNum,
-                    estimatedDeliveryMaxDays: maxNum,
-                    deliveryNote: formFields.deliveryNote,
-                    assignedLogistics: formFields.assignedLogistics,
-                    trackingNumber: formFields.trackingNumber,
-                    deliveryMethod: formFields.deliveryMethod,
-                    shippingMethodLabel: formFields.deliveryMethod,
-                    shippingMethod: formFields.deliveryMethod
-                  };
-                  if ((POD_TRACKING_STATUSES as readonly string[]).includes(orderStatus) && formFields.pod) {
-                    requestBody.pod = formFields.pod;
-                    requestBody.deliveryConfirmation = 'delivered';
-                  }
-                  if (user?.id) requestBody.userId = user.id;
-                  const response = await fetch('/api/orders', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(requestBody)
-                  });
-                  if (response.ok) {
-                    setShowEditModal(false);
-                    setDurationError(null);
-                    window.location.reload();
+                  setIsSavingEdit(true);
+                  try {
+                    const requestBody: Record<string, unknown> = {
+                      orderId: order.orderId,
+                      deliveryAddress: formFields.deliveryAddress,
+                      contactPerson: formFields.contactPerson,
+                      contactPhone: formFields.contactPhone,
+                      preferredDeliveryTime: formFields.preferredDeliveryTime,
+                      estimatedDeliveryDate: formFields.estimatedDeliveryDate ? `${formFields.estimatedDeliveryDate}T12:00:00.000Z` : null,
+                      estimatedDeliveryMinDays: minNum,
+                      estimatedDeliveryMaxDays: maxNum,
+                      deliveryNote: formFields.deliveryNote,
+                      assignedLogistics: formFields.assignedLogistics,
+                      trackingNumber: formFields.trackingNumber,
+                      deliveryMethod: formFields.deliveryMethod,
+                      shippingMethodLabel: formFields.deliveryMethod,
+                      shippingMethod: formFields.deliveryMethod
+                    };
+                    if ((POD_TRACKING_STATUSES as readonly string[]).includes(orderStatus) && formFields.pod) {
+                      requestBody.pod = formFields.pod;
+                      requestBody.deliveryConfirmation = 'delivered';
+                    }
+                    if (user?.id) requestBody.userId = user.id;
+                    const response = await fetch('/api/orders', {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(requestBody)
+                    });
+                    if (response.ok) {
+                      setCommittedFields(formFields);
+                      setDurationError(null);
+                      setPodFileName('');
+                      setShowDeliveryMethodDropdown(false);
+                      setShowEditModal(false);
+                    } else {
+                      const text = await response.text().catch(() => '');
+                      alert(tDetails('alerts.saveOrderFailed', { detail: text || String(response.status) }));
+                    }
+                  } catch (error) {
+                    alert(tDetails('alerts.saveOrderFailed', {
+                      detail: error instanceof Error ? error.message : tCommon('notAvailable'),
+                    }));
+                  } finally {
+                    setIsSavingEdit(false);
                   }
                 }}
-                className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-[#0a61d7] hover:bg-[#084ba6]"
+                className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-[#0a61d7] hover:bg-[#084ba6] disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
               >
-                {tDetails('editModal.saveChanges')}
+                {isSavingEdit ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    {tDetails('editModal.saving')}
+                  </>
+                ) : (
+                  tDetails('editModal.saveChanges')
+                )}
               </button>
             </div>
           </div>
@@ -1948,7 +2022,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               </button>
             </div>
             <div className="p-4 flex items-center justify-center">
-              <img src={order.pod as string} alt={tDetails('pod.alt')} className="max-h-[80vh] rounded border" />
+              <img src={committedFields.pod as string} alt={tDetails('pod.alt')} className="max-h-[80vh] rounded border" />
             </div>
           </div>
         </div>

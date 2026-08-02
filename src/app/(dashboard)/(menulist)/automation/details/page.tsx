@@ -24,6 +24,10 @@ import type {
   AutomationWorkflow,
   WorkflowType,
 } from '@/components/automations/automationTypes';
+import {
+  ASSIGN_DRIVER_REQUIRES_DRIVER_MESSAGE,
+  hasAssignDriverWithoutDriver,
+} from '@/lib/automations/catalog';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
@@ -285,6 +289,20 @@ function DetailsInner() {
     setFormError(null);
     try {
       const flat = deriveFlatFieldsFromCanvas(draft.nodes);
+      if (
+        hasAssignDriverWithoutDriver({
+          actionType: flat.actionType,
+          actionConfig: flat.actionConfig,
+          nodes: draft.nodes,
+        })
+      ) {
+        setFormError(
+          tBuilder.has('assignDriverRequiresDriver')
+            ? tBuilder('assignDriverRequiresDriver')
+            : ASSIGN_DRIVER_REQUIRES_DRIVER_MESSAGE,
+        );
+        return false;
+      }
       await fetchGraphQL(UPDATE_MUTATION, {
         id,
         name: draft.name.trim(),
@@ -316,7 +334,8 @@ function DetailsInner() {
     if (!user?.id || !id) return;
     setSaving(true);
     try {
-      await save(undefined, { manageSaving: false });
+      const saved = await save(undefined, { manageSaving: false });
+      if (!saved) return;
       const data = await fetchGraphQL<{ testAutomationWorkflow: AutomationRun }>(TEST_MUTATION, {
         id,
       });

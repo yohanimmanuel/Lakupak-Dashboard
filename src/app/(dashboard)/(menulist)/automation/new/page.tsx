@@ -11,6 +11,10 @@ import {
 } from '@/components/automations/builder/WorkflowInspector';
 import { createDefaultCanvas, deriveFlatFieldsFromCanvas, packAgentConfig } from '@/components/automations/builder/canvasUtils';
 import type { WorkflowFlowEdge, WorkflowFlowNode } from '@/components/automations/builder/canvasTypes';
+import {
+  ASSIGN_DRIVER_REQUIRES_DRIVER_MESSAGE,
+  hasAssignDriverWithoutDriver,
+} from '@/lib/automations/catalog';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
@@ -125,6 +129,20 @@ export default function NewAutomationPage() {
     setFormError(null);
     try {
       const flat = deriveFlatFieldsFromCanvas(draft.nodes);
+      if (
+        hasAssignDriverWithoutDriver({
+          actionType: flat.actionType,
+          actionConfig: flat.actionConfig,
+          nodes: draft.nodes,
+        })
+      ) {
+        setFormError(
+          tBuilder.has('assignDriverRequiresDriver')
+            ? tBuilder('assignDriverRequiresDriver')
+            : ASSIGN_DRIVER_REQUIRES_DRIVER_MESSAGE,
+        );
+        return false;
+      }
       const result = await fetchGraphQL<{ createAutomationWorkflow: { id: string } }>(
         CREATE_MUTATION,
         {

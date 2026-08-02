@@ -365,7 +365,9 @@
       "podBrowse": "browse",
       "podAcceptedFormats": "Accepted: JPG, PNG, PDF.",
       "cancel": "Cancel",
+      "canceling": "Canceling...",
       "saveChanges": "Save Changes",
+      "saving": "Saving...",
       "errors": {
         "minGreaterThanMax": "Min days cannot be greater than max days. Please correct the values.",
         "invalidDuration": "Please enter valid non-negative numbers for min and max days."
