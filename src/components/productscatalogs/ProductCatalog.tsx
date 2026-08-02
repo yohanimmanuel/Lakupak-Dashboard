@@ -30,7 +30,7 @@ import { useUserStore } from "@/store/userStore";
 import { Product, ProductFormData } from "@/types/product";
 import { getDefaultCurrency, getCurrencySymbol, formatCurrencyAmount } from '@/utils/currencyUtils';
 import { formatNumberByCurrency, parseNumberByCurrency, getPricePlaceholder } from '@/config/currencyConfig';
-import { getAvailableCategories, getCategoryByValue, getCategoryColor, getCategoryIconComponent } from '@/utils/categoryUtils';
+import { getAvailableCategories, getCategoryByValue, getCategoryColor, getCategoryIconComponent, getCategoryImageSrc } from '@/utils/categoryUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { useProductsTranslations } from '@/hooks/useProductsTranslations';
@@ -44,6 +44,22 @@ const MARKETPLACE_STATUS_MUTATION = `
     }
   }
 `;
+
+function CategoryTypeGlyph({ value, color }: { value: string; color?: string }) {
+  const imageSrc = getCategoryImageSrc(value);
+  if (imageSrc) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={imageSrc} alt="" className="h-5 w-5 object-contain" />
+    );
+  }
+  const IconComponent = getCategoryIconComponent(value);
+  return (
+    <span style={{ color }}>
+      <IconComponent className="h-4 w-4" />
+    </span>
+  );
+}
 
 // Helper function for deep equality check (more efficient than JSON.stringify)
 const isFormDataEqual = (a: ProductFormData, b: ProductFormData): boolean => {
@@ -2334,11 +2350,11 @@ export default function ProductCatalog({
                           <>
                             {(() => {
                               const selectedCategory = getSelectedCategory(formData.productType);
-                              const IconComponent = getCategoryIconComponent(formData.productType);
                               return (
-                                <span style={{ color: selectedCategory?.color }}>
-                                  <IconComponent className="w-4 h-4" />
-                                </span>
+                                <CategoryTypeGlyph
+                                  value={formData.productType}
+                                  color={selectedCategory?.color}
+                                />
                               );
                             })()}
                             <span className="text-black">{translateCategory(formData.productType)}</span>
@@ -2353,7 +2369,6 @@ export default function ProductCatalog({
                     {showGeneralCategoryDropdown && !isViewMode && (
                       <div className="absolute z-50 w-full mt-1 bg-white border border-[#e6e6e6] rounded-lg shadow-lg max-h-60 overflow-y-auto">
                         {availableCategories.map((category) => {
-                          const IconComponent = getCategoryIconComponent(category.value);
                           return (
                             <button
                               key={category.value}
@@ -2361,9 +2376,7 @@ export default function ProductCatalog({
                               onClick={() => handleCategorySelect(category.value, 'productType')}
                               className="w-full px-3 py-2 text-xs text-left hover:bg-gray-100 flex items-center gap-2"
                             >
-                              <span style={{ color: category.color }}>
-                                <IconComponent className="w-4 h-4" />
-                              </span>
+                              <CategoryTypeGlyph value={category.value} color={category.color} />
                               <span className="text-black">{translateCategory(category.value)}</span>
                             </button>
                           );
@@ -2720,11 +2733,11 @@ export default function ProductCatalog({
                           <>
                             {(() => {
                               const selectedCategory = getSelectedCategory(formData.productType);
-                              const IconComponent = getCategoryIconComponent(formData.productType);
                               return (
-                                <span style={{ color: selectedCategory?.color }}>
-                                  <IconComponent className="w-4 h-4" />
-                                </span>
+                                <CategoryTypeGlyph
+                                  value={formData.productType}
+                                  color={selectedCategory?.color}
+                                />
                               );
                             })()}
                             <span className="text-black">{translateCategory(formData.productType)}</span>
@@ -2739,7 +2752,6 @@ export default function ProductCatalog({
                     {showCatalogCategoryDropdown && !isViewMode && (
                       <div className="absolute z-50 w-full mt-1 bg-white border border-[#e6e6e6] rounded-lg shadow-lg max-h-40 overflow-y-auto">
                         {availableCategories.map((category) => {
-                          const IconComponent = getCategoryIconComponent(category.value);
                           return (
                             <button
                               key={category.value}
@@ -2747,9 +2759,7 @@ export default function ProductCatalog({
                               onClick={() => handleCategorySelect(category.value, 'productType')}
                               className="w-full px-3 py-2 text-xs text-left hover:bg-gray-100 flex items-center gap-2"
                             >
-                              <span style={{ color: category.color }}>
-                                <IconComponent className="w-4 h-4" />
-                              </span>
+                              <CategoryTypeGlyph value={category.value} color={category.color} />
                               <span className="text-black">{translateCategory(category.value)}</span>
                             </button>
                           );

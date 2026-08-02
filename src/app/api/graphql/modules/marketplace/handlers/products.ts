@@ -20,6 +20,20 @@ import { syncOrderToBuyerProfile, buildMobileBuyerId } from '@/utils/buyerSync';
 import { broadcastOrderUpdate } from '@/utils/websocketBroadcast';
 import { buildBuyXGetYPromotionDetails } from '@/utils/promotionUtils';
 import { enqueueSideEffect } from '@/lib/sideEffectQueue';
+import { expandCategoryFilterValues } from '@/utils/categoryUtils';
+
+function isSafeCategoryFilterToken(value: string): boolean {
+  return value.length > 0 && value.length <= 64 && /^[\p{L}\p{N}\s&\-_/]+$/u.test(value);
+}
+
+/** Meili filter matching canonical + legacy productType aliases. */
+function buildMeiliCategoryFilter(category: string | undefined | null): string | undefined {
+  if (!category || category === 'All') return undefined;
+  const tokens = expandCategoryFilterValues(category).filter(isSafeCategoryFilterToken);
+  if (tokens.length === 0) return undefined;
+  const clauses = tokens.map((token) => `productType = "${token.replace(/"/g, '\\"')}"`);
+  return clauses.length === 1 ? clauses[0] : `(${clauses.join(' OR ')})`;
+}
 
 type OfferForMarketplace = Prisma.OfferGetPayload<{
   include: {
@@ -286,14 +300,8 @@ export const fetchMarketplaceProducts = async (args: {
       try {
         const index = client.index(MEILI_PRODUCTS_INDEX);
         const filterParts: string[] = [];
-        if (category && category !== 'All') {
-          const raw = String(category).trim();
-          const safeCategory =
-            raw.length > 0 && raw.length <= 64 && /^[\p{L}\p{N}\s&\-_/]+$/u.test(raw) ? raw : null;
-          if (safeCategory) {
-            filterParts.push(`productType = "${safeCategory.replace(/"/g, '\\"')}"`);
-          }
-        }
+        const categoryFilter = buildMeiliCategoryFilter(category);
+        if (categoryFilter) filterParts.push(categoryFilter);
         const filter = filterParts.length ? filterParts.join(' AND ') : undefined;
         const primaryQ = search.trim();
         const meiliMatchingStrategy = parseMarketplaceMeiliMatchingStrategy();
@@ -450,17 +458,21 @@ export const fetchMarketplaceProducts = async (args: {
   // so we compute facet counts from a where clause that does NOT include the selected category filter.
   const facetWhereClause: Prisma.ProductWhereInput = { ...whereClause };
 
-  // Category filter = productType only (sales channel is a separate filter on client)
+  // Category filter = productType only (sales channel is a separate filter on client).
+  // Expand to legacy aliases so new taxonomy names still match older productType tags.
   if (category && category !== 'All') {
-    const existingAnd = Array.isArray(whereClause.AND) ? whereClause.AND : whereClause.AND ? [whereClause.AND] : [];
-    whereClause.AND = [
-      ...existingAnd,
-      {
-        OR: [
-          { productType: category },
-        ],
-      },
-    ];
+    const categoryValues = expandCategoryFilterValues(category);
+    if (categoryValues.length > 0) {
+      const existingAnd = Array.isArray(whereClause.AND)
+        ? whereClause.AND
+        : whereClause.AND
+          ? [whereClause.AND]
+          : [];
+      whereClause.AND = [
+        ...existingAnd,
+        { productType: { in: categoryValues } },
+      ];
+    }
   }
   
   const { page: safePage, limit: safeLimit } = sanitizePagination(page, limit);
@@ -476,7 +488,8 @@ export const fetchMarketplaceProducts = async (args: {
     try {
       const q = search.trim().toLowerCase();
       const terms = [normSearchTerm(q), ...queryExpansions.map(normSearchTerm)].filter(Boolean).slice(0, 6);
-      const cat = category && category !== 'All' ? String(category) : null;
+      const cats =
+        category && category !== 'All' ? expandCategoryFilterValues(category) : [];
 
       const rows = await prisma.$queryRaw<Array<{ productId: string; score: number }>>`
         SELECT
@@ -493,7 +506,10 @@ export const fetchMarketplaceProducts = async (args: {
         CROSS JOIN LATERAL unnest(${terms}::text[]) AS t("term")
         WHERE p."marketplaceStatus" = 'Published'
           AND p."status" = 'Published'
-          AND (${cat}::text IS NULL OR p."productType" = ${cat})
+          AND (
+            cardinality(${cats}::text[]) = 0
+            OR p."productType" = ANY(${cats}::text[])
+          )
         GROUP BY p."productId", p."lastSyncAt", p."publishedAt"
         HAVING MAX(
           GREATEST(
@@ -513,7 +529,10 @@ export const fetchMarketplaceProducts = async (args: {
         CROSS JOIN LATERAL unnest(${terms}::text[]) AS t("term")
         WHERE p."marketplaceStatus" = 'Published'
           AND p."status" = 'Published'
-          AND (${cat}::text IS NULL OR p."productType" = ${cat})
+          AND (
+            cardinality(${cats}::text[]) = 0
+            OR p."productType" = ANY(${cats}::text[])
+          )
           AND GREATEST(
             similarity(lower(p."name"), t."term"),
             similarity(lower(COALESCE(p."brand", '')), t."term"),

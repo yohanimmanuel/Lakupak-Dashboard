@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { canonicalizeCategory } from '@/utils/categoryUtils';
 
 export function useProductsTranslations() {
   const tList = useTranslations('dashboard.products.list');
@@ -33,8 +34,12 @@ export function useProductsTranslations() {
   const translateStockStatus = (status: string) =>
     tShared.has(`stockStatus.${status}`) ? tShared(`stockStatus.${status}`) : status;
 
-  const translateCategory = (category: string) =>
-    tCategories.has(category) ? tCategories(category) : category;
+  const translateCategory = (category: string) => {
+    const canonical = canonicalizeCategory(category);
+    if (tCategories.has(canonical)) return tCategories(canonical);
+    if (tCategories.has(category)) return tCategories(category);
+    return canonical || category;
+  };
 
   const translateFieldName = (key: string) =>
     tCatalog.has(`fields.${key}`) ? tCatalog(`fields.${key}`) : key;
