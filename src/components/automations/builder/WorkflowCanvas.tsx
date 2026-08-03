@@ -13,22 +13,22 @@ import {
   Panel,
   Handle,
   Position,
+  applyNodeChanges,
+  applyEdgeChanges,
+  ConnectionMode,
+  MarkerType,
   SelectionMode,
   type Connection,
   type EdgeChange,
   type NodeChange,
   type OnConnectEnd,
-  applyNodeChanges,
-  applyEdgeChanges,
-  ConnectionMode,
-  MarkerType,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Minus, Plus, Trash2, Unplug } from 'lucide-react';
 
 import type { WorkflowType } from '../automationTypes';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
-import { WorkflowFlowNodeView } from './WorkflowFlowNode';
+import { WorkflowFlowNodeView, CanvasNodeActionsProvider } from './WorkflowFlowNode';
 import { NodeAddMenu, type NodePickerChoice } from './NodeAddMenu';
 import {
   BRANCH_NO,
@@ -194,86 +194,76 @@ function WorkflowCanvasInner({
   const { screenToFlowPosition } = useReactFlow();
   const connectingFrom = useRef<{ nodeId: string; handleId: string | null } | null>(null);
   const [pending, setPending] = useState<PendingConnection | null>(null);
-  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const selectedNodeIdRef = useRef(selectedNodeId);
+  selectedNodeIdRef.current = selectedNodeId;
 
+  /** Derived from RF-controlled `node.selected` (via onNodesChange). Avoid parallel selection state. */
   const selectedNodeIds = useMemo(
     () => nodes.filter((n) => n.selected).map((n) => n.id),
     [nodes],
   );
+  const selectedEdgeId = useMemo(
+    () => edges.find((e) => e.selected)?.id ?? null,
+    [edges],
+  );
+  const selectedNodeIdsRef = useRef(selectedNodeIds);
+  selectedNodeIdsRef.current = selectedNodeIds;
 
-  const activeSelectedIds = useMemo(() => {
-    if (selectedNodeIds.length > 0) return selectedNodeIds;
-    return selectedNodeId ? [selectedNodeId] : [];
-  }, [selectedNodeIds, selectedNodeId]);
+  const clearNodeSelection = useCallback(() => {
+    if (!nodes.some((n) => n.selected)) return;
+    onNodesChangeAction(nodes.map((n) => (n.selected ? { ...n, selected: false } : n)));
+  }, [nodes, onNodesChangeAction]);
+
+  const clearEdgeSelection = useCallback(() => {
+    if (!edges.some((e) => e.selected)) return;
+    onEdgesChangeAction(edges.map((e) => (e.selected ? { ...e, selected: false } : e)));
+  }, [edges, onEdgesChangeAction]);
 
   const deleteNodes = useCallback(
     (nodeIds: string[]) => {
       if (nodeIds.length === 0) return;
-      const removedIds = new Set(nodeIds);
-      onNodesChangeAction(nodes.filter((n) => !removedIds.has(n.id)));
+      const remove = new Set(nodeIds);
+      onNodesChangeAction(nodes.filter((n) => !remove.has(n.id)));
       onEdgesChangeAction(
-        edges.filter((e) => !removedIds.has(e.source) && !removedIds.has(e.target)),
+        edges.filter((e) => !remove.has(e.source) && !remove.has(e.target)),
       );
-      if (selectedNodeId && removedIds.has(selectedNodeId)) onSelectNodeAction(null);
-      setSelectedEdgeId(null);
+      if (selectedNodeId && remove.has(selectedNodeId)) onSelectNodeAction(null);
+      setPending((prev) =>
+        prev?.sourceId && remove.has(prev.sourceId) ? null : prev,
+      );
     },
     [nodes, edges, selectedNodeId, onNodesChangeAction, onEdgesChangeAction, onSelectNodeAction],
   );
 
   const deleteNode = useCallback(
     (nodeId: string) => {
-      const group = nodes.filter((n) => n.selected).map((n) => n.id);
-      if (group.length > 1 && group.includes(nodeId)) {
-        deleteNodes(group);
-        return;
-      }
       deleteNodes([nodeId]);
     },
-    [nodes, deleteNodes],
+    [deleteNodes],
   );
 
   const disconnectNodes = useCallback(
     (nodeIds: string[]) => {
       if (nodeIds.length === 0) return;
-      const ids = new Set(nodeIds);
+      const targets = new Set(nodeIds);
       onEdgesChangeAction(
-        edges.filter((e) => !ids.has(e.source) && !ids.has(e.target)),
+        edges.filter((e) => !targets.has(e.source) && !targets.has(e.target)),
       );
-      setSelectedEdgeId(null);
     },
     [edges, onEdgesChangeAction],
   );
 
   const disconnectNode = useCallback(
     (nodeId: string) => {
-      const group = nodes.filter((n) => n.selected).map((n) => n.id);
-      if (group.length > 1 && group.includes(nodeId)) {
-        disconnectNodes(group);
-        return;
-      }
       disconnectNodes([nodeId]);
     },
-    [nodes, disconnectNodes],
-  );
-
-  const syncInspectorSelection = useCallback(
-    (nextNodes: WorkflowFlowNode[]) => {
-      const selected = nextNodes.filter((n) => n.selected);
-      if (selected.length === 0) {
-        if (selectedNodeId) onSelectNodeAction(null);
-        return;
-      }
-      if (selectedNodeId && selected.some((n) => n.id === selectedNodeId)) return;
-      onSelectNodeAction(selected[selected.length - 1].id);
-    },
-    [selectedNodeId, onSelectNodeAction],
+    [disconnectNodes],
   );
 
   const deleteEdge = useCallback(
     (edgeId: string) => {
       onEdgesChangeAction(edges.filter((e) => e.id !== edgeId));
-      setSelectedEdgeId((prev) => (prev === edgeId ? null : prev));
     },
     [edges, onEdgesChangeAction],
   );
@@ -306,6 +296,18 @@ function WorkflowCanvasInner({
     [edges, nodes, onEdgesChangeAction],
   );
 
+  const deleteNodeRef = useRef(deleteNode);
+  const disconnectNodeRef = useRef(disconnectNode);
+  deleteNodeRef.current = deleteNode;
+  disconnectNodeRef.current = disconnectNode;
+
+  const onRequestDeleteNode = useCallback((nodeId: string) => {
+    deleteNodeRef.current(nodeId);
+  }, []);
+  const onRequestDisconnectNode = useCallback((nodeId: string) => {
+    disconnectNodeRef.current(nodeId);
+  }, []);
+
   const selectedConditionEdge = useMemo(() => {
     if (!selectedEdgeId) return null;
     const edge = edges.find((e) => e.id === selectedEdgeId);
@@ -315,26 +317,10 @@ function WorkflowCanvasInner({
     return { edge, source };
   }, [selectedEdgeId, edges, nodes]);
 
-  const selectedNodes = useMemo(
-    () =>
-      nodes.map((n) => ({
-        ...n,
-        selected:
-          Boolean(n.selected) ||
-          (selectedNodeIds.length === 0 && n.id === selectedNodeId),
-        data: {
-          ...n.data,
-          onRequestDelete: () => deleteNode(n.id),
-          onRequestDisconnect: () => disconnectNode(n.id),
-        },
-      })),
-    [nodes, selectedNodeId, selectedNodeIds.length, deleteNode, disconnectNode],
-  );
-
   const styledEdges = useMemo(
     () =>
       edges.map((e) => {
-        const selected = e.id === selectedEdgeId;
+        const selected = Boolean(e.selected);
         const branchStyle = withBranchLabelStyle(
           typeof e.label === 'string' ? e.label : undefined,
         );
@@ -364,13 +350,13 @@ function WorkflowCanvasInner({
           },
         };
       }),
-    [edges, selectedEdgeId],
+    [edges],
   );
 
   const displayNodes = useMemo(() => {
-    if (!pending) return selectedNodes;
+    if (!pending) return nodes;
     return [
-      ...selectedNodes,
+      ...nodes,
       {
         id: PENDING_NODE_ID,
         type: 'pendingDrop',
@@ -389,10 +375,10 @@ function WorkflowCanvasInner({
         connectable: false,
       } satisfies WorkflowFlowNode,
     ];
-  }, [selectedNodes, pending]);
+  }, [nodes, pending]);
 
   const displayEdges = useMemo(() => {
-    if (!pending) return styledEdges;
+    if (!pending?.sourceId) return styledEdges;
     const sourceNode = nodes.find((n) => n.id === pending.sourceId);
     const label =
       sourceNode?.data.kind === 'condition'
@@ -432,25 +418,21 @@ function WorkflowCanvasInner({
     (changes: NodeChange<WorkflowFlowNode>[]) => {
       const realChanges = changes.filter((c) => !('id' in c) || c.id !== PENDING_NODE_ID);
       if (realChanges.length === 0) return;
+
       const removals = realChanges.filter((c) => c.type === 'remove');
       if (removals.length > 0) {
         const removedIds = new Set(removals.map((c) => c.id));
-        const nextNodes = nodes.filter((n) => !removedIds.has(n.id));
-        onNodesChangeAction(nextNodes);
+        onNodesChangeAction(nodes.filter((n) => !removedIds.has(n.id)));
         onEdgesChangeAction(
           edges.filter((e) => !removedIds.has(e.source) && !removedIds.has(e.target)),
         );
-        syncInspectorSelection(nextNodes);
-        setSelectedEdgeId(null);
+        if (selectedNodeId && removedIds.has(selectedNodeId)) onSelectNodeAction(null);
         return;
       }
-      const nextNodes = applyNodeChanges(realChanges, nodes);
-      onNodesChangeAction(nextNodes);
-      if (realChanges.some((c) => c.type === 'select')) {
-        syncInspectorSelection(nextNodes);
-      }
+      // Include select changes so RF controlled selection stays on the draft nodes.
+      onNodesChangeAction(applyNodeChanges(realChanges, nodes));
     },
-    [nodes, edges, onNodesChangeAction, onEdgesChangeAction, syncInspectorSelection],
+    [nodes, edges, selectedNodeId, onNodesChangeAction, onEdgesChangeAction, onSelectNodeAction],
   );
 
   const handleEdgesChange = useCallback(
@@ -461,7 +443,6 @@ function WorkflowCanvasInner({
       if (removals.length > 0) {
         const removedIds = new Set(removals.map((c) => c.id));
         onEdgesChangeAction(edges.filter((e) => !removedIds.has(e.id)));
-        setSelectedEdgeId((prev) => (prev && removedIds.has(prev) ? null : prev));
         return;
       }
       onEdgesChangeAction(applyEdgeChanges(realChanges, edges));
@@ -501,6 +482,41 @@ function WorkflowCanvasInner({
     }
   }, []);
 
+  const syncInspectorFromCanvasSelection = useCallback(() => {
+    const ids = selectedNodeIdsRef.current;
+    if (ids.length === 1) {
+      if (selectedNodeIdRef.current !== ids[0]) {
+        selectedNodeIdRef.current = ids[0];
+        onSelectNodeAction(ids[0]);
+      }
+      return;
+    }
+    if (selectedNodeIdRef.current !== null) {
+      selectedNodeIdRef.current = null;
+      onSelectNodeAction(null);
+    }
+  }, [onSelectNodeAction]);
+
+  const openElementPickerAt = useCallback(
+    (clientX: number, clientY: number, source?: { nodeId: string; handleId: string | null }) => {
+      const flowPos = screenToFlowPosition({ x: clientX, y: clientY });
+      clearEdgeSelection();
+      if (!source) {
+        onSelectNodeAction(null);
+        clearNodeSelection();
+      }
+      setPending({
+        sourceId: source?.nodeId ?? null,
+        sourceHandle: source?.handleId ?? null,
+        flowX: flowPos.x,
+        flowY: flowPos.y,
+        screenX: clientX,
+        screenY: clientY,
+      });
+    },
+    [screenToFlowPosition, onSelectNodeAction, clearNodeSelection, clearEdgeSelection],
+  );
+
   const onConnectEnd = useCallback<OnConnectEnd>(
     (event) => {
       const source = connectingFrom.current;
@@ -518,17 +534,12 @@ function WorkflowCanvasInner({
           ? event.changedTouches[0]
           : (event as MouseEvent);
 
-      const flowPos = screenToFlowPosition({ x: clientX, y: clientY });
-      setPending({
-        sourceId: source.nodeId,
-        sourceHandle: source.handleId,
-        flowX: flowPos.x,
-        flowY: flowPos.y,
-        screenX: clientX,
-        screenY: clientY,
+      openElementPickerAt(clientX, clientY, {
+        nodeId: source.nodeId,
+        handleId: source.handleId,
       });
     },
-    [screenToFlowPosition],
+    [openElementPickerAt],
   );
 
   const handlePick = useCallback(
@@ -539,7 +550,6 @@ function WorkflowCanvasInner({
         id,
         type: 'workflow',
         position: { x: pending.flowX - 120, y: pending.flowY },
-        selected: true,
         data: {
           kind: choice.kind,
           catalogType: choice.catalogType,
@@ -549,25 +559,26 @@ function WorkflowCanvasInner({
           config: choice.config,
         },
       };
-      const sourceNode = nodes.find((n) => n.id === pending.sourceId);
-      const label =
-        sourceNode?.data.kind === 'condition'
-          ? nextConditionBranchLabel(sourceNode, edges)
-          : undefined;
-      const nextEdge: WorkflowFlowEdge = {
-        id: `e_${pending.sourceId}_${id}`,
-        source: pending.sourceId,
-        target: id,
-        sourceHandle: pending.sourceHandle ?? undefined,
-        targetHandle: 'source-top',
-        ...edgeDefaults,
-        ...withBranchLabelStyle(label),
-      };
-      onNodesChangeAction([
-        ...nodes.map((n) => ({ ...n, selected: false })),
-        nextNode,
-      ]);
-      onEdgesChangeAction([...edges, nextEdge]);
+      onNodesChangeAction([...nodes, nextNode]);
+
+      if (pending.sourceId) {
+        const sourceNode = nodes.find((n) => n.id === pending.sourceId);
+        const label =
+          sourceNode?.data.kind === 'condition'
+            ? nextConditionBranchLabel(sourceNode, edges)
+            : undefined;
+        const nextEdge: WorkflowFlowEdge = {
+          id: `e_${pending.sourceId}_${id}`,
+          source: pending.sourceId,
+          target: id,
+          sourceHandle: pending.sourceHandle ?? undefined,
+          targetHandle: 'source-top',
+          ...edgeDefaults,
+          ...withBranchLabelStyle(label),
+        };
+        onEdgesChangeAction([...edges, nextEdge]);
+      }
+
       onSelectNodeAction(id);
       setPending(null);
     },
@@ -588,17 +599,26 @@ function WorkflowCanvasInner({
         deleteEdge(selectedEdgeId);
         return;
       }
-      if (activeSelectedIds.length > 0) {
+      if (selectedNodeIds.length > 0) {
         event.preventDefault();
-        deleteNodes(activeSelectedIds);
+        deleteNodes(selectedNodeIds);
+        return;
+      }
+      if (selectedNodeId) {
+        event.preventDefault();
+        deleteNode(selectedNodeId);
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selectedEdgeId, activeSelectedIds, deleteEdge, deleteNodes]);
+  }, [selectedEdgeId, selectedNodeId, selectedNodeIds, deleteEdge, deleteNode, deleteNodes]);
 
   return (
     <div className="relative h-full w-full" ref={wrapperRef}>
+      <CanvasNodeActionsProvider
+        onRequestDelete={onRequestDeleteNode}
+        onRequestDisconnect={onRequestDisconnectNode}
+      >
       <ReactFlow
         nodes={displayNodes}
         edges={displayEdges}
@@ -608,41 +628,47 @@ function WorkflowCanvasInner({
         onConnect={onConnect}
         onConnectStart={onConnectStart}
         onConnectEnd={onConnectEnd}
-        onNodeClick={(_, node) => {
+        onNodeClick={(event, node) => {
+          clearEdgeSelection();
+          if (event.metaKey || event.ctrlKey || event.shiftKey) return;
           onSelectNodeAction(node.id);
-          setSelectedEdgeId(null);
-        }}
-        onSelectionChange={({ nodes: selNodes }) => {
-          if (selNodes.length === 0) return;
-          const stillFocused = selectedNodeId && selNodes.some((n) => n.id === selectedNodeId);
-          if (!stillFocused) {
-            onSelectNodeAction(selNodes[selNodes.length - 1].id);
-          }
-          setSelectedEdgeId(null);
         }}
         onEdgeClick={(_, edge) => {
-          if (nodes.some((n) => n.selected)) {
-            onNodesChangeAction(nodes.map((n) => ({ ...n, selected: false })));
-          }
-          setSelectedEdgeId(edge.id);
           onSelectNodeAction(null);
+          clearNodeSelection();
+          if (!edge.selected) {
+            onEdgesChangeAction(
+              edges.map((e) => ({
+                ...e,
+                selected: e.id === edge.id,
+              })),
+            );
+          }
         }}
         onPaneClick={() => {
-          if (nodes.some((n) => n.selected)) {
-            onNodesChangeAction(nodes.map((n) => ({ ...n, selected: false })));
-          }
           onSelectNodeAction(null);
-          setSelectedEdgeId(null);
+          clearNodeSelection();
+          clearEdgeSelection();
           setPending(null);
         }}
+        onPaneContextMenu={(event) => {
+          event.preventDefault();
+          openElementPickerAt(event.clientX, event.clientY);
+        }}
+        onNodeContextMenu={(event) => {
+          event.preventDefault();
+          openElementPickerAt(event.clientX, event.clientY);
+        }}
+        onSelectionEnd={syncInspectorFromCanvasSelection}
+        panOnDrag
+        selectionOnDrag={false}
+        selectionKeyCode="Shift"
+        multiSelectionKeyCode={['Meta', 'Control']}
+        selectionMode={SelectionMode.Partial}
         edgesFocusable
         edgesReconnectable
         elementsSelectable
-        selectionOnDrag
-        selectionMode={SelectionMode.Partial}
-        panOnDrag={[1, 2]}
-        panOnScroll
-        multiSelectionKeyCode="Shift"
+        nodesFocusable
         connectionMode={ConnectionMode.Loose}
         fitView
         fitViewOptions={{ padding: 0.35, maxZoom: 1 }}
@@ -651,7 +677,7 @@ function WorkflowCanvasInner({
         defaultEdgeOptions={edgeDefaults}
         connectionLineStyle={{ stroke: '#0a61d7', strokeWidth: 1.5 }}
         deleteKeyCode={null}
-        className="bg-transparent [&_.react-flow__selection]:!bg-[#0a61d7]/10 [&_.react-flow__selection]:!border-[#0a61d7]"
+        className="bg-transparent"
       >
         <Background
           id="workflow-dots"
@@ -662,44 +688,38 @@ function WorkflowCanvasInner({
         />
         <CanvasZoomControl />
       </ReactFlow>
+      </CanvasNodeActionsProvider>
 
-      {(activeSelectedIds.length > 0 || selectedEdgeId) && (
+      {(selectedNodeIds.length > 0 || selectedEdgeId) && (
         <div className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1 rounded-full border border-[#e6e6e6] bg-white/95 px-2 py-1.5 shadow-md backdrop-blur-sm">
-          {activeSelectedIds.length > 0 && (
+          {selectedNodeIds.length > 0 && (
             <>
+              {selectedNodeIds.length > 1 && (
+                <span className="px-2 text-[11px] font-medium text-gray-500">
+                  {tBuilder('selectedNodesCount', { count: selectedNodeIds.length })}
+                </span>
+              )}
               <button
                 type="button"
-                onClick={() => disconnectNodes(activeSelectedIds)}
+                onClick={() => disconnectNodes(selectedNodeIds)}
                 className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-black hover:bg-gray-50"
-                title={
-                  activeSelectedIds.length > 1
-                    ? tBuilder('disconnectSelected', { count: activeSelectedIds.length })
-                    : tBuilder('disconnectNode')
-                }
+                title={tBuilder('disconnectNode')}
               >
                 <Unplug className="h-3.5 w-3.5" />
-                {activeSelectedIds.length > 1
-                  ? tBuilder('disconnectSelected', { count: activeSelectedIds.length })
-                  : tBuilder('disconnectNode')}
+                {tBuilder('disconnectNode')}
               </button>
               <button
                 type="button"
-                onClick={() => deleteNodes(activeSelectedIds)}
+                onClick={() => deleteNodes(selectedNodeIds)}
                 className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
-                title={
-                  activeSelectedIds.length > 1
-                    ? tBuilder('deleteSelected', { count: activeSelectedIds.length })
-                    : tBuilder('deleteNode')
-                }
+                title={tBuilder('deleteNode')}
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                {activeSelectedIds.length > 1
-                  ? tBuilder('deleteSelected', { count: activeSelectedIds.length })
-                  : tBuilder('deleteNode')}
+                {tBuilder('deleteNode')}
               </button>
             </>
           )}
-          {selectedEdgeId && (
+          {selectedEdgeId && selectedNodeIds.length === 0 && (
             <>
               {selectedConditionEdge && (
                 <>

@@ -11,8 +11,6 @@ export type WorkflowNodeData = {
   title: string;
   subtitle: string;
   config: Record<string, unknown>;
-  onRequestDelete?: () => void;
-  onRequestDisconnect?: () => void;
 };
 
 export type WorkflowFlowNode = Node<WorkflowNodeData>;
@@ -21,7 +19,8 @@ export type WorkflowFlowEdge = Edge;
 export type CanvasPickerCategory = 'trigger' | 'action' | 'agent' | 'app' | 'condition';
 
 export type PendingConnection = {
-  sourceId: string;
+  /** When set, the new node is wired from this source. Null = place-only (e.g. right-click). */
+  sourceId: string | null;
   sourceHandle: string | null;
   flowX: number;
   flowY: number;

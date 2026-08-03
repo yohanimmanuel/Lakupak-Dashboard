@@ -1,13 +1,34 @@
 'use client';
 
-import React, { memo } from 'react';
-import { Handle, Position, type NodeProps } from '@xyflow/react';
+import React, { createContext, memo, useContext } from 'react';
+import { Handle, Position, useNodeId, type NodeProps } from '@xyflow/react';
 import { Bolt, Bot, GitBranch, Trash2, Unplug, Zap } from 'lucide-react';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
 import type { WorkflowFlowNode } from './canvasTypes';
 
 const handleClass =
   '!h-2.5 !w-2.5 !border-2 !border-white !bg-[#0a61d7] !opacity-70 hover:!opacity-100';
+
+type CanvasNodeActions = {
+  onRequestDelete: (nodeId: string) => void;
+  onRequestDisconnect: (nodeId: string) => void;
+};
+
+const CanvasNodeActionsContext = createContext<CanvasNodeActions | null>(null);
+
+export function CanvasNodeActionsProvider({
+  onRequestDelete,
+  onRequestDisconnect,
+  children,
+}: CanvasNodeActions & { children: React.ReactNode }) {
+  const value = React.useMemo(
+    () => ({ onRequestDelete, onRequestDisconnect }),
+    [onRequestDelete, onRequestDisconnect],
+  );
+  return (
+    <CanvasNodeActionsContext.Provider value={value}>{children}</CanvasNodeActionsContext.Provider>
+  );
+}
 
 /** One connectable port per side — works with ConnectionMode.Loose for flexible in/out. */
 function FourSideHandles() {
@@ -22,6 +43,8 @@ function FourSideHandles() {
 }
 
 function WorkflowFlowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNode>) {
+  const nodeId = useNodeId() ?? '';
+  const actions = useContext(CanvasNodeActionsContext);
   const { tBuilder, translateTrigger, translateAction } = useAutomationTranslations();
   const isAgent = data.kind === 'agent';
   const isCondition = data.kind === 'condition';
@@ -70,38 +93,34 @@ function WorkflowFlowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNod
                 : 'border-[#e6e6e6] bg-white hover:border-[#0a61d7]/40'
       }`}
     >
-      {selected && (
+      {selected && actions && (
         <div className="absolute -right-2 -top-2 z-10 flex gap-1">
-          {data.onRequestDisconnect && (
-            <button
-              type="button"
-              className="rounded-full border border-[#e6e6e6] bg-white p-1 text-gray-600 shadow-sm hover:bg-gray-50"
-              title="Disconnect"
-              aria-label="Disconnect"
-              onClick={(e) => {
-                e.stopPropagation();
-                data.onRequestDisconnect?.();
-              }}
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              <Unplug className="h-3 w-3" />
-            </button>
-          )}
-          {data.onRequestDelete && (
-            <button
-              type="button"
-              className="rounded-full border border-red-200 bg-white p-1 text-red-600 shadow-sm hover:bg-red-50"
-              title="Delete"
-              aria-label="Delete"
-              onClick={(e) => {
-                e.stopPropagation();
-                data.onRequestDelete?.();
-              }}
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              <Trash2 className="h-3 w-3" />
-            </button>
-          )}
+          <button
+            type="button"
+            className="rounded-full border border-[#e6e6e6] bg-white p-1 text-gray-600 shadow-sm hover:bg-gray-50"
+            title={tBuilder('disconnectNode')}
+            aria-label={tBuilder('disconnectNode')}
+            onClick={(e) => {
+              e.stopPropagation();
+              actions.onRequestDisconnect(nodeId);
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <Unplug className="h-3 w-3" />
+          </button>
+          <button
+            type="button"
+            className="rounded-full border border-red-200 bg-white p-1 text-red-600 shadow-sm hover:bg-red-50"
+            title={tBuilder('deleteNode')}
+            aria-label={tBuilder('deleteNode')}
+            onClick={(e) => {
+              e.stopPropagation();
+              actions.onRequestDelete(nodeId);
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <Trash2 className="h-3 w-3" />
+          </button>
         </div>
       )}
 
