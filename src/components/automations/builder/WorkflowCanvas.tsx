@@ -13,6 +13,7 @@ import {
   Panel,
   Handle,
   Position,
+  SelectionMode,
   type Connection,
   type EdgeChange,
   type NodeChange,
@@ -196,22 +197,77 @@ function WorkflowCanvasInner({
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  const deleteNode = useCallback(
-    (nodeId: string) => {
-      onNodesChangeAction(nodes.filter((n) => n.id !== nodeId));
-      onEdgesChangeAction(edges.filter((e) => e.source !== nodeId && e.target !== nodeId));
-      if (selectedNodeId === nodeId) onSelectNodeAction(null);
+  const selectedNodeIds = useMemo(
+    () => nodes.filter((n) => n.selected).map((n) => n.id),
+    [nodes],
+  );
+
+  const activeSelectedIds = useMemo(() => {
+    if (selectedNodeIds.length > 0) return selectedNodeIds;
+    return selectedNodeId ? [selectedNodeId] : [];
+  }, [selectedNodeIds, selectedNodeId]);
+
+  const deleteNodes = useCallback(
+    (nodeIds: string[]) => {
+      if (nodeIds.length === 0) return;
+      const removedIds = new Set(nodeIds);
+      onNodesChangeAction(nodes.filter((n) => !removedIds.has(n.id)));
+      onEdgesChangeAction(
+        edges.filter((e) => !removedIds.has(e.source) && !removedIds.has(e.target)),
+      );
+      if (selectedNodeId && removedIds.has(selectedNodeId)) onSelectNodeAction(null);
       setSelectedEdgeId(null);
     },
     [nodes, edges, selectedNodeId, onNodesChangeAction, onEdgesChangeAction, onSelectNodeAction],
   );
 
-  const disconnectNode = useCallback(
+  const deleteNode = useCallback(
     (nodeId: string) => {
-      onEdgesChangeAction(edges.filter((e) => e.source !== nodeId && e.target !== nodeId));
+      const group = nodes.filter((n) => n.selected).map((n) => n.id);
+      if (group.length > 1 && group.includes(nodeId)) {
+        deleteNodes(group);
+        return;
+      }
+      deleteNodes([nodeId]);
+    },
+    [nodes, deleteNodes],
+  );
+
+  const disconnectNodes = useCallback(
+    (nodeIds: string[]) => {
+      if (nodeIds.length === 0) return;
+      const ids = new Set(nodeIds);
+      onEdgesChangeAction(
+        edges.filter((e) => !ids.has(e.source) && !ids.has(e.target)),
+      );
       setSelectedEdgeId(null);
     },
     [edges, onEdgesChangeAction],
+  );
+
+  const disconnectNode = useCallback(
+    (nodeId: string) => {
+      const group = nodes.filter((n) => n.selected).map((n) => n.id);
+      if (group.length > 1 && group.includes(nodeId)) {
+        disconnectNodes(group);
+        return;
+      }
+      disconnectNodes([nodeId]);
+    },
+    [nodes, disconnectNodes],
+  );
+
+  const syncInspectorSelection = useCallback(
+    (nextNodes: WorkflowFlowNode[]) => {
+      const selected = nextNodes.filter((n) => n.selected);
+      if (selected.length === 0) {
+        if (selectedNodeId) onSelectNodeAction(null);
+        return;
+      }
+      if (selectedNodeId && selected.some((n) => n.id === selectedNodeId)) return;
+      onSelectNodeAction(selected[selected.length - 1].id);
+    },
+    [selectedNodeId, onSelectNodeAction],
   );
 
   const deleteEdge = useCallback(
@@ -263,14 +319,16 @@ function WorkflowCanvasInner({
     () =>
       nodes.map((n) => ({
         ...n,
-        selected: n.id === selectedNodeId,
+        selected:
+          Boolean(n.selected) ||
+          (selectedNodeIds.length === 0 && n.id === selectedNodeId),
         data: {
           ...n.data,
           onRequestDelete: () => deleteNode(n.id),
           onRequestDisconnect: () => disconnectNode(n.id),
         },
       })),
-    [nodes, selectedNodeId, deleteNode, disconnectNode],
+    [nodes, selectedNodeId, selectedNodeIds.length, deleteNode, disconnectNode],
   );
 
   const styledEdges = useMemo(
@@ -377,17 +435,22 @@ function WorkflowCanvasInner({
       const removals = realChanges.filter((c) => c.type === 'remove');
       if (removals.length > 0) {
         const removedIds = new Set(removals.map((c) => c.id));
-        onNodesChangeAction(nodes.filter((n) => !removedIds.has(n.id)));
+        const nextNodes = nodes.filter((n) => !removedIds.has(n.id));
+        onNodesChangeAction(nextNodes);
         onEdgesChangeAction(
           edges.filter((e) => !removedIds.has(e.source) && !removedIds.has(e.target)),
         );
-        if (selectedNodeId && removedIds.has(selectedNodeId)) onSelectNodeAction(null);
+        syncInspectorSelection(nextNodes);
         setSelectedEdgeId(null);
         return;
       }
-      onNodesChangeAction(applyNodeChanges(realChanges, nodes));
+      const nextNodes = applyNodeChanges(realChanges, nodes);
+      onNodesChangeAction(nextNodes);
+      if (realChanges.some((c) => c.type === 'select')) {
+        syncInspectorSelection(nextNodes);
+      }
     },
-    [nodes, edges, selectedNodeId, onNodesChangeAction, onEdgesChangeAction, onSelectNodeAction],
+    [nodes, edges, onNodesChangeAction, onEdgesChangeAction, syncInspectorSelection],
   );
 
   const handleEdgesChange = useCallback(
@@ -476,6 +539,7 @@ function WorkflowCanvasInner({
         id,
         type: 'workflow',
         position: { x: pending.flowX - 120, y: pending.flowY },
+        selected: true,
         data: {
           kind: choice.kind,
           catalogType: choice.catalogType,
@@ -499,7 +563,10 @@ function WorkflowCanvasInner({
         ...edgeDefaults,
         ...withBranchLabelStyle(label),
       };
-      onNodesChangeAction([...nodes, nextNode]);
+      onNodesChangeAction([
+        ...nodes.map((n) => ({ ...n, selected: false })),
+        nextNode,
+      ]);
       onEdgesChangeAction([...edges, nextEdge]);
       onSelectNodeAction(id);
       setPending(null);
@@ -521,14 +588,14 @@ function WorkflowCanvasInner({
         deleteEdge(selectedEdgeId);
         return;
       }
-      if (selectedNodeId) {
+      if (activeSelectedIds.length > 0) {
         event.preventDefault();
-        deleteNode(selectedNodeId);
+        deleteNodes(activeSelectedIds);
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selectedEdgeId, selectedNodeId, deleteEdge, deleteNode]);
+  }, [selectedEdgeId, activeSelectedIds, deleteEdge, deleteNodes]);
 
   return (
     <div className="relative h-full w-full" ref={wrapperRef}>
@@ -545,11 +612,25 @@ function WorkflowCanvasInner({
           onSelectNodeAction(node.id);
           setSelectedEdgeId(null);
         }}
+        onSelectionChange={({ nodes: selNodes }) => {
+          if (selNodes.length === 0) return;
+          const stillFocused = selectedNodeId && selNodes.some((n) => n.id === selectedNodeId);
+          if (!stillFocused) {
+            onSelectNodeAction(selNodes[selNodes.length - 1].id);
+          }
+          setSelectedEdgeId(null);
+        }}
         onEdgeClick={(_, edge) => {
+          if (nodes.some((n) => n.selected)) {
+            onNodesChangeAction(nodes.map((n) => ({ ...n, selected: false })));
+          }
           setSelectedEdgeId(edge.id);
           onSelectNodeAction(null);
         }}
         onPaneClick={() => {
+          if (nodes.some((n) => n.selected)) {
+            onNodesChangeAction(nodes.map((n) => ({ ...n, selected: false })));
+          }
           onSelectNodeAction(null);
           setSelectedEdgeId(null);
           setPending(null);
@@ -557,6 +638,11 @@ function WorkflowCanvasInner({
         edgesFocusable
         edgesReconnectable
         elementsSelectable
+        selectionOnDrag
+        selectionMode={SelectionMode.Partial}
+        panOnDrag={[1, 2]}
+        panOnScroll
+        multiSelectionKeyCode="Shift"
         connectionMode={ConnectionMode.Loose}
         fitView
         fitViewOptions={{ padding: 0.35, maxZoom: 1 }}
@@ -565,7 +651,7 @@ function WorkflowCanvasInner({
         defaultEdgeOptions={edgeDefaults}
         connectionLineStyle={{ stroke: '#0a61d7', strokeWidth: 1.5 }}
         deleteKeyCode={null}
-        className="bg-transparent"
+        className="bg-transparent [&_.react-flow__selection]:!bg-[#0a61d7]/10 [&_.react-flow__selection]:!border-[#0a61d7]"
       >
         <Background
           id="workflow-dots"
@@ -577,27 +663,39 @@ function WorkflowCanvasInner({
         <CanvasZoomControl />
       </ReactFlow>
 
-      {(selectedNodeId || selectedEdgeId) && (
+      {(activeSelectedIds.length > 0 || selectedEdgeId) && (
         <div className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1 rounded-full border border-[#e6e6e6] bg-white/95 px-2 py-1.5 shadow-md backdrop-blur-sm">
-          {selectedNodeId && (
+          {activeSelectedIds.length > 0 && (
             <>
               <button
                 type="button"
-                onClick={() => disconnectNode(selectedNodeId)}
+                onClick={() => disconnectNodes(activeSelectedIds)}
                 className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-black hover:bg-gray-50"
-                title={tBuilder('disconnectNode')}
+                title={
+                  activeSelectedIds.length > 1
+                    ? tBuilder('disconnectSelected', { count: activeSelectedIds.length })
+                    : tBuilder('disconnectNode')
+                }
               >
                 <Unplug className="h-3.5 w-3.5" />
-                {tBuilder('disconnectNode')}
+                {activeSelectedIds.length > 1
+                  ? tBuilder('disconnectSelected', { count: activeSelectedIds.length })
+                  : tBuilder('disconnectNode')}
               </button>
               <button
                 type="button"
-                onClick={() => deleteNode(selectedNodeId)}
+                onClick={() => deleteNodes(activeSelectedIds)}
                 className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
-                title={tBuilder('deleteNode')}
+                title={
+                  activeSelectedIds.length > 1
+                    ? tBuilder('deleteSelected', { count: activeSelectedIds.length })
+                    : tBuilder('deleteNode')
+                }
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                {tBuilder('deleteNode')}
+                {activeSelectedIds.length > 1
+                  ? tBuilder('deleteSelected', { count: activeSelectedIds.length })
+                  : tBuilder('deleteNode')}
               </button>
             </>
           )}
