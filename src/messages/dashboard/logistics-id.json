@@ -133,6 +133,7 @@
     "driversSelected": "{count} driver dipilih",
     "selectFleetsToRemove": "Pilih armada yang akan dihapus dari sistem.",
     "selectFleetsToRemoveShort": "Pilih armada untuk dihapus dari sistem.",
+    "confirmSelectionToContinue": "Konfirmasi pilihan untuk melanjutkan",
     "selectDriversToRemove": "Pilih driver yang akan dihapus dari sistem.",
     "noDriversYet": "Belum ada driver terdaftar",
     "noDriversYetHint": "Tambahkan driver saat membuat atau mengedit armada.",

@@ -87,6 +87,7 @@
     "bulkHintSingleSend": "Select campaign to be removed or sent.",
     "bulkHintSingleResend": "Select campaign to be removed or resent.",
     "bulkHintMultiple": "Select campaigns to be removed.",
+    "confirmSelectionToContinue": "Confirm selection to continue",
     "sendCampaign": "Send Campaign",
     "resendCampaign": "Resend Campaign",
     "removeCampaign": "Remove Campaign",

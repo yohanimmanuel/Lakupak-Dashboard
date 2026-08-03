@@ -112,6 +112,26 @@ const TEST_MUTATION = `
   }
 `;
 
+const DELETE_RUN_MUTATION = `
+  mutation DeleteAutomationRun($id: String!) {
+    deleteAutomationRun(id: $id) {
+      success
+      deleted {
+        id
+      }
+    }
+  }
+`;
+
+const CLEAR_RUNS_MUTATION = `
+  mutation ClearAutomationRuns($workflowId: String!) {
+    clearAutomationRuns(workflowId: $workflowId) {
+      success
+      deletedCount
+    }
+  }
+`;
+
 function asRecord(value: unknown): Record<string, unknown> {
   if (value && typeof value === 'object' && !Array.isArray(value)) {
     return value as Record<string, unknown>;
@@ -130,6 +150,7 @@ function DetailsInner() {
   const [runs, setRuns] = useState<AutomationRun[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [clearingRuns, setClearingRuns] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
@@ -363,6 +384,36 @@ function DetailsInner() {
     }
   };
 
+  const deleteRun = async (runId: string) => {
+    if (!user?.id) return;
+    setClearingRuns(true);
+    try {
+      await fetchGraphQL<{ deleteAutomationRun: { success: boolean } }>(DELETE_RUN_MUTATION, {
+        id: runId,
+      });
+      setRuns((prev) => prev.filter((run) => run.id !== runId));
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : tBuilder('saveFailed'));
+    } finally {
+      setClearingRuns(false);
+    }
+  };
+
+  const clearAllRuns = async () => {
+    if (!user?.id || !id) return;
+    setClearingRuns(true);
+    try {
+      await fetchGraphQL<{ clearAutomationRuns: { success: boolean } }>(CLEAR_RUNS_MUTATION, {
+        workflowId: id,
+      });
+      setRuns([]);
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : tBuilder('saveFailed'));
+    } finally {
+      setClearingRuns(false);
+    }
+  };
+
   if (!id) {
     return (
       <div className="p-6">
@@ -444,6 +495,9 @@ function DetailsInner() {
           onDisconnectNodeAction={disconnectNode}
           onCloseAction={() => setSelectedNodeId(null)}
           runs={runs}
+          onDeleteRunAction={(runId) => void deleteRun(runId)}
+          onClearAllRunsAction={() => void clearAllRuns()}
+          clearingRuns={clearingRuns}
         />
       }
     />

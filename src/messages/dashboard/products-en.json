@@ -151,7 +151,8 @@
       "unpublishHint": "Select products to unpublish (change to Draft status).",
       "unpublishHintDesktop": "Select products to unpublish from the marketplace.",
       "removeHint": "Select products to be removed.",
-      "removeHintDesktop": "Select products to remove from the system."
+      "removeHintDesktop": "Select products to remove from the system.",
+      "confirmSelectionToContinue": "Confirm selection to continue"
     },
     "bulkActions": {
       "publish": "Publish",

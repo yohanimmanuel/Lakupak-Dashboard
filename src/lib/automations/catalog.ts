@@ -18,16 +18,17 @@ export type TriggerType =
 export type ActionType =
   | 'replenish_stock'
   | 'whatsapp_buyer'
-  | 'draft_activate_offer'
+  | 'share_product_whatsapp'
   | 'assign_agent_whatsapp'
   | 'cs_24h_window'
   | 'assign_logistic'
-  | 'assign_driver'
   | 'return_confirm_whatsapp'
   | 'cart_winback'
   | 'send_campaign'
   | 'notify_dashboard'
   // Legacy
+  | 'draft_activate_offer'
+  | 'assign_driver'
   | 'buyer_question_reply'
   | 'assign_fleet'
   | 'draft_offer_flag'
@@ -36,7 +37,7 @@ export type ActionType =
 
 export type CatalogField = {
   key: string;
-  kind: 'number' | 'text' | 'textarea' | 'select' | 'buyer' | 'fleet' | 'product';
+  kind: 'number' | 'text' | 'textarea' | 'select' | 'buyer' | 'fleet' | 'product' | 'campaign' | 'datetime';
   options?: string[];
 };
 
@@ -96,7 +97,7 @@ const TRIGGERS_BY_WORKFLOW: Record<WorkflowType, TriggerDefinition[]> = {
   marketing: [
     {
       type: 'campaign_schedule',
-      fields: [{ key: 'sendAt', kind: 'text' }],
+      fields: [{ key: 'sendAt', kind: 'datetime' }],
     },
   ],
 };
@@ -112,11 +113,10 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
       ],
     },
     {
-      type: 'draft_activate_offer',
+      type: 'share_product_whatsapp',
       fields: [
-        { key: 'discountPercent', kind: 'number' },
-        { key: 'windowDays', kind: 'number' },
-        { key: 'offerNote', kind: 'text' },
+        { key: 'productId', kind: 'product' },
+        { key: 'messageTemplate', kind: 'textarea' },
       ],
     },
     { type: 'notify_dashboard', fields: [{ key: 'message', kind: 'textarea' }] },
@@ -152,10 +152,6 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
       fields: [{ key: 'fleetId', kind: 'fleet' }],
     },
     {
-      type: 'assign_driver',
-      fields: [{ key: 'fleetId', kind: 'fleet' }],
-    },
-    {
       type: 'return_confirm_whatsapp',
       fields: [{ key: 'messageTemplate', kind: 'textarea' }],
     },
@@ -173,7 +169,7 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
     {
       type: 'send_campaign',
       fields: [
-        { key: 'campaignId', kind: 'text' },
+        { key: 'campaignId', kind: 'campaign' },
         {
           key: 'channel',
           kind: 'select',
@@ -194,9 +190,9 @@ const LEGACY_TRIGGERS_BY_WORKFLOW: Record<WorkflowType, TriggerType[]> = {
 };
 
 const LEGACY_ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionType[]> = {
-  product_offers: ['draft_offer_flag'],
+  product_offers: ['draft_offer_flag', 'draft_activate_offer'],
   lead_management: ['assign_sales_agent_flag', 'buyer_question_reply'],
-  order_logistics: ['flag_for_fleet', 'assign_fleet'],
+  order_logistics: ['flag_for_fleet', 'assign_fleet', 'assign_driver'],
   marketing: [],
 };
 
@@ -211,6 +207,18 @@ const LEGACY_ACTION_DEFINITIONS: Partial<Record<ActionType, ActionDefinition>> =
         options: ['capacity', 'area', 'load'],
       },
       { key: 'etaNote', kind: 'text' },
+    ],
+  },
+  assign_driver: {
+    type: 'assign_driver',
+    fields: [{ key: 'fleetId', kind: 'fleet' }],
+  },
+  draft_activate_offer: {
+    type: 'draft_activate_offer',
+    fields: [
+      { key: 'discountPercent', kind: 'number' },
+      { key: 'windowDays', kind: 'number' },
+      { key: 'offerNote', kind: 'text' },
     ],
   },
   buyer_question_reply: {
@@ -235,8 +243,29 @@ export function getTriggersForType(type: WorkflowType): TriggerDefinition[] {
   return [...specific, ...SHARED_TRIGGERS.filter((t) => !seen.has(t.type))];
 }
 
+/** All trigger recipes across workflow areas (deduped). Used by the canvas picker. */
+export function getAllTriggers(): TriggerDefinition[] {
+  const byType = new Map<TriggerType, TriggerDefinition>();
+  for (const list of Object.values(TRIGGERS_BY_WORKFLOW)) {
+    for (const trigger of list) byType.set(trigger.type, trigger);
+  }
+  for (const trigger of SHARED_TRIGGERS) {
+    if (!byType.has(trigger.type)) byType.set(trigger.type, trigger);
+  }
+  return Array.from(byType.values());
+}
+
 export function getActionsForType(type: WorkflowType): ActionDefinition[] {
   return ACTIONS_BY_WORKFLOW[type] ?? [];
+}
+
+/** All action recipes across workflow areas (deduped). Used by the canvas picker. */
+export function getAllActions(): ActionDefinition[] {
+  const byType = new Map<ActionType, ActionDefinition>();
+  for (const list of Object.values(ACTIONS_BY_WORKFLOW)) {
+    for (const action of list) byType.set(action.type, action);
+  }
+  return Array.from(byType.values());
 }
 
 /** Resolve current or legacy action field definitions for an existing node. */
@@ -244,7 +273,9 @@ export function getActionDefinition(
   type: WorkflowType,
   actionType: string,
 ): ActionDefinition | undefined {
-  const current = getActionsForType(type).find((a) => a.type === actionType);
+  const current =
+    getAllActions().find((a) => a.type === actionType) ??
+    getActionsForType(type).find((a) => a.type === actionType);
   if (current) return current;
   if (!isActionAllowed(type, actionType)) return undefined;
   return LEGACY_ACTION_DEFINITIONS[actionType as ActionType];
@@ -258,7 +289,7 @@ export function getActionsForInspector(
   type: WorkflowType,
   currentActionType?: string,
 ): ActionDefinition[] {
-  const actions = getActionsForType(type);
+  const actions = getAllActions();
   if (!currentActionType || actions.some((a) => a.type === currentActionType)) {
     return actions;
   }
@@ -298,19 +329,43 @@ export function defaultConfigForFields(fields: CatalogField[]): Record<string, u
       config.productLabel = '';
       config.variantId = '';
       config.variantLabel = '';
+      config.selectedProducts = [];
+    } else if (field.kind === 'campaign') {
+      config[field.key] = '';
+      config.campaignLabel = '';
+      config.campaignStatus = '';
+      config.selectedCampaigns = [];
+    } else if (field.kind === 'fleet') {
+      config[field.key] = '';
+      config.fleetLabel = '';
+      config.fleetStatus = '';
+      config.driverId = '';
+      config.driverName = '';
+      config.assignedLogistics = '';
+      config.selectedFleets = [];
+    } else if (field.kind === 'buyer') {
+      config[field.key] = '';
+      config.buyerLabel = '';
+      config.buyerPhone = '';
+      config.selectedBuyers = [];
     } else config[field.key] = '';
   }
   return config;
 }
 
-export function isTriggerAllowed(type: WorkflowType, triggerType: string): boolean {
-  if (getTriggersForType(type).some((t) => t.type === triggerType)) return true;
-  return (LEGACY_TRIGGERS_BY_WORKFLOW[type] ?? []).includes(triggerType as TriggerType);
+export function isTriggerAllowed(_type: WorkflowType, triggerType: string): boolean {
+  if (getAllTriggers().some((t) => t.type === triggerType)) return true;
+  return Object.values(LEGACY_TRIGGERS_BY_WORKFLOW).some((list) =>
+    list.includes(triggerType as TriggerType),
+  );
 }
 
-export function isActionAllowed(type: WorkflowType, actionType: string): boolean {
-  if (getActionsForType(type).some((a) => a.type === actionType)) return true;
-  return (LEGACY_ACTIONS_BY_WORKFLOW[type] ?? []).includes(actionType as ActionType);
+export function isActionAllowed(_type: WorkflowType, actionType: string): boolean {
+  if (getAllActions().some((a) => a.type === actionType)) return true;
+  if (LEGACY_ACTION_DEFINITIONS[actionType as ActionType]) return true;
+  return Object.values(LEGACY_ACTIONS_BY_WORKFLOW).some((list) =>
+    list.includes(actionType as ActionType),
+  );
 }
 
 /** assign_driver must target a fleet that already has a driverId. */
@@ -319,6 +374,13 @@ export function assignDriverNeedsDriver(
   config: Record<string, unknown> | null | undefined,
 ): boolean {
   if (actionType !== 'assign_driver') return false;
+  const list = config?.selectedFleets;
+  if (Array.isArray(list) && list.length > 0) {
+    return list.some((item) => {
+      if (!item || typeof item !== 'object') return true;
+      return !String((item as Record<string, unknown>).driverId ?? '').trim();
+    });
+  }
   return !String(config?.driverId ?? '').trim();
 }
 
@@ -355,6 +417,48 @@ function buyersMissing(config: Record<string, unknown> | null | undefined): bool
   const list = config?.selectedBuyers;
   if (Array.isArray(list) && list.length > 0) return false;
   return configMissing(config, 'buyerId');
+}
+
+function productsMissing(
+  config: Record<string, unknown> | null | undefined,
+  opts?: { requireVariant?: boolean },
+): boolean {
+  const requireVariant = Boolean(opts?.requireVariant);
+  const list = config?.selectedProducts;
+  if (Array.isArray(list) && list.length > 0) {
+    return list.some((item) => {
+      if (!item || typeof item !== 'object') return true;
+      const row = item as Record<string, unknown>;
+      if (!String(row.productId ?? '').trim()) return true;
+      if (requireVariant && !String(row.variantId ?? '').trim()) return true;
+      return false;
+    });
+  }
+  if (configMissing(config, 'productId')) return true;
+  if (requireVariant && configMissing(config, 'variantId')) return true;
+  return false;
+}
+
+function fleetsMissing(config: Record<string, unknown> | null | undefined): boolean {
+  const list = config?.selectedFleets;
+  if (Array.isArray(list) && list.length > 0) {
+    return list.some((item) => {
+      if (!item || typeof item !== 'object') return true;
+      return !String((item as Record<string, unknown>).fleetId ?? '').trim();
+    });
+  }
+  return configMissing(config, 'fleetId');
+}
+
+function campaignsMissing(config: Record<string, unknown> | null | undefined): boolean {
+  const list = config?.selectedCampaigns;
+  if (Array.isArray(list) && list.length > 0) {
+    return list.some((item) => {
+      if (!item || typeof item !== 'object') return true;
+      return !String((item as Record<string, unknown>).campaignId ?? '').trim();
+    });
+  }
+  return configMissing(config, 'campaignId');
 }
 
 function nodeIssueLabel(nodeId: string | undefined, index: number, kind: string): string {
@@ -416,8 +520,8 @@ export function collectAutomationDryRunIssues(args: {
       continue;
     }
     if (trigger.type === 'stock_below') {
-      if (configMissing(trigger.config, 'productId') || configMissing(trigger.config, 'variantId')) {
-        issues.push(`${label}: Low stock trigger needs a product and variant.`);
+      if (productsMissing(trigger.config, { requireVariant: false })) {
+        issues.push(`${label}: Low stock trigger needs at least one product.`);
       }
     }
     if (trigger.type === 'cart_idle' && configMissing(trigger.config, 'hours')) {
@@ -437,11 +541,22 @@ export function collectAutomationDryRunIssues(args: {
     if (action.type === 'whatsapp_buyer' && buyersMissing(action.config)) {
       issues.push(`${label}: WhatsApp buyer action needs at least one buyer.`);
     }
-    if (action.type === 'assign_logistic' && configMissing(action.config, 'fleetId')) {
+    if (action.type === 'share_product_whatsapp') {
+      if (productsMissing(action.config, { requireVariant: false })) {
+        issues.push(`${label}: Share product on WhatsApp needs at least one product.`);
+      }
+      if (configMissing(action.config, 'messageTemplate')) {
+        issues.push(`${label}: Share product on WhatsApp needs a message template.`);
+      }
+    }
+    if (action.type === 'assign_logistic' && fleetsMissing(action.config)) {
       issues.push(`${label}: Auto-assign logistic needs a fleet.`);
     }
     if (action.type === 'assign_driver' && assignDriverNeedsDriver(action.type, action.config)) {
       issues.push(`${label}: ${ASSIGN_DRIVER_REQUIRES_DRIVER_MESSAGE}`);
+    }
+    if (action.type === 'send_campaign' && campaignsMissing(action.config)) {
+      issues.push(`${label}: Send campaign needs a campaign.`);
     }
     if (action.type === 'notify_dashboard' && configMissing(action.config, 'message')) {
       issues.push(`${label}: Notify on Dashboard needs a message.`);

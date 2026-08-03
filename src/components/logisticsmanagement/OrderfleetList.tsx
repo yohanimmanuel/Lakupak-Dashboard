@@ -117,6 +117,15 @@ interface OrderfleetListProps {
   drivers?: DriverSummary[];
   /** Callback when a driver is deleted */
   onDriverDeleted?: () => void;
+  pickerMode?: boolean;
+  pickerConfirmLabel?: string;
+  onConfirmPickerSelection?: (fleets: FleetOrderSummary[]) => void;
+  /** Prefer fleets that already have a driver */
+  requireDriver?: boolean;
+  /** Prefer single-select in picker (default true) */
+  pickerSingleSelect?: boolean;
+  /** Fleet ids to pre-check when opening in pickerMode. */
+  initialSelectedFleetIds?: string[];
 }
 
 const statusColors: Record<FleetStatus, string> = {
@@ -143,6 +152,12 @@ export default function OrderfleetList({
   onFleetsDeleted,
   drivers = [],
   onDriverDeleted,
+  pickerMode = false,
+  pickerConfirmLabel = 'Use selected',
+  onConfirmPickerSelection,
+  requireDriver = false,
+  pickerSingleSelect = true,
+  initialSelectedFleetIds,
 }: OrderfleetListProps) {
   const {
     tShared,
@@ -178,6 +193,7 @@ export default function OrderfleetList({
   const deliveryStatusDropdownRef = useRef<HTMLDivElement>(null);
   const deliveryTypeDropdownRef = useRef<HTMLDivElement>(null);
   const [selectedFleets, setSelectedFleets] = useState<string[]>([]);
+  const pickerSeededRef = useRef(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [fleetToDelete, setFleetToDelete] = useState<FleetOrderSummary | null>(null);
   const [isBulkDelete, setIsBulkDelete] = useState(false);
@@ -197,11 +213,38 @@ export default function OrderfleetList({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Force fleets tab in picker mode and seed selection.
+  useEffect(() => {
+    if (!pickerMode) {
+      pickerSeededRef.current = false;
+      return;
+    }
+    setActiveTab('fleets');
+    if (pickerSeededRef.current) return;
+    if (fleets.length === 0) return;
+    const selectable = new Set(
+      fleets
+        .filter((f) => !requireDriver || Boolean(f.driverId || f.driver?.id))
+        .map((f) => f.id),
+    );
+    if (initialSelectedFleetIds && initialSelectedFleetIds.length > 0) {
+      const seed = initialSelectedFleetIds.filter((id) => selectable.has(id));
+      setSelectedFleets(pickerSingleSelect ? seed.slice(0, 1) : seed);
+    } else if (selectedFleetId && selectable.has(selectedFleetId)) {
+      setSelectedFleets([selectedFleetId]);
+    }
+    pickerSeededRef.current = true;
+  }, [pickerMode, fleets, selectedFleetId, initialSelectedFleetIds, pickerSingleSelect, requireDriver]);
+
   // Fleet status (availability / operational state)
   const DELIVERY_STATUSES: FleetStatus[] = ['Available', 'Unavailable', 'In Transit', 'Checking'];
 
   const filteredFleets = useMemo(() => {
     let result = fleets;
+
+    if (pickerMode && requireDriver) {
+      result = result.filter((f) => Boolean(f.driverId || f.driver?.id));
+    }
 
     // Text search filter
     const q = search.trim().toLowerCase();
@@ -224,7 +267,7 @@ export default function OrderfleetList({
     }
 
     return result;
-  }, [fleets, search, selectedDeliveryStatus, selectedDeliveryType]);
+  }, [fleets, search, selectedDeliveryStatus, selectedDeliveryType, pickerMode, requireDriver]);
 
   // Only show the tail placeholder when the list is short enough that
   // additional vertical padding is helpful. For longer lists that scroll,
@@ -239,10 +282,25 @@ export default function OrderfleetList({
   );
 
   const handleFleetSelect = (fleetId: string) => {
+    if (pickerMode && pickerSingleSelect) {
+      setSelectedFleets((prev) =>
+        prev.length === 1 && prev[0] === fleetId ? [] : [fleetId],
+      );
+      return;
+    }
     setSelectedFleets((prev) => (prev.includes(fleetId) ? prev.filter((id) => id !== fleetId) : [...prev, fleetId]));
   };
 
   const handleSelectAll = () => {
+    if (pickerMode && pickerSingleSelect) {
+      if (allFilteredFleetIds.length === 0) return;
+      setSelectedFleets((prev) =>
+        prev.length === 1 && prev[0] === allFilteredFleetIds[0]
+          ? []
+          : [allFilteredFleetIds[0]],
+      );
+      return;
+    }
     if (allFilteredSelected) {
       setSelectedFleets((prev) => prev.filter((id) => !allFilteredFleetIds.includes(id)));
     } else {
@@ -256,6 +314,14 @@ export default function OrderfleetList({
         return newSelection;
       });
     }
+  };
+
+  const handleConfirmPickerSelection = () => {
+    if (!onConfirmPickerSelection || selectedFleets.length === 0) return;
+    const picked = selectedFleets
+      .map((id) => fleets.find((f) => f.id === id))
+      .filter((f): f is FleetOrderSummary => Boolean(f));
+    onConfirmPickerSelection(picked);
   };
 
   const handleRowClick = (fleetId: string, event: React.MouseEvent) => {
@@ -433,6 +499,7 @@ export default function OrderfleetList({
   return (
     <div className="flex h-full max-h-[calc(100vh+100px)] flex-col rounded-lg bg-white border border-gray-200" data-tour="logistics-fleet-list">
       {/* Tab Switcher */}
+      {!pickerMode && (
       <div className="flex border-b border-gray-100">
         <button
           type="button"
@@ -462,9 +529,10 @@ export default function OrderfleetList({
           )}
         </button>
       </div>
+      )}
 
       {/* ===== DRIVERS TAB ===== */}
-      {activeTab === 'drivers' && (
+      {!pickerMode && activeTab === 'drivers' && (
         <div className="flex flex-col flex-1 min-h-0">
           {/* Driver toolbar */}
           <div className="flex flex-col gap-3 p-4 border-b border-gray-100">
@@ -835,6 +903,21 @@ export default function OrderfleetList({
                   : tList('fleetsSelected', { count: selectedFleets.length })}
               </span>
             </div>
+            {pickerMode ? (
+              <>
+                <div className="text-gray-600 text-xs font-semibold leading-relaxed">
+                  {tList('confirmSelectionToContinue')}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleConfirmPickerSelection}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-semibold text-white hover:bg-[#084ba6]"
+                >
+                  {pickerConfirmLabel}
+                </button>
+              </>
+            ) : (
+              <>
             <div className="text-gray-600 text-xs font-semibold leading-relaxed">{tList('selectFleetsToRemove')}</div>
             <div className="flex gap-2">
               <button
@@ -845,6 +928,8 @@ export default function OrderfleetList({
                 {tShared('remove')}
               </button>
             </div>
+              </>
+            )}
           </div>
 
           {/* Desktop Layout */}
@@ -854,6 +939,20 @@ export default function OrderfleetList({
                 ? tList('fleetSelected', { count: selectedFleets.length })
                 : tList('fleetsSelected', { count: selectedFleets.length })}
             </span>
+            {pickerMode ? (
+              <div className="flex items-center gap-4">
+                <span className="text-gray-600 text-xs md:text-sm font-semibold">
+                  {tList('confirmSelectionToContinue')}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleConfirmPickerSelection}
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-semibold text-white hover:bg-[#084ba6]"
+                >
+                  {pickerConfirmLabel}
+                </button>
+              </div>
+            ) : (
             <div className="flex items-center gap-4">
               <span className="text-gray-600 text-xs md:text-sm font-semibold">{tList('selectFleetsToRemoveShort')}</span>
               <div className="flex gap-2">
@@ -866,6 +965,7 @@ export default function OrderfleetList({
                 </button>
               </div>
             </div>
+            )}
           </div>
         </div>
       )}
@@ -983,6 +1083,7 @@ export default function OrderfleetList({
                             {isSelected ? tShared('selected') : tShared('select')}
                           </span>
                         </div>
+                        {!pickerMode && (
                         <button
                           type="button"
                           onClick={(e) => {
@@ -994,6 +1095,7 @@ export default function OrderfleetList({
                         >
                           <Trash2 className="w-4 h-4 text-red-600" />
                         </button>
+                        )}
                       </div>
                     </div>
                   </li>

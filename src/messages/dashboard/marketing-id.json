@@ -87,6 +87,7 @@
     "bulkHintSingleSend": "Pilih kampanye untuk dihapus atau dikirim.",
     "bulkHintSingleResend": "Pilih kampanye untuk dihapus atau dikirim ulang.",
     "bulkHintMultiple": "Pilih kampanye untuk dihapus.",
+    "confirmSelectionToContinue": "Konfirmasi pilihan untuk melanjutkan",
     "sendCampaign": "Kirim Kampanye",
     "resendCampaign": "Kirim Ulang Kampanye",
     "removeCampaign": "Hapus Kampanye",

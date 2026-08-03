@@ -143,6 +143,16 @@ export const automationsTypeDefs = /* GraphQL */ `
     deleted: AutomationWorkflow
   }
 
+  type DeleteAutomationRunResult {
+    success: Boolean!
+    deleted: AutomationRun
+  }
+
+  type ClearAutomationRunsResult {
+    success: Boolean!
+    deletedCount: Int!
+  }
+
   type SetAutomationWorkflowStatusResult {
     success: Boolean!
     updatedCount: Int!
@@ -199,6 +209,10 @@ export const automationsTypeDefs = /* GraphQL */ `
     ): SetAutomationWorkflowStatusResult!
 
     testAutomationWorkflow(id: String!): AutomationRun!
+
+    deleteAutomationRun(id: String!): DeleteAutomationRunResult!
+
+    clearAutomationRuns(workflowId: String!): ClearAutomationRunsResult!
   }
 `;
 
@@ -547,6 +561,63 @@ async function testWorkflow(args: { userId: number; id: string }) {
   return mapRun(run);
 }
 
+async function syncWorkflowRunStats(
+  tx: Prisma.TransactionClient,
+  workflowId: string,
+) {
+  const remaining = await tx.automationRun.count({ where: { workflowId } });
+  const latest = remaining
+    ? await tx.automationRun.findFirst({
+        where: { workflowId },
+        orderBy: { createdAt: 'desc' },
+        select: { createdAt: true },
+      })
+    : null;
+  await tx.automationWorkflow.update({
+    where: { id: workflowId },
+    data: {
+      runs: remaining,
+      lastRunAt: latest?.createdAt ?? null,
+    },
+  });
+}
+
+async function deleteRun(args: { userId: number; id: string }) {
+  return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const existing = await tx.automationRun.findFirst({
+      where: { id: args.id, workflow: { userId: args.userId } },
+    });
+    if (!existing) {
+      return { success: false, deleted: null };
+    }
+
+    await tx.automationRun.delete({ where: { id: existing.id } });
+    await syncWorkflowRunStats(tx, existing.workflowId);
+    return { success: true, deleted: mapRun(existing) };
+  });
+}
+
+async function clearRuns(args: { userId: number; workflowId: string }) {
+  const workflow = await prisma.automationWorkflow.findFirst({
+    where: { id: args.workflowId, userId: args.userId },
+    select: { id: true },
+  });
+  if (!workflow) {
+    throw new GraphQLError('Workflow not found', { extensions: { code: 'NOT_FOUND' } });
+  }
+
+  const deletedCount = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const result = await tx.automationRun.deleteMany({ where: { workflowId: workflow.id } });
+    await tx.automationWorkflow.update({
+      where: { id: workflow.id },
+      data: { runs: 0, lastRunAt: null },
+    });
+    return result.count;
+  });
+
+  return { success: true, deletedCount };
+}
+
 export const automationsResolvers = {
   Query: {
     automationWorkflows: async (
@@ -632,6 +703,18 @@ export const automationsResolvers = {
     testAutomationWorkflow: async (_: unknown, args: { id: string }, ctx: unknown) => {
       const userId = requireDashboardUser(ctx);
       return testWorkflow({ ...args, userId });
+    },
+    deleteAutomationRun: async (_: unknown, args: { id: string }, ctx: unknown) => {
+      const userId = requireDashboardUser(ctx);
+      return deleteRun({ ...args, userId });
+    },
+    clearAutomationRuns: async (
+      _: unknown,
+      args: { workflowId: string },
+      ctx: unknown,
+    ) => {
+      const userId = requireDashboardUser(ctx);
+      return clearRuns({ ...args, userId });
     },
   },
 };

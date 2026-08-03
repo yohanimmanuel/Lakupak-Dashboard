@@ -133,6 +133,7 @@
     "driversSelected": "{count} drivers selected",
     "selectFleetsToRemove": "Select fleets to be removed from the system.",
     "selectFleetsToRemoveShort": "Select fleets to remove from the system.",
+    "confirmSelectionToContinue": "Confirm selection to continue",
     "selectDriversToRemove": "Select drivers to remove from the system.",
     "noDriversYet": "No drivers registered yet",
     "noDriversYetHint": "Add a driver when creating or editing a fleet.",

@@ -43,7 +43,7 @@ const getProductCategoryFilters = (products: Product[]) => {
   return ["All Categories", ...Array.from(cats)];
 };
 
-export default function ProductTable({ products = [], setProductsAction, onSelectProductAction, onExportXLSXAction, profileToTableRowAction, onRefreshProductsAction, withSuppressedAutoRefreshAction }: { 
+export default function ProductTable({ products = [], setProductsAction, onSelectProductAction, onExportXLSXAction, profileToTableRowAction, onRefreshProductsAction, withSuppressedAutoRefreshAction, pickerMode = false, pickerConfirmLabel = 'Use selected', onConfirmPickerSelection, initialSelectedProductIds, pickerSingleSelect = true }: { 
   products?: Product[]; 
   setProductsAction?: (fn: (prev: Product[]) => Product[]) => void; 
   onSelectProductAction?: (product: Product) => void; 
@@ -51,6 +51,13 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
   profileToTableRowAction: (product: Product) => ProductTableRow;
   onRefreshProductsAction?: (forceRefresh?: boolean, silent?: boolean) => Promise<void>;
   withSuppressedAutoRefreshAction?: (action: () => Promise<void>) => Promise<void>;
+  pickerMode?: boolean;
+  pickerConfirmLabel?: string;
+  onConfirmPickerSelection?: (products: Product[]) => void;
+  /** Business productIds to pre-check */
+  initialSelectedProductIds?: string[];
+  /** Prefer single-select in picker (default true when pickerMode) */
+  pickerSingleSelect?: boolean;
 }) {
   const {
     tShared,
@@ -189,6 +196,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
   const [showOfferDropdown, setShowOfferDropdown] = useState(false);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const pickerSeededRef = useRef(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [productToDelete, setProductToDelete] = useState<ProductTableRow | null>(null);
   const [isBulkDelete, setIsBulkDelete] = useState(false);
@@ -514,7 +522,29 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
     }
   };
 
+  // Restore previously picked products when the automation picker opens.
+  useEffect(() => {
+    if (!pickerMode) {
+      pickerSeededRef.current = false;
+      return;
+    }
+    if (pickerSeededRef.current || products.length === 0) return;
+    if (initialSelectedProductIds && initialSelectedProductIds.length > 0) {
+      const ids = products
+        .filter((p) => initialSelectedProductIds.includes(p.productId))
+        .map((p) => String(p.id));
+      setSelectedProducts(pickerSingleSelect ? ids.slice(0, 1) : ids);
+    }
+    pickerSeededRef.current = true;
+  }, [pickerMode, products, initialSelectedProductIds, pickerSingleSelect]);
+
   const handleProductSelect = (productId: string) => {
+    if (pickerMode && pickerSingleSelect) {
+      setSelectedProducts((prev) =>
+        prev.length === 1 && prev[0] === productId ? [] : [productId],
+      );
+      return;
+    }
     setSelectedProducts(prev => 
       prev.includes(productId) 
         ? prev.filter(id => id !== productId)
@@ -541,6 +571,15 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
   );
 
   const handleSelectAll = () => {
+    if (pickerMode && pickerSingleSelect) {
+      if (allFilteredProductIds.length === 0) return;
+      setSelectedProducts((prev) =>
+        prev.length === 1 && prev[0] === allFilteredProductIds[0]
+          ? []
+          : [allFilteredProductIds[0]],
+      );
+      return;
+    }
     if (allFilteredSelected) {
       // Deselect all filtered products
       setSelectedProducts(prev => prev.filter(id => !allFilteredProductIds.includes(id)));
@@ -557,6 +596,14 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
       });
     }
   };
+
+  const handleConfirmPickerSelection = useCallback(() => {
+    if (!onConfirmPickerSelection || selectedProducts.length === 0) return;
+    const picked = selectedProducts
+      .map((id) => products.find((p) => String(p.id) === id))
+      .filter((p): p is Product => Boolean(p));
+    onConfirmPickerSelection(picked);
+  }, [onConfirmPickerSelection, selectedProducts, products]);
 
   const handleBulkRemove = () => {
     setIsBulkDelete(true);
@@ -923,6 +970,21 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                   : tTable('selection.multipleProductsSelected')}
               </span>
             </div>
+            {pickerMode ? (
+              <>
+                <div className="text-gray-600 text-xs font-semibold leading-relaxed">
+                  {tTable('selection.confirmSelectionToContinue')}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleConfirmPickerSelection}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-semibold text-white hover:bg-[#084ba6]"
+                >
+                  {pickerConfirmLabel}
+                </button>
+              </>
+            ) : (
+              <>
             <div className="text-gray-600 text-xs font-semibold leading-relaxed">
               {(() => {
                 const buttons = { canPublish: false, canUnpublish: false, canRemove: true };
@@ -1008,6 +1070,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                 return buttonElements;
               })()}
             </div>
+              </>
+            )}
           </div>
           
           {/* Desktop Layout */}
@@ -1018,6 +1082,20 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                 ? tTable('selection.oneProductSelected')
                 : tTable('selection.multipleProductsSelected')}
             </span>
+            {pickerMode ? (
+              <div className="flex items-center gap-4">
+                <span className="text-gray-600 text-xs md:text-sm font-semibold">
+                  {tTable('selection.confirmSelectionToContinue')}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleConfirmPickerSelection}
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-semibold text-white hover:bg-[#084ba6]"
+                >
+                  {pickerConfirmLabel}
+                </button>
+              </div>
+            ) : (
             <div className="flex items-center gap-4">
               <span className="text-gray-600 text-xs md:text-sm font-semibold">
                 {(() => {
@@ -1105,6 +1183,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                 })()}
               </div>
             </div>
+            )}
           </div>
         </div>
       )}
@@ -1382,6 +1461,10 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                                     <td className="py-3 px-4 text-xs text-gray-700">{product.lastUpdated || tShared('notAvailable')}</td>
                 <td className="py-3 px-4 text-xs text-center">
                   <div className="flex items-center justify-center gap-2">
+                    {pickerMode ? (
+                      <span className="text-[11px] text-gray-400">—</span>
+                    ) : (
+                      <>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -1403,6 +1486,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                     >
                       <Trash2 className="w-4 h-4 text-red-600" />
                     </button>
+                      </>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -1715,6 +1800,10 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                    
                    {/* Action Buttons */}
                    <div className="flex items-center gap-1">
+                    {pickerMode ? (
+                      <span className="text-[11px] text-gray-400">—</span>
+                    ) : (
+                      <>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -1736,6 +1825,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                     >
                       <Trash2 className="w-4 h-4 text-red-600" />
                     </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -2042,6 +2133,10 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                    
                    {/* Action Buttons */}
                    <div className="flex items-center gap-1">
+                    {pickerMode ? (
+                      <span className="text-[11px] text-gray-400">—</span>
+                    ) : (
+                      <>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -2063,6 +2158,8 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                     >
                       <Trash2 className="w-4 h-4 text-red-600" />
                     </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

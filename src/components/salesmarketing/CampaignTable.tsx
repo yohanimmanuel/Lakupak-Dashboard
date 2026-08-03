@@ -25,6 +25,13 @@ interface CampaignTableProps {
   onUpdateCampaign?: (campaign: Campaign) => void;
   campaignToTableRow: (campaign: Campaign) => CampaignTableRow;
   onRefresh?: () => void;
+  pickerMode?: boolean;
+  pickerConfirmLabel?: string;
+  onConfirmPickerSelection?: (campaigns: Campaign[]) => void;
+  /** Business campaignId OR internal id — match against both campaign.campaignId and campaign.id */
+  initialSelectedCampaignIds?: string[];
+  /** Prefer single-select in picker (default true) */
+  pickerSingleSelect?: boolean;
 }
 
 export default function CampaignTable({
@@ -35,6 +42,11 @@ export default function CampaignTable({
   onUpdateCampaign,
   campaignToTableRow,
   onRefresh,
+  pickerMode = false,
+  pickerConfirmLabel = 'Use selected',
+  onConfirmPickerSelection,
+  initialSelectedCampaignIds,
+  pickerSingleSelect = true,
 }: CampaignTableProps) {
   const {
     tCampaignTable,
@@ -57,12 +69,33 @@ export default function CampaignTable({
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [selectedCampaigns, setSelectedCampaigns] = useState<Set<string>>(new Set());
+  const pickerSeededRef = useRef(false);
   const [page, setPage] = useState(1);
   const [showSendModal, setShowSendModal] = useState(false);
   const [campaignToSend, setCampaignToSend] = useState<Campaign | null>(null);
 
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
+
+  // Restore previously picked campaigns when the automation picker opens.
+  useEffect(() => {
+    if (!pickerMode) {
+      pickerSeededRef.current = false;
+      return;
+    }
+    if (pickerSeededRef.current || campaigns.length === 0) return;
+    if (initialSelectedCampaignIds && initialSelectedCampaignIds.length > 0) {
+      const ids = campaigns
+        .filter(
+          (c) =>
+            initialSelectedCampaignIds.includes(c.campaignId) ||
+            initialSelectedCampaignIds.includes(c.id),
+        )
+        .map((c) => c.id);
+      setSelectedCampaigns(new Set(pickerSingleSelect ? ids.slice(0, 1) : ids));
+    }
+    pickerSeededRef.current = true;
+  }, [pickerMode, campaigns, initialSelectedCampaignIds, pickerSingleSelect]);
 
   useLayoutEffect(() => {
     const updateIndicator = () => {
@@ -279,6 +312,12 @@ export default function CampaignTable({
   }, []);
 
   const handleCampaignSelect = (campaignId: string) => {
+    if (pickerMode && pickerSingleSelect) {
+      setSelectedCampaigns((prev) =>
+        prev.size === 1 && prev.has(campaignId) ? new Set() : new Set([campaignId]),
+      );
+      return;
+    }
     setSelectedCampaigns(prev => {
       const newSet = new Set(prev);
       if (newSet.has(campaignId)) {
@@ -291,12 +330,28 @@ export default function CampaignTable({
   };
 
   const handleSelectAll = () => {
+    if (pickerMode && pickerSingleSelect) {
+      if (filteredCampaigns.length === 0) return;
+      const firstId = filteredCampaigns[0].id;
+      setSelectedCampaigns((prev) =>
+        prev.size === 1 && prev.has(firstId) ? new Set() : new Set([firstId]),
+      );
+      return;
+    }
     if (selectedCampaigns.size === filteredCampaigns.length && filteredCampaigns.length > 0) {
       setSelectedCampaigns(new Set());
     } else {
       setSelectedCampaigns(new Set(filteredCampaigns.map(c => c.id)));
     }
   };
+
+  const handleConfirmPickerSelection = useCallback(() => {
+    if (!onConfirmPickerSelection || selectedCampaigns.size === 0) return;
+    const picked = Array.from(selectedCampaigns)
+      .map((id) => campaigns.find((c) => c.id === id))
+      .filter((c): c is Campaign => Boolean(c));
+    onConfirmPickerSelection(picked);
+  }, [onConfirmPickerSelection, selectedCampaigns, campaigns]);
 
   const allFilteredSelected = selectedCampaigns.size === filteredCampaigns.length && filteredCampaigns.length > 0;
 
@@ -458,6 +513,21 @@ export default function CampaignTable({
                   {tCampaignTable('selected')}
                 </span>
               </div>
+              {pickerMode ? (
+                <>
+                  <div className="text-gray-600 text-xs font-semibold leading-relaxed">
+                    {tCampaignTable('confirmSelectionToContinue')}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleConfirmPickerSelection}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-semibold text-white hover:bg-[#084ba6]"
+                  >
+                    {pickerConfirmLabel}
+                  </button>
+                </>
+              ) : (
+                <>
               <div className="text-gray-600 text-xs font-semibold leading-relaxed">
                 {selectedCampaigns.size === 1
                   ? isResendMode()
@@ -493,6 +563,8 @@ export default function CampaignTable({
                     : tCampaignTable('removeSelected')}
                 </button>
               </div>
+                </>
+              )}
             </div>
             
             <div className="hidden md:flex items-center justify-between">
@@ -503,6 +575,20 @@ export default function CampaignTable({
                   : tCampaignTable('campaignsSelected')}{' '}
                 {tCampaignTable('selected')}
               </span>
+              {pickerMode ? (
+                <div className="flex items-center gap-4">
+                  <span className="text-gray-600 text-xs md:text-sm font-semibold">
+                    {tCampaignTable('confirmSelectionToContinue')}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleConfirmPickerSelection}
+                    className="inline-flex items-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-semibold text-white hover:bg-[#084ba6]"
+                  >
+                    {pickerConfirmLabel}
+                  </button>
+                </div>
+              ) : (
               <div className="flex items-center gap-4">
                 <span className="text-gray-600 text-xs md:text-sm font-semibold">
                   {selectedCampaigns.size === 1
@@ -538,6 +624,7 @@ export default function CampaignTable({
                     : tCampaignTable('removeSelected')}
                 </button>
               </div>
+              )}
             </div>
           </div>
         )}
@@ -629,6 +716,10 @@ export default function CampaignTable({
                       {translateCampaignStatus(campaignRow.status)}
                     </span>
                     <div className="flex items-center gap-2">
+                      {pickerMode ? (
+                        <span className="text-[11px] text-gray-400">—</span>
+                      ) : (
+                        <>
                       <button
                         onClick={() => handleView(campaignRow)}
                         className="p-2 hover:bg-gray-100 rounded-lg transition-colors focus:outline-none"
@@ -643,6 +734,8 @@ export default function CampaignTable({
                       >
                         <Trash2 className="w-4 h-4 text-red-600" />
                       </button>
+                        </>
+                      )}
                     </div>
                   </div>
                   <p className="text-xs text-gray-500">

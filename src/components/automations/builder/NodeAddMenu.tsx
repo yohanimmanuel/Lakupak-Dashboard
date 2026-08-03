@@ -5,8 +5,8 @@ import { Bolt, Bot, GitBranch, Zap } from 'lucide-react';
 import type { WorkflowType } from '../automationTypes';
 import {
   defaultConfigForFields,
-  getActionsForType,
-  getTriggersForType,
+  getAllActions,
+  getAllTriggers,
 } from '@/lib/automations/catalog';
 import { defaultLakuAgentConfig } from '@/lib/automations/agentModels';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
@@ -85,7 +85,7 @@ function computePlacement(screenX: number, screenY: number, measuredHeight?: num
 }
 
 export function NodeAddMenu({
-  workflowType,
+  workflowType: _workflowType,
   screenX,
   screenY,
   onPickAction,
@@ -98,8 +98,8 @@ export function NodeAddMenu({
   onCloseAction: () => void;
 }) {
   const { tBuilder, translateTrigger, translateAction } = useAutomationTranslations();
-  const triggers = getTriggersForType(workflowType);
-  const actions = getActionsForType(workflowType);
+  const triggers = getAllTriggers();
+  const actions = getAllActions();
   const cardRef = useRef<HTMLDivElement>(null);
   // Avoid window access during SSR; useLayoutEffect sets the real placement on the client.
   const [placement, setPlacement] = useState({

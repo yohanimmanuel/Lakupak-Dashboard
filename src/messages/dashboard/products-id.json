@@ -151,7 +151,8 @@
       "unpublishHint": "Pilih produk untuk batalkan publikasi (ubah status menjadi Draf).",
       "unpublishHintDesktop": "Pilih produk untuk batalkan publikasi dari marketplace.",
       "removeHint": "Pilih produk untuk dihapus.",
-      "removeHintDesktop": "Pilih produk untuk dihapus dari sistem."
+      "removeHintDesktop": "Pilih produk untuk dihapus dari sistem.",
+      "confirmSelectionToContinue": "Konfirmasi pilihan untuk melanjutkan"
     },
     "bulkActions": {
       "publish": "Publikasikan",

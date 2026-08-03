@@ -4,7 +4,7 @@ import React from 'react';
 import { Lightbulb, Trash2, Unplug, X } from 'lucide-react';
 import type { AutomationRun, WorkflowStatus, WorkflowType } from '../automationTypes';
 import { WORKFLOW_TYPES } from '../automationTypes';
-import { getActionsForInspector, getTriggersForType, defaultConfigForFields } from '@/lib/automations/catalog';
+import { getActionsForInspector, getAllTriggers, defaultConfigForFields } from '@/lib/automations/catalog';
 import type { CatalogField } from '@/lib/automations/catalog';
 import {
   DEFAULT_LAKU_AGENT_MODEL,
@@ -20,8 +20,9 @@ import type { WorkflowFlowEdge, WorkflowFlowNode } from './canvasTypes';
 import { WorkflowRunsPanel } from './WorkflowRunsPanel';
 import { useBuilderPanelControls } from './WorkflowBuilderShell';
 import { BuyerPickerField, normalizePickedBuyers, toPickedBuyer } from './BuyerPickerField';
-import { FleetPickerField, normalizePickedFleet } from './FleetPickerField';
-import { ProductPickerField, normalizePickedProduct } from './ProductPickerField';
+import { CampaignPickerField, normalizePickedCampaigns } from './CampaignPickerField';
+import { FleetPickerField, normalizePickedFleets } from './FleetPickerField';
+import { ProductPickerField, normalizePickedProducts } from './ProductPickerField';
 import type { Buyer } from '@/types/client';
 
 export type WorkflowDraft = {
@@ -85,6 +86,25 @@ function CatalogFieldInput({
           value={String(value ?? '')}
           onChange={(e) => onChange(e.target.value)}
           rows={3}
+          className={fieldClassName}
+        />
+      </label>
+    );
+  }
+
+  if (field.kind === 'datetime') {
+    const raw = String(value ?? '');
+    // datetime-local needs YYYY-MM-DDTHH:mm; accept ISO strings by trimming seconds/zone.
+    const localValue = raw.includes('T')
+      ? raw.slice(0, 16)
+      : raw;
+    return (
+      <label className="block">
+        <span className="mb-1 block text-xs font-medium text-gray-600">{label}</span>
+        <input
+          type="datetime-local"
+          value={localValue}
+          onChange={(e) => onChange(e.target.value)}
           className={fieldClassName}
         />
       </label>
@@ -234,6 +254,9 @@ export function StepDetailsPanel({
   onDisconnectNodeAction,
   onCloseAction,
   runs,
+  onDeleteRunAction,
+  onClearAllRunsAction,
+  clearingRuns = false,
 }: {
   draft: WorkflowDraft;
   selectedNodeId: string | null;
@@ -242,10 +265,13 @@ export function StepDetailsPanel({
   onDisconnectNodeAction?: (nodeId: string) => void;
   onCloseAction?: () => void;
   runs?: AutomationRun[];
+  onDeleteRunAction?: (runId: string) => void;
+  onClearAllRunsAction?: () => void;
+  clearingRuns?: boolean;
 }) {
   const { tBuilder, tFields, translateTrigger, translateAction } = useAutomationTranslations();
   const selected = draft.nodes.find((n) => n.id === selectedNodeId) ?? null;
-  const triggers = getTriggersForType(draft.type);
+  const triggers = getAllTriggers();
   const actions = getActionsForInspector(
     draft.type,
     selected?.data.kind === 'action' ? selected.data.catalogType : undefined,
@@ -358,15 +384,17 @@ export function StepDetailsPanel({
                     <ProductPickerField
                       key={field.key}
                       label={tFields.has(field.key) ? tFields(field.key) : field.key}
-                      value={normalizePickedProduct(selected.data.config)}
+                      selectedProducts={normalizePickedProducts(selected.data.config)}
+                      requireVariant={selected.data.catalogType === 'stock_below'}
                       onSelectAction={(picked) =>
                         onUpdateNodeAction(selected.id, {
                           config: {
                             ...selected.data.config,
-                            productId: picked.productId,
-                            productLabel: picked.productLabel,
-                            variantId: picked.variantId,
-                            variantLabel: picked.variantLabel,
+                            selectedProducts: picked,
+                            productId: picked[0]?.productId ?? '',
+                            productLabel: picked[0]?.productLabel ?? '',
+                            variantId: picked[0]?.variantId ?? '',
+                            variantLabel: picked[0]?.variantLabel ?? '',
                           },
                         })
                       }
@@ -374,6 +402,7 @@ export function StepDetailsPanel({
                         onUpdateNodeAction(selected.id, {
                           config: {
                             ...selected.data.config,
+                            selectedProducts: [],
                             productId: '',
                             productLabel: '',
                             variantId: '',
@@ -519,18 +548,19 @@ export function StepDetailsPanel({
                     <FleetPickerField
                       key={field.key}
                       label={tFields.has(field.key) ? tFields(field.key) : field.key}
-                      value={normalizePickedFleet(selected.data.config)}
+                      selectedFleets={normalizePickedFleets(selected.data.config)}
                       requireDriver={selected.data.catalogType === 'assign_driver'}
-                      onSelectAction={(fleet) =>
+                      onSelectAction={(fleets) =>
                         onUpdateNodeAction(selected.id, {
                           config: {
                             ...selected.data.config,
-                            fleetId: fleet.fleetId,
-                            fleetLabel: fleet.fleetLabel,
-                            fleetStatus: fleet.fleetStatus,
-                            driverId: fleet.driverId,
-                            driverName: fleet.driverName,
-                            assignedLogistics: fleet.assignedLogistics,
+                            selectedFleets: fleets,
+                            fleetId: fleets[0]?.fleetId ?? '',
+                            fleetLabel: fleets[0]?.fleetLabel ?? '',
+                            fleetStatus: fleets[0]?.fleetStatus ?? '',
+                            driverId: fleets[0]?.driverId ?? '',
+                            driverName: fleets[0]?.driverName ?? '',
+                            assignedLogistics: fleets[0]?.assignedLogistics ?? '',
                           },
                         })
                       }
@@ -538,12 +568,72 @@ export function StepDetailsPanel({
                         onUpdateNodeAction(selected.id, {
                           config: {
                             ...selected.data.config,
+                            selectedFleets: [],
                             fleetId: '',
                             fleetLabel: '',
                             fleetStatus: '',
                             driverId: '',
                             driverName: '',
                             assignedLogistics: '',
+                          },
+                        })
+                      }
+                    />
+                  ) : field.kind === 'product' ? (
+                    <ProductPickerField
+                      key={field.key}
+                      label={tFields.has(field.key) ? tFields(field.key) : field.key}
+                      selectedProducts={normalizePickedProducts(selected.data.config)}
+                      requireVariant={false}
+                      onSelectAction={(picked) =>
+                        onUpdateNodeAction(selected.id, {
+                          config: {
+                            ...selected.data.config,
+                            selectedProducts: picked,
+                            productId: picked[0]?.productId ?? '',
+                            productLabel: picked[0]?.productLabel ?? '',
+                            variantId: picked[0]?.variantId ?? '',
+                            variantLabel: picked[0]?.variantLabel ?? '',
+                          },
+                        })
+                      }
+                      onClearAction={() =>
+                        onUpdateNodeAction(selected.id, {
+                          config: {
+                            ...selected.data.config,
+                            selectedProducts: [],
+                            productId: '',
+                            productLabel: '',
+                            variantId: '',
+                            variantLabel: '',
+                          },
+                        })
+                      }
+                    />
+                  ) : field.kind === 'campaign' ? (
+                    <CampaignPickerField
+                      key={field.key}
+                      label={tFields.has(field.key) ? tFields(field.key) : field.key}
+                      selectedCampaigns={normalizePickedCampaigns(selected.data.config)}
+                      onSelectAction={(picked) =>
+                        onUpdateNodeAction(selected.id, {
+                          config: {
+                            ...selected.data.config,
+                            selectedCampaigns: picked,
+                            campaignId: picked[0]?.campaignId ?? '',
+                            campaignLabel: picked[0]?.campaignLabel ?? '',
+                            campaignStatus: picked[0]?.campaignStatus ?? '',
+                          },
+                        })
+                      }
+                      onClearAction={() =>
+                        onUpdateNodeAction(selected.id, {
+                          config: {
+                            ...selected.data.config,
+                            selectedCampaigns: [],
+                            campaignId: '',
+                            campaignLabel: '',
+                            campaignStatus: '',
                           },
                         })
                       }
@@ -745,7 +835,12 @@ export function StepDetailsPanel({
 
       {runs && (
         <div className="-mx-4 border-t border-gray-100 px-4 pt-4">
-          <WorkflowRunsPanel runs={runs} />
+          <WorkflowRunsPanel
+            runs={runs}
+            onDeleteRunAction={onDeleteRunAction}
+            onClearAllAction={onClearAllRunsAction}
+            clearing={clearingRuns}
+          />
         </div>
       )}
     </PanelCard>
