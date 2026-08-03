@@ -36,6 +36,7 @@ import {
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
+import { useLocale } from 'next-intl';
 
 const WORKFLOW_QUERY = `
   query GetAutomationWorkflow($id: String!) {
@@ -105,8 +106,8 @@ const UPDATE_MUTATION = `
 `;
 
 const TEST_MUTATION = `
-  mutation TestAutomationWorkflow($id: String!) {
-    testAutomationWorkflow(id: $id) {
+  mutation TestAutomationWorkflow($id: String!, $locale: String) {
+    testAutomationWorkflow(id: $id, locale: $locale) {
       id
       workflowId
       status
@@ -148,6 +149,7 @@ function DetailsInner() {
   const searchParams = useSearchParams();
   const id = searchParams?.get('id') ?? null;
   const user = useUserStore((s) => s.user);
+  const locale = useLocale();
   const { tBuilder, translateTrigger, translateAction } = useAutomationTranslations();
 
   const [draft, setDraft] = useState<WorkflowDraft | null>(null);
@@ -428,6 +430,7 @@ function DetailsInner() {
       if (!saved) return;
       const data = await fetchGraphQL<{ testAutomationWorkflow: AutomationRun }>(TEST_MUTATION, {
         id,
+        locale,
       });
       setRuns((prev) => [data.testAutomationWorkflow, ...prev]);
     } catch (e) {
@@ -510,8 +513,8 @@ function DetailsInner() {
       saving={saving}
       showTestRun
       onSaveDraftAction={() => save('draft')}
-      onActivateAction={() => void save('active')}
-      onTestRunAction={() => void testRun()}
+      onActivateAction={() => save('active')}
+      onTestRunAction={() => testRun()}
       onUndoAction={undo}
       canUndo={history.canUndo}
       canvas={

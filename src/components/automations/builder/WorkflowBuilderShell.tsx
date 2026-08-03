@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ChevronRight, Loader2, Play, RefreshCw, Save, Undo2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
@@ -24,6 +24,8 @@ export function useBuilderPanelControls() {
   return useContext(BuilderPanelContext);
 }
 
+type ToolbarBusy = 'undo' | 'test' | 'save' | 'activate' | null;
+
 export function WorkflowBuilderShell({
   title,
   status,
@@ -43,8 +45,8 @@ export function WorkflowBuilderShell({
   status: WorkflowStatus;
   saving?: boolean;
   onSaveDraftAction: () => boolean | Promise<boolean>;
-  onActivateAction: () => void;
-  onTestRunAction?: () => void;
+  onActivateAction: () => void | Promise<unknown>;
+  onTestRunAction?: () => void | Promise<unknown>;
   showTestRun?: boolean;
   onUndoAction?: () => void;
   canUndo?: boolean;
@@ -59,9 +61,10 @@ export function WorkflowBuilderShell({
   const [leftOpen, setLeftOpen] = useState(true);
   const [returnFocusToLeftToggle, setReturnFocusToLeftToggle] = useState(false);
   const leftToggleRef = useRef<HTMLButtonElement>(null);
-  const [draftSaving, setDraftSaving] = useState(false);
+  const [toolbarBusy, setToolbarBusy] = useState<ToolbarBusy>(null);
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
   const [nowTs, setNowTs] = useState(() => Date.now());
+  const busy = Boolean(saving) || toolbarBusy !== null;
 
   // Keep the relative "saved …" label fresh once a save has happened.
   useEffect(() => {
@@ -102,8 +105,20 @@ export function WorkflowBuilderShell({
     setReturnFocusToLeftToggle(false);
   }, [leftOpen, returnFocusToLeftToggle]);
 
-  const handleSaveDraft = async () => {
-    setDraftSaving(true);
+  const handleUndo = useCallback(() => {
+    if (!onUndoAction || !canUndo || busy) return;
+    setToolbarBusy('undo');
+    try {
+      onUndoAction();
+    } finally {
+      // Sync canvas undo — clear on next frame so the spinner can paint briefly.
+      requestAnimationFrame(() => setToolbarBusy(null));
+    }
+  }, [onUndoAction, canUndo, busy]);
+
+  const handleSaveDraft = useCallback(async () => {
+    if (busy) return;
+    setToolbarBusy('save');
     try {
       const ok = await onSaveDraftAction();
       if (!ok) return;
@@ -111,9 +126,29 @@ export function WorkflowBuilderShell({
       setLastSavedAt(savedAt);
       setNowTs(savedAt);
     } finally {
-      setDraftSaving(false);
+      setToolbarBusy(null);
     }
-  };
+  }, [busy, onSaveDraftAction]);
+
+  const handleTestRun = useCallback(async () => {
+    if (!onTestRunAction || busy) return;
+    setToolbarBusy('test');
+    try {
+      await onTestRunAction();
+    } finally {
+      setToolbarBusy(null);
+    }
+  }, [busy, onTestRunAction]);
+
+  const handleActivate = useCallback(async () => {
+    if (busy) return;
+    setToolbarBusy('activate');
+    try {
+      await onActivateAction();
+    } finally {
+      setToolbarBusy(null);
+    }
+  }, [busy, onActivateAction]);
 
   useEffect(() => {
     if (!onUndoAction) return;
@@ -133,13 +168,13 @@ export function WorkflowBuilderShell({
           return;
         }
       }
-      if (!canUndo || saving) return;
+      if (!canUndo || busy) return;
       event.preventDefault();
-      onUndoAction();
+      handleUndo();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onUndoAction, canUndo, saving]);
+  }, [onUndoAction, canUndo, busy, handleUndo]);
 
   return (
     <div className="relative h-[calc(100dvh-4rem)] w-full overflow-hidden bg-[#f7f9fc]">
@@ -175,33 +210,41 @@ export function WorkflowBuilderShell({
           {onUndoAction && (
             <button
               type="button"
-              onClick={onUndoAction}
-              disabled={!canUndo || saving}
+              onClick={handleUndo}
+              disabled={!canUndo || busy}
               className="inline-flex items-center gap-1.5 rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-xs font-medium text-black hover:bg-gray-50 disabled:opacity-50"
               title={undoShortcutTitle}
             >
-              <Undo2 className="h-4 w-4" />
+              {toolbarBusy === 'undo' ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Undo2 className="h-4 w-4" />
+              )}
               {tBuilder('undo')}
             </button>
           )}
           {showTestRun && onTestRunAction && (
             <button
               type="button"
-              onClick={onTestRunAction}
-              disabled={saving}
+              onClick={() => void handleTestRun()}
+              disabled={busy}
               className="inline-flex items-center gap-1.5 rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-xs font-medium text-black hover:bg-gray-50 disabled:opacity-50"
             >
-              <Play className="h-4 w-4" />
+              {toolbarBusy === 'test' ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Play className="h-4 w-4" />
+              )}
               {tBuilder('testRun')}
             </button>
           )}
           <button
             type="button"
             onClick={() => void handleSaveDraft()}
-            disabled={saving || draftSaving}
+            disabled={busy}
             className="inline-flex items-center gap-1.5 rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-xs font-medium text-black hover:bg-gray-50 disabled:opacity-50"
           >
-            {draftSaving ? (
+            {toolbarBusy === 'save' ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Save className="h-4 w-4" />
@@ -210,10 +253,13 @@ export function WorkflowBuilderShell({
           </button>
           <button
             type="button"
-            onClick={onActivateAction}
-            disabled={saving}
+            onClick={() => void handleActivate()}
+            disabled={busy}
             className="inline-flex items-center gap-1.5 rounded-lg bg-[#0a61d7] px-3 py-2 text-xs font-semibold text-white hover:bg-[#084ba6] disabled:opacity-50"
           >
+            {toolbarBusy === 'activate' ? (
+              <Loader2 className="h-4 w-4 animate-spin text-white" />
+            ) : null}
             {tBuilder('activate')}
           </button>
         </div>

@@ -231,7 +231,7 @@ export default function NewAutomationPage() {
       status={draft.status}
       saving={saving}
       onSaveDraftAction={() => save('draft')}
-      onActivateAction={() => void save('active')}
+      onActivateAction={() => save('active')}
       onUndoAction={undo}
       canUndo={history.canUndo}
       canvas={

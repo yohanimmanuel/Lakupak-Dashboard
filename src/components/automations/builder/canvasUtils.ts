@@ -13,7 +13,7 @@ type CanvasLabels = {
   actionSubtitle: string;
 };
 
-/** New workflows start with only the Laku Agent node — users add triggers/actions from the canvas. */
+/** New workflows start with only the Laku AI node — users add triggers/actions from the canvas. */
 export function createDefaultCanvas(
   _type: WorkflowType,
   labels: CanvasLabels,

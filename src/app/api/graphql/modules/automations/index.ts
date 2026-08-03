@@ -14,6 +14,7 @@ import {
   isActionAllowed,
   isTriggerAllowed,
 } from '@/lib/automations/catalog';
+import { runLakuAgentNode } from '@/lib/automations/runLakuAgent';
 import type { WorkflowType } from '@/components/automations/automationTypes';
 
 const WORKFLOW_TYPES = new Set(['product_offers', 'lead_management', 'order_logistics', 'marketing']);
@@ -208,7 +209,7 @@ export const automationsTypeDefs = /* GraphQL */ `
       status: String!
     ): SetAutomationWorkflowStatusResult!
 
-    testAutomationWorkflow(id: String!): AutomationRun!
+    testAutomationWorkflow(id: String!, locale: String): AutomationRun!
 
     deleteAutomationRun(id: String!): DeleteAutomationRunResult!
 
@@ -516,7 +517,7 @@ async function setStatus(args: { userId: number; ids: string[]; status: string }
   return { success: true, updatedCount: result.count };
 }
 
-async function testWorkflow(args: { userId: number; id: string }) {
+async function testWorkflow(args: { userId: number; id: string; locale?: string | null }) {
   const existing = await prisma.automationWorkflow.findFirst({
     where: { id: args.id, userId: args.userId },
   });
@@ -540,12 +541,43 @@ async function testWorkflow(args: { userId: number; id: string }) {
     actionType: existing.actionType,
   });
 
+  let status: 'success' | 'failed' = dryRun.status;
+  let message = dryRun.message;
+
+  if (dryRun.status === 'success') {
+    const agentResult = await runLakuAgentNode({
+      userId: args.userId,
+      nodes,
+      workflowName: existing.name,
+      triggerType: existing.triggerType,
+      actionType: existing.actionType,
+      locale: args.locale,
+    });
+
+    if (agentResult.ran) {
+      if (agentResult.error) {
+        status = 'failed';
+        message = `Dry run OK, but Laku AI failed (${agentResult.model ?? 'unknown model'}): ${agentResult.error}`;
+      } else {
+        message = [
+          dryRun.message,
+          `Laku AI (${agentResult.model}):`,
+          agentResult.reply,
+        ]
+          .filter(Boolean)
+          .join('\n\n');
+      }
+    } else if (agentResult.skippedCode && agentResult.skippedCode !== 'no_agent_node') {
+      message = `${dryRun.message} Laku AI skipped: ${agentResult.skippedReason ?? agentResult.skippedCode}`;
+    }
+  }
+
   const run = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const created = await tx.automationRun.create({
       data: {
         workflowId: existing.id,
-        status: dryRun.status,
-        message: dryRun.message,
+        status,
+        message,
       },
     });
     await tx.automationWorkflow.update({
@@ -700,7 +732,11 @@ export const automationsResolvers = {
       const userId = requireDashboardUser(ctx);
       return setStatus({ ...args, userId });
     },
-    testAutomationWorkflow: async (_: unknown, args: { id: string }, ctx: unknown) => {
+    testAutomationWorkflow: async (
+      _: unknown,
+      args: { id: string; locale?: string | null },
+      ctx: unknown,
+    ) => {
       const userId = requireDashboardUser(ctx);
       return testWorkflow({ ...args, userId });
     },

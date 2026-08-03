@@ -10,7 +10,6 @@ import {
   DEFAULT_LAKU_AGENT_MODEL,
   LAKU_AGENT_MODEL_IDS,
   LAKU_AGENT_MODEL_LOGOS,
-  LAKU_AGENT_PROVIDER_MODEL,
   normalizeLakuAgentModelId,
   resolveLakuAgentProviderModel,
 } from '@/lib/automations/agentModels';
@@ -460,10 +459,7 @@ export function StepDetailsPanel({
                       },
                     });
                   }}
-                />
-                <p className="mt-1 text-[11px] leading-snug text-gray-500">
-                  {tBuilder('agentModelHint', { provider: LAKU_AGENT_PROVIDER_MODEL })}
-                </p>
+                  />
               </div>
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-gray-600">
