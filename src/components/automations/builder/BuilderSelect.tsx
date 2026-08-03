@@ -7,6 +7,8 @@ import { ChevronDown } from 'lucide-react';
 export type BuilderSelectOption = {
   value: string;
   label: string;
+  /** Optional public image path shown beside the label. */
+  iconSrc?: string;
 };
 
 export function BuilderSelect({
@@ -88,7 +90,18 @@ export function BuilderSelect({
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center justify-between gap-1 rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-xs text-black hover:bg-gray-100"
       >
-        <span className="truncate text-left">{label}</span>
+        <span className="flex min-w-0 items-center gap-2 text-left">
+          {selected?.iconSrc ? (
+            <img
+              src={selected.iconSrc}
+              alt=""
+              className="h-4 w-4 shrink-0 object-contain"
+              width={16}
+              height={16}
+            />
+          ) : null}
+          <span className="truncate">{label}</span>
+        </span>
         <ChevronDown className="h-4 w-4 shrink-0 text-gray-500" />
       </button>
       {open &&
@@ -113,13 +126,22 @@ export function BuilderSelect({
                   onChangeAction(option.value);
                   setOpen(false);
                 }}
-                className={`w-full px-4 py-2 text-left text-xs first:rounded-t-lg last:rounded-b-lg hover:bg-gray-100 ${
+                className={`flex w-full items-center gap-2 px-4 py-2 text-left text-xs first:rounded-t-lg last:rounded-b-lg hover:bg-gray-100 ${
                   option.value === value
                     ? 'font-semibold text-[#0a61d7]'
                     : 'text-gray-700'
                 }`}
               >
-                {option.label}
+                {option.iconSrc ? (
+                  <img
+                    src={option.iconSrc}
+                    alt=""
+                    className="h-4 w-4 shrink-0 object-contain"
+                    width={16}
+                    height={16}
+                  />
+                ) : null}
+                <span className="truncate">{option.label}</span>
               </button>
             ))}
           </div>,

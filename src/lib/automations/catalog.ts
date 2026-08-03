@@ -20,7 +20,7 @@ export type ActionType =
   | 'whatsapp_buyer'
   | 'draft_activate_offer'
   | 'assign_agent_whatsapp'
-  | 'buyer_question_reply'
+  | 'cs_24h_window'
   | 'assign_logistic'
   | 'assign_driver'
   | 'return_confirm_whatsapp'
@@ -28,6 +28,7 @@ export type ActionType =
   | 'send_campaign'
   | 'notify_dashboard'
   // Legacy
+  | 'buyer_question_reply'
   | 'assign_fleet'
   | 'draft_offer_flag'
   | 'assign_sales_agent_flag'
@@ -35,7 +36,7 @@ export type ActionType =
 
 export type CatalogField = {
   key: string;
-  kind: 'number' | 'text' | 'textarea' | 'select' | 'buyer' | 'fleet';
+  kind: 'number' | 'text' | 'textarea' | 'select' | 'buyer' | 'fleet' | 'product';
   options?: string[];
 };
 
@@ -82,10 +83,7 @@ const TRIGGERS_BY_WORKFLOW: Record<WorkflowType, TriggerDefinition[]> = {
   product_offers: [
     {
       type: 'stock_below',
-      fields: [
-        { key: 'productId', kind: 'text' },
-        { key: 'variantId', kind: 'text' },
-      ],
+      fields: [{ key: 'productId', kind: 'product' }],
     },
   ],
   lead_management: [
@@ -136,9 +134,9 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
       ],
     },
     {
-      type: 'buyer_question_reply',
+      type: 'cs_24h_window',
       fields: [
-        { key: 'messageTemplate', kind: 'textarea' },
+        { key: 'welcomeMessage', kind: 'textarea' },
         {
           key: 'escalateOutOfScope',
           kind: 'select',
@@ -197,7 +195,7 @@ const LEGACY_TRIGGERS_BY_WORKFLOW: Record<WorkflowType, TriggerType[]> = {
 
 const LEGACY_ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionType[]> = {
   product_offers: ['draft_offer_flag'],
-  lead_management: ['assign_sales_agent_flag'],
+  lead_management: ['assign_sales_agent_flag', 'buyer_question_reply'],
   order_logistics: ['flag_for_fleet', 'assign_fleet'],
   marketing: [],
 };
@@ -213,6 +211,17 @@ const LEGACY_ACTION_DEFINITIONS: Partial<Record<ActionType, ActionDefinition>> =
         options: ['capacity', 'area', 'load'],
       },
       { key: 'etaNote', kind: 'text' },
+    ],
+  },
+  buyer_question_reply: {
+    type: 'buyer_question_reply',
+    fields: [
+      { key: 'messageTemplate', kind: 'textarea' },
+      {
+        key: 'escalateOutOfScope',
+        kind: 'select',
+        options: ['yes', 'no'],
+      },
     ],
   },
   flag_for_fleet: { type: 'flag_for_fleet', fields: [] },
@@ -284,7 +293,12 @@ export function defaultConfigForFields(fields: CatalogField[]): Record<string, u
   for (const field of fields) {
     if (field.kind === 'number') config[field.key] = '';
     else if (field.kind === 'select') config[field.key] = field.options?.[0] ?? '';
-    else config[field.key] = '';
+    else if (field.kind === 'product') {
+      config[field.key] = '';
+      config.productLabel = '';
+      config.variantId = '';
+      config.variantLabel = '';
+    } else config[field.key] = '';
   }
   return config;
 }
@@ -327,6 +341,164 @@ export function hasAssignDriverWithoutDriver(args: {
 
 export const ASSIGN_DRIVER_REQUIRES_DRIVER_MESSAGE =
   'Auto-assign driver requires a fleet that already has a driver assigned.';
+
+export type AutomationCanvasNodeLite = {
+  id?: string;
+  data?: { kind?: string; catalogType?: string; config?: Record<string, unknown> };
+};
+
+function configMissing(config: Record<string, unknown> | null | undefined, key: string): boolean {
+  return !String(config?.[key] ?? '').trim();
+}
+
+function buyersMissing(config: Record<string, unknown> | null | undefined): boolean {
+  const list = config?.selectedBuyers;
+  if (Array.isArray(list) && list.length > 0) return false;
+  return configMissing(config, 'buyerId');
+}
+
+function nodeIssueLabel(nodeId: string | undefined, index: number, kind: string): string {
+  const id = String(nodeId ?? '').trim();
+  return id ? `${kind} "${id}"` : `${kind} #${index + 1}`;
+}
+
+/** Collect dry-run config issues (no side effects). Empty = pass. */
+export function collectAutomationDryRunIssues(args: {
+  triggerType?: string | null;
+  triggerConfig?: Record<string, unknown> | null;
+  actionType?: string | null;
+  actionConfig?: Record<string, unknown> | null;
+  nodes?: AutomationCanvasNodeLite[];
+}): string[] {
+  const issues: string[] = [];
+  const nodes = args.nodes ?? [];
+  const triggerNodes = nodes.filter((n) => n.data?.kind === 'trigger');
+  const actionNodes = nodes.filter((n) => n.data?.kind === 'action');
+
+  const triggersToCheck =
+    triggerNodes.length > 0
+      ? triggerNodes.map((n, index) => ({
+          id: n.id,
+          index,
+          type: String(n.data?.catalogType ?? ''),
+          config: n.data?.config,
+        }))
+      : [
+          {
+            id: undefined as string | undefined,
+            index: 0,
+            type: String(args.triggerType ?? ''),
+            config: args.triggerConfig ?? undefined,
+          },
+        ];
+
+  const actionsToCheck =
+    actionNodes.length > 0
+      ? actionNodes.map((n, index) => ({
+          id: n.id,
+          index,
+          type: String(n.data?.catalogType ?? ''),
+          config: n.data?.config,
+        }))
+      : [
+          {
+            id: undefined as string | undefined,
+            index: 0,
+            type: String(args.actionType ?? ''),
+            config: args.actionConfig ?? undefined,
+          },
+        ];
+
+  for (const trigger of triggersToCheck) {
+    const label = nodeIssueLabel(trigger.id, trigger.index, 'Trigger');
+    if (!trigger.type) {
+      issues.push(`${label}: Add a trigger step.`);
+      continue;
+    }
+    if (trigger.type === 'stock_below') {
+      if (configMissing(trigger.config, 'productId') || configMissing(trigger.config, 'variantId')) {
+        issues.push(`${label}: Low stock trigger needs a product and variant.`);
+      }
+    }
+    if (trigger.type === 'cart_idle' && configMissing(trigger.config, 'hours')) {
+      issues.push(`${label}: Cart idle trigger needs idle hours.`);
+    }
+    if (trigger.type === 'campaign_schedule' && configMissing(trigger.config, 'sendAt')) {
+      issues.push(`${label}: Scheduled campaign trigger needs a send time.`);
+    }
+  }
+
+  for (const action of actionsToCheck) {
+    const label = nodeIssueLabel(action.id, action.index, 'Action');
+    if (!action.type) {
+      issues.push(`${label}: Add an action step.`);
+      continue;
+    }
+    if (action.type === 'whatsapp_buyer' && buyersMissing(action.config)) {
+      issues.push(`${label}: WhatsApp buyer action needs at least one buyer.`);
+    }
+    if (action.type === 'assign_logistic' && configMissing(action.config, 'fleetId')) {
+      issues.push(`${label}: Auto-assign logistic needs a fleet.`);
+    }
+    if (action.type === 'assign_driver' && assignDriverNeedsDriver(action.type, action.config)) {
+      issues.push(`${label}: ${ASSIGN_DRIVER_REQUIRES_DRIVER_MESSAGE}`);
+    }
+    if (action.type === 'notify_dashboard' && configMissing(action.config, 'message')) {
+      issues.push(`${label}: Notify on Dashboard needs a message.`);
+    }
+    if (
+      (action.type === 'return_confirm_whatsapp' ||
+        action.type === 'buyer_question_reply' ||
+        action.type === 'cs_24h_window' ||
+        action.type === 'assign_agent_whatsapp' ||
+        action.type === 'cart_winback') &&
+      configMissing(
+        action.config,
+        action.type === 'cs_24h_window' ? 'welcomeMessage' : 'messageTemplate',
+      )
+    ) {
+      issues.push(
+        action.type === 'cs_24h_window'
+          ? `${label}: 24h customer service window needs a welcome message.`
+          : `${label}: ${action.type} needs a message template.`,
+      );
+    }
+  }
+
+  let appIndex = 0;
+  for (const node of nodes) {
+    if (node.data?.kind !== 'app') continue;
+    const label = nodeIssueLabel(node.id, appIndex, 'App');
+    appIndex += 1;
+    if (node.data.catalogType === 'app_webhook' && configMissing(node.data.config, 'phone')) {
+      issues.push(`${label}: WhatsApp app needs the business phone number used for automations.`);
+    }
+    if (node.data.catalogType === 'app_email' && configMissing(node.data.config, 'email')) {
+      issues.push(`${label}: Gmail app needs the business email used for automations.`);
+    }
+  }
+
+  return issues;
+}
+
+export function formatAutomationDryRunMessage(args: {
+  issues: string[];
+  triggerType?: string | null;
+  actionType?: string | null;
+}): { status: 'success' | 'failed'; message: string } {
+  if (args.issues.length > 0) {
+    return {
+      status: 'failed',
+      message: `Dry run failed: ${args.issues.join(' ')}`,
+    };
+  }
+  const trigger = args.triggerType?.trim() || 'trigger';
+  const action = args.actionType?.trim() || 'action';
+  return {
+    status: 'success',
+    message: `Dry run OK — ${trigger} → ${action}. Execution engine not live yet.`,
+  };
+}
 
 export const ALL_TRIGGER_TYPES = Array.from(
   new Set([

@@ -20,6 +20,8 @@ export interface AutomationWorkflow {
   agentConfig: Record<string, unknown> | null;
   actionType: string;
   actionConfig: Record<string, unknown> | null;
+  whatsappPhone?: string | null;
+  gmailEmail?: string | null;
   runs: number;
   lastRunAt: string | null;
   createdAt: string;

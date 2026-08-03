@@ -30,6 +30,8 @@ const CREATE_MUTATION = `
     $agentConfig: JSONObject
     $actionType: String
     $actionConfig: JSONObject
+    $whatsappPhone: String
+    $gmailEmail: String
   ) {
     createAutomationWorkflow(
       name: $name
@@ -41,6 +43,8 @@ const CREATE_MUTATION = `
       agentConfig: $agentConfig
       actionType: $actionType
       actionConfig: $actionConfig
+      whatsappPhone: $whatsappPhone
+      gmailEmail: $gmailEmail
     ) {
       id
     }
@@ -129,6 +133,10 @@ export default function NewAutomationPage() {
     setFormError(null);
     try {
       const flat = deriveFlatFieldsFromCanvas(draft.nodes);
+      if (!flat.hasTrigger || !flat.triggerType) {
+        setFormError(tBuilder('triggerRequired'));
+        return false;
+      }
       if (
         hasAssignDriverWithoutDriver({
           actionType: flat.actionType,
@@ -153,8 +161,10 @@ export default function NewAutomationPage() {
           triggerType: flat.triggerType,
           triggerConfig: flat.triggerConfig,
           agentConfig: packAgentConfig(flat.agentNote, draft.nodes, draft.edges),
-          actionType: flat.actionType,
+          actionType: flat.actionType || undefined,
           actionConfig: flat.actionConfig,
+          whatsappPhone: flat.whatsappPhone || null,
+          gmailEmail: flat.gmailEmail || null,
         },
       );
       if (status === 'draft') {

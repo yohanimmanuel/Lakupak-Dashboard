@@ -6,6 +6,8 @@ import { Prisma, type AutomationWorkflow, type AutomationRun } from '@/lib/prism
 import { SUBSCRIPTION_PLANS } from '@/config/subscriptionPlans';
 import {
   ASSIGN_DRIVER_REQUIRES_DRIVER_MESSAGE,
+  collectAutomationDryRunIssues,
+  formatAutomationDryRunMessage,
   getDefaultAction,
   getDefaultTrigger,
   hasAssignDriverWithoutDriver,
@@ -23,7 +25,40 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>;
 }
 
+/** Empty → null; non-empty must be a basic valid email address. */
+function normalizeGmailEmail(raw: string | null | undefined): string | null {
+  if (raw == null) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  // Practical address check (local@domain.tld); rejects spaces and missing TLD.
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+    throw new GraphQLError('gmailEmail must be a valid email address.', {
+      extensions: { code: 'BAD_USER_INPUT' },
+    });
+  }
+  return trimmed;
+}
+
+/**
+ * Empty → null; non-empty must be E.164 (+ and 8–15 digits total after +).
+ * Spaces, dashes, and parentheses are stripped before validation.
+ */
+function normalizeWhatsAppPhone(raw: string | null | undefined): string | null {
+  if (raw == null) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const compact = trimmed.replace(/[\s\-()]/g, '');
+  if (!/^\+[1-9]\d{7,14}$/.test(compact)) {
+    throw new GraphQLError(
+      'whatsappPhone must be an E.164 number (e.g. +6281234567890).',
+      { extensions: { code: 'BAD_USER_INPUT' } },
+    );
+  }
+  return compact;
+}
+
 function canvasNodesFromAgentConfig(agentConfig: unknown): Array<{
+  id?: string;
   data?: { kind?: string; catalogType?: string; config?: Record<string, unknown> };
 }> {
   const root = asRecord(agentConfig);
@@ -34,6 +69,7 @@ function canvasNodesFromAgentConfig(agentConfig: unknown): Array<{
     const row = asRecord(n);
     const data = asRecord(row?.data) ?? undefined;
     return {
+      id: typeof row?.id === 'string' ? row.id : undefined,
       data: data
         ? {
             kind: typeof data.kind === 'string' ? data.kind : undefined,
@@ -81,6 +117,8 @@ export const automationsTypeDefs = /* GraphQL */ `
     agentConfig: JSONObject
     actionType: String!
     actionConfig: JSONObject
+    whatsappPhone: String
+    gmailEmail: String
     runs: Int!
     lastRunAt: String
     createdAt: String!
@@ -134,6 +172,8 @@ export const automationsTypeDefs = /* GraphQL */ `
       agentConfig: JSONObject
       actionType: String
       actionConfig: JSONObject
+      whatsappPhone: String
+      gmailEmail: String
     ): AutomationWorkflow!
 
     updateAutomationWorkflow(
@@ -147,6 +187,8 @@ export const automationsTypeDefs = /* GraphQL */ `
       agentConfig: JSONObject
       actionType: String
       actionConfig: JSONObject
+      whatsappPhone: String
+      gmailEmail: String
     ): AutomationWorkflow!
 
     deleteAutomationWorkflow(id: String!): DeleteAutomationWorkflowResult!
@@ -179,6 +221,8 @@ function mapWorkflow(row: AutomationWorkflow) {
     agentConfig: row.agentConfig,
     actionType: row.actionType,
     actionConfig: row.actionConfig,
+    whatsappPhone: row.whatsappPhone ?? null,
+    gmailEmail: row.gmailEmail ?? null,
     runs: row.runs ?? 0,
     lastRunAt: row.lastRunAt ? row.lastRunAt.toISOString() : null,
     createdAt: row.createdAt.toISOString(),
@@ -282,6 +326,8 @@ async function createWorkflow(args: {
   agentConfig?: unknown;
   actionType?: string | null;
   actionConfig?: unknown;
+  whatsappPhone?: string | null;
+  gmailEmail?: string | null;
 }) {
   assertWorkflowType(args.type);
   const status = args.status ?? 'draft';
@@ -300,11 +346,16 @@ async function createWorkflow(args: {
 
   const defaultsTrigger = getDefaultTrigger(args.type);
   const defaultsAction = getDefaultAction(args.type);
-  const triggerType = args.triggerType || defaultsTrigger.triggerType;
-  const actionType = args.actionType || defaultsAction.actionType;
+  const triggerType = String(args.triggerType ?? '').trim();
+  const actionType = String(args.actionType ?? '').trim() || defaultsAction.actionType;
 
+  if (!triggerType) {
+    throw new GraphQLError('Required: A trigger must be defined.', {
+      extensions: { code: 'BAD_USER_INPUT' },
+    });
+  }
   if (!isTriggerAllowed(args.type, triggerType)) {
-    throw new GraphQLError(`Trigger ${triggerType} is not allowed for ${args.type}`, {
+    throw new GraphQLError('Required: A trigger must be defined.', {
       extensions: { code: 'BAD_USER_INPUT' },
     });
   }
@@ -335,6 +386,8 @@ async function createWorkflow(args: {
       agentConfig: agentConfig == null ? Prisma.JsonNull : agentConfig,
       actionType,
       actionConfig,
+      whatsappPhone: normalizeWhatsAppPhone(args.whatsappPhone),
+      gmailEmail: normalizeGmailEmail(args.gmailEmail),
     },
   });
 
@@ -353,6 +406,8 @@ async function updateWorkflow(args: {
   agentConfig?: unknown;
   actionType?: string | null;
   actionConfig?: unknown;
+  whatsappPhone?: string | null;
+  gmailEmail?: string | null;
 }) {
   const existing = await prisma.automationWorkflow.findFirst({
     where: { id: args.id, userId: args.userId },
@@ -365,10 +420,19 @@ async function updateWorkflow(args: {
   if (args.type) assertWorkflowType(args.type);
   if (args.status) assertStatus(args.status);
 
-  const nextTrigger = args.triggerType ?? existing.triggerType;
+  const nextTrigger = String(
+    args.triggerType !== undefined && args.triggerType !== null
+      ? args.triggerType
+      : existing.triggerType,
+  ).trim();
   const nextAction = args.actionType ?? existing.actionType;
+  if (!nextTrigger) {
+    throw new GraphQLError('Required: A trigger must be defined.', {
+      extensions: { code: 'BAD_USER_INPUT' },
+    });
+  }
   if (!isTriggerAllowed(nextType, nextTrigger)) {
-    throw new GraphQLError(`Trigger ${nextTrigger} is not allowed for ${nextType}`, {
+    throw new GraphQLError('Required: A trigger must be defined.', {
       extensions: { code: 'BAD_USER_INPUT' },
     });
   }
@@ -397,13 +461,19 @@ async function updateWorkflow(args: {
   if (args.description != null) data.description = args.description.trim();
   if (args.type != null) data.type = args.type;
   if (args.status != null) data.status = args.status;
-  if (args.triggerType != null) data.triggerType = args.triggerType;
+  if (args.triggerType != null) data.triggerType = nextTrigger;
   if (args.triggerConfig !== undefined) data.triggerConfig = asJsonObject(args.triggerConfig);
   if (args.agentConfig !== undefined) {
     data.agentConfig = args.agentConfig == null ? Prisma.JsonNull : asJsonObject(args.agentConfig);
   }
   if (args.actionType != null) data.actionType = args.actionType;
   if (args.actionConfig !== undefined) data.actionConfig = asJsonObject(args.actionConfig);
+  if (args.whatsappPhone !== undefined) {
+    data.whatsappPhone = normalizeWhatsAppPhone(args.whatsappPhone);
+  }
+  if (args.gmailEmail !== undefined) {
+    data.gmailEmail = normalizeGmailEmail(args.gmailEmail);
+  }
 
   const row = await prisma.automationWorkflow.update({
     where: { id: existing.id },
@@ -440,12 +510,28 @@ async function testWorkflow(args: { userId: number; id: string }) {
     throw new GraphQLError('Workflow not found', { extensions: { code: 'NOT_FOUND' } });
   }
 
+  const triggerConfig = asRecord(existing.triggerConfig);
+  const actionConfig = asRecord(existing.actionConfig);
+  const nodes = canvasNodesFromAgentConfig(existing.agentConfig);
+  const issues = collectAutomationDryRunIssues({
+    triggerType: existing.triggerType,
+    triggerConfig,
+    actionType: existing.actionType,
+    actionConfig,
+    nodes,
+  });
+  const dryRun = formatAutomationDryRunMessage({
+    issues,
+    triggerType: existing.triggerType,
+    actionType: existing.actionType,
+  });
+
   const run = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const created = await tx.automationRun.create({
       data: {
         workflowId: existing.id,
-        status: 'success',
-        message: 'Manual test run (execution engine not live yet).',
+        status: dryRun.status,
+        message: dryRun.message,
       },
     });
     await tx.automationWorkflow.update({
@@ -502,6 +588,8 @@ export const automationsResolvers = {
         agentConfig?: unknown;
         actionType?: string | null;
         actionConfig?: unknown;
+        whatsappPhone?: string | null;
+        gmailEmail?: string | null;
       },
       ctx: unknown,
     ) => {
@@ -521,6 +609,8 @@ export const automationsResolvers = {
         agentConfig?: unknown;
         actionType?: string | null;
         actionConfig?: unknown;
+        whatsappPhone?: string | null;
+        gmailEmail?: string | null;
       },
       ctx: unknown,
     ) => {

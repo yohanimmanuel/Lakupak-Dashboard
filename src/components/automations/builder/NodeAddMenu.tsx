@@ -8,6 +8,7 @@ import {
   getActionsForType,
   getTriggersForType,
 } from '@/lib/automations/catalog';
+import { defaultLakuAgentConfig } from '@/lib/automations/agentModels';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
 import type { FlowNodeKind } from './canvasTypes';
 
@@ -152,7 +153,7 @@ export function NodeAddMenu({
           title: tBuilder('nodeAgent'),
           subtitle: tBuilder('nodeAgent'),
           description: tBuilder('agentSubtitle'),
-          config: { note: '' },
+          config: defaultLakuAgentConfig(),
           icon: <Bot className="h-4 w-4 shrink-0 text-[#0a61d7]" />,
         },
       ],
@@ -184,7 +185,7 @@ export function NodeAddMenu({
           title: tBuilder('appWebhook'),
           subtitle: tBuilder('nodeApp'),
           description: tBuilder('appWebhookHint'),
-          config: { connected: false },
+          config: { connected: false, phone: '' },
           icon: <WhatsAppIcon className="h-4 w-4 shrink-0" />,
         },
         {
@@ -194,7 +195,7 @@ export function NodeAddMenu({
           title: tBuilder('appEmail'),
           subtitle: tBuilder('nodeApp'),
           description: tBuilder('appEmailHint'),
-          config: { connected: false },
+          config: { connected: false, email: '' },
           icon: <GmailIcon className="h-4 w-4 shrink-0" />,
         },
       ],

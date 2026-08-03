@@ -1,5 +1,6 @@
 import type { WorkflowType } from '../automationTypes';
 import { getDefaultAction, getDefaultTrigger } from '@/lib/automations/catalog';
+import { defaultLakuAgentConfig } from '@/lib/automations/agentModels';
 import type { WorkflowFlowEdge, WorkflowFlowNode, WorkflowNodeData } from './canvasTypes';
 import { CANVAS_STORAGE_KEY, DEFAULT_EDGE_TYPE, newNodeId } from './canvasTypes';
 
@@ -31,7 +32,7 @@ export function createDefaultCanvas(
           name: '',
           title: labels.agentTitle,
           subtitle: labels.agentSubtitle,
-          config: { note: '' },
+          config: defaultLakuAgentConfig(),
         },
       },
     ],
@@ -81,7 +82,7 @@ export function createLegacyFlatCanvas(
         name: '',
         title: labels.agentTitle,
         subtitle: labels.agentSubtitle,
-        config: { note: flat?.agentNote ?? '' },
+        config: defaultLakuAgentConfig(flat?.agentNote ?? ''),
       },
     },
     {
@@ -208,11 +209,55 @@ export function deriveFlatFieldsFromCanvas(nodes: WorkflowFlowNode[]) {
   const trigger = nodes.find((n) => n.data.kind === 'trigger');
   const action = nodes.find((n) => n.data.kind === 'action');
   const agent = nodes.find((n) => n.data.kind === 'agent');
+  const whatsappApp = nodes.find(
+    (n) => n.data.kind === 'app' && n.data.catalogType === 'app_webhook',
+  );
+  const gmailApp = nodes.find(
+    (n) => n.data.kind === 'app' && n.data.catalogType === 'app_email',
+  );
   return {
-    triggerType: trigger?.data.catalogType ?? 'stock_below',
+    triggerType: String(trigger?.data.catalogType ?? '').trim(),
     triggerConfig: trigger?.data.config ?? {},
-    actionType: action?.data.catalogType ?? getDefaultAction('product_offers').actionType,
+    actionType: String(action?.data.catalogType ?? '').trim(),
     actionConfig: action?.data.config ?? {},
     agentNote: String(agent?.data.config?.note ?? ''),
+    whatsappPhone: String(whatsappApp?.data.config?.phone ?? '').trim(),
+    gmailEmail: String(gmailApp?.data.config?.email ?? '').trim(),
+    hasTrigger: Boolean(trigger),
+    hasAction: Boolean(action),
   };
+}
+
+/** Fill app channel fields from persisted workflow columns when canvas config is empty. */
+export function hydrateAppChannelConfig(
+  nodes: WorkflowFlowNode[],
+  channels?: { whatsappPhone?: string | null; gmailEmail?: string | null },
+): WorkflowFlowNode[] {
+  if (!channels) return nodes;
+  const phone = String(channels.whatsappPhone ?? '').trim();
+  const email = String(channels.gmailEmail ?? '').trim();
+  if (!phone && !email) return nodes;
+
+  return nodes.map((node) => {
+    if (node.data.kind !== 'app') return node;
+    if (node.data.catalogType === 'app_webhook' && phone && !String(node.data.config?.phone ?? '').trim()) {
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          config: { ...node.data.config, phone },
+        },
+      };
+    }
+    if (node.data.catalogType === 'app_email' && email && !String(node.data.config?.email ?? '').trim()) {
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          config: { ...node.data.config, email },
+        },
+      };
+    }
+    return node;
+  });
 }

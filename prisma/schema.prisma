@@ -1298,6 +1298,10 @@ model AutomationWorkflow {
   agentConfig   Json?
   actionType    String
   actionConfig  Json     @default("{}")
+  /// Business WhatsApp number used by this workflow to message buyers (E.164 recommended).
+  whatsappPhone String?
+  /// Business Gmail address used by this workflow to email buyers.
+  gmailEmail    String?
   runs          Int      @default(0)
   lastRunAt     DateTime? @db.Timestamptz(3)
   createdAt     DateTime @default(now()) @db.Timestamptz(3)

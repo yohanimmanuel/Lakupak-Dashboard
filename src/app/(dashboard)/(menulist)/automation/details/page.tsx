@@ -12,6 +12,7 @@ import {
 import {
   createLegacyFlatCanvas,
   deriveFlatFieldsFromCanvas,
+  hydrateAppChannelConfig,
   packAgentConfig,
   unpackCanvasFromAgentConfig,
 } from '@/components/automations/builder/canvasUtils';
@@ -46,6 +47,8 @@ const WORKFLOW_QUERY = `
       agentConfig
       actionType
       actionConfig
+      whatsappPhone
+      gmailEmail
       runs
       lastRunAt
       createdAt
@@ -73,6 +76,8 @@ const UPDATE_MUTATION = `
     $agentConfig: JSONObject
     $actionType: String
     $actionConfig: JSONObject
+    $whatsappPhone: String
+    $gmailEmail: String
   ) {
     updateAutomationWorkflow(
       id: $id
@@ -85,6 +90,8 @@ const UPDATE_MUTATION = `
       agentConfig: $agentConfig
       actionType: $actionType
       actionConfig: $actionConfig
+      whatsappPhone: $whatsappPhone
+      gmailEmail: $gmailEmail
     ) {
       id
       status
@@ -193,7 +200,10 @@ function DetailsInner() {
         description: w.description,
         type,
         status: w.status,
-        nodes,
+        nodes: hydrateAppChannelConfig(nodes, {
+          whatsappPhone: w.whatsappPhone,
+          gmailEmail: w.gmailEmail,
+        }),
         edges,
       });
       setSelectedNodeId((prev) => prev ?? nodes[0]?.id ?? null);
@@ -289,6 +299,10 @@ function DetailsInner() {
     setFormError(null);
     try {
       const flat = deriveFlatFieldsFromCanvas(draft.nodes);
+      if (!flat.hasTrigger || !flat.triggerType) {
+        setFormError(tBuilder('triggerRequired'));
+        return false;
+      }
       if (
         hasAssignDriverWithoutDriver({
           actionType: flat.actionType,
@@ -312,8 +326,10 @@ function DetailsInner() {
         triggerType: flat.triggerType,
         triggerConfig: flat.triggerConfig,
         agentConfig: packAgentConfig(flat.agentNote, draft.nodes, draft.edges),
-        actionType: flat.actionType,
+        actionType: flat.actionType || undefined,
         actionConfig: flat.actionConfig,
+        whatsappPhone: flat.whatsappPhone || null,
+        gmailEmail: flat.gmailEmail || null,
       });
       if (statusOverride) {
         setDraft((prev) => (prev ? { ...prev, status: statusOverride } : prev));

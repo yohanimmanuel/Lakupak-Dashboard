@@ -6,6 +6,14 @@ import type { AutomationRun, WorkflowStatus, WorkflowType } from '../automationT
 import { WORKFLOW_TYPES } from '../automationTypes';
 import { getActionsForInspector, getTriggersForType, defaultConfigForFields } from '@/lib/automations/catalog';
 import type { CatalogField } from '@/lib/automations/catalog';
+import {
+  DEFAULT_LAKU_AGENT_MODEL,
+  LAKU_AGENT_MODEL_IDS,
+  LAKU_AGENT_MODEL_LOGOS,
+  LAKU_AGENT_PROVIDER_MODEL,
+  normalizeLakuAgentModelId,
+  resolveLakuAgentProviderModel,
+} from '@/lib/automations/agentModels';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
 import { BuilderSelect } from './BuilderSelect';
 import type { WorkflowFlowEdge, WorkflowFlowNode } from './canvasTypes';
@@ -13,6 +21,7 @@ import { WorkflowRunsPanel } from './WorkflowRunsPanel';
 import { useBuilderPanelControls } from './WorkflowBuilderShell';
 import { BuyerPickerField, normalizePickedBuyers, toPickedBuyer } from './BuyerPickerField';
 import { FleetPickerField, normalizePickedFleet } from './FleetPickerField';
+import { ProductPickerField, normalizePickedProduct } from './ProductPickerField';
 import type { Buyer } from '@/types/client';
 
 export type WorkflowDraft = {
@@ -344,45 +353,112 @@ export function StepDetailsPanel({
               </div>
               {triggers
                 .find((t) => t.type === selected.data.catalogType)
-                ?.fields.map((field) => (
-                  <CatalogFieldInput
-                    key={field.key}
-                    field={field}
-                    value={selected.data.config?.[field.key]}
-                    label={tFields.has(field.key) ? tFields(field.key) : field.key}
-                    optionLabel={(option) =>
-                      tFields.has(`options.${option}`) ? tFields(`options.${option}`) : option
-                    }
-                    onChange={(next) =>
-                      onUpdateNodeAction(selected.id, {
-                        config: {
-                          ...selected.data.config,
-                          [field.key]: next,
-                        },
-                      })
-                    }
-                  />
-                ))}
+                ?.fields.map((field) =>
+                  field.kind === 'product' ? (
+                    <ProductPickerField
+                      key={field.key}
+                      label={tFields.has(field.key) ? tFields(field.key) : field.key}
+                      value={normalizePickedProduct(selected.data.config)}
+                      onSelectAction={(picked) =>
+                        onUpdateNodeAction(selected.id, {
+                          config: {
+                            ...selected.data.config,
+                            productId: picked.productId,
+                            productLabel: picked.productLabel,
+                            variantId: picked.variantId,
+                            variantLabel: picked.variantLabel,
+                          },
+                        })
+                      }
+                      onClearAction={() =>
+                        onUpdateNodeAction(selected.id, {
+                          config: {
+                            ...selected.data.config,
+                            productId: '',
+                            productLabel: '',
+                            variantId: '',
+                            variantLabel: '',
+                          },
+                        })
+                      }
+                    />
+                  ) : (
+                    <CatalogFieldInput
+                      key={field.key}
+                      field={field}
+                      value={selected.data.config?.[field.key]}
+                      label={tFields.has(field.key) ? tFields(field.key) : field.key}
+                      optionLabel={(option) =>
+                        tFields.has(`options.${option}`) ? tFields(`options.${option}`) : option
+                      }
+                      onChange={(next) =>
+                        onUpdateNodeAction(selected.id, {
+                          config: {
+                            ...selected.data.config,
+                            [field.key]: next,
+                          },
+                        })
+                      }
+                    />
+                  ),
+                )}
             </>
           )}
 
           {selected.data.kind === 'agent' && (
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-gray-600">
-                {tBuilder('agentNote')}
-              </span>
-              <textarea
-                value={String(selected.data.config?.note ?? '')}
-                onChange={(e) =>
-                  onUpdateNodeAction(selected.id, {
-                    config: { ...selected.data.config, note: e.target.value },
-                  })
-                }
-                rows={3}
-                className={fieldClassName}
-                placeholder={tBuilder('agentNotePlaceholder')}
-              />
-            </label>
+            <>
+              <div>
+                <span className="mb-1 block text-xs font-medium text-gray-600">
+                  {tBuilder('agentModel')}
+                </span>
+                <BuilderSelect
+                  aria-label={tBuilder('agentModel')}
+                  value={normalizeLakuAgentModelId(selected.data.config?.model)}
+                  options={LAKU_AGENT_MODEL_IDS.map((id) => ({
+                    value: id,
+                    label: tBuilder.has(`agentModels.${id}`)
+                      ? tBuilder(`agentModels.${id}`)
+                      : id,
+                    iconSrc: LAKU_AGENT_MODEL_LOGOS[id],
+                  }))}
+                  onChangeAction={(next) => {
+                    const model = normalizeLakuAgentModelId(next || DEFAULT_LAKU_AGENT_MODEL);
+                    onUpdateNodeAction(selected.id, {
+                      config: {
+                        ...selected.data.config,
+                        model,
+                        providerModel: resolveLakuAgentProviderModel(model),
+                      },
+                    });
+                  }}
+                />
+                <p className="mt-1 text-[11px] leading-snug text-gray-500">
+                  {tBuilder('agentModelHint', { provider: LAKU_AGENT_PROVIDER_MODEL })}
+                </p>
+              </div>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-gray-600">
+                  {tBuilder('agentNote')}
+                </span>
+                <textarea
+                  value={String(selected.data.config?.note ?? '')}
+                  onChange={(e) => {
+                    const model = normalizeLakuAgentModelId(selected.data.config?.model);
+                    onUpdateNodeAction(selected.id, {
+                      config: {
+                        ...selected.data.config,
+                        note: e.target.value,
+                        model,
+                        providerModel: resolveLakuAgentProviderModel(model),
+                      },
+                    });
+                  }}
+                  rows={3}
+                  className={fieldClassName}
+                  placeholder={tBuilder('agentNotePlaceholder')}
+                />
+              </label>
+            </>
           )}
 
           {selected.data.kind === 'action' && (
@@ -518,6 +594,29 @@ export function StepDetailsPanel({
             <>
               {selected.data.catalogType === 'app_webhook' && (
                 <div className="space-y-3">
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-medium text-gray-600">
+                      {tBuilder('appWhatsAppPhone')}
+                    </span>
+                    <input
+                      type="tel"
+                      value={String(selected.data.config?.phone ?? '')}
+                      onChange={(e) =>
+                        onUpdateNodeAction(selected.id, {
+                          config: {
+                            ...selected.data.config,
+                            phone: e.target.value,
+                          },
+                        })
+                      }
+                      className={fieldClassName}
+                      placeholder={tBuilder('appWhatsAppPhonePlaceholder')}
+                      autoComplete="tel"
+                    />
+                    <p className="mt-1 text-[11px] leading-snug text-gray-500">
+                      {tBuilder('appWhatsAppPhoneHint')}
+                    </p>
+                  </label>
                   <div className="flex items-center justify-between gap-2 rounded-lg border border-[#e6e6e6] bg-[#fafafa] px-3 py-2.5">
                     <div className="min-w-0">
                       <p className="text-xs font-medium text-black">
@@ -568,6 +667,29 @@ export function StepDetailsPanel({
               )}
               {selected.data.catalogType === 'app_email' && (
                 <div className="space-y-3">
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-medium text-gray-600">
+                      {tBuilder('appGmailEmail')}
+                    </span>
+                    <input
+                      type="email"
+                      value={String(selected.data.config?.email ?? '')}
+                      onChange={(e) =>
+                        onUpdateNodeAction(selected.id, {
+                          config: {
+                            ...selected.data.config,
+                            email: e.target.value,
+                          },
+                        })
+                      }
+                      className={fieldClassName}
+                      placeholder={tBuilder('appGmailEmailPlaceholder')}
+                      autoComplete="email"
+                    />
+                    <p className="mt-1 text-[11px] leading-snug text-gray-500">
+                      {tBuilder('appGmailEmailHint')}
+                    </p>
+                  </label>
                   <div className="flex items-center justify-between gap-2 rounded-lg border border-[#e6e6e6] bg-[#fafafa] px-3 py-2.5">
                     <div className="min-w-0">
                       <p className="text-xs font-medium text-black">
