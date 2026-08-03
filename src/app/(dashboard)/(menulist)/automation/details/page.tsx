@@ -20,6 +20,10 @@ import type {
   WorkflowFlowEdge,
   WorkflowFlowNode,
 } from '@/components/automations/builder/canvasTypes';
+import {
+  isStructuralCanvasChange,
+  useCanvasHistory,
+} from '@/components/automations/builder/useCanvasHistory';
 import type {
   AutomationRun,
   AutomationWorkflow,
@@ -157,7 +161,10 @@ function DetailsInner() {
   const [formError, setFormError] = useState<string | null>(null);
   const latestIdRef = useRef(id);
   const loadSeqRef = useRef(0);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
   latestIdRef.current = id;
+  const history = useCanvasHistory();
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!user?.id || !id) {
@@ -227,6 +234,9 @@ function DetailsInner() {
         }),
         edges,
       });
+      // A silent refresh only re-reads runs/metadata; the canvas is unchanged,
+      // so the undo stack stays valid.
+      if (!opts?.silent) history.clear();
       setSelectedNodeId((prev) => prev ?? nodes[0]?.id ?? null);
       setRuns(data.automationRuns ?? []);
       setError(null);
@@ -236,7 +246,7 @@ function DetailsInner() {
     } finally {
       if (!opts?.silent && isCurrent()) setLoading(false);
     }
-  }, [user?.id, id, tBuilder, translateAction, translateTrigger]);
+  }, [user?.id, id, tBuilder, translateAction, translateTrigger, history.clear]);
 
   useEffect(() => {
     let cancelled = false;
@@ -262,47 +272,90 @@ function DetailsInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load is intentionally omitted
   }, [user?.id, id]);
 
+  const checkpointHistory = useCallback(() => {
+    const current = draftRef.current;
+    if (!current) return;
+    history.push({ nodes: current.nodes, edges: current.edges }, { force: true });
+  }, [history]);
+
+  const lastDataHistoryAtRef = useRef(0);
+
   const patch = (next: Partial<WorkflowDraft>) => {
     if (next.name !== undefined) setNameError(null);
-    setDraft((prev) => (prev ? { ...prev, ...next } : prev));
+    const prev = draftRef.current;
+    if (
+      prev &&
+      (next.nodes || next.edges) &&
+      isStructuralCanvasChange(
+        { nodes: prev.nodes, edges: prev.edges },
+        { nodes: next.nodes, edges: next.edges },
+      )
+    ) {
+      history.push({ nodes: prev.nodes, edges: prev.edges });
+    }
+    setDraft((current) => (current ? { ...current, ...next } : current));
   };
 
   const updateNode = (nodeId: string, dataPatch: Partial<WorkflowFlowNode['data']>) => {
-    setDraft((prev) =>
-      prev
+    const prev = draftRef.current;
+    if (prev) {
+      const now = Date.now();
+      if (now - lastDataHistoryAtRef.current > 600) {
+        history.push({ nodes: prev.nodes, edges: prev.edges });
+        lastDataHistoryAtRef.current = now;
+      }
+    }
+    setDraft((current) =>
+      current
         ? {
-            ...prev,
-            nodes: prev.nodes.map((n) =>
+            ...current,
+            nodes: current.nodes.map((n) =>
               n.id === nodeId ? { ...n, data: { ...n.data, ...dataPatch } } : n,
             ),
           }
-        : prev,
+        : current,
     );
   };
 
   const deleteNode = (nodeId: string) => {
-    setDraft((prev) =>
-      prev
+    const prev = draftRef.current;
+    if (prev) history.push({ nodes: prev.nodes, edges: prev.edges });
+    setDraft((current) =>
+      current
         ? {
-            ...prev,
-            nodes: prev.nodes.filter((n) => n.id !== nodeId),
-            edges: prev.edges.filter((e) => e.source !== nodeId && e.target !== nodeId),
+            ...current,
+            nodes: current.nodes.filter((n) => n.id !== nodeId),
+            edges: current.edges.filter((e) => e.source !== nodeId && e.target !== nodeId),
           }
-        : prev,
+        : current,
     );
-    setSelectedNodeId((prev) => (prev === nodeId ? null : prev));
+    setSelectedNodeId((current) => (current === nodeId ? null : current));
   };
 
   const disconnectNode = (nodeId: string) => {
-    setDraft((prev) =>
-      prev
+    const prev = draftRef.current;
+    if (prev) history.push({ nodes: prev.nodes, edges: prev.edges });
+    setDraft((current) =>
+      current
         ? {
-            ...prev,
-            edges: prev.edges.filter((e) => e.source !== nodeId && e.target !== nodeId),
+            ...current,
+            edges: current.edges.filter((e) => e.source !== nodeId && e.target !== nodeId),
           }
-        : prev,
+        : current,
     );
   };
+
+  const undo = useCallback(() => {
+    history.undo((snapshot) => {
+      setDraft((current) =>
+        current ? { ...current, nodes: snapshot.nodes, edges: snapshot.edges } : current,
+      );
+      setSelectedNodeId((current) =>
+        current && snapshot.nodes.some((n) => n.id === current) ? current : null,
+      );
+    });
+    lastDataHistoryAtRef.current = 0;
+  }, [history]);
 
   const save = async (
     statusOverride?: 'draft' | 'active',
@@ -459,6 +512,8 @@ function DetailsInner() {
       onSaveDraftAction={() => save('draft')}
       onActivateAction={() => void save('active')}
       onTestRunAction={() => void testRun()}
+      onUndoAction={undo}
+      canUndo={history.canUndo}
       canvas={
         <WorkflowCanvas
           workflowType={draft.type}
@@ -468,6 +523,7 @@ function DetailsInner() {
           onNodesChangeAction={(nodes) => patch({ nodes })}
           onEdgesChangeAction={(edges) => patch({ edges })}
           onSelectNodeAction={setSelectedNodeId}
+          onHistoryCheckpointAction={checkpointHistory}
         />
       }
       leftPanel={

@@ -87,6 +87,8 @@
     "saveDraft": "Save draft",
     "activate": "Activate",
     "testRun": "Test run",
+    "undo": "Undo",
+    "undoShortcut": "Undo ({modifier}+Z)",
     "savedJustNow": "Saved just now",
     "savedMinutesAgo": "Saved {minutes} min ago",
     "savedHoursAgo": "Saved {hours}h ago",

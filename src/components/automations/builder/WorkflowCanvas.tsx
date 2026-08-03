@@ -181,6 +181,7 @@ function WorkflowCanvasInner({
   onNodesChangeAction,
   onEdgesChangeAction,
   onSelectNodeAction,
+  onHistoryCheckpointAction,
 }: {
   workflowType: WorkflowType;
   nodes: WorkflowFlowNode[];
@@ -189,6 +190,8 @@ function WorkflowCanvasInner({
   onNodesChangeAction: (nodes: WorkflowFlowNode[]) => void;
   onEdgesChangeAction: (edges: WorkflowFlowEdge[]) => void;
   onSelectNodeAction: (nodeId: string | null) => void;
+  /** Snapshot canvas before continuous ops like node drag. */
+  onHistoryCheckpointAction?: () => void;
 }) {
   const { tBuilder } = useAutomationTranslations();
   const { screenToFlowPosition } = useReactFlow();
@@ -659,6 +662,8 @@ function WorkflowCanvasInner({
           event.preventDefault();
           openElementPickerAt(event.clientX, event.clientY);
         }}
+        onNodeDragStart={() => onHistoryCheckpointAction?.()}
+        onSelectionDragStart={() => onHistoryCheckpointAction?.()}
         onSelectionEnd={syncInspectorFromCanvasSelection}
         panOnDrag
         selectionOnDrag={false}

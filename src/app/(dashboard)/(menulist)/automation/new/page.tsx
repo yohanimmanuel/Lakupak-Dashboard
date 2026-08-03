@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { WorkflowBuilderShell } from '@/components/automations/builder/WorkflowBuilderShell';
 import { WorkflowCanvas } from '@/components/automations/builder/WorkflowCanvas';
@@ -11,6 +11,10 @@ import {
 } from '@/components/automations/builder/WorkflowInspector';
 import { createDefaultCanvas, deriveFlatFieldsFromCanvas, packAgentConfig } from '@/components/automations/builder/canvasUtils';
 import type { WorkflowFlowEdge, WorkflowFlowNode } from '@/components/automations/builder/canvasTypes';
+import {
+  isStructuralCanvasChange,
+  useCanvasHistory,
+} from '@/components/automations/builder/useCanvasHistory';
 import {
   ASSIGN_DRIVER_REQUIRES_DRIVER_MESSAGE,
   hasAssignDriverWithoutDriver,
@@ -90,36 +94,76 @@ export default function NewAutomationPage() {
   const [saving, setSaving] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const history = useCanvasHistory();
+
+  const checkpointHistory = useCallback(() => {
+    const current = draftRef.current;
+    history.push({ nodes: current.nodes, edges: current.edges }, { force: true });
+  }, [history]);
+
+  const lastDataHistoryAtRef = useRef(0);
 
   const patch = (next: Partial<WorkflowDraft>) => {
     if (next.name !== undefined) setNameError(null);
-    setDraft((prev) => ({ ...prev, ...next }));
+    const prev = draftRef.current;
+    if (
+      (next.nodes || next.edges) &&
+      isStructuralCanvasChange(
+        { nodes: prev.nodes, edges: prev.edges },
+        { nodes: next.nodes, edges: next.edges },
+      )
+    ) {
+      history.push({ nodes: prev.nodes, edges: prev.edges });
+    }
+    setDraft((current) => ({ ...current, ...next }));
   };
 
   const updateNode = (nodeId: string, dataPatch: Partial<WorkflowFlowNode['data']>) => {
-    setDraft((prev) => ({
-      ...prev,
-      nodes: prev.nodes.map((n) =>
+    const prev = draftRef.current;
+    const now = Date.now();
+    if (now - lastDataHistoryAtRef.current > 600) {
+      history.push({ nodes: prev.nodes, edges: prev.edges });
+      lastDataHistoryAtRef.current = now;
+    }
+    setDraft((current) => ({
+      ...current,
+      nodes: current.nodes.map((n) =>
         n.id === nodeId ? { ...n, data: { ...n.data, ...dataPatch } } : n,
       ),
     }));
   };
 
   const deleteNode = (nodeId: string) => {
-    setDraft((prev) => ({
-      ...prev,
-      nodes: prev.nodes.filter((n) => n.id !== nodeId),
-      edges: prev.edges.filter((e) => e.source !== nodeId && e.target !== nodeId),
+    const prev = draftRef.current;
+    history.push({ nodes: prev.nodes, edges: prev.edges });
+    setDraft((current) => ({
+      ...current,
+      nodes: current.nodes.filter((n) => n.id !== nodeId),
+      edges: current.edges.filter((e) => e.source !== nodeId && e.target !== nodeId),
     }));
-    setSelectedNodeId((prev) => (prev === nodeId ? null : prev));
+    setSelectedNodeId((current) => (current === nodeId ? null : current));
   };
 
   const disconnectNode = (nodeId: string) => {
-    setDraft((prev) => ({
-      ...prev,
-      edges: prev.edges.filter((e) => e.source !== nodeId && e.target !== nodeId),
+    const prev = draftRef.current;
+    history.push({ nodes: prev.nodes, edges: prev.edges });
+    setDraft((current) => ({
+      ...current,
+      edges: current.edges.filter((e) => e.source !== nodeId && e.target !== nodeId),
     }));
   };
+
+  const undo = useCallback(() => {
+    history.undo((snapshot) => {
+      setDraft((current) => ({ ...current, nodes: snapshot.nodes, edges: snapshot.edges }));
+      setSelectedNodeId((current) =>
+        current && snapshot.nodes.some((n) => n.id === current) ? current : null,
+      );
+    });
+    lastDataHistoryAtRef.current = 0;
+  }, [history]);
 
   const save = async (status: 'draft' | 'active'): Promise<boolean> => {
     if (!user?.id) return false;
@@ -188,6 +232,8 @@ export default function NewAutomationPage() {
       saving={saving}
       onSaveDraftAction={() => save('draft')}
       onActivateAction={() => void save('active')}
+      onUndoAction={undo}
+      canUndo={history.canUndo}
       canvas={
         <WorkflowCanvas
           workflowType={draft.type}
@@ -197,6 +243,7 @@ export default function NewAutomationPage() {
           onNodesChangeAction={(nodes: WorkflowFlowNode[]) => patch({ nodes })}
           onEdgesChangeAction={(edges: WorkflowFlowEdge[]) => patch({ edges })}
           onSelectNodeAction={setSelectedNodeId}
+          onHistoryCheckpointAction={checkpointHistory}
         />
       }
       leftPanel={

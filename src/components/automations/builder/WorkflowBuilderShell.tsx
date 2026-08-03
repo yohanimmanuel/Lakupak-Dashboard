@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ChevronRight, Loader2, Play, RefreshCw, Save } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Loader2, Play, RefreshCw, Save, Undo2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
 import type { WorkflowStatus } from '../automationTypes';
@@ -9,6 +9,15 @@ import type { WorkflowStatus } from '../automationTypes';
 type BuilderPanelControls = { closeWorkflowDetails: () => void };
 
 const BuilderPanelContext = createContext<BuilderPanelControls | null>(null);
+
+/** Cmd on Apple platforms, Ctrl elsewhere. Safe when `navigator` is missing (SSR). */
+function platformUndoModifier(): 'Cmd' | 'Ctrl' {
+  if (typeof navigator === 'undefined') return 'Ctrl';
+  const platform = navigator.platform ?? '';
+  const userAgent = navigator.userAgent ?? '';
+  if (/Mac|iPhone|iPad|iPod/i.test(platform) || /Mac OS/i.test(userAgent)) return 'Cmd';
+  return 'Ctrl';
+}
 
 /** Lets the workflow details card render its own close control. */
 export function useBuilderPanelControls() {
@@ -23,6 +32,8 @@ export function WorkflowBuilderShell({
   onActivateAction,
   onTestRunAction,
   showTestRun,
+  onUndoAction,
+  canUndo,
   canvas,
   leftPanel,
   rightPanel,
@@ -35,6 +46,8 @@ export function WorkflowBuilderShell({
   onActivateAction: () => void;
   onTestRunAction?: () => void;
   showTestRun?: boolean;
+  onUndoAction?: () => void;
+  canUndo?: boolean;
   canvas: React.ReactNode;
   leftPanel: React.ReactNode;
   rightPanel: React.ReactNode;
@@ -67,6 +80,11 @@ export function WorkflowBuilderShell({
     return tBuilder('savedDaysAgo', { days: Math.floor(hours / 24) });
   }, [lastSavedAt, nowTs, tBuilder]);
 
+  const undoShortcutTitle = useMemo(
+    () => tBuilder('undoShortcut', { modifier: platformUndoModifier() }),
+    [tBuilder],
+  );
+
   const leftPanelControls = useMemo<BuilderPanelControls>(
     () => ({
       closeWorkflowDetails: () => {
@@ -96,6 +114,32 @@ export function WorkflowBuilderShell({
       setDraftSaving(false);
     }
   };
+
+  useEffect(() => {
+    if (!onUndoAction) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'z' || event.shiftKey) {
+        return;
+      }
+      const target = event.target;
+      if (target instanceof HTMLElement) {
+        const tag = target.tagName;
+        if (
+          tag === 'INPUT' ||
+          tag === 'TEXTAREA' ||
+          tag === 'SELECT' ||
+          target.isContentEditable
+        ) {
+          return;
+        }
+      }
+      if (!canUndo || saving) return;
+      event.preventDefault();
+      onUndoAction();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onUndoAction, canUndo, saving]);
 
   return (
     <div className="relative h-[calc(100dvh-4rem)] w-full overflow-hidden bg-[#f7f9fc]">
@@ -128,6 +172,18 @@ export function WorkflowBuilderShell({
             </span>
           )}
           <span className="mx-0.5 hidden h-6 w-px bg-[#e6e6e6] sm:inline-block" aria-hidden />
+          {onUndoAction && (
+            <button
+              type="button"
+              onClick={onUndoAction}
+              disabled={!canUndo || saving}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-xs font-medium text-black hover:bg-gray-50 disabled:opacity-50"
+              title={undoShortcutTitle}
+            >
+              <Undo2 className="h-4 w-4" />
+              {tBuilder('undo')}
+            </button>
+          )}
           {showTestRun && onTestRunAction && (
             <button
               type="button"

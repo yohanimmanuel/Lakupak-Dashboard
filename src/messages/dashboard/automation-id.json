@@ -87,6 +87,8 @@
     "saveDraft": "Simpan draf",
     "activate": "Aktifkan",
     "testRun": "Uji coba",
+    "undo": "Urungkan",
+    "undoShortcut": "Urungkan ({modifier}+Z)",
     "savedJustNow": "Baru saja disimpan",
     "savedMinutesAgo": "Disimpan {minutes} mnt lalu",
     "savedHoursAgo": "Disimpan {hours} jam lalu",
