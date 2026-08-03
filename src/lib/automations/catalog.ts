@@ -21,12 +21,12 @@ export type ActionType =
   | 'share_product_whatsapp'
   | 'assign_agent_whatsapp'
   | 'cs_24h_window'
-  | 'assign_logistic'
   | 'return_confirm_whatsapp'
   | 'cart_winback'
   | 'send_campaign'
   | 'notify_dashboard'
-  // Legacy
+  // Legacy (still allowed for existing saved workflows)
+  | 'assign_logistic'
   | 'draft_activate_offer'
   | 'assign_driver'
   | 'buyer_question_reply'
@@ -148,10 +148,6 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
   ],
   order_logistics: [
     {
-      type: 'assign_logistic',
-      fields: [{ key: 'fleetId', kind: 'fleet' }],
-    },
-    {
       type: 'return_confirm_whatsapp',
       fields: [{ key: 'messageTemplate', kind: 'textarea' }],
     },
@@ -192,12 +188,16 @@ const LEGACY_TRIGGERS_BY_WORKFLOW: Record<WorkflowType, TriggerType[]> = {
 const LEGACY_ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionType[]> = {
   product_offers: ['draft_offer_flag', 'draft_activate_offer'],
   lead_management: ['assign_sales_agent_flag', 'buyer_question_reply'],
-  order_logistics: ['flag_for_fleet', 'assign_fleet', 'assign_driver'],
+  order_logistics: ['flag_for_fleet', 'assign_fleet', 'assign_driver', 'assign_logistic'],
   marketing: [],
 };
 
 /** Field schemas for legacy action types still present on saved workflows. */
 const LEGACY_ACTION_DEFINITIONS: Partial<Record<ActionType, ActionDefinition>> = {
+  assign_logistic: {
+    type: 'assign_logistic',
+    fields: [{ key: 'fleetId', kind: 'fleet' }],
+  },
   assign_fleet: {
     type: 'assign_fleet',
     fields: [
