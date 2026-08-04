@@ -284,7 +284,7 @@
     "actionType": "Action type",
     "agentNote": "Agent instructions",
     "agentNotePlaceholder": "Optional note for the Laku AI step",
-    "agentHint": "Laku AI answers buyer questions about published products (incl. MOQ/stock), orders/returns/cancels, delivery & tracking, payment method type and term days — never bank accounts, offers, or campaigns.",
+    "agentHint": "Laku AI answers buyer questions about published products (incl. MOQ/stock), delivery & tracking, and payment method type and term days. Order, return, and cancellation help requires the buyer’s own order ID. Never bank accounts, offers, or campaigns.",
     "agentSubtitle": "Laku AI",
     "agentModel": "Model",
     "agentModels": {

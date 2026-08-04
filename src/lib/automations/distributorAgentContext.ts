@@ -3,26 +3,6 @@ import { prisma } from '@/app/api/graphql/modules/common/prisma';
 const SAMPLE = 8;
 const MAX_CONTEXT_CHARS = 28_000;
 
-function money(value: unknown): number | null {
-  if (value == null) return null;
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  if (typeof value === 'object' && value !== null && 'toNumber' in value) {
-    try {
-      return Number((value as { toNumber: () => number }).toNumber());
-    } catch {
-      /* fall through */
-    }
-  }
-  const n = Number(value);
-  return Number.isFinite(n) ? n : null;
-}
-
-function iso(value: Date | string | null | undefined): string | null {
-  if (value == null) return null;
-  if (value instanceof Date) return value.toISOString();
-  return String(value);
-}
-
 function truncateContext(payload: unknown): string {
   const json = JSON.stringify(payload, null, 0);
   if (json.length <= MAX_CONTEXT_CHARS) return json;
@@ -31,9 +11,9 @@ function truncateContext(payload: unknown): string {
 
 /**
  * Buyer-facing CS snapshot for Laku AI.
- * Safe topics only: published products (incl. MOQ/assurance), orders (status,
- * payment method type, tracking/ETA, prefs), returns/cancels, ops delivery
- * settings, payment term days. No offers, campaigns, bank accounts, analytics.
+ * Includes published products and public ops. Does NOT include specific order /
+ * return / cancellation records (distributor-internal). Order help uses vocab +
+ * payment term days only until a buyer identifies their own order at chat time.
  */
 export async function buildDistributorAgentContext(userId: number): Promise<string> {
   const publishedProductWhere = {
@@ -42,16 +22,7 @@ export async function buildDistributorAgentContext(userId: number): Promise<stri
     marketplaceStatus: 'Published',
   };
 
-  const [
-    user,
-    productCount,
-    orderCount,
-    buyerCount,
-    recentProducts,
-    recentOrders,
-    recentReturns,
-    recentCancellations,
-  ] = await Promise.all([
+  const [user, productCount, buyerCount, recentProducts] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -79,7 +50,6 @@ export async function buildDistributorAgentContext(userId: number): Promise<stri
       },
     }),
     prisma.product.count({ where: publishedProductWhere }),
-    prisma.order.count({ where: { userId } }),
     prisma.buyer.count({ where: { userId } }),
     prisma.product.findMany({
       where: publishedProductWhere,
@@ -115,75 +85,6 @@ export async function buildDistributorAgentContext(userId: number): Promise<stri
         },
       },
     }),
-    prisma.order.findMany({
-      where: { userId },
-      orderBy: { updatedAt: 'desc' },
-      take: SAMPLE,
-      select: {
-        orderId: true,
-        orderStatus: true,
-        paymentStatus: true,
-        paymentTerms: true,
-        storeName: true,
-        totalAmount: true,
-        shippingFee: true,
-        deliveryMethod: true,
-        deliveryOption: true,
-        preferredDeliveryDate: true,
-        preferredDeliveryTime: true,
-        preferredPickupDate: true,
-        preferredPickupTime: true,
-        trackingNumber: true,
-        estimatedDeliveryDate: true,
-        estimatedDeliveryMinDays: true,
-        estimatedDeliveryMaxDays: true,
-        returnStatus: true,
-        returnReason: true,
-        orderDate: true,
-        deliveredAt: true,
-        receivedAt: true,
-        cancelledAt: true,
-      },
-    }),
-    prisma.orderReturnRequest.findMany({
-      where: { order: { userId } },
-      orderBy: { updatedAt: 'desc' },
-      take: SAMPLE,
-      select: {
-        id: true,
-        status: true,
-        reason: true,
-        reasonDetail: true,
-        createdAt: true,
-        updatedAt: true,
-        order: {
-          select: {
-            orderId: true,
-            storeName: true,
-            orderStatus: true,
-            returnStatus: true,
-          },
-        },
-      },
-    }),
-    prisma.orderCancellation.findMany({
-      where: { order: { userId } },
-      orderBy: { cancelledAt: 'desc' },
-      take: SAMPLE,
-      select: {
-        id: true,
-        reason: true,
-        reasonDetail: true,
-        cancelledAt: true,
-        order: {
-          select: {
-            orderId: true,
-            storeName: true,
-            orderStatus: true,
-          },
-        },
-      },
-    }),
   ]);
 
   const company = user?.company;
@@ -192,16 +93,15 @@ export async function buildDistributorAgentContext(userId: number): Promise<stri
     allowedTopics: [
       'published_products_catalog_availability_moq_prices',
       'product_assurance_halal_bpom_original_return_window',
-      'order_status_pipeline_and_updates',
-      'payment_status_and_payment_method_type',
-      'payment_term_days_only',
+      'order_help_after_buyer_provides_order_id',
+      'payment_method_type_and_payment_term_days',
       'delivery_method_prefs_days_slots_lead_times',
-      'order_tracking_and_eta',
-      'return_requests_and_status',
-      'order_cancellations',
+      'return_and_cancel_policy_guidance',
       'distributor_public_ops_and_contact',
     ],
     forbiddenTopics: [
+      'listing_or_summarizing_account_orders_unsolicited',
+      'order_ids_store_names_amounts_without_buyer_request',
       'offers_and_promotions_internal',
       'campaigns_and_marketing_metrics',
       'bank_account_or_payment_credentials',
@@ -249,6 +149,8 @@ export async function buildDistributorAgentContext(userId: number): Promise<stri
         'other',
       ],
       notes: [
+        'Never list orders, order IDs, store names, or payment status in welcome or unsolicited messages.',
+        'Only discuss a specific order after the buyer provides their order ID (and store name if needed).',
         'Returns are typically requested after Delivered or Received.',
         'Payment method type (Bank Transfer / COD) is buyer-safe; never share bank account numbers.',
         'Shipping fee may be agreed offline and is not always auto-charged at checkout.',
@@ -281,7 +183,6 @@ export async function buildDistributorAgentContext(userId: number): Promise<stri
     totals: {
       buyers: buyerCount,
       publishedProducts: productCount,
-      orders: orderCount,
     },
     samples: {
       products: recentProducts.map((p) => ({
@@ -309,52 +210,6 @@ export async function buildDistributorAgentContext(userId: number): Promise<stri
           available: (v.stockQuantity ?? 0) > 0,
           sellingPrice: String(v.sellingPrice ?? ''),
         })),
-      })),
-      orders: recentOrders.map((o) => ({
-        orderId: o.orderId,
-        orderStatus: o.orderStatus,
-        paymentStatus: o.paymentStatus,
-        paymentMethodType: o.paymentTerms,
-        storeName: o.storeName,
-        totalAmount: money(o.totalAmount),
-        shippingFee: money(o.shippingFee),
-        deliveryMethod: o.deliveryMethod,
-        deliveryOption: o.deliveryOption,
-        preferredDeliveryDate: iso(o.preferredDeliveryDate),
-        preferredDeliveryTime: o.preferredDeliveryTime,
-        preferredPickupDate: iso(o.preferredPickupDate),
-        preferredPickupTime: o.preferredPickupTime,
-        trackingNumber: o.trackingNumber,
-        estimatedDeliveryDate: iso(o.estimatedDeliveryDate),
-        estimatedDeliveryMinDays: o.estimatedDeliveryMinDays,
-        estimatedDeliveryMaxDays: o.estimatedDeliveryMaxDays,
-        returnStatus: o.returnStatus,
-        returnReason: o.returnReason,
-        orderDate: iso(o.orderDate),
-        deliveredAt: iso(o.deliveredAt),
-        receivedAt: iso(o.receivedAt),
-        cancelledAt: iso(o.cancelledAt),
-      })),
-      returns: recentReturns.map((r) => ({
-        id: r.id,
-        status: r.status,
-        reason: r.reason,
-        reasonDetail: r.reasonDetail,
-        createdAt: iso(r.createdAt),
-        updatedAt: iso(r.updatedAt),
-        orderId: r.order?.orderId ?? null,
-        storeName: r.order?.storeName ?? null,
-        orderStatus: r.order?.orderStatus ?? null,
-        returnStatus: r.order?.returnStatus ?? null,
-      })),
-      cancellations: recentCancellations.map((c) => ({
-        id: c.id,
-        reason: c.reason,
-        reasonDetail: c.reasonDetail,
-        cancelledAt: iso(c.cancelledAt),
-        orderId: c.order?.orderId ?? null,
-        storeName: c.order?.storeName ?? null,
-        orderStatus: c.order?.orderStatus ?? null,
       })),
     },
   };

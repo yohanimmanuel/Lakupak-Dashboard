@@ -284,7 +284,7 @@
     "actionType": "Tipe tindakan",
     "agentNote": "Instruksi agen",
     "agentNotePlaceholder": "Catatan opsional untuk langkah Laku AI",
-    "agentHint": "Laku AI menjawab pertanyaan pembeli soal produk terbit (termasuk MOQ/stok), pesanan/retur/batal, pengiriman & pelacakan, jenis metode bayar dan tenor hari — tanpa rekening bank, penawaran, atau kampanye.",
+    "agentHint": "Laku AI menjawab pertanyaan pembeli soal produk terbit (termasuk MOQ/stok), pengiriman & pelacakan, serta jenis metode bayar dan tenor hari. Bantuan pesanan, retur, dan pembatalan membutuhkan ID pesanan pembeli sendiri. Tanpa rekening bank, penawaran, atau kampanye.",
     "agentSubtitle": "Laku AI",
     "agentModel": "Model",
     "agentModels": {

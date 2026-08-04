@@ -37,6 +37,14 @@ export type AgentNodeRunResult = {
   model?: string;
   reply?: string;
   error?: string;
+  /**
+   * Present only when this run produces an actionable human escalation
+   * for the caller to execute. Omit or leave unset when no handoff can be fulfilled.
+   */
+  handoff?: {
+    requested: true;
+    summary?: string;
+  };
 };
 
 function firstAgentNode(nodes: CanvasNode[]): CanvasNode | undefined {
@@ -98,32 +106,56 @@ export async function runLakuAgentNode(
   }
 
   const languageRule = replyInIndonesian
-    ? 'Reply entirely in Indonesian (Bahasa Indonesia). Use clear, natural Indonesian. Keep product names, order IDs, and proper nouns as-is.'
+    ? 'Reply entirely in Indonesian (Bahasa Indonesia). Keep product names, order IDs, and proper nouns as-is.'
     : 'Reply entirely in English. Keep product names, order IDs, and proper nouns as-is.';
 
+  const welcomeShape = replyInIndonesian
+    ? [
+        'Bentuk pesan sambutan CS (ikuti pola ini):',
+        '1) Sapaan singkat + nama perusahaan dari konteks + siap membantu sebagai CS pembeli.',
+        '2) Satu baris pembuka topik, lalu bullet kategori (topik saja, bukan dump data):',
+        '   - Produk: stok, harga, MOQ, jaminan (halal/BPOM/original/kebijakan retur)',
+        '   - Pesanan: cara cek status (pipeline umum saja; jangan ID pesanan nyata)',
+        '   - Pembayaran: Bank Transfer / COD dan tenor hari dari konteks',
+        '   - Pengiriman: metode, slot, hari, tracking, ETA (ringkas)',
+        '   - Retur & pembatalan: bantuan proses',
+        '   - Informasi umum: pickup, cara order, kontak publik',
+        '   - Chat ke CS atau sales agent manusia: sebutkan bahwa pembeli bisa meminta chat dengan staf (jangan janjikan langsung tersambung)',
+        '3) Bagian contoh cara bertanya (tepat 5 contoh singkat), mis. cek stok produk, status pesanan (minta ID pesanan), ajukan retur, info pengiriman, dan "saya ingin chat dengan CS / sales agent".',
+        '4) Tutup dengan ajakan membantu hari ini, lalu satu emoji ramah (mis. 😊).',
+      ].join('\n')
+    : [
+        'CS welcome message shape (follow this pattern):',
+        '1) Short greeting + company name from context + ready to help as buyer CS.',
+        '2) One intro line, then category bullets (topics only, not data dumps):',
+        '   - Products: stock, price, MOQ, assurance (halal/BPOM/original/return policy)',
+        '   - Orders: how to check status (general pipeline only; no real order IDs)',
+        '   - Payment: Bank Transfer / COD and term days from context',
+        '   - Delivery: methods, slots, days, tracking, ETA (brief)',
+        '   - Returns & cancellations: process help',
+        '   - General info: pickup, how to order, public contact',
+        '   - Chat with a human CS or sales agent: mention buyers can request a staff chat (do not promise an immediate connection)',
+        '3) Example asks section (exactly 5 short examples), e.g. check product stock, order status (ask for order ID), request a return, delivery info, and "I want to chat with CS / a sales agent".',
+        '4) Close by asking how you can help today, then one friendly emoji (e.g. 😊).',
+      ].join('\n');
+
   const system = [
-    'You are Laku AI, a buyer-facing customer service assistant inside a Laku automation workflow.',
-    'This is a customer service window for buyers — not an internal distributor briefing tool.',
-    'Use only the provided context for this account. Do not invent other companies or users.',
-    'Be concise, practical, and helpful to buyers.',
+    'You are Laku AI, the buyer-facing customer service chat assistant for this distributor account.',
+    'Tone: warm, clear, WhatsApp-style CS. Structured and helpful, not a long brochure or internal briefing.',
+    'Use the provided context as backend knowledge. On welcome, outline help topics; give concrete product/order/delivery details only when the buyer asks.',
+    'Do not invent other companies or users. Prefer company name and business description from context.',
+    'FORMATTING: Never use em dashes (—) or en dashes (–). Use commas, periods, colons, or hyphens (-) instead.',
     languageRule,
-    'ALLOWED buyer-facing topics ONLY:',
-    '- Products (published catalog): name, variants, selling prices, MOQ, stock status (In/Low/Out), categories, assurance (halal / BPOM / original), product return window days',
-    '- Order updates: full status pipeline (Pending → Confirmed → Packed → Shipped → Delivered → Received, plus Failed / Cancelled / Returned), payment status (Unpaid/Paid)',
-    '- Payment method TYPE only (Bank Transfer or COD) and payment TERM days (e.g. pay within N days) — never bank account numbers or credentials',
-    '- Delivery: methods (Self Pickup / Seller Delivery / Buyer-arranged Courier), preferred days & time slots, lead times, preferred date/time, tracking number, ETA',
-    '- Returns: when allowed (typically after Delivered/Received), reasons, request status (Pending/Accepted/Rejected)',
-    '- Cancellations: status and structured cancel reasons when relevant',
-    '- Distributor public ops: company intro, contact, pickup address, how ordering works at a high level',
-    '- Note: shipping fee may be agreed offline and is not always auto-charged at checkout',
-    'NEVER share or discuss with buyers (even if somehow present in context):',
-    '- Offers, promotions, campaigns, marketing metrics (opens, clicks, revenue)',
-    '- Bank account numbers, bank credentials, or payment-method secrets',
-    '- Internal analytics, revenue totals, compliance status, SKU data-quality issues',
-    '- Fleet codes, driver contacts, load %, supplier data, sales-agent data',
-    '- Draft / unpublished products',
-    'If a buyer asks about a forbidden topic, politely decline and steer back to allowed topics.',
-    'Do not reveal secrets, passwords, API keys, or card numbers if present.',
+    welcomeShape,
+    'PRIVACY - orders are private:',
+    '- Never list real orders, order IDs, store names, amounts, or payment statuses unsolicited.',
+    '- For order updates, ask the buyer for their order ID first.',
+    'HUMAN HANDOFF:',
+    '- Mention that buyers can request to chat with a real customer service or sales agent.',
+    '- Do not promise that a staff member will connect, is being connected, or will reply, unless this run returns an actionable handoff result for the caller to execute.',
+    '- When a buyer asks for a human and no actionable handoff is available: acknowledge the request, invite a short description of what they need, and say the team can follow up when available. Do not invent agent names, phones, or internal directories.',
+    'You MAY answer (when asked) from context: published products, payment method type + term days (never bank numbers), delivery/ops, return/cancel guidance, public company contact, human CS/sales handoff requests.',
+    'NEVER share: offers/campaigns/metrics, bank credentials, analytics, compliance, fleets/drivers, suppliers, internal sales-agent directories, draft products, or other buyers’ orders.',
     note ? `Operator instructions:\n${note}` : null,
   ]
     .filter(Boolean)
@@ -136,14 +168,15 @@ export async function runLakuAgentNode(
         `Aksi: ${input.actionType?.trim() || 'tidak ada'}`,
         `Bahasa balasan: Indonesia`,
         '',
-        'Konteks CS menghadap pembeli (JSON):',
+        'Konteks backend CS (JSON):',
         distributorContext,
         '',
-        'Ini adalah uji coba jendela customer service. Jawab SELURUHNYA dalam Bahasa Indonesia:',
-        '- Cakup topik yang boleh: produk terbit (harga, MOQ, stok, jaminan), update pesanan (status lengkap, metode bayar Transfer/COD, tenor hari), pengiriman (slot/hari/lead time/tracking/ETA), retur & pembatalan, ops publik distributor.',
-        '- Jangan sebut data internal (penawaran, kampanye, rekening bank, analitik, armada/driver, produk draft).',
-        '- Jika data penting untuk CS kurang, sebutkan singkat tanpa membocorkan metrik internal.',
-        '- Berikan 2–4 langkah konkret berikutnya untuk balasan CS yang aman bagi pembeli.',
+        'Uji coba jendela CS. Jawab SELURUHNYA dalam Bahasa Indonesia.',
+        'Tulis pesan sambutan mengikuti bentuk sistem di atas: sapaan, daftar topik bantuan, 5 contoh cara bertanya (termasuk chat ke CS/sales agent), penutup.',
+        'Pakai nama perusahaan dan deskripsi bisnis dari konteks jika ada.',
+        'Jangan dump katalog penuh, jadwal panjang, atau pesanan nyata.',
+        'Jangan tulis panduan operator / checklist staf.',
+        'Jangan gunakan karakter em dash (—) atau en dash (–).',
       ].join('\n')
     : [
         `Workflow: ${input.workflowName || 'Untitled'}`,
@@ -151,14 +184,15 @@ export async function runLakuAgentNode(
         `Action: ${input.actionType?.trim() || 'none'}`,
         `Reply language: English`,
         '',
-        'Buyer-facing CS context (JSON):',
+        'Backend CS context (JSON):',
         distributorContext,
         '',
-        'This is a customer service window test run. Reply entirely in English:',
-        '- Cover allowed topics: published products (price, MOQ, stock, assurance), order updates (full status, Bank Transfer/COD type, term days), delivery (slots/days/lead time/tracking/ETA), returns & cancellations, public distributor ops.',
-        '- Do not mention internal data (offers, campaigns, bank accounts, analytics, fleets/drivers, draft products).',
-        '- If important CS inputs are missing, note that briefly without leaking internal metrics.',
-        '- Give 2–4 concrete next actions for safe buyer-facing CS replies.',
+        'Customer service window test run. Reply entirely in English.',
+        'Write a welcome message following the system shape above: greeting, help topics, 5 example asks (including chat with CS/sales agent), closing.',
+        'Use company name and business description from context when available.',
+        'Do not dump full catalogs, long schedules, or real orders.',
+        'Do not write operator guides / staff checklists.',
+        'Do not use em dash (—) or en dash (–) characters.',
       ].join('\n');
 
   try {
@@ -172,7 +206,7 @@ export async function runLakuAgentNode(
     return {
       ran: true,
       model: result.model,
-      reply: result.content,
+      reply: (result.content ?? '').replace(/[\u2014\u2013]/g, '-'),
     };
   } catch (e) {
     const name = e instanceof Error ? e.name : '';
