@@ -333,7 +333,6 @@ export default function AutomationTable({
                 <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tTable('columns.type')}</th>
                 <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tTable('columns.trigger')}</th>
                 <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tTable('columns.status')}</th>
-                <th className="text-center py-3 px-4 font-medium text-xs uppercase">{tTable('columns.runs')}</th>
                 <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tTable('columns.lastRun')}</th>
                 <th className="text-center py-3 px-4 font-medium text-xs uppercase">{tShared('actions')}</th>
               </tr>
@@ -382,7 +381,6 @@ export default function AutomationTable({
                       {translateStatus(row.status)}
                     </span>
                   </td>
-                  <td className="py-4 px-4 text-center text-gray-900 font-medium">{row.runs.toLocaleString()}</td>
                   <td className="py-4 px-4 text-gray-700">
                     {row.lastRun ? format(new Date(row.lastRun), 'MMM dd, yyyy') : tTable('never')}
                   </td>
