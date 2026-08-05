@@ -598,19 +598,11 @@ async function syncWorkflowRunStats(
   workflowId: string,
 ) {
   const remaining = await tx.automationRun.count({ where: { workflowId } });
-  const latest = remaining
-    ? await tx.automationRun.findFirst({
-        where: { workflowId },
-        orderBy: { createdAt: 'desc' },
-        select: { createdAt: true },
-      })
-    : null;
+  // Keep lastRunAt: the automations table Last Run is persistent and must not
+  // reset when run-history entries are deleted from workflow details.
   await tx.automationWorkflow.update({
     where: { id: workflowId },
-    data: {
-      runs: remaining,
-      lastRunAt: latest?.createdAt ?? null,
-    },
+    data: { runs: remaining },
   });
 }
 
@@ -642,7 +634,7 @@ async function clearRuns(args: { userId: number; workflowId: string }) {
     const result = await tx.automationRun.deleteMany({ where: { workflowId: workflow.id } });
     await tx.automationWorkflow.update({
       where: { id: workflow.id },
-      data: { runs: 0, lastRunAt: null },
+      data: { runs: 0 },
     });
     return result.count;
   });
