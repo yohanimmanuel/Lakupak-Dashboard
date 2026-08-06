@@ -5,11 +5,11 @@ export type TriggerType =
   | 'new_buyer'
   | 'buyer_questions'
   | 'order_paid'
-  | 'order_packed'
   | 'return_accepted'
   | 'cart_idle'
   | 'campaign_schedule'
   // Legacy (still allowed for existing saved workflows)
+  | 'order_packed'
   | 'schedule_cron'
   | 'buyer_inactive'
   | 'order_pending_too_long'
@@ -22,6 +22,7 @@ export type ActionType =
   | 'assign_agent_whatsapp'
   | 'cs_24h_window'
   | 'return_confirm_whatsapp'
+  | 'mark_paid_from_proof'
   | 'cart_winback'
   | 'send_campaign'
   | 'notify_dashboard'
@@ -63,10 +64,28 @@ const ORDER_PAID_TRIGGER: TriggerDefinition = {
     {
       key: 'paidWhen',
       kind: 'select',
-      options: ['status_paid', 'proof_submitted'],
+      // New workflows only offer proof_submitted. Legacy status_paid is migrated
+      // via migrateOrderPaidTriggerConfig (ORDER_PAID_PAIDWHEN_MIGRATION_ID).
+      options: ['proof_submitted'],
     },
   ],
 };
+
+/**
+ * v1: order_paid.paidWhen dropped "status_paid" from the catalog.
+ * Apply on load/save so legacy configs are rewritten explicitly (not via inspector side effects).
+ */
+export const ORDER_PAID_PAIDWHEN_MIGRATION_ID = 'order_paid_paidWhen_v1_proof_only';
+
+export function migrateOrderPaidTriggerConfig(
+  config: Record<string, unknown> | null | undefined,
+): Record<string, unknown> {
+  const cfg = { ...(config ?? {}) };
+  if (cfg.paidWhen === 'status_paid' || cfg.paidWhen == null || cfg.paidWhen === '') {
+    cfg.paidWhen = 'proof_submitted';
+  }
+  return cfg;
+}
 
 const CART_IDLE_TRIGGER: TriggerDefinition = {
   type: 'cart_idle',
@@ -91,7 +110,6 @@ const TRIGGERS_BY_WORKFLOW: Record<WorkflowType, TriggerDefinition[]> = {
     { type: 'buyer_questions', fields: [] },
   ],
   order_logistics: [
-    { type: 'order_packed', fields: [] },
     { type: 'return_accepted', fields: [] },
   ],
   marketing: [
@@ -136,7 +154,6 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
     {
       type: 'cs_24h_window',
       fields: [
-        { key: 'welcomeMessage', kind: 'textarea' },
         {
           key: 'escalateOutOfScope',
           kind: 'select',
@@ -147,6 +164,10 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
     { type: 'notify_dashboard', fields: [{ key: 'message', kind: 'textarea' }] },
   ],
   order_logistics: [
+    {
+      type: 'mark_paid_from_proof',
+      fields: [],
+    },
     {
       type: 'return_confirm_whatsapp',
       fields: [{ key: 'messageTemplate', kind: 'textarea' }],
@@ -181,7 +202,7 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
 const LEGACY_TRIGGERS_BY_WORKFLOW: Record<WorkflowType, TriggerType[]> = {
   product_offers: ['schedule_cron'],
   lead_management: ['buyer_inactive'],
-  order_logistics: ['order_pending_too_long'],
+  order_logistics: ['order_packed', 'order_pending_too_long'],
   marketing: ['campaign_ended'],
 };
 
@@ -564,19 +585,11 @@ export function collectAutomationDryRunIssues(args: {
     if (
       (action.type === 'return_confirm_whatsapp' ||
         action.type === 'buyer_question_reply' ||
-        action.type === 'cs_24h_window' ||
         action.type === 'assign_agent_whatsapp' ||
         action.type === 'cart_winback') &&
-      configMissing(
-        action.config,
-        action.type === 'cs_24h_window' ? 'welcomeMessage' : 'messageTemplate',
-      )
+      configMissing(action.config, 'messageTemplate')
     ) {
-      issues.push(
-        action.type === 'cs_24h_window'
-          ? `${label}: 24h customer service window needs a welcome message.`
-          : `${label}: ${action.type} needs a message template.`,
-      );
+      issues.push(`${label}: ${action.type} needs a message template.`);
     }
   }
 

@@ -13,9 +13,11 @@ import {
   hasAssignDriverWithoutDriver,
   isActionAllowed,
   isTriggerAllowed,
+  migrateOrderPaidTriggerConfig,
 } from '@/lib/automations/catalog';
 import { runLakuAgentNode } from '@/lib/automations/runLakuAgent';
 import type { WorkflowType } from '@/components/automations/automationTypes';
+import { normalizeConditionConfig } from '@/components/automations/builder/canvasTypes';
 
 const WORKFLOW_TYPES = new Set(['product_offers', 'lead_management', 'order_logistics', 'marketing']);
 const WORKFLOW_STATUSES = new Set(['active', 'paused', 'draft']);
@@ -69,13 +71,23 @@ function canvasNodesFromAgentConfig(agentConfig: unknown): Array<{
   return nodes.map((n) => {
     const row = asRecord(n);
     const data = asRecord(row?.data) ?? undefined;
+    const kind = typeof data?.kind === 'string' ? data.kind : undefined;
+    const catalogType =
+      typeof data?.catalogType === 'string' ? data.catalogType : undefined;
+    const rawConfig = asRecord(data?.config) ?? undefined;
+    let config = rawConfig;
+    if (kind === 'condition') {
+      config = normalizeConditionConfig(rawConfig);
+    } else if (kind === 'trigger' && catalogType === 'order_paid') {
+      config = migrateOrderPaidTriggerConfig(rawConfig);
+    }
     return {
       id: typeof row?.id === 'string' ? row.id : undefined,
       data: data
         ? {
-            kind: typeof data.kind === 'string' ? data.kind : undefined,
-            catalogType: typeof data.catalogType === 'string' ? data.catalogType : undefined,
-            config: asRecord(data.config) ?? undefined,
+            kind,
+            catalogType,
+            config,
           }
         : undefined,
     };

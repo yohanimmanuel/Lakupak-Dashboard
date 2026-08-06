@@ -1,7 +1,7 @@
 import type { Edge, Node } from '@xyflow/react';
 import type { BuilderNodeKind } from '../automationTypes';
 
-export type FlowNodeKind = BuilderNodeKind | 'app' | 'condition';
+export type FlowNodeKind = BuilderNodeKind | 'app' | 'condition' | 'end';
 
 export type WorkflowNodeData = {
   kind: FlowNodeKind;
@@ -16,7 +16,32 @@ export type WorkflowNodeData = {
 export type WorkflowFlowNode = Node<WorkflowNodeData>;
 export type WorkflowFlowEdge = Edge;
 
-export type CanvasPickerCategory = 'trigger' | 'action' | 'agent' | 'app' | 'condition';
+export type CanvasPickerCategory = 'trigger' | 'action' | 'agent' | 'app' | 'condition' | 'end';
+
+/** Structured IF rules (no free-text English sentences). */
+export const CONDITION_RULES = ['ai_handoff_requested'] as const;
+export type ConditionRule = (typeof CONDITION_RULES)[number];
+
+export const DEFAULT_CONDITION_CONFIG = {
+  rule: 'ai_handoff_requested' as ConditionRule,
+};
+
+/** Map legacy free-text `expression` (or missing rule) to the fixed rule shape. */
+export function normalizeConditionConfig(
+  config: Record<string, unknown> | null | undefined,
+): Record<string, unknown> {
+  const cfg = config && typeof config === 'object' ? { ...config } : {};
+  const rule = cfg.rule;
+  const hasValidRule =
+    typeof rule === 'string' && (CONDITION_RULES as readonly string[]).includes(rule);
+
+  if ('expression' in cfg) {
+    delete cfg.expression;
+  }
+
+  if (hasValidRule) return cfg;
+  return { ...cfg, ...DEFAULT_CONDITION_CONFIG };
+}
 
 export type PendingConnection = {
   /** When set, the new node is wired from this source. Null = place-only (e.g. right-click). */

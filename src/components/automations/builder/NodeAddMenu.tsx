@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Bolt, Bot, GitBranch, Zap } from 'lucide-react';
+import { Bolt, Bot, CircleStop, GitBranch, Zap } from 'lucide-react';
 import type { WorkflowType } from '../automationTypes';
 import {
   defaultConfigForFields,
@@ -169,8 +169,28 @@ export function NodeAddMenu({
           title: tBuilder('nodeCondition'),
           subtitle: tBuilder('conditionSubtitle'),
           description: tBuilder('conditionHint'),
-          config: { expression: '' },
+          config: { rule: 'ai_handoff_requested' },
           icon: <GitBranch className="h-4 w-4 shrink-0 text-[#0a61d7]" />,
+        },
+        {
+          kind: 'end' as const,
+          catalogType: 'stay_in_cs',
+          name: '',
+          title: tBuilder('endStayInCs'),
+          subtitle: tBuilder('nodeEnd'),
+          description: tBuilder('endStayInCsHint'),
+          config: {},
+          icon: <CircleStop className="h-4 w-4 shrink-0 text-[#0a61d7]" />,
+        },
+        {
+          kind: 'end' as const,
+          catalogType: 'stop',
+          name: '',
+          title: tBuilder('endStop'),
+          subtitle: tBuilder('nodeEnd'),
+          description: tBuilder('endStopHint'),
+          config: {},
+          icon: <CircleStop className="h-4 w-4 shrink-0 text-[#0a61d7]" />,
         },
       ],
     },

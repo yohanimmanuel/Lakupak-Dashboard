@@ -1,8 +1,33 @@
 import type { WorkflowType } from '../automationTypes';
-import { getDefaultAction, getDefaultTrigger } from '@/lib/automations/catalog';
+import {
+  getDefaultAction,
+  getDefaultTrigger,
+  migrateOrderPaidTriggerConfig,
+} from '@/lib/automations/catalog';
 import { defaultLakuAgentConfig } from '@/lib/automations/agentModels';
 import type { WorkflowFlowEdge, WorkflowFlowNode, WorkflowNodeData } from './canvasTypes';
-import { CANVAS_STORAGE_KEY, DEFAULT_EDGE_TYPE, newNodeId } from './canvasTypes';
+import {
+  CANVAS_STORAGE_KEY,
+  DEFAULT_EDGE_TYPE,
+  newNodeId,
+  normalizeConditionConfig,
+} from './canvasTypes';
+
+function normalizeNodeData(data: WorkflowNodeData): WorkflowNodeData {
+  if (data.kind === 'condition') {
+    return {
+      ...data,
+      config: normalizeConditionConfig(data.config),
+    };
+  }
+  if (data.kind === 'trigger' && data.catalogType === 'order_paid') {
+    return {
+      ...data,
+      config: migrateOrderPaidTriggerConfig(data.config),
+    };
+  }
+  return data;
+}
 
 type CanvasLabels = {
   triggerTitle: string;
@@ -57,6 +82,12 @@ export function createLegacyFlatCanvas(
   const triggerId = newNodeId('trigger');
   const agentId = newNodeId('agent');
   const actionId = newNodeId('action');
+  const triggerType = flat?.triggerType ?? trigger.triggerType;
+  const triggerConfigRaw = flat?.triggerConfig ?? trigger.triggerConfig;
+  const triggerConfig =
+    triggerType === 'order_paid'
+      ? migrateOrderPaidTriggerConfig(triggerConfigRaw)
+      : triggerConfigRaw;
 
   const nodes: WorkflowFlowNode[] = [
     {
@@ -65,11 +96,11 @@ export function createLegacyFlatCanvas(
       position: { x: 280, y: 40 },
       data: {
         kind: 'trigger',
-        catalogType: flat?.triggerType ?? trigger.triggerType,
+        catalogType: triggerType,
         name: '',
         title: labels.triggerSubtitle,
         subtitle: labels.triggerTitle,
-        config: flat?.triggerConfig ?? trigger.triggerConfig,
+        config: triggerConfig,
       },
     },
     {
@@ -136,7 +167,7 @@ export function packAgentConfig(
         id: n.id,
         type: n.type,
         position: n.position,
-        data: n.data,
+        data: normalizeNodeData(n.data),
       })),
       edges: edges.map((e) => ({
         id: e.id,
@@ -181,10 +212,10 @@ export function unpackCanvasFromAgentConfig(
       id: n.id,
       type: n.type ?? 'workflow',
       position: n.position,
-      data: {
+      data: normalizeNodeData({
         ...n.data,
         name: typeof n.data?.name === 'string' ? n.data.name : '',
-      },
+      }),
     })),
     edges: (canvas.edges ?? []).map((e) => ({
       id: e.id,
@@ -217,7 +248,10 @@ export function deriveFlatFieldsFromCanvas(nodes: WorkflowFlowNode[]) {
   );
   return {
     triggerType: String(trigger?.data.catalogType ?? '').trim(),
-    triggerConfig: trigger?.data.config ?? {},
+    triggerConfig:
+      trigger?.data.catalogType === 'order_paid'
+        ? migrateOrderPaidTriggerConfig(trigger.data.config)
+        : (trigger?.data.config ?? {}),
     actionType: String(action?.data.catalogType ?? '').trim(),
     actionConfig: action?.data.config ?? {},
     agentNote: String(agent?.data.config?.note ?? ''),

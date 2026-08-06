@@ -2,7 +2,7 @@
 
 import React, { createContext, memo, useContext } from 'react';
 import { Handle, Position, useNodeId, type NodeProps } from '@xyflow/react';
-import { Bolt, Bot, GitBranch, Trash2, Unplug, Zap } from 'lucide-react';
+import { Bolt, Bot, CircleStop, GitBranch, Trash2, Unplug, Zap } from 'lucide-react';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
 import type { WorkflowFlowNode } from './canvasTypes';
 
@@ -49,6 +49,7 @@ function WorkflowFlowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNod
   const isAgent = data.kind === 'agent';
   const isCondition = data.kind === 'condition';
   const isApp = data.kind === 'app';
+  const isEnd = data.kind === 'end';
 
   const kindLabel =
     data.kind === 'trigger'
@@ -59,7 +60,9 @@ function WorkflowFlowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNod
           ? tBuilder('nodeApp')
           : data.kind === 'condition'
             ? tBuilder('nodeCondition')
-            : tBuilder('nodeAction');
+            : data.kind === 'end'
+              ? tBuilder('nodeEnd')
+              : tBuilder('nodeAction');
 
   const typeDetail = (() => {
     if (data.name) return data.name;
@@ -70,6 +73,9 @@ function WorkflowFlowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNod
     }
     if (data.kind === 'condition') return tBuilder('conditionSubtitle');
     if (data.kind === 'agent') return tBuilder('agentSubtitle');
+    if (data.kind === 'end') {
+      return data.catalogType === 'stay_in_cs' ? tBuilder('endStayInCs') : tBuilder('endStop');
+    }
     return data.title;
   })();
 
@@ -80,6 +86,10 @@ function WorkflowFlowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNod
           ? selected
             ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-400/30'
             : 'border-amber-200 bg-amber-50/80 hover:border-amber-400'
+          : isEnd
+            ? selected
+              ? 'border-slate-500 bg-slate-100 ring-2 ring-slate-400/30'
+              : 'border-slate-200 bg-slate-50 hover:border-slate-400'
           : isAgent
             ? selected
               ? 'border-[#084ba6] bg-[#0a61d7] text-white shadow-[0_12px_28px_-14px_rgba(10,97,215,0.55)]'
@@ -133,6 +143,8 @@ function WorkflowFlowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNod
               ? 'bg-white/15'
               : isCondition
                 ? 'bg-amber-100 text-amber-700'
+                : isEnd
+                  ? 'bg-slate-200 text-slate-700'
                 : isApp
                 ? data.catalogType === 'app_webhook'
                   ? 'bg-[#25D366] text-white'
@@ -154,6 +166,8 @@ function WorkflowFlowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNod
             )
           ) : isCondition ? (
             <GitBranch className="h-4 w-4" />
+          ) : isEnd ? (
+            <CircleStop className="h-4 w-4" />
           ) : (
             <Zap className="h-4 w-4" />
           )}
@@ -161,14 +175,14 @@ function WorkflowFlowNodeComponent({ data, selected }: NodeProps<WorkflowFlowNod
         <div className="min-w-0 flex-1">
           <p
             className={`truncate text-xs font-semibold ${
-              isAgent ? 'text-white' : isCondition ? 'text-amber-950' : 'text-black'
+              isAgent ? 'text-white' : isCondition ? 'text-amber-950' : isEnd ? 'text-slate-900' : 'text-black'
             }`}
           >
             {typeDetail}
           </p>
           <p
             className={`mt-0.5 truncate text-[11px] leading-snug ${
-              isAgent ? 'text-white/75' : isCondition ? 'text-amber-800/80' : 'text-gray-500'
+              isAgent ? 'text-white/75' : isCondition ? 'text-amber-800/80' : isEnd ? 'text-slate-600' : 'text-gray-500'
             }`}
           >
             {kindLabel}

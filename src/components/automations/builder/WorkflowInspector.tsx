@@ -16,6 +16,7 @@ import {
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
 import { BuilderSelect } from './BuilderSelect';
 import type { WorkflowFlowEdge, WorkflowFlowNode } from './canvasTypes';
+import { DEFAULT_CONDITION_CONFIG } from './canvasTypes';
 import { WorkflowRunsPanel } from './WorkflowRunsPanel';
 import { useBuilderPanelControls } from './WorkflowBuilderShell';
 import { BuyerPickerField, normalizePickedBuyers, toPickedBuyer } from './BuyerPickerField';
@@ -54,20 +55,39 @@ function CatalogFieldInput({
     field.kind === 'select' &&
     (value === undefined || value === null || String(value) === '');
 
-  // Display already falls back to options[0]; persist that once so saves/export see it.
+  // Fill empty selects with the catalog default only — do not rewrite legacy values here.
   React.useEffect(() => {
     if (!selectValueMissing || !selectFallback) return;
     onChange(selectFallback);
   }, [selectValueMissing, selectFallback, onChange]);
 
   if (field.kind === 'select') {
+    const options = field.options ?? [];
+    const displayValue = String(value ?? selectFallback);
+    // Single fixed option: show as disabled text so users still see the rule.
+    if (options.length <= 1) {
+      const fixed = options[0] || displayValue;
+      return (
+        <div>
+          <span className="mb-1 block text-xs font-medium text-gray-600">{label}</span>
+          <input
+            type="text"
+            value={optionLabel(fixed)}
+            disabled
+            readOnly
+            className={`${fieldClassName} cursor-not-allowed bg-gray-50 text-gray-700`}
+            aria-label={label}
+          />
+        </div>
+      );
+    }
     return (
       <div>
         <span className="mb-1 block text-xs font-medium text-gray-600">{label}</span>
         <BuilderSelect
           aria-label={label}
-          value={String(value ?? selectFallback)}
-          options={(field.options ?? []).map((option) => ({
+          value={displayValue}
+          options={options.map((option) => ({
             value: option,
             label: optionLabel(option),
           }))}
@@ -285,7 +305,9 @@ export function StepDetailsPanel({
           ? tBuilder('nodeApp')
           : selected.data.kind === 'condition'
             ? tBuilder('nodeCondition')
-            : tBuilder('nodeAction')
+            : selected.data.kind === 'end'
+              ? tBuilder('nodeEnd')
+              : tBuilder('nodeAction')
     : tBuilder('stepDetailsTitle');
 
   const elementDescription = (() => {
@@ -300,6 +322,11 @@ export function StepDetailsPanel({
     }
     if (selected.data.kind === 'agent') return tBuilder('agentHint');
     if (selected.data.kind === 'condition') return tBuilder('conditionHint');
+    if (selected.data.kind === 'end') {
+      return selected.data.catalogType === 'stay_in_cs'
+        ? tBuilder('endStayInCsHint')
+        : tBuilder('endStopHint');
+    }
     if (selected.data.kind === 'app') {
       return selected.data.catalogType === 'app_email'
         ? tBuilder('appEmailHint')
@@ -658,22 +685,24 @@ export function StepDetailsPanel({
           )}
 
           {selected.data.kind === 'condition' && (
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-gray-600">
-                {tBuilder('conditionExpression')}
-              </span>
-              <textarea
-                value={String(selected.data.config?.expression ?? '')}
-                onChange={(e) =>
-                  onUpdateNodeAction(selected.id, {
-                    config: { ...selected.data.config, expression: e.target.value },
-                  })
-                }
-                rows={2}
-                className={fieldClassName}
-                placeholder={tBuilder('conditionExpressionPlaceholder')}
-              />
-            </label>
+            <div className="rounded-lg border border-[#e6e6e6] bg-gray-50 px-3 py-2">
+              <p className="text-[11px] font-medium text-gray-500">{tBuilder('conditionRule')}</p>
+              <p className="mt-0.5 text-xs font-semibold text-black">
+                {tBuilder(
+                  `conditionRules.${String(
+                    selected.data.config?.rule ?? DEFAULT_CONDITION_CONFIG.rule,
+                  )}`,
+                )}
+              </p>
+            </div>
+          )}
+
+          {selected.data.kind === 'end' && (
+            <p className="text-[11px] leading-snug text-gray-500">
+              {selected.data.catalogType === 'stay_in_cs'
+                ? tBuilder('endStayInCsHint')
+                : tBuilder('endStopHint')}
+            </p>
           )}
 
           {selected.data.kind === 'app' && (
