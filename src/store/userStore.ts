@@ -1,4 +1,6 @@
+
 import { create } from 'zustand';
+import { clearAiChatSession } from '@/lib/lakuAi/aiChatSession';
 
 interface Company {
   id: number;
@@ -237,6 +239,7 @@ export const useUserStore = create<UserStore>((set, get) => ({
       isAuthenticated: false,
       sessionExpiry: null 
     });
+    clearAiChatSession();
     
     if (typeof window !== 'undefined') {
       localStorage.removeItem('userSession');
@@ -289,6 +292,7 @@ export const useUserStore = create<UserStore>((set, get) => ({
       isAuthenticated: false,
       sessionExpiry: null 
     });
+    clearAiChatSession();
     
     // Clear localStorage
     localStorage.removeItem('userSession');

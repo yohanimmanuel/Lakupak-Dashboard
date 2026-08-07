@@ -4,6 +4,11 @@ import {
 } from '@/lib/automations/agentModels';
 import { buildDistributorAgentContext } from '@/lib/automations/distributorAgentContext';
 import { chatWithOpenRouter, isOpenRouterConfigured } from '@/lib/automations/openrouter';
+import {
+  formatUntrustedAgentNote,
+  LAKU_AGENT_PRIVACY_POLICY,
+  validateAgentOperatorNote,
+} from '@/lib/automations/agentNotePolicy';
 
 type CanvasNode = {
   id?: string;
@@ -84,7 +89,8 @@ export async function runLakuAgentNode(
   }
 
   const config = agent.data?.config ?? {};
-  const note = String(config.note ?? '').trim();
+  const noteValidation = validateAgentOperatorNote(config.note);
+  const trustedNote = noteValidation.ok ? noteValidation.note : '';
   const model = resolveLakuAgentProviderModel(
     normalizeLakuAgentModelId(config.model ?? config.providerModel),
   );
@@ -147,16 +153,9 @@ export async function runLakuAgentNode(
     'FORMATTING: Never use em dashes (—) or en dashes (–). Use commas, periods, colons, or hyphens (-) instead.',
     languageRule,
     welcomeShape,
-    'PRIVACY - orders are private:',
-    '- Never list real orders, order IDs, store names, amounts, or payment statuses unsolicited.',
-    '- For order updates, ask the buyer for their order ID first.',
-    'HUMAN HANDOFF:',
-    '- Mention that buyers can request to chat with a real customer service or sales agent.',
-    '- Do not promise that a staff member will connect, is being connected, or will reply, unless this run returns an actionable handoff result for the caller to execute.',
-    '- When a buyer asks for a human and no actionable handoff is available: acknowledge the request, invite a short description of what they need, and say the team can follow up when available. Do not invent agent names, phones, or internal directories.',
-    'You MAY answer (when asked) from context: published products, payment method type + term days (never bank numbers), delivery/ops, return/cancel guidance, public company contact, human CS/sales handoff requests.',
-    'NEVER share: offers/campaigns/metrics, bank credentials, analytics, compliance, fleets/drivers, suppliers, internal sales-agent directories, draft products, or other buyers’ orders.',
-    note ? `Operator instructions:\n${note}` : null,
+    // Untrusted tenant note first (if allowed), then fixed privacy policy that always wins.
+    trustedNote ? formatUntrustedAgentNote(trustedNote) : null,
+    LAKU_AGENT_PRIVACY_POLICY,
   ]
     .filter(Boolean)
     .join('\n\n');

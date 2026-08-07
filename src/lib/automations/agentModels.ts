@@ -1,8 +1,8 @@
 /**
  * Laku Agent UI model presets.
- * Every branded option is routed through Ling on OpenRouter for now.
+ * Every branded option is routed through Ling 3.0 Tiny on OpenRouter for now.
  */
-export const LAKU_AGENT_PROVIDER_MODEL = 'inclusionai/ling-3.0-flash:free';
+export const LAKU_AGENT_PROVIDER_MODEL = 'inclusionai/ling-3.0-tiny:free';
 
 export const LAKU_AGENT_MODEL_IDS = [
   'gpt',
@@ -35,7 +35,11 @@ export function normalizeLakuAgentModelId(value: unknown): LakuAgentModelId {
   return isLakuAgentModelId(value) ? value : DEFAULT_LAKU_AGENT_MODEL;
 }
 
-/** Resolve the real provider model slug used for API calls. */
+/**
+ * Resolve the real provider model slug used for API calls.
+ * Always uses LAKU_AGENT_PROVIDER_MODEL so workflow + navbar stay on the same Ling slug
+ * (ignores stale providerModel values saved on older canvases).
+ */
 export function resolveLakuAgentProviderModel(_selected: unknown): string {
   return LAKU_AGENT_PROVIDER_MODEL;
 }

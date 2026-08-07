@@ -505,10 +505,13 @@ export function StepDetailsPanel({
                       },
                     });
                   }}
-                  rows={3}
+                  rows={4}
                   className={fieldClassName}
                   placeholder={tBuilder('agentNotePlaceholder')}
                 />
+                <p className="mt-1 text-[11px] leading-snug text-gray-500">
+                  {tBuilder('agentNoteHint')}
+                </p>
               </label>
             </>
           )}

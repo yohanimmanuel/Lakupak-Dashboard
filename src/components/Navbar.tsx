@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { MessageCircle, Bell, User, LogOut, Plus, Package, AlertTriangle, Tag, Users, Megaphone, ShoppingBag, Settings, Check, Trash2, X, Truck, Info, Receipt, Bot, Send } from 'lucide-react';
+import { MessageCircle, Bell, User, LogOut, Plus, Package, AlertTriangle, Tag, Users, Megaphone, ShoppingBag, Settings, Check, Trash2, X, Truck, Info, Receipt, Bot } from 'lucide-react';
 import { Menu as MenuIcon } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useUserStore } from '@/store/userStore';
@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { DashboardSearchBar } from '@/components/dashboard/DashboardSearchBar';
+import { NavbarAiAgentPanel } from '@/components/NavbarAiAgentPanel';
 import { useTranslations } from 'next-intl';
 
 const DROPDOWN_WIDTH = 300;
@@ -428,8 +429,8 @@ const Navbar = () => {
 
       if (showAiPanel) {
         const isClickOnAiButton = aiRef.current?.contains(target);
-        const isClickOnAiPanel = aiPanelRef.current?.contains(target);
-        if (!isClickOnAiButton && !isClickOnAiPanel) {
+        const isClickOnAiPortal = (target as Element).closest('[data-portal-type="ai-agent"]');
+        if (!isClickOnAiButton && !isClickOnAiPortal) {
           setShowAiPanel(false);
         }
       }
@@ -893,62 +894,11 @@ const Navbar = () => {
 
       {/* AI Agent chat panel — top right below navbar */}
       {showAiPanel && ReactDOM.createPortal(
-        <div
-          ref={aiPanelRef}
-          id={AI_PANEL_ID}
-          data-portal-type="ai-agent"
-          className="fixed top-16 right-4 z-50 w-[min(100vw-2rem,380px)] h-[min(70vh,520px)] flex flex-col bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden"
-          role="dialog"
-          aria-label={tNavbar('aiAgentTitle')}
-        >
-          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-200 shrink-0">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-lg bg-[#e8f1fc] flex items-center justify-center shrink-0">
-                <Bot className="w-5 h-5 text-[#0a61d7]" />
-              </div>
-              <div className="min-w-0">
-                <h2 className="text-sm font-semibold text-gray-900 truncate">{tNavbar('aiAgentTitle')}</h2>
-                <p className="text-xs text-gray-500 truncate">{tNavbar('aiAgentSubtitle')}</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowAiPanel(false)}
-              className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100 shrink-0"
-              title={tNavbar('close')}
-              aria-label={tNavbar('close')}
-            >
-              <X size={16} />
-            </button>
-          </div>
-
-          <div className="flex-1 min-h-0 overflow-y-auto px-4 py-6 flex flex-col items-center justify-center text-center gap-2">
-            <div className="w-12 h-12 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center mb-1">
-              <Bot className="w-6 h-6 text-gray-300" />
-            </div>
-            <p className="text-sm font-medium text-gray-700">{tNavbar('aiAgentComingSoon')}</p>
-            <p className="text-xs text-gray-500 max-w-[260px] leading-relaxed">{tNavbar('aiAgentEmpty')}</p>
-          </div>
-
-          <div className="shrink-0 border-t border-gray-200 p-3">
-            <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-              <input
-                type="text"
-                disabled
-                placeholder={tNavbar('aiAgentInputPlaceholder')}
-                className="flex-1 min-w-0 bg-transparent text-sm text-gray-700 placeholder:text-gray-400 outline-none cursor-not-allowed"
-              />
-              <button
-                type="button"
-                disabled
-                className="p-1.5 rounded-md text-gray-300 cursor-not-allowed"
-                aria-label={tNavbar('aiAgentComingSoon')}
-              >
-                <Send size={16} />
-              </button>
-            </div>
-          </div>
-        </div>,
+        <NavbarAiAgentPanel
+          panelId={AI_PANEL_ID}
+          panelRef={aiPanelRef}
+          onCloseAction={() => setShowAiPanel(false)}
+        />,
         document.body
       )}
     </div>
