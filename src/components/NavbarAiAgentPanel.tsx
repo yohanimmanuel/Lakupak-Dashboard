@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Bot, Maximize2, Minimize2, Send, X } from 'lucide-react';
+import { Maximize2, Minimize2, Send, X } from 'lucide-react';
+import Image from 'next/image';
 import { useLocale, useTranslations } from 'next-intl';
 import { useUserStore } from '@/store/userStore';
 import { AiChatMarkdown } from '@/components/AiChatMarkdown';
@@ -278,8 +279,15 @@ export function NavbarAiAgentPanel({
     <>
       <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-200 shrink-0">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-lg bg-[#e8f1fc] flex items-center justify-center shrink-0">
-            <Bot className="w-5 h-5 text-[#0a61d7]" />
+          <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center shrink-0 overflow-hidden">
+            <Image
+              src="/LakuAI.png"
+              alt=""
+              width={36}
+              height={36}
+              className="h-9 w-9 object-contain"
+              priority
+            />
           </div>
           <div className="min-w-0">
             <h2 className="text-sm font-semibold text-gray-900 truncate">{tNavbar('aiAgentTitle')}</h2>
