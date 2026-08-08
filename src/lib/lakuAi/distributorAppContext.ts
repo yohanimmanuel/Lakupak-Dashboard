@@ -5,6 +5,109 @@ const SAMPLE = 6;
 const TOP_N = 8;
 const MAX_CONTEXT_CHARS = 40_000;
 
+type MarginCategoryGroup = 'fmcg_fnb' | 'beauty_fashion' | 'general';
+
+type MarginBenchmark = {
+  group: MarginCategoryGroup;
+  label: string;
+  /** Typical healthy unit margin range for this product type. */
+  typicalMinPct: number;
+  typicalMaxPct: number;
+  /** Below this is thin for the category (not automatically "critical"). */
+  thinBelowPct: number;
+  /** Below this is loss-making / too aggressive. */
+  criticalBelowPct: number;
+};
+
+function resolveMarginBenchmark(input: {
+  merchandisingCategorySlug?: string | null;
+  productType?: string | null;
+  name?: string | null;
+}): MarginBenchmark {
+  const blob = [
+    input.merchandisingCategorySlug,
+    input.productType,
+    input.name,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  const isFmcg =
+    /\b(food-beverage|food|beverage|fnb|fmcg|snack|drink|grocery|instant|noodle|indomie|taro|roti|bread|minuman|makanan)\b/.test(
+      blob,
+    );
+  if (isFmcg) {
+    return {
+      group: 'fmcg_fnb',
+      label: 'FMCG / Food & Beverage',
+      typicalMinPct: 5,
+      typicalMaxPct: 10,
+      thinBelowPct: 3,
+      criticalBelowPct: 0,
+    };
+  }
+
+  const isBeautyFashion =
+    /\b(beauty-personal-care|fashion-apparel|beauty|fashion|apparel|skincare|makeup|cosmetic|clothing|shoes|bag|bags)\b/.test(
+      blob,
+    );
+  if (isBeautyFashion) {
+    return {
+      group: 'beauty_fashion',
+      label: 'Beauty / Fashion',
+      typicalMinPct: 15,
+      typicalMaxPct: 40,
+      thinBelowPct: 10,
+      criticalBelowPct: 5,
+    };
+  }
+
+  return {
+    group: 'general',
+    label: 'General merchandise',
+    typicalMinPct: 10,
+    typicalMaxPct: 25,
+    thinBelowPct: 8,
+    criticalBelowPct: 0,
+  };
+}
+
+function assessMarginPct(
+  marginPct: number | null,
+  benchmark: MarginBenchmark,
+): {
+  status: 'loss' | 'thin' | 'healthy' | 'strong' | 'unknown';
+  looksAggressive: boolean;
+  typicalRangePct: [number, number];
+  categoryGroup: MarginCategoryGroup;
+  categoryLabel: string;
+} {
+  if (marginPct == null || !Number.isFinite(marginPct)) {
+    return {
+      status: 'unknown',
+      looksAggressive: false,
+      typicalRangePct: [benchmark.typicalMinPct, benchmark.typicalMaxPct],
+      categoryGroup: benchmark.group,
+      categoryLabel: benchmark.label,
+    };
+  }
+  let status: 'loss' | 'thin' | 'healthy' | 'strong';
+  if (marginPct < benchmark.criticalBelowPct) status = 'loss';
+  else if (marginPct < benchmark.thinBelowPct) status = 'thin';
+  else if (marginPct <= benchmark.typicalMaxPct) status = 'healthy';
+  else status = 'strong';
+
+  return {
+    status,
+    // Aggressive = losing money, or clearly below category norms.
+    looksAggressive: status === 'loss' || status === 'thin',
+    typicalRangePct: [benchmark.typicalMinPct, benchmark.typicalMaxPct],
+    categoryGroup: benchmark.group,
+    categoryLabel: benchmark.label,
+  };
+}
+
 function truncateContext(payload: unknown): string {
   const json = JSON.stringify(payload, null, 0);
   if (json.length <= MAX_CONTEXT_CHARS) return json;
@@ -167,6 +270,7 @@ export async function buildDistributorAppAssistantContext(userId: number): Promi
     buyerCount,
     supplierCount,
     offerCount,
+    offers,
     campaignCount,
     automationCount,
     fleetCount,
@@ -212,6 +316,57 @@ export async function buildDistributorAppAssistantContext(userId: number): Promi
     prisma.buyer.count({ where: { userId } }),
     prisma.supplier.count({ where: { userId } }),
     prisma.offer.count({ where: { userId } }),
+    prisma.offer.findMany({
+      where: { userId },
+      orderBy: { updatedAt: 'desc' },
+      take: 20,
+      select: {
+        offerId: true,
+        name: true,
+        status: true,
+        type: true,
+        totalUsage: true,
+        totalDiscountGiven: true,
+        offerDiscountTypes: {
+          where: { isActive: true },
+          orderBy: { priority: 'desc' },
+          select: {
+            discountType: true,
+            discountValue: true,
+            name: true,
+            description: true,
+            minOrderValue: true,
+            minQuantity: true,
+            priority: true,
+          },
+        },
+        offerProducts: {
+          take: 12,
+          select: {
+            product: {
+              select: {
+                productId: true,
+                name: true,
+                sku: true,
+                marketplaceStatus: true,
+                productType: true,
+                merchandisingCategorySlug: true,
+                variantOptions: {
+                  where: { isActive: true },
+                  take: 4,
+                  select: {
+                    variantName: true,
+                    sellingPrice: true,
+                    originalSellingPrice: true,
+                    purchasePrice: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    }),
     prisma.campaign.count({ where: { userId } }),
     prisma.automationWorkflow.count({ where: { userId } }),
     prisma.fleet.count({ where: { userId } }),
@@ -260,6 +415,7 @@ export async function buildDistributorAppAssistantContext(userId: number): Promi
         lowStockThreshold: true,
         stockStatus: true,
         sellingPrice: true,
+        originalSellingPrice: true,
         purchasePrice: true,
         moq: true,
         product: {
@@ -271,6 +427,8 @@ export async function buildDistributorAppAssistantContext(userId: number): Promi
             status: true,
             brand: true,
             productCategory: true,
+            productType: true,
+            merchandisingCategorySlug: true,
             description: true,
           },
         },
@@ -324,39 +482,59 @@ export async function buildDistributorAppAssistantContext(userId: number): Promi
       packagesSold30d: p.packages,
     }));
 
-  // Catalog margin + stock signals
+  // Catalog margin + stock signals (current unit price may already include a catalog discount)
   type MarginRow = {
     productId: string;
     name: string;
     variantName: string;
     marketplaceStatus: string | null;
+    productType: string | null;
+    merchandisingCategorySlug: string | null;
     sellingPrice: number;
+    originalSellingPrice: number | null;
     purchasePrice: number;
     marginPct: number | null;
+    catalogDiscountPct: number | null;
     stockQuantity: number;
     lowStock: boolean;
+    marginAssessment: ReturnType<typeof assessMarginPct>;
   };
   const marginRows: MarginRow[] = [];
   for (const v of catalogVariants) {
     const sell = dec(v.sellingPrice);
+    const original = v.originalSellingPrice != null ? dec(v.originalSellingPrice) : null;
     const cost = dec(v.purchasePrice);
     const marginPct = sell > 0 ? pct(sell - cost, sell) : null;
+    const catalogDiscountPct =
+      original != null && original > sell && original > 0
+        ? pct(original - sell, original)
+        : null;
     const stockQuantity = v.stockQuantity ?? 0;
     const threshold = v.lowStockThreshold ?? 0;
     const lowStock =
       stockQuantity <= 0 ||
       (threshold > 0 && stockQuantity <= threshold) ||
       String(v.stockStatus ?? '').toLowerCase().includes('low');
+    const benchmark = resolveMarginBenchmark({
+      merchandisingCategorySlug: v.product.merchandisingCategorySlug,
+      productType: v.product.productType,
+      name: v.product.name,
+    });
     marginRows.push({
       productId: v.product.productId,
       name: v.product.name,
       variantName: v.variantName,
       marketplaceStatus: v.product.marketplaceStatus,
+      productType: v.product.productType ?? null,
+      merchandisingCategorySlug: v.product.merchandisingCategorySlug ?? null,
       sellingPrice: sell,
+      originalSellingPrice: original,
       purchasePrice: cost,
       marginPct,
+      catalogDiscountPct,
       stockQuantity,
       lowStock,
+      marginAssessment: assessMarginPct(marginPct, benchmark),
     });
   }
 
@@ -375,9 +553,15 @@ export async function buildDistributorAppAssistantContext(userId: number): Promi
       productId: r.productId,
       name: r.name,
       variantName: r.variantName,
+      productType: r.productType,
+      merchandisingCategory: r.merchandisingCategorySlug,
       sellingPrice: money(r.sellingPrice),
+      listPriceBeforeDiscount:
+        r.originalSellingPrice != null ? money(r.originalSellingPrice) : null,
       purchasePrice: money(r.purchasePrice),
       marginPct: r.marginPct,
+      catalogDiscountPct: r.catalogDiscountPct,
+      marginAssessment: r.marginAssessment,
       marketplaceStatus: r.marketplaceStatus,
     }));
 
@@ -388,11 +572,162 @@ export async function buildDistributorAppAssistantContext(userId: number): Promi
       productId: r.productId,
       name: r.name,
       variantName: r.variantName,
+      productType: r.productType,
+      merchandisingCategory: r.merchandisingCategorySlug,
       sellingPrice: money(r.sellingPrice),
+      listPriceBeforeDiscount:
+        r.originalSellingPrice != null ? money(r.originalSellingPrice) : null,
       purchasePrice: money(r.purchasePrice),
       marginPct: r.marginPct,
+      catalogDiscountPct: r.catalogDiscountPct,
+      marginAssessment: r.marginAssessment,
       marketplaceStatus: r.marketplaceStatus,
     }));
+
+  const catalogPriceCuts = marginRows
+    .filter((r) => r.catalogDiscountPct != null && (r.catalogDiscountPct as number) > 0)
+    .sort((a, b) => (b.catalogDiscountPct as number) - (a.catalogDiscountPct as number))
+    .slice(0, TOP_N)
+    .map((r) => ({
+      productId: r.productId,
+      name: r.name,
+      variantName: r.variantName,
+      productType: r.productType,
+      merchandisingCategory: r.merchandisingCategorySlug,
+      listPriceBeforeDiscount:
+        r.originalSellingPrice != null ? money(r.originalSellingPrice) : null,
+      sellingPrice: money(r.sellingPrice),
+      purchasePrice: money(r.purchasePrice),
+      catalogDiscountPct: r.catalogDiscountPct,
+      marginPctAfterCut: r.marginPct,
+      marginAssessment: r.marginAssessment,
+      marketplaceStatus: r.marketplaceStatus,
+    }));
+
+  function applyOfferToPrice(
+    sellingPrice: number,
+    discountType: string,
+    discountValue: number,
+  ): number | null {
+    if (!(sellingPrice > 0)) return null;
+    const kind = String(discountType ?? '').toLowerCase();
+    if (kind.includes('percent')) {
+      return Math.max(0, sellingPrice * (1 - discountValue / 100));
+    }
+    if (kind.includes('fixed') || kind.includes('amount')) {
+      return Math.max(0, sellingPrice - discountValue);
+    }
+    return null;
+  }
+
+  const offerInsights = offers.map((offer) => {
+    const discountRules = offer.offerDiscountTypes.map((dt) => ({
+      discountType: dt.discountType,
+      discountValue: dec(dt.discountValue),
+      name: dt.name,
+      description: dt.description,
+      minOrderValue: dt.minOrderValue != null ? money(dec(dt.minOrderValue)) : null,
+      minQuantity: dt.minQuantity,
+      priority: dt.priority,
+    }));
+
+    const products = offer.offerProducts.map((op) => {
+      const product = op.product;
+      const benchmark = resolveMarginBenchmark({
+        merchandisingCategorySlug: product.merchandisingCategorySlug,
+        productType: product.productType,
+        name: product.name,
+      });
+      const variants = product.variantOptions.map((v) => {
+        const sell = dec(v.sellingPrice);
+        const original = v.originalSellingPrice != null ? dec(v.originalSellingPrice) : null;
+        const cost = dec(v.purchasePrice);
+        const baseMarginPct = sell > 0 ? pct(sell - cost, sell) : null;
+        const catalogDiscountPct =
+          original != null && original > sell && original > 0
+            ? pct(original - sell, original)
+            : null;
+        const catalogAlreadyDiscounted = original != null && original > sell && original > 0;
+
+        const offerImpacts = discountRules.map((rule) => {
+          if (catalogAlreadyDiscounted) {
+            const assessment = assessMarginPct(baseMarginPct, benchmark);
+            return {
+              discountType: rule.discountType,
+              discountValue: rule.discountValue,
+              pricingMode: 'discount_already_in_current_price',
+              effectiveUnitPrice: money(sell),
+              listPriceBeforeDiscount: money(original as number),
+              catalogDiscountPct,
+              effectiveMarginPct: baseMarginPct,
+              marginAssessment: assessment,
+              looksAggressive: assessment.looksAggressive,
+            };
+          }
+
+          const after = applyOfferToPrice(sell, rule.discountType, rule.discountValue);
+          if (after == null) {
+            return {
+              discountType: rule.discountType,
+              discountValue: rule.discountValue,
+              pricingMode: 'promotion_non_unit_price',
+              effectiveUnitPrice: null as string | null,
+              effectiveMarginPct: null as number | null,
+              marginAssessment: assessMarginPct(null, benchmark),
+              looksAggressive: false,
+            };
+          }
+          const marginAfter = after > 0 ? pct(after - cost, after) : cost > 0 ? -100 : null;
+          const assessment = assessMarginPct(marginAfter, benchmark);
+          return {
+            discountType: rule.discountType,
+            discountValue: rule.discountValue,
+            pricingMode: 'offer_applied_on_current_price',
+            effectiveUnitPrice: money(after),
+            effectiveMarginPct: marginAfter,
+            marginAssessment: assessment,
+            looksAggressive: assessment.looksAggressive,
+          };
+        });
+
+        return {
+          variantName: v.variantName,
+          currentUnitPrice: money(sell),
+          listPriceBeforeDiscount: original != null ? money(original) : null,
+          purchasePrice: money(cost),
+          catalogDiscountPct,
+          marginPctAtCurrentPrice: baseMarginPct,
+          marginAssessmentAtCurrentPrice: assessMarginPct(baseMarginPct, benchmark),
+          offerImpacts,
+        };
+      });
+
+      return {
+        productId: product.productId,
+        name: product.name,
+        sku: product.sku,
+        productType: product.productType,
+        merchandisingCategory: product.merchandisingCategorySlug,
+        marketplaceStatus: product.marketplaceStatus,
+        marginBenchmark: {
+          categoryLabel: benchmark.label,
+          typicalRangePct: [benchmark.typicalMinPct, benchmark.typicalMaxPct],
+        },
+        variants,
+      };
+    });
+
+    return {
+      offerId: offer.offerId,
+      name: offer.name,
+      status: offer.status,
+      type: offer.type,
+      totalUsage: offer.totalUsage,
+      totalDiscountGiven: money(dec(offer.totalDiscountGiven)),
+      discountRules,
+      products,
+    };
+  });
 
   const lowStockVariants = marginRows
     .filter((r) => r.lowStock)
@@ -417,7 +752,18 @@ export async function buildDistributorAppAssistantContext(userId: number): Promi
     purpose: 'distributor_dashboard_assistant',
     audience: 'logged_in_distributor',
     analysisCapability:
-      'Use analyticsWindows, marketplace, topProducts30d, and catalogInsights to answer financial/trend/catalog questions with concrete numbers. Do not only redirect to /analytics.',
+      'Use analyticsWindows, marketplace, topProducts30d, catalogInsights, and offers to answer financial/trend/catalog/discount questions with concrete numbers. Do not only redirect to /analytics or /offers.',
+    pricingSemantics: [
+      'Judge margins by product type using marginAssessment / marginBenchmark (FMCG F&B typical ~5-10%; beauty/fashion/technology often 15%+; general merchandise 10%+).',
+      'pricingMode=discount_already_in_current_price means the current unit price already includes the discount - do not apply the offer percentage/fixed amount again.',
+      'pricingMode=offer_applied_on_current_price means estimate the offer on the current unit price.',
+      'Use looksAggressive and marginAssessment.status (loss/thin/healthy/strong) - a ~7% FMCG margin can be healthy; the same margin may be thin for fashion/beauty.',
+    ],
+    userFacingReplyRules: [
+      'Speak in business language only: product names, prices, margins, offer names, categories.',
+      'Never mention database field names, JSON keys, schema, pricingMode flags, or internal implementation rules in the reply.',
+      'Never explain how Laku stores discounts; just give the assessment and recommendations.',
+    ],
     modules: LAKU_APP_MODULES,
     account: {
       userId: user?.id,
@@ -457,11 +803,21 @@ export async function buildDistributorAppAssistantContext(userId: number): Promi
       analyticsPath: '/analytics',
     },
     topProducts30d,
+    offers: {
+      path: '/offers',
+      sampleSize: offers.length,
+      sampleNote:
+        offerCount > offers.length
+          ? `Showing ${offers.length} of ${offerCount} offers (most recently updated). Ask to focus on a named offer if needed.`
+          : 'All offers currently loaded for this account sample.',
+      items: offerInsights,
+    },
     catalogInsights: {
       sampleSizeVariants: catalogVariants.length,
       averageMarginPct: avgMarginPct,
       lowMarginVariants,
       highMarginVariants,
+      catalogPriceCuts,
       lowStockVariants,
       weakOrMissingDescriptions: weakDescriptions
         .filter((p) => (p.description ?? '').trim().length < 40)
@@ -482,6 +838,8 @@ export async function buildDistributorAppAssistantContext(userId: number): Promi
         'Write buyer-facing descriptions for products with empty descriptions before publishing to marketplace.',
         'Publish draft/not-published products that have healthy stock and margin.',
         'Replenish lowStockVariants that appear in topProducts30d.',
+        'For aggressive offers (looksAggressive / marginAssessment.status loss|thin vs category norms), reduce the discount or exclude weak-margin variants.',
+        'Compare margins to marginBenchmark.typicalRangePct for that product type before calling a margin too low.',
       ],
     },
     samples: {

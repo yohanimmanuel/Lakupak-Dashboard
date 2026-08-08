@@ -8,8 +8,15 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useUserStore } from '@/store/userStore';
 import { AiChatMarkdown } from '@/components/AiChatMarkdown';
 import {
+  beginAiChatSend,
+  getActiveAiChatSend,
+  isAiChatSending,
+  isAiChatSessionGenerationCurrent,
   loadAiChatSession,
+  patchAiChatSessionIfCurrent,
   saveAiChatSession,
+  saveAiChatSessionIfCurrent,
+  setActiveAiChatSend,
   type AiChatMessage,
 } from '@/lib/lakuAi/aiChatSession';
 
@@ -56,13 +63,23 @@ export function NavbarAiAgentPanel({
   const [messages, setMessages] = useState<ChatMessage[]>(() => restored?.messages ?? []);
   const [welcomeLoading, setWelcomeLoading] = useState(() => !(restored?.welcomeDone));
   const [input, setInput] = useState(() => restored?.input ?? '');
-  const [sending, setSending] = useState(false);
+  const [sending, setSending] = useState(() => isAiChatSending(userKey));
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const onlyWelcomeRef = useRef(restored?.onlyWelcome ?? true);
   const welcomeShownRef = useRef(restored?.welcomeDone ?? false);
+  const mountedRef = useRef(true);
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const inputMaxLines = expanded ? 5 : 3;
 
@@ -86,6 +103,7 @@ export function NavbarAiAgentPanel({
       setMessages(existing.messages);
       setInput(existing.input);
       setWelcomeLoading(false);
+      setSending(isAiChatSending(userKey));
       onlyWelcomeRef.current = existing.onlyWelcome;
       welcomeShownRef.current = true;
       saveAiChatSession({
@@ -94,6 +112,7 @@ export function NavbarAiAgentPanel({
         input: existing.input,
         welcomeDone: true,
         onlyWelcome: existing.onlyWelcome,
+        sending: existing.sending || isAiChatSending(userKey),
       });
       return;
     }
@@ -103,6 +122,7 @@ export function NavbarAiAgentPanel({
     onlyWelcomeRef.current = true;
     setMessages([]);
     setInput('');
+    setSending(false);
     const timer = window.setTimeout(() => {
       setMessages([welcomeMessage]);
       setWelcomeLoading(false);
@@ -112,6 +132,43 @@ export function NavbarAiAgentPanel({
     // Welcome copy can refresh via the effect below once shown.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userKey]);
+
+  const resolveSession = useCallback(
+    () => loadAiChatSession(userKey) ?? (userKey !== 'anon' ? loadAiChatSession('anon') : null),
+    [userKey],
+  );
+
+  // If a send was still running after close, keep "thinking" and refresh when it finishes.
+  useEffect(() => {
+    const pending = getActiveAiChatSend(userKey);
+    if (!pending) {
+      const existing = resolveSession();
+      if (existing) {
+        setMessages(existing.messages);
+        setInput(existing.input);
+        setSending(Boolean(existing.sending));
+      }
+      return;
+    }
+    setSending(true);
+    let cancelled = false;
+    void pending.finally(() => {
+      if (cancelled) return;
+      const existing = resolveSession();
+      if (!existing) {
+        setSending(false);
+        return;
+      }
+      setMessages(existing.messages);
+      setInput(existing.input);
+      setSending(Boolean(existing.sending));
+      onlyWelcomeRef.current = existing.onlyWelcome;
+      welcomeShownRef.current = existing.welcomeDone;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [resolveSession, userKey]);
 
   // If name/locale hydrates before the user chats, refresh the welcome bubble.
   useEffect(() => {
@@ -128,8 +185,9 @@ export function NavbarAiAgentPanel({
       input,
       welcomeDone: welcomeShownRef.current && !welcomeLoading,
       onlyWelcome: onlyWelcomeRef.current,
+      sending,
     });
-  }, [messages, input, welcomeLoading, userKey]);
+  }, [messages, input, welcomeLoading, userKey, sending]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -194,47 +252,120 @@ export function NavbarAiAgentPanel({
 
   const send = useCallback(async () => {
     const text = input.trim();
-    if (!text || sending || welcomeLoading) return;
+    if (!text || sending || welcomeLoading || getActiveAiChatSend(userKey)) return;
 
     onlyWelcomeRef.current = false;
     const userMsg: ChatMessage = { id: newId(), role: 'user', content: text };
-    setMessages((prev) => [...prev, userMsg]);
+    const currentMessages = messagesRef.current;
+    const historyForApi = currentMessages
+      .filter((m) => m.id !== 'welcome')
+      .map((m) => ({ role: m.role, content: m.content }));
+    const messagesWithUser = [...currentMessages, userMsg];
+    const { generation, signal } = beginAiChatSend(userKey);
+
+    setMessages(messagesWithUser);
     setInput('');
     setSending(true);
     setError(null);
+    saveAiChatSessionIfCurrent(generation, {
+      userKey,
+      messages: messagesWithUser,
+      input: '',
+      welcomeDone: true,
+      onlyWelcome: false,
+      sending: true,
+    });
 
-    try {
-      const historyForApi = messages
-        .filter((m) => m.id !== 'welcome')
-        .map((m) => ({ role: m.role, content: m.content }));
-      const res = await fetch('/api/laku-ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: text,
-          locale,
-          history: historyForApi,
-        }),
-      });
-      const payload = (await res.json().catch(() => null)) as
-        | { reply?: string; error?: string }
-        | null;
-      if (!res.ok) {
-        throw new Error(payload?.error || tNavbar('aiAgentError'));
+    const task = (async () => {
+      try {
+        const res = await fetch('/api/laku-ai/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: text,
+            locale,
+            history: historyForApi,
+          }),
+          signal,
+        });
+        if (!isAiChatSessionGenerationCurrent(generation)) return;
+
+        const payload = (await res.json().catch(() => null)) as
+          | { reply?: string; error?: string }
+          | null;
+        if (!isAiChatSessionGenerationCurrent(generation)) return;
+
+        if (!res.ok) {
+          throw new Error(payload?.error || tNavbar('aiAgentError'));
+        }
+        const reply = String(payload?.reply ?? '').trim();
+        if (!reply) throw new Error(tNavbar('aiAgentError'));
+
+        const assistantMsg: ChatMessage = {
+          id: newId(),
+          role: 'assistant',
+          content: reply,
+        };
+        const latest = loadAiChatSession(userKey);
+        const baseMessages = latest?.messages ?? messagesWithUser;
+        // Replace optimistic thread if session drifted; keep user msg then append reply.
+        const withoutDupeAssistant = baseMessages.filter((m) => m.id !== assistantMsg.id);
+        const withUser = withoutDupeAssistant.some((m) => m.id === userMsg.id)
+          ? withoutDupeAssistant
+          : [...withoutDupeAssistant, userMsg];
+        const nextMessages = [...withUser, assistantMsg];
+
+        const saved = saveAiChatSessionIfCurrent(generation, {
+          userKey,
+          messages: nextMessages,
+          input: latest?.input ?? '',
+          welcomeDone: true,
+          onlyWelcome: false,
+          sending: false,
+        });
+        if (!saved) return;
+
+        if (mountedRef.current) {
+          setError(null);
+          setMessages(nextMessages);
+          setSending(false);
+        }
+      } catch (e) {
+        if (!isAiChatSessionGenerationCurrent(generation)) return;
+        if (e instanceof DOMException && e.name === 'AbortError') return;
+        if (e instanceof Error && e.name === 'AbortError') return;
+
+        const latest = loadAiChatSession(userKey);
+        const nextMessages = (latest?.messages ?? messagesWithUser).filter(
+          (m) => m.id !== userMsg.id,
+        );
+        const saved = saveAiChatSessionIfCurrent(generation, {
+          userKey,
+          messages: nextMessages,
+          input: text,
+          welcomeDone: true,
+          onlyWelcome: false,
+          sending: false,
+        });
+        if (!saved) return;
+
+        if (mountedRef.current) {
+          setMessages(nextMessages);
+          setInput(text);
+          setError(e instanceof Error ? e.message : tNavbar('aiAgentError'));
+          setSending(false);
+        }
+      } finally {
+        patchAiChatSessionIfCurrent(generation, userKey, { sending: false });
+        if (mountedRef.current && !isAiChatSessionGenerationCurrent(generation)) {
+          setSending(false);
+        }
       }
-      const reply = String(payload?.reply ?? '').trim();
-      if (!reply) throw new Error(tNavbar('aiAgentError'));
-      setError(null);
-      setMessages((prev) => [...prev, { id: newId(), role: 'assistant', content: reply }]);
-    } catch (e) {
-      // Drop the unanswered user bubble and put the text back so retry is obvious.
-      setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
-      setInput(text);
-      setError(e instanceof Error ? e.message : tNavbar('aiAgentError'));
-    } finally {
-      setSending(false);
-    }
-  }, [input, sending, welcomeLoading, messages, locale, tNavbar]);
+    })();
+
+    setActiveAiChatSend(userKey, task);
+    await task;
+  }, [input, sending, welcomeLoading, locale, tNavbar, userKey]);
 
   const bubbleText = expanded ? 'text-sm' : 'text-xs';
   const listPad = expanded ? 'px-5 py-5' : 'px-4 py-4';

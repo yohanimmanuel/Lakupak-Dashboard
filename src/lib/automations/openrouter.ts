@@ -4,7 +4,7 @@ import {
 } from '@/lib/automations/agentModels';
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-/** Free Ling responses can be slow; fail clearly instead of hanging indefinitely. */
+/** Free-tier responses can be slow; fail clearly instead of hanging indefinitely. */
 const OPENROUTER_FETCH_TIMEOUT_MS = 180_000;
 /** Free / upstream providers flake; retry a few times before surfacing to the user. */
 const OPENROUTER_MAX_ATTEMPTS = 5;
@@ -77,14 +77,12 @@ function isTransientOpenRouterFailure(status: number, message: string): boolean 
 function retryDelayMs(attemptIndex: number, retryAfterHeader: string | null): number {
   const raw = retryAfterHeader?.trim();
   if (raw) {
-    // Retry-After: delta-seconds
     if (/^\d+$/.test(raw)) {
       const seconds = Number(raw);
       if (Number.isFinite(seconds) && seconds > 0) {
         return Math.ceil(seconds * 1000);
       }
     } else {
-      // Retry-After: HTTP-date
       const when = Date.parse(raw);
       if (Number.isFinite(when)) {
         const delay = when - Date.now();
@@ -97,7 +95,7 @@ function retryDelayMs(attemptIndex: number, retryAfterHeader: string | null): nu
 }
 
 /**
- * Chat completion via OpenRouter (Ling 3.0 Tiny for Laku AI).
+ * Chat completion via OpenRouter (shared Laku AI provider model).
  * Server-only — requires OPENROUTER_API_KEY.
  * Retries transient upstream / free-tier failures a few times.
  */
@@ -105,7 +103,7 @@ export async function chatWithOpenRouter(args: {
   model?: string;
   messages: OpenRouterChatMessage[];
   temperature?: number;
-  /** Optional output cap. Omit to use the provider default (preferred for free Ling). */
+  /** Optional output cap. Omit to use the provider default (preferred for free models). */
   maxTokens?: number;
 }): Promise<OpenRouterChatResult> {
   const apiKey = openRouterApiKey();
@@ -131,7 +129,6 @@ export async function chatWithOpenRouter(args: {
     messages: args.messages,
     temperature: args.temperature ?? 0.4,
   };
-  // Only send max_tokens when explicitly set; omit so provider default applies (free Ling).
   if (typeof args.maxTokens === 'number' && args.maxTokens > 0) {
     body.max_tokens = args.maxTokens;
   }
