@@ -491,7 +491,7 @@ export function NavbarAiAgentPanel({
 
       <div className={`shrink-0 border-t border-gray-200 ${expanded ? 'p-4' : 'p-3'}`}>
         <form
-          className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 focus-within:ring-2 focus-within:ring-[#0a61d7]/30"
+          className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 focus-within:ring-2 focus-within:ring-[#0a61d7]/80"
           onSubmit={(e) => {
             e.preventDefault();
             void send();
