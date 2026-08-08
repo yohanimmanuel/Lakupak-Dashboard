@@ -569,15 +569,9 @@ async function testWorkflow(args: { userId: number; id: string; locale?: string 
     if (agentResult.ran) {
       if (agentResult.error) {
         status = 'failed';
-        message = `Dry run OK, but Laku AI failed (${agentResult.model ?? 'unknown model'}): ${agentResult.error}`;
+        message = `Dry run OK, but Laku AI failed: ${agentResult.error}`;
       } else {
-        message = [
-          dryRun.message,
-          `Laku AI (${agentResult.model}):`,
-          agentResult.reply,
-        ]
-          .filter(Boolean)
-          .join('\n\n');
+        message = [dryRun.message, agentResult.reply].filter(Boolean).join('\n\n');
       }
     } else if (agentResult.skippedCode && agentResult.skippedCode !== 'no_agent_node') {
       message = `${dryRun.message} Laku AI skipped: ${agentResult.skippedReason ?? agentResult.skippedCode}`;
