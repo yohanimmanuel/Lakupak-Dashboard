@@ -551,6 +551,12 @@ async function testWorkflow(args: { userId: number; id: string; locale?: string 
     issues,
     triggerType: existing.triggerType,
     actionType: existing.actionType,
+    actionTypes:
+      nodes.filter((n) => n.data?.kind === 'action').length > 0
+        ? nodes
+            .filter((n) => n.data?.kind === 'action')
+            .map((n) => n.data?.catalogType)
+        : [existing.actionType],
   });
 
   let status: 'success' | 'failed' = dryRun.status;

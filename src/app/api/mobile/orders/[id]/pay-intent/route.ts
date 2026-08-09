@@ -9,6 +9,8 @@ import { marketplacePayIntentRateLimiter } from '@/utils/rateLimiter';
 import { sanitizePaymentProofFileNames, sanitizePaymentProofUrls } from '@/utils/paymentProof';
 import { isBankTransferPaymentTerms } from '@/utils/orderPayment';
 import { auditOrder } from '@/lib/audit';
+import { dispatchOrderPaidProofAutomations } from '@/lib/automations/engine';
+import { enqueueSideEffect } from '@/lib/sideEffectQueue';
 
 /**
  * POST /api/mobile/orders/[id]/pay-intent
@@ -105,6 +107,23 @@ export async function POST(
           paymentProofSubmittedAt: order.paymentProofSubmittedAt ?? new Date(),
         },
       });
+
+      // Live automations: order_paid (proof_submitted) → mark_paid_from_proof / notify_dashboard
+      if (typeof order.userId === 'number' && order.userId > 0) {
+        const distributorId = order.userId;
+        const orderIdStr = order.orderId;
+        enqueueSideEffect(
+          `automationOrderPaidProof(${orderIdStr})`,
+          async () => {
+            await dispatchOrderPaidProofAutomations({
+              userId: distributorId,
+              orderId: orderIdStr,
+              orderNumericId: orderIdNum,
+            });
+          },
+          { retries: 1, initialDelayMs: 100 },
+        );
+      }
     }
 
     const proofNote =

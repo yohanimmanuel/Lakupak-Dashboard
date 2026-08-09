@@ -145,7 +145,7 @@
       "mark_paid_from_proof": "Ubah status pembayaran pesanan menjadi Lunas jika bukti bayar sudah ada",
       "cart_winback": "WhatsApp / push win-back dengan ringkasan keranjang dan penawaran opsional",
       "send_campaign": "Kirim kampanye yang sudah ada lewat WhatsApp atau Email",
-      "notify_dashboard": "Tampilkan notifikasi di dashboard distributor"
+      "notify_dashboard": "Mengirim hasil run langsung (mis. detail replenish) sebagai notifikasi dashboard, tanpa template."
     },
     "nodeApp": "Aplikasi",
     "nodeCondition": "Kondisi",
@@ -319,7 +319,6 @@
     "buyer_questions": "Pertanyaan WhatsApp pembeli",
     "buyer_inactive": "Pembeli tidak aktif",
     "order_paid": "Pesanan dibayar",
-    "order_packed": "Pesanan dikemas",
     "return_accepted": "Retur diterima",
     "order_pending_too_long": "Pesanan pending terlalu lama",
     "cart_idle": "Keranjang menganggur",

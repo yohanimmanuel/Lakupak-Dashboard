@@ -91,6 +91,7 @@ export function scheduleOrderUpdatePostCommitEffects(input: OrderUpdatePostCommi
           job.newStock,
           job.lowStockThreshold,
           job.variantName,
+          job.variantOptionId,
         );
       },
       SIDE_EFFECT_OPTS,
@@ -257,6 +258,7 @@ export function scheduleOrderCancelPostCommitEffects(updatedOrder: {
           job.newStock,
           job.lowStockThreshold,
           job.variantName,
+          job.variantOptionId,
         );
       },
       SIDE_EFFECT_OPTS,

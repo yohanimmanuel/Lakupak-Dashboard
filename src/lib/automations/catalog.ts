@@ -9,7 +9,6 @@ export type TriggerType =
   | 'cart_idle'
   | 'campaign_schedule'
   // Legacy (still allowed for existing saved workflows)
-  | 'order_packed'
   | 'schedule_cron'
   | 'buyer_inactive'
   | 'order_pending_too_long'
@@ -137,7 +136,7 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
         { key: 'messageTemplate', kind: 'textarea' },
       ],
     },
-    { type: 'notify_dashboard', fields: [{ key: 'message', kind: 'textarea' }] },
+    { type: 'notify_dashboard', fields: [] },
   ],
   lead_management: [
     {
@@ -161,7 +160,7 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
         },
       ],
     },
-    { type: 'notify_dashboard', fields: [{ key: 'message', kind: 'textarea' }] },
+    { type: 'notify_dashboard', fields: [] },
   ],
   order_logistics: [
     {
@@ -172,7 +171,7 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
       type: 'return_confirm_whatsapp',
       fields: [{ key: 'messageTemplate', kind: 'textarea' }],
     },
-    { type: 'notify_dashboard', fields: [{ key: 'message', kind: 'textarea' }] },
+    { type: 'notify_dashboard', fields: [] },
   ],
   marketing: [
     {
@@ -194,7 +193,7 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
         },
       ],
     },
-    { type: 'notify_dashboard', fields: [{ key: 'message', kind: 'textarea' }] },
+    { type: 'notify_dashboard', fields: [] },
   ],
 };
 
@@ -202,7 +201,7 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
 const LEGACY_TRIGGERS_BY_WORKFLOW: Record<WorkflowType, TriggerType[]> = {
   product_offers: ['schedule_cron'],
   lead_management: ['buyer_inactive'],
-  order_logistics: ['order_packed', 'order_pending_too_long'],
+  order_logistics: ['order_pending_too_long'],
   marketing: ['campaign_ended'],
 };
 
@@ -579,9 +578,6 @@ export function collectAutomationDryRunIssues(args: {
     if (action.type === 'send_campaign' && campaignsMissing(action.config)) {
       issues.push(`${label}: Send campaign needs a campaign.`);
     }
-    if (action.type === 'notify_dashboard' && configMissing(action.config, 'message')) {
-      issues.push(`${label}: Notify on Dashboard needs a message.`);
-    }
     if (
       (action.type === 'return_confirm_whatsapp' ||
         action.type === 'buyer_question_reply' ||
@@ -609,10 +605,14 @@ export function collectAutomationDryRunIssues(args: {
   return issues;
 }
 
+import { isLiveActionType, listLiveActionTypes } from '@/lib/automations/liveActions';
+
 export function formatAutomationDryRunMessage(args: {
   issues: string[];
   triggerType?: string | null;
   actionType?: string | null;
+  /** When canvas has multiple actions, pass all types so live messaging is accurate. */
+  actionTypes?: Array<string | null | undefined>;
 }): { status: 'success' | 'failed'; message: string } {
   if (args.issues.length > 0) {
     return {
@@ -622,9 +622,28 @@ export function formatAutomationDryRunMessage(args: {
   }
   const trigger = args.triggerType?.trim() || 'trigger';
   const action = args.actionType?.trim() || 'action';
+  const allActions =
+    args.actionTypes && args.actionTypes.length > 0
+      ? args.actionTypes.map((t) => String(t ?? '').trim()).filter(Boolean)
+      : [action];
+  const live = listLiveActionTypes(allActions);
+  const nonLive = allActions.filter((t) => !isLiveActionType(t));
+
+  if (live.length > 0 && nonLive.length === 0) {
+    return {
+      status: 'success',
+      message: `Dry run OK — ${trigger} → ${live.join(', ')}. Live when workflow is Active.`,
+    };
+  }
+  if (live.length > 0 && nonLive.length > 0) {
+    return {
+      status: 'success',
+      message: `Dry run OK — ${trigger} → ${allActions.join(', ')}. Live now: ${live.join(', ')}. Waiting on WhatsApp: ${nonLive.join(', ')}.`,
+    };
+  }
   return {
     status: 'success',
-    message: `Dry run OK — ${trigger} → ${action}. Execution engine not live yet.`,
+    message: `Dry run OK — ${trigger} → ${allActions.join(', ')}. Execution waits on WhatsApp (not live yet).`,
   };
 }
 

@@ -317,6 +317,7 @@ export async function PATCH(
           job.newStock,
           job.lowStockThreshold,
           job.variantName,
+          job.variantOptionId,
         );
       } catch {
         // best-effort

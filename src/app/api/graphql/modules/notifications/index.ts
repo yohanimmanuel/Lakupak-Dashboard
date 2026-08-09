@@ -1,6 +1,8 @@
 import { prisma } from '../common/prisma';
 import { sanitizePagination, buildPaginationInfo } from '../common/utils';
 import { broadcastDashboardNotification } from '@/utils/websocketBroadcast';
+import { dispatchStockBelowAutomations } from '@/lib/automations/engine';
+import { enqueueSideEffect } from '@/lib/sideEffectQueue';
 
 function emitDashboardNewNotification(userId: number): void {
   broadcastDashboardNotification(userId).catch(() => { /* best-effort */ });
@@ -419,7 +421,8 @@ export const NotificationService = {
     previousStock: number,
     newStock: number,
     lowStockThreshold: number,
-    variantName?: string
+    variantName?: string,
+    variantOptionId?: number,
   ) {
     // Only notify if stock crossed a threshold (to avoid duplicates)
     const wasOutOfStock = previousStock === 0;
@@ -458,6 +461,24 @@ export const NotificationService = {
       });
       emitDashboardNewNotification(userId);
     }
+
+    // Live automations: stock_below → replenish_stock / notify_dashboard (non-WhatsApp)
+    enqueueSideEffect(
+      `automationStockBelow(${productId}${variantOptionId != null ? `:${variantOptionId}` : ''})`,
+      async () => {
+        await dispatchStockBelowAutomations({
+          userId,
+          productId,
+          productName,
+          previousStock,
+          newStock,
+          lowStockThreshold,
+          variantName,
+          variantOptionId,
+        });
+      },
+      { retries: 1, initialDelayMs: 100 },
+    );
   },
 
   // Create offer activated notification

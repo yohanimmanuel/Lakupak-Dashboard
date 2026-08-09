@@ -1569,7 +1569,8 @@ export const updateProduct = async (args: {
               previousStock,
               newStock,
               lowStockThreshold,
-              newVariant.variantName || undefined
+              newVariant.variantName || undefined,
+              newVariant.id,
             );
           } catch (notifError) {
             // Don't fail product update if notification fails

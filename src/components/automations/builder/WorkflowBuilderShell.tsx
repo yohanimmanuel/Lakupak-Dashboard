@@ -194,7 +194,15 @@ export function WorkflowBuilderShell({
             <h1 className="truncate text-sm font-bold text-black">
               {title || tBuilder('untitled')}
             </h1>
-            <span className="inline-flex shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-700">
+            <span
+              className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                status === 'active'
+                  ? 'bg-green-100 text-green-800'
+                  : status === 'paused'
+                    ? 'bg-yellow-100 text-yellow-800'
+                    : 'bg-gray-100 text-gray-700'
+              }`}
+            >
               {translateStatus(status)}
             </span>
           </div>

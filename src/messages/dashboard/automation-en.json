@@ -145,7 +145,7 @@
       "mark_paid_from_proof": "Set the order payment status to Paid when payment proof is on file",
       "cart_winback": "WhatsApp / push win-back with cart summary and optional offer",
       "send_campaign": "Send an existing campaign through WhatsApp or Email",
-      "notify_dashboard": "Show a notification on the distributor dashboard"
+      "notify_dashboard": "Posts the live run result (e.g. replenish details) as a dashboard notification, no template needed."
     },
     "nodeApp": "App",
     "nodeCondition": "Condition",
@@ -319,7 +319,6 @@
     "buyer_questions": "Buyer WhatsApp questions",
     "buyer_inactive": "Buyer inactive",
     "order_paid": "Order paid",
-    "order_packed": "Order packed",
     "return_accepted": "Return accepted",
     "order_pending_too_long": "Order pending too long",
     "cart_idle": "Cart idle",

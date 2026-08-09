@@ -582,6 +582,7 @@ export async function updateOrderHandler(request: NextRequest) {
       newStock: number;
       lowStockThreshold: number;
       variantName?: string;
+      variantOptionId?: number;
     }> = [];
 
     let previousPaymentStatus: string | null = null;
@@ -851,6 +852,7 @@ export async function updateOrderHandler(request: NextRequest) {
                 newStock: Math.max(0, newStock),
                 lowStockThreshold,
                 variantName,
+                variantOptionId: (variantToDeduct as { id: number }).id,
               });
             }
           }

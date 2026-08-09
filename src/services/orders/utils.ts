@@ -17,6 +17,7 @@ export type StockNotificationJob = {
   newStock: number;
   lowStockThreshold: number;
   variantName?: string;
+  variantOptionId?: number;
 };
 
 export type RestorableOrderItem = {
@@ -186,6 +187,7 @@ export async function restoreStockForOrderItems(
         newStock,
         lowStockThreshold,
         variantName: (variantToRestore as { variantName?: string }).variantName || undefined,
+        variantOptionId: variantToRestore.id,
       });
     }
   }
