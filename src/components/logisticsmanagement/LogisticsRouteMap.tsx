@@ -123,7 +123,9 @@ export default function LogisticsRouteMap({
 
   useEffect(() => {
     if (tokenLoading) return;
-    if (!containerRef.current) return;
+
+    setIsLoading(true);
+    setHasError(false);
 
     if (!token) {
       setIsLoading(false);
@@ -143,6 +145,8 @@ export default function LogisticsRouteMap({
 
     (async () => {
       const geocoded = await geocodeMultipleAddresses(deliveryAddresses);
+      if (cancelled) return;
+
       const stopCoords = deliveryAddresses.map((addr) => {
         const item = geocoded.get(addr);
         if (!item?.coordinates) return null;
@@ -187,6 +191,14 @@ export default function LogisticsRouteMap({
       });
 
       const routeGeometry = await fetchDirectionsRoute(token, waypoints);
+      if (cancelled) return;
+
+      const container = containerRef.current;
+      if (!container) {
+        setIsLoading(false);
+        setHasError(true);
+        return;
+      }
 
       const validStops = stopPairs.map((p) => p.coord);
       const allWaypoints: [number, number][] = driverCoord ? [driverCoord, ...validStops] : [...validStops];
@@ -194,7 +206,7 @@ export default function LogisticsRouteMap({
 
       mapboxgl.accessToken = token;
       map = new mapboxgl.Map({
-        container: containerRef.current!,
+        container,
         style: 'mapbox://styles/mapbox/streets-v12',
         center,
         zoom: allWaypoints.length > 1 ? 6 : 12,
@@ -204,12 +216,10 @@ export default function LogisticsRouteMap({
       mapRef.current = map;
       map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-left');
 
-      if (containerRef.current) {
-        resizeObserver = new ResizeObserver(() => {
-          map?.resize();
-        });
-        resizeObserver.observe(containerRef.current);
-      }
+      resizeObserver = new ResizeObserver(() => {
+        map?.resize();
+      });
+      resizeObserver.observe(container);
 
       map.on('load', () => {
         if (cancelled || !map) return;
@@ -292,25 +302,19 @@ export default function LogisticsRouteMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addressKey, completionKey, driverLat, driverLng, token, tokenLoading]);
 
-  if (hasError) {
-    return (
-      <div
-        className={`flex items-center justify-center bg-blue-50 text-gray-400 text-sm ${className ?? ''}`}
-        style={{ height }}
-      >
-        {tRouteMap('mapUnavailable')}
-      </div>
-    );
-  }
-
   return (
     <div className={`relative overflow-hidden ${className ?? ''}`} style={{ height }}>
-      {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-blue-50 z-10">
-          <div className="w-7 h-7 border-[3px] border-[#0a61d7] border-t-transparent rounded-full animate-spin" />
+      {hasError ? (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-blue-50 text-sm text-gray-400">
+          {tRouteMap('mapUnavailable')}
         </div>
-      )}
-      <div ref={containerRef} className="w-full h-full" />
+      ) : null}
+      {isLoading && !hasError ? (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-blue-50">
+          <div className="h-7 w-7 animate-spin rounded-full border-[3px] border-[#0a61d7] border-t-transparent" />
+        </div>
+      ) : null}
+      <div ref={containerRef} className="h-full w-full" />
     </div>
   );
 }
