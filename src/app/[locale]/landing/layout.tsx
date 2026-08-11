@@ -50,18 +50,17 @@ export default function LandingLayout({
     <div className="min-h-screen bg-white">
       <LandingNavbar />
       <div className={underlayNav ? undefined : 'pt-16'}>{children}</div>
-      <footer className="bg-gray-950 text-white py-14">
+      <footer className="bg-gray-950 text-white py-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-4 gap-10">
+          <div className="grid md:grid-cols-4 gap-8">
             <div className="md:col-span-2">
-              <div className="flex items-center mb-4">
+              <div className="mb-3 flex items-center">
                 <Image
                   src="/LakuWTextLogo.svg"
                   alt="Laku"
                   width={140}
                   height={36}
-                  className="h-9"
-                  style={{ width: 'auto', height: 'auto' }}
+                  className="h-10 w-auto"
                 />
               </div>
               <p className="text-gray-400 text-sm leading-relaxed max-w-md">
@@ -69,7 +68,7 @@ export default function LandingLayout({
                 <br />
                 {t('company.description2')}
               </p>
-              <div className="flex gap-3 mt-6">
+              <div className="mt-5 flex gap-3">
                 <a
                   href="#"
                   className="w-9 h-9 bg-gray-900 rounded-lg flex items-center justify-center text-white hover:bg-[#0a61d7] transition-colors"
