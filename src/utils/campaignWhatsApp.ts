@@ -46,6 +46,14 @@ export function formatCampaignForWhatsApp(campaign: Campaign): string {
   return lines.join('\n').trim();
 }
 
+/** One WhatsApp message for one or more campaigns. Browsers only allow one share window per click. */
+export function formatCampaignsForWhatsApp(campaigns: Campaign[]): string {
+  return campaigns
+    .map((campaign) => formatCampaignForWhatsApp(campaign))
+    .filter(Boolean)
+    .join('\n\n');
+}
+
 /**
  * Normalizes phone number for WhatsApp (removes spaces, dashes, etc.)
  */

@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Mail, Send, X } from 'lucide-react';
 import { Campaign } from '@/types/campaign';
 import CampaignPreview from './CampaignPreview';
-import { formatCampaignForWhatsApp, shareToWhatsApp } from '@/utils/campaignWhatsApp';
+import { formatCampaignsForWhatsApp, shareToWhatsApp } from '@/utils/campaignWhatsApp';
 import { useUserStore } from '@/store/userStore';
 import { getDefaultCurrency } from '@/utils/currencyUtils';
 import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
@@ -21,14 +21,42 @@ type SendChannel = 'whatsapp' | 'email' | 'both';
 interface SendCampaignModalProps {
   open: boolean;
   onClose: () => void;
-  campaign: Campaign | null;
-  onSend?: (campaign: Campaign, channel: SendChannel) => void;
+  campaign?: Campaign | null;
+  campaigns?: Campaign[];
+  onSend?: (campaign: Campaign, channel: SendChannel) => void | Promise<void>;
+}
+
+async function postCampaignEmail(
+  campaign: Campaign,
+  buyerIds: string[],
+  fallbackError: string,
+): Promise<void> {
+  const response = await fetch('/api/marketing/campaigns/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      campaignId: campaign.id || campaign.campaignId,
+      buyerIds,
+    }),
+  });
+  const payload = (await response.json().catch(() => ({}))) as {
+    error?: string;
+    fatal?: string;
+    unattempted?: number;
+  };
+  if (!response.ok) {
+    throw new Error(payload.error || fallbackError);
+  }
+  if (payload.fatal || (payload.unattempted ?? 0) > 0) {
+    throw new Error(payload.fatal || payload.error || fallbackError);
+  }
 }
 
 export default function SendCampaignModal({
   open,
   onClose,
-  campaign,
+  campaign = null,
+  campaigns,
   onSend,
 }: SendCampaignModalProps) {
   const [sending, setSending] = useState(false);
@@ -39,12 +67,18 @@ export default function SendCampaignModal({
   const userCurrency = user?.currency || getDefaultCurrency();
   const { tSendModal } = useMarketingTranslations();
 
+  const toSend = useMemo(() => {
+    if (campaigns && campaigns.length > 0) return campaigns;
+    return campaign ? [campaign] : [];
+  }, [campaign, campaigns]);
+  const sendKey = toSend.map((item) => item.id || item.campaignId).join(',');
+
   const needsBuyers = channel === 'email' || channel === 'both';
   const canSend = useMemo(() => {
-    if (!campaign) return false;
+    if (toSend.length === 0) return false;
     if (needsBuyers && buyers.length === 0) return false;
     return true;
-  }, [campaign, needsBuyers, buyers.length]);
+  }, [toSend.length, needsBuyers, buyers.length]);
 
   useEffect(() => {
     if (!open) return;
@@ -52,20 +86,22 @@ export default function SendCampaignModal({
     setBuyers([]);
     setError(null);
     setSending(false);
-  }, [open, campaign?.id, campaign?.campaignId]);
+  }, [open, sendKey]);
 
-  if (!open || !campaign) return null;
+  if (!open || toSend.length === 0) return null;
 
   const handleSend = async () => {
-    if (!campaign || !canSend) return;
+    if (!canSend) return;
 
     setSending(true);
     setError(null);
     try {
-      // Open WhatsApp in this click before awaiting email, or the browser blocks the popup.
+      // One WhatsApp window per click: put every selected campaign in a single message.
       if (channel === 'whatsapp' || channel === 'both') {
-        const message = formatCampaignForWhatsApp(campaign);
-        const phones = buyers.map((buyer) => buyer.buyerPhone.trim()).filter(Boolean);
+        const message = formatCampaignsForWhatsApp(toSend);
+        const phones = [
+          ...new Set(buyers.map((buyer) => buyer.buyerPhone.trim()).filter(Boolean)),
+        ];
         if (phones.length === 0) {
           shareToWhatsApp(message);
         } else {
@@ -75,30 +111,29 @@ export default function SendCampaignModal({
         }
       }
 
+      const buyerIds = buyers.map((b) => b.buyerId);
+      const sent: Campaign[] = [];
+      const emailErrors: string[] = [];
       if (channel === 'email' || channel === 'both') {
-        const response = await fetch('/api/marketing/campaigns/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            campaignId: campaign.id || campaign.campaignId,
-            buyerIds: buyers.map((b) => b.buyerId),
-          }),
-        });
-        const payload = (await response.json().catch(() => ({}))) as {
-          error?: string;
-          fatal?: string;
-          unattempted?: number;
-        };
-        if (!response.ok) {
-          throw new Error(payload.error || tSendModal('emailFailed'));
+        for (const item of toSend) {
+          try {
+            await postCampaignEmail(item, buyerIds, tSendModal('emailFailed'));
+            sent.push(item);
+          } catch (err) {
+            const detail = err instanceof Error ? err.message : tSendModal('emailFailed');
+            emailErrors.push(toSend.length > 1 ? `${item.name}: ${detail}` : detail);
+          }
         }
-        if (payload.fatal || (payload.unattempted ?? 0) > 0) {
-          throw new Error(payload.fatal || payload.error || tSendModal('emailFailed'));
-        }
+      } else {
+        sent.push(...toSend);
       }
 
-      if (onSend) {
-        await onSend(campaign, channel);
+      for (const item of sent) {
+        if (onSend) await onSend(item, channel);
+      }
+
+      if (emailErrors.length > 0) {
+        throw new Error(emailErrors.join(' '));
       }
 
       onClose();
@@ -109,12 +144,21 @@ export default function SendCampaignModal({
     }
   };
 
+  const title =
+    toSend.length > 1 && tSendModal.has('titleMultiple')
+      ? tSendModal('titleMultiple')
+      : tSendModal('title');
+  const sendLabel =
+    toSend.length > 1 && tSendModal.has('sendCampaigns')
+      ? tSendModal('sendCampaigns')
+      : tSendModal('sendCampaign');
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-white rounded-lg border border-[#e6e6e6] w-full max-w-xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between p-4 border-b border-[#e6e6e6] bg-white rounded-t-lg">
           <div className="flex items-center gap-3">
-            <h2 className="text-xl font-bold text-black">{tSendModal('title')}</h2>
+            <h2 className="text-xl font-bold text-black">{title}</h2>
           </div>
           <button
             type="button"
@@ -131,18 +175,38 @@ export default function SendCampaignModal({
             <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
               <h3 className="text-md font-semibold text-black mb-4">{tSendModal('campaignInformation')}</h3>
               <div className="space-y-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">{tSendModal('campaignId')}</label>
-                  <p className="text-sm text-black">{campaign.campaignId}</p>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">{tSendModal('campaignName')}</label>
-                  <p className="text-sm text-black font-semibold">{campaign.name}</p>
-                </div>
-                {campaign.description && (
+                {toSend.length === 1 ? (
+                  <>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">{tSendModal('campaignId')}</label>
+                      <p className="text-sm text-black">{toSend[0].campaignId}</p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">{tSendModal('campaignName')}</label>
+                      <p className="text-sm text-black font-semibold">{toSend[0].name}</p>
+                    </div>
+                    {toSend[0].description && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">{tSendModal('description')}</label>
+                        <p className="text-sm text-black">{toSend[0].description}</p>
+                      </div>
+                    )}
+                  </>
+                ) : (
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">{tSendModal('description')}</label>
-                    <p className="text-sm text-black">{campaign.description}</p>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      {tSendModal.has('selectedCampaigns')
+                        ? tSendModal('selectedCampaigns')
+                        : tSendModal('campaignName')}
+                    </label>
+                    <ul className="space-y-1">
+                      {toSend.map((item) => (
+                        <li key={item.id || item.campaignId} className="text-sm text-black">
+                          <span className="font-semibold">{item.name}</span>
+                          <span className="text-gray-500"> · {item.campaignId}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
                 <div>
@@ -179,8 +243,17 @@ export default function SendCampaignModal({
 
             <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
               <h3 className="text-md font-semibold text-black mb-4">{tSendModal('campaignDesign')}</h3>
-              <div className="border border-[#e6e6e6] rounded-lg overflow-hidden">
-                <CampaignPreview campaign={campaign} currency={userCurrency} />
+              <div className="space-y-3">
+                {toSend.map((item) => (
+                  <div key={item.id || item.campaignId}>
+                    {toSend.length > 1 ? (
+                      <p className="mb-2 text-sm font-semibold text-black">{item.name}</p>
+                    ) : null}
+                    <div className="border border-[#e6e6e6] rounded-lg overflow-hidden">
+                      <CampaignPreview campaign={item} currency={userCurrency} />
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -215,7 +288,7 @@ export default function SendCampaignModal({
                 ) : (
                   <Send className="w-4 h-4" />
                 )}
-                {tSendModal('sendCampaign')}
+                {sendLabel}
               </>
             )}
           </button>

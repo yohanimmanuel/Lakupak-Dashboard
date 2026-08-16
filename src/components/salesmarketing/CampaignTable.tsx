@@ -72,7 +72,7 @@ export default function CampaignTable({
   const pickerSeededRef = useRef(false);
   const [page, setPage] = useState(1);
   const [showSendModal, setShowSendModal] = useState(false);
-  const [campaignToSend, setCampaignToSend] = useState<Campaign | null>(null);
+  const [campaignsToSend, setCampaignsToSend] = useState<Campaign[]>([]);
 
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
@@ -220,38 +220,34 @@ export default function CampaignTable({
 
   const handleBulkSend = () => {
     if (selectedCampaigns.size === 0) return;
-    // For bulk send, we'll send the first selected campaign
-    // In a real implementation, you might want to handle multiple campaigns differently
-    const firstCampaignId = Array.from(selectedCampaigns)[0];
-    const campaignToSend = campaigns.find((c) => c.id === firstCampaignId);
-    if (campaignToSend) {
-      setCampaignToSend(campaignToSend);
-      setShowSendModal(true);
-    }
+    const picked = Array.from(selectedCampaigns)
+      .map((id) => campaigns.find((c) => c.id === id))
+      .filter((c): c is Campaign => Boolean(c));
+    if (picked.length === 0) return;
+    setCampaignsToSend(picked);
+    setShowSendModal(true);
   };
 
   const handleSendCampaign = async (
     campaignData: Campaign,
     sendChannel: 'whatsapp' | 'email' | 'both',
   ) => {
-    // Update campaign status to Sent (only if not already sent)
-    if (onUpdateCampaign) {
-      const isResend = campaignData.status === 'Sent' || campaignData.status === 'Completed';
-      await onUpdateCampaign(
-        {
-          ...campaignData,
-          status: 'Sent',
-          // Only update sentDate for first send, keep original for resends
-          sentDate: isResend ? campaignData.sentDate : new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        sendChannel,
-      );
-    }
-    setShowSendModal(false);
-    setCampaignToSend(null);
-    // Clear selection after sending
-    setSelectedCampaigns(new Set());
+    if (!onUpdateCampaign) return;
+    const isResend = campaignData.status === 'Sent' || campaignData.status === 'Completed';
+    await onUpdateCampaign(
+      {
+        ...campaignData,
+        status: 'Sent',
+        sentDate: isResend ? campaignData.sentDate : new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      sendChannel,
+    );
+    setSelectedCampaigns((prev) => {
+      const next = new Set(prev);
+      next.delete(campaignData.id);
+      return next;
+    });
   };
 
   const handleDeleteConfirm = useCallback(async () => {
@@ -381,17 +377,12 @@ export default function CampaignTable({
     }
   };
 
-  // Check if the selected campaign is already sent (for resend functionality)
-  const getSelectedCampaignStatus = (): string | null => {
-    if (selectedCampaigns.size !== 1) return null;
-    const campaignId = Array.from(selectedCampaigns)[0];
-    const campaign = campaigns.find((c) => c.id === campaignId);
-    return campaign?.status || null;
-  };
-
   const isResendMode = () => {
-    const status = getSelectedCampaignStatus();
-    return status === 'Sent' || status === 'Completed';
+    if (selectedCampaigns.size === 0) return false;
+    return Array.from(selectedCampaigns).every((id) => {
+      const campaign = campaigns.find((c) => c.id === id);
+      return campaign?.status === 'Sent' || campaign?.status === 'Completed';
+    });
   };
 
   const formatDate = (dateString?: string) => {
@@ -542,25 +533,27 @@ export default function CampaignTable({
                   : tCampaignTable('bulkHintMultiple')}
               </div>
               <div className="flex gap-2">
-                {selectedCampaigns.size === 1 && (
-                  <button
-                    onClick={handleBulkSend}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#0a61d7] text-white font-semibold text-sm rounded-lg hover:bg-[#0851b8] transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    aria-label={
-                      isResendMode()
-                        ? tCampaignTable('resendSelectedAriaLabel')
-                        : tCampaignTable('sendSelectedAriaLabel')
-                    }
-                  >
-                    <Send className="w-4 h-4" />
-                    {isResendMode()
+                <button
+                  onClick={handleBulkSend}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#0a61d7] text-white font-semibold text-sm rounded-lg hover:bg-[#0851b8] transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  aria-label={
+                    isResendMode()
+                      ? tCampaignTable('resendSelectedAriaLabel')
+                      : tCampaignTable('sendSelectedAriaLabel')
+                  }
+                >
+                  <Send className="w-4 h-4" />
+                  {selectedCampaigns.size === 1
+                    ? isResendMode()
                       ? tCampaignTable('resendCampaign')
-                      : tCampaignTable('sendCampaign')}
-                  </button>
-                )}
+                      : tCampaignTable('sendCampaign')
+                    : isResendMode()
+                      ? tCampaignTable('resendCampaigns')
+                      : tCampaignTable('sendCampaigns')}
+                </button>
                 <button
                   onClick={handleBulkDelete}
-                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 ${selectedCampaigns.size === 1 ? '' : 'flex-1'}`}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
                   aria-label={tCampaignTable('removeSelectedAriaLabel', { count: selectedCampaigns.size })}
                 >
                   <Trash2 className="w-4 h-4" />
@@ -603,22 +596,24 @@ export default function CampaignTable({
                       : tCampaignTable('bulkHintSingleSend')
                     : tCampaignTable('bulkHintMultiple')}
                 </span>
-                {selectedCampaigns.size === 1 && (
-                  <button
-                    onClick={handleBulkSend}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white font-semibold text-sm rounded-lg hover:bg-[#0851b8] transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    aria-label={
-                      isResendMode()
-                        ? tCampaignTable('resendSelectedAriaLabel')
-                        : tCampaignTable('sendSelectedAriaLabel')
-                    }
-                  >
-                    <Send className="w-4 h-4" />
-                    {isResendMode()
+                <button
+                  onClick={handleBulkSend}
+                  className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white font-semibold text-sm rounded-lg hover:bg-[#0851b8] transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  aria-label={
+                    isResendMode()
+                      ? tCampaignTable('resendSelectedAriaLabel')
+                      : tCampaignTable('sendSelectedAriaLabel')
+                  }
+                >
+                  <Send className="w-4 h-4" />
+                  {selectedCampaigns.size === 1
+                    ? isResendMode()
                       ? tCampaignTable('resendCampaign')
-                      : tCampaignTable('sendCampaign')}
-                  </button>
-                )}
+                      : tCampaignTable('sendCampaign')
+                    : isResendMode()
+                      ? tCampaignTable('resendCampaigns')
+                      : tCampaignTable('sendCampaigns')}
+                </button>
                 <button
                   onClick={handleBulkDelete}
                   className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -851,9 +846,9 @@ export default function CampaignTable({
         open={showSendModal}
         onClose={() => {
           setShowSendModal(false);
-          setCampaignToSend(null);
+          setCampaignsToSend([]);
         }}
-        campaign={campaignToSend}
+        campaigns={campaignsToSend}
         onSend={handleSendCampaign}
       />
     </>
