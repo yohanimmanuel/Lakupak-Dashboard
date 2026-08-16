@@ -106,8 +106,8 @@ const UPDATE_MUTATION = `
 `;
 
 const TEST_MUTATION = `
-  mutation TestAutomationWorkflow($id: String!, $locale: String, $live: Boolean) {
-    testAutomationWorkflow(id: $id, locale: $locale, live: $live) {
+  mutation TestAutomationWorkflow($id: String!, $locale: String) {
+    testAutomationWorkflow(id: $id, locale: $locale) {
       id
       workflowId
       status
@@ -423,7 +423,7 @@ function DetailsInner() {
     }
   };
 
-  const testRun = async (live = false) => {
+  const testRun = async () => {
     if (!user?.id || !id) return;
     setSaving(true);
     try {
@@ -432,7 +432,6 @@ function DetailsInner() {
       const data = await fetchGraphQL<{ testAutomationWorkflow: AutomationRun }>(TEST_MUTATION, {
         id,
         locale,
-        live,
       });
       setRuns((prev) => [data.testAutomationWorkflow, ...prev]);
     } catch (e) {
@@ -516,7 +515,7 @@ function DetailsInner() {
       showTestRun
       onSaveDraftAction={() => save('draft')}
       onActivateAction={() => save('active')}
-      onTestRunAction={(opts) => testRun(Boolean(opts?.live))}
+      onTestRunAction={() => testRun()}
       onUndoAction={undo}
       canUndo={history.canUndo}
       canvas={

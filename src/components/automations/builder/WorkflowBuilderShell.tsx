@@ -46,7 +46,7 @@ export function WorkflowBuilderShell({
   saving?: boolean;
   onSaveDraftAction: () => boolean | Promise<boolean>;
   onActivateAction: () => void | Promise<unknown>;
-  onTestRunAction?: (opts?: { live?: boolean }) => void | Promise<unknown>;
+  onTestRunAction?: () => void | Promise<unknown>;
   showTestRun?: boolean;
   onUndoAction?: () => void;
   canUndo?: boolean;
@@ -62,7 +62,6 @@ export function WorkflowBuilderShell({
   const [returnFocusToLeftToggle, setReturnFocusToLeftToggle] = useState(false);
   const leftToggleRef = useRef<HTMLButtonElement>(null);
   const [toolbarBusy, setToolbarBusy] = useState<ToolbarBusy>(null);
-  const [liveDelivery, setLiveDelivery] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
   const [nowTs, setNowTs] = useState(() => Date.now());
   const busy = Boolean(saving) || toolbarBusy !== null;
@@ -135,11 +134,11 @@ export function WorkflowBuilderShell({
     if (!onTestRunAction || busy) return;
     setToolbarBusy('test');
     try {
-      await onTestRunAction({ live: liveDelivery });
+      await onTestRunAction();
     } finally {
       setToolbarBusy(null);
     }
-  }, [busy, liveDelivery, onTestRunAction]);
+  }, [busy, onTestRunAction]);
 
   const handleActivate = useCallback(async () => {
     if (busy) return;
@@ -233,17 +232,6 @@ export function WorkflowBuilderShell({
             </button>
           )}
           {showTestRun && onTestRunAction && (
-            <div className="flex items-center gap-2">
-              <label className="inline-flex items-center gap-1.5 text-xs text-black">
-                <input
-                  type="checkbox"
-                  checked={liveDelivery}
-                  onChange={(e) => setLiveDelivery(e.target.checked)}
-                  disabled={busy}
-                  className="h-3.5 w-3.5 rounded border-[#e6e6e6]"
-                />
-                {tBuilder('testRunLive')}
-              </label>
               <button
                 type="button"
                 onClick={() => void handleTestRun()}
@@ -257,7 +245,6 @@ export function WorkflowBuilderShell({
                 )}
                 {tBuilder('testRun')}
               </button>
-            </div>
           )}
           <button
             type="button"
