@@ -1,19 +1,28 @@
 'use client';
 
-import React, { useState } from 'react';
-import { X, Send } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Mail, Send, X } from 'lucide-react';
 import { Campaign } from '@/types/campaign';
 import CampaignPreview from './CampaignPreview';
 import { formatCampaignForWhatsApp, shareToWhatsApp } from '@/utils/campaignWhatsApp';
 import { useUserStore } from '@/store/userStore';
 import { getDefaultCurrency } from '@/utils/currencyUtils';
 import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
+import {
+  BuyerPickerField,
+  toPickedBuyer,
+  type PickedBuyer,
+} from '@/components/automations/builder/BuyerPickerField';
+import { BuilderSelect } from '@/components/automations/builder/BuilderSelect';
+import type { Buyer } from '@/types/client';
+
+type SendChannel = 'whatsapp' | 'email' | 'both';
 
 interface SendCampaignModalProps {
   open: boolean;
   onClose: () => void;
   campaign: Campaign | null;
-  onSend?: (campaign: Campaign) => void;
+  onSend?: (campaign: Campaign, channel: SendChannel) => void;
 }
 
 export default function SendCampaignModal({
@@ -23,28 +32,78 @@ export default function SendCampaignModal({
   onSend,
 }: SendCampaignModalProps) {
   const [sending, setSending] = useState(false);
+  const [channel, setChannel] = useState<SendChannel>('whatsapp');
+  const [buyers, setBuyers] = useState<PickedBuyer[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const user = useUserStore((state) => state.user);
   const userCurrency = user?.currency || getDefaultCurrency();
   const { tSendModal } = useMarketingTranslations();
 
+  const needsBuyers = channel === 'email' || channel === 'both';
+  const canSend = useMemo(() => {
+    if (!campaign) return false;
+    if (needsBuyers && buyers.length === 0) return false;
+    return true;
+  }, [campaign, needsBuyers, buyers.length]);
+
+  useEffect(() => {
+    if (!open) return;
+    setChannel('whatsapp');
+    setBuyers([]);
+    setError(null);
+    setSending(false);
+  }, [open, campaign?.id, campaign?.campaignId]);
+
   if (!open || !campaign) return null;
 
   const handleSend = async () => {
-    if (!campaign) return;
+    if (!campaign || !canSend) return;
 
     setSending(true);
+    setError(null);
     try {
-      const message = formatCampaignForWhatsApp(campaign);
+      // Open WhatsApp in this click before awaiting email, or the browser blocks the popup.
+      if (channel === 'whatsapp' || channel === 'both') {
+        const message = formatCampaignForWhatsApp(campaign);
+        const phones = buyers.map((buyer) => buyer.buyerPhone.trim()).filter(Boolean);
+        if (phones.length === 0) {
+          shareToWhatsApp(message);
+        } else {
+          for (const phone of phones) {
+            shareToWhatsApp(message, phone);
+          }
+        }
+      }
 
-      shareToWhatsApp(message);
+      if (channel === 'email' || channel === 'both') {
+        const response = await fetch('/api/marketing/campaigns/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            campaignId: campaign.id || campaign.campaignId,
+            buyerIds: buyers.map((b) => b.buyerId),
+          }),
+        });
+        const payload = (await response.json().catch(() => ({}))) as {
+          error?: string;
+          fatal?: string;
+          unattempted?: number;
+        };
+        if (!response.ok) {
+          throw new Error(payload.error || tSendModal('emailFailed'));
+        }
+        if (payload.fatal || (payload.unattempted ?? 0) > 0) {
+          throw new Error(payload.fatal || payload.error || tSendModal('emailFailed'));
+        }
+      }
 
       if (onSend) {
-        await onSend(campaign);
+        await onSend(campaign, channel);
       }
 
       onClose();
-    } catch (error) {
-      // Handle error
+    } catch (err) {
+      setError(err instanceof Error ? err.message : tSendModal('emailFailed'));
     } finally {
       setSending(false);
     }
@@ -87,9 +146,34 @@ export default function SendCampaignModal({
                   </div>
                 )}
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">{tSendModal('recipients')}</label>
-                  <p className="text-sm text-black">{campaign.recipients}</p>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{tSendModal('channel')}</label>
+                  <BuilderSelect
+                    aria-label={tSendModal('channel')}
+                    value={channel}
+                    options={[
+                      { value: 'whatsapp', label: tSendModal('channelWhatsapp') },
+                      { value: 'email', label: tSendModal('channelEmail') },
+                      { value: 'both', label: tSendModal('channelBoth') },
+                    ]}
+                    onChangeAction={(next) => setChannel(next as SendChannel)}
+                  />
                 </div>
+                {needsBuyers && (
+                  <>
+                    <BuyerPickerField
+                      label={tSendModal('selectBuyers')}
+                      selectedBuyers={buyers}
+                      onSelectAction={(picked: Buyer[]) => setBuyers(picked.map(toPickedBuyer))}
+                      onClearAction={() => setBuyers([])}
+                    />
+                    <p className="text-xs text-gray-500">{tSendModal('emailHint')}</p>
+                  </>
+                )}
+                {error && (
+                  <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    {error}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -113,8 +197,8 @@ export default function SendCampaignModal({
           </button>
           <button
             type="button"
-            onClick={handleSend}
-            disabled={sending}
+            onClick={() => void handleSend()}
+            disabled={sending || !canSend}
             className="flex items-center gap-2 px-4 py-2 font-semibold bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {sending ? (
@@ -124,7 +208,13 @@ export default function SendCampaignModal({
               </>
             ) : (
               <>
-                <img src="/whatsapp.svg" alt={tSendModal('whatsappAlt')} className="w-4 h-4" />
+                {channel === 'email' ? (
+                  <Mail className="w-4 h-4" />
+                ) : channel === 'whatsapp' ? (
+                  <img src="/whatsapp.svg" alt={tSendModal('whatsappAlt')} className="w-4 h-4" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
                 {tSendModal('sendCampaign')}
               </>
             )}

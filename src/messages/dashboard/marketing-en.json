@@ -158,7 +158,7 @@
     "missingFields": "Missing: {fields}",
     "missingRequiredFieldsTitle": "Missing required fields: {fields}",
     "campaignInformation": "Campaign Information",
-    "whatsappDesign": "WhatsApp Campaign Design",
+    "whatsappDesign": "Campaign Design",
     "campaignPerformance": "Campaign Performance",
     "campaignId": "Campaign ID",
     "campaignIdPlaceholder": "Auto-generated Campaign ID",
@@ -316,7 +316,14 @@
     "cancel": "Cancel",
     "sendCampaign": "Send Campaign",
     "sending": "Sending...",
-    "whatsappAlt": "WhatsApp"
+    "whatsappAlt": "WhatsApp",
+    "channel": "Channel",
+    "channelWhatsapp": "WhatsApp",
+    "channelEmail": "Email",
+    "channelBoth": "WhatsApp and Email",
+    "selectBuyers": "Select buyers",
+    "emailHint": "Email is sent through Gmail. Add a Gmail app in Automations with your address and App Password.",
+    "emailFailed": "Could not send the campaign email."
   },
   "team": {
     "title": "Teams",

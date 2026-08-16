@@ -16,8 +16,18 @@ import {
 import { translateMarketplacePaymentConfirmed } from '@/utils/marketplacePushTranslations';
 import { migrateOrderPaidTriggerConfig } from '@/lib/automations/catalog';
 import { isLiveActionType } from '@/lib/automations/liveActions';
+import { executeChannelBuyerMessage } from '@/lib/automations/deliverBuyerMessage';
+import { executeSendCampaign } from '@/lib/automations/sendCampaign';
+import {
+  credentialsFromWhatsAppAppConfig,
+  normalizeE164Phone,
+  sendTextMessage,
+} from '@/lib/whatsapp/cloudApi';
 
 type JsonRecord = Record<string, unknown>;
+
+const RUN_STATUS_IN_PROGRESS = 'in_progress';
+type TerminalRunStatus = 'success' | 'failed' | 'skipped';
 
 type CanvasNodeLite = {
   id?: string;
@@ -44,6 +54,16 @@ export type OrderPaidProofEvent = {
   orderId: string;
   orderNumericId?: number;
 };
+
+type ScheduleContext = { kind: 'schedule'; sendAt: string };
+
+type WorkflowRunContext =
+  | { kind: 'stock_below'; event: StockBelowEvent }
+  | { kind: 'order_paid'; event: OrderPaidProofEvent }
+  | ScheduleContext;
+
+/** One-shot schedules still fire if the tick arrives a bit after sendAt (missed minute, deploy, etc.). */
+const SCHEDULE_GRACE_MS = 24 * 60 * 60 * 1000;
 
 function asRecord(value: unknown): JsonRecord | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -106,6 +126,128 @@ function pickedProducts(config: JsonRecord | null | undefined): Array<{
       variantId: String(config?.variantId ?? '').trim(),
     },
   ];
+}
+
+function pickedBuyerIds(config: JsonRecord | null | undefined): string[] {
+  const list = config?.selectedBuyers;
+  if (Array.isArray(list) && list.length > 0) {
+    return list
+      .map((item) => {
+        if (!item || typeof item !== 'object') return '';
+        return String((item as JsonRecord).buyerId ?? '').trim();
+      })
+      .filter(Boolean);
+  }
+  const buyerId = String(config?.buyerId ?? '').trim();
+  return buyerId ? [buyerId] : [];
+}
+
+function whatsappAppConfigFromWorkflow(workflow: AutomationWorkflow): JsonRecord | null {
+  const nodes = canvasNodesFromAgentConfig(workflow.agentConfig);
+  const app = nodes.find(
+    (n) => n.data?.kind === 'app' && n.data?.catalogType === 'app_webhook',
+  );
+  return app?.data?.config ?? null;
+}
+
+function interpolateWhatsAppMessage(
+  template: string,
+  vars: Record<string, string>,
+): string {
+  let out = template;
+  for (const [key, value] of Object.entries(vars)) {
+    out = out.replaceAll(`{{${key}}}`, value);
+  }
+  return out;
+}
+
+async function executeWhatsAppBuyer(
+  workflow: AutomationWorkflow,
+  config: JsonRecord,
+  ctx:
+    | { kind: 'stock_below'; event: StockBelowEvent }
+    | { kind: 'order_paid'; event: OrderPaidProofEvent },
+): Promise<string> {
+  const creds = credentialsFromWhatsAppAppConfig(whatsappAppConfigFromWorkflow(workflow));
+  if (!creds?.accessToken || !creds.phoneNumberId) {
+    throw new Error(
+      'whatsapp_buyer needs Cloud API credentials on the WhatsApp app node (accessToken + phoneNumberId), or WHATSAPP_CLOUD_* env vars.',
+    );
+  }
+
+  const messageTemplate = String(config.messageTemplate ?? '').trim();
+  if (!messageTemplate) {
+    throw new Error('whatsapp_buyer needs a messageTemplate.');
+  }
+
+  const buyerIds = pickedBuyerIds(config);
+  if (buyerIds.length === 0) {
+    throw new Error('whatsapp_buyer needs at least one buyer.');
+  }
+
+  const buyers = await prisma.buyer.findMany({
+    where: {
+      buyerId: { in: buyerIds },
+      userId: workflow.userId,
+    },
+    select: {
+      buyerId: true,
+      phone: true,
+      storeName: true,
+      owner: true,
+      userId: true,
+    },
+  });
+
+  if (buyers.length === 0) {
+    throw new Error('No matching buyers found for whatsapp_buyer.');
+  }
+
+  const contextVars: Record<string, string> = {
+    productName: ctx.kind === 'stock_below' ? ctx.event.productName : '',
+    productId: ctx.kind === 'stock_below' ? ctx.event.productId : '',
+    stock: ctx.kind === 'stock_below' ? String(ctx.event.newStock) : '',
+    orderId: ctx.kind === 'order_paid' ? ctx.event.orderId : '',
+    workflowName: workflow.name || 'Laku',
+  };
+
+  const sent: string[] = [];
+  const failed: string[] = [];
+
+  for (const buyer of buyers) {
+    const phone = normalizeE164Phone(buyer.phone);
+    if (!phone) {
+      failed.push(`${buyer.buyerId} (invalid phone)`);
+      continue;
+    }
+    const body = interpolateWhatsAppMessage(messageTemplate, {
+      ...contextVars,
+      buyerName: buyer.owner || buyer.storeName || buyer.buyerId,
+      storeName: buyer.storeName || '',
+    });
+    try {
+      const result = await sendTextMessage({
+        accessToken: creds.accessToken,
+        phoneNumberId: creds.phoneNumberId,
+        to: phone,
+        body,
+      });
+      sent.push(`${buyer.buyerId}:${result.messageId}`);
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      failed.push(`${buyer.buyerId} (${detail})`);
+    }
+  }
+
+  if (sent.length === 0) {
+    throw new Error(
+      `whatsapp_buyer sent 0 messages.${failed.length ? ` Failures: ${failed.join('; ')}` : ''}`,
+    );
+  }
+
+  return `whatsapp_buyer sent ${sent.length} message(s) [${sent.join(', ')}]${
+    failed.length ? `; failed: ${failed.join('; ')}` : ''
+  }.`;
 }
 
 function workflowSteps(workflow: AutomationWorkflow): {
@@ -188,9 +330,62 @@ function orderPaidTriggerMatches(config: JsonRecord): boolean {
   return paidWhen === 'proof_submitted';
 }
 
+function scheduledSendAtMs(config: JsonRecord | null | undefined): number | null {
+  const utc = String(config?.sendAtUtc ?? '').trim();
+  if (utc) {
+    const t = Date.parse(utc);
+    if (Number.isFinite(t)) return t;
+  }
+  const raw = String(config?.sendAt ?? '').trim();
+  if (!raw) return null;
+  const t = Date.parse(raw);
+  return Number.isFinite(t) ? t : null;
+}
+
+function campaignScheduleRunKey(workflowId: string, sendAtMs: number): string {
+  return `campaign_schedule:${workflowId}:${new Date(sendAtMs).toISOString()}`;
+}
+
+function isScheduleDue(sendAtMs: number, nowMs: number): boolean {
+  if (sendAtMs > nowMs) return false;
+  return nowMs - sendAtMs <= SCHEDULE_GRACE_MS;
+}
+
+/** One send per Send-at time. Survives cleared run history and overlapping ticks. */
+async function claimCampaignScheduleSlot(
+  workflowId: string,
+  runKey: string,
+): Promise<boolean> {
+  try {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await tx.automationRun.create({
+        data: {
+          workflowId,
+          status: RUN_STATUS_IN_PROGRESS,
+          message: `[${runKey}] in_progress`,
+          runKey,
+        },
+      });
+      await tx.automationWorkflow.update({
+        where: { id: workflowId },
+        data: {
+          runs: { increment: 1 },
+          lastRunAt: new Date(),
+        },
+      });
+    });
+    return true;
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      return false;
+    }
+    throw err;
+  }
+}
+
 async function recordRun(
   workflowId: string,
-  status: 'success' | 'failed' | 'skipped',
+  status: TerminalRunStatus | typeof RUN_STATUS_IN_PROGRESS,
   message: string,
 ) {
   await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
@@ -355,17 +550,16 @@ async function executeMarkPaidFromProof(event: OrderPaidProofEvent): Promise<str
   return `Marked order #${order.orderId} Paid (was ${previous || 'unknown'}).`;
 }
 
-async function defaultNotifyBody(
-  ctx:
-    | { kind: 'stock_below'; event: StockBelowEvent }
-    | { kind: 'order_paid'; event: OrderPaidProofEvent },
-): Promise<string> {
+async function defaultNotifyBody(ctx: WorkflowRunContext): Promise<string> {
   if (ctx.kind === 'stock_below') {
     const e = ctx.event;
     const variant = e.variantName ? ` (${e.variantName})` : '';
     return `Low stock on ${e.productName}${variant}: ${e.newStock} units (threshold ${e.lowStockThreshold}).`;
   }
-  return `Payment proof received for order #${ctx.event.orderId}.`;
+  if (ctx.kind === 'order_paid') {
+    return `Payment proof received for order #${ctx.event.orderId}.`;
+  }
+  return `Scheduled campaign send at ${ctx.sendAt}.`;
 }
 
 async function executeNotifyDashboard(
@@ -400,9 +594,7 @@ async function executeNotifyDashboard(
 async function runWorkflowActions(
   workflow: AutomationWorkflow,
   actions: Array<{ type: string; config: JsonRecord }>,
-  ctx:
-    | { kind: 'stock_below'; event: StockBelowEvent }
-    | { kind: 'order_paid'; event: OrderPaidProofEvent },
+  ctx: WorkflowRunContext,
 ): Promise<{ status: 'success' | 'failed' | 'skipped'; message: string }> {
   const liveActions = actions.filter((a) => isLiveActionType(a.type));
   const skippedWa = actions.filter((a) => a.type && !isLiveActionType(a.type));
@@ -436,6 +628,53 @@ async function runWorkflowActions(
           continue;
         }
         parts.push(await executeMarkPaidFromProof(ctx.event));
+      } else if (action.type === 'whatsapp_buyer') {
+        if (ctx.kind === 'schedule') {
+          parts.push('whatsapp_buyer skipped (scheduled send only runs campaign / win-back messages).');
+          continue;
+        }
+        parts.push(await executeWhatsAppBuyer(workflow, action.config, ctx));
+      } else if (action.type === 'share_product_whatsapp') {
+        if (ctx.kind === 'schedule') {
+          parts.push(await executeChannelBuyerMessage(workflow, action.type, action.config));
+          continue;
+        }
+        const extraVars =
+          ctx.kind === 'stock_below'
+            ? {
+                productName: ctx.event.productName,
+                productId: ctx.event.productId,
+                stock: String(ctx.event.newStock),
+              }
+            : undefined;
+        parts.push(
+          await executeChannelBuyerMessage(
+            workflow,
+            action.type,
+            action.config,
+            extraVars,
+          ),
+        );
+      } else if (action.type === 'return_confirm_whatsapp') {
+        parts.push(
+          'return_confirm skipped here (run Test run, or wait for a return accepted trigger).',
+        );
+      } else if (action.type === 'cart_winback') {
+        if (ctx.kind !== 'schedule') {
+          parts.push(
+            'cart_winback skipped here (run Test run on a marketing workflow, or wait for cart idle).',
+          );
+          continue;
+        }
+        parts.push(await executeChannelBuyerMessage(workflow, action.type, action.config));
+      } else if (action.type === 'send_campaign') {
+        if (ctx.kind !== 'schedule') {
+          parts.push(
+            'send_campaign skipped here (run Test run on a marketing workflow, or wait for the scheduled send time).',
+          );
+          continue;
+        }
+        parts.push(await executeSendCampaign(workflow, action.config));
       }
     }
 
@@ -443,7 +682,9 @@ async function runWorkflowActions(
       const label =
         ctx.kind === 'stock_below'
           ? `stock_below:${ctx.event.productId}`
-          : `order_paid:${ctx.event.orderId}`;
+          : ctx.kind === 'order_paid'
+            ? `order_paid:${ctx.event.orderId}`
+            : `campaign_schedule:${ctx.sendAt}`;
       const body = parts.length > 0 ? parts.join(' ') : await defaultNotifyBody(ctx);
       // One dashboard notification per run (even if multiple notify nodes are on the canvas).
       await executeNotifyDashboard(workflow.userId, workflow.name, body, label, workflow.id);
@@ -489,7 +730,7 @@ export async function dispatchStockBelowAutomations(event: StockBelowEvent): Pro
       if (await hasExistingRun(workflow.id, runKey)) continue;
 
       // Claim before side effects so a retry after replenish cannot run again.
-      await recordRun(workflow.id, 'skipped', `[${runKey}] in_progress`);
+      await recordRun(workflow.id, RUN_STATUS_IN_PROGRESS, `[${runKey}] in_progress`);
 
       const result = await runWorkflowActions(workflow, actions, {
         kind: 'stock_below',
@@ -498,6 +739,7 @@ export async function dispatchStockBelowAutomations(event: StockBelowEvent): Pro
       await prisma.automationRun.updateMany({
         where: {
           workflowId: workflow.id,
+          status: RUN_STATUS_IN_PROGRESS,
           message: `[${runKey}] in_progress`,
         },
         data: {
@@ -512,6 +754,7 @@ export async function dispatchStockBelowAutomations(event: StockBelowEvent): Pro
           await prisma.automationRun.updateMany({
             where: {
               workflowId: workflow.id,
+              status: RUN_STATUS_IN_PROGRESS,
               message: `[${runKey}] in_progress`,
             },
             data: {
@@ -552,4 +795,78 @@ export async function dispatchOrderPaidProofAutomations(
     });
     await recordRun(workflow.id, result.status, result.message);
   }
+}
+
+/** Fire active campaign_schedule workflows whose Send at time is due. */
+export async function dispatchDueCampaignScheduleAutomations(opts?: {
+  workflowId?: string;
+}): Promise<{ checked: number; fired: number }> {
+  const workflows = await prisma.automationWorkflow.findMany({
+    where: {
+      status: 'active',
+      ...(opts?.workflowId ? { id: opts.workflowId } : {}),
+    },
+  });
+
+  const nowMs = Date.now();
+  let fired = 0;
+
+  for (const workflow of workflows) {
+    let runKey: string | null = null;
+    try {
+      const { triggers, actions } = workflowSteps(workflow);
+      const due = triggers.filter((t) => {
+        if (t.type !== 'campaign_schedule') return false;
+        const sendAtMs = scheduledSendAtMs(t.config);
+        return sendAtMs != null && isScheduleDue(sendAtMs, nowMs);
+      });
+      if (due.length === 0) continue;
+
+      const sendAtMs = scheduledSendAtMs(due[0].config);
+      if (sendAtMs == null) continue;
+      const sendAtIso = new Date(sendAtMs).toISOString();
+      runKey = campaignScheduleRunKey(workflow.id, sendAtMs);
+      const claimed = await claimCampaignScheduleSlot(workflow.id, runKey);
+      if (!claimed) continue;
+
+      const result = await runWorkflowActions(workflow, actions, {
+        kind: 'schedule',
+        sendAt: sendAtIso,
+      });
+      await prisma.automationRun.updateMany({
+        where: {
+          workflowId: workflow.id,
+          runKey,
+          status: RUN_STATUS_IN_PROGRESS,
+        },
+        data: {
+          status: result.status,
+          message: `[${runKey}] ${result.message}`,
+        },
+      });
+      fired += 1;
+    } catch (err) {
+      if (runKey) {
+        const detail = err instanceof Error ? err.message : String(err);
+        try {
+          await prisma.automationRun.updateMany({
+            where: {
+              workflowId: workflow.id,
+              runKey,
+              status: RUN_STATUS_IN_PROGRESS,
+            },
+            data: {
+              status: 'failed',
+              message: `[${runKey}] Failed: ${detail}`,
+            },
+          });
+        } catch {
+          // best-effort finalize
+        }
+      }
+      console.error(`[automations] campaign_schedule workflow ${workflow.id} failed`, err);
+    }
+  }
+
+  return { checked: workflows.length, fired };
 }

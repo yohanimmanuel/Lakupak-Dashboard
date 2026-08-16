@@ -62,6 +62,7 @@ function RunListItem({
   expandLabel?: string;
   collapseLabel?: string;
 }) {
+  const { tRuns } = useAutomationTranslations();
   const message = run.message?.trim() || '';
   const canExpand =
     expandable && message.length > MODAL_COLLAPSED_MAX && Boolean(onToggleExpand);
@@ -79,7 +80,9 @@ function RunListItem({
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-semibold uppercase tracking-wide text-black">
-              {run.status}
+              {tRuns.has(`status.${run.status}`)
+                ? tRuns(`status.${run.status}`)
+                : run.status}
             </span>
             <div className="flex shrink-0 items-center gap-1">
               <span className="text-[11px] text-gray-500">

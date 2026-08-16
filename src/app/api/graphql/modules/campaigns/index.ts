@@ -79,6 +79,7 @@ export const campaignsTypeDefs = /* GraphQL */ `
       status: String
       recipients: String!
       contentBlocks: JSONObject
+      sendChannel: String
     ): Campaign!
 
     updateCampaign(
@@ -94,6 +95,7 @@ export const campaignsTypeDefs = /* GraphQL */ `
       revenue: Float
       orders: Int
       contentBlocks: JSONObject
+      sendChannel: String
     ): Campaign!
 
     deleteCampaign(userId: Int!, id: String!): DeleteCampaignResult!
@@ -205,6 +207,7 @@ const createCampaign = async (args: {
   status?: string | null;
   recipients: string;
   contentBlocks?: unknown | null;
+  sendChannel?: string | null;
 }) => {
   const {
     userId,
@@ -214,6 +217,7 @@ const createCampaign = async (args: {
     status = 'Draft',
     recipients,
     contentBlocks,
+    sendChannel,
   } = args;
 
   // Validate required fields
@@ -258,6 +262,21 @@ const createCampaign = async (args: {
     },
   });
 
+  if ((status || 'Draft') === 'Sent') {
+    try {
+      await NotificationService.createCampaignSentNotification(
+        userId,
+        campaign.campaignId,
+        campaign.name,
+        sendChannel
+      );
+    } catch (notifError) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[Campaigns] Sent notification failed:', notifError);
+      }
+    }
+  }
+
   return mapCampaign(campaign);
 };
 
@@ -274,6 +293,7 @@ const updateCampaign = async (args: {
   revenue?: number | null;
   orders?: number | null;
   contentBlocks?: unknown | null;
+  sendChannel?: string | null;
 }) => {
   const {
     userId,
@@ -285,6 +305,7 @@ const updateCampaign = async (args: {
     sentDate,
     opensCount,
     clicksCount,
+    sendChannel,
     revenue,
     orders,
     contentBlocks,
@@ -340,14 +361,15 @@ const updateCampaign = async (args: {
     data: updateData,
   });
 
-  // Send notification whenever campaign status is set to 'Sent'
-  if (status === 'Sent') {
+  const becameSent = status === 'Sent' && existingCampaign.status !== 'Sent';
+  const sentWithChannel = status === 'Sent' && Boolean(String(sendChannel ?? '').trim());
+  if (becameSent || sentWithChannel) {
     try {
       await NotificationService.createCampaignSentNotification(
         userId,
         updatedCampaign.campaignId,
         updatedCampaign.name,
-        updatedCampaign.recipients
+        sendChannel
       );
     } catch (notifError) {
       // Don't fail campaign update if notification fails
@@ -413,6 +435,7 @@ export const campaignsResolvers = {
       status?: string | null;
       recipients: string;
       contentBlocks?: unknown | null;
+      sendChannel?: string | null;
     }) => {
       return createCampaign(args);
     },
@@ -429,6 +452,7 @@ export const campaignsResolvers = {
       revenue?: number | null;
       orders?: number | null;
       contentBlocks?: unknown | null;
+      sendChannel?: string | null;
     }) => {
       return updateCampaign(args);
     },

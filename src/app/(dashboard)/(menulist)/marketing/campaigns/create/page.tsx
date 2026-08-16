@@ -13,7 +13,10 @@ export default function CreateCampaignPage() {
   const user = useUserStore(state => state.user);
   const { tCampaigns } = useMarketingTranslations();
 
-  const handleSave = async (campaign: Campaign) => {
+  const handleSave = async (
+    campaign: Campaign,
+    sendChannel?: 'whatsapp' | 'email' | 'both',
+  ) => {
     if (!user?.id) return;
 
     const CREATE_CAMPAIGN_MUTATION = `
@@ -25,6 +28,7 @@ export default function CreateCampaignPage() {
         $status: String
         $recipients: String!
         $contentBlocks: JSONObject
+        $sendChannel: String
       ) {
         createCampaign(
           userId: $userId
@@ -34,6 +38,7 @@ export default function CreateCampaignPage() {
           status: $status
           recipients: $recipients
           contentBlocks: $contentBlocks
+          sendChannel: $sendChannel
         ) {
           id
           campaignId
@@ -63,6 +68,7 @@ export default function CreateCampaignPage() {
         status: campaign.status || 'Draft',
         recipients: campaign.recipients || 'No recipients yet',
         contentBlocks: campaign.contentBlocks || null,
+        sendChannel: sendChannel || null,
       });
       router.push('/marketing/campaigns');
     } catch (error) {

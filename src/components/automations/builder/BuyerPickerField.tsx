@@ -104,7 +104,7 @@ function profileToTableRow(buyer: Buyer): BuyerTableRow {
   };
 }
 
-function toPickedBuyer(buyer: Buyer): PickedBuyer {
+export function toPickedBuyer(buyer: Buyer): PickedBuyer {
   return {
     buyerId: buyer.buyerId,
     buyerLabel: buyer.storeName || buyer.owner,
@@ -343,5 +343,3 @@ export function BuyerPickerField({
     </div>
   );
 }
-
-export { toPickedBuyer };

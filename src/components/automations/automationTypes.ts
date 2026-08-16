@@ -28,6 +28,9 @@ export interface AutomationWorkflow {
   updatedAt: string;
 }
 
+export const AUTOMATION_RUN_STATUSES = ['success', 'failed', 'skipped', 'in_progress'] as const;
+export type AutomationRunStatus = (typeof AUTOMATION_RUN_STATUSES)[number];
+
 export interface AutomationRun {
   id: string;
   workflowId: string;

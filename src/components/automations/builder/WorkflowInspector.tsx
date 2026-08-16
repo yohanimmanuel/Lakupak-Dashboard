@@ -4,7 +4,7 @@ import React from 'react';
 import { Lightbulb, Trash2, Unplug, X } from 'lucide-react';
 import type { AutomationRun, WorkflowStatus, WorkflowType } from '../automationTypes';
 import { WORKFLOW_TYPES } from '../automationTypes';
-import { getActionsForInspector, getAllTriggers, defaultConfigForFields } from '@/lib/automations/catalog';
+import { getActionsForInspector, getAllTriggers, defaultConfigForFields, isActionFieldVisible } from '@/lib/automations/catalog';
 import type { CatalogField } from '@/lib/automations/catalog';
 import {
   DEFAULT_LAKU_AGENT_MODEL,
@@ -23,6 +23,8 @@ import { BuyerPickerField, normalizePickedBuyers, toPickedBuyer } from './BuyerP
 import { CampaignPickerField, normalizePickedCampaigns } from './CampaignPickerField';
 import { FleetPickerField, normalizePickedFleets } from './FleetPickerField';
 import { ProductPickerField, normalizePickedProducts } from './ProductPickerField';
+import { WhatsAppCloudLabPanel } from './WhatsAppCloudLabPanel';
+import { GmailSmtpPanel } from './GmailSmtpPanel';
 import type { Buyer } from '@/types/client';
 
 export type WorkflowDraft = {
@@ -46,7 +48,7 @@ function CatalogFieldInput({
 }: {
   field: CatalogField;
   value: unknown;
-  onChange: (next: string | number) => void;
+  onChange: (next: string | number, extra?: Record<string, unknown>) => void;
   label: string;
   optionLabel: (option: string) => string;
 }) {
@@ -123,7 +125,18 @@ function CatalogFieldInput({
         <input
           type="datetime-local"
           value={localValue}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => {
+            const local = e.target.value;
+            if (field.key !== 'sendAt') {
+              onChange(local);
+              return;
+            }
+            const parsed = local ? new Date(local) : null;
+            onChange(local, {
+              sendAtUtc:
+                parsed && !Number.isNaN(parsed.getTime()) ? parsed.toISOString() : '',
+            });
+          }}
           className={fieldClassName}
         />
       </label>
@@ -446,11 +459,12 @@ export function StepDetailsPanel({
                       optionLabel={(option) =>
                         tFields.has(`options.${option}`) ? tFields(`options.${option}`) : option
                       }
-                      onChange={(next) =>
+                      onChange={(next, extra) =>
                         onUpdateNodeAction(selected.id, {
                           config: {
                             ...selected.data.config,
                             [field.key]: next,
+                            ...extra,
                           },
                         })
                       }
@@ -540,7 +554,10 @@ export function StepDetailsPanel({
               </div>
               {actions
                 .find((a) => a.type === selected.data.catalogType)
-                ?.fields.map((field) =>
+                ?.fields.filter((field, _i, fields) =>
+                  isActionFieldVisible(field, fields, selected.data.config),
+                )
+                .map((field) =>
                   field.kind === 'buyer' ? (
                     <BuyerPickerField
                       key={field.key}
@@ -673,11 +690,12 @@ export function StepDetailsPanel({
                       optionLabel={(option) =>
                         tFields.has(`options.${option}`) ? tFields(`options.${option}`) : option
                       }
-                      onChange={(next) =>
+                      onChange={(next, extra) =>
                         onUpdateNodeAction(selected.id, {
                           config: {
                             ...selected.data.config,
                             [field.key]: next,
+                            ...extra,
                           },
                         })
                       }
@@ -711,150 +729,24 @@ export function StepDetailsPanel({
           {selected.data.kind === 'app' && (
             <>
               {selected.data.catalogType === 'app_webhook' && (
-                <div className="space-y-3">
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-medium text-gray-600">
-                      {tBuilder('appWhatsAppPhone')}
-                    </span>
-                    <input
-                      type="tel"
-                      value={String(selected.data.config?.phone ?? '')}
-                      onChange={(e) =>
-                        onUpdateNodeAction(selected.id, {
-                          config: {
-                            ...selected.data.config,
-                            phone: e.target.value,
-                          },
-                        })
-                      }
-                      className={fieldClassName}
-                      placeholder={tBuilder('appWhatsAppPhonePlaceholder')}
-                      autoComplete="tel"
-                    />
-                    <p className="mt-1 text-[11px] leading-snug text-gray-500">
-                      {tBuilder('appWhatsAppPhoneHint')}
-                    </p>
-                  </label>
-                  <div className="flex items-center justify-between gap-2 rounded-lg border border-[#e6e6e6] bg-[#fafafa] px-3 py-2.5">
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium text-black">
-                        {tBuilder('appWhatsAppAccount')}
-                      </p>
-                      <p className="mt-0.5 text-[11px] text-gray-500">
-                        {selected.data.config?.connected
-                          ? tBuilder('appConnected')
-                          : tBuilder('appNotConnected')}
-                      </p>
-                    </div>
-                    <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                        selected.data.config?.connected
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : 'bg-gray-100 text-gray-600'
-                      }`}
-                    >
-                      {selected.data.config?.connected
-                        ? tBuilder('appStatusConnected')
-                        : tBuilder('appStatusNotConnected')}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onUpdateNodeAction(selected.id, {
-                        config: {
-                          ...selected.data.config,
-                          connected: !selected.data.config?.connected,
-                        },
-                      })
-                    }
-                    className={`inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold ${
-                      selected.data.config?.connected
-                        ? 'border border-[#e6e6e6] bg-white text-black hover:bg-gray-50'
-                        : 'bg-[#25D366] text-white hover:bg-[#1ebe57]'
-                    }`}
-                  >
-                    {selected.data.config?.connected
-                      ? tBuilder('appDisconnectWhatsApp')
-                      : tBuilder('appConnectWhatsApp')}
-                  </button>
-                  <p className="text-[11px] leading-snug text-gray-500">
-                    {tBuilder('appWhatsAppConnectHint')}
-                  </p>
-                </div>
+                <WhatsAppCloudLabPanel
+                  config={selected.data.config ?? {}}
+                  onChange={(next) =>
+                    onUpdateNodeAction(selected.id, {
+                      config: next,
+                    })
+                  }
+                />
               )}
               {selected.data.catalogType === 'app_email' && (
-                <div className="space-y-3">
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-medium text-gray-600">
-                      {tBuilder('appGmailEmail')}
-                    </span>
-                    <input
-                      type="email"
-                      value={String(selected.data.config?.email ?? '')}
-                      onChange={(e) =>
-                        onUpdateNodeAction(selected.id, {
-                          config: {
-                            ...selected.data.config,
-                            email: e.target.value,
-                          },
-                        })
-                      }
-                      className={fieldClassName}
-                      placeholder={tBuilder('appGmailEmailPlaceholder')}
-                      autoComplete="email"
-                    />
-                    <p className="mt-1 text-[11px] leading-snug text-gray-500">
-                      {tBuilder('appGmailEmailHint')}
-                    </p>
-                  </label>
-                  <div className="flex items-center justify-between gap-2 rounded-lg border border-[#e6e6e6] bg-[#fafafa] px-3 py-2.5">
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium text-black">
-                        {tBuilder('appGmailAccount')}
-                      </p>
-                      <p className="mt-0.5 text-[11px] text-gray-500">
-                        {selected.data.config?.connected
-                          ? tBuilder('appConnected')
-                          : tBuilder('appNotConnected')}
-                      </p>
-                    </div>
-                    <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                        selected.data.config?.connected
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : 'bg-gray-100 text-gray-600'
-                      }`}
-                    >
-                      {selected.data.config?.connected
-                        ? tBuilder('appStatusConnected')
-                        : tBuilder('appStatusNotConnected')}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onUpdateNodeAction(selected.id, {
-                        config: {
-                          ...selected.data.config,
-                          connected: !selected.data.config?.connected,
-                        },
-                      })
-                    }
-                    className={`inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold ${
-                      selected.data.config?.connected
-                        ? 'border border-[#e6e6e6] bg-white text-black hover:bg-gray-50'
-                        : 'bg-[#0a61d7] text-white hover:bg-[#084ba6]'
-                    }`}
-                  >
-                    {selected.data.config?.connected
-                      ? tBuilder('appDisconnectGmail')
-                      : tBuilder('appConnectGmail')}
-                  </button>
-                  <p className="text-[11px] leading-snug text-gray-500">
-                    {tBuilder('appGmailConnectHint')}
-                  </p>
-                </div>
+                <GmailSmtpPanel
+                  config={selected.data.config ?? {}}
+                  onChange={(next) =>
+                    onUpdateNodeAction(selected.id, {
+                      config: next,
+                    })
+                  }
+                />
               )}
             </>
           )}

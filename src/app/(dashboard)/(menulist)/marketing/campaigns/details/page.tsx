@@ -91,7 +91,10 @@ export default function CampaignDetailsPage() {
     };
   }, [user?.id, campaignId, router]);
 
-  const handleSave = async (updatedCampaign: Campaign) => {
+  const handleSave = async (
+    updatedCampaign: Campaign,
+    sendChannel?: 'whatsapp' | 'email' | 'both',
+  ) => {
     if (!user?.id) return;
 
     const UPDATE_CAMPAIGN_MUTATION = `
@@ -108,6 +111,7 @@ export default function CampaignDetailsPage() {
         $revenue: Float
         $orders: Int
         $contentBlocks: JSONObject
+        $sendChannel: String
       ) {
         updateCampaign(
           userId: $userId
@@ -122,6 +126,7 @@ export default function CampaignDetailsPage() {
           revenue: $revenue
           orders: $orders
           contentBlocks: $contentBlocks
+          sendChannel: $sendChannel
         ) {
           id
           campaignId
@@ -156,6 +161,7 @@ export default function CampaignDetailsPage() {
         revenue: updatedCampaign.revenue,
         orders: updatedCampaign.orders,
         contentBlocks: updatedCampaign.contentBlocks || null,
+        sendChannel: sendChannel || null,
       });
       router.push('/marketing/campaigns');
     } catch (error) {

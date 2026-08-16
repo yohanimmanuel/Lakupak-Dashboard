@@ -16,12 +16,17 @@ import {
   migrateOrderPaidTriggerConfig,
 } from '@/lib/automations/catalog';
 import { runLakuAgentNode } from '@/lib/automations/runLakuAgent';
-import type { WorkflowType } from '@/components/automations/automationTypes';
+import { executeSendCampaign } from '@/lib/automations/sendCampaign';
+import {
+  CHANNEL_MESSAGE_ACTIONS,
+  executeChannelBuyerMessage,
+} from '@/lib/automations/deliverBuyerMessage';
+import { AUTOMATION_RUN_STATUSES, type WorkflowType } from '@/components/automations/automationTypes';
 import { normalizeConditionConfig } from '@/components/automations/builder/canvasTypes';
 
 const WORKFLOW_TYPES = new Set(['product_offers', 'lead_management', 'order_logistics', 'marketing']);
 const WORKFLOW_STATUSES = new Set(['active', 'paused', 'draft']);
-const RUN_STATUSES = new Set(['success', 'failed', 'skipped']);
+const RUN_STATUSES = new Set<string>(AUTOMATION_RUN_STATUSES);
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -221,7 +226,7 @@ export const automationsTypeDefs = /* GraphQL */ `
       status: String!
     ): SetAutomationWorkflowStatusResult!
 
-    testAutomationWorkflow(id: String!, locale: String): AutomationRun!
+    testAutomationWorkflow(id: String!, locale: String, live: Boolean): AutomationRun!
 
     deleteAutomationRun(id: String!): DeleteAutomationRunResult!
 
@@ -529,7 +534,12 @@ async function setStatus(args: { userId: number; ids: string[]; status: string }
   return { success: true, updatedCount: result.count };
 }
 
-async function testWorkflow(args: { userId: number; id: string; locale?: string | null }) {
+async function testWorkflow(args: {
+  userId: number;
+  id: string;
+  locale?: string | null;
+  live?: boolean | null;
+}) {
   const existing = await prisma.automationWorkflow.findFirst({
     where: { id: args.id, userId: args.userId },
   });
@@ -581,6 +591,51 @@ async function testWorkflow(args: { userId: number; id: string; locale?: string 
       }
     } else if (agentResult.skippedCode && agentResult.skippedCode !== 'no_agent_node') {
       message = `${dryRun.message} Laku AI skipped: ${agentResult.skippedReason ?? agentResult.skippedCode}`;
+    }
+
+    const testMode = !args.live;
+    if (testMode) {
+      message = `Test mode (not sent). ${message}`;
+    } else {
+      message = `Live send. ${message}`;
+    }
+
+    const outboundActions =
+      nodes.filter((n) => n.data?.kind === 'action').length > 0
+        ? nodes
+            .filter((n) => n.data?.kind === 'action')
+            .map((n) => ({
+              type: String(n.data?.catalogType ?? ''),
+              config: asRecord(n.data?.config) ?? {},
+            }))
+        : [{ type: existing.actionType, config: actionConfig ?? {} }];
+
+    for (const action of outboundActions.filter((a) => a.type === 'send_campaign')) {
+      try {
+        const sent = await executeSendCampaign(existing, action.config, { testMode });
+        message = `${message} ${sent}`;
+      } catch (err) {
+        status = 'failed';
+        const detail = err instanceof Error ? err.message : String(err);
+        message = `${message} send_campaign failed: ${detail}`;
+      }
+    }
+
+    for (const action of outboundActions.filter((a) => CHANNEL_MESSAGE_ACTIONS.has(a.type))) {
+      try {
+        const sent = await executeChannelBuyerMessage(
+          existing,
+          action.type,
+          action.config,
+          undefined,
+          { testMode },
+        );
+        message = `${message} ${sent}`;
+      } catch (err) {
+        status = 'failed';
+        const detail = err instanceof Error ? err.message : String(err);
+        message = `${message} ${action.type} failed: ${detail}`;
+      }
     }
   }
 
@@ -738,7 +793,7 @@ export const automationsResolvers = {
     },
     testAutomationWorkflow: async (
       _: unknown,
-      args: { id: string; locale?: string | null },
+      args: { id: string; locale?: string | null; live?: boolean | null },
       ctx: unknown,
     ) => {
       const userId = requireDashboardUser(ctx);

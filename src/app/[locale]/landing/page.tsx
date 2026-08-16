@@ -226,7 +226,7 @@ function SellingDiagonalStack({
 
 /** Product on top, two offers below with dotted connectors. */
 function ProductsOffersFlow({ alt }: { alt: string }) {
-  return (
+                   return (
     <div className="relative mx-auto flex h-full w-full max-w-3xl items-center px-3 sm:px-6">
       <div className="flex w-full flex-col items-center">
         {/* Product — top center */}
@@ -383,7 +383,7 @@ function SellingSection() {
             {SELLING_TABS.map((tab) => {
               const isActive = active === tab;
               return (
-                <button
+                 <button 
                   key={tab}
                   type="button"
                   onClick={() => setActive(tab)}
@@ -408,10 +408,10 @@ function SellingSection() {
                   >
                     {t(`features.selling.${tab}.desc`)}
                   </p>
-                </button>
+                 </button>
               );
             })}
-          </div>
+               </div>
         </Reveal>
       </div>
     </section>
@@ -444,8 +444,8 @@ function AutomationsTriggersForkFlow({ alt }: { alt: string }) {
               strokeDasharray="0 8"
               strokeLinecap="round"
             />
-          </svg>
-        </div>
+                      </svg>
+                  </div>
 
         {/* Marketing flanked by product examples — wide spacing + side dotted lines */}
         <div className="relative z-10 flex w-full max-w-3xl items-center px-2 sm:px-6 lg:px-10">
@@ -461,7 +461,7 @@ function AutomationsTriggersForkFlow({ alt }: { alt: string }) {
               quality={90}
               className="h-9 w-9 object-contain sm:h-10 sm:w-10"
             />
-          </div>
+                </div>
 
           <div
             className="mx-2 h-8 min-w-[2.5rem] flex-1 sm:mx-4 sm:min-w-[3.5rem] animate-fade-in motion-reduce:animate-none"
@@ -477,13 +477,13 @@ function AutomationsTriggersForkFlow({ alt }: { alt: string }) {
                 strokeLinecap="round"
               />
             </svg>
-          </div>
+            </div>
 
           <div
             className="w-[38%] max-w-[10.5rem] shrink-0 overflow-hidden rounded-xl border border-gray-200/90 bg-white p-1 shadow-[0_16px_40px_-16px_rgba(15,23,42,0.28)] animate-fade-in-up motion-reduce:animate-none sm:w-[32%] sm:max-w-[11.5rem]"
             style={{ animationDuration: '0.55s', animationDelay: '0.12s', opacity: 0 }}
           >
-            <Image
+                <Image
               src="/Dashboardmarketing2eng.png"
               alt=""
               width={486}
@@ -491,8 +491,8 @@ function AutomationsTriggersForkFlow({ alt }: { alt: string }) {
               quality={90}
               className="w-full h-auto block rounded-lg"
               sizes="(min-width: 1024px) 184px, 32vw"
-            />
-          </div>
+                />
+              </div>
 
           <div
             className="mx-2 h-8 min-w-[2.5rem] flex-1 sm:mx-4 sm:min-w-[3.5rem] animate-fade-in motion-reduce:animate-none"
@@ -508,7 +508,7 @@ function AutomationsTriggersForkFlow({ alt }: { alt: string }) {
                 strokeLinecap="round"
               />
             </svg>
-          </div>
+            </div>
 
           <div
             className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-gray-200/90 bg-white p-2 shadow-[0_14px_36px_-16px_rgba(10,97,215,0.28)] animate-fade-in-right motion-reduce:animate-none sm:h-16 sm:w-16"
@@ -553,7 +553,7 @@ function AutomationsTriggersForkFlow({ alt }: { alt: string }) {
               strokeLinecap="round"
             />
           </svg>
-        </div>
+          </div>
 
         {/* WhatsApp + Gmail — spread wider */}
         <div className="relative z-10 mx-auto grid w-[78%] max-w-md grid-cols-2 gap-12 sm:w-[70%] sm:max-w-lg sm:gap-20">
@@ -569,7 +569,7 @@ function AutomationsTriggersForkFlow({ alt }: { alt: string }) {
               quality={90}
               className="h-7 w-7 sm:h-8 sm:w-8"
             />
-          </div>
+                </div>
           <div
             className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-gray-200/90 bg-white shadow-[0_14px_36px_-16px_rgba(10,97,215,0.28)] animate-fade-in-right motion-reduce:animate-none sm:h-14 sm:w-14"
             style={{ animationDuration: '0.5s', animationDelay: '0.32s', opacity: 0 }}
@@ -582,8 +582,8 @@ function AutomationsTriggersForkFlow({ alt }: { alt: string }) {
               quality={90}
               className="h-7 w-7 sm:h-8 sm:w-8"
             />
-          </div>
-        </div>
+              </div>
+            </div>
       </div>
     </div>
   );
@@ -620,8 +620,8 @@ function AutomationsBottomLeftStack({
             className="w-full h-auto block"
             sizes="(min-width: 1024px) 720px, 88vw"
           />
-        </div>
-      </div>
+                </div>
+              </div>
 
       {/* Front image — enlarged */}
       <div
@@ -637,7 +637,7 @@ function AutomationsBottomLeftStack({
           className="w-full h-auto rounded-xl block shadow-[0_16px_40px_-16px_rgba(10,97,215,0.28)]"
           sizes="(min-width: 1024px) 740px, 90vw"
         />
-      </div>
+            </div>
 
       {/* Feature cards — overlap the right edge of the picture */}
       <div className="absolute left-[min(58%,calc(100%-15.5rem))] top-1/2 z-20 flex w-[min(100%,14.75rem)] -translate-y-1/2 flex-col gap-2 sm:left-[min(62%,calc(100%-16rem))] sm:w-[15.25rem] sm:gap-2.5">
@@ -653,11 +653,11 @@ function AutomationsBottomLeftStack({
           >
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0a61d7] text-white">
               {card.icon}
-            </div>
+          </div>
             <span className="text-xs font-semibold leading-snug text-gray-900 sm:text-[13px]">
               {card.label}
             </span>
-          </div>
+        </div>
         ))}
       </div>
     </div>
@@ -698,7 +698,7 @@ function AutomationsSection() {
         <Reveal className="mb-10 max-w-3xl">
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">
             {t('features.automations.title')}
-          </h2>
+            </h2>
           <p className="mt-3 text-base sm:text-lg text-gray-600 leading-relaxed">
             {t('features.automations.subtitle')}
           </p>
@@ -741,7 +741,7 @@ function AutomationsSection() {
                     sizes="(min-width: 1024px) 1024px, 100vw"
                   />
                 </div>
-              </div>
+                </div>
             ) : (
               <ImagePlaceholder
                 key={active}
@@ -785,7 +785,7 @@ function AutomationsSection() {
                 </button>
               );
             })}
-          </div>
+              </div>
         </Reveal>
       </div>
     </section>
@@ -840,9 +840,9 @@ function FeatureBlock({
                   {t(point.titleKey)}
                 </h3>
                 <p className="mt-2 text-sm text-gray-600 leading-relaxed">{t(point.descKey)}</p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
         </Reveal>
       </div>
     </section>
@@ -855,7 +855,7 @@ function MarketingSideBySide({ alt }: { alt: string }) {
     <div className="relative mx-auto flex h-full w-full max-w-5xl items-center px-2 py-4 sm:px-4 sm:py-6">
       <div className="relative flex w-full items-center gap-2 sm:gap-3">
         <div className="relative z-10 w-[56%] sm:w-[58%] rounded-xl border border-gray-200/90 bg-white p-1 shadow-[0_14px_36px_-16px_rgba(15,23,42,0.28)] overflow-hidden">
-          <Image
+                <Image
             src="/Dashboardmarketing3.png"
             alt={alt}
             width={1477}
@@ -863,8 +863,8 @@ function MarketingSideBySide({ alt }: { alt: string }) {
             quality={90}
             className="w-full h-auto block rounded-lg"
             sizes="(min-width: 1024px) 520px, 55vw"
-          />
-        </div>
+                />
+              </div>
 
         <div className="relative z-0 h-8 w-[6%] min-w-[24px] sm:h-10 sm:w-[8%]" aria-hidden>
           <svg
@@ -881,7 +881,7 @@ function MarketingSideBySide({ alt }: { alt: string }) {
               strokeLinecap="round"
             />
           </svg>
-        </div>
+            </div>
 
         <div className="relative z-10 w-[36%] sm:w-[32%] rounded-xl border border-gray-200/90 bg-white p-1 shadow-[0_14px_36px_-16px_rgba(10,97,215,0.28)] overflow-hidden">
           <Image
@@ -893,9 +893,9 @@ function MarketingSideBySide({ alt }: { alt: string }) {
             className="w-full h-auto block rounded-lg"
             sizes="(min-width: 1024px) 300px, 32vw"
           />
-        </div>
-      </div>
-    </div>
+                </div>
+                </div>
+              </div>
   );
 }
 
@@ -963,7 +963,7 @@ function SplitFeatureSection({
               className="w-full h-auto block rounded-lg"
               sizes="200px"
             />
-          </div>
+                  </div>
           <div className="h-8 w-8 shrink-0 sm:h-10 sm:w-12" aria-hidden>
             <svg className="h-full w-full" viewBox="0 0 80 40" preserveAspectRatio="none">
               <path
@@ -975,9 +975,9 @@ function SplitFeatureSection({
                 strokeLinecap="round"
               />
             </svg>
-          </div>
+              </div>
           <div className="w-[42%] max-w-[170px] sm:max-w-[200px] rounded-xl border border-gray-200/90 bg-white p-0.5 shadow-[0_14px_36px_-16px_rgba(10,97,215,0.28)] overflow-hidden">
-            <Image
+                  <Image
               src={activePair[1].src}
               alt=""
               width={activePair[1].width}
@@ -985,8 +985,8 @@ function SplitFeatureSection({
               quality={90}
               className="w-full h-auto block rounded-lg"
               sizes="200px"
-            />
-          </div>
+                  />
+                </div>
         </div>
       ) : activeImage ? (
         <div
@@ -1003,7 +1003,7 @@ function SplitFeatureSection({
                   }`
             }
           >
-            <Image
+                  <Image
               src={activeImage.src}
               alt={t(activePoint.titleKey)}
               width={activeImage.width}
@@ -1017,9 +1017,9 @@ function SplitFeatureSection({
               }
               style={isPhone ? { width: 'auto', height: 'auto' } : { height: 'auto' }}
               sizes="(min-width: 1024px) 560px, 100vw"
-            />
-          </div>
-        </div>
+                  />
+                </div>
+              </div>
       ) : (
         <ImagePlaceholder
           label={t(placeholderKey)}
@@ -1059,7 +1059,7 @@ function SplitFeatureSection({
           </button>
         );
       })}
-    </div>
+            </div>
   );
 
   return (
@@ -1087,8 +1087,8 @@ function SplitFeatureSection({
             )}
           </div>
         </Reveal>
-      </div>
-    </section>
+        </div>
+      </section>
   );
 }
 
@@ -1160,9 +1160,9 @@ export default function LandingPage() {
                  >
                   {t('hero.learnmore')}
                  </button>
-              </div>
+                 </div>
             </HeroStagger>
-            </div>
+             </div>
 
           <HeroStagger delayMs={420} className="relative z-10 mx-auto mt-12 sm:mt-16 max-w-6xl px-4 sm:px-6 lg:px-8">
             <div className="relative pt-6 sm:pt-8">
@@ -1181,7 +1181,7 @@ export default function LandingPage() {
                   style={{ height: 'auto' }}
                   sizes="(min-width: 1024px) 1000px, 90vw"
                 />
-              </div>
+           </div>
 
               {/* Middle layer — top edge only */}
               <div
@@ -1198,7 +1198,7 @@ export default function LandingPage() {
                   style={{ height: 'auto' }}
                   sizes="(min-width: 1024px) 1080px, 95vw"
                 />
-            </div>
+                  </div>
 
               {/* Front layer */}
               <div className="relative z-[2] rounded-2xl border border-gray-200/90 bg-white p-1.5 sm:p-2 shadow-[0_18px_50px_-14px_rgba(10,97,215,0.3)] overflow-hidden">
@@ -1214,8 +1214,8 @@ export default function LandingPage() {
                   style={{ height: 'auto' }}
                   sizes="(min-width: 1024px) 1152px, 100vw"
                 />
-              </div>
-            </div>
+                  </div>
+                </div>
           </HeroStagger>
         </section>
 
@@ -1229,10 +1229,10 @@ export default function LandingPage() {
                 <Reveal key={n} delayMs={n * 40}>
                   <div className="h-14 rounded-xl border border-dashed border-gray-200 bg-gray-50 flex items-center justify-center">
                     <span className="text-xs text-gray-400">{t('trust.logoPlaceholder')}</span>
-                  </div>
+              </div>
                 </Reveal>
-              ))}
-          </div>
+            ))}
+           </div>
         </div>
       </section>
 
@@ -1356,8 +1356,8 @@ export default function LandingPage() {
                   </div>
                 </Reveal>
             ))}
-           </div>
-        </div>
+                </div>
+                </div>
       </section>
 
         <section className="py-16 sm:py-20 bg-[#f7f9fc]">

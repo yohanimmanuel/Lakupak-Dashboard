@@ -41,6 +41,35 @@ export type CatalogField = {
   options?: string[];
 };
 
+const CHANNEL_AWARE_ACTIONS = new Set<string>([
+  'share_product_whatsapp',
+  'return_confirm_whatsapp',
+  'cart_winback',
+  'send_campaign',
+]);
+
+/** WhatsApp Cloud API message type is only relevant when WhatsApp is in the send channel. */
+export function actionUsesWhatsAppChannel(
+  actionType: string,
+  config: Record<string, unknown> | null | undefined,
+): boolean {
+  if (!CHANNEL_AWARE_ACTIONS.has(actionType)) return true;
+  const channel = String(config?.channel ?? '').trim();
+  if (channel === 'email') return false;
+  if (channel === 'whatsapp' || channel === 'both') return true;
+  return actionType !== 'send_campaign';
+}
+
+export function isActionFieldVisible(
+  field: CatalogField,
+  siblingFields: CatalogField[],
+  config: Record<string, unknown> | null | undefined,
+): boolean {
+  if (field.key !== 'messageCategory') return true;
+  if (!siblingFields.some((f) => f.key === 'channel')) return true;
+  return String(config?.channel ?? '').trim() !== 'email';
+}
+
 export type TriggerDefinition = {
   type: TriggerType;
   fields: CatalogField[];
@@ -119,6 +148,24 @@ const TRIGGERS_BY_WORKFLOW: Record<WorkflowType, TriggerDefinition[]> = {
   ],
 };
 
+const WHATSAPP_MESSAGE_CATEGORY_FIELD: CatalogField = {
+  key: 'messageCategory',
+  kind: 'select',
+  options: ['UTILITY', 'AUTHENTICATION', 'MARKETING'],
+};
+
+const CHANNEL_FIELD: CatalogField = {
+  key: 'channel',
+  kind: 'select',
+  options: ['whatsapp', 'email', 'both'],
+};
+
+const CHANNEL_MESSAGE_ACTION_TYPES = new Set<string>([
+  'share_product_whatsapp',
+  'return_confirm_whatsapp',
+  'cart_winback',
+]);
+
 const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
   product_offers: [
     { type: 'replenish_stock', fields: [{ key: 'replenishQty', kind: 'number' }] },
@@ -126,6 +173,7 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
       type: 'whatsapp_buyer',
       fields: [
         { key: 'buyerId', kind: 'buyer' },
+        WHATSAPP_MESSAGE_CATEGORY_FIELD,
         { key: 'messageTemplate', kind: 'textarea' },
       ],
     },
@@ -133,6 +181,9 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
       type: 'share_product_whatsapp',
       fields: [
         { key: 'productId', kind: 'product' },
+        { key: 'buyerId', kind: 'buyer' },
+        CHANNEL_FIELD,
+        WHATSAPP_MESSAGE_CATEGORY_FIELD,
         { key: 'messageTemplate', kind: 'textarea' },
       ],
     },
@@ -147,6 +198,7 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
           kind: 'select',
           options: ['territory', 'load', 'round_robin'],
         },
+        WHATSAPP_MESSAGE_CATEGORY_FIELD,
         { key: 'messageTemplate', kind: 'textarea' },
       ],
     },
@@ -169,7 +221,12 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
     },
     {
       type: 'return_confirm_whatsapp',
-      fields: [{ key: 'messageTemplate', kind: 'textarea' }],
+      fields: [
+        { key: 'buyerId', kind: 'buyer' },
+        CHANNEL_FIELD,
+        WHATSAPP_MESSAGE_CATEGORY_FIELD,
+        { key: 'messageTemplate', kind: 'textarea' },
+      ],
     },
     { type: 'notify_dashboard', fields: [] },
   ],
@@ -177,6 +234,9 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
     {
       type: 'cart_winback',
       fields: [
+        { key: 'buyerId', kind: 'buyer' },
+        CHANNEL_FIELD,
+        WHATSAPP_MESSAGE_CATEGORY_FIELD,
         { key: 'messageTemplate', kind: 'textarea' },
         { key: 'offerId', kind: 'text' },
         { key: 'agentAssignThreshold', kind: 'number' },
@@ -186,11 +246,10 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
       type: 'send_campaign',
       fields: [
         { key: 'campaignId', kind: 'campaign' },
-        {
-          key: 'channel',
-          kind: 'select',
-          options: ['whatsapp', 'email'],
-        },
+        { key: 'buyerId', kind: 'buyer' },
+        CHANNEL_FIELD,
+        WHATSAPP_MESSAGE_CATEGORY_FIELD,
+        { key: 'messageTemplate', kind: 'textarea' },
       ],
     },
     { type: 'notify_dashboard', fields: [] },
@@ -244,6 +303,11 @@ const LEGACY_ACTION_DEFINITIONS: Partial<Record<ActionType, ActionDefinition>> =
   buyer_question_reply: {
     type: 'buyer_question_reply',
     fields: [
+      {
+        key: 'messageCategory',
+        kind: 'select',
+        options: ['UTILITY', 'AUTHENTICATION', 'MARKETING'],
+      },
       { key: 'messageTemplate', kind: 'textarea' },
       {
         key: 'escalateOutOfScope',
@@ -563,11 +627,11 @@ export function collectAutomationDryRunIssues(args: {
     }
     if (action.type === 'share_product_whatsapp') {
       if (productsMissing(action.config, { requireVariant: false })) {
-        issues.push(`${label}: Share product on WhatsApp needs at least one product.`);
+        issues.push(`${label}: Share product needs at least one product.`);
       }
-      if (configMissing(action.config, 'messageTemplate')) {
-        issues.push(`${label}: Share product on WhatsApp needs a message template.`);
-      }
+    }
+    if (CHANNEL_MESSAGE_ACTION_TYPES.has(action.type) && buyersMissing(action.config)) {
+      issues.push(`${label}: ${action.type} needs at least one buyer.`);
     }
     if (action.type === 'assign_logistic' && fleetsMissing(action.config)) {
       issues.push(`${label}: Auto-assign logistic needs a fleet.`);
@@ -575,17 +639,57 @@ export function collectAutomationDryRunIssues(args: {
     if (action.type === 'assign_driver' && assignDriverNeedsDriver(action.type, action.config)) {
       issues.push(`${label}: ${ASSIGN_DRIVER_REQUIRES_DRIVER_MESSAGE}`);
     }
-    if (action.type === 'send_campaign' && campaignsMissing(action.config)) {
-      issues.push(`${label}: Send campaign needs a campaign.`);
+    if (action.type === 'send_campaign' || CHANNEL_MESSAGE_ACTION_TYPES.has(action.type)) {
+      if (action.type === 'send_campaign') {
+        if (campaignsMissing(action.config)) {
+          issues.push(`${label}: Send campaign needs a campaign.`);
+        }
+        if (buyersMissing(action.config)) {
+          issues.push(`${label}: Send campaign needs at least one buyer.`);
+        }
+      }
+      const channel =
+        String(action.config?.channel ?? '').trim() ||
+        (action.type === 'send_campaign' ? 'email' : 'whatsapp');
+      const hasWhatsAppApp = nodes.some(
+        (n) => n.data?.kind === 'app' && n.data?.catalogType === 'app_webhook',
+      );
+      const hasGmailApp = nodes.some(
+        (n) => n.data?.kind === 'app' && n.data?.catalogType === 'app_email',
+      );
+      if ((channel === 'whatsapp' || channel === 'both') && !hasWhatsAppApp) {
+        issues.push(`${label}: WhatsApp channel needs a WhatsApp app node on this workflow.`);
+      }
+      if ((channel === 'email' || channel === 'both') && !hasGmailApp) {
+        issues.push(`${label}: Email channel needs a Gmail app node on this workflow.`);
+      }
     }
     if (
-      (action.type === 'return_confirm_whatsapp' ||
+      (action.type === 'whatsapp_buyer' ||
+        action.type === 'share_product_whatsapp' ||
+        action.type === 'return_confirm_whatsapp' ||
         action.type === 'buyer_question_reply' ||
         action.type === 'assign_agent_whatsapp' ||
-        action.type === 'cart_winback') &&
+        action.type === 'cart_winback' ||
+        action.type === 'send_campaign') &&
       configMissing(action.config, 'messageTemplate')
     ) {
       issues.push(`${label}: ${action.type} needs a message template.`);
+    }
+    if (
+      (action.type === 'whatsapp_buyer' ||
+        action.type === 'share_product_whatsapp' ||
+        action.type === 'return_confirm_whatsapp' ||
+        action.type === 'buyer_question_reply' ||
+        action.type === 'assign_agent_whatsapp' ||
+        action.type === 'cart_winback' ||
+        action.type === 'send_campaign') &&
+      actionUsesWhatsAppChannel(action.type, action.config) &&
+      configMissing(action.config, 'messageCategory')
+    ) {
+      issues.push(
+        `${label}: ${action.type} needs a WhatsApp message type (Utility, Authentication, or Marketing).`,
+      );
     }
   }
 
@@ -638,12 +742,12 @@ export function formatAutomationDryRunMessage(args: {
   if (live.length > 0 && nonLive.length > 0) {
     return {
       status: 'success',
-      message: `Dry run OK — ${trigger} → ${allActions.join(', ')}. Live now: ${live.join(', ')}. Waiting on WhatsApp: ${nonLive.join(', ')}.`,
+      message: `Dry run OK — ${trigger} → ${allActions.join(', ')}. Live now: ${live.join(', ')}. Not live yet: ${nonLive.join(', ')}.`,
     };
   }
   return {
     status: 'success',
-    message: `Dry run OK — ${trigger} → ${allActions.join(', ')}. Execution waits on WhatsApp (not live yet).`,
+    message: `Dry run OK — ${trigger} → ${allActions.join(', ')}. No live actions yet for this mix.`,
   };
 }
 

@@ -625,14 +625,14 @@
       }
     },
     "sticky": {
-      "distributor": {
-        "title": "For Distributors",
-        "subtitle": "Supercharge your business with AI, automation, and centralized control."
-      },
-      "retailer": {
-        "title": "For Retailers",
-        "subtitle": "Shop smarter, restock faster, and manage your store from anywhere."
-      }
+        "distributor": {
+          "title": "For Distributors",
+          "subtitle": "Supercharge your business with AI, automation, and centralized control."
+        },
+        "retailer": {
+          "title": "For Retailers",
+          "subtitle": "Shop smarter, restock faster, and manage your store from anywhere."
+        }
     },
     "distributorFeatures": [
       {
@@ -790,7 +790,7 @@
         "priority_chat": "Priority + chat",
         "sla_csm": "SLA + CSM"
       }
-    },
+  },
     "faq": {
       "1": {
         "q": "How is my plan determined?",
@@ -984,25 +984,25 @@
       "end": "And this is just the start."
     },
     "carousel": {
-      "1": {
-        "title": "Our Mission",
+        "1": {
+          "title": "Our Mission",
         "content": "To empower businesses of every size, from large distributors to small warungs and kiosks, by giving them tools to trade smarter, faster, and more profitably."
-      },
-      "2": {
-        "title": "Our Vision",
-        "content": "A future where every retailer in Indonesia, no matter how small, has equal access to products, prices, and opportunities, and every distributor can reach new markets effortlessly."
-      },
-      "3": {
-        "1": "Technology should empower, not complicate.",
-        "2": "Small businesses deserve big opportunities.",
+        },
+        "2": {
+          "title": "Our Vision",
+          "content": "A future where every retailer in Indonesia, no matter how small, has equal access to products, prices, and opportunities, and every distributor can reach new markets effortlessly."
+        },
+        "3": {
+          "1": "Technology should empower, not complicate.",
+          "2": "Small businesses deserve big opportunities.",
         "3": "Fair trade grows stronger communities.",
         "title": "What We Believe"
-      },
-      "4": {
-        "title": "Why 'Laku'?",
+        },
+        "4": {
+          "title": "Why 'Laku'?",
         "content": "In Indonesian, laku means 'to sell' or 'to move.' Laku is about creating momentum: helping products move, helping businesses grow, and helping trade thrive."
-      }
-    },
+        }
+      },
     "cta": {
       "title": "Join us in building the future of distribution and retail.",
       "subtitle": "At Laku, we’re not just creating software. We’re shaping a smarter, fairer marketplace for everyone.",

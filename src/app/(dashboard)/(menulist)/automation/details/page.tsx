@@ -106,8 +106,8 @@ const UPDATE_MUTATION = `
 `;
 
 const TEST_MUTATION = `
-  mutation TestAutomationWorkflow($id: String!, $locale: String) {
-    testAutomationWorkflow(id: $id, locale: $locale) {
+  mutation TestAutomationWorkflow($id: String!, $locale: String, $live: Boolean) {
+    testAutomationWorkflow(id: $id, locale: $locale, live: $live) {
       id
       workflowId
       status
@@ -168,7 +168,7 @@ function DetailsInner() {
   latestIdRef.current = id;
   const history = useCanvasHistory();
 
-  const load = useCallback(async (opts?: { silent?: boolean }) => {
+  const load = useCallback(async (opts?: { silent?: boolean; preserveRuns?: boolean }) => {
     if (!user?.id || !id) {
       setLoading(false);
       return;
@@ -240,7 +240,9 @@ function DetailsInner() {
       // so the undo stack stays valid.
       if (!opts?.silent) history.clear();
       setSelectedNodeId((prev) => prev ?? nodes[0]?.id ?? null);
-      setRuns(data.automationRuns ?? []);
+      if (!opts?.preserveRuns) {
+        setRuns(data.automationRuns ?? []);
+      }
       setError(null);
     } catch (e) {
       if (!isCurrent()) return;
@@ -410,9 +412,8 @@ function DetailsInner() {
       if (statusOverride) {
         setDraft((prev) => (prev ? { ...prev, status: statusOverride } : prev));
       }
-      // Refresh runs/metadata in place — do not full-reload (that remounts the
-      // builder and clears the "Saved just now" indicator).
-      await load({ silent: true });
+      // Keep run history as-is. Save draft / activate must not create or reload run rows.
+      await load({ silent: true, preserveRuns: true });
       return true;
     } catch (e) {
       setFormError(e instanceof Error ? e.message : tBuilder('saveFailed'));
@@ -422,7 +423,7 @@ function DetailsInner() {
     }
   };
 
-  const testRun = async () => {
+  const testRun = async (live = false) => {
     if (!user?.id || !id) return;
     setSaving(true);
     try {
@@ -431,6 +432,7 @@ function DetailsInner() {
       const data = await fetchGraphQL<{ testAutomationWorkflow: AutomationRun }>(TEST_MUTATION, {
         id,
         locale,
+        live,
       });
       setRuns((prev) => [data.testAutomationWorkflow, ...prev]);
     } catch (e) {
@@ -514,7 +516,7 @@ function DetailsInner() {
       showTestRun
       onSaveDraftAction={() => save('draft')}
       onActivateAction={() => save('active')}
-      onTestRunAction={() => testRun()}
+      onTestRunAction={(opts) => testRun(Boolean(opts?.live))}
       onUndoAction={undo}
       canUndo={history.canUndo}
       canvas={

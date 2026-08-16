@@ -5,6 +5,10 @@ export const LIVE_ACTION_TYPES = new Set<ActionType>([
   'replenish_stock',
   'mark_paid_from_proof',
   'notify_dashboard',
+  'whatsapp_buyer',
+  'share_product_whatsapp',
+  'cart_winback',
+  'send_campaign',
 ]);
 
 export function isLiveActionType(actionType: string | null | undefined): boolean {

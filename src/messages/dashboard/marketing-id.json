@@ -158,7 +158,7 @@
     "missingFields": "Belum lengkap: {fields}",
     "missingRequiredFieldsTitle": "Field wajib belum lengkap: {fields}",
     "campaignInformation": "Informasi Kampanye",
-    "whatsappDesign": "Desain Kampanye WhatsApp",
+    "whatsappDesign": "Desain Kampanye",
     "campaignPerformance": "Performa Kampanye",
     "campaignId": "ID Kampanye",
     "campaignIdPlaceholder": "ID Kampanye otomatis",
@@ -316,7 +316,14 @@
     "cancel": "Batal",
     "sendCampaign": "Kirim Kampanye",
     "sending": "Mengirim...",
-    "whatsappAlt": "WhatsApp"
+    "whatsappAlt": "WhatsApp",
+    "channel": "Saluran",
+    "channelWhatsapp": "WhatsApp",
+    "channelEmail": "Email",
+    "channelBoth": "WhatsApp dan Email",
+    "selectBuyers": "Pilih pembeli",
+    "emailHint": "Email dikirim lewat Gmail. Tambahkan aplikasi Gmail di Automasi dengan alamat dan App Password.",
+    "emailFailed": "Tidak bisa mengirim email kampanye."
   },
   "team": {
     "title": "Tim",

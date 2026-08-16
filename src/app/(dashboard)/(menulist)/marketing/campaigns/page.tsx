@@ -110,7 +110,10 @@ export default function MarketingCampaignsPage() {
     // TODO: Implement duplicate functionality
   };
 
-  const handleUpdateCampaign = async (updatedCampaign: Campaign) => {
+  const handleUpdateCampaign = async (
+    updatedCampaign: Campaign,
+    sendChannel?: 'whatsapp' | 'email' | 'both',
+  ) => {
     if (!user?.id) return;
 
     const UPDATE_CAMPAIGN_MUTATION = `
@@ -127,6 +130,7 @@ export default function MarketingCampaignsPage() {
         $revenue: Float
         $orders: Int
         $contentBlocks: JSONObject
+        $sendChannel: String
       ) {
         updateCampaign(
           userId: $userId
@@ -141,6 +145,7 @@ export default function MarketingCampaignsPage() {
           revenue: $revenue
           orders: $orders
           contentBlocks: $contentBlocks
+          sendChannel: $sendChannel
         ) {
           id
           campaignId
@@ -175,6 +180,7 @@ export default function MarketingCampaignsPage() {
         revenue: updatedCampaign.revenue,
         orders: updatedCampaign.orders,
         contentBlocks: updatedCampaign.contentBlocks || null,
+        sendChannel: sendChannel || null,
       });
       
       // Update the campaign in the state

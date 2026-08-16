@@ -590,15 +590,28 @@ export const NotificationService = {
     userId: number,
     campaignId: string,
     campaignName: string,
-    recipients: string
+    sendChannel?: string | null
   ) {
+    const channel = String(sendChannel ?? '').trim().toLowerCase();
+    const destination =
+      channel === 'email'
+        ? 'Email'
+        : channel === 'whatsapp'
+          ? 'WhatsApp'
+          : channel === 'both'
+            ? 'WhatsApp and Email'
+            : '';
+    const message = destination
+      ? `Your campaign "${campaignName}" has been sent to ${destination}.`
+      : `Your campaign "${campaignName}" has been sent.`;
+
     await prisma.notification.create({
       data: {
         userId,
         type: 'campaign',
         title: 'Campaign Sent',
-        message: `Your campaign "${campaignName}" has been sent to ${recipients}.`,
-        metadata: { campaignId, campaignName, recipients, status: 'sent' },
+        message,
+        metadata: { campaignId, campaignName, sendChannel: channel || null, status: 'sent' },
         actionUrl: `/marketing/campaigns/details?id=${campaignId}`,
       },
     });

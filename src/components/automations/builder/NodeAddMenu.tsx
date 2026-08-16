@@ -205,7 +205,13 @@ export function NodeAddMenu({
           title: tBuilder('appWebhook'),
           subtitle: tBuilder('nodeApp'),
           description: tBuilder('appWebhookHint'),
-          config: { connected: false, phone: '' },
+          config: {
+            connected: false,
+            phone: '',
+            phoneNumberId: '',
+            wabaId: '',
+            accessToken: '',
+          },
           icon: <WhatsAppIcon className="h-4 w-4 shrink-0" />,
         },
         {
@@ -215,7 +221,7 @@ export function NodeAddMenu({
           title: tBuilder('appEmail'),
           subtitle: tBuilder('nodeApp'),
           description: tBuilder('appEmailHint'),
-          config: { connected: false, email: '' },
+          config: { connected: false, email: '', appPassword: '' },
           icon: <GmailIcon className="h-4 w-4 shrink-0" />,
         },
       ],

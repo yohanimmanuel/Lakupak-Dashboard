@@ -12,6 +12,7 @@ import {
   ChevronDown,
   Info,
   Edit,
+  Send,
   Smartphone,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -36,7 +37,7 @@ interface CampaignFormData {
 interface CampaignDetailsProps {
   mode: 'add' | 'view' | 'edit';
   campaign?: Campaign;
-  onSave?: (data: Campaign) => void;
+  onSave?: (data: Campaign, sendChannel?: 'whatsapp' | 'email' | 'both') => void;
   onCancel?: () => void;
 }
 
@@ -238,17 +239,23 @@ export default function CampaignDetails({
     }
   };
 
-  const handleSendCampaign = async (campaignData: Campaign) => {
+  const handleSendCampaign = async (
+    campaignData: Campaign,
+    sendChannel: 'whatsapp' | 'email' | 'both',
+  ) => {
     // Save the campaign with Sent status when user confirms sending
     if (onSave) {
       const isResend = campaignData.status === 'Sent' || campaignData.status === 'Completed';
-      await onSave({
-        ...campaignData,
-        status: 'Sent',
-        // Only update sentDate for first send, keep original for resends
-        sentDate: isResend ? campaignData.sentDate : new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
+      await onSave(
+        {
+          ...campaignData,
+          status: 'Sent',
+          // Only update sentDate for first send, keep original for resends
+          sentDate: isResend ? campaignData.sentDate : new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        sendChannel,
+      );
     }
     setShowSendModal(false);
     setCampaignToSend(null);
@@ -351,7 +358,7 @@ export default function CampaignDetails({
               }}
               className="flex items-center gap-2 px-4 py-2 font-semibold bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors"
             >
-              <img src="/whatsapp.svg" alt="WhatsApp" className="w-4 h-4" />
+              <Send className="w-4 h-4" />
               {tCampaignDetails('resendCampaign')}
             </button>
           )}
@@ -437,7 +444,7 @@ export default function CampaignDetails({
                   </>
                 ) : (
                   <>
-                    <img src="/whatsapp.svg" alt="WhatsApp" className="w-4 h-4" />
+                    <Send className="w-4 h-4" />
                     {tCampaignDetails('saveAndSend')}
                   </>
                 )}

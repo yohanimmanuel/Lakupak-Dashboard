@@ -1234,6 +1234,24 @@ export async function campaignUpdateRateLimiter(
 }
 
 /**
+ * Campaigns: Email send - 20 per hour per user (SMTP is expensive)
+ */
+export async function campaignSendRateLimiter(
+  req: NextRequest,
+  userId: number | null
+): Promise<NextResponse | null> {
+  const ip = getClientIp(req);
+  const key = userId != null ? `campaign-send:${userId}` : `campaign-send:${ip}`;
+
+  return rateLimit(req, {
+    windowMs: 60 * 60 * 1000, // 1 hour
+    maxRequests: 20,
+    message: 'Too many campaign sends. Please try again later.',
+    keyGenerator: () => key,
+  });
+}
+
+/**
  * Clients (Buyers/Suppliers): Query operations - 100 per hour per user
  */
 export async function clientQueryRateLimiter(

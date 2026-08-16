@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useLayoutEffect, useCallback, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Trash2, Edit, X, ChevronLeft, ChevronRight, Search, Filter, ChevronDown, AlertCircle, Loader2 } from 'lucide-react';
+import { Trash2, Edit, X, ChevronLeft, ChevronRight, Search, Filter, ChevronDown, AlertCircle, Loader2, Send } from 'lucide-react';
 import { Campaign, CampaignTableRow } from '@/types/campaign';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { useUserStore } from '@/store/userStore';
@@ -22,7 +22,7 @@ interface CampaignTableProps {
   onViewCampaign?: (campaign: Campaign) => void;
   onDuplicateCampaign?: (campaign: Campaign) => void;
   onDeleteCampaign?: (campaign: Campaign) => Promise<void>;
-  onUpdateCampaign?: (campaign: Campaign) => void;
+  onUpdateCampaign?: (campaign: Campaign, sendChannel?: 'whatsapp' | 'email' | 'both') => void;
   campaignToTableRow: (campaign: Campaign) => CampaignTableRow;
   onRefresh?: () => void;
   pickerMode?: boolean;
@@ -230,17 +230,23 @@ export default function CampaignTable({
     }
   };
 
-  const handleSendCampaign = async (campaignData: Campaign) => {
+  const handleSendCampaign = async (
+    campaignData: Campaign,
+    sendChannel: 'whatsapp' | 'email' | 'both',
+  ) => {
     // Update campaign status to Sent (only if not already sent)
     if (onUpdateCampaign) {
       const isResend = campaignData.status === 'Sent' || campaignData.status === 'Completed';
-      await onUpdateCampaign({
-        ...campaignData,
-        status: 'Sent',
-        // Only update sentDate for first send, keep original for resends
-        sentDate: isResend ? campaignData.sentDate : new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
+      await onUpdateCampaign(
+        {
+          ...campaignData,
+          status: 'Sent',
+          // Only update sentDate for first send, keep original for resends
+          sentDate: isResend ? campaignData.sentDate : new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        sendChannel,
+      );
     }
     setShowSendModal(false);
     setCampaignToSend(null);
@@ -539,14 +545,14 @@ export default function CampaignTable({
                 {selectedCampaigns.size === 1 && (
                   <button
                     onClick={handleBulkSend}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white font-semibold text-sm rounded-lg hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#0a61d7] text-white font-semibold text-sm rounded-lg hover:bg-[#0851b8] transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                     aria-label={
                       isResendMode()
                         ? tCampaignTable('resendSelectedAriaLabel')
                         : tCampaignTable('sendSelectedAriaLabel')
                     }
                   >
-                    <img src="/whatsapp.svg" alt="WhatsApp" className="w-4 h-4" />
+                    <Send className="w-4 h-4" />
                     {isResendMode()
                       ? tCampaignTable('resendCampaign')
                       : tCampaignTable('sendCampaign')}
@@ -600,14 +606,14 @@ export default function CampaignTable({
                 {selectedCampaigns.size === 1 && (
                   <button
                     onClick={handleBulkSend}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white font-semibold text-sm rounded-lg hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white font-semibold text-sm rounded-lg hover:bg-[#0851b8] transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                     aria-label={
                       isResendMode()
                         ? tCampaignTable('resendSelectedAriaLabel')
                         : tCampaignTable('sendSelectedAriaLabel')
                     }
                   >
-                    <img src="/whatsapp.svg" alt="WhatsApp" className="w-4 h-4" />
+                    <Send className="w-4 h-4" />
                     {isResendMode()
                       ? tCampaignTable('resendCampaign')
                       : tCampaignTable('sendCampaign')}
