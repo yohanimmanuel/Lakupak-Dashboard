@@ -572,6 +572,7 @@ export function StepDetailsPanel({
                             buyerId: picked[0]?.buyerId ?? '',
                             buyerLabel: picked[0]?.buyerLabel ?? '',
                             buyerPhone: picked[0]?.buyerPhone ?? '',
+                            buyerEmail: picked[0]?.buyerEmail ?? '',
                           },
                         });
                       }}
@@ -583,6 +584,7 @@ export function StepDetailsPanel({
                             buyerId: '',
                             buyerLabel: '',
                             buyerPhone: '',
+                            buyerEmail: '',
                           },
                         })
                       }
@@ -741,7 +743,7 @@ export function StepDetailsPanel({
               {selected.data.catalogType === 'app_email' && (
                 <GmailSmtpPanel
                   config={selected.data.config ?? {}}
-                  onChange={(next) =>
+                  onChangeAction={(next) =>
                     onUpdateNodeAction(selected.id, {
                       config: next,
                     })

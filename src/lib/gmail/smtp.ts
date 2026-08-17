@@ -70,6 +70,42 @@ export function credentialsFromGmailAppConfig(
   });
 }
 
+type MailPayload = {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+};
+
+type GmailTransporter = {
+  sendMail: (mail: Record<string, unknown>) => Promise<{ messageId?: string }>;
+  close?: () => void;
+};
+
+async function createTransporter(creds: GmailSmtpCredentials): Promise<GmailTransporter> {
+  const nodemailerMod = await import('nodemailer');
+  const createTransport =
+    typeof nodemailerMod.createTransport === 'function'
+      ? nodemailerMod.createTransport
+      : nodemailerMod.default.createTransport;
+  return createTransport({
+    host: creds.host,
+    port: creds.port,
+    secure: creds.port === 465,
+    auth: { user: creds.email, pass: creds.appPassword },
+    connectionTimeout: 15_000,
+    greetingTimeout: 15_000,
+    socketTimeout: 30_000,
+    pool: true,
+    maxConnections: 3,
+    maxMessages: 50,
+  }) as unknown as GmailTransporter;
+}
+
+function closeTransporter(transporter: GmailTransporter) {
+  transporter.close?.();
+}
+
 export async function sendGmailMessage(args: {
   creds: GmailSmtpCredentials;
   to: string | string[];
@@ -88,21 +124,8 @@ export async function sendGmailMessage(args: {
   if (!subject) throw new GmailSmtpError('Subject is required.', 400);
   if (!text) throw new GmailSmtpError('Message text is required.', 400);
 
+  const transporter = await createTransporter(args.creds);
   try {
-    const nodemailerMod = await import('nodemailer');
-    const createTransport =
-      typeof nodemailerMod.createTransport === 'function'
-        ? nodemailerMod.createTransport
-        : nodemailerMod.default.createTransport;
-    const transporter = createTransport({
-      host: args.creds.host,
-      port: args.creds.port,
-      secure: args.creds.port === 465,
-      auth: { user: args.creds.email, pass: args.creds.appPassword },
-      connectionTimeout: 15_000,
-      greetingTimeout: 15_000,
-      socketTimeout: 30_000,
-    });
     const info = (await transporter.sendMail({
       from: args.creds.email,
       to: toList.join(', '),
@@ -117,5 +140,51 @@ export async function sendGmailMessage(args: {
       `Gmail SMTP failed: ${detail}. Use a Gmail App Password (Google Account → Security → App passwords), not your login password.`,
       502,
     );
+  } finally {
+    closeTransporter(transporter);
+  }
+}
+
+/** One SMTP session for many messages (campaign × buyers). Much faster than connect-per-mail. */
+export async function sendGmailMessageBatch(args: {
+  creds: GmailSmtpCredentials;
+  messages: MailPayload[];
+}): Promise<Array<{ ok: boolean; error?: string }>> {
+  if (args.messages.length === 0) return [];
+
+  const invalidReason = (msg: MailPayload): string | null => {
+    if (!msg.to.trim()) return 'Recipient email is required.';
+    if (!msg.subject.trim()) return 'Subject is required.';
+    if (!msg.text.trim()) return 'Message text is required.';
+    return null;
+  };
+  const reasons = args.messages.map(invalidReason);
+  if (reasons.every((reason) => reason !== null)) {
+    return reasons.map((reason) => ({ ok: false, error: reason as string }));
+  }
+
+  const transporter = await createTransporter(args.creds);
+  try {
+    const results = await Promise.allSettled(
+      args.messages.map((msg) =>
+        transporter.sendMail({
+          from: args.creds.email,
+          to: msg.to.trim(),
+          subject: msg.subject.trim(),
+          text: msg.text.trim(),
+          html: msg.html?.trim() || undefined,
+        }),
+      ),
+    );
+    return results.map((result) =>
+      result.status === 'fulfilled'
+        ? { ok: true }
+        : {
+            ok: false,
+            error: result.reason instanceof Error ? result.reason.message : String(result.reason),
+          },
+    );
+  } finally {
+    closeTransporter(transporter);
   }
 }

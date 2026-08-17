@@ -13,6 +13,7 @@ export type PickedBuyer = {
   buyerId: string;
   buyerLabel: string;
   buyerPhone: string;
+  buyerEmail: string;
 };
 
 const BUYERS_QUERY = `
@@ -109,6 +110,7 @@ export function toPickedBuyer(buyer: Buyer): PickedBuyer {
     buyerId: buyer.buyerId,
     buyerLabel: buyer.storeName || buyer.owner,
     buyerPhone: buyer.phone,
+    buyerEmail: String(buyer.email ?? '').trim(),
   };
 }
 
@@ -126,6 +128,7 @@ export function normalizePickedBuyers(config: Record<string, unknown> | undefine
           buyerId,
           buyerLabel: String(row.buyerLabel ?? ''),
           buyerPhone: String(row.buyerPhone ?? ''),
+          buyerEmail: String(row.buyerEmail ?? row.email ?? '').trim(),
         };
       })
       .filter((b): b is PickedBuyer => Boolean(b));
@@ -138,6 +141,7 @@ export function normalizePickedBuyers(config: Record<string, unknown> | undefine
       buyerId,
       buyerLabel: String(config?.buyerLabel ?? ''),
       buyerPhone: String(config?.buyerPhone ?? ''),
+      buyerEmail: String(config?.buyerEmail ?? '').trim(),
     },
   ];
 }
@@ -215,15 +219,29 @@ export function BuyerPickerField({
     return tBuilder('buyerPickerSelectedCount', { count: selectedBuyers.length });
   }, [selectedBuyers, tBuilder]);
 
-  const summaryPhone = useMemo(() => {
+  const summaryContact = useMemo(() => {
     if (selectedBuyers.length === 0) return '';
     if (selectedBuyers.length === 1) {
-      return selectedBuyers[0].buyerPhone
-        ? tBuilder('buyerPickerPhone', { phone: selectedBuyers[0].buyerPhone })
-        : tBuilder('buyerPickerNoPhone');
+      const buyer = selectedBuyers[0];
+      const bits: string[] = [];
+      if (buyer.buyerEmail.includes('@')) {
+        bits.push(tBuilder('buyerPickerEmail', { email: buyer.buyerEmail }));
+      } else {
+        bits.push(tBuilder('buyerPickerNoEmail'));
+      }
+      if (buyer.buyerPhone.trim()) {
+        bits.push(tBuilder('buyerPickerPhone', { phone: buyer.buyerPhone }));
+      } else {
+        bits.push(tBuilder('buyerPickerNoPhone'));
+      }
+      return bits.join(' · ');
     }
+    const withEmail = selectedBuyers.filter((b) => b.buyerEmail.includes('@')).length;
     const withPhone = selectedBuyers.filter((b) => b.buyerPhone.trim()).length;
-    return tBuilder('buyerPickerPhonesReady', { count: withPhone, total: selectedBuyers.length });
+    return [
+      tBuilder('buyerPickerEmailsReady', { count: withEmail, total: selectedBuyers.length }),
+      tBuilder('buyerPickerPhonesReady', { count: withPhone, total: selectedBuyers.length }),
+    ].join(' · ');
   }, [selectedBuyers, tBuilder]);
 
   return (
@@ -235,7 +253,7 @@ export function BuyerPickerField({
             <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-[#0a61d7]" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs font-semibold text-black">{summaryLabel}</p>
-              <p className="mt-0.5 truncate text-[11px] text-gray-500">{summaryPhone}</p>
+              <p className="mt-0.5 truncate text-[11px] text-gray-500">{summaryContact}</p>
             </div>
             <div className="flex shrink-0 flex-col gap-1">
               <button
@@ -259,6 +277,9 @@ export function BuyerPickerField({
               {selectedBuyers.slice(0, 5).map((buyer) => (
                 <li key={buyer.buyerId} className="truncate text-[11px] text-gray-600">
                   <span className="font-medium text-black">{buyer.buyerLabel || buyer.buyerId}</span>
+                  {buyer.buyerEmail.includes('@')
+                    ? ` · ${buyer.buyerEmail}`
+                    : ` · ${tBuilder('buyerPickerNoEmail')}`}
                   {buyer.buyerPhone ? ` · ${buyer.buyerPhone}` : ''}
                 </li>
               ))}

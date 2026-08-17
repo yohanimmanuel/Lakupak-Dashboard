@@ -6,6 +6,7 @@ import {
   sendTextMessage,
 } from '@/lib/whatsapp/cloudApi';
 import { credentialsFromGmailAppConfig, sendGmailMessage } from '@/lib/gmail/smtp';
+import { orderBuyersWithContactOverrides } from '@/lib/automations/buyerContacts';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -153,7 +154,11 @@ type LoadedBuyer = {
   storeName: string;
 };
 
-async function loadSelectedBuyers(userId: number, buyerIds: string[]): Promise<LoadedBuyer[]> {
+async function loadSelectedBuyers(
+  userId: number,
+  buyerIds: string[],
+  config?: JsonRecord | null,
+): Promise<LoadedBuyer[]> {
   const buyers = await prisma.buyer.findMany({
     where: {
       userId,
@@ -170,13 +175,7 @@ async function loadSelectedBuyers(userId: number, buyerIds: string[]): Promise<L
   if (buyers.length === 0) {
     throw new Error('No matching buyers found.');
   }
-  return buyers.map((b) => ({
-    buyerId: b.buyerId,
-    email: String(b.email ?? '').trim(),
-    phone: String(b.phone ?? '').trim(),
-    owner: b.owner,
-    storeName: b.storeName,
-  }));
+  return orderBuyersWithContactOverrides(buyerIds, buyers, config, { prefer: 'db' });
 }
 
 async function loadShareProductVars(
@@ -257,7 +256,7 @@ async function deliverToBuyers(args: {
     const creds = credentialsFromGmailAppConfig(appConfig(args.workflow, 'app_email'));
     if (!creds) {
       throw new Error(
-        `${args.actionType} email needs Gmail address + App Password on the Gmail app node (or GMAIL_SMTP_* env vars).`,
+        `${args.actionType} email needs Gmail SMTP configured (SMTP_USER / SMTP_PASS or GMAIL_SMTP_* env vars).`,
       );
     }
     let sent = 0;
@@ -366,7 +365,7 @@ export async function executeChannelBuyerMessage(
     throw new Error(`${actionType} needs at least one buyer.`);
   }
 
-  const buyers = await loadSelectedBuyers(workflow.userId, buyerIds);
+  const buyers = await loadSelectedBuyers(workflow.userId, buyerIds, config);
   const shareVars =
     actionType === 'share_product_whatsapp'
       ? await loadShareProductVars(workflow.userId, config, extraVars)

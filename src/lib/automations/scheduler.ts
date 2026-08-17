@@ -1,4 +1,4 @@
-const TICK_MS = 20_000;
+const TICK_MS = 5_000;
 
 const globalForScheduler = globalThis as unknown as {
   __lakuCampaignScheduleTimer?: ReturnType<typeof setInterval>;

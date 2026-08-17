@@ -5,8 +5,9 @@ import {
   normalizeE164Phone,
   sendTextMessage,
 } from '@/lib/whatsapp/cloudApi';
-import { credentialsFromGmailAppConfig, sendGmailMessage } from '@/lib/gmail/smtp';
+import { credentialsFromGmailAppConfig, sendGmailMessageBatch } from '@/lib/gmail/smtp';
 import { buildCampaignEmailHtml } from '@/lib/automations/campaignEmailHtml';
+import { orderBuyersWithContactOverrides } from '@/lib/automations/buyerContacts';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -139,6 +140,7 @@ function pickedBuyerIds(config: JsonRecord | null | undefined): string[] {
 async function loadSelectedBuyers(
   userId: number,
   buyerIds: string[],
+  config?: JsonRecord | null,
 ): Promise<Array<{ buyerId: string; email: string; phone: string; owner: string; storeName: string }>> {
   const buyers = await prisma.buyer.findMany({
     where: {
@@ -156,13 +158,7 @@ async function loadSelectedBuyers(
   if (buyers.length === 0) {
     throw new Error('No matching buyers found for send_campaign.');
   }
-  return buyers.map((b) => ({
-    buyerId: b.buyerId,
-    email: String(b.email ?? '').trim(),
-    phone: String(b.phone ?? '').trim(),
-    owner: b.owner,
-    storeName: b.storeName,
-  }));
+  return orderBuyersWithContactOverrides(buyerIds, buyers, config, { prefer: 'config' });
 }
 
 async function loadSelectedCampaigns(
@@ -234,7 +230,7 @@ export async function executeSendCampaign(
     throw new Error('send_campaign needs at least one buyer.');
   }
 
-  const buyers = await loadSelectedBuyers(workflow.userId, buyerIds);
+  const buyers = await loadSelectedBuyers(workflow.userId, buyerIds, config);
   const messageTemplate = String(config.messageTemplate ?? '').trim();
   if (!messageTemplate) {
     throw new Error('send_campaign needs a message template.');
@@ -245,7 +241,7 @@ export async function executeSendCampaign(
     : null;
   if (wantsEmail && !emailCreds) {
     throw new Error(
-      'send_campaign email needs Gmail address + App Password on the Gmail app node (or GMAIL_SMTP_* env vars).',
+      'send_campaign email needs Gmail SMTP configured (SMTP_USER / SMTP_PASS or GMAIL_SMTP_* env vars).',
     );
   }
 
@@ -256,6 +252,12 @@ export async function executeSendCampaign(
   const summaries: string[] = [];
   let emailSent = 0;
   let emailFailed = 0;
+  const buyersMissingEmail = wantsEmail
+    ? buyers.filter((buyer) => !buyer.email.includes('@'))
+    : [];
+  const missingEmailLabels = buyersMissingEmail.map(
+    (buyer) => buyer.storeName || buyer.owner || buyer.buyerId,
+  );
   let waSent = 0;
   let waFailed = 0;
 
@@ -270,38 +272,43 @@ export async function executeSendCampaign(
     let campaignWaSent = 0;
 
     if (wantsEmail && emailCreds) {
-      for (const buyer of buyers) {
-        if (!buyer.email.includes('@')) {
-          emailFailed += 1;
-          continue;
-        }
-        const text = buildCampaignBody(messageTemplate, {
-          ...campaignVars,
-          buyerName: buyer.owner || buyer.storeName || buyer.buyerId,
-          storeName: buyer.storeName || '',
-        });
-        if (testMode) {
-          campaignEmailSent += 1;
-          emailSent += 1;
-          continue;
-        }
+      const emailable = buyers.filter((buyer) => buyer.email.includes('@'));
+      if (testMode) {
+        campaignEmailSent += emailable.length;
+        emailSent += emailable.length;
+      } else if (emailable.length > 0) {
         try {
-          await sendGmailMessage({
+          const results = await sendGmailMessageBatch({
             creds: emailCreds,
-            to: buyer.email,
-            subject: campaign.name,
-            text,
-            html: buildCampaignEmailHtml({
-              introText: text,
-              campaignName: campaign.name,
-              shareUrl,
-              contentBlocks: campaign.contentBlocks,
+            messages: emailable.map((buyer) => {
+              const text = buildCampaignBody(messageTemplate, {
+                ...campaignVars,
+                buyerName: buyer.owner || buyer.storeName || buyer.buyerId,
+                storeName: buyer.storeName || '',
+              });
+              return {
+                to: buyer.email,
+                subject: campaign.name,
+                text,
+                html: buildCampaignEmailHtml({
+                  introText: text,
+                  campaignName: campaign.name,
+                  shareUrl,
+                  contentBlocks: campaign.contentBlocks,
+                }),
+              };
             }),
           });
-          campaignEmailSent += 1;
-          emailSent += 1;
+          for (const result of results) {
+            if (result.ok) {
+              campaignEmailSent += 1;
+              emailSent += 1;
+            } else {
+              emailFailed += 1;
+            }
+          }
         } catch {
-          emailFailed += 1;
+          emailFailed += emailable.length;
         }
       }
     }
@@ -372,7 +379,17 @@ export async function executeSendCampaign(
         ? `Gmail preview ${emailSent} (${campaigns.length} campaign(s) × ${buyers.length} buyer(s), not sent)`
         : `Gmail sent ${emailSent} (${campaigns.length} campaign(s) × ${buyers.length} buyer(s))`,
     );
+    if (buyersMissingEmail.length > 0) {
+      const names = missingEmailLabels.slice(0, 3).join(', ');
+      parts.push(
+        `Gmail skipped ${buyersMissingEmail.length} buyer(s) with no email${names ? ` (${names})` : ''}`,
+      );
+    }
     if (emailFailed) parts.push(`Gmail failed ${emailFailed}`);
+    const emailableCount = buyers.length - buyersMissingEmail.length;
+    if (!testMode && emailableCount > 0) {
+      parts.push(`to ${emailableCount} buyer(s)`);
+    }
   }
   if (wantsWhatsApp && waCreds?.accessToken && waCreds.phoneNumberId) {
     parts.push(testMode ? `WhatsApp preview ${waSent} (not sent)` : `WhatsApp sent ${waSent}`);

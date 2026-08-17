@@ -221,7 +221,7 @@ export function NodeAddMenu({
           title: tBuilder('appEmail'),
           subtitle: tBuilder('nodeApp'),
           description: tBuilder('appEmailHint'),
-          config: { connected: false, email: '', appPassword: '' },
+          config: { connected: false, email: '' },
           icon: <GmailIcon className="h-4 w-4 shrink-0" />,
         },
       ],

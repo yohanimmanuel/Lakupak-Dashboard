@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db';
-import { GmailSmtpError, sendGmailMessage, type GmailSmtpCredentials } from '@/lib/gmail/smtp';
+import { GmailSmtpError, sendGmailMessageBatch, type GmailSmtpCredentials } from '@/lib/gmail/smtp';
 import { resolveGmailCredentialsForUser } from '@/lib/gmail/userCredentials';
 import { buildCampaignEmailHtml } from '@/lib/automations/campaignEmailHtml';
 
@@ -109,9 +109,8 @@ async function deliverMarketingCampaignEmails(args: {
     error: 'unmatched',
   }));
 
-  let smtpError: GmailSmtpError | undefined;
-  for (let i = 0; i < args.buyers.length; i += 1) {
-    const buyer = args.buyers[i];
+  const queued: Array<{ buyerId: string; email: string }> = [];
+  for (const buyer of args.buyers) {
     const email = String(buyer.email ?? '').trim();
     if (!email.includes('@')) {
       deliveries.push({
@@ -122,38 +121,58 @@ async function deliverMarketingCampaignEmails(args: {
       });
       continue;
     }
+    queued.push({ buyerId: buyer.buyerId, email });
+  }
+
+  let smtpError: GmailSmtpError | undefined;
+  if (queued.length > 0) {
+    const html = buildCampaignEmailHtml({
+      introText: args.intro,
+      campaignName: args.campaignName,
+      shareUrl: args.shareUrl,
+      contentBlocks: args.contentBlocks,
+    });
     try {
-      await sendGmailMessage({
+      const results = await sendGmailMessageBatch({
         creds: args.creds,
-        to: email,
-        subject: args.campaignName,
-        text: args.intro,
-        html: buildCampaignEmailHtml({
-          introText: args.intro,
-          campaignName: args.campaignName,
-          shareUrl: args.shareUrl,
-          contentBlocks: args.contentBlocks,
-        }),
+        messages: queued.map((row) => ({
+          to: row.email,
+          subject: args.campaignName,
+          text: args.intro,
+          html,
+        })),
       });
-      deliveries.push({ buyerId: buyer.buyerId, email, status: 'sent' });
-    } catch (err) {
-      deliveries.push({
-        buyerId: buyer.buyerId,
-        email,
-        status: 'failed',
-        error: err instanceof GmailSmtpError ? 'smtp' : 'send_failed',
-      });
-      if (err instanceof GmailSmtpError) {
-        console.error('[marketing/campaigns/send] Gmail SMTP error', err);
-        smtpError = err;
-        for (const remaining of args.buyers.slice(i + 1)) {
+      let anySmtp = false;
+      for (let i = 0; i < queued.length; i += 1) {
+        const row = queued[i];
+        const result = results[i];
+        if (result?.ok) {
+          deliveries.push({ buyerId: row.buyerId, email: row.email, status: 'sent' });
+        } else {
+          anySmtp = true;
           deliveries.push({
-            buyerId: remaining.buyerId,
-            email: String(remaining.email ?? '').trim() || null,
-            status: 'unattempted',
+            buyerId: row.buyerId,
+            email: row.email,
+            status: 'failed',
+            error: 'send_failed',
           });
         }
-        break;
+      }
+      if (anySmtp && results.every((r) => !r.ok)) {
+        smtpError = new GmailSmtpError('Gmail SMTP failed for all recipients.', 502);
+      }
+    } catch (err) {
+      console.error('[marketing/campaigns/send] Gmail batch failed', args.campaignId, err);
+      if (err instanceof GmailSmtpError) {
+        smtpError = err;
+      }
+      for (const row of queued) {
+        deliveries.push({
+          buyerId: row.buyerId,
+          email: row.email,
+          status: 'failed',
+          error: 'smtp',
+        });
       }
     }
   }
