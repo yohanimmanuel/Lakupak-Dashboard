@@ -17,6 +17,7 @@ import {
 } from '@/lib/automations/catalog';
 import { runLakuAgentNode } from '@/lib/automations/runLakuAgent';
 import { executeSendCampaign } from '@/lib/automations/sendCampaign';
+import { preserveScheduleClaim, scheduledSendAtIdentity } from '@/lib/automations/scheduleTime';
 import {
   CHANNEL_MESSAGE_ACTIONS,
   executeChannelBuyerMessage,
@@ -234,6 +235,55 @@ export const automationsTypeDefs = /* GraphQL */ `
   }
 `;
 
+function collectScheduleClaims(agentConfig: unknown, triggerConfig: unknown): Map<string, string> {
+  const claims = new Map<string, string>();
+  const flat = asRecord(triggerConfig);
+  if (flat) {
+    const sendAt = scheduledSendAtIdentity(flat);
+    const key = String(flat.scheduleClaimKey ?? '').trim();
+    if (sendAt && key) claims.set(sendAt, key);
+  }
+  for (const node of canvasNodesFromAgentConfig(agentConfig)) {
+    if (node.data?.kind !== 'trigger' || node.data.catalogType !== 'campaign_schedule') continue;
+    const config = node.data.config ?? {};
+    const sendAt = scheduledSendAtIdentity(config);
+    const key = String(config.scheduleClaimKey ?? '').trim();
+    if (sendAt && key) claims.set(sendAt, key);
+  }
+  return claims;
+}
+
+function applyScheduleClaimsToAgentConfig(
+  agentConfig: Prisma.InputJsonValue,
+  claims: Map<string, string>,
+): Prisma.InputJsonValue {
+  if (claims.size === 0) return agentConfig;
+  const root = asRecord(agentConfig);
+  if (!root) return agentConfig;
+  const canvas = asRecord(root.__canvas);
+  if (!canvas || !Array.isArray(canvas.nodes)) return agentConfig;
+  const nodes = canvas.nodes.map((n) => {
+    const row = asRecord(n);
+    if (!row) return n;
+    const data = asRecord(row.data);
+    if (!data || data.kind !== 'trigger' || data.catalogType !== 'campaign_schedule') {
+      return n;
+    }
+    const config = asRecord(data.config) ?? {};
+    const sendAt = scheduledSendAtIdentity(config);
+    const key = sendAt ? claims.get(sendAt) : undefined;
+    if (!key) return n;
+    return {
+      ...row,
+      data: {
+        ...data,
+        config: { ...config, scheduleClaimKey: key },
+      },
+    };
+  });
+  return { ...root, __canvas: { ...canvas, nodes } } as Prisma.InputJsonValue;
+}
+
 function asJsonObject(value: unknown): Prisma.InputJsonValue {
   if (value == null) return {};
   if (typeof value === 'object') return value as Prisma.InputJsonValue;
@@ -387,7 +437,7 @@ async function createWorkflow(args: {
     });
   }
   if (!isTriggerAllowed(args.type, triggerType)) {
-    throw new GraphQLError('Required: A trigger must be defined.', {
+    throw new GraphQLError(`Trigger ${triggerType} is not allowed for ${args.type}`, {
       extensions: { code: 'BAD_USER_INPUT' },
     });
   }
@@ -464,7 +514,7 @@ async function updateWorkflow(args: {
     });
   }
   if (!isTriggerAllowed(nextType, nextTrigger)) {
-    throw new GraphQLError('Required: A trigger must be defined.', {
+    throw new GraphQLError(`Trigger ${nextTrigger} is not allowed for ${nextType}`, {
       extensions: { code: 'BAD_USER_INPUT' },
     });
   }
@@ -474,13 +524,15 @@ async function updateWorkflow(args: {
     });
   }
 
+  const claims = collectScheduleClaims(existing.agentConfig, existing.triggerConfig);
+
   const nextActionConfig =
     args.actionConfig !== undefined ? asJsonObject(args.actionConfig) : existing.actionConfig;
   const nextAgentConfig =
     args.agentConfig !== undefined
       ? args.agentConfig == null
         ? null
-        : asJsonObject(args.agentConfig)
+        : applyScheduleClaimsToAgentConfig(asJsonObject(args.agentConfig), claims)
       : existing.agentConfig;
   assertAssignDriverHasDriver({
     actionType: nextAction,
@@ -494,9 +546,15 @@ async function updateWorkflow(args: {
   if (args.type != null) data.type = args.type;
   if (args.status != null) data.status = args.status;
   if (args.triggerType != null) data.triggerType = nextTrigger;
-  if (args.triggerConfig !== undefined) data.triggerConfig = asJsonObject(args.triggerConfig);
+  if (args.triggerConfig !== undefined) {
+    data.triggerConfig = preserveScheduleClaim(
+      asRecord(existing.triggerConfig),
+      asJsonObject(args.triggerConfig) as Record<string, unknown>,
+    ) as Prisma.InputJsonValue;
+  }
   if (args.agentConfig !== undefined) {
-    data.agentConfig = args.agentConfig == null ? Prisma.JsonNull : asJsonObject(args.agentConfig);
+    data.agentConfig =
+      nextAgentConfig == null ? Prisma.JsonNull : (nextAgentConfig as Prisma.InputJsonValue);
   }
   if (args.actionType != null) data.actionType = args.actionType;
   if (args.actionConfig !== undefined) data.actionConfig = asJsonObject(args.actionConfig);
@@ -682,6 +740,10 @@ async function deleteRun(args: { userId: number; id: string }) {
       return { success: false, deleted: null };
     }
 
+    if (existing.status === 'in_progress') {
+      return { success: false, deleted: null };
+    }
+
     await tx.automationRun.delete({ where: { id: existing.id } });
     await syncWorkflowRunStats(tx, existing.workflowId);
     return { success: true, deleted: mapRun(existing) };
@@ -698,11 +760,10 @@ async function clearRuns(args: { userId: number; workflowId: string }) {
   }
 
   const deletedCount = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    const result = await tx.automationRun.deleteMany({ where: { workflowId: workflow.id } });
-    await tx.automationWorkflow.update({
-      where: { id: workflow.id },
-      data: { runs: 0 },
+    const result = await tx.automationRun.deleteMany({
+      where: { workflowId: workflow.id, status: { not: 'in_progress' } },
     });
+    await syncWorkflowRunStats(tx, workflow.id);
     return result.count;
   });
 

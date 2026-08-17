@@ -37,6 +37,24 @@ function truncateMessage(message: string, max: number): string {
   return `${trimmed.slice(0, max).trimEnd()}…`;
 }
 
+/** Engine stores `[runKey] actual message` for matching; hide the key in history. */
+function stripRunKeyPrefix(raw: string): string {
+  return raw.replace(/^\[[^\]]+\]\s*/, '').trim();
+}
+
+function humanizeRunMessage(raw: string, status: string, inProgressCampaigns: string): string {
+  const trimmed = raw.trim();
+  const stripped = stripRunKeyPrefix(trimmed);
+  const isCampaignSchedule = /\[campaign_schedule:/i.test(trimmed);
+  if (
+    status === 'in_progress' &&
+    (isCampaignSchedule || stripped === '' || /^in_progress$/i.test(stripped))
+  ) {
+    return inProgressCampaigns;
+  }
+  return stripped;
+}
+
 function RunListItem({
   run,
   locale,
@@ -63,7 +81,10 @@ function RunListItem({
   collapseLabel?: string;
 }) {
   const { tRuns } = useAutomationTranslations();
-  const message = run.message?.trim() || '';
+  const inProgressCampaigns = tRuns.has('inProgressCampaigns')
+    ? tRuns('inProgressCampaigns')
+    : 'The campaign(s) are being delivered.';
+  const message = humanizeRunMessage(run.message ?? '', run.status, inProgressCampaigns);
   const canExpand =
     expandable && message.length > MODAL_COLLAPSED_MAX && Boolean(onToggleExpand);
   const displayMessage = !message

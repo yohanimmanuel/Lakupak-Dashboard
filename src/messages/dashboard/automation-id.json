@@ -86,6 +86,8 @@
     "untitled": "Alur kerja tanpa judul",
     "saveDraft": "Simpan draf",
     "activate": "Aktifkan",
+    "sendAtConfirmHint": "Mengubah waktu ini tidak mengirim kampanye. Klik Aktifkan untuk mengonfirmasi waktu kirim di masa depan.",
+    "sendAtMustBeFuture": "Waktu kirim harus di masa depan sebelum alur kerja dapat diaktifkan.",
     "testRun": "Uji coba",
     "undo": "Urungkan",
     "undoShortcut": "Urungkan ({modifier}+Z)",
@@ -128,7 +130,7 @@
       "order_paid": "Berjalan saat pembeli mengirim bukti pembayaran. Pasangkan dengan Tandai lunas dari bukti untuk mengubah status menjadi Lunas",
       "return_accepted": "Berjalan saat retur diterima dan stok dapat dipulihkan",
       "cart_idle": "Berjalan saat keranjang marketplace menganggur selama X jam",
-      "campaign_schedule": "Kirim kampanye terpilih pada tanggal dan waktu yang ditentukan"
+      "campaign_schedule": "Kirim kampanye terpilih pada tanggal dan waktu yang ditentukan. Mengubah Kirim pada tidak mengirim sampai Anda klik Aktifkan."
     },
     "actionHints": {
       "replenish_stock": "Tulis jumlah isi ulang ke stok saat alur kerja aktif",
@@ -433,6 +435,7 @@
     "empty": "Belum ada eksekusi. Gunakan Uji coba untuk membuat entri sementara.",
     "clearRun": "Hapus eksekusi",
     "clearAll": "Hapus semua",
+    "inProgressCampaigns": "Kampanye sedang dikirim.",
     "status": {
       "success": "Berhasil",
       "failed": "Gagal",

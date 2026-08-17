@@ -13,6 +13,10 @@ import {
   normalizeLakuAgentModelId,
   resolveLakuAgentProviderModel,
 } from '@/lib/automations/agentModels';
+import {
+  dateTimeLocalToUtcIso,
+  utcIsoToDateTimeLocal,
+} from '@/lib/automations/scheduleTime';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
 import { BuilderSelect } from './BuilderSelect';
 import type { WorkflowFlowEdge, WorkflowFlowNode } from './canvasTypes';
@@ -42,12 +46,16 @@ const fieldClassName =
 function CatalogFieldInput({
   field,
   value,
+  utcValue,
+  sendAtHint,
   onChange,
   label,
   optionLabel,
 }: {
   field: CatalogField;
   value: unknown;
+  utcValue?: string;
+  sendAtHint?: string;
   onChange: (next: string | number, extra?: Record<string, unknown>) => void;
   label: string;
   optionLabel: (option: string) => string;
@@ -115,10 +123,9 @@ function CatalogFieldInput({
 
   if (field.kind === 'datetime') {
     const raw = String(value ?? '');
-    // datetime-local needs YYYY-MM-DDTHH:mm; accept ISO strings by trimming seconds/zone.
-    const localValue = raw.includes('T')
-      ? raw.slice(0, 16)
-      : raw;
+    const utc = String(utcValue ?? '').trim();
+    const fromUtc = utc ? utcIsoToDateTimeLocal(utc) : '';
+    const localValue = fromUtc || (raw.includes('T') ? raw.slice(0, 16) : raw);
     return (
       <label className="block">
         <span className="mb-1 block text-xs font-medium text-gray-600">{label}</span>
@@ -131,14 +138,15 @@ function CatalogFieldInput({
               onChange(local);
               return;
             }
-            const parsed = local ? new Date(local) : null;
             onChange(local, {
-              sendAtUtc:
-                parsed && !Number.isNaN(parsed.getTime()) ? parsed.toISOString() : '',
+              sendAtUtc: local ? dateTimeLocalToUtcIso(local) : '',
             });
           }}
           className={fieldClassName}
         />
+        {field.key === 'sendAt' && sendAtHint ? (
+          <p className="mt-1 text-[11px] leading-snug text-gray-500">{sendAtHint}</p>
+        ) : null}
       </label>
     );
   }
@@ -455,6 +463,16 @@ export function StepDetailsPanel({
                       key={field.key}
                       field={field}
                       value={selected.data.config?.[field.key]}
+                      utcValue={
+                        field.key === 'sendAt'
+                          ? String(selected.data.config?.sendAtUtc ?? '')
+                          : undefined
+                      }
+                      sendAtHint={
+                        field.key === 'sendAt' && tBuilder.has('sendAtConfirmHint')
+                          ? tBuilder('sendAtConfirmHint')
+                          : undefined
+                      }
                       label={tFields.has(field.key) ? tFields(field.key) : field.key}
                       optionLabel={(option) =>
                         tFields.has(`options.${option}`) ? tFields(`options.${option}`) : option

@@ -209,35 +209,6 @@ export default function SendCampaignModal({
                     </ul>
                   </div>
                 )}
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">{tSendModal('channel')}</label>
-                  <BuilderSelect
-                    aria-label={tSendModal('channel')}
-                    value={channel}
-                    options={[
-                      { value: 'whatsapp', label: tSendModal('channelWhatsapp') },
-                      { value: 'email', label: tSendModal('channelEmail') },
-                      { value: 'both', label: tSendModal('channelBoth') },
-                    ]}
-                    onChangeAction={(next) => setChannel(next as SendChannel)}
-                  />
-                </div>
-                {needsBuyers && (
-                  <>
-                    <BuyerPickerField
-                      label={tSendModal('selectBuyers')}
-                      selectedBuyers={buyers}
-                      onSelectAction={(picked: Buyer[]) => setBuyers(picked.map(toPickedBuyer))}
-                      onClearAction={() => setBuyers([])}
-                    />
-                    <p className="text-xs text-gray-500">{tSendModal('emailHint')}</p>
-                  </>
-                )}
-                {error && (
-                  <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                    {error}
-                  </p>
-                )}
               </div>
             </div>
 
@@ -254,6 +225,38 @@ export default function SendCampaignModal({
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
+              <h3 className="text-md font-semibold text-black mb-4">{tSendModal('channel')}</h3>
+              <div className="space-y-3">
+                <BuilderSelect
+                  aria-label={tSendModal('channel')}
+                  value={channel}
+                  options={[
+                    { value: 'whatsapp', label: tSendModal('channelWhatsapp') },
+                    { value: 'email', label: tSendModal('channelEmail') },
+                    { value: 'both', label: tSendModal('channelBoth') },
+                  ]}
+                  onChangeAction={(next) => setChannel(next as SendChannel)}
+                />
+                {needsBuyers && (
+                  <>
+                    <BuyerPickerField
+                      label={tSendModal('selectBuyers')}
+                      selectedBuyers={buyers}
+                      onSelectAction={(picked: Buyer[]) => setBuyers(picked.map(toPickedBuyer))}
+                      onClearAction={() => setBuyers([])}
+                    />
+                    <p className="text-xs text-gray-500">{tSendModal('emailHint')}</p>
+                  </>
+                )}
+                {error && (
+                  <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    {error}
+                  </p>
+                )}
               </div>
             </div>
           </div>

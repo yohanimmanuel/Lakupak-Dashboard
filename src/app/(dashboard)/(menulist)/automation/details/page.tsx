@@ -33,6 +33,7 @@ import {
   ASSIGN_DRIVER_REQUIRES_DRIVER_MESSAGE,
   hasAssignDriverWithoutDriver,
 } from '@/lib/automations/catalog';
+import { isScheduledSendAtInFuture } from '@/lib/automations/scheduleTime';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
@@ -59,6 +60,18 @@ const WORKFLOW_QUERY = `
       createdAt
       updatedAt
     }
+    automationRuns(workflowId: $id, limit: 20) {
+      id
+      workflowId
+      status
+      message
+      createdAt
+    }
+  }
+`;
+
+const RUNS_QUERY = `
+  query GetAutomationRuns($id: String!) {
     automationRuns(workflowId: $id, limit: 20) {
       id
       workflowId
@@ -276,6 +289,30 @@ function DetailsInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load is intentionally omitted
   }, [user?.id, id]);
 
+  useEffect(() => {
+    if (!user?.id || !id) return;
+    const requestedId = id;
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const data = await fetchGraphQL<{ automationRuns: AutomationRun[] }>(RUNS_QUERY, {
+          id: requestedId,
+        });
+        if (cancelled || latestIdRef.current !== requestedId) return;
+        setRuns(data.automationRuns ?? []);
+      } catch {
+        // Keep the last known history if a poll fails.
+      }
+    };
+    const timer = window.setInterval(() => {
+      void tick();
+    }, 10_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [user?.id, id]);
+
   const checkpointHistory = useCallback(() => {
     const current = draftRef.current;
     if (!current) return;
@@ -371,6 +408,23 @@ function DetailsInner() {
       setFormError(null);
       return false;
     }
+    const nextStatus = statusOverride ?? draft.status;
+    if (nextStatus === 'active') {
+      const hasInvalidSchedule = draft.nodes.some(
+        (n) =>
+          n.data.kind === 'trigger' &&
+          n.data.catalogType === 'campaign_schedule' &&
+          !isScheduledSendAtInFuture(n.data.config),
+      );
+      if (hasInvalidSchedule) {
+        setFormError(
+          tBuilder.has('sendAtMustBeFuture')
+            ? tBuilder('sendAtMustBeFuture')
+            : 'Send at must be a future date and time before you can activate.',
+        );
+        return false;
+      }
+    }
     const manageSaving = opts?.manageSaving !== false;
     if (manageSaving) setSaving(true);
     setNameError(null);
@@ -447,8 +501,11 @@ function DetailsInner() {
     try {
       await fetchGraphQL<{ deleteAutomationRun: { success: boolean } }>(DELETE_RUN_MUTATION, {
         id: runId,
+      }).then((data) => {
+        if (data.deleteAutomationRun.success) {
+          setRuns((prev) => prev.filter((run) => run.id !== runId));
+        }
       });
-      setRuns((prev) => prev.filter((run) => run.id !== runId));
     } catch (e) {
       setFormError(e instanceof Error ? e.message : tBuilder('saveFailed'));
     } finally {
@@ -463,7 +520,8 @@ function DetailsInner() {
       await fetchGraphQL<{ clearAutomationRuns: { success: boolean } }>(CLEAR_RUNS_MUTATION, {
         workflowId: id,
       });
-      setRuns([]);
+      const data = await fetchGraphQL<{ automationRuns: AutomationRun[] }>(RUNS_QUERY, { id });
+      setRuns(data.automationRuns ?? []);
     } catch (e) {
       setFormError(e instanceof Error ? e.message : tBuilder('saveFailed'));
     } finally {

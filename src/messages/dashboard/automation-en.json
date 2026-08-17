@@ -86,6 +86,8 @@
     "untitled": "Untitled workflow",
     "saveDraft": "Save draft",
     "activate": "Activate",
+    "sendAtConfirmHint": "Changing this time does not send the campaign. Click Activate to confirm a future send time.",
+    "sendAtMustBeFuture": "Send at must be a future date and time before you can activate.",
     "testRun": "Test run",
     "undo": "Undo",
     "undoShortcut": "Undo ({modifier}+Z)",
@@ -128,7 +130,7 @@
       "order_paid": "Fires when a buyer submits payment proof. Pair with Mark paid from proof to set the order to Paid",
       "return_accepted": "Fires when a return is received and stock can be restored",
       "cart_idle": "Fires when a marketplace cart stays idle for X hours",
-      "campaign_schedule": "Send a chosen campaign at a set date and time"
+      "campaign_schedule": "Send a chosen campaign at a set date and time. Editing Send at does not send until you click Activate."
     },
     "actionHints": {
       "replenish_stock": "Write replenish quantity into stock when the workflow is active",
@@ -433,6 +435,7 @@
     "empty": "No runs yet. Use Test run to create a stub entry.",
     "clearRun": "Remove run",
     "clearAll": "Clear all",
+    "inProgressCampaigns": "The campaign(s) are being delivered.",
     "status": {
       "success": "Success",
       "failed": "Failed",

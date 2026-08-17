@@ -45,7 +45,7 @@ export function WorkflowBuilderShell({
   status: WorkflowStatus;
   saving?: boolean;
   onSaveDraftAction: () => boolean | Promise<boolean>;
-  onActivateAction: () => void | Promise<unknown>;
+  onActivateAction: () => boolean | void | Promise<boolean | void>;
   onTestRunAction?: () => void | Promise<unknown>;
   showTestRun?: boolean;
   onUndoAction?: () => void;
@@ -144,7 +144,11 @@ export function WorkflowBuilderShell({
     if (busy) return;
     setToolbarBusy('activate');
     try {
-      await onActivateAction();
+      const ok = await onActivateAction();
+      if (ok === false) return;
+      const savedAt = Date.now();
+      setLastSavedAt(savedAt);
+      setNowTs(savedAt);
     } finally {
       setToolbarBusy(null);
     }
