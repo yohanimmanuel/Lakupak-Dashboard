@@ -356,6 +356,12 @@ async function claimCampaignScheduleSlot(
   workflowId: string,
   runKey: string,
 ): Promise<boolean> {
+  const already = await prisma.automationRun.findFirst({
+    where: { workflowId, runKey },
+    select: { id: true },
+  });
+  if (already) return false;
+
   try {
     await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       await tx.automationRun.create({
@@ -376,6 +382,7 @@ async function claimCampaignScheduleSlot(
     });
     return true;
   } catch (err) {
+    // Race between overlapping ticks: the other claim won.
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
       return false;
     }
