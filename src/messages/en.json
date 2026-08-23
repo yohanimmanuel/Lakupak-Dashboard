@@ -422,9 +422,10 @@
   },
   "landing": {
     "hero": {
-      "titleBefore": "Where distributors and retailers trade ",
-      "titleAccent": "smarter",
-      "subtitle": "Connect your retail network, order in bulk, and run distribution from one platform: Dashboard, Marketplace, and Driver.",
+      "badge": "B2B E-commerce Platform for FMCG",
+      "titleBefore": "One Platform. Unify Operations. Expand Networks. ",
+      "titleAccent": "Scale Faster",
+      "subtitle": "Still running your business on seperated systems and deliveries without visibility? Laku unifies your business on AI powered dashboard, marketplace, and driver app so FMCG trade runs with clarity, trust, and control.",
       "cta": "Start free trial",
       "learnmore": "Explore marketplace",
       "productPlaceholder": "Dashboard preview. Replace with product image"

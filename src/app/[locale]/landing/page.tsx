@@ -1129,11 +1129,17 @@ export default function LandingPage() {
           <AuthDecorativeBackground variant="light" />
 
           <div className="relative z-10 mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 text-center">
+            <HeroStagger delayMs={0}>
+              <p className="mx-auto mb-5 inline-flex items-center rounded-full border border-[#c9dbf7] bg-white px-3.5 py-1 text-xs font-semibold text-[#0a61d7] sm:text-sm">
+                {t('hero.badge')}
+              </p>
+            </HeroStagger>
+
             <HeroStagger delayMs={40}>
               <h1 className="text-4xl sm:text-5xl lg:text-[3.25rem] font-bold tracking-tight text-gray-900 leading-[1.12]">
                 {t('hero.titleBefore')}
                 <span className="text-[#0a61d7]">{t('hero.titleAccent')}</span>
-                     </h1>
+              </h1>
             </HeroStagger>
 
             <HeroStagger delayMs={160}>

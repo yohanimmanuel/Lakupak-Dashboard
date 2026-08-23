@@ -422,9 +422,10 @@
   },
   "landing": {
     "hero": {
-      "titleBefore": "Tempat distributor dan retailer berdagang lebih ",
-      "titleAccent": "cerdas",
-      "subtitle": "Hubungkan jaringan ritel, pesan grosir, dan kelola distribusi dari satu platform: Dashboard, Marketplace, dan Driver.",
+      "badge": "Platform Perdagangan B2B E-commerce FMCG",
+      "titleBefore": "Satu Platform. Satukan Operasi. Perluas Jaringan. ",
+      "titleAccent": "Scale Lebih Cepat",
+      "subtitle": "Masih kelola bisnis di sistem terpisah dan pengiriman tanpa visibilitas? Laku menyatukan bisnis Anda di dashboard, marketplace, dan aplikasi driver agar perdagangan FMCG berjalan jelas, terpercaya, dan terkendali.",
       "cta": "Coba gratis",
       "learnmore": "Jelajahi marketplace",
       "productPlaceholder": "Pratinjau dashboard. Ganti dengan gambar produk"
