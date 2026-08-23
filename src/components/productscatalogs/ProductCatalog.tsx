@@ -104,6 +104,122 @@ type CatalogVariant = {
   options: Array<{ id: string; name: string }>;
 };
 
+function isFiniteNonNegativeNumber(value: unknown): boolean {
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) && n >= 0;
+}
+
+/** Prices must be parseable, finite, and nonnegative (empty / "abc" / negatives rejected). */
+function isCompleteCombination(combo: Combination, currencyCode?: string): boolean {
+  const purchaseRaw = String(combo.purchasePrice ?? '').trim();
+  const sellingRaw = String(combo.sellingPrice ?? '').trim();
+  if (!purchaseRaw || !sellingRaw) return false;
+
+  const purchase = parseNumberByCurrency(purchaseRaw, currencyCode);
+  const selling = parseNumberByCurrency(sellingRaw, currencyCode);
+
+  return (
+    Number.isFinite(purchase) &&
+    purchase >= 0 &&
+    Number.isFinite(selling) &&
+    selling >= 0 &&
+    isFiniteNonNegativeNumber(combo.stockQuantity) &&
+    isFiniteNonNegativeNumber(combo.lowStockThreshold)
+  );
+}
+
+function normalizeImportMatchValue(value: unknown): string {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+}
+
+function getImportRowVariantValue(
+  row: VariationImportRow,
+  variant: CatalogVariant,
+  variantIndex: number,
+): string {
+  const byId = String(row.variantValues[variant.id] ?? '').trim();
+  if (byId) return byId;
+  return String(row.variantValuesByPosition?.[variantIndex] ?? '').trim();
+}
+
+function buildCombinationFromImportRow(
+  row: VariationImportRow,
+  variantsList: CatalogVariant[],
+  index: number,
+): Combination {
+  const combo: Combination = {
+    id: `combination-import-${Date.now()}-${index}`,
+    sku: row.sku.trim(),
+    purchasePrice: row.purchasePrice.trim(),
+    sellingPrice: row.sellingPrice.trim(),
+    moq: row.moq ? parseInt(row.moq, 10) : undefined,
+    stockQuantity: row.stockQuantity ? parseInt(row.stockQuantity, 10) : 0,
+    lowStockThreshold: row.lowStockThreshold ? parseInt(row.lowStockThreshold, 10) : 0,
+    stockStatus: 'In Stock',
+  };
+
+  if (!Number.isFinite(combo.stockQuantity)) combo.stockQuantity = 0;
+  if (!Number.isFinite(combo.lowStockThreshold)) combo.lowStockThreshold = 0;
+  if (row.moq && !Number.isFinite(combo.moq as number)) combo.moq = undefined;
+
+  const normalizedStatus = normalizeImportedStockStatus(row.stockStatus);
+  if (normalizedStatus) {
+    combo.stockStatus = normalizedStatus;
+  } else {
+    combo.stockStatus = getVariantStockStatus(combo.stockQuantity, combo.lowStockThreshold);
+  }
+
+  variantsList.forEach((variant, variantIndex) => {
+    const value = getImportRowVariantValue(row, variant, variantIndex);
+    combo[`variant_${variant.id}`] = value || 'None';
+  });
+
+  combo.variantName = variantsList
+    .map((variant, variantIndex) => {
+      const value = getImportRowVariantValue(row, variant, variantIndex) || 'None';
+      return `${variant.variantType || `Var ${variantIndex + 1}`}: ${value}`;
+    })
+    .join(' | ');
+
+  return combo;
+}
+
+function syncVariantDefinitionsWithCombinations(
+  variantsList: CatalogVariant[],
+  combos: Combination[],
+  importRows: VariationImportRow[] = [],
+): CatalogVariant[] {
+  return variantsList.map((variant, variantIndex) => {
+    const seen = new Map<string, { id: string; name: string }>();
+
+    variant.options.forEach((opt) => {
+      const name = String(opt.name ?? '').trim();
+      if (!name) return;
+      seen.set(normalizeImportMatchValue(name), { id: opt.id, name });
+    });
+
+    const addValue = (raw: string) => {
+      const name = String(raw ?? '').trim();
+      if (!name || normalizeImportMatchValue(name) === 'none') return;
+      const key = normalizeImportMatchValue(name);
+      if (!seen.has(key)) {
+        seen.set(key, { id: `option-${variant.id}-${seen.size}`, name });
+      }
+    };
+
+    importRows.forEach((row) => addValue(getImportRowVariantValue(row, variant, variantIndex)));
+    combos.forEach((combo) => addValue(String(combo[`variant_${variant.id}`] ?? '')));
+
+    return {
+      ...variant,
+      options: Array.from(seen.values()),
+    };
+  });
+}
+
 function cartesianProduct(arrays: string[][]): string[][] {
   if (arrays.length === 0) return [];
   if (arrays.length === 1) return arrays[0].map((item) => [item]);
@@ -1271,23 +1387,70 @@ export default function ProductCatalog({
     row: VariationImportRow,
     variantsList: CatalogVariant[] = variants,
   ) => {
-    const importedVariantValue = (variantIndex: number, variantId: string) => {
-      const byId = (row.variantValues[variantId] ?? '').trim();
-      if (byId) return byId;
-      return (row.variantValuesByPosition?.[variantIndex] ?? '').trim();
-    };
+    const skuMatch = Boolean(
+      row.sku.trim() &&
+        combo.sku.trim() &&
+        normalizeImportMatchValue(row.sku) === normalizeImportMatchValue(combo.sku),
+    );
 
-    const hasVariantValues = variantsList.some((v, index) => Boolean(importedVariantValue(index, v.id)));
-    const variantMatch =
-      hasVariantValues &&
-      variantsList.every((v, index) => {
-        const imported = importedVariantValue(index, v.id).toLowerCase();
-        if (!imported) return true;
-        const current = String(combo[`variant_${v.id}`] ?? 'None').trim().toLowerCase();
-        return imported === current;
+    const importedValues = variantsList
+      .map((variant, index) => ({
+        raw: getImportRowVariantValue(row, variant, index),
+        normalized: normalizeImportMatchValue(getImportRowVariantValue(row, variant, index)),
+      }))
+      .filter((entry) => entry.raw);
+
+    if (importedValues.length === 0) {
+      return skuMatch;
+    }
+
+    const variantMatch = variantsList.every((variant, index) => {
+      const imported = normalizeImportMatchValue(getImportRowVariantValue(row, variant, index));
+      if (!imported) return true;
+      const current = normalizeImportMatchValue(combo[`variant_${variant.id}`] ?? 'None');
+      return imported === current;
+    });
+
+    if (variantMatch || skuMatch) {
+      return true;
+    }
+
+    const comboValues = variantsList
+      .map((variant) => normalizeImportMatchValue(combo[`variant_${variant.id}`] ?? ''))
+      .filter((value) => value && value !== 'none');
+
+    const importedNormalized = importedValues.map((entry) => entry.normalized);
+    const subsetMatch =
+      importedNormalized.length > 0 &&
+      importedNormalized.every((value) => comboValues.includes(value)) &&
+      importedNormalized.length === comboValues.length;
+
+    // Fallback when variant_* keys are empty but variantName is populated
+    // (e.g. "Unit #3: KARTON | Item Name: BRAVOO ..."). Exact typed values only —
+    // no substring matching, which can falsely link partial names.
+    const typedNameValues = new Map<string, string>();
+    String(combo.variantName ?? '')
+      .split('|')
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .forEach((part) => {
+        const sep = part.indexOf(':');
+        if (sep <= 0) return;
+        const typeKey = normalizeImportMatchValue(part.slice(0, sep));
+        const value = normalizeImportMatchValue(part.slice(sep + 1));
+        if (typeKey && value && value !== 'none') typedNameValues.set(typeKey, value);
       });
-    const skuMatch = Boolean(row.sku.trim() && combo.sku.trim() && row.sku.trim() === combo.sku.trim());
-    return variantMatch || skuMatch;
+
+    const nameMatch =
+      typedNameValues.size > 0 &&
+      variantsList.every((variant, index) => {
+        const imported = normalizeImportMatchValue(getImportRowVariantValue(row, variant, index));
+        if (!imported) return true;
+        const typeKey = normalizeImportMatchValue(variant.variantType || `Var ${index + 1}`);
+        return typedNameValues.get(typeKey) === imported;
+      });
+
+    return subsetMatch || nameMatch;
   };
 
   const mergeImportRowIntoCombo = (combo: Combination, row: VariationImportRow): Combination => {
@@ -1351,7 +1514,8 @@ export default function ProductCatalog({
     ): { combinations: Combination[]; updated: number } => {
       const usedRowIndices = new Set<number>();
       let updated = 0;
-      const combinations = combos.map((combo) => {
+
+      let nextCombinations = combos.map((combo) => {
         const rowIndex = rows.findIndex((row, idx) => {
           if (usedRowIndices.has(idx)) return false;
           return comboMatchesImportRow(combo, row, variantsList);
@@ -1361,8 +1525,38 @@ export default function ProductCatalog({
         updated += 1;
         return mergeImportRowIntoCombo(combo, rows[rowIndex]);
       });
-      return { combinations, updated };
+
+      rows.forEach((row, rowIndex) => {
+        if (usedRowIndices.has(rowIndex)) return;
+
+        const hasIdentity =
+          Boolean(row.sku.trim()) ||
+          variantsList.some((variant, variantIndex) => Boolean(getImportRowVariantValue(row, variant, variantIndex)));
+
+        if (!hasIdentity) return;
+
+        const existingIndex = nextCombinations.findIndex((combo) => comboMatchesImportRow(combo, row, variantsList));
+        if (existingIndex >= 0) {
+          nextCombinations = nextCombinations.map((combo, index) =>
+            index === existingIndex ? mergeImportRowIntoCombo(combo, row) : combo,
+          );
+          usedRowIndices.add(rowIndex);
+          updated += 1;
+          return;
+        }
+
+        nextCombinations = [
+          ...nextCombinations,
+          buildCombinationFromImportRow(row, variantsList, nextCombinations.length),
+        ];
+        usedRowIndices.add(rowIndex);
+        updated += 1;
+      });
+
+      return { combinations: nextCombinations, updated };
     };
+
+    const sourceCombinations = combinationsRef.current.length > 0 ? combinationsRef.current : combinations;
 
     if (variantLevels.length > 0 && !hasValidVariants(variants)) {
       const importedVariants = buildVariantsFromImport(variantLevels, rows);
@@ -1371,13 +1565,16 @@ export default function ProductCatalog({
       }
       const freshCombinations = rebuildCombinationsFromVariants(importedVariants, []);
       const { combinations: merged, updated } = applyRowsToCombinations(freshCombinations, importedVariants);
-      setVariants(importedVariants);
+      const syncedVariants = syncVariantDefinitionsWithCombinations(importedVariants, merged, rows);
+      setVariants(syncedVariants);
       combinationsRef.current = merged;
       setCombinations(merged);
       return { updated, skipped: rows.length - updated };
     }
 
-    const { combinations: merged, updated } = applyRowsToCombinations(combinations, variants);
+    const { combinations: merged, updated } = applyRowsToCombinations(sourceCombinations, variants);
+    const syncedVariants = syncVariantDefinitionsWithCombinations(variants, merged, rows);
+    setVariants(syncedVariants);
     combinationsRef.current = merged;
     setCombinations(merged);
 
@@ -1556,10 +1753,81 @@ export default function ProductCatalog({
     }
   };
 
+  const validateRequiredFields = () => {
+    const requiredFields = [
+      { field: 'sku', value: formData.sku, nameKey: 'sku' },
+      { field: 'name', value: formData.name, nameKey: 'name' },
+      { field: 'description', value: formData.description, nameKey: 'description' },
+      { field: 'productType', value: formData.productType, nameKey: 'productType' },
+      { field: 'brand', value: formData.brand, nameKey: 'brand' },
+      { field: 'supplier', value: formData.supplier, nameKey: 'supplier' },
+      { field: 'images', value: formData.images, nameKey: 'images' },
+    ];
+
+    const variantValidation =
+      combinations.length > 0 &&
+      combinations.every((combo) => isCompleteCombination(combo, userCurrency));
+
+    const stockValidation = combinations.every(
+      (combo) =>
+        isFiniteNonNegativeNumber(combo.stockQuantity) &&
+        isFiniteNonNegativeNumber(combo.lowStockThreshold),
+    );
+
+    const missingFields = requiredFields.filter((field) => {
+      if (field.field === 'images') {
+        return !field.value || (Array.isArray(field.value) && field.value.length === 0);
+      }
+      return !field.value || String(field.value).trim() === '';
+    });
+
+    if (!variantValidation) {
+      missingFields.push({ field: 'variants', value: '', nameKey: 'variants' });
+    }
+
+    if (!stockValidation) {
+      missingFields.push({ field: 'stock', value: '', nameKey: 'stock' });
+    }
+
+    return {
+      isValid: missingFields.length === 0,
+      missingFields: missingFields.map((f) => translateFieldName(f.nameKey)),
+    };
+  };
+
+  const validation = validateRequiredFields();
+
   const handleSubmitWithStatus = async (status: 'Draft' | 'Published') => {
     if (!user?.id) {
       alert(tCatalog('alerts.userNotAuthenticated'));
       return;
+    }
+
+    if (status === 'Published') {
+      const publishValidation = validateRequiredFields();
+      if (!publishValidation.isValid) {
+        alert(
+          tCatalog('header.missingRequiredFields', {
+            fields: publishValidation.missingFields.join(', '),
+          }),
+        );
+        return;
+      }
+
+      const invalidNumericCombo = combinations.some(
+        (combo) => !isCompleteCombination(combo, user?.currency || userCurrency),
+      );
+      if (invalidNumericCombo) {
+        alert(
+          tCatalog('header.missingRequiredFields', {
+            fields: [
+              translateFieldName('variants'),
+              translateFieldName('stock'),
+            ].join(', '),
+          }),
+        );
+        return;
+      }
     }
 
     setSaving(true);
@@ -1579,29 +1847,43 @@ export default function ProductCatalog({
 
       // Rebuild the variation matrix from current variant types before save so publish/save
       // never sends a partial list that would cause the backend to delete missing rows.
+      // When no valid variant types remain, send an empty matrix so deleted rows are cleared in DB.
       const validVariants = variants.filter((v) => v.variantType && v.options.some((opt) => opt.name));
       const combinationsForSave =
         validVariants.length > 0
           ? rebuildCombinationsFromVariants(validVariants, combinations)
-          : combinations;
+          : [];
 
-      const invalidSaveCombination = combinationsForSave.some(
-        (combo) =>
-          !combo.purchasePrice ||
-          String(combo.purchasePrice).trim() === '' ||
-          !combo.sellingPrice ||
-          String(combo.sellingPrice).trim() === '',
-      );
-      if (invalidSaveCombination) {
-        alert(tCatalog('alerts.missingRequiredFields', { fields: translateFieldName('variants') }));
+      const priceCurrency = user.currency || userCurrency;
+
+      // Draft may omit incomplete price rows from the payload, but we still always send
+      // variantOptions (possibly []) so the backend can prune deleted combinations.
+      // Publish already rejected invalid rows above; draft only sends finite nonnegative rows.
+      const combinationsForPayload =
+        status === 'Draft'
+          ? combinationsForSave.filter((combo) => isCompleteCombination(combo, priceCurrency))
+          : combinationsForSave;
+
+      if (
+        status === 'Published' &&
+        combinationsForPayload.some((combo) => !isCompleteCombination(combo, priceCurrency))
+      ) {
+        alert(
+          tCatalog('header.missingRequiredFields', {
+            fields: [
+              translateFieldName('variants'),
+              translateFieldName('stock'),
+            ].join(', '),
+          }),
+        );
         setSaving(false);
         return;
       }
 
       // Product-level stock from all variants (not "any variant out of stock")
-      const totalStock = combinationsForSave.reduce((sum, combo) => sum + combo.stockQuantity, 0);
-      const lowStockThreshold = combinationsForSave.reduce((sum, combo) => sum + combo.lowStockThreshold, 0);
-      const stockStatus = getProductStockStatus(combinationsForSave);
+      const totalStock = combinationsForPayload.reduce((sum, combo) => sum + combo.stockQuantity, 0);
+      const lowStockThreshold = combinationsForPayload.reduce((sum, combo) => sum + combo.lowStockThreshold, 0);
+      const stockStatus = getProductStockStatus(combinationsForPayload);
 
       // Submit the new variant structure
       const payload: Record<string, unknown> = {
@@ -1613,52 +1895,47 @@ export default function ProductCatalog({
         totalStock,
         lowStockThreshold,
         stockStatus,
-      };
-
-      // Only include variant definitions if variants exist and are not empty
-      if (variants && variants.length > 0) {
-        payload.variantDefinitions = variants.map((variant, index) => ({
+        variantDefinitions: validVariants.map((variant, index) => ({
           variantType: String(variant.variantType ?? '').trim(),
-          options: variant.options.map(opt => opt.name).filter(name => name),
-          position: index + 1
-        }));
-      }
-
-      // Only include variant options if combinations exist and are not empty
-      if (combinationsForSave && combinationsForSave.length > 0) {
-        payload.variantOptions = combinationsForSave.map(combo => ({
+          options: variant.options.map((opt) => opt.name).filter((name) => name),
+          position: index + 1,
+        })),
+        variantOptions: combinationsForPayload.map((combo) => ({
           variantName: combo.variantName,
           attributes: Object.fromEntries(
-            variants.map((variant) => {
+            validVariants.map((variant) => {
               const key = String(variant.variantType ?? '').trim();
               const lowerKey = `variant_${key.toLowerCase()}`;
               const idKey = `variant_${variant.id}`;
-              const rawValue = (combo as Record<string, unknown>)[lowerKey] ?? (combo as Record<string, unknown>)[idKey] ?? 'None';
+              const rawValue =
+                (combo as Record<string, unknown>)[lowerKey] ??
+                (combo as Record<string, unknown>)[idKey] ??
+                'None';
               const value = String(rawValue).trim();
               return [key, value];
-            })
+            }),
           ),
           sku: combo.sku,
-          // Convert purchasePrice and sellingPrice to strings (accept both number and string)
-          purchasePrice: typeof combo.purchasePrice === 'number' 
-            ? String(combo.purchasePrice) 
-            : String(combo.purchasePrice || '0'),
-          sellingPrice: typeof combo.sellingPrice === 'number'
-            ? String(combo.sellingPrice)
-            : String(combo.sellingPrice || '0'),
-          originalSellingPrice: combo.originalSellingPrice 
-            ? (typeof combo.originalSellingPrice === 'number' 
-                ? String(combo.originalSellingPrice) 
-                : String(combo.originalSellingPrice))
+          // Persist parsed finite nonnegative prices (already validated); do not coerce invalid → 0
+          purchasePrice: String(
+            parseNumberByCurrency(String(combo.purchasePrice ?? ''), priceCurrency),
+          ),
+          sellingPrice: String(
+            parseNumberByCurrency(String(combo.sellingPrice ?? ''), priceCurrency),
+          ),
+          originalSellingPrice: combo.originalSellingPrice
+            ? String(
+                parseNumberByCurrency(String(combo.originalSellingPrice), priceCurrency),
+              )
             : null,
           moq: combo.moq,
           stockQuantity: combo.stockQuantity,
           lowStockThreshold: combo.lowStockThreshold,
           stockStatus: getVariantStockStatus(combo.stockQuantity, combo.lowStockThreshold),
           isDefault: false,
-          isActive: true
-        }));
-      }
+          isActive: true,
+        })),
+      };
 
       // GraphQL mutations
       const CREATE_PRODUCT_MUTATION = `
@@ -1861,17 +2138,13 @@ export default function ProductCatalog({
           updateVariables.catalogName = payload.catalogName;
         }
 
-        // Only include variantDefinitions if provided and not empty
-        const variantDefs = payload.variantDefinitions;
-        if (variantDefs && Array.isArray(variantDefs) && variantDefs.length > 0) {
-          updateVariables.variantDefinitions = variantDefs;
-        }
-
-        // Only include variantOptions if provided and not empty
-        const variantOpts = payload.variantOptions;
-        if (variantOpts && Array.isArray(variantOpts) && variantOpts.length > 0) {
-          updateVariables.variantOptions = variantOpts;
-        }
+        // Always send variant arrays (including empty) so deletions persist in the DB.
+        updateVariables.variantDefinitions = Array.isArray(payload.variantDefinitions)
+          ? payload.variantDefinitions
+          : [];
+        updateVariables.variantOptions = Array.isArray(payload.variantOptions)
+          ? payload.variantOptions
+          : [];
 
         try {
           const data = await fetchGraphQL<{ updateProduct: Product }>(UPDATE_PRODUCT_MUTATION, updateVariables);
@@ -1917,6 +2190,35 @@ export default function ProductCatalog({
           };
           setFormData(nextFormData);
           setOriginalFormData(JSON.parse(JSON.stringify(nextFormData)));
+          // Keep local variation state aligned with what we persisted (including clears).
+          setVariants(
+            validVariants.length > 0
+              ? validVariants
+              : [
+                  {
+                    id: 'variant-1',
+                    variantType: '',
+                    moq: undefined,
+                    options: [{ id: 'option-1', name: '' }],
+                  },
+                ],
+          );
+          setCombinations(
+            combinationsForPayload.length > 0
+              ? combinationsForPayload
+              : [
+                  {
+                    id: 'combination-1',
+                    sku: '',
+                    purchasePrice: '',
+                    sellingPrice: '',
+                    moq: undefined,
+                    stockQuantity: 0,
+                    lowStockThreshold: 0,
+                    stockStatus: 'In Stock' as const,
+                  },
+                ],
+          );
           prevProductStatusRef.current = status;
           showSuccessNotice(status === 'Published' ? 1200 : 800);
         } else if (onSave) {
@@ -1955,52 +2257,6 @@ export default function ProductCatalog({
     (product as { discountType?: unknown }).discountType ||
     (product as { promotionDetails?: unknown }).promotionDetails
   ));
-
-  // Validation function to check if all required fields are filled
-  const validateRequiredFields = () => {
-    const requiredFields = [
-      { field: 'sku', value: formData.sku, nameKey: 'sku' },
-      { field: 'name', value: formData.name, nameKey: 'name' },
-      { field: 'description', value: formData.description, nameKey: 'description' },
-      { field: 'productType', value: formData.productType, nameKey: 'productType' },
-      { field: 'brand', value: formData.brand, nameKey: 'brand' },
-      { field: 'supplier', value: formData.supplier, nameKey: 'supplier' },
-      { field: 'images', value: formData.images, nameKey: 'images' }
-    ];
-
-    // Check if combinations are properly configured
-    const variantValidation = combinations.length > 0 && combinations.every(combo => 
-      combo.purchasePrice && String(combo.purchasePrice).trim() !== '' &&
-      combo.sellingPrice && String(combo.sellingPrice).trim() !== ''
-    );
-
-    // Check if all combinations have valid stock
-    const stockValidation = combinations.every(combo => combo.stockQuantity >= 0);
-
-    const missingFields = requiredFields.filter(field => {
-      if (field.field === 'images') {
-        return !field.value || (Array.isArray(field.value) && field.value.length === 0);
-      }
-      return !field.value || String(field.value).trim() === '';
-    });
-
-    // Add variant validation to missing fields
-    if (!variantValidation) {
-      missingFields.push({ field: 'variants', value: '', nameKey: 'variants' });
-    }
-
-    // Add stock validation to missing fields
-    if (!stockValidation) {
-      missingFields.push({ field: 'stock', value: '', nameKey: 'stock' });
-    }
-
-    return {
-      isValid: missingFields.length === 0,
-      missingFields: missingFields.map(f => translateFieldName(f.nameKey))
-    };
-  };
-
-  const validation = validateRequiredFields();
 
   return (
     <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6]">

@@ -272,16 +272,51 @@ export const formatNumberByCurrency = (value: string | number, currencyCode?: st
 // Parse formatted number back to number according to currency rules
 export const parseNumberByCurrency = (value: string, currencyCode?: string): number => {
   const config = getCurrencyConfig(currencyCode);
-  
-  // For IDR (Indonesian), dots are thousands separators, commas are decimals
+  const trimmed = String(value ?? '').trim();
+  if (!trimmed) return 0;
+
+  // For IDR (Indonesian), dots are thousands separators and commas are decimals.
+  // Excel exports often use US-style decimals (e.g. 96000.000000), which must not
+  // be treated as thousands grouping or values overflow Decimal(12, 2).
   if (config.locale === 'id-ID') {
-    // Remove dots (thousands separators) and replace commas with dots (decimal separators)
-    const cleaned = value.replace(/\./g, '').replace(/,/g, '.');
-    return parseFloat(cleaned) || 0;
+    const hasComma = trimmed.includes(',');
+    const hasPeriod = trimmed.includes('.');
+
+    if (hasComma && hasPeriod) {
+      const lastComma = trimmed.lastIndexOf(',');
+      const lastPeriod = trimmed.lastIndexOf('.');
+      if (lastComma > lastPeriod) {
+        // Indonesian: dots group thousands, comma is decimal (e.g. 1.000,50)
+        const cleaned = trimmed.replace(/\./g, '').replace(/,/g, '.');
+        return parseFloat(cleaned) || 0;
+      }
+      // US/Excel: commas group thousands, dot is decimal (e.g. 1,000.50)
+      const cleaned = trimmed.replace(/,/g, '');
+      return parseFloat(cleaned) || 0;
+    }
+
+    if (hasComma) {
+      const cleaned = trimmed.replace(/\./g, '').replace(/,/g, '.');
+      return parseFloat(cleaned) || 0;
+    }
+
+    if (hasPeriod) {
+      const parts = trimmed.split('.');
+      const isThousandsGrouped =
+        parts.length >= 2 && parts.slice(1).every((part) => /^\d{3}$/.test(part));
+
+      if (isThousandsGrouped) {
+        return parseFloat(parts.join('')) || 0;
+      }
+
+      return parseFloat(trimmed) || 0;
+    }
+
+    return parseFloat(trimmed.replace(/[^\d-]/g, '')) || 0;
   }
-  
+
   // For other currencies, use standard parsing (commas for thousands, dots for decimals)
-  const cleaned = value.replace(/[^\d.-]/g, '');
+  const cleaned = trimmed.replace(/[^\d.-]/g, '');
   return parseFloat(cleaned) || 0;
 };
 

@@ -116,6 +116,47 @@ function isExtraImportColumn(id: string) {
   return id.startsWith('import-var-');
 }
 
+function ImportSelectionCheckbox({
+  checked,
+  indeterminate = false,
+  onToggle,
+  ariaLabel,
+}: {
+  checked: boolean;
+  indeterminate?: boolean;
+  onToggle: () => void;
+  ariaLabel: string;
+}) {
+  const isActive = checked || indeterminate;
+
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={indeterminate ? 'mixed' : checked}
+      aria-label={ariaLabel}
+      onClick={(event) => {
+        event.stopPropagation();
+        onToggle();
+      }}
+      className={`w-5 h-5 border-2 rounded transition-all duration-200 flex items-center justify-center shrink-0 ${
+        isActive ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300 hover:border-green-400'
+      }`}
+    >
+      {checked && !indeterminate ? (
+        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+          <path
+            fillRule="evenodd"
+            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+            clipRule="evenodd"
+          />
+        </svg>
+      ) : null}
+      {indeterminate ? <span className="block w-2.5 h-0.5 bg-white rounded-full" /> : null}
+    </button>
+  );
+}
+
 function buildVariantMappingFromFile(
   fileHeaders: string[],
   variantColumns: VariationImportVariantColumn[],
@@ -190,6 +231,7 @@ export default function VariationListImport({
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [importing, setImporting] = useState(false);
   const [extraVariantColumns, setExtraVariantColumns] = useState<VariationImportVariantColumn[]>([]);
+  const [selectedRowIndices, setSelectedRowIndices] = useState<Set<number>>(new Set());
 
   const baseVariantColumns = useMemo(
     () => [...variantColumns, ...extraVariantColumns],
@@ -259,6 +301,29 @@ export default function VariationListImport({
     setError('');
     setImporting(false);
     setExtraVariantColumns([]);
+    setSelectedRowIndices(new Set());
+  };
+
+  const openPreviewStep = () => {
+    setError('');
+    setSelectedRowIndices(new Set(rows.map((_, index) => index)));
+    setStep(2);
+  };
+
+  const toggleRowSelection = (index: number) => {
+    setSelectedRowIndices((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  };
+
+  const toggleAllRowSelection = () => {
+    setSelectedRowIndices((prev) => {
+      if (prev.size === rows.length) return new Set();
+      return new Set(rows.map((_, index) => index));
+    });
   };
 
   const handleAddVariationLevel = () => {
@@ -280,6 +345,17 @@ export default function VariationListImport({
     setMapping((m) => {
       const next = { ...m };
       delete next[columnId];
+      return next;
+    });
+  };
+
+  const handleRemoveAllExtraVariationLevels = () => {
+    setExtraVariantColumns([]);
+    setMapping((m) => {
+      const next = { ...m };
+      Object.keys(next).forEach((key) => {
+        if (isExtraImportColumn(key)) delete next[key];
+      });
       return next;
     });
   };
@@ -393,13 +469,22 @@ export default function VariationListImport({
       };
     });
 
+  const mappedRows = getMappedRows();
+  const selectedMappedRows = mappedRows.filter((_, index) => selectedRowIndices.has(index));
+  const allRowsSelected = rows.length > 0 && selectedRowIndices.size === rows.length;
+  const someRowsSelected = selectedRowIndices.size > 0 && !allRowsSelected;
+
   const handleImport = async () => {
-    const mappedRows = getMappedRows();
+    if (selectedMappedRows.length === 0) {
+      setError(t('importNoneSelected'));
+      return;
+    }
+
     const variantLevels = baseVariantColumns
       .filter((col) => Boolean(mapping[col.id]?.trim()))
       .map((col) => ({
         columnId: col.id,
-        typeName: mapping[col.id].trim(),
+        typeName: isExtraImportColumn(col.id) ? mapping[col.id].trim() : col.label,
       }));
     setImporting(true);
     setError('');
@@ -407,7 +492,7 @@ export default function VariationListImport({
       requestAnimationFrame(() => resolve());
     });
     try {
-      const result = await onImportAction({ rows: mappedRows, variantLevels });
+      const result = await onImportAction({ rows: selectedMappedRows, variantLevels });
       if (result.updated === 0) {
         setError(t('importNoMatch'));
         setImporting(false);
@@ -431,11 +516,11 @@ export default function VariationListImport({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-2xl border border-[#e6e6e6] p-4 w-full max-w-5xl relative max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white rounded-2xl border border-[#e6e6e6] w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden relative">
         <button
           type="button"
-          className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-100"
+          className="absolute top-3 right-3 z-20 p-2 rounded-full hover:bg-gray-100"
           onClick={() => {
             if (!importing) {
               resetState();
@@ -446,14 +531,18 @@ export default function VariationListImport({
         >
           <X className="w-5 h-5 text-black" />
         </button>
-        <h2 className="text-xl font-bold text-black mb-4 border-b border-gray-200 pb-2 flex items-center gap-2">
-          <FileText className="w-5 h-5 text-[#0a61d7]" /> {t('title')}
-        </h2>
 
+        <div className="flex-shrink-0 px-4 pt-4 pb-3 border-b border-gray-200">
+          <h2 className="text-xl font-bold text-black pr-10 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-[#0a61d7]" /> {t('title')}
+          </h2>
+        </div>
+
+        <div className="flex flex-1 min-h-0 flex-col px-4 py-4">
         {step === 0 && (
-          <div className="flex flex-col gap-4 py-4">
+          <div className="flex flex-col gap-4">
             {notice}
-            <div className="flex flex-col items-center justify-center gap-4">
+            <div className="flex flex-col items-center justify-center gap-4 py-4">
               <input type="file" accept=".xlsx,.xls,.csv" ref={inputRef} className="hidden" onChange={handleFile} />
               <button
                 type="button"
@@ -474,15 +563,15 @@ export default function VariationListImport({
         )}
 
         {step === 1 && (
-          <div className="flex flex-col gap-1 max-h-[550px] overflow-y-auto">
+          <div className="flex flex-1 min-h-0 flex-col gap-3">
             {notice}
-            <div className="mb-2 font-semibold text-black">{t('mapColumnsOptional')}</div>
-            <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="font-semibold text-black">{t('mapColumnsOptional')}</div>
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-blue-700 text-sm">
                 <strong>{t('flexibleImport')}</strong> {t('flexibleImportHint')}
               </p>
             </div>
-            <div className="overflow-x-auto rounded-lg border border-[#e6e6e6] bg-white p-2">
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto rounded-lg border border-[#e6e6e6] bg-white p-2">
               <table className="min-w-full text-xs font-medium text-left">
                 <thead>
                   <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
@@ -526,14 +615,26 @@ export default function VariationListImport({
                   ))}
                   <tr>
                     <td colSpan={2} className="py-2 px-3">
-                      <button
-                        type="button"
-                        onClick={handleAddVariationLevel}
-                        className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold text-[#0a61d7] border border-dashed border-[#0a61d7] rounded-lg hover:bg-[#f7faff] transition-colors"
-                      >
-                        <Plus className="w-4 h-4" />
-                        {t('addVariationLevel')}
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleAddVariationLevel}
+                          className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold text-[#0a61d7] border border-dashed border-[#0a61d7] rounded-lg hover:bg-[#f7faff] transition-colors"
+                        >
+                          <Plus className="w-4 h-4" />
+                          {t('addVariationLevel')}
+                        </button>
+                        {extraVariantColumns.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleRemoveAllExtraVariationLevels}
+                            className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            {t('deleteAllVariationLevels', { count: extraVariantColumns.length })}
+                          </button>
+                        )}
+                      </div>
                       {getUnusedHeaders(mapping).length > 0 && (
                         <p className="mt-1 text-[11px] text-gray-500">
                           {t('unmappedHeadersHint', { headers: getUnusedHeaders(mapping).join(', ') })}
@@ -563,7 +664,7 @@ export default function VariationListImport({
                 </tbody>
               </table>
             </div>
-            <div className="flex justify-end gap-2 mt-2 text-sm border-t border-[#e6e6e6] pt-4">
+            <div className="flex-shrink-0 flex justify-end gap-2 pt-3 text-sm border-t border-[#e6e6e6]">
               <button
                 type="button"
                 className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200"
@@ -581,7 +682,7 @@ export default function VariationListImport({
               <button
                 type="button"
                 className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center gap-2"
-                onClick={() => setStep(2)}
+                onClick={openPreviewStep}
                 disabled={Object.keys(mapping).filter((k) => mapping[k]).length === 0}
               >
                 {t('preview')}
@@ -591,15 +692,44 @@ export default function VariationListImport({
         )}
 
         {step === 2 && (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-1 min-h-0 flex-col gap-3">
             {notice}
-            <div className="flex items-center gap-2 mb-2 text-black">
-              <Eye className="w-4 h-4 text-[#0a61d7]" /> {t('previewRows', { count: rows.length })}
+            <div className="flex-shrink-0 flex flex-wrap items-center justify-between gap-3 text-black">
+              <div className="flex items-center gap-2">
+                <Eye className="w-4 h-4 text-[#0a61d7]" />
+                {t('previewRowsSelected', {
+                  selected: selectedRowIndices.size,
+                  total: rows.length,
+                })}
+              </div>
+              <div className="flex items-center gap-2">
+                <ImportSelectionCheckbox
+                  checked={allRowsSelected}
+                  indeterminate={someRowsSelected}
+                  onToggle={toggleAllRowSelection}
+                  ariaLabel={allRowsSelected ? t('deselectAll') : t('selectAll')}
+                />
+                <button
+                  type="button"
+                  className="text-sm text-gray-700 font-medium hover:text-black"
+                  onClick={toggleAllRowSelection}
+                >
+                  {allRowsSelected ? t('deselectAll') : t('selectAll')}
+                </button>
+              </div>
             </div>
-            <div className="overflow-x-auto rounded-lg border border-[#e6e6e6]">
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto rounded-lg border border-[#e6e6e6]">
               <table className="min-w-full text-xs font-medium text-left bg-white">
-                <thead>
+                <thead className="sticky top-0 z-10">
                   <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
+                    <th className="py-2 px-3 font-medium uppercase w-12">
+                      <ImportSelectionCheckbox
+                        checked={allRowsSelected}
+                        indeterminate={someRowsSelected}
+                        onToggle={toggleAllRowSelection}
+                        ariaLabel={allRowsSelected ? t('deselectAll') : t('selectAll')}
+                      />
+                    </th>
                     {previewImportFields.map((f) => (
                       <th key={f.mappingKey} className="py-2 px-3 font-medium uppercase">
                         {getPreviewFieldLabel(f)}
@@ -608,26 +738,42 @@ export default function VariationListImport({
                   </tr>
                 </thead>
                 <tbody>
-                  {getMappedRows().map((row, idx) => (
-                    <tr key={idx} className="whitespace-nowrap text-black">
-                      {previewImportFields.map((f) => (
-                        <td key={f.mappingKey} className="py-2 px-3">
-                          {f.variantId
-                            ? row.variantValues[f.variantId] ?? ''
-                            : String(row[f.slug as keyof VariationImportRow] ?? '')}
+                  {mappedRows.map((row, idx) => {
+                    const isSelected = selectedRowIndices.has(idx);
+                    return (
+                      <tr
+                        key={idx}
+                        onClick={() => toggleRowSelection(idx)}
+                        className={`whitespace-nowrap text-black cursor-pointer ${
+                          isSelected ? 'hover:bg-blue-50/40' : 'opacity-50 bg-gray-50 hover:bg-gray-100'
+                        }`}
+                      >
+                        <td className="py-2 px-3">
+                          <ImportSelectionCheckbox
+                            checked={isSelected}
+                            onToggle={() => toggleRowSelection(idx)}
+                            ariaLabel={t('selectRow', { index: idx + 1 })}
+                          />
                         </td>
-                      ))}
-                    </tr>
-                  ))}
+                        {previewImportFields.map((f) => (
+                          <td key={f.mappingKey} className="py-2 px-3">
+                            {f.variantId
+                              ? row.variantValues[f.variantId] ?? ''
+                              : String(row[f.slug as keyof VariationImportRow] ?? '')}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
             {error && (
-              <div className="flex items-center gap-2 text-red-500 text-sm">
+              <div className="flex-shrink-0 flex items-center gap-2 text-red-500 text-sm">
                 <AlertTriangle className="w-4 h-4" /> {error}
               </div>
             )}
-            <div className="flex justify-end gap-2 mt-4 text-sm border-t border-[#e6e6e6] pt-4">
+            <div className="flex-shrink-0 flex justify-end gap-2 pt-3 text-sm border-t border-[#e6e6e6]">
               <button
                 type="button"
                 className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200"
@@ -640,7 +786,7 @@ export default function VariationListImport({
                 type="button"
                 className="min-w-[220px] justify-center px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:bg-[#0a61d7]"
                 onClick={handleImport}
-                disabled={importing}
+                disabled={importing || selectedRowIndices.size === 0}
               >
                 {importing ? (
                   <>
@@ -648,13 +794,15 @@ export default function VariationListImport({
                   </>
                 ) : (
                   <>
-                    <CheckCircle2 className="w-4 h-4 shrink-0" /> {t('importButton')}
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />{' '}
+                    {t('importButtonSelected', { count: selectedRowIndices.size })}
                   </>
                 )}
               </button>
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

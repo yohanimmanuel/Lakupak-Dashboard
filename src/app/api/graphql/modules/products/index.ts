@@ -876,6 +876,21 @@ const stableStringifyAttributes = (v: unknown): string => {
   );
 };
 
+const VARIANT_DECIMAL_MAX = 9_999_999_999.99;
+const VARIANT_INT_MAX = 2_147_483_647;
+
+const clampVariantDecimal = (value: number): number => {
+  if (!Number.isFinite(value)) return 0;
+  const rounded = Math.round(value * 100) / 100;
+  return Math.min(Math.max(rounded, 0), VARIANT_DECIMAL_MAX);
+};
+
+const clampVariantInt = (value: number | null | undefined, fallback = 0): number => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(Math.max(Math.trunc(parsed), 0), VARIANT_INT_MAX);
+};
+
 const createVariantOptionsPayload = (
   variantOptions: Array<{
     variantName: string;
@@ -905,14 +920,13 @@ const createVariantOptionsPayload = (
       variantName: normalizeVariantName(option.variantName),
       attributes: option.attributes as Prisma.InputJsonValue,
       sku: option.sku || null,
-      purchasePrice: Math.round(purchasePriceNum * 100) / 100, // Decimal type, not string
-      sellingPrice: Math.round(sellingPriceNum * 100) / 100, // Decimal type, not string
-      originalSellingPrice: originalSellingPriceNum !== null 
-        ? Math.round(originalSellingPriceNum * 100) / 100 
-        : null, // Decimal type, not string
-      moq: option.moq,
-      stockQuantity: option.stockQuantity || 0,
-      lowStockThreshold: option.lowStockThreshold || 0,
+      purchasePrice: clampVariantDecimal(purchasePriceNum),
+      sellingPrice: clampVariantDecimal(sellingPriceNum),
+      originalSellingPrice:
+        originalSellingPriceNum !== null ? clampVariantDecimal(originalSellingPriceNum) : null,
+      moq: option.moq == null ? null : clampVariantInt(option.moq, 0),
+      stockQuantity: clampVariantInt(option.stockQuantity, 0),
+      lowStockThreshold: clampVariantInt(option.lowStockThreshold, 0),
       stockStatus: option.stockStatus || 'In Stock',
       isDefault: option.isDefault || false,
       isActive: option.isActive !== false,
@@ -1307,21 +1321,29 @@ export const updateProduct = async (args: {
     const hasAnyOrderHistory = orderItemCount > 0;
 
     // Business rule (orders tied): variant TYPES cannot be deleted, but their option lists stay editable.
-    // - No order history  -> full replace (free editing).
+    // - No order history  -> full replace (free editing), including clearing when payload is [].
     // - Has order history -> never delete a type; option values follow the incoming payload, while any
     //   value locked by a past order is force-kept. Distributors may rename/add/remove non-ordered options.
-    if (variantDefinitions && Array.isArray(variantDefinitions) && variantDefinitions.length > 0) {
+    if (variantDefinitions !== undefined && variantDefinitions !== null && Array.isArray(variantDefinitions)) {
+      if (hasAnyOrderHistory && variantDefinitions.length === 0) {
+        throw new Error(
+          'Cannot clear variant definitions for a product with order history.',
+        );
+      }
+
       if (!hasAnyOrderHistory) {
         await tx.productVariant.deleteMany({ where: { productId: updated.id } });
-        await tx.productVariant.createMany({
-          data: variantDefinitions.map((def) => ({
-            productId: updated.id,
-            variantType: def.variantType,
-            options: def.options,
-            position: def.position,
-          })),
-        });
-      } else {
+        if (variantDefinitions.length > 0) {
+          await tx.productVariant.createMany({
+            data: variantDefinitions.map((def) => ({
+              productId: updated.id,
+              variantType: def.variantType,
+              options: def.options,
+              position: def.position,
+            })),
+          });
+        }
+      } else if (variantDefinitions.length > 0) {
         const existingDefs = await tx.productVariant.findMany({
           where: { productId: updated.id },
           select: { id: true, variantType: true, options: true, position: true },
@@ -1377,7 +1399,8 @@ export const updateProduct = async (args: {
 
     // IMPORTANT: preserve VariantOption ids so pending OrderItems keep their `variantOptionId`.
     // We upsert by the DB-unique key (productId, variantName) and delete only removed options.
-    if (variantOptions && Array.isArray(variantOptions) && variantOptions.length > 0) {
+    // Empty array is intentional: clear/deactivate all options not locked by orders.
+    if (variantOptions !== undefined && variantOptions !== null && Array.isArray(variantOptions)) {
       const payload = createVariantOptionsPayload(variantOptions, currency ?? undefined);
       const keepNames = payload.map((p) => p.variantName);
 
@@ -1456,13 +1479,23 @@ export const updateProduct = async (args: {
       // Guardrail: do not delete VariantOptions referenced by orders. Deactivate instead.
       // Also skip pruning when the payload does not cover the full variant matrix — an incomplete
       // list (e.g. user edited variant types but did not refresh the variation table) must not wipe DB rows.
+      // Exception: empty payload with empty/cleared definitions is an intentional clear.
       const expectedOptionCount = expectedVariantOptionCount(variantDefinitions);
+      const intentionalClear =
+        payload.length === 0 &&
+        (variantDefinitions === undefined ||
+          variantDefinitions === null ||
+          (Array.isArray(variantDefinitions) && variantDefinitions.length === 0));
       const payloadCoversVariantMatrix =
-        expectedOptionCount != null && payload.length >= expectedOptionCount;
+        intentionalClear ||
+        (expectedOptionCount != null && payload.length >= expectedOptionCount);
 
       if (payloadCoversVariantMatrix) {
         const removed = await tx.variantOption.findMany({
-          where: { productId: updated.id, variantName: { notIn: keepNames } },
+          where:
+            keepNames.length > 0
+              ? { productId: updated.id, variantName: { notIn: keepNames } }
+              : { productId: updated.id },
           select: { id: true, variantName: true },
         });
 
