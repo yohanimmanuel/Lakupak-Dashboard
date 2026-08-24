@@ -220,6 +220,31 @@ function syncVariantDefinitionsWithCombinations(
   });
 }
 
+function namedOptionCount(variant: CatalogVariant): number {
+  return variant.options.filter((opt) => String(opt.name ?? '').trim()).length;
+}
+
+/** Axis excluded from item identity when copying SKUs across its options. Uses variant id, not list order. */
+function findSharedSkuAxisVariantId(variantsList: CatalogVariant[]): string | null {
+  if (variantsList.length <= 1) return null;
+
+  let best: CatalogVariant | null = null;
+  let bestCount = Number.POSITIVE_INFINITY;
+  for (const variant of variantsList) {
+    const count = namedOptionCount(variant);
+    if (count === 0) continue;
+    if (
+      !best ||
+      count < bestCount ||
+      (count === bestCount && variant.id.localeCompare(best.id) < 0)
+    ) {
+      best = variant;
+      bestCount = count;
+    }
+  }
+  return best?.id ?? null;
+}
+
 function cartesianProduct(arrays: string[][]): string[][] {
   if (arrays.length === 0) return [];
   if (arrays.length === 1) return arrays[0].map((item) => [item]);
@@ -255,28 +280,41 @@ function rebuildCombinationsFromVariants(
   const keyFor = (valsByVariantId: Record<string, string>, variantIds: string[]) =>
     variantIds.map((id) => `${id}:${valsByVariantId[id] ?? 'None'}`).join('|');
 
+  const sharedSkuAxisVariantId = findSharedSkuAxisVariantId(validVariants);
+
+  // Item identity is every variant except the shared-SKU axis (stable id, not display index).
+  const itemIdentityKey = (valuesByVariantId: Record<string, string>) => {
+    if (!sharedSkuAxisVariantId || validVariants.length <= 1) return '';
+    return validVariants
+      .filter((variant) => variant.id !== sharedSkuAxisVariantId)
+      .slice()
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map((variant) => normalizeImportMatchValue(valuesByVariantId[variant.id] ?? ''))
+      .join('|');
+  };
+
   const variantIdsInOrder = validVariants.map((v) => v.id);
 
   const existingFullKeyMap = new Map<string, Combination>();
-  const existingPrefixKeyMap = new Map<string, Combination>();
+  const skuByItemIdentity = new Map<string, string>();
 
   existingCombinations.forEach((combo) => {
     const valsByVariantId: Record<string, string> = {};
     validVariants.forEach((variant) => {
       const v = combo[`variant_${variant.id}`];
-      if (typeof v === 'string' && v.trim() !== '') valsByVariantId[variant.id] = v;
+      const name = typeof v === 'string' && v.trim() !== '' ? v : '';
+      if (name) valsByVariantId[variant.id] = name;
     });
 
     existingFullKeyMap.set(keyFor(valsByVariantId, variantIdsInOrder), combo);
 
-    for (let len = variantIdsInOrder.length; len >= 1; len -= 1) {
-      const prefixIds = variantIdsInOrder.slice(0, len);
-      const prefixKey = keyFor(valsByVariantId, prefixIds);
-      if (!existingPrefixKeyMap.has(prefixKey)) existingPrefixKeyMap.set(prefixKey, combo);
+    const sku = String(combo.sku ?? '').trim();
+    const identity = itemIdentityKey(valsByVariantId);
+    if (sku && identity && !skuByItemIdentity.has(identity)) {
+      skuByItemIdentity.set(identity, sku);
     }
   });
 
-  const usedSourceIds = new Set<string>();
   const makeStableId = (fullKey: string) => `combination-${fullKey}`;
 
   return combinationsGenerated.map((combinationValues) => {
@@ -288,27 +326,15 @@ function rebuildCombinationsFromVariants(
     const fullKey = keyFor(valsByVariantId, variantIdsInOrder);
     const stableId = makeStableId(fullKey);
 
-    let combinationData: Combination | undefined = existingFullKeyMap.get(fullKey);
-    if (!combinationData) {
-      for (let len = variantIdsInOrder.length - 1; len >= 1; len -= 1) {
-        const prefixIds = variantIdsInOrder.slice(0, len);
-        const prefixKey = keyFor(valsByVariantId, prefixIds);
-        const found = existingPrefixKeyMap.get(prefixKey);
-        if (found) {
-          combinationData = found;
-          break;
-        }
-      }
-    }
-
-    const canCopyFromExisting =
-      combinationData && typeof combinationData.id === 'string' && !usedSourceIds.has(combinationData.id);
-    if (canCopyFromExisting && combinationData?.id) usedSourceIds.add(combinationData.id);
+    const combinationData = existingFullKeyMap.get(fullKey);
+    const canCopyFromExisting = Boolean(combinationData);
+    const siblingSku = skuByItemIdentity.get(itemIdentityKey(valsByVariantId)) ?? '';
+    const sku = String(combinationData?.sku ?? '').trim() || siblingSku;
 
     const base: Combination = canCopyFromExisting
       ? {
           id: stableId,
-          sku: combinationData!.sku ?? '',
+          sku,
           purchasePrice: combinationData!.purchasePrice ?? '',
           sellingPrice: combinationData!.sellingPrice ?? '',
           originalSellingPrice: combinationData!.originalSellingPrice,
@@ -321,7 +347,7 @@ function rebuildCombinationsFromVariants(
         }
       : {
           id: stableId,
-          sku: '',
+          sku,
           purchasePrice: '',
           sellingPrice: '',
           moq: undefined,
@@ -1386,6 +1412,7 @@ export default function ProductCatalog({
     combo: Combination,
     row: VariationImportRow,
     variantsList: CatalogVariant[] = variants,
+    hasVariantColumns = false,
   ) => {
     const skuMatch = Boolean(
       row.sku.trim() &&
@@ -1400,18 +1427,25 @@ export default function ProductCatalog({
       }))
       .filter((entry) => entry.raw);
 
-    if (importedValues.length === 0) {
+    // SKU-only files may match by SKU. If variant columns are mapped but this row's
+    // values are blank, do not SKU-match — shared SKUs would hit the wrong PACK/KARTON row.
+    if (importedValues.length === 0 && !hasVariantColumns) {
       return skuMatch;
     }
 
     const variantMatch = variantsList.every((variant, index) => {
       const imported = normalizeImportMatchValue(getImportRowVariantValue(row, variant, index));
-      if (!imported) return true;
       const current = normalizeImportMatchValue(combo[`variant_${variant.id}`] ?? 'None');
+      if (!imported) {
+        return !current || current === 'none';
+      }
       return imported === current;
     });
 
-    if (variantMatch || skuMatch) {
+    // When variant columns are present, match by those values only. Shared parent SKUs
+    // (common across KARTON/PACK rows) must not claim unrelated import rows on first pass,
+    // or new unit options only append the leftover rows and look "incomplete" until re-import.
+    if (variantMatch) {
       return true;
     }
 
@@ -1445,9 +1479,12 @@ export default function ProductCatalog({
       typedNameValues.size > 0 &&
       variantsList.every((variant, index) => {
         const imported = normalizeImportMatchValue(getImportRowVariantValue(row, variant, index));
-        if (!imported) return true;
         const typeKey = normalizeImportMatchValue(variant.variantType || `Var ${index + 1}`);
-        return typedNameValues.get(typeKey) === imported;
+        const typedValue = typedNameValues.get(typeKey);
+        if (!imported) {
+          return !typedValue || typedValue === 'none';
+        }
+        return typedValue === imported;
       });
 
     return subsetMatch || nameMatch;
@@ -1512,13 +1549,14 @@ export default function ProductCatalog({
       combos: Combination[],
       variantsList: CatalogVariant[],
     ): { combinations: Combination[]; updated: number } => {
+      const hasVariantColumns = variantLevels.length > 0;
       const usedRowIndices = new Set<number>();
       let updated = 0;
 
       let nextCombinations = combos.map((combo) => {
         const rowIndex = rows.findIndex((row, idx) => {
           if (usedRowIndices.has(idx)) return false;
-          return comboMatchesImportRow(combo, row, variantsList);
+          return comboMatchesImportRow(combo, row, variantsList, hasVariantColumns);
         });
         if (rowIndex < 0) return combo;
         usedRowIndices.add(rowIndex);
@@ -1535,7 +1573,9 @@ export default function ProductCatalog({
 
         if (!hasIdentity) return;
 
-        const existingIndex = nextCombinations.findIndex((combo) => comboMatchesImportRow(combo, row, variantsList));
+        const existingIndex = nextCombinations.findIndex((combo) =>
+          comboMatchesImportRow(combo, row, variantsList, hasVariantColumns),
+        );
         if (existingIndex >= 0) {
           nextCombinations = nextCombinations.map((combo, index) =>
             index === existingIndex ? mergeImportRowIntoCombo(combo, row) : combo,
@@ -1557,26 +1597,28 @@ export default function ProductCatalog({
     };
 
     const sourceCombinations = combinationsRef.current.length > 0 ? combinationsRef.current : combinations;
+    const buildingFromImport = variantLevels.length > 0 && !hasValidVariants(variants);
+    const seedVariants = buildingFromImport ? buildVariantsFromImport(variantLevels, rows) : variants;
 
-    if (variantLevels.length > 0 && !hasValidVariants(variants)) {
-      const importedVariants = buildVariantsFromImport(variantLevels, rows);
-      if (importedVariants.length === 0) {
-        return { updated: 0, skipped: rows.length };
-      }
-      const freshCombinations = rebuildCombinationsFromVariants(importedVariants, []);
-      const { combinations: merged, updated } = applyRowsToCombinations(freshCombinations, importedVariants);
-      const syncedVariants = syncVariantDefinitionsWithCombinations(importedVariants, merged, rows);
-      setVariants(syncedVariants);
-      combinationsRef.current = merged;
-      setCombinations(merged);
-      return { updated, skipped: rows.length - updated };
+    if (buildingFromImport && seedVariants.length === 0) {
+      return { updated: 0, skipped: rows.length };
     }
 
-    const { combinations: merged, updated } = applyRowsToCombinations(sourceCombinations, variants);
-    const syncedVariants = syncVariantDefinitionsWithCombinations(variants, merged, rows);
+    const seedCombinations = buildingFromImport
+      ? rebuildCombinationsFromVariants(seedVariants, [])
+      : sourceCombinations;
+
+    const { combinations: merged, updated } = applyRowsToCombinations(seedCombinations, seedVariants);
+    const syncedVariants = syncVariantDefinitionsWithCombinations(seedVariants, merged, rows);
+    const validSynced = syncedVariants.filter((v) => v.variantType && v.options.some((opt) => opt.name));
+    // Import should show the full matrix immediately (including PACK/KARTON counterparts).
+    // Refresh stays for manual variant-type / option edits only.
+    const rebuilt =
+      validSynced.length > 0 ? rebuildCombinationsFromVariants(validSynced, merged) : merged;
+
     setVariants(syncedVariants);
-    combinationsRef.current = merged;
-    setCombinations(merged);
+    combinationsRef.current = rebuilt;
+    setCombinations(rebuilt);
 
     return { updated, skipped: rows.length - updated };
   };
@@ -1856,13 +1898,10 @@ export default function ProductCatalog({
 
       const priceCurrency = user.currency || userCurrency;
 
-      // Draft may omit incomplete price rows from the payload, but we still always send
-      // variantOptions (possibly []) so the backend can prune deleted combinations.
-      // Publish already rejected invalid rows above; draft only sends finite nonnegative rows.
-      const combinationsForPayload =
-        status === 'Draft'
-          ? combinationsForSave.filter((combo) => isCompleteCombination(combo, priceCurrency))
-          : combinationsForSave;
+      // Always persist the full rebuilt matrix (including incomplete draft rows).
+      // Filtering incomplete rows on draft previously dropped newly imported PACK/etc. rows from
+      // both the API payload and local state, so they vanished on save and never reloaded.
+      const combinationsForPayload = combinationsForSave;
 
       if (
         status === 'Published' &&
@@ -1884,6 +1923,12 @@ export default function ProductCatalog({
       const totalStock = combinationsForPayload.reduce((sum, combo) => sum + combo.stockQuantity, 0);
       const lowStockThreshold = combinationsForPayload.reduce((sum, combo) => sum + combo.lowStockThreshold, 0);
       const stockStatus = getProductStockStatus(combinationsForPayload);
+
+      const serializeComboPrice = (raw: unknown): string => {
+        const text = String(raw ?? '').trim();
+        if (!text && status !== 'Published') return '';
+        return String(parseNumberByCurrency(text, priceCurrency));
+      };
 
       // Submit the new variant structure
       const payload: Record<string, unknown> = {
@@ -1916,13 +1961,8 @@ export default function ProductCatalog({
             }),
           ),
           sku: combo.sku,
-          // Persist parsed finite nonnegative prices (already validated); do not coerce invalid → 0
-          purchasePrice: String(
-            parseNumberByCurrency(String(combo.purchasePrice ?? ''), priceCurrency),
-          ),
-          sellingPrice: String(
-            parseNumberByCurrency(String(combo.sellingPrice ?? ''), priceCurrency),
-          ),
+          purchasePrice: serializeComboPrice(combo.purchasePrice),
+          sellingPrice: serializeComboPrice(combo.sellingPrice),
           originalSellingPrice: combo.originalSellingPrice
             ? String(
                 parseNumberByCurrency(String(combo.originalSellingPrice), priceCurrency),
