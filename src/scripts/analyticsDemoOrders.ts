@@ -236,7 +236,13 @@ async function resolveUserId(): Promise<number> {
       },
     },
     orderBy: { id: 'asc' },
-    select: { id: true, email: true, company: true, firstName: true, lastName: true },
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      company: { select: { name: true } },
+    },
   });
 
   if (!user) {
@@ -248,9 +254,10 @@ async function resolveUserId(): Promise<number> {
   }
 
   const label =
-    typeof user.company === 'string' && user.company.trim()
-      ? user.company
-      : [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email || '';
+    user.company?.name?.trim() ||
+    [user.firstName, user.lastName].filter(Boolean).join(' ') ||
+    user.email ||
+    '';
   console.log(`Using distributor userId=${user.id}${label ? ` (${label})` : ''}`);
   return user.id;
 }
