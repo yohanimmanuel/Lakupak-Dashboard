@@ -10,7 +10,7 @@ import { AuthDecorativeBackground } from '@/components/auth/AuthDecorativeBackgr
 import { FeatureMediaFrame } from './FeatureMediaFrame';
 import { Reveal } from './Reveal';
 
-type SellingTab = 'clients' | 'products' | 'orders'   ;
+type SellingTab = 'clients' | 'products' | 'orders';
 type AutomationsTab = 'workflows' | 'triggers' | 'control';
 
 const SELLING_TABS: SellingTab[] = ['clients', 'products', 'orders'];
