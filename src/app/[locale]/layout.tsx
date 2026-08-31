@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { DEFAULT_TIME_ZONE } from '@/i18n/config';
 
 export const metadata: Metadata = {
-  title: "Laku | Distribute More. Restock Faster. Grow Smarter."
+  title: "Lakupak | Distribute More. Restock Faster. Grow Smarter."
 };
 
 export default async function LocaleLayout(props: { children: React.ReactNode; params: Promise<{ locale: string }> }) {

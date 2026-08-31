@@ -56,8 +56,8 @@ export default function LandingLayout({
             <div className="md:col-span-2">
               <div className="mb-3 flex items-center">
                 <Image
-                  src="/LakuWTextLogo.svg"
-                  alt="Laku"
+                  src="/LakupakWhite.svg"
+                  alt="Lakupak"
                   width={140}
                   height={36}
                   className="h-10 w-auto"

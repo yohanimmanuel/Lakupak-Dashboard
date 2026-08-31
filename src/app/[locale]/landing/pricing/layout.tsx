@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-    title: 'Laku | Pricing'
+    title: 'Lakupak | Pricing'
   }
   
   export default function LandingLayout({

@@ -207,7 +207,7 @@ async function loadShareProductVars(
 
 function defaultSubject(actionType: string, vars: Record<string, string>): string {
   if (actionType === 'share_product_whatsapp') {
-    return vars.productName ? `Product: ${vars.productName}` : 'Product share from Laku';
+    return vars.productName ? `Product: ${vars.productName}` : 'Product share from Lakupak';
   }
   if (actionType === 'return_confirm_whatsapp') {
     return 'Your return has been confirmed';
@@ -372,7 +372,7 @@ export async function executeChannelBuyerMessage(
       : {};
 
   const baseVars: Record<string, string> = {
-    workflowName: workflow.name || 'Laku',
+    workflowName: workflow.name || 'Lakupak',
     offerId: String(config.offerId ?? extraVars?.offerId ?? '').trim(),
     ...shareVars,
     ...(extraVars ?? {}),

@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import AdminClientLayout from './AdminClientLayout';
 
 export const metadata: Metadata = {
-  title: 'Laku | Admin',
+  title: 'Lakupak | Admin',
 };
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

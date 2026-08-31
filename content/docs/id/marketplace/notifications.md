@@ -30,7 +30,7 @@ Ketuk push `order` atau `payment` membuka **Order Details**.
 
 ### Latest updates
 
-Pengumuman platform Laku.
+Pengumuman platform Lakupak.
 
 **Tab:** All, Updates, Promotion, Maintenance, Policy.
 

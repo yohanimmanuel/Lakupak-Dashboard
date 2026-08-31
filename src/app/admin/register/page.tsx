@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
@@ -46,7 +46,7 @@ export default function PlatformAdminRegisterPage() {
   return (
     <div className="min-h-screen bg-[#0A61D7] flex items-center justify-center px-4">
       <div className="w-full max-w-md bg-white rounded-xl border border-[#e6e6e6] shadow-sm p-6">
-        <Image src="/LakuTextLogo.svg" alt="Laku" width={100} height={100} />
+        <Image src="/Lakupak!.svg" alt="Lakupak" width={100} height={100} />
         <h1 className="text-xl font-semibold text-gray-900 mt-4">Create platform admin</h1>
         <p className="text-sm text-gray-600 mt-1">
           First-time setup only. Requires the bootstrap key.
@@ -83,7 +83,7 @@ export default function PlatformAdminRegisterPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-black"
-              placeholder="Laku Admin"
+              placeholder="Lakupak Admin"
             />
           </div>
 

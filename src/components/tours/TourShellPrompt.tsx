@@ -94,7 +94,7 @@ export function TourShellPrompt() {
           </div>
           <div className="min-w-0 flex-1">
             <h2 id="tour-shell-title" className="text-sm font-semibold text-gray-900">
-              Welcome to Laku
+              Welcome to Lakupak
             </h2>
             <p className="mt-1 text-xs text-gray-600 leading-relaxed">
               Take a quick tour of the sidebar and search, or skip. You can replay anytime from Settings → Product

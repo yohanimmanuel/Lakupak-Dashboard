@@ -2,25 +2,25 @@
 
 **Terakhir diperbarui:** 12 Agustus 2026
 
-Syarat & Ketentuan ini (“Syarat”) mengatur akses dan penggunaan Anda atas Layanan Laku.
+Syarat & Ketentuan ini (“Syarat”) mengatur akses dan penggunaan Anda atas Layanan Lakupak.
 
-Laku adalah platform infrastruktur e-commerce B2B yang dibangun untuk memodernisasi, memfasilitasi, dan mendorong ekosistem distribusi FMCG di Indonesia. Laku menggabungkan platform SaaS vertikal untuk distributor dengan marketplace bagi pembeli mereka (toko kecil, kios, warung, dan retailer lokal), dirancang untuk merampingkan operasional, melindungi informasi harga yang sensitif, dan menciptakan lingkungan terpercaya bagi kedua pihak untuk bertransaksi.
+Lakupak adalah platform infrastruktur e-commerce B2B yang dibangun untuk memodernisasi, memfasilitasi, dan mendorong ekosistem distribusi FMCG di Indonesia. Lakupak menggabungkan platform SaaS vertikal untuk distributor dengan marketplace bagi pembeli mereka (toko kecil, kios, warung, dan retailer lokal), dirancang untuk merampingkan operasional, melindungi informasi harga yang sensitif, dan menciptakan lingkungan terpercaya bagi kedua pihak untuk bertransaksi.
 
-Dengan membuat Akun atau menggunakan Layanan Laku, Anda menyetujui Syarat ini dan Kebijakan Privasi. Jika Anda menggunakan Laku untuk suatu perusahaan, Anda menegaskan bahwa Anda berwenang mengikat perusahaan tersebut.
+Dengan membuat Akun atau menggunakan Layanan Lakupak, Anda menyetujui Syarat ini dan Kebijakan Privasi. Jika Anda menggunakan Lakupak untuk suatu perusahaan, Anda menegaskan bahwa Anda berwenang mengikat perusahaan tersebut.
 
-Jika Anda tidak setuju, jangan menggunakan Layanan Laku.
+Jika Anda tidak setuju, jangan menggunakan Layanan Lakupak.
 
 ---
 
 ## 1. Definisi
 
-**1.1 “Laku” / “Kami”** berarti penyelenggara Layanan Laku.
+**1.1 “Lakupak” / “Kami”** berarti penyelenggara Layanan Lakupak.
 
-**1.2 “Layanan Laku”** berarti situs web Laku, Distributor Dashboard, Buyer Marketplace (seluler dan web), aplikasi Driver, API, dan fitur terkait yang kami sediakan dari waktu ke waktu.
+**1.2 “Layanan Lakupak”** berarti situs web Lakupak, Distributor Dashboard, Buyer Marketplace (seluler dan web), aplikasi Driver, API, dan fitur terkait yang kami sediakan dari waktu ke waktu.
 
-**1.3 “Akun”** berarti profil pengguna terdaftar yang digunakan untuk mengakses Layanan Laku.
+**1.3 “Akun”** berarti profil pengguna terdaftar yang digunakan untuk mengakses Layanan Lakupak.
 
-**1.4 “Pengguna” / “Anda”** berarti distributor, pembeli, driver, anggota staf, atau orang atau badan lain yang menggunakan Layanan Laku.
+**1.4 “Pengguna” / “Anda”** berarti distributor, pembeli, driver, anggota staf, atau orang atau badan lain yang menggunakan Layanan Lakupak.
 
 **1.5 “Distributor Dashboard”** berarti alat SaaS untuk distributor, termasuk menu seperti Home (Dashboard), Clients (Buyers dan Suppliers), Products, Orders, Offers (program dan insentif), Marketing (Team dan Campaigns), Analytics (Financial, Sales, dan Operational), Automation, Marketplace, Logistics, dan Settings.
 
@@ -54,13 +54,13 @@ Jika Anda tidak setuju, jangan menggunakan Layanan Laku.
 
 **3.3 Driver** dapat mengakses pengiriman yang ditugaskan, memperbarui status, mengirim bukti pengiriman atau bukti kegagalan, dan membagikan lokasi saat melakukan pekerjaan pengiriman melalui aplikasi Driver.
 
-**3.4** Anda wajib menggunakan Layanan Laku hanya untuk tujuan distribusi grosir dan ritel yang sah.
+**3.4** Anda wajib menggunakan Layanan Lakupak hanya untuk tujuan distribusi grosir dan ritel yang sah.
 
 ---
 
 ## 4. Kerahasiaan harga dan persaingan yang adil
 
-**4.1** Tujuan inti Laku adalah melindungi harga distributor dan mengurangi perang harga yang merugikan. Desain platform dapat membatasi perbandingan harga lintas distributor dan akses data pesaing.
+**4.1** Tujuan inti Lakupak adalah melindungi harga distributor dan mengurangi perang harga yang merugikan. Desain platform dapat membatasi perbandingan harga lintas distributor dan akses data pesaing.
 
 **4.2** Anda tidak boleh melakukan scraping, pengambilan massal, reverse engineering, atau melewati kontrol untuk memperoleh harga, daftar pelanggan, atau analitik rahasia pihak lain.
 
@@ -70,13 +70,13 @@ Jika Anda tidak setuju, jangan menggunakan Layanan Laku.
 
 ## 5. Pesanan, pembayaran, pengiriman, dan retur
 
-**5.1** Laku menyediakan teknologi agar Pengguna dapat membuat dan mengelola transaksi. Kecuali perjanjian tertulis terpisah menyatakan lain, **Laku bukan penjual barang**. Kontrak jual beli barang adalah antara pembeli dan distributor.
+**5.1** Lakupak menyediakan teknologi agar Pengguna dapat membuat dan mengelola transaksi. Kecuali perjanjian tertulis terpisah menyatakan lain, **Lakupak bukan penjual barang**. Kontrak jual beli barang adalah antara pembeli dan distributor.
 
 **5.2** Distributor bertanggung jawab atas legalitas produk, kualitas, pelabelan, akurasi stok, harga yang mereka tetapkan, dan komitmen pemenuhan.
 
 **5.3** Pembeli bertanggung jawab atas informasi pesanan dan pengiriman yang akurat serta membayar sesuai metode dan syarat pembayaran yang ditampilkan untuk pesanan (termasuk transfer bank manual dan unggah bukti pembayaran sejauh berlaku).
 
-**5.4** Konfirmasi pembayaran, pembatalan, retur, dan status logistik mengikuti alur kerja di Layanan Laku. Distributor mungkin perlu memverifikasi bukti pembayaran sebelum menandai pesanan sebagai dibayar.
+**5.4** Konfirmasi pembayaran, pembatalan, retur, dan status logistik mengikuti alur kerja di Layanan Lakupak. Distributor mungkin perlu memverifikasi bukti pembayaran sebelum menandai pesanan sebagai dibayar.
 
 **5.5** Driver dan distributor wajib mengirim dokumentasi pengiriman atau kegagalan yang akurat. Salah menyatakan status pengiriman dilarang.
 
@@ -84,11 +84,11 @@ Jika Anda tidak setuju, jangan menggunakan Layanan Laku.
 
 ## 6. Biaya
 
-**6.1** Penggunaan Laku dapat dikenakan biaya langganan SaaS, komisi transaksi, dan biaya layanan opsional, sebagaimana dipublikasikan di halaman harga Laku atau dalam formulir pesanan / invoice tertulis.
+**6.1** Penggunaan Lakupak dapat dikenakan biaya langganan SaaS, komisi transaksi, dan biaya layanan opsional, sebagaimana dipublikasikan di halaman harga Lakupak atau dalam formulir pesanan / invoice tertulis.
 
 **6.2** Biaya dan pajak (termasuk PPN sejauh berlaku) akan dinyatakan dalam IDR kecuali disepakati lain secara tertulis.
 
-**6.3** Kami dapat mengubah biaya dengan pemberitahuan sebelumnya melalui Layanan Laku atau email. Penggunaan berkelanjutan setelah tanggal berlaku merupakan penerimaan, tunduk pada hak wajib menurut Hukum yang Berlaku.
+**6.3** Kami dapat mengubah biaya dengan pemberitahuan sebelumnya melalui Layanan Lakupak atau email. Penggunaan berkelanjutan setelah tanggal berlaku merupakan penerimaan, tunduk pada hak wajib menurut Hukum yang Berlaku.
 
 **6.4** Invoice yang belum dibayar dapat mengakibatkan penangguhan akses hingga dilunasi.
 
@@ -96,13 +96,13 @@ Jika Anda tidak setuju, jangan menggunakan Layanan Laku.
 
 ## 7. Pesan, notifikasi, dan otomasi
 
-**7.1** Laku dapat mengirim notifikasi layanan melalui pemberitahuan dalam aplikasi, email, notifikasi push, SMS, atau saluran OTP WhatsApp.
+**7.1** Lakupak dapat mengirim notifikasi layanan melalui pemberitahuan dalam aplikasi, email, notifikasi push, SMS, atau saluran OTP WhatsApp.
 
 **7.2** Alat kampanye “bagikan ke WhatsApp” dapat membuka WhatsApp di perangkat Anda agar Anda dapat mengirim pesan sendiri. Hal itu berbeda dari koneksi API bisnis apa pun.
 
-**7.3** Jika Anda mengaktifkan otomasi atau menghubungkan fitur pesan bisnis ketika ditawarkan, Anda memberi wewenang kepada Laku untuk memproses data operasional terkait dan mengirim pesan sesuai aturan yang Anda konfigurasikan. Anda tetap bertanggung jawab atas isi pesan, persetujuan penerima, dan kepatuhan terhadap aturan Meta/WhatsApp atau penyedia lain serta Hukum yang Berlaku.
+**7.3** Jika Anda mengaktifkan otomasi atau menghubungkan fitur pesan bisnis ketika ditawarkan, Anda memberi wewenang kepada Lakupak untuk memproses data operasional terkait dan mengirim pesan sesuai aturan yang Anda konfigurasikan. Anda tetap bertanggung jawab atas isi pesan, persetujuan penerima, dan kepatuhan terhadap aturan Meta/WhatsApp atau penyedia lain serta Hukum yang Berlaku.
 
-**7.4** Laku tidak bertanggung jawab atas gangguan pesan pihak ketiga, penolakan template, atau pembatasan akun yang dikenakan oleh Meta atau penyedia lain.
+**7.4** Lakupak tidak bertanggung jawab atas gangguan pesan pihak ketiga, penolakan template, atau pembatasan akun yang dikenakan oleh Meta atau penyedia lain.
 
 ---
 
@@ -116,9 +116,9 @@ Jika Anda tidak setuju, jangan menggunakan Layanan Laku.
 
 ## 9. Integrasi pihak ketiga
 
-**9.1** Laku dapat menawarkan integrasi opsional dengan sistem pihak ketiga (misalnya perangkat lunak akuntansi). Mengaktifkan integrasi adalah pilihan dan otorisasi Anda.
+**9.1** Lakupak dapat menawarkan integrasi opsional dengan sistem pihak ketiga (misalnya perangkat lunak akuntansi). Mengaktifkan integrasi adalah pilihan dan otorisasi Anda.
 
-**9.2** Syarat pihak ketiga berlaku. Anda wajib memverifikasi hasil keuangan atau operasional penting di sistem pihak ketiga. Laku tidak mengendalikan sistem tersebut.
+**9.2** Syarat pihak ketiga berlaku. Anda wajib memverifikasi hasil keuangan atau operasional penting di sistem pihak ketiga. Lakupak tidak mengendalikan sistem tersebut.
 
 ---
 
@@ -127,11 +127,11 @@ Jika Anda tidak setuju, jangan menggunakan Layanan Laku.
 Anda tidak boleh:
 
 - melanggar Hukum yang Berlaku atau hak pihak ketiga;
-- mengunggah malware atau menyerang Layanan Laku;
+- mengunggah malware atau menyerang Layanan Lakupak;
 - menyamar sebagai orang lain atau mengirimkan kredensial bisnis palsu;
 - melakukan spam, phishing, atau mengganggu Pengguna;
-- mengganggu penggunaan Laku oleh Pengguna lain;
-- menggunakan Laku untuk memperdagangkan barang yang dilarang atau ilegal.
+- mengganggu penggunaan Lakupak oleh Pengguna lain;
+- menggunakan Lakupak untuk memperdagangkan barang yang dilarang atau ilegal.
 
 Kami dapat menghapus konten dan menangguhkan Akun atas pelanggaran.
 
@@ -139,9 +139,9 @@ Kami dapat menghapus konten dan menangguhkan Akun atas pelanggaran.
 
 ## 11. Kekayaan intelektual
 
-**11.1** Laku dan pemberi lisensinya memiliki Layanan Laku, perangkat lunak, merek, dan dokumentasi. Anda menerima hak terbatas untuk menggunakan Layanan sebagaimana diizinkan di bawah Syarat ini.
+**11.1** Lakupak dan pemberi lisensinya memiliki Layanan Lakupak, perangkat lunak, merek, dan dokumentasi. Anda menerima hak terbatas untuk menggunakan Layanan sebagaimana diizinkan di bawah Syarat ini.
 
-**11.2** Anda tetap memiliki konten bisnis Anda. Anda memberikan lisensi kepada Laku untuk menyimpan dan memproses konten tersebut hanya untuk mengoperasikan Layanan Laku.
+**11.2** Anda tetap memiliki konten bisnis Anda. Anda memberikan lisensi kepada Lakupak untuk menyimpan dan memproses konten tersebut hanya untuk mengoperasikan Layanan Lakupak.
 
 ---
 
@@ -149,7 +149,7 @@ Kami dapat menghapus konten dan menangguhkan Akun atas pelanggaran.
 
 **12.1** Kami dapat menangguhkan atau mengakhiri akses karena pelanggaran, risiko penipuan, tidak dibayar, kewajiban hukum, atau insiden keamanan.
 
-**12.2** Anda dapat berhenti menggunakan Layanan Laku dan meminta penutupan Akun tunduk pada biaya yang belum lunas dan kebutuhan retensi hukum.
+**12.2** Anda dapat berhenti menggunakan Layanan Lakupak dan meminta penutupan Akun tunduk pada biaya yang belum lunas dan kebutuhan retensi hukum.
 
 **12.3** Ketentuan yang menurut sifatnya harus tetap berlaku (biaya, KI, kerahasiaan, penafian, batas tanggung jawab, hukum yang mengatur) tetap berlaku setelah pengakhiran.
 
@@ -157,23 +157,23 @@ Kami dapat menghapus konten dan menangguhkan Akun atas pelanggaran.
 
 ## 13. Penafian
 
-Sejauh diizinkan oleh Hukum yang Berlaku, Layanan Laku disediakan “sebagaimana adanya” dan “sebagaimana tersedia.” Kami tidak menjamin layanan tanpa gangguan atau bahwa transaksi antar Pengguna akan memenuhi harapan Anda. Jaringan pihak ketiga (bank, peta, penyedia pesan, hosting) dapat gagal di luar kendali kami.
+Sejauh diizinkan oleh Hukum yang Berlaku, Layanan Lakupak disediakan “sebagaimana adanya” dan “sebagaimana tersedia.” Kami tidak menjamin layanan tanpa gangguan atau bahwa transaksi antar Pengguna akan memenuhi harapan Anda. Jaringan pihak ketiga (bank, peta, penyedia pesan, hosting) dapat gagal di luar kendali kami.
 
 ---
 
 ## 14. Pembatasan tanggung jawab
 
-**14.1** Sejauh diizinkan oleh Hukum yang Berlaku, Laku tidak bertanggung jawab atas kerugian tidak langsung, insidental, khusus, konsekuensial, atau hilangnya keuntungan.
+**14.1** Sejauh diizinkan oleh Hukum yang Berlaku, Lakupak tidak bertanggung jawab atas kerugian tidak langsung, insidental, khusus, konsekuensial, atau hilangnya keuntungan.
 
-**14.2** Laku tidak bertanggung jawab atas sengketa semata-mata antara pembeli dan distributor mengenai barang, kualitas, pengiriman, atau pembayaran, kecuali sejauh disebabkan oleh kesengajaan Laku.
+**14.2** Lakupak tidak bertanggung jawab atas sengketa semata-mata antara pembeli dan distributor mengenai barang, kualitas, pengiriman, atau pembayaran, kecuali sejauh disebabkan oleh kesengajaan Lakupak.
 
-**14.3** Tunduk pada hukum wajib, total tanggung jawab agregat Laku yang timbul dari Layanan Laku dibatasi pada biaya yang Anda bayarkan kepada Laku untuk Layanan Laku dalam tiga (3) bulan sebelum klaim.
+**14.3** Tunduk pada hukum wajib, total tanggung jawab agregat Lakupak yang timbul dari Layanan Lakupak dibatasi pada biaya yang Anda bayarkan kepada Lakupak untuk Layanan Lakupak dalam tiga (3) bulan sebelum klaim.
 
 ---
 
 ## 15. Ganti rugi
 
-Anda akan mengganti rugi Laku terhadap klaim yang timbul dari produk, konten, praktik pesan, data verifikasi yang tidak akurat, atau pelanggaran Syarat ini oleh Anda, kecuali sejauh disebabkan oleh kesengajaan Laku.
+Anda akan mengganti rugi Lakupak terhadap klaim yang timbul dari produk, konten, praktik pesan, data verifikasi yang tidak akurat, atau pelanggaran Syarat ini oleh Anda, kecuali sejauh disebabkan oleh kesengajaan Lakupak.
 
 ---
 
@@ -185,7 +185,7 @@ Syarat ini diatur oleh hukum Republik Indonesia. Para pihak akan terlebih dahulu
 
 ## 17. Perubahan
 
-Kami dapat memperbarui Syarat ini dengan memposting versi revisi dengan tanggal “Terakhir diperbarui” yang baru. Perubahan material akan diberitahukan melalui Layanan Laku atau email sejauh diwajibkan. Penggunaan berkelanjutan setelah tanggal berlaku merupakan penerimaan.
+Kami dapat memperbarui Syarat ini dengan memposting versi revisi dengan tanggal “Terakhir diperbarui” yang baru. Perubahan material akan diberitahukan melalui Layanan Lakupak atau email sejauh diwajibkan. Penggunaan berkelanjutan setelah tanggal berlaku merupakan penerimaan.
 
 ---
 
@@ -199,6 +199,6 @@ Syarat ini dapat diterbitkan dalam Bahasa Indonesia dan Bahasa Inggris. Jika ter
 
 - Pemberitahuan hukum: **legal@laku.id**
 - Privasi: **privacy@laku.id**
-- Dukungan: saluran yang dipublikasikan di situs web Laku atau bantuan dalam aplikasi
+- Dukungan: saluran yang dipublikasikan di situs web Lakupak atau bantuan dalam aplikasi
 
-Nama badan hukum penyelenggara dan alamat akan sesuai dengan pengungkapan bisnis resmi Laku dan invoice setelah difinalisasi.
+Nama badan hukum penyelenggara dan alamat akan sesuai dengan pengungkapan bisnis resmi Lakupak dan invoice setelah difinalisasi.

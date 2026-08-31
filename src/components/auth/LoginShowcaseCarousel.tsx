@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuthTranslations } from '@/hooks/useAuthTranslations';
@@ -10,6 +10,9 @@ const TICK_MS = 50;
 
 function resolveShowcaseImageSrc(src: string, locale: AuthLocale): string {
   if (locale === 'en') {
+    if (src === '/Dashboardhome.png') {
+      return '/Dashboardhomeeng1.png';
+    }
     return src.replace(/\.png$/i, 'eng.png');
   }
   return src;
@@ -239,7 +242,7 @@ export function LoginShowcaseCarousel() {
 
         <div className="relative z-10 flex flex-col items-center px-10 pb-4 pt-4 text-center xl:px-14">
           <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 p-2 backdrop-blur-sm">
-            <img src="/LakuIcon.svg" alt="" className="h-9 w-9" aria-hidden />
+            <img src="/LakuIconW.svg" alt="" className="h-9 w-9" aria-hidden />
           </div>
           <div className="relative min-h-[5.5rem] w-full max-w-xl">
             {SLIDES.map((slide, index) => (

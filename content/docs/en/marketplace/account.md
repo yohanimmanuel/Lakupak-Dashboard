@@ -48,7 +48,7 @@ Path: `/(tabs)/account`.
 
 **Logged in:** profile row → **Profile** (`/useraccounts/userprofile/editprofile`) with username and address.
 
-Header badge **Start Distributing!** links to distributor onboarding (**Welcome to Laku!**, **Get Started**, **Maybe later**).
+Header badge **Start Distributing!** links to distributor onboarding (**Welcome to Lakupak!**, **Get Started**, **Maybe later**).
 
 ### My Purchases shortcuts
 

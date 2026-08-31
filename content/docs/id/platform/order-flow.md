@@ -6,7 +6,7 @@ module: platform
 order: 51
 ---
 
-Halaman ini menjelaskan **alur bisnis** pesanan tipikal di Laku, sama di Dashboard, Marketplace, atau Driver.
+Halaman ini menjelaskan **alur bisnis** pesanan tipikal di Lakupak, sama di Dashboard, Marketplace, atau Driver.
 
 ## 1. Katalog dan publikasi
 
@@ -42,7 +42,7 @@ Pembeli mendapat notifikasi saat status berubah.
 
 ## 4. Logistik dan pengiriman
 
-Dengan logistik Laku:
+Dengan logistik Lakupak:
 
 - Buat **fleet** di **Dashboard → Logistics**
 - Tugaskan pesanan dan **driver**

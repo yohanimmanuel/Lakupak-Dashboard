@@ -2,17 +2,17 @@
 
 **Last updated:** 12 August 2026
 
-Laku is a B2B e-commerce infrastructure platform built to modernize, facilitate, and fuel Indonesia’s FMCG distribution ecosystem. It combines a vertical SaaS platform for distributors with a marketplace for their buyers (small shops, kiosks, warungs, and local retailers). The platform is designed to streamline operations, protect sensitive pricing information, and create a trusted environment for both parties to transact.
+Lakupak is a B2B e-commerce infrastructure platform built to modernize, facilitate, and fuel Indonesia’s FMCG distribution ecosystem. It combines a vertical SaaS platform for distributors with a marketplace for their buyers (small shops, kiosks, warungs, and local retailers). The platform is designed to streamline operations, protect sensitive pricing information, and create a trusted environment for both parties to transact.
 
 On the SaaS side, distributors gain access to a private dashboard for managing inventory, processing orders, tracking analytics, maintaining customer relationships, and generating sales reports. Each distributor operates in their own secure environment, with no visibility into competitor data or pricing. On the marketplace side, verified buyers can browse and purchase products from approved distributors under platform rules that protect fair competition and price stability.
 
-Laku also supports value-added features such as buyer and supplier lead tools, logistics and delivery workflows, sales and marketing tools, offers and incentives, automations, and optional connections to messaging and third-party business systems. Over time, Laku may add further services such as expanded logistics, digital payments, and financing. By digitizing a traditionally manual sector, Laku aims to replace scattered spreadsheets, chat-based ordering, and paper records with one mobile-friendly solution.
+Lakupak also supports value-added features such as buyer and supplier lead tools, logistics and delivery workflows, sales and marketing tools, offers and incentives, automations, and optional connections to messaging and third-party business systems. Over time, Lakupak may add further services such as expanded logistics, digital payments, and financing. By digitizing a traditionally manual sector, Lakupak aims to replace scattered spreadsheets, chat-based ordering, and paper records with one mobile-friendly solution.
 
-This Privacy Policy (“Policy”) explains how we collect, use, store, share, and delete Personal Data when you access or use Laku’s websites, Distributor Dashboard, Buyer Marketplace (mobile and web), Driver application, and related services (together, the “Laku Service”). This Policy forms part of the Laku Terms & Conditions.
+This Privacy Policy (“Policy”) explains how we collect, use, store, share, and delete Personal Data when you access or use Lakupak’s websites, Distributor Dashboard, Buyer Marketplace (mobile and web), Driver application, and related services (together, the “Lakupak Service”). This Policy forms part of the Lakupak Terms & Conditions.
 
-By accessing or using the Laku Service, you confirm that you have read this Policy and agree to the processing of Personal Data as described here. If you do not agree, you must not use the Laku Service.
+By accessing or using the Lakupak Service, you confirm that you have read this Policy and agree to the processing of Personal Data as described here. If you do not agree, you must not use the Lakupak Service.
 
-For the purpose of this Policy, “Personal Data” means data about an identified or identifiable individual, and business data that can identify a person or business where Indonesian law treats it as protected data. “We”, “us”, and “Laku” mean the operator of the Laku Service. “You” means any user of the Laku Service (distributor, buyer, driver, visitor, or authorized staff).
+For the purpose of this Policy, “Personal Data” means data about an identified or identifiable individual, and business data that can identify a person or business where Indonesian law treats it as protected data. “We”, “us”, and “Lakupak” mean the operator of the Lakupak Service. “You” means any user of the Lakupak Service (distributor, buyer, driver, visitor, or authorized staff).
 
 ---
 
@@ -22,7 +22,7 @@ For the purpose of this Policy, “Personal Data” means data about an identifi
 
 We collect Personal Data when you, among other things:
 
-- visit Laku websites or open the Laku Service;
+- visit Lakupak websites or open the Lakupak Service;
 - create or manage an Account;
 - complete distributor company profile, billing, or verification fields;
 - use Distributor Dashboard menus and features, including Home (Dashboard), Clients (Buyers and Suppliers), Products, Orders, Offers (programs and incentives), Marketing (Team and Campaigns), Analytics (Financial, Sales, and Operational), Automation, Marketplace publishing, Logistics (orders and shipment), and Settings;
@@ -69,11 +69,11 @@ Depending on your role and the features you use, Personal Data may include:
 - OTP delivery logs;
 - in-app notifications;
 - messages, reports, reviews, ratings, and support correspondence you send to us;
-- if you use click-to-share campaign links, your device may open WhatsApp; Laku does not operate your personal WhatsApp account.
+- if you use click-to-share campaign links, your device may open WhatsApp; Lakupak does not operate your personal WhatsApp account.
 
 **F. End-customer data processed for distributors (processor role)**
-- When a distributor uses Laku to store buyer contacts, send operational notifications, or (when available) connect business messaging tools, Laku may process end-customer names, phone numbers, addresses, and order-related messages on the distributor’s instructions.
-- In that case, the distributor is the Data Controller for those end customers, and Laku acts as a Data Processor. The distributor must have a lawful basis (including any required consent) before uploading or messaging end customers through Laku.
+- When a distributor uses Lakupak to store buyer contacts, send operational notifications, or (when available) connect business messaging tools, Lakupak may process end-customer names, phone numbers, addresses, and order-related messages on the distributor’s instructions.
+- In that case, the distributor is the Data Controller for those end customers, and Lakupak acts as a Data Processor. The distributor must have a lawful basis (including any required consent) before uploading or messaging end customers through Lakupak.
 
 ### 1.3 Accuracy and authority
 
@@ -85,7 +85,7 @@ We may ask you to authenticate, verify, or update Personal Data (including busin
 
 ### 1.5 Consent
 
-By continuing to use the Laku Service, you consent to collection and processing of Personal Data as described in this Section 1, to the extent consent is required under Indonesian law, without limiting other lawful bases such as contract performance and legitimate interests.
+By continuing to use the Lakupak Service, you consent to collection and processing of Personal Data as described in this Section 1, to the extent consent is required under Indonesian law, without limiting other lawful bases such as contract performance and legitimate interests.
 
 ---
 
@@ -115,15 +115,15 @@ We do not use one distributor’s confidential pricing or customer list to benef
 
 We do not sell your Personal Data.
 
-### 3.2 Sharing that is necessary to run Laku
+### 3.2 Sharing that is necessary to run Lakupak
 
 We may share Personal Data with:
 
-- other Laku users as needed for a transaction (for example buyer and distributor see order details; an assigned driver sees delivery details);
-- service providers that help us operate Laku under contract, such as cloud hosting and databases, file storage, email/SMS/OTP providers, map and geocoding providers, push notification services, analytics (if enabled), and AI model providers used for optional assistant features;
+- other Lakupak users as needed for a transaction (for example buyer and distributor see order details; an assigned driver sees delivery details);
+- service providers that help us operate Lakupak under contract, such as cloud hosting and databases, file storage, email/SMS/OTP providers, map and geocoding providers, push notification services, analytics (if enabled), and AI model providers used for optional assistant features;
 - competent authorities when required by Indonesian law or lawful process;
 - professional advisers under confidentiality;
-- a successor entity if Laku’s business is transferred, merged, or restructured.
+- a successor entity if Lakupak’s business is transferred, merged, or restructured.
 
 ### 3.3 Third-party policies
 
@@ -141,7 +141,7 @@ Some providers may process data outside Indonesia. We take reasonable steps to k
 
 ## 4. Cookies and similar technologies
 
-We use cookies and similar technologies for login sessions, security, preferences, and (if enabled) analytics such as Google Analytics. You may disable cookies in your browser; essential cookies may be required for the Laku Service to function.
+We use cookies and similar technologies for login sessions, security, preferences, and (if enabled) analytics such as Google Analytics. You may disable cookies in your browser; essential cookies may be required for the Lakupak Service to function.
 
 ---
 
@@ -156,15 +156,15 @@ Under Indonesian personal data protection law, you may have the right to:
 - withdraw consent where processing is based on consent;
 - request data portability where applicable.
 
-You can update much of your profile data in the apps. For other requests, email **privacy@laku.id**. We may verify your identity before responding. Closing an Account or withdrawing consent may limit or end your access to the Laku Service.
+You can update much of your profile data in the apps. For other requests, email **privacy@laku.id**. We may verify your identity before responding. Closing an Account or withdrawing consent may limit or end your access to the Lakupak Service.
 
-If you are an end customer of a distributor and do not have a Laku Account, contact that distributor first.
+If you are an end customer of a distributor and do not have a Lakupak Account, contact that distributor first.
 
 ---
 
 ## 6. Storage and deletion
 
-We store Personal Data with security measures appropriate to the risk and retain it as long as needed to provide the Laku Service, meet legal, tax, and dispute requirements, and maintain security logs for a limited period.
+We store Personal Data with security measures appropriate to the risk and retain it as long as needed to provide the Lakupak Service, meet legal, tax, and dispute requirements, and maintain security logs for a limited period.
 
 You may request Account closure in writing through the contact channels in this Policy. After closure, we may keep limited records where Indonesian law or legitimate business needs require retention, with restricted access.
 
@@ -184,13 +184,13 @@ You must protect your password, OTP, and devices. We are not responsible for los
 
 ## 8. Children
 
-The Laku Service is for business use. Users must be at least 17 years old and legally competent, or act under a guardian as required by law. We do not knowingly collect Personal Data from children for consumer use of Laku.
+The Lakupak Service is for business use. Users must be at least 17 years old and legally competent, or act under a guardian as required by law. We do not knowingly collect Personal Data from children for consumer use of Lakupak.
 
 ---
 
 ## 9. Changes to this Policy
 
-We may update this Policy to reflect product or legal changes. Updates will be posted on the Laku Service with a new “Last updated” date. For material changes affecting Personal Data, we will provide notice in advance where required (including up to 30 business days where that standard applies). If you disagree, you may close your Account during the notice period. Continued use after the effective date means you accept the updated Policy.
+We may update this Policy to reflect product or legal changes. Updates will be posted on the Lakupak Service with a new “Last updated” date. For material changes affecting Personal Data, we will provide notice in advance where required (including up to 30 business days where that standard applies). If you disagree, you may close your Account during the notice period. Continued use after the effective date means you accept the updated Policy.
 
 ---
 
@@ -208,4 +208,4 @@ Privacy questions, corrections, deletion requests, or complaints:
 
 We may keep a record of correspondence for handling your request. We may refuse requests if we cannot verify your identity.
 
-Operating entity legal name and office address will match the details published on official Laku business disclosures and invoices when finalized.
+Operating entity legal name and office address will match the details published on official Lakupak business disclosures and invoices when finalized.

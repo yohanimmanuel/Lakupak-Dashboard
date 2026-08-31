@@ -6,7 +6,7 @@ module: driver
 order: 45
 ---
 
-Quick fixes for common Laku Driver issues.
+Quick fixes for common Lakupak Driver issues.
 
 ## Connectivity and loading
 
@@ -17,7 +17,7 @@ Quick fixes for common Laku Driver issues.
 | Status not saving | **Update failed** — Try again | Check connection; wait for offline queue to sync |
 | General issues | Help → FAQ | Update app; email **support@laku.com** |
 
-Confirm with your distributor that you are on the correct Laku environment for your company.
+Confirm with your distributor that you are on the correct Lakupak environment for your company.
 
 ## Login problems
 

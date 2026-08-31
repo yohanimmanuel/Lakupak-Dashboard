@@ -111,7 +111,7 @@ const CAMPAIGN_TEMPLATES: Array<{
         id: 'template-header-1',
         type: 'header',
         order: 0,
-        headerText: 'Laku',
+        headerText: 'Lakupak',
         headerImage: undefined,
       },
       {
@@ -147,7 +147,7 @@ const CAMPAIGN_TEMPLATES: Array<{
         id: 'template-header-2',
         type: 'header',
         order: 0,
-        headerText: 'Laku',
+        headerText: 'Lakupak',
       },
       {
         id: 'template-text-2',
@@ -186,7 +186,7 @@ const CAMPAIGN_TEMPLATES: Array<{
         id: 'template-header-3',
         type: 'header',
         order: 0,
-        headerText: 'Laku',
+        headerText: 'Lakupak',
       },
       {
         id: 'template-text-3',
@@ -219,7 +219,7 @@ const CAMPAIGN_TEMPLATES: Array<{
         id: 'template-header-4',
         type: 'header',
         order: 0,
-        headerText: 'Laku',
+        headerText: 'Lakupak',
       },
       {
         id: 'template-text-5',
@@ -264,13 +264,13 @@ const CAMPAIGN_TEMPLATES: Array<{
         id: 'template-header-5',
         type: 'header',
         order: 0,
-        headerText: 'Laku',
+        headerText: 'Lakupak',
       },
       {
         id: 'template-text-6',
         type: 'text',
         order: 1,
-        text: 'Welcome to Laku!\n\nThank you for joining us. We\'re excited to have you as part of our community!',
+        text: 'Welcome to Lakupak!\n\nThank you for joining us. We\'re excited to have you as part of our community!',
         textStyle: 'normal',
       },
       {
@@ -665,7 +665,7 @@ export default function WhatsAppCampaignBuilder({
                 <span className="text-[#075e54] font-bold text-sm">L</span>
               </div>
               <div>
-                <h3 className="font-semibold text-sm">Laku</h3>
+                <h3 className="font-semibold text-sm">Lakupak</h3>
                 <p className="text-xs opacity-90">{tCampaignBuilder('online')}</p>
               </div>
             </div>

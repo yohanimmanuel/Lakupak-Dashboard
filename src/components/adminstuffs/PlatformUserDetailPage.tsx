@@ -483,7 +483,7 @@ function CommissionInvoicesSection({ companyId }: { companyId: number }) {
     <DistributorSection title="Commission fee records" icon={Receipt}>
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
         <p className="text-xs text-gray-600">
-          Admin-submitted commission invoices (generated outside Laku). Distributors see these under Settings → Billing & Payment.
+          Admin-submitted commission invoices (generated outside Lakupak). Distributors see these under Settings → Billing & Payment.
         </p>
         <button
           type="button"

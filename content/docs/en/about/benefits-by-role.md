@@ -1,7 +1,7 @@
 ---
 title: Benefits by role
-description: Practical outcomes for distributors, buyers, and drivers on Laku.
-section: About Laku
+description: Practical outcomes for distributors, buyers, and drivers on Lakupak.
+section: About Lakupak
 module: about
 order: 4
 ---
@@ -10,7 +10,7 @@ This page summarizes **business outcomes** by role. For step-by-step usage, open
 
 ## Distributors
 
-| Area | Without structured tools | With Laku |
+| Area | Without structured tools | With Lakupak |
 |------|--------------------------|----------|
 | Ordering | Chats, screenshots, retyped lines | Structured orders in **Orders** with status |
 | Catalog | Static PDFs or verbal price lists | Live **Products** with stock and publish |
@@ -25,7 +25,7 @@ Doc hub: [Dashboard](/en/docs/dashboard/overview).
 
 ## Retail buyers
 
-| Area | Without Laku | With Laku |
+| Area | Without Lakupak | With Lakupak |
 |------|--------------|-----------|
 | Discovery | Call sales rep or wait for visit | **Browse**, **Search**, **Categories** anytime |
 | Reorder | Re-type the same list in chat | **Buy Again**, favourites, cart history |
@@ -39,7 +39,7 @@ Doc hub: [Marketplace](/en/docs/marketplace/overview).
 
 ## Drivers
 
-| Area | Without Laku | With Laku |
+| Area | Without Lakupak | With Lakupak |
 |------|--------------|-----------|
 | Route | Paper lists or ad hoc calls | **Tasks** calendar and map |
 | Proof | Photos in personal gallery | **Proof of Delivery** attached to order |

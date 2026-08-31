@@ -1,22 +1,22 @@
 ---
 title: Controlled marketplace
-description: Why Laku is a distributor-first marketplace, not an open price war.
-section: About Laku
+description: Why Lakupak is a distributor-first marketplace, not an open price war.
+section: About Lakupak
 module: about
 order: 3
 ---
 
 Many digital marketplaces optimize for **maximum listing overlap** and **lowest displayed price**. That model works for some consumer categories. It often harms **wholesale distributors** who compete on service, credit, assortment, and territory as much as on unit price.
 
-Laku takes a **controlled marketplace** approach instead.
+Lakupak takes a **controlled marketplace** approach instead.
 
 ## Distributor stays in charge
 
-Each distributor on Laku runs an isolated storefront:
+Each distributor on Lakupak runs an isolated storefront:
 
 - Only **published** products are visible to buyers
 - **Pricing** and **offers** are set by the distributor, not by the platform auctioning leads
-- **Buyer relationships** belong to the distributor; Laku records history to serve them better
+- **Buyer relationships** belong to the distributor; Lakupak records history to serve them better
 - **Shipping and payment** rules reflect how that distributor already works
 
 Buyers discover and order digitally. The commercial relationship remains **B2B and bilateral**.
@@ -43,7 +43,7 @@ A controlled model matches how trade actually works:
 
 ## Operating platform plus marketplace
 
-Laku combines:
+Lakupak combines:
 
 1. **Private operations** (Dashboard): stock, CRM, logistics, analytics
 2. **Buyer-facing storefront** (Marketplace): modern ordering experience

@@ -17,7 +17,7 @@ export function DocsSidebar({
     <aside className="w-60 shrink-0 border-r border-gray-200 bg-gray-50/80 h-full overflow-y-auto">
       <div className="bg-[#0a61d7] px-4 py-3">
         <Link href={`/${locale}/docs`} className="text-sm font-semibold text-white hover:text-blue-100">
-          Laku Docs
+          Lakupak Docs
         </Link>
       </div>
       <nav className="p-3 space-y-5">

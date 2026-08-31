@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Laku | Forgot Password',
+  title: 'Lakupak | Forgot Password',
 };
 
 export default function ForgotPasswordLayout({

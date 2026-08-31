@@ -6,7 +6,7 @@ module: dashboard
 order: 10
 ---
 
-The **Laku Dashboard** is the web control center for distributors. You manage catalog, B2B clients, orders, promotions, analytics, your marketplace storefront, logistics, and account settings from one signed-in workspace.
+The **Lakupak Dashboard** is the web control center for distributors. You manage catalog, B2B clients, orders, promotions, analytics, your marketplace storefront, logistics, and account settings from one signed-in workspace.
 
 Path: routes under `/home`, `/clients`, `/products`, and the other modules in the sidebar.
 
@@ -14,7 +14,7 @@ Path: routes under `/home`, `/clients`, `/products`, and the other modules in th
 
 | Step | Action |
 |------|--------|
-| New distributor | Register on the Laku website via **Get Started**, then sign in |
+| New distributor | Register on the Lakupak website via **Get Started**, then sign in |
 | Returning user | **Login** with email and password |
 | After login | You land on **Home** when the session is valid |
 
@@ -63,7 +63,7 @@ Submenus open under **Clients**, **Marketing**, and **Analytics** for the pages 
 
 6. **Orders** — process incoming marketplace and manual orders; update status through delivery.
 7. **Logistics** — create driver accounts and **Add Fleet & Driver** for delivery runs.
-8. Share **Laku Driver** credentials with drivers (they do not self-register).
+8. Share **Lakupak Driver** credentials with drivers (they do not self-register).
 
 ### Growth (optional)
 
@@ -109,5 +109,5 @@ See [How orders flow](/en/docs/platform/order-flow) for the full chain.
 
 ## Related documentation
 
-- [Getting started](/en/docs/getting-started) if you are new to Laku
-- [Laku ecosystem](/en/docs/platform/ecosystem) for all three apps
+- [Getting started](/en/docs/getting-started) if you are new to Lakupak
+- [Lakupak ecosystem](/en/docs/platform/ecosystem) for all three apps

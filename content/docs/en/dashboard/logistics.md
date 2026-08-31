@@ -73,7 +73,7 @@ Validation: **Complete required fields** when data is missing.
 
 ## Driver mobile app
 
-Drivers are created by the distributor (not self-signup). They sign in to the **Laku Driver** app with credentials you provide.
+Drivers are created by the distributor (not self-signup). They sign in to the **Lakupak Driver** app with credentials you provide.
 
 ## Related areas
 

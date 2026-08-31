@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -36,13 +36,13 @@ export default function AdminNavbar() {
           </button>
           <Link href="/admin" className="flex items-center gap-3 min-w-0 group">
             <img
-              src="/LakuTextLogo.svg"
-              alt="Laku"
+              src="/Lakupak!.svg"
+              alt="Lakupak"
               className="h-9 hidden sm:block w-auto"
             />
             <img
-              src="/LakuIcon.svg"
-              alt="Laku"
+              src="/Lakupak!.svg"
+              alt="Lakupak"
               className="h-9 w-9 sm:hidden"
             />
             <div className="hidden sm:block border-l border-gray-200 pl-3">

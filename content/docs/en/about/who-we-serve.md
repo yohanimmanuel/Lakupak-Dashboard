@@ -1,16 +1,16 @@
 ---
 title: Who we serve
 description: Distributors, retail buyers, and drivers in the Indonesian supply chain.
-section: About Laku
+section: About Lakupak
 module: about
 order: 2
 ---
 
-Laku sits in the **middle of the FMCG and general wholesale supply chain**, connecting the party that stocks and delivers with the small shops that sell to end consumers.
+Lakupak sits in the **middle of the FMCG and general wholesale supply chain**, connecting the party that stocks and delivers with the small shops that sell to end consumers.
 
 ## Distributors (FMCG and wholesalers)
 
-Typical users run **Laku Dashboard** on the web.
+Typical users run **Lakupak Dashboard** on the web.
 
 They may be:
 
@@ -25,7 +25,7 @@ They may be:
 - Stockouts and overstocks because data is late
 - Difficulty proving service level to key accounts
 
-### What Laku helps with
+### What Lakupak helps with
 
 - Central **catalog** with variants, stock, and publish control
 - **Orders** pipeline from placement to delivery
@@ -38,7 +38,7 @@ Start: [Dashboard overview](/en/docs/dashboard/overview).
 
 ## Retail buyers (warungs, kiosks, small shops)
 
-Typical users run **Laku Marketplace** on mobile.
+Typical users run **Lakupak Marketplace** on mobile.
 
 They need:
 
@@ -47,7 +47,7 @@ They need:
 - Visibility when goods are coming
 - Fair terms with suppliers they already trust
 
-### What Laku helps with
+### What Lakupak helps with
 
 - Browse and **search** published catalogs
 - **Cart and checkout** with delivery and payment choices
@@ -58,11 +58,11 @@ Start: [Marketplace overview](/en/docs/marketplace/overview).
 
 ## Fleet drivers
 
-Typical users run **Laku Driver** on mobile.
+Typical users run **Lakupak Driver** on mobile.
 
 They work for a **single distributor** (or contracted fleet) and execute assigned routes.
 
-### What Laku helps with
+### What Lakupak helps with
 
 - Daily **tasks** and route map
 - **Start Delivery** and **Complete Delivery** with proof photos
@@ -86,4 +86,4 @@ All three see the **same order** at different stages. See [How orders flow](/en/
 ## Related documentation
 
 - [Benefits by role](/en/docs/about/benefits-by-role)
-- [Laku ecosystem](/en/docs/platform/ecosystem)
+- [Lakupak ecosystem](/en/docs/platform/ecosystem)

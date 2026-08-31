@@ -24,9 +24,9 @@ export async function generateMetadata(props: {
   const { locale: raw, slug } = await props.params;
   const locale = (raw === 'id' ? 'id' : 'en') as DocLocale;
   const doc = getDocBySlug(locale, slug);
-  if (!doc) return { title: 'Documentation | Laku' };
+  if (!doc) return { title: 'Documentation | Lakupak' };
   return {
-    title: `${doc.frontmatter.title} | Laku Docs`,
+    title: `${doc.frontmatter.title} | Lakupak Docs`,
     description: doc.frontmatter.description,
   };
 }

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Image from 'next/image';
 import Link from 'next/link';
@@ -485,13 +485,13 @@ const Navbar = () => {
           </button>
           <Link href="/home" className="flex items-center min-w-0 group">
             <img
-              src="/LakuTextLogo.svg"
-              alt="Laku"
+              src="/Lakupak!.svg"
+              alt="Lakupak"
               className="h-9 hidden sm:block w-auto"
             />
             <img
-              src="/LakuIcon.svg"
-              alt="Laku"
+              src="/Lakupak!.svg"
+              alt="Lakupak"
               className="h-9 w-9 sm:hidden"
             />
           </Link>

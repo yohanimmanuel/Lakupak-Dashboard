@@ -427,7 +427,7 @@ function AutomationsTriggersForkFlow({ alt }: { alt: string }) {
           className="relative z-10 flex h-14 w-14 items-center justify-center rounded-full border border-gray-200/90 bg-white shadow-[0_12px_28px_-14px_rgba(10,97,215,0.3)] animate-scale-in motion-reduce:animate-none sm:h-16 sm:w-16"
           style={{ animationDuration: '0.5s' }}
         >
-          <Image src="/LakuIcon.svg" alt={alt} width={40} height={40} className="h-8 w-8 sm:h-9 sm:w-9" />
+          <Image src="/LakuAI.png" alt={alt} width={40} height={40} className="h-8 w-8 sm:h-9 sm:w-9" />
         </div>
 
         {/* Dotted stem — Laku → marketing */}
@@ -1178,7 +1178,7 @@ export default function LandingPage() {
                 className="pointer-events-none absolute left-[6%] right-[6%] top-0 z-0 h-10 sm:h-12 overflow-hidden rounded-t-2xl border border-gray-200/80 bg-white shadow-[0_8px_24px_-12px_rgba(15,23,42,0.2)]"
               >
                 <Image
-                  src="/Dashboardhomeeng.png"
+                  src="/Dashboardhome.png"
                   alt=""
                   width={1845}
                   height={877}
@@ -1195,7 +1195,7 @@ export default function LandingPage() {
                 className="pointer-events-none absolute left-[3%] right-[3%] top-3 sm:top-3.5 z-[1] h-10 sm:h-12 overflow-hidden rounded-t-2xl border border-gray-200/90 bg-white shadow-[0_10px_28px_-12px_rgba(15,23,42,0.22)]"
               >
                 <Image
-                  src="/Dashboardhomeeng.png"
+                  src="/Dashboardhomeeng1.png"
                   alt=""
                   width={1845}
                   height={877}
@@ -1209,7 +1209,7 @@ export default function LandingPage() {
               {/* Front layer */}
               <div className="relative z-[2] rounded-2xl border border-gray-200/90 bg-white p-1.5 sm:p-2 shadow-[0_18px_50px_-14px_rgba(10,97,215,0.3)] overflow-hidden">
                 <Image
-                  src="/Dashboardhomeeng.png"
+                  src="/Dashboardhomeeng1.png"
                   alt={t('hero.productPlaceholder')}
                   width={1845}
                   height={877}

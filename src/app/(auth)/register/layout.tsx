@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Laku | Register',
+  title: 'Lakupak | Register',
 };
 
 export default function RegisterLayout({

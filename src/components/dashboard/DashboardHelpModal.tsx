@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
@@ -54,7 +54,7 @@ export function DashboardHelpModal({ open, onCloseAction }: DashboardHelpModalPr
           <X size={18} />
         </button>
         <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#e8f0fe]">
-          <img src="/LakuIcon.svg" alt="" className="h-8 w-8" aria-hidden />
+          <img src="/Lakupak!.svg" alt="" className="h-8 w-8" aria-hidden />
         </div>
         <h2 id="dashboard-help-title" className="text-lg font-bold text-gray-900">
           {tHelp('title')}

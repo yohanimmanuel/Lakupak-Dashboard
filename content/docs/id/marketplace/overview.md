@@ -6,7 +6,7 @@ module: marketplace
 order: 30
 ---
 
-**Laku Marketplace** adalah aplikasi mobile pembeli (Expo/React Native) untuk menemukan katalog distributor, memesan B2B, dan melacak pengiriman. Terhubung ke lingkungan API Laku yang sama dengan Dashboard distributor.
+**Lakupak Marketplace** adalah aplikasi mobile pembeli (Expo/React Native) untuk menemukan katalog distributor, memesan B2B, dan melacak pengiriman. Terhubung ke lingkungan API Lakupak yang sama dengan Dashboard distributor.
 
 ## Navigasi utama
 
@@ -38,13 +38,13 @@ Dari beberapa tab:
 
 Akun ditangguhkan menampilkan **Account suspended** dan **Go to login**.
 
-## Peran di ekosistem Laku
+## Peran di ekosistem Lakupak
 
 | Peran | Aplikasi |
 |-------|----------|
-| Distributor | Laku Dashboard (web) |
-| Pembeli / retailer | Laku Marketplace (mobile) |
-| Driver | Laku Driver (mobile) |
+| Distributor | Lakupak Dashboard (web) |
+| Pembeli / retailer | Lakupak Marketplace (mobile) |
+| Driver | Lakupak Driver (mobile) |
 
 Pesanan di Marketplace muncul di modul **Orders** distributor. Produk berasal dari **Products** yang dipublikasikan.
 

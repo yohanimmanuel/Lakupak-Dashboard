@@ -1,24 +1,24 @@
 ---
-title: Laku ecosystem
+title: Lakupak ecosystem
 description: How Dashboard, Marketplace, and Driver work together for B2B distribution.
 section: Platform
 module: platform
 order: 50
 ---
 
-Laku is one **B2B commerce operating platform** with three experiences built for different roles. They share the same business data (catalog, orders, customers, deliveries) so everyone sees a consistent picture without duplicate entry.
+Lakupak is one **B2B commerce operating platform** with three experiences built for different roles. They share the same business data (catalog, orders, customers, deliveries) so everyone sees a consistent picture without duplicate entry.
 
 ## The three experiences
 
 | Experience | Who uses it | Primary job |
 |------------|-------------|-------------|
-| **Laku Dashboard** (web) | Distributor teams | Run the business: catalog, clients, orders, offers, analytics, logistics |
-| **Laku Marketplace** (mobile) | Retail buyers (warungs, kiosks, small shops) | Discover products, order in bulk, pay, track delivery |
-| **Laku Driver** (mobile) | Fleet drivers | Execute routes, update status, proof of delivery |
+| **Lakupak Dashboard** (web) | Distributor teams | Run the business: catalog, clients, orders, offers, analytics, logistics |
+| **Lakupak Marketplace** (mobile) | Retail buyers (warungs, kiosks, small shops) | Discover products, order in bulk, pay, track delivery |
+| **Lakupak Driver** (mobile) | Fleet drivers | Execute routes, update status, proof of delivery |
 
 ## Controlled marketplace model
 
-Laku is not an open marketplace that pits distributors against each other on price alone.
+Lakupak is not an open marketplace that pits distributors against each other on price alone.
 
 - Each distributor runs their **own storefront** and customer relationships
 - Buyers see only what distributors choose to **publish**
@@ -45,7 +45,7 @@ At a business level, the same journey runs through all three:
 | Distributor staff | [Dashboard overview](/en/docs/dashboard/overview) |
 | Retail buyer | [Marketplace overview](/en/docs/marketplace/overview) |
 | Driver | [Driver overview](/en/docs/driver/overview) |
-| Anyone new to Laku | [What is Laku?](/en/docs/introduction) |
+| Anyone new to Lakupak | [What is Lakupak?](/en/docs/introduction) |
 
 ## Related documentation
 

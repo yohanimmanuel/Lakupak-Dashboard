@@ -24,7 +24,7 @@ export function WhatsAppCloudLabPanel({ config, onChange }: Props) {
   const { tBuilder } = useAutomationTranslations();
   const [testTo, setTestTo] = React.useState('');
   const [testText, setTestText] = React.useState(
-    'Hello from Laku Automations (WhatsApp Cloud API test).',
+    'Hello from Lakupak Automations (WhatsApp Cloud API test).',
   );
   const [sendBusy, setSendBusy] = React.useState(false);
   const [sendResult, setSendResult] = React.useState<string | null>(null);
@@ -34,7 +34,7 @@ export function WhatsAppCloudLabPanel({ config, onChange }: Props) {
   const [tplLanguage, setTplLanguage] = React.useState('en_US');
   const [tplCategory, setTplCategory] = React.useState('UTILITY');
   const [tplBody, setTplBody] = React.useState(
-    'Your Laku order update: we received your request and will follow up shortly.',
+    'Your Lakupak order update: we received your request and will follow up shortly.',
   );
   const [tplBusy, setTplBusy] = React.useState(false);
   const [tplResult, setTplResult] = React.useState<string | null>(null);

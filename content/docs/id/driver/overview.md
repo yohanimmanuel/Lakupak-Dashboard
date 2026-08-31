@@ -1,19 +1,19 @@
 ---
 title: Ringkasan Driver
-description: Tab aplikasi Laku Driver, model akses, dan navigasi.
+description: Tab aplikasi Lakupak Driver, model akses, dan navigasi.
 section: Driver
 module: driver
 order: 40
 ---
 
-**Laku Driver** adalah aplikasi mobile (Expo/React Native) untuk driver armada distributor. Driver menjalankan rute yang ditugaskan, memperbarui status pesanan, membagikan lokasi live ke pembeli, dan mengirim bukti pengiriman (POD) atau laporan gagal.
+**Lakupak Driver** adalah aplikasi mobile (Expo/React Native) untuk driver armada distributor. Driver menjalankan rute yang ditugaskan, memperbarui status pesanan, membagikan lokasi live ke pembeli, dan mengirim bukti pengiriman (POD) atau laporan gagal.
 
 Tersedia dalam **English** dan **Bahasa Indonesia**.
 
 ## Siapa pengguna aplikasi Driver
 
 - Driver lapangan terhubung ke satu **distributor**
-- Akun **dibuat di Laku Dashboard** (Logistik); tidak ada daftar mandiri instan
+- Akun **dibuat di Lakupak Dashboard** (Logistik); tidak ada daftar mandiri instan
 - Cakupan data: armada dan pesanan yang ditugaskan via `GET /api/driver/fleets`
 
 ## Navigasi utama
@@ -27,7 +27,7 @@ Empat tab bawah:
 | **Notifications** | Riwayat alert in-app |
 | **Account** | Profil, pengaturan, bantuan, logout |
 
-Header Home menampilkan **Laku Driver**.
+Header Home menampilkan **Lakupak Driver**.
 
 ### Rute lain
 
@@ -47,13 +47,13 @@ Setelah login: WebSocket, sinkron GPS, push, antrean status offline.
 | Belum punya akun | **Register** di welcome = **Request access** |
 | Masuk | **Login** dengan username dan password dari distributor |
 
-## Peran di ekosistem Laku
+## Peran di ekosistem Lakupak
 
 | Peran | Aplikasi |
 |-------|----------|
 | Distributor rencanakan armada | Dashboard **Logistik** |
 | Pembeli lacak pengiriman | Marketplace |
-| Driver jalankan rute | **Laku Driver** |
+| Driver jalankan rute | **Lakupak Driver** |
 
 ## Dokumentasi terkait
 

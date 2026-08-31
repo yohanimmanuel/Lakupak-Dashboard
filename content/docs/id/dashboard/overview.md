@@ -6,7 +6,7 @@ module: dashboard
 order: 10
 ---
 
-**Laku Dashboard** adalah pusat kendali web untuk distributor. Kelola katalog, klien B2B, pesanan, promosi, analitik, storefront marketplace, logistik, dan pengaturan akun dalam satu workspace setelah masuk.
+**Lakupak Dashboard** adalah pusat kendali web untuk distributor. Kelola katalog, klien B2B, pesanan, promosi, analitik, storefront marketplace, logistik, dan pengaturan akun dalam satu workspace setelah masuk.
 
 Jalur: route di bawah `/home`, `/clients`, `/products`, dan modul lain di sidebar.
 
@@ -14,7 +14,7 @@ Jalur: route di bawah `/home`, `/clients`, `/products`, dan modul lain di sideba
 
 | Langkah | Tindakan |
 |---------|----------|
-| Distributor baru | Daftar di situs Laku lewat **Get Started**, lalu masuk |
+| Distributor baru | Daftar di situs Lakupak lewat **Get Started**, lalu masuk |
 | Pengguna lama | **Login** dengan email dan kata sandi |
 | Setelah masuk | Diarahkan ke **Beranda** jika sesi valid |
 
@@ -63,7 +63,7 @@ Submenu di **Clients**, **Marketing**, dan **Analytics** untuk halaman di atas.
 
 6. **Orders** — proses pesanan masuk; perbarui status hingga terkirim.
 7. **Logistics** — buat akun driver dan **Add Fleet & Driver**.
-8. Bagikan kredensial **Laku Driver** (driver tidak daftar sendiri).
+8. Bagikan kredensial **Lakupak Driver** (driver tidak daftar sendiri).
 
 ### Pertumbuhan (opsional)
 
@@ -103,4 +103,4 @@ Lihat [Alur pesanan](/id/docs/platform/order-flow).
 ## Dokumentasi terkait
 
 - [Memulai](/id/docs/getting-started)
-- [Ekosistem Laku](/id/docs/platform/ecosystem)
+- [Ekosistem Lakupak](/id/docs/platform/ecosystem)

@@ -3,8 +3,8 @@ import type { Metadata } from 'next';
 import { DOCS_VIEWPORT_CALC } from '@/lib/docs/headerHeight';
 
 export const metadata: Metadata = {
-  title: 'Documentation | Laku',
-  description: 'Laku platform documentation for Dashboard, Marketplace, and Driver.',
+  title: 'Documentation | Lakupak',
+  description: 'Lakupak platform documentation for Dashboard, Marketplace, and Driver.',
 };
 
 export default function DocsLayout({ children }: { children: React.ReactNode }) {

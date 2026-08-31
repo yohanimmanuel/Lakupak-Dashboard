@@ -22,7 +22,7 @@ export async function notifyMarketplacePublishedAnnouncement(
   const preview = a.body.length > 160 ? `${a.body.slice(0, 157)}…` : a.body;
   /** Promotional posts respect the Marketplace “Promotions” notification toggle (type `promotion`). */
   const pushType = isPromotionAnnouncementCategory(a.category) ? 'promotion' : 'platform_announcement';
-  await sendExpoPushToAllMarketplaceUsers(a.title, preview || 'New update from Laku', {
+  await sendExpoPushToAllMarketplaceUsers(a.title, preview || 'New update from Lakupak', {
     type: pushType,
     announcementId: String(a.id),
   });

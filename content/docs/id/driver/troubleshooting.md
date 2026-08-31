@@ -6,7 +6,7 @@ module: driver
 order: 45
 ---
 
-Perbaikan cepat untuk masalah umum Laku Driver.
+Perbaikan cepat untuk masalah umum Lakupak Driver.
 
 ## Konektivitas dan pemuatan
 
@@ -17,7 +17,7 @@ Perbaikan cepat untuk masalah umum Laku Driver.
 | Status tidak tersimpan | **Update failed** | Cek koneksi; tunggu outbox |
 | Masalah umum | FAQ di Help | Perbarui app; **support@laku.com** |
 
-Konfirmasi ke distributor bahwa Anda memakai lingkungan Laku yang benar untuk perusahaan Anda.
+Konfirmasi ke distributor bahwa Anda memakai lingkungan Lakupak yang benar untuk perusahaan Anda.
 
 ## Masalah login
 

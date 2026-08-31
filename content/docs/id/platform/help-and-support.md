@@ -6,7 +6,7 @@ module: platform
 order: 53
 ---
 
-Gunakan halaman ini saat membutuhkan bantuan operasional harian di Laku.
+Gunakan halaman ini saat membutuhkan bantuan operasional harian di Lakupak.
 
 ## Siapa dihubungi dulu
 
@@ -14,7 +14,7 @@ Gunakan halaman ini saat membutuhkan bantuan operasional harian di Laku.
 |-------|----------------|
 | Pembeli | **Distributor** yang dipesan (**Contact Seller** atau WhatsApp dari produk) |
 | Driver | Kontak **logistik/operasi distributor** |
-| Distributor | **Dukungan Laku** untuk masalah platform; tangani pertanyaan pembeli di pihak Anda |
+| Distributor | **Dukungan Lakupak** untuk masalah platform; tangani pertanyaan pembeli di pihak Anda |
 
 ## Bantuan in-app
 
@@ -51,7 +51,7 @@ Layar login juga menaut ke **Help Center** dan **Security & Privacy**.
 |---------|---------|
 | Produk tidak tampil | Distributor: publish dan lengkapi field wajib |
 | Penawaran tidak muncul | Cek **Active**, tanggal, produk terhubung |
-| Pembeli ditangguhkan | Distributor atau dukungan Laku |
+| Pembeli ditangguhkan | Distributor atau dukungan Lakupak |
 
 ### Masalah aplikasi
 
@@ -65,7 +65,7 @@ Masalah teknis berkelanjutan: **support@laku.com** dengan peran, nama aplikasi, 
 
 ## Status sistem
 
-Tautan **System Status** di footer situs Laku untuk pemeliharaan atau gangguan.
+Tautan **System Status** di footer situs Lakupak untuk pemeliharaan atau gangguan.
 
 ## Dokumentasi terkait
 

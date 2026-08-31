@@ -6,7 +6,7 @@ module: dashboard
 order: 13
 ---
 
-The **Products** area is your B2B catalog. You create SKUs with variants and images, track stock per variant, and publish items to the buyer **Laku Marketplace** when they are ready.
+The **Products** area is your B2B catalog. You create SKUs with variants and images, track stock per variant, and publish items to the buyer **Lakupak Marketplace** when they are ready.
 
 Path: **Products** (`/products`).
 
@@ -115,7 +115,7 @@ From the list (**Publish**) or form (**Save and Publish**):
 
 1. Open **Marketplace Preview** (single) or **Bulk Publish (N products)**
 2. Review readiness: SKU, name, description, type, brand, supplier, variant pricing, stock &gt; 0, at least one image
-3. Preview shows how the listing appears in the **Laku Marketplace App**
+3. Preview shows how the listing appears in the **Lakupak Marketplace App**
 4. Confirm **Publish**
 
 Incomplete products are listed under **Cannot Publish** with missing fields called out.

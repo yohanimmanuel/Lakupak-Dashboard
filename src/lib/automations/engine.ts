@@ -212,7 +212,7 @@ async function executeWhatsAppBuyer(
     productId: ctx.kind === 'stock_below' ? ctx.event.productId : '',
     stock: ctx.kind === 'stock_below' ? String(ctx.event.newStock) : '',
     orderId: ctx.kind === 'order_paid' ? ctx.event.orderId : '',
-    workflowName: workflow.name || 'Laku',
+    workflowName: workflow.name || 'Lakupak',
   };
 
   const sent: string[] = [];

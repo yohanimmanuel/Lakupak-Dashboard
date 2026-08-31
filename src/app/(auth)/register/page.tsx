@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { signIn, signOut } from "next-auth/react";
@@ -521,7 +521,7 @@ export default function RegisterPage() {
       <main className="relative z-10 mx-auto flex w-full max-w-5xl flex-1 flex-col p-6 sm:p-6">
         <div className="mb-4 rounded-xl border border-white/80 bg-white/70 p-6 shadow-lg shadow-[#0a61d7]/5 backdrop-blur-sm text-center sm:text-left animate-fade-in-up">
           <a href="/" aria-label={tRegister('goHome')} className="inline-block mb-4">
-            <img src="/LakuTextLogo.svg" alt="Laku Logo" className="h-10" />
+            <img src="/Lakupak!.svg" alt="Lakupak" className="h-10" />
           </a>
           <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">{tRegister('title')}</h1>
           <p className="mt-2 text-gray-500">{tRegister('subtitle')}</p>

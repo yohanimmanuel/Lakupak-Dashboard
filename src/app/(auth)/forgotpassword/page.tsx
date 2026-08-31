@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import React, { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { validateAuthInput } from '@/utils/auth-security';
@@ -187,7 +187,7 @@ export default function ForgotPasswordPage() {
     <>
       <div className="flex flex-col items-center justify-center text-center mb-6">
         <a href="/" aria-label={tForgot('goHome')}>
-          <img src="/LakuTextLogo.svg" alt={tForgot('logoAlt')} className="h-10" />
+          <img src="/Lakupak!.svg" alt={tForgot('logoAlt')} className="h-10" />
         </a>
       </div>
       <p className="text-center text-xs font-medium text-[#0a61d7] mb-2">

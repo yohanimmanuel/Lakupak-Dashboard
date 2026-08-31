@@ -71,14 +71,14 @@
     "viewAllSalesAgents": "Lihat semua {count} agen penjualan",
     "addSalesAgent": "Tambah Agen Penjualan",
     "aiAgent": "Agen AI",
-    "aiAgentTitle": "Laku AI",
+    "aiAgentTitle": "Lakupak AI",
     "aiAgentSubtitle": "Asisten bisnis Anda",
     "aiAgentWelcome": "Ada yang bisa dibantu?",
     "aiAgentLoading": "Memuat…",
-    "aiAgentGreeting": "Hai! Saya Laku AI, asisten bisnis Anda.\n\nSaya bisa bantu analisa tren keuangan, performa marketplace, perbaikan katalog (margin, deskripsi), cara memakai modul Laku, dan panduan langkah demi langkah dari dokumentasi Laku.\n\nMau cek apa dulu?",
-    "aiAgentGreetingNamed": "Hai {name}! Saya Laku AI, asisten bisnis Anda.\n\nSaya bisa bantu analisa tren keuangan, performa marketplace, perbaikan katalog (margin, deskripsi), cara memakai modul Laku, dan panduan langkah demi langkah dari dokumentasi Laku.\n\nMau cek apa dulu?",
-    "aiAgentEmpty": "Tanyakan tren keuangan, performa marketplace, perbaikan katalog, atau cara memakai modul Laku apa pun.",
-    "aiAgentInputPlaceholder": "Tanya bisnis Anda atau Laku…",
+    "aiAgentGreeting": "Hai! Saya Lakupak AI, asisten bisnis Anda.\n\nSaya bisa bantu analisa tren keuangan, performa marketplace, perbaikan katalog (margin, deskripsi), cara memakai modul Lakupak, dan panduan langkah demi langkah dari dokumentasi Lakupak.\n\nMau cek apa dulu?",
+    "aiAgentGreetingNamed": "Hai {name}! Saya Lakupak AI, asisten bisnis Anda.\n\nSaya bisa bantu analisa tren keuangan, performa marketplace, perbaikan katalog (margin, deskripsi), cara memakai modul Lakupak, dan panduan langkah demi langkah dari dokumentasi Lakupak.\n\nMau cek apa dulu?",
+    "aiAgentEmpty": "Tanyakan tren keuangan, performa marketplace, perbaikan katalog, atau cara memakai modul Lakupak apa pun.",
+    "aiAgentInputPlaceholder": "Tanya bisnis Anda atau Lakupak…",
     "aiAgentComingSoon": "Chat AI segera hadir",
     "aiAgentThinking": "Sedang berpikir",
     "aiAgentSend": "Kirim",
@@ -91,7 +91,7 @@
     "timeDaysAgo": "{count}h lalu"
   },
   "promo": {
-    "title": "Suka Laku Gratis?",
+    "title": "Suka Lakupak Gratis?",
     "body": "Upgrade ke Premium untuk akses dukungan prioritas, pelacakan real-time, dan analitik lengkap.",
     "bodyHighlight": "Premium",
     "cta": "Upgrade Sekarang",
@@ -99,9 +99,9 @@
     "close": "Tutup promo"
   },
   "help": {
-    "title": "Tentang Laku",
+    "title": "Tentang Lakupak",
     "tagline": "Dashboard komersial serba ada Anda",
-    "whatYouCanDo": "Yang bisa Anda lakukan di Laku",
+    "whatYouCanDo": "Yang bisa Anda lakukan di Lakupak",
     "features": {
       "products": "Kelola produk, stok, dan harga",
       "orders": "Lacak dan proses pesanan",

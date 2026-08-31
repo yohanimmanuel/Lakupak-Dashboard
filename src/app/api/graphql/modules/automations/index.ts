@@ -643,12 +643,12 @@ async function testWorkflow(args: {
     if (agentResult.ran) {
       if (agentResult.error) {
         status = 'failed';
-        message = `Dry run OK, but Laku AI failed: ${agentResult.error}`;
+        message = `Dry run OK, but Lakupak AI failed: ${agentResult.error}`;
       } else {
         message = [dryRun.message, agentResult.reply].filter(Boolean).join('\n\n');
       }
     } else if (agentResult.skippedCode && agentResult.skippedCode !== 'no_agent_node') {
-      message = `${dryRun.message} Laku AI skipped: ${agentResult.skippedReason ?? agentResult.skippedCode}`;
+      message = `${dryRun.message} Lakupak AI skipped: ${agentResult.skippedReason ?? agentResult.skippedCode}`;
     }
 
     const testMode = !args.live;

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React from 'react';
 import Image from 'next/image';
@@ -109,8 +109,8 @@ export function DocsHeader() {
         <div className="flex items-center gap-4 min-w-0 flex-1">
           <Link href={`/${locale}/landing`} className="flex items-center min-w-0 shrink-0">
             <img
-              src="/LakuTextLogo.svg"
-              alt="Laku"
+              src="/Lakupak!.svg"
+              alt="Lakupak"
               width={120}
               height={36}
               className="h-9 w-auto hidden sm:block"
@@ -119,8 +119,8 @@ export function DocsHeader() {
               decoding="async"
             />
             <img
-              src="/LakuIcon.svg"
-              alt="Laku"
+              src="/Lakupak!.svg"
+              alt="Lakupak"
               width={36}
               height={36}
               className="h-9 w-9 sm:hidden"

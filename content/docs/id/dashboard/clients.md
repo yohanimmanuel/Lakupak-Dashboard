@@ -15,7 +15,7 @@ Buka **Clients** di sidebar untuk melihat:
 - Kartu **Tips** (bisa ditutup) untuk menambah pembeli dan mengelola pemasok, dengan modal detail opsional.
 - Pintasan **Tools** ke **Buyers** dan **Suppliers**.
 
-Pembeli yang memesan lewat **Laku Marketplace** dapat tercatat otomatis di daftar pembeli saat bertransaksi di storefront Anda. Anda juga bisa menambah pembeli manual atau impor massal.
+Pembeli yang memesan lewat **Lakupak Marketplace** dapat tercatat otomatis di daftar pembeli saat bertransaksi di storefront Anda. Anda juga bisa menambah pembeli manual atau impor massal.
 
 ## Pembeli (Buyers)
 
@@ -159,7 +159,7 @@ Agregat termasuk total unit supplied dan total nilai pembelian. **On-time delive
 
 Impor massal memetakan kolom fleksibel (Name, Contact, Email, Phone, Business Type, Address, Status, supplies, dan lainnya). Field ekstra bisa masuk logistik atau catatan.
 
-## Hubungan dengan modul Laku lain
+## Hubungan dengan modul Lakupak lain
 
 | Data | Dipakai di |
 |------|------------|

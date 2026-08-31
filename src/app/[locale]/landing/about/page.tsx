@@ -69,7 +69,7 @@ export default function AboutPage() {
         <section className="relative overflow-hidden pb-14 sm:pb-16 pt-24 sm:pt-28 bg-gradient-to-b from-white via-[#f8fbff] to-[#eef4fd]">
           <div className="relative z-10 mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
             <Reveal>
-              <p className="text-sm font-semibold tracking-widest uppercase text-[#0a61d7] mb-4">Laku</p>
+              <p className="text-sm font-semibold tracking-widest uppercase text-[#0a61d7] mb-4">Lakupak</p>
               <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-bold tracking-tight text-gray-900 leading-tight">
                 {t('hero.title')}
               </h1>

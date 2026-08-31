@@ -1,19 +1,19 @@
 ---
 title: Driver overview
-description: Laku Driver mobile app tabs, access model, and navigation.
+description: Lakupak Driver mobile app tabs, access model, and navigation.
 section: Driver
 module: driver
 order: 40
 ---
 
-**Laku Driver** is the mobile app (Expo/React Native) for distributor fleet drivers. Drivers run assigned routes, update order status, share live location with buyers, and submit proof of delivery (POD) or failure reports.
+**Lakupak Driver** is the mobile app (Expo/React Native) for distributor fleet drivers. Drivers run assigned routes, update order status, share live location with buyers, and submit proof of delivery (POD) or failure reports.
 
 Available in **English** and **Bahasa Indonesia**.
 
 ## Who uses the Driver app
 
 - Field drivers linked to one **distributor** (`distributorId` on the profile)
-- Accounts are **created in Laku Dashboard** (Logistics); drivers do not get instant self-signup
+- Accounts are **created in Lakupak Dashboard** (Logistics); drivers do not get instant self-signup
 - Data scope: fleets and orders assigned to that driver via `GET /api/driver/fleets`
 
 ## Main navigation
@@ -27,7 +27,7 @@ Four bottom tabs:
 | **Notifications** | In-app alert history |
 | **Account** | Profile, settings, help, logout |
 
-Header on Home shows **Laku Driver**.
+Header on Home shows **Lakupak Driver**.
 
 ### Other routes
 
@@ -47,13 +47,13 @@ After login the app connects WebSocket, starts GPS sync, registers push, and pro
 | No account yet | **Register** on welcome = **Request access** (not instant signup) |
 | Sign in | **Login** with username and password from distributor |
 
-## How it fits Laku
+## How it fits Lakupak
 
 | Role | App |
 |------|-----|
-| Distributor plans fleets | Laku Dashboard **Logistics** |
-| Buyer tracks delivery | Laku Marketplace |
-| Driver executes route | **Laku Driver** |
+| Distributor plans fleets | Lakupak Dashboard **Logistics** |
+| Buyer tracks delivery | Lakupak Marketplace |
+| Driver executes route | **Lakupak Driver** |
 
 ## Related documentation
 

@@ -171,7 +171,7 @@ export const LAKU_APP_MODULES = [
   {
     id: 'automation',
     path: '/automation',
-    role: 'Workflow builder (triggers, WhatsApp/Gmail apps, Laku AI buyer CS, actions).',
+    role: 'Workflow builder (triggers, WhatsApp/Gmail apps, Lakupak AI buyer CS, actions).',
   },
   {
     id: 'marketplace',
@@ -762,7 +762,7 @@ export async function buildDistributorAppAssistantContext(userId: number): Promi
     userFacingReplyRules: [
       'Speak in business language only: product names, prices, margins, offer names, categories.',
       'Never mention database field names, JSON keys, schema, pricingMode flags, or internal implementation rules in the reply.',
-      'Never explain how Laku stores discounts; just give the assessment and recommendations.',
+      'Never explain how Lakupak stores discounts; just give the assessment and recommendations.',
     ],
     modules: LAKU_APP_MODULES,
     account: {

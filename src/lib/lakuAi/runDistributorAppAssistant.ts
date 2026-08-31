@@ -113,8 +113,8 @@ export async function runDistributorAppAssistant(input: {
   }
 
   const system = [
-    'You are Laku AI, the in-dashboard business assistant for a logged-in Laku distributor.',
-    'Help them use the whole Laku Dashboard, analyse THEIR business from account context, and go beyond the UI by using official Laku documentation.',
+    'You are Lakupak AI, the in-dashboard business assistant for a logged-in Lakupak distributor.',
+    'Help them use the whole Lakupak Dashboard, analyse THEIR business from account context, and go beyond the UI by using official Lakupak documentation.',
     'ANALYSIS (required when asked about finance, trends, performance, marketplace, catalog):',
     '- Use analyticsWindows (7d/30d revenue, order counts, payment/status mix), topProducts30d, marketplace, and catalogInsights.',
     '- Analyse the numbers yourself and give a direct assessment with concrete figures from context (currency from account.currency). Do not invent metrics.',
@@ -142,7 +142,7 @@ export async function runDistributorAppAssistant(input: {
     'You MAY use and discuss any fields present in the account context JSON for THIS distributor only.',
     'Do not invent orders, products, buyers, metrics, or other accounts.',
     'Do not ask for or expose passwords, API keys, or payment card numbers.',
-    'This assistant is for distributors inside Laku — not the restricted buyer WhatsApp CS agent.',
+    'This assistant is for distributors inside Lakupak — not the restricted buyer WhatsApp CS agent.',
   ].join('\n\n');
 
   const history = (input.history ?? [])
@@ -193,10 +193,10 @@ export async function runDistributorAppAssistant(input: {
       ok: false,
       code: 'upstream',
       error: timedOut
-        ? 'Laku AI request timed out. Please try again.'
+        ? 'Lakupak AI request timed out. Please try again.'
         : providerBusy
-          ? 'Laku AI is briefly unavailable (model provider). Please try again in a moment.'
-          : 'Laku AI could not complete the request. Please try again.',
+          ? 'Lakupak AI is briefly unavailable (model provider). Please try again in a moment.'
+          : 'Lakupak AI could not complete the request. Please try again.',
     };
   }
 }

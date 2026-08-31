@@ -6,7 +6,7 @@ module: driver
 order: 44
 ---
 
-Laku Driver shares your position while on duty and receives live order and fleet updates.
+Lakupak Driver shares your position while on duty and receives live order and fleet updates.
 
 ## GPS on device
 
@@ -28,7 +28,7 @@ Errors during sync are ignored so driving is not interrupted.
 
 ## WebSocket updates
 
-When authenticated, the app maintains a live connection to Laku so order and fleet updates arrive without manual refresh.
+When authenticated, the app maintains a live connection to Lakupak so order and fleet updates arrive without manual refresh.
 
 | Message | Effect |
 |---------|--------|

@@ -1,7 +1,7 @@
 ---
 title: Manfaat per peran
-description: Hasil praktis untuk distributor, pembeli, dan driver di Laku.
-section: Tentang Laku
+description: Hasil praktis untuk distributor, pembeli, dan driver di Lakupak.
+section: Tentang Lakupak
 module: about
 order: 4
 ---
@@ -10,7 +10,7 @@ Ringkasan **hasil bisnis** per peran. Untuk langkah penggunaan, buka panduan mod
 
 ## Distributor
 
-| Area | Tanpa alat terstruktur | Dengan Laku |
+| Area | Tanpa alat terstruktur | Dengan Lakupak |
 |------|------------------------|-------------|
 | Pemesanan | Chat, screenshot, ketik ulang | Pesanan terstruktur di **Orders** |
 | Katalog | PDF atau harga lisan | **Products** live dengan stok |
@@ -23,7 +23,7 @@ Panduan: [Dashboard](/id/docs/dashboard/overview).
 
 ## Pembeli ritel
 
-| Area | Tanpa Laku | Dengan Laku |
+| Area | Tanpa Lakupak | Dengan Lakupak |
 |------|------------|-------------|
 | Penemuan | Telepon sales | **Browse**, **Search**, **Categories** |
 | Pesanan ulang | Ketik ulang di chat | **Buy Again**, favorit, keranjang |
@@ -34,7 +34,7 @@ Panduan: [Marketplace](/id/docs/marketplace/overview).
 
 ## Driver
 
-| Area | Tanpa Laku | Dengan Laku |
+| Area | Tanpa Lakupak | Dengan Lakupak |
 |------|------------|-------------|
 | Rute | Daftar kertas | **Tasks** dan peta |
 | Bukti | Foto di galeri pribadi | **POD** pada pesanan |

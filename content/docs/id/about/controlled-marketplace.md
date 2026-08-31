@@ -1,22 +1,22 @@
 ---
 title: Marketplace terkendali
-description: Mengapa Laku mengutamakan distributor, bukan perang harga terbuka.
-section: Tentang Laku
+description: Mengapa Lakupak mengutamakan distributor, bukan perang harga terbuka.
+section: Tentang Lakupak
 module: about
 order: 3
 ---
 
 Banyak marketplace digital mengoptimalkan **overlap listing** dan **harga tampilan terendah**. Model itu cocok untuk beberapa kategori konsumen, tetapi sering merugikan **distributor grosir** yang bersaing pada layanan, kredit, assortmen, dan wilayah.
 
-Laku memakai pendekatan **marketplace terkendali**.
+Lakupak memakai pendekatan **marketplace terkendali**.
 
 ## Distributor tetap memegang kendali
 
-Setiap distributor di Laku menjalankan storefront terisolasi:
+Setiap distributor di Lakupak menjalankan storefront terisolasi:
 
 - Hanya produk **published** terlihat pembeli
 - **Harga** dan **offers** ditetapkan distributor
-- **Hubungan pembeli** milik distributor; Laku mencatat riwayat untuk layanan lebih baik
+- **Hubungan pembeli** milik distributor; Lakupak mencatat riwayat untuk layanan lebih baik
 - Aturan **pengiriman dan pembayaran** sesuai cara kerja distributor
 
 Pembeli menemukan dan memesan secara digital. Hubungan komersial tetap **B2B bilateral**.

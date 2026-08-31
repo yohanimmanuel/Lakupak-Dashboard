@@ -15,7 +15,7 @@ export function getDocsCategories(locale: DocLocale): DocsCategory[] {
     },
     {
       id: 'about',
-      title: locale === 'id' ? 'Tentang Laku' : 'About Laku',
+      title: locale === 'id' ? 'Tentang Lakupak' : 'About Lakupak',
       description:
         locale === 'id'
           ? 'Misi, siapa yang dilayani, marketplace terkendali, dan FAQ.'
@@ -58,8 +58,8 @@ export function getDocsCategories(locale: DocLocale): DocsCategory[] {
       title: locale === 'id' ? 'Platform' : 'Platform',
       description:
         locale === 'id'
-          ? 'Ekosistem Laku, alur bisnis, kepercayaan, dan bantuan.'
-          : 'Laku ecosystem, business flows, trust, and support.',
+          ? 'Ekosistem Lakupak, alur bisnis, kepercayaan, dan bantuan.'
+          : 'Lakupak ecosystem, business flows, trust, and support.',
       href: `${base}/platform/ecosystem`,
       icon: 'platform',
     },

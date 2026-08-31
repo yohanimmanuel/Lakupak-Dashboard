@@ -1,7 +1,7 @@
 ---
 title: FAQ
-description: Pertanyaan umum tentang Laku sebagai platform bisnis.
-section: Tentang Laku
+description: Pertanyaan umum tentang Lakupak sebagai platform bisnis.
+section: Tentang Lakupak
 module: about
 order: 5
 ---
@@ -10,15 +10,15 @@ Jawaban untuk pertanyaan yang sering diajukan distributor, pembeli, dan mitra.
 
 ## Umum
 
-### Apakah Laku marketplace atau software distributor?
+### Apakah Lakupak marketplace atau software distributor?
 
-Keduanya, sengaja. Laku adalah **platform operasi perdagangan B2B**: distributor di **Dashboard**, pembeli di **Marketplace**, driver di **Driver**. Lihat [Misi dan cerita](/id/docs/about/mission-and-story).
+Keduanya, sengaja. Lakupak adalah **platform operasi perdagangan B2B**: distributor di **Dashboard**, pembeli di **Marketplace**, driver di **Driver**. Lihat [Misi dan cerita](/id/docs/about/mission-and-story).
 
 ### Siapa pemilik hubungan pelanggan?
 
-**Distributor** memiliki hubungan komersial dengan pembeli ritel. Laku menyediakan saluran dan pencatatan.
+**Distributor** memiliki hubungan komersial dengan pembeli ritel. Lakupak menyediakan saluran dan pencatatan.
 
-### Apakah Laku hanya untuk Indonesia?
+### Apakah Lakupak hanya untuk Indonesia?
 
 Produk dan bahasa dibangun untuk kebiasaan grosir dan ritel **Indonesia** (warung, grosir, rute FMCG).
 
@@ -30,7 +30,7 @@ Tidak. Anda mengontrol **produk published** dan pembeli mana yang aktif digital.
 
 ### Bolehkah tetap pakai WhatsApp?
 
-Ya. Laku mengurangi ketergantungan chat untuk **baris pesanan dan status**; hubungan sales tetap bisa lewat WhatsApp.
+Ya. Lakupak mengurangi ketergantungan chat untuk **baris pesanan dan status**; hubungan sales tetap bisa lewat WhatsApp.
 
 ### Bagaimana driver mendapat akses?
 
@@ -38,13 +38,13 @@ Buat akun di **Dashboard → Logistics**. Driver tidak self-register untuk produ
 
 ## Untuk pembeli ritel
 
-### Saya beli dari Laku atau distributor?
+### Saya beli dari Lakupak atau distributor?
 
-Dari **distributor** yang katalognya Anda lihat. Laku adalah alat pesan dan lacak. Pembayaran mengikuti aturan distributor.
+Dari **distributor** yang katalognya Anda lihat. Lakupak adalah alat pesan dan lacak. Pembayaran mengikuti aturan distributor.
 
 ### Bisa bandingkan harga banyak distributor?
 
-Laku bukan situs perbandingan harga terbuka antar distributor. Anda belanja di **storefront masing-masing distributor**. Lihat [Marketplace terkendali](/id/docs/about/controlled-marketplace).
+Lakupak bukan situs perbandingan harga terbuka antar distributor. Anda belanja di **storefront masing-masing distributor**. Lihat [Marketplace terkendali](/id/docs/about/controlled-marketplace).
 
 ### Bagaimana retur?
 

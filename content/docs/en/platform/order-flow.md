@@ -6,7 +6,7 @@ module: platform
 order: 51
 ---
 
-This page describes the **business flow** of a typical Laku order. It is the same journey whether you work in Dashboard, Marketplace, or Driver.
+This page describes the **business flow** of a typical Lakupak order. It is the same journey whether you work in Dashboard, Marketplace, or Driver.
 
 ## 1. Catalog and publish
 
@@ -42,7 +42,7 @@ Buyers receive notifications as status changes.
 
 ## 4. Logistics and delivery
 
-When using Laku logistics:
+When using Lakupak logistics:
 
 - Operations create a **fleet** in **Dashboard → Logistics**
 - Assign orders and a **driver**

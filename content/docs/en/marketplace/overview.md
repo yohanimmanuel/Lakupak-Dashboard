@@ -6,7 +6,7 @@ module: marketplace
 order: 30
 ---
 
-**Laku Marketplace** is the buyer-facing mobile app (Expo/React Native) for discovering distributor catalogs, placing B2B orders, and tracking fulfillment. It connects to the same Laku API environment as the distributor Dashboard.
+**Lakupak Marketplace** is the buyer-facing mobile app (Expo/React Native) for discovering distributor catalogs, placing B2B orders, and tracking fulfillment. It connects to the same Lakupak API environment as the distributor Dashboard.
 
 ## Main navigation
 
@@ -38,13 +38,13 @@ From several tabs you can open:
 
 Suspended accounts see **Account suspended** with a countdown and **Go to login**.
 
-## How it fits Laku
+## How it fits Lakupak
 
 | Role | App |
 |------|-----|
-| Distributor | Laku Dashboard (web) |
-| Buyer / retailer | Laku Marketplace (mobile) |
-| Driver | Laku Driver (mobile) |
+| Distributor | Lakupak Dashboard (web) |
+| Buyer / retailer | Lakupak Marketplace (mobile) |
+| Driver | Lakupak Driver (mobile) |
 
 Orders you place in Marketplace appear in the distributor **Orders** module. Published products come from distributor **Products**.
 

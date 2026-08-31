@@ -6,7 +6,7 @@ module: driver
 order: 44
 ---
 
-Laku Driver membagikan posisi saat bertugas dan menerima pembaruan pesanan/armada secara live.
+Lakupak Driver membagikan posisi saat bertugas dan menerima pembaruan pesanan/armada secara live.
 
 ## GPS di perangkat
 
@@ -28,7 +28,7 @@ Error sinkron diabaikan agar mengemudi tidak terganggu.
 
 ## Pembaruan WebSocket
 
-Koneksi live ke Laku agar pembaruan pesanan dan armada masuk tanpa refresh manual.
+Koneksi live ke Lakupak agar pembaruan pesanan dan armada masuk tanpa refresh manual.
 
 | Pesan | Efek |
 |-------|------|

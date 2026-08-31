@@ -6,7 +6,7 @@ module: platform
 order: 53
 ---
 
-Use this page when you need help using Laku in day-to-day business operations.
+Use this page when you need help using Lakupak in day-to-day business operations.
 
 ## Who to contact first
 
@@ -14,7 +14,7 @@ Use this page when you need help using Laku in day-to-day business operations.
 |-----------|----------------|
 | Buyer | The **distributor** you ordered from (**Contact Seller** in order details or WhatsApp from product pages) |
 | Driver | Your **distributor** logistics or operations contact |
-| Distributor | **Laku support** for platform issues; handle buyer questions on your side |
+| Distributor | **Lakupak support** for platform issues; handle buyer questions on your side |
 
 ## In-app help
 
@@ -51,7 +51,7 @@ Login and signup screens also link to **Help Center** and **Security & Privacy**
 |-------|------------|
 | Product not visible | Distributor: publish product and complete required fields |
 | Offer not showing | Confirm offer is **Active**, dates valid, products linked |
-| Buyer suspended | Distributor or Laku support resolves account status |
+| Buyer suspended | Distributor or Lakupak support resolves account status |
 
 ### App problems
 
@@ -65,7 +65,7 @@ For persistent technical problems, contact **support@laku.com** with your role, 
 
 ## System status
 
-Check the **System Status** link on the Laku website footer for planned maintenance or outages affecting ordering and apps.
+Check the **System Status** link on the Lakupak website footer for planned maintenance or outages affecting ordering and apps.
 
 ## Related documentation
 

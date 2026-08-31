@@ -2,17 +2,17 @@
 
 **Terakhir diperbarui:** 12 Agustus 2026
 
-Laku adalah platform infrastruktur e-commerce B2B yang dibangun untuk memodernisasi, memfasilitasi, dan mendorong ekosistem distribusi FMCG di Indonesia. Laku menggabungkan platform SaaS vertikal untuk distributor dengan marketplace bagi pembeli mereka (toko kecil, kios, warung, dan retailer lokal). Platform ini dirancang untuk merampingkan operasional, melindungi informasi harga yang sensitif, dan menciptakan lingkungan terpercaya bagi kedua pihak untuk bertransaksi.
+Lakupak adalah platform infrastruktur e-commerce B2B yang dibangun untuk memodernisasi, memfasilitasi, dan mendorong ekosistem distribusi FMCG di Indonesia. Lakupak menggabungkan platform SaaS vertikal untuk distributor dengan marketplace bagi pembeli mereka (toko kecil, kios, warung, dan retailer lokal). Platform ini dirancang untuk merampingkan operasional, melindungi informasi harga yang sensitif, dan menciptakan lingkungan terpercaya bagi kedua pihak untuk bertransaksi.
 
 Di sisi SaaS, distributor mendapatkan akses ke dashboard pribadi untuk mengelola inventori, memproses pesanan, melacak analitik, memelihara hubungan pelanggan, dan menghasilkan laporan penjualan. Setiap distributor beroperasi di lingkungan yang aman sendiri, tanpa visibilitas ke data atau harga pesaing. Di sisi marketplace, pembeli terverifikasi dapat menelusuri dan membeli produk dari distributor yang disetujui sesuai aturan platform yang melindungi persaingan yang adil dan stabilitas harga.
 
-Laku juga mendukung fitur nilai tambah seperti alat prospek pembeli dan pemasok, alur logistik dan pengiriman, alat penjualan dan pemasaran, penawaran dan insentif, otomasi, serta koneksi opsional ke pesan dan sistem bisnis pihak ketiga. Seiring waktu, Laku dapat menambahkan layanan lanjutan seperti logistik yang diperluas, pembayaran digital, dan pembiayaan. Dengan mendigitalkan sektor yang sebelumnya manual, Laku bertujuan menggantikan spreadsheet yang tersebar, pemesanan berbasis chat, dan catatan kertas dengan satu solusi yang ramah seluler.
+Lakupak juga mendukung fitur nilai tambah seperti alat prospek pembeli dan pemasok, alur logistik dan pengiriman, alat penjualan dan pemasaran, penawaran dan insentif, otomasi, serta koneksi opsional ke pesan dan sistem bisnis pihak ketiga. Seiring waktu, Lakupak dapat menambahkan layanan lanjutan seperti logistik yang diperluas, pembayaran digital, dan pembiayaan. Dengan mendigitalkan sektor yang sebelumnya manual, Lakupak bertujuan menggantikan spreadsheet yang tersebar, pemesanan berbasis chat, dan catatan kertas dengan satu solusi yang ramah seluler.
 
-Kebijakan Privasi ini (“Kebijakan”) menjelaskan bagaimana kami mengumpulkan, menggunakan, menyimpan, membagikan, dan menghapus Data Pribadi ketika Anda mengakses atau menggunakan situs web Laku, Distributor Dashboard, Buyer Marketplace (seluler dan web), aplikasi Driver, dan layanan terkait (bersama-sama, “Layanan Laku”). Kebijakan ini merupakan bagian dari Syarat & Ketentuan Laku.
+Kebijakan Privasi ini (“Kebijakan”) menjelaskan bagaimana kami mengumpulkan, menggunakan, menyimpan, membagikan, dan menghapus Data Pribadi ketika Anda mengakses atau menggunakan situs web Lakupak, Distributor Dashboard, Buyer Marketplace (seluler dan web), aplikasi Driver, dan layanan terkait (bersama-sama, “Layanan Lakupak”). Kebijakan ini merupakan bagian dari Syarat & Ketentuan Lakupak.
 
-Dengan mengakses atau menggunakan Layanan Laku, Anda menegaskan bahwa Anda telah membaca Kebijakan ini dan menyetujui pemrosesan Data Pribadi sebagaimana dijelaskan di sini. Jika Anda tidak setuju, Anda tidak boleh menggunakan Layanan Laku.
+Dengan mengakses atau menggunakan Layanan Lakupak, Anda menegaskan bahwa Anda telah membaca Kebijakan ini dan menyetujui pemrosesan Data Pribadi sebagaimana dijelaskan di sini. Jika Anda tidak setuju, Anda tidak boleh menggunakan Layanan Lakupak.
 
-Untuk keperluan Kebijakan ini, “Data Pribadi” berarti data tentang individu yang teridentifikasi atau dapat diidentifikasi, serta data bisnis yang dapat mengidentifikasi orang atau usaha sepanjang hukum Indonesia memperlakukannya sebagai data yang dilindungi. “Kami” dan “Laku” berarti penyelenggara Layanan Laku. “Anda” berarti setiap pengguna Layanan Laku (distributor, pembeli, driver, pengunjung, atau staf yang berwenang).
+Untuk keperluan Kebijakan ini, “Data Pribadi” berarti data tentang individu yang teridentifikasi atau dapat diidentifikasi, serta data bisnis yang dapat mengidentifikasi orang atau usaha sepanjang hukum Indonesia memperlakukannya sebagai data yang dilindungi. “Kami” dan “Lakupak” berarti penyelenggara Layanan Lakupak. “Anda” berarti setiap pengguna Layanan Lakupak (distributor, pembeli, driver, pengunjung, atau staf yang berwenang).
 
 ---
 
@@ -22,7 +22,7 @@ Untuk keperluan Kebijakan ini, “Data Pribadi” berarti data tentang individu 
 
 Kami mengumpulkan Data Pribadi ketika Anda, antara lain:
 
-- mengunjungi situs web Laku atau membuka Layanan Laku;
+- mengunjungi situs web Lakupak atau membuka Layanan Lakupak;
 - membuat atau mengelola Akun;
 - melengkapi profil perusahaan distributor, penagihan, atau bidang verifikasi;
 - menggunakan menu dan fitur Distributor Dashboard, termasuk Home (Dashboard), Clients (Buyers dan Suppliers), Products, Orders, Offers (program dan insentif), Marketing (Team dan Campaigns), Analytics (Financial, Sales, dan Operational), Automation, penerbitan Marketplace, Logistics (pesanan dan pengiriman), dan Settings;
@@ -69,11 +69,11 @@ Bergantung pada peran dan fitur yang Anda gunakan, Data Pribadi dapat mencakup:
 - log pengiriman OTP;
 - notifikasi dalam aplikasi;
 - pesan, laporan, ulasan, rating, dan korespondensi dukungan yang Anda kirim kepada kami;
-- jika Anda menggunakan tautan berbagi kampanye, perangkat Anda dapat membuka WhatsApp; Laku tidak mengoperasikan akun WhatsApp pribadi Anda.
+- jika Anda menggunakan tautan berbagi kampanye, perangkat Anda dapat membuka WhatsApp; Lakupak tidak mengoperasikan akun WhatsApp pribadi Anda.
 
 **F. Data pelanggan akhir yang diproses untuk distributor (peran pemroses)**
-- Ketika distributor menggunakan Laku untuk menyimpan kontak pembeli, mengirim notifikasi operasional, atau (jika tersedia) menghubungkan alat pesan bisnis, Laku dapat memproses nama, nomor telepon, alamat, dan pesan terkait pesanan pelanggan akhir berdasarkan instruksi distributor.
-- Dalam hal tersebut, distributor adalah Pengendali Data bagi pelanggan akhir tersebut, dan Laku bertindak sebagai Pemroses Data. Distributor wajib memiliki dasar hukum yang sah (termasuk persetujuan yang diwajibkan) sebelum mengunggah atau mengirim pesan kepada pelanggan akhir melalui Laku.
+- Ketika distributor menggunakan Lakupak untuk menyimpan kontak pembeli, mengirim notifikasi operasional, atau (jika tersedia) menghubungkan alat pesan bisnis, Lakupak dapat memproses nama, nomor telepon, alamat, dan pesan terkait pesanan pelanggan akhir berdasarkan instruksi distributor.
+- Dalam hal tersebut, distributor adalah Pengendali Data bagi pelanggan akhir tersebut, dan Lakupak bertindak sebagai Pemroses Data. Distributor wajib memiliki dasar hukum yang sah (termasuk persetujuan yang diwajibkan) sebelum mengunggah atau mengirim pesan kepada pelanggan akhir melalui Lakupak.
 
 ### 1.3 Keakuratan dan kewenangan
 
@@ -85,7 +85,7 @@ Kami dapat meminta Anda mengautentikasi, memverifikasi, atau memperbarui Data Pr
 
 ### 1.5 Persetujuan
 
-Dengan terus menggunakan Layanan Laku, Anda menyetujui pengumpulan dan pemrosesan Data Pribadi sebagaimana dijelaskan dalam Bagian 1 ini, sejauh persetujuan diwajibkan menurut hukum Indonesia, tanpa membatasi dasar hukum lain seperti pelaksanaan kontrak dan kepentingan yang sah.
+Dengan terus menggunakan Layanan Lakupak, Anda menyetujui pengumpulan dan pemrosesan Data Pribadi sebagaimana dijelaskan dalam Bagian 1 ini, sejauh persetujuan diwajibkan menurut hukum Indonesia, tanpa membatasi dasar hukum lain seperti pelaksanaan kontrak dan kepentingan yang sah.
 
 ---
 
@@ -115,15 +115,15 @@ Kami tidak menggunakan harga atau daftar pelanggan rahasia satu distributor untu
 
 Kami tidak menjual Data Pribadi Anda.
 
-### 3.2 Pembagian yang diperlukan untuk menjalankan Laku
+### 3.2 Pembagian yang diperlukan untuk menjalankan Lakupak
 
 Kami dapat membagikan Data Pribadi kepada:
 
-- pengguna Laku lain sejauh diperlukan untuk suatu transaksi (misalnya pembeli dan distributor melihat detail pesanan; driver yang ditugaskan melihat detail pengiriman);
-- penyedia layanan yang membantu kami mengoperasikan Laku berdasarkan kontrak, seperti hosting cloud dan basis data, penyimpanan berkas, penyedia email/SMS/OTP, penyedia peta dan geocoding, layanan notifikasi push, analitik (jika diaktifkan), dan penyedia model AI yang digunakan untuk fitur asisten opsional;
+- pengguna Lakupak lain sejauh diperlukan untuk suatu transaksi (misalnya pembeli dan distributor melihat detail pesanan; driver yang ditugaskan melihat detail pengiriman);
+- penyedia layanan yang membantu kami mengoperasikan Lakupak berdasarkan kontrak, seperti hosting cloud dan basis data, penyimpanan berkas, penyedia email/SMS/OTP, penyedia peta dan geocoding, layanan notifikasi push, analitik (jika diaktifkan), dan penyedia model AI yang digunakan untuk fitur asisten opsional;
 - otoritas yang berwenang apabila diwajibkan oleh hukum Indonesia atau proses hukum yang sah;
 - penasihat profesional di bawah kerahasiaan;
-- entitas penerus jika bisnis Laku dialihkan, digabung, atau direstrukturisasi.
+- entitas penerus jika bisnis Lakupak dialihkan, digabung, atau direstrukturisasi.
 
 ### 3.3 Kebijakan pihak ketiga
 
@@ -141,7 +141,7 @@ Beberapa penyedia dapat memproses data di luar Indonesia. Kami mengambil langkah
 
 ## 4. Cookie dan teknologi serupa
 
-Kami menggunakan cookie dan teknologi serupa untuk sesi masuk, keamanan, preferensi, dan (jika diaktifkan) analitik seperti Google Analytics. Anda dapat menonaktifkan cookie di peramban Anda; cookie penting dapat diperlukan agar Layanan Laku berfungsi.
+Kami menggunakan cookie dan teknologi serupa untuk sesi masuk, keamanan, preferensi, dan (jika diaktifkan) analitik seperti Google Analytics. Anda dapat menonaktifkan cookie di peramban Anda; cookie penting dapat diperlukan agar Layanan Lakupak berfungsi.
 
 ---
 
@@ -156,15 +156,15 @@ Berdasarkan hukum perlindungan data pribadi Indonesia, Anda dapat memiliki hak u
 - menarik persetujuan apabila pemrosesan didasarkan pada persetujuan;
 - meminta portabilitas data sejauh berlaku.
 
-Anda dapat memperbarui sebagian besar data profil di aplikasi. Untuk permintaan lain, email **privacy@laku.id**. Kami dapat memverifikasi identitas Anda sebelum menanggapi. Menutup Akun atau menarik persetujuan dapat membatasi atau mengakhiri akses Anda ke Layanan Laku.
+Anda dapat memperbarui sebagian besar data profil di aplikasi. Untuk permintaan lain, email **privacy@laku.id**. Kami dapat memverifikasi identitas Anda sebelum menanggapi. Menutup Akun atau menarik persetujuan dapat membatasi atau mengakhiri akses Anda ke Layanan Lakupak.
 
-Jika Anda adalah pelanggan akhir suatu distributor dan tidak memiliki Akun Laku, hubungi distributor tersebut terlebih dahulu.
+Jika Anda adalah pelanggan akhir suatu distributor dan tidak memiliki Akun Lakupak, hubungi distributor tersebut terlebih dahulu.
 
 ---
 
 ## 6. Penyimpanan dan penghapusan
 
-Kami menyimpan Data Pribadi dengan langkah keamanan yang sesuai dengan risiko dan mempertahankannya selama diperlukan untuk menyediakan Layanan Laku, memenuhi kewajiban hukum, pajak, dan sengketa, serta memelihara log keamanan untuk jangka waktu terbatas.
+Kami menyimpan Data Pribadi dengan langkah keamanan yang sesuai dengan risiko dan mempertahankannya selama diperlukan untuk menyediakan Layanan Lakupak, memenuhi kewajiban hukum, pajak, dan sengketa, serta memelihara log keamanan untuk jangka waktu terbatas.
 
 Anda dapat meminta penutupan Akun secara tertulis melalui saluran kontak dalam Kebijakan ini. Setelah penutupan, kami dapat menyimpan catatan terbatas apabila hukum Indonesia atau kebutuhan bisnis yang sah mewajibkan retensi, dengan akses terbatas.
 
@@ -184,13 +184,13 @@ Anda wajib melindungi kata sandi, OTP, dan perangkat Anda. Kami tidak bertanggun
 
 ## 8. Anak-anak
 
-Layanan Laku ditujukan untuk penggunaan bisnis. Pengguna harus berusia sekurang-kurangnya 17 tahun dan cakap secara hukum, atau bertindak di bawah wali sebagaimana diwajibkan hukum. Kami tidak dengan sengaja mengumpulkan Data Pribadi dari anak-anak untuk penggunaan konsumen Laku.
+Layanan Lakupak ditujukan untuk penggunaan bisnis. Pengguna harus berusia sekurang-kurangnya 17 tahun dan cakap secara hukum, atau bertindak di bawah wali sebagaimana diwajibkan hukum. Kami tidak dengan sengaja mengumpulkan Data Pribadi dari anak-anak untuk penggunaan konsumen Lakupak.
 
 ---
 
 ## 9. Perubahan Kebijakan ini
 
-Kami dapat memperbarui Kebijakan ini untuk mencerminkan perubahan produk atau hukum. Pembaruan akan diposting pada Layanan Laku dengan tanggal “Terakhir diperbarui” yang baru. Untuk perubahan material yang memengaruhi Data Pribadi, kami akan memberikan pemberitahuan di muka sejauh diwajibkan (termasuk hingga 30 hari kerja apabila standar tersebut berlaku). Jika Anda tidak setuju, Anda dapat menutup Akun selama periode pemberitahuan. Penggunaan berkelanjutan setelah tanggal berlaku berarti Anda menerima Kebijakan yang diperbarui.
+Kami dapat memperbarui Kebijakan ini untuk mencerminkan perubahan produk atau hukum. Pembaruan akan diposting pada Layanan Lakupak dengan tanggal “Terakhir diperbarui” yang baru. Untuk perubahan material yang memengaruhi Data Pribadi, kami akan memberikan pemberitahuan di muka sejauh diwajibkan (termasuk hingga 30 hari kerja apabila standar tersebut berlaku). Jika Anda tidak setuju, Anda dapat menutup Akun selama periode pemberitahuan. Penggunaan berkelanjutan setelah tanggal berlaku berarti Anda menerima Kebijakan yang diperbarui.
 
 ---
 
@@ -208,4 +208,4 @@ Pertanyaan privasi, koreksi, permintaan penghapusan, atau keluhan:
 
 Kami dapat menyimpan catatan korespondensi untuk menangani permintaan Anda. Kami dapat menolak permintaan jika kami tidak dapat memverifikasi identitas Anda.
 
-Nama badan hukum penyelenggara dan alamat kantor akan sesuai dengan detail yang dipublikasikan pada pengungkapan bisnis resmi Laku dan invoice setelah difinalisasi.
+Nama badan hukum penyelenggara dan alamat kantor akan sesuai dengan detail yang dipublikasikan pada pengungkapan bisnis resmi Lakupak dan invoice setelah difinalisasi.

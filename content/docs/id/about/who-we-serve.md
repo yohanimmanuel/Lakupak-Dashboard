@@ -1,16 +1,16 @@
 ---
 title: Siapa yang kami layani
 description: Distributor, pembeli ritel, dan driver dalam rantai pasok Indonesia.
-section: Tentang Laku
+section: Tentang Lakupak
 module: about
 order: 2
 ---
 
-Laku berada di **tengah rantai pasok FMCG dan grosir**, menghubungkan pihak yang mengadakan dan mengirim dengan toko kecil yang menjual ke konsumen akhir.
+Lakupak berada di **tengah rantai pasok FMCG dan grosir**, menghubungkan pihak yang mengadakan dan mengirim dengan toko kecil yang menjual ke konsumen akhir.
 
 ## Distributor (FMCG dan grosir)
 
-Pengguna tipikal memakai **Laku Dashboard** di web.
+Pengguna tipikal memakai **Lakupak Dashboard** di web.
 
 Mereka bisa berupa:
 
@@ -25,7 +25,7 @@ Mereka bisa berupa:
 - Stockout dan overstock karena data terlambat
 - Sulit membuktikan tingkat layanan ke akun kunci
 
-### Bantuan Laku
+### Bantuan Lakupak
 
 - **Katalog** pusat dengan varian, stok, kontrol publish
 - Alur **Orders** dari pemesanan hingga pengiriman
@@ -38,11 +38,11 @@ Mulai: [Ringkasan Dashboard](/id/docs/dashboard/overview).
 
 ## Pembeli ritel (warung, kios, toko kecil)
 
-Pengguna tipikal memakai **Laku Marketplace** di mobile.
+Pengguna tipikal memakai **Lakupak Marketplace** di mobile.
 
 Kebutuhan: restock andal dari distributor yang dikenal, kuantitas grosir, MOQ jelas, visibilitas pengiriman, terms yang adil.
 
-### Bantuan Laku
+### Bantuan Lakupak
 
 - **Browse**, **Search**, **Categories**
 - **Cart dan checkout**
@@ -53,9 +53,9 @@ Mulai: [Ringkasan Marketplace](/id/docs/marketplace/overview).
 
 ## Driver armada
 
-Pengguna tipikal memakai **Laku Driver** untuk satu **distributor** (atau armada kontrak).
+Pengguna tipikal memakai **Lakupak Driver** untuk satu **distributor** (atau armada kontrak).
 
-### Bantuan Laku
+### Bantuan Lakupak
 
 - **Tasks** harian dan peta rute
 - **Start Delivery** / **Complete Delivery** dengan foto bukti
@@ -77,4 +77,4 @@ Lihat [Alur pesanan](/id/docs/platform/order-flow).
 ## Dokumentasi terkait
 
 - [Manfaat per peran](/id/docs/about/benefits-by-role)
-- [Ekosistem Laku](/id/docs/platform/ecosystem)
+- [Ekosistem Lakupak](/id/docs/platform/ecosystem)

@@ -75,7 +75,7 @@ Done screen: **Request sent!** — distributor sends credentials → **Go to Log
 
 - Invalid or expired token: cleared on startup; order actions may show **Session expired — Please log in again.**
 - Deactivated drivers may see **Invalid Credentials** or **Login Failed** depending on API response.
-- There is no separate in-app **suspended** screen; terms note that distributors or Laku may suspend access.
+- There is no separate in-app **suspended** screen; terms note that distributors or Lakupak may suspend access.
 - **Delete Account** in Settings only instructs you to contact your distributor.
 
 ## Related documentation

@@ -71,14 +71,14 @@
     "viewAllSalesAgents": "View all {count} sales agents",
     "addSalesAgent": "Add Sales Agent",
     "aiAgent": "AI Agent",
-    "aiAgentTitle": "Laku AI",
+    "aiAgentTitle": "Lakupak AI",
     "aiAgentSubtitle": "Your business assistant",
     "aiAgentWelcome": "How can I help?",
     "aiAgentLoading": "Loading…",
-    "aiAgentGreeting": "Hi! I'm Laku AI, your business assistant.\n\nI can help with financial trends, marketplace performance, catalog improvements (margins, descriptions), how to use any Laku module, and step-by-step guides from the Laku documentation.\n\nWhat would you like to check?",
-    "aiAgentGreetingNamed": "Hi {name}! I'm Laku AI, your business assistant.\n\nI can help with financial trends, marketplace performance, catalog improvements (margins, descriptions), how to use any Laku module, and step-by-step guides from the Laku documentation.\n\nWhat would you like to check?",
-    "aiAgentEmpty": "Ask about financial trends, marketplace performance, catalog improvements, or how to use any Laku module.",
-    "aiAgentInputPlaceholder": "Ask about your business or Laku…",
+    "aiAgentGreeting": "Hi! I'm Lakupak AI, your business assistant.\n\nI can help with financial trends, marketplace performance, catalog improvements (margins, descriptions), how to use any Lakupak module, and step-by-step guides from the Lakupak documentation.\n\nWhat would you like to check?",
+    "aiAgentGreetingNamed": "Hi {name}! I'm Lakupak AI, your business assistant.\n\nI can help with financial trends, marketplace performance, catalog improvements (margins, descriptions), how to use any Lakupak module, and step-by-step guides from the Lakupak documentation.\n\nWhat would you like to check?",
+    "aiAgentEmpty": "Ask about financial trends, marketplace performance, catalog improvements, or how to use any Lakupak module.",
+    "aiAgentInputPlaceholder": "Ask about your business or Lakupak…",
     "aiAgentComingSoon": "AI chat coming soon",
     "aiAgentThinking": "Thinking",
     "aiAgentSend": "Send",
@@ -91,7 +91,7 @@
     "timeDaysAgo": "{count}d ago"
   },
   "promo": {
-    "title": "Loving Laku Free?",
+    "title": "Loving Lakupak Free?",
     "body": "Go Premium to access priority support, real-time tracking, and full analytics.",
     "bodyHighlight": "Premium",
     "cta": "Go Premium Today",
@@ -99,9 +99,9 @@
     "close": "Close promo"
   },
   "help": {
-    "title": "About Laku",
+    "title": "About Lakupak",
     "tagline": "Your all-in-one commerce dashboard",
-    "whatYouCanDo": "What you can do in Laku",
+    "whatYouCanDo": "What you can do in Lakupak",
     "features": {
       "products": "Manage products, stock, and pricing",
       "orders": "Track and fulfill orders",

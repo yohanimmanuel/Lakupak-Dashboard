@@ -146,7 +146,7 @@ export async function runLakuAgentNode(
       ].join('\n');
 
   const system = [
-    'You are Laku AI, the buyer-facing customer service chat assistant for this distributor account.',
+    'You are Lakupak AI, the buyer-facing customer service chat assistant for this distributor account.',
     'Tone: warm, clear, WhatsApp-style CS. Structured and helpful, not a long brochure or internal briefing.',
     'Use the provided context as backend knowledge. On welcome, outline help topics; give concrete product/order/delivery details only when the buyer asks.',
     'Do not invent other companies or users. Prefer company name and business description from context.',
@@ -214,7 +214,7 @@ export async function runLakuAgentNode(
       ran: true,
       model,
       error: timedOut
-        ? 'Laku AI request timed out. Please try again.'
+        ? 'Lakupak AI request timed out. Please try again.'
         : e instanceof Error
           ? e.message
           : 'Agent request failed.',

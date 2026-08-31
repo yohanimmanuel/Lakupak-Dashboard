@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -45,9 +45,9 @@ export default function PlatformAdminLoginPage() {
   return (
     <div className="min-h-screen bg-[#0A61D7] flex items-center justify-center px-4">
       <div className="w-full max-w-md bg-white rounded-xl border border-[#e6e6e6] shadow-sm p-6">
-        <Image src="/LakuTextLogo.svg" alt="Laku" width={100} height={100} />
+        <Image src="/Lakupak!.svg" alt="Lakupak" width={100} height={100} />
         <h1 className="text-xl font-semibold text-gray-900 mt-4">Platform Admin</h1>
-        <p className="text-sm text-gray-600 mt-1">Sign in to manage Laku platform settings.</p>
+        <p className="text-sm text-gray-600 mt-1">Sign in to manage Lakupak platform settings.</p>
 
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
           <div>

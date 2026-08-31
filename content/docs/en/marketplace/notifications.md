@@ -30,7 +30,7 @@ Push taps for `order` or `payment` open **Order Details** for that order.
 
 ### Latest updates
 
-Platform announcements from Laku.
+Platform announcements from Lakupak.
 
 **Tabs:** All, Updates, Promotion, Maintenance, Policy.
 

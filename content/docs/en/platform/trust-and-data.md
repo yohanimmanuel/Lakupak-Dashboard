@@ -6,16 +6,16 @@ module: platform
 order: 52
 ---
 
-Laku is built for trusted wholesale trade. This page explains responsibilities and boundaries without technical implementation detail.
+Lakupak is built for trusted wholesale trade. This page explains responsibilities and boundaries without technical implementation detail.
 
 ## Account types and responsibilities
 
 | Account | Created by | Responsibility |
 |---------|------------|----------------|
-| Distributor (Dashboard) | Self-registration on Laku website | Accurate company profile, catalog, fulfillment, buyer support |
+| Distributor (Dashboard) | Self-registration on Lakupak website | Accurate company profile, catalog, fulfillment, buyer support |
 | Buyer (Marketplace) | Self-registration or invited by distributor | Accurate store profile, timely payment, fair use of returns |
 | Driver (Driver app) | Distributor in Logistics | Safe delivery, honest status updates, proof when required |
-| Platform operations | Laku staff only | Network health, policy enforcement, support escalations |
+| Platform operations | Lakupak staff only | Network health, policy enforcement, support escalations |
 
 Drivers do **not** self-provision production credentials; distributors issue access after vetting.
 
@@ -23,7 +23,7 @@ Drivers do **not** self-provision production credentials; distributors issue acc
 
 - **Distributors** own their catalog, pricing, buyer relationships, and order history in their workspace
 - **Buyers** own their profile, addresses, and order history with each distributor they shop from
-- **Laku** hosts the platform and processes data to run ordering, notifications, and analytics as described in legal policies
+- **Lakupak** hosts the platform and processes data to run ordering, notifications, and analytics as described in legal policies
 
 Competitive intelligence between distributors is **not** exposed through the buyer app: each storefront is scoped to one distributor’s published catalog.
 

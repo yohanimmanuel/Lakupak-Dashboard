@@ -15,7 +15,7 @@ Open **Clients** in the sidebar to see:
 - **Tips** cards (dismissible) for adding buyers and managing suppliers, with optional detail modals.
 - **Tools** shortcuts to **Buyers** and **Suppliers**.
 
-Buyers who order from you on **Laku Marketplace** can be recorded automatically in the buyer list when they purchase from your storefront. You can also add buyers manually or import them in bulk.
+Buyers who order from you on **Lakupak Marketplace** can be recorded automatically in the buyer list when they purchase from your storefront. You can also add buyers manually or import them in bulk.
 
 ## Buyers
 
@@ -159,7 +159,7 @@ Aggregates include total units supplied and total purchase value. **On-time deli
 
 Bulk import maps flexible columns (Name, Contact, Email, Phone, Business Type, Address, Status, supplies, and more). Extra fields can go into logistics or notes.
 
-## How buyers and suppliers connect to the rest of Laku
+## How buyers and suppliers connect to the rest of Lakupak
 
 | Data | Used in |
 |------|---------|

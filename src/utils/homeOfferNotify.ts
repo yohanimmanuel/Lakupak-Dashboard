@@ -19,7 +19,7 @@ export async function notifyMarketplacePublishedHomeOffer(offer: HomeOfferFields
   await broadcastPlatformAnnouncementPublished(a);
   const preview = buildHomeOfferSummaryBody(offer);
   const pushBody =
-    preview.length > 160 ? `${preview.slice(0, 157)}…` : preview || 'New update from Laku';
+    preview.length > 160 ? `${preview.slice(0, 157)}…` : preview || 'New update from Lakupak';
   await sendExpoPushToAllMarketplaceUsers(offer.title, pushBody, {
     type: 'promotion',
     announcementId: String(marketplaceHomeOfferToLatestUpdateId(offer.id)),

@@ -71,7 +71,7 @@ Validasi: **Complete required fields**.
 
 ## Aplikasi driver
 
-Driver dibuat oleh distributor. Mereka masuk ke aplikasi **Laku Driver** dengan kredensial yang Anda berikan.
+Driver dibuat oleh distributor. Mereka masuk ke aplikasi **Lakupak Driver** dengan kredensial yang Anda berikan.
 
 ## Tautan terkait
 

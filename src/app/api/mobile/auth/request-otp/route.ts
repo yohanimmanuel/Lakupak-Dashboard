@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
         // The phone parameter already includes the country code (e.g., "+6586548867")
         // So we just need to add the whatsapp: prefix
         const whatsappPhone = `whatsapp:${phone}`;
-        const message = `Your Laku verification code is: ${otpCode}. This code expires in 10 minutes.`;
+        const message = `Your Lakupak verification code is: ${otpCode}. This code expires in 10 minutes.`;
         
         await twilioClient.messages.create({
           from: waFrom,
@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
         // The phone parameter already includes the country code (e.g., "+6586548867")
         // So we can use it directly for SMS
         const smsPhone = phone;
-        const message = `Your Laku verification code is: ${otpCode}. This code expires in 10 minutes.`;
+        const message = `Your Lakupak verification code is: ${otpCode}. This code expires in 10 minutes.`;
         
         await twilioClient.messages.create({
           from: smsFrom,

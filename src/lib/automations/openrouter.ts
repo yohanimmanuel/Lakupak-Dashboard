@@ -120,7 +120,7 @@ export async function chatWithOpenRouter(args: {
     'Content-Type': 'application/json',
   };
   const siteUrl = process.env.OPENROUTER_SITE_URL?.trim();
-  const appName = process.env.OPENROUTER_APP_NAME?.trim() || 'Laku';
+  const appName = process.env.OPENROUTER_APP_NAME?.trim() || 'Lakupak';
   if (siteUrl) headers['HTTP-Referer'] = siteUrl;
   headers['X-Title'] = appName;
 
@@ -152,7 +152,7 @@ export async function chatWithOpenRouter(args: {
         await sleep(retryDelayMs(attempt, null));
         continue;
       }
-      throw new Error(timedOut ? 'Laku AI request timed out. Please try again.' : raw);
+      throw new Error(timedOut ? 'Lakupak AI request timed out. Please try again.' : raw);
     }
 
     const payload = (await response.json().catch(() => null)) as OpenRouterErrorBody | null;
