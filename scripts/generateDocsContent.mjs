@@ -16,15 +16,15 @@ const sections = [
     titleEn: 'Overview',
     titleId: 'Ringkasan',
     items: [
-      ['introduction', 'What is Laku?', 'Apa itu Laku?'],
+      ['introduction', 'What is Lakupak?', 'Apa itu Lakupak?'],
       ['glossary', 'Glossary', 'Glosarium'],
       ['getting-started', 'Getting started', 'Memulai'],
     ],
   },
   {
     id: 'about',
-    titleEn: 'About Laku',
-    titleId: 'Tentang Laku',
+    titleEn: 'About Lakupak',
+    titleId: 'Tentang Lakupak',
     items: [
       ['about/mission-and-story', 'Mission and story', 'Misi dan cerita'],
       ['about/who-we-serve', 'Who we serve', 'Siapa yang kami layani'],
@@ -84,7 +84,7 @@ const sections = [
     titleEn: 'Platform',
     titleId: 'Platform',
     items: [
-      ['platform/ecosystem', 'Laku ecosystem', 'Ekosistem Laku'],
+      ['platform/ecosystem', 'Lakupak ecosystem', 'Ekosistem Lakupak'],
       ['platform/order-flow', 'How orders flow', 'Alur pesanan'],
       ['platform/trust-and-data', 'Trust, privacy, and data', 'Kepercayaan, privasi, dan data'],
       ['platform/help-and-support', 'Help and support', 'Bantuan dan dukungan'],

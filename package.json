@@ -22,8 +22,6 @@
     "dev:all": "concurrently \"npm run dev\" \"npm run ws\"",
     "meili:reindex:marketplace": "npx --yes tsx src/scripts/meiliReindexMarketplaceProducts.ts",
     "marketplace:search:report": "tsx src/scripts/marketplaceSearchReport.ts",
-    "analytics:demo:seed": "tsx src/scripts/analyticsDemoOrders.ts seed",
-    "analytics:demo:cleanup": "tsx src/scripts/analyticsDemoOrders.ts cleanup",
     "docs:index": "tsx src/scripts/meiliIndexDocs.ts"
   },
   "dependencies": {

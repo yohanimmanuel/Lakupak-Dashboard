@@ -1,13 +1,13 @@
-# Laku
+# Lakupak
 
 ## Overview
-Laku is a B2B vertical SaaS + marketplace platform designed for FMCG distributors in Indonesia who sell directly to small shops, kiosks, warungs, and other neighborhood stores. It combines a vertical SaaS platform for distributors with a marketplace for their buyers small shops, kiosks, warungs, and local retailers. The platform is designed to streamline operations, protect sensitive pricing information, and create a trusted environment for both parties to transact. 
+Lakupak is a B2B vertical SaaS + marketplace platform designed for FMCG distributors in Indonesia who sell directly to small shops, kiosks, warungs, and other neighborhood stores. It combines a vertical SaaS platform for distributors with a marketplace for their buyers small shops, kiosks, warungs, and local retailers. The platform is designed to streamline operations, protect sensitive pricing information, and create a trusted environment for both parties to transact. 
 
 On the SaaS side, distributors gain access to a private dashboard for managing inventory, processing orders, tracking analytics, maintaining customer relationships, and generating detailed sales reports. Each distributor operates in their own secure environment, with no visibility into competitor data or pricing. On the marketplace side, verified buyers can browse and purchase products from approved distributors, but are restricted from comparing prices across multiple suppliers for the same product, ensuring fair competition and price stability. 
 
-Laku goes beyond simple order management by offering value-added features like verified buyer and supplier lead generation. This helps distributors expand their network and discover new opportunities without exposing sensitive business data. Over time, the platform will integrate additional services such as embedded logistics, digital payments, and financing solutions, enabling faster order fulfillment and easier access to working capital. 
+Lakupak goes beyond simple order management by offering value-added features like verified buyer and supplier lead generation. This helps distributors expand their network and discover new opportunities without exposing sensitive business data. Over time, the platform will integrate additional services such as embedded logistics, digital payments, and financing solutions, enabling faster order fulfillment and easier access to working capital. 
 
-By digitizing a traditionally manual and fragmented sector, Laku aims to empower distributors and small retailers alike. It replaces outdated, scattered tools such as spreadsheets, chat-based ordering, and paper records with a single mobile-friendly solution. The result is improved efficiency, stronger business relationships, and a healthier competitive landscape for Indonesia’s consumer goods market.
+By digitizing a traditionally manual and fragmented sector, Lakupak aims to empower distributors and small retailers alike. It replaces outdated, scattered tools such as spreadsheets, chat-based ordering, and paper records with a single mobile-friendly solution. The result is improved efficiency, stronger business relationships, and a healthier competitive landscape for Indonesia’s consumer goods market.
 
 The platform combines:
 - **Vertical SaaS Dashboard** – A business management suite tailored for distributors, enabling them to manage products, orders, customers, suppliers, and analytics.
@@ -20,8 +20,8 @@ Our goal is to digitize the traditional distributor-to-retailer supply chain whi
 - **Distributor Privacy**: Distributors can only access their own business data, customer list, and analytics — no competitor insight leakage. This ensures fair competition while preserving the core value of marketplaces, buyer choice and price transparency.
 - **Verified Network**: Both buyers and distributors undergo verification to maintain a trusted marketplace ecosystem.
 
-## Why Laku is Different
-In Indonesia’s FMCG trade, distributors waste hours chasing the same buyers, and retailers get spammed with overlapping offers from different salesmen. Laku eliminates that chaos by giving both sides a shared, smart marketplace designed for wholesale buying:
+## Why Lakupak is Different
+In Indonesia’s FMCG trade, distributors waste hours chasing the same buyers, and retailers get spammed with overlapping offers from different salesmen. Lakupak eliminates that chaos by giving both sides a shared, smart marketplace designed for wholesale buying:
 - **One platform, zero overlap** – Retailers see all offers from verified distributors in one place, without duplicated pitches.
 - **Wholesale-first tools** – Order by carton or box, schedule replenishments, and receive delivery updates instantly.
 - **Run your business, not just storing products** – From inventory tracking to analytics, ordering, sales, and marketing, distributors get an all-in-one SaaS to replace WhatsApp and paper ledgers.
@@ -76,11 +76,11 @@ In Indonesia’s FMCG trade, distributors waste hours chasing the same buyers, a
 
 ## Run with Docker
 
-You can run the Laku dashboard with **only Docker** (no Node.js or npm required on your machine).
+You can run the Lakupak dashboard with **only Docker** (no Node.js or npm required on your machine).
 
 **Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running.
 
-1. **Clone the repo** and `cd` into the project (e.g. `Laku-Dashboard`).
+1. **Clone the repo** and `cd` into the project (e.g. `Lakupak-Dashboard`).
 2. **Create a `.env` file** in the project root with your config (database, Redis, NextAuth, etc.). Use `env.example` as a reference. The app needs at least `DATABASE_URL`, `DIRECT_URL`, `REDIS_URL`, and `AUTH_SECRET`.
 3. **Build and start:**
    ```bash

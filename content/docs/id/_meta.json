@@ -6,7 +6,7 @@
       "items": [
         {
           "slug": "introduction",
-          "title": "Apa itu Laku?"
+          "title": "Apa itu Lakupak?"
         },
         {
           "slug": "glossary",
@@ -20,7 +20,7 @@
     },
     {
       "id": "about",
-      "title": "Tentang Laku",
+      "title": "Tentang Lakupak",
       "items": [
         {
           "slug": "about/mission-and-story",
@@ -168,7 +168,7 @@
       "items": [
         {
           "slug": "platform/ecosystem",
-          "title": "Ekosistem Laku"
+          "title": "Ekosistem Lakupak"
         },
         {
           "slug": "platform/order-flow",

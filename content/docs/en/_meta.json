@@ -6,7 +6,7 @@
       "items": [
         {
           "slug": "introduction",
-          "title": "What is Laku?"
+          "title": "What is Lakupak?"
         },
         {
           "slug": "glossary",
@@ -20,7 +20,7 @@
     },
     {
       "id": "about",
-      "title": "About Laku",
+      "title": "About Lakupak",
       "items": [
         {
           "slug": "about/mission-and-story",
@@ -168,7 +168,7 @@
       "items": [
         {
           "slug": "platform/ecosystem",
-          "title": "Laku ecosystem"
+          "title": "Lakupak ecosystem"
         },
         {
           "slug": "platform/order-flow",
