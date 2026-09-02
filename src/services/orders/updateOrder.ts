@@ -319,6 +319,17 @@ export async function updateOrderHandler(request: NextRequest) {
           });
         }
 
+        if (existing.userId != null && updated.buyerId) {
+          const { dispatchReturnAcceptedAutomations } = await import('@/lib/automations/engine');
+          void dispatchReturnAcceptedAutomations({
+            userId: existing.userId,
+            orderId: updated.orderId,
+            buyerId: updated.buyerId,
+          }).catch((err) => {
+            console.error('[automations] return_accepted dispatch failed', err);
+          });
+        }
+
         enqueueBroadcastOrderUpdates('order-update', [updated.orderId]);
 
         auditOrder(request, {

@@ -4,10 +4,8 @@ import {
 } from '@/lib/automations/agentModels';
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-/** Free-tier responses can be slow; fail clearly instead of hanging indefinitely. */
-const OPENROUTER_FETCH_TIMEOUT_MS = 180_000;
-/** Free / upstream providers flake; retry a few times before surfacing to the user. */
-const OPENROUTER_MAX_ATTEMPTS = 5;
+const OPENROUTER_FETCH_TIMEOUT_MS = 60_000;
+const OPENROUTER_MAX_ATTEMPTS = 2;
 const OPENROUTER_RETRY_BASE_MS = 1000;
 
 export type OpenRouterChatMessage = {
@@ -95,15 +93,13 @@ function retryDelayMs(attemptIndex: number, retryAfterHeader: string | null): nu
 }
 
 /**
- * Chat completion via OpenRouter (shared Laku AI provider model).
- * Server-only — requires OPENROUTER_API_KEY.
- * Retries transient upstream / free-tier failures a few times.
+ * Chat completion via OpenRouter (shared Lakupak AI provider model).
+ * Server-only — requires OPENROUTER_API_KEY and OPENROUTER_MODEL.
  */
 export async function chatWithOpenRouter(args: {
   model?: string;
   messages: OpenRouterChatMessage[];
   temperature?: number;
-  /** Optional output cap. Omit to use the provider default (preferred for free models). */
   maxTokens?: number;
 }): Promise<OpenRouterChatResult> {
   const apiKey = openRouterApiKey();

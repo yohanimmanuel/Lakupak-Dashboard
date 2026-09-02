@@ -3,7 +3,7 @@ import { Prisma } from '@/lib/prisma-generated';
 
 const SAMPLE = 6;
 const TOP_N = 8;
-const MAX_CONTEXT_CHARS = 40_000;
+const MAX_CONTEXT_CHARS = 18_000;
 
 type MarginCategoryGroup = 'fmcg_fnb' | 'beauty_fashion' | 'general';
 
@@ -108,10 +108,206 @@ function assessMarginPct(
   };
 }
 
+function deepCloneContext<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function trimArrayAtPath(obj: Record<string, unknown>, path: string[], maxItems: number): void {
+  let current: unknown = obj;
+  for (let i = 0; i < path.length - 1; i += 1) {
+    if (!current || typeof current !== 'object' || Array.isArray(current)) return;
+    current = (current as Record<string, unknown>)[path[i]!];
+  }
+  const key = path[path.length - 1];
+  if (!key || !current || typeof current !== 'object' || Array.isArray(current)) return;
+  const parent = current as Record<string, unknown>;
+  const value = parent[key];
+  if (Array.isArray(value) && value.length > maxItems) {
+    parent[key] = value.slice(0, maxItems);
+  }
+}
+
+function trimOfferProductSamples(obj: Record<string, unknown>, maxProducts: number): void {
+  const offers = obj.offers;
+  if (!offers || typeof offers !== 'object' || Array.isArray(offers)) return;
+  const items = (offers as Record<string, unknown>).items;
+  if (!Array.isArray(items)) return;
+  for (const item of items) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
+    const products = (item as Record<string, unknown>).products;
+    if (Array.isArray(products) && products.length > maxProducts) {
+      (item as Record<string, unknown>).products = products.slice(0, maxProducts);
+    }
+  }
+}
+
+function asContextRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function boundTextField(value: unknown, maxChars: number): unknown {
+  if (typeof value !== 'string') return value;
+  if (maxChars <= 0) return null;
+  if (value.length <= maxChars) return value;
+  return `${value.slice(0, maxChars)}…`;
+}
+
+function accountWithBoundedBusinessDescription(
+  account: unknown,
+  businessDescriptionMaxChars: number,
+): unknown {
+  const record = asContextRecord(account);
+  if (!record) return account;
+  const company = asContextRecord(record.company);
+  if (!company) return record;
+  return {
+    ...record,
+    company: {
+      ...company,
+      businessDescription: boundTextField(company.businessDescription, businessDescriptionMaxChars),
+    },
+  };
+}
+
+function buildContextFallback(
+  reduced: Record<string, unknown>,
+  options: {
+    businessDescriptionMaxChars: number;
+    includeAnalyticsWindows: boolean;
+    includeMarketplace: boolean;
+  },
+): Record<string, unknown> {
+  const fallback: Record<string, unknown> = {
+    contextTruncated: true,
+    purpose: reduced.purpose,
+    audience: reduced.audience,
+    account: accountWithBoundedBusinessDescription(
+      reduced.account,
+      options.businessDescriptionMaxChars,
+    ),
+    totals: reduced.totals,
+    truncationNote:
+      'Large sections (offers, catalogInsights, samples) omitted to fit context limit.',
+  };
+  if (options.includeAnalyticsWindows) {
+    fallback.analyticsWindows = reduced.analyticsWindows;
+  }
+  if (options.includeMarketplace) {
+    fallback.marketplace = reduced.marketplace;
+  }
+  return fallback;
+}
+
+function buildMinimalContextFallback(reduced: Record<string, unknown>): Record<string, unknown> {
+  const account = asContextRecord(reduced.account);
+  const company = account ? asContextRecord(account.company) : null;
+  return {
+    contextTruncated: true,
+    purpose: reduced.purpose,
+    audience: reduced.audience,
+    account: account
+      ? {
+          userId: account.userId,
+          name: account.name,
+          currency: account.currency,
+          region: account.region,
+          language: account.language,
+          company: company
+            ? {
+                name: company.name,
+                industryType: company.industryType,
+                companySize: company.companySize,
+                yearsInOperation: company.yearsInOperation,
+              }
+            : null,
+        }
+      : null,
+    totals: reduced.totals,
+    truncationNote:
+      'Context heavily truncated; only core account totals retained to fit context limit.',
+  };
+}
+
 function truncateContext(payload: unknown): string {
-  const json = JSON.stringify(payload, null, 0);
-  if (json.length <= MAX_CONTEXT_CHARS) return json;
-  return `${json.slice(0, MAX_CONTEXT_CHARS)}\n…[truncated]`;
+  const serialize = (value: unknown) => JSON.stringify(value, null, 0);
+  const full = serialize(payload);
+  if (full.length <= MAX_CONTEXT_CHARS) return full;
+
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return serialize({
+      contextTruncated: true,
+      note: 'Context exceeded size limit.',
+    });
+  }
+
+  let reduced = deepCloneContext(payload) as Record<string, unknown>;
+  reduced.contextTruncated = true;
+
+  const trimSteps: Array<() => void> = [
+    () => trimArrayAtPath(reduced, ['offers', 'items'], 4),
+    () => trimOfferProductSamples(reduced, 3),
+    () => trimArrayAtPath(reduced, ['offers', 'items'], 2),
+    () => trimOfferProductSamples(reduced, 1),
+    () => trimArrayAtPath(reduced, ['catalogInsights', 'lowMarginVariants'], 4),
+    () => trimArrayAtPath(reduced, ['catalogInsights', 'highMarginVariants'], 4),
+    () => trimArrayAtPath(reduced, ['catalogInsights', 'catalogPriceCuts'], 4),
+    () => trimArrayAtPath(reduced, ['catalogInsights', 'lowStockVariants'], 4),
+    () => trimArrayAtPath(reduced, ['catalogInsights', 'weakOrMissingDescriptions'], 4),
+    () => trimArrayAtPath(reduced, ['topProducts30d'], 6),
+    () => trimArrayAtPath(reduced, ['samples', 'recentOrders'], 4),
+    () => trimArrayAtPath(reduced, ['offers', 'items'], 0),
+    () => {
+      reduced.catalogInsights = {
+        sampleSizeVariants: (reduced.catalogInsights as Record<string, unknown> | undefined)
+          ?.sampleSizeVariants,
+        averageMarginPct: (reduced.catalogInsights as Record<string, unknown> | undefined)
+          ?.averageMarginPct,
+        truncationNote: 'Detailed catalogInsights arrays omitted to fit context limit.',
+      };
+    },
+    () => {
+      reduced.samples = { truncationNote: 'Recent order samples omitted to fit context limit.' };
+    },
+  ];
+
+  for (const step of trimSteps) {
+    step();
+    const attempt = serialize(reduced);
+    if (attempt.length <= MAX_CONTEXT_CHARS) return attempt;
+  }
+
+  const fallbackAttempts: Array<() => Record<string, unknown>> = [
+    () =>
+      buildContextFallback(reduced, {
+        businessDescriptionMaxChars: 4_000,
+        includeAnalyticsWindows: true,
+        includeMarketplace: true,
+      }),
+    () =>
+      buildContextFallback(reduced, {
+        businessDescriptionMaxChars: 500,
+        includeAnalyticsWindows: true,
+        includeMarketplace: true,
+      }),
+    () =>
+      buildContextFallback(reduced, {
+        businessDescriptionMaxChars: 0,
+        includeAnalyticsWindows: false,
+        includeMarketplace: false,
+      }),
+    () => buildMinimalContextFallback(reduced),
+  ];
+
+  for (const build of fallbackAttempts) {
+    const attempt = serialize(build());
+    if (attempt.length <= MAX_CONTEXT_CHARS) return attempt;
+  }
+
+  return serialize({
+    contextTruncated: true,
+    note: 'Context exceeded size limit.',
+  });
 }
 
 function daysAgo(days: number): Date {

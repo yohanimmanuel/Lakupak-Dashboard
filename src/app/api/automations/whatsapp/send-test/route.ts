@@ -35,19 +35,24 @@ export async function POST(request: NextRequest) {
   const to = String(record.to ?? '').trim();
   const text = String(record.text ?? '').trim();
 
-  const creds = resolveWhatsAppCloudCredentials({
-    accessToken: String(record.accessToken ?? '').trim() || null,
-    phoneNumberId: String(record.phoneNumberId ?? '').trim() || null,
-    wabaId: String(record.wabaId ?? '').trim() || null,
-  });
+  const creds = resolveWhatsAppCloudCredentials();
 
-  if (!creds?.accessToken || !creds.phoneNumberId) {
+  if (!creds?.accessToken) {
     return NextResponse.json(
       {
         error:
-          'WhatsApp Cloud credentials required (accessToken and phoneNumberId), or set WHATSAPP_CLOUD_* env vars.',
+          'WhatsApp Cloud API is not configured on the server. Set WHATSAPP_CLOUD_ACCESS_TOKEN in the environment.',
       },
-      { status: 400 },
+      { status: 503 },
+    );
+  }
+  if (!creds.phoneNumberId) {
+    return NextResponse.json(
+      {
+        error:
+          'WhatsApp Cloud API is not configured on the server. Set WHATSAPP_CLOUD_PHONE_NUMBER_ID in the environment.',
+      },
+      { status: 503 },
     );
   }
   if (!to) {

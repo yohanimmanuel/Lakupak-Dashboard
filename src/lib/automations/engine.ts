@@ -62,11 +62,18 @@ export type OrderPaidProofEvent = {
   orderNumericId?: number;
 };
 
+export type ReturnAcceptedEvent = {
+  userId: number;
+  orderId: string;
+  buyerId: string;
+};
+
 type ScheduleContext = { kind: 'schedule'; sendAt: string };
 
 type WorkflowRunContext =
   | { kind: 'stock_below'; event: StockBelowEvent }
   | { kind: 'order_paid'; event: OrderPaidProofEvent }
+  | { kind: 'return_accepted'; event: ReturnAcceptedEvent }
   | ScheduleContext;
 
 function asRecord(value: unknown): JsonRecord | null {
@@ -643,6 +650,9 @@ async function defaultNotifyBody(ctx: WorkflowRunContext): Promise<string> {
   if (ctx.kind === 'order_paid') {
     return `Payment proof received for order #${ctx.event.orderId}.`;
   }
+  if (ctx.kind === 'return_accepted') {
+    return `Return items received for order #${ctx.event.orderId}.`;
+  }
   return `Scheduled campaign send at ${ctx.sendAt}.`;
 }
 
@@ -713,8 +723,8 @@ async function runWorkflowActions(
         }
         parts.push(await executeMarkPaidFromProof(ctx.event));
       } else if (action.type === 'whatsapp_buyer') {
-        if (ctx.kind === 'schedule') {
-          parts.push('whatsapp_buyer skipped (scheduled send only runs campaign / win-back messages).');
+        if (ctx.kind === 'schedule' || ctx.kind === 'return_accepted') {
+          parts.push('whatsapp_buyer skipped (wrong trigger context).');
           continue;
         }
         parts.push(await executeWhatsAppBuyer(workflow, action.config, ctx));
@@ -740,9 +750,25 @@ async function runWorkflowActions(
           ),
         );
       } else if (action.type === 'return_confirm_whatsapp') {
-        parts.push(
-          'return_confirm skipped here (run Test run, or wait for a return accepted trigger).',
-        );
+        if (ctx.kind === 'return_accepted') {
+          parts.push(
+            await executeChannelBuyerMessage(workflow, action.type, {
+              ...action.config,
+              buyerId: ctx.event.buyerId,
+              selectedBuyers: [{ buyerId: ctx.event.buyerId }],
+            }),
+          );
+        } else if (ctx.kind === 'schedule') {
+          parts.push(await executeChannelBuyerMessage(workflow, action.type, action.config));
+        } else {
+          parts.push(
+            'return_confirm_whatsapp skipped (run Test run, or wait for a return accepted trigger).',
+          );
+        }
+      } else if (action.type === 'assign_agent_whatsapp') {
+        parts.push('assign_agent_whatsapp runs on inbound buyer WhatsApp handoff.');
+      } else if (action.type === 'cs_24h_window') {
+        parts.push('cs_24h_window runs on inbound buyer WhatsApp messages.');
       } else if (action.type === 'cart_winback') {
         if (ctx.kind !== 'schedule') {
           parts.push(
@@ -768,7 +794,9 @@ async function runWorkflowActions(
           ? `stock_below:${ctx.event.productId}`
           : ctx.kind === 'order_paid'
             ? `order_paid:${ctx.event.orderId}`
-            : `campaign_schedule:${ctx.sendAt}`;
+            : ctx.kind === 'return_accepted'
+              ? `return_accepted:${ctx.event.orderId}`
+              : `campaign_schedule:${ctx.sendAt}`;
       const body = parts.length > 0 ? parts.join(' ') : await defaultNotifyBody(ctx);
       // One dashboard notification per run (even if multiple notify nodes are on the canvas).
       await executeNotifyDashboard(workflow.userId, workflow.name, body, label, workflow.id);
@@ -875,6 +903,26 @@ export async function dispatchOrderPaidProofAutomations(
 
     const result = await runWorkflowActions(workflow, actions, {
       kind: 'order_paid',
+      event,
+    });
+    await recordRun(workflow.id, result.status, result.message);
+  }
+}
+
+/** Fire active return_accepted workflows after returned items are confirmed received. */
+export async function dispatchReturnAcceptedAutomations(
+  event: ReturnAcceptedEvent,
+): Promise<void> {
+  if (!event.userId || !event.orderId || !event.buyerId) return;
+
+  const workflows = await loadActiveWorkflows(event.userId);
+  for (const workflow of workflows) {
+    const { triggers, actions } = workflowSteps(workflow);
+    const matching = triggers.filter((t) => t.type === 'return_accepted');
+    if (matching.length === 0) continue;
+
+    const result = await runWorkflowActions(workflow, actions, {
+      kind: 'return_accepted',
       event,
     });
     await recordRun(workflow.id, result.status, result.message);

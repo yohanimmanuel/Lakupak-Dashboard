@@ -1,12 +1,15 @@
 import type { ActionType } from '@/lib/automations/catalog';
 
-/** Actions that run without WhatsApp / external messaging. */
+/** Actions that send real outbound messages or run inbound CS automations. */
 export const LIVE_ACTION_TYPES = new Set<ActionType>([
   'replenish_stock',
   'mark_paid_from_proof',
   'notify_dashboard',
   'whatsapp_buyer',
   'share_product_whatsapp',
+  'return_confirm_whatsapp',
+  'assign_agent_whatsapp',
+  'cs_24h_window',
   'cart_winback',
   'send_campaign',
 ]);

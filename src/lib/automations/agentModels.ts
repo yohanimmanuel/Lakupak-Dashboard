@@ -1,8 +1,7 @@
 /**
- * Laku Agent UI model presets.
- * Every branded option is routed through Ling 3.0 Tiny on OpenRouter for now.
+ * Lakupak AI OpenRouter model — set OPENROUTER_MODEL in .env (single source of truth).
  */
-export const LAKU_AGENT_PROVIDER_MODEL = 'inclusionai/ling-3.0-tiny:free';
+export const OPENROUTER_MODEL_ENV_KEY = 'OPENROUTER_MODEL';
 
 export const LAKU_AGENT_MODEL_IDS = [
   'gpt',
@@ -36,18 +35,24 @@ export function normalizeLakuAgentModelId(value: unknown): LakuAgentModelId {
 }
 
 /**
- * Resolve the real provider model slug used for API calls.
- * Always uses LAKU_AGENT_PROVIDER_MODEL so workflow + navbar stay on the same Ling slug
- * (ignores stale providerModel values saved on older canvases).
+ * Resolve the OpenRouter model slug from OPENROUTER_MODEL in .env.
+ * Ignores stale providerModel values saved on older canvases.
  */
 export function resolveLakuAgentProviderModel(_selected: unknown): string {
-  return LAKU_AGENT_PROVIDER_MODEL;
+  const model = process.env.OPENROUTER_MODEL?.trim();
+  if (!model) {
+    if (typeof window === 'undefined') {
+      throw new Error(`${OPENROUTER_MODEL_ENV_KEY} is not set in .env.`);
+    }
+    return '';
+  }
+  return model;
 }
 
 export function defaultLakuAgentConfig(note = ''): Record<string, unknown> {
   return {
     note,
     model: DEFAULT_LAKU_AGENT_MODEL,
-    providerModel: LAKU_AGENT_PROVIDER_MODEL,
+    providerModel: '',
   };
 }

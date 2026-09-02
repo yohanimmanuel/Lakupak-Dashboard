@@ -39,28 +39,24 @@ export async function POST(request: NextRequest) {
   const categoryRaw = String(record.category ?? 'UTILITY').trim().toUpperCase();
   const bodyText = String(record.bodyText ?? '').trim();
 
-  const creds = resolveWhatsAppCloudCredentials({
-    accessToken: String(record.accessToken ?? '').trim() || null,
-    phoneNumberId: String(record.phoneNumberId ?? '').trim() || null,
-    wabaId: String(record.wabaId ?? '').trim() || null,
-  });
+  const creds = resolveWhatsAppCloudCredentials();
 
   if (!creds?.accessToken) {
     return NextResponse.json(
       {
         error:
-          'WhatsApp Cloud access token required, or set WHATSAPP_CLOUD_ACCESS_TOKEN.',
+          'WhatsApp Cloud API is not configured on the server. Set WHATSAPP_CLOUD_ACCESS_TOKEN in the environment.',
       },
-      { status: 400 },
+      { status: 503 },
     );
   }
   if (!creds.wabaId) {
     return NextResponse.json(
       {
         error:
-          'WhatsApp Business Account ID (wabaId) is required to create a message template.',
+          'WhatsApp Cloud API is not configured on the server. Set WHATSAPP_CLOUD_WABA_ID in the environment.',
       },
-      { status: 400 },
+      { status: 503 },
     );
   }
   if (!CATEGORIES.has(categoryRaw)) {

@@ -175,6 +175,7 @@ export async function runDistributorAppAssistant(input: {
         { role: 'user', content: userContent },
       ],
       temperature: 0.35,
+      maxTokens: 6144,
     });
     const reply = String(result.content ?? '')
       .replace(/\u2014|\u2013/g, '-')
@@ -188,15 +189,18 @@ export async function runDistributorAppAssistant(input: {
     const timedOut = /timeout|aborted|AbortError/i.test(raw);
     const providerBusy =
       /provider returned error|overloaded|temporarily unavailable|rate.?limit|502|503/i.test(raw);
+    const modelNotFound = /no endpoints found|model.*not found|does not exist/i.test(raw);
     console.error('[lakuAi] assistant upstream failure', raw);
     return {
       ok: false,
       code: 'upstream',
       error: timedOut
         ? 'Lakupak AI request timed out. Please try again.'
-        : providerBusy
-          ? 'Lakupak AI is briefly unavailable (model provider). Please try again in a moment.'
-          : 'Lakupak AI could not complete the request. Please try again.',
+        : modelNotFound
+          ? `OpenRouter model not available. Update OPENROUTER_MODEL in .env. (${raw})`
+          : providerBusy
+            ? 'Lakupak AI is briefly unavailable (model provider). Please try again in a moment.'
+            : 'Lakupak AI could not complete the request. Please try again.',
     };
   }
 }

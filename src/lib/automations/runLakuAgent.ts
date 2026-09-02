@@ -9,6 +9,10 @@ import {
   LAKU_AGENT_PRIVACY_POLICY,
   validateAgentOperatorNote,
 } from '@/lib/automations/agentNotePolicy';
+import {
+  buildBuyerCsWelcomeShape,
+  buildBuyerCsWelcomeUserInstruction,
+} from '@/lib/automations/buyerCsWelcomePrompt';
 
 type CanvasNode = {
   id?: string;
@@ -115,35 +119,7 @@ export async function runLakuAgentNode(
     ? 'Reply entirely in Indonesian (Bahasa Indonesia). Keep product names, order IDs, and proper nouns as-is.'
     : 'Reply entirely in English. Keep product names, order IDs, and proper nouns as-is.';
 
-  const welcomeShape = replyInIndonesian
-    ? [
-        'Bentuk pesan sambutan CS (ikuti pola ini):',
-        '1) Sapaan singkat + nama perusahaan dari konteks + siap membantu sebagai CS pembeli.',
-        '2) Satu baris pembuka topik, lalu bullet kategori (topik saja, bukan dump data):',
-        '   - Produk: stok, harga, MOQ, jaminan (halal/BPOM/original/kebijakan retur)',
-        '   - Pesanan: cara cek status (pipeline umum saja; jangan ID pesanan nyata)',
-        '   - Pembayaran: Bank Transfer / COD dan tenor hari dari konteks',
-        '   - Pengiriman: metode, slot, hari, tracking, ETA (ringkas)',
-        '   - Retur & pembatalan: bantuan proses',
-        '   - Informasi umum: pickup, cara order, kontak publik',
-        '   - Chat ke CS atau sales agent manusia: sebutkan bahwa pembeli bisa meminta chat dengan staf (jangan janjikan langsung tersambung)',
-        '3) Bagian contoh cara bertanya (tepat 5 contoh singkat), mis. cek stok produk, status pesanan (minta ID pesanan), ajukan retur, info pengiriman, dan "saya ingin chat dengan CS / sales agent".',
-        '4) Tutup dengan ajakan membantu hari ini, lalu satu emoji ramah (mis. 😊).',
-      ].join('\n')
-    : [
-        'CS welcome message shape (follow this pattern):',
-        '1) Short greeting + company name from context + ready to help as buyer CS.',
-        '2) One intro line, then category bullets (topics only, not data dumps):',
-        '   - Products: stock, price, MOQ, assurance (halal/BPOM/original/return policy)',
-        '   - Orders: how to check status (general pipeline only; no real order IDs)',
-        '   - Payment: Bank Transfer / COD and term days from context',
-        '   - Delivery: methods, slots, days, tracking, ETA (brief)',
-        '   - Returns & cancellations: process help',
-        '   - General info: pickup, how to order, public contact',
-        '   - Chat with a human CS or sales agent: mention buyers can request a staff chat (do not promise an immediate connection)',
-        '3) Example asks section (exactly 5 short examples), e.g. check product stock, order status (ask for order ID), request a return, delivery info, and "I want to chat with CS / a sales agent".',
-        '4) Close by asking how you can help today, then one friendly emoji (e.g. 😊).',
-      ].join('\n');
+  const welcomeShape = buildBuyerCsWelcomeShape(replyInIndonesian);
 
   const system = [
     'You are Lakupak AI, the buyer-facing customer service chat assistant for this distributor account.',
@@ -160,9 +136,14 @@ export async function runLakuAgentNode(
     .filter(Boolean)
     .join('\n\n');
 
+  const welcomeInstruction = buildBuyerCsWelcomeUserInstruction(
+    replyInIndonesian,
+    input.workflowName,
+  );
+
   const user = replyInIndonesian
     ? [
-        `Alur kerja: ${input.workflowName || 'Tanpa judul'}`,
+        welcomeInstruction,
         `Pemicu: ${input.triggerType?.trim() || 'tidak ada'}`,
         `Aksi: ${input.actionType?.trim() || 'tidak ada'}`,
         `Bahasa balasan: Indonesia`,
@@ -171,14 +152,10 @@ export async function runLakuAgentNode(
         distributorContext,
         '',
         'Uji coba jendela CS. Jawab SELURUHNYA dalam Bahasa Indonesia.',
-        'Tulis pesan sambutan mengikuti bentuk sistem di atas: sapaan, daftar topik bantuan, 5 contoh cara bertanya (termasuk chat ke CS/sales agent), penutup.',
-        'Pakai nama perusahaan dan deskripsi bisnis dari konteks jika ada.',
-        'Jangan dump katalog penuh, jadwal panjang, atau pesanan nyata.',
-        'Jangan tulis panduan operator / checklist staf.',
         'Jangan gunakan karakter em dash (—) atau en dash (–).',
       ].join('\n')
     : [
-        `Workflow: ${input.workflowName || 'Untitled'}`,
+        welcomeInstruction,
         `Trigger: ${input.triggerType?.trim() || 'none'}`,
         `Action: ${input.actionType?.trim() || 'none'}`,
         `Reply language: English`,
@@ -187,10 +164,6 @@ export async function runLakuAgentNode(
         distributorContext,
         '',
         'Customer service window test run. Reply entirely in English.',
-        'Write a welcome message following the system shape above: greeting, help topics, 5 example asks (including chat with CS/sales agent), closing.',
-        'Use company name and business description from context when available.',
-        'Do not dump full catalogs, long schedules, or real orders.',
-        'Do not write operator guides / staff checklists.',
         'Do not use em dash (—) or en dash (–) characters.',
       ].join('\n');
 

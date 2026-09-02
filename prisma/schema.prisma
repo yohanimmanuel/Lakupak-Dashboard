@@ -32,6 +32,8 @@ model User {
   language      String     @default("en")
   /// Dashboard product-tour progress (merged with localStorage); optional cross-device sync.
   dashboardTourState Json?
+  /// Monotonic counter for round-robin sales-agent assignment (per distributor user).
+  salesAgentRoundRobinCursor Int @default(0)
   accounts      Account[]
   buyers        Buyer[]
   orders        Order[]

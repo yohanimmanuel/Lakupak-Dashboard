@@ -1,5 +1,5 @@
 /**
- * Meta WhatsApp Cloud API (Graph) helpers for Automations / App Review demos.
+ * Meta WhatsApp Cloud API (Graph) helpers for Lakupak Automations.
  * Do not log access tokens.
  */
 
@@ -50,6 +50,22 @@ function trimStr(value: unknown): string {
   return String(value ?? '').trim();
 }
 
+/**
+ * Convert common AI/markdown emphasis to WhatsApp text formatting.
+ * WhatsApp uses *bold* (single asterisks). **bold** leaves stray * visible on each side.
+ */
+export function normalizeWhatsAppMarkdown(text: string): string {
+  let out = text;
+  for (let i = 0; i < 3; i++) {
+    const next = out
+      .replace(/\*\*\*([^*\n]+)\*\*\*/g, '*$1*')
+      .replace(/\*\*([^*\n]+)\*\*/g, '*$1*');
+    if (next === out) break;
+    out = next;
+  }
+  return out;
+}
+
 /** Digits-only recipient for Cloud API (strips +, spaces, dashes). */
 export function toWhatsAppCloudRecipient(raw: string): string {
   return raw.trim().replace(/[^\d]/g, '');
@@ -82,6 +98,11 @@ export function resolveWhatsAppCloudCredentials(partial?: {
 
   if (!accessToken) return null;
   return { accessToken, phoneNumberId, wabaId };
+}
+
+export function isWhatsAppCloudConfigured(): boolean {
+  const creds = resolveWhatsAppCloudCredentials();
+  return Boolean(creds?.accessToken && creds.phoneNumberId);
 }
 
 async function graphRequest(
@@ -151,7 +172,7 @@ export async function sendTextMessage(args: {
   body: string;
 }): Promise<SendTextMessageResult> {
   const to = toWhatsAppCloudRecipient(args.to);
-  const text = args.body.trim();
+  const text = normalizeWhatsAppMarkdown(args.body).trim();
   if (!to) throw new WhatsAppCloudApiError('Recipient phone is required.', 400);
   if (!text) throw new WhatsAppCloudApiError('Message text is required.', 400);
 
@@ -245,16 +266,9 @@ export async function createMessageTemplate(args: {
   };
 }
 
-/** Read Cloud credentials from a WhatsApp app node config object. */
+/** Cloud API credentials come from server env (WHATSAPP_CLOUD_*), not the workflow UI. */
 export function credentialsFromWhatsAppAppConfig(
-  config: Record<string, unknown> | null | undefined,
+  _config: Record<string, unknown> | null | undefined,
 ): WhatsAppCloudCredentials | null {
-  if (!config) {
-    return resolveWhatsAppCloudCredentials();
-  }
-  return resolveWhatsAppCloudCredentials({
-    accessToken: trimStr(config.accessToken) || null,
-    phoneNumberId: trimStr(config.phoneNumberId) || null,
-    wabaId: trimStr(config.wabaId) || null,
-  });
+  return resolveWhatsAppCloudCredentials();
 }

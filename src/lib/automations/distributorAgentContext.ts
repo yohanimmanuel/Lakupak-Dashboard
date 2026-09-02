@@ -88,11 +88,23 @@ export async function buildDistributorAgentContext(userId: number): Promise<stri
   ]);
 
   const company = user?.company;
+  const marketplaceUrl = (
+    process.env.NEXT_PUBLIC_MARKETPLACE_URL ||
+    process.env.MARKETPLACE_PUBLIC_URL ||
+    'https://laku.id'
+  ).replace(/\/$/, '');
   const context = {
     purpose: 'buyer_facing_customer_service',
+    marketplace: {
+      name: 'Lakupak',
+      url: marketplaceUrl,
+      checkoutRule:
+        'All buying, checkout, payment, and order placement must happen on the marketplace URL. WhatsApp is CS only.',
+    },
     allowedTopics: [
       'published_products_catalog_availability_moq_prices',
       'product_assurance_halal_bpom_original_return_window',
+      'redirect_buyers_to_lakupak_marketplace_for_all_purchases',
       'order_help_after_buyer_provides_order_id',
       'payment_method_type_and_payment_term_days',
       'delivery_method_prefs_days_slots_lead_times',
@@ -100,6 +112,8 @@ export async function buildDistributorAgentContext(userId: number): Promise<stri
       'distributor_public_ops_and_contact',
     ],
     forbiddenTopics: [
+      'taking_orders_or_payment_on_whatsapp',
+      'offline_or_direct_purchase_outside_marketplace',
       'listing_or_summarizing_account_orders_unsolicited',
       'order_ids_store_names_amounts_without_buyer_request',
       'offers_and_promotions_internal',
@@ -149,6 +163,7 @@ export async function buildDistributorAgentContext(userId: number): Promise<stri
         'other',
       ],
       notes: [
+        'All purchases and checkout must go through the Lakupak marketplace, not WhatsApp.',
         'Never list orders, order IDs, store names, or payment status in welcome or unsolicited messages.',
         'Only discuss a specific order after the buyer provides their order ID (and store name if needed).',
         'Returns are typically requested after Delivered or Received.',
