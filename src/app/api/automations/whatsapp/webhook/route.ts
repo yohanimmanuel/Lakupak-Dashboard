@@ -4,6 +4,10 @@ import {
   dispatchInboundWhatsAppMessages,
   parseWhatsAppWebhookMessages,
 } from '@/lib/automations/whatsappInbound';
+import {
+  dispatchWhatsAppStatusWebhooks,
+  parseWhatsAppWebhookStatuses,
+} from '@/lib/automations/whatsappStatusWebhook';
 
 const VERIFY_TOKEN =
   process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN?.trim() ||
@@ -48,12 +52,22 @@ export async function POST(request: NextRequest) {
   }
 
   const messages = parseWhatsAppWebhookMessages(body);
-  if (messages.length > 0) {
+  const statuses = parseWhatsAppWebhookStatuses(body);
+  if (messages.length > 0 || statuses.length > 0) {
     after(async () => {
-      try {
-        await dispatchInboundWhatsAppMessages(messages);
-      } catch (err) {
-        console.error('[whatsapp-webhook] async dispatch failed', err);
+      if (statuses.length > 0) {
+        try {
+          await dispatchWhatsAppStatusWebhooks(statuses);
+        } catch (err) {
+          console.error('[whatsapp-webhook] status dispatch failed', err);
+        }
+      }
+      if (messages.length > 0) {
+        try {
+          await dispatchInboundWhatsAppMessages(messages);
+        } catch (err) {
+          console.error('[whatsapp-webhook] inbound dispatch failed', err);
+        }
       }
     });
   }

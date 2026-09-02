@@ -1,15 +1,34 @@
 import { prisma } from '@/lib/db';
 import type { AutomationWorkflow } from '@/lib/prisma-generated';
-import { runInboundBuyerCsAgent } from '@/lib/automations/buyerCsAgent';
+import {
+  runInboundBuyerCsAgent,
+  buyerRequestedBackToAi,
+  buyerRequestedHandoff,
+  resolveInboundBuyerCsReplyLocale,
+} from '@/lib/automations/buyerCsAgent';
+import {
+  buildAssignAgentHandoffText,
+  buildTerritoryAskPrompt,
+  buildTerritoryRetryPrompt,
+  listSalesRepTerritories,
+  resolveSalesRepForTerritoryReply,
+  type SalesRepAgent,
+} from '@/lib/automations/assignAgentWhatsApp';
 import {
   claimInboundWhatsAppMessage,
+  createEmptyBuyerCsSession,
   loadBuyerCsSession,
   releaseInboundWhatsAppMessage,
   saveBuyerCsSession,
   withBuyerCsSessionLock,
   type BuyerCsSession,
+  type CsMode,
+  type HandoffStage,
 } from '@/lib/automations/buyerCsSession';
-import { executeAssignAgentWhatsApp } from '@/lib/automations/assignAgentWhatsApp';
+import {
+  notifyWhatsAppCsBuyerMessage,
+  notifyWhatsAppCsHandoff,
+} from '@/lib/automations/whatsappCsNotify';
 import {
   credentialsFromWhatsAppAppConfig,
   normalizeE164Phone,
@@ -120,7 +139,24 @@ function findActionConfig(workflow: AutomationWorkflow, actionType: string): Jso
   const node = canvasNodes(workflow).find(
     (n) => n.data?.kind === 'action' && n.data?.catalogType === actionType,
   );
-  return node?.data?.config ?? null;
+  if (node?.data?.config) return node.data.config;
+
+  if (workflow.actionType === actionType) {
+    return asRecord(workflow.actionConfig) ?? null;
+  }
+  return null;
+}
+
+/** Detect a prior reply that already included sales-agent contact details. */
+function sessionIncludesAgentContact(session: BuyerCsSession): boolean {
+  if (session.csMode === 'human') return true;
+  return session.history.some(
+    (turn) =>
+      turn.role === 'assistant' &&
+      /\b(?:will reply to you here|membalas Anda di chat ini|Your sales agent is|sales agent is|WhatsApp or call|Hubungi|Contact:)\b/i.test(
+        turn.content,
+      ),
+  );
 }
 
 function hasCs24hWindow(workflow: AutomationWorkflow): boolean {
@@ -145,6 +181,73 @@ async function recordInboundRun(
   });
 }
 
+async function completeSameChatHandoff(args: {
+  workflow: AutomationWorkflow;
+  session: BuyerCsSession;
+  buyerPhone: string;
+  buyerMessage: string;
+  assignConfig: JsonRecord;
+  territory: string;
+  agent: SalesRepAgent;
+  introLine?: string;
+}): Promise<{
+  replyBody: string;
+  session: BuyerCsSession;
+  agentName: string;
+  logLine: string;
+  notifyHandoff: () => Promise<void>;
+}> {
+  const handoff = await buildAssignAgentHandoffText({
+    userId: args.workflow.userId,
+    workflowName: args.workflow.name,
+    config: args.assignConfig,
+    inline: true,
+    sameChat: true,
+    territory: args.territory,
+    agent: args.agent,
+  });
+
+  const replyBody = args.introLine
+    ? `${args.introLine}\n\n${handoff.body}`
+    : handoff.body;
+
+  const nextHistory: BuyerCsSession['history'] = [
+    ...args.session.history,
+    { role: 'user' as const, content: args.buyerMessage },
+    { role: 'assistant' as const, content: replyBody },
+  ].slice(-12);
+
+  const nextSession: BuyerCsSession = {
+    ...args.session,
+    welcomed: args.session.welcomed,
+    handoffDone: true,
+    handoffStage: 'none',
+    buyerTerritory: args.territory,
+    replyLocale: args.session.replyLocale,
+    csMode: 'human',
+    assignedAgentId: handoff.agentId,
+    assignedAgentName: handoff.agentName,
+    history: nextHistory,
+    updatedAt: new Date().toISOString(),
+  };
+
+  return {
+    replyBody,
+    session: nextSession,
+    agentName: handoff.agentName,
+    logLine: `assign_agent_whatsapp assigned ${handoff.agentName} (${args.territory}, same-chat)`,
+    notifyHandoff: () =>
+      notifyWhatsAppCsHandoff({
+        userId: args.workflow.userId,
+        workflowId: args.workflow.id,
+        workflowName: args.workflow.name,
+        buyerPhone: args.buyerPhone,
+        agentName: handoff.agentName,
+        buyerMessage: args.buyerMessage,
+      }),
+  };
+}
+
 async function handleWorkflowInboundMessage(
   workflow: AutomationWorkflow,
   inbound: InboundWhatsAppMessage,
@@ -164,12 +267,212 @@ async function handleWorkflowInboundMessage(
   if (!text) return false;
 
   const outcome = await withBuyerCsSessionLock(workflow.id, buyerPhone, async () => {
-    const session = (await loadBuyerCsSession(workflow.id, buyerPhone)) ?? {
-      welcomed: false,
-      handoffDone: false,
-      history: [],
-      updatedAt: new Date().toISOString(),
-    };
+    const session =
+      (await loadBuyerCsSession(workflow.id, buyerPhone)) ?? createEmptyBuyerCsSession();
+
+    const owner = await prisma.user.findUnique({
+      where: { id: workflow.userId },
+      select: { language: true },
+    });
+    const replyLocale = resolveInboundBuyerCsReplyLocale({
+      ownerLocale: owner?.language,
+      buyerMessage: text,
+      history: session.history,
+      sessionReplyLocale: session.replyLocale,
+    });
+
+    const parts: string[] = [`buyer_questions: replied to ${buyerPhone}`];
+    let csMode: CsMode = session.csMode;
+    let handoffStage: HandoffStage = session.handoffStage;
+    let buyerTerritory = session.buyerTerritory;
+    let assignedAgentId = session.assignedAgentId;
+    let assignedAgentName = session.assignedAgentName;
+
+    const assignConfig = findActionConfig(workflow, 'assign_agent_whatsapp');
+    const escalate =
+      String(findActionConfig(workflow, 'cs_24h_window')?.escalateOutOfScope ?? 'yes').trim() !==
+      'no';
+
+    if (session.csMode === 'human' && buyerRequestedBackToAi(text)) {
+      const replyBody =
+        replyLocale === 'id'
+          ? 'Anda kembali chat dengan Laku AI di sini.'
+          : 'You are back with Laku AI on this chat.';
+      await sendTextMessage({
+        accessToken: creds.accessToken,
+        phoneNumberId: creds.phoneNumberId,
+        to: buyerPhone,
+        body: replyBody,
+      });
+      const releaseHistory: BuyerCsSession['history'] = [
+        ...session.history,
+        { role: 'user', content: text },
+        { role: 'assistant', content: replyBody },
+      ];
+      const nextSession: BuyerCsSession = {
+        ...session,
+        csMode: 'ai',
+        handoffStage: 'none',
+        buyerTerritory: undefined,
+        assignedAgentId: undefined,
+        assignedAgentName: undefined,
+        handoffDone: false,
+        replyLocale,
+        history: releaseHistory.slice(-12),
+        updatedAt: new Date().toISOString(),
+      };
+      await saveBuyerCsSession(workflow.id, buyerPhone, nextSession);
+      parts.push('buyer_cs: released back to AI');
+      return { kind: 'success' as const, parts };
+    }
+
+    if (
+      session.handoffStage === 'awaiting_territory' &&
+      assignConfig &&
+      escalate
+    ) {
+      const territories = await listSalesRepTerritories(workflow.userId);
+      const matched = await resolveSalesRepForTerritoryReply(workflow.userId, text);
+      let replyBody = '';
+
+      if (matched) {
+        try {
+          const result = await completeSameChatHandoff({
+            workflow,
+            session,
+            buyerPhone,
+            buyerMessage: text,
+            assignConfig,
+            territory: matched.territory,
+            agent: matched.agent,
+          });
+          replyBody = result.replyBody;
+          await sendTextMessage({
+            accessToken: creds.accessToken,
+            phoneNumberId: creds.phoneNumberId,
+            to: buyerPhone,
+            body: replyBody,
+          });
+          await saveBuyerCsSession(workflow.id, buyerPhone, {
+            ...result.session,
+            replyLocale,
+          });
+          void result.notifyHandoff().catch((err) => {
+            const detail = err instanceof Error ? err.message : String(err);
+            console.error('[whatsapp-inbound] CS handoff notify failed', detail);
+          });
+          parts.push(result.logLine);
+          return { kind: 'success' as const, parts };
+        } catch (err) {
+          const detail = err instanceof Error ? err.message : String(err);
+          parts.push(`assign_agent_whatsapp failed: ${detail}`);
+          replyBody = buildTerritoryRetryPrompt(territories, replyLocale);
+        }
+      } else {
+        replyBody = buildTerritoryRetryPrompt(territories, replyLocale);
+        parts.push('assign_agent_whatsapp awaiting valid territory');
+      }
+
+      if (replyBody) {
+        await sendTextMessage({
+          accessToken: creds.accessToken,
+          phoneNumberId: creds.phoneNumberId,
+          to: buyerPhone,
+          body: replyBody,
+        });
+      }
+
+      const nextHistory: BuyerCsSession['history'] = [
+        ...session.history,
+        { role: 'user', content: text },
+      ];
+      if (replyBody) nextHistory.push({ role: 'assistant', content: replyBody });
+
+      await saveBuyerCsSession(workflow.id, buyerPhone, {
+        ...session,
+        handoffStage: 'awaiting_territory',
+        replyLocale,
+        history: nextHistory.slice(-12),
+        updatedAt: new Date().toISOString(),
+      });
+      return { kind: 'success' as const, parts };
+    }
+
+    const wantsHandoff = buyerRequestedHandoff(text);
+    const canStartTerritoryHandoff =
+      wantsHandoff &&
+      assignConfig &&
+      escalate &&
+      session.csMode !== 'human' &&
+      session.handoffStage !== 'awaiting_territory';
+
+    if (canStartTerritoryHandoff) {
+      const territories = await listSalesRepTerritories(workflow.userId);
+      let replyBody = '';
+      if (territories.length === 0) {
+        replyBody =
+          replyLocale === 'id'
+            ? 'Maaf, belum ada sales rep yang tersedia untuk handoff saat ini. Coba lagi nanti atau tanyakan hal lain kepada saya.'
+            : 'Sorry, no sales reps are available for handoff right now. Please try again later or ask me another question.';
+        parts.push('assign_agent_whatsapp skipped: no sales rep territories');
+      } else {
+        replyBody = buildTerritoryAskPrompt(territories, replyLocale);
+        handoffStage = 'awaiting_territory';
+        parts.push('assign_agent_whatsapp asked buyer territory');
+      }
+
+      const territoryAskHistory: BuyerCsSession['history'] = [
+        ...session.history,
+        { role: 'user', content: text },
+        { role: 'assistant', content: replyBody },
+      ];
+
+      await sendTextMessage({
+        accessToken: creds.accessToken,
+        phoneNumberId: creds.phoneNumberId,
+        to: buyerPhone,
+        body: replyBody,
+      });
+
+      await saveBuyerCsSession(workflow.id, buyerPhone, {
+        ...session,
+        handoffStage,
+        handoffDone: false,
+        buyerTerritory: undefined,
+        assignedAgentId: undefined,
+        assignedAgentName: undefined,
+        replyLocale,
+        history: territoryAskHistory.slice(-12),
+        updatedAt: new Date().toISOString(),
+      });
+      return { kind: 'success' as const, parts };
+    }
+
+    if (session.csMode === 'human') {
+      const nextHistory: BuyerCsSession['history'] = [
+        ...session.history,
+        { role: 'user', content: text },
+      ];
+      const nextSession: BuyerCsSession = {
+        ...session,
+        replyLocale,
+        history: nextHistory.slice(-12),
+        updatedAt: new Date().toISOString(),
+      };
+      await saveBuyerCsSession(workflow.id, buyerPhone, nextSession);
+      await notifyWhatsAppCsBuyerMessage({
+        userId: workflow.userId,
+        workflowId: workflow.id,
+        workflowName: workflow.name,
+        buyerPhone,
+        agentName: session.assignedAgentName,
+        buyerMessage: text,
+      });
+      parts.push(
+        `buyer_cs: human mode — waiting for agent${session.assignedAgentName ? ` (${session.assignedAgentName})` : ''}`,
+      );
+      return { kind: 'success' as const, parts };
+    }
 
     const isWelcome = hasCs24hWindow(workflow) && !session.welcomed;
     const agentResult = await runInboundBuyerCsAgent({
@@ -177,20 +480,81 @@ async function handleWorkflowInboundMessage(
       workflowName: workflow.name,
       nodes: canvasNodes(workflow),
       buyerMessage: text,
+      conversationBuyerPhone: buyerPhone,
       isWelcome,
+      locale: owner?.language,
+      sessionReplyLocale: session.replyLocale,
       history: session.history,
     });
 
     if (agentResult.error) {
-      return { kind: 'failed' as const, message: agentResult.error };
-    }
+      const quotaHit = /free-models-per-day|daily.?limit|quota.?exhausted|rate.?limit/i.test(
+        agentResult.error,
+      );
+      const fallbackBody =
+        replyLocale === 'id'
+          ? quotaHit
+            ? 'Maaf, Laku AI sedang tidak tersedia saat ini (batas harian tercapai). Coba lagi nanti atau minta chat dengan sales agent.'
+            : 'Maaf, Laku AI sedang tidak bisa merespons. Coba lagi sebentar atau minta chat dengan sales agent.'
+          : quotaHit
+            ? 'Sorry, Laku AI is temporarily unavailable (daily limit reached). Please try again later or ask to chat with a sales agent.'
+            : 'Sorry, Laku AI could not respond right now. Please try again shortly or ask to chat with a sales agent.';
 
-    if (agentResult.reply) {
       await sendTextMessage({
         accessToken: creds.accessToken,
         phoneNumberId: creds.phoneNumberId,
         to: buyerPhone,
-        body: agentResult.reply,
+        body: fallbackBody,
+      });
+
+      const fallbackHistory: BuyerCsSession['history'] = [
+        ...session.history,
+        { role: 'user', content: text },
+        { role: 'assistant', content: fallbackBody },
+      ];
+      await saveBuyerCsSession(workflow.id, buyerPhone, {
+        ...session,
+        replyLocale,
+        history: fallbackHistory.slice(-12),
+        updatedAt: new Date().toISOString(),
+      });
+
+      parts.push(`buyer_cs: AI failed (${agentResult.error.slice(0, 120)})`);
+      return { kind: 'success' as const, parts };
+    }
+
+    let replyBody = (agentResult.reply ?? '').trim();
+
+    if (agentResult.handoffRequested && !assignConfig) {
+      replyBody =
+        replyBody ||
+        (replyLocale === 'id'
+          ? 'Tentu! Tim kami akan follow up jika tersedia. Sementara itu, ada yang bisa saya bantu?'
+          : 'Of course! A team member will follow up when available. What can I help you with in the meantime?');
+      parts.push('buyer_cs: handoff requested but no assign_agent node');
+    }
+
+    let handoffDone = session.handoffDone;
+    if (handoffDone && !sessionIncludesAgentContact(session)) {
+      handoffDone = false;
+    }
+
+    if (agentResult.handoffRequested) {
+      if (!escalate) {
+        parts.push('assign_agent_whatsapp skipped: escalate disabled on cs_24h_window');
+      } else if (!assignConfig) {
+        parts.push('assign_agent_whatsapp skipped: no assign_agent_whatsapp node');
+      } else if (handoffDone) {
+        parts.push('assign_agent_whatsapp skipped: handoff already done this session');
+      }
+    }
+
+    if (replyBody) {
+      await sendTextMessage({
+        accessToken: creds.accessToken,
+        phoneNumberId: creds.phoneNumberId,
+        to: buyerPhone,
+        body: replyBody,
       });
     }
 
@@ -198,54 +562,26 @@ async function handleWorkflowInboundMessage(
       ...session.history,
       { role: 'user', content: text },
     ];
-    if (agentResult.reply) {
-      nextHistory.push({ role: 'assistant', content: agentResult.reply });
+    if (replyBody) {
+      nextHistory.push({ role: 'assistant', content: replyBody });
     }
 
     const nextSession: BuyerCsSession = {
       welcomed: session.welcomed || isWelcome,
-      handoffDone: session.handoffDone,
+      handoffDone,
+      handoffStage,
+      buyerTerritory,
+      replyLocale,
+      csMode,
+      assignedAgentId,
+      assignedAgentName,
       history: nextHistory.slice(-12),
       updatedAt: new Date().toISOString(),
     };
 
-    const parts = [`buyer_questions: replied to ${buyerPhone}`];
-
-    const assignConfig = findActionConfig(workflow, 'assign_agent_whatsapp');
-    const escalate =
-      String(findActionConfig(workflow, 'cs_24h_window')?.escalateOutOfScope ?? 'yes').trim() !==
-      'no';
-
-    if (
-      agentResult.handoffRequested &&
-      escalate &&
-      assignConfig &&
-      !session.handoffDone
-    ) {
-      try {
-        const assigned = await executeAssignAgentWhatsApp({
-          userId: workflow.userId,
-          workflowName: workflow.name,
-          config: assignConfig,
-          whatsappAppConfig: appConfig,
-          buyerPhone,
-        });
-        parts.push(assigned);
-        nextSession.handoffDone = true;
-      } catch (err) {
-        const detail = err instanceof Error ? err.message : String(err);
-        parts.push(`assign_agent_whatsapp failed: ${detail}`);
-      }
-    }
-
     await saveBuyerCsSession(workflow.id, buyerPhone, nextSession);
     return { kind: 'success' as const, parts };
   });
-
-  if (outcome.kind === 'failed') {
-    await recordInboundRun(workflow.id, 'failed', `buyer_questions failed: ${outcome.message}`);
-    return true;
-  }
 
   await recordInboundRun(workflow.id, 'success', outcome.parts.join('; '));
   return true;

@@ -137,7 +137,7 @@
       "whatsapp_buyer": "Kirim pesan ke pembeli terpilih lewat WhatsApp, Email, atau keduanya. Bisa untuk stok, pesanan, CS, atau pembaruan operasional lain.",
       "share_product_whatsapp": "Bagikan produk terpilih ke pembeli lewat WhatsApp, Email, atau keduanya",
       "draft_activate_offer": "Buat atau aktifkan penawaran clearance untuk jangka waktu tertentu",
-      "assign_agent_whatsapp": "Tugaskan sales agent dan kirim WhatsApp selamat datang",
+      "assign_agent_whatsapp": "Tugaskan sales rep untuk handoff same-chat setelah pembeli menyebut wilayahnya",
       "buyer_question_reply": "Balas dengan pesan siap pakai; eskalasi di luar cakupan ke agent",
       "cs_24h_window": "Buka jendela customer service 24 jam untuk pertanyaan pembeli (isi balasan dari Lakupak AI)",
       "assign_logistic": "Tugaskan logistik otomatis memakai armada dari akun Anda",
@@ -339,7 +339,7 @@
     "whatsapp_buyer": "WhatsApp pembeli",
     "share_product_whatsapp": "Bagikan produk",
     "draft_activate_offer": "Draf / aktifkan penawaran clearance",
-    "assign_agent_whatsapp": "Tugaskan agent + WhatsApp selamat datang",
+    "assign_agent_whatsapp": "Tugaskan agent",
     "buyer_question_reply": "Balas pertanyaan pembeli",
     "cs_24h_window": "Buka jendela CS 24 jam",
     "assign_logistic": "Tugaskan logistik otomatis",
@@ -367,6 +367,7 @@
     "buyerId": "Pilih pembeli",
     "fleetId": "Armada",
     "messageTemplate": "Template pesan",
+    "messageTemplateOptional": "Template pesan (opsional)",
     "messageCategory": "Tipe pesan WhatsApp",
     "discountPercent": "Diskon %",
     "windowDays": "Jendela penawaran (hari)",
@@ -417,5 +418,19 @@
       "skipped": "Dilewati",
       "in_progress": "Sedang berjalan"
     }
+  },
+  "csInbox": {
+    "title": "Kotak masuk WhatsApp CS",
+    "hint": "Saat pembeli minta sales agent, balas di sini dari nomor bisnis yang sama. AI dijeda sampai Anda lepas chat.",
+    "empty": "Belum ada chat handoff aktif. Saat pembeli minta sales agent, percakapan muncul di sini.",
+    "refresh": "Muat ulang kotak masuk",
+    "assigned": "Agen ditugaskan",
+    "back": "Kembali",
+    "replyPlaceholder": "Balas pembeli di WhatsApp…",
+    "send": "Kirim",
+    "releaseAi": "Kembalikan ke AI",
+    "expandChat": "Perluas",
+    "fullTitle": "Chat WhatsApp CS",
+    "closeFull": "Tutup"
   }
 }

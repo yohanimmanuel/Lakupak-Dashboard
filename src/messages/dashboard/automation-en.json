@@ -137,7 +137,7 @@
       "whatsapp_buyer": "Send a message to selected buyers through WhatsApp, Email, or both. Use for stock, orders, CS, or other operational updates.",
       "share_product_whatsapp": "Share a selected product with buyers on WhatsApp, Email, or both",
       "draft_activate_offer": "Draft or activate a clearance offer for a set window",
-      "assign_agent_whatsapp": "Assign a sales agent and send a welcome WhatsApp",
+      "assign_agent_whatsapp": "Assign a sales rep for same-chat handoff after the buyer shares their territory",
       "buyer_question_reply": "Reply with pre-authored messages; escalate out-of-scope to an agent",
       "cs_24h_window": "Open a 24-hour customer service window for buyer questions (reply content comes from Lakupak AI)",
       "assign_logistic": "Auto-assign logistics using a fleet from your account",
@@ -339,7 +339,7 @@
     "whatsapp_buyer": "WhatsApp buyer",
     "share_product_whatsapp": "Share product",
     "draft_activate_offer": "Draft / activate clearance offer",
-    "assign_agent_whatsapp": "Assign agent + welcome WhatsApp",
+    "assign_agent_whatsapp": "Assign agent",
     "buyer_question_reply": "Reply to buyer questions",
     "cs_24h_window": "Open 24h customer service window",
     "assign_logistic": "Auto-assign logistics",
@@ -367,6 +367,7 @@
     "buyerId": "Select buyers",
     "fleetId": "Fleet",
     "messageTemplate": "Message template",
+    "messageTemplateOptional": "Message template (optional)",
     "messageCategory": "WhatsApp message type",
     "discountPercent": "Discount %",
     "windowDays": "Offer window (days)",
@@ -417,5 +418,19 @@
       "skipped": "Skipped",
       "in_progress": "In progress"
     }
+  },
+  "csInbox": {
+    "title": "WhatsApp CS inbox",
+    "hint": "When a buyer requests a sales agent, reply here on the same business number. AI is paused until you release the chat.",
+    "empty": "No active handoff chats. When a buyer asks for a sales agent, the conversation appears here.",
+    "refresh": "Refresh inbox",
+    "assigned": "Assigned agent",
+    "back": "Back",
+    "replyPlaceholder": "Reply to buyer on WhatsApp…",
+    "send": "Send",
+    "releaseAi": "Release back to AI",
+    "expandChat": "Expand",
+    "fullTitle": "WhatsApp CS chat",
+    "closeFull": "Close"
   }
 }

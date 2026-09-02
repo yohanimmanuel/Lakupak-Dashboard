@@ -18,15 +18,72 @@ export type BuyerCsChatTurn = {
   content: string;
 };
 
+export type CsMode = 'ai' | 'human';
+
+export type HandoffStage = 'none' | 'awaiting_territory';
+
 export type BuyerCsSession = {
   welcomed: boolean;
   handoffDone: boolean;
+  handoffStage: HandoffStage;
+  buyerTerritory?: string;
+  /** Sticky reply language for this buyer chat (`en` | `id`). */
+  replyLocale?: 'en' | 'id';
+  /** When `human`, AI is paused and dashboard agents reply on the business number. */
+  csMode: CsMode;
+  assignedAgentId?: string;
+  assignedAgentName?: string;
+  /** Agent outbound delivery idempotency keys already reflected in history. */
+  appendedAgentDeliveryKeys?: string[];
   history: BuyerCsChatTurn[];
   updatedAt: string;
 };
 
+export type BuyerCsConversationSummary = {
+  buyerPhone: string;
+  csMode: CsMode;
+  assignedAgentId?: string;
+  assignedAgentName?: string;
+  lastMessagePreview: string;
+  lastMessageAt: string;
+};
+
+export function normalizeBuyerCsSession(
+  raw: Partial<BuyerCsSession> | null | undefined,
+): BuyerCsSession {
+  return {
+    welcomed: Boolean(raw?.welcomed),
+    handoffDone: Boolean(raw?.handoffDone),
+    handoffStage: raw?.handoffStage === 'awaiting_territory' ? 'awaiting_territory' : 'none',
+    buyerTerritory:
+      typeof raw?.buyerTerritory === 'string' ? raw.buyerTerritory : undefined,
+    replyLocale: raw?.replyLocale === 'id' || raw?.replyLocale === 'en' ? raw.replyLocale : undefined,
+    csMode: raw?.csMode === 'human' ? 'human' : 'ai',
+    assignedAgentId:
+      typeof raw?.assignedAgentId === 'string' ? raw.assignedAgentId : undefined,
+    assignedAgentName:
+      typeof raw?.assignedAgentName === 'string' ? raw.assignedAgentName : undefined,
+    appendedAgentDeliveryKeys: Array.isArray(raw?.appendedAgentDeliveryKeys)
+      ? raw.appendedAgentDeliveryKeys
+          .filter((key): key is string => typeof key === 'string' && key.trim().length > 0)
+          .slice(-24)
+      : undefined,
+    history: Array.isArray(raw?.history) ? raw.history : [],
+    updatedAt:
+      typeof raw?.updatedAt === 'string' ? raw.updatedAt : new Date().toISOString(),
+  };
+}
+
+export function createEmptyBuyerCsSession(): BuyerCsSession {
+  return normalizeBuyerCsSession(null);
+}
+
 function sessionKey(workflowId: string, buyerPhone: string): string {
   return `lakupak:wa-cs:${workflowId}:${buyerPhone.replace(/\D/g, '')}`;
+}
+
+export function buyerCsSessionStorageKey(workflowId: string, buyerPhone: string): string {
+  return sessionKey(workflowId, buyerPhone);
 }
 
 function readMemory(key: string): BuyerCsSession | null {
@@ -56,13 +113,14 @@ export async function loadBuyerCsSession(
     try {
       const raw = await redis.get(key);
       if (!raw) return null;
-      return JSON.parse(raw) as BuyerCsSession;
+      return normalizeBuyerCsSession(JSON.parse(raw) as Partial<BuyerCsSession>);
     } catch {
-      return readMemory(key);
+      const fallback = readMemory(key);
+      return fallback ? normalizeBuyerCsSession(fallback) : null;
     }
   }
-  return readMemory(key);
-}
+  const stored = readMemory(key);
+  return stored ? normalizeBuyerCsSession(stored) : null;}
 
 export async function saveBuyerCsSession(
   workflowId: string,
@@ -264,4 +322,77 @@ export async function releaseInboundWhatsAppMessage(messageId: string): Promise<
     }
   }
   memoryInboundDedup.delete(key);
+}
+
+function summaryFromSession(
+  buyerPhone: string,
+  session: BuyerCsSession,
+): BuyerCsConversationSummary {
+  const lastTurn = session.history[session.history.length - 1];
+  return {
+    buyerPhone,
+    csMode: session.csMode,
+    assignedAgentId: session.assignedAgentId,
+    assignedAgentName: session.assignedAgentName,
+    lastMessagePreview: (lastTurn?.content ?? '').slice(0, 160),
+    lastMessageAt: session.updatedAt,
+  };
+}
+
+function collectMemorySessionsForWorkflow(
+  workflowId: string,
+  humanOnly: boolean,
+): BuyerCsConversationSummary[] {
+  const prefix = `lakupak:wa-cs:${workflowId}:`;
+  const out: BuyerCsConversationSummary[] = [];
+  const now = Date.now();
+  for (const [key, row] of memorySessions) {
+    if (!key.startsWith(prefix)) continue;
+    if (now > row.expiresAt) continue;
+    const session = normalizeBuyerCsSession(row.value);
+    if (humanOnly && session.csMode !== 'human') continue;
+    const digits = key.slice(prefix.length);
+    if (!digits) continue;
+    out.push(summaryFromSession(`+${digits}`, session));
+  }
+  return out;
+}
+
+/** List active buyer CS sessions for a workflow (Redis scan with in-memory fallback). */
+export async function listBuyerCsSessionsForWorkflow(
+  workflowId: string,
+  opts?: { humanOnly?: boolean },
+): Promise<BuyerCsConversationSummary[]> {
+  const humanOnly = opts?.humanOnly ?? false;
+  const prefix = `lakupak:wa-cs:${workflowId}:`;
+  const redis = getRedisClient();
+  const out: BuyerCsConversationSummary[] = [];
+
+  if (redis) {
+    try {
+      let cursor = '0';
+      do {
+        const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', `${prefix}*`, 'COUNT', 100);
+        cursor = nextCursor;
+        for (const key of keys) {
+          if (key.endsWith(':lock')) continue;
+          const raw = await redis.get(key);
+          if (!raw) continue;
+          const session = normalizeBuyerCsSession(JSON.parse(raw) as Partial<BuyerCsSession>);
+          if (humanOnly && session.csMode !== 'human') continue;
+          const digits = key.slice(prefix.length);
+          if (!digits) continue;
+          out.push(summaryFromSession(`+${digits}`, session));
+        }
+      } while (cursor !== '0');
+      out.sort((a, b) => b.lastMessageAt.localeCompare(a.lastMessageAt));
+      return out;
+    } catch {
+      // fall through
+    }
+  }
+
+  const memoryRows = collectMemorySessionsForWorkflow(workflowId, humanOnly);
+  memoryRows.sort((a, b) => b.lastMessageAt.localeCompare(a.lastMessageAt));
+  return memoryRows;
 }

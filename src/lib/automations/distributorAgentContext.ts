@@ -1,4 +1,5 @@
 import { prisma } from '@/app/api/graphql/modules/common/prisma';
+import { toWhatsAppCloudRecipient } from '@/lib/whatsapp/cloudApi';
 
 const SAMPLE = 8;
 const MAX_CONTEXT_CHARS = 28_000;
@@ -166,6 +167,7 @@ export async function buildDistributorAgentContext(userId: number): Promise<stri
         'All purchases and checkout must go through the Lakupak marketplace, not WhatsApp.',
         'Never list orders, order IDs, store names, or payment status in welcome or unsolicited messages.',
         'Only discuss a specific order after the buyer provides their order ID (and store name if needed).',
+        'When the buyer asks about their order, you may state the products bought, quantities, and prices from the order line items.',
         'Returns are typically requested after Delivered or Received.',
         'Payment method type (Bank Transfer / COD) is buyer-safe; never share bank account numbers.',
         'Shipping fee may be agreed offline and is not always auto-charged at checkout.',
@@ -230,4 +232,189 @@ export async function buildDistributorAgentContext(userId: number): Promise<stri
   };
 
   return truncateContext(context);
+}
+
+const BUYER_ORDER_ID_RE = /\b(?:LKO|LK|ORD)[-_]?\d{6,}\b/gi;
+
+function moneyString(value: unknown): string | null {
+  if (value == null) return null;
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  if (typeof value === 'object' && value !== null && 'toString' in value) {
+    const s = String((value as { toString: () => string }).toString()).trim();
+    return s || null;
+  }
+  const s = String(value).trim();
+  return s || null;
+}
+
+function extractBuyerOrderIds(...texts: Array<string | null | undefined>): string[] {
+  const found = new Set<string>();
+  for (const text of texts) {
+    if (!text) continue;
+    for (const match of text.matchAll(BUYER_ORDER_ID_RE)) {
+      const id = String(match[0] ?? '').trim().toUpperCase();
+      if (id) found.add(id);
+    }
+  }
+  return [...found].slice(0, 3);
+}
+
+function conversationPhoneDigits(phone: string): string {
+  return toWhatsAppCloudRecipient(phone.trim());
+}
+
+function phoneDigitsMatch(
+  stored: string | null | undefined,
+  conversationDigits: string,
+): boolean {
+  const storedDigits = toWhatsAppCloudRecipient(String(stored ?? ''));
+  if (!storedDigits || !conversationDigits) return false;
+  return (
+    storedDigits === conversationDigits ||
+    storedDigits.endsWith(conversationDigits) ||
+    conversationDigits.endsWith(storedDigits)
+  );
+}
+
+async function resolveBuyerIdsForConversationPhone(args: {
+  userId: number;
+  conversationBuyerPhone: string;
+}): Promise<string[]> {
+  const conversationDigits = conversationPhoneDigits(args.conversationBuyerPhone);
+  if (!conversationDigits) return [];
+
+  const buyers = await prisma.buyer.findMany({
+    where: { userId: args.userId },
+    select: { buyerId: true, phone: true },
+  });
+
+  return buyers
+    .filter((buyer) => phoneDigitsMatch(buyer.phone, conversationDigits))
+    .map((buyer) => buyer.buyerId);
+}
+
+function orderMatchesConversationBuyer(args: {
+  order: {
+    buyerId: string | null;
+    contactPhone: string;
+    contactPhoneSnapshot: string | null;
+  };
+  conversationDigits: string;
+  buyerIds: string[];
+}): boolean {
+  if (args.buyerIds.length > 0 && args.order.buyerId && args.buyerIds.includes(args.order.buyerId)) {
+    return true;
+  }
+  return (
+    phoneDigitsMatch(args.order.contactPhone, args.conversationDigits) ||
+    phoneDigitsMatch(args.order.contactPhoneSnapshot, args.conversationDigits)
+  );
+}
+
+/**
+ * Buyer-requested order snapshot for CS: line items (product, qty, price) plus
+ * high-level status. Scoped to this distributor and the verified WhatsApp buyer.
+ */
+export async function buildBuyerOrderLookupContext(args: {
+  userId: number;
+  /** E.164 phone from the authenticated WhatsApp conversation (webhook `from`). */
+  conversationBuyerPhone: string;
+  buyerMessage: string;
+  history?: Array<{ role: string; content: string }>;
+}): Promise<string | null> {
+  const conversationDigits = conversationPhoneDigits(args.conversationBuyerPhone);
+  if (!conversationDigits) return null;
+
+  const historyText = (args.history ?? [])
+    .slice(-8)
+    .map((t) => t.content)
+    .join('\n');
+  const orderIds = extractBuyerOrderIds(args.buyerMessage, historyText);
+  if (orderIds.length === 0) return null;
+
+  const buyerIds = await resolveBuyerIdsForConversationPhone({
+    userId: args.userId,
+    conversationBuyerPhone: args.conversationBuyerPhone,
+  });
+
+  const candidateOrders = await prisma.order.findMany({
+    where: {
+      userId: args.userId,
+      isDeleted: false,
+      OR: orderIds.map((id) => ({
+        orderId: { equals: id, mode: 'insensitive' as const },
+      })),
+    },
+    take: 6,
+    select: {
+      orderId: true,
+      buyerId: true,
+      contactPhone: true,
+      contactPhoneSnapshot: true,
+      orderStatus: true,
+      paymentStatus: true,
+      deliveryMethod: true,
+      storeName: true,
+      totalAmount: true,
+      orderItemsRel: {
+        take: 30,
+        select: {
+          productNameSnapshot: true,
+          variantNameSnapshot: true,
+          packageQuantity: true,
+          packageType: true,
+          piecesPerPackage: true,
+          pricePerPackage: true,
+          unitPriceSnapshot: true,
+          currencySnapshot: true,
+          subtotal: true,
+        },
+      },
+    },
+  });
+
+  const orders = candidateOrders
+    .filter((order) =>
+      orderMatchesConversationBuyer({ order, conversationDigits, buyerIds }),
+    )
+    .slice(0, 3);
+
+  if (orders.length === 0) {
+    return truncateContext({
+      buyerOrderLookup: {
+        requestedOrderIds: orderIds,
+        found: false,
+        note:
+          'No matching order for this buyer on this chat. Ask them to confirm the order ID belongs to the phone number they are messaging from.',
+      },
+    });
+  }
+
+  return truncateContext({
+    buyerOrderLookup: {
+      requestedOrderIds: orderIds,
+      found: true,
+      note:
+        'Buyer identified these orders on this WhatsApp chat. You MAY state product name, variant, quantity, unit/package price, and line subtotal. Do not dump other customers’ orders.',
+      orders: orders.map((order) => ({
+        orderId: order.orderId,
+        orderStatus: order.orderStatus,
+        paymentStatus: order.paymentStatus,
+        deliveryMethod: order.deliveryMethod,
+        storeName: order.storeName,
+        totalAmount: moneyString(order.totalAmount),
+        items: order.orderItemsRel.map((item) => ({
+          productName: item.productNameSnapshot,
+          variantName: item.variantNameSnapshot,
+          quantity: item.packageQuantity ?? 1,
+          packageType: item.packageType,
+          piecesPerPackage: item.piecesPerPackage,
+          pricePerPackage: moneyString(item.pricePerPackage),
+          unitPrice: moneyString(item.unitPriceSnapshot),
+          lineSubtotal: moneyString(item.subtotal),
+          currency: item.currencySnapshot,
+        })),
+      })),
+    },
+  });
 }

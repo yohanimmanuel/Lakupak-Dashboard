@@ -39,6 +39,18 @@ export class WhatsAppCloudApiError extends Error {
   }
 }
 
+/** True when the provider result is unknown and a blind resend may duplicate delivery. */
+export function isIndeterminateWhatsAppSendError(err: unknown): boolean {
+  if (!(err instanceof Error)) return true;
+  if (err instanceof WhatsAppCloudApiError) {
+    if (err.status === 408 || err.status === 429) return true;
+    if (err.status >= 500) return true;
+    return false;
+  }
+  const name = err.name;
+  return name === 'TimeoutError' || name === 'AbortError' || name === 'TypeError';
+}
+
 type JsonRecord = Record<string, unknown>;
 
 function asRecord(value: unknown): JsonRecord | null {
@@ -170,21 +182,29 @@ export async function sendTextMessage(args: {
   phoneNumberId: string;
   to: string;
   body: string;
+  /** Returned on status webhooks for outbound delivery reconciliation. Max 200 chars. */
+  bizOpaqueCallbackData?: string;
 }): Promise<SendTextMessageResult> {
   const to = toWhatsAppCloudRecipient(args.to);
   const text = normalizeWhatsAppMarkdown(args.body).trim();
   if (!to) throw new WhatsAppCloudApiError('Recipient phone is required.', 400);
   if (!text) throw new WhatsAppCloudApiError('Message text is required.', 400);
 
+  const callbackData = trimStr(args.bizOpaqueCallbackData).slice(0, 200);
+  const payload: JsonRecord = {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to,
+    type: 'text',
+    text: { preview_url: false, body: text },
+  };
+  if (callbackData) {
+    payload.biz_opaque_callback_data = callbackData;
+  }
+
   const data = await graphRequest(`/${encodeURIComponent(args.phoneNumberId)}/messages`, args.accessToken, {
     method: 'POST',
-    body: JSON.stringify({
-      messaging_product: 'whatsapp',
-      recipient_type: 'individual',
-      to,
-      type: 'text',
-      text: { preview_url: false, body: text },
-    }),
+    body: JSON.stringify(payload),
   });
 
   const messages = Array.isArray(data.messages) ? data.messages : [];

@@ -616,6 +616,7 @@ function DetailsInner() {
           onDeleteRunAction={(runId) => void deleteRun(runId)}
           onClearAllRunsAction={() => void clearAllRuns()}
           clearingRuns={clearingRuns}
+          workflowId={id ?? undefined}
         />
       }
     />

@@ -22,6 +22,7 @@ import { BuilderSelect } from './BuilderSelect';
 import type { WorkflowFlowEdge, WorkflowFlowNode } from './canvasTypes';
 import { DEFAULT_CONDITION_CONFIG } from './canvasTypes';
 import { WorkflowRunsPanel } from './WorkflowRunsPanel';
+import { WhatsAppCsInboxPanel } from './WhatsAppCsInboxPanel';
 import { useBuilderPanelControls } from './WorkflowBuilderShell';
 import { BuyerPickerField, normalizePickedBuyers, toPickedBuyer } from './BuyerPickerField';
 import { CampaignPickerField, normalizePickedCampaigns } from './CampaignPickerField';
@@ -297,6 +298,7 @@ export function StepDetailsPanel({
   onDeleteRunAction,
   onClearAllRunsAction,
   clearingRuns = false,
+  workflowId,
 }: {
   draft: WorkflowDraft;
   selectedNodeId: string | null;
@@ -308,6 +310,7 @@ export function StepDetailsPanel({
   onDeleteRunAction?: (runId: string) => void;
   onClearAllRunsAction?: () => void;
   clearingRuns?: boolean;
+  workflowId?: string;
 }) {
   const { tBuilder, tFields, translateTrigger, translateAction } = useAutomationTranslations();
   const selected = draft.nodes.find((n) => n.id === selectedNodeId) ?? null;
@@ -706,7 +709,15 @@ export function StepDetailsPanel({
                       key={field.key}
                       field={field}
                       value={selected.data.config?.[field.key]}
-                      label={tFields.has(field.key) ? tFields(field.key) : field.key}
+                      label={
+                        selected.data.catalogType === 'assign_agent_whatsapp' &&
+                        field.key === 'messageTemplate' &&
+                        tFields.has('messageTemplateOptional')
+                          ? tFields('messageTemplateOptional')
+                          : tFields.has(field.key)
+                            ? tFields(field.key)
+                            : field.key
+                      }
                       optionLabel={(option) =>
                         tFields.has(`options.${option}`) ? tFields(`options.${option}`) : option
                       }
@@ -722,6 +733,11 @@ export function StepDetailsPanel({
                     />
                   ),
                 )}
+              {workflowId && selected.data.catalogType === 'cs_24h_window' && (
+                <div className="-mx-4 border-t border-gray-100 px-4 pt-4">
+                  <WhatsAppCsInboxPanel workflowId={workflowId} embedded />
+                </div>
+              )}
             </>
           )}
 

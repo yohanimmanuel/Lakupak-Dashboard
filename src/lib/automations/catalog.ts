@@ -192,15 +192,7 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
   lead_management: [
     {
       type: 'assign_agent_whatsapp',
-      fields: [
-        {
-          key: 'assignmentRule',
-          kind: 'select',
-          options: ['territory', 'load', 'round_robin'],
-        },
-        WHATSAPP_MESSAGE_CATEGORY_FIELD,
-        { key: 'messageTemplate', kind: 'textarea' },
-      ],
+      fields: [{ key: 'messageTemplate', kind: 'textarea' }],
     },
     {
       type: 'cs_24h_window',
@@ -669,7 +661,6 @@ export function collectAutomationDryRunIssues(args: {
         action.type === 'share_product_whatsapp' ||
         action.type === 'return_confirm_whatsapp' ||
         action.type === 'buyer_question_reply' ||
-        action.type === 'assign_agent_whatsapp' ||
         action.type === 'cart_winback' ||
         action.type === 'send_campaign') &&
       configMissing(action.config, 'messageTemplate')
@@ -681,7 +672,6 @@ export function collectAutomationDryRunIssues(args: {
         action.type === 'share_product_whatsapp' ||
         action.type === 'return_confirm_whatsapp' ||
         action.type === 'buyer_question_reply' ||
-        action.type === 'assign_agent_whatsapp' ||
         action.type === 'cart_winback' ||
         action.type === 'send_campaign') &&
       actionUsesWhatsAppChannel(action.type, action.config) &&

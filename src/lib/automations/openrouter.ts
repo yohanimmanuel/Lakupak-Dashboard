@@ -56,6 +56,9 @@ function extractErrorMessage(payload: OpenRouterErrorBody | null, statusText: st
 }
 
 function isTransientOpenRouterFailure(status: number, message: string): boolean {
+  if (/free-models-per-day|daily.?limit|quota.?exhausted|insufficient.?credits/i.test(message)) {
+    return false;
+  }
   if (
     status === 408 ||
     status === 429 ||
