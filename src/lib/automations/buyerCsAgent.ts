@@ -24,16 +24,16 @@ type CanvasNode = {
   };
 };
 
-/** Unambiguous handoff phrases (request verb + human target in one match). */
+/** Unambiguous handoff phrases that already include a human target in one match. */
 const HANDOFF_PHRASE_RE =
-  /\b(?:speak to|talk to|wanna talk to|want to talk to|chat with|connect me(?:\s+(?:to|with))?|bicara dengan|chat dengan|hubungi(?:\s+(?:cs(?:\s+manusia)?|customer service|agen(?:\s+penjualan)?|sales(?:\s+manusia)?|manusia))?)\b/i;
+  /\b(?:hubungi\s+(?:cs(?:\s+manusia)?|customer service|agen(?:\s+penjualan)?|sales(?:\s+(?:agen(?:t)?)?|manusia)?|manusia)|(?:speak to|talk to|wanna talk to|want to talk to|chat with|connect me(?:\s+(?:to|with))?|bicara(?:\s+(?:dengan|ke|sama))|chat dengan|menyambungkan|menghubungkan|sambungkan|hubungkan)(?:\s+(?:saya|me|anda))?(?:\s+(?:dengan|ke|sama|to|with))?\s+(?:a\s+|an\s+|the\s+)?(?:human|real person|customer service|sales\s+agen(?:t)?s?|live agent|cs(?:\s+manusia)?|agen\s+penjualan|agen\s+sales|sales\s+manusia|sales\s+rep(?:resentative)?|manusia|sales))\b/i;
 
 /** Request-intent verbs paired with human-agent targets (bare chat/speak/talk omitted to avoid informational false positives). */
 const HANDOFF_REQUEST_VERB_RE =
-  /\b(?:want|wanna|need|would like|can i|could i|may i|please|let me|get me|transfer|escalat|hubungi|bicara|hubungkan|sambungkan|mau|ingin|minta|tolong)\b/i;
+  /\b(?:want|wanna|need|would like|can i|could i|may i|please|let me|get me|transfer|escalat|hubungi|bicara|hubungkan|sambungkan|menyambungkan|menghubungkan|mau|ingin|minta|tolong|bisa)\b/i;
 
 const HANDOFF_AGENT_TARGET_RE =
-  /\b(?:human|real person|customer service|sales agent|live agent|cs manusia|agen penjualan|sales manusia)\b/i;
+  /\b(?:human|real person|customer service|sales\s+agen(?:t)?s?|live agent|cs manusia|agen\s+penjualan|agen\s+sales|sales\s+manusia|sales\s+rep(?:resentative)?)\b/i;
 
 export function buyerRequestedHandoff(message: string): boolean {
   const text = message.trim();
@@ -104,11 +104,17 @@ export function detectBuyerMessageLocale(message: string): BuyerCsReplyLocale | 
 }
 
 export function resolveInboundBuyerCsReplyLocale(args: {
+  workflowReplyLocale?: string | null;
   ownerLocale?: string | null;
   buyerMessage: string;
   history?: BuyerCsChatTurn[];
   sessionReplyLocale?: BuyerCsReplyLocale;
 }): BuyerCsReplyLocale {
+  const workflowLocale = String(args.workflowReplyLocale ?? '').trim().toLowerCase();
+  if (workflowLocale === 'id' || workflowLocale === 'en') {
+    return workflowLocale;
+  }
+
   const fromCurrent = detectBuyerMessageLocale(args.buyerMessage);
   if (fromCurrent) return fromCurrent;
 
@@ -166,6 +172,7 @@ export async function runInboundBuyerCsAgent(input: {
     normalizeLakuAgentModelId(config.model ?? config.providerModel),
   );
   const replyLocale = resolveInboundBuyerCsReplyLocale({
+    workflowReplyLocale: input.locale,
     ownerLocale: input.locale,
     buyerMessage: input.buyerMessage,
     history: input.history,
@@ -200,8 +207,8 @@ export async function runInboundBuyerCsAgent(input: {
   }
 
   const languageRule = replyInIndonesian
-    ? 'Reply entirely in Indonesian (Bahasa Indonesia). Keep product names, order IDs, and proper nouns as-is. Never ask the buyer to change language or mention language settings.'
-    : 'Reply entirely in English. Keep product names, order IDs, and proper nouns as-is. If the buyer writes in Bahasa Indonesia, reply in Bahasa Indonesia instead. Never ask the buyer to change language or mention language settings.';
+    ? 'Reply entirely in Indonesian (Bahasa Indonesia). Keep product names, order IDs, and proper nouns as-is. Do not switch to English unless the workflow language is English. Never ask the buyer to change language or mention language settings.'
+    : 'Reply entirely in English. Keep product names, order IDs, and proper nouns as-is. Do not switch to Indonesian unless the workflow language is Indonesian. Never ask the buyer to change language or mention language settings.';
 
   const marketplaceUrl = resolveMarketplacePublicUrl();
   const marketplaceRule = replyInIndonesian
@@ -235,6 +242,7 @@ export async function runInboundBuyerCsAgent(input: {
     marketplaceRule,
     'FORMATTING: Never use em dashes (—) or en dashes (–). Use commas, periods, colons, or hyphens (-) instead.',
     'FORMATTING: For emphasis use WhatsApp style with single asterisks only, like *this*. Never use **double asterisks** or markdown headings.',
+    'FORMATTING: Use real line breaks (newline characters). Never merge greeting, bullets, numbered examples, and closing into one paragraph. Put a blank line between sections and one line per bullet or numbered item.',
     languageRule,
     input.isWelcome
       ? buildBuyerCsWelcomeShape(replyInIndonesian)

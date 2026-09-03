@@ -84,7 +84,7 @@ function ChatThread({
         {session.history.map((turn, idx) => (
           <div
             key={`${turn.role}-${idx}`}
-            className={`rounded-md px-2 py-1.5 text-[11px] leading-snug ${
+            className={`whitespace-pre-wrap rounded-md px-2 py-1.5 text-[11px] leading-snug ${
               turn.role === 'user'
                 ? 'ml-4 bg-gray-100 text-gray-800'
                 : 'mr-4 bg-[#0a61d7]/10 text-gray-900'

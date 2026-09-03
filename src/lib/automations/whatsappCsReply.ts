@@ -224,8 +224,7 @@ export async function sendWhatsAppCsAgentReply(args: {
       throw new Error('WhatsApp Cloud API is not configured.');
     }
 
-    const label = args.senderName?.trim() || session.assignedAgentName?.trim() || 'Sales agent';
-    const outbound = `*${label}:* ${body}`;
+    const outbound = body;
 
     const { messageId, record } = await deliverIdempotentWhatsAppCsOutbound({
       workflowId: args.workflow.id,

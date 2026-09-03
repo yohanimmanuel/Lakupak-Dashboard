@@ -202,6 +202,11 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
           kind: 'select',
           options: ['yes', 'no'],
         },
+        {
+          key: 'csReplyLanguage',
+          kind: 'select',
+          options: ['en', 'id'],
+        },
       ],
     },
     { type: 'notify_dashboard', fields: [] },

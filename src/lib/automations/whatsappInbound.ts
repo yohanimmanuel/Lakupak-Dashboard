@@ -4,7 +4,6 @@ import {
   runInboundBuyerCsAgent,
   buyerRequestedBackToAi,
   buyerRequestedHandoff,
-  resolveInboundBuyerCsReplyLocale,
 } from '@/lib/automations/buyerCsAgent';
 import {
   buildAssignAgentHandoffText,
@@ -190,6 +189,7 @@ async function completeSameChatHandoff(args: {
   territory: string;
   agent: SalesRepAgent;
   introLine?: string;
+  locale?: 'en' | 'id';
 }): Promise<{
   replyBody: string;
   session: BuyerCsSession;
@@ -205,6 +205,7 @@ async function completeSameChatHandoff(args: {
     sameChat: true,
     territory: args.territory,
     agent: args.agent,
+    locale: args.locale,
   });
 
   const replyBody = args.introLine
@@ -270,16 +271,9 @@ async function handleWorkflowInboundMessage(
     const session =
       (await loadBuyerCsSession(workflow.id, buyerPhone)) ?? createEmptyBuyerCsSession();
 
-    const owner = await prisma.user.findUnique({
-      where: { id: workflow.userId },
-      select: { language: true },
-    });
-    const replyLocale = resolveInboundBuyerCsReplyLocale({
-      ownerLocale: owner?.language,
-      buyerMessage: text,
-      history: session.history,
-      sessionReplyLocale: session.replyLocale,
-    });
+    const csWindowConfig = findActionConfig(workflow, 'cs_24h_window');
+    const configuredLanguage = String(csWindowConfig?.csReplyLanguage ?? '').trim().toLowerCase();
+    const replyLocale = configuredLanguage === 'id' ? 'id' : 'en';
 
     const parts: string[] = [`buyer_questions: replied to ${buyerPhone}`];
     let csMode: CsMode = session.csMode;
@@ -290,7 +284,7 @@ async function handleWorkflowInboundMessage(
 
     const assignConfig = findActionConfig(workflow, 'assign_agent_whatsapp');
     const escalate =
-      String(findActionConfig(workflow, 'cs_24h_window')?.escalateOutOfScope ?? 'yes').trim() !==
+      String(csWindowConfig?.escalateOutOfScope ?? 'yes').trim() !==
       'no';
 
     if (session.csMode === 'human' && buyerRequestedBackToAi(text)) {
@@ -345,6 +339,7 @@ async function handleWorkflowInboundMessage(
             assignConfig,
             territory: matched.territory,
             agent: matched.agent,
+            locale: replyLocale,
           });
           replyBody = result.replyBody;
           await sendTextMessage({
@@ -482,8 +477,8 @@ async function handleWorkflowInboundMessage(
       buyerMessage: text,
       conversationBuyerPhone: buyerPhone,
       isWelcome,
-      locale: owner?.language,
-      sessionReplyLocale: session.replyLocale,
+      locale: replyLocale,
+      sessionReplyLocale: replyLocale,
       history: session.history,
     });
 

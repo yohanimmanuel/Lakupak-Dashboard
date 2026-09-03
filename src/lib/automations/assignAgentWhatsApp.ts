@@ -17,7 +17,10 @@ export type SalesRepAgent = {
 };
 
 const DEFAULT_INLINE_SAME_CHAT_HANDOFF_TEMPLATE =
-  'For {{territory}}, your sales rep is *{{agentName}}*. They will reply to you here in this chat shortly. Please stay on this number.';
+  'For {{territory}}, your sales rep is *{{agentName}}*.\n\nThey will reply to you here in this chat shortly.\nPlease stay on this number.';
+
+const DEFAULT_INLINE_SAME_CHAT_HANDOFF_TEMPLATE_ID =
+  'Untuk {{territory}}, sales rep Anda adalah *{{agentName}}*.\n\nMereka akan membalas Anda di chat ini sebentar lagi.\nTetap di nomor ini ya.';
 
 function interpolate(template: string, vars: Record<string, string>): string {
   let out = template;
@@ -161,15 +164,24 @@ export function buildSameChatHandoffBody(args: {
   agent: SalesRepAgent;
   buyerName?: string;
   territory?: string;
+  locale?: 'en' | 'id';
 }): string {
+  const locale = args.locale === 'id' ? 'id' : 'en';
+  const fallbackBuyerName =
+    args.buyerName?.trim() || (locale === 'id' ? 'kak' : 'there');
+  const fallbackTerritory =
+    args.territory?.trim() || (locale === 'id' ? 'wilayah Anda' : 'your area');
+  const template =
+    locale === 'id'
+      ? DEFAULT_INLINE_SAME_CHAT_HANDOFF_TEMPLATE_ID
+      : DEFAULT_INLINE_SAME_CHAT_HANDOFF_TEMPLATE;
   const custom = String(args.config.messageTemplate ?? '').trim();
-  const core = interpolate(DEFAULT_INLINE_SAME_CHAT_HANDOFF_TEMPLATE, {
+  const core = interpolate(template, {
     agentName: args.agent.name,
     agentPhone: args.agent.phone,
-    buyerName: args.buyerName?.trim() || 'there',
+    buyerName: fallbackBuyerName,
     workflowName: args.workflowName || 'Lakupak',
-    territory: args.territory?.trim() || 'your area',
-  });
+    territory: fallbackTerritory,  });
 
   if (!custom) return core;
 
@@ -192,6 +204,7 @@ export async function buildAssignAgentHandoffText(args: {
   sameChat?: boolean;
   territory?: string;
   agent?: SalesRepAgent;
+  locale?: 'en' | 'id';
 }): Promise<{ body: string; agentName: string; agentId: string; territory?: string }> {
   const sameChat = args.sameChat ?? Boolean(args.inline);
   if (!sameChat) {
@@ -220,6 +233,7 @@ export async function buildAssignAgentHandoffText(args: {
     agent,
     buyerName: args.buyerName,
     territory,
+    locale: args.locale,
   });
 
   return {
