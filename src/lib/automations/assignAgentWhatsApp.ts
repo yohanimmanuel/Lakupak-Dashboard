@@ -17,10 +17,10 @@ export type SalesRepAgent = {
 };
 
 const DEFAULT_INLINE_SAME_CHAT_HANDOFF_TEMPLATE =
-  'For {{territory}}, your sales rep is *{{agentName}}*.\n\nThey will reply to you here in this chat shortly.\nPlease stay on this number.';
+  'For {{territory}}, your sales rep is *{{agentName}}*.\n\nThey can also reply here on this business chat shortly.\nOr message them directly on WhatsApp: {{agentPhone}}\n(Direct chat with their number starts a new thread; this chat history stays on the business number.)';
 
 const DEFAULT_INLINE_SAME_CHAT_HANDOFF_TEMPLATE_ID =
-  'Untuk {{territory}}, sales rep Anda adalah *{{agentName}}*.\n\nMereka akan membalas Anda di chat ini sebentar lagi.\nTetap di nomor ini ya.';
+  'Untuk {{territory}}, sales rep Anda adalah *{{agentName}}*.\n\nMereka juga bisa membalas di chat bisnis ini sebentar lagi.\nAtau chat langsung ke WhatsApp mereka: {{agentPhone}}\n(Chat ke nomor sales adalah percakapan baru; riwayat chat ini tetap di nomor bisnis.)';
 
 function interpolate(template: string, vars: Record<string, string>): string {
   let out = template;
