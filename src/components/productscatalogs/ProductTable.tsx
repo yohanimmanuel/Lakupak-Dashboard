@@ -12,7 +12,7 @@ import { formatNumberByCurrency } from '@/config/currencyConfig';
 import { getProductTotalStock } from '../../utils/stockUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useProductsTranslations } from '@/hooks/useProductsTranslations';
-import { getProductCompletion, isProductMarketplacePublishable } from '@/utils/productCompletion';
+import { CATALOG_COMPLETION_OPTIONS, getProductCompletion, isProductMarketplacePublishable } from '@/utils/productCompletion';
 
 const statusTabs = [
   { label: "All" },
@@ -64,7 +64,6 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
     tShared,
     tTable,
     tCatalog,
-    tMarketplace,
     translateFieldName,
     translateStatusTab,
     translateStatus,
@@ -382,88 +381,18 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
   }, [products, userCurrency]);
 
   const getSelectionState = useCallback(() => {
-    if (selectedProducts.length === 0) {
-      return {
-        hasPublished: false,
-        hasUnpublished: false,
-        readyToPublishCount: 0,
-        incompleteCount: 0,
-        canPublish: false,
-        canUnpublish: false,
-        canRemove: true,
-        singleProductMissingFields: [] as string[],
-        isMixed: false,
-      };
-    }
-
     const selectedProductData = tableRows.filter(product => selectedProducts.includes(String(product.id)));
+    const hasDraft = selectedProductData.some(product => product.status === 'Draft');
     const hasPublished = selectedProductData.some(product => product.status === 'Published');
-    const unpublishedProducts = selectedProductData.filter(product => product.status !== 'Published');
-    const hasUnpublished = unpublishedProducts.length > 0;
-    const isMixed = hasPublished && hasUnpublished;
-
-    const readyToPublishProducts = unpublishedProducts.filter(p => isProductComplete(p.productId));
-    const incompleteProducts = unpublishedProducts.filter(p => !isProductComplete(p.productId));
-
-    const readyToPublishCount = readyToPublishProducts.length;
-    const incompleteCount = incompleteProducts.length;
-
-    let singleProductMissingFields: string[] = [];
-    if (selectedProducts.length === 1 && unpublishedProducts.length === 1) {
-      const orig = products.find(p => p.productId === unpublishedProducts[0].productId);
-      if (orig) {
-        const completion = getProductCompletion(orig, undefined, userCurrency, {
-          requirePositiveStock: true,
-          requirePositivePrice: true,
-        });
-        singleProductMissingFields = completion.missingFieldKeys.map(k => translateFieldName(k));
-      }
-    }
+    const hasInactive = selectedProductData.some(product => product.status === 'Inactive');
+    const hasActive = selectedProductData.some(product => product.status === 'Active');
 
     return {
-      hasPublished,
-      hasUnpublished,
-      readyToPublishCount,
-      incompleteCount,
-      canPublish: !isMixed && readyToPublishCount > 0,
-      canUnpublish: !isMixed && hasPublished,
+      canPublish: hasDraft || hasInactive || hasActive,
+      canUnpublish: hasPublished,
       canRemove: true,
-      singleProductMissingFields,
-      isMixed,
-      selectedProductData,
-      unpublishedProducts,
     };
-  }, [selectedProducts, tableRows, products, isProductComplete, userCurrency, translateFieldName]);
-
-  const getSelectionMessage = (isDesktop = false) => {
-    const state = getSelectionState();
-    if (state.isMixed) {
-      return tTable('selection.mixedStatuses');
-    }
-    if (state.canUnpublish) {
-      return isDesktop ? tTable('selection.unpublishHintDesktop') : tTable('selection.unpublishHint');
-    }
-    if (state.hasUnpublished) {
-      if (selectedProducts.length === 1 && state.incompleteCount === 1) {
-        const fieldsStr = state.singleProductMissingFields.join(', ');
-        return tTable('selection.cannotPublishIncomplete', { fields: fieldsStr || tShared('missing.variants') });
-      }
-      if (state.readyToPublishCount === 0 && state.incompleteCount > 0) {
-        return tTable('selection.allIncompleteHint');
-      }
-      if (state.readyToPublishCount > 0 && state.incompleteCount > 0) {
-        return tTable('selection.partialPublishHint', {
-          readyCount: state.readyToPublishCount,
-          totalCount: selectedProducts.length,
-          skippedCount: state.incompleteCount,
-        });
-      }
-      if (state.readyToPublishCount > 0) {
-        return tTable('selection.publishHint');
-      }
-    }
-    return isDesktop ? tTable('selection.removeHintDesktop') : tTable('selection.removeHint');
-  };
+  }, [selectedProducts, tableRows]);
 
   // GraphQL mutation to publish/unpublish marketplace product
   const PUBLISH_MARKETPLACE_MUTATION = `
@@ -964,7 +893,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
 
         const missingDataCount = filteredOriginalProducts.filter((product) => {
           if (product.status === 'Published') return false;
-          return !getProductCompletion(product, undefined, userCurrency).isComplete;
+          return !getProductCompletion(product, undefined, userCurrency, CATALOG_COMPLETION_OPTIONS).isComplete;
         }).length;
         
         return missingDataCount > 0 ? (
@@ -985,20 +914,13 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
       {/* Bulk Action Bar */}
       {selectedProducts.length > 0 && (() => {
         const selState = getSelectionState();
-        const borderClass = selState.canUnpublish
-          ? 'border-l-orange-500'
-          : selState.canPublish
-          ? 'border-l-green-500'
-          : selState.isMixed
-          ? 'border-l-gray-400'
-          : 'border-l-amber-500';
 
         return (
-        <div className={`bg-white border border-[#e6e6e6] border-l-4 ${borderClass} rounded-lg p-3 md:p-4 mb-2 shadow-sm`}>
+        <div className="bg-white border border-[#e6e6e6] border-l-4 border-l-green-500 rounded-lg p-3 md:p-4 mb-2 shadow-sm">
           {/* Mobile Layout */}
           <div className="md:hidden space-y-3">
             <div className="flex items-center justify-between">
-              <span className={`text-sm font-semibold ${selState.canPublish ? 'text-green-700' : selState.canUnpublish ? 'text-orange-700' : 'text-amber-700'}`}>
+              <span className="text-sm font-semibold text-green-700">
                 {selectedProducts.length}{' '}
                 {selectedProducts.length === 1
                   ? tTable('selection.oneProductSelected')
@@ -1020,21 +942,19 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
               </>
             ) : (
               <>
-            <div className={`text-xs font-semibold leading-relaxed ${selState.canPublish ? 'text-gray-600' : selState.canUnpublish ? 'text-gray-600' : 'text-amber-700'}`}>
-              {getSelectionMessage(false)}
+            <div className="text-gray-600 text-xs font-semibold leading-relaxed">
+              {getBulkSelectionMessage(selState)}
             </div>
             <div className="flex gap-2">
               {(() => {
                 const buttonElements = [];
                 
-                if (selState.hasUnpublished && !selState.hasPublished) {
+                if (selState.canPublish && !selState.canUnpublish) {
                   // Only draft/inactive products - show publish and remove
                   buttonElements.push(
                     <button
                       key="publish"
-                      disabled={!selState.canPublish}
                       onClick={() => {
-                        if (!selState.canPublish) return;
                         if (selectedProducts.length === 1) {
                           // Single product - show preview modal
                           const product = tableRows.find(p => selectedProducts.includes(String(p.id)));
@@ -1046,22 +966,13 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                           setShowPublishModal(true);
                         }
                       }}
-                      title={!selState.canPublish ? (
-                        selState.singleProductMissingFields.length > 0
-                          ? tTable('selection.cannotPublishButtonTitle', { fields: selState.singleProductMissingFields.join(', ') })
-                          : tTable('selection.allIncompleteHint')
-                      ) : undefined}
-                      className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 font-semibold text-sm rounded-lg transition-colors ${
-                        selState.canPublish
-                          ? 'bg-green-600 text-white hover:bg-green-700'
-                          : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                      }`}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white font-semibold text-sm rounded-lg hover:bg-green-700 transition-colors"
                     >
-                      <Zap className={`w-4 h-4 ${selState.canPublish ? 'text-white' : 'text-gray-400'}`} />
+                      <Zap className="w-4 h-4 text-white" />
                       {tTable('bulkActions.publish')}
                     </button>
                   );
-                } else if (selState.canUnpublish) {
+                } else if (selState.canUnpublish && !selState.canPublish) {
                   // Only published products - show unpublish and remove
                   buttonElements.push(
                     <button
@@ -1096,7 +1007,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
           
           {/* Desktop Layout */}
           <div className="hidden md:flex items-center justify-between">
-            <span className={`text-sm font-semibold ${selState.canPublish ? 'text-green-700' : selState.canUnpublish ? 'text-orange-700' : 'text-amber-700'}`}>
+            <span className="text-sm font-semibold text-green-700">
               {selectedProducts.length}{' '}
               {selectedProducts.length === 1
                 ? tTable('selection.oneProductSelected')
@@ -1117,20 +1028,18 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
               </div>
             ) : (
             <div className="flex items-center gap-4">
-              <span className={`text-xs md:text-sm font-semibold ${selState.canPublish ? 'text-gray-600' : selState.canUnpublish ? 'text-gray-600' : 'text-amber-700'}`}>
-                {getSelectionMessage(true)}
+              <span className="text-gray-600 text-xs md:text-sm font-semibold">
+                {getBulkSelectionMessage(selState, true)}
               </span>
               <div className="flex gap-2">
                 {(() => {
                   const buttonElements = [];
                   
-                  if (selState.hasUnpublished && !selState.hasPublished) {
+                  if (selState.canPublish && !selState.canUnpublish) {
                     buttonElements.push(
                       <button
                         key="publish"
-                        disabled={!selState.canPublish}
                         onClick={() => {
-                          if (!selState.canPublish) return;
                           if (selectedProducts.length === 1) {
                             // Single product - show preview modal
                             const product = tableRows.find(p => selectedProducts.includes(String(p.id)));
@@ -1142,22 +1051,13 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                             setShowPublishModal(true);
                           }
                         }}
-                        title={!selState.canPublish ? (
-                          selState.singleProductMissingFields.length > 0
-                            ? tTable('selection.cannotPublishButtonTitle', { fields: selState.singleProductMissingFields.join(', ') })
-                            : tTable('selection.allIncompleteHint')
-                        ) : undefined}
-                        className={`flex items-center gap-2 px-4 py-2 font-semibold text-sm rounded-lg transition-colors ${
-                          selState.canPublish
-                            ? 'bg-green-600 text-white hover:bg-green-700'
-                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                        }`}
+                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white font-semibold text-sm rounded-lg hover:bg-green-700 transition-colors"
                       >
-                        <Zap className={`w-4 h-4 ${selState.canPublish ? 'text-white' : 'text-gray-400'}`} />
+                        <Zap className="w-4 h-4 text-white" />
                         {tTable('bulkActions.publish')}
                       </button>
                     );
-                  } else if (selState.canUnpublish) {
+                  } else if (selState.canUnpublish && !selState.canPublish) {
                     buttonElements.push(
                       <button
                         key="unpublish"
@@ -1236,7 +1136,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
               {pagedProducts.map((product) => {
               // Get the original product data to check for missing data
               const originalProduct = products.find(p => p.productId === product.productId);
-              const completion = originalProduct ? getProductCompletion(originalProduct, undefined, userCurrency) : null;
+              const completion = originalProduct ? getProductCompletion(originalProduct, undefined, userCurrency, CATALOG_COMPLETION_OPTIONS) : null;
               const hasIncompleteData = completion ? !completion.isComplete : false;
               const hasMissingVariants = completion ? !completion.fields.find(f => f.key === 'variants')?.isComplete : false;
               
@@ -1525,7 +1425,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                {pagedProducts.map((product) => {
              // Get the original product data to check for missing data and offers
              const originalProduct = products.find(p => p.productId === product.productId);
-             const completion = originalProduct ? getProductCompletion(originalProduct, undefined, userCurrency) : null;
+             const completion = originalProduct ? getProductCompletion(originalProduct, undefined, userCurrency, CATALOG_COMPLETION_OPTIONS) : null;
              const hasIncompleteData = completion ? !completion.isComplete : false;
              const hasMissingVariants = completion ? !completion.fields.find(f => f.key === 'variants')?.isComplete : false;
              
@@ -1773,7 +1673,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                          className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 border border-amber-200"
                          title={tCatalog('completion.missing', { fields: completion.missingFieldKeys.map(k => translateFieldName(k)).join(', ') })}
                        >
-                         {completion.completionPercentage}%{hasMissingVariants ? ` • ${tCatalog('fields.variants')}` : ''}
+                         {completion.completionPercentage}%
                        </span>
                      )}
                    </div>
@@ -1853,7 +1753,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                {pagedProducts.map((product) => {
              // Get the original product data to check for missing data
              const originalProduct = products.find(p => p.productId === product.productId);
-             const completion = originalProduct ? getProductCompletion(originalProduct, undefined, userCurrency) : null;
+             const completion = originalProduct ? getProductCompletion(originalProduct, undefined, userCurrency, CATALOG_COMPLETION_OPTIONS) : null;
              const hasIncompleteData = completion ? !completion.isComplete : false;
              const hasMissingVariants = completion ? !completion.fields.find(f => f.key === 'variants')?.isComplete : false;
              
@@ -2098,7 +1998,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                          className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 border border-amber-200"
                          title={tCatalog('completion.missing', { fields: completion.missingFieldKeys.map(k => translateFieldName(k)).join(', ') })}
                        >
-                         {completion.completionPercentage}%{hasMissingVariants ? ` • ${tCatalog('fields.variants')}` : ''}
+                         {completion.completionPercentage}%
                        </span>
                      )}
                    </div>

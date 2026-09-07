@@ -100,8 +100,7 @@
       "category": "Kategori Hilang",
       "brand": "Merek Hilang",
       "sellingPrice": "Harga Jual Hilang",
-      "variants": "Varian Hilang",
-      "stock": "Stok Hilang"
+      "variants": "Varian Hilang"
     },
     "pagination": {
       "showing": "Menampilkan {from} sampai {to} dari {total} hasil"
@@ -150,10 +149,6 @@
       "selectAllCount": "Pilih Semua ({count} produk)",
       "mixedStatuses": "Status produk yang dipilih bercampur. Hanya penghapusan yang diizinkan demi keamanan.",
       "publishHint": "Produk Anda akan dipublikasikan di aplikasi Marketplace B2B kami.",
-      "cannotPublishIncomplete": "Produk yang dipilih memiliki data yang belum lengkap (Kurang: {fields}). Lengkapi di editor katalog untuk mempublikasikan.",
-      "allIncompleteHint": "Semua produk yang dipilih belum lengkap datanya. Lengkapi kolom wajib sebelum mempublikasikan.",
-      "partialPublishHint": "{readyCount} dari {totalCount} produk siap dipublikasikan ({skippedCount} yang belum lengkap akan dilewati).",
-      "cannotPublishButtonTitle": "Tidak dapat mempublikasikan: Kolom wajib belum lengkap ({fields})",
       "unpublishHint": "Pilih produk untuk batalkan publikasi (ubah status menjadi Draf).",
       "unpublishHintDesktop": "Pilih produk untuk batalkan publikasi dari marketplace.",
       "removeHint": "Pilih produk untuk dihapus.",

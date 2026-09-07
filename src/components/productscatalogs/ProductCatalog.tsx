@@ -35,7 +35,7 @@ import { fetchGraphQL } from '@/lib/graphqlClient';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { useProductsTranslations } from '@/hooks/useProductsTranslations';
 import { getProductStockStatus, getVariantStockStatus } from '@/utils/stockUtils';
-import { getProductCompletion } from '@/utils/productCompletion';
+import { CATALOG_COMPLETION_OPTIONS, getProductCompletion } from '@/utils/productCompletion';
 
 const MARKETPLACE_STATUS_MUTATION = `
   mutation PublishMarketplaceProduct($userId: Int!, $productId: String!, $action: String!) {
@@ -110,7 +110,10 @@ function isFiniteNonNegativeNumber(value: unknown): boolean {
   return Number.isFinite(n) && n >= 0;
 }
 
-/** Prices must be parseable, finite, and nonnegative (empty / "abc" / negatives rejected). */
+/**
+ * Prices must be parseable, finite, and greater than zero (empty / "abc" / 0 / negatives rejected),
+ * matching getProductCompletion and the publishMarketplaceProduct mutation.
+ */
 function isCompleteCombination(combo: Combination, currencyCode?: string): boolean {
   const purchaseRaw = String(combo.purchasePrice ?? '').trim();
   const sellingRaw = String(combo.sellingPrice ?? '').trim();
@@ -121,9 +124,9 @@ function isCompleteCombination(combo: Combination, currencyCode?: string): boole
 
   return (
     Number.isFinite(purchase) &&
-    purchase >= 0 &&
+    purchase > 0 &&
     Number.isFinite(selling) &&
-    selling >= 0 &&
+    selling > 0 &&
     isFiniteNonNegativeNumber(combo.stockQuantity) &&
     isFiniteNonNegativeNumber(combo.lowStockThreshold)
   );
@@ -1811,11 +1814,16 @@ export default function ProductCatalog({
       combinations.length > 0 &&
       combinations.every((combo) => isCompleteCombination(combo, userCurrency));
 
-    const stockValidation = combinations.every(
-      (combo) =>
-        isFiniteNonNegativeNumber(combo.stockQuantity) &&
-        isFiniteNonNegativeNumber(combo.lowStockThreshold),
-    );
+    // Publishing needs stock on hand, matching isProductMarketplacePublishable and the
+    // publishMarketplaceProduct mutation, which both reject a zero product-level total.
+    const totalStock = combinations.reduce((sum, combo) => sum + combo.stockQuantity, 0);
+
+    const stockValidation =
+      combinations.every(
+        (combo) =>
+          isFiniteNonNegativeNumber(combo.stockQuantity) &&
+          isFiniteNonNegativeNumber(combo.lowStockThreshold),
+      ) && totalStock > 0;
 
     const missingFields = requiredFields.filter((field) => {
       if (field.field === 'images') {
@@ -2516,7 +2524,7 @@ export default function ProductCatalog({
       {(currentMode === 'view' || currentMode === 'edit' || currentMode === 'add') && (
         <div className="mx-4 mt-4 mb-4 p-4 bg-gradient-to-r from-blue-50 to-amber-50 border border-blue-200 rounded-lg">
           {(() => {
-            const completion = getProductCompletion(formData, combinations, userCurrency);
+            const completion = getProductCompletion(formData, combinations, userCurrency, CATALOG_COMPLETION_OPTIONS);
             const { completionPercentage, completedCount, totalFields, missingFieldKeys } = completion;
             
             return (

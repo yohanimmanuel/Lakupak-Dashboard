@@ -52,6 +52,12 @@ export interface CombinationLike {
 }
 
 /**
+ * Options for the catalog completion display, shared by the ProductCatalog editor
+ * and ProductTable so both report the same percentage and missing fields.
+ */
+export const CATALOG_COMPLETION_OPTIONS = { requirePositivePrice: true } as const;
+
+/**
  * Calculates product catalog completion across the 9 standard fields:
  * SKU, Name, Description, Category (Product Type), Brand, Supplier, Images, Variants, Stock.
  *
