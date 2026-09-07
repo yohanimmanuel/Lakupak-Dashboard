@@ -3,15 +3,15 @@ import { wsServer } from '../server/websocket';
 import { WS_INTERNAL_SECRET_HEADER, getWsInternalSecret } from '@/lib/wsInternalAuth';
 
 /**
- * Next.js API routes run in a separate process from `npm run ws` / `dev:all`.
- * Always HTTP-post broadcasts to the WS server from Next.js; use in-process
- * broadcast only when code runs inside the standalone WS server process.
+ * If the WebSocket server is active in the current process (unified server),
+ * we can broadcast directly in-memory with zero network overhead.
+ * Otherwise, HTTP-post broadcasts to the standalone WS server.
  */
 function shouldPostToWsServer(): boolean {
-  if (typeof process.env.NEXT_RUNTIME !== 'undefined') {
-    return true;
+  if (wsServer.getWss() !== null) {
+    return false;
   }
-  return wsServer.getWss() === null;
+  return true;
 }
 
 async function postWsBroadcast(body: Record<string, unknown>): Promise<Response | null> {

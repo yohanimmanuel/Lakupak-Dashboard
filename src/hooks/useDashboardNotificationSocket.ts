@@ -29,10 +29,17 @@ export function useDashboardNotificationSocket(
     function buildWsUrl(token: string): string {
       if (typeof window === 'undefined') return '';
       const base = process.env.NEXT_PUBLIC_WS_URL;
-      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      if (base) {
+        return `${base.replace(/\/$/, '')}/api/marketplace/ws?token=${encodeURIComponent(token)}`;
+      }
+      const isHttps = window.location.protocol === 'https:';
+      const protocol = isHttps ? 'wss' : 'ws';
       const host = window.location.hostname;
-      const port = process.env.NEXT_PUBLIC_WS_PORT || '3001';
-      const origin = base != null && base !== '' ? base.replace(/\/$/, '') : `${protocol}://${host}:${port}`;
+      const explicitPort = process.env.NEXT_PUBLIC_WS_PORT;
+      const portSuffix = isHttps
+        ? explicitPort && explicitPort !== '443' && explicitPort !== 'none' ? `:${explicitPort}` : ''
+        : `:${explicitPort || '3001'}`;
+      const origin = `${protocol}://${host}${portSuffix}`;
       return `${origin}/api/marketplace/ws?token=${encodeURIComponent(token)}`;
     }
 

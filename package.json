@@ -11,7 +11,8 @@
     "dev": "next dev -H 0.0.0.0",
     "dev:turbo": "next dev --turbopack -H 0.0.0.0",
     "build": "prisma generate && next build",
-    "start": "next start",
+    "start": "tsx server.ts",
+    "start:next": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "validate:env": "tsx src/scripts/validateEnv.ts",
@@ -76,7 +77,8 @@
     "ws": "^8.18.0",
     "xlsx": "^0.18.5",
     "zod": "^4.1.5",
-    "zustand": "^5.0.7"
+    "zustand": "^5.0.7",
+    "tsx": "^4.20.5"
   },
   "overrides": {
     "lodash": "4.17.23",

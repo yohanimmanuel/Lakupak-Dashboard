@@ -85,9 +85,98 @@ interface WebSocketMessage {
 class MarketplaceWebSocketServer {
   private wss: WebSocketServer | null = null;
   private httpServer: ReturnType<typeof createServer> | null = null;
+  private isExternalHttpServer = false;
   private clients: Set<ClientConnection> = new Set();
   private pingInterval: ReturnType<typeof setInterval> | null = null;
 
+  /**
+   * Handle POST broadcast requests (e.g. from API routes or custom server).
+   * Returns true if request was handled, false otherwise.
+   */
+  handleBroadcastRequest(req: HttpIncomingMessage, res: ServerResponse): boolean {
+    const pathname = (req.url || '').split('?')[0];
+    if (pathname === '/api/marketplace/broadcast' && req.method === 'POST') {
+      const secretHeader = req.headers[WS_INTERNAL_SECRET_HEADER];
+      const providedSecret = Array.isArray(secretHeader) ? secretHeader[0] : secretHeader;
+      if (!isValidWsInternalSecret(providedSecret)) {
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Forbidden' }));
+        return true;
+      }
+      let body = '';
+      req.on('data', (chunk) => {
+        body += chunk.toString();
+      });
+      req.on('end', () => {
+        try {
+          const data = JSON.parse(body);
+          if (data.type === 'offer_updated') {
+            this.broadcastOfferUpdate(data.offerId, data.productIds || []);
+          } else if (data.type === 'prices_updated') {
+            this.broadcastPriceUpdate(data.productIds || []);
+          } else if (data.type === 'product_updated') {
+            this.broadcastProductUpdate(data.productIds || []);
+          } else if (data.type === 'order_updated') {
+            this.broadcastOrderUpdate(data.orderIds || []);
+          } else if (data.type === 'notification') {
+            this.broadcastNotification(
+              data.notification?.type || 'system',
+              data.notification?.title || '',
+              data.notification?.body || '',
+              data.notification?.data,
+              data.notification?.targetUserId,
+              data.notification?.targetType
+            );
+          } else if (data.type === 'platform_announcement_published' && data.announcement) {
+            this.broadcastPlatformAnnouncementPublished(data.announcement as PlatformAnnouncementWsPayload);
+          } else if (data.type === 'platform_announcement_unpublished' && typeof data.announcementId === 'number') {
+            this.broadcastPlatformAnnouncementUnpublished(data.announcementId);
+          } else if (data.type === 'platform_admin_inbox') {
+            this.broadcastPlatformAdminInbox();
+          } else if (data.type === 'home_offers_updated') {
+            this.broadcastHomeOffersUpdated();
+          }
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true }));
+        } catch {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Invalid request' }));
+        }
+      });
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Attach WebSocket server to an existing HTTP server (e.g. Next.js unified server).
+   */
+  attach(server: ReturnType<typeof createServer>): void {
+    if (this.wss) {
+      return;
+    }
+
+    this.httpServer = server;
+    this.isExternalHttpServer = true;
+    this.wss = new WebSocketServer({ noServer: true });
+
+    server.on('upgrade', (request: IncomingMessage, socket, head) => {
+      const url = request.url || '';
+      const pathname = url.split('?')[0];
+      if (pathname === '/api/marketplace/ws') {
+        this.wss?.handleUpgrade(request, socket, head, (ws) => {
+          this.wss?.emit('connection', ws, request);
+        });
+      }
+    });
+
+    this.setupConnectionHandlers();
+    console.info(`[WebSocket] Attached to HTTP server (ws path: /api/marketplace/ws)`);
+  }
+
+  /**
+   * Standalone start method for running as an independent process on a dedicated port.
+   */
   start(port: number = 3001): void {
     // Don't start if already running
     if (this.wss) {
@@ -97,59 +186,12 @@ class MarketplaceWebSocketServer {
     try {
       // Create HTTP server for handling broadcast requests from API routes
       this.httpServer = createServer((req: HttpIncomingMessage, res: ServerResponse) => {
-        if (req.url === '/api/marketplace/broadcast' && req.method === 'POST') {
-          const secretHeader = req.headers[WS_INTERNAL_SECRET_HEADER];
-          const providedSecret = Array.isArray(secretHeader) ? secretHeader[0] : secretHeader;
-          if (!isValidWsInternalSecret(providedSecret)) {
-            res.writeHead(403, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Forbidden' }));
-            return;
-          }
-          let body = '';
-          req.on('data', (chunk) => {
-            body += chunk.toString();
-          });
-          req.on('end', () => {
-            try {
-              const data = JSON.parse(body);
-              if (data.type === 'offer_updated') {
-                this.broadcastOfferUpdate(data.offerId, data.productIds || []);
-              } else if (data.type === 'prices_updated') {
-                this.broadcastPriceUpdate(data.productIds || []);
-              } else if (data.type === 'product_updated') {
-                this.broadcastProductUpdate(data.productIds || []);
-              } else if (data.type === 'order_updated') {
-                this.broadcastOrderUpdate(data.orderIds || []);
-              } else if (data.type === 'notification') {
-                this.broadcastNotification(
-                  data.notification?.type || 'system',
-                  data.notification?.title || '',
-                  data.notification?.body || '',
-                  data.notification?.data,
-                  data.notification?.targetUserId,
-                  data.notification?.targetType
-                );
-              } else if (data.type === 'platform_announcement_published' && data.announcement) {
-                this.broadcastPlatformAnnouncementPublished(data.announcement as PlatformAnnouncementWsPayload);
-              } else if (data.type === 'platform_announcement_unpublished' && typeof data.announcementId === 'number') {
-                this.broadcastPlatformAnnouncementUnpublished(data.announcementId);
-              } else if (data.type === 'platform_admin_inbox') {
-                this.broadcastPlatformAdminInbox();
-              } else if (data.type === 'home_offers_updated') {
-                this.broadcastHomeOffersUpdated();
-              }
-              res.writeHead(200, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ success: true }));
-            } catch (error) {
-              res.writeHead(400, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ error: 'Invalid request' }));
-            }
-          });
-        } else {
+        if (!this.handleBroadcastRequest(req, res)) {
           res.writeHead(404);
           res.end();
         }
       });
+      this.isExternalHttpServer = false;
 
       // Create WebSocket server attached to HTTP server
       this.wss = new WebSocketServer({ 
@@ -162,130 +204,139 @@ class MarketplaceWebSocketServer {
         console.info(`[WebSocket] Server listening on port ${port} (ws path: /api/marketplace/ws)`);
       });
 
-      this.wss.on('connection', async (ws: WebSocket, request: IncomingMessage) => {
-        // Extract IP address for rate limiting
-        const forwardedFor = request.headers['x-forwarded-for'];
-        const realIp = request.headers['x-real-ip'];
-        const ip = forwardedFor?.toString().split(',')[0].trim() || 
-                   realIp?.toString() || 
-                   request.socket.remoteAddress || 
-                   'unknown';
+      this.setupConnectionHandlers();
+    } catch (error) {
+      throw error;
+    }
+  }
 
-        // Extract token from query string
-        let token: string | null = null;
-        let userId: number | null = null;
-        let isPlatformAdmin = false;
-        let principalType: WsPrincipalType = 'unknown';
+  private setupConnectionHandlers(): void {
+    if (!this.wss) return;
 
-        try {
-          const url = new URL(request.url || '', `http://${request.headers.host}`);
-          token = url.searchParams.get('token');
-        } catch (error) {
-          // Try to extract token manually from request.url
-          if (request.url) {
-            const tokenMatch = request.url.match(/[?&]token=([^&]+)/);
-            if (tokenMatch) {
-              token = decodeURIComponent(tokenMatch[1]);
-            }
+    this.wss.on('connection', async (ws: WebSocket, request: IncomingMessage) => {
+      // Extract IP address for rate limiting
+      const forwardedFor = request.headers['x-forwarded-for'];
+      const realIp = request.headers['x-real-ip'];
+      const ip = forwardedFor?.toString().split(',')[0].trim() || 
+                 realIp?.toString() || 
+                 request.socket.remoteAddress || 
+                 'unknown';
+
+      // Extract token from query string
+      let token: string | null = null;
+      let userId: number | null = null;
+      let isPlatformAdmin = false;
+      let principalType: WsPrincipalType = 'unknown';
+
+      try {
+        const url = new URL(request.url || '', `http://${request.headers.host}`);
+        token = url.searchParams.get('token');
+      } catch (error) {
+        // Try to extract token manually from request.url
+        if (request.url) {
+          const tokenMatch = request.url.match(/[?&]token=([^&]+)/);
+          if (tokenMatch) {
+            token = decodeURIComponent(tokenMatch[1]);
           }
         }
+      }
 
-        // Authenticate client (dashboard user JWT or platform admin JWT)
-        if (!token) {
-          ws.close(1008, 'Authentication required');
+      // Authenticate client (dashboard user JWT or platform admin JWT)
+      if (!token) {
+        ws.close(1008, 'Authentication required');
+        return;
+      }
+      try {
+        if (!process.env.JWT_SECRET) {
+          ws.close(1008, 'Server configuration error: JWT_SECRET not set');
           return;
         }
+        const cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token;
         try {
-          if (!process.env.JWT_SECRET) {
-            ws.close(1008, 'Server configuration error: JWT_SECRET not set');
+          const pa = verifyPlatformAdminToken(cleanToken);
+          userId = pa.sub;
+          isPlatformAdmin = true;
+          principalType = 'platform-admin';
+        } catch (err) {
+          if (err instanceof Error && err.message?.includes('secret')) {
+            throw err;
+          }
+          const payload = verifyAccessToken(cleanToken);
+          userId = payload.sub;
+          // Legacy tokens omit `type`; such clients simply won't receive
+          // namespace-targeted notifications until they re-authenticate.
+          principalType = payload.type ?? 'unknown';
+        }
+      } catch (error) {
+        ws.close(1008, 'Invalid token');
+        return;
+      }
+
+      // Apply WebSocket connection rate limiting
+      const connectionCheck = await websocketConnectionRateLimiter(ip, userId);
+      if (!connectionCheck.allowed) {
+        ws.close(1008, connectionCheck.reason || 'Too many connections');
+        return;
+      }
+
+      const client: ClientConnection = {
+        ws,
+        userId,
+        isAlive: true,
+        principalType,
+        isPlatformAdmin,
+      };
+
+      // Add client to Set BEFORE setting up event handlers
+      this.clients.add(client);
+
+      // Handle ping/pong for keepalive
+      ws.on('pong', () => {
+        client.isAlive = true;
+      });
+
+      // Handle incoming messages with rate limiting
+      ws.on('message', async (data: Buffer) => {
+        try {
+          // Apply WebSocket message rate limiting
+          const messageCheck = await websocketMessageRateLimiter(ip, client.userId);
+          if (!messageCheck.allowed) {
+            ws.send(JSON.stringify({ 
+              type: 'error', 
+              data: { 
+                message: messageCheck.reason || 'Too many messages',
+                retryAfter: messageCheck.retryAfter 
+              } 
+            }));
             return;
           }
-          const cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token;
-          try {
-            const pa = verifyPlatformAdminToken(cleanToken);
-            userId = pa.sub;
-            isPlatformAdmin = true;
-            principalType = 'platform-admin';
-          } catch (err) {
-            if (err instanceof Error && err.message?.includes('secret')) {
-              throw err;
-            }
-            const payload = verifyAccessToken(cleanToken);
-            userId = payload.sub;
-            // Legacy tokens omit `type`; such clients simply won't receive
-            // namespace-targeted notifications until they re-authenticate.
-            principalType = payload.type ?? 'unknown';
+
+          const message: WebSocketMessage = JSON.parse(data.toString());
+          
+          if (message.type === 'ping') {
+            ws.send(JSON.stringify({ type: 'pong' }));
           }
         } catch (error) {
-          ws.close(1008, 'Invalid token');
-          return;
+          // Invalid message, ignore
         }
-
-        // Apply WebSocket connection rate limiting
-        const connectionCheck = await websocketConnectionRateLimiter(ip, userId);
-        if (!connectionCheck.allowed) {
-          ws.close(1008, connectionCheck.reason || 'Too many connections');
-          return;
-        }
-
-        const client: ClientConnection = {
-          ws,
-          userId,
-          isAlive: true,
-          principalType,
-          isPlatformAdmin,
-        };
-
-        // Add client to Set BEFORE setting up event handlers
-        this.clients.add(client);
-
-        // Handle ping/pong for keepalive
-        ws.on('pong', () => {
-          client.isAlive = true;
-        });
-
-        // Handle incoming messages with rate limiting
-        ws.on('message', async (data: Buffer) => {
-          try {
-            // Apply WebSocket message rate limiting
-            const messageCheck = await websocketMessageRateLimiter(ip, client.userId);
-            if (!messageCheck.allowed) {
-              ws.send(JSON.stringify({ 
-                type: 'error', 
-                data: { 
-                  message: messageCheck.reason || 'Too many messages',
-                  retryAfter: messageCheck.retryAfter 
-                } 
-              }));
-              return;
-            }
-
-            const message: WebSocketMessage = JSON.parse(data.toString());
-            
-            if (message.type === 'ping') {
-              ws.send(JSON.stringify({ type: 'pong' }));
-            }
-          } catch (error) {
-            // Invalid message, ignore
-          }
-        });
-
-        // Handle client disconnect
-        ws.on('close', () => {
-          this.clients.delete(client);
-        });
-
-        // Handle errors
-        ws.on('error', () => {
-          this.clients.delete(client);
-        });
-
-        // Send welcome message
-        ws.send(JSON.stringify({ 
-          type: 'pong',
-          data: { message: 'Connected to marketplace WebSocket' }
-        }));
       });
+
+      // Handle client disconnect
+      ws.on('close', () => {
+        this.clients.delete(client);
+      });
+
+      // Handle errors
+      ws.on('error', () => {
+        this.clients.delete(client);
+      });
+
+      // Send welcome message
+      ws.send(JSON.stringify({ 
+        type: 'pong',
+        data: { message: 'Connected to marketplace WebSocket' }
+      }));
+    });
 
     // Start ping interval to keep connections alive
     this.pingInterval = setInterval(() => {
@@ -301,10 +352,7 @@ class MarketplaceWebSocketServer {
           client.ws.ping();
         }
       });
-      }, 30000); // Ping every 30 seconds
-    } catch (error) {
-      throw error;
-    }
+    }, 30000); // Ping every 30 seconds
   }
 
   stop(): void {
@@ -323,7 +371,7 @@ class MarketplaceWebSocketServer {
       this.wss = null;
     }
 
-    if (this.httpServer) {
+    if (this.httpServer && !this.isExternalHttpServer) {
       this.httpServer.close();
       this.httpServer = null;
     }
