@@ -74,7 +74,7 @@ export function AuthSync() {
     if (status === "loading" || !isHydrated) return;
 
     if (status === "authenticated" && session?.user) {
-      const { user: currentUser } = useUserStore.getState();
+      const { user: currentUser, sessionExpiry } = useUserStore.getState();
       const sessionUser = session.user as {
         id?: string | number;
         firstName?: string;
@@ -92,9 +92,14 @@ export function AuthSync() {
         image?: string;
       };
 
-      // Only sync if there's no current user (initial login)
-      // Don't force sync if user is already logged in to prevent cross-browser contamination
-      if (!currentUser) {
+      // Sync if there's no current user or if logged-in account email differs
+      const hasDifferentUser =
+        currentUser && sessionUser.email &&
+        currentUser.email.toLowerCase() !== sessionUser.email.toLowerCase();
+
+      const hasExpiredStoreSession = Boolean(sessionExpiry && Date.now() >= sessionExpiry);
+
+      if (!currentUser || hasExpiredStoreSession || hasDifferentUser) {
         const normalizedId = toNumber(sessionUser.id) ?? 0;
         setUser({
           id: normalizedId,

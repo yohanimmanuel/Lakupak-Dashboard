@@ -12,7 +12,7 @@ import {
   SuccessMessage,
   LoadingButton
 } from '@/utils/auth-enhancements';
-import { getSession, signIn, signOut } from "next-auth/react";
+import { getSession, signIn, signOut, useSession } from "next-auth/react";
 import { useAuthTranslations } from '@/hooks/useAuthTranslations';
 import { AuthLanguageSwitcher } from '@/components/auth/AuthLanguageSwitcher';
 import { LoginShowcaseCarousel } from '@/components/auth/LoginShowcaseCarousel';
@@ -44,8 +44,17 @@ export default function LoginPage() {
   const { error, handleError, clearError } = useAuthErrorHandler();
   const { loading, startLoading, stopLoading } = useAuthLoading();
   const [success, setSuccess] = useState("");
-  
+  const { status: nextAuthStatus } = useSession();
+  const { user, checkSession } = useUserStore();
+
   useAuthPerformanceTracking('Login');
+
+  // If already authenticated, redirect to home
+  useEffect(() => {
+    if (nextAuthStatus === 'authenticated' || (user && checkSession())) {
+      router.replace('/home');
+    }
+  }, [nextAuthStatus, user, checkSession, router]);
 
   useLayoutEffect(() => {
     const saved = readRememberedLogin();
@@ -285,14 +294,9 @@ export default function LoginPage() {
         <div className="flex space-x-4 max-w-md mx-auto w-full">
           <button
             type="button"
-            onClick={async () => {
-              const clearUser = useUserStore.getState().clearUser;
-              clearUser();
-              
-              await signOut({ redirect: false });
+            onClick={() => {
               signIn('google', { 
                 callbackUrl: '/home',
-                prompt: 'select_account'
               });
             }}
             className="flex-1 py-2 text-gray-500 border border-gray-200 rounded-lg flex items-center justify-center hover:bg-gray-50"

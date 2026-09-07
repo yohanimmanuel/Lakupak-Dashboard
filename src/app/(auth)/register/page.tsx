@@ -1113,11 +1113,9 @@ export default function RegisterPage() {
               
               <button
                 type="button"
-                onClick={async () => {
-                  await signOut({ redirect: false });
+                onClick={() => {
                   signIn('google', { 
                     callbackUrl: '/home',
-                    prompt: 'select_account'
                   });
                 }}
                 className="w-full py-2.5 px-4 border border-gray-300 rounded-lg flex items-center justify-center hover:bg-gray-50 transition-colors text-sm text-gray-700"

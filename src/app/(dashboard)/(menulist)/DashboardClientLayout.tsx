@@ -10,6 +10,7 @@ import { TourProvider } from '@/components/tours/TourProvider';
 import { DashboardIntlProvider } from '@/components/DashboardIntlProvider';
 import { LanguageChangedModal } from '@/components/accountsettings/LanguageChangedModal';
 import { useTranslations } from 'next-intl';
+import { useSession } from 'next-auth/react';
 
 const MenuContext = createContext({
   isCollapsed: false,
@@ -27,25 +28,49 @@ export default function DashboardClientLayout({ children }: { children: React.Re
   const router = useRouter();
   const { user, checkSession } = useUserStore();
   const { isHydrated } = useAuthHydration();
+  const { data: session, status: nextAuthStatus } = useSession();
 
-  // Simple authentication check - wait for hydration
+  // Authentication check - coordinates between userStore and NextAuth session
   useEffect(() => {
+    // 1. Wait until userStore is hydrated
     if (!isHydrated) return;
 
-    // Small delay to ensure everything is properly loaded
-    const timeoutId = setTimeout(() => {
-      // Now check if user exists and session is valid
-      if (user && checkSession()) {
-        setIsCheckingAuth(false);
-        return;
-      }
-      
-      // No valid user, redirect to login
-      router.push('/login');
-    }, 200);
-    
-    return () => clearTimeout(timeoutId);
-  }, [user, checkSession, router, isHydrated]);
+    // 2. If NextAuth is still resolving session, wait! (Prevents redirect race on OAuth callback)
+    if (nextAuthStatus === 'loading') return;
+
+    // 3. User is authenticated in store
+    if (user && checkSession()) {
+      setIsCheckingAuth(false);
+      return;
+    }
+
+    // 4. NextAuth is authenticated - AuthSync will populate userStore shortly
+    if (nextAuthStatus === 'authenticated' && session?.user) {
+      return;
+    }
+
+    // 5. Only if NextAuth is confirmed unauthenticated AND userStore has no valid session
+    if (nextAuthStatus === 'unauthenticated' && (!user || !checkSession())) {
+      const timeoutId = setTimeout(() => {
+        const currentUser = useUserStore.getState().user;
+        const currentValid = useUserStore.getState().checkSession();
+        if (!currentUser || !currentValid) {
+          router.push('/login');
+        } else {
+          setIsCheckingAuth(false);
+        }
+      }, 200);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [user, checkSession, router, isHydrated, nextAuthStatus, session]);
+
+  // When user is set/updated in store, immediately clear auth checking state
+  useEffect(() => {
+    if (user && checkSession()) {
+      setIsCheckingAuth(false);
+    }
+  }, [user, checkSession]);
 
   // Check if screen is mobile size
   useEffect(() => {
