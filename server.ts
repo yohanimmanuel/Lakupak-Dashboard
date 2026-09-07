@@ -1,3 +1,17 @@
+// Must be imported first to initialize Node baseline (AsyncLocalStorage, WebSocket) for Next.js 16
+import 'next/dist/server/node-environment-baseline';
+import { AsyncLocalStorage } from 'node:async_hooks';
+
+if (typeof (globalThis as { AsyncLocalStorage?: unknown }).AsyncLocalStorage !== 'function') {
+  (globalThis as { AsyncLocalStorage?: unknown }).AsyncLocalStorage = AsyncLocalStorage;
+}
+
+import { config } from 'dotenv';
+import { resolve } from 'path';
+
+// Load .env in standalone mode if not already provided by container/host environment
+config({ path: resolve(process.cwd(), '.env') });
+
 import { createServer } from 'http';
 import { parse } from 'url';
 import next from 'next';
