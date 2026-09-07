@@ -654,6 +654,14 @@ const deleteBuyer = async (args: { userId: number; id: string }) => {
     // Ignore cache invalidation errors
   }
 
+  // Sync workflows so deleted buyer is removed from all automations
+  try {
+    const { syncAllWorkflowsForUser } = await import('@/lib/automations/syncWorkflowBuyers');
+    await syncAllWorkflowsForUser(Number(userId));
+  } catch (error) {
+    // Ignore workflow sync errors
+  }
+
   return {
     success: true,
     deleted: mapBuyer(deleted),

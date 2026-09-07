@@ -142,23 +142,48 @@ async function loadSelectedBuyers(
   buyerIds: string[],
   config?: JsonRecord | null,
 ): Promise<Array<{ buyerId: string; email: string; phone: string; owner: string; storeName: string }>> {
-  const buyers = await prisma.buyer.findMany({
-    where: {
-      userId,
-      buyerId: { in: buyerIds },
-    },
-    select: {
-      buyerId: true,
-      email: true,
-      phone: true,
-      owner: true,
-      storeName: true,
-    },
-  });
+  let buyers =
+    buyerIds.length === 0
+      ? []
+      : await prisma.buyer.findMany({
+          where: {
+            userId,
+            buyerId: { in: buyerIds },
+          },
+          select: {
+            buyerId: true,
+            email: true,
+            phone: true,
+            owner: true,
+            storeName: true,
+          },
+        });
+
+  // If none of the selected buyers exist in DB (e.g. deleted), pick available buyers from DB
   if (buyers.length === 0) {
-    throw new Error('No matching buyers found for send_campaign.');
+    buyers = await prisma.buyer.findMany({
+      where: { userId },
+      select: {
+        buyerId: true,
+        email: true,
+        phone: true,
+        owner: true,
+        storeName: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
   }
-  return orderBuyersWithContactOverrides(buyerIds, buyers, config, { prefer: 'config' });
+
+  if (buyers.length === 0) {
+    throw new Error('No buyers found in database. Please add a buyer before sending campaigns.');
+  }
+
+  return orderBuyersWithContactOverrides(
+    buyers.map((b) => b.buyerId),
+    buyers,
+    config,
+    { prefer: 'db' },
+  );
 }
 
 async function loadSelectedCampaigns(
@@ -200,7 +225,24 @@ async function loadSelectedCampaigns(
     ordered.push(campaign);
   }
   if (ordered.length === 0) {
-    throw new Error('No matching campaigns found for send_campaign.');
+    // If all picked campaigns were deleted, pick available campaigns from DB
+    const availableCampaigns = await prisma.campaign.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        campaignId: true,
+        name: true,
+        description: true,
+        contentBlocks: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 1,
+    });
+    if (availableCampaigns.length > 0) {
+      ordered.push(...availableCampaigns);
+    } else {
+      throw new Error('No matching campaigns found for send_campaign.');
+    }
   }
   return ordered;
 }
@@ -226,10 +268,6 @@ export async function executeSendCampaign(
   const campaigns = await loadSelectedCampaigns(workflow.userId, campaignIds);
 
   const buyerIds = pickedBuyerIds(config);
-  if (buyerIds.length === 0) {
-    throw new Error('send_campaign needs at least one buyer.');
-  }
-
   const buyers = await loadSelectedBuyers(workflow.userId, buyerIds, config);
   const messageTemplate = String(config.messageTemplate ?? '').trim();
   if (!messageTemplate) {

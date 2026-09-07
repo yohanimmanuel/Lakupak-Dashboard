@@ -206,9 +206,40 @@ export function BuyerPickerField({
   }, [user?.id, tBuilder]);
 
   useEffect(() => {
-    if (!open) return;
     void loadBuyers();
-  }, [open, loadBuyers]);
+  }, [loadBuyers]);
+
+  // Robust sync: Whenever buyers are loaded, check if any of selectedBuyers were deleted.
+  // If deleted, remove them from the selection. If all were deleted, pick available buyers from DB.
+  useEffect(() => {
+    if (loading || error || selectedBuyers.length === 0) return;
+
+    const dbBuyerMap = new Map<string, Buyer>();
+    for (const b of buyers) {
+      dbBuyerMap.set(b.buyerId, b);
+      if (b.id) dbBuyerMap.set(String(b.id), b);
+    }
+
+    const validBuyers: Buyer[] = [];
+    let hadDeleted = false;
+    for (const sb of selectedBuyers) {
+      const found = dbBuyerMap.get(sb.buyerId);
+      if (found) {
+        validBuyers.push(found);
+      } else {
+        hadDeleted = true;
+      }
+    }
+
+    if (hadDeleted) {
+      const nextPicked = validBuyers.length > 0 ? validBuyers : buyers;
+      const prevIds = selectedBuyers.map((b) => b.buyerId).join(',');
+      const nextIds = nextPicked.map((b) => b.buyerId).join(',');
+      if (prevIds !== nextIds) {
+        onSelectAction(nextPicked);
+      }
+    }
+  }, [buyers, selectedBuyers, loading, error, onSelectAction]);
 
   const hasSelection = selectedBuyers.length > 0;
   const summaryLabel = useMemo(() => {

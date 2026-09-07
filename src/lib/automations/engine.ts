@@ -18,6 +18,7 @@ import { migrateOrderPaidTriggerConfig } from '@/lib/automations/catalog';
 import { isLiveActionType } from '@/lib/automations/liveActions';
 import { executeChannelBuyerMessage } from '@/lib/automations/deliverBuyerMessage';
 import { executeSendCampaign } from '@/lib/automations/sendCampaign';
+import { syncWorkflowBuyers } from '@/lib/automations/syncWorkflowBuyers';
 import {
   isCampaignScheduleDue,
   parseScheduledSendAtMs,
@@ -196,7 +197,7 @@ async function executeWhatsAppBuyer(
     throw new Error('whatsapp_buyer needs at least one buyer.');
   }
 
-  const buyers = await prisma.buyer.findMany({
+  let buyers = await prisma.buyer.findMany({
     where: {
       buyerId: { in: buyerIds },
       userId: workflow.userId,
@@ -211,7 +212,21 @@ async function executeWhatsAppBuyer(
   });
 
   if (buyers.length === 0) {
-    throw new Error('No matching buyers found for whatsapp_buyer.');
+    buyers = await prisma.buyer.findMany({
+      where: { userId: workflow.userId },
+      select: {
+        buyerId: true,
+        phone: true,
+        storeName: true,
+        owner: true,
+        userId: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  if (buyers.length === 0) {
+    throw new Error('No matching buyers found in database for whatsapp_buyer.');
   }
 
   const contextVars: Record<string, string> = {
@@ -686,10 +701,11 @@ async function executeNotifyDashboard(
 }
 
 async function runWorkflowActions(
-  workflow: AutomationWorkflow,
+  rawWorkflow: AutomationWorkflow,
   actions: Array<{ type: string; config: JsonRecord }>,
   ctx: WorkflowRunContext,
 ): Promise<{ status: 'success' | 'failed' | 'skipped'; message: string }> {
+  const workflow = await syncWorkflowBuyers(rawWorkflow, undefined, { persist: true });
   const liveActions = actions.filter((a) => isLiveActionType(a.type));
   const skippedWa = actions.filter((a) => a.type && !isLiveActionType(a.type));
 

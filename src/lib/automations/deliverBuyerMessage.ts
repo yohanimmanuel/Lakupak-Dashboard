@@ -159,23 +159,44 @@ async function loadSelectedBuyers(
   buyerIds: string[],
   config?: JsonRecord | null,
 ): Promise<LoadedBuyer[]> {
-  const buyers = await prisma.buyer.findMany({
-    where: {
-      userId,
-      buyerId: { in: buyerIds },
-    },
-    select: {
-      buyerId: true,
-      email: true,
-      phone: true,
-      owner: true,
-      storeName: true,
-    },
-  });
+  let buyers =
+    buyerIds.length === 0
+      ? []
+      : await prisma.buyer.findMany({
+          where: {
+            userId,
+            buyerId: { in: buyerIds },
+          },
+          select: {
+            buyerId: true,
+            email: true,
+            phone: true,
+            owner: true,
+            storeName: true,
+          },
+        });
   if (buyers.length === 0) {
-    throw new Error('No matching buyers found.');
+    buyers = await prisma.buyer.findMany({
+      where: { userId },
+      select: {
+        buyerId: true,
+        email: true,
+        phone: true,
+        owner: true,
+        storeName: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
   }
-  return orderBuyersWithContactOverrides(buyerIds, buyers, config, { prefer: 'db' });
+  if (buyers.length === 0) {
+    throw new Error('No matching buyers found in database.');
+  }
+  return orderBuyersWithContactOverrides(
+    buyers.map((b) => b.buyerId),
+    buyers,
+    config,
+    { prefer: 'db' },
+  );
 }
 
 async function loadShareProductVars(

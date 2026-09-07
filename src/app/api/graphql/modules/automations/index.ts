@@ -22,6 +22,11 @@ import {
   CHANNEL_MESSAGE_ACTIONS,
   executeChannelBuyerMessage,
 } from '@/lib/automations/deliverBuyerMessage';
+import {
+  fetchDbBuyers,
+  syncWorkflowBuyers,
+  syncWorkflowConfigsBuyers,
+} from '@/lib/automations/syncWorkflowBuyers';
 import { AUTOMATION_RUN_STATUSES, type WorkflowType } from '@/components/automations/automationTypes';
 import { normalizeConditionConfig } from '@/components/automations/builder/canvasTypes';
 
@@ -357,7 +362,7 @@ async function fetchWorkflowsConnection(args: {
     where.type = type;
   }
 
-  const [totalCount, nodes] = await Promise.all([
+  const [totalCount, nodes, dbBuyers] = await Promise.all([
     prisma.automationWorkflow.count({ where }),
     prisma.automationWorkflow.findMany({
       where,
@@ -365,10 +370,15 @@ async function fetchWorkflowsConnection(args: {
       skip: (page - 1) * limit,
       take: limit,
     }),
+    fetchDbBuyers(userId),
   ]);
 
+  const syncedNodes = await Promise.all(
+    nodes.map((node) => syncWorkflowBuyers(node, dbBuyers, { persist: false })),
+  );
+
   return {
-    nodes: nodes.map(mapWorkflow),
+    nodes: syncedNodes.map(mapWorkflow),
     pagination: buildPaginationInfo(page, limit, totalCount),
   };
 }
@@ -377,7 +387,9 @@ async function fetchWorkflow(args: { userId: number; id: string }) {
   const row = await prisma.automationWorkflow.findFirst({
     where: { id: args.id, userId: args.userId },
   });
-  return row ? mapWorkflow(row) : null;
+  if (!row) return null;
+  const synced = await syncWorkflowBuyers(row, undefined, { persist: false });
+  return mapWorkflow(synced);
 }
 
 async function fetchRuns(args: { userId: number; workflowId: string; limit?: number }) {
@@ -456,6 +468,12 @@ async function createWorkflow(args: {
     agentConfig,
   });
 
+  const dbBuyers = await fetchDbBuyers(args.userId);
+  const syncedConfigs = syncWorkflowConfigsBuyers(agentConfig, actionConfig, actionType, dbBuyers);
+  const finalAgentConfig =
+    syncedConfigs.agentConfig ?? (agentConfig == null ? Prisma.JsonNull : agentConfig);
+  const finalActionConfig = syncedConfigs.actionConfig;
+
   const row = await prisma.automationWorkflow.create({
     data: {
       userId: args.userId,
@@ -465,9 +483,9 @@ async function createWorkflow(args: {
       status,
       triggerType,
       triggerConfig: asJsonObject(args.triggerConfig ?? defaultsTrigger.triggerConfig),
-      agentConfig: agentConfig == null ? Prisma.JsonNull : agentConfig,
+      agentConfig: finalAgentConfig as Prisma.InputJsonValue,
       actionType,
-      actionConfig,
+      actionConfig: finalActionConfig as Prisma.InputJsonValue,
       whatsappPhone: normalizeWhatsAppPhone(args.whatsappPhone),
       gmailEmail: normalizeGmailEmail(args.gmailEmail),
     },
@@ -540,6 +558,21 @@ async function updateWorkflow(args: {
     agentConfig: nextAgentConfig,
   });
 
+  const dbBuyers = await fetchDbBuyers(args.userId);
+  const syncedConfigs = syncWorkflowConfigsBuyers(
+    nextAgentConfig,
+    nextActionConfig,
+    nextAction,
+    dbBuyers,
+  );
+  const finalAgentConfig =
+    syncedConfigs.agentConfig == null
+      ? (nextAgentConfig == null
+          ? Prisma.JsonNull
+          : (nextAgentConfig as Prisma.InputJsonValue))
+      : (syncedConfigs.agentConfig as Prisma.InputJsonValue);
+  const finalActionConfig = syncedConfigs.actionConfig as Prisma.InputJsonValue;
+
   const data: Prisma.AutomationWorkflowUpdateInput = {};
   if (args.name != null) data.name = args.name.trim();
   if (args.description != null) data.description = args.description.trim();
@@ -553,11 +586,12 @@ async function updateWorkflow(args: {
     ) as Prisma.InputJsonValue;
   }
   if (args.agentConfig !== undefined) {
-    data.agentConfig =
-      nextAgentConfig == null ? Prisma.JsonNull : (nextAgentConfig as Prisma.InputJsonValue);
+    data.agentConfig = finalAgentConfig;
   }
   if (args.actionType != null) data.actionType = args.actionType;
-  if (args.actionConfig !== undefined) data.actionConfig = asJsonObject(args.actionConfig);
+  if (args.actionConfig !== undefined) {
+    data.actionConfig = finalActionConfig;
+  }
   if (args.whatsappPhone !== undefined) {
     data.whatsappPhone = normalizeWhatsAppPhone(args.whatsappPhone);
   }
@@ -598,12 +632,14 @@ async function testWorkflow(args: {
   locale?: string | null;
   live?: boolean | null;
 }) {
-  const existing = await prisma.automationWorkflow.findFirst({
+  const rawExisting = await prisma.automationWorkflow.findFirst({
     where: { id: args.id, userId: args.userId },
   });
-  if (!existing) {
+  if (!rawExisting) {
     throw new GraphQLError('Workflow not found', { extensions: { code: 'NOT_FOUND' } });
   }
+
+  const existing = await syncWorkflowBuyers(rawExisting, undefined, { persist: true });
 
   const triggerConfig = asRecord(existing.triggerConfig);
   const actionConfig = asRecord(existing.actionConfig);
