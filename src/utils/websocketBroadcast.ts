@@ -3,9 +3,12 @@ import { wsServer } from '../server/websocket';
 import { WS_INTERNAL_SECRET_HEADER, getWsInternalSecret } from '@/lib/wsInternalAuth';
 
 /**
- * If the WebSocket server is active in the current process (unified server),
- * we can broadcast directly in-memory with zero network overhead.
- * Otherwise, HTTP-post broadcasts to the standalone WS server.
+ * Broadcast in-memory only when this module's `wsServer` is the one holding the clients.
+ *
+ * That is true inside the standalone WS server process, but NOT inside Next.js: Next
+ * bundles its own copy of src/server/websocket, so app code sees an unattached
+ * singleton and must reach the real server over HTTP. In unified mode `server.ts`
+ * sets WS_HOST/WS_PORT to its own address so that post lands back on this process.
  */
 function shouldPostToWsServer(): boolean {
   if (wsServer.getWss() !== null) {
@@ -35,9 +38,8 @@ async function postWsBroadcast(body: Record<string, unknown>): Promise<Response 
       signal: AbortSignal.timeout(5000),
     });
   } catch (error) {
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('[WebSocket] postWsBroadcast error:', error);
-    }
+    // Logged in production too: a dropped broadcast silently disables real-time updates.
+    console.warn('[WebSocket] postWsBroadcast error:', error);
     return null;
   }
 }
@@ -48,7 +50,7 @@ async function dispatchBroadcast(
 ): Promise<void> {
   if (shouldPostToWsServer()) {
     const response = await postWsBroadcast(body);
-    if (response && !response.ok && process.env.NODE_ENV === 'development') {
+    if (response && !response.ok) {
       let detail = response.statusText;
       try {
         const json = (await response.json()) as { error?: string };

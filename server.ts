@@ -22,6 +22,13 @@ const dev = process.env.NODE_ENV !== 'production';
 const hostname = '0.0.0.0';
 const port = parseInt(process.env.PORT || '3000', 10);
 
+// Next.js bundles its own copy of src/server/websocket, so the `wsServer` singleton it
+// sees is never the one attached below — it always reaches the WS server over HTTP.
+// Point it at this server, which serves /api/marketplace/broadcast on the same port.
+// Without this it would default to :3001, where nothing listens in unified mode.
+process.env.WS_HOST = '127.0.0.1';
+process.env.WS_PORT = String(port);
+
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
