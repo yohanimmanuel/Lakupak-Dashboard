@@ -1912,8 +1912,30 @@ const applyMarketplaceStatusSideEffects = async (
 ) => {
   if (productIds.length === 0) return;
 
+  // Caches must be dropped before the broadcast: clients refetch the moment they receive
+  // it, and a stale cached payload would be served back to them.
+  // Invalidate marketplace search cache (public-facing, needs caching)
+  await invalidateSearchCache('search-cache:marketplace:*');
+
+  // Invalidate product cache after publish/unpublish to ensure fresh status display
+  try {
+    const { invalidateProductCache } = await import('@/lib/queryCache');
+    await invalidateProductCache(userId);
+  } catch {
+    // ignore cache invalidation failures
+  }
+
+  try {
+    await broadcastProductUpdate(productIds);
+    await broadcastPriceUpdate(productIds);
+  } catch {
+    // ignore broadcast failures
+  }
+
   // Keep Meilisearch 1:1 with DB for marketplace-published products.
   // When a product is unpublished, remove it from the Meili index.
+  // Runs last and never blocks the broadcast: MEILI_HOST may be unreachable in a
+  // deployment, and real-time delivery must not wait on it.
   try {
     const { upsertMarketplaceProductsToMeili, deleteMarketplaceProductsFromMeili } = await import(
       '@/lib/meiliMarketplaceSync'
@@ -1925,24 +1947,6 @@ const applyMarketplaceStatusSideEffects = async (
     }
   } catch (e) {
     console.warn('[Products] Meili sync failed on marketplace status change:', e);
-  }
-
-  try {
-    await broadcastProductUpdate(productIds);
-    await broadcastPriceUpdate(productIds);
-  } catch {
-    // ignore broadcast failures
-  }
-
-  // Invalidate marketplace search cache (public-facing, needs caching)
-  await invalidateSearchCache('search-cache:marketplace:*');
-
-  // Invalidate product cache after publish/unpublish to ensure fresh status display
-  try {
-    const { invalidateProductCache } = await import('@/lib/queryCache');
-    await invalidateProductCache(userId);
-  } catch {
-    // ignore cache invalidation failures
   }
 };
 
