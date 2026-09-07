@@ -25,6 +25,7 @@ import { formatNumberByCurrency, parseNumberByCurrency } from '@/config/currency
 import { useState } from 'react';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useProductsTranslations } from '@/hooks/useProductsTranslations';
+import { getProductCompletion } from '@/utils/productCompletion';
 
 const PUBLISH_MARKETPLACE_MUTATION = `
   mutation PublishMarketplaceProduct($userId: Int!, $productId: String!, $action: String!) {
@@ -70,7 +71,7 @@ export default function ProductMarketplacePubs({
   isProductComplete 
 }: ProductMarketplacePubsProps) {
   const user = useUserStore(state => state.user);
-  const { tMarketplace } = useProductsTranslations();
+  const { tMarketplace, tCatalog, translateFieldName } = useProductsTranslations();
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -192,17 +193,31 @@ export default function ProductMarketplacePubs({
         {/* Mobile App Preview */}
         <div className="overflow-y-auto max-h-[calc(90vh-150px)]">
           {/* Single Product Incomplete Warning */}
-          {!isBulkPublish && isProductComplete && !isProductComplete(product.productId) && (
-            <div className="mx-4 mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                <p className="text-sm text-amber-800 font-medium">{tMarketplace('incompleteWarningTitle')}</p>
+          {!isBulkPublish && isProductComplete && !isProductComplete(product.productId) && (() => {
+            const originalProduct = allProducts.find(p => p.productId === product.productId);
+            const completion = originalProduct
+              ? getProductCompletion(originalProduct, undefined, userCurrency, {
+                  requirePositiveStock: true,
+                  requirePositivePrice: true,
+                })
+              : null;
+            return (
+              <div className="mx-4 mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                  <p className="text-sm text-amber-800 font-medium">{tMarketplace('incompleteWarningTitle')}</p>
+                </div>
+                <p className="text-xs text-amber-700 mt-1">
+                  {tMarketplace('incompleteWarningBody')}
+                </p>
+                {completion && completion.missingFieldKeys.length > 0 && (
+                  <p className="text-xs font-semibold text-amber-800 mt-1.5">
+                    {tCatalog('completion.missing', { fields: completion.missingFieldKeys.map(k => translateFieldName(k)).join(', ') })}
+                  </p>
+                )}
               </div>
-              <p className="text-xs text-amber-700 mt-1">
-                {tMarketplace('incompleteWarningBody')}
-              </p>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Smart Bulk Publish Information */}
           {isBulkPublish && (
@@ -257,42 +272,22 @@ export default function ProductMarketplacePubs({
                         <div className="mt-2 space-y-1">
                           {incompleteProducts.map(product => {
                             const originalProduct = allProducts.find(p => p.productId === product.productId);
-                            const missingFields = [];
-                            if (originalProduct) {
-                              if (!String(originalProduct.sku).trim()) missingFields.push('SKU');
-                              if (!String(originalProduct.name).trim()) missingFields.push('Name');
-                              if (!String(originalProduct.description).trim()) missingFields.push('Description');
-                              if (!String(originalProduct.productType).trim()) missingFields.push('Type');
-                              if (!String(originalProduct.brand).trim()) missingFields.push('Brand');
-                              if (!String(originalProduct.supplier).trim()) missingFields.push('Supplier');
-                              
-                              // Check if product has at least one complete variant (piece-based system)
-                              const hasCompleteVariant = originalProduct.variantOptions && originalProduct.variantOptions.length > 0 && 
-                                originalProduct.variantOptions.some(vo => 
-                                  vo.purchasePrice && vo.purchasePrice.trim() !== '' &&
-                                  vo.sellingPrice && vo.sellingPrice.trim() !== '' &&
-                                  vo.isActive
-                                );
-                              
-                              // Check product-level stock (piece-based system)
-                              const totalStock = originalProduct.variantOptions?.reduce((sum, vo) => sum + (vo.stockQuantity || 0), 0) || 0;
-                              const hasStock = totalStock > 0;
-                              
-                              if (!hasCompleteVariant) {
-                                missingFields.push('Product Variants (Pricing)');
-                              }
-                              
-                              if (!hasStock) {
-                                missingFields.push('Product Stock');
-                              }
-                            }
+                            const completion = originalProduct
+                              ? getProductCompletion(originalProduct, undefined, userCurrency, {
+                                  requirePositiveStock: true,
+                                  requirePositivePrice: true,
+                                })
+                              : null;
+                            const missingFields = completion 
+                              ? completion.missingFieldKeys.map(k => translateFieldName(k))
+                              : [];
                             
                             return (
                               <div key={product.productId} className="text-xs text-amber-600">
                                 <div className="font-medium">• {product.name || tMarketplace('unnamedProduct')}</div>
                                 {missingFields.length > 0 && (
                                   <div className="text-amber-500 ml-2">
-                                    {tMarketplace('missing', { fields: missingFields.map(translateMissingField).join(', ') })}
+                                    {tMarketplace('missing', { fields: missingFields.join(', ') })}
                                   </div>
                                 )}
                               </div>

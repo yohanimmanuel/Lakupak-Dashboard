@@ -1942,8 +1942,15 @@ export const publishMarketplaceProduct = async (args: {
   }
 
   if (normalizedAction === 'publish') {
-    if (!product.name || !product.description) {
-      throw new Error('Product must have name and description');
+    if (
+      !product.sku?.trim() ||
+      !product.name?.trim() ||
+      !product.description?.trim() ||
+      !product.productType?.trim() ||
+      !product.brand?.trim() ||
+      !product.supplier?.trim()
+    ) {
+      throw new Error('Product must have SKU, name, description, category, brand, and supplier filled');
     }
 
     if (!product.images || product.images.length === 0) {
@@ -1956,17 +1963,14 @@ export const publishMarketplaceProduct = async (args: {
       throw new Error('Product must have at least one variant option');
     }
 
-    const hasCompleteVariant = variantOptions.some(
-      (variant) => {
-        // Handle Decimal type using parseMoney (handles Decimal.js objects, numbers, and strings)
-        const purchasePrice = parseMoney(variant.purchasePrice);
-        const sellingPrice = parseMoney(variant.sellingPrice);
-        return Boolean(purchasePrice > 0 && sellingPrice > 0 && variant.isActive);
-      }
-    );
+    const allVariantsComplete = variantOptions.every((variant) => {
+      const purchasePrice = parseMoney(variant.purchasePrice);
+      const sellingPrice = parseMoney(variant.sellingPrice);
+      return Boolean(purchasePrice > 0 && sellingPrice > 0);
+    });
 
-    if (!hasCompleteVariant) {
-      throw new Error('Product must have at least one complete variant with pricing');
+    if (!allVariantsComplete) {
+      throw new Error('All product variants must have complete pricing (purchase price and selling price)');
     }
 
     const totalStock = variantOptions.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0);
@@ -1974,7 +1978,7 @@ export const publishMarketplaceProduct = async (args: {
       throw new Error('Product must have stock quantity greater than 0');
     }
 
-    const hasVariantStock = variantOptions.some(
+    const hasVariantStock = variantOptions.every(
       (variant) => variant.stockQuantity !== undefined && variant.stockQuantity !== null,
     );
     if (!hasVariantStock) {

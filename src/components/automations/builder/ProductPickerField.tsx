@@ -566,7 +566,7 @@ export function ProductPickerField({
                     pickerSingleSelect={false}
                     pickerConfirmLabel={tBuilder('productPickerConfirm')}
                     initialSelectedProductIds={selectedProducts.map((p) => p.productId)}
-                    onConfirmPickerSelection={handleConfirmProducts}
+                    onConfirmPickerSelectionAction={handleConfirmProducts}
                   />
                 )}
               </div>

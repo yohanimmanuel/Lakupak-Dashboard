@@ -35,6 +35,7 @@ import { fetchGraphQL } from '@/lib/graphqlClient';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { useProductsTranslations } from '@/hooks/useProductsTranslations';
 import { getProductStockStatus, getVariantStockStatus } from '@/utils/stockUtils';
+import { getProductCompletion } from '@/utils/productCompletion';
 
 const MARKETPLACE_STATUS_MUTATION = `
   mutation PublishMarketplaceProduct($userId: Int!, $productId: String!, $action: String!) {
@@ -2515,31 +2516,8 @@ export default function ProductCatalog({
       {(currentMode === 'view' || currentMode === 'edit' || currentMode === 'add') && (
         <div className="mx-4 mt-4 mb-4 p-4 bg-gradient-to-r from-blue-50 to-amber-50 border border-blue-200 rounded-lg">
           {(() => {
-            // Use formData so publish/unpublish without reload keeps completion in sync
-            const dataSource = formData;
-            const requiredFields = [
-              { nameKey: 'sku', value: String(dataSource?.sku || '').trim() },
-              { nameKey: 'name', value: String(dataSource?.name || '').trim() },
-              { nameKey: 'description', value: String(dataSource?.description || '').trim() },
-              { nameKey: 'category', value: String(dataSource?.productType || '').trim() },
-              { nameKey: 'brand', value: String(dataSource?.brand || '').trim() },
-              { nameKey: 'supplier', value: String(dataSource?.supplier || '').trim() },
-              { nameKey: 'images', value: dataSource?.images && dataSource?.images.length > 0 },
-              { nameKey: 'variants', value: combinations.length > 0 && combinations.every(combo => 
-                combo.purchasePrice && String(combo.purchasePrice).trim() !== '' &&
-                combo.sellingPrice && String(combo.sellingPrice).trim() !== ''
-              ) },
-              { nameKey: 'stock', value: combinations.length > 0 }
-            ];
-            
-            const completedFields = requiredFields.filter(field => 
-              typeof field.value === 'boolean' ? field.value : field.value !== ''
-            );
-            const totalFields = requiredFields.length;
-            const completionPercentage = Math.round((completedFields.length / totalFields) * 100);
-            const missingFields = requiredFields.filter(field => 
-              typeof field.value === 'boolean' ? !field.value : field.value === ''
-            );
+            const completion = getProductCompletion(formData, combinations, userCurrency);
+            const { completionPercentage, completedCount, totalFields, missingFieldKeys } = completion;
             
             return (
               <>
@@ -2558,10 +2536,10 @@ export default function ProductCatalog({
                   ></div>
                 </div>
                 <div className="text-xs text-gray-600">
-                  {tCatalog('completion.fieldsCompleted', { completed: completedFields.length, total: totalFields })}
-                  {missingFields.length > 0 && (
+                  {tCatalog('completion.fieldsCompleted', { completed: completedCount, total: totalFields })}
+                  {missingFieldKeys.length > 0 && (
                     <span className="ml-2 text-amber-700">
-                      • {tCatalog('completion.missing', { fields: missingFields.map(field => translateFieldName(field.nameKey)).join(', ') })}
+                      • {tCatalog('completion.missing', { fields: missingFieldKeys.map(key => translateFieldName(key)).join(', ') })}
                     </span>
                   )}
                 </div>

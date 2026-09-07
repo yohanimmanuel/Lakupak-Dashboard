@@ -99,7 +99,9 @@
       "type": "Missing Type",
       "category": "Missing Category",
       "brand": "Missing Brand",
-      "sellingPrice": "Missing Selling Price"
+      "sellingPrice": "Missing Selling Price",
+      "variants": "Missing Variants",
+      "stock": "Missing Stock"
     },
     "pagination": {
       "showing": "Showing {from} to {to} of {total} results"
@@ -148,6 +150,10 @@
       "selectAllCount": "Select All ({count} products)",
       "mixedStatuses": "Mixed product statuses selected. Only removal is allowed for safety.",
       "publishHint": "Your product will be published in our B2B Marketplace Mobile app.",
+      "cannotPublishIncomplete": "Selected product has incomplete data (Missing: {fields}). Complete it in the catalog editor to publish.",
+      "allIncompleteHint": "All selected products have incomplete data. Complete required fields before publishing.",
+      "partialPublishHint": "{readyCount} of {totalCount} products ready to publish ({skippedCount} incomplete will be skipped).",
+      "cannotPublishButtonTitle": "Cannot publish: Missing required fields ({fields})",
       "unpublishHint": "Select products to unpublish (change to Draft status).",
       "unpublishHintDesktop": "Select products to unpublish from the marketplace.",
       "removeHint": "Select products to be removed.",
