@@ -15,11 +15,22 @@ type MeiliMarketplaceDoc = {
 };
 
 export async function upsertMarketplaceProductToMeili(productId: string) {
-  const client = getMeiliClient();
-  if (!client) return;
+  await upsertMarketplaceProductsToMeili([productId]);
+}
 
-  const p = await prisma.product.findFirst({
-    where: { productId, marketplaceStatus: 'Published', status: 'Published' },
+/**
+ * Syncs the given products into the Meili index in one round trip. Ids that are no
+ * longer marketplace-published are removed instead, so the index stays 1:1 with the DB.
+ *
+ * Meili indexes asynchronously: the enqueued task is not awaited, so a document may
+ * become searchable a moment after this resolves.
+ */
+export async function upsertMarketplaceProductsToMeili(productIds: string[]) {
+  const client = getMeiliClient();
+  if (!client || productIds.length === 0) return;
+
+  const products = await prisma.product.findMany({
+    where: { productId: { in: productIds }, marketplaceStatus: 'Published', status: 'Published' },
     select: {
       productId: true,
       name: true,
@@ -38,13 +49,7 @@ export async function upsertMarketplaceProductToMeili(productId: string) {
     },
   });
 
-  // If it's not published anymore, ensure it's deleted.
-  if (!p) {
-    await deleteMarketplaceProductFromMeili(productId);
-    return;
-  }
-
-  const doc: MeiliMarketplaceDoc = {
+  const docs: MeiliMarketplaceDoc[] = products.map((p) => ({
     id: p.productId,
     name: p.name,
     description: p.description,
@@ -55,18 +60,26 @@ export async function upsertMarketplaceProductToMeili(productId: string) {
     sellingPrice: p.variantOptions?.[0]?.sellingPrice != null ? Number(p.variantOptions[0].sellingPrice) : null,
     publishedAt: p.publishedAt ? p.publishedAt.toISOString() : null,
     lastSyncAt: p.lastSyncAt ? p.lastSyncAt.toISOString() : null,
-  };
+  }));
+
+  const indexedIds = new Set(docs.map((doc) => doc.id));
+  const unpublishedIds = productIds.filter((id) => !indexedIds.has(id));
 
   const index = client.index(MEILI_PRODUCTS_INDEX);
-  const task = await index.addDocuments([doc], { primaryKey: 'id' });
-  await client.tasks.waitForTask(task.taskUid);
+  if (docs.length > 0) {
+    await index.addDocuments(docs, { primaryKey: 'id' });
+  }
+  if (unpublishedIds.length > 0) {
+    await index.deleteDocuments(unpublishedIds);
+  }
 }
 
 export async function deleteMarketplaceProductFromMeili(productId: string) {
-  const client = getMeiliClient();
-  if (!client) return;
-  const index = client.index(MEILI_PRODUCTS_INDEX);
-  const task = await index.deleteDocument(productId);
-  await client.tasks.waitForTask(task.taskUid);
+  await deleteMarketplaceProductsFromMeili([productId]);
 }
 
+export async function deleteMarketplaceProductsFromMeili(productIds: string[]) {
+  const client = getMeiliClient();
+  if (!client || productIds.length === 0) return;
+  await client.index(MEILI_PRODUCTS_INDEX).deleteDocuments(productIds);
+}

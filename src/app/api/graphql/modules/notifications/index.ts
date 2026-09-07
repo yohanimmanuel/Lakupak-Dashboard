@@ -585,6 +585,28 @@ export const NotificationService = {
     emitDashboardNewNotification(userId);
   },
 
+  // Create product published notifications for a batch of products
+  async createProductsPublishedNotifications(
+    userId: number,
+    products: Array<{ productId: string; name: string }>
+  ) {
+    if (products.length === 0) {
+      return 0;
+    }
+    await prisma.notification.createMany({
+      data: products.map(({ productId, name }) => ({
+        userId,
+        type: 'product',
+        title: 'Product Published',
+        message: `Your product "${name}" has been published to the marketplace.`,
+        metadata: { productId, productName: name, status: 'published' },
+        actionUrl: `/products/details?id=${productId}`,
+      })),
+    });
+    emitDashboardNewNotification(userId);
+    return products.length;
+  },
+
   // Create campaign sent notification
   async createCampaignSentNotification(
     userId: number,

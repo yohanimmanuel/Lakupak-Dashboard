@@ -566,6 +566,10 @@ async function retryWithBackoff<T>(
   
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
+    await invalidateSearchCache('search-cache:marketplace:*');
+  } catch {
+    // ignore cache invalidation failures
+  }
       return await fn();
     } catch (error) {
       lastError = error;
@@ -1144,7 +1148,11 @@ export const createProduct = async (args: {
   await broadcastProductChanges(updatedProduct.productId);
   
   // Invalidate marketplace search cache (public-facing, needs caching)
-  await invalidateSearchCache('search-cache:marketplace:*');
+  try {
+    await invalidateSearchCache('search-cache:marketplace:*');
+  } catch {
+    // ignore cache invalidation failures
+  }
   
   // Invalidate product cache again after broadcast to ensure fresh data on next query
   try {
@@ -1836,68 +1844,215 @@ export const resetProductPrices = async (userId: number, productId: string) => {
   }
 };
 
+type MarketplacePublishCandidate = {
+  sku: string | null;
+  name: string | null;
+  description: string | null;
+  productType: string | null;
+  brand: string | null;
+  supplier: string | null;
+  images: string[];
+  variantOptions: Array<{
+    purchasePrice: Parameters<typeof parseMoney>[0];
+    sellingPrice: Parameters<typeof parseMoney>[0];
+    stockQuantity: number | null;
+  }>;
+};
+
+/** Returns null when the product may be published, otherwise the reason it may not. */
+const findMarketplacePublishBlocker = (product: MarketplacePublishCandidate): string | null => {
+  if (
+    !product.sku?.trim() ||
+    !product.name?.trim() ||
+    !product.description?.trim() ||
+    !product.productType?.trim() ||
+    !product.brand?.trim() ||
+    !product.supplier?.trim()
+  ) {
+    return 'Product must have SKU, name, description, category, brand, and supplier filled';
+  }
+
+  if (!product.images || product.images.length === 0) {
+    return 'Product must have at least one image';
+  }
+
+  const variantOptions = product.variantOptions ?? [];
+
+  if (!variantOptions.length) {
+    return 'Product must have at least one variant option';
+  }
+
+  const allVariantsComplete = variantOptions.every(
+    (variant) => parseMoney(variant.purchasePrice) > 0 && parseMoney(variant.sellingPrice) > 0,
+  );
+  if (!allVariantsComplete) {
+    return 'All product variants must have complete pricing (purchase price and selling price)';
+  }
+
+  const totalStock = variantOptions.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0);
+  if (totalStock <= 0) {
+    return 'Product must have stock quantity greater than 0';
+  }
+
+  const hasVariantStock = variantOptions.every(
+    (variant) => variant.stockQuantity !== undefined && variant.stockQuantity !== null,
+  );
+  if (!hasVariantStock) {
+    return 'Product variants must have stock quantity set';
+  }
+
+  return null;
+};
+
+/**
+ * Search-index sync, real-time broadcast, and cache invalidation for a marketplace
+ * status change. Takes every affected productId at once so a bulk operation pays for
+ * these round trips once instead of once per product.
+ */
+const applyMarketplaceStatusSideEffects = async (
+  userId: number,
+  productIds: string[],
+  published: boolean,
+) => {
+  if (productIds.length === 0) return;
+
+  // Keep Meilisearch 1:1 with DB for marketplace-published products.
+  // When a product is unpublished, remove it from the Meili index.
+  try {
+    const { upsertMarketplaceProductsToMeili, deleteMarketplaceProductsFromMeili } = await import(
+      '@/lib/meiliMarketplaceSync'
+    );
+    if (published) {
+      await upsertMarketplaceProductsToMeili(productIds);
+    } else {
+      await deleteMarketplaceProductsFromMeili(productIds);
+    }
+  } catch (e) {
+    console.warn('[Products] Meili sync failed on marketplace status change:', e);
+  }
+
+  try {
+    await broadcastProductUpdate(productIds);
+    await broadcastPriceUpdate(productIds);
+  } catch {
+    // ignore broadcast failures
+  }
+
+  // Invalidate marketplace search cache (public-facing, needs caching)
+  await invalidateSearchCache('search-cache:marketplace:*');
+
+  // Invalidate product cache after publish/unpublish to ensure fresh status display
+  try {
+    const { invalidateProductCache } = await import('@/lib/queryCache');
+    await invalidateProductCache(userId);
+  } catch {
+    // ignore cache invalidation failures
+  }
+};
+
 export const bulkPublishMarketplaceProducts = async (args: {
   userId: number;
   productIds: string[];
   action: string;
 }) => {
-  const { userId, productIds, action } = args;
+  const { userId, action } = args;
   const normalizedAction = (action || '').toLowerCase();
 
   if (normalizedAction !== 'publish' && normalizedAction !== 'unpublish') {
     throw new Error('Invalid action. Use "publish" or "unpublish".');
   }
 
+  const isPublish = normalizedAction === 'publish';
+  const requestedIds = Array.from(new Set(args.productIds));
+
   const successful: string[] = [];
   const failed: string[] = [];
   const results: Array<{ success: boolean; message: string; product?: unknown }> = [];
 
-  // Batch configuration for stability with large operations
-  const BATCH_SIZE = 20; // Process 15 products per batch
-  const BATCH_DELAY_MS = 50; // 50ms delay between batches to avoid overwhelming the database
+  if (requestedIds.length === 0) {
+    return {
+      success: true,
+      message: `No products to ${normalizedAction}`,
+      successful,
+      failed,
+      results,
+    };
+  }
 
-  // Helper to chunk array into batches
-  const chunkArray = <T>(array: T[], size: number): T[][] => {
-    const chunks: T[][] = [];
-    for (let i = 0; i < array.length; i += size) {
-      chunks.push(array.slice(i, i + size));
+  // Read the whole batch once; the eligibility checks below are in-memory, so adding
+  // products to a bulk operation costs no extra database round trips.
+  const products = await prisma.product.findMany({
+    where: { productId: { in: requestedIds }, userId },
+    select: {
+      productId: true,
+      sku: true,
+      name: true,
+      description: true,
+      productType: true,
+      brand: true,
+      supplier: true,
+      images: true,
+      variantOptions: {
+        select: { purchasePrice: true, sellingPrice: true, stockQuantity: true },
+      },
+    },
+  });
+
+  const productsById = new Map(products.map((product) => [product.productId, product]));
+
+  for (const productId of requestedIds) {
+    const product = productsById.get(productId);
+    if (!product) {
+      failed.push(productId);
+      results.push({ success: false, message: 'Product not found' });
+      continue;
     }
-    return chunks;
-  };
 
-  // Helper to delay execution
-  const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    const blocker = isPublish ? findMarketplacePublishBlocker(product) : null;
+    if (blocker) {
+      failed.push(productId);
+      results.push({ success: false, message: blocker });
+      continue;
+    }
 
-  // Split products into batches
-  const batches = chunkArray(productIds, BATCH_SIZE);
+    successful.push(productId);
+    results.push({
+      success: true,
+      message: isPublish
+        ? 'Product published to marketplace successfully'
+        : 'Product unpublished from marketplace successfully',
+    });
+  }
 
-  // Process batches sequentially, but products within each batch in parallel
-  for (let i = 0; i < batches.length; i++) {
-    const batch = batches[i];
-    
-    // Process all products in current batch in parallel
-    const batchPromises = batch.map(async (productId) => {
-      try {
-        const result = await publishMarketplaceProduct({ userId, productId, action });
-        successful.push(productId);
-        results.push(result);
-        return { success: true, productId, result };
-      } catch (error) {
-        failed.push(productId);
-        results.push({
-          success: false,
-          message: error instanceof Error ? error.message : 'Failed to publish product',
-        });
-        return { success: false, productId, error };
-      }
+  if (successful.length > 0) {
+    const now = new Date();
+    await prisma.product.updateMany({
+      where: { userId, productId: { in: successful } },
+      data: {
+        marketplaceStatus: isPublish ? 'Published' : 'Unpublished',
+        status: isPublish ? 'Published' : 'Draft', // Sync status field
+        lastSyncAt: now,
+        publishedAt: isPublish ? now : null,
+      },
     });
 
-    // Wait for current batch to complete
-    await Promise.allSettled(batchPromises);
+    await applyMarketplaceStatusSideEffects(userId, successful, isPublish);
 
-    // Add delay between batches (except for the last batch)
-    if (i < batches.length - 1) {
-      await delay(BATCH_DELAY_MS);
+    if (isPublish) {
+      try {
+        await NotificationService.createProductsPublishedNotifications(
+          userId,
+          successful.map((productId) => ({
+            productId,
+            name: productsById.get(productId)?.name ?? productId,
+          })),
+        );
+      } catch (notifError) {
+        // Don't fail publish if notifications fail
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[Products] Bulk published notifications failed:', notifError);
+        }
+      }
     }
   }
 
@@ -1905,7 +2060,7 @@ export const bulkPublishMarketplaceProducts = async (args: {
     success: failed.length === 0,
     message:
       failed.length === 0
-        ? `All ${productIds.length} products ${normalizedAction}ed successfully`
+        ? `All ${requestedIds.length} products ${normalizedAction}ed successfully`
         : `${successful.length} products ${normalizedAction}ed, ${failed.length} failed`,
     successful,
     failed,
@@ -1942,47 +2097,9 @@ export const publishMarketplaceProduct = async (args: {
   }
 
   if (normalizedAction === 'publish') {
-    if (
-      !product.sku?.trim() ||
-      !product.name?.trim() ||
-      !product.description?.trim() ||
-      !product.productType?.trim() ||
-      !product.brand?.trim() ||
-      !product.supplier?.trim()
-    ) {
-      throw new Error('Product must have SKU, name, description, category, brand, and supplier filled');
-    }
-
-    if (!product.images || product.images.length === 0) {
-      throw new Error('Product must have at least one image');
-    }
-
-    const variantOptions = product.variantOptions ?? [];
-
-    if (!variantOptions.length) {
-      throw new Error('Product must have at least one variant option');
-    }
-
-    const allVariantsComplete = variantOptions.every((variant) => {
-      const purchasePrice = parseMoney(variant.purchasePrice);
-      const sellingPrice = parseMoney(variant.sellingPrice);
-      return Boolean(purchasePrice > 0 && sellingPrice > 0);
-    });
-
-    if (!allVariantsComplete) {
-      throw new Error('All product variants must have complete pricing (purchase price and selling price)');
-    }
-
-    const totalStock = variantOptions.reduce((sum, variant) => sum + (variant.stockQuantity || 0), 0);
-    if (totalStock <= 0) {
-      throw new Error('Product must have stock quantity greater than 0');
-    }
-
-    const hasVariantStock = variantOptions.every(
-      (variant) => variant.stockQuantity !== undefined && variant.stockQuantity !== null,
-    );
-    if (!hasVariantStock) {
-      throw new Error('Product variants must have stock quantity set');
+    const blocker = findMarketplacePublishBlocker(product);
+    if (blocker) {
+      throw new Error(blocker);
     }
   }
 
@@ -2010,39 +2127,17 @@ export const publishMarketplaceProduct = async (args: {
     },
   });
 
-  // Keep Meilisearch 1:1 with DB for marketplace-published products.
-  // When a product is unpublished, remove it from the Meili index.
-  try {
-    const { upsertMarketplaceProductToMeili, deleteMarketplaceProductFromMeili } = await import(
-      '@/lib/meiliMarketplaceSync'
-    );
-    if (updatedProduct.marketplaceStatus === 'Published' && updatedProduct.status === 'Published') {
-      await upsertMarketplaceProductToMeili(updatedProduct.productId);
-    } else {
-      await deleteMarketplaceProductFromMeili(updatedProduct.productId);
-    }
-  } catch (e) {
-    console.warn('[Products] Meili sync failed on publishMarketplaceProduct:', e);
-  }
-
   const [offerMap, soldCountMap] = await Promise.all([
     fetchActiveOffersMap([updatedProduct.productId], userId),
     calculateSoldCounts(prisma, [updatedProduct.productId]),
   ]);
   const mappedProduct = mapProduct(updatedProduct, offerMap, soldCountMap);
 
-  await broadcastProductChanges(updatedProduct.productId);
-  
-  // Invalidate marketplace search cache (public-facing, needs caching)
-  await invalidateSearchCache('search-cache:marketplace:*');
-
-  // Invalidate product cache after publish/unpublish to ensure fresh status display
-  try {
-    const { invalidateProductCache } = await import('@/lib/queryCache');
-    await invalidateProductCache(userId);
-  } catch {
-    // ignore cache invalidation failures
-  }
+  await applyMarketplaceStatusSideEffects(
+    userId,
+    [updatedProduct.productId],
+    updatedProduct.marketplaceStatus === 'Published' && updatedProduct.status === 'Published',
+  );
 
   // Send notification when product is published
   if (normalizedAction === 'publish') {
