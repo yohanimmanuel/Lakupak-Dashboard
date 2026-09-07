@@ -566,10 +566,6 @@ async function retryWithBackoff<T>(
   
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-    await invalidateSearchCache('search-cache:marketplace:*');
-  } catch {
-    // ignore cache invalidation failures
-  }
       return await fn();
     } catch (error) {
       lastError = error;
