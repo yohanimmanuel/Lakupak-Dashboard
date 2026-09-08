@@ -109,16 +109,16 @@ describe('products.publishMarketplaceProduct (integration)', () => {
   });
 
   it('broadcasts a single product update after publish', async () => {
+    const distributor = await createTestDistributor();
+    const productId = 'P-PUBLISH-WS';
+    await createDraftProductReadyToPublish(distributor.id, productId);
+
     const productUpdateSpy = vi
       .spyOn(websocketBroadcast, 'broadcastProductUpdate')
       .mockResolvedValue(undefined);
     const priceUpdateSpy = vi
       .spyOn(websocketBroadcast, 'broadcastPriceUpdate')
       .mockResolvedValue(undefined);
-
-    const distributor = await createTestDistributor();
-    const productId = 'P-PUBLISH-WS';
-    await createDraftProductReadyToPublish(distributor.id, productId);
 
     await publishMarketplaceProduct({ userId: distributor.id, productId, action: 'publish' });
 
