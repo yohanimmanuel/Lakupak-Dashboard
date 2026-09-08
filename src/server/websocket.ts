@@ -82,6 +82,11 @@ interface WebSocketMessage {
   };
 }
 
+/** Where the attached server publishes itself for Next.js-bundled code to find. */
+export const WS_SERVER_GLOBAL_KEY = '__lakupakWsServer';
+
+type WsServerGlobal = { [WS_SERVER_GLOBAL_KEY]?: MarketplaceWebSocketServer };
+
 class MarketplaceWebSocketServer {
   private wss: WebSocketServer | null = null;
   private httpServer: ReturnType<typeof createServer> | null = null;
@@ -104,10 +109,18 @@ class MarketplaceWebSocketServer {
         return true;
       }
       let body = '';
+      // Without this listener a client that aborts mid-post (e.g. fetch timeout) makes
+      // the request stream emit an unhandled 'error', which would crash the process.
+      req.on('error', () => {
+        body = '';
+      });
       req.on('data', (chunk) => {
         body += chunk.toString();
       });
       req.on('end', () => {
+        if (res.writableEnded || res.destroyed) {
+          return;
+        }
         try {
           const data = JSON.parse(body);
           if (data.type === 'offer_updated') {
@@ -138,9 +151,12 @@ class MarketplaceWebSocketServer {
           }
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ success: true }));
-        } catch {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Invalid request' }));
+        } catch (error) {
+          console.warn('[WebSocket] Broadcast request failed:', error);
+          if (!res.headersSent && !res.destroyed) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Invalid request' }));
+          }
         }
       });
       return true;
@@ -159,6 +175,10 @@ class MarketplaceWebSocketServer {
     this.httpServer = server;
     this.isExternalHttpServer = true;
     this.wss = new WebSocketServer({ noServer: true });
+
+    // Next.js bundles its own copy of this module, so app code cannot see this instance
+    // through the import graph. globalThis is shared across both registries.
+    (globalThis as WsServerGlobal)[WS_SERVER_GLOBAL_KEY] = this;
 
     server.on('upgrade', (request: IncomingMessage, socket, head) => {
       const url = request.url || '';

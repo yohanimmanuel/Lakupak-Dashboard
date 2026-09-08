@@ -22,10 +22,9 @@ const dev = process.env.NODE_ENV !== 'production';
 const hostname = '0.0.0.0';
 const port = parseInt(process.env.PORT || '3000', 10);
 
-// Next.js bundles its own copy of src/server/websocket, so the `wsServer` singleton it
-// sees is never the one attached below — it always reaches the WS server over HTTP.
-// Point it at this server, which serves /api/marketplace/broadcast on the same port.
-// Without this it would default to :3001, where nothing listens in unified mode.
+// App code broadcasts through the instance attach() publishes on globalThis, so it never
+// needs this. Kept as a fallback address for the HTTP path, since the default of :3001 has
+// nothing listening in unified mode.
 process.env.WS_HOST = '127.0.0.1';
 process.env.WS_PORT = String(port);
 
@@ -56,7 +55,9 @@ async function start() {
     }
   });
 
-  // Attach WebSocket server for handling /api/marketplace/ws upgrades on this port
+  // Attach WebSocket server for handling /api/marketplace/ws upgrades on this port.
+  // attach() also publishes the instance on globalThis so Next.js-bundled app code can
+  // broadcast directly instead of posting over HTTP to the server it already runs inside.
   wsServer.attach(server);
 
   server.listen(port, () => {
@@ -87,6 +88,16 @@ async function start() {
 
   process.on('SIGTERM', shutdown);
   process.on('SIGINT', shutdown);
+
+  // This deployment runs a single instance, so an error escaping a detached callback
+  // would take the whole site down and return 502 until Render restarts it. Log and
+  // keep serving instead.
+  process.on('uncaughtException', (err) => {
+    console.error('Uncaught exception (server kept alive):', err);
+  });
+  process.on('unhandledRejection', (reason) => {
+    console.error('Unhandled rejection (server kept alive):', reason);
+  });
 }
 
 start().catch((err) => {

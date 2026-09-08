@@ -1,20 +1,30 @@
 // WebSocket broadcast utility for real-time updates
-import { wsServer } from '../server/websocket';
+import { wsServer, WS_SERVER_GLOBAL_KEY } from '../server/websocket';
 import { WS_INTERNAL_SECRET_HEADER, getWsInternalSecret } from '@/lib/wsInternalAuth';
 
+type WsBroadcaster = typeof wsServer;
+
+type GlobalWithWsServer = { [WS_SERVER_GLOBAL_KEY]?: WsBroadcaster };
+
 /**
- * Broadcast in-memory only when this module's `wsServer` is the one holding the clients.
+ * Resolve the `wsServer` that actually holds the connected clients, or null if it
+ * lives in another process and must be reached over HTTP.
  *
- * That is true inside the standalone WS server process, but NOT inside Next.js: Next
- * bundles its own copy of src/server/websocket, so app code sees an unattached
- * singleton and must reach the real server over HTTP. In unified mode `server.ts`
- * sets WS_HOST/WS_PORT to its own address so that post lands back on this process.
+ * Next.js bundles its own copy of src/server/websocket, so the module-level `wsServer`
+ * imported here is a second, unattached instance — never the one serving clients.
+ * The unified server hands the real one over on globalThis, which is shared across
+ * both module registries because they run in the same process.
  */
-function shouldPostToWsServer(): boolean {
-  if (wsServer.getWss() !== null) {
-    return false;
+function getAttachedWsServer(): WsBroadcaster | null {
+  const fromGlobal = (globalThis as GlobalWithWsServer)[WS_SERVER_GLOBAL_KEY];
+  if (fromGlobal && fromGlobal.getWss() !== null) {
+    return fromGlobal;
   }
-  return true;
+  // Standalone WS server process: this module's own instance is the live one.
+  if (wsServer.getWss() !== null) {
+    return wsServer;
+  }
+  return null;
 }
 
 async function postWsBroadcast(body: Record<string, unknown>): Promise<Response | null> {
@@ -46,26 +56,28 @@ async function postWsBroadcast(body: Record<string, unknown>): Promise<Response 
 
 async function dispatchBroadcast(
   body: Record<string, unknown>,
-  directBroadcast: () => void,
+  directBroadcast: (server: WsBroadcaster) => void,
 ): Promise<void> {
-  if (shouldPostToWsServer()) {
-    const response = await postWsBroadcast(body);
-    if (response && !response.ok) {
-      let detail = response.statusText;
-      try {
-        const json = (await response.json()) as { error?: string };
-        detail = json.error ?? detail;
-      } catch {
-        // ignore
-      }
-      console.warn(
-        `[WebSocket] Broadcast failed (${response.status}): ${detail}`,
-        body.type,
-      );
-    }
+  const attached = getAttachedWsServer();
+  if (attached) {
+    directBroadcast(attached);
     return;
   }
-  directBroadcast();
+
+  const response = await postWsBroadcast(body);
+  if (response && !response.ok) {
+    let detail = response.statusText;
+    try {
+      const json = (await response.json()) as { error?: string };
+      detail = json.error ?? detail;
+    } catch {
+      // ignore
+    }
+    console.warn(
+      `[WebSocket] Broadcast failed (${response.status}): ${detail}`,
+      body.type,
+    );
+  }
 }
 
 /**
@@ -78,7 +90,7 @@ export async function broadcastOfferUpdate(
   try {
     await dispatchBroadcast(
       { type: 'offer_updated', offerId, productIds },
-      () => wsServer.broadcastOfferUpdate(offerId, productIds),
+      (srv) => srv.broadcastOfferUpdate(offerId, productIds),
     );
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
@@ -94,7 +106,7 @@ export async function broadcastProductUpdate(productIds: string[]): Promise<void
   try {
     await dispatchBroadcast(
       { type: 'product_updated', productIds },
-      () => wsServer.broadcastProductUpdate(productIds),
+      (srv) => srv.broadcastProductUpdate(productIds),
     );
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
@@ -110,7 +122,7 @@ export async function broadcastPriceUpdate(productIds: string[]): Promise<void> 
   try {
     await dispatchBroadcast(
       { type: 'prices_updated', productIds },
-      () => wsServer.broadcastPriceUpdate(productIds),
+      (srv) => srv.broadcastPriceUpdate(productIds),
     );
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
@@ -126,7 +138,7 @@ export async function broadcastOrderUpdate(orderIds: string[]): Promise<void> {
   try {
     await dispatchBroadcast(
       { type: 'order_updated', orderIds },
-      () => wsServer.broadcastOrderUpdate(orderIds),
+      (srv) => srv.broadcastOrderUpdate(orderIds),
     );
   } catch (error) {
     // best-effort
@@ -165,7 +177,7 @@ export async function broadcastPlatformAnnouncementPublished(
   try {
     await dispatchBroadcast(
       { type: 'platform_announcement_published', announcement },
-      () => wsServer.broadcastPlatformAnnouncementPublished(announcement),
+      (srv) => srv.broadcastPlatformAnnouncementPublished(announcement),
     );
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
@@ -178,7 +190,7 @@ export async function broadcastMarketplaceHomeOffersRefresh(): Promise<void> {
   try {
     await dispatchBroadcast(
       { type: 'home_offers_updated' },
-      () => wsServer.broadcastHomeOffersUpdated(),
+      (srv) => srv.broadcastHomeOffersUpdated(),
     );
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
@@ -193,7 +205,7 @@ export async function broadcastPlatformAnnouncementUnpublished(
   try {
     await dispatchBroadcast(
       { type: 'platform_announcement_unpublished', announcementId },
-      () => wsServer.broadcastPlatformAnnouncementUnpublished(announcementId),
+      (srv) => srv.broadcastPlatformAnnouncementUnpublished(announcementId),
     );
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
@@ -206,7 +218,7 @@ export async function broadcastPlatformAdminInboxRefresh(): Promise<void> {
   try {
     await dispatchBroadcast(
       { type: 'platform_admin_inbox' },
-      () => wsServer.broadcastPlatformAdminInbox(),
+      (srv) => srv.broadcastPlatformAdminInbox(),
     );
   } catch {
     /* best-effort */
@@ -227,7 +239,7 @@ export async function broadcastNotification(
         type: 'notification',
         notification: { type, title, body, data, targetUserId, targetType },
       },
-      () => wsServer.broadcastNotification(type, title, body, data, targetUserId, targetType),
+      (srv) => srv.broadcastNotification(type, title, body, data, targetUserId, targetType),
     );
   } catch {
     // best-effort
