@@ -118,10 +118,10 @@ export async function invalidateSearchCache(pattern?: string): Promise<void> {
 
   try {
     const searchPattern = pattern || 'search-cache:*';
-    // Use SCAN for production-safe key iteration
+    // Use SCAN for production-safe key iteration with efficient batch size
     let cursor = '0';
     do {
-      const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', searchPattern, 'COUNT', 100);
+      const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', searchPattern, 'COUNT', 1000);
       cursor = nextCursor;
       if (keys.length > 0) {
         await redis.del(...keys);

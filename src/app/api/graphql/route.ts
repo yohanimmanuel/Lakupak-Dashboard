@@ -546,8 +546,9 @@ async function handler(request: NextRequest) {
       // Resolvers must enforce authentication requirements for protected operations
       const userId = extractAuthenticatedUserId(request);
       
-      // Set database security context for audit logging and rate limiting
-      await setDbSecurityContextFromRequest(request, userId);
+      // Set database security context for audit logging. Skip per-query Redis rate limiting
+      // because GraphQL applies its own multi-tier route and complexity rate limiters below.
+      await setDbSecurityContextFromRequest(request, userId, { skipRateLimit: true });
       
       // Apply GraphQL query complexity rate limiting FIRST (before other checks)
       const complexityCheck = await graphQLComplexityRateLimiter(request, query, userId);

@@ -1934,20 +1934,21 @@ const applyMarketplaceStatusSideEffects = async (
 
   // Keep Meilisearch 1:1 with DB for marketplace-published products.
   // When a product is unpublished, remove it from the Meili index.
-  // Runs last and never blocks the broadcast: MEILI_HOST may be unreachable in a
-  // deployment, and real-time delivery must not wait on it.
-  try {
-    const { upsertMarketplaceProductsToMeili, deleteMarketplaceProductsFromMeili } = await import(
-      '@/lib/meiliMarketplaceSync'
-    );
-    if (published) {
-      await upsertMarketplaceProductsToMeili(productIds);
-    } else {
-      await deleteMarketplaceProductsFromMeili(productIds);
+  // Runs asynchronously so Meilisearch network latency never blocks the HTTP response.
+  void (async () => {
+    try {
+      const { upsertMarketplaceProductsToMeili, deleteMarketplaceProductsFromMeili } = await import(
+        '@/lib/meiliMarketplaceSync'
+      );
+      if (published) {
+        await upsertMarketplaceProductsToMeili(productIds);
+      } else {
+        await deleteMarketplaceProductsFromMeili(productIds);
+      }
+    } catch (e) {
+      console.warn('[Products] Meili sync failed on marketplace status change:', e);
     }
-  } catch (e) {
-    console.warn('[Products] Meili sync failed on marketplace status change:', e);
-  }
+  })();
 };
 
 export const bulkPublishMarketplaceProducts = async (args: {
@@ -2039,20 +2040,17 @@ export const bulkPublishMarketplaceProducts = async (args: {
     await applyMarketplaceStatusSideEffects(userId, successful, isPublish);
 
     if (isPublish) {
-      try {
-        await NotificationService.createProductsPublishedNotifications(
-          userId,
-          successful.map((productId) => ({
-            productId,
-            name: productsById.get(productId)?.name ?? productId,
-          })),
-        );
-      } catch (notifError) {
-        // Don't fail publish if notifications fail
+      void NotificationService.createProductsPublishedNotifications(
+        userId,
+        successful.map((productId) => ({
+          productId,
+          name: productsById.get(productId)?.name ?? productId,
+        })),
+      ).catch((notifError) => {
         if (process.env.NODE_ENV === 'development') {
           console.warn('[Products] Bulk published notifications failed:', notifError);
         }
-      }
+      });
     }
   }
 
@@ -2139,20 +2137,17 @@ export const publishMarketplaceProduct = async (args: {
     updatedProduct.marketplaceStatus === 'Published' && updatedProduct.status === 'Published',
   );
 
-  // Send notification when product is published
+  // Send notification when product is published asynchronously
   if (normalizedAction === 'publish') {
-    try {
-      await NotificationService.createProductPublishedNotification(
-        userId,
-        updatedProduct.productId,
-        updatedProduct.name
-      );
-    } catch (notifError) {
-      // Don't fail publish if notification fails
+    void NotificationService.createProductPublishedNotification(
+      userId,
+      updatedProduct.productId,
+      updatedProduct.name
+    ).catch((notifError) => {
       if (process.env.NODE_ENV === 'development') {
         console.warn('[Products] Published notification failed:', notifError);
       }
-    }
+    });
   }
 
   return {

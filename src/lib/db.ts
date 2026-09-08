@@ -17,6 +17,8 @@ interface DbSecurityContext {
   ip?: string
   userAgent?: string
   requestHeaders?: Record<string, string>
+  /** Skip per-query Redis rate limiting (e.g. for endpoints that already enforce route-level rate limiting) */
+  skipRateLimit?: boolean
 }
 
 const dbSecurityContext = new AsyncLocalStorage<DbSecurityContext>()
@@ -35,7 +37,8 @@ export function setDbSecurityContext(context: DbSecurityContext): void {
  */
 export async function setDbSecurityContextFromRequest(
   req: NextRequest,
-  userId?: number | null
+  userId?: number | null,
+  options?: { skipRateLimit?: boolean }
 ): Promise<void> {
   // Try to get userId from auth helpers if not provided
   let authenticatedUserId = userId;
@@ -64,6 +67,7 @@ export async function setDbSecurityContextFromRequest(
     ip,
     userAgent,
     requestHeaders: Object.keys(requestHeaders).length > 0 ? requestHeaders : undefined,
+    skipRateLimit: options?.skipRateLimit,
   });
 }
 
@@ -84,9 +88,9 @@ const connectionString =
 // Connection pool configuration for production security
 const pool = new Pool({
   connectionString,
-  // Connection pool limits - optimized for better performance
-  max: parseInt(process.env.DB_POOL_MAX || '30', 10), // Increased from 20 for better concurrency
-  min: parseInt(process.env.DB_POOL_MIN || '5', 10), // Increased from 2 to keep connections ready
+  // Connection pool limits - right-sized for Render single-instance & Supabase pooler
+  max: parseInt(process.env.DB_POOL_MAX || '10', 10),
+  min: parseInt(process.env.DB_POOL_MIN || '2', 10),
   // Connection timeout settings - relaxed for better reliability
   connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT_MS || '15000', 10), // Increased from 10s
   idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT_MS || '60000', 10), // Increased from 30s to keep connections longer
@@ -128,8 +132,8 @@ export const prisma = basePrisma.$extends({
       const startTime = Date.now();
       const context = getDbSecurityContext();
       
-      // Apply database query rate limiting if context is available
-      if (context) {
+      // Apply database query rate limiting if context is available and not skipped
+      if (context && !context.skipRateLimit) {
         const rateLimitCheck = await checkDatabaseQueryRateLimit({
           maxQueries: parseInt(process.env.DB_QUERY_RATE_LIMIT || '1000', 10), // 1000 queries per minute
           windowMs: 60 * 1000, // 1 minute

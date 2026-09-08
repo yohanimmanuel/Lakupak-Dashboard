@@ -1,4 +1,5 @@
-const TICK_MS = 5_000;
+// Poll every 30 seconds instead of 5 seconds to reduce idle database load on shared-CPU deployments.
+const TICK_MS = 30_000;
 
 const globalForScheduler = globalThis as unknown as {
   __lakuCampaignScheduleTimer?: ReturnType<typeof setInterval>;
