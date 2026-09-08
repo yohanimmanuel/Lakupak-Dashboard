@@ -108,7 +108,11 @@ export async function broadcastProductUpdate(
 ): Promise<void> {
   try {
     await dispatchBroadcast(
-      { type: 'product_updated', productIds, ...(action ? { action } : {}) },
+      {
+        type: 'product_updated',
+        productIds,
+        ...(action ? { action } : {}),
+      },
       (srv) => srv.broadcastProductUpdate(productIds, action),
     );
   } catch (error) {
