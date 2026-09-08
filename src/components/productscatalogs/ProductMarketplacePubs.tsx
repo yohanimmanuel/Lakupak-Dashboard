@@ -141,10 +141,11 @@ export default function ProductMarketplacePubs({
       }
       
       setSuccess(true);
+      // Long enough to register the confirmation, short enough not to gate the workflow.
       setTimeout(() => {
         setSuccess(false);
         onClose();
-      }, 2000);
+      }, 600);
     } catch (error) {
       setError(error instanceof Error ? error.message : tMarketplace('publishError'));
     } finally {

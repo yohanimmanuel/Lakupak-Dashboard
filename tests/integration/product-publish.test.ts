@@ -108,7 +108,7 @@ describe('products.publishMarketplaceProduct (integration)', () => {
     expect(row?.marketplaceStatus).not.toBe('Published');
   });
 
-  it('broadcasts product and price updates after publish', async () => {
+  it('broadcasts a single product update after publish', async () => {
     const productUpdateSpy = vi
       .spyOn(websocketBroadcast, 'broadcastProductUpdate')
       .mockResolvedValue(undefined);
@@ -123,7 +123,9 @@ describe('products.publishMarketplaceProduct (integration)', () => {
     await publishMarketplaceProduct({ userId: distributor.id, productId, action: 'publish' });
 
     expect(productUpdateSpy).toHaveBeenCalledWith([productId]);
-    expect(priceUpdateSpy).toHaveBeenCalledWith([productId]);
+    // A status change leaves prices untouched, and a second broadcast would make clients
+    // run the same refetch twice.
+    expect(priceUpdateSpy).not.toHaveBeenCalled();
 
     productUpdateSpy.mockRestore();
     priceUpdateSpy.mockRestore();
