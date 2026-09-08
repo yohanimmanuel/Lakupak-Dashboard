@@ -1,13 +1,12 @@
 import type { Prisma } from '@/lib/db';
 import { prisma } from '../../common/prisma';
 import { safeParsePrice } from '@/utils/currencyUtils';
-import { calculateSoldCounts, calculateProductReviewStats, calculateDistributorReviewStats, updateProductPricesFromOffers, deactivateExpiredOffers } from '@/utils/marketplaceMetrics';
+import { calculateSoldCounts, calculateProductReviewStats, calculateDistributorReviewStats } from '@/utils/marketplaceMetrics';
 import { sanitizePagination, buildPaginationInfo } from '../../common/utils';
 import { getTodayBoundaries, getStartOfDay, getEndOfDay } from '@/lib/dateUtils';
 import {
   getCachedMarketplaceSearch,
   setCachedMarketplaceSearch,
-  invalidateSearchCache,
 } from '@/utils/searchCache';
 import { getMeiliClient, MEILI_PRODUCTS_INDEX, getMarketplaceSearchEngineMode } from '@/lib/meili';
 import type { SearchParams } from 'meilisearch';
@@ -19,7 +18,6 @@ import { validateVariant } from '@/services/variantService';
 import { syncOrderToBuyerProfile, buildMobileBuyerId } from '@/utils/buyerSync';
 import { broadcastOrderUpdate } from '@/utils/websocketBroadcast';
 import { buildBuyXGetYPromotionDetails } from '@/utils/promotionUtils';
-import { enqueueSideEffect } from '@/lib/sideEffectQueue';
 import { expandCategoryFilterValues } from '@/utils/categoryUtils';
 
 function isSafeCategoryFilterToken(value: string): boolean {
@@ -746,53 +744,6 @@ export const fetchMarketplaceProducts = async (args: {
     },
   });
 
-  // Deactivate expired offers based on date ranges
-  // Await to ensure broadcasts complete before returning results
-  try {
-      const { broadcastOfferUpdate, broadcastPriceUpdate, broadcastProductUpdate } = await import('@/utils/websocketBroadcast');
-    
-    await Promise.all(
-    userIds.map(async (userId) => {
-      const result = await deactivateExpiredOffers(prisma, userId);
-      
-      // Broadcast websocket updates for activated and deactivated offers
-        // Do this BEFORE querying so clients get updates immediately
-        // Collect all broadcasts to run in parallel
-        const broadcastPromises: Promise<void>[] = [];
-      
-      for (const { offerId, productIds } of result.activatedOffers) {
-          // Run all broadcasts in parallel for this offer
-          broadcastPromises.push(
-            broadcastOfferUpdate(offerId, productIds),
-            broadcastPriceUpdate(productIds),
-            broadcastProductUpdate(productIds)
-          );
-      }
-      
-      // Broadcast for deactivated offers (active → scheduled/inactive)
-      for (const { offerId, productIds } of result.deactivatedOffers) {
-          // Run all broadcasts in parallel for this offer
-          broadcastPromises.push(
-            broadcastOfferUpdate(offerId, productIds),
-            broadcastPriceUpdate(productIds),
-            broadcastProductUpdate(productIds)
-          );
-        }
-        
-        // Wait for all broadcasts to complete
-        if (broadcastPromises.length > 0) {
-          await Promise.allSettled(broadcastPromises);
-          // Invalidate search cache when offers change (only search queries use cache)
-          await invalidateSearchCache('search-cache:marketplace:*');
-      }
-      
-      return result;
-    })
-    );
-  } catch (error) {
-    console.error('[Marketplace] Background offer deactivation failed:', error);
-  }
-
   // Helper function to check if current time is within any active date range
   const isWithinActiveDateRange = (dateRanges: Array<{ startDate: Date | string; endDate: Date | string; isActive: boolean }>): boolean => {
     if (!dateRanges || dateRanges.length === 0) {
@@ -909,29 +860,6 @@ export const fetchMarketplaceProducts = async (args: {
             where: { id: primaryOffer.id },
             data: { status: 'inactive' }
           });
-
-          // Keep behavior consistent with `deactivateExpiredOffers`: broadcast offer/price/product updates
-          // and invalidate marketplace search cache so clients don't see stale offer pricing.
-          enqueueSideEffect(
-            `offerDeactivated(primaryOffer=${String(primaryOffer.id)})`,
-            async () => {
-              const { broadcastOfferUpdate, broadcastPriceUpdate, broadcastProductUpdate } = await import(
-                '@/utils/websocketBroadcast'
-              );
-              const productIds: string[] = Array.isArray(primaryOffer.offerProducts)
-                ? primaryOffer.offerProducts.map((op) => String(op.productId))
-                : [];
-              if (productIds.length === 0) return;
-
-              await Promise.allSettled([
-                broadcastOfferUpdate(primaryOffer.id, productIds),
-                broadcastPriceUpdate(productIds),
-                broadcastProductUpdate(productIds),
-              ]);
-              await invalidateSearchCache('search-cache:marketplace:*');
-            },
-            { retries: 2 },
-          );
         } catch (error) {
           console.error(`[Marketplace] Failed to deactivate offer ${primaryOffer.id}:`, error);
         }
