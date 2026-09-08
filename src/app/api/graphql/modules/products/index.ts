@@ -1911,8 +1911,10 @@ const applyMarketplaceStatusSideEffects = async (
 ) => {
   if (productIds.length === 0) return;
 
+  const action = published ? 'publish' : 'unpublish';
+
   try {
-    await broadcastProductUpdate(productIds);
+    await broadcastProductUpdate(productIds, action);
   } catch {
     // ignore broadcast failures
   }

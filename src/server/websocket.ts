@@ -67,6 +67,7 @@ interface WebSocketMessage {
     | 'pong';
   data?: unknown;
   productIds?: string[];
+  action?: 'publish' | 'unpublish' | 'update';
   offerIds?: string[];
   orderIds?: string[];
   announcement?: PlatformAnnouncementWsPayload;
@@ -128,7 +129,7 @@ class MarketplaceWebSocketServer {
           } else if (data.type === 'prices_updated') {
             this.broadcastPriceUpdate(data.productIds || []);
           } else if (data.type === 'product_updated') {
-            this.broadcastProductUpdate(data.productIds || []);
+            this.broadcastProductUpdate(data.productIds || [], data.action);
           } else if (data.type === 'order_updated') {
             this.broadcastOrderUpdate(data.orderIds || []);
           } else if (data.type === 'notification') {
@@ -409,10 +410,11 @@ class MarketplaceWebSocketServer {
   }
 
   // Broadcast product update to all connected clients
-  broadcastProductUpdate(productIds: string[]): void {
+  broadcastProductUpdate(productIds: string[], action?: 'publish' | 'unpublish' | 'update'): void {
     const message: WebSocketMessage = {
       type: 'product_updated',
-      productIds
+      productIds,
+      ...(action ? { action } : {}),
     };
 
     this.broadcast(message);

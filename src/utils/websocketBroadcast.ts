@@ -102,11 +102,14 @@ export async function broadcastOfferUpdate(
 /**
  * Broadcast product update to all connected WebSocket clients
  */
-export async function broadcastProductUpdate(productIds: string[]): Promise<void> {
+export async function broadcastProductUpdate(
+  productIds: string[],
+  action?: 'publish' | 'unpublish' | 'update',
+): Promise<void> {
   try {
     await dispatchBroadcast(
-      { type: 'product_updated', productIds },
-      (srv) => srv.broadcastProductUpdate(productIds),
+      { type: 'product_updated', productIds, ...(action ? { action } : {}) },
+      (srv) => srv.broadcastProductUpdate(productIds, action),
     );
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
