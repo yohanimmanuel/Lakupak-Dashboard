@@ -1901,9 +1901,8 @@ const findMarketplacePublishBlocker = (product: MarketplacePublishCandidate): st
 };
 
 /**
- * Search-index sync, real-time broadcast, and cache invalidation for a marketplace
- * status change. Takes every affected productId at once so a bulk operation pays for
- * these round trips once instead of once per product.
+ * After the DB write, ping marketplace clients immediately so the dashboard can return.
+ * Meili and cache work run afterward: listings read Postgres, not the search index.
  */
 const applyMarketplaceStatusSideEffects = async (
   userId: number,
@@ -1912,32 +1911,35 @@ const applyMarketplaceStatusSideEffects = async (
 ) => {
   if (productIds.length === 0) return;
 
-  // Search clients refetch on broadcast and can write whatever they just fetched back
-  // into Redis. Sync Meili first, drop the search cache second, then ping clients so
-  // the next search cannot refill the cache from a stale index.
-  try {
-    const { upsertMarketplaceProductsToMeili, deleteMarketplaceProductsFromMeili } = await import(
-      '@/lib/meiliMarketplaceSync'
-    );
-    if (published) {
-      await upsertMarketplaceProductsToMeili(productIds);
-    } else {
-      await deleteMarketplaceProductsFromMeili(productIds);
-    }
-  } catch (e) {
-    console.warn('[Products] Meili sync failed on marketplace status change:', e);
-  }
-
-  await Promise.all([
-    invalidateSearchCache('search-cache:marketplace:*'),
-    import('@/lib/queryCache').then(({ invalidateProductCache }) => invalidateProductCache(userId)),
-  ]);
-
   try {
     await broadcastProductUpdate(productIds);
   } catch {
     // ignore broadcast failures
   }
+
+  void (async () => {
+    try {
+      const { upsertMarketplaceProductsToMeili, deleteMarketplaceProductsFromMeili } = await import(
+        '@/lib/meiliMarketplaceSync'
+      );
+      if (published) {
+        await upsertMarketplaceProductsToMeili(productIds);
+      } else {
+        await deleteMarketplaceProductsFromMeili(productIds);
+      }
+    } catch (e) {
+      console.warn('[Products] Meili sync failed on marketplace status change:', e);
+    }
+
+    try {
+      await Promise.all([
+        invalidateSearchCache('search-cache:marketplace:*'),
+        import('@/lib/queryCache').then(({ invalidateProductCache }) => invalidateProductCache(userId)),
+      ]);
+    } catch (e) {
+      console.warn('[Products] Cache invalidation failed after marketplace status change:', e);
+    }
+  })();
 };
 
 export const bulkPublishMarketplaceProducts = async (args: {
