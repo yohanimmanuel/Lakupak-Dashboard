@@ -1859,9 +1859,15 @@ export default function ProductCatalog({
     setSaving(true);
     
     try {
+      // First-time publish: persist the form as Draft, then go live only via
+      // publishMarketplaceProduct. Already-live listings stay Published while saving.
+      const wasAlreadyPublished = String(formData.status || '') === 'Published';
+      const persistStatus: 'Draft' | 'Published' =
+        status === 'Published' && !wasAlreadyPublished ? 'Draft' : status;
+
       const finalData: ProductFormData = {
         ...formData,
-        status: status
+        status: persistStatus
       };
 
       // Note: we rely on the variant guard modal + backend enforcement for order integrity.
@@ -2206,8 +2212,9 @@ export default function ProductCatalog({
               );
             }
             publishedOnMarketplace = true;
+            savedProduct = { ...savedProduct, status: 'Published' as const };
           } finally {
-            if (!publishedOnMarketplace) {
+            if (!publishedOnMarketplace && !wasAlreadyPublished) {
               try {
                 await fetchGraphQL(MARKETPLACE_STATUS_MUTATION, {
                   userId: user.id,

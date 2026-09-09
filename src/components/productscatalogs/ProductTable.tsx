@@ -492,6 +492,15 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                 : p
             ));
       }
+
+      if (
+        !result.bulkPublishMarketplaceProducts?.success ||
+        (result.bulkPublishMarketplaceProducts?.failed?.length ?? 0) > 0
+      ) {
+        throw new Error(
+          result.bulkPublishMarketplaceProducts?.message || tCatalog('alerts.unpublishError'),
+        );
+      }
       
       // Clear selection after unpublishing
       setSelectedProducts([]);
@@ -500,7 +509,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
       setShowUnpublishModal(false);
       setIsBulkUnpublish(false);
           } catch (error) {
-        // Error unpublishing products
+        alert(error instanceof Error ? error.message : tCatalog('alerts.unpublishError'));
       } finally {
       setIsUnpublishing(false);
     }
