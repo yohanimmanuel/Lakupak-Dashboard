@@ -18,14 +18,54 @@ export async function upsertMarketplaceProductToMeili(productId: string) {
   await upsertMarketplaceProductsToMeili([productId]);
 }
 
+type MeiliEnqueuedTask = { taskUid?: number };
+
+async function waitForMeiliIndexingTask(
+  client: NonNullable<ReturnType<typeof getMeiliClient>>,
+  task: MeiliEnqueuedTask | undefined,
+  timeoutMs = 8_000,
+): Promise<void> {
+  const taskUid = task?.taskUid;
+  if (taskUid == null) return;
+
+  const waiter = client as unknown as {
+    waitForTask?: (
+      uid: number,
+      opts?: { timeout?: number; interval?: number },
+    ) => Promise<{ status?: string; error?: { message?: string } | null }>;
+  };
+  if (typeof waiter.waitForTask === 'function') {
+    const result = await waiter.waitForTask(taskUid, { timeout: timeoutMs, interval: 50 });
+    if (result?.status && result.status !== 'succeeded') {
+      throw new Error(result.error?.message ?? `Meili task ${taskUid} ${result.status}`);
+    }
+    return;
+  }
+
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const polled = await client.tasks.getTask(taskUid);
+    const status = (polled as { status?: string }).status;
+    if (status === 'succeeded') return;
+    if (status === 'failed' || status === 'canceled') {
+      throw new Error(`Meili task ${taskUid} ${status}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error(`Meili task ${taskUid} timed out after ${timeoutMs}ms`);
+}
+
 /**
  * Syncs the given products into the Meili index in one round trip. Ids that are no
  * longer marketplace-published are removed instead, so the index stays 1:1 with the DB.
  *
- * Meili indexes asynchronously: the enqueued task is not awaited, so a document may
- * become searchable a moment after this resolves.
+ * Pass `waitForIndexing` when callers must not treat the product as marketplace-visible
+ * until Meili has finished the enqueued add/delete (search uses this index).
  */
-export async function upsertMarketplaceProductsToMeili(productIds: string[]) {
+export async function upsertMarketplaceProductsToMeili(
+  productIds: string[],
+  opts?: { waitForIndexing?: boolean },
+) {
   const client = getMeiliClient();
   if (!client || productIds.length === 0) return;
 
@@ -66,11 +106,15 @@ export async function upsertMarketplaceProductsToMeili(productIds: string[]) {
   const unpublishedIds = productIds.filter((id) => !indexedIds.has(id));
 
   const index = client.index(MEILI_PRODUCTS_INDEX);
+  const indexingTasks: MeiliEnqueuedTask[] = [];
   if (docs.length > 0) {
-    await index.addDocuments(docs, { primaryKey: 'id' });
+    indexingTasks.push(await index.addDocuments(docs, { primaryKey: 'id' }));
   }
   if (unpublishedIds.length > 0) {
-    await index.deleteDocuments(unpublishedIds);
+    indexingTasks.push(await index.deleteDocuments(unpublishedIds));
+  }
+  if (opts?.waitForIndexing) {
+    await Promise.all(indexingTasks.map((task) => waitForMeiliIndexingTask(client, task)));
   }
 }
 
