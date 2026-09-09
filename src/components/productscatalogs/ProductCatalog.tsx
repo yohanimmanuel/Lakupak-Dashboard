@@ -730,11 +730,12 @@ export default function ProductCatalog({
   }, [formData.status, product?.status]);
 
   const currentMode = useMemo(() => {
-    if (mode === 'add' && !product) return 'add';
+    // Stay in add until the product is persisted or published from this session.
+    if (mode === 'add' && !product && !formData.id && currentProductStatus !== 'Published') return 'add';
     if (currentProductStatus === 'Published') return 'view';
     if (currentProductStatus === 'Draft') return 'edit';
     return mode;
-  }, [mode, product, currentProductStatus]);
+  }, [mode, product, currentProductStatus, formData.id]);
 
   // Compute hasUnsavedChanges during render (not in useEffect) - follows React best practices
   const hasUnsavedChanges = useMemo(() => {
@@ -1739,7 +1740,8 @@ export default function ProductCatalog({
     
 
   const handleUnpublish = async () => {
-    if (!user?.id || !product?.id) {
+    const productId = product?.productId || formData.productId;
+    if (!user?.id || !productId) {
       alert(tCatalog('alerts.userNotAuthenticatedOrProductNotFound'));
       return;
     }
@@ -1751,7 +1753,7 @@ export default function ProductCatalog({
         publishMarketplaceProduct: { success: boolean; message: string };
       }>(MARKETPLACE_STATUS_MUTATION, {
         userId: user.id,
-        productId: product.productId,
+        productId,
         action: 'unpublish',
       });
 
@@ -2228,7 +2230,7 @@ export default function ProductCatalog({
           }
         }
         
-        if (currentMode === 'edit') {
+        if (currentMode === 'edit' || (currentMode === 'add' && status === 'Published')) {
           const nextFormData: ProductFormData = {
             ...formData,
             ...finalData,
