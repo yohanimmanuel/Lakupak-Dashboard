@@ -1903,8 +1903,8 @@ const findMarketplacePublishBlocker = (product: MarketplacePublishCandidate): st
 type MarketplacePublishNotifyItem = { productId: string; name: string };
 
 /**
- * Notify only products that are still returned by marketplace listings
- * (Published + marketplace Published). Uses the persisted name.
+ * Notify only products the marketplace listing query actually returns.
+ * Uses the persisted name from that listing payload.
  */
 const notifyWhenPublishedProductsArePlaced = async (
   userId: number,
@@ -1912,29 +1912,23 @@ const notifyWhenPublishedProductsArePlaced = async (
 ) => {
   if (products.length === 0) return;
 
-  const ids = products.map((product) => product.productId);
-  const placed = await prisma.product.findMany({
-    where: {
-      userId,
-      productId: { in: ids },
-      marketplaceStatus: 'Published',
-      status: 'Published',
-    },
-    select: { productId: true, name: true },
-  });
+  const { fetchMarketplaceListedProducts } = await import(
+    '@/app/api/graphql/modules/marketplace/handlers/products'
+  );
+  const listed = await fetchMarketplaceListedProducts(products.map((product) => product.productId));
+  if (listed.length === 0) return;
 
+  const requested = new Set(products.map((product) => product.productId));
+  const placed = listed.filter((row) => requested.has(row.productId));
   if (placed.length === 0) return;
 
-  await NotificationService.createProductsPublishedNotifications(
-    userId,
-    placed.map((row) => ({ productId: row.productId, name: row.name })),
-  );
+  await NotificationService.createProductsPublishedNotifications(userId, placed);
 };
 
 /**
  * After the DB write, ping marketplace clients immediately so the dashboard can return.
- * Meili and cache work run afterward: listings read Postgres, not the search index.
- * Published-to-marketplace notifications wait until that placement work finishes.
+ * Meili and cache work run afterward. The published notice waits until the marketplace
+ * listing query returns those products — not until a device has them on screen.
  */
 const applyMarketplaceStatusSideEffects = async (
   userId: number,

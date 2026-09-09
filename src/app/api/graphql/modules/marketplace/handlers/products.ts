@@ -2,7 +2,7 @@ import type { Prisma } from '@/lib/db';
 import { prisma } from '../../common/prisma';
 import { safeParsePrice } from '@/utils/currencyUtils';
 import { calculateSoldCounts, calculateProductReviewStats, calculateDistributorReviewStats } from '@/utils/marketplaceMetrics';
-import { sanitizePagination, buildPaginationInfo } from '../../common/utils';
+import { sanitizePagination, buildPaginationInfo, MAX_DEFAULT_LIMIT } from '../../common/utils';
 import { getTodayBoundaries, getStartOfDay, getEndOfDay } from '@/lib/dateUtils';
 import {
   getCachedMarketplaceSearch,
@@ -236,9 +236,16 @@ export const fetchMarketplaceProducts = async (args: {
   category?: string;
   search?: string;
   productId?: string;
+  productIds?: string[];
   marketplaceUserId?: number;
 }) => {
   const { page = 1, limit = 20, category, search, productId } = args;
+  const scopedProductIds =
+    productId && productId.trim()
+      ? [productId.trim()]
+      : Array.from(new Set((args.productIds ?? []).map((id) => String(id).trim()).filter(Boolean)));
+  const isIdScoped = scopedProductIds.length > 0;
+  const scopedProductIdSet = new Set(scopedProductIds);
   // Deterministic search mode: 'auto' allows silent fallback; 'meili' (strict) flags any non-Meili
   // result as degraded so relevance/latency drops are observable instead of silent.
   const engineRequested = getMarketplaceSearchEngineMode();
@@ -255,10 +262,10 @@ export const fetchMarketplaceProducts = async (args: {
     return Number.isFinite(n) && n > 0 ? n : 0.2;
   })();
   
-  // ONLY use cache for search queries (when search parameter is provided)
-  // Regular marketplace listings should always be fresh to show real-time offer/price updates
+  // ONLY use cache for unscoped search queries. ID-scoped reads must not reuse a
+  // cache key that omits productId(s), or they can return products outside the set.
   let cachedResult = null;
-  if (search && search.trim()) {
+  if (search && search.trim() && !isIdScoped) {
     cachedResult = await getCachedMarketplaceSearch<{
     nodes: unknown[];
     pagination: ReturnType<typeof buildPaginationInfo>;
@@ -292,7 +299,7 @@ export const fetchMarketplaceProducts = async (args: {
   const queryExpansions =
     search && search.trim() ? await getMarketplaceSearchExpansions(prisma, search, 4).catch(() => []) : [];
   const searchTerms = search && search.trim() ? [search.trim(), ...queryExpansions] : [];
-  if (search && search.trim()) {
+  if (search && search.trim() && !isIdScoped) {
     const client = getMeiliClient();
     if (client) {
       try {
@@ -434,10 +441,8 @@ export const fetchMarketplaceProducts = async (args: {
     status: 'Published',
   };
 
-  // Direct lookup by productId: neither Prisma substring search nor the Meili index
-  // covers the id, so shareable product links resolve through this exact match.
-  if (productId && productId.trim()) {
-    whereClause.productId = productId.trim();
+  if (isIdScoped) {
+    whereClause.productId = scopedProductIds.length === 1 ? scopedProductIds[0] : { in: scopedProductIds };
   }
 
   // Search term = OR across searchable fields (Meili/pg_trgm handle relevance; Prisma path is substring match).
@@ -479,7 +484,7 @@ export const fetchMarketplaceProducts = async (args: {
 
   // If Meili is unavailable, errors, or returns **zero** hits, fall back to pg_trgm (then JS scorer).
   // Important: Meili uses `[]` for no hits — `[]` is truthy, so we must use length checks, not `if (!ids)`.
-  if (!hasMarketplaceSearchHitIds(meiliHitIds) && search && search.trim()) {
+  if (!isIdScoped && !hasMarketplaceSearchHitIds(meiliHitIds) && search && search.trim()) {
     // 1) Try typo-ish fallback using Postgres pg_trgm similarity (if available).
     // Supabase typically supports enabling pg_trgm, but we must not hard-require it at runtime.
     // If the extension/functions aren't available, we fall back to the lightweight JS scorer below.
@@ -672,6 +677,10 @@ export const fetchMarketplaceProducts = async (args: {
       .sort((a, b) => (b.count - a.count) || a.value.localeCompare(b.value));
   })();
   
+  if (isIdScoped && hasMarketplaceSearchHitIds(meiliHitIds)) {
+    meiliHitIds = meiliHitIds.filter((id) => scopedProductIdSet.has(id));
+  }
+
   const products: Promise<MarketplaceProductRow[]> = hasMarketplaceSearchHitIds(meiliHitIds)
     ? (() => {
         const ids = meiliHitIds;
@@ -1298,10 +1307,41 @@ export const fetchMarketplaceProducts = async (args: {
   
   // ONLY cache search queries (when search parameter is provided)
   // Regular marketplace listings should always be fresh to show real-time offer/price updates
-  if (search && search.trim()) {
+  if (search && search.trim() && !isIdScoped) {
   await setCachedMarketplaceSearch({ search: search || null, category: category || null, page, limit }, result);
   }
   
   return result;
 };
+
+/**
+ * Same read a marketplace client uses for product links / id-scoped listings.
+ * Notify callers should run this after Meili + cache work, not against Product status flags.
+ */
+export async function fetchMarketplaceListedProducts(
+  productIds: string[],
+): Promise<Array<{ productId: string; name: string }>> {
+  const ids = Array.from(new Set(productIds.map((id) => String(id).trim()).filter(Boolean)));
+  if (ids.length === 0) return [];
+
+  const listed: Array<{ productId: string; name: string }> = [];
+  for (let offset = 0; offset < ids.length; offset += MAX_DEFAULT_LIMIT) {
+    const chunk = ids.slice(offset, offset + MAX_DEFAULT_LIMIT);
+    const listing = await fetchMarketplaceProducts({
+      productIds: chunk,
+      page: 1,
+      limit: chunk.length,
+    });
+    const wanted = new Set(chunk);
+    for (const node of listing.nodes) {
+      const row = node as { id?: unknown; name?: unknown };
+      if (typeof row.id !== 'string' || !wanted.has(row.id)) continue;
+      listed.push({
+        productId: row.id,
+        name: typeof row.name === 'string' && row.name.trim() ? row.name : row.id,
+      });
+    }
+  }
+  return listed;
+}
 

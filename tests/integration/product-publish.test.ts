@@ -120,15 +120,12 @@ describe('products.publishMarketplaceProduct (integration)', () => {
     });
 
     await vi.waitFor(async () => {
+      const listing = await fetchMarketplaceProducts({ productId, limit: 1 });
+      expect(listing.nodes.some((n) => (n as { id?: string }).id === productId)).toBe(true);
       const count = await prisma.notification.count({
         where: { userId: distributor.id, type: 'product' },
       });
       expect(count).toBe(1);
-    });
-
-    await vi.waitFor(async () => {
-      const listing = await fetchMarketplaceProducts({ search: 'Publish Test Product', limit: 20 });
-      expect(listing.nodes.some((n) => (n as { id?: string }).id === productId)).toBe(true);
     });
 
     const notification = await prisma.notification.findFirst({
