@@ -1900,109 +1900,91 @@ const findMarketplacePublishBlocker = (product: MarketplacePublishCandidate): st
   return null;
 };
 
-const invalidateMarketplaceListingCaches = async (userId: number) => {
-  await Promise.all([
-    invalidateSearchCache('search-cache:marketplace:*'),
-    import('@/lib/queryCache').then(({ invalidateProductCache }) => invalidateProductCache(userId)),
-  ]);
-};
+type MarketplacePublishNotifyItem = { productId: string; name: string };
 
-/** Product IDs that marketplace listings will actually return (Published in Postgres). */
-const findPlacedMarketplaceProductIds = async (productIds: string[]): Promise<string[]> => {
-  if (productIds.length === 0) return [];
-  const rows = await prisma.product.findMany({
-    where: {
-      productId: { in: productIds },
-      status: 'Published',
-      marketplaceStatus: 'Published',
-    },
-    select: { productId: true },
-  });
-  const placed = new Set(rows.map((row) => row.productId));
-  return productIds.filter((id) => placed.has(id));
-};
-
-const notifyProductsPublished = async (
+/**
+ * Notify only products that are still returned by marketplace listings
+ * (Published + marketplace Published). Uses the persisted name.
+ */
+const notifyWhenPublishedProductsArePlaced = async (
   userId: number,
-  products: Array<{ productId: string; name: string }>,
+  products: MarketplacePublishNotifyItem[],
 ) => {
   if (products.length === 0) return;
-  try {
-    if (products.length === 1) {
-      await NotificationService.createProductPublishedNotification(
-        userId,
-        products[0].productId,
-        products[0].name,
-      );
-      return;
-    }
-    await NotificationService.createProductsPublishedNotifications(userId, products);
-  } catch (notifError) {
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('[Products] Published notification failed:', notifError);
-    }
-  }
+
+  const ids = products.map((product) => product.productId);
+  const placed = await prisma.product.findMany({
+    where: {
+      userId,
+      productId: { in: ids },
+      marketplaceStatus: 'Published',
+      status: 'Published',
+    },
+    select: { productId: true, name: true },
+  });
+
+  if (placed.length === 0) return;
+
+  await NotificationService.createProductsPublishedNotifications(
+    userId,
+    placed.map((row) => ({ productId: row.productId, name: row.name })),
+  );
 };
 
 /**
- * After the DB write, make the listing queryable before telling marketplace clients.
- * Publish waits for Meili + cache so search and browse agree; unpublish still pings
- * immediately so clients can drop the row locally.
- * Returns the product IDs that are actually listed (empty for unpublish).
+ * After the DB write, ping marketplace clients immediately so the dashboard can return.
+ * Meili and cache work run afterward: listings read Postgres, not the search index.
+ * Published-to-marketplace notifications wait until that placement work finishes.
  */
 const applyMarketplaceStatusSideEffects = async (
   userId: number,
   productIds: string[],
   published: boolean,
-): Promise<string[]> => {
-  if (productIds.length === 0) return [];
+  notifyProducts: MarketplacePublishNotifyItem[] = [],
+) => {
+  if (productIds.length === 0) return;
 
-  if (!published) {
-    try {
-      await broadcastProductUpdate(productIds, 'unpublish');
-    } catch {
-      // ignore broadcast failures
-    }
+  const action = published ? 'publish' : 'unpublish';
 
+  try {
+    await broadcastProductUpdate(productIds, action);
+  } catch {
+    // ignore broadcast failures
+  }
+
+  void (async () => {
     try {
-      const { deleteMarketplaceProductsFromMeili } = await import('@/lib/meiliMarketplaceSync');
-      await deleteMarketplaceProductsFromMeili(productIds);
+      const { upsertMarketplaceProductsToMeili, deleteMarketplaceProductsFromMeili } = await import(
+        '@/lib/meiliMarketplaceSync'
+      );
+      if (published) {
+        await upsertMarketplaceProductsToMeili(productIds, { waitForIndex: true });
+      } else {
+        await deleteMarketplaceProductsFromMeili(productIds);
+      }
     } catch (e) {
       console.warn('[Products] Meili sync failed on marketplace status change:', e);
     }
 
     try {
-      await invalidateMarketplaceListingCaches(userId);
+      await Promise.all([
+        invalidateSearchCache('search-cache:marketplace:*'),
+        import('@/lib/queryCache').then(({ invalidateProductCache }) => invalidateProductCache(userId)),
+      ]);
     } catch (e) {
       console.warn('[Products] Cache invalidation failed after marketplace status change:', e);
     }
 
-    return [];
-  }
-
-  try {
-    const { upsertMarketplaceProductsToMeili } = await import('@/lib/meiliMarketplaceSync');
-    await upsertMarketplaceProductsToMeili(productIds, { waitForIndexing: true });
-  } catch (e) {
-    console.warn('[Products] Meili sync failed on marketplace status change:', e);
-  }
-
-  try {
-    await invalidateMarketplaceListingCaches(userId);
-  } catch (e) {
-    console.warn('[Products] Cache invalidation failed after marketplace status change:', e);
-  }
-
-  const placedIds = await findPlacedMarketplaceProductIds(productIds);
-  if (placedIds.length === 0) return [];
-
-  try {
-    await broadcastProductUpdate(placedIds, 'publish');
-  } catch {
-    // ignore broadcast failures
-  }
-
-  return placedIds;
+    if (published && notifyProducts.length > 0) {
+      try {
+        await notifyWhenPublishedProductsArePlaced(userId, notifyProducts);
+      } catch (notifError) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[Products] Published notification failed:', notifError);
+        }
+      }
+    }
+  })();
 };
 
 export const bulkPublishMarketplaceProducts = async (args: {
@@ -2091,17 +2073,17 @@ export const bulkPublishMarketplaceProducts = async (args: {
       },
     });
 
-    const placedIds = await applyMarketplaceStatusSideEffects(userId, successful, isPublish);
-
-    if (isPublish && placedIds.length > 0) {
-      await notifyProductsPublished(
-        userId,
-        placedIds.map((productId) => ({
-          productId,
-          name: productsById.get(productId)?.name ?? productId,
-        })),
-      );
-    }
+    await applyMarketplaceStatusSideEffects(
+      userId,
+      successful,
+      isPublish,
+      isPublish
+        ? successful.map((productId) => ({
+            productId,
+            name: productsById.get(productId)?.name ?? productId,
+          }))
+        : [],
+    );
   }
 
   return {
@@ -2181,17 +2163,17 @@ export const publishMarketplaceProduct = async (args: {
   ]);
   const mappedProduct = mapProduct(updatedProduct, offerMap, soldCountMap);
 
-  const placedIds = await applyMarketplaceStatusSideEffects(
+  const isNowPublished =
+    updatedProduct.marketplaceStatus === 'Published' && updatedProduct.status === 'Published';
+
+  await applyMarketplaceStatusSideEffects(
     userId,
     [updatedProduct.productId],
-    updatedProduct.marketplaceStatus === 'Published' && updatedProduct.status === 'Published',
+    isNowPublished,
+    isNowPublished
+      ? [{ productId: updatedProduct.productId, name: updatedProduct.name }]
+      : [],
   );
-
-  if (normalizedAction === 'publish' && placedIds.includes(updatedProduct.productId)) {
-    await notifyProductsPublished(userId, [
-      { productId: updatedProduct.productId, name: updatedProduct.name },
-    ]);
-  }
 
   return {
     success: true,

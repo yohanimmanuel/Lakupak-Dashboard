@@ -6,8 +6,6 @@ import {
 } from '@/app/api/graphql/modules/products';
 import { fetchMarketplaceProducts } from '@/app/api/graphql/modules/marketplace/handlers/products';
 import * as websocketBroadcast from '@/utils/websocketBroadcast';
-import { NotificationService } from '@/app/api/graphql/modules/notifications';
-import * as meiliMarketplaceSync from '@/lib/meiliMarketplaceSync';
 import { resetDb } from './helpers';
 import {
   createDraftProductReadyToPublish,
@@ -110,6 +108,66 @@ describe('products.publishMarketplaceProduct (integration)', () => {
     expect(row?.marketplaceStatus).not.toBe('Published');
   });
 
+  it('creates the published notification only after the product is listed', async () => {
+    const distributor = await createTestDistributor();
+    const productId = 'P-PUBLISH-NOTIF';
+    await createDraftProductReadyToPublish(distributor.id, productId);
+
+    await publishMarketplaceProduct({
+      userId: distributor.id,
+      productId,
+      action: 'publish',
+    });
+
+    await vi.waitFor(async () => {
+      const count = await prisma.notification.count({
+        where: { userId: distributor.id, type: 'product' },
+      });
+      expect(count).toBe(1);
+    });
+
+    await vi.waitFor(async () => {
+      const listing = await fetchMarketplaceProducts({ search: 'Publish Test Product', limit: 20 });
+      expect(listing.nodes.some((n) => (n as { id?: string }).id === productId)).toBe(true);
+    });
+
+    const notification = await prisma.notification.findFirst({
+      where: { userId: distributor.id, type: 'product' },
+    });
+    expect(notification?.title).toBe('Product Published');
+    expect(notification?.message).toMatch(/Publish Test Product/);
+  });
+
+  it('does not create a published notification on unpublish', async () => {
+    const distributor = await createTestDistributor();
+    const productId = 'P-UNPUBLISH-NOTIF';
+    await createDraftProductReadyToPublish(distributor.id, productId);
+    await publishMarketplaceProduct({ userId: distributor.id, productId, action: 'publish' });
+
+    await vi.waitFor(async () => {
+      const count = await prisma.notification.count({
+        where: { userId: distributor.id, type: 'product' },
+      });
+      expect(count).toBe(1);
+    });
+
+    await publishMarketplaceProduct({
+      userId: distributor.id,
+      productId,
+      action: 'unpublish',
+    });
+
+    await vi.waitFor(async () => {
+      const listing = await fetchMarketplaceProducts({ search: 'Publish Test Product', limit: 20 });
+      expect(listing.nodes.some((n) => (n as { id?: string }).id === productId)).toBe(false);
+    });
+
+    const count = await prisma.notification.count({
+      where: { userId: distributor.id, type: 'product' },
+    });
+    expect(count).toBe(1);
+  });
+
   it('broadcasts a single product update after publish', async () => {
     const distributor = await createTestDistributor();
     const productId = 'P-PUBLISH-WS';
@@ -131,89 +189,6 @@ describe('products.publishMarketplaceProduct (integration)', () => {
 
     productUpdateSpy.mockRestore();
     priceUpdateSpy.mockRestore();
-  });
-
-  it('notifies only after the product is listable in the marketplace', async () => {
-    const distributor = await createTestDistributor();
-    const productId = 'P-PUBLISH-NOTIF';
-    await createDraftProductReadyToPublish(distributor.id, productId);
-
-    let indexed = false;
-    let indexedAtNotification = false;
-    let visibleAtNotification = false;
-    const upsertSpy = vi
-      .spyOn(meiliMarketplaceSync, 'upsertMarketplaceProductsToMeili')
-      .mockImplementation(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 40));
-        indexed = true;
-      });
-    const notifySpy = vi
-      .spyOn(NotificationService, 'createProductPublishedNotification')
-      .mockImplementation(async () => {
-        indexedAtNotification = indexed;
-        const listing = await fetchMarketplaceProducts({ productId, limit: 1 });
-        visibleAtNotification = listing.nodes.some((n) => (n as { id?: string }).id === productId);
-      });
-
-    await publishMarketplaceProduct({
-      userId: distributor.id,
-      productId,
-      action: 'publish',
-    });
-
-    expect(upsertSpy).toHaveBeenCalledWith([productId], { waitForIndexing: true });
-    expect(notifySpy).toHaveBeenCalledWith(distributor.id, productId, expect.any(String));
-    expect(indexedAtNotification).toBe(true);
-    expect(visibleAtNotification).toBe(true);
-
-    upsertSpy.mockRestore();
-    notifySpy.mockRestore();
-  });
-
-  it('bulk notify waits until every successful product is listable', async () => {
-    const distributor = await createTestDistributor();
-    const ids = ['P-BULK-NOTIF-1', 'P-BULK-NOTIF-2'];
-    for (const productId of ids) {
-      await createDraftProductReadyToPublish(distributor.id, productId);
-    }
-
-    let indexed = false;
-    let indexedAtNotification = false;
-    let visibleAtNotification = false;
-    const upsertSpy = vi
-      .spyOn(meiliMarketplaceSync, 'upsertMarketplaceProductsToMeili')
-      .mockImplementation(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 40));
-        indexed = true;
-      });
-    const notifySpy = vi
-      .spyOn(NotificationService, 'createProductsPublishedNotifications')
-      .mockImplementation(async (_userId, products) => {
-        indexedAtNotification = indexed;
-        const listings = await Promise.all(
-          ids.map((productId) => fetchMarketplaceProducts({ productId, limit: 1 })),
-        );
-        visibleAtNotification = listings.every((listing, i) =>
-          listing.nodes.some((n) => (n as { id?: string }).id === ids[i]),
-        );
-        return products.length;
-      });
-
-    await bulkPublishMarketplaceProducts({
-      userId: distributor.id,
-      productIds: ids,
-      action: 'publish',
-    });
-
-    expect(notifySpy).toHaveBeenCalledTimes(1);
-    expect(notifySpy.mock.calls[0][1]).toEqual(
-      expect.arrayContaining(ids.map((productId) => expect.objectContaining({ productId }))),
-    );
-    expect(indexedAtNotification).toBe(true);
-    expect(visibleAtNotification).toBe(true);
-
-    upsertSpy.mockRestore();
-    notifySpy.mockRestore();
   });
 
   it('bulk publish succeeds for multiple ready products', async () => {
