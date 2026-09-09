@@ -481,7 +481,7 @@ export default function ProductCatalog({
 }: ProductCatalogProps) {
   const router = useRouter();
   const user = useUserStore(state => state.user);
-  const { tCatalog, tShared, translateStockStatus, translateCategory, translateStatus, translateFieldName } = useProductsTranslations();
+  const { tCatalog, tShared, tMarketplace, translateStockStatus, translateCategory, translateStatus, translateFieldName } = useProductsTranslations();
   const userCurrency = user?.currency || getDefaultCurrency();
   const currencySymbol = getCurrencySymbol(userCurrency);
   const [formData, setFormData] = useState<ProductFormData>({
@@ -1747,53 +1747,28 @@ export default function ProductCatalog({
     setSaving(true);
     
     try {
-      const UNPUBLISH_PRODUCT_MUTATION = `
-        mutation UpdateProduct(
-          $userId: Int!
-          $productId: String!
-          $status: String!
-        ) {
-          updateProduct(
-            userId: $userId
-            productId: $productId
-            status: $status
-          ) {
-            id
-            productId
-            status
-          }
-        }
-      `;
-
-      const result = await fetchGraphQL<{ updateProduct: { id: number; productId: string; status: string } }>(UNPUBLISH_PRODUCT_MUTATION, {
+      const result = await fetchGraphQL<{
+        publishMarketplaceProduct: { success: boolean; message: string };
+      }>(MARKETPLACE_STATUS_MUTATION, {
         userId: user.id,
         productId: product.productId,
-          status: 'Draft',
+        action: 'unpublish',
       });
 
-        // Also update marketplace status to unpublished
-        try {
-          await fetchGraphQL(MARKETPLACE_STATUS_MUTATION, {
-              userId: user.id,
-            productId: product.productId,
-            action: 'unpublish',
-          });
-        } catch (marketplaceError) {
-          // Don't fail the entire operation, just warn
-          console.warn('Failed to unpublish product from marketplace', marketplaceError);
-        }
-
-      // Optimistically update local state immediately
-      if (result?.updateProduct) {
-        const nextFormData: ProductFormData = { ...formData, status: 'Draft' };
-        setFormData(nextFormData);
-        setOriginalFormData(JSON.parse(JSON.stringify(nextFormData)));
-        prevProductStatusRef.current = 'Draft';
+      if (!result?.publishMarketplaceProduct?.success) {
+        throw new Error(
+          result?.publishMarketplaceProduct?.message || tCatalog('alerts.unpublishError'),
+        );
       }
+
+      const nextFormData: ProductFormData = { ...formData, status: 'Draft' };
+      setFormData(nextFormData);
+      setOriginalFormData(JSON.parse(JSON.stringify(nextFormData)));
+      prevProductStatusRef.current = 'Draft';
 
       showSuccessNotice();
     } catch (error) {
-      alert(tCatalog('alerts.unpublishError'));
+      alert(error instanceof Error ? error.message : tCatalog('alerts.unpublishError'));
     } finally {
       setSaving(false);
     }
@@ -2214,18 +2189,35 @@ export default function ProductCatalog({
       }
 
       if (savedProduct) {
-        
-        // If publishing, also update marketplace status
         if (status === 'Published') {
+          let publishedOnMarketplace = false;
           try {
-            await fetchGraphQL(MARKETPLACE_STATUS_MUTATION, {
-                userId: user.id,
+            const marketplaceResult = await fetchGraphQL<{
+              publishMarketplaceProduct: { success: boolean; message: string };
+            }>(MARKETPLACE_STATUS_MUTATION, {
+              userId: user.id,
               productId: savedProduct.productId,
               action: 'publish',
             });
-          } catch (marketplaceError) {
-            // Don't fail the entire operation, just warn
-            console.warn('Failed to publish product to marketplace', marketplaceError);
+
+            if (!marketplaceResult?.publishMarketplaceProduct?.success) {
+              throw new Error(
+                marketplaceResult?.publishMarketplaceProduct?.message || tMarketplace('publishFailed'),
+              );
+            }
+            publishedOnMarketplace = true;
+          } finally {
+            if (!publishedOnMarketplace) {
+              try {
+                await fetchGraphQL(MARKETPLACE_STATUS_MUTATION, {
+                  userId: user.id,
+                  productId: savedProduct.productId,
+                  action: 'unpublish',
+                });
+              } catch {
+                // Best-effort restore; the original publish error is what we surface.
+              }
+            }
           }
         }
         
@@ -2278,7 +2270,7 @@ export default function ProductCatalog({
         }
       }
     } catch (error) {
-      alert(tCatalog('alerts.saveError'));
+      alert(error instanceof Error ? error.message : tCatalog('alerts.saveError'));
     } finally {
       setSaving(false);
     }
