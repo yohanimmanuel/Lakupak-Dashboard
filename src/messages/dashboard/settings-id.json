@@ -413,6 +413,9 @@
       "perMonth": "/bulan",
       "mostPopular": "Paling populer",
       "upgrade": "Upgrade",
+      "currentPlanCta": "Paket saat ini",
+      "freePrice": "Gratis",
+      "forTrial": "selama 30 hari",
       "contactSales": "Hubungi sales",
       "comingSoonCta": "Checkout segera hadir",
       "custom": "Kustom",
@@ -430,6 +433,10 @@
         "support": "SLA dan onboarding khusus"
       },
       "plans": {
+        "free": {
+          "name": "Gratis",
+          "description": "Uji coba 30 hari dengan akses platform penuh"
+        },
         "starter": {
           "name": "Starter",
           "description": "Grosir lokal dan operasi digital awal"

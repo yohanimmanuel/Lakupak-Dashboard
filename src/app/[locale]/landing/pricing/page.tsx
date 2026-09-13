@@ -18,7 +18,7 @@ import { usePagePerformanceTracking, createTrackConversion, createErrorBoundary 
 import {
   ANNUAL_SAVINGS_PERCENT,
   PLAN_QUOTA_COMPARISON_KEYS,
-  SUBSCRIPTION_PLANS,
+  PAID_SUBSCRIPTION_PLANS,
   formatMediaStorageGb,
   formatPlanPrice,
   formatQuotaCount,
@@ -26,13 +26,13 @@ import {
   planHasFixedPrice,
   type PlanQuotaHighlightKey,
   type PlanSupportTier,
-  type SubscriptionPlanId,
+  type PaidSubscriptionPlanId,
 } from '@/config/subscriptionPlans';
 import { Reveal } from '../Reveal';
 
 const ErrorBoundary = createErrorBoundary('Pricing');
 
-const PLAN_ICONS: Record<SubscriptionPlanId, ReactNode> = {
+const PLAN_ICONS: Record<PaidSubscriptionPlanId, ReactNode> = {
   starter: <Store className="w-5 h-5 text-[#0a61d7]" strokeWidth={1.75} />,
   growth: <TrendingUp className="w-5 h-5 text-[#0a61d7]" strokeWidth={1.75} />,
   scale: <BarChart3 className="w-5 h-5 text-[#0a61d7]" strokeWidth={1.75} />,
@@ -51,7 +51,7 @@ export default function PricingPage() {
   const billing = isAnnual ? 'annual' : 'monthly';
   const periodLabel = isAnnual ? t('card.perYear') : t('card.perMonth');
 
-  const pricingTiers = SUBSCRIPTION_PLANS.map((plan) => {
+  const pricingTiers = PAID_SUBSCRIPTION_PLANS.map((plan) => {
     const features = getPlanQuotaHighlights(plan).map((item) => {
       const count = item.params?.count;
       if (item.key === 'products' && count === 'custom') {
@@ -82,15 +82,15 @@ export default function PricingPage() {
   const comparisonRows: { key: string; values: string[] }[] = PLAN_QUOTA_COMPARISON_KEYS.map((key) => {
     const customLabel = t('comparison.custom');
     if (key === 'connections') {
-      return { key, values: SUBSCRIPTION_PLANS.map((p) => p.connections) };
+      return { key, values: PAID_SUBSCRIPTION_PLANS.map((p) => p.connections) };
     }
     if (key === 'platformAccess') {
-      return { key, values: SUBSCRIPTION_PLANS.map(() => t('comparison.platformAll')) };
+      return { key, values: PAID_SUBSCRIPTION_PLANS.map(() => t('comparison.platformAll')) };
     }
     if (key === 'support') {
       return {
         key,
-        values: SUBSCRIPTION_PLANS.map((p) =>
+        values: PAID_SUBSCRIPTION_PLANS.map((p) =>
           t(`comparison.support.${p.quotas.support}` as `comparison.support.${PlanSupportTier}`),
         ),
       };
@@ -98,7 +98,7 @@ export default function PricingPage() {
     if (key === 'mediaStorageGb') {
       return {
         key,
-        values: SUBSCRIPTION_PLANS.map((p) => formatMediaStorageGb(p.quotas.mediaStorageGb, customLabel)),
+        values: PAID_SUBSCRIPTION_PLANS.map((p) => formatMediaStorageGb(p.quotas.mediaStorageGb, customLabel)),
       };
     }
     const quotaKey = key as Exclude<
@@ -107,7 +107,7 @@ export default function PricingPage() {
     >;
     return {
       key,
-      values: SUBSCRIPTION_PLANS.map((p) => formatQuotaCount(p.quotas[quotaKey], customLabel)),
+      values: PAID_SUBSCRIPTION_PLANS.map((p) => formatQuotaCount(p.quotas[quotaKey], customLabel)),
     };
   });
 

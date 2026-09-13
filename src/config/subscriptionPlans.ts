@@ -1,4 +1,5 @@
-export type SubscriptionPlanId = 'starter' | 'growth' | 'scale' | 'enterprise';
+export type SubscriptionPlanId = 'free' | 'starter' | 'growth' | 'scale' | 'enterprise';
+export type PaidSubscriptionPlanId = Exclude<SubscriptionPlanId, 'free'>;
 
 export type PlanSupportTier =
   | 'standard_email'
@@ -56,8 +57,25 @@ export const PLAN_SOFT_CAP_POLICY = {
 /** Canvas pricing model — shared by landing pricing + Settings billing. */
 export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
+    id: 'free',
+    connections: '1 – 1K',
+    monthlyIdr: 0,
+    annualIdr: 0,
+    quotas: {
+      marketplaceProducts: 500,
+      ordersPerMonth: 5000,
+      salesAgents: 10,
+      drivers: 5,
+      activeOffers: 20,
+      activeCampaigns: 20,
+      mediaStorageGb: 5,
+      automationRules: 10,
+      support: 'standard_email',
+    },
+  },
+  {
     id: 'starter',
-    connections: '1 – 1,000',
+    connections: '1 – 1K',
     monthlyIdr: 999_000,
     annualIdr: 9_990_000,
     quotas: {
@@ -74,7 +92,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   },
   {
     id: 'growth',
-    connections: '1,000 – 5,000',
+    connections: '1K – 5K',
     monthlyIdr: 3_299_000,
     annualIdr: 32_990_000,
     popular: true,
@@ -92,7 +110,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   },
   {
     id: 'scale',
-    connections: '5,000 – 10,000',
+    connections: '5K – 10K',
     monthlyIdr: 5_499_000,
     annualIdr: 54_990_000,
     quotas: {
@@ -109,7 +127,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   },
   {
     id: 'enterprise',
-    connections: '10,000+',
+    connections: '10K+',
     monthlyIdr: null,
     annualIdr: null,
     fromMonthlyIdr: 12_900_000,
@@ -126,6 +144,14 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     },
   },
 ];
+
+export const PAID_SUBSCRIPTION_PLANS = SUBSCRIPTION_PLANS.filter(
+  (plan): plan is SubscriptionPlan & { id: PaidSubscriptionPlanId } => plan.id !== 'free',
+);
+
+export function isTrialPlan(plan: SubscriptionPlan): boolean {
+  return plan.id === 'free';
+}
 
 /** Annual billing ≈ 17% off vs 12× monthly (pay 10 months). */
 export const ANNUAL_SAVINGS_PERCENT = 17;
@@ -158,12 +184,16 @@ export function getPlanById(id: SubscriptionPlanId): SubscriptionPlan | undefine
 export function formatPlanPrice(
   plan: SubscriptionPlan,
   billing: 'monthly' | 'annual',
-  opts?: { customLabel?: string; fromPrefix?: string },
+  opts?: { customLabel?: string; fromPrefix?: string; freeLabel?: string },
 ): string {
   const customLabel = opts?.customLabel ?? 'Custom';
 
   if (plan.monthlyIdr == null) {
     return customLabel;
+  }
+
+  if (plan.monthlyIdr === 0) {
+    return opts?.freeLabel ?? 'Free';
   }
 
   const amount = billing === 'annual' ? plan.annualIdr : plan.monthlyIdr;

@@ -31,6 +31,7 @@ import {
   SUBSCRIPTION_PLANS,
   formatPlanPrice,
   getPlanQuotaHighlights,
+  isTrialPlan,
   planHasFixedPrice,
   type PlanQuotaHighlightKey,
 } from '@/config/subscriptionPlans';
@@ -997,10 +998,12 @@ export default function BillingPayment() {
                   <p className="text-[11px] text-gray-700 leading-snug">{tBilling('subscription.softCapNote')}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
                 {SUBSCRIPTION_PLANS.map((plan) => {
+                  const isCurrent = isTrialPlan(plan);
                   const price = formatPlanPrice(plan, 'monthly', {
                     customLabel: tBilling('subscription.custom'),
+                    freeLabel: tBilling('subscription.freePrice'),
                   });
                   const isEnterprise = plan.id === 'enterprise';
                   const highlights = getPlanQuotaHighlights(plan).map((item) => {
@@ -1022,19 +1025,33 @@ export default function BillingPayment() {
                   return (
                     <div
                       key={plan.id}
-                      className="relative rounded-lg border border-gray-200 p-3 flex flex-col"
+                      className={`relative rounded-lg border p-3 flex flex-col ${
+                        isCurrent ? 'border-[#0a61d7] bg-blue-50/40' : 'border-gray-200'
+                      }`}
                     >
-                      <p className="text-sm font-semibold text-black mb-0.5">
-                        {tBilling(`subscription.plans.${plan.id}.name`)}
-                      </p>
+                      <div className="flex items-start justify-between gap-2 mb-0.5">
+                        <p className="text-sm font-semibold text-black">
+                          {tBilling(`subscription.plans.${plan.id}.name`)}
+                        </p>
+                        {isCurrent && (
+                          <span className="px-2 py-0.5 text-[10px] font-medium text-green-700 bg-green-50 rounded-lg shrink-0">
+                            {tBilling('subscription.trialBadge')}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-gray-600 mb-2">
                         {tBilling(`subscription.plans.${plan.id}.description`)}
                       </p>
                       <p className="text-sm font-bold text-black mb-1 whitespace-nowrap">
                         {price}
-                        {planHasFixedPrice(plan) && (
+                        {planHasFixedPrice(plan) && !isCurrent && (
                           <span className="text-xs font-medium text-gray-500 ml-1">
                             {tBilling('subscription.perMonth')}
+                          </span>
+                        )}
+                        {isCurrent && (
+                          <span className="text-xs font-medium text-gray-500 ml-1">
+                            {tBilling('subscription.forTrial')}
                           </span>
                         )}
                       </p>
@@ -1051,19 +1068,25 @@ export default function BillingPayment() {
                       </ul>
                       <button
                         type="button"
+                        disabled={isCurrent}
                         onClick={() => {
+                          if (isCurrent) return;
                           setError(null);
                           setSuccess(tBilling('subscription.comingSoonCta'));
                         }}
                         className={`w-full py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                          isEnterprise
-                            ? 'border border-gray-300 text-gray-700 hover:bg-gray-50'
-                            : 'bg-[#0a61d7] text-white hover:bg-[#0a52c0]'
+                          isCurrent
+                            ? 'border border-[#0a61d7] text-[#0a61d7] bg-white cursor-default'
+                            : isEnterprise
+                              ? 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                              : 'bg-[#0a61d7] text-white hover:bg-[#0a52c0]'
                         }`}
                       >
-                        {isEnterprise
-                          ? tBilling('subscription.contactSales')
-                          : tBilling('subscription.upgrade')}
+                        {isCurrent
+                          ? tBilling('subscription.currentPlanCta')
+                          : isEnterprise
+                            ? tBilling('subscription.contactSales')
+                            : tBilling('subscription.upgrade')}
                       </button>
                     </div>
                   );

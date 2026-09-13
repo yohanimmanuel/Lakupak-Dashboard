@@ -413,6 +413,9 @@
       "perMonth": "/month",
       "mostPopular": "Most popular",
       "upgrade": "Upgrade",
+      "currentPlanCta": "Current plan",
+      "freePrice": "Free",
+      "forTrial": "for 30 days",
       "contactSales": "Contact sales",
       "comingSoonCta": "Checkout coming soon",
       "custom": "Custom",
@@ -430,6 +433,10 @@
         "support": "SLA and dedicated onboarding"
       },
       "plans": {
+        "free": {
+          "name": "Free",
+          "description": "30-day trial with full platform access"
+        },
         "starter": {
           "name": "Starter",
           "description": "Local grosir and early digital ops"
