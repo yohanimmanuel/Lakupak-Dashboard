@@ -126,6 +126,19 @@ interface DriverRequestMetadata {
   message?: string | null;
 }
 
+function resolveNotificationHref(
+  actionUrl: string,
+  metadata?: Record<string, unknown> | null,
+): string {
+  const path = actionUrl.split('?')[0];
+  if (path !== '/products/details') return actionUrl;
+
+  const queryId = new URLSearchParams(actionUrl.split('?')[1] ?? '').get('id')?.trim();
+  const metaId = typeof metadata?.productId === 'string' ? metadata.productId.trim() : '';
+  const productId = queryId || metaId;
+  return productId ? `/products/catalog/${encodeURIComponent(productId)}` : '/products';
+}
+
 const Navbar = () => {
   const user = useUserStore(state => state.user);
   const tCommon = useTranslations('dashboard.common');
@@ -337,7 +350,7 @@ const Navbar = () => {
     if (notification.actionUrl) {
       setShowNotifDropdown(false);
       setShowAllNotifModal(false);
-      router.push(notification.actionUrl);
+      router.push(resolveNotificationHref(notification.actionUrl, notification.metadata));
     }
   };
 

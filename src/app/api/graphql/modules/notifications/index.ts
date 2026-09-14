@@ -579,7 +579,7 @@ export const NotificationService = {
         title: 'Product Published',
         message: `Your product "${productName}" has been published to the marketplace.`,
         metadata: { productId, productName, status: 'published' },
-        actionUrl: `/products/details?id=${productId}`,
+        actionUrl: `/products/catalog/${productId}`,
       },
     });
     emitDashboardNewNotification(userId);
@@ -600,7 +600,7 @@ export const NotificationService = {
         title: 'Product Published',
         message: `Your product "${name}" has been published to the marketplace.`,
         metadata: { productId, productName: name, status: 'published' },
-        actionUrl: `/products/details?id=${productId}`,
+        actionUrl: `/products/catalog/${productId}`,
       })),
     });
     emitDashboardNewNotification(userId);
