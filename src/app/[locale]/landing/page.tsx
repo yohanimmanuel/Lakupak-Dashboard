@@ -1114,7 +1114,7 @@ export default function LandingPage() {
   const handleLearnMoreClick = () => {
     trackConversion('cta_click', 'explore_marketplace_button');
     const marketplaceUrl = (
-      process.env.NEXT_PUBLIC_MARKETPLACE_URL || 'http://localhost:3002'
+      process.env.NEXT_PUBLIC_MARKETPLACE_URL || 'https://lakupak-marketplace-web.onrender.com'
     ).replace(/\/$/, '');
     window.open(marketplaceUrl, '_blank', 'noopener,noreferrer');
   };
