@@ -758,9 +758,8 @@ async function testWorkflow(args: {
             actionConfig: action.config,
           });
           if (idleCarts.length === 0) {
-            throw new Error(
-              'No idle carts to preview. Marketplace carts idle for the configured hours will be messaged automatically.',
-            );
+            message = `${message} No idle carts to preview yet (idle ${idleHours}h). Marketplace carts untouched for that long will be messaged automatically.`;
+            continue;
           }
           const preview = idleCarts.slice(0, MAX_CART_IDLE_SENDS_PER_TICK);
           const sentParts: string[] = [];
