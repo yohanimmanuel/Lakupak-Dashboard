@@ -77,7 +77,7 @@ describe('validateDashboardEnv', () => {
     expect(emailWarnings().length).toBeGreaterThan(0);
   });
 
-  it('requires RESEND_API_KEY in production even if SMTP_HOST is set', () => {
+  it('requires a HTTPS mail key in production even if SMTP_HOST is set', () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('REDIS_URL', 'redis://localhost:6379');
     vi.stubEnv('DIRECT_URL', 'postgresql://postgres:postgres@localhost:5432/postgres');

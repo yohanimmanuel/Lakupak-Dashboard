@@ -1,7 +1,7 @@
 /**
  * Transactional email (password reset, KYC under-review / approve / reject).
- * Primary: Resend HTTPS (RESEND_API_KEY) — required on Render.
- * Local fallback: Gmail SMTP when no Resend key is set.
+ * Local: Gmail SMTP (SMTP_HOST / SMTP_USER / SMTP_PASS).
+ * Production: Resend HTTPS when RESEND_API_KEY is set (needs a verified domain for any inbox).
  */
 import path from 'path';
 import fs from 'fs';
@@ -241,14 +241,22 @@ function smtpAuthFailed(err: unknown): boolean {
   return code === 'EAUTH' || /535|invalid login|username and password not accepted/i.test(detail);
 }
 
-function logEmailFailure(context: string, err: unknown, provider: 'resend' | 'smtp') {
+type EmailProvider = 'resend' | 'smtp';
+
+function selectedEmailProvider(): EmailProvider {
+  if (process.env.NODE_ENV !== 'production' && getSmtpAuth()) return 'smtp';
+  if (process.env.RESEND_API_KEY?.trim()) return 'resend';
+  return 'smtp';
+}
+
+function logEmailFailure(context: string, err: unknown, provider: EmailProvider) {
   const detail = err instanceof Error ? err.message : String(err);
   const code = err && typeof err === 'object' && 'code' in err ? String((err as { code?: unknown }).code) : '';
   const prefix = `[email] ${context} failed${code ? ` (${code})` : ''}: ${detail.split('\n')[0]}. `;
   if (provider === 'smtp') {
     if (smtpNetworkBlocked(err)) {
       console.error(
-        `${prefix}Gmail SMTP is blocked on Render free services. Set RESEND_API_KEY to send over HTTPS.`,
+        `${prefix}Gmail SMTP is blocked on Render free services. Set RESEND_API_KEY (and verify a domain) for production mail.`,
       );
       return;
     }
@@ -264,7 +272,10 @@ function logEmailFailure(context: string, err: unknown, provider: 'resend' | 'sm
     return;
   }
   console.error(
-    `${prefix}Check RESEND_API_KEY / RESEND_FROM (use a Resend test sender or a verified domain).`,
+    `${prefix}Check RESEND_API_KEY / RESEND_FROM (use a Resend test sender or a verified domain). ` +
+      (/only send testing emails|verify a domain/i.test(detail)
+        ? 'Sandbox keys can only deliver to the email that owns the Resend account — not a different Gmail — until a domain is verified.'
+        : ''),
   );
 }
 
@@ -314,32 +325,17 @@ type InlineLogoAttachment = {
   headers?: Record<string, string>;
 };
 
-async function deliverHtmlEmail(args: {
+async function sendViaSmtp(args: {
   to: string;
   subject: string;
   text: string;
   html: string;
   attachments?: InlineLogoAttachment[];
 }): Promise<void> {
-  if (process.env.RESEND_API_KEY?.trim()) {
-    await sendViaResend({
-      to: args.to,
-      subject: args.subject,
-      text: args.text,
-      html: args.html,
-    });
-    return;
-  }
-
-  if (process.env.NODE_ENV === 'production') {
-    console.error(
-      '[email] RESEND_API_KEY is not set. Transactional mail is skipped in production (Gmail SMTP is blocked on Render).',
-    );
-    return;
-  }
-
   const smtp = await createSmtpTransport();
-  if (!smtp) return;
+  if (!smtp) {
+    throw new Error('SMTP_HOST / SMTP_USER / SMTP_PASS is not set');
+  }
   await smtp.transporter.sendMail({
     from: smtp.from,
     to: args.to,
@@ -350,12 +346,46 @@ async function deliverHtmlEmail(args: {
   });
 }
 
+async function deliverHtmlEmail(args: {
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+  attachments?: InlineLogoAttachment[];
+}): Promise<void> {
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  if (!isProduction && getSmtpAuth()) {
+    await sendViaSmtp(args);
+    return;
+  }
+
+  if (process.env.RESEND_API_KEY?.trim()) {
+    await sendViaResend({
+      to: args.to,
+      subject: args.subject,
+      text: args.text,
+      html: args.html,
+    });
+    return;
+  }
+
+  if (isProduction) {
+    console.error(
+      '[email] RESEND_API_KEY is not set. Transactional mail was skipped (Gmail SMTP is blocked on Render free).',
+    );
+    return;
+  }
+
+  await sendViaSmtp(args);
+}
+
 export async function sendPasswordResetEmail(
   to: string,
   resetLink: string,
   verificationCode?: string
 ): Promise<void> {
-  const provider: 'resend' | 'smtp' = process.env.RESEND_API_KEY?.trim() ? 'resend' : 'smtp';
+  const provider = selectedEmailProvider();
   try {
     const useHttps = provider === 'resend';
     const logoUrl = resolveLakupakLogoUrl();
@@ -495,7 +525,7 @@ ${args.footerText}`;
 }
 
 async function sendTransactionalHtmlEmail(to: string, content: { subject: string; text: string; html: string }): Promise<void> {
-  const provider: 'resend' | 'smtp' = process.env.RESEND_API_KEY?.trim() ? 'resend' : 'smtp';
+  const provider = selectedEmailProvider();
   try {
     const useHttps = provider === 'resend';
     const logoUrl = resolveLakupakLogoUrl();

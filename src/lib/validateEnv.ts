@@ -70,7 +70,7 @@ export function validateDashboardEnv(options: ValidateDashboardEnvOptions = {}):
 
   if (isProductionRuntime && !hasResend) {
     throw new Error(
-      'RESEND_API_KEY is required in production. Gmail SMTP is skipped on Render; transactional mail uses Resend HTTPS.',
+      'RESEND_API_KEY is required in production. Gmail SMTP is skipped on Render free.',
     );
   }
 
@@ -83,7 +83,7 @@ export function validateDashboardEnv(options: ValidateDashboardEnvOptions = {}):
 
     if (!hasResend && !hasCompleteSmtp) {
       console.warn(
-        '[env] Email is not configured — set RESEND_API_KEY, or SMTP_HOST + SMTP_USER + SMTP_PASS for local Gmail fallback. SMTP_HOST alone is not enough.',
+        '[env] Email is not configured — set SMTP_HOST + SMTP_USER + SMTP_PASS for local Gmail. SMTP_HOST alone is not enough.',
       );
     }
   }
