@@ -107,7 +107,7 @@ function profileToTableRow(buyer: Buyer): BuyerTableRow {
 
 export function toPickedBuyer(buyer: Buyer): PickedBuyer {
   return {
-    buyerId: buyer.buyerId,
+    buyerId: String(buyer.buyerId ?? '').trim(),
     buyerLabel: buyer.storeName || buyer.owner,
     buyerPhone: buyer.phone,
     buyerEmail: String(buyer.email ?? '').trim(),
@@ -209,37 +209,10 @@ export function BuyerPickerField({
     void loadBuyers();
   }, [loadBuyers]);
 
-  // Robust sync: Whenever buyers are loaded, check if any of selectedBuyers were deleted.
-  // If deleted, remove them from the selection. If all were deleted, pick available buyers from DB.
-  useEffect(() => {
-    if (loading || error || selectedBuyers.length === 0) return;
-
-    const dbBuyerMap = new Map<string, Buyer>();
-    for (const b of buyers) {
-      dbBuyerMap.set(b.buyerId, b);
-      if (b.id) dbBuyerMap.set(String(b.id), b);
-    }
-
-    const validBuyers: Buyer[] = [];
-    let hadDeleted = false;
-    for (const sb of selectedBuyers) {
-      const found = dbBuyerMap.get(sb.buyerId);
-      if (found) {
-        validBuyers.push(found);
-      } else {
-        hadDeleted = true;
-      }
-    }
-
-    if (hadDeleted) {
-      const nextPicked = validBuyers.length > 0 ? validBuyers : buyers;
-      const prevIds = selectedBuyers.map((b) => b.buyerId).join(',');
-      const nextIds = nextPicked.map((b) => b.buyerId).join(',');
-      if (prevIds !== nextIds) {
-        onSelectAction(nextPicked);
-      }
-    }
-  }, [buyers, selectedBuyers, loading, error, onSelectAction]);
+  // Do not reconcile against the catalog here. On remount (leaving the inspector
+  // and coming back) `buyers` is still [] while `loading` is false, so a prune
+  // would treat every pick as deleted and wipe canvas state. Deleted CRM buyers
+  // are dropped on save/run via syncWorkflowBuyers.
 
   const hasSelection = selectedBuyers.length > 0;
   const summaryLabel = useMemo(() => {

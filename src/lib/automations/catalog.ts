@@ -37,7 +37,17 @@ export type ActionType =
 
 export type CatalogField = {
   key: string;
-  kind: 'number' | 'text' | 'textarea' | 'select' | 'buyer' | 'fleet' | 'product' | 'campaign' | 'datetime';
+  kind:
+    | 'number'
+    | 'text'
+    | 'textarea'
+    | 'select'
+    | 'buyer'
+    | 'fleet'
+    | 'product'
+    | 'campaign'
+    | 'offer'
+    | 'datetime';
   options?: string[];
 };
 
@@ -235,8 +245,7 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
         CHANNEL_FIELD,
         WHATSAPP_MESSAGE_CATEGORY_FIELD,
         { key: 'messageTemplate', kind: 'textarea' },
-        { key: 'offerId', kind: 'text' },
-        { key: 'agentAssignThreshold', kind: 'number' },
+        { key: 'offerId', kind: 'offer' },
       ],
     },
     {
@@ -429,6 +438,11 @@ export function defaultConfigForFields(fields: CatalogField[]): Record<string, u
       config.buyerLabel = '';
       config.buyerPhone = '';
       config.selectedBuyers = [];
+    } else if (field.kind === 'offer') {
+      config[field.key] = '';
+      config.offerLabel = '';
+      config.offerStatus = '';
+      config.selectedOffers = [];
     } else config[field.key] = '';
   }
   return config;
@@ -489,6 +503,13 @@ export type AutomationCanvasNodeLite = {
   id?: string;
   data?: { kind?: string; catalogType?: string; config?: Record<string, unknown> };
 };
+
+export function parseIdleHours(config: Record<string, unknown> | null | undefined): number | null {
+  const raw = config?.hours;
+  const n = typeof raw === 'number' ? raw : Number(String(raw ?? '').trim());
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n;
+}
 
 function configMissing(config: Record<string, unknown> | null | undefined, key: string): boolean {
   return !String(config?.[key] ?? '').trim();
@@ -605,7 +626,7 @@ export function collectAutomationDryRunIssues(args: {
         issues.push(`${label}: Low stock trigger needs at least one product.`);
       }
     }
-    if (trigger.type === 'cart_idle' && configMissing(trigger.config, 'hours')) {
+    if (trigger.type === 'cart_idle' && parseIdleHours(trigger.config) == null) {
       issues.push(`${label}: Cart idle trigger needs idle hours.`);
     }
     if (trigger.type === 'campaign_schedule' && configMissing(trigger.config, 'sendAt')) {
@@ -627,7 +648,11 @@ export function collectAutomationDryRunIssues(args: {
         issues.push(`${label}: Share product needs at least one product.`);
       }
     }
-    if (CHANNEL_MESSAGE_ACTION_TYPES.has(action.type) && buyersMissing(action.config)) {
+    if (
+      CHANNEL_MESSAGE_ACTION_TYPES.has(action.type) &&
+      action.type !== 'cart_winback' &&
+      buyersMissing(action.config)
+    ) {
       issues.push(`${label}: ${action.type} needs at least one buyer.`);
     }
     if (action.type === 'assign_logistic' && fleetsMissing(action.config)) {

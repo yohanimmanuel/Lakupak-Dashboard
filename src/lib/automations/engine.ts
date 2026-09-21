@@ -14,11 +14,17 @@ import {
   sendExpoPushToMarketplaceUser,
 } from '@/utils/expoPush';
 import { translateMarketplacePaymentConfirmed } from '@/utils/marketplacePushTranslations';
-import { migrateOrderPaidTriggerConfig } from '@/lib/automations/catalog';
+import { migrateOrderPaidTriggerConfig, parseIdleHours } from '@/lib/automations/catalog';
 import { isLiveActionType } from '@/lib/automations/liveActions';
 import { executeChannelBuyerMessage } from '@/lib/automations/deliverBuyerMessage';
 import { executeSendCampaign } from '@/lib/automations/sendCampaign';
 import { syncWorkflowBuyers } from '@/lib/automations/syncWorkflowBuyers';
+import {
+  cartIdleRunKey,
+  findIdleCartsForDistributor,
+  MAX_CART_IDLE_SENDS_PER_TICK,
+  type IdleCart,
+} from '@/lib/automations/idleCarts';
 import {
   isCampaignScheduleDue,
   parseScheduledSendAtMs,
@@ -69,12 +75,19 @@ export type ReturnAcceptedEvent = {
   buyerId: string;
 };
 
+export type CartIdleEvent = {
+  userId: number;
+  idleHours: number;
+  cart: IdleCart;
+};
+
 type ScheduleContext = { kind: 'schedule'; sendAt: string };
 
 type WorkflowRunContext =
   | { kind: 'stock_below'; event: StockBelowEvent }
   | { kind: 'order_paid'; event: OrderPaidProofEvent }
   | { kind: 'return_accepted'; event: ReturnAcceptedEvent }
+  | { kind: 'cart_idle'; event: CartIdleEvent }
   | ScheduleContext;
 
 function asRecord(value: unknown): JsonRecord | null {
@@ -493,10 +506,11 @@ async function recordRun(
   workflowId: string,
   status: TerminalRunStatus | typeof RUN_STATUS_IN_PROGRESS,
   message: string,
+  runKey?: string,
 ) {
   await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     await tx.automationRun.create({
-      data: { workflowId, status, message },
+      data: { workflowId, status, message, runKey: runKey ?? null },
     });
     await tx.automationWorkflow.update({
       where: { id: workflowId },
@@ -521,7 +535,7 @@ async function hasExistingRun(workflowId: string, runKey: string): Promise<boole
   const existing = await prisma.automationRun.findFirst({
     where: {
       workflowId,
-      message: { startsWith: `[${runKey}]` },
+      OR: [{ runKey }, { message: { startsWith: `[${runKey}]` } }],
     },
     select: { id: true },
   });
@@ -668,6 +682,15 @@ async function defaultNotifyBody(ctx: WorkflowRunContext): Promise<string> {
   if (ctx.kind === 'return_accepted') {
     return `Return items received for order #${ctx.event.orderId}.`;
   }
+  if (ctx.kind === 'cart_idle') {
+    const cart = ctx.event.cart;
+    const products = cart.productNames.slice(0, 3).join(', ');
+    const more =
+      cart.productNames.length > 3 ? ` +${cart.productNames.length - 3} more` : '';
+    return `Idle cart (${ctx.event.idleHours}h): ${cart.storeName || cart.owner || cart.buyerId}${
+      products ? ` — ${products}${more}` : ''
+    }.`;
+  }
   return `Scheduled campaign send at ${ctx.sendAt}.`;
 }
 
@@ -739,7 +762,7 @@ async function runWorkflowActions(
         }
         parts.push(await executeMarkPaidFromProof(ctx.event));
       } else if (action.type === 'whatsapp_buyer') {
-        if (ctx.kind === 'schedule' || ctx.kind === 'return_accepted') {
+        if (ctx.kind === 'schedule' || ctx.kind === 'return_accepted' || ctx.kind === 'cart_idle') {
           parts.push('whatsapp_buyer skipped (wrong trigger context).');
           continue;
         }
@@ -786,13 +809,38 @@ async function runWorkflowActions(
       } else if (action.type === 'cs_24h_window') {
         parts.push('cs_24h_window runs on inbound buyer WhatsApp messages.');
       } else if (action.type === 'cart_winback') {
-        if (ctx.kind !== 'schedule') {
+        if (ctx.kind === 'cart_idle') {
+          const cart = ctx.event.cart;
+          parts.push(
+            await executeChannelBuyerMessage(
+              workflow,
+              action.type,
+              action.config,
+              {
+                cartProducts: cart.productNames.join(', '),
+              },
+              {
+                recipients: [
+                  {
+                    buyerId: cart.buyerId,
+                    email: cart.email,
+                    phone: cart.phone,
+                    owner: cart.owner,
+                    storeName: cart.storeName,
+                  },
+                ],
+              },
+            ),
+          );
+        } else if (ctx.kind === 'schedule') {
+          parts.push(
+            await executeChannelBuyerMessage(workflow, action.type, action.config),
+          );
+        } else {
           parts.push(
             'cart_winback skipped here (run Test run on a marketing workflow, or wait for cart idle).',
           );
-          continue;
         }
-        parts.push(await executeChannelBuyerMessage(workflow, action.type, action.config));
       } else if (action.type === 'send_campaign') {
         if (ctx.kind !== 'schedule') {
           parts.push(
@@ -810,8 +858,10 @@ async function runWorkflowActions(
           ? `stock_below:${ctx.event.productId}`
           : ctx.kind === 'order_paid'
             ? `order_paid:${ctx.event.orderId}`
-            : ctx.kind === 'return_accepted'
-              ? `return_accepted:${ctx.event.orderId}`
+          : ctx.kind === 'return_accepted'
+            ? `return_accepted:${ctx.event.orderId}`
+            : ctx.kind === 'cart_idle'
+              ? `cart_idle:${ctx.event.cart.marketplaceUserId}`
               : `campaign_schedule:${ctx.sendAt}`;
       const body = parts.length > 0 ? parts.join(' ') : await defaultNotifyBody(ctx);
       // One dashboard notification per run (even if multiple notify nodes are on the canvas).
@@ -943,6 +993,112 @@ export async function dispatchReturnAcceptedAutomations(
     });
     await recordRun(workflow.id, result.status, result.message);
   }
+}
+
+/** Fire active cart_idle workflows for marketplace carts that sat untouched. */
+export async function dispatchDueCartIdleAutomations(opts?: {
+  workflowId?: string;
+  now?: Date;
+}): Promise<{ checked: number; fired: number }> {
+  const workflows = await prisma.automationWorkflow.findMany({
+    where: {
+      status: 'active',
+      ...(opts?.workflowId ? { id: opts.workflowId } : {}),
+    },
+  });
+
+  const now = opts?.now ?? new Date();
+  let fired = 0;
+
+  for (const workflow of workflows) {
+    try {
+      const { triggers, actions } = workflowSteps(workflow);
+      const idleTrigger = triggers.find((t) => t.type === 'cart_idle');
+      if (!idleTrigger) continue;
+      const idleHours = parseIdleHours(idleTrigger.config);
+      if (idleHours == null) continue;
+
+      const winback = actions.find((a) => a.type === 'cart_winback');
+      const idleCarts = await findIdleCartsForDistributor({
+        distributorUserId: workflow.userId,
+        idleHours,
+        now,
+        actionConfig: winback?.config ?? null,
+      });
+      if (idleCarts.length === 0) continue;
+
+      let claimed = 0;
+      for (const cart of idleCarts) {
+        if (claimed >= MAX_CART_IDLE_SENDS_PER_TICK) break;
+        const runKey = cartIdleRunKey(workflow.id, cart.marketplaceUserId, cart.lastActivityAt);
+        if (await hasExistingRun(workflow.id, runKey)) continue;
+
+        try {
+          await recordRun(
+            workflow.id,
+            RUN_STATUS_IN_PROGRESS,
+            `[${runKey}] in_progress`,
+            runKey,
+          );
+        } catch (err) {
+          const code =
+            err && typeof err === 'object' && 'code' in err
+              ? String((err as { code?: unknown }).code)
+              : '';
+          if (code === 'P2002') continue;
+          throw err;
+        }
+        claimed += 1;
+
+        try {
+          const result = await runWorkflowActions(workflow, actions, {
+            kind: 'cart_idle',
+            event: {
+              userId: workflow.userId,
+              idleHours,
+              cart,
+            },
+          });
+          await prisma.automationRun.updateMany({
+            where: {
+              workflowId: workflow.id,
+              runKey,
+              status: RUN_STATUS_IN_PROGRESS,
+            },
+            data: {
+              status: result.status,
+              message: `[${runKey}] ${result.message}`,
+            },
+          });
+          if (result.status === 'success') {
+            fired += 1;
+          }
+        } catch (err) {
+          const detail = err instanceof Error ? err.message : String(err);
+          try {
+            await prisma.automationRun.updateMany({
+              where: {
+                workflowId: workflow.id,
+                runKey,
+                status: RUN_STATUS_IN_PROGRESS,
+              },
+              data: {
+                status: 'failed',
+                message: `[${runKey}] Failed: ${detail}`,
+              },
+            });
+          } catch {
+            // best-effort finalize
+          }
+          console.error(`[automations] cart_idle run ${runKey} failed`, err);
+        }
+      }
+    } catch (err) {
+      console.error(`[automations] cart_idle workflow ${workflow.id} failed`, err);
+    }
+  }
+
+  return { checked: workflows.length, fired };
 }
 
 /** Fire active campaign_schedule workflows whose Send at time is due. */

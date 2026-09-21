@@ -14,6 +14,7 @@ import {
   isActionAllowed,
   isTriggerAllowed,
   migrateOrderPaidTriggerConfig,
+  parseIdleHours,
 } from '@/lib/automations/catalog';
 import { runLakuAgentNode } from '@/lib/automations/runLakuAgent';
 import { executeSendCampaign } from '@/lib/automations/sendCampaign';
@@ -22,6 +23,11 @@ import {
   CHANNEL_MESSAGE_ACTIONS,
   executeChannelBuyerMessage,
 } from '@/lib/automations/deliverBuyerMessage';
+import { dispatchDueCartIdleAutomations } from '@/lib/automations/engine';
+import {
+  findIdleCartsForDistributor,
+  MAX_CART_IDLE_SENDS_PER_TICK,
+} from '@/lib/automations/idleCarts';
 import {
   fetchDbBuyers,
   syncWorkflowBuyers,
@@ -103,6 +109,20 @@ function canvasNodesFromAgentConfig(agentConfig: unknown): Array<{
         : undefined,
     };
   });
+}
+
+function cartIdleHoursFromWorkflow(workflow: {
+  triggerType: string;
+  triggerConfig: unknown;
+  agentConfig: unknown;
+}): number | null {
+  const nodes = canvasNodesFromAgentConfig(workflow.agentConfig);
+  const trigger = nodes.find((n) => n.data?.kind === 'trigger' && n.data.catalogType === 'cart_idle');
+  if (trigger) return parseIdleHours(trigger.data?.config ?? null);
+  if (workflow.triggerType === 'cart_idle') {
+    return parseIdleHours(asRecord(workflow.triggerConfig));
+  }
+  return null;
 }
 
 function assertAssignDriverHasDriver(args: {
@@ -717,6 +737,57 @@ async function testWorkflow(args: {
 
     for (const action of outboundActions.filter((a) => CHANNEL_MESSAGE_ACTIONS.has(a.type))) {
       try {
+        if (action.type === 'cart_winback') {
+          const idleHours = cartIdleHoursFromWorkflow(existing);
+          if (idleHours == null) {
+            throw new Error('cart_winback needs a cart idle trigger with idle hours.');
+          }
+          if (!testMode) {
+            if (existing.status !== 'active') {
+              throw new Error('Activate the workflow to send live cart win-back messages.');
+            }
+            const dispatched = await dispatchDueCartIdleAutomations({
+              workflowId: existing.id,
+            });
+            message = `${message} cart_idle dispatched (checked ${dispatched.checked}, fired ${dispatched.fired}).`;
+            continue;
+          }
+          const idleCarts = await findIdleCartsForDistributor({
+            distributorUserId: existing.userId,
+            idleHours,
+            actionConfig: action.config,
+          });
+          if (idleCarts.length === 0) {
+            throw new Error(
+              'No idle carts to preview. Marketplace carts idle for the configured hours will be messaged automatically.',
+            );
+          }
+          const preview = idleCarts.slice(0, MAX_CART_IDLE_SENDS_PER_TICK);
+          const sentParts: string[] = [];
+          for (const cart of preview) {
+            const sent = await executeChannelBuyerMessage(
+              existing,
+              action.type,
+              action.config,
+              { cartProducts: cart.productNames.join(', ') ?? '' },
+              {
+                testMode: true,
+                recipients: [
+                  {
+                    buyerId: cart.buyerId,
+                    email: cart.email,
+                    phone: cart.phone,
+                    owner: cart.owner,
+                    storeName: cart.storeName,
+                  },
+                ],
+              },
+            );
+            sentParts.push(sent);
+          }
+          message = `${message} ${sentParts.join(' ')}`;
+          continue;
+        }
         const sent = await executeChannelBuyerMessage(
           existing,
           action.type,

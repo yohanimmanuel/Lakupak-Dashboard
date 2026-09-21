@@ -6,17 +6,35 @@ const globalForScheduler = globalThis as unknown as {
   __lakuCampaignScheduleTicking?: boolean;
 };
 
-export async function tickCampaignSchedules(): Promise<{ checked: number; fired: number }> {
+export async function tickCampaignSchedules(): Promise<{
+  checked: number;
+  fired: number;
+  schedule: { checked: number; fired: number };
+  cartIdle: { checked: number; fired: number };
+}> {
   if (globalForScheduler.__lakuCampaignScheduleTicking) {
-    return { checked: 0, fired: 0 };
+    return {
+      checked: 0,
+      fired: 0,
+      schedule: { checked: 0, fired: 0 },
+      cartIdle: { checked: 0, fired: 0 },
+    };
   }
   globalForScheduler.__lakuCampaignScheduleTicking = true;
   try {
     // Import on each tick so `next dev` HMR does not keep a stale send-one-campaign copy.
-    const { dispatchDueCampaignScheduleAutomations } = await import(
-      '@/lib/automations/engine'
-    );
-    return await dispatchDueCampaignScheduleAutomations();
+    const {
+      dispatchDueCampaignScheduleAutomations,
+      dispatchDueCartIdleAutomations,
+    } = await import('@/lib/automations/engine');
+    const schedule = await dispatchDueCampaignScheduleAutomations();
+    const cartIdle = await dispatchDueCartIdleAutomations();
+    return {
+      checked: schedule.checked + cartIdle.checked,
+      fired: schedule.fired + cartIdle.fired,
+      schedule,
+      cartIdle,
+    };
   } finally {
     globalForScheduler.__lakuCampaignScheduleTicking = false;
   }

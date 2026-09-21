@@ -26,6 +26,7 @@ import { WhatsAppCsInboxPanel } from './WhatsAppCsInboxPanel';
 import { useBuilderPanelControls } from './WorkflowBuilderShell';
 import { BuyerPickerField, normalizePickedBuyers, toPickedBuyer } from './BuyerPickerField';
 import { CampaignPickerField, normalizePickedCampaigns } from './CampaignPickerField';
+import { OfferPickerField, normalizePickedOffers } from './OfferPickerField';
 import { FleetPickerField, normalizePickedFleets } from './FleetPickerField';
 import { ProductPickerField, normalizePickedProducts } from './ProductPickerField';
 import { WhatsAppCloudLabPanel } from './WhatsAppCloudLabPanel';
@@ -582,7 +583,14 @@ export function StepDetailsPanel({
                   field.kind === 'buyer' ? (
                     <BuyerPickerField
                       key={field.key}
-                      label={tFields.has(field.key) ? tFields(field.key) : field.key}
+                      label={
+                        selected.data.catalogType === 'cart_winback' &&
+                        tFields.has('buyerIdOptional')
+                          ? tFields('buyerIdOptional')
+                          : tFields.has(field.key)
+                            ? tFields(field.key)
+                            : field.key
+                      }
                       selectedBuyers={normalizePickedBuyers(selected.data.config)}
                       onSelectAction={(buyers: Buyer[]) => {
                         const picked = buyers.map(toPickedBuyer);
@@ -700,6 +708,34 @@ export function StepDetailsPanel({
                             campaignId: '',
                             campaignLabel: '',
                             campaignStatus: '',
+                          },
+                        })
+                      }
+                    />
+                  ) : field.kind === 'offer' ? (
+                    <OfferPickerField
+                      key={field.key}
+                      label={tFields.has(field.key) ? tFields(field.key) : field.key}
+                      selectedOffers={normalizePickedOffers(selected.data.config)}
+                      onSelectAction={(picked) =>
+                        onUpdateNodeAction(selected.id, {
+                          config: {
+                            ...selected.data.config,
+                            selectedOffers: picked,
+                            offerId: picked[0]?.offerId ?? '',
+                            offerLabel: picked[0]?.offerLabel ?? '',
+                            offerStatus: picked[0]?.offerStatus ?? '',
+                          },
+                        })
+                      }
+                      onClearAction={() =>
+                        onUpdateNodeAction(selected.id, {
+                          config: {
+                            ...selected.data.config,
+                            selectedOffers: [],
+                            offerId: '',
+                            offerLabel: '',
+                            offerStatus: '',
                           },
                         })
                       }

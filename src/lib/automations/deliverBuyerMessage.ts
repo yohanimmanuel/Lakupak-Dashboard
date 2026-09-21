@@ -132,13 +132,68 @@ function textToHtml(text: string, imageUrls: string[] = []): string {
   return `<!DOCTYPE html><html><body style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#111111;"><p>${linkifyText(text)}</p>${images}</body></html>`;
 }
 
-function marketplaceProductUrl(productId: string): string {
-  const base = (
+function marketplaceBaseUrl(): string {
+  return (
     process.env.NEXT_PUBLIC_MARKETPLACE_URL ||
     process.env.MARKETPLACE_PUBLIC_URL ||
     'https://laku.id'
   ).replace(/\/$/, '');
-  return `${base}/product/${encodeURIComponent(productId)}`;
+}
+
+function marketplaceProductUrl(productId: string): string {
+  return `${marketplaceBaseUrl()}/product/${encodeURIComponent(productId)}`;
+}
+
+function marketplaceDistributorUrl(distributorUserId: number): string {
+  return `${marketplaceBaseUrl()}/distributor/${distributorUserId}`;
+}
+
+function pickedOfferIds(config: JsonRecord | null | undefined): string[] {
+  const list = config?.selectedOffers;
+  if (Array.isArray(list) && list.length > 0) {
+    return list
+      .map((item) => {
+        if (!item || typeof item !== 'object') return '';
+        const row = item as JsonRecord;
+        return String(row.offerId ?? row.id ?? '').trim();
+      })
+      .filter(Boolean);
+  }
+  const offerId = String(config?.offerId ?? '').trim();
+  return offerId ? [offerId] : [];
+}
+
+async function loadOfferVars(
+  userId: number,
+  config: JsonRecord,
+  extraVars?: Record<string, string>,
+): Promise<Record<string, string>> {
+  if (extraVars?.offerName || extraVars?.offerUrl) {
+    return {
+      offerName: extraVars.offerName || '',
+      offerId: extraVars.offerId || '',
+      offerUrl: extraVars.offerUrl || '',
+    };
+  }
+  const ids = pickedOfferIds(config);
+  if (ids.length === 0) {
+    return { offerName: '', offerId: '', offerUrl: '' };
+  }
+  const offer = await prisma.offer.findFirst({
+    where: {
+      userId,
+      OR: [{ id: { in: ids } }, { offerId: { in: ids } }],
+    },
+    select: { id: true, offerId: true, name: true },
+  });
+  if (!offer) {
+    return { offerName: '', offerId: ids[0] ?? '', offerUrl: '' };
+  }
+  return {
+    offerName: offer.name,
+    offerId: offer.offerId || offer.id,
+    offerUrl: marketplaceDistributorUrl(userId),
+  };
 }
 
 function resolveChannel(config: JsonRecord): string {
@@ -158,7 +213,9 @@ async function loadSelectedBuyers(
   userId: number,
   buyerIds: string[],
   config?: JsonRecord | null,
+  options?: { fallbackToAllBuyers?: boolean },
 ): Promise<LoadedBuyer[]> {
+  const fallbackToAllBuyers = options?.fallbackToAllBuyers !== false;
   let buyers =
     buyerIds.length === 0
       ? []
@@ -175,7 +232,7 @@ async function loadSelectedBuyers(
             storeName: true,
           },
         });
-  if (buyers.length === 0) {
+  if (buyers.length === 0 && fallbackToAllBuyers) {
     buyers = await prisma.buyer.findMany({
       where: { userId },
       select: {
@@ -250,6 +307,34 @@ function buildBody(
   ) {
     const productBlock = [vars.productName, vars.productUrl].filter(Boolean).join('\n');
     body = [body, productBlock].filter(Boolean).join('\n\n').trim();
+  }
+  if (
+    actionType === 'cart_winback' &&
+    vars.cartProducts &&
+    !template.includes('{{cartProducts}}') &&
+    !body.includes(vars.cartProducts)
+  ) {
+    body = [body, vars.cartProducts].filter(Boolean).join('\n\n').trim();
+  }
+  if (actionType === 'cart_winback') {
+    const offerParts: string[] = [];
+    if (
+      vars.offerName &&
+      !template.includes('{{offerName}}') &&
+      !body.includes(vars.offerName)
+    ) {
+      offerParts.push(vars.offerName);
+    }
+    if (
+      vars.offerUrl &&
+      !template.includes('{{offerUrl}}') &&
+      !body.includes(vars.offerUrl)
+    ) {
+      offerParts.push(vars.offerUrl);
+    }
+    if (offerParts.length > 0) {
+      body = [body, offerParts.join('\n')].filter(Boolean).join('\n\n').trim();
+    }
   }
   return body;
 }
@@ -369,33 +454,65 @@ async function deliverToBuyers(args: {
   return `${testMode ? `${args.actionType} test (not sent)` : args.actionType}: ${parts.join('; ')}.`;
 }
 
+export type ChannelMessageRecipient = {
+  buyerId: string;
+  email: string;
+  phone: string;
+  owner: string;
+  storeName: string;
+};
+
 export async function executeChannelBuyerMessage(
   workflow: AutomationWorkflow,
   actionType: string,
   config: JsonRecord,
   extraVars?: Record<string, string>,
-  options?: { testMode?: boolean },
+  options?: {
+    testMode?: boolean;
+    recipients?: ChannelMessageRecipient[];
+    fallbackToAllBuyers?: boolean;
+  },
 ): Promise<string> {
   const messageTemplate = String(config.messageTemplate ?? '').trim();
   if (!messageTemplate) {
     throw new Error(`${actionType} needs a messageTemplate.`);
   }
 
-  const buyerIds = pickedBuyerIds(config);
-  if (buyerIds.length === 0) {
-    throw new Error(`${actionType} needs at least one buyer.`);
+  const fallbackToAllBuyers =
+    options?.fallbackToAllBuyers ?? actionType !== 'cart_winback';
+  const injected = options?.recipients?.filter((row) => String(row.buyerId ?? '').trim()) ?? [];
+  let buyers: LoadedBuyer[];
+  if (injected.length > 0) {
+    buyers = injected.map((row) => ({
+      buyerId: row.buyerId,
+      email: String(row.email ?? '').trim(),
+      phone: String(row.phone ?? '').trim(),
+      owner: String(row.owner ?? '').trim(),
+      storeName: String(row.storeName ?? '').trim(),
+    }));
+  } else {
+    const buyerIds = pickedBuyerIds(config);
+    if (buyerIds.length === 0 && !fallbackToAllBuyers) {
+      throw new Error(`${actionType} needs at least one buyer.`);
+    }
+    buyers = await loadSelectedBuyers(workflow.userId, buyerIds, config, {
+      fallbackToAllBuyers,
+    });
   }
-
-  const buyers = await loadSelectedBuyers(workflow.userId, buyerIds, config);
   const shareVars =
     actionType === 'share_product_whatsapp'
       ? await loadShareProductVars(workflow.userId, config, extraVars)
       : {};
+  const offerVars =
+    actionType === 'cart_winback'
+      ? await loadOfferVars(workflow.userId, config, extraVars)
+      : {};
 
   const baseVars: Record<string, string> = {
     workflowName: workflow.name || 'Lakupak',
-    offerId: String(config.offerId ?? extraVars?.offerId ?? '').trim(),
+    offerId: offerVars.offerId || String(config.offerId ?? extraVars?.offerId ?? '').trim(),
     ...shareVars,
+    ...offerVars,
     ...(extraVars ?? {}),
   };
 
