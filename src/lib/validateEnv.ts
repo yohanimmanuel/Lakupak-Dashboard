@@ -17,12 +17,12 @@ const coreSchema = z.object({
 const productionSchema = coreSchema.extend({
   REDIS_URL: z.string().min(1, 'REDIS_URL is required in production'),
   DIRECT_URL: z.string().min(1, 'DIRECT_URL is required in production for migrations'),
+  RESEND_API_KEY: z.string().min(1, 'RESEND_API_KEY is required in production'),
 });
 
 const OPTIONAL_FEATURE_VARS = [
   'MEILI_HOST',
   'TWILIO_ACCOUNT_SID',
-  'SMTP_HOST',
   'AUDIT_SERVICE_URL',
 ] as const;
 
@@ -45,7 +45,7 @@ export type ValidateDashboardEnvOptions = {
 
 /**
  * Validates Dashboard environment variables.
- * Production: strict on core + REDIS_URL + DIRECT_URL.
+ * Production: strict on core + REDIS_URL + DIRECT_URL + RESEND_API_KEY.
  * Development: warns on missing core vars; never blocks startup for optional integrations.
  */
 export function validateDashboardEnv(options: ValidateDashboardEnvOptions = {}): void {
@@ -66,6 +66,17 @@ export function validateDashboardEnv(options: ValidateDashboardEnvOptions = {}):
       if (!isNonEmpty(process.env[key])) {
         console.warn(`[env] ${key} is not set — copy env.example to .env before running the Dashboard.`);
       }
+    }
+
+    const hasResend = isNonEmpty(process.env.RESEND_API_KEY);
+    const hasCompleteSmtp =
+      isNonEmpty(process.env.SMTP_HOST) &&
+      isNonEmpty(process.env.SMTP_USER) &&
+      isNonEmpty(process.env.SMTP_PASS);
+    if (!hasResend && !hasCompleteSmtp) {
+      console.warn(
+        '[env] Email is not configured — set RESEND_API_KEY, or SMTP_HOST + SMTP_USER + SMTP_PASS for local Gmail fallback. SMTP_HOST alone is not enough.',
+      );
     }
   }
 

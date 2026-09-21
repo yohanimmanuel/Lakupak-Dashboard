@@ -1,6 +1,7 @@
 /**
- * Send password reset / verification email. No-op if SMTP is not configured or send fails.
- * Configure SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS in env (see env.example).
+ * Transactional email (password reset, KYC under-review / approve / reject).
+ * Primary: Resend HTTPS (RESEND_API_KEY) — required on Render.
+ * Local fallback: Gmail SMTP when no Resend key is set.
  */
 import path from 'path';
 import fs from 'fs';
@@ -225,13 +226,128 @@ async function createSmtpTransport(): Promise<{ transporter: SmtpTransport; from
   };
 }
 
-function logSmtpFailure(context: string, err: unknown) {
+function smtpNetworkBlocked(err: unknown): boolean {
+  const code = err && typeof err === 'object' && 'code' in err ? String((err as { code?: unknown }).code) : '';
+  const detail = err instanceof Error ? err.message : String(err);
+  return (
+    ['ETIMEDOUT', 'ESOCKET', 'ECONNECTION', 'ENETUNREACH', 'ECONNREFUSED', 'EDNS'].includes(code) ||
+    /timeout|timed out|unreachable|connect/i.test(detail)
+  );
+}
+
+function smtpAuthFailed(err: unknown): boolean {
+  const code = err && typeof err === 'object' && 'code' in err ? String((err as { code?: unknown }).code) : '';
+  const detail = err instanceof Error ? err.message : String(err);
+  return code === 'EAUTH' || /535|invalid login|username and password not accepted/i.test(detail);
+}
+
+function logEmailFailure(context: string, err: unknown, provider: 'resend' | 'smtp') {
   const detail = err instanceof Error ? err.message : String(err);
   const code = err && typeof err === 'object' && 'code' in err ? String((err as { code?: unknown }).code) : '';
+  const prefix = `[email] ${context} failed${code ? ` (${code})` : ''}: ${detail.split('\n')[0]}. `;
+  if (provider === 'smtp') {
+    if (smtpNetworkBlocked(err)) {
+      console.error(
+        `${prefix}Gmail SMTP is blocked on Render free services. Set RESEND_API_KEY to send over HTTPS.`,
+      );
+      return;
+    }
+    if (smtpAuthFailed(err)) {
+      console.error(
+        `${prefix}Gmail needs a current App Password for SMTP_USER (Google Account → Security → 2-Step Verification → App passwords), not the account login password.`,
+      );
+      return;
+    }
+    console.error(
+      `${prefix}Check SMTP_HOST / SMTP_USER / SMTP_PASS. Gmail SMTP only works locally or on a paid Render instance.`,
+    );
+    return;
+  }
   console.error(
-    `[email] ${context} failed${code ? ` (${code})` : ''}: ${detail.split('\n')[0]}. ` +
-      'Gmail needs a current App Password for SMTP_USER (Google Account → Security → 2-Step Verification → App passwords), not the account login password.',
+    `${prefix}Check RESEND_API_KEY / RESEND_FROM (use a Resend test sender or a verified domain).`,
   );
+}
+
+function getResendFromAddress(): string {
+  const configured = process.env.RESEND_FROM?.trim();
+  if (configured) return configured;
+  // Unverified Gmail addresses are rejected. Resend's sandbox sender works without a domain.
+  return `Lakupak <onboarding@${['resend', 'dev'].join('.')}>`;
+}
+
+async function sendViaResend(args: {
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error('RESEND_API_KEY is not set');
+  }
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: getResendFromAddress(),
+      to: [args.to],
+      subject: args.subject,
+      html: args.html,
+      text: args.text,
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Resend HTTP ${res.status}: ${body.slice(0, 240)}`);
+  }
+}
+
+type InlineLogoAttachment = {
+  path: string;
+  cid: string;
+  filename: false;
+  contentType: string;
+  contentDisposition: 'inline';
+  headers?: Record<string, string>;
+};
+
+async function deliverHtmlEmail(args: {
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+  attachments?: InlineLogoAttachment[];
+}): Promise<void> {
+  if (process.env.RESEND_API_KEY?.trim()) {
+    await sendViaResend({
+      to: args.to,
+      subject: args.subject,
+      text: args.text,
+      html: args.html,
+    });
+    return;
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    console.error(
+      '[email] RESEND_API_KEY is not set. Transactional mail is skipped in production (Gmail SMTP is blocked on Render).',
+    );
+    return;
+  }
+
+  const smtp = await createSmtpTransport();
+  if (!smtp) return;
+  await smtp.transporter.sendMail({
+    from: smtp.from,
+    to: args.to,
+    subject: args.subject,
+    text: args.text,
+    html: args.html,
+    attachments: args.attachments,
+  });
 }
 
 export async function sendPasswordResetEmail(
@@ -239,27 +355,18 @@ export async function sendPasswordResetEmail(
   resetLink: string,
   verificationCode?: string
 ): Promise<void> {
+  const provider: 'resend' | 'smtp' = process.env.RESEND_API_KEY?.trim() ? 'resend' : 'smtp';
   try {
-    const smtp = await createSmtpTransport();
-    if (!smtp) return;
-
+    const useHttps = provider === 'resend';
     const logoUrl = resolveLakupakLogoUrl();
     const logoPath = resolveLakupakLogoPath();
 
-    const attachments: Array<{
-      path: string;
-      cid: string;
-      filename: false;
-      contentType: string;
-      contentDisposition: 'inline';
-      headers?: Record<string, string>;
-    }> = [];
+    const attachments: InlineLogoAttachment[] = [];
 
     let logoSrc = logoUrl;
 
-    // If no public HTTPS URL is configured, embed the logo file inline without a filename header
-    // so Gmail treats it strictly as an inline graphic and does NOT display an attachment preview pill in the inbox.
-    if (!logoSrc && logoPath) {
+    // CID inline logos only work over SMTP. HTTPS providers need a public image URL.
+    if (!useHttps && !logoSrc && logoPath) {
       logoSrc = 'cid:ii_lakupak_logo';
       attachments.push({
         path: logoPath,
@@ -280,8 +387,7 @@ export async function sendPasswordResetEmail(
       logoSrc,
     });
 
-    await smtp.transporter.sendMail({
-      from: smtp.from,
+    await deliverHtmlEmail({
       to,
       subject: emailContent.subject,
       text: emailContent.text,
@@ -289,7 +395,7 @@ export async function sendPasswordResetEmail(
       attachments,
     });
   } catch (err) {
-    logSmtpFailure(`password reset to ${to}`, err);
+    logEmailFailure(`password reset to ${to}`, err, provider);
   }
 }
 
@@ -389,24 +495,16 @@ ${args.footerText}`;
 }
 
 async function sendTransactionalHtmlEmail(to: string, content: { subject: string; text: string; html: string }): Promise<void> {
+  const provider: 'resend' | 'smtp' = process.env.RESEND_API_KEY?.trim() ? 'resend' : 'smtp';
   try {
-    const smtp = await createSmtpTransport();
-    if (!smtp) return;
-
+    const useHttps = provider === 'resend';
     const logoUrl = resolveLakupakLogoUrl();
     const logoPath = resolveLakupakLogoPath();
 
-    const attachments: Array<{
-      path: string;
-      cid: string;
-      filename: false;
-      contentType: string;
-      contentDisposition: 'inline';
-      headers?: Record<string, string>;
-    }> = [];
+    const attachments: InlineLogoAttachment[] = [];
 
     let logoSrc = logoUrl;
-    if (!logoSrc && logoPath) {
+    if (!useHttps && !logoSrc && logoPath) {
       logoSrc = 'cid:ii_lakupak_logo';
       attachments.push({
         path: logoPath,
@@ -424,8 +522,7 @@ async function sendTransactionalHtmlEmail(to: string, content: { subject: string
       ? content.html.replace('cid:ii_lakupak_logo', logoSrc)
       : content.html;
 
-    await smtp.transporter.sendMail({
-      from: smtp.from,
+    await deliverHtmlEmail({
       to,
       subject: content.subject,
       text: content.text,
@@ -433,7 +530,7 @@ async function sendTransactionalHtmlEmail(to: string, content: { subject: string
       attachments,
     });
   } catch (err) {
-    logSmtpFailure(`"${content.subject}" to ${to}`, err);
+    logEmailFailure(`"${content.subject}" to ${to}`, err, provider);
   }
 }
 
