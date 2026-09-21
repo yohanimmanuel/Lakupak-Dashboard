@@ -101,23 +101,28 @@ function ResubmitKycInner() {
       .then(async (res) => {
         const data = await res.json().catch(() => null);
         if (cancelled) return;
+        setPageState((prev) => {
+          if (prev === "done") return prev;
+          if (!res.ok) return "error";
+          return "ready";
+        });
         if (!res.ok) {
-          setPageState("error");
           setError(typeof data?.error === "string" ? data.error : tRegister("resubmitInvalid"));
           return;
         }
         setEmail(typeof data?.email === "string" ? data.email : "");
-        setPageState("ready");
       })
       .catch(() => {
         if (cancelled) return;
-        setPageState("error");
+        setPageState((prev) => (prev === "done" ? prev : "error"));
         setError(tRegister("resubmitInvalid"));
       });
     return () => {
       cancelled = true;
     };
-  }, [token, tRegister]);
+    // tRegister is recreated every render; re-fetching would treat a consumed token as expired after submit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   const handleKycFile = useCallback(
     async (kind: "nib" | "npwp", file: File | null) => {
