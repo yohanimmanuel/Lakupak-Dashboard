@@ -9,6 +9,9 @@ import {
 import { getRegionByCode } from '@/config/regionConfig';
 import { registerRateLimiter } from '../../../../utils/rateLimiter';
 import { auditAuth } from '@/lib/audit';
+import { isAllowedKycStoredUrl, sanitizeKycFilename } from '@/lib/kyc/documents';
+import { buildLoginUrl } from '@/lib/emailVerification';
+import { sendRegistrationPendingEmail } from '@/lib/email';
 
 export async function POST(req: NextRequest) {
   // Apply rate limiting: 3 registrations per hour
@@ -59,6 +62,12 @@ export async function POST(req: NextRequest) {
       specialInstructions,
       defaultDeliveryLeadTimeMinDays,
       defaultDeliveryLeadTimeMaxDays,
+      nibDocumentUrl,
+      nibDocumentName,
+      nibDocumentPublicId,
+      npwpDocumentUrl,
+      npwpDocumentName,
+      npwpDocumentPublicId,
     } = body;
     
     // Helper function to return validation errors
@@ -117,6 +126,23 @@ export async function POST(req: NextRequest) {
     if (taxId && (typeof taxId !== 'string' || taxId.length > 80)) {
       return returnValidationError('Invalid Tax ID');
     }
+    if (!isAllowedKycStoredUrl(nibDocumentUrl)) {
+      return returnValidationError('NIB document upload is required');
+    }
+    if (!isAllowedKycStoredUrl(npwpDocumentUrl)) {
+      return returnValidationError('NPWP document upload is required');
+    }
+    const nibName = sanitizeKycFilename(typeof nibDocumentName === 'string' ? nibDocumentName : 'NIB');
+    const npwpName = sanitizeKycFilename(typeof npwpDocumentName === 'string' ? npwpDocumentName : 'NPWP');
+    const nibPublicId =
+      typeof nibDocumentPublicId === 'string' && nibDocumentPublicId.trim()
+        ? nibDocumentPublicId.trim().slice(0, 200)
+        : null;
+    const npwpPublicId =
+      typeof npwpDocumentPublicId === 'string' && npwpDocumentPublicId.trim()
+        ? npwpDocumentPublicId.trim().slice(0, 200)
+        : null;
+
     if (!industryType || typeof industryType !== 'string' || industryType.trim().length === 0) {
       return returnValidationError('Industry type is required');
     }
@@ -307,6 +333,12 @@ export async function POST(req: NextRequest) {
         documentVerification: false,
         businessLicenseVerification: false,
         complianceStatus: 'Pending',
+        nibDocumentUrl: String(nibDocumentUrl).trim(),
+        nibDocumentName: nibName,
+        nibDocumentPublicId: nibPublicId,
+        npwpDocumentUrl: String(npwpDocumentUrl).trim(),
+        npwpDocumentName: npwpName,
+        npwpDocumentPublicId: npwpPublicId,
         shippingPreferences: JSON.stringify(normalizedShippingPreferences),
         deliveryTimeSlots: JSON.stringify(normalizedDeliveryTimeSlots),
         preferredDeliveryDays: JSON.stringify(normalizedPreferredDeliveryDays),
@@ -328,7 +360,9 @@ export async function POST(req: NextRequest) {
         password: hashed,
         companyId: companyData.id,
         region: region,
-        currency: selectedRegion.currency
+        currency: selectedRegion.currency,
+        accountStatus: 'pending',
+        emailVerified: null,
       },
       include: {
         company: true
@@ -341,6 +375,12 @@ export async function POST(req: NextRequest) {
     // Return sanitized user data
     const userData = sanitizeUserData(result);
 
+    await sendRegistrationPendingEmail({
+      to: normalizedEmail,
+      firstName: result.firstName,
+      loginUrl: buildLoginUrl(),
+    });
+
     auditAuth(req, {
       action: 'register',
       actorType: 'dashboard',
@@ -348,10 +388,10 @@ export async function POST(req: NextRequest) {
       resourceType: 'User',
       resourceId: String(result.id),
       success: true,
-      metadata: { scope: 'dashboard', companyId: result.companyId, region },
+      metadata: { scope: 'dashboard', companyId: result.companyId, region, accountStatus: 'pending' },
     });
     
-    return NextResponse.json(userData, { 
+    return NextResponse.json({ ...userData, accountStatus: 'pending', pending: true }, { 
       status: 201, 
       headers: {
         ...headers,

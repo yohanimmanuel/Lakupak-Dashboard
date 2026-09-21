@@ -14,6 +14,7 @@ export type PlatformUserRow = {
   email: string | null;
   phone: string | null;
   status: string | null;
+  accountStatus: string | null;
   isSuspended: boolean;
   avatar: string | null;
   createdAt: string;
@@ -73,6 +74,7 @@ export async function GET(req: NextRequest) {
           image: true,
           avatar: true,
           isSuspended: true,
+          accountStatus: true,
           createdAt: true,
         },
       });
@@ -88,6 +90,7 @@ export async function GET(req: NextRequest) {
           email: u.email,
           phone: u.phone ?? null,
           status: null,
+          accountStatus: u.accountStatus ?? 'active',
           isSuspended: Boolean(u.isSuspended),
           avatar: u.avatar ?? u.image ?? null,
           createdAt: u.createdAt.toISOString(),
@@ -133,6 +136,7 @@ export async function GET(req: NextRequest) {
           email: u.email ?? null,
           phone: u.phone,
           status: null,
+          accountStatus: null,
           isSuspended: Boolean(u.isSuspended),
           avatar: u.image ?? null,
           createdAt: u.createdAt.toISOString(),
@@ -177,6 +181,7 @@ export async function GET(req: NextRequest) {
           email: d.user?.email ?? null,
           phone: d.phone ?? null,
           status: d.status ?? null,
+          accountStatus: null,
           isSuspended: false,
           avatar: d.avatar ?? null,
           createdAt: d.createdAt.toISOString(),

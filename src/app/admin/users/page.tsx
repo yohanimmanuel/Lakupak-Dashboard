@@ -6,6 +6,7 @@ import ManageUsersTable from '@/components/adminstuffs/ManageUsersTable';
 type UserStatusMetrics = {
   platformUserTotal: number;
   platformActiveUsers: number;
+  platformUpcomingUsers: number;
   platformSuspendedUsers: number;
 };
 
@@ -30,7 +31,7 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="bg-white border border-[#e6e6e6] rounded-xl p-4">
           <p className="text-xs text-gray-600">Total users</p>
           <p className="text-2xl font-bold text-gray-900 mt-0.5">{m?.platformUserTotal?.toLocaleString?.() ?? '—'}</p>
@@ -40,6 +41,11 @@ export default function AdminUsersPage() {
           <p className="text-xs text-gray-600">Active</p>
           <p className="text-2xl font-bold text-gray-900 mt-0.5">{m?.platformActiveUsers?.toLocaleString?.() ?? '—'}</p>
           <p className="text-xs text-gray-500 mt-1">Can access their apps</p>
+        </div>
+        <div className="bg-white border border-[#e6e6e6] rounded-xl p-4">
+          <p className="text-xs text-gray-600">Upcoming users</p>
+          <p className="text-2xl font-bold text-gray-900 mt-0.5">{m?.platformUpcomingUsers?.toLocaleString?.() ?? '—'}</p>
+          <p className="text-xs text-gray-500 mt-1">Pending registration &amp; KYC</p>
         </div>
         <div className="bg-white border border-[#e6e6e6] rounded-xl p-4">
           <p className="text-xs text-gray-600">Suspended</p>

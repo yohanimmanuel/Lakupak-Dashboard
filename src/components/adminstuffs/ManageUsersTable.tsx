@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, FileText, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileText, Search, Trash2 } from 'lucide-react';
 import SlidingSegmentedControl from '@/components/SlidingSegmentedControl';
 
 type PlatformUserSource = 'dashboard' | 'marketplace' | 'driver';
@@ -15,6 +15,7 @@ type PlatformUserRow = {
   email: string | null;
   phone: string | null;
   status: string | null;
+  accountStatus: string | null;
   isSuspended: boolean;
   avatar: string | null;
   createdAt: string;
@@ -40,6 +41,16 @@ function sourceBadgeClass(source: PlatformUserSource) {
   }
 }
 
+function accountBadge(r: PlatformUserRow) {
+  if (r.isSuspended) {
+    return { label: 'Suspended', className: 'bg-red-100 text-red-800' };
+  }
+  if (r.source === 'dashboard' && (r.accountStatus ?? '').toLowerCase() === 'pending') {
+    return { label: 'Pending', className: 'bg-amber-100 text-amber-800' };
+  }
+  return { label: 'Active', className: 'bg-emerald-100 text-emerald-800' };
+}
+
 function formatJoined(iso: string) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
@@ -55,6 +66,9 @@ export default function ManageUsersTable() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const rowsPerPage = 8;
+  const [pendingDelete, setPendingDelete] = useState<PlatformUserRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
@@ -80,6 +94,26 @@ export default function ManageUsersTable() {
       setLoading(false);
     }
   }, [tab, debouncedSearch]);
+
+  const confirmDelete = useCallback(async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(
+        `/api/platform-admin/users/${encodeURIComponent(pendingDelete.source)}/${pendingDelete.dbId}`,
+        { method: 'DELETE' },
+      );
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || 'Failed to delete user');
+      setPendingDelete(null);
+      await load();
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : 'Failed to delete user');
+    } finally {
+      setDeleting(false);
+    }
+  }, [pendingDelete, load]);
 
   useEffect(() => {
     load().catch(() => {});
@@ -196,13 +230,16 @@ export default function ManageUsersTable() {
                         </td>
                         <td className="px-4 py-3 text-xs text-gray-700">{r.phone ?? '—'}</td>
                         <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex text-xs font-semibold px-2 py-1 rounded-full ${
-                              r.isSuspended ? 'bg-red-100 text-red-800' : 'bg-emerald-100 text-emerald-800'
-                            }`}
-                          >
-                            {r.isSuspended ? 'Suspended' : 'Active'}
-                          </span>
+                          {(() => {
+                            const badge = accountBadge(r);
+                            return (
+                              <span
+                                className={`inline-flex text-xs font-semibold px-2 py-1 rounded-full ${badge.className}`}
+                              >
+                                {badge.label}
+                              </span>
+                            );
+                          })()}
                         </td>
                         <td className="px-4 py-3">
                           <span
@@ -218,15 +255,30 @@ export default function ManageUsersTable() {
                         </td>
                         <td className="px-5 py-3 text-xs text-gray-700 whitespace-nowrap">{formatJoined(r.createdAt)}</td>
                         <td className="px-5 py-3 text-center">
-                          <Link
-                            href={`/admin/users/${r.source}/${r.dbId}`}
-                            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-[#e6e6e6] text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-300 transition-colors"
-                            title="View details"
-                            aria-label={`Details for ${r.name}`}
-                          >
-                            <FileText className="w-4 h-4 text-[#0a61d7] shrink-0" />
-                            Details
-                          </Link>
+                          <div className="inline-flex items-center justify-center gap-2">
+                            <Link
+                              href={`/admin/users/${r.source}/${r.dbId}`}
+                              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-[#e6e6e6] text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                              title="View details"
+                              aria-label={`Details for ${r.name}`}
+                            >
+                              <FileText className="w-4 h-4 text-[#0a61d7] shrink-0" />
+                              Details
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDeleteError(null);
+                                setPendingDelete(r);
+                              }}
+                              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-200 text-red-700 bg-white hover:bg-red-50 hover:border-red-300 transition-colors"
+                              title="Delete account"
+                              aria-label={`Delete ${r.name}`}
+                            >
+                              <Trash2 className="w-4 h-4 shrink-0" />
+                              Delete
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -298,6 +350,48 @@ export default function ManageUsersTable() {
           </div>
         </div>
       )}
+
+      {pendingDelete ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white border border-[#e6e6e6] shadow-xl p-5">
+            <h2 className="text-base font-semibold text-gray-900">Delete this account?</h2>
+            <p className="mt-2 text-sm text-gray-600">
+              This permanently removes{' '}
+              <span className="font-medium text-gray-900">{pendingDelete.name}</span>
+              {pendingDelete.email ? (
+                <>
+                  {' '}
+                  (<span className="break-all">{pendingDelete.email}</span>)
+                </>
+              ) : null}{' '}
+              from {pendingDelete.source}. The account is not recovered after this.
+            </p>
+            {deleteError ? <p className="mt-3 text-sm text-red-600">{deleteError}</p> : null}
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => {
+                  if (deleting) return;
+                  setPendingDelete(null);
+                  setDeleteError(null);
+                }}
+                className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => void confirmDelete()}
+                className="px-4 py-2 rounded-lg bg-red-600 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleting ? 'Deleting…' : 'Delete account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

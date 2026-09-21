@@ -69,9 +69,10 @@ export async function resolveDashboardGraphQLUser(userId: number): Promise<numbe
   if (!Number.isInteger(userId) || userId <= 0) return null;
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, isSuspended: true },
+    select: { id: true, isSuspended: true, accountStatus: true },
   });
   if (!user || user.isSuspended) return null;
+  if ((user.accountStatus ?? 'active') === 'pending') return null;
   return user.id;
 }
 

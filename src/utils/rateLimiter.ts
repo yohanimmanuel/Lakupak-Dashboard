@@ -800,6 +800,47 @@ export const registerRateLimiter = createRateLimiter({
   burstWindowMs: 1000,
 });
 
+/** Unauthenticated NIB/NPWP uploads during distributor registration. */
+export const kycRegisterUploadRateLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000,
+  maxRequests: 12,
+  message: 'Too many document uploads. Please try again later.',
+  keyGenerator: (req) => {
+    const ip = getClientIp(req);
+    return `kyc-register-upload:${ip}`;
+  },
+  progressivePenalty: true,
+  burstLimit: 4,
+  burstWindowMs: 2000,
+});
+
+export const verifyEmailRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  maxRequests: 12,
+  message: 'Too many verification attempts. Please try again later.',
+  keyGenerator: (req) => {
+    const ip = getClientIp(req);
+    return `verify-email:${ip}`;
+  },
+  progressivePenalty: true,
+  burstLimit: 4,
+  burstWindowMs: 2000,
+});
+
+export const kycResubmitRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  maxRequests: 20,
+  message: 'Too many document resubmit attempts. Please try again later.',
+  keyGenerator: (req) => {
+    const ip = getClientIp(req);
+    return `kyc-resubmit:${ip}`;
+  },
+  progressivePenalty: true,
+  burstLimit: 6,
+  burstWindowMs: 2000,
+});
+
+
 /**
  * Auth: OTP Request - 5 per 5 minutes per phone number
  * This is critical because each OTP costs money via Twilio

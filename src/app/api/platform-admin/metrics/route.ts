@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
       publishedAnnouncements,
       dashboardUsers,
       dashboardSuspendedUsers,
+      dashboardPendingUsers,
       marketplaceUsers,
       marketplaceSuspendedUsers,
       drivers,
@@ -33,6 +34,7 @@ export async function GET(req: NextRequest) {
       prisma.platformAnnouncement.count({ where: { isPublished: true } }),
       prisma.user.count(),
       prisma.user.count({ where: { isSuspended: true } }),
+      prisma.user.count({ where: { accountStatus: 'pending', isSuspended: false } }),
       prisma.marketplaceUser.count(),
       prisma.marketplaceUser.count({ where: { isSuspended: true } }),
       prisma.driver.count(),
@@ -46,10 +48,11 @@ export async function GET(req: NextRequest) {
     // Drivers currently have no suspension fields in Prisma (`Driver` has no `isSuspended`),
     // so they are treated as always active in these platform-wide metrics.
     const platformUserTotal = dashboardUsers + marketplaceUsers + drivers;
-    const dashboardActiveUsers = Math.max(0, dashboardUsers - dashboardSuspendedUsers);
+    const dashboardActiveUsers = Math.max(0, dashboardUsers - dashboardSuspendedUsers - dashboardPendingUsers);
     const marketplaceActiveUsers = Math.max(0, marketplaceUsers - marketplaceSuspendedUsers);
     const platformSuspendedUsers = dashboardSuspendedUsers + marketplaceSuspendedUsers;
-    const platformActiveUsers = platformUserTotal - platformSuspendedUsers;
+    const platformUpcomingUsers = dashboardPendingUsers;
+    const platformActiveUsers = Math.max(0, platformUserTotal - platformSuspendedUsers - platformUpcomingUsers);
 
     return NextResponse.json(
       {
@@ -62,12 +65,14 @@ export async function GET(req: NextRequest) {
           dashboardUsers,
           dashboardActiveUsers,
           dashboardSuspendedUsers,
+          dashboardPendingUsers,
           marketplaceUsers,
           marketplaceActiveUsers,
           marketplaceSuspendedUsers,
           drivers,
           platformUserTotal,
           platformActiveUsers,
+          platformUpcomingUsers,
           platformSuspendedUsers,
           totalHomeOffers,
           publishedHomeOffers,

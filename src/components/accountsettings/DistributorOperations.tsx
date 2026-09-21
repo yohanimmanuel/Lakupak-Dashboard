@@ -1016,27 +1016,41 @@ export default function DistributorOperations() {
                     {tDistributor('preferredDeliveryTimeSlots')}
                   </label>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {deliveryTimeSlots.map(slot => (
-                      <label key={slot} className="flex items-center space-x-2 cursor-pointer">
+                    {deliveryTimeSlots.map(slot => {
+                      const flexibleOn = formData.deliveryTimeSlots.includes('Flexible');
+                      const slotLocked = slot !== 'Flexible' && flexibleOn;
+                      const slotDisabled = !isEditing || slotLocked;
+                      const slotChecked = flexibleOn || formData.deliveryTimeSlots.includes(slot);
+                      return (
+                      <label key={slot} className={`flex items-center space-x-2 ${slotDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
                         <button
                           type="button"
                           onClick={() => {
-                            if (isEditing) {
-                              if (formData.deliveryTimeSlots.includes(slot)) {
-                                handleInputChange('deliveryTimeSlots', formData.deliveryTimeSlots.filter(item => item !== slot));
-                              } else {
-                                handleInputChange('deliveryTimeSlots', [...formData.deliveryTimeSlots, slot]);
-                              }
+                            if (!isEditing || slotLocked) return;
+                            if (slot === 'Flexible') {
+                              handleInputChange(
+                                'deliveryTimeSlots',
+                                flexibleOn
+                                  ? formData.deliveryTimeSlots.filter((item) => item !== 'Flexible')
+                                  : [...deliveryTimeSlots],
+                              );
+                              return;
+                            }
+                            if (formData.deliveryTimeSlots.includes(slot)) {
+                              handleInputChange('deliveryTimeSlots', formData.deliveryTimeSlots.filter(item => item !== slot));
+                            } else {
+                              handleInputChange('deliveryTimeSlots', [...formData.deliveryTimeSlots, slot]);
                             }
                           }}
-                          disabled={!isEditing}
+                          disabled={slotDisabled}
+                          aria-disabled={slotDisabled}
                           className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none ${
-                            formData.deliveryTimeSlots.includes(slot)
+                            slotChecked
                               ? 'bg-green-500 border-green-500'
                               : 'bg-white border-gray-300 hover:border-green-400'
-                          } ${!isEditing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          } ${slotDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
-                          {formData.deliveryTimeSlots.includes(slot) && (
+                          {slotChecked && (
                             <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                             </svg>
@@ -1044,7 +1058,8 @@ export default function DistributorOperations() {
                         </button>
                         <span className="text-xs text-gray-700">{translateDeliveryTimeSlot(slot)}</span>
                       </label>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 

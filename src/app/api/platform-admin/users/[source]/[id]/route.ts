@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
-import { platformAdminReadRateLimiter } from '@/utils/rateLimiter';
+import { platformAdminMutationRateLimiter, platformAdminReadRateLimiter } from '@/utils/rateLimiter';
+import { Prisma } from '@prisma/client';
+import { auditAdmin } from '@/lib/audit';
 
 const SOURCES = ['dashboard', 'marketplace', 'driver'] as const;
 type Source = (typeof SOURCES)[number];
@@ -50,6 +52,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ source: str
           phone: true,
           companyId: true,
           language: true,
+          accountStatus: true,
           company: {
             select: {
               id: true,
@@ -67,6 +70,10 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ source: str
               documentVerification: true,
               businessLicenseVerification: true,
               complianceStatus: true,
+              nibDocumentUrl: true,
+              nibDocumentName: true,
+              npwpDocumentUrl: true,
+              npwpDocumentName: true,
               shippingPreferences: true,
               deliveryTimeSlots: true,
               preferredDeliveryDays: true,
@@ -281,3 +288,129 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ source: str
     return NextResponse.json({ error: 'Failed to load user' }, { status: 500, headers });
   }
 }
+
+export async function DELETE(req: NextRequest, ctx: { params: Promise<{ source: string; id: string }> }) {
+  const headers = getSecurityHeaders();
+  try {
+    const adminId = requirePlatformAdminId(req);
+    const rateLimitResponse = await platformAdminMutationRateLimiter(req, adminId);
+    if (rateLimitResponse) return rateLimitResponse;
+
+    const params = await ctx.params;
+    const source = parseSource(params.source);
+    const id = Number(params.id);
+    if (!source || !Number.isFinite(id) || id < 1) {
+      return NextResponse.json({ error: 'Invalid user reference' }, { status: 400, headers });
+    }
+
+    if (source === 'dashboard') {
+      const existing = await prisma.user.findUnique({
+        where: { id },
+        select: { id: true, email: true, companyId: true },
+      });
+      if (!existing) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404, headers });
+      }
+
+      try {
+        await prisma.$transaction(async (tx) => {
+          await tx.account.deleteMany({ where: { userId: id } });
+          await tx.session.deleteMany({ where: { userId: id } });
+          await tx.passwordResetToken.deleteMany({ where: { userId: id } });
+          await tx.emailVerificationToken.deleteMany({ where: { userId: id } });
+          await tx.kycResubmitToken.deleteMany({ where: { userId: id } });
+          await tx.buyer.updateMany({ where: { userId: id }, data: { userId: null } });
+          await tx.supplier.updateMany({ where: { userId: id }, data: { userId: null } });
+          await tx.product.updateMany({ where: { userId: id }, data: { userId: null } });
+          await tx.order.updateMany({ where: { userId: id }, data: { userId: null } });
+          await tx.offer.updateMany({ where: { userId: id }, data: { userId: null } });
+          await tx.user.delete({ where: { id } });
+          if (existing.companyId) {
+            const remaining = await tx.user.count({ where: { companyId: existing.companyId } });
+            if (remaining === 0) {
+              await tx.company.delete({ where: { id: existing.companyId } }).catch(() => null);
+            }
+          }
+        });
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+          return NextResponse.json({ error: 'User not found' }, { status: 404, headers });
+        }
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2003') {
+          return NextResponse.json(
+            { error: 'This account has related records and could not be deleted.' },
+            { status: 409, headers },
+          );
+        }
+        throw err;
+      }
+
+      auditAdmin(req, {
+        action: 'user.delete',
+        resourceType: 'User',
+        resourceId: String(id),
+        actorId: adminId,
+        metadata: { accountType: 'dashboard', email: existing.email },
+      });
+
+      return NextResponse.json({ ok: true }, { status: 200, headers });
+    }
+
+    if (source === 'marketplace') {
+      try {
+        await prisma.marketplaceUser.delete({ where: { id } });
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+          return NextResponse.json({ error: 'User not found' }, { status: 404, headers });
+        }
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2003') {
+          return NextResponse.json(
+            { error: 'This account has related records and could not be deleted.' },
+            { status: 409, headers },
+          );
+        }
+        throw err;
+      }
+
+      auditAdmin(req, {
+        action: 'user.delete',
+        resourceType: 'MarketplaceUser',
+        resourceId: String(id),
+        actorId: adminId,
+        metadata: { accountType: 'marketplace' },
+      });
+      return NextResponse.json({ ok: true }, { status: 200, headers });
+    }
+
+    try {
+      await prisma.driver.delete({ where: { id } });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+        return NextResponse.json({ error: 'User not found' }, { status: 404, headers });
+      }
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2003') {
+        return NextResponse.json(
+          { error: 'This account has related records and could not be deleted.' },
+          { status: 409, headers },
+        );
+      }
+      throw err;
+    }
+
+    auditAdmin(req, {
+      action: 'user.delete',
+      resourceType: 'Driver',
+      resourceId: String(id),
+      actorId: adminId,
+      metadata: { accountType: 'driver' },
+    });
+    return NextResponse.json({ ok: true }, { status: 200, headers });
+  } catch (err) {
+    if (err instanceof Error && err.message === 'UNAUTHORIZED_PLATFORM_ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers });
+    }
+    console.error('platform-admin user delete', err);
+    return NextResponse.json({ error: 'Failed to delete user' }, { status: 500, headers });
+  }
+}
+

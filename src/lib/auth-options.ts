@@ -91,6 +91,9 @@ export const authOptions: NextAuthOptions = {
           // Prevent login for suspended distributor accounts.
           throw new Error("ACCOUNT_SUSPENDED");
         }
+        if ((user.accountStatus ?? "active") === "pending") {
+          throw new Error("ACCOUNT_PENDING");
+        }
 
         const isValid = await compare(credentials.password, user.password);
         if (!isValid) {
@@ -148,10 +151,20 @@ export const authOptions: NextAuthOptions = {
 
         const existing = await prisma.user.findUnique({ where: { email } });
         if (existing) {
+          if (
+            account.provider === 'google' &&
+            !existing.password &&
+            !existing.companyId
+          ) {
+            return '/login?error=GOOGLE_SIGNUP_DISABLED';
+          }
           if (existing.isSuspended) {
             // Surface suspension to the client instead of silently denying.
             // NextAuth `signIn` callback supports returning a string to redirect.
             return '/login?error=ACCOUNT_SUSPENDED';
+          }
+          if ((existing.accountStatus ?? 'active') === 'pending') {
+            return '/login?error=ACCOUNT_PENDING';
           }
           const linked = await prisma.account.findFirst({
             where: { provider: account.provider, providerAccountId: account.providerAccountId as string },
@@ -201,6 +214,8 @@ export const authOptions: NextAuthOptions = {
               data: updateData,
             });
           }
+        } else if (account.provider === 'google') {
+          return '/login?error=GOOGLE_SIGNUP_DISABLED';
         }
         return true;
       } catch {

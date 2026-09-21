@@ -26,6 +26,7 @@ export type PlatformAdminHomeMetrics = {
   drivers: number;
   platformUserTotal: number;
   platformActiveUsers: number;
+  platformUpcomingUsers?: number;
   platformSuspendedUsers: number;
   totalHomeOffers: number;
   publishedHomeOffers: number;
@@ -293,6 +294,9 @@ function UsersPreviewCard({ metrics }: { metrics: PlatformAdminHomeMetrics | nul
           </span>
           <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800">
             Active: {fmt(metrics.platformActiveUsers)}
+          </span>
+          <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800">
+            Upcoming: {fmt(metrics.platformUpcomingUsers)}
           </span>
           <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-red-50 border border-red-200 text-red-800">
             Suspended: {fmt(metrics.platformSuspendedUsers)}

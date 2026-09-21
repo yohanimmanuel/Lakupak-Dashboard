@@ -10,6 +10,7 @@ import {
   Building2,
   Ban,
   CheckCircle2,
+  Clock,
   Flag,
   Loader2,
   MapPin,
@@ -30,6 +31,7 @@ import {
   Trash2,
   Eye,
   Edit,
+  FileText,
 } from 'lucide-react';
 
 function formatDt(v: string | Date | null | undefined) {
@@ -101,6 +103,32 @@ function TextOrEmpty({ value, multiline }: { value: string | null | undefined; m
   if (!t) return <span className="text-sm text-gray-400 italic">Not provided</span>;
   return (
     <span className={`text-sm text-gray-900 ${multiline ? 'whitespace-pre-wrap break-words' : ''}`}>{t}</span>
+  );
+}
+
+function isKycPreviewImage(url: string) {
+  return /\.(png|jpe?g|webp)(\?|$)/i.test(url) || url.includes('/image/upload');
+}
+
+function KycDocumentPreview({ url, name }: { url: string | null | undefined; name: string }) {
+  const href = typeof url === 'string' ? url.trim() : '';
+  if (!href) return <span className="text-sm text-gray-400 italic">Not uploaded</span>;
+  return (
+    <div className="space-y-2">
+      {isKycPreviewImage(href) ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={href} alt="" className="h-28 w-full max-w-[220px] object-cover rounded-md border border-[#e6e6e6] bg-white" />
+      ) : null}
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-[#0a61d7] hover:underline"
+      >
+        <FileText className="w-4 h-4" />
+        {name || 'Open document'}
+      </a>
+    </div>
   );
 }
 
@@ -1329,6 +1357,9 @@ export default function PlatformUserDetailPage() {
   const params = useParams();
   const source = (params?.source as string)?.toLowerCase() ?? '';
   const id = params?.id as string;
+  const [reloadKey, setReloadKey] = useState(0);
+  const [kycBusy, setKycBusy] = useState(false);
+  const [kycError, setKycError] = useState<string | null>(null);
   const [state, setState] = useState<{ loading: true } | { loading: false; error: string } | { loading: false; body: ApiOk }>(
     { loading: true }
   );
@@ -1353,7 +1384,28 @@ export default function PlatformUserDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [source, id]);
+  }, [source, id, reloadKey]);
+
+  const submitKycReview = async (userId: number, action: 'approve' | 'reject') => {
+    setKycBusy(true);
+    setKycError(null);
+    try {
+      const res = await fetch(`/api/platform-admin/users/dashboard/${userId}/kyc`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(typeof data?.error === 'string' ? data.error : 'Failed to update KYC');
+      }
+      setReloadKey((k) => k + 1);
+    } catch (e) {
+      setKycError(e instanceof Error ? e.message : 'Failed to update KYC');
+    } finally {
+      setKycBusy(false);
+    }
+  };
 
   if (state.loading) {
     return (
@@ -1393,6 +1445,7 @@ export default function PlatformUserDetailPage() {
       language: string;
       currency: string;
       emailVerified: string | Date | null;
+      accountStatus?: string | null;
       createdAt: string;
       updatedAt: string;
       company: Record<string, unknown> | null;
@@ -1426,6 +1479,7 @@ export default function PlatformUserDetailPage() {
     const dayItems = c ? parseStringList(c.preferredDeliveryDays) : [];
 
     const isSuspended = Boolean(u.isSuspended);
+    const isPending = !isSuspended && String(u.accountStatus ?? '').toLowerCase() === 'pending';
     const suspendedAtLabel = u.suspendedAt ? formatDt(u.suspendedAt) : null;
     const suspendedAtRelative = u.suspendedAt ? formatRelative(u.suspendedAt) : null;
     const suspensionReason = (u.suspensionReason ?? '').trim();
@@ -1433,6 +1487,7 @@ export default function PlatformUserDetailPage() {
     const complianceLabel = c ? String(c.complianceStatus ?? 'Pending').trim() || 'Pending' : '';
     const compliancePending =
       c != null && (complianceLabel.toLowerCase().includes('pending') || complianceLabel.toLowerCase().includes('review'));
+    const complianceRejected = c != null && complianceLabel.toLowerCase().includes('reject');
 
     const activityStats = [
       { label: 'Products', value: u._count?.products ?? 0 },
@@ -1487,6 +1542,11 @@ export default function PlatformUserDetailPage() {
               <span className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-red-900 text-xs font-semibold">
                 <Ban className="w-4 h-4" />
                 Suspended
+              </span>
+            ) : isPending ? (
+              <span className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-amber-200 bg-amber-50 text-amber-900 text-xs font-semibold">
+                <Clock className="w-4 h-4" />
+                Pending
               </span>
             ) : (
               <span className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-900 text-xs font-semibold">
@@ -1725,14 +1785,40 @@ export default function PlatformUserDetailPage() {
               </DistributorSection>
 
               <DistributorSection title="Compliance & verification" icon={Shield}>
-                {compliancePending ? (
+                {complianceRejected ? (
+                  <div className="mb-4 rounded-lg border border-red-200 bg-red-50/90 px-3 py-2.5 text-xs text-red-950">
+                    <strong className="font-semibold">Documents rejected:</strong> the account was kept. The registrant
+                    was emailed a link to replace their NIB and NPWP. New files will show here after they resubmit.
+                  </div>
+                ) : compliancePending || isPending ? (
                   <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-2.5 text-xs text-amber-950">
-                    <strong className="font-semibold">Action may be needed:</strong> compliance is still{' '}
-                    <span className="font-medium">{complianceLabel}</span>. Confirm company documents and license before
-                    treating this account as fully cleared.
+                    <strong className="font-semibold">Action may be needed:</strong> confirm the NIB and NPWP files,
+                    then approve to activate this distributor. Approval sends them a login email.
                   </div>
                 ) : null}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+                  <DistributorField label="Account status">
+                    <span
+                      className={`inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-md border ${
+                        isPending
+                          ? 'bg-amber-50 text-amber-900 border-amber-200'
+                          : isSuspended
+                            ? 'bg-red-50 text-red-900 border-red-200'
+                            : 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                      }`}
+                    >
+                      {isSuspended ? 'Suspended' : isPending ? 'Pending' : 'Active'}
+                    </span>
+                  </DistributorField>
+                  <DistributorField label="Email verification">
+                    {u.emailVerified ? (
+                      <span className="text-sm text-gray-900">{formatDt(u.emailVerified)}</span>
+                    ) : (
+                      <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-md border bg-amber-50 text-amber-900 border-amber-200">
+                        Waiting
+                      </span>
+                    )}
+                  </DistributorField>
                   <DistributorField label="Compliance status">
                     <span
                       className={`inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-md border ${complianceStatusClass(complianceLabel)}`}
@@ -1743,15 +1829,51 @@ export default function PlatformUserDetailPage() {
                   <DistributorField label="Verification checklist">
                     <div className="flex flex-wrap gap-3 text-sm">
                       <span className="inline-flex items-center gap-1.5">
-                        <span className="text-gray-500">Documents</span>
+                        <span className="text-gray-500">NIB documents</span>
                         {BoolPill(c.documentVerification as boolean)}
                       </span>
                       <span className="inline-flex items-center gap-1.5">
-                        <span className="text-gray-500">Business license</span>
+                        <span className="text-gray-500">NPWP / license</span>
                         {BoolPill(c.businessLicenseVerification as boolean)}
                       </span>
                     </div>
                   </DistributorField>
+                  <DistributorField label="NIB document">
+                    <KycDocumentPreview
+                      url={typeof c.nibDocumentUrl === 'string' ? c.nibDocumentUrl : null}
+                      name={typeof c.nibDocumentName === 'string' ? c.nibDocumentName : 'NIB'}
+                    />
+                  </DistributorField>
+                  <DistributorField label="NPWP document">
+                    <KycDocumentPreview
+                      url={typeof c.npwpDocumentUrl === 'string' ? c.npwpDocumentUrl : null}
+                      name={typeof c.npwpDocumentName === 'string' ? c.npwpDocumentName : 'NPWP'}
+                    />
+                  </DistributorField>
+                </div>
+                <div className="mt-5 pt-4 border-t border-[#e6e6e6] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <p className="text-xs text-gray-600">
+                    Approving sets this account to Active and emails the registrant a login link. Rejecting keeps the account and emails them a link to upload replacement NIB and NPWP files.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {kycError ? <span className="text-xs text-red-600">{kycError}</span> : null}
+                    <button
+                      type="button"
+                      disabled={kycBusy}
+                      onClick={() => void submitKycReview(u.id, 'reject')}
+                      className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      Reject
+                    </button>
+                    <button
+                      type="button"
+                      disabled={kycBusy || (!isPending && complianceLabel.toLowerCase() === 'verified')}
+                      onClick={() => void submitKycReview(u.id, 'approve')}
+                      className="px-3 py-1.5 rounded-lg bg-[#0a61d7] text-white text-xs font-semibold hover:bg-[#084ba6] disabled:opacity-50"
+                    >
+                      {kycBusy ? 'Saving…' : 'Approve KYC'}
+                    </button>
+                  </div>
                 </div>
               </DistributorSection>
 

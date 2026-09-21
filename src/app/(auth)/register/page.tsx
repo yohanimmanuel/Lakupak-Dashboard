@@ -1,11 +1,8 @@
 ﻿"use client";
 import React, { useState, useCallback, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { signIn, signOut } from "next-auth/react";
-import { useUserStore } from '@/store/userStore';
 import { validateAuthInput } from '@/utils/auth-security';
 import { REGIONS, getRegionByCode } from '@/config/regionConfig';
-import { ChevronDown, Truck } from 'lucide-react';
+import { ChevronDown, FileUp, MailCheck } from 'lucide-react';
 import ReactCountryFlag from 'react-country-flag';
 import { 
   useAuthErrorHandler, 
@@ -22,6 +19,7 @@ import { AuthLanguageSwitcher } from '@/components/auth/AuthLanguageSwitcher';
 import { AuthDecorativeBackground } from '@/components/auth/AuthDecorativeBackground';
 
 const stepsCount = 6;
+const FORM_LAST_STEP = 5;
 
 const SHIPPING_OPTIONS = [
   'Self Pickup',
@@ -60,27 +58,84 @@ function isLeadTimeValid(min: number | '', max: number | ''): boolean {
   return true;
 }
 
+type KycStoredFile = { url: string; name: string; publicId: string | null };
+
+function KycFileField({
+  label,
+  hint,
+  chooseLabel,
+  replaceLabel,
+  uploadingLabel,
+  file,
+  uploading,
+  onFile,
+}: {
+  label: string;
+  hint: string;
+  chooseLabel: string;
+  replaceLabel: string;
+  uploadingLabel: string;
+  file: KycStoredFile | null;
+  uploading: boolean;
+  onFile: (file: File | null) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="block text-sm text-gray-500">
+        {label} <span className="text-red-500">*</span>
+      </label>
+      <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2">
+        <FileUp className="w-4 h-4 text-[#0a61d7] shrink-0" />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm text-gray-900 truncate">
+            {uploading ? uploadingLabel : file?.name || chooseLabel}
+          </p>
+          <p className="text-[11px] text-gray-500">{hint}</p>
+        </div>
+        <label className="shrink-0 cursor-pointer text-xs font-semibold text-[#0a61d7] hover:underline">
+          {file ? replaceLabel : chooseLabel}
+          <input
+            type="file"
+            accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png"
+            className="sr-only"
+            disabled={uploading}
+            onChange={(e) => {
+              const next = e.target.files?.[0] ?? null;
+              onFile(next);
+              e.target.value = '';
+            }}
+          />
+        </label>
+      </div>
+    </div>
+  );
+}
+
 function RegisterCheckbox({
   checked,
   onToggle,
   label,
+  disabled = false,
 }: {
   checked: boolean;
   onToggle: () => void;
   label: string;
+  disabled?: boolean;
 }) {
   return (
-    <label className="flex items-center space-x-2 cursor-pointer">
+    <label className={`flex items-center space-x-2 ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
       <button
         type="button"
         role="checkbox"
         aria-checked={checked}
+        aria-disabled={disabled}
+        disabled={disabled}
         onClick={onToggle}
         className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:ring-offset-2 ${
           checked
             ? 'bg-green-500 border-green-500'
             : 'bg-white border-gray-300 hover:border-green-400'
-        }`}
+        } ${disabled ? 'pointer-events-none' : ''}`}
         aria-label={label}
       >
         {checked && (
@@ -170,6 +225,11 @@ export default function RegisterPage() {
   });
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [kycDocs, setKycDocs] = useState<{ nib: KycStoredFile | null; npwp: KycStoredFile | null }>({
+    nib: null,
+    npwp: null,
+  });
+  const [kycUploading, setKycUploading] = useState<'nib' | 'npwp' | null>(null);
   const [showRegionDropdown, setShowRegionDropdown] = useState(false);
   const regionDropdownRef = useRef<HTMLDivElement>(null);
   const [showIndustryDropdown, setShowIndustryDropdown] = useState(false);
@@ -204,10 +264,6 @@ export default function RegisterPage() {
     confirmPassword: true
   });
   
-  const router = useRouter();
-  const setUser = useUserStore(state => state.setUser);
-  
-  // Enhanced hooks for production features
   const { error, handleError, clearError } = useAuthErrorHandler();
   const { loading, startLoading, stopLoading } = useAuthLoading();
   const [success, setSuccess] = useState("");
@@ -255,7 +311,10 @@ export default function RegisterPage() {
           validationStates.industryType &&
           validationStates.companySize &&
           validationStates.taxId &&
-          validationStates.businessPhone
+          validationStates.businessPhone &&
+          Boolean(kycDocs.nib?.url) &&
+          Boolean(kycDocs.npwp?.url) &&
+          kycUploading === null
         );
       case 3:
         return (
@@ -284,7 +343,7 @@ export default function RegisterPage() {
       default:
         return false;
     }
-  }, [step, userInfo, companyInfo, businessCreds, paymentInfo, shippingConfig, password, confirmPassword, validationStates]);
+  }, [step, userInfo, companyInfo, businessCreds, paymentInfo, shippingConfig, password, confirmPassword, validationStates, kycDocs, kycUploading]);
 
   const handleNext = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -297,25 +356,26 @@ export default function RegisterPage() {
       return;
     }
     
-    if (step < 5) {
+    if (step < FORM_LAST_STEP) {
       // Move to next step
       setStep(step + 1);
       setStepKey(prev => prev + 1);
       return;
     }
+
+    if (step > FORM_LAST_STEP) {
+      return;
+    }
     
     // Final step - submit registration
     startLoading(tRegister('creatingAccountLoading'));
-    let pendingRedirect = false;
-
-    const scheduleRedirect = (path: string) => {
-      pendingRedirect = true;
-      setTimeout(() => {
-        router.push(path);
-      }, 1500);
-    };
     
     try {
+      if (!kycDocs.nib?.url || !kycDocs.npwp?.url) {
+        handleError({ error: tRegisterError('completeRequired') });
+        return;
+      }
+
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { 
@@ -360,6 +420,12 @@ export default function RegisterPage() {
             shippingConfig.defaultDeliveryLeadTimeMaxDays === ''
               ? null
               : shippingConfig.defaultDeliveryLeadTimeMaxDays,
+          nibDocumentUrl: kycDocs.nib.url,
+          nibDocumentName: kycDocs.nib.name,
+          nibDocumentPublicId: kycDocs.nib.publicId,
+          npwpDocumentUrl: kycDocs.npwp.url,
+          npwpDocumentName: kycDocs.npwp.name,
+          npwpDocumentPublicId: kycDocs.npwp.publicId,
         }),
       });
       
@@ -370,75 +436,58 @@ export default function RegisterPage() {
         return;
       }
 
-      let autoLoginResult;
-      try {
-        autoLoginResult = await signIn("credentials", {
-          email: userInfo.email.trim(),
-          password,
-          redirect: false,
-        });
-      } catch (autoLoginError) {
-        console.error("Auto login after registration failed:", autoLoginError);
-        setSuccess(tRegisterError('registrationSuccessLoginManually'));
-        scheduleRedirect("/login");
-        return;
-      }
-
-      if (autoLoginResult?.error || !autoLoginResult?.ok) {
-        console.error("Auto login after registration failed:", autoLoginResult?.error);
-        setSuccess(tRegisterError('registrationSuccessLoginManually'));
-        scheduleRedirect("/login");
-        return;
-      }
-
       setSuccess(tRegisterError('registrationSuccess'));
-      setUser({
-        id: (() => {
-          if (typeof data.id === 'number' && Number.isFinite(data.id)) return data.id;
-          const parsed = Number.parseInt(String(data.id ?? ''), 10);
-          if (!Number.isFinite(parsed)) {
-            throw new Error('Invalid user ID received from registration API');
-          }
-          return parsed;
-        })(),
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
-        phone: data.phone,
-        bio: data.bio,
-        companyId: data.companyId,
-        company: data.company,
-        region: data.region,
-        currency: data.currency,
-        language: data.language || locale,
-      }, true);
-
-      if (typeof window !== 'undefined' && window.gtag) {
-        window.gtag('event', 'sign_up', {
-          event_category: 'Authentication',
-          event_label: 'Email Registration',
-          value: 1
-        });
-      }
-
-      scheduleRedirect("/home");
+      setStep(6);
+      setStepKey((prev) => prev + 1);
       
     } catch (err) {
       handleError({ error: tRegisterError('networkError') });
     } finally {
-      if (!pendingRedirect) {
-        stopLoading();
-      }
+      stopLoading();
     }
-  }, [step, userInfo, companyInfo, businessCreds, paymentInfo, shippingConfig, password, validateCurrentStep, router, setUser, handleError, clearError, startLoading, stopLoading, locale, tRegister, tRegisterError]);
+  }, [step, userInfo, companyInfo, businessCreds, paymentInfo, shippingConfig, password, kycDocs, validateCurrentStep, handleError, clearError, startLoading, stopLoading, locale, tRegister, tRegisterError]);
 
   const handleBack = useCallback(() => {
-    if (step > 0) {
+    if (step > 0 && step <= FORM_LAST_STEP) {
       setStep(step - 1);
       setStepKey(prev => prev + 1);
       clearError(); // Clear error when going back
     }
   }, [step, clearError]);
+
+  const handleKycFile = useCallback(async (kind: 'nib' | 'npwp', file: File | null) => {
+    if (!file) {
+      setKycDocs((prev) => ({ ...prev, [kind]: null }));
+      return;
+    }
+    setKycUploading(kind);
+    clearError();
+    try {
+      const fd = new FormData();
+      fd.append('kind', kind);
+      fd.append('file', file);
+      const res = await fetch('/api/auth/register/kyc-upload', { method: 'POST', body: fd });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || typeof data?.url !== 'string') {
+        throw new Error(typeof data?.error === 'string' ? data.error : tRegisterError('kycUploadFailed'));
+      }
+      setKycDocs((prev) => ({
+        ...prev,
+        [kind]: {
+          url: data.url,
+          name: typeof data.name === 'string' ? data.name : file.name,
+          publicId: typeof data.publicId === 'string' ? data.publicId : null,
+        },
+      }));
+    } catch (err) {
+      setKycDocs((prev) => ({ ...prev, [kind]: null }));
+      handleError({
+        error: err instanceof Error ? err.message : tRegisterError('kycUploadFailed'),
+      });
+    } finally {
+      setKycUploading(null);
+    }
+  }, [clearError, handleError, tRegisterError]);
 
   const validateConfirmPassword = useCallback((confirmPw: string) => {
     if (!confirmPw) return { valid: false, error: tRegisterError('confirmPassword') };
@@ -451,6 +500,25 @@ export default function RegisterPage() {
     option: string,
   ) => {
     setShippingConfig((prev) => {
+      if (field === 'deliveryTimeSlots') {
+        const current = prev.deliveryTimeSlots;
+        const isFlexible = option === 'Flexible';
+        const flexibleOn = current.includes('Flexible');
+        if (isFlexible) {
+          return {
+            ...prev,
+            deliveryTimeSlots: flexibleOn
+              ? current.filter((o) => o !== 'Flexible')
+              : [...DELIVERY_TIME_SLOTS],
+          };
+        }
+        if (flexibleOn) return prev;
+        const next = current.includes(option)
+          ? current.filter((o) => o !== option)
+          : [...current, option];
+        return { ...prev, deliveryTimeSlots: next };
+      }
+
       const current = prev[field];
       const next = current.includes(option)
         ? current.filter((o) => o !== option)
@@ -528,7 +596,7 @@ export default function RegisterPage() {
         </div>
 
         <div className="rounded-xl border border-white/80 bg-white/95 p-4 shadow-lg shadow-[#0a61d7]/5 backdrop-blur-sm sm:p-6 animate-fade-in-up">
-          <RegistrationProgressBar steps={steps} currentStep={step} />
+          {step < 6 ? <RegistrationProgressBar steps={steps} currentStep={step} /> : null}
 
           {error && (
             <ErrorMessage message={error} onClose={clearError} />
@@ -744,6 +812,26 @@ export default function RegisterPage() {
                     return { valid: true };
                   }}
                   placeholder={tRegister('optional')}
+                />
+                <KycFileField
+                  label={tRegister('nibDocument')}
+                  hint={tRegister('kycUploadHint')}
+                  chooseLabel={tRegister('kycChooseFile')}
+                  replaceLabel={tRegister('kycReplaceFile')}
+                  uploadingLabel={tRegister('kycUploading')}
+                  file={kycDocs.nib}
+                  uploading={kycUploading === 'nib'}
+                  onFile={(file) => void handleKycFile('nib', file)}
+                />
+                <KycFileField
+                  label={tRegister('npwpDocument')}
+                  hint={tRegister('kycUploadHint')}
+                  chooseLabel={tRegister('kycChooseFile')}
+                  replaceLabel={tRegister('kycReplaceFile')}
+                  uploadingLabel={tRegister('kycUploading')}
+                  file={kycDocs.npwp}
+                  uploading={kycUploading === 'npwp'}
+                  onFile={(file) => void handleKycFile('npwp', file)}
                 />
                 <ValidatedInput
                   label={tRegister('businessEmail')}
@@ -983,6 +1071,7 @@ export default function RegisterPage() {
                         key={slot}
                         label={translateTimeSlot(slot)}
                         checked={shippingConfig.deliveryTimeSlots.includes(slot)}
+                        disabled={slot !== 'Flexible' && shippingConfig.deliveryTimeSlots.includes('Flexible')}
                         onToggle={() => toggleShippingConfigArray('deliveryTimeSlots', slot)}
                       />
                     ))}
@@ -1081,7 +1170,25 @@ export default function RegisterPage() {
                 />
               </div>
             )}
+
+            {step === 6 && (
+              <div className="py-6 text-center space-y-4">
+                <MailCheck className="w-12 h-12 text-[#0a61d7] mx-auto" />
+                <h2 className="text-xl font-semibold text-gray-900">{tRegister('pendingTitle')}</h2>
+                <p className="text-sm text-gray-600 max-w-md mx-auto">
+                  {tRegister('pendingBody', { email: userInfo.email.trim() })}
+                </p>
+                <p className="text-sm text-gray-500">{tRegister('pendingCheckInbox')}</p>
+                <a
+                  href="/login"
+                  className="inline-flex items-center justify-center px-6 py-2.5 rounded-lg bg-[#0a61d7] text-white text-sm font-semibold hover:bg-[#084ba6]"
+                >
+                  {tRegister('goToLogin')}
+                </a>
+              </div>
+            )}
             
+            {step < 6 && (
             <div className="flex justify-between mt-6">
               {step > 0 && (
                 <button
@@ -1096,35 +1203,14 @@ export default function RegisterPage() {
               <LoadingButton
                 type="submit"
                 loading={loading}
-                loadingText={step < 5 ? tRegister('processing') : tRegister('creatingAccount')}
+                loadingText={step < FORM_LAST_STEP ? tRegister('processing') : tRegister('creatingAccount')}
                 disabled={!validateCurrentStep()}
                 className="px-6 py-2 rounded-lg bg-[#0a61d7] text-white font-medium hover:bg-[#084ba6] ml-auto text-sm transition-colors"
               >
-                {step < 5 ? tRegister('next') : tRegister('createAccount')}
+                {step < FORM_LAST_STEP ? tRegister('next') : tRegister('createAccount')}
               </LoadingButton>
             </div>
-            
-            <div className="mt-2">
-              <div className="flex items-center my-4">
-                <div className="flex-1 border-t border-gray-300"></div>
-                <span className="px-3 text-sm text-gray-500 bg-white">{tRegister('or')}</span>
-                <div className="flex-1 border-t border-gray-300"></div>
-              </div>
-              
-              <button
-                type="button"
-                onClick={() => {
-                  signIn('google', { 
-                    callbackUrl: '/home',
-                  });
-                }}
-                className="w-full py-2.5 px-4 border border-gray-300 rounded-lg flex items-center justify-center hover:bg-gray-50 transition-colors text-sm text-gray-700"
-                disabled={loading}
-              >
-                <img src="/google.svg" alt="Google" className="h-5 w-5 mr-3" />
-                {tRegister('signUpWithGoogle')}
-              </button>
-            </div>
+            )}
             </div>
           </form>
 
