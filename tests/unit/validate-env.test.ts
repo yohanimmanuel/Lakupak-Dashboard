@@ -78,11 +78,19 @@ describe('validateDashboardEnv', () => {
   });
 
   it('requires RESEND_API_KEY in production even if SMTP_HOST is set', () => {
+    vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('REDIS_URL', 'redis://localhost:6379');
     vi.stubEnv('DIRECT_URL', 'postgresql://postgres:postgres@localhost:5432/postgres');
     vi.stubEnv('SMTP_HOST', 'smtp.gmail.com');
     vi.stubEnv('SMTP_USER', 'dev@example.com');
     vi.stubEnv('SMTP_PASS', 'app-password');
     expect(() => validateDashboardEnv({ strict: true })).toThrow(/RESEND_API_KEY/);
+  });
+
+  it('does not require RESEND_API_KEY for CI strict checks', () => {
+    vi.stubEnv('NODE_ENV', 'test');
+    vi.stubEnv('REDIS_URL', 'redis://localhost:6379');
+    vi.stubEnv('DIRECT_URL', 'postgresql://postgres:postgres@localhost:5432/postgres');
+    expect(() => validateDashboardEnv({ strict: true })).not.toThrow();
   });
 });
