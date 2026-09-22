@@ -3,13 +3,16 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { Bell, Check, Flag, Trash2, X } from 'lucide-react';
+import { Bell, Check, Flag, Trash2, UserRound, X } from 'lucide-react';
 import { usePlatformAdminInboxSocket } from '@/hooks/usePlatformAdminInboxSocket';
 
 const ALL_NOTIFICATIONS_DIALOG_TITLE_ID = 'admin-all-notifications-dialog-title';
 
 type ReportItem = {
   id: number;
+  kind?: 'report' | 'registration';
+  source?: 'dashboard' | 'marketplace';
+  userId?: number;
   reasonText: string;
   reasonDetail: string | null;
   imageCount?: number;
@@ -19,6 +22,18 @@ type ReportItem = {
   distributorLabel: string;
   reporterLabel: string;
 };
+
+function isRegistrationItem(row: ReportItem) {
+  return row.kind === 'registration' || row.id < 0;
+}
+
+function reviewHref(row: ReportItem) {
+  const id = row.userId || row.reportedDashboardUserId;
+  if (row.source === 'marketplace') {
+    return `/admin/users/marketplace/${id}`;
+  }
+  return `/admin/users/dashboard/${id}`;
+}
 
 export default function AdminDistributorReportsBell() {
   const router = useRouter();
@@ -190,6 +205,7 @@ export default function AdminDistributorReportsBell() {
   };
 
   const markRead = async (id: number) => {
+    if (id < 1) return;
     try {
       const r = await fetch(`/api/platform-admin/reports/distributor/${id}/read`, { method: 'PATCH' });
       if (!r.ok) return;
@@ -235,6 +251,7 @@ export default function AdminDistributorReportsBell() {
 
   const handleDeleteReport = async (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (id < 1) return;
     try {
       const r = await fetch(`/api/platform-admin/reports/distributor/${id}`, { method: 'DELETE' });
       if (!r.ok) return;
@@ -246,10 +263,10 @@ export default function AdminDistributorReportsBell() {
   };
 
   const onRowNavigate = async (row: ReportItem) => {
-    if (row.isUnread) await markRead(row.id);
+    if (row.isUnread && !isRegistrationItem(row)) await markRead(row.id);
     setOpen(false);
     setShowAllModal(false);
-    router.push(`/admin/users/dashboard/${row.reportedDashboardUserId}`);
+    router.push(reviewHref(row));
   };
 
   const reportSubtitle = (row: ReportItem) => {
@@ -320,7 +337,7 @@ export default function AdminDistributorReportsBell() {
             ) : (
               items.map((row) => (
                 <div
-                  key={row.id}
+                  key={`${row.source ?? row.kind ?? 'report'}-${row.id}`}
                   className={`px-3 py-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition relative group ${
                     row.isUnread ? 'bg-blue-50/50' : ''
                   }`}
@@ -330,7 +347,11 @@ export default function AdminDistributorReportsBell() {
                   ) : null}
                   <div className="flex gap-3" onClick={() => void onRowNavigate(row)}>
                     <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                      <Flag size={16} className="text-red-600" />
+                      {isRegistrationItem(row) ? (
+                        <UserRound size={16} className="text-[#0a61d7]" />
+                      ) : (
+                        <Flag size={16} className="text-red-600" />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p
@@ -342,14 +363,16 @@ export default function AdminDistributorReportsBell() {
                       <p className="text-[10px] text-gray-400 mt-1">{reportSubtitle(row)}</p>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={(e) => void handleDeleteReport(row.id, e)}
-                    className="absolute top-2 right-2 p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600 z-10"
-                    title="Delete notification"
-                  >
-                    <X size={14} />
-                  </button>
+                  {isRegistrationItem(row) ? null : (
+                    <button
+                      type="button"
+                      onClick={(e) => void handleDeleteReport(row.id, e)}
+                      className="absolute top-2 right-2 p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600 z-10"
+                      title="Delete notification"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
                 </div>
               ))
             )}
@@ -439,7 +462,7 @@ export default function AdminDistributorReportsBell() {
                 ) : (
                   allItems.map((row) => (
                     <div
-                      key={row.id}
+                      key={`${row.source ?? row.kind ?? 'report'}-${row.id}`}
                       className={`px-4 py-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition relative group ${
                         row.isUnread ? 'bg-blue-50/50' : ''
                       }`}
@@ -449,7 +472,11 @@ export default function AdminDistributorReportsBell() {
                       ) : null}
                       <div className="flex gap-3" onClick={() => void onRowNavigate(row)}>
                         <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                          <Flag size={16} className="text-red-600" />
+                          {isRegistrationItem(row) ? (
+                            <UserRound size={16} className="text-[#0a61d7]" />
+                          ) : (
+                            <Flag size={16} className="text-red-600" />
+                          )}
                         </div>
                         <div className="flex-1 min-w-0 pr-6">
                           <p
@@ -461,14 +488,16 @@ export default function AdminDistributorReportsBell() {
                           <p className="text-[10px] text-gray-400 mt-1">{reportSubtitle(row)}</p>
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={(e) => void handleDeleteReport(row.id, e)}
-                        className="absolute top-3 right-3 p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600 z-10"
-                        title="Delete notification"
-                      >
-                        <X size={14} />
-                      </button>
+                      {isRegistrationItem(row) ? null : (
+                        <button
+                          type="button"
+                          onClick={(e) => void handleDeleteReport(row.id, e)}
+                          className="absolute top-3 right-3 p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600 z-10"
+                          title="Delete notification"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
                     </div>
                   ))
                 )}

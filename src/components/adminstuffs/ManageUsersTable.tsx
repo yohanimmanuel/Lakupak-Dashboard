@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, FileText, Search, Trash2 } from 'lucide-react';
 import SlidingSegmentedControl from '@/components/SlidingSegmentedControl';
+import { usePlatformAdminInboxSocket } from '@/hooks/usePlatformAdminInboxSocket';
 
 type PlatformUserSource = 'dashboard' | 'marketplace' | 'driver';
 
@@ -119,6 +120,10 @@ export default function ManageUsersTable() {
     load().catch(() => {});
   }, [load]);
 
+  usePlatformAdminInboxSocket(() => {
+    load().catch(() => {});
+  });
+
   const paged = useMemo(() => {
     const start = (page - 1) * rowsPerPage;
     return rows.slice(start, start + rowsPerPage);
@@ -163,25 +168,25 @@ export default function ManageUsersTable() {
       ) : loading ? (
         <div className="p-4 py-10 text-sm text-gray-600 text-center">Loading…</div>
       ) : (
-        <div className="overflow-auto p-4">
-          <div className="rounded-lg overflow-hidden">
-            <table className="w-full text-sm min-w-[720px]">
-              <thead className="bg-gray-100 text-xs text-gray-600">
-                <tr>
-                  <th className="text-left font-medium px-5 py-3 w-12 uppercase">No</th>
+        <div className="p-4">
+          <div className="overflow-x-auto rounded-lg">
+            <table className="w-full text-sm text-left whitespace-nowrap">
+              <thead>
+                <tr className="bg-gray-100 text-xs text-gray-600">
+                  <th className="text-left font-medium px-4 py-3 uppercase">No</th>
                   <th className="text-left font-medium px-4 py-3 uppercase">Profile</th>
                   <th className="text-left font-medium px-4 py-3 uppercase">Email</th>
                   <th className="text-left font-medium px-4 py-3 uppercase">Phone</th>
                   <th className="text-left font-medium px-4 py-3 uppercase">Account</th>
                   <th className="text-left font-medium px-4 py-3 uppercase">Source</th>
-                  <th className="text-left font-medium px-5 py-3 uppercase">Joined</th>
-                  <th className="text-center font-medium px-5 py-3 uppercase">Actions</th>
+                  <th className="text-left font-medium px-4 py-3 uppercase">Joined</th>
+                  <th className="text-center font-medium px-4 py-3 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {paged.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-5 py-8 text-center text-gray-500">
+                    <td colSpan={8} className="px-4 py-8 text-center text-gray-500 whitespace-normal">
                       No users found.
                     </td>
                   </tr>
@@ -190,7 +195,7 @@ export default function ManageUsersTable() {
                     const no = (page - 1) * rowsPerPage + i + 1;
                     return (
                       <tr key={`${r.source}-${r.dbId}`} className="hover:bg-gray-50/80">
-                        <td className="px-5 py-3 text-gray-700">{no}</td>
+                        <td className="px-4 py-3 text-gray-700">{no}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <div className="h-9 w-9 rounded-full bg-gray-200 overflow-hidden shrink-0 flex items-center justify-center text-xs font-semibold text-gray-600">
@@ -201,10 +206,14 @@ export default function ManageUsersTable() {
                                 (r.name || '?').charAt(0).toUpperCase()
                               )}
                             </div>
-                            <div className="max-w-[200px]">
-                              <p className="font-medium text-gray-900 truncate">{r.name}</p>
+                            <div className="min-w-0 max-w-[150px]">
+                              <p className="font-medium text-gray-900 truncate" title={r.name}>
+                                {r.name}
+                              </p>
                               {r.subtitle ? (
-                                <p className="text-xs text-gray-500 truncate">{r.subtitle}</p>
+                                <p className="text-xs text-gray-500 truncate" title={r.subtitle}>
+                                  {r.subtitle}
+                                </p>
                               ) : null}
                             </div>
                           </div>
@@ -213,7 +222,7 @@ export default function ManageUsersTable() {
                           {r.email ? (
                             <button
                               type="button"
-                              className="block max-w-[180px] truncate text-left hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500/40 rounded"
+                              className="block text-left hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500/40 rounded"
                               title={r.email}
                               aria-label={r.email}
                               onClick={() => {
@@ -223,9 +232,7 @@ export default function ManageUsersTable() {
                               {r.email}
                             </button>
                           ) : (
-                            <span className="block max-w-[180px] truncate">
-                              —
-                            </span>
+                            <span>—</span>
                           )}
                         </td>
                         <td className="px-4 py-3 text-xs text-gray-700">{r.phone ?? '—'}</td>
@@ -253,8 +260,8 @@ export default function ManageUsersTable() {
                             </span>
                           ) : null}
                         </td>
-                        <td className="px-5 py-3 text-xs text-gray-700 whitespace-nowrap">{formatJoined(r.createdAt)}</td>
-                        <td className="px-5 py-3 text-center">
+                        <td className="px-4 py-3 text-xs text-gray-700">{formatJoined(r.createdAt)}</td>
+                        <td className="px-4 py-3 text-center">
                           <div className="inline-flex items-center justify-center gap-2">
                             <Link
                               href={`/admin/users/${r.source}/${r.dbId}`}

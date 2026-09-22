@@ -42,3 +42,11 @@ export function buildKycResubmitUrl(token: string): string {
 export function buildLoginUrl(): string {
   return buildAbsoluteAppUrl('/login');
 }
+
+export function buildAdminDashboardUserUrl(userId: number): string {
+  return buildAbsoluteAppUrl(`/admin/users/dashboard/${userId}`);
+}
+
+export function buildAdminMarketplaceUserUrl(userId: number): string {
+  return buildAbsoluteAppUrl(`/admin/users/marketplace/${userId}`);
+}

@@ -13,6 +13,7 @@ import { isAllowedKycStoredUrl, sanitizeKycFilename } from '@/lib/kyc/documents'
 import { buildLoginUrl } from '@/lib/emailVerification';
 import { sendRegistrationPendingEmail } from '@/lib/email';
 import { consumeGoogleRegisterProof } from '@/lib/googleRegisterProof';
+import { notifyPlatformAdminsOfRegistration } from '@/lib/notifyPlatformAdmins';
 
 export async function POST(req: NextRequest) {
   // Apply rate limiting: 3 registrations per hour
@@ -397,6 +398,19 @@ export async function POST(req: NextRequest) {
       to: normalizedEmail,
       firstName: result.firstName,
       loginUrl: buildLoginUrl(),
+    });
+
+    const registrantName = [result.firstName, result.lastName].filter(Boolean).join(' ').trim()
+      || result.name
+      || normalizedEmail;
+    void notifyPlatformAdminsOfRegistration({
+      source: 'dashboard',
+      userId: result.id,
+      email: normalizedEmail,
+      name: registrantName,
+      companyName: result.company?.name ?? null,
+    }).catch(() => {
+      /* registrant mail already sent; admin notice is best-effort */
     });
 
     auditAuth(req, {

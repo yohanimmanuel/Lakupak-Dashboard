@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import ManageUsersTable from '@/components/adminstuffs/ManageUsersTable';
+import { usePlatformAdminInboxSocket } from '@/hooks/usePlatformAdminInboxSocket';
 
 type UserStatusMetrics = {
   platformUserTotal: number;
@@ -13,12 +14,18 @@ type UserStatusMetrics = {
 export default function AdminUsersPage() {
   const [m, setM] = useState<UserStatusMetrics | null>(null);
 
-  useEffect(() => {
+  const loadMetrics = useCallback(() => {
     fetch('/api/platform-admin/metrics')
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((d) => setM((d?.metrics as UserStatusMetrics) ?? null))
       .catch(() => setM(null));
   }, []);
+
+  useEffect(() => {
+    loadMetrics();
+  }, [loadMetrics]);
+
+  usePlatformAdminInboxSocket(loadMetrics);
 
   return (
     <div className="space-y-4">

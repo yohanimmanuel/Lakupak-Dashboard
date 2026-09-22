@@ -4,6 +4,7 @@ import { getSecurityHeaders } from '@/utils/auth-security';
 import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
 import { platformAdminMutationRateLimiter } from '@/utils/rateLimiter';
 import { auditAdmin } from '@/lib/audit';
+import { dismissRegistrationInboxAll } from '@/lib/platformAdminInboxState';
 
 /**
  * POST /api/platform-admin/reports/distributor/clear-all
@@ -18,19 +19,26 @@ export async function POST(req: NextRequest) {
     if (rateLimitResponse) return rateLimitResponse;
 
     const now = new Date();
-    const result = await prisma.distributorReport.updateMany({
-      where: { adminInboxDismissedAt: null },
-      data: { adminInboxDismissedAt: now },
+    const { result, registrationDismissed } = await prisma.$transaction(async (tx) => {
+      const result = await tx.distributorReport.updateMany({
+        where: { adminInboxDismissedAt: null },
+        data: { adminInboxDismissedAt: now },
+      });
+      const registrationDismissed = await dismissRegistrationInboxAll(adminId, tx);
+      return { result, registrationDismissed };
     });
 
     auditAdmin(req, {
       action: 'report.dismiss_all',
       resourceType: 'DistributorReport',
       actorId: adminId,
-      metadata: { dismissed: result.count },
+      metadata: { dismissed: result.count, registrationDismissed },
     });
 
-    return NextResponse.json({ ok: true, dismissed: result.count }, { status: 200, headers });
+    return NextResponse.json(
+      { ok: true, dismissed: result.count + registrationDismissed },
+      { status: 200, headers },
+    );
   } catch (err) {
     if (err instanceof Error && err.message === 'UNAUTHORIZED_PLATFORM_ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers });

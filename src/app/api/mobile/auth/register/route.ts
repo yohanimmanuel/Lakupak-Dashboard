@@ -13,6 +13,7 @@ import { isDuplicateAddressIdError, resetAddressIdSequence } from '@/utils/addre
 import { attachGeocodeToAddress, normalizeAddressKey } from '@/utils/addressGeocodeCache';
 import { enqueueSideEffect } from '@/lib/sideEffectQueue';
 import { Prisma } from '@/lib/prisma-generated';
+import { notifyPlatformAdminsOfRegistration } from '@/lib/notifyPlatformAdmins';
 
 type RegisterUserWithAddressParams = {
   username: string;
@@ -224,6 +225,15 @@ export async function POST(req: NextRequest) {
       resourceId: String(user.id),
       success: true,
       metadata: { scope: 'marketplace', via: 'credentials' },
+    });
+
+    void notifyPlatformAdminsOfRegistration({
+      source: 'marketplace',
+      userId: user.id,
+      email: user.email,
+      name: user.name || user.username || user.email || 'Marketplace user',
+    }).catch(() => {
+      /* admin notice is best-effort */
     });
 
     const { signAccessToken } = await import('../../../../../lib/jwt');

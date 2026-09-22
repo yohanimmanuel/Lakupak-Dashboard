@@ -595,6 +595,48 @@ export async function sendAccountApprovedEmail(args: {
   await sendTransactionalHtmlEmail(args.to, content);
 }
 
+export async function sendAdminRegistrationNoticeEmail(args: {
+  to: string;
+  adminName?: string | null;
+  registrantName: string;
+  registrantEmail: string;
+  companyName?: string | null;
+  source: 'dashboard' | 'marketplace';
+  reviewUrl: string;
+}): Promise<void> {
+  const admin = (args.adminName ?? '').trim();
+  const greeting = admin ? `Hi ${escapeHtml(admin)},` : 'Hi,';
+  const applicant = escapeHtml(args.registrantName.trim() || args.registrantEmail.trim() || 'A user');
+  const applicantEmail = escapeHtml(args.registrantEmail.trim() || '—');
+  const company = (args.companyName ?? '').trim();
+  const companyHtml = company
+    ? `<br />Company: <strong style="color: #111827; font-weight: 600;">${escapeHtml(company)}</strong>`
+    : '';
+  const isUpcoming = args.source === 'dashboard';
+  const content = renderAccountActionEmail({
+    to: args.to,
+    subject: isUpcoming
+      ? `Upcoming distributor needs review: ${args.registrantName.trim() || args.registrantEmail}`
+      : `New marketplace user registered: ${args.registrantName.trim() || args.registrantEmail}`,
+    title: isUpcoming ? 'Upcoming user to review' : 'New platform registration',
+    bodyHtml: `${greeting}<br /><br />${
+      isUpcoming
+        ? `${applicant} (${applicantEmail}) just registered as a distributor. The account is pending while NIB and NPWP documents are reviewed.${companyHtml}`
+        : `${applicant} (${applicantEmail}) just created a marketplace account.`
+    }`,
+    bodyText: `${admin ? `Hi ${admin},` : 'Hi,'}\n\n${
+      isUpcoming
+        ? `${args.registrantName.trim() || args.registrantEmail} (${args.registrantEmail}) just registered as a distributor. The account is pending while NIB and NPWP documents are reviewed.${company ? `\nCompany: ${company}` : ''}`
+        : `${args.registrantName.trim() || args.registrantEmail} (${args.registrantEmail}) just created a marketplace account.`
+    }\n\nReview:\n${args.reviewUrl}`,
+    buttonLabel: 'Review user',
+    buttonUrl: args.reviewUrl,
+    footerText: 'You received this because you are a Lakupak platform admin.',
+    logoSrc: inlineLogoForProvider().logoSrc,
+  });
+  await sendTransactionalHtmlEmail(args.to, content);
+}
+
 export async function sendKycRejectedEmail(args: {
   to: string;
   firstName?: string | null;

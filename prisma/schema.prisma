@@ -1286,6 +1286,23 @@ model PlatformAdmin {
   homeOffers    MarketplaceHomeOffer[]
   searchTermMaps MarketplaceSearchTermMap[]
   commissionInvoices CommissionInvoice[]
+  registrationInboxStates PlatformAdminInboxState[]
+}
+
+/// Per-admin read/dismiss state for synthesized registration inbox items.
+model PlatformAdminInboxState {
+  id          Int       @id @default(autoincrement())
+  adminId     Int
+  source      String    // 'dashboard' | 'marketplace'
+  userId      Int
+  readAt      DateTime? @db.Timestamptz(3)
+  dismissedAt DateTime? @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+  admin       PlatformAdmin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@unique([adminId, source, userId])
+  @@index([adminId])
 }
 
 /// Marketplace-wide announcements shown in mobile "Latest updates".
