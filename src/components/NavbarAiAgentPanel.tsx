@@ -441,14 +441,14 @@ export function NavbarAiAgentPanel({
         </div>
         {headerActions}
       </div>
+      <div
+        className="h-px shrink-0 bg-gradient-to-r from-transparent via-[#0a61d7]/45 to-transparent"
+        aria-hidden
+      />
 
       {showHome ? (
-        <div className={`relative flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center ${listPad}`}>
-          <div
-            className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(ellipse_at_top,_rgba(10,97,215,0.08),_transparent_70%)]"
-            aria-hidden
-          />
-          <div className={`relative w-full ${expanded ? 'max-w-lg' : 'max-w-sm'}`}>
+        <div className={`flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center ${listPad}`}>
+          <div className={`w-full ${expanded ? 'max-w-lg' : 'max-w-sm'}`}>
             <h3 className={`text-center font-semibold tracking-tight text-gray-900 ${expanded ? 'text-lg' : 'text-base'}`}>
               {tNavbar('aiAgentWelcome')}
             </h3>
