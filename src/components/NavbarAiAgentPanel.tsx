@@ -108,8 +108,14 @@ export function NavbarAiAgentPanel({
 
   useEffect(() => {
     if (open) {
-      const id = window.requestAnimationFrame(() => setVisible(true));
-      return () => window.cancelAnimationFrame(id);
+      let inner = 0;
+      const outer = window.requestAnimationFrame(() => {
+        inner = window.requestAnimationFrame(() => setVisible(true));
+      });
+      return () => {
+        window.cancelAnimationFrame(outer);
+        window.cancelAnimationFrame(inner);
+      };
     }
     setVisible(false);
     const t = window.setTimeout(() => onExited?.(), PANEL_MOTION_MS);
@@ -399,7 +405,11 @@ export function NavbarAiAgentPanel({
   const listPad = expanded ? 'px-5 py-5' : 'px-4 py-4';
   const inputMaxClass = expanded ? 'max-h-[112px]' : 'max-h-[72px]';
   const panelMotionClass = `transform-gpu transition-[opacity,transform] duration-200 ease-out ${
-    visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
+    visible
+      ? 'opacity-100 translate-y-0'
+      : open
+        ? 'opacity-0 translate-y-2'
+        : 'opacity-0 translate-y-0'
   }`;
   const homeSubtitle = displayName
     ? tNavbar('aiAgentHomeSubtitleNamed', { name: displayName })
