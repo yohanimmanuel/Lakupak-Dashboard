@@ -814,19 +814,6 @@ export const kycRegisterUploadRateLimiter = createRateLimiter({
   burstWindowMs: 2000,
 });
 
-export const verifyEmailRateLimiter = createRateLimiter({
-  windowMs: 15 * 60 * 1000,
-  maxRequests: 12,
-  message: 'Too many verification attempts. Please try again later.',
-  keyGenerator: (req) => {
-    const ip = getClientIp(req);
-    return `verify-email:${ip}`;
-  },
-  progressivePenalty: true,
-  burstLimit: 4,
-  burstWindowMs: 2000,
-});
-
 export const kycResubmitRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   maxRequests: 20,

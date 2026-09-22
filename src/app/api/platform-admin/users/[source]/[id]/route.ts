@@ -44,7 +44,6 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ source: str
           updatedAt: true,
           currency: true,
           region: true,
-          emailVerified: true,
           image: true,
           name: true,
           avatar: true,
@@ -317,7 +316,6 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ source: 
           await tx.account.deleteMany({ where: { userId: id } });
           await tx.session.deleteMany({ where: { userId: id } });
           await tx.passwordResetToken.deleteMany({ where: { userId: id } });
-          await tx.emailVerificationToken.deleteMany({ where: { userId: id } });
           await tx.kycResubmitToken.deleteMany({ where: { userId: id } });
           await tx.buyer.updateMany({ where: { userId: id }, data: { userId: null } });
           await tx.supplier.updateMany({ where: { userId: id }, data: { userId: null } });

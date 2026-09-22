@@ -5,7 +5,7 @@ import { requirePlatformAdminId } from '@/utils/platform-admin-auth';
 import { platformAdminMutationRateLimiter } from '@/utils/rateLimiter';
 import { Prisma } from '@prisma/client';
 import { auditAdmin } from '@/lib/audit';
-import { buildKycResubmitUrl, buildLoginUrl, generateEmailVerifyToken, hashEmailVerifyToken, KYC_RESUBMIT_EXPIRY_DAYS } from '@/lib/emailVerification';
+import { buildKycResubmitUrl, buildLoginUrl, generateSecureToken, hashEmailVerifyToken, KYC_RESUBMIT_EXPIRY_DAYS } from '@/lib/emailVerification';
 import { sendAccountApprovedEmail, sendKycRejectedEmail } from '@/lib/email';
 
 function parseId(params: { id?: string }) {
@@ -110,7 +110,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         loginUrl: buildLoginUrl(),
       });
     } else {
-      const rawToken = generateEmailVerifyToken();
+      const rawToken = generateSecureToken();
       const tokenHash = hashEmailVerifyToken(rawToken);
       const expiresAt = new Date(Date.now() + KYC_RESUBMIT_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
       await prisma.kycResubmitToken.deleteMany({ where: { userId: user.id } });

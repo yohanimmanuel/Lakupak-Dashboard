@@ -34,7 +34,7 @@ model User {
   dashboardTourState Json?
   /// Monotonic counter for round-robin sales-agent assignment (per distributor user).
   salesAgentRoundRobinCursor Int @default(0)
-  /// Dashboard account lifecycle: "active" | "pending". New registrations start pending until email + KYC.
+  /// Dashboard account lifecycle: "active" | "pending". New registrations start pending until KYC is approved.
   accountStatus String     @default("active")
   accounts      Account[]
   buyers        Buyer[]
@@ -55,7 +55,6 @@ model User {
   drivers       Driver[]
   automationWorkflows AutomationWorkflow[]
   passwordResetTokens PasswordResetToken[]
-  emailVerificationTokens EmailVerificationToken[]
   kycResubmitTokens KycResubmitToken[]
 
   @@index([companyId])
@@ -363,20 +362,6 @@ model MarketplacePasswordResetToken {
 
 /// Token emailed after KYC rejection so the distributor can replace NIB/NPWP without signing in.
 model KycResubmitToken {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  tokenHash String
-  expiresAt DateTime @db.Timestamptz(3)
-  createdAt DateTime @default(now()) @db.Timestamptz(3)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([expiresAt])
-  @@index([tokenHash])
-}
-
-/// Email verification token for dashboard (distributor) registration (hashed token + expiry).
-model EmailVerificationToken {
   id        Int      @id @default(autoincrement())
   userId    Int
   tokenHash String

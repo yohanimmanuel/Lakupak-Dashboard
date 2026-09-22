@@ -1444,7 +1444,6 @@ export default function PlatformUserDetailPage() {
       region: string | null;
       language: string;
       currency: string;
-      emailVerified: string | Date | null;
       accountStatus?: string | null;
       createdAt: string;
       updatedAt: string;
@@ -1736,9 +1735,6 @@ export default function PlatformUserDetailPage() {
                   {u.language} · {u.currency}
                 </span>
               </DistributorField>
-              <DistributorField label="Email verified">
-                <span className="text-sm text-gray-900">{u.emailVerified ? formatDt(u.emailVerified) : '—'}</span>
-              </DistributorField>
               <DistributorField label="Joined / updated">
                 <span className="text-sm text-gray-900">
                   {formatDt(u.createdAt)} → {formatDt(u.updatedAt)}
@@ -1809,15 +1805,6 @@ export default function PlatformUserDetailPage() {
                     >
                       {isSuspended ? 'Suspended' : isPending ? 'Pending' : 'Active'}
                     </span>
-                  </DistributorField>
-                  <DistributorField label="Email verification">
-                    {u.emailVerified ? (
-                      <span className="text-sm text-gray-900">{formatDt(u.emailVerified)}</span>
-                    ) : (
-                      <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-md border bg-amber-50 text-amber-900 border-amber-200">
-                        Waiting
-                      </span>
-                    )}
                   </DistributorField>
                   <DistributorField label="Compliance status">
                     <span

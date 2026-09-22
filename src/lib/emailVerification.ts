@@ -1,6 +1,5 @@
 import { createHash, randomBytes } from 'crypto';
 
-export const EMAIL_VERIFY_EXPIRY_HOURS = 48;
 export const KYC_RESUBMIT_EXPIRY_DAYS = 14;
 
 export function getDashboardAppBaseUrl(): string {
@@ -12,18 +11,12 @@ export function getDashboardAppBaseUrl(): string {
   return raw.trim().replace(/\/$/, '');
 }
 
-export function generateEmailVerifyToken(): string {
+export function generateSecureToken(): string {
   return randomBytes(32).toString('hex');
 }
 
 export function hashEmailVerifyToken(token: string): string {
   return createHash('sha256').update(token.trim()).digest('hex');
-}
-
-export function buildEmailVerifyUrl(token: string): string {
-  const base = getDashboardAppBaseUrl();
-  const path = `/verify-email?token=${encodeURIComponent(token)}`;
-  return base ? `${base}${path}` : path;
 }
 
 function buildAbsoluteAppUrl(path: string): string {
