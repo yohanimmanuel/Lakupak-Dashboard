@@ -967,46 +967,44 @@
   "about": {
     "hero": {
       "title": "Our Story: Why We Built Lakupak",
-      "subtitle": "Empowering Indonesia’s trade industry with technology that truly works for them."
+      "subtitle": "So a distributor’s sales team knows which retailer to reach, what to offer them, and when."
     },
     "story": {
-      "1": "For as long as I can remember, <b>trade has been the lifeblood of local communities</b>. In Indonesia, thousands of distributors, warungs, small shops, and independent retailers play a vital role in keeping daily essentials accessible and affordable. Yet, behind this vibrant economy lies a reality that few outsiders see: <b>the struggle of sales, inventory, and orders in a world that is still largely offline, manual, and fragmented</b>.",
-      "2": "As I observed how distribution and retail worked, I noticed the same patterns everywhere. Distributors had to juggle spreadsheets for their product listings, rely on countless WhatsApp messages for order-taking, make endless phone calls to confirm payments, and keep manual notes to track stock. Scheduling shipments was a puzzle in itself: no single system could give them clarity over what was coming in, what was going out, and when. This constant switching between disconnected tools created bottlenecks, wasted time, and left plenty of room for costly mistakes.",
-      "3": "On the other side of the trade, small retailers (the warungs, kiosks, and mom-and-pop shops that form the backbone of our communities) faced equally daunting challenges. For many of them, securing reliable supply was not easy. They often depended on local distributors or middlemen, leaving them with limited access to product variety and fluctuating prices. They lacked visibility into shipments, and often didn’t know if their orders would arrive on time. For businesses running on tight margins, even the smallest disruption meant lost sales and disappointed customers.",
-      "4": "Another challenge I saw was in the way sales happened on the ground. Distributors’ salespeople often had to physically visit retail shops, waiting their turn among a line of other salesmen from different brands or suppliers. This meant that shop owners and buyers were bombarded with product pitches in quick succession, leading to information overload and decision fatigue. Many times, salesmen would have to leave the shop before even getting a chance to present, simply because the buyer was overwhelmed or out of time. This not only wasted effort, but also meant that great products and deals could be missed entirely.",
-      "5": "It became clear to me that the problem wasn’t with the people, but with the system. Sales, inventory, and logistics were happening in silos. There was no single platform to bring order to the chaos. And because of this gap, growth was harder than it needed to be. Distributors couldn’t scale efficiently, and retailers couldn’t compete fairly.",
-      "6": "I didn’t set out to build just another B2B marketplace. Instead, I wanted to reimagine how distribution and retail could work if technology truly empowered both sides. Lakupak was designed as more than a place to transact. It is a platform where distributors can sell smarter, manage their stock in real-time, schedule and track shipments, and analyze performance, all in one place. At the same time, it gives retailers a simpler, more reliable way to discover products, place orders, and restock with confidence.",
-      "7": "The name <b>Lakupak</b> itself reflects this spirit. In Indonesian, “laku” means both sale and movement. Trade is all about movement: of goods, of opportunities, of livelihoods. Our platform exists to ensure that this movement happens seamlessly, transparently, and with trust.",
-      "8": "What drives me most is the belief that technology should make life easier, not more complicated. Lakupak is about bringing modern tools (automation, real-time visibility, and smart data) into a space that has long been underserved. It’s about giving distributors back the time and clarity they need to focus on growth. It’s about giving retailers the access and reliability they deserve to serve their customers better.",
-      "9": "Every feature in Lakupak comes from this simple vision: to integrate what was once scattered, and to simplify what was once complicated.",
-      "10": "This is not just about building software. It’s about building trust, efficiency, and opportunity for millions of businesses who keep our economy moving every day.",
+      "1": "For as long as I can remember, <b>trade has been the lifeblood of local communities</b>. In Indonesia, thousands of distributors, warungs, small shops, and independent retailers play a vital role in keeping daily essentials accessible and affordable. Yet behind this vibrant economy lies a reality few outsiders see: <b>sales in FMCG distribution still happens almost entirely on foot, by memory, and by luck</b>.",
+      "2": "As I observed how distribution worked, one pattern stood out above all the others: the way sales actually happened on the ground. Distributors’ salespeople had to physically visit retail shops, waiting their turn among a line of other salesmen from different brands and suppliers. Each salesperson was often appointed 10 to 20 products by the distributor, and most of the time they forgot them and neglected the list. Shop owners were bombarded with pitches in quick succession: information overload, decision fatigue, and no way to tell which offer actually mattered to them. Many times, salesmen left before they even got a chance to present, simply because the buyer was overwhelmed or out of time. <b>Great products and real deals were missed</b>, not because retailers didn’t want them, but because the system for reaching the right retailer at the right moment with the right offer didn’t exist.",
+      "3": "This sales problem was made worse by everything sitting underneath it. Distributors juggled spreadsheets for product listings, relied on countless WhatsApp messages for order-taking, made endless phone calls to confirm payments, and kept manual notes to track stock. None of this told a salesperson who to call today, who was overdue for a reorder, or what price that specific retailer was even entitled to, because every retailer negotiates different terms, and no spreadsheet was built to hold that. So salespeople didn’t sell smarter. They sold blind, on rotation, hoping today’s visit landed better than yesterday’s.",
+      "4": "On the retailer side, the cost of this blindness was just as real. Warungs, kiosks, and mom-and-pop shops depended on distributors and middlemen for supply, often with no visibility into when, or whether, an order would arrive, and no consistency in who showed up to sell to them or when. For businesses running on tight margins, an inconsistent sales relationship was as damaging as an inconsistent supply chain.",
+      "5": "It became clear to me that the problem wasn’t distribution in the abstract. It was that no one was helping a distributor’s sales team know who to reach, and how. Inventory chaos and shipment guesswork were symptoms. <b>The root cause was sales execution operating without any intelligence behind it.</b>",
+      "6": "I didn’t set out to build another B2B marketplace, and I didn’t set out to build a general operations dashboard for its own sake. I wanted to give a distributor’s sales team what they’ve never had: a system that tells them exactly which retailer to reach, what to offer them, and when, built on the distributor’s own client relationships, catalog, and order history, with every retailer’s pricing and terms respected as the unique arrangement it is. Lakupak is AI-native at its core because the sales problem it solves is a prioritization and timing problem, and that is what AI is suited to close.",
+      "7": "The name <b>Lakupak</b> itself reflects this. In Indonesian, “laku” means both sale and movement. Trade is movement, but movement only happens when the right sale reaches the right retailer at the right time. Lakupak exists to make that movement deliberate instead of accidental.",
+      "8": "What drives me most is the belief that a distributor’s sales team shouldn’t have to work harder to grow. They should work smarter, with a system that tells them where the demand already is. Lakupak is about giving distributors back the one thing chaos took from them: the ability to know, with confidence, who to sell to next.",
       "vision": "That realization sparked the vision for Lakupak.",
-      "mission": "We are just at the beginning of this journey, but the mission is clear. Trade in Indonesia, and beyond, deserves a platform built for its unique challenges: one that empowers both sellers and buyers equally. With Lakupak, I believe we can create an ecosystem where distribution thrives, retailers grow, and communities benefit.",
+      "mission": "We are just at the beginning of this journey. But the mission is clear: fix the sales problem first, because everything else a distributor struggles with (inventory, logistics, growth) depends on getting that right.",
       "end": "And this is just the start."
     },
     "carousel": {
         "1": {
           "title": "Our Mission",
-        "content": "To empower businesses of every size, from large distributors to small warungs and kiosks, by giving them tools to trade smarter, faster, and more profitably."
+        "content": "Tell a distributor’s sales team which retailer to reach, what to offer them, and when, so they close more of the demand already in their network, without adding headcount."
         },
         "2": {
           "title": "Our Vision",
-          "content": "A future where every retailer in Indonesia, no matter how small, has equal access to products, prices, and opportunities, and every distributor can reach new markets effortlessly."
+          "content": "A sales round that is deliberate: every visit timed to a retailer who is ready, at the price that retailer already has, instead of a blind rotation and a hope."
         },
         "3": {
-          "1": "Technology should empower, not complicate.",
-          "2": "Small businesses deserve big opportunities.",
-        "3": "Fair trade grows stronger communities.",
+          "1": "Sales teams should work smarter, not harder.",
+          "2": "Every retailer has their own terms, and those terms stay unique.",
+        "3": "The right sale, at the right time, is what makes trade move.",
         "title": "What We Believe"
         },
         "4": {
           "title": "Why 'Lakupak'?",
-        "content": "In Indonesian, laku means 'to sell' or 'to move.' Lakupak is about creating momentum: helping products move, helping businesses grow, and helping trade thrive."
+        "content": "In Indonesian, laku means both sale and movement. Lakupak exists so that movement is deliberate: the right sale reaches the right retailer at the right time."
         }
       },
     "cta": {
-      "title": "Join us in building the future of distribution and retail.",
-      "subtitle": "At Lakupak, we’re not just creating software. We’re shaping a smarter, fairer marketplace for everyone.",
+      "title": "Fix the sales problem first.",
+      "subtitle": "Inventory, logistics, and growth all depend on a sales team that knows who to sell to next.",
       "button": "See Our Solutions"
     }
   },

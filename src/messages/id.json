@@ -967,46 +967,44 @@
   "about": {
     "hero": {
       "title": "Kisah Kami: Mengapa Kami Membangun Lakupak",
-      "subtitle": "Memberdayakan industri perdagangan Indonesia dengan teknologi yang benar-benar membantu mereka."
+      "subtitle": "Agar tim penjualan distributor tahu retailer mana yang harus dihubungi, apa yang ditawarkan, dan kapan."
     },
     "story": {
-      "1": "Sejak dulu, <b>perdagangan adalah nadi komunitas lokal</b>. Di Indonesia, ribuan distributor, warung, toko kecil, dan retailer independen berperan penting menjaga kebutuhan pokok tetap terjangkau. Namun di balik ekonomi yang hidup ini, ada kenyataan yang jarang terlihat: <b>tantangan penjualan, stok, dan order di dunia yang masih banyak manual dan terfragmentasi</b>.",
-      "2": "Saat saya mengamati distribusi dan retail, polanya selalu sama. Distributor harus mengelola spreadsheet produk, order via WhatsApp, telepon konfirmasi pembayaran, dan catatan stok manual. Penjadwalan pengiriman pun rumit: tidak ada satu sistem yang memberi kejelasan barang masuk, keluar, dan kapan. Pindah-pindah alat ini bikin bottleneck, buang waktu, dan rawan kesalahan mahal.",
-      "3": "Di sisi lain, retailer kecil (warung, kios, toko kelontong) juga punya tantangan berat. Banyak yang kesulitan dapat pasokan andal, tergantung distributor lokal atau makelar, akses produk terbatas, harga fluktuatif. Mereka tak tahu pasti kapan order sampai. Margin tipis, gangguan kecil saja bisa bikin rugi dan pelanggan kecewa.",
-      "4": "Tantangan lain yang saya lihat adalah proses penjualan di lapangan. Sales distributor harus keliling toko, antre dengan sales merek lain. Pemilik toko dibanjiri penawaran produk berturut-turut, jadi overload informasi dan lelah. Seringkali sales harus pergi sebelum sempat presentasi, karena pembeli sudah kewalahan atau kehabisan waktu. Akhirnya, banyak produk dan promo bagus terlewat.",
-      "5": "Saya sadar masalahnya bukan di orangnya, tapi di sistemnya. Penjualan, stok, logistik berjalan sendiri-sendiri. Tidak ada satu platform yang menyatukan. Akibatnya, pertumbuhan jadi lebih sulit. Distributor susah scale, retailer susah bersaing.",
-      "6": "Saya tidak ingin sekadar bikin marketplace B2B. Saya ingin membayangkan ulang distribusi dan retail jika teknologi benar-benar memberdayakan kedua sisi. Lakupak bukan sekadar tempat transaksi. Distributor bisa jual lebih cerdas, kelola stok real-time, jadwalkan & lacak pengiriman, analisa performa, semua di satu platform. Retailer pun lebih mudah cari produk, order, dan restock dengan percaya diri.",
-      "7": "Nama <b>Lakupak</b> sendiri mencerminkan semangat ini. Dalam bahasa Indonesia, “laku” berarti terjual dan bergerak. Perdagangan adalah pergerakan: barang, peluang, penghidupan. Platform kami hadir agar pergerakan ini lancar, transparan, dan penuh kepercayaan.",
-      "8": "Yang paling mendorong saya adalah keyakinan bahwa teknologi harus memudahkan hidup, bukan mempersulit. Lakupak membawa alat modern (otomatisasi, visibilitas real-time, data cerdas) ke ruang yang lama terabaikan. Distributor dapat waktu & kejelasan untuk fokus tumbuh. Retailer dapat akses & keandalan untuk layani pelanggan lebih baik.",
-      "9": "Setiap fitur Lakupak lahir dari visi sederhana: menyatukan yang tercecer, menyederhanakan yang rumit.",
-      "10": "Ini bukan sekadar software. Ini tentang membangun kepercayaan, efisiensi, dan peluang bagi jutaan bisnis yang menggerakkan ekonomi kita setiap hari.",
-      "vision": "Dari situlah visi Lakupak lahir.",
-      "mission": "Ini baru permulaan, tapi misinya jelas. Perdagangan di Indonesia dan lebih luas butuh platform yang dibangun untuk tantangan uniknya: yang memberdayakan penjual dan pembeli sama-sama. Dengan Lakupak, saya yakin kita bisa ciptakan ekosistem di mana distribusi maju, retailer tumbuh, dan komunitas sejahtera.",
+      "1": "Sejak saya ingat, <b>perdagangan adalah nadi komunitas lokal</b>. Di Indonesia, ribuan distributor, warung, toko kecil, dan retailer independen menjaga kebutuhan sehari-hari tetap mudah didapat dan terjangkau. Namun di balik ekonomi yang hidup ini ada kenyataan yang jarang terlihat dari luar: <b>penjualan di distribusi FMCG masih hampir seluruhnya dilakukan dengan kaki, ingatan, dan keberuntungan</b>.",
+      "2": "Saat saya mengamati cara distribusi berjalan, satu pola menonjol di atas yang lain: bagaimana penjualan benar-benar terjadi di lapangan. Sales distributor harus datang ke toko, antre bersama sales merek dan pemasok lain. Setiap salesperson sering ditugaskan 10 sampai 20 produk oleh distributor, dan sebagian besar waktu mereka lupa semuanya lalu mengabaikannya. Pemilik toko dibombardir penawaran berturut-turut: kelebihan informasi, lelah memutuskan, dan tidak ada cara membedakan tawaran mana yang benar-benar penting. Sering kali sales pergi sebelum sempat presentasi, hanya karena pembeli sudah kewalahan atau kehabisan waktu. <b>Produk bagus dan kesepakatan nyata terlewat</b>, bukan karena retailer tidak menginginkannya, tetapi karena sistem untuk menjangkau retailer yang tepat, pada saat yang tepat, dengan tawaran yang tepat, tidak ada.",
+      "3": "Masalah penjualan ini diperparah oleh semua yang ada di bawahnya. Distributor mengurus daftar produk di spreadsheet, menerima order lewat WhatsApp yang tak terhitung, menelpon berkali-kali untuk konfirmasi pembayaran, dan mencatat stok secara manual. Tidak ada yang memberitahu salesperson siapa yang harus dihubungi hari ini, siapa yang sudah telat reorder, atau harga apa yang berhak diterima retailer itu, karena setiap retailer menegosiasikan syarat yang berbeda, dan tidak ada spreadsheet yang dibuat untuk menyimpannya. Jadi salesperson tidak menjual lebih cerdas. Mereka menjual secara buta, bergiliran, berharap kunjungan hari ini lebih baik dari kemarin.",
+      "4": "Di sisi retailer, biaya dari kebutaan ini sama nyatanya. Warung, kios, dan toko kelontong bergantung pada distributor dan perantara untuk pasokan, sering tanpa kejelasan kapan, atau apakah, order akan datang, dan tanpa konsistensi siapa yang datang menjual, atau kapan. Bagi usaha dengan margin tipis, hubungan penjualan yang tidak konsisten sama merusaknya dengan rantai pasok yang tidak konsisten.",
+      "5": "Saya jadi jelas bahwa masalahnya bukan distribusi secara abstrak. Tidak ada yang membantu tim penjualan distributor tahu siapa yang harus dijangkau, dan bagaimana. Kekacauan stok dan tebakan pengiriman hanyalah gejala. <b>Akar masalahnya adalah eksekusi penjualan yang berjalan tanpa kecerdasan di belakangnya.</b>",
+      "6": "Saya tidak berangkat untuk membangun marketplace B2B lagi, dan saya tidak berangkat untuk membangun dasbor operasional umum demi dasbor itu sendiri. Saya ingin memberi tim penjualan distributor sesuatu yang belum pernah mereka miliki: sistem yang memberi tahu retailer mana yang harus dijangkau, apa yang ditawarkan, dan kapan, dibangun dari hubungan klien, katalog, dan riwayat order milik distributor itu sendiri, dengan harga dan syarat setiap retailer dihormati sebagai kesepakatan yang unik. Lakupak bersifat AI-native karena masalah penjualan yang diselesaikannya adalah masalah prioritas dan waktu, dan itulah yang tepat ditutup oleh AI.",
+      "7": "Nama <b>Lakupak</b> sendiri mencerminkan hal ini. Dalam bahasa Indonesia, “laku” berarti penjualan sekaligus pergerakan. Perdagangan adalah pergerakan, tetapi pergerakan hanya terjadi ketika penjualan yang tepat sampai ke retailer yang tepat pada waktu yang tepat. Lakupak ada agar pergerakan itu disengaja, bukan kebetulan.",
+      "8": "Yang paling mendorong saya adalah keyakinan bahwa tim penjualan distributor tidak harus bekerja lebih keras untuk tumbuh. Mereka harus bekerja lebih cerdas, dengan sistem yang menunjukkan di mana permintaan sudah ada. Lakupak mengembalikan satu hal yang diambil kekacauan dari distributor: kemampuan untuk tahu, dengan yakin, kepada siapa harus menjual berikutnya.",
+      "vision": "Kesadaran itulah yang memicu visi Lakupak.",
+      "mission": "Kami baru di awal perjalanan ini. Tetapi misinya jelas: perbaiki masalah penjualan lebih dulu, karena semua yang lain yang menyulitkan distributor (stok, logistik, pertumbuhan) bergantung pada hal itu dilakukan dengan benar.",
       "end": "Dan ini baru permulaan."
     },
     "carousel": {
       "1": {
         "title": "Misi Kami",
-        "content": "Memberdayakan bisnis dari segala ukuran, dari distributor besar hingga warung dan kios kecil, dengan alat untuk berdagang lebih cerdas, cepat, dan menguntungkan."
+        "content": "Memberi tahu tim penjualan distributor retailer mana yang harus dijangkau, apa yang ditawarkan, dan kapan, agar mereka menutup lebih banyak permintaan yang sudah ada di jaringan mereka, tanpa menambah orang."
       },
       "2": {
         "title": "Visi Kami",
-        "content": "Masa depan di mana setiap retailer di Indonesia, sekecil apapun, punya akses setara ke produk, harga, dan peluang, serta setiap distributor bisa menjangkau pasar baru dengan mudah."
+        "content": "Putaran penjualan yang disengaja: setiap kunjungan tepat waktu ke retailer yang siap, dengan harga yang memang milik retailer itu, bukan giliran buta dan harapan."
       },
       "3": {
-        "1": "Teknologi harus memberdayakan, bukan mempersulit.",
-        "2": "Bisnis kecil berhak mendapat peluang besar.",
-        "3": "Perdagangan yang adil membangun komunitas yang kuat.",
+        "1": "Tim penjualan harus bekerja lebih cerdas, bukan lebih keras.",
+        "2": "Setiap retailer punya syaratnya sendiri, dan syarat itu tetap unik.",
+        "3": "Penjualan yang tepat, pada waktu yang tepat, itulah yang menggerakkan perdagangan.",
         "title": "Yang Kami Percaya"
       },
       "4": {
         "title": "Kenapa 'Lakupak'?",
-        "content": "Dalam bahasa Indonesia, laku berarti 'terjual' atau 'bergerak.' Lakupak adalah tentang menciptakan momentum: membantu produk bergerak, bisnis berkembang, dan perdagangan tumbuh."
+        "content": "Dalam bahasa Indonesia, laku berarti penjualan sekaligus pergerakan. Lakupak ada agar pergerakan itu disengaja: penjualan yang tepat sampai ke retailer yang tepat pada waktu yang tepat."
       }
     },
     "cta": {
-      "title": "Bergabunglah membangun masa depan distribusi & retail.",
-      "subtitle": "Di Lakupak, kami bukan sekadar membuat software. Kami membangun marketplace yang lebih cerdas & adil untuk semua.",
+      "title": "Perbaiki masalah penjualan lebih dulu.",
+      "subtitle": "Stok, logistik, dan pertumbuhan bergantung pada tim penjualan yang tahu kepada siapa harus menjual berikutnya.",
       "button": "Lihat Solusi Kami"
     }
   },

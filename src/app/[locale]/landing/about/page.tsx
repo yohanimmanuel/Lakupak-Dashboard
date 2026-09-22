@@ -32,7 +32,7 @@ export default function AboutPage() {
   };
 
   const storyBefore = [1, 2, 3, 4, 5] as const;
-  const storyAfter = [6, 7, 8, 9] as const;
+  const storyAfter = [6, 7, 8] as const;
 
   const pillars = [
     {
@@ -108,9 +108,6 @@ export default function AboutPage() {
                 </blockquote>
               </Reveal>
 
-              <Reveal>
-                <p>{t('story.10')}</p>
-              </Reveal>
               <Reveal>
                 <p className="text-gray-500">{t('story.end')}</p>
               </Reveal>
