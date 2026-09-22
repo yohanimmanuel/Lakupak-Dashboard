@@ -148,6 +148,7 @@ const Navbar = () => {
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const [showMsgDropdown, setShowMsgDropdown] = useState(false);
   const [showAiPanel, setShowAiPanel] = useState(false);
+  const [aiPanelMounted, setAiPanelMounted] = useState(false);
   const [salesAgents, setSalesAgents] = useState<SalesAgent[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -164,6 +165,14 @@ const Navbar = () => {
   const { toggleMenu } = useMenuContext();
   const [hasMounted, setHasMounted] = useState(false);
   const router = useRouter();
+
+  const handleAiPanelExited = useCallback(() => {
+    setAiPanelMounted(false);
+  }, []);
+
+  useEffect(() => {
+    if (showAiPanel) setAiPanelMounted(true);
+  }, [showAiPanel]);
 
   useEffect(() => {
     setHasMounted(true);
@@ -906,11 +915,13 @@ const Navbar = () => {
       </div>
 
       {/* AI Agent chat panel — top right below navbar */}
-      {showAiPanel && ReactDOM.createPortal(
+      {aiPanelMounted && ReactDOM.createPortal(
         <NavbarAiAgentPanel
           panelId={AI_PANEL_ID}
           panelRef={aiPanelRef}
+          open={showAiPanel}
           onCloseAction={() => setShowAiPanel(false)}
+          onExited={handleAiPanelExited}
         />,
         document.body
       )}

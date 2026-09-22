@@ -37,14 +37,20 @@ function isHomeSession(session: { onlyWelcome: boolean; messages: ChatMessage[] 
   return session.messages.length === 0 || session.messages.every((m) => m.id === 'welcome');
 }
 
+const PANEL_MOTION_MS = 220;
+
 export function NavbarAiAgentPanel({
   panelId,
   panelRef,
+  open = true,
   onCloseAction,
+  onExited,
 }: {
   panelId: string;
   panelRef: React.RefObject<HTMLDivElement | null>;
+  open?: boolean;
   onCloseAction: () => void;
+  onExited?: () => void;
 }) {
   const tNavbar = useTranslations('dashboard.navbar');
   const locale = useLocale();
@@ -62,6 +68,7 @@ export function NavbarAiAgentPanel({
   const [sending, setSending] = useState(() => isAiChatSending(userKey));
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [visible, setVisible] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const onlyWelcomeRef = useRef(restoredHome);
@@ -98,6 +105,16 @@ export function NavbarAiAgentPanel({
       mountedRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (open) {
+      const id = window.requestAnimationFrame(() => setVisible(true));
+      return () => window.cancelAnimationFrame(id);
+    }
+    setVisible(false);
+    const t = window.setTimeout(() => onExited?.(), PANEL_MOTION_MS);
+    return () => window.clearTimeout(t);
+  }, [open, onExited]);
 
   const inputMaxLines = expanded ? 5 : 3;
 
@@ -381,6 +398,9 @@ export function NavbarAiAgentPanel({
   const bubbleText = expanded ? 'text-sm' : 'text-xs';
   const listPad = expanded ? 'px-5 py-5' : 'px-4 py-4';
   const inputMaxClass = expanded ? 'max-h-[112px]' : 'max-h-[72px]';
+  const panelMotionClass = `transform-gpu transition-[opacity,transform] duration-200 ease-out ${
+    visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
+  }`;
   const homeSubtitle = displayName
     ? tNavbar('aiAgentHomeSubtitleNamed', { name: displayName })
     : tNavbar('aiAgentHomeSubtitle');
@@ -609,7 +629,7 @@ export function NavbarAiAgentPanel({
           ref={panelRef}
           id={panelId}
           data-portal-type="ai-agent"
-          className="fixed top-16 right-4 z-50 w-[min(100vw-2rem,380px)] h-[min(82vh,680px)] flex flex-col bg-white border border-gray-100 rounded-2xl shadow-[0_24px_60px_rgba(15,23,42,0.14)] overflow-hidden"
+          className={`fixed top-16 right-4 z-50 w-[min(100vw-2rem,380px)] h-[min(82vh,680px)] flex flex-col bg-white border border-gray-100 rounded-2xl shadow-[0_24px_60px_rgba(15,23,42,0.14)] overflow-hidden ${panelMotionClass}`}
           role="dialog"
           aria-label={tNavbar('aiAgentTitle')}
         >
@@ -625,14 +645,14 @@ export function NavbarAiAgentPanel({
             data-portal-type="ai-agent"
           >
             <div
-              className="absolute inset-0 bg-black/30"
+              className={`absolute inset-0 bg-black/30 transition-opacity duration-200 ${visible ? 'opacity-100' : 'opacity-0'}`}
               onClick={() => setExpanded(false)}
               aria-hidden
             />
             <div
               ref={panelRef}
               id={panelId}
-              className="relative w-full max-w-3xl h-[min(85vh,720px)] flex flex-col bg-white border border-gray-100 rounded-2xl shadow-[0_24px_60px_rgba(15,23,42,0.16)] overflow-hidden"
+              className={`relative w-full max-w-3xl h-[min(85vh,720px)] flex flex-col bg-white border border-gray-100 rounded-2xl shadow-[0_24px_60px_rgba(15,23,42,0.16)] overflow-hidden ${panelMotionClass}`}
               role="dialog"
               aria-modal="true"
               aria-label={tNavbar('aiAgentTitle')}
