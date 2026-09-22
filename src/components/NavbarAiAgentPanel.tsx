@@ -391,7 +391,7 @@ export function NavbarAiAgentPanel({
         <button
           type="button"
           onClick={() => setExpanded(false)}
-          className="text-gray-400 hover:text-gray-600 p-1.5 rounded hover:bg-gray-100"
+          className="text-gray-400 hover:text-gray-600 p-1.5 rounded-full hover:bg-gray-100"
           title={tNavbar('aiAgentShrink')}
           aria-label={tNavbar('aiAgentShrink')}
         >
@@ -401,7 +401,7 @@ export function NavbarAiAgentPanel({
         <button
           type="button"
           onClick={() => setExpanded(true)}
-          className="text-gray-400 hover:text-gray-600 p-1.5 rounded hover:bg-gray-100"
+          className="text-gray-400 hover:text-gray-600 p-1.5 rounded-full hover:bg-gray-100"
           title={tNavbar('aiAgentExpand')}
           aria-label={tNavbar('aiAgentExpand')}
         >
@@ -411,7 +411,7 @@ export function NavbarAiAgentPanel({
       <button
         type="button"
         onClick={onCloseAction}
-        className="text-gray-400 hover:text-gray-600 p-1.5 rounded hover:bg-gray-100"
+        className="text-gray-400 hover:text-gray-600 p-1.5 rounded-full hover:bg-gray-100"
         title={tNavbar('close')}
         aria-label={tNavbar('close')}
       >
@@ -422,30 +422,34 @@ export function NavbarAiAgentPanel({
 
   const chatBody = (
     <>
-      <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-200 shrink-0">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center shrink-0 overflow-hidden">
+      <div className="flex items-center justify-between gap-3 px-4 py-3 shrink-0">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-full bg-[#eef4fc] flex items-center justify-center shrink-0 overflow-hidden ring-1 ring-[#0a61d7]/10">
             <Image
               src="/LakuAI.png"
               alt=""
-              width={36}
-              height={36}
-              className="h-9 w-9 object-contain"
+              width={32}
+              height={32}
+              className="h-7 w-7 object-contain"
               priority
             />
           </div>
           <div className="min-w-0">
             <h2 className="text-sm font-semibold text-gray-900 truncate">{tNavbar('aiAgentTitle')}</h2>
-            <p className="text-xs text-gray-500 truncate">{tNavbar('aiAgentSubtitle')}</p>
+            <p className="text-[11px] text-gray-400 truncate">{tNavbar('aiAgentSubtitle')}</p>
           </div>
         </div>
         {headerActions}
       </div>
 
       {showHome ? (
-        <div className={`flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center ${listPad}`}>
-          <div className={`w-full ${expanded ? 'max-w-lg' : 'max-w-sm'}`}>
-            <h3 className={`text-center font-semibold text-gray-900 ${expanded ? 'text-lg' : 'text-base'}`}>
+        <div className={`relative flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center ${listPad}`}>
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(ellipse_at_top,_rgba(10,97,215,0.08),_transparent_70%)]"
+            aria-hidden
+          />
+          <div className={`relative w-full ${expanded ? 'max-w-lg' : 'max-w-sm'}`}>
+            <h3 className={`text-center font-semibold tracking-tight text-gray-900 ${expanded ? 'text-lg' : 'text-base'}`}>
               {tNavbar('aiAgentWelcome')}
             </h3>
             <p className="mt-1.5 text-center text-xs text-gray-500 leading-relaxed">
@@ -456,10 +460,10 @@ export function NavbarAiAgentPanel({
               type="button"
               onClick={() => void sendMessage(quickOptions.financial.prompt)}
               disabled={sending}
-              className="mt-5 w-full flex items-center gap-2.5 rounded-xl bg-[#eef4fc] px-3 py-2 text-left hover:bg-[#e3eefb] transition-colors disabled:opacity-60"
+              className="mt-6 w-full flex items-center gap-2.5 rounded-full bg-[#eef4fc] px-3 py-2 text-left shadow-[0_1px_0_rgba(10,97,215,0.04)] hover:bg-[#e3eefb] hover:shadow-[0_6px_16px_rgba(10,97,215,0.10)] transition-all disabled:opacity-60"
             >
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#0a61d7] text-white shrink-0">
-                <TrendingUp size={14} />
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0a61d7] text-white shrink-0">
+                <TrendingUp size={13} />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-xs font-semibold text-gray-900">
@@ -472,13 +476,13 @@ export function NavbarAiAgentPanel({
               <ChevronRight size={14} className="text-gray-400 shrink-0" />
             </button>
 
-            <div className="mt-4 flex items-center gap-3">
-              <div className="h-px flex-1 bg-gray-200" />
+            <div className="mt-5 flex items-center gap-3">
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
               <span className="text-[11px] text-gray-400">{tNavbar('aiAgentExplore')}</span>
-              <div className="h-px flex-1 bg-gray-200" />
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
             </div>
 
-            <div className="mt-3 grid grid-cols-3 gap-1">
+            <div className="mt-4 grid grid-cols-3 gap-2">
               {(
                 [
                   { key: 'financial', icon: TrendingUp, label: quickOptions.financial.explore, prompt: quickOptions.financial.prompt },
@@ -491,12 +495,12 @@ export function NavbarAiAgentPanel({
                   type="button"
                   onClick={() => void sendMessage(opt.prompt)}
                   disabled={sending}
-                  className="flex flex-col items-center gap-1.5 rounded-xl px-1.5 py-2 hover:bg-gray-50 transition-colors disabled:opacity-60"
+                  className="flex flex-col items-center gap-1.5 rounded-2xl bg-gray-50 px-1.5 py-3 hover:bg-[#eef4fc] hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:hover:translate-y-0"
                 >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-700">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-[#0a61d7] shadow-sm">
                     <opt.icon size={14} />
                   </span>
-                  <span className="text-[11px] font-medium text-gray-700 text-center leading-snug">
+                  <span className="text-[11px] font-medium text-gray-600 text-center leading-snug">
                     {opt.label}
                   </span>
                 </button>
@@ -558,9 +562,9 @@ export function NavbarAiAgentPanel({
         </div>
       )}
 
-      <div className={`shrink-0 border-t border-gray-200 ${expanded ? 'p-4' : 'p-3'}`}>
+      <div className={`shrink-0 ${expanded ? 'px-4 pb-4 pt-1' : 'px-3 pb-3 pt-1'}`}>
         <form
-          className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 focus-within:ring-2 focus-within:ring-[#0a61d7]/80"
+          className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3.5 py-1.5 shadow-[0_1px_0_rgba(15,23,42,0.03)] focus-within:border-[#0a61d7]/40 focus-within:ring-2 focus-within:ring-[#0a61d7]/15"
           onSubmit={(e) => {
             e.preventDefault();
             send();
@@ -588,7 +592,7 @@ export function NavbarAiAgentPanel({
           <button
             type="submit"
             disabled={sending || !input.trim()}
-            className="p-1.5 rounded-md text-[#0a61d7] hover:bg-[#e8f1fc] disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed shrink-0"
+            className="p-1.5 rounded-full text-[#0a61d7] hover:bg-[#eef4fc] disabled:text-gray-300 disabled:hover:bg-transparent disabled:cursor-not-allowed shrink-0"
             aria-label={tNavbar('aiAgentSend')}
           >
             <Send size={14} />
@@ -605,7 +609,7 @@ export function NavbarAiAgentPanel({
           ref={panelRef}
           id={panelId}
           data-portal-type="ai-agent"
-          className="fixed top-16 right-4 z-50 w-[min(100vw-2rem,380px)] h-[min(82vh,680px)] flex flex-col bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden"
+          className="fixed top-16 right-4 z-50 w-[min(100vw-2rem,380px)] h-[min(82vh,680px)] flex flex-col bg-white border border-gray-100 rounded-2xl shadow-[0_24px_60px_rgba(15,23,42,0.14)] overflow-hidden"
           role="dialog"
           aria-label={tNavbar('aiAgentTitle')}
         >
@@ -628,7 +632,7 @@ export function NavbarAiAgentPanel({
             <div
               ref={panelRef}
               id={panelId}
-              className="relative w-full max-w-3xl h-[min(85vh,720px)] flex flex-col bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden"
+              className="relative w-full max-w-3xl h-[min(85vh,720px)] flex flex-col bg-white border border-gray-100 rounded-2xl shadow-[0_24px_60px_rgba(15,23,42,0.16)] overflow-hidden"
               role="dialog"
               aria-modal="true"
               aria-label={tNavbar('aiAgentTitle')}
