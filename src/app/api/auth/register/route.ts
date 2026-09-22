@@ -12,6 +12,7 @@ import { auditAuth } from '@/lib/audit';
 import { isAllowedKycStoredUrl, sanitizeKycFilename } from '@/lib/kyc/documents';
 import { buildLoginUrl } from '@/lib/emailVerification';
 import { sendRegistrationPendingEmail } from '@/lib/email';
+import { consumeGoogleRegisterProof } from '@/lib/googleRegisterProof';
 
 export async function POST(req: NextRequest) {
   // Apply rate limiting: 3 registrations per hour
@@ -68,6 +69,7 @@ export async function POST(req: NextRequest) {
       npwpDocumentUrl,
       npwpDocumentName,
       npwpDocumentPublicId,
+      googleProof,
     } = body;
     
     // Helper function to return validation errors
@@ -291,7 +293,18 @@ export async function POST(req: NextRequest) {
       });
       
       if (existingUser) {
-        throw new Error('USER_EXISTS');
+        const canResumeIncomplete =
+          !existingUser.password &&
+          existingUser.companyId == null &&
+          (existingUser.accountStatus ?? 'active') === 'pending';
+        const proof =
+          typeof googleProof === 'string' ? googleProof : '';
+        const proofOk =
+          canResumeIncomplete &&
+          (await consumeGoogleRegisterProof(tx, proof, normalizedEmail));
+        if (!proofOk) {
+          throw new Error('USER_EXISTS');
+        }
       }
 
       const existingCompanyWithEmail = await tx.company.findFirst({
@@ -349,9 +362,7 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // Create user with company relationship
-      const user = await tx.user.create({
-      data: {
+    const userPayload = {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         email: normalizedEmail,
@@ -361,13 +372,20 @@ export async function POST(req: NextRequest) {
         companyId: companyData.id,
         region: region,
         currency: selectedRegion.currency,
-        accountStatus: 'pending',
+        accountStatus: 'pending' as const,
         emailVerified: null,
-      },
-      include: {
-        company: true
-      }
-      });
+      };
+
+      const user = existingUser
+        ? await tx.user.update({
+            where: { id: existingUser.id },
+            data: userPayload,
+            include: { company: true },
+          })
+        : await tx.user.create({
+            data: userPayload,
+            include: { company: true },
+          });
       
       return user;
     });

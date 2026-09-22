@@ -208,6 +208,7 @@
       "creatingAccountLoading": "Mendaftarkan akun Anda...",
       "or": "atau",
       "signUpWithGoogle": "Daftar dengan Google",
+      "googlePrefillHint": "Nama dan email diisi dari akun Google Anda. Lengkapi langkah berikutnya untuk mengirim pendaftaran.",
       "alreadyHaveAccount": "Sudah punya akun?",
       "logInHere": "Masuk di sini",
       "documentation": "Dokumentasi",

@@ -1,8 +1,10 @@
 ﻿"use client";
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { Suspense, useState, useCallback, useRef, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { validateAuthInput } from '@/utils/auth-security';
 import { REGIONS, getRegionByCode } from '@/config/regionConfig';
-import { ChevronDown, FileUp, MailCheck } from 'lucide-react';
+import { ChevronDown, FileUp, Loader2, MailCheck } from 'lucide-react';
 import ReactCountryFlag from 'react-country-flag';
 import { 
   useAuthErrorHandler, 
@@ -60,6 +62,24 @@ function isLeadTimeValid(min: number | '', max: number | ''): boolean {
 
 type KycStoredFile = { url: string; name: string; publicId: string | null };
 
+const GOOGLE_HINT_MS = 5000;
+
+function googlePrefillFromParams(params: { get: (key: string) => string | null } | null) {
+  if (!params || params.get('google') !== '1') return null;
+  const email = (params.get('email') || '').trim();
+  const firstName = (params.get('firstName') || '').trim().slice(0, 80);
+  const lastName = (params.get('lastName') || '').trim().slice(0, 80);
+  const emailOk = Boolean(email) && validateAuthInput.email(email).valid;
+  if (!emailOk) return null;
+  const googleProof = (params.get('googleProof') || '').trim();
+  return {
+    email,
+    firstName,
+    lastName,
+    googleProof,
+  };
+}
+
 function KycFileField({
   label,
   hint,
@@ -68,6 +88,7 @@ function KycFileField({
   uploadingLabel,
   file,
   uploading,
+  disabled = false,
   onFile,
 }: {
   label: string;
@@ -77,14 +98,16 @@ function KycFileField({
   uploadingLabel: string;
   file: KycStoredFile | null;
   uploading: boolean;
+  disabled?: boolean;
   onFile: (file: File | null) => void;
 }) {
+  const busy = uploading || disabled;
   return (
     <div className="space-y-1.5">
       <label className="block text-sm text-gray-500">
         {label} <span className="text-red-500">*</span>
       </label>
-      <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2">
+      <div className={`flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2 ${busy ? 'opacity-70' : ''}`}>
         <FileUp className="w-4 h-4 text-[#0a61d7] shrink-0" />
         <div className="min-w-0 flex-1">
           <p className="text-sm text-gray-900 truncate">
@@ -92,13 +115,20 @@ function KycFileField({
           </p>
           <p className="text-[11px] text-gray-500">{hint}</p>
         </div>
-        <label className="shrink-0 cursor-pointer text-xs font-semibold text-[#0a61d7] hover:underline">
-          {file ? replaceLabel : chooseLabel}
+        <label
+          className={`shrink-0 text-xs font-semibold ${
+            busy
+              ? 'cursor-not-allowed text-gray-400 pointer-events-none'
+              : 'cursor-pointer text-[#0a61d7] hover:underline'
+          }`}
+          aria-disabled={busy}
+        >
+          {uploading ? uploadingLabel : file ? replaceLabel : chooseLabel}
           <input
             type="file"
             accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png"
             className="sr-only"
-            disabled={uploading}
+            disabled={busy}
             onChange={(e) => {
               const next = e.target.files?.[0] ?? null;
               onFile(next);
@@ -174,6 +204,21 @@ const COMPANY_SIZE_OPTIONS = [
 ] as const;
 
 export default function RegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center text-sm text-gray-600">
+          <Loader2 className="w-5 h-5 animate-spin mr-2" />
+          Loading…
+        </div>
+      }
+    >
+      <RegisterPageInner />
+    </Suspense>
+  );
+}
+
+function RegisterPageInner() {
   const {
     locale,
     tRegister,
@@ -189,11 +234,23 @@ export default function RegisterPage() {
     () => Array.from({ length: stepsCount }, (_, index) => tRegisterStep(index)),
     [tRegisterStep, locale],
   );
+  const searchParams = useSearchParams();
+  const googlePrefill = googlePrefillFromParams(searchParams);
   const [step, setStep] = useState(0);
   const [stepKey, setStepKey] = useState(0);
+  const [fromGoogle, setFromGoogle] = useState(() => Boolean(googlePrefill));
+  const [googleProof, setGoogleProof] = useState(() => googlePrefill?.googleProof ?? '');
+  const [formVisible, setFormVisible] = useState(false);
+  const [showGoogleHint, setShowGoogleHint] = useState(false);
   
   // Form data
-  const [userInfo, setUserInfo] = useState({ firstName: "", lastName: "", email: "", phone: "", bio: "" });
+  const [userInfo, setUserInfo] = useState({
+    firstName: googlePrefill?.firstName ?? '',
+    lastName: googlePrefill?.lastName ?? '',
+    email: googlePrefill?.email ?? '',
+    phone: '',
+    bio: '',
+  });
   const [companyInfo, setCompanyInfo] = useState({
     company: "",
     address: "",
@@ -229,7 +286,8 @@ export default function RegisterPage() {
     nib: null,
     npwp: null,
   });
-  const [kycUploading, setKycUploading] = useState<'nib' | 'npwp' | null>(null);
+  const [kycUploading, setKycUploading] = useState({ nib: false, npwp: false });
+  const anyKycUploading = kycUploading.nib || kycUploading.npwp;
   const [showRegionDropdown, setShowRegionDropdown] = useState(false);
   const regionDropdownRef = useRef<HTMLDivElement>(null);
   const [showIndustryDropdown, setShowIndustryDropdown] = useState(false);
@@ -270,6 +328,65 @@ export default function RegisterPage() {
   
   // Performance tracking
   useAuthPerformanceTracking('Registration');
+
+  useEffect(() => {
+    const next = googlePrefillFromParams(searchParams);
+    if (!next) return;
+    setFromGoogle(true);
+    if (next.googleProof) setGoogleProof(next.googleProof);
+    setUserInfo((prev) => ({
+      ...prev,
+      email: next.email || prev.email,
+      firstName: next.firstName || prev.firstName,
+      lastName: next.lastName || prev.lastName,
+    }));
+  }, [searchParams]);
+
+  useEffect(() => {
+    let frameTwo = 0;
+    const frameOne = window.requestAnimationFrame(() => {
+      frameTwo = window.requestAnimationFrame(() => setFormVisible(true));
+    });
+    return () => {
+      window.cancelAnimationFrame(frameOne);
+      window.cancelAnimationFrame(frameTwo);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!formVisible || !googlePrefillFromParams(searchParams)) return;
+
+    let cancelled = false;
+    let timeoutId: number | undefined;
+
+    const show = () => {
+      if (cancelled || document.visibilityState !== 'visible') return;
+      setShowGoogleHint(true);
+      timeoutId = window.setTimeout(() => setShowGoogleHint(false), GOOGLE_HINT_MS);
+    };
+
+    if (document.visibilityState === 'visible') {
+      show();
+    } else {
+      const onVisible = () => {
+        if (document.visibilityState === 'visible') {
+          document.removeEventListener('visibilitychange', onVisible);
+          show();
+        }
+      };
+      document.addEventListener('visibilitychange', onVisible);
+      return () => {
+        cancelled = true;
+        document.removeEventListener('visibilitychange', onVisible);
+        if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+      };
+    }
+
+    return () => {
+      cancelled = true;
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+    };
+  }, [formVisible, searchParams]);
 
   const updateValidation = useCallback((field: string, valid: boolean) => {
     setValidationStates(prev => ({ ...prev, [field]: valid }));
@@ -314,7 +431,7 @@ export default function RegisterPage() {
           validationStates.businessPhone &&
           Boolean(kycDocs.nib?.url) &&
           Boolean(kycDocs.npwp?.url) &&
-          kycUploading === null
+          !anyKycUploading
         );
       case 3:
         return (
@@ -343,7 +460,7 @@ export default function RegisterPage() {
       default:
         return false;
     }
-  }, [step, userInfo, companyInfo, businessCreds, paymentInfo, shippingConfig, password, confirmPassword, validationStates, kycDocs, kycUploading]);
+  }, [step, userInfo, companyInfo, businessCreds, paymentInfo, shippingConfig, password, confirmPassword, validationStates, kycDocs, anyKycUploading]);
 
   const handleNext = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -358,6 +475,7 @@ export default function RegisterPage() {
     
     if (step < FORM_LAST_STEP) {
       // Move to next step
+      setShowGoogleHint(false);
       setStep(step + 1);
       setStepKey(prev => prev + 1);
       return;
@@ -386,6 +504,7 @@ export default function RegisterPage() {
           firstName: userInfo.firstName.trim(),
           lastName: userInfo.lastName.trim(),
           email: userInfo.email.trim(),
+          googleProof: googleProof || undefined,
           phone: userInfo.phone.trim(),
           bio: userInfo.bio.trim(),
           password,
@@ -445,7 +564,7 @@ export default function RegisterPage() {
     } finally {
       stopLoading();
     }
-  }, [step, userInfo, companyInfo, businessCreds, paymentInfo, shippingConfig, password, kycDocs, validateCurrentStep, handleError, clearError, startLoading, stopLoading, locale, tRegister, tRegisterError]);
+  }, [step, userInfo, companyInfo, businessCreds, paymentInfo, shippingConfig, password, kycDocs, googleProof, showGoogleHint, validateCurrentStep, handleError, clearError, startLoading, stopLoading, locale, tRegister, tRegisterError]);
 
   const handleBack = useCallback(() => {
     if (step > 0 && step <= FORM_LAST_STEP) {
@@ -456,11 +575,12 @@ export default function RegisterPage() {
   }, [step, clearError]);
 
   const handleKycFile = useCallback(async (kind: 'nib' | 'npwp', file: File | null) => {
+    if (kycUploading[kind]) return;
     if (!file) {
       setKycDocs((prev) => ({ ...prev, [kind]: null }));
       return;
     }
-    setKycUploading(kind);
+    setKycUploading((prev) => ({ ...prev, [kind]: true }));
     clearError();
     try {
       const fd = new FormData();
@@ -485,9 +605,9 @@ export default function RegisterPage() {
         error: err instanceof Error ? err.message : tRegisterError('kycUploadFailed'),
       });
     } finally {
-      setKycUploading(null);
+      setKycUploading((prev) => ({ ...prev, [kind]: false }));
     }
-  }, [clearError, handleError, tRegisterError]);
+  }, [clearError, handleError, kycUploading, tRegisterError]);
 
   const validateConfirmPassword = useCallback((confirmPw: string) => {
     if (!confirmPw) return { valid: false, error: tRegisterError('confirmPassword') };
@@ -609,6 +729,11 @@ export default function RegisterPage() {
             <div key={stepKey} className="animate-fade-in-up">
             {step === 0 && (
               <div className="space-y-3">
+                {showGoogleHint ? (
+                  <p className="rounded-lg border border-[#0a61d7]/20 bg-blue-50/70 px-3 py-2 text-sm text-gray-700">
+                    {tRegister('googlePrefillHint')}
+                  </p>
+                ) : null}
                 <div className="flex gap-3">
                   <div className="w-1/2">
                     <ValidatedInput
@@ -646,6 +771,7 @@ export default function RegisterPage() {
                       validator={validateAuthInput.email}
                       placeholder={tRegister('emailPlaceholder')}
                       required
+                      readOnly={fromGoogle}
                     />
                   </div>
                   <div className="w-1/2">
@@ -820,7 +946,7 @@ export default function RegisterPage() {
                   replaceLabel={tRegister('kycReplaceFile')}
                   uploadingLabel={tRegister('kycUploading')}
                   file={kycDocs.nib}
-                  uploading={kycUploading === 'nib'}
+                  uploading={kycUploading.nib}
                   onFile={(file) => void handleKycFile('nib', file)}
                 />
                 <KycFileField
@@ -830,7 +956,7 @@ export default function RegisterPage() {
                   replaceLabel={tRegister('kycReplaceFile')}
                   uploadingLabel={tRegister('kycUploading')}
                   file={kycDocs.npwp}
-                  uploading={kycUploading === 'npwp'}
+                  uploading={kycUploading.npwp}
                   onFile={(file) => void handleKycFile('npwp', file)}
                 />
                 <ValidatedInput
@@ -1204,17 +1330,36 @@ export default function RegisterPage() {
                 type="submit"
                 loading={loading}
                 loadingText={step < FORM_LAST_STEP ? tRegister('processing') : tRegister('creatingAccount')}
-                disabled={!validateCurrentStep()}
+                disabled={!validateCurrentStep() || anyKycUploading}
                 className="px-6 py-2 rounded-lg bg-[#0a61d7] text-white font-medium hover:bg-[#084ba6] ml-auto text-sm transition-colors"
               >
                 {step < FORM_LAST_STEP ? tRegister('next') : tRegister('createAccount')}
               </LoadingButton>
             </div>
             )}
+            {step === 0 && !fromGoogle ? (
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center">
+                  <div className="flex-grow h-px bg-gray-200" />
+                  <span className="mx-4 text-gray-400 text-sm">{tRegister('or')}</span>
+                  <div className="flex-grow h-px bg-gray-200" />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    signIn('google', { callbackUrl: '/home' });
+                  }}
+                  className="w-full py-2.5 text-gray-700 border border-gray-200 rounded-lg flex items-center justify-center hover:bg-gray-50 text-sm font-medium"
+                >
+                  <img src="/google.svg" alt="" className="h-5 w-5 mr-2" />
+                  {tRegister('signUpWithGoogle')}
+                </button>
+              </div>
+            ) : null}
             </div>
           </form>
 
-          <div className="mt-6 flex flex-col items-center gap-3 border-t border-gray-100 pt-6 text-sm sm:flex-row sm:justify-between">
+          <div className="mt-6 flex flex-col items-center gap-3 text-sm sm:flex-row sm:justify-between">
             <span className="text-gray-500">
               {tRegister('alreadyHaveAccount')}{' '}
               <a href="/login" className="font-semibold text-[#0a61d7] hover:underline">

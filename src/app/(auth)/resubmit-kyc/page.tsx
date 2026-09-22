@@ -18,6 +18,7 @@ function KycFileField({
   uploadingLabel,
   file,
   uploading,
+  disabled = false,
   onFile,
 }: {
   label: string;
@@ -27,14 +28,16 @@ function KycFileField({
   uploadingLabel: string;
   file: KycStoredFile | null;
   uploading: boolean;
+  disabled?: boolean;
   onFile: (file: File | null) => void;
 }) {
+  const busy = uploading || disabled;
   return (
     <div className="space-y-1.5 text-left">
       <label className="block text-sm text-gray-500">
         {label} <span className="text-red-500">*</span>
       </label>
-      <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2">
+      <div className={`flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2 ${busy ? "opacity-70" : ""}`}>
         <FileUp className="w-4 h-4 text-[#0a61d7] shrink-0" />
         <div className="min-w-0 flex-1">
           <p className="text-sm text-gray-900 truncate">
@@ -42,13 +45,20 @@ function KycFileField({
           </p>
           <p className="text-[11px] text-gray-500">{hint}</p>
         </div>
-        <label className="shrink-0 cursor-pointer text-xs font-semibold text-[#0a61d7] hover:underline">
-          {file ? replaceLabel : chooseLabel}
+        <label
+          className={`shrink-0 text-xs font-semibold ${
+            busy
+              ? "cursor-not-allowed text-gray-400 pointer-events-none"
+              : "cursor-pointer text-[#0a61d7] hover:underline"
+          }`}
+          aria-disabled={busy}
+        >
+          {uploading ? uploadingLabel : file ? replaceLabel : chooseLabel}
           <input
             type="file"
             accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png"
             className="sr-only"
-            disabled={uploading}
+            disabled={busy}
             onChange={(e) => {
               const next = e.target.files?.[0] ?? null;
               onFile(next);
@@ -87,7 +97,7 @@ function ResubmitKycInner() {
     nib: null,
     npwp: null,
   });
-  const [kycUploading, setKycUploading] = useState<"nib" | "npwp" | null>(null);
+  const [kycUploading, setKycUploading] = useState({ nib: false, npwp: false });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -126,11 +136,12 @@ function ResubmitKycInner() {
 
   const handleKycFile = useCallback(
     async (kind: "nib" | "npwp", file: File | null) => {
+      if (kycUploading[kind]) return;
       if (!file) {
         setKycDocs((prev) => ({ ...prev, [kind]: null }));
         return;
       }
-      setKycUploading(kind);
+      setKycUploading((prev) => ({ ...prev, [kind]: true }));
       setError("");
       try {
         const fd = new FormData();
@@ -153,10 +164,10 @@ function ResubmitKycInner() {
         setKycDocs((prev) => ({ ...prev, [kind]: null }));
         setError(err instanceof Error ? err.message : tRegisterError("kycUploadFailed"));
       } finally {
-        setKycUploading(null);
+        setKycUploading((prev) => ({ ...prev, [kind]: false }));
       }
     },
-    [tRegisterError],
+    [kycUploading, tRegisterError],
   );
 
   const handleSubmit = useCallback(
@@ -197,7 +208,9 @@ function ResubmitKycInner() {
     [kycDocs, token, tRegister, tRegisterError],
   );
 
-  const canSubmit = Boolean(kycDocs.nib?.url && kycDocs.npwp?.url && !kycUploading && !saving);
+  const canSubmit = Boolean(
+    kycDocs.nib?.url && kycDocs.npwp?.url && !kycUploading.nib && !kycUploading.npwp && !saving,
+  );
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-b from-white via-[#f8fbff] to-[#eef4fd]">
@@ -259,7 +272,8 @@ function ResubmitKycInner() {
                 replaceLabel={tRegister("kycReplaceFile")}
                 uploadingLabel={tRegister("kycUploading")}
                 file={kycDocs.nib}
-                uploading={kycUploading === "nib"}
+                uploading={kycUploading.nib}
+                disabled={saving}
                 onFile={(file) => void handleKycFile("nib", file)}
               />
               <KycFileField
@@ -269,7 +283,8 @@ function ResubmitKycInner() {
                 replaceLabel={tRegister("kycReplaceFile")}
                 uploadingLabel={tRegister("kycUploading")}
                 file={kycDocs.npwp}
-                uploading={kycUploading === "npwp"}
+                uploading={kycUploading.npwp}
+                disabled={saving}
                 onFile={(file) => void handleKycFile("npwp", file)}
               />
               <LoadingButton

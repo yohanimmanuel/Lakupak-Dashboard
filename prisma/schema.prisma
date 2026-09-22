@@ -389,6 +389,19 @@ model EmailVerificationToken {
   @@index([tokenHash])
 }
 
+/// Short-lived, single-use proof issued after Google OAuth so a pending stub can be resumed.
+model GoogleRegisterProof {
+  id         Int       @id @default(autoincrement())
+  email      String
+  tokenHash  String    @unique
+  expiresAt  DateTime  @db.Timestamptz(3)
+  consumedAt DateTime? @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([email])
+  @@index([expiresAt])
+}
+
 /// Password reset token for dashboard (distributor) users (hashed code + expiry).
 model PasswordResetToken {
   id        Int      @id @default(autoincrement())

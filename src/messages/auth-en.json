@@ -208,6 +208,7 @@
       "creatingAccountLoading": "Registering your account...",
       "or": "or",
       "signUpWithGoogle": "Sign up with Google",
+      "googlePrefillHint": "Name and email were filled from your Google account. Complete the remaining steps to submit your registration.",
       "alreadyHaveAccount": "Already have an account?",
       "logInHere": "Log in here",
       "documentation": "Documentation",

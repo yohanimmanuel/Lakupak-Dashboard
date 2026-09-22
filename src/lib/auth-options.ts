@@ -31,6 +31,40 @@ if (typeof raw !== "string" || raw.trim() === "") {
 }
 const authSecret = raw.trim();
 
+function namesFromGoogleProfile(
+  profile: unknown,
+  fallbackName?: string | null,
+  fallbackImage?: string | null,
+) {
+  const googleProfile = (profile ?? {}) as {
+    given_name?: string;
+    family_name?: string;
+    name?: string;
+    picture?: string;
+  };
+  const given = googleProfile.given_name?.trim() || '';
+  const family = googleProfile.family_name?.trim() || '';
+  const googleName = (googleProfile.name || fallbackName || '').trim();
+  const parts = googleName.split(/\s+/).filter((part) => part.length > 0);
+  const firstName = given || parts[0] || '';
+  const lastName = family || parts.slice(1).join(' ');
+  return {
+    firstName,
+    lastName,
+    googleName,
+    googleImage: googleProfile.picture || fallbackImage || null,
+  };
+}
+
+async function googleRegisterRedirect(email: string, firstName: string, lastName: string) {
+  const { issueGoogleRegisterProof } = await import('@/lib/googleRegisterProof');
+  const proof = await issueGoogleRegisterProof(email);
+  const params = new URLSearchParams({ google: '1', email, googleProof: proof });
+  if (firstName.trim()) params.set('firstName', firstName.trim().slice(0, 80));
+  if (lastName.trim()) params.set('lastName', lastName.trim().slice(0, 80));
+  return `/register?${params.toString()}`;
+}
+
 // Automatically adapt NEXTAUTH_URL in hosted environments (e.g. Render, Vercel) if localhost is detected
 if (process.env.RENDER_EXTERNAL_URL && (!process.env.NEXTAUTH_URL || process.env.NEXTAUTH_URL.includes("localhost"))) {
   process.env.NEXTAUTH_URL = process.env.RENDER_EXTERNAL_URL;
@@ -142,21 +176,26 @@ export const authOptions: NextAuthOptions = {
         const email = user?.email?.toLowerCase();
         if (!email || !account) return false;
 
-        const googleName = (profile?.name as string) || user.name || '';
-        const nameParts = googleName.trim().split(' ').filter(part => part.length > 0);
-        const firstName = nameParts[0] || '';
-        const lastName = nameParts.slice(1).join(' ') || '';
-        const googleProfile = profile as { picture?: string } & typeof profile;
-        const googleImage = googleProfile?.picture || user.image || null;
+        const { firstName, lastName, googleName, googleImage } = namesFromGoogleProfile(
+          profile,
+          user.name,
+          user.image,
+        );
 
         const existing = await prisma.user.findUnique({ where: { email } });
         if (existing) {
           if (
             account.provider === 'google' &&
             !existing.password &&
-            !existing.companyId
+            !existing.companyId &&
+            !existing.isSuspended &&
+            (existing.accountStatus ?? 'active') === 'pending'
           ) {
-            return '/login?error=GOOGLE_SIGNUP_DISABLED';
+            return await googleRegisterRedirect(
+              email,
+              firstName || existing.firstName || '',
+              lastName || existing.lastName || '',
+            );
           }
           if (existing.isSuspended) {
             // Surface suspension to the client instead of silently denying.
@@ -215,7 +254,7 @@ export const authOptions: NextAuthOptions = {
             });
           }
         } else if (account.provider === 'google') {
-          return '/login?error=GOOGLE_SIGNUP_DISABLED';
+          return await googleRegisterRedirect(email, firstName, lastName);
         }
         return true;
       } catch {
@@ -251,12 +290,11 @@ export const authOptions: NextAuthOptions = {
               token.suspensionReason = dbUser.suspensionReason ?? null;
 
               if (account?.provider === "google" && profile) {
-                const googleName = (profile.name as string) || '';
-                const nameParts = googleName.trim().split(' ').filter(part => part.length > 0);
-                const firstName = nameParts[0] || '';
-                const lastName = nameParts.slice(1).join(' ') || '';
-                const googleProfile = profile as { picture?: string } & typeof profile;
-                const googleImage = googleProfile?.picture || null;
+                const { firstName, lastName, googleName, googleImage } = namesFromGoogleProfile(
+                  profile,
+                  dbUser.name,
+                  dbUser.image,
+                );
 
                 const updateData: {
                   firstName?: string;

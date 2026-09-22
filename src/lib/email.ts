@@ -23,16 +23,20 @@ export function resolveLakupakLogoUrl(): string | null {
   if (custom && (custom.startsWith('http://') || custom.startsWith('https://'))) {
     return custom;
   }
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || '').trim();
-  if (appUrl.startsWith('https://') && !appUrl.includes('localhost')) {
-    return `${appUrl.replace(/\/$/, '')}/LakupakSmall.png`;
-  }
   return null;
 }
 
 /**
- * Resolves the absolute path to the LakupakSmall.png logo or fallback logo files.
+ * Resolves a raster Lakupak logo on disk. Gmail (and most inboxes) hide SVG CID
+ * attachments, so only PNG / JPEG / WebP are used in email.
  */
+function logoContentType(filePath: string): string {
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg';
+  if (ext === '.webp') return 'image/webp';
+  return 'image/png';
+}
+
 export function resolveLakupakLogoPath(): string | null {
   const candidates = [
     path.resolve(process.cwd(), 'public/LakupakSmall.png'),
@@ -56,6 +60,21 @@ export function resolveLakupakLogoPath(): string | null {
     }
   }
   return null;
+}
+
+function emailLogoHtml(logoSrc?: string | null): string {
+  const src = logoSrc?.trim();
+  if (!src) return '';
+  return `
+              <div style="margin-bottom: 28px;">
+                <img
+                  src="${escapeHtml(src)}"
+                  alt="Lakupak!"
+                  width="205"
+                  height="48"
+                  style="display: block; width: 205px; height: 48px; max-width: 100%; border: 0; outline: none; text-decoration: none;"
+                />
+              </div>`;
 }
 
 /**
@@ -113,7 +132,7 @@ If you didn't request a password reset, you can safely ignore this email. Someon
     : '';
 
   const currentYear = new Date().getFullYear();
-  const logoSrc = args.logoSrc?.trim() || resolveLakupakLogoUrl() || 'cid:ii_lakupak_logo';
+  const logoSrc = args.logoSrc?.trim() || resolveLakupakLogoUrl() || null;
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -130,16 +149,7 @@ If you didn't request a password reset, you can safely ignore this email. Someon
         <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 500px; background-color: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -2px rgba(0, 0, 0, 0.04); overflow: hidden; text-align: left;">
           <tr>
             <td style="padding: 40px 36px 36px 36px;">
-              <!-- Lakupak Brand Logo -->
-              <div style="margin-bottom: 28px;">
-                <img
-                  src="${escapeHtml(logoSrc)}"
-                  alt="Lakupak!"
-                  width="205"
-                  height="48"
-                  style="display: block; width: 205px; height: 48px; max-width: 100%; border: 0; outline: none; text-decoration: none;"
-                />
-              </div>
+              ${emailLogoHtml(logoSrc)}
 
               <!-- Title -->
               <h1 style="margin: 0 0 14px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 22px; font-weight: 700; color: #111827; letter-spacing: -0.3px; line-height: 1.3;">
@@ -319,11 +329,35 @@ async function sendViaResend(args: {
 type InlineLogoAttachment = {
   path: string;
   cid: string;
-  filename: false;
+  filename: string;
   contentType: string;
   contentDisposition: 'inline';
   headers?: Record<string, string>;
 };
+
+function inlineLogoForProvider(): { logoSrc: string | null; attachments: InlineLogoAttachment[] } {
+  const useHttps = selectedEmailProvider() === 'resend';
+  const logoUrl = resolveLakupakLogoUrl();
+  const logoPath = resolveLakupakLogoPath();
+  const attachments: InlineLogoAttachment[] = [];
+
+  let logoSrc = useHttps ? logoUrl : null;
+  if (!useHttps && logoPath) {
+    logoSrc = 'cid:ii_lakupak_logo';
+    attachments.push({
+      path: logoPath,
+      cid: 'ii_lakupak_logo',
+      filename: path.basename(logoPath),
+      contentType: logoContentType(logoPath),
+      contentDisposition: 'inline',
+      headers: {
+        'X-Attachment-Id': 'ii_lakupak_logo',
+      },
+    });
+  }
+
+  return { logoSrc, attachments };
+}
 
 async function sendViaSmtp(args: {
   to: string;
@@ -387,28 +421,7 @@ export async function sendPasswordResetEmail(
 ): Promise<void> {
   const provider = selectedEmailProvider();
   try {
-    const useHttps = provider === 'resend';
-    const logoUrl = resolveLakupakLogoUrl();
-    const logoPath = resolveLakupakLogoPath();
-
-    const attachments: InlineLogoAttachment[] = [];
-
-    let logoSrc = logoUrl;
-
-    // CID inline logos only work over SMTP. HTTPS providers need a public image URL.
-    if (!useHttps && !logoSrc && logoPath) {
-      logoSrc = 'cid:ii_lakupak_logo';
-      attachments.push({
-        path: logoPath,
-        cid: 'ii_lakupak_logo',
-        filename: false,
-        contentType: 'image/png',
-        contentDisposition: 'inline',
-        headers: {
-          'X-Attachment-Id': 'ii_lakupak_logo',
-        },
-      });
-    }
+    const { logoSrc, attachments } = inlineLogoForProvider();
 
     const emailContent = renderPasswordResetEmail({
       to,
@@ -445,7 +458,7 @@ function renderAccountActionEmail(args: {
   const isHttpUrl = rawLink.startsWith('http://') || rawLink.startsWith('https://') || rawLink.startsWith('/');
   const safeLink = isHttpUrl ? escapeHtml(rawLink) : '';
   const currentYear = new Date().getFullYear();
-  const logoSrc = args.logoSrc?.trim() || resolveLakupakLogoUrl() || 'cid:ii_lakupak_logo';
+  const logoSrc = args.logoSrc?.trim() || resolveLakupakLogoUrl() || null;
 
   const text = `Lakupak
 
@@ -486,15 +499,7 @@ ${args.footerText}`;
         <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 500px; background-color: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -2px rgba(0, 0, 0, 0.04); overflow: hidden; text-align: left;">
           <tr>
             <td style="padding: 40px 36px 36px 36px;">
-              <div style="margin-bottom: 28px;">
-                <img
-                  src="${escapeHtml(logoSrc)}"
-                  alt="Lakupak!"
-                  width="205"
-                  height="48"
-                  style="display: block; width: 205px; height: 48px; max-width: 100%; border: 0; outline: none; text-decoration: none;"
-                />
-              </div>
+              ${emailLogoHtml(logoSrc)}
               <h1 style="margin: 0 0 14px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 22px; font-weight: 700; color: #111827; letter-spacing: -0.3px; line-height: 1.3;">
                 ${escapeHtml(args.title)}
               </h1>
@@ -527,30 +532,14 @@ ${args.footerText}`;
 async function sendTransactionalHtmlEmail(to: string, content: { subject: string; text: string; html: string }): Promise<void> {
   const provider = selectedEmailProvider();
   try {
-    const useHttps = provider === 'resend';
-    const logoUrl = resolveLakupakLogoUrl();
-    const logoPath = resolveLakupakLogoPath();
-
-    const attachments: InlineLogoAttachment[] = [];
-
-    let logoSrc = logoUrl;
-    if (!useHttps && !logoSrc && logoPath) {
-      logoSrc = 'cid:ii_lakupak_logo';
-      attachments.push({
-        path: logoPath,
-        cid: 'ii_lakupak_logo',
-        filename: false,
-        contentType: 'image/png',
-        contentDisposition: 'inline',
-        headers: {
-          'X-Attachment-Id': 'ii_lakupak_logo',
-        },
-      });
-    }
+    const { logoSrc, attachments } = inlineLogoForProvider();
 
     const html = logoSrc
       ? content.html.replace('cid:ii_lakupak_logo', logoSrc)
-      : content.html;
+      : content.html.replace(
+          /<div style="margin-bottom: 28px;">\s*<img\s+src="cid:ii_lakupak_logo"[\s\S]*?<\/div>\s*/i,
+          '',
+        );
 
     await deliverHtmlEmail({
       to,
@@ -580,6 +569,7 @@ export async function sendRegistrationPendingEmail(args: {
     buttonLabel: 'Go to login',
     buttonUrl: args.loginUrl,
     footerText: 'If you did not register with Lakupak, you can ignore this email.',
+    logoSrc: inlineLogoForProvider().logoSrc,
   });
   await sendTransactionalHtmlEmail(args.to, content);
 }
@@ -600,6 +590,7 @@ export async function sendAccountApprovedEmail(args: {
     buttonLabel: 'Go to login',
     buttonUrl: args.loginUrl,
     footerText: 'If you did not register with Lakupak, you can ignore this email.',
+    logoSrc: inlineLogoForProvider().logoSrc,
   });
   await sendTransactionalHtmlEmail(args.to, content);
 }
@@ -620,6 +611,7 @@ export async function sendKycRejectedEmail(args: {
     buttonLabel: 'Upload documents again',
     buttonUrl: args.resubmitUrl,
     footerText: 'This link expires in 14 days. If you did not register with Lakupak, you can ignore this email.',
+    logoSrc: inlineLogoForProvider().logoSrc,
   });
   await sendTransactionalHtmlEmail(args.to, content);
 }

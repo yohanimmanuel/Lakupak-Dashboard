@@ -73,18 +73,27 @@ export default function LoginPage() {
     return () => mq.removeEventListener('change', sync);
   }, []);
 
+  const urlError = searchParams?.get('error') ?? null;
+
   useEffect(() => {
-    const err = searchParams?.get('error');
-    if (err === 'ACCOUNT_SUSPENDED') {
+    if (urlError === 'ACCOUNT_SUSPENDED') {
       handleError({ error: tLogin('accountSuspended') });
-    } else if (err === 'ACCOUNT_PENDING') {
+    } else if (urlError === 'ACCOUNT_PENDING') {
       handleError({ error: tLogin('accountPending') });
-    } else if (err === 'GOOGLE_SIGNUP_DISABLED') {
-      handleError({ error: tLogin('googleSignupDisabled') });
-    } else if (err === 'TOO_MANY_ATTEMPTS') {
+    } else if (urlError === 'TOO_MANY_ATTEMPTS') {
       handleError({ error: tLogin('tooManyAttempts') });
     }
-  }, [searchParams, handleError, tLogin]);
+    // Apply once per URL error code. tLogin is a new function every render.
+  }, [urlError, handleError, locale]);
+
+  const handleDismissError = useCallback(() => {
+    clearError();
+    if (!urlError) return;
+    const params = new URLSearchParams(searchParams?.toString() ?? '');
+    params.delete('error');
+    const qs = params.toString();
+    router.replace(qs ? `/login?${qs}` : '/login', { scroll: false });
+  }, [clearError, router, searchParams, urlError]);
 
   const handleUseAnotherAccount = useCallback(() => {
     clearRememberedLogin();
@@ -201,7 +210,7 @@ export default function LoginPage() {
         {error && (
           <ErrorMessage 
             message={error} 
-            onClose={clearError}
+            onClose={handleDismissError}
           />
         )}
         {success && (
