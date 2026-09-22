@@ -41,16 +41,14 @@ const PANEL_MOTION_MS = 220;
 
 export function NavbarAiAgentPanel({
   panelId,
-  panelRef,
   open = true,
   onCloseAction,
-  onExited,
+  onExitedAction,
 }: {
   panelId: string;
-  panelRef: React.RefObject<HTMLDivElement | null>;
   open?: boolean;
   onCloseAction: () => void;
-  onExited?: () => void;
+  onExitedAction?: () => void;
 }) {
   const tNavbar = useTranslations('dashboard.navbar');
   const locale = useLocale();
@@ -69,6 +67,7 @@ export function NavbarAiAgentPanel({
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [visible, setVisible] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const onlyWelcomeRef = useRef(restoredHome);
@@ -118,9 +117,9 @@ export function NavbarAiAgentPanel({
       };
     }
     setVisible(false);
-    const t = window.setTimeout(() => onExited?.(), PANEL_MOTION_MS);
+    const t = window.setTimeout(() => onExitedAction?.(), PANEL_MOTION_MS);
     return () => window.clearTimeout(t);
-  }, [open, onExited]);
+  }, [open, onExitedAction]);
 
   const inputMaxLines = expanded ? 5 : 3;
 

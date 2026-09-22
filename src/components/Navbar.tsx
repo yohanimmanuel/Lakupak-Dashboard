@@ -161,7 +161,6 @@ const Navbar = () => {
   const notifRef = useRef<HTMLButtonElement>(null);
   const msgRef = useRef<HTMLButtonElement>(null);
   const aiRef = useRef<HTMLButtonElement>(null);
-  const aiPanelRef = useRef<HTMLDivElement>(null);
   const { toggleMenu } = useMenuContext();
   const [hasMounted, setHasMounted] = useState(false);
   const router = useRouter();
@@ -918,10 +917,9 @@ const Navbar = () => {
       {aiPanelMounted && ReactDOM.createPortal(
         <NavbarAiAgentPanel
           panelId={AI_PANEL_ID}
-          panelRef={aiPanelRef}
           open={showAiPanel}
           onCloseAction={() => setShowAiPanel(false)}
-          onExited={handleAiPanelExited}
+          onExitedAction={handleAiPanelExited}
         />,
         document.body
       )}
