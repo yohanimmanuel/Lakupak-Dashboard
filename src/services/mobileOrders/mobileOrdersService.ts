@@ -729,17 +729,7 @@ export async function createMobileMarketplaceOrders(
             }
           }
 
-          const orderItemData = buildOrderItemCreateData({
-            orderId: order.orderId,
-            item,
-            product,
-            variantOption,
-            piecesPerPackage,
-            packageQuantity,
-            variantNameSnapshot,
-            currencySnapshot: distributorCurrencySnapshot,
-            offerValidation,
-            ...resolveLinePricing({
+          const linePricing = resolveLinePricing({
               offerValidation,
               baseUnitPrice: parsePrice(
                 variantOption.sellingPrice as
@@ -751,7 +741,19 @@ export async function createMobileMarketplaceOrders(
               ),
               isFirstOrderWithDistributor: isFirstOrderWithDistributorSingle,
               autoApplyBasePrice: autoApplyBasePriceSingle,
-            }),
+            });
+          const orderItemData = buildOrderItemCreateData({
+            orderId: order.orderId,
+            item,
+            product,
+            variantOption,
+            piecesPerPackage,
+            packageQuantity,
+            variantNameSnapshot,
+            currencySnapshot: distributorCurrencySnapshot,
+            offerValidation,
+            resolvedUnitPrice: linePricing.unitPrice,
+            pricingSource: linePricing.pricingSource,
           });
 
           return tx.orderItem.create({ data: orderItemData });
@@ -1220,17 +1222,7 @@ export async function createMobileMarketplaceOrders(
               }
             }
 
-            const orderItemData = buildOrderItemCreateData({
-              orderId: createdOrder.orderId,
-              item,
-              product,
-              variantOption,
-              piecesPerPackage,
-              packageQuantity,
-              variantNameSnapshot,
-              currencySnapshot: distributorCurrencySnapshot,
-              offerValidation,
-              ...resolveLinePricing({
+            const linePricing = resolveLinePricing({
                 offerValidation,
                 baseUnitPrice: parsePrice(
                   variantOption.sellingPrice as
@@ -1242,7 +1234,19 @@ export async function createMobileMarketplaceOrders(
                 ),
                 isFirstOrderWithDistributor,
                 autoApplyBasePrice,
-              }),
+              });
+            const orderItemData = buildOrderItemCreateData({
+              orderId: createdOrder.orderId,
+              item,
+              product,
+              variantOption,
+              piecesPerPackage,
+              packageQuantity,
+              variantNameSnapshot,
+              currencySnapshot: distributorCurrencySnapshot,
+              offerValidation,
+              resolvedUnitPrice: linePricing.unitPrice,
+              pricingSource: linePricing.pricingSource,
             });
 
             return tx.orderItem.create({ data: orderItemData });

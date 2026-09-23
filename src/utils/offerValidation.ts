@@ -162,7 +162,7 @@ export async function validateOfferForProduct(
         {
           id: offer.id,
           discountType: offer.discountType,
-          discountAmount,
+          discountAmount: discountAmount ?? 0,
           discountPercentage,
           promotionDetails: isPromo
             ? {
