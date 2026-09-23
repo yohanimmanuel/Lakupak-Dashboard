@@ -10,7 +10,8 @@ import {
   updateOfferStatusesBasedOnLimits,
 } from '@/utils/offerValidation';
 import type { OfferValidationResult } from '@/utils/offerValidation';
-import { buildBuyXGetYPromotionDetails, calculateOrderItemPromotion } from '@/utils/promotionUtils';
+import { calculateOrderItemPromotion } from '@/utils/promotionUtils';
+import { getOfferForClientAndProduct } from '@/lib/offers/getOfferForClientAndProduct';
 import { validateVariant } from '@/services/variantService';
 import { parsePrice } from '@/utils/currencyUtils';
 import { broadcastOrderUpdate } from '@/utils/websocketBroadcast';
@@ -104,6 +105,7 @@ function buildOrderItemCreateData(params: {
     offerApplied: false,
     offerBadgeSnapshot: null as string | null,
     offerNameSnapshot: null as string | null,
+    offerIdSnapshot: null as string | null,
     originalPriceSnapshot: null as string | null,
     discountPercentage: null as number | null,
     discountAmount: null as number | null,
@@ -117,6 +119,7 @@ function buildOrderItemCreateData(params: {
       offerApplied: true,
       offerBadgeSnapshot: offerValidation.offerBadge || null,
       offerNameSnapshot: offerValidation.offerName || null,
+      offerIdSnapshot: offerValidation.offerId || null,
       originalPriceSnapshot: offerValidation.originalPrice?.toString() || null,
       discountPercentage: offerValidation.discountPercentage || null,
       discountAmount: offerValidation.discountAmount || null,
@@ -262,6 +265,7 @@ export async function getMobileMarketplaceOrders(request: NextRequest, tokenUser
       offerApplied: oi.offerApplied || false,
       offerBadgeSnapshot: oi.offerBadgeSnapshot || null,
       offerNameSnapshot: oi.offerNameSnapshot || null,
+      offerIdSnapshot: oi.offerIdSnapshot || null,
       originalPriceSnapshot: oi.originalPriceSnapshot ? decimalToNumber(oi.originalPriceSnapshot) : null,
       discountPercentage: oi.discountPercentage ? decimalToNumber(oi.discountPercentage) : null,
       discountAmount: oi.discountAmount ? decimalToNumber(oi.discountAmount) : null,
@@ -616,6 +620,7 @@ export async function createMobileMarketplaceOrders(
           const totalQuantity = packageQuantity * piecesPerPackage;
           const orderTotal = groupTotalAmount;
           const variantForValidation = {
+            id: variantOption.id ?? null,
             sellingPrice: parsePrice(
               variantOption.sellingPrice as
                 | string
@@ -644,6 +649,7 @@ export async function createMobileMarketplaceOrders(
             tx,
             packageQuantity,
             variantForValidation,
+            buyerPerDistributorId,
           );
 
           let variantNameSnapshot: string | null = null;
@@ -805,32 +811,51 @@ export async function createMobileMarketplaceOrders(
       let orderedPieces = qtyForPrecheck.orderedPieces;
       let totalQtyNeeded = qtyForPrecheck.totalQtyNeeded;
 
-      const productOffers = await prisma.offer.findMany({
-        where: {
-          userId: product.userId ?? undefined,
-          status: 'active',
-          offerProducts: { some: { productId: product.productId } },
-        },
-        include: {
-          offerDiscountTypes: { where: { isActive: true, discountType: 'buy_x_get_y' } },
-        },
-      });
+      const precheckBuyerId = product.userId
+        ? buildMobileBuyerId(marketplaceUser.id, product.userId)
+        : '';
+      const productOffer = precheckBuyerId
+        ? await getOfferForClientAndProduct(precheckBuyerId, product.productId, {
+            userId: product.userId ?? undefined,
+            variantOptionId: variantOption.id ?? null,
+          })
+        : null;
 
-      if (productOffers.length > 0) {
-        const buyXGetYPromo = productOffers[0].offerDiscountTypes.find((dt) => dt.discountType === 'buy_x_get_y');
+      const freeQty =
+        productOffer?.freeQuantity != null && productOffer.freeQuantity > 0
+          ? productOffer.freeQuantity
+          : productOffer?.discountType === 'buy_x_get_y'
+            ? Math.round(productOffer.discountValue)
+            : null;
+      const buyQty =
+        productOffer?.buyQuantity != null && productOffer.buyQuantity > 0
+          ? productOffer.buyQuantity
+          : null;
+      const hasBxgyPromo =
+        productOffer != null &&
+        buyQty != null &&
+        freeQty != null &&
+        freeQty > 0 &&
+        (productOffer.discountType === 'buy_x_get_y' ||
+          productOffer.discountType === 'percentage' ||
+          productOffer.discountType === 'fixed_amount');
 
-        if (buyXGetYPromo) {
-          const promotionDetails = buildBuyXGetYPromotionDetails(buyXGetYPromo);
+      if (hasBxgyPromo) {
+        const promotionDetails = {
+          minQuantity: buyQty,
+          freeQuantity: freeQty,
+          applyMode: 'after_moq' as const,
+          moq: variantOption.moq ?? null,
+        };
 
-          const promoQty = computeTotalQtyNeededWithBuyXGetY({
-            packageQuantity: orderedQty,
-            piecesPerPackage,
-            moqPieces: variantOption.moq,
-            promotionDetails,
-          });
-          orderedPieces = promoQty.orderedPieces;
-          totalQtyNeeded = promoQty.totalQtyNeeded;
-        }
+        const promoQty = computeTotalQtyNeededWithBuyXGetY({
+          packageQuantity: orderedQty,
+          piecesPerPackage,
+          moqPieces: variantOption.moq,
+          promotionDetails,
+        });
+        orderedPieces = promoQty.orderedPieces;
+        totalQtyNeeded = promoQty.totalQtyNeeded;
       }
 
       const availableStock = Number(variantOption.stockQuantity) || 0;
@@ -983,32 +1008,50 @@ export async function createMobileMarketplaceOrders(
             let orderedPieces = packageQuantity * piecesPerPackage;
             let totalQtyNeeded = orderedPieces;
 
-            const productOffers = await tx.offer.findMany({
-              where: {
+            const productOffer = await getOfferForClientAndProduct(
+              buyerPerDistributorId,
+              product.productId,
+              {
                 userId: product.userId ?? undefined,
-                status: 'active',
-                offerProducts: { some: { productId: product.productId } },
+                db: tx,
+                variantOptionId: variantOption.id ?? null,
               },
-              include: {
-                offerDiscountTypes: { where: { isActive: true, discountType: 'buy_x_get_y' } },
-              },
-            });
+            );
 
-            if (productOffers.length > 0) {
-              const buyXGetYPromo = productOffers[0].offerDiscountTypes.find(
-                (dt) => dt.discountType === 'buy_x_get_y',
-              );
-              if (buyXGetYPromo) {
-                const promotionDetails = buildBuyXGetYPromotionDetails(buyXGetYPromo);
-                const qty = computeTotalQtyNeededWithBuyXGetY({
-                  packageQuantity,
-                  piecesPerPackage,
-                  moqPieces: variantOption.moq,
-                  promotionDetails,
-                });
-                orderedPieces = qty.orderedPieces;
-                totalQtyNeeded = qty.totalQtyNeeded;
-              }
+            const freeQty =
+              productOffer?.freeQuantity != null && productOffer.freeQuantity > 0
+                ? productOffer.freeQuantity
+                : productOffer?.discountType === 'buy_x_get_y'
+                  ? Math.round(productOffer.discountValue)
+                  : null;
+            const buyQty =
+              productOffer?.buyQuantity != null && productOffer.buyQuantity > 0
+                ? productOffer.buyQuantity
+                : null;
+            const hasBxgyPromo =
+              productOffer != null &&
+              buyQty != null &&
+              freeQty != null &&
+              freeQty > 0 &&
+              (productOffer.discountType === 'buy_x_get_y' ||
+                productOffer.discountType === 'percentage' ||
+                productOffer.discountType === 'fixed_amount');
+
+            if (hasBxgyPromo) {
+              const promotionDetails = {
+                minQuantity: buyQty,
+                freeQuantity: freeQty,
+                applyMode: 'after_moq' as const,
+                moq: variantOption.moq ?? null,
+              };
+              const qty = computeTotalQtyNeededWithBuyXGetY({
+                packageQuantity,
+                piecesPerPackage,
+                moqPieces: variantOption.moq,
+                promotionDetails,
+              });
+              orderedPieces = qty.orderedPieces;
+              totalQtyNeeded = qty.totalQtyNeeded;
             }
 
             // No stock decrement here. Checkout pre-check (above) is advisory only; deduction runs when the
@@ -1017,6 +1060,7 @@ export async function createMobileMarketplaceOrders(
             const totalQuantity = orderedPieces;
             const orderTotal = groupTotalAmount;
             const variantForValidation = {
+              id: variantOption.id ?? null,
               sellingPrice: parsePrice(
                 variantOption.sellingPrice as
                   | string
@@ -1045,6 +1089,7 @@ export async function createMobileMarketplaceOrders(
               tx,
               packageQuantity,
               variantForValidation,
+              buyerPerDistributorId,
             );
 
             let variantNameSnapshot: string | null = null;

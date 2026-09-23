@@ -341,8 +341,6 @@ function rebuildCombinationsFromVariants(
           sku,
           purchasePrice: combinationData!.purchasePrice ?? '',
           sellingPrice: combinationData!.sellingPrice ?? '',
-          originalSellingPrice: combinationData!.originalSellingPrice,
-          dbSellingPrice: combinationData!.dbSellingPrice,
           moq: combinationData!.moq,
           stockQuantity: combinationData!.stockQuantity ?? 0,
           lowStockThreshold: combinationData!.lowStockThreshold ?? 0,
@@ -597,31 +595,14 @@ export default function ProductCatalog({
         }));
       }
       
-      // Load combinations with proper mapping
+      // Load combinations — catalog sellingPrice is the source of truth (offers do not rewrite it)
       const loadedCombinations = product.variantOptions.map(option => {
-        // If originalSellingPrice exists, use it for the form (this is the original price before discount)
-        // Otherwise, use sellingPrice (which is the actual price when no offer is active)
-        // Convert to string first to handle number/null/undefined types
-        const originalPriceStr = option.originalSellingPrice 
-          ? String(option.originalSellingPrice).trim() 
-          : '';
-        const hasOffer = originalPriceStr !== '';
-        const formSellingPrice = hasOffer
-          ? originalPriceStr
-          : option.sellingPrice || '';
-        // Store the database's sellingPrice (discounted price) for display when offer is active
-        const dbSellingPrice = option.sellingPrice || '';
-        
         const base: Combination = {
           id: `combination-${option.id}`,
           variantName: option.variantName,
           sku: option.sku || '',
           purchasePrice: option.purchasePrice || '',
-          sellingPrice: formSellingPrice,
-          // Store database sellingPrice for display (discounted price when offer is active)
-          dbSellingPrice: dbSellingPrice,
-          // Preserve originalSellingPrice if it exists, so it doesn't get lost on save
-          originalSellingPrice: hasOffer ? originalPriceStr : undefined,
+          sellingPrice: option.sellingPrice || '',
           moq: option.moq,
           stockQuantity: option.stockQuantity || 0,
           lowStockThreshold: option.lowStockThreshold || 0,
@@ -1955,11 +1936,7 @@ export default function ProductCatalog({
           sku: combo.sku,
           purchasePrice: serializeComboPrice(combo.purchasePrice),
           sellingPrice: serializeComboPrice(combo.sellingPrice),
-          originalSellingPrice: combo.originalSellingPrice
-            ? String(
-                parseNumberByCurrency(String(combo.originalSellingPrice), priceCurrency),
-              )
-            : null,
+          originalSellingPrice: null,
           moq: combo.moq,
           stockQuantity: combo.stockQuantity,
           lowStockThreshold: combo.lowStockThreshold,
@@ -2300,13 +2277,11 @@ export default function ProductCatalog({
   const isViewMode = currentMode === 'view';
   const isEditMode = currentMode === 'edit';
 
-  // Disable price editing when product has any connected offer (discount or promotion)
-  const isOfferConnected = Boolean(product && (
-    (product as { hasActiveOffer?: boolean }).hasActiveOffer ||
-    (product as { offerBadge?: string }).offerBadge ||
-    (product as { discountType?: unknown }).discountType ||
-    (product as { promotionDetails?: unknown }).promotionDetails
-  ));
+  // Per-retailer offers no longer rewrite base catalog price — keep price editing unlocked
+  const isOfferConnected = false;
+  const customOfferClientCount = Number(
+    (product as { customOfferClientCount?: number } | null | undefined)?.customOfferClientCount ?? 0,
+  );
 
   return (
     <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6]">
@@ -2339,27 +2314,12 @@ export default function ProductCatalog({
                 {translateStatus('Published')}
               </span>
             )}
-            {product?.offerBadge && (
-              <>
-                {product.offerBadge === 'All Offers' ? (
-                  <>
-                    <span className="px-3 py-1 text-sm font-semibold rounded-full bg-red-100 text-red-700">
-                      {tShared('offerBadges.Discount')}
-                    </span>
-                    <span className="px-3 py-1 text-sm font-semibold rounded-full bg-purple-100 text-purple-700">
-                      {tShared('offerBadges.Promotion')}
-                    </span>
-                  </>
-                ) : (
-                  <span className={`px-3 py-1 text-sm font-semibold rounded-full ${
-                    product.offerBadge === 'Discount' ? 'bg-red-100 text-red-700' :
-                    product.offerBadge === 'Promotion' ? 'bg-purple-100 text-purple-700' :
-                    'bg-blue-100 text-blue-700'
-                  }`}>
-                    {tShared.has(`offerBadges.${product.offerBadge}`) ? tShared(`offerBadges.${product.offerBadge}`) : product.offerBadge}
-                  </span>
-                )}
-              </>
+            {customOfferClientCount > 0 && (
+              <span className="px-3 py-1 text-sm font-semibold rounded-full bg-blue-100 text-blue-700">
+                {tShared.has('customOfferClients')
+                  ? tShared('customOfferClients', { count: String(customOfferClientCount) })
+                  : `${customOfferClientCount} clients have custom rates`}
+              </span>
             )}
             {currentMode === 'edit' && hasUnsavedChanges && (
               <span className="text-sm text-orange-600 font-medium">• {tCatalog('header.unsavedChanges')}</span>

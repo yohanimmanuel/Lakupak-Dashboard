@@ -274,7 +274,15 @@
         "lastOrderDate": "Tanggal Pesanan Terakhir",
         "shipmentSuccess": "Keberhasilan Pengiriman",
         "orderDetails": "Detail Pesanan"
-      }
+      },
+      "offersSection": "Tarif klien / Penawaran",
+      "addRate": "Tambah tarif",
+      "offersLoading": "Memuat tarif...",
+      "noOffers": "Belum ada tarif untuk klien ini.",
+      "offerTarget": "Produk / Kategori",
+      "offerDiscount": "Diskon",
+      "offerDates": "Tanggal",
+      "offerStatus": "Status"
     },
     "modal": {
       "editTitle": "Edit Pembeli",
@@ -319,7 +327,15 @@
       "fileTooLarge": "Ukuran file harus kurang dari 5MB",
       "invalidImage": "Silakan pilih file gambar",
       "uploadFailed": "Gagal mengunggah gambar",
-      "deleteOrderRow": "Hapus baris pesanan {index}"
+      "deleteOrderRow": "Hapus baris pesanan {index}",
+      "offersSection": "Tarif klien / Penawaran",
+      "addRate": "Tambah tarif",
+      "offersLoading": "Memuat tarif...",
+      "noOffers": "Belum ada tarif untuk klien ini.",
+      "offerTarget": "Produk / Kategori",
+      "offerDiscount": "Diskon",
+      "offerDates": "Tanggal",
+      "offerStatus": "Status"
     }
   },
   "suppliers": {

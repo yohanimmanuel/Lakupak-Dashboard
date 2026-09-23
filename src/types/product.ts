@@ -110,6 +110,7 @@ export interface Product {
   offerBadge?: 'Discount' | 'Promotion' | 'All Offers' | 'Offer';
   originalPrice?: string;
   hasActiveOffer?: boolean;
+  customOfferClientCount?: number;
   offerId?: string;
   offerName?: string;
   discountType?: 'percentage' | 'fixed' | 'buy_x_get_y';

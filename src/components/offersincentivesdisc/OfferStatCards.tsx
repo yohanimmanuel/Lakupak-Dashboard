@@ -1,9 +1,10 @@
 'use client';
 
 import React from 'react';
-import { Gift, Percent, TrendingUp, Users } from 'lucide-react';
+import { Gift, TrendingUp, Users, Archive } from 'lucide-react';
 import { Offer } from '@/types/offer';
 import { useOffersTranslations } from '@/hooks/useOffersTranslations';
+import { groupOffers } from './OfferTable';
 import {
   STAT_ICON_BG_BLUE,
   STAT_ICON_BG_GREEN,
@@ -19,11 +20,11 @@ export default function OfferStatCards({ offers = [] }: OfferStatCardsProps) {
   const { tCards } = useOffersTranslations();
 
   const stats = React.useMemo(() => {
-    const totalOffers = offers.length;
-    const activeOffers = offers.filter((offer) => offer.status === 'active').length;
-    const totalUsage = offers.reduce((sum, offer) => sum + (offer.totalUsage || 0), 0);
-    const usedOffers = offers.filter((offer) => (offer.totalUsage || 0) > 0).length;
-    const conversionRate = totalOffers > 0 ? (usedOffers / totalOffers) * 100 : 0;
+    const groups = groupOffers(offers);
+    const totalOffers = groups.length;
+    const activeOffers = groups.filter((g) => g.primary.status === 'active').length;
+    const expiredOffers = groups.filter((g) => g.primary.status === 'expired').length;
+    const clientCount = new Set(offers.map((o) => o.buyerId).filter(Boolean)).size;
 
     return [
       {
@@ -41,17 +42,17 @@ export default function OfferStatCards({ offers = [] }: OfferStatCardsProps) {
         color: STAT_ICON_BG_GREEN,
       },
       {
-        id: 'conversionRate',
-        label: tCards('conversionRate'),
-        value: `${conversionRate.toFixed(1)}%`,
-        icon: <Percent className={`w-6 h-6 ${STAT_ICON_BLUE}`} />,
+        id: 'byClient',
+        label: tCards('clientsWithRates'),
+        value: clientCount,
+        icon: <Users className={`w-6 h-6 ${STAT_ICON_BLUE}`} />,
         color: STAT_ICON_BG_BLUE,
       },
       {
-        id: 'totalRedemptions',
-        label: tCards('totalRedemptions'),
-        value: totalUsage,
-        icon: <Users className={`w-6 h-6 ${STAT_ICON_BLUE}`} />,
+        id: 'expiredOffers',
+        label: tCards('expiredOffers'),
+        value: expiredOffers,
+        icon: <Archive className={`w-6 h-6 ${STAT_ICON_BLUE}`} />,
         color: STAT_ICON_BG_BLUE,
       },
     ];

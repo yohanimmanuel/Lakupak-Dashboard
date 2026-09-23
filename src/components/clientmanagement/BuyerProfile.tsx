@@ -1,7 +1,7 @@
 'use client';
 
 import React from "react";
-import { Phone, MapPin, Store, Tag, Truck, Info, FileText, Calendar, DollarSign, BarChart2, ArrowLeft, Edit, Copy, Mail, ChevronLeft, ChevronRight, User, Upload, Download, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Phone, MapPin, Store, Tag, Truck, Info, FileText, Calendar, DollarSign, BarChart2, ArrowLeft, Edit, Copy, Mail, ChevronLeft, ChevronRight, User, Upload, Download, CheckCircle2, AlertTriangle, Plus } from "lucide-react";
 import Link from "next/link";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts';
 import BuyerModal from './BuyerModal';
@@ -15,6 +15,10 @@ import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
+import { useOffersTranslations } from '@/hooks/useOffersTranslations';
+import { useRouter } from 'next/navigation';
+import type { Offer } from '@/types/offer';
+import { formatDiscount } from '@/components/offersincentivesdisc/OfferTable';
 
 type ProfileFieldKey =
   | 'storeName'
@@ -98,7 +102,9 @@ interface BuyerProfileProps {
 
 export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileProps) {
   const user = useUserStore(state => state.user);
+  const router = useRouter();
   const { tBuyersProfile, tBuyersModal, tShared, translateStatus } = useClientsTranslations();
+  const { translateOfferStatus } = useOffersTranslations();
   const dateLocale = user?.language === 'id' ? 'id-ID' : 'en-US';
 
   // Get user currency for display - safe to use on both server and client
@@ -110,6 +116,8 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateError, setUpdateError] = useState('');
   const [updateSuccess, setUpdateSuccess] = useState('');
+  const [buyerOffers, setBuyerOffers] = useState<Offer[]>([]);
+  const [offersLoading, setOffersLoading] = useState(false);
   
   // BuyerProfile - Raw buyer data
   
@@ -131,6 +139,33 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
       return [];
     }
   })() : [];
+
+  useEffect(() => {
+    if (!user?.id || !buyer.buyerId) return;
+    let cancelled = false;
+    (async () => {
+      setOffersLoading(true);
+      try {
+        const data = await fetchGraphQL<{ offersForBuyer: Offer[] }>(
+          `query OffersForBuyer($userId: Int!, $buyerId: String!) {
+            offersForBuyer(userId: $userId, buyerId: $buyerId) {
+              id offerId productId productName categoryId categoryLabel
+              discountType discountValue buyQuantity freeQuantity startDate endDate status notes
+            }
+          }`,
+          { userId: user.id, buyerId: buyer.buyerId },
+        );
+        if (!cancelled) setBuyerOffers(data.offersForBuyer ?? []);
+      } catch {
+        if (!cancelled) setBuyerOffers([]);
+      } finally {
+        if (!cancelled) setOffersLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, buyer.buyerId]);
   
   const logistics = buyer.logistics ? (() => {
     try {
@@ -639,6 +674,71 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
             </div>
           </div>
         </div>
+      </div>
+      {/* Active rates / Offers */}
+      <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 relative">
+        <div className="flex items-center justify-between mb-4">
+          <div className="font-semibold text-md text-black">{tBuyersProfile('offersSection')}</div>
+          <button
+            type="button"
+            className="flex items-center gap-1 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-medium hover:bg-[#084fb3] transition text-sm"
+            onClick={() => router.push(`/offers/new?buyerId=${encodeURIComponent(buyer.buyerId)}`)}
+          >
+            <Plus className="w-4 h-4" />
+            {tBuyersProfile('addRate')}
+          </button>
+        </div>
+        {offersLoading ? (
+          <div className="text-sm text-gray-500 py-6 text-center">{tBuyersProfile('offersLoading')}</div>
+        ) : buyerOffers.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 py-8 text-center text-sm text-gray-500">
+            {tBuyersProfile('noOffers')}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[#e6e6e6] text-left text-gray-500">
+                  <th className="py-2 px-2 font-semibold">{tBuyersProfile('offerTarget')}</th>
+                  <th className="py-2 px-2 font-semibold">{tBuyersProfile('offerDiscount')}</th>
+                  <th className="py-2 px-2 font-semibold">{tBuyersProfile('offerDates')}</th>
+                  <th className="py-2 px-2 font-semibold">{tBuyersProfile('offerStatus')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {buyerOffers.map((offer) => (
+                  <tr key={offer.id} className="border-b border-[#f0f0f0]">
+                    <td className="py-2 px-2">
+                      {offer.productName || offer.categoryLabel || offer.categoryId || '—'}
+                    </td>
+                    <td className="py-2 px-2">
+                      {formatDiscount(offer, userCurrency)}
+                    </td>
+                    <td className="py-2 px-2 text-gray-600">
+                      {formatDate(offer.startDate)}
+                      {offer.endDate ? ` → ${formatDate(offer.endDate)}` : ' → ∞'}
+                    </td>
+                    <td className="py-2 px-2">
+                      <span
+                        className={`inline-flex px-2 py-0.5 rounded-full text-xs font-bold ${
+                          offer.status === 'active'
+                            ? 'bg-green-100 text-green-500'
+                            : offer.status === 'expired'
+                              ? 'bg-gray-100 text-gray-500'
+                              : offer.status === 'draft'
+                                ? 'bg-yellow-100 text-yellow-500'
+                                : 'bg-gray-100 text-gray-500'
+                        }`}
+                      >
+                        {translateOfferStatus(offer.status)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
       {/* Third Row: Analytics */}
       <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">

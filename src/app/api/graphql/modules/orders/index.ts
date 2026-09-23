@@ -37,6 +37,7 @@ export const ordersTypeDefs = /* GraphQL */ `
     offerApplied: Boolean
     offerBadgeSnapshot: String
     offerNameSnapshot: String
+    offerIdSnapshot: String
     promotionDetailsSnapshot: String
     variantNameSnapshot: String
     productNameSnapshot: String
@@ -173,6 +174,7 @@ const mapOrderItems = (
     offerApplied: item.offerApplied ?? false,
     offerBadgeSnapshot: item.offerBadgeSnapshot,
     offerNameSnapshot: item.offerNameSnapshot,
+    offerIdSnapshot: item.offerIdSnapshot ?? null,
     promotionDetailsSnapshot: item.promotionDetailsSnapshot,
     variantNameSnapshot: item.variantNameSnapshot,
     productNameSnapshot: item.productNameSnapshot ?? null,

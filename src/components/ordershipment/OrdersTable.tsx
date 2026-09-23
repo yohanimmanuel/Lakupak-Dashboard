@@ -635,12 +635,6 @@ export default function OrdersTable({
       )}
       
       <div className="overflow-x-auto hidden md:block rounded-lg">
-        {filteredOrders.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            <ShoppingCart className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-            <p className="text-sm">{tTable('empty')}</p>
-          </div>
-        ) : (
           <table className="min-w-full text-sm text-left whitespace-nowrap text-xs">
             <thead className="bg-gray-100 text-gray-500 whitespace-nowrap">
               <tr>
@@ -675,7 +669,17 @@ export default function OrdersTable({
               </tr>
             </thead>
             <tbody className="bg-white">
-              {pagedOrders.map((order) => (
+              {filteredOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={11} className="py-12 text-center text-gray-500">
+                    <div className="flex flex-col items-center gap-2">
+                      <ShoppingCart className="w-12 h-12 text-gray-400" />
+                      <p className="text-sm">{tTable('empty')}</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+              pagedOrders.map((order) => (
               <tr 
                 key={order.orderId} 
                 className={`border-b transition ${
@@ -748,10 +752,10 @@ export default function OrdersTable({
                   </div>
                 </td>
               </tr>
-            ))}
+            ))
+              )}
           </tbody>
         </table>
-        )}
       </div>
 
       {/* Mobile Cards */}

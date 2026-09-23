@@ -10,13 +10,81 @@ import {
 } from '@/utils/order-security';
 import { ensureAllPriceConsistency } from '@/utils/orderUtils';
 import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil, trackOfferUsageForAllTypes, updateOfferStatusesBasedOnLimits } from '@/utils/offerValidation';
-import { parsePrice } from '@/utils/currencyUtils';
 import { syncOrderToBuyerProfile } from '@/utils/buyerSync';
 import { broadcastOrderUpdate } from '@/utils/websocketBroadcast';
 import { orderCreationRateLimiter } from '@/utils/rateLimiter';
 import { NotificationService } from '@/app/api/graphql/modules/notifications';
 import { auditOrder } from '@/lib/audit';
 import { decimalToNumber } from './utils';
+import { getUnitPriceFromVariantOption } from '@/domain/marketplace/orderItemRules';
+
+/**
+ * Resolve the priced VariantOption for a dashboard order line.
+ * Prefers OrderItem.variantOptionId. OrderItem.variantId is treated as a ProductVariant
+ * (axis) FK when it matches product.variants — never falls back to the first option.
+ */
+function resolveSelectedVariantOption<
+  TVariant extends {
+    id: number;
+    sellingPrice?: unknown;
+    moq?: number | null;
+    attributes?: unknown;
+    variantName?: string;
+  },
+>(
+  product: {
+    productId: string;
+    variants?: Array<{ id: number }> | null;
+    variantOptions?: TVariant[] | null;
+  },
+  item: { variantId?: number | null; variantOptionId?: number | null },
+): { selectedVariant: TVariant; productVariantId: number | null } {
+  const variantOptions = product.variantOptions ?? [];
+  const variants = product.variants ?? [];
+  const requestedOptionId =
+    item.variantOptionId != null && Number.isFinite(Number(item.variantOptionId))
+      ? Number(item.variantOptionId)
+      : null;
+  const requestedVariantId =
+    item.variantId != null && Number.isFinite(Number(item.variantId))
+      ? Number(item.variantId)
+      : null;
+
+  const productVariant =
+    requestedVariantId != null
+      ? variants.find((v) => v.id === requestedVariantId) ?? null
+      : null;
+
+  // Explicit VariantOption id wins
+  if (requestedOptionId != null) {
+    const selectedVariant = variantOptions.find((v) => v.id === requestedOptionId) ?? null;
+    if (!selectedVariant) {
+      throw new Error(
+        `Variant option ${requestedOptionId} not found for product: ${product.productId}`,
+      );
+    }
+    return { selectedVariant, productVariantId: productVariant?.id ?? null };
+  }
+
+  // variantId must reference a ProductVariant on this product (not VariantOption.id)
+  if (requestedVariantId != null && !productVariant) {
+    throw new Error(
+      `ProductVariant ${requestedVariantId} not found for product: ${product.productId}`,
+    );
+  }
+
+  // No VariantOption id: only safe when the product has a single priced option
+  if (variantOptions.length === 1) {
+    return {
+      selectedVariant: variantOptions[0],
+      productVariantId: productVariant?.id ?? null,
+    };
+  }
+  if (variantOptions.length === 0) {
+    throw new Error(`No variants found for product: ${product.productId}`);
+  }
+  throw new Error(`variantOptionId is required for product: ${product.productId}`);
+}
 
 export async function createOrderHandler(request: NextRequest) {
   const headers = getOrderSecurityHeaders();
@@ -277,32 +345,24 @@ export async function createOrderHandler(request: NextRequest) {
               throw new Error(`Product not found: ${item.productId}`);
             }
 
-            let selectedVariant = item.variantId
-              ? product.variantOptions.find((v: { id: number }) => v.id === item.variantId) || null
-              : null;
-            if (!selectedVariant) {
-              selectedVariant = product.variantOptions[0] || null;
-            }
-            if (!selectedVariant) {
-              throw new Error(`No variants found for product: ${item.productId}`);
-            }
+            const { selectedVariant, productVariantId } = resolveSelectedVariantOption(
+              product,
+              item,
+            );
 
             const packageQuantity = item.packageQuantity || 1;
             const piecesPerPackageForMOQ = item.piecesPerPackage || 1;
             const totalPieces = packageQuantity * piecesPerPackageForMOQ;
 
-            const variantSellingPrice = (selectedVariant as { sellingPrice?: number | string | unknown }).sellingPrice;
-            if (variantSellingPrice === null || variantSellingPrice === undefined) {
+            const consistentUnitPrice = getUnitPriceFromVariantOption(selectedVariant);
+            if (consistentUnitPrice <= 0) {
               throw new Error(`No variants with pricing found for product: ${item.productId}`);
             }
 
-            const variantMOQ = (selectedVariant as { moq?: number }).moq;
+            const variantMOQ = selectedVariant.moq;
             if (variantMOQ && totalPieces < variantMOQ) {
               throw new Error(`Minimum order quantity is ${variantMOQ} pieces. You ordered ${totalPieces} pieces.`);
             }
-
-            const consistentUnitPrice =
-              typeof variantSellingPrice === 'number' ? variantSellingPrice : parsePrice(String(variantSellingPrice));
 
             const piecesPerPackage = item.piecesPerPackage || 1;
             const packageType = item.packageType || 'Piece';
@@ -317,17 +377,22 @@ export async function createOrderHandler(request: NextRequest) {
               tx,
               packageQuantity,
               {
-                sellingPrice: decimalToNumber((selectedVariant as { sellingPrice?: unknown }).sellingPrice),
-                moq: (selectedVariant as { moq?: number }).moq,
+                id: selectedVariant.id,
+                sellingPrice: decimalToNumber(selectedVariant.sellingPrice),
+                moq: selectedVariant.moq,
               },
+              sanitizedData.buyerId ? String(sanitizedData.buyerId) : null,
             );
 
-            let variantNameSnapshot: string | null = null;
-            if ((selectedVariant as { attributes?: unknown }).attributes) {
-              const attributes = (selectedVariant as { attributes: Record<string, string> }).attributes;
-              variantNameSnapshot = Object.entries(attributes)
-                .map(([key, value]) => `${key}: ${value}`)
-                .join(', ');
+            let variantNameSnapshot: string | null =
+              selectedVariant.variantName?.trim() || null;
+            if (!variantNameSnapshot && selectedVariant.attributes) {
+              const attributes = selectedVariant.attributes as Record<string, string>;
+              if (attributes && typeof attributes === 'object') {
+                variantNameSnapshot = Object.entries(attributes)
+                  .map(([key, value]) => `${key}: ${value}`)
+                  .join(', ');
+              }
             }
 
             let orderItemData: Prisma.OrderItemUncheckedCreateInput = {
@@ -342,23 +407,25 @@ export async function createOrderHandler(request: NextRequest) {
               productSkuSnapshot: product.sku,
               productTypeSnapshot: product.productType,
               productImageSnapshot: Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : null,
-              variantId: item.variantId || null,
-              variantOptionId: (selectedVariant as { id?: number }).id || null,
+              variantId: productVariantId,
+              variantOptionId: selectedVariant.id,
               variantNameSnapshot,
               variantAttributesSnapshot:
-                (selectedVariant as { attributes?: unknown }).attributes &&
-                typeof (selectedVariant as { attributes?: unknown }).attributes === 'object'
-                  ? ((selectedVariant as { attributes?: unknown }).attributes as Prisma.InputJsonValue)
+                selectedVariant.attributes &&
+                typeof selectedVariant.attributes === 'object'
+                  ? (selectedVariant.attributes as Prisma.InputJsonValue)
                   : undefined,
               unitPriceSnapshot: consistentUnitPrice,
               currencySnapshot: sellerCurrency,
               offerApplied: false,
               offerBadgeSnapshot: null,
               offerNameSnapshot: null,
+              offerIdSnapshot: null,
               originalPriceSnapshot: null,
               discountPercentage: null,
               discountAmount: null,
               promotionDetailsSnapshot: null,
+              moqSnapshot: selectedVariant.moq ?? null,
             };
 
             if (offerValidation.isValid && offerValidation.offerId) {
@@ -383,6 +450,7 @@ export async function createOrderHandler(request: NextRequest) {
                 offerApplied: true,
                 offerBadgeSnapshot: offerValidation.offerBadge || null,
                 offerNameSnapshot: offerValidation.offerName || null,
+                offerIdSnapshot: offerValidation.offerId || null,
                 originalPriceSnapshot: offerValidation.originalPrice ? Number(offerValidation.originalPrice) : null,
                 discountPercentage: offerValidation.discountPercentage || null,
                 discountAmount: offerValidation.discountAmount || null,
@@ -428,6 +496,7 @@ export async function createOrderHandler(request: NextRequest) {
       offerApplied: oi.offerApplied || false,
       offerBadgeSnapshot: oi.offerBadgeSnapshot || null,
       offerNameSnapshot: oi.offerNameSnapshot || null,
+      offerIdSnapshot: oi.offerIdSnapshot || null,
       originalPriceSnapshot: oi.originalPriceSnapshot || null,
       discountPercentage: oi.discountPercentage || null,
       promotionDetailsSnapshot: oi.promotionDetailsSnapshot || null,

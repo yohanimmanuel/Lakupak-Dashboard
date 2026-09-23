@@ -1,123 +1,59 @@
 /**
- * Type definitions for Offer API operations
- * Replaces 'any' types with proper TypeScript interfaces
+ * Type definitions for Offer API operations (per-retailer pricing).
  */
 
-export interface DiscountTypeInput {
-  name?: string;
-  discountType?: string;
-  discountValue?: number;
-  description?: string;
-  minOrderValue?: number | string;
-  minQuantity?: number;
-  isActive?: boolean;
-  priority?: number;
-}
+export type OfferDiscountType =
+  | 'percentage'
+  | 'fixed_amount'
+  | 'buy_x_get_y';
 
-export interface DiscountTypeUpdate extends DiscountTypeInput {
-  id?: string;
-}
-
-export interface DateRangeInput {
-  name?: string;
-  description?: string;
-  startDate?: string | Date;
-  endDate?: string | Date;
-  days?: string;
-  isActive?: boolean;
-}
-
-export interface DateRangeUpdate extends DateRangeInput {
-  id?: string;
-}
-
-export interface ProductInput {
-  productId: string;
+export interface OfferCreateInput {
+  buyerId: string;
+  productId?: string | null;
+  categoryId?: string | null;
+  discountType: OfferDiscountType;
+  discountValue: number;
+  buyQuantity?: number | null;
+  freeQuantity?: number | null;
+  startDate: string;
+  endDate?: string | null;
+  status?: string;
+  notes?: string | null;
+  description?: string | null;
 }
 
 export interface OfferUpdateInput {
-  name?: string;
-  description?: string;
-  type?: string;
+  buyerId?: string;
+  productId?: string | null;
+  categoryId?: string | null;
+  discountType?: OfferDiscountType;
+  discountValue?: number;
+  buyQuantity?: number | null;
+  freeQuantity?: number | null;
+  startDate?: string;
+  endDate?: string | null;
   status?: string;
-  startDate?: Date | null;
-  endDate?: Date | null;
-  usageLimit?: number;
-  isActive?: boolean;
+  notes?: string | null;
+  description?: string | null;
 }
 
-export interface BatchOfferUpdate {
-  status?: string;
-  offer?: OfferUpdateInput;
-  discountTypes?: DiscountTypeInput[];
-  dateRanges?: DateRangeInput[];
-  products?: ProductInput[];
-}
-
-export interface RemoveProductsInput {
-  productIds: string[];
-}
-
-export interface AddProductsInput {
-  products: ProductInput[];
-  productIds?: string[];
-}
-
-// Prisma query result types (from database)
-export interface OfferDiscountTypeResult {
+export interface OfferResult {
   id: string;
+  offerId: string;
+  buyerId: string;
+  productId: string | null;
+  categoryId: string | null;
   discountType: string;
-  value: number | null;
-  minQuantity: number | null;
+  discountValue: number;
+  buyQuantity: number | null;
   freeQuantity: number | null;
-  maxDiscount: number | null;
-  minOrderValue: number | null;
+  startDate: string;
+  endDate: string | null;
+  status: string;
+  notes: string | null;
   description: string | null;
-  isActive: boolean;
-  priority: number;
-}
-
-export interface OfferProductResult {
-  id: string;
-  productId: string;
-  product: {
-    productId: string;
-    productName: string;
-    productDescription: string | null;
-    category: string;
-    subCategory: string | null;
-    productPrice: number;
-    stockQuantity: number;
-  };
-}
-
-export interface DateRangeResult {
-  id: string;
-  name: string;
-  startDate: Date;
-  endDate: Date;
-  days: string | null;
-  isActive: boolean;
-}
-
-export interface OfferWithRelations {
-  id: string;
-  offerName: string;
-  offerCode: string;
-  offerDescription: string | null;
-  offerType: string | null;
-  usageLimit: number | null;
   totalUsage: number;
   totalDiscountGiven: number;
-  isActive: boolean;
-  userId: number;
-  offerDiscountTypes: OfferDiscountTypeResult[];
-  offerProducts: OfferProductResult[];
-  dateRanges: DateRangeResult[];
+  createdAt: string;
+  updatedAt: string;
 }
-
-// Transaction type for Prisma operations
-// Note: Using Prisma.TransactionClient which properly types all delegates
-import type { Prisma } from '@/lib/db';
-export type PrismaTransaction = Prisma.TransactionClient;
-

@@ -180,28 +180,32 @@ describe('mobile orders - fail fast without partial writes', () => {
 
     // buy 2 get 1 free (piece-based). With MOQ=1, ordering 3 pieces yields 1 free:
     // quantityAboveMOQ = 3 - 1 = 2 => 1 set => 1 free => totalQtyNeeded = 4.
+    const clientBuyer = await prisma.buyer.create({
+      data: {
+        buyerId: 'BUYER-TEST-1',
+        owner: 'Test Buyer',
+        email: 'buyer@test.com',
+        phone: '0800000000',
+        storeName: 'Test Store',
+        businessType: 'Retail',
+        address: 'Test',
+        status: 'active',
+        userId: distributor.id,
+      },
+      select: { buyerId: true },
+    });
     const offer = await prisma.offer.create({
       data: {
         offerId: 'OFFER-PROMO-1',
-        name: 'Promo Offer',
-        description: null,
-        type: ['promotion'],
+        buyerId: clientBuyer.buyerId,
+        productId: product.productId,
+        discountType: 'buy_x_get_y',
+        discountValue: 1,
+        buyQuantity: 2,
+        startDate: new Date(),
+        endDate: null,
         status: 'active',
         userId: distributor.id,
-        offerProducts: {
-          create: [{ productId: product.productId }],
-        },
-        offerDiscountTypes: {
-          create: [
-            {
-              discountType: 'buy_x_get_y',
-              discountValue: 1,
-              minQuantity: 2,
-              isActive: true,
-              priority: 1,
-            },
-          ],
-        },
       },
       select: { id: true },
     });

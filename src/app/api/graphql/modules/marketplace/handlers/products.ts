@@ -3,7 +3,6 @@ import { prisma } from '../../common/prisma';
 import { safeParsePrice } from '@/utils/currencyUtils';
 import { calculateSoldCounts, calculateProductReviewStats, calculateDistributorReviewStats } from '@/utils/marketplaceMetrics';
 import { sanitizePagination, buildPaginationInfo, MAX_DEFAULT_LIMIT } from '../../common/utils';
-import { getTodayBoundaries, getStartOfDay, getEndOfDay } from '@/lib/dateUtils';
 import {
   getCachedMarketplaceSearch,
   setCachedMarketplaceSearch,
@@ -17,7 +16,6 @@ import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { validateVariant } from '@/services/variantService';
 import { syncOrderToBuyerProfile, buildMobileBuyerId } from '@/utils/buyerSync';
 import { broadcastOrderUpdate } from '@/utils/websocketBroadcast';
-import { buildBuyXGetYPromotionDetails } from '@/utils/promotionUtils';
 import { expandCategoryFilterValues } from '@/utils/categoryUtils';
 
 function isSafeCategoryFilterToken(value: string): boolean {
@@ -32,16 +30,6 @@ function buildMeiliCategoryFilter(category: string | undefined | null): string |
   const clauses = tokens.map((token) => `productType = "${token.replace(/"/g, '\\"')}"`);
   return clauses.length === 1 ? clauses[0] : `(${clauses.join(' OR ')})`;
 }
-
-type OfferForMarketplace = Prisma.OfferGetPayload<{
-  include: {
-    offerProducts: true;
-    offerDiscountTypes: true;
-    dateRanges: true;
-  };
-}>;
-
-type MarketplaceOfferDiscountType = OfferForMarketplace['offerDiscountTypes'][number];
 
 const marketplaceProductInclude = {
   variants: true,
@@ -717,116 +705,9 @@ export const fetchMarketplaceProducts = async (args: {
     calculateDistributorReviewStats(prisma, userIds),
   ]);
   
-  // Get only ACTIVE offers to check real-time status
-  const { startOfToday, endOfToday } = getTodayBoundaries(); // Uses Asia/Jakarta timezone by default
-  const allOffers = await prisma.offer.findMany({
-    where: {
-      userId: { in: userIds },
-      status: 'active',
-      offerProducts: {
-        some: {
-          productId: { in: productIds }
-        }
-      },
-      // Filter by date ranges: offer is active if it has no date ranges (unlimited) OR has at least one active date range that's currently valid
-      OR: [
-        {
-          dateRanges: {
-            none: {}, // No date ranges = unlimited offer
-          },
-        },
-        {
-          dateRanges: {
-            some: {
-              isActive: true,
-              startDate: { lte: endOfToday }, // Start date is on or before today
-              endDate: { gte: startOfToday }, // End date is on or after today (includes entire day)
-            },
-          },
-        },
-      ],
-    },
-    include: {
-      offerProducts: true,
-      offerDiscountTypes: true,
-      dateRanges: true,
-    },
-  });
+  // Per-retailer offers are private — marketplace shows public base prices only (no RFQ).
+  // Keep GraphQL offer fields as null/false so clients do not break.
 
-  // Helper function to check if current time is within any active date range
-  const isWithinActiveDateRange = (dateRanges: Array<{ startDate: Date | string; endDate: Date | string; isActive: boolean }>): boolean => {
-    if (!dateRanges || dateRanges.length === 0) {
-      return true; // No date ranges means offer is always active (within main dates)
-    }
-    
-    const { startOfToday, endOfToday } = getTodayBoundaries();
-    
-    return dateRanges.some(range => {
-      if (!range.isActive) return false;
-      
-      // Convert to Date objects (they come as strings from database)
-      const startDate = new Date(range.startDate);
-      const endDate = new Date(range.endDate);
-      
-      // Normalize to start/end of day in business timezone
-      const rangeStart = getStartOfDay(startDate);
-      const rangeEnd = getEndOfDay(endDate);
-      
-      // Check if today intersects with the date range
-      return !(rangeEnd < startOfToday || rangeStart > endOfToday);
-    });
-  };
-
-  // Filter offers - keep offer if at least one discount type is still usable AND date constraints are met
-  const validOffers: OfferForMarketplace[] = [];
-
-  for (const offer of allOffers) {
-    // Check date ranges if they exist
-    // Note: Date ranges are used for filtering active offers in marketplace
-    // If offer has date ranges, at least one must be active for the offer to be valid
-    const hasActiveDateRange = isWithinActiveDateRange(offer.dateRanges || []);
-    if (!hasActiveDateRange) {
-      continue; // Skip this offer if no active date range matches (for marketplace display only)
-    }
-    
-    // Check if at least one discount type is active
-    let hasValidDiscountType = false;
-    
-    for (const discountType of offer.offerDiscountTypes) {
-      if (discountType.isActive === true) {
-        hasValidDiscountType = true;
-        break;
-      }
-    }
-    
-    if (!hasValidDiscountType) {
-      try {
-        await prisma.offer.update({
-          where: { id: offer.id },
-          data: { status: 'inactive' },
-        });
-      } catch (error) {
-        console.error(`[Marketplace] Failed to deactivate offer ${offer.id}:`, error);
-      }
-    } else {
-      validOffers.push(offer);
-    }
-  }
-  
-  // Note: Price updates are handled by offer activation/deactivation mutations
-  // We don't update prices here to avoid race conditions and ensure consistency
-  
-  // Create a map of product offers using only valid offers
-  const productOffersMap = new Map<string, OfferForMarketplace[]>();
-  validOffers.forEach((offer) => {
-    offer.offerProducts.forEach((op) => {
-      if (!productOffersMap.has(op.productId)) {
-        productOffersMap.set(op.productId, []);
-      }
-      productOffersMap.get(op.productId)!.push(offer);
-    });
-  });
-  
   // Transform products for marketplace format
   const marketplaceProducts = await Promise.all(resolvedProducts.map(async (product) => {
     const variantOptions = product.variantOptions || [];
@@ -842,87 +723,16 @@ export const fetchMarketplaceProducts = async (args: {
       ? safeParsePrice(firstVariantOption.originalSellingPrice) 
       : null;
     
-    const productOffers = productOffersMap.get(product.productId) ?? [];
-    let offerBadge = undefined;
-    let hasActiveOffer = false;
-    let offerId = undefined;
-    let offerName = undefined;
-    let originalSellingPrice = undefined;
-    let discountType = undefined;
-    let discountValue = undefined;
-    let hasPriceDiscounts = false;
-    let promotionDetails = undefined;
-    
-    if (productOffers.length > 0) {
-      const primaryOffer = productOffers[0];
-      
-      const activeDiscountTypes: MarketplaceOfferDiscountType[] = [];
-      for (const dt of primaryOffer.offerDiscountTypes) {
-        if (dt.isActive === true) {
-          activeDiscountTypes.push(dt);
-        }
-      }
-      
-      if (activeDiscountTypes.length === 0) {
-        try {
-          await prisma.offer.update({
-            where: { id: primaryOffer.id },
-            data: { status: 'inactive' }
-          });
-        } catch (error) {
-          console.error(`[Marketplace] Failed to deactivate offer ${primaryOffer.id}:`, error);
-        }
-      }
-      
-      if (activeDiscountTypes.length > 0) {
-        hasPriceDiscounts = activeDiscountTypes.some((dt) => dt.discountType === 'percentage' || dt.discountType === 'fixed');
-        const hasPromotions = activeDiscountTypes.some((dt) => dt.discountType === 'buy_x_get_y');
-        
-        // Determine badge type based on active discount types
-        if (hasPriceDiscounts && hasPromotions) {
-          offerBadge = 'All Offers';
-        } else if (hasPromotions) {
-          offerBadge = 'Promotion';
-        } else if (hasPriceDiscounts) {
-          offerBadge = 'Discount';
-        } else {
-          offerBadge = 'Offer';
-        }
-        
-        // Set discount information if there are price discounts
-        if (hasPriceDiscounts) {
-          const fixedDiscount = activeDiscountTypes.find((dt) => dt.discountType === 'fixed');
-          const percentageDiscount = activeDiscountTypes.find((dt) => dt.discountType === 'percentage');
-          discountType = fixedDiscount ? 'fixed' : (percentageDiscount ? 'percentage' : undefined);
-          // Convert Decimal to number for GraphQL Float type
-          const rawDiscountValue = fixedDiscount ? fixedDiscount.discountValue : (percentageDiscount ? percentageDiscount.discountValue : undefined);
-          discountValue = rawDiscountValue !== undefined 
-            ? safeParsePrice(rawDiscountValue as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined)
-            : undefined;
-        }
-        
-        // Set promotion details if there are buy X get Y promotions
-        const buyXGetYPromo = activeDiscountTypes.find((dt) => dt.discountType === 'buy_x_get_y');
-        if (buyXGetYPromo) {
-          promotionDetails = buildBuyXGetYPromotionDetails(buyXGetYPromo);
-        }
-      
-        hasActiveOffer = true;
-        offerId = primaryOffer.id;
-        offerName = primaryOffer.name;
-      }
-    }
-    
-    // Only show originalSellingPrice (strikethrough) if:
-    // 1. There's an active offer with price discounts, AND
-    // 2. The stored original price exists and is greater than selling price
-    // Otherwise, don't show strikethrough (no offer or no price discount)
-    if (hasActiveOffer && hasPriceDiscounts && storedOriginalPrice && storedOriginalPrice > sellingPrice) {
-      originalSellingPrice = storedOriginalPrice;
-    } else {
-      originalSellingPrice = undefined; // No strikethrough when no offer
-    }
-    
+    // Public catalog: never expose another client's private rates
+    const offerBadge = null;
+    const hasActiveOffer = false;
+    const offerId = null;
+    const offerName = null;
+    const originalSellingPrice = undefined;
+    const discountType = null;
+    const discountValue = null;
+    const promotionDetails = null;
+
     const totalStock = variantOptions.reduce((sum, vo) => sum + (vo.stockQuantity || 0), 0);
     const totalLowStockThreshold = variantOptions.reduce((max, vo) => Math.max(max, vo.lowStockThreshold || 0), 0);
     

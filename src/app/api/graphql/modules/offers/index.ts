@@ -1,52 +1,41 @@
 import { type Prisma } from '@/lib/db';
-import { broadcastOfferUpdate, broadcastPriceUpdate, broadcastProductUpdate } from '@/utils/websocketBroadcast';
-import { updateProductPricesFromOffers, deactivateExpiredOffers } from '@/utils/marketplaceMetrics';
+import { getTodayBoundaries, getStartOfDay, getEndOfDay } from '@/lib/dateUtils';
 import { prisma } from '../common/prisma';
 import { sanitizePagination, buildPaginationInfo, parseMoney } from '../common/utils';
-import { getTodayBoundaries, getStartOfDay, getEndOfDay } from '@/lib/dateUtils';
-import { NotificationService } from '../notifications';
-import { DateTime } from 'luxon';
-import { getRedisClient, isRedisAvailable } from '@/lib/redis';
+import { withDashboardAuth } from '../common/auth';
+import { isValidMerchandisingSlug, getMerchandisingLabel } from '@/constants/merchandisingTaxonomy';
+
+const DISCOUNT_TYPES = new Set(['percentage', 'fixed_amount', 'buy_x_get_y']);
+/** User-selectable statuses only. Expired is set by the system when endDate passes. */
+const STATUSES = new Set(['draft', 'active']);
 
 export const offersTypeDefs = /* GraphQL */ `
-  type OfferDiscount {
-    id: String!
-    discountType: String!
-    discountValue: Float!
-    minOrderValue: Float
-    minQuantity: Int
-    promotionApplyMode: String
-    isActive: Boolean!
-    priority: Int!
-  }
-
-  type OfferDateRange {
-    id: String!
-    name: String!
-    description: String
-    startDate: String!
-    endDate: String!
-    isActive: Boolean!
-    createdAt: String
-    updatedAt: String
-  }
-
-  type OfferProduct {
-    productId: String!
-  }
-
   type Offer {
     id: String!
     offerId: String!
-    name: String!
-    description: String
-    type: [String!]!
+    groupId: String
+    buyerId: String
+    buyerStoreName: String
+    buyerOwner: String
+    productId: String
+    productName: String
+    categoryId: String
+    categoryLabel: String
+    variantOptionId: Int
+    variantName: String
+    discountType: String!
+    discountValue: Float!
+    buyQuantity: Int
+    freeQuantity: Int
+    startDate: String!
+    endDate: String
     status: String!
+    notes: String
+    description: String
     totalUsage: Int!
     totalDiscountGiven: Float!
-    discountTypes: [OfferDiscount!]!
-    dateRanges: [OfferDateRange!]!
-    products: [OfferProduct!]!
+    createdAt: String!
+    updatedAt: String!
   }
 
   type OfferConnection {
@@ -54,29 +43,20 @@ export const offersTypeDefs = /* GraphQL */ `
     pagination: PaginationInfo!
   }
 
-  input DiscountTypeInput {
-    discountType: String!
-    discountValue: Float!
-    name: String
-    description: String
-    minOrderValue: Float
-    minQuantity: Int
-    promotionApplyMode: String
-    isActive: Boolean
-    priority: Int
-  }
-
-  input DateRangeInput {
-    name: String!
-    description: String
-    startDate: String!
-    endDate: String!
-    isActive: Boolean
-  }
-
   type DeleteOfferResult {
     success: Boolean!
     deleted: Offer
+    deletedCount: Int
+  }
+
+  input OfferGroupTargetInput {
+    productId: String
+    variantOptionId: Int
+  }
+
+  type SaveOfferGroupResult {
+    groupId: String!
+    offers: [Offer!]!
   }
 
   extend type Query {
@@ -85,1020 +65,938 @@ export const offersTypeDefs = /* GraphQL */ `
       page: Int = 1
       limit: Int = 10
       status: String
-      type: String
+      buyerId: String
+      productId: String
     ): OfferConnection!
 
     offer(userId: Int!, id: String!): Offer
+
+    offersForBuyer(userId: Int!, buyerId: String!): [Offer!]!
+
+    offersInGroup(userId: Int!, id: String!): [Offer!]!
+
+    productCustomOfferClientCount(userId: Int!, productId: String!): Int!
   }
 
   extend type Mutation {
     createOffer(
       userId: Int!
-      name: String!
-      description: String
-      type: [String!]!
+      buyerId: String
+      productId: String
+      categoryId: String
+      variantOptionId: Int
+      discountType: String!
+      discountValue: Float!
+      buyQuantity: Int
+      freeQuantity: Int
+      startDate: String!
+      endDate: String
       status: String
-      discountTypes: [DiscountTypeInput!]!
-      productIds: [String!]!
-      dateRanges: [DateRangeInput!]
+      notes: String
+      description: String
+      groupId: String
     ): Offer!
 
     updateOffer(
       userId: Int!
       id: String!
-      name: String
-      description: String
-      type: [String!]
+      buyerId: String
+      productId: String
+      categoryId: String
+      variantOptionId: Int
+      discountType: String
+      discountValue: Float
+      buyQuantity: Int
+      freeQuantity: Int
+      startDate: String
+      endDate: String
       status: String
-      discountTypes: [DiscountTypeInput!]
-      productIds: [String!]
-      dateRanges: [DateRangeInput!]
+      notes: String
+      description: String
+      groupId: String
     ): Offer!
 
     deleteOffer(userId: Int!, id: String!): DeleteOfferResult!
+
+    """
+    Atomically create or sync a multi-product rate group in one Prisma transaction.
+    Matching product/variant rows keep their ids and usage aggregates; removed targets
+    are deleted; failures leave the prior group unchanged.
+    """
+    saveOfferGroup(
+      userId: Int!
+      seedId: String
+      groupId: String
+      buyerId: String
+      discountType: String!
+      discountValue: Float!
+      buyQuantity: Int
+      freeQuantity: Int
+      startDate: String!
+      endDate: String
+      status: String
+      notes: String
+      description: String
+      targets: [OfferGroupTargetInput!]!
+    ): SaveOfferGroupResult!
   }
 `;
 
-// Helper function to check if date ranges are expired
-const hasExpiredDateRanges = (dateRanges: Array<{ startDate: Date; endDate: Date; isActive: boolean }>): boolean => {
-  if (!dateRanges || dateRanges.length === 0) {
-    return false; // No date ranges means not expired
-  }
-
-  const { startOfToday } = getTodayBoundaries();
-
-  // Check if ALL active date ranges are expired
-  const activeDateRanges = dateRanges.filter(dr => dr.isActive);
-  if (activeDateRanges.length === 0) {
-    return true; // No active date ranges means expired
-  }
-
-  // If all active date ranges are expired, return true
-  const allExpired = activeDateRanges.every(range => {
-    const rangeStart = getStartOfDay(new Date(range.startDate));
-    const rangeEnd = getEndOfDay(new Date(range.endDate));
-    
-    // Check if current date is AFTER the range (expired)
-    return startOfToday > rangeEnd;
-  });
-
-  return allExpired;
-};
-
-const mapOffer = (
-  offer: Prisma.OfferGetPayload<{
+type OfferRow = Prisma.OfferGetPayload<{
     include: {
-      offerDiscountTypes: true;
-      dateRanges: true;
-      offerProducts: true;
-    };
-  }>,
-) => {
-  // Don't auto-inactivate expired offers - allow users to manually control status
-  // Status is now flexible and can be reactivated by changing date ranges
+    buyer: { select: { storeName: true; owner: true; buyerId: true } };
+    product: { select: { name: true; productId: true } };
+    variantOption: { select: { id: true; variantName: true } };
+  };
+}>;
+
+const offerInclude = {
+  buyer: { select: { storeName: true, owner: true, buyerId: true } },
+  product: { select: { name: true, productId: true } },
+  variantOption: { select: { id: true, variantName: true } },
+} as const;
+
+function mapOffer(offer: OfferRow) {
   return {
     id: offer.id,
     offerId: offer.offerId,
-    name: offer.name,
-    description: offer.description,
-    type: offer.type,
+    groupId: offer.groupId ?? null,
+    buyerId: offer.buyerId,
+    buyerStoreName: offer.buyer?.storeName ?? null,
+    buyerOwner: offer.buyer?.owner ?? null,
+    productId: offer.productId,
+    productName: offer.product?.name ?? null,
+    categoryId: offer.categoryId,
+    categoryLabel: offer.categoryId ? getMerchandisingLabel(offer.categoryId) : null,
+    variantOptionId: offer.variantOptionId ?? null,
+    variantName: offer.variantOption?.variantName ?? null,
+    discountType: offer.discountType,
+    discountValue: parseMoney(offer.discountValue),
+    buyQuantity: offer.buyQuantity,
+    freeQuantity: offer.freeQuantity ?? null,
+    startDate: offer.startDate.toISOString(),
+    endDate: offer.endDate ? offer.endDate.toISOString() : null,
     status: offer.status,
+    notes: offer.notes,
+    description: offer.description,
     totalUsage: offer.totalUsage,
-    totalDiscountGiven: parseMoney(offer.totalDiscountGiven), // Convert Decimal to number
-    discountTypes: offer.offerDiscountTypes.map((discount) => ({
-      id: discount.id,
-      discountType: discount.discountType,
-      discountValue: parseMoney(discount.discountValue), // Convert Decimal to number
-      minOrderValue: discount.minOrderValue ? parseMoney(discount.minOrderValue) : null, // Convert Decimal to number
-      minQuantity: discount.minQuantity,
-      promotionApplyMode: discount.promotionApplyMode ?? 'after_moq',
-      isActive: discount.isActive,
-      priority: discount.priority,
-    })),
-    dateRanges: (offer.dateRanges || []).map((dr) => ({
-      id: dr.id,
-      name: dr.name,
-      description: dr.description,
-      startDate: dr.startDate.toISOString(),
-      endDate: dr.endDate.toISOString(),
-      isActive: dr.isActive,
-      createdAt: dr.createdAt.toISOString(),
-      updatedAt: dr.updatedAt.toISOString(),
-    })),
-    products: (offer.offerProducts || []).map((op) => ({
-      productId: op.productId,
-    })),
+    totalDiscountGiven: parseMoney(offer.totalDiscountGiven),
+    createdAt: offer.createdAt.toISOString(),
+    updatedAt: offer.updatedAt.toISOString(),
   };
-};
+}
+
+/** Mark active offers past endDate as expired. */
+export async function deactivateExpiredOffers(userId?: number): Promise<{ expiredCount: number }> {
+  const { startOfToday } = getTodayBoundaries();
+  const where: Prisma.OfferWhereInput = {
+    status: 'active',
+    endDate: { not: null, lt: startOfToday },
+    ...(userId != null ? { userId } : {}),
+  };
+  const result = await prisma.offer.updateMany({
+    where,
+    data: { status: 'expired' },
+  });
+  return { expiredCount: result.count };
+}
+
+function resolveBxgyQuantities(input: {
+  discountType: string;
+  discountValue: number;
+  buyQuantity?: number | null;
+  freeQuantity?: number | null;
+}): { buyQuantity: number | null; freeQuantity: number | null } {
+  const buy =
+    input.buyQuantity != null && Number.isFinite(Number(input.buyQuantity))
+      ? Math.floor(Number(input.buyQuantity))
+      : null;
+  let free =
+    input.freeQuantity != null && Number.isFinite(Number(input.freeQuantity))
+      ? Math.floor(Number(input.freeQuantity))
+      : null;
+
+  // Legacy BXGY: free Y lived in discountValue
+  if (input.discountType === 'buy_x_get_y' && (free == null || free < 1)) {
+    const fromValue = Math.round(Number(input.discountValue));
+    if (Number.isFinite(fromValue) && fromValue > 0) free = fromValue;
+  }
+
+  const isPriceType =
+    input.discountType === 'percentage' || input.discountType === 'fixed_amount';
+
+  if (input.discountType === 'buy_x_get_y') {
+    return { buyQuantity: buy, freeQuantity: free };
+  }
+
+  // Combo: keep buy/free when both provided on a price discount type
+  if (isPriceType && buy != null && buy >= 1 && free != null && free >= 1) {
+    return { buyQuantity: buy, freeQuantity: free };
+  }
+
+  return { buyQuantity: null, freeQuantity: null };
+}
+
+function validateDiscountFields(input: {
+  discountType: string;
+  discountValue: number;
+  buyQuantity?: number | null;
+  freeQuantity?: number | null;
+  productId?: string | null;
+  categoryId?: string | null;
+  variantOptionId?: number | null;
+  startDate: Date;
+  endDate: Date | null;
+  /** Drafts may omit client/product until the user finishes the wizard. */
+  allowIncomplete?: boolean;
+}) {
+  if (!DISCOUNT_TYPES.has(input.discountType)) {
+    throw new Error('Invalid discount type. Use percentage, fixed_amount, or buy_x_get_y');
+  }
+  if (!(input.discountValue > 0)) {
+    throw new Error('Discount value must be greater than 0');
+  }
+  if (input.discountType === 'percentage' && input.discountValue > 100) {
+    throw new Error('Percentage discount cannot exceed 100%');
+  }
+
+  const resolved = resolveBxgyQuantities(input);
+
+  if (input.discountType === 'buy_x_get_y') {
+    if (!resolved.buyQuantity || resolved.buyQuantity < 1) {
+      throw new Error('buyQuantity is required for buy_x_get_y');
+    }
+    if (!resolved.freeQuantity || resolved.freeQuantity < 1) {
+      throw new Error('freeQuantity is required for buy_x_get_y');
+    }
+  }
+
+  // Combo on price types: if either buy or free is set, both must be valid
+  const isPriceType =
+    input.discountType === 'percentage' || input.discountType === 'fixed_amount';
+  if (isPriceType) {
+    const hasBuy = input.buyQuantity != null && Number(input.buyQuantity) > 0;
+    const hasFree = input.freeQuantity != null && Number(input.freeQuantity) > 0;
+    if (hasBuy !== hasFree) {
+      throw new Error('buyQuantity and freeQuantity must both be set for combination discounts');
+    }
+    if (hasBuy && hasFree) {
+      if (!resolved.buyQuantity || resolved.buyQuantity < 1) {
+        throw new Error('buyQuantity must be at least 1 for combination discounts');
+      }
+      if (!resolved.freeQuantity || resolved.freeQuantity < 1) {
+        throw new Error('freeQuantity must be at least 1 for combination discounts');
+      }
+    }
+  }
+
+  const hasProduct = Boolean(input.productId?.trim());
+  const hasCategory = Boolean(input.categoryId?.trim());
+  if (input.allowIncomplete) {
+    if (hasProduct && hasCategory) {
+      throw new Error('Provide productId or categoryId, not both');
+    }
+  } else if (hasProduct === hasCategory) {
+    throw new Error('Exactly one of productId or categoryId is required');
+  }
+  if (hasCategory && input.categoryId && !isValidMerchandisingSlug(input.categoryId)) {
+    throw new Error('Invalid categoryId');
+  }
+  if (input.variantOptionId != null && !hasProduct) {
+    throw new Error('productId is required when variantOptionId is set');
+  }
+  if (input.endDate && getEndOfDay(input.endDate) < getStartOfDay(input.startDate)) {
+    throw new Error('endDate must be on or after startDate');
+  }
+}
+
+async function assertBuyerBelongsToUser(userId: number, buyerId: string) {
+  const buyer = await prisma.buyer.findFirst({
+    where: { userId, buyerId },
+    select: { buyerId: true },
+  });
+  if (!buyer) throw new Error('Buyer not found or does not belong to you');
+}
+
+async function assertProductBelongsToUser(userId: number, productId: string) {
+  const product = await prisma.product.findFirst({
+    where: { userId, productId },
+    select: { productId: true, id: true },
+  });
+  if (!product) throw new Error('Product not found or does not belong to you');
+  return product;
+}
+
+async function assertVariantBelongsToProduct(
+  userId: number,
+  productId: string,
+  variantOptionId: number,
+) {
+  const product = await assertProductBelongsToUser(userId, productId);
+  const variant = await prisma.variantOption.findFirst({
+    where: { id: variantOptionId, productId: product.id },
+    select: { id: true },
+  });
+  if (!variant) {
+    throw new Error('Variant does not belong to the selected product');
+  }
+}
 
 const fetchOffersConnection = async (args: {
   userId: number;
   page?: number;
   limit?: number;
   status?: string | null;
-  type?: string | null;
+  buyerId?: string | null;
+  productId?: string | null;
 }) => {
-  const { userId, page = 1, limit = 10, status, type } = args;
-  const { page: safePage, limit: safeLimit } = sanitizePagination(page, limit);
+  const { userId, status, buyerId, productId } = args;
+  const { page, limit } = sanitizePagination(args.page, args.limit);
 
-  // Check cache first (only for first page to avoid stale data on pagination)
-  if (safePage === 1) {
-    const { getCachedOfferList } = await import('@/lib/queryCache');
-    const cached = await getCachedOfferList<{
-      nodes: unknown[];
-      pagination: ReturnType<typeof buildPaginationInfo>;
-    }>(userId, safePage, safeLimit, { status, type });
-    
-    if (cached) {
-      return cached;
-    }
-  }
+  await deactivateExpiredOffers(userId);
 
-  // Only deactivate expired offers and update prices on first page load (page 1)
-  // This significantly improves performance for pagination and filtering
-  if (safePage === 1) {
-    // Await deactivation and broadcast to ensure real-time updates
-    try {
-      const result = await deactivateExpiredOffers(prisma, userId);
-      
-      // Broadcast websocket updates for activated and deactivated offers
-      // Do this BEFORE querying so clients get updates immediately
-      // Collect all affected product IDs for batch broadcast
-      const allAffectedProductIds = new Set<string>();
-      
-      // Collect all broadcasts to run in parallel
-      const broadcastPromises: Promise<void>[] = [];
-      
-      for (const { offerId, productIds } of result.activatedOffers) {
-        productIds.forEach(id => allAffectedProductIds.add(id));
-        // Run all broadcasts in parallel for this offer
-        broadcastPromises.push(
-          broadcastOfferUpdate(offerId, productIds),
-          broadcastPriceUpdate(productIds),
-          broadcastProductUpdate(productIds)
-        );
-      }
-      
-      for (const { offerId, productIds } of result.deactivatedOffers) {
-        productIds.forEach(id => allAffectedProductIds.add(id));
-        // Run all broadcasts in parallel for this offer
-        broadcastPromises.push(
-          broadcastOfferUpdate(offerId, productIds),
-          broadcastPriceUpdate(productIds),
-          broadcastProductUpdate(productIds)
-        );
-      }
-      
-      // Wait for all broadcasts to complete
-      if (broadcastPromises.length > 0) {
-        await Promise.allSettled(broadcastPromises);
-        // Invalidate search cache when offers change (only search queries use cache)
-        const { invalidateSearchCache } = await import('@/utils/searchCache');
-        await invalidateSearchCache('search-cache:marketplace:*');
-        // Small delay to ensure WebSocket messages are sent before query returns
-        await new Promise(resolve => setTimeout(resolve, 50));
-        
-        // Update product prices in background (non-blocking, fire-and-forget)
-        // Only needed when offers are actually activated/deactivated
-        // Extract unique product IDs that need price updates
-        const productIdsToUpdate = Array.from(allAffectedProductIds);
-        if (productIdsToUpdate.length > 0) {
-          // Fire-and-forget: don't await, don't block the UI
-          Promise.resolve().then(async () => {
-            await updateProductPricesFromOffers(prisma, userId, productIdsToUpdate);
-            // Invalidate caches after offer changes
-            const { invalidateOfferCache, invalidateProductCache } = await import('@/lib/queryCache');
-            await Promise.all([
-              invalidateOfferCache(userId),
-              invalidateProductCache(userId),
-            ]);
-          }).catch(error => {
-            console.error('[Offers] Background price update failed:', error);
-          });
-        }
-      }
-    } catch (error) {
-      console.error('[Offers] Background maintenance failed for userId:', userId, error);
-    }
-  }
-  const whereClause: Prisma.OfferWhereInput = { userId };
-
-  if (status && status !== 'All') {
-    whereClause.status = status;
-  }
-
-  if (type && type !== 'All') {
-    whereClause.type = { has: type };
-  }
-
-  const [offers, totalCount] = await Promise.all([
-    prisma.offer.findMany({
-      where: whereClause,
-      skip: (safePage - 1) * safeLimit,
-      take: safeLimit,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        offerDiscountTypes: true,
-        dateRanges: true,
-        offerProducts: true,
-      },
-    }),
-    prisma.offer.count({ where: whereClause }),
-  ]);
-
-  const result = {
-    nodes: offers.map(mapOffer),
-    pagination: buildPaginationInfo(safePage, safeLimit, totalCount),
+  const where: Prisma.OfferWhereInput = {
+    userId,
+    ...(status ? { status } : {}),
+    ...(buyerId ? { buyerId } : {}),
+    ...(productId ? { productId } : {}),
   };
 
-  // Cache the result (only first page)
-  // IMPORTANT: Invalidate caches BEFORE setting new cache to prevent race conditions
-  // This ensures any background price update tasks don't invalidate caches we just wrote
-  if (safePage === 1) {
-    const { setCachedOfferList, invalidateOfferCache, invalidateProductCache } = await import('@/lib/queryCache');
-    // Invalidate caches synchronously before writing new cache entries
-    // This prevents race conditions with background price update tasks
-    await Promise.all([
-      invalidateOfferCache(userId),
-      invalidateProductCache(userId),
-    ]);
-    // Now set the new cache after invalidation is complete
-    await setCachedOfferList(userId, safePage, safeLimit, { status, type }, result);
-  }
+  const [totalCount, nodes] = await Promise.all([
+    prisma.offer.count({ where }),
+    prisma.offer.findMany({
+      where,
+      include: offerInclude,
+      orderBy: { updatedAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+  ]);
 
-  return result;
+  return {
+    nodes: nodes.map(mapOffer),
+    pagination: buildPaginationInfo(page, limit, totalCount),
+  };
 };
 
 const fetchSingleOffer = async (args: { userId: number; id: string }) => {
   const { userId, id } = args;
-
-  // Deactivate expired offers and update product prices before fetching
-  // This ensures the offer status is current when viewing details
-  try {
-    const result = await deactivateExpiredOffers(prisma, userId);
-    
-    // Broadcast websocket updates for activated and deactivated offers
-    // Do this BEFORE querying so clients get updates immediately
-    // Collect all affected product IDs for batch broadcast
-    const allAffectedProductIds = new Set<string>();
-    
-    // Collect all broadcasts to run in parallel
-    const broadcastPromises: Promise<void>[] = [];
-    
-    for (const { offerId, productIds } of result.activatedOffers) {
-      productIds.forEach(pid => allAffectedProductIds.add(pid));
-      // Run all broadcasts in parallel for this offer
-      broadcastPromises.push(
-        broadcastOfferUpdate(offerId, productIds),
-        broadcastPriceUpdate(productIds),
-        broadcastProductUpdate(productIds)
-      );
-    }
-    
-    for (const { offerId, productIds } of result.deactivatedOffers) {
-      productIds.forEach(id => allAffectedProductIds.add(id));
-      // Run all broadcasts in parallel for this offer
-      broadcastPromises.push(
-        broadcastOfferUpdate(offerId, productIds),
-        broadcastPriceUpdate(productIds),
-        broadcastProductUpdate(productIds)
-      );
-    }
-    
-    // Wait for all broadcasts to complete
-    if (broadcastPromises.length > 0) {
-      await Promise.allSettled(broadcastPromises);
-      // Invalidate search cache when offers change (only search queries use cache)
-      const { invalidateSearchCache } = await import('@/utils/searchCache');
-      await invalidateSearchCache('search-cache:marketplace:*');
-      // Small delay to ensure WebSocket messages are sent before query returns
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
-      // Update product prices in background (non-blocking, fire-and-forget)
-      // Only needed when offers are actually activated/deactivated
-      const productIdsToUpdate = Array.from(allAffectedProductIds);
-      if (productIdsToUpdate.length > 0) {
-        // Fire-and-forget: don't await, don't block the UI
-        Promise.resolve().then(async () => {
-          await updateProductPricesFromOffers(prisma, userId, productIdsToUpdate);
-          // Invalidate caches after offer changes
-          const { invalidateOfferCache, invalidateProductCache } = await import('@/lib/queryCache');
-          await Promise.all([
-            invalidateOfferCache(userId),
-            invalidateProductCache(userId),
-          ]);
-        }).catch(error => {
-          console.error('[Offer] Background price update failed:', error);
-        });
-      }
-    }
-  } catch (error) {
-    console.error('[Offer] Background maintenance failed for userId:', userId, error);
-  }
-
+  await deactivateExpiredOffers(userId);
   const offer = await prisma.offer.findFirst({
-    where: {
-      OR: [{ id }, { offerId: id }],
-      userId,
-    },
-    include: {
-        offerDiscountTypes: true,
-        dateRanges: true,
-        offerProducts: true,
-    },
+    where: { userId, OR: [{ id }, { offerId: id }] },
+    include: offerInclude,
   });
-
-  if (!offer) {
-    return null;
-  }
-
-  return mapOffer(offer);
+  return offer ? mapOffer(offer) : null;
 };
 
-// Helper: Check if offer is expiring soon and trigger notifications
-const checkOfferExpiryAndNotify = async (
-  userId: number,
-  offerId: string,
-  offerName: string,
-  dateRanges: Array<{ endDate: Date | string; isActive?: boolean }>
-) => {
-  const now = DateTime.now().setZone('Asia/Jakarta');
+const fetchOffersForBuyer = async (args: { userId: number; buyerId: string }) => {
+  const { userId, buyerId } = args;
+  await deactivateExpiredOffers(userId);
+  const offers = await prisma.offer.findMany({
+    where: { userId, buyerId },
+    include: offerInclude,
+    orderBy: { updatedAt: 'desc' },
+  });
+  return offers.map(mapOffer);
+};
 
-  // Find the earliest end date among active date ranges
-  const activeDateRanges = dateRanges.filter(dr => dr.isActive !== false);
-  if (activeDateRanges.length === 0) return;
+const productCustomOfferClientCount = async (args: { userId: number; productId: string }) => {
+  const { userId, productId } = args;
+  await deactivateExpiredOffers(userId);
 
-  let earliestEndDate: DateTime | null = null;
-  for (const dr of activeDateRanges) {
-    const endDate = DateTime.fromJSDate(dr.endDate instanceof Date ? dr.endDate : new Date(dr.endDate), { zone: 'Asia/Jakarta' }).endOf('day');
-    if (!earliestEndDate || endDate < earliestEndDate) {
-      earliestEndDate = endDate;
-    }
-  }
-
-  if (!earliestEndDate) return;
-
-  const daysUntilExpiry = Math.floor(earliestEndDate.diff(now, 'days').days);
-
-  // Determine which threshold to notify for (7, 3, or 1 day)
-  // Only send notification if we're at or past one of these thresholds
-  let notificationThreshold: number | null = null;
-  
-  if (daysUntilExpiry <= 1) {
-    notificationThreshold = 1;
-  } else if (daysUntilExpiry <= 3) {
-    notificationThreshold = 3;
-  } else if (daysUntilExpiry <= 7) {
-    notificationThreshold = 7;
-  }
-
-  if (notificationThreshold !== null) {
-    // Fast path: check Redis first for deduplication (avoids DB query)
-    const redis = getRedisClient();
-    const dedupeKey = `offer-expiry-notif:${userId}:${offerId}:${notificationThreshold}`;
-    if (redis && isRedisAvailable()) {
-      try {
-        const exists = await redis.get(dedupeKey);
-        if (exists) return; // Already notified within 24h
-      } catch {
-        // Fall through to DB check
-      }
-    }
-
-    // Fallback: fetch recent notifications and inspect metadata (when Redis unavailable)
-    const recentNotifications = await prisma.notification.findMany({
-      where: {
-        userId,
-        type: 'offer',
-        createdAt: {
-          gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Within last 24 hours
-        },
-      },
-    });
-
-    let isDuplicate = false;
-    for (const notification of recentNotifications) {
-      const meta = notification.metadata as { offerId?: string; expiryThreshold?: number };
-      if (
-        meta &&
-        typeof meta === 'object' &&
-        meta.offerId === offerId &&
-        meta.expiryThreshold === notificationThreshold
-      ) {
-        isDuplicate = true;
-        break;
-      }
-    }
-
-    // Only send if no duplicate notification exists
-    if (!isDuplicate) {
-      await NotificationService.createOfferExpirationNotification(
-        userId,
-        offerId,
-        offerName,
-        daysUntilExpiry,
-        notificationThreshold
-      );
-
-      // Record in Redis for fast deduplication on next check
-      if (redis && isRedisAvailable()) {
-        try {
-          await redis.setex(dedupeKey, 86400, '1'); // 24h TTL
-        } catch {
-          // Silent fail
-        }
-      }
-    }
-  }
+  const { startOfToday, endOfToday } = getTodayBoundaries();
+  const groups = await prisma.offer.groupBy({
+    by: ['buyerId'],
+    where: {
+      userId,
+      productId,
+      buyerId: { not: null },
+      status: 'active',
+      startDate: { lte: endOfToday },
+      OR: [{ endDate: null }, { endDate: { gte: startOfToday } }],
+    },
+  });
+  return groups.length;
 };
 
 const createOffer = async (args: {
   userId: number;
-  name: string;
-  description?: string | null;
-  type: string[];
-  status?: string | null;
-  discountTypes: Array<{
+  buyerId?: string | null;
+  productId?: string | null;
+  categoryId?: string | null;
+  variantOptionId?: number | null;
     discountType: string;
     discountValue: number;
-    name?: string | null;
-    description?: string | null;
-    minOrderValue?: number | null;
-    minQuantity?: number | null;
-    promotionApplyMode?: string | null;
-    isActive?: boolean | null;
-    priority?: number | null;
-  }>;
-  productIds: string[];
-  dateRanges?: Array<{
-    name: string;
-    description?: string | null;
+  buyQuantity?: number | null;
+  freeQuantity?: number | null;
     startDate: string;
-    endDate: string;
-    isActive?: boolean | null;
-  }> | null;
+  endDate?: string | null;
+  status?: string | null;
+  notes?: string | null;
+  description?: string | null;
+  groupId?: string | null;
 }) => {
   const {
     userId,
-    name,
+    productId,
+    categoryId,
+    discountType,
+    discountValue,
+    buyQuantity,
+    freeQuantity,
+    notes,
     description,
-    type,
-    status = 'active',
-    discountTypes,
-    productIds,
-    dateRanges = [],
   } = args;
 
-  // Date ranges are now optional - offers can exist without date restrictions
-  if (!name || !type || !discountTypes?.length || !productIds?.length) {
-    throw new Error('Missing required fields');
+  const buyerId = args.buyerId?.trim() || null;
+  const groupId = args.groupId?.trim() || null;
+  const startDate = new Date(args.startDate);
+  const endDate = args.endDate ? new Date(args.endDate) : null;
+  if (Number.isNaN(startDate.getTime())) throw new Error('Invalid startDate');
+  if (endDate && Number.isNaN(endDate.getTime())) throw new Error('Invalid endDate');
+
+  const variantOptionId =
+    args.variantOptionId != null && Number.isFinite(Number(args.variantOptionId))
+      ? Number(args.variantOptionId)
+      : null;
+
+  // Category targeting cannot carry a variant scope
+  const resolvedVariantOptionId = categoryId?.trim() ? null : variantOptionId;
+
+  const status = args.status && STATUSES.has(args.status) ? args.status : 'draft';
+  const allowIncomplete = status === 'draft';
+
+  if (!allowIncomplete && !buyerId) {
+    throw new Error('Client is required for active rates');
   }
 
-  for (const discountType of discountTypes) {
-    if (discountType.discountValue <= 0) {
-      throw new Error('Discount value must be greater than 0');
-    }
-    if (discountType.discountType === 'percentage' && discountType.discountValue > 100) {
-      throw new Error('Percentage discount cannot exceed 100%');
-    }
-  }
-
-  const userProducts = await prisma.product.findMany({
-    where: {
-      userId,
-      productId: { in: productIds },
-    },
-    select: { productId: true },
+  validateDiscountFields({
+    discountType,
+    discountValue,
+    buyQuantity,
+    freeQuantity,
+    productId,
+    categoryId,
+    variantOptionId: resolvedVariantOptionId,
+    startDate,
+    endDate,
+    allowIncomplete,
   });
 
-  if (userProducts.length !== productIds.length) {
-    throw new Error('Some products do not exist or do not belong to you');
-  }
+  const resolvedQty = resolveBxgyQuantities({
+    discountType,
+    discountValue,
+    buyQuantity,
+    freeQuantity,
+  });
 
-  // Determine initial status based on date ranges
-  // If all date ranges start in the future, set status to 'scheduled' for auto-activation
-  let initialStatus = status || 'active';
-  
-  if (!status && dateRanges && dateRanges.length > 0) {
-    const { DateTime } = require('luxon');
-    const now = DateTime.now().setZone('Asia/Jakarta');
-    
-    // Check if ALL date ranges are in the future
-    const allFuture = dateRanges.every(dr => {
-      const start = DateTime.fromISO(dr.startDate, { zone: 'Asia/Jakarta' }).startOf('day');
-      return now < start;
-    });
-    
-    // If all date ranges are future, set to 'scheduled' (will auto-activate when date arrives)
-    if (allFuture) {
-      initialStatus = 'scheduled';
+  if (buyerId) {
+    await assertBuyerBelongsToUser(userId, buyerId);
+  }
+  if (productId?.trim()) {
+    await assertProductBelongsToUser(userId, productId.trim());
+    if (resolvedVariantOptionId != null) {
+      await assertVariantBelongsToProduct(userId, productId.trim(), resolvedVariantOptionId);
     }
   }
 
-  const offerId = `OFF-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const offerId = `OFF-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 
-  const offer = await prisma.$transaction(async (tx) => {
-    const createdOffer = await tx.offer.create({
+  const created = await prisma.offer.create({
       data: {
         offerId,
-        name,
-        description: description || null,
-        type,
-        status: initialStatus,
+      groupId,
         userId,
-      },
-    });
-
-    await tx.offerDiscountType.createMany({
-      data: discountTypes.map((dt) => ({
-        offerId: createdOffer.id,
-        discountType: dt.discountType,
-        discountValue: dt.discountValue,
-        name: dt.name || null,
-        description: dt.description || null,
-        minOrderValue: dt.minOrderValue || null,
-        minQuantity: dt.minQuantity || null,
-        promotionApplyMode: dt.promotionApplyMode || 'after_moq',
-        isActive: dt.isActive !== false,
-        priority: dt.priority || 1,
-      })),
-    });
-
-    await tx.offerProduct.createMany({
-      data: productIds.map((productIdValue: string) => ({
-        offerId: createdOffer.id,
-        productId: productIdValue,
-      })),
-    });
-
-    if (dateRanges && dateRanges.length > 0) {
-      await tx.dateRange.createMany({
-        data: dateRanges.map((dr) => ({
-          offerId: createdOffer.id,
-          name: dr.name,
-          description: dr.description || null,
-          startDate: new Date(dr.startDate),
-          endDate: new Date(dr.endDate),
-          isActive: dr.isActive !== false,
-        })),
-      });
-    }
-
-    // Update product prices within the same transaction to ensure atomicity
-    // Only update the specific products in this new offer
-    await updateProductPricesFromOffers(tx, userId, productIds);
-
-    return createdOffer;
+      buyerId,
+      productId: productId?.trim() || null,
+      categoryId: categoryId?.trim() || null,
+      variantOptionId: resolvedVariantOptionId,
+      discountType,
+      discountValue,
+      buyQuantity: resolvedQty.buyQuantity,
+      freeQuantity: resolvedQty.freeQuantity,
+      startDate,
+      endDate,
+      status,
+      notes: notes?.trim() || null,
+      description: description?.trim() || null,
+    },
+    include: offerInclude,
   });
 
-  const createdOfferWithRelations = await prisma.offer.findUnique({
-    where: { id: offer.id },
-      include: {
-        offerDiscountTypes: true,
-        dateRanges: true,
-        offerProducts: true,
-      },
-    });
-
-    if (!createdOfferWithRelations) {
-      throw new Error('Failed to fetch created offer');
-    }
-
-  try {
-    await broadcastOfferUpdate(createdOfferWithRelations.id, productIds);
-    // Invalidate search cache when offers change (only search queries use cache)
-    const { invalidateSearchCache } = await import('@/utils/searchCache');
-    await invalidateSearchCache('search-cache:marketplace:*');
-    await broadcastPriceUpdate(productIds);
-  } catch {
-    // ignore broadcast failures
-  }
-
-  // Invalidate offer and product list caches so list UI shows the new offer immediately (mirror products flow)
-  try {
-    const { invalidateOfferCache, invalidateProductCache } = await import('@/lib/queryCache');
-    await Promise.all([
-      invalidateOfferCache(userId),
-      invalidateProductCache(userId),
-    ]);
-  } catch {
-    // ignore cache invalidation failures
-  }
-
-  // Notify if offer is activated
-  if (initialStatus === 'active') {
-    try {
-      await NotificationService.createOfferActivatedNotification(
-        userId,
-        createdOfferWithRelations.offerId,
-        createdOfferWithRelations.name
-      );
-    } catch (notifError) {
-      // Don't fail offer creation if notification fails
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[Offers] Activated notification failed:', notifError);
-      }
-    }
-  }
-
-  // Check if offer is expiring soon (7, 3, or 1 day)
-  if (initialStatus === 'active' && createdOfferWithRelations.dateRanges && createdOfferWithRelations.dateRanges.length > 0) {
-    try {
-      await checkOfferExpiryAndNotify(userId, createdOfferWithRelations.offerId, createdOfferWithRelations.name, createdOfferWithRelations.dateRanges);
-    } catch (notifError) {
-      // Don't fail offer creation if expiry check fails
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[Offers] Expiry check failed:', notifError);
-      }
-    }
-  }
-
-  return mapOffer(createdOfferWithRelations);
+  return mapOffer(created);
 };
 
 const updateOffer = async (args: {
   userId: number;
   id: string;
-  name?: string | null;
-  description?: string | null;
-  type?: string[] | null;
+  buyerId?: string | null;
+  productId?: string | null;
+  categoryId?: string | null;
+  variantOptionId?: number | null;
+  discountType?: string | null;
+  discountValue?: number | null;
+  buyQuantity?: number | null;
+  freeQuantity?: number | null;
+  startDate?: string | null;
+  endDate?: string | null;
   status?: string | null;
-  discountTypes?: Array<{
-    discountType: string;
-    discountValue: number;
-    name?: string | null;
+  notes?: string | null;
     description?: string | null;
-    minOrderValue?: number | null;
-    minQuantity?: number | null;
-    promotionApplyMode?: string | null;
-    isActive?: boolean | null;
-    priority?: number | null;
-  }> | null;
-  productIds?: string[] | null;
-  dateRanges?: Array<{
-    name: string;
-    description?: string | null;
-    startDate: string;
-    endDate: string;
-    isActive?: boolean | null;
-  }> | null;
 }) => {
-  const {
-    userId,
-    id,
-    name,
-    description,
-    type,
-    status,
-    discountTypes,
-    productIds,
-    dateRanges,
-  } = args;
+  const { userId, id } = args;
 
-  const where = {
-    OR: [{ id }, { offerId: id }],
-    userId,
-  };
+  const existing = await prisma.offer.findFirst({
+    where: { userId, OR: [{ id }, { offerId: id }] },
+  });
+  if (!existing) throw new Error('Offer not found');
 
-  const existingOffer = await prisma.offer.findFirst({
-    where,
-    include: {
-      offerProducts: true,
-      dateRanges: true,
+  const buyerId =
+    args.buyerId === undefined
+      ? existing.buyerId
+      : args.buyerId?.trim() || null;
+  const discountType = args.discountType ?? existing.discountType;
+  const discountValue =
+    args.discountValue != null ? args.discountValue : parseMoney(existing.discountValue);
+  const buyQuantity =
+    args.buyQuantity !== undefined ? args.buyQuantity : existing.buyQuantity;
+  const freeQuantity =
+    args.freeQuantity !== undefined ? args.freeQuantity : existing.freeQuantity;
+  const startDate = args.startDate ? new Date(args.startDate) : existing.startDate;
+  // Distinguish omitted endDate (keep) vs explicit null (clear standing)
+  const endDate =
+    args.endDate === undefined
+      ? existing.endDate
+      : args.endDate === null || args.endDate === ''
+        ? null
+        : new Date(args.endDate);
+
+  let productId =
+    args.productId !== undefined ? (args.productId?.trim() || null) : existing.productId;
+  let categoryId =
+    args.categoryId !== undefined ? (args.categoryId?.trim() || null) : existing.categoryId;
+
+  // If switching target type, clear the other
+  if (args.productId !== undefined && args.productId?.trim()) {
+    categoryId = null;
+  }
+  if (args.categoryId !== undefined && args.categoryId?.trim()) {
+    productId = null;
+  }
+
+  let variantOptionId =
+    args.variantOptionId !== undefined
+      ? args.variantOptionId != null && Number.isFinite(Number(args.variantOptionId))
+        ? Number(args.variantOptionId)
+        : null
+      : existing.variantOptionId;
+
+  if (categoryId) {
+    variantOptionId = null;
+  }
+
+  if (Number.isNaN(startDate.getTime())) throw new Error('Invalid startDate');
+  if (endDate && Number.isNaN(endDate.getTime())) throw new Error('Invalid endDate');
+
+  if (args.status != null && !STATUSES.has(args.status)) {
+    throw new Error('Invalid status');
+  }
+
+  const nextStatus = args.status ?? existing.status;
+  const allowIncomplete = nextStatus === 'draft';
+
+  if (!allowIncomplete && !buyerId) {
+    throw new Error('Client is required for active rates');
+  }
+
+  validateDiscountFields({
+    discountType,
+    discountValue,
+    buyQuantity,
+    freeQuantity,
+    productId,
+    categoryId,
+    variantOptionId,
+    startDate,
+    endDate,
+    allowIncomplete,
+  });
+
+  const resolvedQty = resolveBxgyQuantities({
+    discountType,
+    discountValue,
+    buyQuantity,
+    freeQuantity,
+  });
+
+  if (buyerId) {
+    await assertBuyerBelongsToUser(userId, buyerId);
+  }
+  if (productId) {
+    await assertProductBelongsToUser(userId, productId);
+    if (variantOptionId != null) {
+      await assertVariantBelongsToProduct(userId, productId, variantOptionId);
+    }
+  }
+
+  const updated = await prisma.offer.update({
+    where: { id: existing.id },
+    data: {
+      buyerId,
+      productId,
+      categoryId,
+      variantOptionId,
+      discountType,
+      discountValue,
+      buyQuantity: resolvedQty.buyQuantity,
+      freeQuantity: resolvedQty.freeQuantity,
+      startDate,
+      endDate,
+      ...(args.status != null ? { status: args.status } : {}),
+      ...(args.notes !== undefined ? { notes: args.notes?.trim() || null } : {}),
+      ...(args.description !== undefined
+        ? { description: args.description?.trim() || null }
+        : {}),
     },
+    include: offerInclude,
   });
 
-  if (!existingOffer) {
-    throw new Error('Offer not found or you do not have permission to update it');
-  }
-
-  // Track previous status to detect status changes
-  const previousStatus = existingOffer.status;
-
-  // Collect affected product IDs BEFORE the update for targeted price recalculation
-  // This includes both old and new product IDs in case products are being reassigned
-  const affectedProductIds = new Set<string>(existingOffer.offerProducts.map(op => op.productId));
-  if (productIds) {
-    productIds.forEach(pid => affectedProductIds.add(pid));
-  }
-  const affectedProductIdArray = Array.from(affectedProductIds);
-
-  const cleanUpdateData: Partial<{
-    name: string;
-    description: string | null;
-    type: string[];
-    status: string;
-  }> = {};
-
-  if (name !== undefined && name !== null) cleanUpdateData.name = name;
-  if (description !== undefined) cleanUpdateData.description = description ?? null;
-  if (type !== undefined) cleanUpdateData.type = type ?? [];
-  if (status !== undefined && status !== null) cleanUpdateData.status = status;
-
-  // Update offer AND prices in ONE transaction to prevent race conditions
-  // Pass affected product IDs to only update those specific products (not all products with offers)
-  const updatedOffer = await prisma.$transaction(async (tx) => {
-    const offer = await tx.offer.update({
-      where: { id: existingOffer.id },
-      data: cleanUpdateData,
-    });
-
-    if (discountTypes && discountTypes.length > 0) {
-      await tx.offerDiscountType.deleteMany({
-        where: { offerId: offer.id },
-      });
-
-      await tx.offerDiscountType.createMany({
-        data: discountTypes.map((dt) => ({
-          offerId: offer.id,
-          discountType: dt.discountType,
-          discountValue: dt.discountValue,
-          name: dt.name || null,
-          description: dt.description || null,
-          minOrderValue: dt.minOrderValue || null,
-          minQuantity: dt.minQuantity || null,
-          promotionApplyMode: dt.promotionApplyMode || 'after_moq',
-          isActive: dt.isActive !== false,
-          priority: dt.priority || 1,
-        })),
-      });
-    }
-
-    if (productIds !== undefined && productIds !== null) {
-      await tx.offerProduct.deleteMany({
-        where: { offerId: offer.id },
-      });
-
-      if (productIds.length > 0) {
-        const userProducts = await tx.product.findMany({
-          where: {
-            userId,
-            productId: { in: productIds },
-          },
-          select: { productId: true },
-        });
-
-        if (userProducts.length !== productIds.length) {
-          throw new Error('Some products do not exist or do not belong to you');
-        }
-
-        await tx.offerProduct.createMany({
-          data: productIds.map((productIdValue: string) => ({
-            offerId: offer.id,
-            productId: productIdValue,
-          })),
-        });
-      }
-    }
-
-    if (dateRanges !== undefined) {
-      // Hard delete: remove all existing date ranges for this offer
-      await tx.dateRange.deleteMany({
-        where: { 
-          offerId: offer.id,
-        },
-      });
-
-      // Create new date ranges if provided
-      if (dateRanges && dateRanges.length > 0) {
-        await tx.dateRange.createMany({
-          data: dateRanges.map((dr) => ({
-            offerId: offer.id,
-            name: dr.name,
-            description: dr.description || null,
-            startDate: new Date(dr.startDate),
-            endDate: new Date(dr.endDate),
-            isActive: dr.isActive !== false,
-          })),
-        });
-      }
-    }
-
-    // Update prices for affected products within the same transaction
-    // This prevents race conditions and ensures atomicity
-    // Only updates the specific products in this offer, not all products with offers
-    await updateProductPricesFromOffers(tx, userId, affectedProductIdArray);
-
-    return offer;
-  }, {
-    timeout: 30000, // 30 second timeout for large updates
-    isolationLevel: 'ReadCommitted', // Ensure reads see committed data
-  });
-
-  const updatedOfferWithRelations = await prisma.offer.findUnique({
-    where: { id: updatedOffer.id },
-    include: {
-      offerDiscountTypes: true,
-      offerProducts: true,
-      dateRanges: true,
-    },
-  });
-
-  if (!updatedOfferWithRelations) {
-    throw new Error('Failed to fetch updated offer');
-  }
-  
-  // Broadcast WebSocket updates AFTER prices are committed
-  // This ensures marketplace queries see the updated prices
-  try {
-    await broadcastOfferUpdate(updatedOfferWithRelations.id, affectedProductIdArray);
-    await broadcastPriceUpdate(affectedProductIdArray);
-    // Invalidate search cache when offers change (only search queries use cache)
-    const { invalidateSearchCache } = await import('@/utils/searchCache');
-    await invalidateSearchCache('search-cache:marketplace:*');
-  } catch {
-    // ignore broadcast failures - non-critical
-  }
-
-  // Invalidate offer and product caches to ensure fresh data on next query
-  try {
-    const { invalidateOfferCache, invalidateProductCache } = await import('@/lib/queryCache');
-    await Promise.all([
-      invalidateOfferCache(userId),
-      invalidateProductCache(userId),
-    ]);
-  } catch {
-    // ignore cache invalidation failures
-  }
-
-  // Check for status changes and notify
-  const newStatus = updatedOfferWithRelations.status;
-  if (previousStatus !== newStatus) {
-    try {
-      if (newStatus === 'active' && previousStatus !== 'active') {
-        // Offer was activated
-        await NotificationService.createOfferActivatedNotification(
-          userId,
-          updatedOfferWithRelations.offerId,
-          updatedOfferWithRelations.name
-        );
-      } else if ((newStatus === 'expired' || newStatus === 'inactive') && previousStatus === 'active') {
-        // Offer was deactivated/expired
-        await NotificationService.createOfferExpiredNotification(
-          userId,
-          updatedOfferWithRelations.offerId,
-          updatedOfferWithRelations.name
-        );
-      }
-    } catch (notifError) {
-      // Don't fail offer update if notification fails
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[Offers] Status change notification failed:', notifError);
-      }
-    }
-  }
-
-  // Check if offer is expiring soon (7, 3, or 1 day) when active
-  if (newStatus === 'active' && updatedOfferWithRelations.dateRanges && updatedOfferWithRelations.dateRanges.length > 0) {
-    try {
-      await checkOfferExpiryAndNotify(userId, updatedOfferWithRelations.offerId, updatedOfferWithRelations.name, updatedOfferWithRelations.dateRanges);
-    } catch (notifError) {
-      // Don't fail offer update if expiry check fails
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[Offers] Expiry check failed:', notifError);
-      }
-    }
-  }
-
-  return mapOffer(updatedOfferWithRelations);
+  return mapOffer(updated);
 };
 
 const deleteOffer = async (args: { userId: number; id: string }) => {
   const { userId, id } = args;
-
-  const where = {
-    OR: [{ id }, { offerId: id }],
-    userId,
-  };
-
-  const offerToDelete = await prisma.offer.findFirst({
-    where,
-    include: {
-      offerDiscountTypes: true,
-      offerProducts: true,
-      dateRanges: true,
-    },
+  const existing = await prisma.offer.findFirst({
+    where: { userId, OR: [{ id }, { offerId: id }] },
+    include: offerInclude,
   });
+  if (!existing) throw new Error('Offer not found');
 
-    if (!offerToDelete) {
-      throw new Error('Offer not found or you do not have permission to delete it');
-    }
-
-  const affectedProductIds = offerToDelete.offerProducts.map((op) => op.productId);
-
-  await prisma.$transaction(async (tx) => {
-    await tx.offer.delete({
-      where: { id: offerToDelete.id },
+  // Delete the whole offer group when rows share a groupId
+  if (existing.groupId) {
+    const result = await prisma.offer.deleteMany({
+      where: { userId, groupId: existing.groupId },
     });
-    // Only update the specific products that were in the deleted offer
-    await updateProductPricesFromOffers(tx, userId, affectedProductIds);
-  });
-
-  try {
-    await broadcastOfferUpdate(offerToDelete.id, affectedProductIds);
-    await broadcastPriceUpdate(affectedProductIds);
-    // Invalidate search cache when offers change (only search queries use cache)
-    const { invalidateSearchCache } = await import('@/utils/searchCache');
-    await invalidateSearchCache('search-cache:marketplace:*');
-  } catch {
-    // ignore broadcast failures
+    return {
+      success: true,
+      deleted: mapOffer(existing),
+      deletedCount: result.count,
+    };
   }
 
-  // Invalidate offer and product caches to ensure fresh data on next query
-  try {
-    const { invalidateOfferCache, invalidateProductCache } = await import('@/lib/queryCache');
-    await Promise.all([
-      invalidateOfferCache(userId),
-      invalidateProductCache(userId),
-    ]);
-  } catch {
-    // ignore cache invalidation failures
-  }
-
+  // Null groupId = individual offer
+  await prisma.offer.delete({ where: { id: existing.id } });
   return {
     success: true,
-    deleted: mapOffer(offerToDelete),
+    deleted: mapOffer(existing),
+    deletedCount: 1,
   };
 };
 
-/**
- * Scheduled task: Check all active offers for expiry and send notifications
- * This should be called by a cron job or scheduled task (e.g., daily at midnight)
- * Usage: Call this function from a background job/cron to check all offers
- */
-export const checkAllOffersForExpiry = async () => {
-  try {
-    const now = DateTime.now().setZone('Asia/Jakarta');
-    const sevenDaysFromNow = now.plus({ days: 7 }).endOf('day').toJSDate();
+/** Load all rows in the same offer group as the given offer id. */
+const fetchOffersInGroup = async (args: { userId: number; id: string }) => {
+  const { userId, id } = args;
+  await deactivateExpiredOffers(userId);
+  const seed = await prisma.offer.findFirst({
+    where: { userId, OR: [{ id }, { offerId: id }] },
+    include: offerInclude,
+  });
+  if (!seed) return [];
 
-    // Fetch only offers expiring within the next 7 days
-    const activeOffers = await prisma.offer.findMany({
-      where: {
-        status: 'active',
-        dateRanges: {
-          some: {
-            isActive: true,
-            endDate: {
-              gte: now.toJSDate(),
-              lte: sevenDaysFromNow,
-            },
-          },
-        },
-      },
-      include: {
-        dateRanges: {
-          where: {
-            isActive: true,
-            endDate: {
-              gte: now.toJSDate(),
-              lte: sevenDaysFromNow,
-            },
-          },
-        },
-      },
+  if (seed.groupId) {
+    const rows = await prisma.offer.findMany({
+      where: { userId, groupId: seed.groupId },
+      include: offerInclude,
+      orderBy: { createdAt: 'asc' },
     });
+    return rows.length > 0 ? rows.map(mapOffer) : [mapOffer(seed)];
+  }
 
-    // Check each offer for expiry and send notifications
-    for (const offer of activeOffers) {
-      if (offer.dateRanges && offer.dateRanges.length > 0 && offer.userId) {
-        try {
-          await checkOfferExpiryAndNotify(
-            offer.userId,
-            offer.offerId,
-            offer.name,
-            offer.dateRanges
-          );
-        } catch (error) {
-          // Log error but continue processing other offers
-          if (process.env.NODE_ENV === 'development') {
-            console.error(`[Offers] Failed to check expiry for offer ${offer.offerId}:`, error);
-          }
-        }
+  // Null groupId = individual offer
+  return [mapOffer(seed)];
+};
+
+function offerTargetKey(
+  productId: string | null | undefined,
+  variantOptionId: number | null | undefined,
+): string {
+  const pid = productId?.trim() || '';
+  const vid =
+    variantOptionId != null && Number.isFinite(Number(variantOptionId))
+      ? String(Number(variantOptionId))
+      : 'null';
+  return `${pid}|${vid}`;
+}
+
+/** Resolve sibling rows for a seed offer (by groupId only). */
+async function loadGroupMembersForSeed(
+  userId: number,
+  seedId: string,
+): Promise<{ seed: OfferRow; members: OfferRow[]; groupId: string | null }> {
+  const seed = await prisma.offer.findFirst({
+    where: { userId, OR: [{ id: seedId }, { offerId: seedId }] },
+    include: offerInclude,
+  });
+  if (!seed) throw new Error('Offer not found');
+
+  if (seed.groupId) {
+    const members = await prisma.offer.findMany({
+      where: { userId, groupId: seed.groupId },
+      include: offerInclude,
+      orderBy: { createdAt: 'asc' },
+    });
+    return {
+      seed,
+      members: members.length > 0 ? members : [seed],
+      groupId: seed.groupId,
+    };
+  }
+
+  // Null groupId = individual offer
+  return { seed, members: [seed], groupId: null };
+}
+
+/**
+ * Create or sync an offer group in one transaction.
+ * Existing product/variant targets keep ids + usage aggregates; membership is reconciled.
+ */
+const saveOfferGroup = async (args: {
+  userId: number;
+  seedId?: string | null;
+  groupId?: string | null;
+  buyerId?: string | null;
+  discountType: string;
+  discountValue: number;
+  buyQuantity?: number | null;
+  freeQuantity?: number | null;
+  startDate: string;
+  endDate?: string | null;
+  status?: string | null;
+  notes?: string | null;
+  description?: string | null;
+  targets: Array<{ productId?: string | null; variantOptionId?: number | null }>;
+}) => {
+  const { userId } = args;
+  const buyerId = args.buyerId?.trim() || null;
+  const startDate = new Date(args.startDate);
+  const endDate = args.endDate ? new Date(args.endDate) : null;
+  if (Number.isNaN(startDate.getTime())) throw new Error('Invalid startDate');
+  if (endDate && Number.isNaN(endDate.getTime())) throw new Error('Invalid endDate');
+
+  const status = args.status && STATUSES.has(args.status) ? args.status : 'draft';
+  const allowIncomplete = status === 'draft';
+
+  if (!allowIncomplete && !buyerId) {
+    throw new Error('Client is required for active rates');
+  }
+
+  if (!Array.isArray(args.targets) || args.targets.length === 0) {
+    throw new Error('At least one target is required');
+  }
+
+  // Dedupe by product/variant so retries cannot inflate membership
+  const desiredTargets: Array<{
+    productId: string | null;
+    variantOptionId: number | null;
+  }> = [];
+  const seenKeys = new Set<string>();
+  for (const raw of args.targets) {
+    const productId = raw.productId?.trim() || null;
+    const variantOptionId =
+      raw.variantOptionId != null && Number.isFinite(Number(raw.variantOptionId))
+        ? Number(raw.variantOptionId)
+        : null;
+    const key = offerTargetKey(productId, variantOptionId);
+    if (seenKeys.has(key)) continue;
+    seenKeys.add(key);
+    desiredTargets.push({ productId, variantOptionId });
+  }
+
+  if (desiredTargets.length === 0) {
+    throw new Error('At least one target is required');
+  }
+
+  const resolvedQty = resolveBxgyQuantities({
+    discountType: args.discountType,
+    discountValue: args.discountValue,
+    buyQuantity: args.buyQuantity,
+    freeQuantity: args.freeQuantity,
+  });
+
+  // Validate shared discount once, then each target's product/variant pairing
+  for (const target of desiredTargets) {
+    validateDiscountFields({
+      discountType: args.discountType,
+      discountValue: args.discountValue,
+      buyQuantity: args.buyQuantity,
+      freeQuantity: args.freeQuantity,
+      productId: target.productId,
+      categoryId: null,
+      variantOptionId: target.variantOptionId,
+      startDate,
+      endDate,
+      allowIncomplete,
+    });
+  }
+
+  if (buyerId) {
+    await assertBuyerBelongsToUser(userId, buyerId);
+  }
+  for (const target of desiredTargets) {
+    if (target.productId) {
+      await assertProductBelongsToUser(userId, target.productId);
+      if (target.variantOptionId != null) {
+        await assertVariantBelongsToProduct(
+          userId,
+          target.productId,
+          target.variantOptionId,
+        );
+      }
+    }
+  }
+
+  const seedId = args.seedId?.trim() || null;
+  const preferredGroupId = args.groupId?.trim() || null;
+  let existingMembers: OfferRow[] = [];
+  let resolvedGroupId =
+    preferredGroupId ||
+    (typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `grp-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`);
+
+  if (seedId) {
+    const loaded = await loadGroupMembersForSeed(userId, seedId);
+    existingMembers = loaded.members;
+    resolvedGroupId = loaded.groupId || resolvedGroupId;
+  } else if (preferredGroupId) {
+    // Retry-safe: same client groupId resumes sync instead of inserting duplicates
+    existingMembers = await prisma.offer.findMany({
+      where: { userId, groupId: preferredGroupId },
+      include: offerInclude,
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  const sharedData = {
+    groupId: resolvedGroupId,
+    buyerId,
+    categoryId: null as string | null,
+    discountType: args.discountType,
+    discountValue: args.discountValue,
+    buyQuantity: resolvedQty.buyQuantity,
+    freeQuantity: resolvedQty.freeQuantity,
+    startDate,
+    endDate,
+    status,
+    notes: args.notes?.trim() || null,
+    description: args.description?.trim() || null,
+  };
+
+  const saved = await prisma.$transaction(async (tx) => {
+    // Re-read members inside the transaction for a consistent snapshot
+    let members: OfferRow[] = [];
+    if (seedId) {
+      const seed = await tx.offer.findFirst({
+        where: { userId, OR: [{ id: seedId }, { offerId: seedId }] },
+        include: offerInclude,
+      });
+      if (!seed) throw new Error('Offer not found');
+      if (seed.groupId) {
+        members = await tx.offer.findMany({
+          where: { userId, groupId: seed.groupId },
+          include: offerInclude,
+          orderBy: { createdAt: 'asc' },
+        });
+        if (members.length === 0) members = [seed];
+      } else {
+        const ids = existingMembers.map((m) => m.id);
+        members =
+          ids.length === 0
+            ? [seed]
+            : await tx.offer.findMany({
+                where: { userId, id: { in: ids } },
+                include: offerInclude,
+                orderBy: { createdAt: 'asc' },
+              });
+      }
+    } else if (resolvedGroupId) {
+      members = await tx.offer.findMany({
+        where: { userId, groupId: resolvedGroupId },
+        include: offerInclude,
+        orderBy: { createdAt: 'asc' },
+      });
+    }
+
+    const byKey = new Map<string, OfferRow>();
+    for (const row of members) {
+      const key = offerTargetKey(row.productId, row.variantOptionId);
+      // Keep earliest row if duplicates somehow exist
+      if (!byKey.has(key)) byKey.set(key, row);
+    }
+
+    const keepIds = new Set<string>();
+    const results: OfferRow[] = [];
+
+    for (const target of desiredTargets) {
+      const key = offerTargetKey(target.productId, target.variantOptionId);
+      const existing = byKey.get(key);
+      if (existing) {
+        const updated = await tx.offer.update({
+          where: { id: existing.id },
+          data: {
+            ...sharedData,
+            productId: target.productId,
+            variantOptionId: target.variantOptionId,
+          },
+          include: offerInclude,
+        });
+        keepIds.add(existing.id);
+        results.push(updated);
+      } else {
+        const offerId = `OFF-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+        const created = await tx.offer.create({
+          data: {
+            offerId,
+            userId,
+            ...sharedData,
+            productId: target.productId,
+            variantOptionId: target.variantOptionId,
+          },
+          include: offerInclude,
+        });
+        keepIds.add(created.id);
+        results.push(created);
       }
     }
 
-    return {
-      success: true,
-      message: `Checked ${activeOffers.length} active offers for expiry`,
-      offersChecked: activeOffers.length,
-    };
-  } catch (error) {
-    console.error('[Offers] Failed to check all offers for expiry:', error);
-    throw new Error('Failed to check offers for expiry');
-  }
-};
+    const toDelete = members.filter((m) => !keepIds.has(m.id));
+    if (toDelete.length > 0) {
+      await tx.offer.deleteMany({
+        where: { userId, id: { in: toDelete.map((m) => m.id) } },
+      });
+    }
 
-import { requireDashboardUser, withDashboardAuth } from '../common/auth';
+    return results;
+  });
+
+  return {
+    groupId: resolvedGroupId,
+    offers: saved.map(mapOffer),
+  };
+};
 
 export const offersResolvers = {
   Query: {
     offers: withDashboardAuth(fetchOffersConnection),
     offer: withDashboardAuth(fetchSingleOffer),
+    offersForBuyer: withDashboardAuth(fetchOffersForBuyer),
+    offersInGroup: withDashboardAuth(fetchOffersInGroup),
+    productCustomOfferClientCount: withDashboardAuth(productCustomOfferClientCount),
   },
   Mutation: {
     createOffer: withDashboardAuth(createOffer),
     updateOffer: withDashboardAuth(updateOffer),
     deleteOffer: withDashboardAuth(deleteOffer),
+    saveOfferGroup: withDashboardAuth(saveOfferGroup),
   },
 };
-

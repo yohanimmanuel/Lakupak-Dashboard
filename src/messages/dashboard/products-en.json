@@ -79,6 +79,7 @@
       "Promotion": "Promotion",
       "All Offers": "All Offers"
     },
+    "customOfferClients": "{count} clients have custom rates",
     "columns": {
       "idSku": "ID/SKU",
       "productName": "Product Name",

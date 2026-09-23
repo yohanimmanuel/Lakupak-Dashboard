@@ -74,6 +74,7 @@ export default function EditProductPage() {
               userId
               hasActiveOffer
               offerBadge
+              customOfferClientCount
               offerId
               offerName
               discountType

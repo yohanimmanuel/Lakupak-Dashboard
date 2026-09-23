@@ -101,35 +101,9 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
   const getProdCategoryFilterLabel = (value: string) =>
     value === 'All Categories' ? translateFilter(value) : value;
 
-  // Helper function to calculate original price range from variantOptions
-  const getOriginalPriceRange = (originalProduct: Product | undefined): string | null => {
-    if (!originalProduct) return null;
-    
-    const variantOptions = originalProduct.variantOptions || [];
-    
-    // Collect all originalSellingPrices
-    const originalPrices: number[] = [];
-    
-    // Add prices from variantOptions
-    variantOptions.forEach(option => {
-      if (option.originalSellingPrice && option.originalSellingPrice !== '') {
-        const price = parsePrice(String(option.originalSellingPrice), userCurrency);
-        if (price > 0) {
-          originalPrices.push(price);
-        }
-      }
-    });
-    
-    if (originalPrices.length === 0) return null;
-    
-    const minPrice = Math.min(...originalPrices);
-    const maxPrice = Math.max(...originalPrices);
-    
-    if (minPrice === maxPrice) {
-      return formatCurrency(minPrice, userCurrency);
-    } else {
-      return `${formatCurrency(minPrice, userCurrency)} – ${formatCurrency(maxPrice, userCurrency)}`;
-    }
+  // Helper: catalog prices are not offer-rewritten, so there is no separate "original" range
+  const getOriginalPriceRange = (_originalProduct: Product | undefined): string | null => {
+    return null;
   };
 
   const getDiscountBadgeLabel = (originalProduct: Product | undefined): string | null => {
@@ -160,21 +134,12 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
     return null;
   };
 
-  const getCalculatedDiscountLabel = (originalProduct: Product | undefined, sellingPrice: string): string => {
+  const getCalculatedDiscountLabel = (originalProduct: Product | undefined, _sellingPrice: string): string => {
     const fromHelper = getDiscountBadgeLabel(originalProduct);
     if (fromHelper) return fromHelper;
 
     if (originalProduct?.discountType === 'fixed' && originalProduct.discountValue) {
       return tTable('offers.fixedOff', { value: formatCurrency(originalProduct.discountValue, userCurrency) });
-    }
-
-    if (originalProduct?.variantOptions?.[0]?.originalSellingPrice) {
-      const originalPrice = parsePrice(originalProduct.variantOptions[0].originalSellingPrice || '', userCurrency);
-      const currentPrice = parsePrice(String(sellingPrice), userCurrency);
-      if (originalPrice > currentPrice && originalPrice > 0) {
-        const discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
-        return tTable('offers.percentOff', { value: discountPercent.toString() });
-      }
     }
 
     return tTable('offers.discount');
@@ -1104,12 +1069,6 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
       {/* Products Table - Desktop List View */}
        {viewMode === 'list' && (
          <div className="overflow-x-auto hidden md:block rounded-lg">
-        {filteredProducts.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            <Package className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-            <p className="text-sm">{tTable('noProducts')}</p>
-          </div>
-        ) : (
           <table className="w-full">
             <thead>
               <tr className="bg-gray-100 text-gray-500 whitespace-nowrap">
@@ -1142,7 +1101,17 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
               </tr>
             </thead>
             <tbody className="text-xs whitespace-nowrap">
-              {pagedProducts.map((product) => {
+              {filteredProducts.length === 0 ? (
+                <tr>
+                  <td colSpan={11} className="py-12 text-center text-gray-500">
+                    <div className="flex flex-col items-center gap-2">
+                      <Package className="w-12 h-12 text-gray-400" />
+                      <p className="text-sm">{tTable('noProducts')}</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+              pagedProducts.map((product) => {
               // Get the original product data to check for missing data
               const originalProduct = products.find(p => p.productId === product.productId);
               const completion = originalProduct ? getProductCompletion(originalProduct, undefined, userCurrency, CATALOG_COMPLETION_OPTIONS) : null;
@@ -1392,10 +1361,10 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                 </td>
               </tr>
                 );
-            })}
+            })
+              )}
           </tbody>
          </table>
-         )}
        </div>
        )}
 

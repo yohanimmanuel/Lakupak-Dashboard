@@ -518,45 +518,36 @@ export async function buildDistributorAppAssistantContext(userId: number): Promi
       take: 20,
       select: {
         offerId: true,
-        name: true,
+        notes: true,
+        description: true,
         status: true,
-        type: true,
+        buyerId: true,
+        productId: true,
+        categoryId: true,
+        discountType: true,
+        discountValue: true,
+        buyQuantity: true,
+        startDate: true,
+        endDate: true,
         totalUsage: true,
         totalDiscountGiven: true,
-        offerDiscountTypes: {
-          where: { isActive: true },
-          orderBy: { priority: 'desc' },
+        buyer: { select: { storeName: true, owner: true } },
+        product: {
           select: {
-            discountType: true,
-            discountValue: true,
+            productId: true,
             name: true,
-            description: true,
-            minOrderValue: true,
-            minQuantity: true,
-            priority: true,
-          },
-        },
-        offerProducts: {
-          take: 12,
-          select: {
-            product: {
+            sku: true,
+            marketplaceStatus: true,
+            productType: true,
+            merchandisingCategorySlug: true,
+            variantOptions: {
+              where: { isActive: true },
+              take: 4,
               select: {
-                productId: true,
-                name: true,
-                sku: true,
-                marketplaceStatus: true,
-                productType: true,
-                merchandisingCategorySlug: true,
-                variantOptions: {
-                  where: { isActive: true },
-                  take: 4,
-                  select: {
-                    variantName: true,
-                    sellingPrice: true,
-                    originalSellingPrice: true,
-                    purchasePrice: true,
-                  },
-                },
+                variantName: true,
+                sellingPrice: true,
+                originalSellingPrice: true,
+                purchasePrice: true,
               },
             },
           },
@@ -817,107 +808,123 @@ export async function buildDistributorAppAssistantContext(userId: number): Promi
   }
 
   const offerInsights = offers.map((offer) => {
-    const discountRules = offer.offerDiscountTypes.map((dt) => ({
-      discountType: dt.discountType,
-      discountValue: dec(dt.discountValue),
-      name: dt.name,
-      description: dt.description,
-      minOrderValue: dt.minOrderValue != null ? money(dec(dt.minOrderValue)) : null,
-      minQuantity: dt.minQuantity,
-      priority: dt.priority,
-    }));
+    const discountRules = [
+      {
+        discountType: offer.discountType,
+        discountValue: dec(offer.discountValue),
+        name: offer.notes,
+        description: offer.description,
+        minOrderValue: null as string | null,
+        minQuantity: offer.buyQuantity,
+        priority: 1,
+      },
+    ];
 
-    const products = offer.offerProducts.map((op) => {
-      const product = op.product;
-      const benchmark = resolveMarginBenchmark({
-        merchandisingCategorySlug: product.merchandisingCategorySlug,
-        productType: product.productType,
-        name: product.name,
-      });
-      const variants = product.variantOptions.map((v) => {
-        const sell = dec(v.sellingPrice);
-        const original = v.originalSellingPrice != null ? dec(v.originalSellingPrice) : null;
-        const cost = dec(v.purchasePrice);
-        const baseMarginPct = sell > 0 ? pct(sell - cost, sell) : null;
-        const catalogDiscountPct =
-          original != null && original > sell && original > 0
-            ? pct(original - sell, original)
-            : null;
-        const catalogAlreadyDiscounted = original != null && original > sell && original > 0;
+    const products = offer.product
+      ? [
+          (() => {
+            const product = offer.product!;
+            const benchmark = resolveMarginBenchmark({
+              merchandisingCategorySlug: product.merchandisingCategorySlug,
+              productType: product.productType,
+              name: product.name,
+            });
+            const variants = product.variantOptions.map((v) => {
+              const sell = dec(v.sellingPrice);
+              const original = v.originalSellingPrice != null ? dec(v.originalSellingPrice) : null;
+              const cost = dec(v.purchasePrice);
+              const baseMarginPct = sell > 0 ? pct(sell - cost, sell) : null;
+              const catalogDiscountPct =
+                original != null && original > sell && original > 0
+                  ? pct(original - sell, original)
+                  : null;
+              const catalogAlreadyDiscounted = original != null && original > sell && original > 0;
 
-        const offerImpacts = discountRules.map((rule) => {
-          if (catalogAlreadyDiscounted) {
-            const assessment = assessMarginPct(baseMarginPct, benchmark);
+              const offerImpacts = discountRules.map((rule) => {
+                if (catalogAlreadyDiscounted) {
+                  const assessment = assessMarginPct(baseMarginPct, benchmark);
+                  return {
+                    discountType: rule.discountType,
+                    discountValue: rule.discountValue,
+                    pricingMode: 'discount_already_in_current_price',
+                    effectiveUnitPrice: money(sell),
+                    listPriceBeforeDiscount: money(original as number),
+                    catalogDiscountPct,
+                    effectiveMarginPct: baseMarginPct,
+                    marginAssessment: assessment,
+                    looksAggressive: assessment.looksAggressive,
+                  };
+                }
+
+                const after = applyOfferToPrice(sell, rule.discountType, rule.discountValue);
+                if (after == null) {
+                  return {
+                    discountType: rule.discountType,
+                    discountValue: rule.discountValue,
+                    pricingMode: 'promotion_non_unit_price',
+                    effectiveUnitPrice: null as string | null,
+                    effectiveMarginPct: null as number | null,
+                    marginAssessment: assessMarginPct(null, benchmark),
+                    looksAggressive: false,
+                  };
+                }
+                const marginAfter = after > 0 ? pct(after - cost, after) : cost > 0 ? -100 : null;
+                const assessment = assessMarginPct(marginAfter, benchmark);
+                return {
+                  discountType: rule.discountType,
+                  discountValue: rule.discountValue,
+                  pricingMode: 'offer_applied_on_current_price',
+                  effectiveUnitPrice: money(after),
+                  effectiveMarginPct: marginAfter,
+                  marginAssessment: assessment,
+                  looksAggressive: assessment.looksAggressive,
+                };
+              });
+
+              return {
+                variantName: v.variantName,
+                currentUnitPrice: money(sell),
+                listPriceBeforeDiscount: original != null ? money(original) : null,
+                purchasePrice: money(cost),
+                catalogDiscountPct,
+                marginPctAtCurrentPrice: baseMarginPct,
+                marginAssessmentAtCurrentPrice: assessMarginPct(baseMarginPct, benchmark),
+                offerImpacts,
+              };
+            });
+
             return {
-              discountType: rule.discountType,
-              discountValue: rule.discountValue,
-              pricingMode: 'discount_already_in_current_price',
-              effectiveUnitPrice: money(sell),
-              listPriceBeforeDiscount: money(original as number),
-              catalogDiscountPct,
-              effectiveMarginPct: baseMarginPct,
-              marginAssessment: assessment,
-              looksAggressive: assessment.looksAggressive,
+              productId: product.productId,
+              name: product.name,
+              sku: product.sku,
+              productType: product.productType,
+              merchandisingCategory: product.merchandisingCategorySlug,
+              marketplaceStatus: product.marketplaceStatus,
+              marginBenchmark: {
+                categoryLabel: benchmark.label,
+                typicalRangePct: [benchmark.typicalMinPct, benchmark.typicalMaxPct],
+              },
+              variants,
             };
-          }
-
-          const after = applyOfferToPrice(sell, rule.discountType, rule.discountValue);
-          if (after == null) {
-            return {
-              discountType: rule.discountType,
-              discountValue: rule.discountValue,
-              pricingMode: 'promotion_non_unit_price',
-              effectiveUnitPrice: null as string | null,
-              effectiveMarginPct: null as number | null,
-              marginAssessment: assessMarginPct(null, benchmark),
-              looksAggressive: false,
-            };
-          }
-          const marginAfter = after > 0 ? pct(after - cost, after) : cost > 0 ? -100 : null;
-          const assessment = assessMarginPct(marginAfter, benchmark);
-          return {
-            discountType: rule.discountType,
-            discountValue: rule.discountValue,
-            pricingMode: 'offer_applied_on_current_price',
-            effectiveUnitPrice: money(after),
-            effectiveMarginPct: marginAfter,
-            marginAssessment: assessment,
-            looksAggressive: assessment.looksAggressive,
-          };
-        });
-
-        return {
-          variantName: v.variantName,
-          currentUnitPrice: money(sell),
-          listPriceBeforeDiscount: original != null ? money(original) : null,
-          purchasePrice: money(cost),
-          catalogDiscountPct,
-          marginPctAtCurrentPrice: baseMarginPct,
-          marginAssessmentAtCurrentPrice: assessMarginPct(baseMarginPct, benchmark),
-          offerImpacts,
-        };
-      });
-
-      return {
-        productId: product.productId,
-        name: product.name,
-        sku: product.sku,
-        productType: product.productType,
-        merchandisingCategory: product.merchandisingCategorySlug,
-        marketplaceStatus: product.marketplaceStatus,
-        marginBenchmark: {
-          categoryLabel: benchmark.label,
-          typicalRangePct: [benchmark.typicalMinPct, benchmark.typicalMaxPct],
-        },
-        variants,
-      };
-    });
+          })(),
+        ]
+      : offer.categoryId
+        ? [{ categoryId: offer.categoryId, name: `Category: ${offer.categoryId}` }]
+        : [];
 
     return {
       offerId: offer.offerId,
-      name: offer.name,
+      name: offer.notes || offer.offerId,
       status: offer.status,
-      type: offer.type,
+      buyerId: offer.buyerId,
+      buyerStoreName: offer.buyer?.storeName ?? null,
+      productId: offer.productId,
+      categoryId: offer.categoryId,
+      discountType: offer.discountType,
+      discountValue: dec(offer.discountValue),
+      buyQuantity: offer.buyQuantity,
+      startDate: offer.startDate,
+      endDate: offer.endDate,
       totalUsage: offer.totalUsage,
       totalDiscountGiven: money(dec(offer.totalDiscountGiven)),
       discountRules,

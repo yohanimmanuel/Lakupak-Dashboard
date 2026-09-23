@@ -669,12 +669,6 @@ export default function TeamList({
       {/* Content */}
       {selectedTab === 'individuals' && (
         <div className="space-y-3">
-          {filteredAgents.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <User className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-              <p className="text-sm">{tTeamList('noAgentsFound')}</p>
-            </div>
-          ) : (
             <div className="overflow-x-auto rounded-lg">
               <table className="min-w-full text-sm text-left whitespace-nowrap text-xs">
                 <thead className="bg-gray-100 text-gray-500 whitespace-nowrap">
@@ -705,7 +699,17 @@ export default function TeamList({
                   </tr>
                 </thead>
                 <tbody className="bg-white">
-                  {paginatedAgents.map((agent) => (
+                  {filteredAgents.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center text-gray-500">
+                        <div className="flex flex-col items-center gap-2">
+                          <User className="w-12 h-12 text-gray-400" />
+                          <p className="text-sm">{tTeamList('noAgentsFound')}</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                  paginatedAgents.map((agent) => (
                     <tr 
                       key={agent.id} 
                       className={`border-b transition cursor-pointer ${
@@ -781,11 +785,11 @@ export default function TeamList({
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  ))
+                  )}
                 </tbody>
               </table>
             </div>
-          )}
 
           {/* Pagination for Individuals Table */}
           {filteredAgents.length > 0 && (

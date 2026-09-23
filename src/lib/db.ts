@@ -225,7 +225,6 @@ export type {
   Buyer,
   Supplier,
   Company,
-  OfferDiscountType,
 } from './prisma-generated'
 
 

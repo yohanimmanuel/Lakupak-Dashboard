@@ -881,12 +881,6 @@ export default function BuyerTable({
 
       {/* Enhanced Desktop Table */}
       <div className="overflow-x-auto hidden md:block rounded-lg">
-        {filteredBuyers.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            <Users className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-            <p className="text-sm">{tBuyers('empty')}</p>
-          </div>
-        ) : (
           <table className="min-w-full text-sm text-left whitespace-nowrap text-xs">
             <thead className="bg-gray-100 text-gray-500 whitespace-nowrap">
               <tr>
@@ -919,7 +913,17 @@ export default function BuyerTable({
               </tr>
             </thead>
             <tbody className="bg-white">
-              {pagedBuyers.map((buyer: BuyerTableRow) => {
+              {filteredBuyers.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="py-12 text-center text-gray-500">
+                    <div className="flex flex-col items-center gap-2">
+                      <Users className="w-12 h-12 text-gray-400" />
+                      <p className="text-sm">{tBuyers('empty')}</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+              pagedBuyers.map((buyer: BuyerTableRow) => {
               // Get the original buyer data to check for missing data
               const originalBuyer = buyers.find(b => b.id === buyer.id);
               
@@ -1119,10 +1123,10 @@ export default function BuyerTable({
                 </td>
               </tr>
               );
-            })}
+            })
+              )}
           </tbody>
         </table>
-        )}
       </div>
       
       {/* Enhanced Mobile Cards */}

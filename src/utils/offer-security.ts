@@ -1,40 +1,58 @@
-import { OfferFormData } from '@/types/offer';
+import { OfferFormData, OfferDiscountType } from '@/types/offer';
+
+const ALLOWED: OfferDiscountType[] = [
+  'percentage',
+  'fixed_amount',
+  'buy_x_get_y',
+];
 
 /**
- * Sanitize and validate offer form data
+ * Sanitize and validate per-retailer offer form data
  */
-export function sanitizeOfferData(data: OfferFormData): Omit<OfferFormData, 'minOrderValue'> & { minOrderValue?: number } {
+export function sanitizeOfferData(data: OfferFormData): OfferFormData {
+  const discountType = validateDiscountType(data.discountType);
   return {
-    name: sanitizeString(data.name, 100),
-    description: data.description ? sanitizeString(data.description, 500) : undefined,
-    type: data.type, // Already validated as array
-    discountTypes: data.discountTypes.map(dt => ({
-      discountType: validateDiscountType(dt.discountType),
-      discountValue: validateDiscountValue(dt.discountValue, dt.discountType),
-      isActive: dt.isActive,
-      priority: dt.priority
-    })),
-    minOrderValue: data.minOrderValue ? validatePositiveStringNumber(data.minOrderValue) : undefined, // Returns number, not string
-    minQuantity: data.minQuantity ? validatePositiveInteger(data.minQuantity) : undefined,
+    buyerId: data.buyerId ? sanitizeString(data.buyerId, 100) : null,
+    productId: data.productId ? sanitizeString(data.productId, 100) : null,
+    categoryId: data.categoryId ? sanitizeString(data.categoryId, 100) : null,
+    discountType,
+    discountValue: validateDiscountValue(data.discountValue, discountType),
+    buyQuantity:
+      discountType === 'buy_x_get_y' ||
+      (data.buyQuantity != null &&
+        data.freeQuantity != null &&
+        Number(data.buyQuantity) > 0 &&
+        Number(data.freeQuantity) > 0)
+        ? validatePositiveInteger(data.buyQuantity ?? 0)
+        : data.buyQuantity ?? null,
+    freeQuantity:
+      discountType === 'buy_x_get_y' ||
+      (data.buyQuantity != null &&
+        data.freeQuantity != null &&
+        Number(data.buyQuantity) > 0 &&
+        Number(data.freeQuantity) > 0)
+        ? validatePositiveInteger(
+            data.freeQuantity ??
+              (discountType === 'buy_x_get_y' ? Math.round(data.discountValue) : 0),
+          )
+        : data.freeQuantity ?? null,
     startDate: validateDate(data.startDate),
-    endDate: validateDate(data.endDate),
-    productIds: validateProductIds(data.productIds),
+    endDate: data.endDate ? validateDate(data.endDate) : null,
+    status: data.status,
+    notes: data.notes ? sanitizeString(data.notes, 500) : undefined,
+    description: data.description ? sanitizeString(data.description, 500) : undefined,
   };
 }
 
-/**
- * Sanitize string input
- */
 function sanitizeString(input: string, maxLength: number): string {
   if (typeof input !== 'string') {
     throw new Error('Invalid input type');
   }
 
-  // Remove potentially dangerous characters
   const sanitized = input
-    .replace(/[<>]/g, '') // Remove HTML tags
-    .replace(/javascript:/gi, '') // Remove javascript: protocol
-    .replace(/on\w+=/gi, '') // Remove event handlers
+    .replace(/[<>]/g, '')
+    .replace(/javascript:/gi, '')
+    .replace(/on\w+=/gi, '')
     .trim();
 
   if (sanitized.length === 0) {
@@ -42,250 +60,55 @@ function sanitizeString(input: string, maxLength: number): string {
   }
 
   if (sanitized.length > maxLength) {
-    throw new Error(`Input exceeds maximum length of ${maxLength} characters`);
+    throw new Error(`Input exceeds maximum length of ${maxLength}`);
   }
 
   return sanitized;
 }
 
-/**
- * Validate offer type
- */
-function validateOfferType(type: string): 'discount' | 'promotion' {
-  if (type !== 'discount' && type !== 'promotion') {
-    throw new Error('Invalid offer type. Must be "discount" or "promotion"');
+function validateDiscountType(type: string): OfferDiscountType {
+  if (!ALLOWED.includes(type as OfferDiscountType)) {
+    throw new Error('Invalid discount type');
   }
-  return type;
+  return type as OfferDiscountType;
 }
 
-/**
- * Validate discount type
- */
-function validateDiscountType(discountType: string): 'percentage' | 'fixed' | 'buy_x_get_y' {
-  const validTypes = ['percentage', 'fixed', 'buy_x_get_y'];
-  if (!validTypes.includes(discountType)) {
-    throw new Error('Invalid discount type. Must be "percentage", "fixed", or "buy_x_get_y"');
+function validateDiscountValue(value: number, type: OfferDiscountType): number {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error('Discount value must be greater than 0');
   }
-  return discountType as 'percentage' | 'fixed' | 'buy_x_get_y';
-}
-
-/**
- * Validate discount value - ensure it's a positive numeric value
- */
-function validateDiscountValue(value: number, discountType: string): number {
-  if (typeof value !== 'number' || isNaN(value) || value <= 0) {
-    throw new Error(`Discount value must be a positive number${discountType ? ` (${discountType})` : ''}`);
-  }
-
-  if (discountType === 'percentage' && value > 100) {
-    throw new Error('Percentage discount cannot exceed 100%');
-  }
-
-  // Round to 2 decimal places for Decimal precision
-  return Math.round(value * 100) / 100;
-}
-
-/**
- * Validate positive number - ensure it's a number, not string or float
- */
-function validatePositiveNumber(value: number): number {
-  if (typeof value !== 'number' || isNaN(value) || value <= 0) {
-    throw new Error('Value must be a positive number, not a string');
-  }
-  // Round to 2 decimal places for Decimal precision
-  return Math.round(value * 100) / 100;
-}
-
-/**
- * Validate positive string number (handles commas, dots, etc.) and return as number
- */
-function validatePositiveStringNumber(value: string): number {
-  if (typeof value !== 'string') {
-    throw new Error('Value must be a string');
-  }
-
-  // Remove all non-numeric characters except dots and commas
-  const cleanValue = value.replace(/[^\d.,]/g, '');
-  
-  if (cleanValue.length === 0) {
-    throw new Error('Value cannot be empty');
-  }
-
-  // Convert to number for validation (replace comma with dot for parsing)
-  const numericValue = parseFloat(cleanValue.replace(',', '.'));
-  
-  if (isNaN(numericValue) || numericValue <= 0) {
-    throw new Error('Value must be a positive number');
-  }
-
-  // Return as number, rounded to 2 decimal places for Decimal precision
-  return Math.round(numericValue * 100) / 100;
-}
-
-/**
- * Validate positive integer
- */
-function validatePositiveInteger(value: number): number {
-  if (typeof value !== 'number' || isNaN(value) || !Number.isInteger(value) || value <= 0) {
-    throw new Error('Value must be a positive integer');
+  if (type === 'percentage' && value > 100) {
+    throw new Error('Percentage discount cannot exceed 100');
   }
   return value;
 }
 
-/**
- * Validate date
- */
-function validateDate(dateString: string): string {
-  const date = new Date(dateString);
-  if (isNaN(date.getTime())) {
-    throw new Error('Invalid date format');
+function validatePositiveInteger(value: number): number {
+  const n = Math.floor(Number(value));
+  if (!Number.isFinite(n) || n < 1) {
+    throw new Error('Value must be a positive integer');
   }
-  return date.toISOString();
+  return n;
+}
+
+function validateDate(date: string): string {
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) {
+    throw new Error('Invalid date');
+  }
+  return d.toISOString();
 }
 
 /**
- * Validate product IDs array
- */
-function validateProductIds(productIds: string[]): string[] {
-  if (!Array.isArray(productIds)) {
-    throw new Error('Product IDs must be an array');
-  }
-
-  if (productIds.length === 0) {
-    throw new Error('At least one product must be selected');
-  }
-
-  // Validate each product ID
-  const sanitizedIds = productIds.map(id => {
-    if (typeof id !== 'string' || id.trim().length === 0) {
-      throw new Error('Invalid product ID');
-    }
-    return id.trim();
-  });
-
-  // Remove duplicates
-  const uniqueIds = [...new Set(sanitizedIds)];
-  if (uniqueIds.length !== productIds.length) {
-    throw new Error('Duplicate product IDs are not allowed');
-  }
-
-  return uniqueIds;
-}
-
-/**
- * Validate date range
+ * Validate date range (end optional / standing)
  */
 export function validateDateRange(startDate: string, endDate: string): void {
   const start = new Date(startDate);
   const end = new Date(endDate);
-  
-  if (start >= end) {
-    throw new Error('End date must be after start date');
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    throw new Error('Invalid date range');
   }
-
-  // Check if start date is not in the past (optional validation)
-  const now = new Date();
-  if (start < now) {
-    throw new Error('Start date cannot be in the past');
-  }
-}
-
-/**
- * Validate offer status transition
- * Allow flexible transitions - users can reactivate expired offers by changing date ranges
- */
-export function validateStatusTransition(currentStatus: string, newStatus: string): void {
-  // Allow all transitions for flexibility - users can manually control status
-  // Valid statuses: 'active', 'scheduled', 'inactive'
-  const validStatuses = ['active', 'scheduled', 'inactive'];
-  if (!validStatuses.includes(newStatus)) {
-    throw new Error(`Invalid status: ${newStatus}`);
-  }
-  // No restriction on transitions - maximum flexibility
-}
-
-/**
- * Calculate offer status based on date ranges
- * Uses Asia/Jakarta timezone (WIB, UTC+7) to match Indonesian business hours
- * Status meanings:
- * - 'active': Currently running, applies discounts
- * - 'scheduled': Future start date, will auto-activate
- * - 'inactive': Not running (manually deactivated OR expired)
- */
-export function calculateOfferStatus(startDate: string, endDate: string, currentStatus?: string): 'active' | 'inactive' | 'scheduled' {
-  // Import Luxon for timezone-aware date handling
-  const { DateTime } = require('luxon');
-  
-  // Get current time in Asia/Jakarta timezone
-  const now = DateTime.now().setZone('Asia/Jakarta');
-  
-  const start = DateTime.fromISO(startDate, { zone: 'Asia/Jakarta' }).startOf('day');
-  const end = DateTime.fromISO(endDate, { zone: 'Asia/Jakarta' }).endOf('day');
-
-  // Manual overrides take precedence
-  if (currentStatus === 'inactive') {
-    return 'inactive'; // User manually deactivated or expired
-  }
-
-  // If past end date, mark as inactive (expired)
-  if (now > end) {
-    return 'inactive';
-  }
-
-  // If before start date, it's scheduled (will auto-activate when date arrives)
-  if (now < start) {
-    return 'scheduled';
-  }
-
-  // Within the valid date range - active
-  return 'active';
-}
-
-/**
- * Generate unique offer ID
- */
-export function generateOfferId(): string {
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).substr(2, 9);
-  return `OFF-${timestamp}-${random}`.toUpperCase();
-}
-
-/**
- * Format discount display text
- */
-export function formatDiscountDisplay(discountType: string, discountValue: number): string {
-  switch (discountType) {
-    case 'percentage':
-      return `${discountValue}%`;
-    case 'fixed':
-      return `$${discountValue.toFixed(2)}`;
-    case 'buy_x_get_y':
-      return `Buy ${discountValue} Get 1`;
-    default:
-      return `${discountValue}`;
-  }
-}
-
-/**
- * Calculate discount amount for a given price
- */
-export function calculateDiscountAmount(
-  originalPrice: number,
-  discountType: string,
-  discountValue: number,
-  quantity: number = 1
-): number {
-  switch (discountType) {
-    case 'percentage':
-      return (originalPrice * discountValue / 100) * quantity;
-    case 'fixed':
-      return discountValue * quantity;
-    case 'buy_x_get_y': {
-      // For buy_x_get_y, calculate how many free items the customer gets
-      const freeItems = Math.floor(quantity / (discountValue + 1));
-      return originalPrice * freeItems;
-    }
-    default:
-      return 0;
+  if (end < start) {
+    throw new Error('End date must be on or after start date');
   }
 }

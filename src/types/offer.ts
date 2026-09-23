@@ -1,92 +1,62 @@
-export interface OfferProduct {
-  id: string;
-  productId: string;
-  name: string;
-  productType: string;
-  productCategory: string;
-  sellingPrice: number;
-}
+export type OfferDiscountType =
+  | 'percentage'
+  | 'fixed_amount'
+  | 'buy_x_get_y';
 
-export interface OfferDiscountType {
-  id: string;
-  offerId?: string;
-  discountType: 'percentage' | 'fixed' | 'buy_x_get_y';
-  discountValue: number;
-  name?: string | null;
-  description?: string | null;
-  minOrderValue?: number | string | null;
-  minQuantity?: number | null;
-  freeQuantity?: number | null;
-  promotionApplyMode?: 'from_zero' | 'after_moq' | null;
-  isActive: boolean;
-  priority: number;
-  currentUsage?: number; // Individual usage count for this discount type
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface DateRange {
-  id: string;
-  name: string;
-  description?: string | null;
-  startDate: string;
-  endDate: string;
-  isActive: boolean;
-  offerCount?: number;
-  createdAt: string;
-  updatedAt?: string;
-}
+export type OfferStatus = 'draft' | 'active' | 'expired';
 
 export interface Offer {
   id: string;
   offerId: string;
-  name: string;
-  description?: string;
-  type: ('discount' | 'promotion')[];
-  status: 'active' | 'expired' | 'inactive';
-  minOrderValue?: number;
-  minQuantity?: number;
-  startDate?: string | null;
+  groupId?: string | null;
+  buyerId: string | null;
+  buyerStoreName?: string | null;
+  buyerOwner?: string | null;
+  productId?: string | null;
+  productName?: string | null;
+  categoryId?: string | null;
+  categoryLabel?: string | null;
+  variantOptionId?: number | null;
+  variantName?: string | null;
+  discountType: OfferDiscountType;
+  discountValue: number;
+  buyQuantity?: number | null;
+  freeQuantity?: number | null;
+  startDate: string;
   endDate?: string | null;
+  status: OfferStatus | string;
+  notes?: string | null;
+  description?: string | null;
   totalUsage: number;
   totalDiscountGiven: number;
-  products: OfferProduct[];
-  discountTypes: OfferDiscountType[];
-  dateRanges?: DateRange[];
-  productOfferBadges?: Record<string, string>;
   createdAt: string;
   updatedAt: string;
-  [key: string]: unknown;
 }
 
 export interface OfferFormData {
-  name: string;
-  description?: string;
-  type: ('discount' | 'promotion')[];
-  discountTypes: {
-    discountType: 'percentage' | 'fixed' | 'buy_x_get_y';
-    discountValue: number;
-    isActive: boolean;
-    priority: number;
-  }[];
-  minOrderValue?: string;
-  minQuantity?: number;
+  buyerId?: string | null;
+  productId?: string | null;
+  categoryId?: string | null;
+  variantOptionId?: number | null;
+  discountType: OfferDiscountType;
+  discountValue: number;
+  buyQuantity?: number | null;
+  freeQuantity?: number | null;
   startDate: string;
-  endDate: string;
-  productIds: string[];
+  endDate?: string | null;
+  status: OfferStatus;
+  notes?: string;
+  description?: string;
 }
 
 export interface OfferTableRow {
   id: string;
   offerId: string;
-  name: string;
-  type: string;
+  client: string;
+  target: string;
   discount: string;
   status: string;
-  startDate: string;
-  endDate: string;
-  usage: string | React.ReactNode;
-  totalDiscount: string;
+  duration: string;
   actions: string;
 }
 

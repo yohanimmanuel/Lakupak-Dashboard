@@ -675,12 +675,6 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
       })()}
 
       <div className="overflow-x-auto hidden md:block rounded-lg">
-        {filteredSuppliers.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            <Users className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-            <p className="text-sm">{tSuppliers('empty')}</p>
-          </div>
-        ) : (
           <table className="min-w-full text-sm text-left whitespace-nowrap text-xs">
             <thead className="bg-gray-100 text-gray-500 whitespace-nowrap">
               <tr>
@@ -712,7 +706,17 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
               </tr>
             </thead>
             <tbody className="bg-white">
-              {pagedSuppliers.map((supplier: SupplierTableRow) => {
+              {filteredSuppliers.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="py-12 text-center text-gray-500">
+                    <div className="flex flex-col items-center gap-2">
+                      <Users className="w-12 h-12 text-gray-400" />
+                      <p className="text-sm">{tSuppliers('empty')}</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+              pagedSuppliers.map((supplier: SupplierTableRow) => {
               // Get the original supplier data to check for missing data
               const originalSupplier = suppliers.find(s => s.supplierId === supplier.supplierId);
               
@@ -852,10 +856,10 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                 </td>
                               </tr>
               );
-            })}
+            })
+              )}
             </tbody>
         </table>
-        )}
       </div>
       {/* Mobile Cards */}
       <div className="md:hidden">

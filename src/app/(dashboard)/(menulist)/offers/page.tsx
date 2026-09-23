@@ -2,7 +2,7 @@
 
 import { SkeletonTablePage } from '@/components/skeleton/SkeletonTablePage';
 import React, { useState, useEffect, useCallback } from 'react';
-import { Gift, Plus, Calendar, Download } from 'lucide-react';
+import { Plus, RefreshCcw } from 'lucide-react';
 import OfferStatCards from '@/components/offersincentivesdisc/OfferStatCards';
 import OfferTable from '@/components/offersincentivesdisc/OfferTable';
 import { useRouter } from 'next/navigation';
@@ -12,299 +12,117 @@ import { fetchGraphQL } from '@/lib/graphqlClient';
 import { usePendingDashboardTourStart } from '@/hooks/usePendingDashboardTourStart';
 import { useOffersTranslations } from '@/hooks/useOffersTranslations';
 
+const OFFERS_QUERY = `
+  query GetOffers($userId: Int!, $page: Int, $limit: Int, $status: String) {
+    offers(userId: $userId, page: $page, limit: $limit, status: $status) {
+      nodes {
+        id
+        offerId
+        groupId
+        buyerId
+        buyerStoreName
+        buyerOwner
+        productId
+        productName
+        categoryId
+        categoryLabel
+        variantOptionId
+        variantName
+        discountType
+        discountValue
+        buyQuantity
+        freeQuantity
+        startDate
+        endDate
+        status
+        notes
+        description
+        totalUsage
+        totalDiscountGiven
+        createdAt
+        updatedAt
+      }
+      pagination {
+        totalCount
+        totalPages
+        page
+        limit
+      }
+    }
+  }
+`;
+
 export default function OffersPage() {
   const router = useRouter();
   const { user } = useUserStore();
-  const { tList, tShared, translatePageTab } = useOffersTranslations();
-  const [activeTab, setActiveTab] = useState<'all' | 'discounts' | 'promotions'>('all');
+  const { tList } = useOffersTranslations();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
-  // GraphQL query to fetch offers - moved outside component to prevent recreation on every render
-  const OFFERS_QUERY = `
-    query GetOffers($userId: Int!, $page: Int, $limit: Int, $status: String, $type: String) {
-      offers(userId: $userId, page: $page, limit: $limit, status: $status, type: $type) {
-        nodes {
-          id
-          offerId
-          name
-          description
-          type
-          status
-          totalUsage
-          totalDiscountGiven
-          discountTypes {
-            id
-            discountType
-            discountValue
-            minOrderValue
-            minQuantity
-            promotionApplyMode
-            isActive
-            priority
-          }
-          dateRanges {
-            id
-            name
-            description
-            startDate
-            endDate
-            isActive
-            createdAt
-            updatedAt
-          }
-        }
-        pagination {
-          totalCount
-        }
-      }
-    }
-  `;
+  usePendingDashboardTourStart('offers', { ready: hasLoaded && !!user?.id });
 
-  // Fetch offers from GraphQL API
   const fetchOffers = useCallback(async () => {
     try {
       setLoading(true);
       if (!user?.id) {
         setOffers([]);
-        setLoading(false);
         return;
       }
-      
-      const data = await fetchGraphQL<{
-        offers: {
-          nodes: Array<{
-            id: string;
-            offerId: string;
-            name: string;
-            description: string | null;
-            type: string[];
-            status: string;
-            totalUsage: number;
-            totalDiscountGiven: number;
-            discountTypes: Array<{
-              id: string;
-              discountType: string;
-              discountValue: number;
-              minOrderValue: number | null;
-              minQuantity: number | null;
-              promotionApplyMode?: string | null;
-              isActive: boolean;
-              priority: number;
-            }>;
-            dateRanges: Array<{
-              id: string;
-              name: string;
-              description: string | null;
-              startDate: string;
-              endDate: string;
-              isActive: boolean;
-              createdAt: string;
-              updatedAt: string;
-            }>;
-          }>;
-          pagination: {
-            totalCount: number;
+
+      const pageSize = 100;
+      let page = 1;
+      let totalPages = 1;
+      const all: Offer[] = [];
+
+      do {
+        const data = await fetchGraphQL<{
+          offers: {
+            nodes: Offer[];
+            pagination: { totalPages?: number };
           };
-        };
-      }>(OFFERS_QUERY, {
-        userId: user.id,
-        page: 1,
-        limit: 1000, // Fetch all offers for the offers page
-      }, { cache: 'no-store' });
+        }>(OFFERS_QUERY, { userId: user.id, page, limit: pageSize });
 
-      // Transform GraphQL response to match Offer type
-      const transformedOffers: Offer[] = data.offers.nodes.map((offer) => {
-        // Calculate startDate and endDate from dateRanges
-        // Use earliest startDate and latest endDate from active date ranges
-        let calculatedStartDate = new Date().toISOString();
-        let calculatedEndDate = new Date().toISOString();
-        
-        if (offer.dateRanges && offer.dateRanges.length > 0) {
-          const activeDateRanges = offer.dateRanges.filter(dr => dr.isActive);
-          if (activeDateRanges.length > 0) {
-            const startDates = activeDateRanges.map(dr => new Date(dr.startDate).getTime());
-            const endDates = activeDateRanges.map(dr => new Date(dr.endDate).getTime());
-            calculatedStartDate = new Date(Math.min(...startDates)).toISOString();
-            calculatedEndDate = new Date(Math.max(...endDates)).toISOString();
-          } else {
-            // If no active date ranges, use all date ranges
-            const startDates = offer.dateRanges.map(dr => new Date(dr.startDate).getTime());
-            const endDates = offer.dateRanges.map(dr => new Date(dr.endDate).getTime());
-            calculatedStartDate = new Date(Math.min(...startDates)).toISOString();
-            calculatedEndDate = new Date(Math.max(...endDates)).toISOString();
-          }
-        }
-        
-        return {
-          id: offer.id,
-          offerId: offer.offerId,
-          name: offer.name,
-          description: offer.description || undefined,
-          type: offer.type as ('discount' | 'promotion')[],
-          status: offer.status as 'active' | 'expired' | 'inactive',
-          startDate: calculatedStartDate,
-          endDate: calculatedEndDate,
-          totalUsage: offer.totalUsage,
-          totalDiscountGiven: offer.totalDiscountGiven,
-          discountTypes: offer.discountTypes.map((dt) => ({
-            id: dt.id,
-            discountType: dt.discountType as 'percentage' | 'fixed' | 'buy_x_get_y',
-            discountValue: dt.discountValue,
-            minOrderValue: dt.minOrderValue || undefined,
-            minQuantity: dt.minQuantity || undefined,
-            promotionApplyMode: (dt.promotionApplyMode as 'from_zero' | 'after_moq' | null) || 'after_moq',
-            isActive: dt.isActive,
-            priority: dt.priority,
-          })),
-          dateRanges: offer.dateRanges?.map((dr) => ({
-            id: dr.id,
-            name: dr.name,
-            description: dr.description || undefined,
-            startDate: dr.startDate,
-            endDate: dr.endDate,
-            isActive: dr.isActive,
-            createdAt: dr.createdAt,
-            updatedAt: dr.updatedAt,
-          })),
-          products: [], // Products are not included in the offers query
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-      });
+        all.push(...(data.offers?.nodes ?? []));
+        totalPages = Math.max(1, data.offers?.pagination?.totalPages ?? 1);
+        page += 1;
+      } while (page <= totalPages);
 
-      setOffers(transformedOffers);
+      setOffers(all);
     } catch (error) {
       console.error('Failed to fetch offers:', error);
       setOffers([]);
     } finally {
       setLoading(false);
+      setHasLoaded(true);
     }
-  }, [user?.id]); // Removed OFFERS_QUERY from deps - it's a constant and shouldn't cause re-renders
+  }, [user?.id]);
 
   useEffect(() => {
-    let ignore = false;
-    
-    const loadOffers = async () => {
-      await fetchOffers();
-    };
-    
-    loadOffers();
-    
-    return () => {
-      ignore = true;
-    };
+    fetchOffers();
   }, [fetchOffers]);
 
-  usePendingDashboardTourStart('offers', { ready: !loading && !!user?.id });
-
-  // Helper function to check if offer has discount types
-  const hasDiscountType = (offer: Offer) => {
-    const activeDiscountTypes = offer.discountTypes?.filter(dt => dt.isActive) || [];
-    return activeDiscountTypes.some(dt => dt.discountType === 'percentage' || dt.discountType === 'fixed');
-  };
-
-  // Helper function to check if offer has promotion types
-  const hasPromotionType = (offer: Offer) => {
-    const activeDiscountTypes = offer.discountTypes?.filter(dt => dt.isActive) || [];
-    return activeDiscountTypes.some(dt => dt.discountType === 'buy_x_get_y');
-  };
-
-  const tabs = [
-    { id: 'all' as const, count: offers.length },
-    { id: 'discounts' as const, count: offers.filter(offer => offer.type.includes('discount') || hasDiscountType(offer)).length },
-    { id: 'promotions' as const, count: offers.filter(offer => offer.type.includes('promotion') || hasPromotionType(offer)).length },
-  ];
-
-  const handleSelectOffer = (offer: Offer) => {
-    // Handle offer selection - could open a modal or navigate to details
-  };
-
-  const handleCreateOffer = () => {
-    router.push('/offers/new');
-  };
-
-  const handleExportData = async () => {
-    try {
-      if (offers.length === 0) {
-        alert(tList('noOffersToExport'));
-        return;
-      }
-
-      // Import xlsx library dynamically
-      const XLSX = await import('xlsx');
-
-      // Prepare data for Excel
-      const exportData = offers.map(offer => {
-        const discountTypesSummary = offer.discountTypes
-          ?.map(dt => `${dt.discountType}(${dt.discountValue}${dt.discountType === 'percentage' ? '%' : ''})`)
-          .join('; ') || tShared('notAvailable');
-
-        return {
-          [tShared('exportColumns.offerId')]: offer.offerId || offer.id,
-          [tShared('exportColumns.name')]: offer.name || tShared('notAvailable'),
-          [tShared('exportColumns.type')]: Array.isArray(offer.type) ? offer.type.join(', ') : offer.type || tShared('notAvailable'),
-          [tShared('exportColumns.status')]: offer.status || tShared('notAvailable'),
-          [tShared('exportColumns.productsCount')]: offer.products?.length || 0,
-          [tShared('exportColumns.totalUsage')]: offer.totalUsage || 0,
-          [tShared('exportColumns.totalDiscountGiven')]: offer.totalDiscountGiven || 0,
-          [tShared('exportColumns.discountTypes')]: discountTypesSummary,
-          [tShared('exportColumns.createdAt')]: offer.createdAt ? new Date(offer.createdAt).toLocaleDateString() : tShared('notAvailable'),
-        };
-      });
-
-      // Create worksheet
-      const worksheet = XLSX.utils.json_to_sheet(exportData);
-      
-      // Set column widths
-      const columnWidths = [
-        { wch: 15 }, // Offer ID
-        { wch: 30 }, // Name
-        { wch: 15 }, // Type
-        { wch: 10 }, // Status
-        { wch: 15 }, // Products Count
-        { wch: 12 }, // Total Usage
-        { wch: 20 }, // Total Discount Given
-        { wch: 40 }, // Discount Types
-        { wch: 15 }  // Created At
-      ];
-      worksheet['!cols'] = columnWidths;
-
-      // Create workbook
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, tShared('exportColumns.sheetName'));
-
-      // Generate Excel file and download
-      XLSX.writeFile(workbook, `offers_export_${new Date().toISOString().split('T')[0]}.xlsx`);
-    } catch (error) {
-      alert(tList('exportFailed'));
-    }
-  };
-
-  if (loading) {
-    return <SkeletonTablePage statCards={4} rows={8} />;
+  if (loading && !hasLoaded) {
+    return <SkeletonTablePage />;
   }
 
   return (
-    <div className="p-4 space-y-3 bg-gradient-to-b from-gray-50 to-white">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+    <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+        <h1 className="text-2xl font-bold text-gray-900">{tList('title')}</h1>
         <div className="flex items-center gap-3">
-          <div data-tour="offers-page-header">
-            <h1 className="text-2xl font-bold text-black">{tList('title')}</h1>
-          </div>
-        </div>
-        <div className="flex items-center gap-3" data-tour="offers-actions">
-          <button 
-            onClick={handleExportData}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm"
+          <button
+            type="button"
+            onClick={() => fetchOffers()}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-[#e6e6e6] text-black rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
           >
-            <Download className="w-4 h-4" />
-            {tList('exportData')}
+            <RefreshCcw className="w-4 h-4" />
+            {tList('refresh')}
           </button>
-          <button 
-            onClick={handleCreateOffer}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm"
+          <button
+            type="button"
+            onClick={() => router.push('/offers/new')}
+            className="flex items-center gap-2 px-6 py-2 bg-[#0a61d7] font-semibold text-white rounded-lg hover:bg-[#0851b8] transition-colors text-sm"
           >
             <Plus className="w-4 h-4" />
             {tList('createOffer')}
@@ -312,45 +130,13 @@ export default function OffersPage() {
         </div>
       </div>
 
-      {/* Stat Cards */}
-      <div data-tour="offers-stats">
-        <OfferStatCards offers={offers} />
-      </div>
+      <OfferStatCards offers={offers} />
 
-      {/* Tab Navigation */}
-      <div className="bg-white rounded-lg border border-[#e6e6e6] p-1" data-tour="offers-tabs">
-        <div className="flex flex-col sm:flex-row gap-1">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as 'all' | 'discounts' | 'promotions')}
-              className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-md text-sm font-medium transition-colors ${
-                activeTab === tab.id
-                  ? 'bg-[#0a61d7] text-white'
-                  : 'text-gray-600 hover:text-black hover:bg-gray-100'
-              }`}
-            >
-              {translatePageTab(tab.id)}
-              <span className={`px-2 py-1 rounded-full text-xs ${
-                activeTab === tab.id
-                  ? 'bg-white/20 text-white'
-                  : 'bg-gray-100 text-gray-600'
-              }`}>
-                {tab.count}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Table */}
-        <OfferTable 
-          offers={offers}
-          setOffersAction={setOffers}
-          activeTab={activeTab}
-          onSelectOfferAction={handleSelectOffer}
-          onRefreshAction={fetchOffers}
-        />
+      <OfferTable
+        offers={offers}
+        setOffersAction={setOffers}
+        onRefreshAction={fetchOffers}
+      />
     </div>
   );
 }

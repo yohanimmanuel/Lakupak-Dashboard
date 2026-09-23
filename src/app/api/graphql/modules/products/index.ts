@@ -1,11 +1,11 @@
-import { type Prisma, type OfferDiscountType } from '@/lib/db';
+import { type Prisma } from '@/lib/db';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import {
   normalizeMerchandisingCategorySlug,
   normalizeSalesChannel,
 } from '@/constants/merchandisingTaxonomy';
 import { broadcastPriceUpdate, broadcastProductUpdate } from '@/utils/websocketBroadcast';
-import { calculateSoldCounts, updateProductPricesFromOffers } from '@/utils/marketplaceMetrics';
+import { calculateSoldCounts, restoreCatalogPricesFromOriginals } from '@/utils/marketplaceMetrics';
 import { NotificationService } from '../notifications';
 import { prisma } from '../common/prisma';
 import {
@@ -22,7 +22,6 @@ import {
   setCachedMarketplaceSearch,
   invalidateSearchCache,
 } from '@/utils/searchCache';
-import { buildBuyXGetYPromotionDetails } from '@/utils/promotionUtils';
 import { auditCatalog } from '@/lib/audit';
 import { requireDashboardUser, withDashboardAuth } from '@/app/api/graphql/modules/common/auth';
 
@@ -102,6 +101,7 @@ export const productsTypeDefs = /* GraphQL */ `
     discountValue: Float
     promotionDetails: JSONObject
     originalPrice: Float
+    customOfferClientCount: Int
     seller: SellerInfo
     soldCount: String!
   }
@@ -355,95 +355,25 @@ const mapVariantOption = (variantOption: Prisma.VariantOptionGetPayload<{ select
   attributes: variantOption.attributes,
 });
 
-type ActiveOfferPayload = Prisma.OfferGetPayload<{
-  include: {
-    offerProducts: true;
-    offerDiscountTypes: true;
-  };
-}>;
-
-const buildOfferMetadata = (discountTypes: OfferDiscountType[]): {
-  offerBadge: string;
-  discountType?: string;
-  discountValue?: number;
-  promotionDetails?: Record<string, unknown> | null;
-} => {
-  if (!discountTypes.length) {
-    return { offerBadge: 'Offer', promotionDetails: null };
-  }
-
-  const hasDiscount = discountTypes.some((dt) => dt.discountType === 'percentage' || dt.discountType === 'fixed');
-  const hasPromotion = discountTypes.some((dt) => dt.discountType === 'buy_x_get_y');
-
-  let offerBadge = 'Offer';
-  if (hasDiscount && hasPromotion) {
-    offerBadge = 'All Offers';
-  } else if (hasPromotion) {
-    offerBadge = 'Promotion';
-  } else if (hasDiscount) {
-    offerBadge = 'Discount';
-  }
-
-  const fixedDiscount = discountTypes.find((dt) => dt.discountType === 'fixed');
-  const percentageDiscount = discountTypes.find((dt) => dt.discountType === 'percentage');
-  const discountType = fixedDiscount ? 'fixed' : percentageDiscount ? 'percentage' : undefined;
-  const discountValue = fixedDiscount
-    ? fixedDiscount.discountValue
-    : percentageDiscount
-      ? percentageDiscount.discountValue
-      : undefined;
-
-  const discountValueNum = discountValue !== undefined
-    ? parseMoney(discountValue as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined)
-    : undefined;
-
-  const buyXGetY = discountTypes.find((dt) => dt.discountType === 'buy_x_get_y');
-
-  const promotionDetails = buyXGetY
-    ? (buildBuyXGetYPromotionDetails(buyXGetY) as unknown as Record<string, unknown>)
-    : null;
-
-  return {
-    offerBadge,
-    discountType,
-    discountValue: discountValueNum,
-    promotionDetails,
-  };
+type ActiveOfferPresence = {
+  productId: string;
+  clientCount: number;
 };
 
 export const fetchActiveOffersMap = async (
   productIds: string[],
   userScope?: number | number[],
-): Promise<Map<string, ActiveOfferPayload[]>> => {
+): Promise<Map<string, ActiveOfferPresence>> => {
   if (!productIds.length) {
     return new Map();
   }
 
-  const { startOfToday, endOfToday } = getTodayBoundaries(); // Uses Asia/Jakarta timezone by default
+  const { startOfToday, endOfToday } = getTodayBoundaries();
   const offerWhere: Prisma.OfferWhereInput = {
     status: 'active',
-    offerProducts: {
-      some: {
-        productId: { in: productIds },
-      },
-    },
-    // Filter by date ranges: offer is active if it has no date ranges (unlimited) OR has at least one active date range that's currently valid
-    OR: [
-      {
-        dateRanges: {
-          none: {}, // No date ranges = unlimited offer
-        },
-      },
-      {
-        dateRanges: {
-          some: {
-            isActive: true,
-            startDate: { lte: endOfToday }, // Start date is on or before today
-            endDate: { gte: startOfToday }, // End date is on or after today (includes entire day)
-          },
-        },
-      },
-    ],
+    productId: { in: productIds },
+    startDate: { lte: endOfToday },
+    OR: [{ endDate: null }, { endDate: { gte: startOfToday } }],
   };
 
   if (typeof userScope === 'number') {
@@ -452,31 +382,19 @@ export const fetchActiveOffersMap = async (
     offerWhere.userId = { in: userScope };
   }
 
-  const offers = await prisma.offer.findMany({
+  const groups = await prisma.offer.groupBy({
+    by: ['productId', 'buyerId'],
     where: offerWhere,
-    include: {
-      offerProducts: true,
-      offerDiscountTypes: true,
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
   });
 
-  const offerMap = new Map<string, ActiveOfferPayload[]>();
-
-  for (const offer of offers) {
-    const activeDiscountTypes = offer.offerDiscountTypes.filter((dt) => dt.isActive);
-    if (!activeDiscountTypes.length) continue;
-
-    for (const product of offer.offerProducts) {
-      if (!offerMap.has(product.productId)) {
-        offerMap.set(product.productId, []);
-      }
-      offerMap.get(product.productId)!.push({
-        ...offer,
-        offerDiscountTypes: activeDiscountTypes,
-      });
+  const offerMap = new Map<string, ActiveOfferPresence>();
+  for (const row of groups) {
+    if (!row.productId) continue;
+    const existing = offerMap.get(row.productId);
+    if (existing) {
+      existing.clientCount += 1;
+    } else {
+      offerMap.set(row.productId, { productId: row.productId, clientCount: 1 });
     }
   }
 
@@ -491,18 +409,13 @@ export const mapProduct = (
       user: typeof productSellerInclude.include.user;
     };
   }>,
-  offerMap: Map<string, ActiveOfferPayload[]>,
+  offerMap: Map<string, ActiveOfferPresence>,
   soldCountMap?: Map<string, string>,
 ) => {
   const variantOptionRows = product.variantOptions ?? [];
   const variants = variantOptionRows.map(mapVariantOption);
-  const offerCandidates = offerMap.get(product.productId) ?? [];
-  const selectedOffer = offerCandidates[0];
-
-  let offerMetadata: ReturnType<typeof buildOfferMetadata> | null = null;
-  if (selectedOffer) {
-    offerMetadata = buildOfferMetadata(selectedOffer.offerDiscountTypes);
-  }
+  const offerPresence = offerMap.get(product.productId);
+  const clientCount = offerPresence?.clientCount ?? 0;
 
   return {
     id: product.id,
@@ -530,16 +443,16 @@ export const mapProduct = (
     createdAt: product.createdAt?.toISOString() ?? null,
     updatedAt: product.updatedAt?.toISOString() ?? null,
     userId: product.userId ?? null,
-    hasActiveOffer: Boolean(selectedOffer),
-    offerBadge: offerMetadata?.offerBadge ?? null,
-    offerId: selectedOffer?.id ?? null,
-    offerName: selectedOffer?.name ?? null,
-    discountType: offerMetadata?.discountType ?? null,
-    discountValue: offerMetadata?.discountValue ?? null,
-    promotionDetails: offerMetadata?.promotionDetails ?? null,
-    originalPrice: variantOptionRows[0]?.originalSellingPrice 
-      ? parseMoney(variantOptionRows[0].originalSellingPrice) 
-      : null, // Convert Decimal to number
+    hasActiveOffer: clientCount > 0,
+    offerBadge: null,
+    offerId: null,
+    offerName: null,
+    discountType: null,
+    discountValue: null,
+    promotionDetails: null,
+    // Catalog price is never offer-rewritten; keep originalPrice unset
+    originalPrice: null,
+    customOfferClientCount: clientCount,
     seller: buildSellerInfo(product as Prisma.ProductGetPayload<typeof productSellerInclude>) ?? null,
     soldCount: soldCountMap?.get(product.productId) ?? '0',
   };
@@ -748,12 +661,9 @@ export const fetchMarketplaceProductsConnection = async (args: {
   ]);
 
   const productIds = products.map((product) => product.productId);
-  const userIds = products.map((product) => product.userId).filter((id): id is number => typeof id === 'number');
-
-  const [offerMap, soldCountMap] = await Promise.all([
-    fetchActiveOffersMap(productIds, userIds),
-    calculateSoldCounts(prisma, productIds),
-  ]);
+  const soldCountMap = await calculateSoldCounts(prisma, productIds);
+  // Public marketplace must not expose private per-retailer offer presence
+  const offerMap = new Map<string, ActiveOfferPresence>();
 
   const nodes = products
     .filter((product) => (product.variantOptions ?? []).length > 0)
@@ -912,9 +822,6 @@ const createVariantOptionsPayload = (
     // Parse prices as numbers and round to 2 decimal places for Decimal precision
     const purchasePriceNum = parseNumberByCurrency(option.purchasePrice || '', currency ?? undefined);
     const sellingPriceNum = parseNumberByCurrency(option.sellingPrice || '', currency ?? undefined);
-    const originalSellingPriceNum = option.originalSellingPrice && typeof option.originalSellingPrice === 'string'
-      ? parseNumberByCurrency(option.originalSellingPrice, currency ?? undefined)
-      : null;
     
     return {
       variantName: normalizeVariantName(option.variantName),
@@ -922,8 +829,8 @@ const createVariantOptionsPayload = (
       sku: option.sku || null,
       purchasePrice: clampVariantDecimal(purchasePriceNum),
       sellingPrice: clampVariantDecimal(sellingPriceNum),
-      originalSellingPrice:
-        originalSellingPriceNum !== null ? clampVariantDecimal(originalSellingPriceNum) : null,
+      // Offers no longer rewrite catalog prices — do not persist originalSellingPrice
+      originalSellingPrice: null,
       moq: option.moq == null ? null : clampVariantInt(option.moq, 0),
       stockQuantity: clampVariantInt(option.stockQuantity, 0),
       lowStockThreshold: clampVariantInt(option.lowStockThreshold, 0),
@@ -1077,38 +984,18 @@ export const createProduct = async (args: {
     },
   });
 
-  // Update prices for THIS product only - await to ensure fresh prices in response
-  // This ensures the returned product includes offer-derived prices
-  // Use retry logic to handle transient failures
+  // Invalidate caches — client rates must not rewrite public catalog prices
   try {
-    await retryWithBackoff(
-      () => updateProductPricesFromOffers(prisma, userId, [product.productId]),
-      3, // 3 attempts
-      100 // 100ms base delay (100ms, 200ms, 400ms)
-    );
-    
-    // Invalidate caches after successful price update (before refetch)
     const { invalidateProductCache, invalidateDashboardCache } = await import('@/lib/queryCache');
     await Promise.all([
       invalidateProductCache(userId),
       invalidateDashboardCache(userId),
     ]);
-  } catch (error) {
-    // Log detailed error information for monitoring/debugging
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorStack = error instanceof Error ? error.stack : undefined;
-    console.error('[Product] Price update failed after retries:', {
-      userId,
-      productId: product.productId,
-      error: errorMessage,
-      stack: errorStack,
-      timestamp: new Date().toISOString(),
-    });
-    // Continue even if price update fails - product was still created
-    // The product will be returned with original prices (no offer discounts applied)
+  } catch {
+    // ignore cache invalidation failures
   }
 
-  // Refetch product after price update to get fresh data with offer-derived prices
+  // Refetch product for response payload
   const updatedProduct = await refetchProductForResponse(product.id);
   if (!updatedProduct) {
     throw new Error('Failed to fetch created product');
@@ -1542,38 +1429,18 @@ export const updateProduct = async (args: {
     console.warn('[Products] Meili sync failed on updateProduct:', e);
   }
 
-  // Update prices for THIS product only - await to ensure fresh prices in response
-  // This ensures the returned product includes offer-derived prices
-  // Use retry logic to handle transient failures
+  // Invalidate caches — client rates must not rewrite public catalog prices
   try {
-    await retryWithBackoff(
-      () => updateProductPricesFromOffers(prisma, userId, [product.productId]),
-      3, // 3 attempts
-      100 // 100ms base delay (100ms, 200ms, 400ms)
-    );
-    
-    // Invalidate caches after successful price update (before refetch)
     const { invalidateProductCache, invalidateDashboardCache } = await import('@/lib/queryCache');
     await Promise.all([
       invalidateProductCache(userId),
       invalidateDashboardCache(userId),
     ]);
-  } catch (error) {
-    // Log detailed error information for monitoring/debugging
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorStack = error instanceof Error ? error.stack : undefined;
-    console.error('[Product] Price update failed after retries:', {
-      userId,
-      productId: product.productId,
-      error: errorMessage,
-      stack: errorStack,
-      timestamp: new Date().toISOString(),
-    });
-    // Continue even if price update fails - product was still updated
-    // The product will be returned with original prices (no offer discounts applied)
+  } catch {
+    // ignore cache invalidation failures
   }
 
-  // Refetch product after price update to get fresh data with offer-derived prices
+  // Refetch product for response payload
   const updatedProduct = await refetchProductForResponse(product.id);
   if (!updatedProduct) {
     throw new Error('Failed to fetch updated product');
@@ -1707,98 +1574,36 @@ export const deleteProduct = async (args: { userId: number; id: string }) => {
 
 export const resetOriginalPrices = async (userId: number) => {
   try {
-    const variantOptionsWithNullOriginalPrice = await prisma.variantOption.findMany({
-      where: {
-        originalSellingPrice: null,
-        product: {
-          userId,
-        },
-      },
-    });
-
-    const variantOptionUpdatePromises = variantOptionsWithNullOriginalPrice.map((variantOption) =>
-      prisma.variantOption.update({
-        where: { id: variantOption.id },
-        data: {
-          originalSellingPrice: variantOption.sellingPrice,
-        },
-      }),
-    );
-
-    // Execute updates in chunks to avoid connection pool exhaustion
-    const CONCURRENT_LIMIT = 20; // Increased from 15 with larger pool (30 connections)
-    for (let i = 0; i < variantOptionUpdatePromises.length; i += CONCURRENT_LIMIT) {
-      const chunk = variantOptionUpdatePromises.slice(i, i + CONCURRENT_LIMIT);
-      await Promise.all(chunk);
-    }
-
+    const restored = await restoreCatalogPricesFromOriginals(prisma, userId);
     return {
       success: true,
-      message: `Reset originalSellingPrice for ${variantOptionsWithNullOriginalPrice.length} variant options`,
+      message:
+        restored > 0
+          ? `Restored catalog prices for ${restored} variant options and cleared originalSellingPrice`
+          : 'No offer-rewritten catalog prices found',
     };
   } catch {
     throw new Error('Failed to reset original prices');
   }
 };
 
-export const applyOffersToAllProducts = async (userId: number) => {
-  try {
-    await updateProductPricesFromOffers(prisma, userId);
-    return {
-      success: true,
-      message: 'Applied offers to all products successfully',
-    };
-  } catch {
-    throw new Error('Failed to apply offers to all products');
-  }
+export const applyOffersToAllProducts = async (_userId: number) => {
+  // Offers are private per-client rates — they must not rewrite public catalog prices.
+  return {
+    success: true,
+    message: 'Client rates do not modify public product prices',
+  };
 };
 
 export const forceUpdatePrices = async (userId: number) => {
   try {
-    await prisma.$transaction(async (tx) => {
-      const productsWithVariants = await tx.product.findMany({
-        where: { userId },
-        include: {
-          variants: true,
-          variantOptions: true,
-        },
-      });
-
-      // Collect all variant options that need updates (sellingPrice: Prisma Decimal or number)
-      const variantOptionsToUpdate: { id: number; sellingPrice: number | Prisma.Decimal }[] = [];
-      for (const product of productsWithVariants) {
-        if (product.variantOptions && product.variantOptions.length > 0) {
-          for (const variantOption of product.variantOptions) {
-            if (!variantOption.originalSellingPrice) {
-              variantOptionsToUpdate.push({
-                id: variantOption.id,
-                sellingPrice: variantOption.sellingPrice,
-              });
-            }
-          }
-        }
-      }
-
-      // Execute updates in chunks to avoid connection pool exhaustion
-      const CONCURRENT_LIMIT = 20; // Increased from 15 with larger pool (30 connections)
-      for (let i = 0; i < variantOptionsToUpdate.length; i += CONCURRENT_LIMIT) {
-        const chunk = variantOptionsToUpdate.slice(i, i + CONCURRENT_LIMIT);
-        await Promise.all(
-          chunk.map((item) =>
-            tx.variantOption.update({
-              where: { id: item.id },
-              data: { originalSellingPrice: item.sellingPrice },
-            })
-          )
-        );
-      }
-
-      await updateProductPricesFromOffers(tx, userId);
-    });
-
+    const restored = await restoreCatalogPricesFromOriginals(prisma, userId);
     return {
       success: true,
-      message: 'Product prices force updated successfully',
+      message:
+        restored > 0
+          ? `Restored ${restored} catalog prices from originalSellingPrice`
+          : 'Catalog prices already independent of offers',
     };
   } catch {
     throw new Error('Failed to force update prices');
@@ -1807,33 +1612,13 @@ export const forceUpdatePrices = async (userId: number) => {
 
 export const resetProductPrices = async (userId: number, productId: string) => {
   try {
-    await prisma.$transaction(async (tx) => {
-      const product = await tx.product.findFirst({
-        where: { productId, userId },
-        include: {
-          variants: true,
-          variantOptions: true,
-        },
-      });
-
-      if (product && product.variantOptions && product.variantOptions.length > 0) {
-        for (const variantOption of product.variantOptions) {
-          if (variantOption.originalSellingPrice) {
-            await tx.variantOption.update({
-              where: { id: variantOption.id },
-              data: {
-                sellingPrice: variantOption.originalSellingPrice,
-                originalSellingPrice: null,
-              },
-            });
-          }
-        }
-      }
-    });
-
+    const restored = await restoreCatalogPricesFromOriginals(prisma, userId, [productId]);
     return {
       success: true,
-      message: 'Product prices reset to original successfully',
+      message:
+        restored > 0
+          ? 'Product catalog prices restored successfully'
+          : 'Product catalog prices already independent of offers',
     };
   } catch {
     throw new Error('Failed to reset product prices');

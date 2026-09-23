@@ -184,13 +184,13 @@ async function loadOfferVars(
       userId,
       OR: [{ id: { in: ids } }, { offerId: { in: ids } }],
     },
-    select: { id: true, offerId: true, name: true },
+    select: { id: true, offerId: true, notes: true, buyerId: true },
   });
   if (!offer) {
     return { offerName: '', offerId: ids[0] ?? '', offerUrl: '' };
   }
   return {
-    offerName: offer.name,
+    offerName: offer.notes || offer.offerId,
     offerId: offer.offerId || offer.id,
     offerUrl: marketplaceDistributorUrl(userId),
   };

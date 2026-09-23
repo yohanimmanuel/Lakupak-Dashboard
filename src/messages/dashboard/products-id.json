@@ -120,7 +120,8 @@
       "confirmSingleProduct": "Apakah Anda yakin ingin membatalkan publikasi produk ini? Status akan diubah menjadi Draf.",
       "confirmBulkProductsCount": "Apakah Anda yakin ingin membatalkan publikasi {count} produk? Status akan diubah menjadi Draf.",
       "noteBulkProducts": "Catatan: Membatalkan publikasi produk akan menghapusnya dari marketplace tetapi tetap ada di katalog Anda sebagai Draf."
-    }
+    },
+    "customOfferClients": "{count} klien memiliki tarif khusus"
   },
   "table": {
     "searchPlaceholder": "Cari produk...",

@@ -1,13 +1,15 @@
 /**
  * Offer Validation and Tracking Utilities
- * Handles offer validation, usage tracking, and snapshot creation for orders
+ * Per-retailer pricing: offers only apply when a buyerId (client) is known.
  */
 
 import { prisma } from '@/lib/db';
 import type { Prisma } from '@/lib/db';
-import { getTodayBoundaries } from '@/lib/dateUtils';
+import {
+  getOfferForClientAndProduct,
+  applyOfferToPrice,
+} from '@/lib/offers/getOfferForClientAndProduct';
 import { parsePrice } from '@/utils/currencyUtils';
-import { buildBuyXGetYPromotionDetails, calculatePromotionGift } from '@/utils/promotionUtils';
 
 export interface OfferValidationResult {
   isValid: boolean;
@@ -27,7 +29,6 @@ export interface OfferValidationResult {
     applyMode?: 'from_zero' | 'after_moq';
     moq?: number | null;
   };
-  // Add array of all applicable discount types for tracking
   applicableDiscountTypes?: Array<{
     id: string;
     discountType: string;
@@ -49,738 +50,323 @@ export interface OrderItemWithOffer {
   piecesPerPackage?: number;
   pricePerPackage: number;
   subtotal: number;
-  // Offer snapshot fields
   offerApplied?: boolean;
   offerBadgeSnapshot?: string | null;
   offerNameSnapshot?: string | null;
+  offerIdSnapshot?: string | null;
   originalPriceSnapshot?: string | null;
   discountPercentage?: number | null;
   discountAmount?: number | null;
   promotionDetailsSnapshot?: string | null;
 }
 
-/**
- * Validate if an offer can be applied to a product
- */
-export async function validateOfferForProduct(
-  productId: string,
-  marketplaceUserId: number | null,
-  orderTotal: number,
-  orderQuantity: number,
-  tx: Prisma.TransactionClient,
-  packageQuantity?: number, // Add package quantity for buy_x_get_y calculations
-  variant?: { sellingPrice: number | string; originalSellingPrice?: number | string | null; moq?: number | null } // Add variant parameter with MOQ (now Decimal, not string)
-): Promise<OfferValidationResult> {
-  try {
-    // Find active offers for this product
-    const { startOfToday, endOfToday } = getTodayBoundaries(); // Uses Asia/Jakarta timezone by default
-    
-    const activeOffers = await tx.offer.findMany({
-      where: {
-        status: 'active',
-        // Offer is valid if it has no date ranges (unlimited) OR has at least one active date range that's currently valid
-        OR: [
-          {
-            dateRanges: {
-              none: {} // No date ranges = unlimited offer
-            }
-          },
-          {
-            dateRanges: {
-              some: {
-                startDate: { lte: endOfToday }, // Start date is on or before today
-                endDate: { gte: startOfToday }, // End date is on or after today (includes entire day)
-                isActive: true
-              }
-            }
-          }
-        ],
-        offerProducts: {
-          some: {
-            productId: productId
-          }
-        }
-      },
-      include: {
-        offerDiscountTypes: {
-          where: {
-            isActive: true
-          },
-          orderBy: {
-            priority: 'desc' // Higher priority first
-          }
-        },
-        offerProducts: {
-          where: {
-            productId: productId
-          },
-          include: {
-            product: true
-          }
-        },
-        dateRanges: {
-          where: {
-            isActive: true
-          }
-        }
-      }
-    });
-
-    if (activeOffers.length === 0) {
-      return { isValid: false, error: 'No active offers found for this product' };
-    }
-
-    // Get the first (highest priority) offer
-    const offer = activeOffers[0];
-    if (!offer || !offer.offerProducts || offer.offerProducts.length === 0) {
-      return { isValid: false, error: 'No active offers found for this product' };
-    }
-    const product = offer.offerProducts[0].product;
-    
-    // Use variant price if provided, otherwise we need to get from variantOptions
-    // Handle Decimal type - use parsePrice which handles Decimal.js objects, numbers, and strings
-    let originalPrice = 0;
-    if (variant) {
-      const originalPriceValue = variant.originalSellingPrice || variant.sellingPrice;
-      originalPrice = parsePrice(originalPriceValue as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
-    } else {
-      // If no variant provided, we can't determine price - return error
-      return { isValid: false, error: 'Variant information required to validate offer' };
-    }
-
-    // Try each discount type in priority order and collect all applicable discounts/promotions
-    let bestDiscountAmount = 0;
-    let bestDiscountPercentage = 0;
-    let bestDiscountTypeId = '';
-    let promotionDetails = undefined;
-    let hasValidDiscount = false;
-    const applicableDiscountTypes: Array<{
-      id: string;
-      discountType: string;
-      discountAmount: number;
-      discountPercentage?: number;
-      promotionDetails?: {
-        minQuantity?: number;
-        freeQuantity?: number;
-        description?: string;
-        moq?: number | null;
-      };
-    }> = [];
-
-    const discountTypes = offer.offerDiscountTypes || [];
-    for (const discountType of discountTypes) {
-        // Check usage limits - this will prevent the offer from being applied if limit is reached
-      const usageValidation = await validateUsageLimits(
-        offer.id,
-        discountType.id,
-        marketplaceUserId,
-        discountType,
-        tx
-      );
-
-      if (!usageValidation.isValid) {
-        continue; // Try next discount type
-      }
-
-      // Calculate discount based on type
-      let discountAmount = 0;
-      let discountPercentage = 0;
-      let currentPromotionDetails = undefined;
-
-      if (discountType.discountType === 'percentage') {
-        // Convert Decimal to number
-        discountPercentage = parsePrice(discountType.discountValue as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
-        discountAmount = (originalPrice * discountPercentage) / 100;
-        
-        // Keep the best discount
-        if (discountAmount > bestDiscountAmount) {
-          bestDiscountAmount = discountAmount;
-          bestDiscountPercentage = discountPercentage;
-          bestDiscountTypeId = discountType.id;
-          hasValidDiscount = true;
-        }
-        
-        // Add to applicable discount types
-        applicableDiscountTypes.push({
-          id: discountType.id,
-          discountType: discountType.discountType,
-          discountAmount: discountAmount,
-          discountPercentage: discountPercentage
-        });
-      } else if (discountType.discountType === 'fixed') {
-        // Convert Decimal to number
-        discountAmount = parsePrice(discountType.discountValue as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
-        
-        // Keep the best discount
-        if (discountAmount > bestDiscountAmount) {
-          bestDiscountAmount = discountAmount;
-          bestDiscountPercentage = 0;
-          bestDiscountTypeId = discountType.id;
-          hasValidDiscount = true;
-        }
-        
-        // Add to applicable discount types
-        applicableDiscountTypes.push({
-          id: discountType.id,
-          discountType: discountType.discountType,
-          discountAmount: discountAmount
-        });
-      } else if (discountType.discountType === 'buy_x_get_y') {
-        const built = buildBuyXGetYPromotionDetails(discountType);
-        const moqPieces = variant?.moq ?? null;
-        const quantityInPieces = orderQuantity > 0 ? orderQuantity : (packageQuantity || 1);
-        const gift = calculatePromotionGift(built, quantityInPieces, moqPieces);
-
-        if (gift) {
-          currentPromotionDetails = {
-            ...built,
-            moq: moqPieces,
-          };
-
-          promotionDetails = currentPromotionDetails;
-
-          applicableDiscountTypes.push({
-            id: discountType.id,
-            discountType: discountType.discountType,
-            discountAmount: 0,
-            promotionDetails: currentPromotionDetails,
-          });
-        }
-      }
-    }
-
-    // If we found any valid discount or promotion, return the result
-    if (hasValidDiscount || promotionDetails) {
-      const finalPrice = originalPrice - bestDiscountAmount;
-
-      // Determine offer badge
-      const offerBadge = getOfferBadge(discountTypes);
-
-      return {
-        isValid: true,
-        offerId: offer.id,
-        offerName: offer.name,
-        discountTypeId: bestDiscountTypeId || (discountTypes.length > 0 ? discountTypes[0].id : ''),
-        discountAmount: bestDiscountAmount,
-        discountPercentage: bestDiscountPercentage,
-        offerBadge,
-        originalPrice,
-        finalPrice,
-        promotionDetails,
-        applicableDiscountTypes: applicableDiscountTypes
-      };
-    }
-
-    return { 
-      isValid: false, 
-      error: 'Offer exists but all discount types have reached their usage limits or requirements not met' 
-    };
-
-  } catch (error) {
-    return { 
-      isValid: false, 
-      error: error instanceof Error ? error.message : 'Failed to validate offer' 
-    };
-  }
-}
-
-/**
- * Deactivate offer and discount type if usage limit is reached
- */
-async function deactivateOfferIfLimitReached(
-  offerId: string,
-  discountTypeId: string,
-  tx: Prisma.TransactionClient
-): Promise<void> {
-  try {
-    // Deactivate only this specific discount type
-    await tx.offerDiscountType.update({
-      where: { id: discountTypeId },
-      data: { isActive: false }
-    });
-    
-    // Check if ALL discount types are now inactive, then deactivate the entire offer
-    const remainingActiveDiscountTypes = await tx.offerDiscountType.count({
-      where: {
-        offerId: offerId,
-        isActive: true
-      }
-    });
-    
-    if (remainingActiveDiscountTypes === 0) {
-      await tx.offer.update({
-        where: { id: offerId },
-        data: { status: 'inactive' }
-      });
-    }
-  } catch (error) {
-    // Don't throw - this shouldn't fail the validation
-  }
-}
-
-/**
- * Validate usage limits for an offer discount type
- */
-async function validateUsageLimits(
-  offerId: string,
-  discountTypeId: string,
-  marketplaceUserId: number | null,
-  discountType: {
-    // perCustomerLimit removed
-  },
-  tx: Prisma.TransactionClient
-): Promise<{ isValid: boolean; error?: string }> {
-  // No usage limits - distributors manage offers manually
-
-  // Per-customer usage limit check removed
-
-  return { isValid: true };
-}
-
-/**
- * Check and update offer statuses based on usage limits for specific offers
- * This function should be called after order creation to ensure offers are properly deactivated
- */
-export async function updateOfferStatusesBasedOnLimits(usedOfferIds?: string[]): Promise<void> {
-  // If no offers were used, don't check anything
-  if (!usedOfferIds || usedOfferIds.length === 0) {
-    return;
-  }
-
-  try {
-    await prisma.$transaction(async (tx) => {
-      
-      // Only check the specific offers that were used
-      const usedOffers = await tx.offer.findMany({
-        where: { 
-          status: 'active', 
-          id: { in: usedOfferIds } 
-        },
-        include: {
-          offerDiscountTypes: {
-            where: { isActive: true }
-          }
-        }
-      });
-
-
-      for (const offer of usedOffers) {
-        const hasDeactivatedDiscountType = false;
-        
-        // No usage limits - distributors manage offers manually
-        
-        // No automatic deactivation - distributors manage offers manually
-      }
-    });
-  } catch (error) {
-    // Log error but don't throw - this is a maintenance function
-  }
-}
-
-/**
- * Helper function to track per-discount-type usage (for analytics)
- * This is used by both trackOfferUsage and trackOfferUsageForAllTypes
- */
-async function trackDiscountTypeUsage(
-  offerId: string,
-  discountTypeId: string,
-  marketplaceUserId: number | null,
-  tx: Prisma.TransactionClient
-): Promise<void> {
-    if (marketplaceUserId) {
-      await tx.offerUsageTracking.upsert({
-        where: {
-          offerId_discountTypeId_marketplaceUserId: {
-            offerId: offerId,
-            discountTypeId: discountTypeId,
-            marketplaceUserId: marketplaceUserId
-          }
-        },
-        update: {
-          usageCount: { increment: 1 },
-          lastUsedAt: new Date()
-        },
-        create: {
-          offerId: offerId,
-          discountTypeId: discountTypeId,
-          marketplaceUserId: marketplaceUserId,
-          usageCount: 1,
-          lastUsedAt: new Date()
-        }
-      });
-    } else {
-      // Track general usage when no marketplaceUserId (for admin orders)
-    const existingUsage = await tx.offerUsageTracking.findFirst({
-        where: {
-            offerId: offerId,
-            discountTypeId: discountTypeId,
-            marketplaceUserId: null
-        }
-      });
-
-      if (existingUsage) {
-        await tx.offerUsageTracking.update({
-          where: { id: existingUsage.id },
-          data: {
-            usageCount: { increment: 1 },
-            lastUsedAt: new Date()
-          }
-        });
-      } else {
-        await tx.offerUsageTracking.create({
-          data: {
-            offerId: offerId,
-            discountTypeId: discountTypeId,
-            marketplaceUserId: null,
-            usageCount: 1,
-            lastUsedAt: new Date()
-          }
-        });
-      }
-    }
-}
-
-/**
- * Track usage for all applicable discount types in an order
- * Note: totalUsage should only increment once per order item, even if multiple discount types are applied
- */
-export async function trackOfferUsageForAllTypes(
-  offerId: string,
-  applicableDiscountTypes: Array<{
-    id: string;
-    discountType: string;
-    discountAmount: number;
-    discountPercentage?: number;
-    promotionDetails?: {
-      minQuantity?: number;
-      freeQuantity?: number;
-      description?: string;
-    };
-  }>,
-  marketplaceUserId: number | null,
-  tx: Prisma.TransactionClient
-): Promise<void> {
-  try {
-    if (applicableDiscountTypes.length === 0) {
-      return;
-    }
-
-    // Calculate total discount amount across all discount types
-    const totalDiscountAmount = applicableDiscountTypes.reduce(
-      (sum, dt) => sum + (dt.discountAmount || 0),
-      0
-    );
-
-    // Track usage for each discount type individually (for per-type analytics)
-    for (const discountType of applicableDiscountTypes) {
-      await trackDiscountTypeUsage(offerId, discountType.id, marketplaceUserId, tx);
-    }
-
-    // Update offer totals ONCE per order item (not per discount type)
-    // This ensures totalUsage represents the number of times the offer was used, not the number of discount types
-    await tx.offer.update({
-      where: { id: offerId },
-      data: {
-        totalUsage: { increment: 1 },
-        totalDiscountGiven: { increment: totalDiscountAmount }
-      }
-    });
-  } catch (error) {
-    // Don't throw - this shouldn't fail the order
-  }
-}
-
-/**
- * Track offer usage after successful order creation
- */
-export async function trackOfferUsage(
-  offerId: string,
-  discountTypeId: string,
-  marketplaceUserId: number | null,
-  discountAmount: number,
-  tx: Prisma.TransactionClient
-): Promise<void> {
-  try {
-    // Track per-discount-type usage (for analytics)
-    await trackDiscountTypeUsage(offerId, discountTypeId, marketplaceUserId, tx);
-
-    // Update offer totals
-    await tx.offer.update({
-      where: { id: offerId },
-      data: {
-        totalUsage: { increment: 1 },
-        totalDiscountGiven: { increment: discountAmount }
-      }
-    });
-
-    // No usage limits - distributors manage offers manually
-
-  } catch (error) {
-    // Don't fail the order if tracking fails, just log it
-    // Error handled silently
-  }
-}
-
-/**
- * Reverse offer discount when an order is deleted
- * Note: totalUsage remains cumulative (doesn't decrease), only totalDiscountGiven is reversed
- */
-export async function reverseOfferUsage(
-  orderId: string,
-  tx: Prisma.TransactionClient
-): Promise<void> {
-  try {
-    // Get all order items that had offers applied
-    const orderItems = await tx.orderItem.findMany({
-      where: {
-        orderId: orderId,
-        offerApplied: true
-      }
-    });
-
-    // Process each order item that had an offer
-    for (const item of orderItems) {
-      // Parse the promotion details to get discount amount
-      let discountAmount = 0;
-      if (item.promotionDetailsSnapshot) {
-        try {
-          const promotionDetails = JSON.parse(item.promotionDetailsSnapshot);
-          // For buy_x_get_y, calculate the discount based on free quantity
-          if (promotionDetails.freeQuantity && item.packageQuantity) {
-            // Convert freeQuantity to number if it's Decimal
-            const freeQuantity = parsePrice(promotionDetails.freeQuantity as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
-            const packageQuantity = item.packageQuantity;
-            const actualFreeQuantity = Math.min(freeQuantity, packageQuantity);
-            // Estimate discount amount (this is approximate since we don't have original price)
-            // Convert pricePerPackage to number if it's Decimal
-            const pricePerPackage = parsePrice((item.pricePerPackage || 0) as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
-            discountAmount = actualFreeQuantity * pricePerPackage;
-          }
-        } catch (e) {
-          // If parsing fails, skip this item
-          continue;
-        }
-      } else if (item.discountPercentage) {
-        // Convert discountPercentage to number if it's Decimal
-        const discountPercentage = parsePrice(item.discountPercentage as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
-        if (discountPercentage > 0) {
-          // For percentage discounts, calculate the discount amount
-          // Handle Decimal type - use parsePrice which handles Decimal.js objects
-          const originalPriceValue = item.originalPriceSnapshot;
-          const originalPrice = parsePrice(originalPriceValue as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
-          discountAmount = originalPrice * (discountPercentage / 100);
-        }
-      } else if (item.discountAmount) {
-        // For fixed discounts, use the stored discount amount - convert Decimal to number
-        discountAmount = parsePrice(item.discountAmount as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
-      }
-
-      // Find the offer and discount type from the snapshots
-      const offerName = item.offerNameSnapshot;
-      if (!offerName) continue;
-
-      // Find the offer by name
-      const offer = await tx.offer.findFirst({
-        where: {
-          name: offerName
-        },
-        include: {
-          offerDiscountTypes: true
-        }
-      });
-
-      if (!offer) continue;
-
-      // Find the discount type that was applied
-      let discountTypeId = null;
-      for (const dt of offer.offerDiscountTypes) {
-        if (dt.discountType === 'buy_x_get_y' && item.promotionDetailsSnapshot) {
-          discountTypeId = dt.id;
-          break;
-        } else if (dt.discountType === 'percentage' && item.discountPercentage) {
-          discountTypeId = dt.id;
-          break;
-        } else if (dt.discountType === 'fixed' && item.discountAmount) {
-          discountTypeId = dt.id;
-          break;
-        }
-      }
-
-      if (!discountTypeId) continue;
-
-      // Only decrement the total discount given, but never below 0
-      const currentOffer = await tx.offer.findUnique({
-        where: { id: offer.id },
-        select: { totalDiscountGiven: true }
-      });
-      
-      if (currentOffer) {
-        // Convert Decimal to number for calculation
-        const currentTotal = parsePrice(currentOffer.totalDiscountGiven as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
-        const newTotalDiscount = Math.max(0, currentTotal - discountAmount);
-        await tx.offer.update({
-          where: { id: offer.id },
-          data: {
-            totalDiscountGiven: newTotalDiscount
-          }
-        });
-      }
-
-      // Note: We don't decrement individual usage tracking since we can't identify
-      // which specific marketplace user made the original purchase
-    }
-  } catch (error) {
-    // Don't throw - this shouldn't fail the order deletion
-  }
-}
-
-/**
- * Determine offer badge based on discount types
- */
-function getOfferBadge(
-  discountTypes: Array<{ discountType: string; isActive: boolean }>
+function badgeForType(
+  discountType: string,
+  hasComboPromotion?: boolean,
 ): 'Discount' | 'Promotion' | 'All Offers' | 'Offer' {
-  const activeTypes = discountTypes.filter(dt => dt.isActive);
-  const hasDiscount = activeTypes.some(dt => dt.discountType === 'percentage' || dt.discountType === 'fixed');
-  const hasPromotion = activeTypes.some(dt => dt.discountType === 'buy_x_get_y');
-
-  if (hasDiscount && hasPromotion) return 'All Offers';
-  if (hasPromotion) return 'Promotion';
-  if (hasDiscount) return 'Discount';
+  if (hasComboPromotion && discountType !== 'buy_x_get_y') return 'All Offers';
+  if (discountType === 'buy_x_get_y') return 'Promotion';
+  if (
+    discountType === 'percentage' ||
+    discountType === 'fixed_amount' ||
+    discountType === 'fixed_price'
+  ) {
+    return 'Discount';
+  }
   return 'Offer';
 }
 
 /**
- * Create offer snapshot for order item
+ * Validate if a per-client offer can be applied to a product.
+ * Without buyerId, marketplace must not see private rates — returns invalid.
  */
-export function createOfferSnapshot(
+export async function validateOfferForProduct(
+  productId: string,
+  marketplaceUserId: number | null,
+  _orderTotal: number,
+  _orderQuantity: number,
+  tx: Prisma.TransactionClient,
+  _packageQuantity?: number,
+  variant?: {
+    sellingPrice: number | string;
+    moq?: number | null;
+    id?: number | null;
+  },
+  buyerId?: string | null,
+): Promise<OfferValidationResult> {
+  try {
+    const clientId = String(buyerId || '').trim();
+    if (!clientId) {
+      return {
+        isValid: false,
+        error: 'No buyerId — private rates not applied',
+      };
+    }
+
+    if (!variant) {
+      return { isValid: false, error: 'Variant information required to validate offer' };
+    }
+
+    // Catalog sellingPrice is the base; client rates apply at order time only
+    const originalPrice = parsePrice(
+      variant.sellingPrice as
+        | string
+        | number
+        | { toNumber?: () => number; toString?: () => string }
+        | null
+        | undefined,
+    );
+
+    const offer = await getOfferForClientAndProduct(clientId, productId, {
+      db: tx,
+      variantOptionId: variant.id ?? null,
+    });
+    if (!offer) {
+      return { isValid: false, error: 'No active offer for this client and product' };
+    }
+
+    const applied = applyOfferToPrice(originalPrice, offer);
+    const promo = applied.promotionDetails;
+    const isPromo = Boolean(promo);
+    const freeQty = promo?.freeQuantity ?? Math.round(offer.discountValue);
+    const buyQty = promo?.buyQuantity ?? offer.buyQuantity ?? 1;
+    const hasCombo =
+      isPromo &&
+      (offer.discountType === 'percentage' || offer.discountType === 'fixed_amount');
+
+    return {
+      isValid: true,
+      offerId: offer.id,
+      offerName: offer.notes || offer.offerId,
+      discountTypeId: offer.id,
+      discountAmount: applied.discountAmount,
+      discountPercentage: applied.discountPercentage ?? undefined,
+      offerBadge: badgeForType(offer.discountType, hasCombo),
+      originalPrice,
+      finalPrice: applied.unitPrice,
+      promotionDetails: isPromo
+        ? {
+            minQuantity: buyQty,
+            freeQuantity: freeQty,
+            description: `Buy ${buyQty} get ${freeQty}`,
+          }
+        : undefined,
+      applicableDiscountTypes: [
+        {
+          id: offer.id,
+          discountType: offer.discountType,
+          discountAmount: applied.discountAmount,
+          discountPercentage: applied.discountPercentage ?? undefined,
+          promotionDetails: isPromo
+            ? {
+                minQuantity: buyQty,
+                freeQuantity: freeQty,
+              }
+            : undefined,
+        },
+      ],
+    };
+  } catch (error) {
+    return {
+      isValid: false,
+      error: error instanceof Error ? error.message : 'Failed to validate offer',
+    };
+  }
+}
+
+/** No-op: usage limits removed for per-retailer rates. */
+export async function updateOfferStatusesBasedOnLimits(_usedOfferIds?: string[]): Promise<void> {
+  // Distributors manage offer lifecycle manually
+}
+
+async function trackFlatOfferUsage(
+  offerId: string,
+  marketplaceUserId: number | null,
+  discountAmount: number,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  // Use empty string instead of null so compound unique upsert works reliably
+  const discountTypeId = '';
+
+  if (marketplaceUserId != null) {
+    await tx.offerUsageTracking.upsert({
+      where: {
+        offerId_discountTypeId_marketplaceUserId: {
+          offerId,
+          discountTypeId,
+          marketplaceUserId,
+        },
+      },
+      update: {
+        usageCount: { increment: 1 },
+        lastUsedAt: new Date(),
+      },
+      create: {
+        offerId,
+        discountTypeId,
+        marketplaceUserId,
+        usageCount: 1,
+        lastUsedAt: new Date(),
+      },
+    });
+  } else {
+    const existingUsage = await tx.offerUsageTracking.findFirst({
+      where: {
+        offerId,
+        OR: [{ discountTypeId: '' }, { discountTypeId: null }],
+        marketplaceUserId: null,
+      },
+    });
+    if (existingUsage) {
+      await tx.offerUsageTracking.update({
+        where: { id: existingUsage.id },
+        data: { usageCount: { increment: 1 }, lastUsedAt: new Date() },
+      });
+    } else {
+      await tx.offerUsageTracking.create({
+        data: {
+          offerId,
+          discountTypeId,
+          marketplaceUserId: null,
+          usageCount: 1,
+          lastUsedAt: new Date(),
+        },
+      });
+    }
+  }
+
+  await tx.offer.update({
+    where: { id: offerId },
+    data: {
+      totalUsage: { increment: 1 },
+      totalDiscountGiven: { increment: discountAmount },
+    },
+  });
+}
+
+export async function trackOfferUsageForAllTypes(
+  offerId: string,
+  _applicableDiscountTypes: Array<{
+    id: string;
+    discountType: string;
+    discountAmount: number;
+    discountPercentage?: number;
+  }>,
+  marketplaceUserId: number | null,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  const totalDiscount = _applicableDiscountTypes.reduce(
+    (sum, d) => sum + (d.discountAmount || 0),
+    0,
+  );
+  await trackFlatOfferUsage(offerId, marketplaceUserId, totalDiscount, tx);
+}
+
+export async function trackOfferUsage(
+  offerId: string,
+  _discountTypeId: string,
+  marketplaceUserId: number | null,
+  discountAmount: number,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  await trackFlatOfferUsage(offerId, marketplaceUserId, discountAmount, tx);
+}
+
+/**
+ * Best-effort reverse of offer usage counters when an order is deleted.
+ * Decrements totalUsage / totalDiscountGiven for offers referenced on order items.
+ * Looks up by the stable Offer.id in offerIdSnapshot (set at apply time),
+ * scoped to the order's distributor (and buyer when present).
+ */
+export async function reverseOfferUsage(
+  orderId: string,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  try {
+    const order = await tx.order.findFirst({
+      where: { orderId },
+      select: { userId: true, buyerId: true },
+    });
+    if (!order) return;
+
+    const items = await tx.orderItem.findMany({
+      where: { orderId, offerApplied: true },
+      select: {
+        offerIdSnapshot: true,
+        discountAmount: true,
+      },
+    });
+
+    for (const item of items) {
+      const offerKey = item.offerIdSnapshot?.trim();
+      if (!offerKey) continue;
+
+      const offer = await tx.offer.findFirst({
+        where: {
+          OR: [{ id: offerKey }, { offerId: offerKey }],
+          ...(order.userId != null ? { userId: order.userId } : {}),
+          ...(order.buyerId ? { buyerId: order.buyerId } : {}),
+        },
+        select: { id: true, totalUsage: true },
+      });
+      if (!offer) continue;
+      const discount = Number(item.discountAmount ?? 0);
+      await tx.offer.update({
+        where: { id: offer.id },
+        data: {
+          totalUsage: { decrement: offer.totalUsage > 0 ? 1 : 0 },
+          ...(discount > 0 ? { totalDiscountGiven: { decrement: discount } } : {}),
+        },
+      });
+    }
+  } catch {
+    // Non-fatal: deletion should still proceed
+  }
+}
+
+/**
+ * Create order item with offer snapshot fields.
+ */
+export function createOrderItemWithOffer(
+  baseItem: Omit<
+    OrderItemWithOffer,
+    | 'offerApplied'
+    | 'offerBadgeSnapshot'
+    | 'offerNameSnapshot'
+    | 'offerIdSnapshot'
+    | 'originalPriceSnapshot'
+    | 'discountPercentage'
+    | 'discountAmount'
+    | 'promotionDetailsSnapshot'
+  >,
   validation: OfferValidationResult,
-  originalItem: OrderItemWithOffer
 ): OrderItemWithOffer {
-  if (!validation.isValid || !validation.offerId) {
-    return originalItem;
+  if (!validation.isValid) {
+    return {
+      ...baseItem,
+      offerApplied: false,
+      offerBadgeSnapshot: null,
+      offerNameSnapshot: null,
+      offerIdSnapshot: null,
+      originalPriceSnapshot: null,
+      discountPercentage: null,
+      discountAmount: null,
+      promotionDetailsSnapshot: null,
+    };
   }
 
   return {
-    ...originalItem,
+    ...baseItem,
     offerApplied: true,
-    offerBadgeSnapshot: validation.offerBadge,
-    offerNameSnapshot: validation.offerName,
-    originalPriceSnapshot: validation.originalPrice?.toString(),
-    discountPercentage: validation.discountPercentage,
-    discountAmount: validation.discountAmount,
-    promotionDetailsSnapshot: validation.promotionDetails 
-      ? JSON.stringify(validation.promotionDetails) 
-      : null
+    offerBadgeSnapshot: validation.offerBadge ?? null,
+    offerNameSnapshot: validation.offerName ?? null,
+    offerIdSnapshot: validation.offerId ?? null,
+    originalPriceSnapshot:
+      validation.originalPrice != null ? String(validation.originalPrice) : null,
+    discountPercentage: validation.discountPercentage ?? null,
+    discountAmount: validation.discountAmount ?? null,
+    promotionDetailsSnapshot: validation.promotionDetails
+      ? JSON.stringify(validation.promotionDetails)
+      : null,
   };
 }
-
-/**
- * Validate multiple products in a cart
- */
-export async function validateOffersForCart(
-  items: Array<{
-    productId: string;
-    quantity: number;
-    price: number;
-  }>,
-  marketplaceUserId: number | null,
-  tx: Prisma.TransactionClient
-): Promise<Map<string, OfferValidationResult>> {
-  const results = new Map<string, OfferValidationResult>();
-  const orderTotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-
-  for (const item of items) {
-    const validation = await validateOfferForProduct(
-      item.productId,
-      marketplaceUserId,
-      orderTotal,
-      item.quantity,
-      tx
-    );
-    results.set(item.productId, validation);
-  }
-
-  return results;
-}
-
-/**
- * Update product prices after offer deactivation
- * This function resets product prices to their original values when offers are deactivated
- * Only affects products that are specifically associated with the deactivated offer
- */
-async function updateProductPricesAfterOfferDeactivation(
-  tx: Prisma.TransactionClient, 
-  offerId: string
-): Promise<void> {
-  try {
-    // Get the offer and its associated products
-    const offer = await tx.offer.findUnique({
-      where: { id: offerId },
-      select: { 
-        userId: true,
-        offerProducts: {
-          select: { productId: true }
-        }
-      }
-    });
-
-    if (!offer) return;
-
-    // Get only the products that are specifically associated with this offer
-    const productIds = offer.offerProducts.map((op: { productId: string }) => op.productId);
-    
-    if (productIds.length === 0) return;
-
-    // Get products with originalSellingPrice set that are associated with this specific offer
-    const productsWithOriginalPrices = await tx.product.findMany({
-      where: {
-        productId: { in: productIds },
-        userId: offer.userId,
-            variantOptions: {
-              some: {
-                originalSellingPrice: {
-                  not: ''
-                }
-              }
-            }
-          },
-      include: { 
-        variantOptions: true, 
-        variants: true 
-      }
-    });
-
-    // Reset prices only for variants of products associated with this specific offer
-    for (const product of productsWithOriginalPrices) {
-      // Reset variantOptions (new structure)
-      // originalSellingPrice is now Decimal, not string
-      const variantOptions = (product as { variantOptions: Array<{ id: number; originalSellingPrice: unknown }> }).variantOptions || [];
-      for (const variantOption of variantOptions) {
-        // Check if originalSellingPrice exists (can be Decimal, number, or null)
-        const originalPrice = variantOption.originalSellingPrice;
-        if (originalPrice !== null && originalPrice !== undefined) {
-          // Convert Decimal to number if needed, then use it
-          const originalPriceNum = parsePrice(originalPrice);
-          if (originalPriceNum > 0) {
-            await tx.variantOption.update({
-              where: { id: variantOption.id },
-              data: {
-                sellingPrice: originalPriceNum, // Decimal type in DB
-                originalSellingPrice: null // Clear original price
-              }
-            });
-          }
-        }
-      }
-      
-    }
-  } catch (error) {
-    // Error handled silently - don't fail the order
-  }
-}
-
-// Re-export client-safe utility function from offerUtils
-export { computeOfferDates } from './offerUtils';
-
-

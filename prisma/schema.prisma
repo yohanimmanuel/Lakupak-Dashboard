@@ -212,6 +212,7 @@ model Buyer {
   userId       Int?
   user         User?    @relation(fields: [userId], references: [id])
   orders       Order[]
+  offers       Offer[]
 }
 
 model Supplier {
@@ -263,7 +264,7 @@ model Product {
   // Use getProductTotalStock() helper function to calculate
   variants          ProductVariant[]
   orderItems        OrderItem[]
-  offerProducts     OfferProduct[]
+  offers            Offer[]
   // New variant modeling (definitions and options for combinations)
   variantOptions    VariantOption[]
   favoriteProducts  FavoriteProduct[]
@@ -601,7 +602,8 @@ model OrderItem {
   // Offer snapshots - preserve offer status at time of purchase
   offerApplied             Boolean?        @default(false)
   offerBadgeSnapshot       String? // 'Discount', 'Promotion', 'All Offers', 'Offer'
-  offerNameSnapshot        String? // Name of the offer at time of purchase
+  offerNameSnapshot        String? // Display name of the offer at time of purchase
+  offerIdSnapshot          String? // Stable Offer.id at apply time (used by reverseOfferUsage)
   originalPriceSnapshot    Decimal? @db.Decimal(12, 2) // Original price before discount (for display)
   discountPercentage       Decimal? @db.Decimal(5, 2) // Calculated discount % at time of purchase (for percentage discounts)
   discountAmount           Decimal? @db.Decimal(12, 2) // Fixed discount amount at time of purchase (for fixed discounts)
@@ -629,7 +631,7 @@ model VariantOption {
   sku                  String?
   purchasePrice        Decimal @db.Decimal(12, 2)
   sellingPrice         Decimal @db.Decimal(12, 2)
-  originalSellingPrice Decimal? @db.Decimal(12, 2)
+  originalSellingPrice Decimal? @db.Decimal(12, 2) // legacy; unused — client rates do not rewrite catalog prices
   moq                  Int?
   stockQuantity        Int      @default(0)
   lowStockThreshold    Int      @default(0)
@@ -641,6 +643,7 @@ model VariantOption {
 
   product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   orderItems OrderItem[]
+  offers     Offer[]
 
   @@unique([productId, variantName])
   @@index([productId, isActive])
@@ -805,88 +808,47 @@ model MarketplaceSearchTermMap {
 }
 
 model Offer {
-  id                 String   @id @default(cuid())
-  offerId            String   @unique
-  name               String
-  description        String?
-  type               String[] // ['discount', 'promotion'] - can contain multiple types
-  status             String // 'active' | 'scheduled' | 'inactive' (inactive = manually deactivated OR expired)
-  totalUsage         Int      @default(0)
-  totalDiscountGiven Decimal  @default(0) @db.Decimal(12, 2)
-  userId             Int?
-  createdAt          DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt          DateTime @updatedAt @db.Timestamptz(3)
+  id                 String    @id @default(cuid())
+  offerId            String    @unique
+  groupId            String? // shared id when one rate covers multiple products/variants
+  userId             Int? // distributor
+  buyerId            String? // Buyer.buyerId (client); null allowed for incomplete drafts
+  productId          String? // Product.productId XOR categoryId (both null ok for drafts)
+  categoryId         String? // merchandisingCategorySlug
+  variantOptionId    Int? // null = whole product (all variants); set = that VariantOption only
+  discountType       String // percentage | fixed_amount | buy_x_get_y
+  discountValue      Decimal   @db.Decimal(10, 2)
+  buyQuantity        Int? // required when buy_x_get_y; also set for combo with price discount
+  freeQuantity       Int? // get-Y for buy_x_get_y / combo; null when price-only
+  startDate          DateTime  @db.Timestamptz(3)
+  endDate            DateTime? @db.Timestamptz(3) // null = standing/indefinite
+  status             String    @default("draft") // draft | active | expired
+  notes              String?
+  description        String? // optional, keep column if already exists
+  totalUsage         Int       @default(0)
+  totalDiscountGiven Decimal   @default(0) @db.Decimal(12, 2)
+  createdAt          DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime  @updatedAt @db.Timestamptz(3)
 
-  // Relations
-  user               User?               @relation(fields: [userId], references: [id])
-  offerProducts      OfferProduct[]
-  offerDiscountTypes OfferDiscountType[]
-  dateRanges         DateRange[]
+  user          User?           @relation(fields: [userId], references: [id])
+  buyer         Buyer?          @relation(fields: [buyerId], references: [buyerId], onDelete: Cascade)
+  product       Product?        @relation(fields: [productId], references: [productId], onDelete: Cascade)
+  variantOption VariantOption?  @relation(fields: [variantOptionId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-  @@index([status])
-  @@index([type])
-}
-
-model OfferDiscountType {
-  id            String   @id @default(cuid())
-  offerId       String
-  discountType  String // 'percentage' | 'fixed' | 'buy_x_get_y'
-  discountValue Decimal  @db.Decimal(10, 2)
-  name          String? // e.g., "Summer Sale Discount"
-  description   String? // e.g., "4% discount on all items"
-  minOrderValue Decimal? @db.Decimal(12, 2) // minimum order value for this discount type
-  minQuantity   Int? // minimum quantity required
-  /// When buy_x_get_y: `from_zero` counts sets from first unit; `after_moq` only after product MOQ is met (>=).
-  promotionApplyMode String? @default("after_moq")
-  // per-customer usage limit removed
-  isActive      Boolean  @default(true)
-  priority      Int      @default(1) // Higher number = higher priority
-  createdAt     DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
-
-  // Relations
-  offer Offer @relation(fields: [offerId], references: [id], onDelete: Cascade)
-
-  @@index([offerId])
-  @@index([discountType])
-  @@index([priority])
-}
-
-model OfferProduct {
-  id        String @id @default(cuid())
-  offerId   String
-  productId String
-
-  // Relations
-  offer   Offer   @relation(fields: [offerId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [productId], onDelete: Cascade)
-
-  @@unique([offerId, productId])
-  @@index([offerId])
+  @@index([groupId])
+  @@index([buyerId])
   @@index([productId])
-}
-
-model DateRange {
-  id          String    @id @default(cuid())
-  offerId     String
-  name        String
-  description String?
-  startDate   DateTime
-  endDate     DateTime
-  isActive    Boolean   @default(true)
-  deletedAt   DateTime? @db.Timestamptz(3)
-  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
-
-  // Relations
-  offer Offer @relation(fields: [offerId], references: [id], onDelete: Cascade)
-
-  @@index([offerId])
+  @@index([categoryId])
+  @@index([variantOptionId])
+  @@index([status])
+  @@index([userId, buyerId])
+  @@index([userId, productId])
+  @@index([userId, groupId])
   @@index([startDate, endDate])
-  @@index([deletedAt])
 }
 
+// Kept in DB without Prisma relations (legacy usage tracking).
 model OfferUsageTracking {
   id                String   @id @default(cuid())
   offerId           String

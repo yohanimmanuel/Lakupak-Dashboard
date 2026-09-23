@@ -304,13 +304,6 @@ export default function AutomationTable({
 
       {/* Table */}
       <div className="overflow-x-auto rounded-lg">
-        {filteredRows.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            <Workflow className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-            <p className="text-sm font-medium">{tTable('empty')}</p>
-            <p className="text-xs mt-1">{tTable('emptyHint')}</p>
-          </div>
-        ) : (
           <table className="w-full">
             <thead>
               <tr className="bg-gray-100 text-gray-500 whitespace-nowrap">
@@ -338,7 +331,18 @@ export default function AutomationTable({
               </tr>
             </thead>
             <tbody className="text-xs whitespace-nowrap">
-              {pagedRows.map((row) => (
+              {filteredRows.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center text-gray-500">
+                    <div className="flex flex-col items-center gap-2">
+                      <Workflow className="w-12 h-12 text-gray-400" />
+                      <p className="text-sm font-medium">{tTable('empty')}</p>
+                      <p className="text-xs">{tTable('emptyHint')}</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+              pagedRows.map((row) => (
                 <tr
                   key={row.id}
                   onClick={(e) => handleRowClick(row.id, e)}
@@ -410,10 +414,10 @@ export default function AutomationTable({
                     </div>
                   </td>
                 </tr>
-              ))}
+              ))
+              )}
             </tbody>
           </table>
-        )}
       </div>
 
       {/* Pagination */}

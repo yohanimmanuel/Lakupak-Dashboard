@@ -1,6 +1,7 @@
 import DataLoader from 'dataloader';
 import { prisma } from '@/lib/db';
-import type { Product, VariantOption, Offer, OfferProduct, OfferDiscountType, DateRange } from '@/lib/prisma-generated';
+import type { Product, VariantOption, Offer } from '@/lib/prisma-generated';
+import { getTodayBoundaries } from '@/lib/dateUtils';
 
 /**
  * DataLoader for batching and caching database queries
@@ -31,7 +32,6 @@ export const createProductLoader = () => {
 export const createVariantOptionsLoader = () => {
   return new DataLoader<string, VariantOption[]>(
     async (productIds) => {
-      // Query all variant options and filter in memory since productId is stored as string
       const allProducts = await prisma.product.findMany({
         where: {
           productId: { in: [...productIds] },
@@ -69,44 +69,31 @@ export const createVariantOptionsLoader = () => {
   );
 };
 
-// Offers DataLoader - batch load active offers for products
+/** Batch load active per-product offers (any buyer) for dashboard presence checks. */
 export const createActiveOffersLoader = (userId: number | number[]) => {
-  return new DataLoader<string, Array<Offer & { offerProducts: OfferProduct[]; offerDiscountTypes: OfferDiscountType[]; dateRanges: DateRange[] }>>(
+  return new DataLoader<string, Offer[]>(
     async (productIds) => {
       const userIds = Array.isArray(userId) ? userId : [userId];
-      
+      const { startOfToday, endOfToday } = getTodayBoundaries();
+
       const offers = await prisma.offer.findMany({
         where: {
-          status: 'Active',
+          status: 'active',
           userId: { in: userIds },
-          offerProducts: {
-            some: {
-              productId: { in: productIds as string[] },
-            },
-          },
+          productId: { in: productIds as string[] },
+          startDate: { lte: endOfToday },
+          OR: [{ endDate: null }, { endDate: { gte: startOfToday } }],
         },
-        include: {
-          offerProducts: true,
-          offerDiscountTypes: {
-            where: { isActive: true },
-          },
-          dateRanges: true,
-        },
-        orderBy: {
-          createdAt: 'desc',
-        },
+        orderBy: { createdAt: 'desc' },
       });
 
-      // Map offers to products
-      const offerMap = new Map<string, Array<Offer & { offerProducts: OfferProduct[]; offerDiscountTypes: OfferDiscountType[]; dateRanges: DateRange[] }>>();
-      
+      const offerMap = new Map<string, Offer[]>();
       for (const offer of offers) {
-        for (const product of offer.offerProducts) {
-          if (!offerMap.has(product.productId)) {
-            offerMap.set(product.productId, []);
-          }
-          offerMap.get(product.productId)!.push(offer);
+        if (!offer.productId) continue;
+        if (!offerMap.has(offer.productId)) {
+          offerMap.set(offer.productId, []);
         }
+        offerMap.get(offer.productId)!.push(offer);
       }
 
       return productIds.map((id) => offerMap.get(id) || []);
@@ -169,6 +156,6 @@ export interface DataLoaderContext {
 export const createDataLoaders = (userId?: number | number[]): DataLoaderContext => ({
   productLoader: createProductLoader(),
   variantOptionsLoader: createVariantOptionsLoader(),
-  activeOffersLoader: createActiveOffersLoader(userId || []),
+  activeOffersLoader: createActiveOffersLoader(userId ?? []),
   soldCountLoader: createSoldCountLoader(),
 });

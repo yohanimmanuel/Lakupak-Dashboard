@@ -16,7 +16,10 @@ export type PickedOffer = {
 type OfferNode = {
   id: string;
   offerId: string;
-  name: string;
+  notes?: string | null;
+  buyerStoreName?: string | null;
+  productName?: string | null;
+  categoryId?: string | null;
   status: string;
 };
 
@@ -26,7 +29,10 @@ const OFFERS_QUERY = `
       nodes {
         id
         offerId
-        name
+        notes
+        buyerStoreName
+        productName
+        categoryId
         status
       }
       pagination {
@@ -69,9 +75,14 @@ export function normalizePickedOffers(
 }
 
 function toPicked(offer: OfferNode): PickedOffer {
+  const label =
+    offer.notes ||
+    [offer.buyerStoreName, offer.productName || offer.categoryId].filter(Boolean).join(' · ') ||
+    offer.offerId ||
+    offer.id;
   return {
     offerId: String(offer.offerId || offer.id),
-    offerLabel: offer.name || offer.offerId || offer.id,
+    offerLabel: label,
     offerStatus: String(offer.status ?? ''),
   };
 }
@@ -134,7 +145,7 @@ export function OfferPickerField({
     const q = search.trim().toLowerCase();
     if (!q) return offers;
     return offers.filter((offer) => {
-      const hay = `${offer.name} ${offer.offerId} ${offer.status}`.toLowerCase();
+      const hay = `${offer.notes ?? ''} ${offer.buyerStoreName ?? ''} ${offer.productName ?? ''} ${offer.categoryId ?? ''} ${offer.offerId} ${offer.status}`.toLowerCase();
       return hay.includes(q);
     });
   }, [offers, search]);
