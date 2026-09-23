@@ -69,6 +69,8 @@ export async function PUT(req: NextRequest) {
       industryType, 
       businessDescription, 
       yearsInOperation, 
+      deliveryCoverageArea,
+      fulfillmentNotes,
       companySize, 
       businessAddress, 
       businessPhone, 
@@ -171,6 +173,8 @@ export async function PUT(req: NextRequest) {
     if (industryType !== undefined) updateData.industryType = readOptionalTrimmedStringOrNull(industryType) ?? null;
     if (businessDescription !== undefined) updateData.businessDescription = readOptionalTrimmedStringOrNull(businessDescription) ?? null;
     if (yearsInOperation !== undefined) updateData.yearsInOperation = readOptionalTrimmedStringOrNull(yearsInOperation) ?? null;
+    if (deliveryCoverageArea !== undefined) updateData.deliveryCoverageArea = readOptionalTrimmedStringOrNull(deliveryCoverageArea) ?? null;
+    if (fulfillmentNotes !== undefined) updateData.fulfillmentNotes = readOptionalTrimmedStringOrNull(fulfillmentNotes) ?? null;
     if (companySize !== undefined) updateData.companySize = readOptionalTrimmedStringOrNull(companySize) ?? null;
     if (businessAddress !== undefined) updateData.businessAddress = readOptionalTrimmedStringOrNull(businessAddress) ?? null;
     if (businessPhone !== undefined) updateData.businessPhone = readOptionalTrimmedStringOrNull(businessPhone) ?? null;
@@ -250,6 +254,8 @@ export async function PUT(req: NextRequest) {
     const companyInfoFieldsChanged = 
       businessDescription !== undefined ||
       yearsInOperation !== undefined ||
+      deliveryCoverageArea !== undefined ||
+      fulfillmentNotes !== undefined ||
       industryType !== undefined ||
       name !== undefined ||
       logo !== undefined ||

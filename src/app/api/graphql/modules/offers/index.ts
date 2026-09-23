@@ -979,10 +979,10 @@ const saveOfferGroup = async (args: {
     return results;
   });
 
-  return {
+    return {
     groupId: resolvedGroupId,
     offers: saved.map(mapOffer),
-  };
+    };
 };
 
 export const offersResolvers = {

@@ -19,6 +19,8 @@ interface CompanyProfileData {
   industryType: string;
   businessDescription: string;
   yearsInOperation: string;
+  deliveryCoverageArea: string;
+  fulfillmentNotes: string;
   companySize: string;
   
   // Contact Information
@@ -111,6 +113,8 @@ export default function DistributorOperations() {
     industryType: '',
     businessDescription: '',
     yearsInOperation: '',
+    deliveryCoverageArea: '',
+    fulfillmentNotes: '',
     companySize: '',
     businessAddress: '',
     businessPhone: '',
@@ -136,6 +140,8 @@ export default function DistributorOperations() {
     industryType: '',
     businessDescription: '',
     yearsInOperation: '',
+    deliveryCoverageArea: '',
+    fulfillmentNotes: '',
     companySize: '',
     businessAddress: '',
     businessPhone: '',
@@ -171,6 +177,8 @@ export default function DistributorOperations() {
         industryType: company?.industryType || '',
         businessDescription: company?.businessDescription || '',
         yearsInOperation: company?.yearsInOperation || '',
+        deliveryCoverageArea: (company as { deliveryCoverageArea?: string | null })?.deliveryCoverageArea || '',
+        fulfillmentNotes: (company as { fulfillmentNotes?: string | null })?.fulfillmentNotes || '',
         companySize: company?.companySize || '',
         businessAddress: company?.businessAddress || '',
         businessPhone: company?.businessPhone || '',
@@ -195,6 +203,8 @@ export default function DistributorOperations() {
         industryType: company?.industryType || '',
         businessDescription: company?.businessDescription || '',
         yearsInOperation: company?.yearsInOperation || '',
+        deliveryCoverageArea: (company as { deliveryCoverageArea?: string | null })?.deliveryCoverageArea || '',
+        fulfillmentNotes: (company as { fulfillmentNotes?: string | null })?.fulfillmentNotes || '',
         companySize: company?.companySize || '',
         businessAddress: company?.businessAddress || '',
         businessPhone: company?.businessPhone || '',
@@ -470,6 +480,8 @@ export default function DistributorOperations() {
         industryType: formData.industryType,
         businessDescription: formData.businessDescription.trim(),
         yearsInOperation: formData.yearsInOperation.trim(),
+        deliveryCoverageArea: formData.deliveryCoverageArea.trim(),
+        fulfillmentNotes: formData.fulfillmentNotes.trim(),
         companySize: formData.companySize,
         businessAddress: formData.businessAddress.trim(),
         businessPhone: formData.businessPhone.trim(),
@@ -875,6 +887,37 @@ export default function DistributorOperations() {
                 className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
                 placeholder={tDistributor('yearsInOperationPlaceholder')}
               />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-2">
+                {tDistributor('deliveryCoverageArea')}
+              </label>
+              <textarea
+                value={formData.deliveryCoverageArea}
+                onChange={(e) => handleInputChange('deliveryCoverageArea', e.target.value)}
+                disabled={!isEditing}
+                rows={2}
+                className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black resize-none"
+                placeholder={tDistributor('deliveryCoverageAreaPlaceholder')}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-2">
+                {tDistributor('fulfillmentNotes')}
+              </label>
+              <textarea
+                value={formData.fulfillmentNotes}
+                onChange={(e) => handleInputChange('fulfillmentNotes', e.target.value)}
+                disabled={!isEditing}
+                rows={2}
+                className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black resize-none"
+                placeholder={tDistributor('fulfillmentNotesPlaceholder')}
+              />
+              <p className="mt-1 text-[11px] text-gray-500">
+                {tDistributor('fulfillmentNotesHint')}
+              </p>
             </div>
 
             {/* Contact Information */}

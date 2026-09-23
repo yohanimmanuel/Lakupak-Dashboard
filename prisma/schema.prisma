@@ -70,6 +70,10 @@ model Company {
   industryType                String?
   businessDescription         String?
   yearsInOperation            String?
+  /// Manual delivery coverage area entered by the distributor (not computed).
+  deliveryCoverageArea        String?
+  /// Manual fulfillment / trust notes for marketplace profiles (placeholder until real stats exist).
+  fulfillmentNotes            String?
   companySize                 String?
   businessAddress             String?
   businessPhone               String?

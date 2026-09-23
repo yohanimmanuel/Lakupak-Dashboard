@@ -236,13 +236,13 @@ const BUYERS_QUERY = `
   }
 `;
 
-export default function OfferTable({
-  offers = [],
-  setOffersAction,
+export default function OfferTable({ 
+  offers = [], 
+  setOffersAction, 
   onRefreshAction,
-}: {
-  offers?: Offer[];
-  setOffersAction?: (fn: (prev: Offer[]) => Offer[]) => void;
+}: { 
+  offers?: Offer[]; 
+  setOffersAction?: (fn: (prev: Offer[]) => Offer[]) => void; 
   onRefreshAction?: () => void;
 }) {
   const {
@@ -255,7 +255,7 @@ export default function OfferTable({
   const user = useUserStore((state) => state.user);
   const router = useRouter();
   const userCurrency = user?.currency || getDefaultCurrency();
-
+  
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [selectedTab, setSelectedTab] = useState<(typeof STATUS_TABS)[number]>('All');
@@ -276,7 +276,7 @@ export default function OfferTable({
   const [deleteError, setDeleteError] = useState('');
   const [bulkError, setBulkError] = useState('');
   const rowsPerPage = 8;
-
+  
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
   const clientDropdownRef = useRef<HTMLDivElement>(null);
@@ -628,25 +628,25 @@ export default function OfferTable({
               </button>
             ))}
           </div>
+          </div>
         </div>
-      </div>
 
-      {/* Search and Filters */}
+        {/* Search and Filters */}
       <div className="flex flex-wrap gap-2 w-full items-center justify-start mb-4">
-        <div className="relative w-full md:w-64 shrink-0">
-          <input
-            type="text"
-            placeholder={tTable('searchPlaceholder')}
-            value={search}
+          <div className="relative w-full md:w-64 shrink-0">
+            <input
+              type="text"
+              placeholder={tTable('searchPlaceholder')}
+              value={search}
             onChange={(e) => {
               setSearch(e.target.value);
               setPage(1);
             }}
-            className="w-full pl-10 pr-4 py-2 rounded-lg border border-[#e6e6e6] text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7] bg-white"
+              className="w-full pl-10 pr-4 py-2 rounded-lg border border-[#e6e6e6] text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7] bg-white"
             maxLength={100}
-          />
-          <Search className="absolute left-3 top-2 text-gray-400 w-5 h-5" />
-        </div>
+            />
+            <Search className="absolute left-3 top-2 text-gray-400 w-5 h-5" />
+          </div>
 
         {/* Client filter with searchable list */}
         <div className="relative" ref={clientDropdownRef}>
@@ -666,7 +666,7 @@ export default function OfferTable({
           {showClientDropdown && (
             <div className="absolute left-0 mt-2 w-72 bg-white border border-[#e6e6e6] rounded-lg shadow-lg z-30 overflow-hidden">
               <div className="p-2 border-b border-[#e6e6e6]">
-                <div className="relative">
+           <div className="relative">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
                   <input
                     type="text"
@@ -679,7 +679,7 @@ export default function OfferTable({
                 </div>
               </div>
               <div className="max-h-64 overflow-y-auto">
-                <button
+             <button
                   type="button"
                   onClick={() => {
                     setClientFilter('all');
@@ -693,10 +693,10 @@ export default function OfferTable({
                   }`}
                 >
                   {tTable('allClients')}
-                </button>
-                <button
+             </button>
+                   <button
                   type="button"
-                  onClick={() => {
+                     onClick={() => {
                     setClientFilter(NO_CLIENT_FILTER);
                     setShowClientDropdown(false);
                     setClientSearch('');
@@ -740,16 +740,16 @@ export default function OfferTable({
                         {b.owner && (
                           <div className="text-xs text-gray-500 truncate">{b.owner}</div>
                         )}
-                      </button>
-                    ))}
+                   </button>
+                 ))}
               </div>
-            </div>
-          )}
-        </div>
+               </div>
+             )}
+      </div>
 
         {/* Status filter dropdown */}
         <div className="relative" ref={statusDropdownRef}>
-          <button
+              <button
             type="button"
             className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm whitespace-nowrap"
             onClick={() => {
@@ -761,11 +761,11 @@ export default function OfferTable({
             <Filter className="w-4 h-4" />
             {tTable('filterStatus')}: {translateStatusTab(statusFilter)}
             <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
-          </button>
+              </button>
           {showStatusDropdown && (
             <div className="absolute left-0 mt-2 w-44 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
               {STATUS_FILTERS.map((opt) => (
-                <button
+              <button
                   key={opt}
                   type="button"
                   onClick={() => {
@@ -779,7 +779,7 @@ export default function OfferTable({
                   }`}
                 >
                   {translateStatusTab(opt)}
-                </button>
+              </button>
               ))}
             </div>
           )}
@@ -787,7 +787,7 @@ export default function OfferTable({
 
         {/* Date filter */}
         <div className="relative" ref={dateDropdownRef}>
-          <button
+              <button
             type="button"
             className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm whitespace-nowrap"
             onClick={() => {
@@ -799,7 +799,7 @@ export default function OfferTable({
             <Filter className="w-4 h-4" />
             {translateDateFilter(dateFilter)}
             <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
-          </button>
+              </button>
           {showDateDropdown && (
             <div className="absolute right-0 mt-2 w-44 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
               {DATE_FILTERS.map((opt) => (
@@ -823,9 +823,9 @@ export default function OfferTable({
               ))}
             </div>
           )}
-        </div>
-      </div>
-
+            </div>
+          </div>
+          
       {bulkError && (
         <div className="mb-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
           {bulkError}
@@ -857,7 +857,7 @@ export default function OfferTable({
                   {isBulkWorking ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    <PlayCircle className="w-4 h-4" />
+                  <PlayCircle className="w-4 h-4" />
                   )}
                   {tTable('activate')}
                 </button>
@@ -870,7 +870,7 @@ export default function OfferTable({
                   {isBulkWorking ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    <PauseCircle className="w-4 h-4" />
+                  <PauseCircle className="w-4 h-4" />
                   )}
                   {tTable('deactivate')}
                 </button>
@@ -900,19 +900,19 @@ export default function OfferTable({
           <thead className="bg-gray-100 text-gray-500 whitespace-nowrap">
             <tr>
               <th className="py-3 px-4 font-medium uppercase w-10">
-                <button
+                  <button
                   type="button"
-                  onClick={handleSelectAll}
+                    onClick={handleSelectAll}
                   aria-label={tTable('selectAll')}
-                  className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
-                    allFilteredSelected
-                      ? 'bg-green-500 border-green-500'
-                      : 'bg-white border-gray-300 hover:border-green-400'
-                  }`}
-                >
+                    className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
+                      allFilteredSelected
+                        ? 'bg-green-500 border-green-500'
+                        : 'bg-white border-gray-300 hover:border-green-400'
+                    }`}
+                  >
                   {allFilteredSelected && <Check className="w-3 h-3 text-white" />}
-                </button>
-              </th>
+                  </button>
+                </th>
               <th className="py-3 px-4 font-medium uppercase">{tTable('columns.client')}</th>
               <th className="py-3 px-4 font-medium uppercase">{tTable('columns.target')}</th>
               <th className="py-3 px-4 font-medium uppercase">{tTable('columns.discount')}</th>
@@ -921,8 +921,8 @@ export default function OfferTable({
               <th className="py-3 px-4 font-medium uppercase text-center">
                 {tTable('columns.actions')}
               </th>
-            </tr>
-          </thead>
+              </tr>
+            </thead>
           <tbody className="bg-white">
             {filteredGroups.length === 0 ? (
               <tr>
@@ -955,22 +955,22 @@ export default function OfferTable({
                     }}
                   >
                     <td className="py-3 px-4">
-                      <button
+                  <button
                         type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
+                    onClick={(e) => {
+                      e.stopPropagation();
                           toggleSelect(group.key);
-                        }}
+                    }}
                         aria-label={tTable('selectRow')}
-                        className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
+                    className={`w-4 h-4 border-2 rounded transition-all duration-200 flex items-center justify-center ${
                           selected
-                            ? 'bg-green-500 border-green-500'
-                            : 'bg-white border-gray-300 hover:border-green-400'
-                        }`}
-                      >
+                        ? 'bg-green-500 border-green-500'
+                        : 'bg-white border-gray-300 hover:border-green-400'
+                    }`}
+                  >
                         {selected && <Check className="w-3 h-3 text-white" />}
-                      </button>
-                    </td>
+                  </button>
+                </td>
                     <td className="py-3 px-4">
                       <div className="font-medium text-black">
                         {offer.buyerStoreName ||
@@ -980,7 +980,7 @@ export default function OfferTable({
                       {offer.buyerOwner && (
                         <div className="text-xs text-gray-500">{offer.buyerOwner}</div>
                       )}
-                    </td>
+                </td>
                     <td className="py-3 px-4 text-black whitespace-normal max-w-xs">
                       <div className="line-clamp-3">{productsLabel}</div>
                       {group.members.length > 1 && (
@@ -996,7 +996,7 @@ export default function OfferTable({
                           })}
                         </div>
                       )}
-                    </td>
+                </td>
                     <td className="py-3 px-4 text-black">
                       {formatDiscount(offer, userCurrency)}
                     </td>
@@ -1013,41 +1013,41 @@ export default function OfferTable({
                         }`}
                       >
                         {translateOfferStatus(offer.status)}
-                      </span>
-                    </td>
+                  </span>
+                </td>
                     <td className="py-3 px-4 text-gray-600 whitespace-nowrap">
                       {formatDuration(offer, unlimitedLabel)}
-                    </td>
+                </td>
                     <td className="py-3 px-4 text-center">
                       <div className="flex items-center justify-center gap-2">
-                        <button
+                    <button
                           type="button"
                           className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 transition-colors focus:outline-none"
                           title={tTable('editOffer')}
-                          onClick={(e) => {
-                            e.stopPropagation();
+                      onClick={(e) => {
+                        e.stopPropagation();
                             router.push(`/offers/details?id=${offer.id}`);
-                          }}
-                        >
-                          <Edit className="w-4 h-4 text-gray-500" />
-                        </button>
-                        <button
+                      }}
+                    >
+                      <Edit className="w-4 h-4 text-gray-500" />
+                    </button>
+                    <button
                           type="button"
                           className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-red-100 transition-colors focus:outline-none"
                           title={tTable('deleteOffer')}
-                          onClick={(e) => {
-                            e.stopPropagation();
+                      onClick={(e) => {
+                        e.stopPropagation();
                             setIsBulkDelete(false);
                             setGroupToDelete(group);
                             setDeleteError('');
                             setShowDeleteModal(true);
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4 text-red-600" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4 text-red-600" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
                 );
               })
             )}
@@ -1061,7 +1061,7 @@ export default function OfferTable({
           <div className="text-center py-12 text-gray-500">
             <Gift className="w-12 h-12 mx-auto mb-4 text-gray-400" />
             <p className="text-sm">{tTable('empty')}</p>
-          </div>
+        </div>
         ) : (
           <div className="space-y-3">
             {paged.map((group) => {
@@ -1085,7 +1085,7 @@ export default function OfferTable({
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-start gap-2 min-w-0">
-                      <button
+          <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1098,7 +1098,7 @@ export default function OfferTable({
                         }`}
                       >
                         {selected && <Check className="w-3 h-3 text-white" />}
-                      </button>
+          </button>
                       <div className="min-w-0">
                         <div className="font-medium text-black">
                           {offer.buyerStoreName ||
@@ -1136,7 +1136,7 @@ export default function OfferTable({
                       }}
                     >
                       <Edit className="w-4 h-4 text-gray-500" />
-                    </button>
+                </button>
                     <button
                       type="button"
                       className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-red-100"
@@ -1168,7 +1168,7 @@ export default function OfferTable({
           })}
         </div>
         <div className="flex items-center gap-3">
-          <button
+                <button
             type="button"
             className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
@@ -1182,13 +1182,13 @@ export default function OfferTable({
               type="button"
               className={`px-3 py-2 rounded-lg font-semibold text-sm transition ${
                 p === safePage
-                  ? 'bg-[#0a61d7] text-white'
+                      ? 'bg-[#0a61d7] text-white'
                   : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
-              }`}
+                  }`}
               onClick={() => setPage(p)}
-            >
+                >
               {p}
-            </button>
+                </button>
           ))}
           <button
             type="button"
@@ -1208,7 +1208,7 @@ export default function OfferTable({
               <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
               <div>
                 <h3 className="text-base font-semibold text-black">
-                  {isBulkDelete
+              {isBulkDelete 
                     ? tTable('deleteOffersTitle')
                     : tTable('deleteOffer')}
                 </h3>

@@ -12,6 +12,8 @@ interface Company {
   industryType?: string | null;
   businessDescription?: string | null;
   yearsInOperation?: string | null;
+  deliveryCoverageArea?: string | null;
+  fulfillmentNotes?: string | null;
   companySize?: string | null;
   businessAddress?: string | null;
   businessPhone?: string | null;
