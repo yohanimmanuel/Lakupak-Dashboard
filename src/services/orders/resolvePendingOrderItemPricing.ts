@@ -247,10 +247,3 @@ export async function syncOrderItemPricingFromCatalog(params: {
     });
   });
 }
-
-/** @deprecated Use syncOrderItemPricingFromCatalog */
-export async function resolvePendingOrderItemPricing(
-  params: Parameters<typeof syncOrderItemPricingFromCatalog>[0],
-): Promise<void> {
-  return syncOrderItemPricingFromCatalog(params);
-}

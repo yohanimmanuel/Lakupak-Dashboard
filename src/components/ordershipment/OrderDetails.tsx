@@ -533,7 +533,32 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
           {/* Status Buttons - Top Right */}
           <div className="flex flex-wrap gap-2">
             {/* Offer Badges - Show if products were ordered with active offers */}
-            {getOrderOfferBadges().map((badge, index) => (
+            {getOrderOfferBadges().map((badge, index) => {
+              const details = badge.details;
+              const pct = Number(details?.percentage);
+              const amt = Number(details?.amount);
+              let label: string;
+              if (badge.type === 'Discount' && Number.isFinite(pct) && pct > 0) {
+                label = tShared('offerBadges.percentOff', {
+                  percent: String(Math.round(pct)),
+                });
+              } else if (badge.type === 'Discount' && Number.isFinite(amt) && amt > 0) {
+                label = `${formatCurrency(amt, user?.currency)} ${tShared('offerBadges.off')}`;
+              } else if (
+                badge.type === 'Promotion' &&
+                details?.minQuantity &&
+                details?.freeQuantity
+              ) {
+                label = tShared('offerBadges.buyGet', {
+                  min: String(details.minQuantity),
+                  free: String(details.freeQuantity),
+                });
+              } else if (badge.type === 'Discount') {
+                label = tShared('offerBadges.Discount');
+              } else {
+                label = tShared('offerBadges.Promotion');
+              }
+              return (
               <div
                 key={index}
                 className={`flex items-center gap-1 py-2 px-3 rounded-lg text-xs font-semibold ${
@@ -543,22 +568,10 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 }`}
               >
                 {badge.type === 'Promotion' && <Gift className="w-3 h-3" />}
-                {badge.type === 'Discount' && Number(badge.details?.percentage) > 0
-                  ? tShared('offerBadges.percentOff', {
-                      percent: String(Math.round(Number(badge.details.percentage))),
-                    })
-                  : badge.type === 'Discount' && Number(badge.details?.amount) > 0
-                    ? `${formatCurrency(Number(badge.details.amount), user?.currency)} ${tShared('offerBadges.off')}`
-                  : badge.type === 'Promotion' && badge.details?.minQuantity && badge.details?.freeQuantity
-                    ? tShared('offerBadges.buyGet', {
-                        min: String(badge.details.minQuantity),
-                        free: String(badge.details.freeQuantity),
-                      })
-                    : badge.type === 'Discount'
-                      ? tShared('offerBadges.Discount')
-                      : tShared('offerBadges.Promotion')}
+                {label}
               </div>
-            ))}
+              );
+            })}
             {/* Order Status Dropdown */}
             <div className="relative group">
               <button
