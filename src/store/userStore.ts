@@ -29,6 +29,7 @@ interface Company {
   defaultDeliveryLeadTimeMinDays?: number | null;
   defaultDeliveryLeadTimeMaxDays?: number | null;
   buyerPaymentTermDays?: number | null;
+  autoApplyBasePriceForFirstBuyers?: boolean;
   /**
    * Non-sensitive reference to the billing profile.
    * Full billing details should be fetched server-side with authenticated calls.

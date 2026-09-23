@@ -132,15 +132,22 @@ export async function validateOfferForProduct(
     const buyQty = promo?.buyQuantity ?? offer.buyQuantity ?? 1;
     const hasCombo =
       isPromo &&
-      (offer.discountType === 'percentage' || offer.discountType === 'fixed_amount');
+      (offer.discountType === 'percentage' ||
+        offer.discountType === 'fixed_amount' ||
+        offer.discountType === 'fixed_price');
+
+    const discountPercentage =
+      offer.discountType === 'percentage' ? applied.discountPercentage ?? undefined : undefined;
+    const discountAmount =
+      applied.discountAmount > 0 ? applied.discountAmount : undefined;
 
     return {
       isValid: true,
       offerId: offer.id,
       offerName: offer.notes || offer.offerId,
       discountTypeId: offer.id,
-      discountAmount: applied.discountAmount,
-      discountPercentage: applied.discountPercentage ?? undefined,
+      discountAmount,
+      discountPercentage,
       offerBadge: badgeForType(offer.discountType, hasCombo),
       originalPrice,
       finalPrice: applied.unitPrice,
@@ -155,8 +162,8 @@ export async function validateOfferForProduct(
         {
           id: offer.id,
           discountType: offer.discountType,
-          discountAmount: applied.discountAmount,
-          discountPercentage: applied.discountPercentage ?? undefined,
+          discountAmount,
+          discountPercentage,
           promotionDetails: isPromo
             ? {
                 minQuantity: buyQty,

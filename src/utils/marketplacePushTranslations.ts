@@ -250,6 +250,24 @@ export function translateMarketplacePaymentIntentSubmitted(params: { orderId: st
   };
 }
 
+/** Distributor confirmed PO pricing — buyer can review amounts on the order. */
+export function translateMarketplacePricingSent(params: { orderId: string }): Record<
+  DriverPushLanguage,
+  MarketplacePushPayload
+> {
+  const { orderId } = params;
+  return {
+    id: {
+      title: 'Harga Pesanan Siap',
+      body: `Distributor telah mengirim harga untuk pesanan #${orderId}. Buka pesanan untuk melihat detail harga.`,
+    },
+    en: {
+      title: 'Order Pricing Ready',
+      body: `Your distributor sent pricing for order #${orderId}. Open the order to review the amounts.`,
+    },
+  };
+}
+
 /** Push copy when a driver app updates order status (wording differs slightly from catalog `translateMarketplaceBuyerOrderStatus`). */
 export function translateMarketplaceBuyerOrderFromDriverApp(params: {
   orderId: string;

@@ -20,6 +20,7 @@ const orderInclude = {
 
 export const ordersTypeDefs = /* GraphQL */ `
   type OrderItem {
+    id: Int
     productId: String
     productName: String
     category: String
@@ -157,6 +158,7 @@ const mapOrderItems = (
   >,
 ) =>
   items.map((item) => ({
+    id: item.id,
     productId: item.productId ?? null,
     productName: item.product?.name ?? item.productNameSnapshot ?? 'Unknown Product',
     category: item.product?.productType ?? item.productTypeSnapshot ?? 'Uncategorized',

@@ -60,6 +60,9 @@ function buildOrderItemCreateData(params: {
   variantNameSnapshot: string | null;
   currencySnapshot: string;
   offerValidation: OfferValidationResult;
+  /** Pre-resolved unit price: offer rate, auto base, or 0 pending. */
+  resolvedUnitPrice: number;
+  pricingSource: 'offer' | 'base' | 'pending';
 }) {
   const {
     orderId,
@@ -71,16 +74,22 @@ function buildOrderItemCreateData(params: {
     variantNameSnapshot,
     currencySnapshot,
     offerValidation,
+    resolvedUnitPrice,
+    pricingSource,
   } = params;
+
+  const unitPrice = Math.max(0, Number(resolvedUnitPrice) || 0);
+  const pricePerPackage = pricingSource === 'pending' ? 0 : unitPrice * piecesPerPackage;
+  const subtotal = pricingSource === 'pending' ? 0 : pricePerPackage * packageQuantity;
 
   const baseData = {
     orderId,
     productId: String(item.productId || ''),
-    subtotal: parseFloat(String(item.subtotal || 0)),
+    subtotal,
     packageType: String(item.packageType || 'Box'),
     piecesPerPackage,
     packageQuantity,
-    pricePerPackage: parseFloat(String(item.pricePerPackage || 0)),
+    pricePerPackage,
     productNameSnapshot: String(item.productName || 'Unknown Product'),
     productSkuSnapshot: String(item.productSku || ''),
     productTypeSnapshot: String(item.category || 'Uncategorized'),
@@ -93,14 +102,7 @@ function buildOrderItemCreateData(params: {
       variantOption.attributes && typeof variantOption.attributes === 'object'
         ? (variantOption.attributes as unknown as import('@/lib/prisma-generated').Prisma.InputJsonValue)
         : undefined,
-    unitPriceSnapshot: parsePrice(
-      variantOption.sellingPrice as
-        | string
-        | number
-        | { toNumber?: () => number; toString?: () => string }
-        | null
-        | undefined,
-    ),
+    unitPriceSnapshot: unitPrice,
     currencySnapshot,
     offerApplied: false,
     offerBadgeSnapshot: null as string | null,
@@ -113,7 +115,7 @@ function buildOrderItemCreateData(params: {
     moqSnapshot: variantOption.moq || null,
   };
 
-  if (offerValidation?.isValid && offerValidation?.offerId) {
+  if (pricingSource === 'offer' && offerValidation?.isValid && offerValidation?.offerId) {
     return {
       ...baseData,
       offerApplied: true,
@@ -123,11 +125,40 @@ function buildOrderItemCreateData(params: {
       originalPriceSnapshot: offerValidation.originalPrice?.toString() || null,
       discountPercentage: offerValidation.discountPercentage || null,
       discountAmount: offerValidation.discountAmount || null,
-      promotionDetailsSnapshot: offerValidation.promotionDetails ? JSON.stringify(offerValidation.promotionDetails) : null,
+      promotionDetailsSnapshot: offerValidation.promotionDetails
+        ? JSON.stringify(offerValidation.promotionDetails)
+        : null,
     };
   }
 
   return baseData;
+}
+
+function resolveLinePricing(params: {
+  offerValidation: OfferValidationResult;
+  baseUnitPrice: number;
+  isFirstOrderWithDistributor: boolean;
+  autoApplyBasePrice: boolean;
+}): { unitPrice: number; pricingSource: 'offer' | 'base' | 'pending' } {
+  const hasClientRate =
+    Boolean(params.offerValidation?.isValid && params.offerValidation.offerId) &&
+    params.offerValidation.finalPrice != null &&
+    Number.isFinite(Number(params.offerValidation.finalPrice));
+
+  if (hasClientRate) {
+    return {
+      unitPrice: Math.max(0, Number(params.offerValidation.finalPrice)),
+      pricingSource: 'offer',
+    };
+  }
+
+  // Catalog/list price from Products — never leave marketplace lines as "pending"
+  // on the distributor side. Offers (when present) already won above.
+  if (Number.isFinite(params.baseUnitPrice) && params.baseUnitPrice > 0) {
+    return { unitPrice: params.baseUnitPrice, pricingSource: 'base' };
+  }
+
+  return { unitPrice: 0, pricingSource: 'pending' };
 }
 
 function normalizeLeadTimeDays(value: unknown): number | null {
@@ -461,6 +492,22 @@ export async function createMobileMarketplaceOrders(
       },
     });
 
+    const priorOrderCountSingle = await prisma.order.count({
+      where: {
+        userId: distributorUserIdFromClient,
+        buyerId: buyerPerDistributorId,
+        isDeleted: false,
+      },
+    });
+    const isFirstOrderWithDistributorSingle = priorOrderCountSingle === 0;
+    const distributorCompanySingle = await prisma.company.findFirst({
+      where: { users: { some: { id: distributorUserIdFromClient } } },
+      select: { autoApplyBasePriceForFirstBuyers: true },
+    });
+    const autoApplyBasePriceSingle = Boolean(
+      distributorCompanySingle?.autoApplyBasePriceForFirstBuyers,
+    );
+
     const groupSubtotal = Array.isArray(orderItems)
       ? orderItems.reduce((sum: number, it: OrderItemInput) => sum + parseFloat(String(it.subtotal || 0)), 0)
       : 0;
@@ -692,11 +739,44 @@ export async function createMobileMarketplaceOrders(
             variantNameSnapshot,
             currencySnapshot: distributorCurrencySnapshot,
             offerValidation,
+            ...resolveLinePricing({
+              offerValidation,
+              baseUnitPrice: parsePrice(
+                variantOption.sellingPrice as
+                  | string
+                  | number
+                  | { toNumber?: () => number; toString?: () => string }
+                  | null
+                  | undefined,
+              ),
+              isFirstOrderWithDistributor: isFirstOrderWithDistributorSingle,
+              autoApplyBasePrice: autoApplyBasePriceSingle,
+            }),
           });
 
           return tx.orderItem.create({ data: orderItemData });
         });
-        await Promise.all(orderItemPromises);
+        const createdItems = await Promise.all(orderItemPromises);
+        const resolvedSubtotal = createdItems.reduce(
+          (sum, row) => sum + Number(row.subtotal || 0),
+          0,
+        );
+        const anyPending = createdItems.some((row) => !(Number(row.subtotal) > 0));
+        const resolvedTotal = anyPending
+          ? 0
+          : Math.max(
+              0,
+              resolvedSubtotal + Number(order.shippingFee || 0) - Number(order.discounts || 0),
+            );
+        if (resolvedSubtotal !== Number(order.subtotal || 0) || resolvedTotal !== Number(order.totalAmount || 0)) {
+          await tx.order.update({
+            where: { id: order.id },
+            data: {
+              subtotal: resolvedSubtotal,
+              totalAmount: resolvedTotal,
+            },
+          });
+        }
       });
       if (usedOfferIds.length > 0) {
         await updateOfferStatusesBasedOnLimits(usedOfferIds);
@@ -838,7 +918,8 @@ export async function createMobileMarketplaceOrders(
         freeQty > 0 &&
         (productOffer.discountType === 'buy_x_get_y' ||
           productOffer.discountType === 'percentage' ||
-          productOffer.discountType === 'fixed_amount');
+          productOffer.discountType === 'fixed_amount' ||
+          productOffer.discountType === 'fixed_price');
 
       if (hasBxgyPromo) {
         const promotionDetails = {
@@ -907,6 +988,22 @@ export async function createMobileMarketplaceOrders(
         userId: distributorUserId,
       },
     });
+
+    const priorOrderCount = await prisma.order.count({
+      where: {
+        userId: distributorUserId,
+        buyerId: buyerPerDistributorId,
+        isDeleted: false,
+      },
+    });
+    const isFirstOrderWithDistributor = priorOrderCount === 0;
+    const distributorCompany = await prisma.company.findFirst({
+      where: { users: { some: { id: distributorUserId } } },
+      select: { autoApplyBasePriceForFirstBuyers: true },
+    });
+    const autoApplyBasePrice = Boolean(
+      distributorCompany?.autoApplyBasePriceForFirstBuyers,
+    );
 
     const groupSubtotal = itemsForDistributor.reduce(
       (sum: number, it: OrderItemInput) => sum + parseFloat(String(it.subtotal || 0)),
@@ -1035,7 +1132,8 @@ export async function createMobileMarketplaceOrders(
               freeQty > 0 &&
               (productOffer.discountType === 'buy_x_get_y' ||
                 productOffer.discountType === 'percentage' ||
-                productOffer.discountType === 'fixed_amount');
+                productOffer.discountType === 'fixed_amount' ||
+                productOffer.discountType === 'fixed_price');
 
             if (hasBxgyPromo) {
               const promotionDetails = {
@@ -1132,12 +1230,45 @@ export async function createMobileMarketplaceOrders(
               variantNameSnapshot,
               currencySnapshot: distributorCurrencySnapshot,
               offerValidation,
+              ...resolveLinePricing({
+                offerValidation,
+                baseUnitPrice: parsePrice(
+                  variantOption.sellingPrice as
+                    | string
+                    | number
+                    | { toNumber?: () => number; toString?: () => string }
+                    | null
+                    | undefined,
+                ),
+                isFirstOrderWithDistributor,
+                autoApplyBasePrice,
+              }),
             });
 
             return tx.orderItem.create({ data: orderItemData });
           });
 
-          await Promise.all(orderItemPromises);
+          const createdItems = await Promise.all(orderItemPromises);
+          const resolvedSubtotal = createdItems.reduce(
+            (sum, row) => sum + Number(row.subtotal || 0),
+            0,
+          );
+          const anyPending = createdItems.some((row) => !(Number(row.subtotal) > 0));
+          const resolvedTotal = anyPending
+            ? 0
+            : Math.max(0, resolvedSubtotal + groupShipping - groupDiscounts);
+          if (
+            resolvedSubtotal !== Number(createdOrder.subtotal || 0) ||
+            resolvedTotal !== Number(createdOrder.totalAmount || 0)
+          ) {
+            return tx.order.update({
+              where: { id: createdOrder.id },
+              data: {
+                subtotal: resolvedSubtotal,
+                totalAmount: resolvedTotal,
+              },
+            });
+          }
         }
 
         return createdOrder;
@@ -1156,7 +1287,7 @@ export async function createMobileMarketplaceOrders(
           order.orderId,
           'Pending',
           order.storeName || 'Unknown Store',
-          groupTotalAmount,
+          Number(order.totalAmount) || 0,
         );
       } catch (err) {
         console.warn('[Mobile Orders] Failed to create order notification:', {

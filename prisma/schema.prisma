@@ -114,6 +114,8 @@ model Company {
   defaultDeliveryLeadTimeMaxDays Int?
   /// Days after purchase by which buyers must complete bank transfer (shown on Pay Order).
   buyerPaymentTermDays         Int?
+  /// When ON, first-time marketplace buyers without a client rate get the catalog/base price on PO submit.
+  autoApplyBasePriceForFirstBuyers Boolean @default(false)
   /// Dashboard users linked via User.companyId (FK on User).
   users                       User[]                 @relation("CompanyToUsers")
   paymentMethods              CompanyPaymentMethod[]

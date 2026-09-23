@@ -88,6 +88,7 @@ export interface OrderWithSnapshots extends Order {
 }
 
 export interface OrderItem {
+  id?: number;
   productId: string | null;
   productName: string;
   category: string;

@@ -11,7 +11,7 @@ import {
 import { isBankTransferPaymentTerms } from '@/utils/orderPayment';
 import { Order, OrderWithSnapshots } from '@/types/order';
 import { useUserStore } from '@/store/userStore';
-import { calculateOrderSubtotal, calculateOrderTotalAmount, calculateOrderTotalQuantity } from '@/utils/orderCalculations';
+import { calculateOrderTotalQuantity } from '@/utils/orderCalculations';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { calculateOrderItemPromotion } from '@/utils/promotionUtils';
@@ -96,6 +96,91 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const [podFileName, setPodFileName] = useState<string>('');
   const [showPodPreview, setShowPodPreview] = useState(false);
   const [durationError, setDurationError] = useState<string | null>(null);
+  const [localItems, setLocalItems] = useState(order.orderItems);
+  const [setPriceError, setSetPriceError] = useState<string | null>(null);
+  const [sendPricingSuccess, setSendPricingSuccess] = useState<string | null>(null);
+  const [isSendingPricing, setIsSendingPricing] = useState(false);
+
+  useEffect(() => {
+    setLocalItems(order.orderItems);
+  }, [order.orderItems]);
+
+  const calculateSubtotal = () =>
+    localItems.reduce((sum, item) => sum + Number(item.subtotal || 0), 0);
+
+  const calculateTotalAmount = () =>
+    Math.max(
+      0,
+      calculateSubtotal() + Number(order.shippingFee || 0) - Number(order.discounts || 0),
+    );
+  const calculateTotalQuantity = () => calculateOrderTotalQuantity({ ...order, orderItems: localItems });
+
+  const formatMoney = (amount: number | null | undefined) =>
+    formatCurrency(Number(amount) || 0, user?.currency);
+
+  /** Percentage offers → "X% OFF"; fixed amount / fixed price → "RpX OFF". */
+  const formatDiscountBadge = (item: (typeof localItems)[number]) => {
+    const pct = Number(item.discountPercentage);
+    const amt = Number(item.discountAmount);
+    if (Number.isFinite(pct) && pct > 0) {
+      return tShared('offerBadges.percentOff', { percent: String(Math.round(pct)) });
+    }
+    if (Number.isFinite(amt) && amt > 0) {
+      return `${formatCurrency(amt, user?.currency)} ${tShared('offerBadges.off')}`;
+    }
+    return tShared('offerBadges.off');
+  };
+
+  const pendingPricedItemCount = localItems.filter(
+    (item) => !(Number(item.subtotal) > 0),
+  ).length;
+  const canSendPricing =
+    orderStatus === 'Pending' &&
+    localItems.length > 0 &&
+    pendingPricedItemCount === 0;
+
+  const sendPricingTitle = !canSendPricing
+    ? orderStatus !== 'Pending'
+      ? tDetails('totalOrder.sendPricingAlreadySent')
+      : pendingPricedItemCount > 0
+        ? tDetails('totalOrder.itemsStillPending', { count: pendingPricedItemCount })
+        : tDetails('totalOrder.sendPricingDisabled')
+    : tDetails('totalOrder.sendPricing');
+
+  const handleSendPricingToBuyer = async () => {
+    if (!user?.id || !canSendPricing) return;
+    setIsSendingPricing(true);
+    setSetPriceError(null);
+    setSendPricingSuccess(null);
+    try {
+      const response = await fetch('/api/orders/send-pricing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: order.orderId,
+          userId: user.id,
+        }),
+      });
+      if (!response.ok) {
+        const data = (await response.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error || tDetails('totalOrder.sendPricingFailed'));
+      }
+      setSendPricingSuccess(tDetails('totalOrder.sendPricingSuccess'));
+    } catch (err) {
+      setSetPriceError(
+        err instanceof Error ? err.message : tDetails('totalOrder.sendPricingFailed'),
+      );
+    } finally {
+      setIsSendingPricing(false);
+    }
+  };
+
+  // Calculate pagination for earnings table
+  const earningsPerPage = 4;
+  const totalEarningsPages = Math.ceil(localItems.length / earningsPerPage);
+  const startIndex = (earningsPage - 1) * earningsPerPage;
+  const endIndex = startIndex + earningsPerPage;
+  const currentEarningsItems = localItems.slice(startIndex, endIndex);
 
   const latestPendingReturnRequest =
     order.returnRequests && order.returnRequests.find((rr) => rr.status === 'Pending');
@@ -113,11 +198,10 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   // POD file upload handler
   const handlePodUpload = async (file: File) => {
     if (!file) return;
-    
+
     setPodFileName(file.name);
-    
+
     try {
-      // Direct upload to Cloudinary (faster, no base64 conversion)
       const result = await uploadToCloudinaryDirect(file, 'orders/pod');
 
       if (result.success && result.url) {
@@ -193,14 +277,20 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
     const badges: Array<{ type: string; details?: Record<string, unknown> }> = [];
     const seenTypes = new Set<string>();
     
-    order.orderItems?.forEach(item => {
+    localItems?.forEach(item => {
       if (item.offerApplied && item.offerBadgeSnapshot) {
         const badge = item.offerBadgeSnapshot;
         
         if (badge === 'All Offers') {
           // Show both discount and promotion if "All Offers"
-          if (!seenTypes.has('Discount') && item.discountPercentage) {
-            badges.push({ type: 'Discount', details: { percentage: item.discountPercentage } });
+          if (!seenTypes.has('Discount') && (item.discountPercentage || item.discountAmount)) {
+            badges.push({
+              type: 'Discount',
+              details: {
+                percentage: item.discountPercentage,
+                amount: item.discountAmount,
+              },
+            });
             seenTypes.add('Discount');
           }
           if (!seenTypes.has('Promotion') && item.promotionDetailsSnapshot) {
@@ -212,8 +302,18 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               // Invalid JSON, skip
             }
           }
-        } else if (badge === 'Discount' && !seenTypes.has('Discount') && item.discountPercentage) {
-          badges.push({ type: 'Discount', details: { percentage: item.discountPercentage } });
+        } else if (
+          badge === 'Discount' &&
+          !seenTypes.has('Discount') &&
+          (item.discountPercentage || item.discountAmount)
+        ) {
+          badges.push({
+            type: 'Discount',
+            details: {
+              percentage: item.discountPercentage,
+              amount: item.discountAmount,
+            },
+          });
           seenTypes.add('Discount');
         } else if (badge === 'Promotion' && !seenTypes.has('Promotion') && item.promotionDetailsSnapshot) {
           try {
@@ -283,17 +383,6 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   );
   const showPaymentProof =
     isBankTransferPaymentTerms(order.paymentTerms) && paymentProofUrls.length > 0;
-
-  const calculateSubtotal = () => calculateOrderSubtotal(order);
-  const calculateTotalAmount = () => calculateOrderTotalAmount(order);
-  const calculateTotalQuantity = () => calculateOrderTotalQuantity(order);
-
-  // Calculate pagination for earnings table
-  const earningsPerPage = 4;
-  const totalEarningsPages = Math.ceil(order.orderItems.length / earningsPerPage);
-  const startIndex = (earningsPage - 1) * earningsPerPage;
-  const endIndex = startIndex + earningsPerPage;
-  const currentEarningsItems = order.orderItems.slice(startIndex, endIndex);
 
   const formatDeliveryOption = (value: string) => {
     if (!value) return '';
@@ -454,8 +543,12 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 }`}
               >
                 {badge.type === 'Promotion' && <Gift className="w-3 h-3" />}
-                {badge.type === 'Discount' && badge.details?.percentage 
-                  ? tShared('offerBadges.percentOff', { percent: String(badge.details.percentage) })
+                {badge.type === 'Discount' && Number(badge.details?.percentage) > 0
+                  ? tShared('offerBadges.percentOff', {
+                      percent: String(Math.round(Number(badge.details.percentage))),
+                    })
+                  : badge.type === 'Discount' && Number(badge.details?.amount) > 0
+                    ? `${formatCurrency(Number(badge.details.amount), user?.currency)} ${tShared('offerBadges.off')}`
                   : badge.type === 'Promotion' && badge.details?.minQuantity && badge.details?.freeQuantity
                     ? tShared('offerBadges.buyGet', {
                         min: String(badge.details.minQuantity),
@@ -695,7 +788,9 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             {/* Total Order Header */}
             <div>
               <div className="text-md font-semibold text-black mb-2">{tDetails('totalOrder.title')}</div>
-              <div className="text-2xl font-bold text-[#0a61d7] mb-3">{formatCurrency(calculateTotalAmount(), user?.currency)}</div>
+              <div className="text-2xl font-bold text-[#0a61d7] mb-3">
+                {formatMoney(calculateTotalAmount())}
+              </div>
             </div>
 
             {/* Payment Authorization Card */}
@@ -735,7 +830,9 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               <div className="space-y-3 text-xs">
                 <div className="flex justify-between">
                   <span className="text-gray-600">{tDetails('totalOrder.totalOrderPrice')}</span>
-                  <span className="font-medium text-black">{formatCurrency(calculateSubtotal(), user?.currency)}</span>
+                  <span className="font-medium text-black">
+                    {formatMoney(calculateSubtotal())}
+                  </span>
                 </div>
                 <div className="flex justify-between items-start gap-3">
                   <div className="flex flex-col">
@@ -1261,7 +1358,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
           <div className="lg:col-span-3 bg-white rounded-lg border border-[#e6e6e6] p-4">
             <h2 className="text-md font-semibold text-black mb-4">{tDetails('orderItems.title')}</h2>
             <div className="space-y-2">
-              {order.orderItems.slice(0, 4).map((item, index) => (
+              {localItems.slice(0, 4).map((item, index) => (
                 <div key={index} className="flex items-center gap-3 p-3">
                   {/* Product Image or Placeholder */}
                   <div className="w-14 h-14 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
@@ -1346,39 +1443,41 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                   </div>
                   
                   {/* Package Information */}
-                  <div className="text-right">
+                  <div className="text-right min-w-[140px]">
                     {/* Discount badge above per Box price */}
                     {item.offerApplied && (item.discountPercentage || item.discountAmount) && (
                       <div className="mb-1">
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 border border-red-200 rounded text-xs font-semibold text-red-600">
                           <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
-                          {item.discountPercentage 
-                            ? tShared('offerBadges.percentOff', { percent: String(item.discountPercentage) })
-                            : item.discountAmount 
-                            ? `${formatCurrency(item.discountAmount, user?.currency)} ${tShared('offerBadges.off')}`
-                            : tShared('offerBadges.off')
-                          }
+                          {formatDiscountBadge(item)}
                         </span>
                       </div>
                     )}
+                    {item.offerApplied && item.originalPriceSnapshot != null && Number(item.originalPriceSnapshot) > 0 ? (
+                      <p className="text-xs text-gray-400 line-through">
+                        {formatMoney(
+                          Number(item.originalPriceSnapshot) *
+                            Math.max(1, Number(item.piecesPerPackage) || 1),
+                        )}
+                      </p>
+                    ) : null}
                     <p className="text-xs text-gray-500">
-                      {formatCurrency(item.pricePerPackage || 0, user?.currency)}
+                      {formatMoney(item.pricePerPackage || 0)}
                     </p>
                     <p className="text-sm font-semibold text-black">
-                      {formatCurrency(item.subtotal, user?.currency)}
+                      {formatMoney(item.subtotal)}
                     </p>
                   </div>
                 </div>
               ))}
-              
-              {/* See More Button */}
-              {order.orderItems && order.orderItems.length > 4 && (
+
+              {localItems && localItems.length > 4 && (
                 <div className="pt-2">
                   <button
                     onClick={() => setShowAllItems(true)}
                     className="w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
                   >
-                    {tDetails('orderItems.seeMore', { count: order.orderItems.length - 4 })}
+                    {tDetails('orderItems.seeMore', { count: localItems.length - 4 })}
                   </button>
                 </div>
               )}
@@ -1395,7 +1494,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               <div className="bg-green-100 rounded-lg p-3 border border-[#e6e6e6]">
                 <div className="text-sm text-gray-600 font-medium mb-1">{tDetails('orderSummary.totalQuantity')}</div>
                 <div className="text-lg font-bold text-black">
-                  {order.orderItems.reduce((total, item) => total + (item.packageQuantity || 1), 0)} 
+                  {localItems.reduce((total, item) => total + (item.packageQuantity || 1), 0)} 
                 </div>
               </div>
               
@@ -1403,7 +1502,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               <div className="bg-gray-50 rounded-lg p-3 border border-[#e6e6e6]">
                 <div className="text-sm text-gray-600 font-medium mb-1">{tDetails('orderSummary.totalFreeQuantity')}</div>
                 <div className="text-lg font-bold text-purple-600">
-                  {order.orderItems.reduce((total, item) => {
+                  {localItems.reduce((total, item) => {
                     if (item.offerApplied && item.promotionDetailsSnapshot) {
                       try {
                         const promoDetails = JSON.parse(item.promotionDetailsSnapshot);
@@ -1484,20 +1583,52 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                           return '';
                         })()}
                       </td>
-                      <td className="py-2">{formatCurrency(item.pricePerPackage || 0, user?.currency)}</td>
-                      <td className="py-2 text-right font-medium">{formatCurrency(item.subtotal, user?.currency)}</td>
+                      <td className="py-2">
+                        {formatMoney(item.pricePerPackage || 0)}
+                      </td>
+                      <td className="py-2 text-right font-medium">
+                        {formatMoney(item.subtotal)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 border-gray-300">
-                    <td colSpan={5} className="py-3 text-lg font-semibold text-gray-900">{tDetails('orderSummary.totalPrice')}</td>
+                    <td colSpan={5} className="py-3 text-lg font-semibold text-gray-900">
+                      {tDetails('orderSummary.totalPrice')}
+                    </td>
                     <td className="py-3 text-right font-bold text-lg text-gray-900">
-                      {formatCurrency(calculateSubtotal(), user?.currency)}
+                      {formatMoney(calculateSubtotal())}
                     </td>
                   </tr>
                 </tfoot>
               </table>
+            </div>
+
+            <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              {setPriceError ? (
+                <p className="text-xs font-medium text-red-600">{setPriceError}</p>
+              ) : sendPricingSuccess ? (
+                <p className="text-xs font-medium text-green-700">{sendPricingSuccess}</p>
+              ) : !canSendPricing ? (
+                <p className="text-xs font-medium text-amber-700">{sendPricingTitle}</p>
+              ) : (
+                <span />
+              )}
+              <button
+                type="button"
+                disabled={!canSendPricing || isSendingPricing}
+                onClick={() => void handleSendPricingToBuyer()}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-[#0a61d7] hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                title={sendPricingTitle}
+              >
+                {isSendingPricing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <CheckCircle className="w-4 h-4" />
+                )}
+                {tDetails('totalOrder.sendPricing')}
+              </button>
             </div>
 
             {/* Pagination Controls */}
@@ -1544,7 +1675,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             {/* Modal Content */}
             <div className="p-4 overflow-y-auto max-h-[80vh]">
               <div className="space-y-3">
-                {order.orderItems.map((item, index) => (
+                {localItems.map((item, index) => (
                   <div key={index} className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
                     {/* Image Placeholder */}
                     <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -1609,12 +1740,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         <div className="mb-1">
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 border border-red-200 rounded text-xs font-semibold text-red-600">
                             <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
-                            {item.discountPercentage 
-                              ? tShared('offerBadges.percentOff', { percent: String(item.discountPercentage) })
-                              : item.discountAmount 
-                              ? `${formatCurrency(item.discountAmount, user?.currency)} ${tShared('offerBadges.off')}`
-                              : tShared('offerBadges.off')
-                            }
+                            {formatDiscountBadge(item)}
                           </span>
                         </div>
                       )}
@@ -1624,10 +1750,21 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                           packageType: item.packageType || tShared('defaultPackageType'),
                         })}
                       </p>
+                      {item.offerApplied && item.originalPriceSnapshot != null && Number(item.originalPriceSnapshot) > 0 ? (
+                        <p className="text-sm text-gray-400 line-through">
+                          {formatMoney(
+                            Number(item.originalPriceSnapshot) *
+                              Math.max(1, Number(item.piecesPerPackage) || 1),
+                          )}
+                        </p>
+                      ) : null}
                       <p className="text-sm font-medium text-gray-900">
-                        {formatCurrency(item.pricePerPackage || 0, user?.currency)} {tDetails('orderItems.perPackage')}
+                        {formatMoney(item.pricePerPackage || 0)}{' '}
+                        {tDetails('orderItems.perPackage')}
                       </p>
-                      <p className="text-lg font-semibold text-[#0a61d7]">{formatCurrency(item.subtotal, user?.currency)}</p>
+                      <p className="text-lg font-semibold text-[#0a61d7]">
+                        {formatMoney(item.subtotal)}
+                      </p>
                     </div>
                   </div>
                 ))}

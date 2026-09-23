@@ -4,6 +4,7 @@ import type { Prisma } from '@/lib/db';
 import { getOrderSecurityHeaders } from '@/utils/order-security';
 import { orderQueryRateLimiter } from '@/utils/rateLimiter';
 import { decimalToNumber } from './utils';
+import { syncOrderItemPricingFromCatalog } from './resolvePendingOrderItemPricing';
 
 export async function getOrdersHandler(request: NextRequest) {
   const headers = getOrderSecurityHeaders();
@@ -68,7 +69,32 @@ export async function getOrdersHandler(request: NextRequest) {
 
       if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404, headers });
 
-      const enrichedOrderItems = (order.orderItemsRel || []).map((oi) => ({
+      // Re-apply live Offers + catalog prices while PO is still Pending so offer
+      // edits (e.g. Rp4.000 → Rp1.000) show on Order Detail. Confirmed+ stays frozen.
+      if (order.userId && order.orderStatus === 'Pending') {
+        try {
+          await syncOrderItemPricingFromCatalog({
+            orderId: order.orderId,
+            userId: order.userId,
+            buyerId: order.buyerId,
+          });
+        } catch (err) {
+          console.error('[getOrders] syncOrderItemPricingFromCatalog failed', err);
+        }
+      }
+
+      const refreshed = await prisma.order.findFirst({
+        where: {
+          orderId: id,
+          ...userWhere,
+          ...(includeDeleted ? {} : { isDeleted: false }),
+        },
+        include: orderDetailInclude,
+      });
+      const detailOrder = refreshed ?? order;
+
+      const enrichedOrderItems = (detailOrder.orderItemsRel || []).map((oi) => ({
+        id: oi.id,
         productId: oi.productId ?? null,
         subtotal: decimalToNumber(oi.subtotal),
         packageType: oi.packageType,
@@ -100,7 +126,7 @@ export async function getOrdersHandler(request: NextRequest) {
         promotionDetailsSnapshot: oi.promotionDetailsSnapshot || null,
       }));
 
-      const company = order.user?.company;
+      const company = detailOrder.user?.company;
       const num = (v: unknown) => (v != null && !Number.isNaN(Number(v)) ? Number(v) : null);
       let shippingOptionMinDays: number | null = null;
       let shippingOptionMaxDays: number | null = null;
@@ -110,13 +136,13 @@ export async function getOrdersHandler(request: NextRequest) {
       }
 
       const orderResponse = {
-        ...order,
-        sellerUserId: order.userId,
-        distributorUserId: order.userId,
-        subtotal: decimalToNumber(order.subtotal),
-        discounts: decimalToNumber(order.discounts),
-        shippingFee: decimalToNumber(order.shippingFee),
-        totalAmount: decimalToNumber(order.totalAmount),
+        ...detailOrder,
+        sellerUserId: detailOrder.userId,
+        distributorUserId: detailOrder.userId,
+        subtotal: decimalToNumber(detailOrder.subtotal),
+        discounts: decimalToNumber(detailOrder.discounts),
+        shippingFee: decimalToNumber(detailOrder.shippingFee),
+        totalAmount: decimalToNumber(detailOrder.totalAmount),
         orderItems: enrichedOrderItems,
         shippingOptionMinDays: shippingOptionMinDays ?? null,
         shippingOptionMaxDays: shippingOptionMaxDays ?? null,
@@ -165,6 +191,7 @@ export async function getOrdersHandler(request: NextRequest) {
 
     const ordersWithParsedItems = orders.map((order: OrderListRow) => {
       const enrichedOrderItems = (order.orderItemsRel || []).map((oi) => ({
+        id: oi.id,
         productId: oi.productId ?? null,
         subtotal: decimalToNumber(oi.subtotal),
         packageType: oi.packageType,

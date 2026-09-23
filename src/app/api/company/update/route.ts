@@ -83,6 +83,7 @@ export async function PUT(req: NextRequest) {
       defaultDeliveryLeadTimeMinDays,
       defaultDeliveryLeadTimeMaxDays,
       buyerPaymentTermDays,
+      autoApplyBasePriceForFirstBuyers,
       billingBankName,
       billingBankAccountName,
       billingBankAccountNumber,
@@ -238,6 +239,10 @@ export async function PUT(req: NextRequest) {
         }
         updateData.buyerPaymentTermDays = days;
       }
+    }
+
+    if (autoApplyBasePriceForFirstBuyers !== undefined) {
+      updateData.autoApplyBasePriceForFirstBuyers = Boolean(autoApplyBasePriceForFirstBuyers);
     }
 
     const updatedCompany = await prisma.company.update({

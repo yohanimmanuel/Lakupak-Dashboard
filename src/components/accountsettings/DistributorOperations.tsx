@@ -41,6 +41,7 @@ interface CompanyProfileData {
   pickupAddress: string;
   defaultDeliveryLeadTimeMinDays: number | '';
   defaultDeliveryLeadTimeMaxDays: number | '';
+  autoApplyBasePriceForFirstBuyers: boolean;
 }
 
 const industryTypes = [
@@ -129,6 +130,7 @@ export default function DistributorOperations() {
     pickupAddress: '',
     defaultDeliveryLeadTimeMinDays: '',
     defaultDeliveryLeadTimeMaxDays: '',
+    autoApplyBasePriceForFirstBuyers: false,
   });
 
   const [originalData, setOriginalData] = useState<CompanyProfileData>({
@@ -156,6 +158,7 @@ export default function DistributorOperations() {
     pickupAddress: '',
     defaultDeliveryLeadTimeMinDays: '',
     defaultDeliveryLeadTimeMaxDays: '',
+    autoApplyBasePriceForFirstBuyers: false,
   });
   
   // Dropdown states
@@ -193,6 +196,9 @@ export default function DistributorOperations() {
         pickupAddress: (company as { pickupAddress?: string })?.pickupAddress || '',
         defaultDeliveryLeadTimeMinDays: (company as { defaultDeliveryLeadTimeMinDays?: number | null })?.defaultDeliveryLeadTimeMinDays ?? '',
         defaultDeliveryLeadTimeMaxDays: (company as { defaultDeliveryLeadTimeMaxDays?: number | null })?.defaultDeliveryLeadTimeMaxDays ?? '',
+        autoApplyBasePriceForFirstBuyers: Boolean(
+          (company as { autoApplyBasePriceForFirstBuyers?: boolean | null })?.autoApplyBasePriceForFirstBuyers,
+        ),
       });
       setOriginalData({
         companyName: company?.name || '',
@@ -219,6 +225,9 @@ export default function DistributorOperations() {
         pickupAddress: (company as { pickupAddress?: string })?.pickupAddress || '',
         defaultDeliveryLeadTimeMinDays: (company as { defaultDeliveryLeadTimeMinDays?: number | null })?.defaultDeliveryLeadTimeMinDays ?? '',
         defaultDeliveryLeadTimeMaxDays: (company as { defaultDeliveryLeadTimeMaxDays?: number | null })?.defaultDeliveryLeadTimeMaxDays ?? '',
+        autoApplyBasePriceForFirstBuyers: Boolean(
+          (company as { autoApplyBasePriceForFirstBuyers?: boolean | null })?.autoApplyBasePriceForFirstBuyers,
+        ),
       });
     }
   }, [user]);
@@ -493,6 +502,7 @@ export default function DistributorOperations() {
         pickupAddress: formData.shippingPreferences.includes('Self Pickup') ? (formData.pickupAddress?.trim() || null) : null,
         defaultDeliveryLeadTimeMinDays: formData.defaultDeliveryLeadTimeMinDays === '' ? null : Number(formData.defaultDeliveryLeadTimeMinDays),
         defaultDeliveryLeadTimeMaxDays: formData.defaultDeliveryLeadTimeMaxDays === '' ? null : Number(formData.defaultDeliveryLeadTimeMaxDays),
+        autoApplyBasePriceForFirstBuyers: formData.autoApplyBasePriceForFirstBuyers,
       };
 
       const response = await fetch('/api/company/update', {
@@ -1186,6 +1196,39 @@ export default function DistributorOperations() {
               <span className="text-xs text-gray-500">{tDistributor('leadTimeDaysSuffix')}</span>
             </div>
             <p className="mt-1 text-[11px] text-gray-500">{tDistributor('defaultDeliveryLeadTimeHint')}</p>
+          </div>
+
+          <div className="flex items-start justify-between gap-4 border-t border-gray-200 pt-6">
+            <div className="min-w-0">
+              <h3 className="text-sm font-medium text-gray-900">
+                {tDistributor('autoApplyBasePriceForFirstBuyers')}
+              </h3>
+              <p className="mt-1 text-[11px] text-gray-500">
+                {tDistributor('autoApplyBasePriceForFirstBuyersHint')}
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={formData.autoApplyBasePriceForFirstBuyers}
+              disabled={!isEditing}
+              onClick={() =>
+                isEditing &&
+                handleInputChange(
+                  'autoApplyBasePriceForFirstBuyers',
+                  !formData.autoApplyBasePriceForFirstBuyers,
+                )
+              }
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+                formData.autoApplyBasePriceForFirstBuyers ? 'bg-[#0a61d7]' : 'bg-gray-200'
+              } ${!isEditing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  formData.autoApplyBasePriceForFirstBuyers ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
           </div>
         </div>
       </div>
