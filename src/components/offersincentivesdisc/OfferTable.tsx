@@ -711,35 +711,37 @@ export default function OfferTable({
                 >
                   {tTable('noClientAssigned')}
                 </button>
-                {filteredClientOptions.length === 0 ? (
-                  <p className="px-4 py-3 text-xs text-gray-500">
-                    {tTable('noClientsFound')}
-                  </p>
-                ) : (
-                  filteredClientOptions.map((b) => (
-                    <button
-                      key={b.buyerId}
-                      type="button"
-                      onClick={() => {
-                        setClientFilter(b.buyerId);
-                        setShowClientDropdown(false);
-                        setClientSearch('');
-                        setPage(1);
-                        setSelectedKeys([]);
-                      }}
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${
-                        clientFilter === b.buyerId
-                          ? 'font-bold text-[#0a61d7] bg-blue-50'
-                          : 'text-gray-700'
-                      }`}
-                    >
-                      <div className="truncate font-medium">{b.storeName}</div>
-                      {b.owner && (
-                        <div className="text-xs text-gray-500 truncate">{b.owner}</div>
-                      )}
-                    </button>
-                  ))
-                )}
+                {filteredClientOptions.length === 0
+                  ? clientSearch.trim()
+                    ? (
+                        <p className="px-4 py-3 text-xs text-gray-500">
+                          {tTable('noClientsFound')}
+                        </p>
+                      )
+                    : null
+                  : filteredClientOptions.map((b) => (
+                      <button
+                        key={b.buyerId}
+                        type="button"
+                        onClick={() => {
+                          setClientFilter(b.buyerId);
+                          setShowClientDropdown(false);
+                          setClientSearch('');
+                          setPage(1);
+                          setSelectedKeys([]);
+                        }}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${
+                          clientFilter === b.buyerId
+                            ? 'font-bold text-[#0a61d7] bg-blue-50'
+                            : 'text-gray-700'
+                        }`}
+                      >
+                        <div className="truncate font-medium">{b.storeName}</div>
+                        {b.owner && (
+                          <div className="text-xs text-gray-500 truncate">{b.owner}</div>
+                        )}
+                      </button>
+                    ))}
               </div>
             </div>
           )}
