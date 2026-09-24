@@ -4,6 +4,7 @@ import { prisma } from '../common/prisma';
 import { sanitizePagination, buildPaginationInfo, parseMoney } from '../common/utils';
 import { withDashboardAuth } from '../common/auth';
 import { isValidMerchandisingSlug, getMerchandisingLabel } from '@/constants/merchandisingTaxonomy';
+import { enqueueOfferPricingBroadcast } from '@/services/offers/notifyOfferOrderPricing';
 
 const DISCOUNT_TYPES = new Set(['percentage', 'fixed_amount', 'buy_x_get_y']);
 /** User-selectable statuses only. Expired is set by the system when endDate passes. */
@@ -526,6 +527,14 @@ const createOffer = async (args: {
     include: offerInclude,
   });
 
+  enqueueOfferPricingBroadcast({
+    userId,
+    offerId: created.offerId,
+    buyerIds: [created.buyerId],
+    productIds: [created.productId],
+    categoryIds: [created.categoryId],
+  });
+
   return mapOffer(created);
 };
 
@@ -663,6 +672,14 @@ const updateOffer = async (args: {
     include: offerInclude,
   });
 
+  enqueueOfferPricingBroadcast({
+    userId,
+    offerId: updated.offerId,
+    buyerIds: [existing.buyerId, updated.buyerId],
+    productIds: [existing.productId, updated.productId],
+    categoryIds: [existing.categoryId, updated.categoryId],
+  });
+
   return mapOffer(updated);
 };
 
@@ -676,8 +693,19 @@ const deleteOffer = async (args: { userId: number; id: string }) => {
 
   // Delete the whole offer group when rows share a groupId
   if (existing.groupId) {
+    const members = await prisma.offer.findMany({
+      where: { userId, groupId: existing.groupId },
+      select: { buyerId: true, productId: true, categoryId: true, offerId: true },
+    });
     const result = await prisma.offer.deleteMany({
       where: { userId, groupId: existing.groupId },
+    });
+    enqueueOfferPricingBroadcast({
+      userId,
+      offerId: existing.offerId,
+      buyerIds: members.map((member) => member.buyerId),
+      productIds: members.map((member) => member.productId),
+      categoryIds: members.map((member) => member.categoryId),
     });
     return {
       success: true,
@@ -688,6 +716,13 @@ const deleteOffer = async (args: { userId: number; id: string }) => {
 
   // Null groupId = individual offer
   await prisma.offer.delete({ where: { id: existing.id } });
+  enqueueOfferPricingBroadcast({
+    userId,
+    offerId: existing.offerId,
+    buyerIds: [existing.buyerId],
+    productIds: [existing.productId],
+    categoryIds: [existing.categoryId],
+  });
   return {
     success: true,
     deleted: mapOffer(existing),
@@ -979,6 +1014,23 @@ const saveOfferGroup = async (args: {
     }
 
     return results;
+  });
+
+  enqueueOfferPricingBroadcast({
+    userId,
+    offerId: saved[0]?.offerId || seedId || resolvedGroupId,
+    buyerIds: [
+      ...existingMembers.map((member) => member.buyerId),
+      ...saved.map((member) => member.buyerId),
+    ],
+    productIds: [
+      ...existingMembers.map((member) => member.productId),
+      ...saved.map((member) => member.productId),
+    ],
+    categoryIds: [
+      ...existingMembers.map((member) => member.categoryId),
+      ...saved.map((member) => member.categoryId),
+    ],
   });
 
     return {
