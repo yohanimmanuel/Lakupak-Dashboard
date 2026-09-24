@@ -111,9 +111,13 @@ export async function POST(request: NextRequest) {
     const marketplaceUserId = parseMarketplaceUserIdFromBuyerId(order.buyerId);
     if (marketplaceUserId != null) {
       const translations = translateMarketplacePricingSent({ orderId: order.orderId });
+      // `type: 'order'` matches marketplace push/WS handlers; synthetic orderStatus + event
+      // distinguish pricing (same pattern as fleet_assigned).
       const payload = {
         orderId: order.orderId,
-        type: 'pricing_sent',
+        type: 'order',
+        orderStatus: 'pricing_sent',
+        event: 'pricing_sent',
       };
       try {
         const { tokenCount } = await sendExpoPushToMarketplaceUser(
