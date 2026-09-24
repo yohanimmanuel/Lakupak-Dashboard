@@ -243,6 +243,7 @@ export const sanitizeCompanyData = (company: Record<string, unknown>) => ({
   defaultDeliveryLeadTimeMinDays: company.defaultDeliveryLeadTimeMinDays != null ? Number(company.defaultDeliveryLeadTimeMinDays) : null,
   defaultDeliveryLeadTimeMaxDays: company.defaultDeliveryLeadTimeMaxDays != null ? Number(company.defaultDeliveryLeadTimeMaxDays) : null,
   buyerPaymentTermDays: company.buyerPaymentTermDays != null ? Number(company.buyerPaymentTermDays) : null,
+  autoApplyBasePriceForFirstBuyers: Boolean(company.autoApplyBasePriceForFirstBuyers),
   createdAt: company.createdAt,
   updatedAt: company.updatedAt,
 });

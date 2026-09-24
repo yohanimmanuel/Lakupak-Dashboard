@@ -18,6 +18,7 @@ import { broadcastOrderUpdate } from '@/utils/websocketBroadcast';
 import { orderCreationRateLimiter, orderQueryRateLimiter } from '@/utils/rateLimiter';
 import { computeTotalQtyNeededWithBuyXGetY, selectVariantOption } from '@/domain/marketplace/orderItemRules';
 import { enqueueSideEffect } from '@/lib/sideEffectQueue';
+import { applyBuyerPriceVisibility } from '@/services/mobileOrders/maskBuyerFacingPrices';
 
 export interface OrderItemInput {
   productId: string;
@@ -137,8 +138,6 @@ function buildOrderItemCreateData(params: {
 function resolveLinePricing(params: {
   offerValidation: OfferValidationResult;
   baseUnitPrice: number;
-  isFirstOrderWithDistributor: boolean;
-  autoApplyBasePrice: boolean;
 }): { unitPrice: number; pricingSource: 'offer' | 'base' | 'pending' } {
   const hasClientRate =
     Boolean(params.offerValidation?.isValid && params.offerValidation.offerId) &&
@@ -152,16 +151,10 @@ function resolveLinePricing(params: {
     };
   }
 
-  // No client rate: leave Pending until the distributor sends pricing — unless this
-  // distributor opts in to auto-apply catalog price for first-time buyers only.
-  // Deleted CRM relationships clear rates (Offer.buyerId SetNull); prior orders lose
-  // buyerId too, so the next PO is treated as a new buyer again.
-  if (
-    params.autoApplyBasePrice &&
-    params.isFirstOrderWithDistributor &&
-    Number.isFinite(params.baseUnitPrice) &&
-    params.baseUnitPrice > 0
-  ) {
+  // No client rate: always keep the catalog/base price on the order so the distributor
+  // sees an amount. Buyer apps only receive it when auto-apply is on for a first order,
+  // or after Send pricing (see maskBuyerFacingOrderPrices).
+  if (Number.isFinite(params.baseUnitPrice) && params.baseUnitPrice > 0) {
     return { unitPrice: params.baseUnitPrice, pricingSource: 'base' };
   }
 
@@ -321,9 +314,11 @@ export async function getMobileMarketplaceOrders(request: NextRequest, tokenUser
     };
   });
 
+  const buyerVisibleOrders = await applyBuyerPriceVisibility(ordersWithItems);
+
   return NextResponse.json(
     {
-      orders: ordersWithItems,
+      orders: buyerVisibleOrders,
       pagination: {
         page,
         limit,
@@ -498,22 +493,6 @@ export async function createMobileMarketplaceOrders(
         userId: distributorUserIdFromClient,
       },
     });
-
-    const priorOrderCountSingle = await prisma.order.count({
-      where: {
-        userId: distributorUserIdFromClient,
-        buyerId: buyerPerDistributorId,
-        isDeleted: false,
-      },
-    });
-    const isFirstOrderWithDistributorSingle = priorOrderCountSingle === 0;
-    const distributorCompanySingle = await prisma.company.findFirst({
-      where: { users: { some: { id: distributorUserIdFromClient } } },
-      select: { autoApplyBasePriceForFirstBuyers: true },
-    });
-    const autoApplyBasePriceSingle = Boolean(
-      distributorCompanySingle?.autoApplyBasePriceForFirstBuyers,
-    );
 
     const groupSubtotal = Array.isArray(orderItems)
       ? orderItems.reduce((sum: number, it: OrderItemInput) => sum + parseFloat(String(it.subtotal || 0)), 0)
@@ -746,8 +725,6 @@ export async function createMobileMarketplaceOrders(
                   | null
                   | undefined,
               ),
-              isFirstOrderWithDistributor: isFirstOrderWithDistributorSingle,
-              autoApplyBasePrice: autoApplyBasePriceSingle,
             });
           const orderItemData = buildOrderItemCreateData({
             orderId: order.orderId,
@@ -998,22 +975,6 @@ export async function createMobileMarketplaceOrders(
       },
     });
 
-    const priorOrderCount = await prisma.order.count({
-      where: {
-        userId: distributorUserId,
-        buyerId: buyerPerDistributorId,
-        isDeleted: false,
-      },
-    });
-    const isFirstOrderWithDistributor = priorOrderCount === 0;
-    const distributorCompany = await prisma.company.findFirst({
-      where: { users: { some: { id: distributorUserId } } },
-      select: { autoApplyBasePriceForFirstBuyers: true },
-    });
-    const autoApplyBasePrice = Boolean(
-      distributorCompany?.autoApplyBasePriceForFirstBuyers,
-    );
-
     const groupSubtotal = itemsForDistributor.reduce(
       (sum: number, it: OrderItemInput) => sum + parseFloat(String(it.subtotal || 0)),
       0,
@@ -1239,8 +1200,6 @@ export async function createMobileMarketplaceOrders(
                     | null
                     | undefined,
                 ),
-                isFirstOrderWithDistributor,
-                autoApplyBasePrice,
               });
             const orderItemData = buildOrderItemCreateData({
               orderId: createdOrder.orderId,

@@ -1,6 +1,7 @@
 import { prisma } from '../../common/prisma';
 import { sanitizePagination, buildPaginationInfo, parseMoney } from '../../common/utils';
 import { buildMobileBuyerId } from '@/utils/buyerSync';
+import { applyBuyerPriceVisibility } from '@/services/mobileOrders/maskBuyerFacingPrices';
 
 export const fetchMobileOrders = async (args: {
   userId: number;
@@ -142,9 +143,10 @@ export const fetchMobileOrders = async (args: {
   });
   
   const pagination = buildPaginationInfo(safePage, safeLimit, total);
-  
+  const buyerVisibleOrders = await applyBuyerPriceVisibility(ordersWithItems);
+
   return {
-    nodes: ordersWithItems,
+    nodes: buyerVisibleOrders,
     pagination
   };
 };

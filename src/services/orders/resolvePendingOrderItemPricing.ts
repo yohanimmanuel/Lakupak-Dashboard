@@ -159,8 +159,7 @@ export async function syncOrderItemPricingFromCatalog(params: {
         })
       : null;
 
-    // Deleted / missing CRM relationship and no offer: do not push catalog into DB
-    // (would make the marketplace buyer see prices again).
+    // Deleted / missing CRM relationship and no offer: leave the line as stored.
     if (!offer && !buyerStillLinked) continue;
 
     if (!(baseUnitPrice > 0) && !offer) continue;
