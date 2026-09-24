@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const withNextIntl = require('next-intl/plugin')({
   defaultLocale: 'id',
@@ -7,6 +8,12 @@ const withNextIntl = require('next-intl/plugin')({
 
 const nextConfig: NextConfig = {
   /* config options here */
+  // Parent repo has an orphan C:\Laku\package-lock.json; without this, Turbopack
+  // treats C:\Laku as the workspace root and fails to resolve Dashboard node_modules
+  // (tailwindcss, @apollo/server, etc.).
+  turbopack: {
+    root: path.join(__dirname),
+  },
   async redirects() {
     return [
       {

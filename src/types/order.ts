@@ -51,6 +51,10 @@ export interface Order {
   estimatedDeliveryMaxDays?: number | null;
   deliveredAt?: Date;
   paidAt?: Date | string | null;
+  /** Set when distributor first notifies buyer of PO pricing; subsequent sends are updates. */
+  pricingSentAt?: Date | string | null;
+  /** False after notify until a line price changes (server: item.updatedAt > pricingSentAt). */
+  pricingNotifyAllowed?: boolean;
   paymentProofUrls?: string[];
   paymentProofFileNames?: string[];
   paymentProofSubmittedAt?: Date | string | null;

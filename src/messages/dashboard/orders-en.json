@@ -241,10 +241,13 @@
       "setPriceUnavailable": "Unable to set price for this line.",
       "itemsStillPending": "{count} item(s) still pending",
       "sendPricing": "Send pricing to buyer",
+      "sendPricingUpdate": "Send pricing update",
       "sendPricingDisabled": "Set a price for every line item first.",
       "sendPricingAlreadySent": "Pricing already sent — order is no longer pending.",
+      "sendPricingUnchanged": "Pricing already sent for these amounts. Change a line price to send an update.",
       "sendPricingFailed": "Could not send pricing. Try again.",
       "sendPricingSuccess": "Pricing notification sent to the buyer.",
+      "sendPricingUpdateSuccess": "Pricing update notification sent to the buyer.",
       "currency": "Currency:",
       "paymentTerms": "Payment Terms:",
       "deliveryMethod": "Delivery Method:"

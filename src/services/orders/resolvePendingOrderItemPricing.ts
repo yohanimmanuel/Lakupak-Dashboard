@@ -87,9 +87,11 @@ function buildOfferSnapshots(
 }
 
 /**
- * Distributor Order Detail: keep line prices in sync with Products + live Offers.
- * - No client offer → product base/list (selling) price
- * - Active offer → re-apply current offer (so offer edits reflect on Pending POs)
+ * Distributor Order Detail: keep Pending PO lines in sync with live Offers (+ catalog
+ * only while a CRM buyer relationship still exists).
+ * - Active offer → re-apply current offer
+ * - CRM buyer, no offer → product base/list price (distributor can Send pricing)
+ * - No buyerId / buyer deleted → leave lines pending (do not refill catalog)
  */
 export async function syncOrderItemPricingFromCatalog(params: {
   orderId: string;
@@ -102,6 +104,13 @@ export async function syncOrderItemPricingFromCatalog(params: {
     where: { orderId: params.orderId },
   });
   if (items.length === 0) return;
+
+  const buyerStillLinked = buyerId
+    ? await prisma.buyer.findFirst({
+        where: { buyerId, userId: params.userId },
+        select: { buyerId: true },
+      })
+    : null;
 
   type ItemUpdate = {
     id: number;
@@ -144,14 +153,18 @@ export async function syncOrderItemPricingFromCatalog(params: {
         )
       : 0;
 
-    if (!(baseUnitPrice > 0) && !buyerId) continue;
-
-    const offer = buyerId
+    const offer = buyerStillLinked
       ? await getOfferForClientAndProduct(buyerId, productId, {
           userId: params.userId,
           variantOptionId: item.variantOptionId ?? null,
         })
       : null;
+
+    // Deleted / missing CRM relationship and no offer: do not push catalog into DB
+    // (would make the marketplace buyer see prices again).
+    if (!offer && !buyerStillLinked) continue;
+
+    if (!(baseUnitPrice > 0) && !offer) continue;
 
     const snapshots = buildOfferSnapshots(baseUnitPrice, offer);
     const piecesPerPackage = Math.max(1, Number(item.piecesPerPackage) || 1);

@@ -628,10 +628,6 @@ const deleteBuyer = async (args: { userId: number; id: string }) => {
     if (!deleted) {
       throw new Error('Buyer not found');
     }
-
-    await prisma.buyer.delete({
-      where: { id: Number(id) },
-    });
   } else {
     deleted = await prisma.buyer.findFirst({
       where: { buyerId: id, userId: Number(userId) },
@@ -640,11 +636,60 @@ const deleteBuyer = async (args: { userId: number; id: string }) => {
     if (!deleted) {
       throw new Error('Buyer not found');
     }
-
-    await prisma.buyer.delete({
-      where: { buyerId: id },
-    });
   }
+
+  const buyerBusinessId = deleted.buyerId;
+  const distributorUserId = Number(userId);
+
+  await prisma.$transaction(async (tx) => {
+    // Detach client rates before removing the CRM row (FK is ON DELETE SET NULL,
+    // but explicit clear keeps offer drafts / standing rates without a client).
+    await tx.offer.updateMany({
+      where: { userId: distributorUserId, buyerId: buyerBusinessId },
+      data: { buyerId: null },
+    });
+
+    // Pending unpaid POs for this relationship should look like a new buyer again
+    // (no priced lines until the distributor re-sends pricing).
+    const pendingOrderWhere = {
+      userId: distributorUserId,
+      buyerId: buyerBusinessId,
+      isDeleted: false,
+      orderStatus: 'Pending',
+      paymentStatus: 'Unpaid',
+    } as const;
+
+    await tx.orderItem.updateMany({
+      where: { order: pendingOrderWhere },
+      data: {
+        pricePerPackage: 0,
+        subtotal: 0,
+        unitPriceSnapshot: null,
+        offerApplied: false,
+        offerBadgeSnapshot: null,
+        offerNameSnapshot: null,
+        offerIdSnapshot: null,
+        originalPriceSnapshot: null,
+        discountPercentage: null,
+        discountAmount: null,
+        promotionDetailsSnapshot: null,
+      },
+    });
+    await tx.order.updateMany({
+      where: pendingOrderWhere,
+      data: { subtotal: 0, totalAmount: 0, discounts: 0 },
+    });
+
+    if (isNumericId(id)) {
+      await tx.buyer.delete({
+        where: { id: Number(id) },
+      });
+    } else {
+      await tx.buyer.delete({
+        where: { buyerId: id },
+      });
+    }
+  });
 
   // Invalidate dashboard cache after buyer deletion
   try {

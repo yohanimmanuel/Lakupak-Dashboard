@@ -241,10 +241,13 @@
       "setPriceUnavailable": "Tidak dapat menetapkan harga untuk baris ini.",
       "itemsStillPending": "{count} item masih menunggu harga",
       "sendPricing": "Kirim harga ke pembeli",
+      "sendPricingUpdate": "Kirim pembaruan harga",
       "sendPricingDisabled": "Tetapkan harga untuk semua item terlebih dahulu.",
       "sendPricingAlreadySent": "Harga sudah dikirim — pesanan tidak lagi menunggu konfirmasi.",
+      "sendPricingUnchanged": "Harga sudah dikirim untuk jumlah ini. Ubah harga baris untuk mengirim pembaruan.",
       "sendPricingFailed": "Gagal mengirim harga. Coba lagi.",
       "sendPricingSuccess": "Notifikasi harga telah dikirim ke pembeli.",
+      "sendPricingUpdateSuccess": "Notifikasi pembaruan harga telah dikirim ke pembeli.",
       "currency": "Mata uang:",
       "paymentTerms": "Syarat Pembayaran:",
       "deliveryMethod": "Metode Pengiriman:"

@@ -1,6 +1,7 @@
 'use client';
 import { SkeletonOrdersPage } from '@/components/skeleton/SkeletonOrdersPage';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
 import { Download, Archive, Eye, Check, RefreshCw } from 'lucide-react';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
@@ -17,6 +18,7 @@ import { useOrdersTranslations } from '@/hooks/useOrdersTranslations';
 
 export default function OrdersPage() {
   const { tList } = useOrdersTranslations();
+  const pathname = usePathname();
   const user = useUserStore(state => state.user);
   const [orders, setOrders] = useState<Order[]>([]);
   const [showArchivedModal, setShowArchivedModal] = useState(false);
@@ -30,9 +32,18 @@ export default function OrdersPage() {
   const [isSlidingOut, setIsSlidingOut] = useState(false);
   const overlayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hasLoadedOrdersRef = useRef(false);
+  const fetchAbortRef = useRef<AbortController | null>(null);
+  const fetchGenerationRef = useRef(0);
 
-  // Unified fetch function (used on load and by Refresh button)
+  // Unified fetch function (used on load and by Refresh button).
+  // Abort + generation guard: an older in-flight list response must not overwrite
+  // a newer one after offer activate/deactivate + soft-nav back.
   const fetchOrders = useCallback(async () => {
+    fetchAbortRef.current?.abort();
+    const controller = new AbortController();
+    fetchAbortRef.current = controller;
+    const generation = ++fetchGenerationRef.current;
+
     try {
       setLoading(true);
       if (overlayTimeoutRef.current) {
@@ -47,33 +58,39 @@ export default function OrdersPage() {
         setOverlayMessage(tList('loadingOverlay'));
       }
 
+      const ts = Date.now();
       // For backward compatibility, fetch orders without userId if user not authenticated
       const url = user?.id
-        ? `/api/orders?userId=${user.id}&limit=1000`
-        : '/api/orders?limit=1000';
-      const response = await fetch(url);
+        ? `/api/orders?userId=${user.id}&limit=1000&_=${ts}`
+        : `/api/orders?limit=1000&_=${ts}`;
+      const response = await fetch(url, { cache: 'no-store', signal: controller.signal });
       if (!response.ok) {
         throw new Error('Failed to fetch orders');
       }
       const data = await response.json();
+      if (generation !== fetchGenerationRef.current) return;
       const list: Order[] = data.orders || [];
       setOrders(list);
       hasLoadedOrdersRef.current = true;
       setOverlayMessage(tList('loadedOverlay', { count: list.length }));
       setError(null);
     } catch (err) {
+      if (controller.signal.aborted || generation !== fetchGenerationRef.current) return;
       setError(err instanceof Error ? err.message : tList('errorOverlay'));
       setOrders([]);
       setOverlayMessage(tList('errorOverlay'));
     } finally {
+      if (generation !== fetchGenerationRef.current) return;
       setLoading(false);
       // Complete slide-in animation and show overlay
       setTimeout(() => {
+        if (generation !== fetchGenerationRef.current) return;
         setIsSlidingIn(false);
         setShowOverlay(true);
       }, 1500);
       // Auto-hide overlay after 2.5 seconds
       overlayTimeoutRef.current = setTimeout(() => {
+        if (generation !== fetchGenerationRef.current) return;
         setIsSlidingOut(true);
         setShowOverlay(false);
         setTimeout(() => {
@@ -83,15 +100,37 @@ export default function OrdersPage() {
     }
   }, [user?.id, tList]);
 
-  // Fetch orders from database on mount/user change
+  // Refetch whenever this list route is active (mount, soft-nav return, offer edits).
+  // Pathname is the source of truth so a preserved client tree still refreshes.
   useEffect(() => {
-    fetchOrders();
+    if (!pathname) return;
+    const onOrdersList =
+      /\/orders\/?$/.test(pathname) || pathname.endsWith('/orders');
+    if (!onOrdersList) return;
+    void fetchOrders();
     return () => {
+      fetchGenerationRef.current += 1;
+      fetchAbortRef.current?.abort();
       if (overlayTimeoutRef.current) {
         clearTimeout(overlayTimeoutRef.current);
       }
     };
-  }, [fetchOrders]); // Now fetchOrders is properly memoized, so we can include it
+  }, [pathname, fetchOrders]);
+
+  // Also refresh when the tab/window becomes visible again (offer edited in another tab).
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (!hasLoadedOrdersRef.current) return;
+      const onOrdersList =
+        !!pathname &&
+        (/\/orders\/?$/.test(pathname) || pathname.endsWith('/orders'));
+      if (!onOrdersList) return;
+      void fetchOrders();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [fetchOrders, pathname]);
 
   usePendingDashboardTourStart('orders', { ready: !loading && !error });
 

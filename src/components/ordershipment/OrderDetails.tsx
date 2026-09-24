@@ -100,10 +100,21 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const [setPriceError, setSetPriceError] = useState<string | null>(null);
   const [sendPricingSuccess, setSendPricingSuccess] = useState<string | null>(null);
   const [isSendingPricing, setIsSendingPricing] = useState(false);
+  const [pricingSentAt, setPricingSentAt] = useState<string | Date | null>(
+    order.pricingSentAt ?? null,
+  );
+  const [pricingNotifyAllowed, setPricingNotifyAllowed] = useState(
+    order.pricingNotifyAllowed !== false,
+  );
 
   useEffect(() => {
     setLocalItems(order.orderItems);
   }, [order.orderItems]);
+
+  useEffect(() => {
+    setPricingSentAt(order.pricingSentAt ?? null);
+    setPricingNotifyAllowed(order.pricingNotifyAllowed !== false);
+  }, [order.pricingSentAt, order.pricingNotifyAllowed]);
 
   const calculateSubtotal = () =>
     localItems.reduce((sum, item) => sum + Number(item.subtotal || 0), 0);
@@ -134,18 +145,24 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const pendingPricedItemCount = localItems.filter(
     (item) => !(Number(item.subtotal) > 0),
   ).length;
-  const canSendPricing =
+  const linesReadyToSend =
     orderStatus === 'Pending' &&
     localItems.length > 0 &&
     pendingPricedItemCount === 0;
+  const isPricingUpdate = pricingSentAt != null;
+  const canSendPricing = linesReadyToSend && pricingNotifyAllowed;
 
-  const sendPricingTitle = !canSendPricing
+  const sendPricingTitle = !linesReadyToSend
     ? orderStatus !== 'Pending'
       ? tDetails('totalOrder.sendPricingAlreadySent')
       : pendingPricedItemCount > 0
         ? tDetails('totalOrder.itemsStillPending', { count: pendingPricedItemCount })
         : tDetails('totalOrder.sendPricingDisabled')
-    : tDetails('totalOrder.sendPricing');
+    : !pricingNotifyAllowed
+      ? tDetails('totalOrder.sendPricingUnchanged')
+      : isPricingUpdate
+        ? tDetails('totalOrder.sendPricingUpdate')
+        : tDetails('totalOrder.sendPricing');
 
   const handleSendPricingToBuyer = async () => {
     if (!user?.id || !canSendPricing) return;
@@ -161,11 +178,21 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
           userId: user.id,
         }),
       });
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        isPricingUpdate?: boolean;
+      };
       if (!response.ok) {
-        const data = (await response.json().catch(() => ({}))) as { error?: string };
         throw new Error(data.error || tDetails('totalOrder.sendPricingFailed'));
       }
-      setSendPricingSuccess(tDetails('totalOrder.sendPricingSuccess'));
+      const wasUpdate = data.isPricingUpdate === true || isPricingUpdate;
+      setPricingSentAt(new Date().toISOString());
+      setPricingNotifyAllowed(false);
+      setSendPricingSuccess(
+        wasUpdate
+          ? tDetails('totalOrder.sendPricingUpdateSuccess')
+          : tDetails('totalOrder.sendPricingSuccess'),
+      );
     } catch (err) {
       setSetPriceError(
         err instanceof Error ? err.message : tDetails('totalOrder.sendPricingFailed'),
@@ -1632,7 +1659,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 type="button"
                 disabled={!canSendPricing || isSendingPricing}
                 onClick={() => void handleSendPricingToBuyer()}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-[#0a61d7] hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-[#0a61d7] hover:bg-[#0851b8] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 title={sendPricingTitle}
               >
                 {isSendingPricing ? (
@@ -1640,7 +1667,9 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 ) : (
                   <CheckCircle className="w-4 h-4" />
                 )}
-                {tDetails('totalOrder.sendPricing')}
+                {tDetails(
+                  isPricingUpdate ? 'totalOrder.sendPricingUpdate' : 'totalOrder.sendPricing',
+                )}
               </button>
             </div>
 

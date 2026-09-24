@@ -152,9 +152,16 @@ function resolveLinePricing(params: {
     };
   }
 
-  // Catalog/list price from Products — never leave marketplace lines as "pending"
-  // on the distributor side. Offers (when present) already won above.
-  if (Number.isFinite(params.baseUnitPrice) && params.baseUnitPrice > 0) {
+  // No client rate: leave Pending until the distributor sends pricing — unless this
+  // distributor opts in to auto-apply catalog price for first-time buyers only.
+  // Deleted CRM relationships clear rates (Offer.buyerId SetNull); prior orders lose
+  // buyerId too, so the next PO is treated as a new buyer again.
+  if (
+    params.autoApplyBasePrice &&
+    params.isFirstOrderWithDistributor &&
+    Number.isFinite(params.baseUnitPrice) &&
+    params.baseUnitPrice > 0
+  ) {
     return { unitPrice: params.baseUnitPrice, pricingSource: 'base' };
   }
 

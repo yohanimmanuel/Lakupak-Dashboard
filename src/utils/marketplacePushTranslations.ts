@@ -268,6 +268,24 @@ export function translateMarketplacePricingSent(params: { orderId: string }): Re
   };
 }
 
+/** Distributor re-sent / corrected PO pricing after the first notify. */
+export function translateMarketplacePricingUpdated(params: { orderId: string }): Record<
+  DriverPushLanguage,
+  MarketplacePushPayload
+> {
+  const { orderId } = params;
+  return {
+    id: {
+      title: 'Pembaruan Harga Pesanan',
+      body: `Distributor telah memperbarui harga untuk pesanan #${orderId}. Buka pesanan untuk meninjau jumlah terbaru.`,
+    },
+    en: {
+      title: 'Order Pricing Update',
+      body: `Your distributor updated pricing for order #${orderId}. Open the order to review the latest amounts.`,
+    },
+  };
+}
+
 /** Push copy when a driver app updates order status (wording differs slightly from catalog `translateMarketplaceBuyerOrderStatus`). */
 export function translateMarketplaceBuyerOrderFromDriverApp(params: {
   orderId: string;

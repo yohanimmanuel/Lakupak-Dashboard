@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db';
 import type { Prisma } from '@/lib/db';
 import { getOrderSecurityHeaders } from '@/utils/order-security';
 import { orderQueryRateLimiter } from '@/utils/rateLimiter';
-import { decimalToNumber } from './utils';
+import { decimalToNumber, isPricingNotifyAllowed } from './utils';
 import { syncOrderItemPricingFromCatalog } from './resolvePendingOrderItemPricing';
 
 export async function getOrdersHandler(request: NextRequest) {
@@ -146,6 +146,11 @@ export async function getOrdersHandler(request: NextRequest) {
         orderItems: enrichedOrderItems,
         shippingOptionMinDays: shippingOptionMinDays ?? null,
         shippingOptionMaxDays: shippingOptionMaxDays ?? null,
+        // Re-enable Send pricing only after a line price changes (item.updatedAt > pricingSentAt).
+        pricingNotifyAllowed: isPricingNotifyAllowed(
+          detailOrder.pricingSentAt,
+          (detailOrder.orderItemsRel || []).map((oi) => oi.updatedAt),
+        ),
       };
       return NextResponse.json(orderResponse, { headers });
     }
@@ -178,7 +183,7 @@ export async function getOrdersHandler(request: NextRequest) {
 
     type OrderListRow = Prisma.OrderGetPayload<{ include: typeof orderListInclude }>;
 
-    const [orders, total] = await Promise.all([
+    const [initialOrders, total] = await Promise.all([
       prisma.order.findMany({
         where,
         skip,
@@ -188,6 +193,40 @@ export async function getOrdersHandler(request: NextRequest) {
       }),
       prisma.order.count({ where }),
     ]);
+
+    // Align with detail GET: re-apply live Offers + catalog on Pending rows so
+    // OrdersTable totals match Order Details after offer activate/deactivate.
+    let orders = initialOrders;
+    const pendingToSync = orders.filter(
+      (o) => o.orderStatus === 'Pending' && o.userId != null,
+    );
+    if (pendingToSync.length > 0) {
+      const CONCURRENCY = 8;
+      for (let i = 0; i < pendingToSync.length; i += CONCURRENCY) {
+        const chunk = pendingToSync.slice(i, i + CONCURRENCY);
+        await Promise.all(
+          chunk.map((o) =>
+            syncOrderItemPricingFromCatalog({
+              orderId: o.orderId,
+              userId: o.userId as number,
+              buyerId: o.buyerId,
+            }).catch((err) => {
+              console.error('[getOrders] list syncOrderItemPricingFromCatalog failed', {
+                orderId: o.orderId,
+                err,
+              });
+            }),
+          ),
+        );
+      }
+      orders = await prisma.order.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: orderListInclude,
+      });
+    }
 
     const ordersWithParsedItems = orders.map((order: OrderListRow) => {
       const enrichedOrderItems = (order.orderItemsRel || []).map((oi) => ({

@@ -195,3 +195,18 @@ export async function restoreStockForOrderItems(
   return jobs;
 }
 
+/** True when pricing was never sent, or any line was updated after the last notify. */
+export function isPricingNotifyAllowed(
+  pricingSentAt: Date | string | null | undefined,
+  itemUpdatedAts: Array<Date | string | null | undefined>,
+): boolean {
+  if (pricingSentAt == null) return true;
+  const sentMs = new Date(pricingSentAt).getTime();
+  if (!Number.isFinite(sentMs)) return true;
+  return itemUpdatedAts.some((updatedAt) => {
+    if (updatedAt == null) return false;
+    const ms = new Date(updatedAt).getTime();
+    return Number.isFinite(ms) && ms > sentMs;
+  });
+}
+

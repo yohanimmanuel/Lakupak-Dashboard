@@ -487,6 +487,8 @@ model Order {
   deliveredAt             DateTime?   @db.Timestamptz(3)
   receivedAt              DateTime?   @db.Timestamptz(3) // When buyer marks order as received (marketplace)
   paidAt                  DateTime?   @db.Timestamptz(3) // When paymentStatus transitions to Paid
+  /** First time distributor notified buyer of PO pricing; subsequent sends are pricing updates. */
+  pricingSentAt           DateTime?   @db.Timestamptz(3)
   paymentProofUrls        String[]    @default([]) // Cloudinary or receipt URLs from buyer pay flow
   paymentProofFileNames   String[]    @default([]) // Original file names (parallel to paymentProofUrls)
   paymentProofSubmittedAt DateTime?   @db.Timestamptz(3)
@@ -837,7 +839,7 @@ model Offer {
   updatedAt          DateTime  @updatedAt @db.Timestamptz(3)
 
   user          User?           @relation(fields: [userId], references: [id])
-  buyer         Buyer?          @relation(fields: [buyerId], references: [buyerId], onDelete: Cascade)
+  buyer         Buyer?          @relation(fields: [buyerId], references: [buyerId], onDelete: SetNull)
   product       Product?        @relation(fields: [productId], references: [productId], onDelete: Cascade)
   variantOption VariantOption?  @relation(fields: [variantOptionId], references: [id], onDelete: Cascade)
 

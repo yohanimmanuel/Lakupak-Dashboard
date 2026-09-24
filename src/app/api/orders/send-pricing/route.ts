@@ -8,12 +8,17 @@ import {
   broadcastNotification,
 } from '@/utils/websocketBroadcast';
 import { sendExpoPushToMarketplaceUser } from '@/utils/expoPush';
-import { translateMarketplacePricingSent } from '@/utils/marketplacePushTranslations';
+import {
+  translateMarketplacePricingSent,
+  translateMarketplacePricingUpdated,
+} from '@/utils/marketplacePushTranslations';
 import { broadcastMarketplaceWsFallback } from '@/services/orders/enqueueOrderUpdateSideEffects';
+import { isPricingNotifyAllowed } from '@/services/orders/utils';
 
 /**
  * POST /api/orders/send-pricing
- * Notify the buyer that PO pricing is ready. Does NOT change order status.
+ * Notify the buyer that PO pricing is ready (first send) or updated (subsequent).
+ * Does NOT change order status. Blocked until line prices change after a notify.
  * - Dashboard navbar: confirmation for the distributor
  * - Marketplace app: Expo push (+ WebSocket fallback) for the buyer
  */
@@ -44,7 +49,8 @@ export async function POST(request: NextRequest) {
         buyerId: true,
         storeName: true,
         orderStatus: true,
-        orderItemsRel: { select: { subtotal: true } },
+        pricingSentAt: true,
+        orderItemsRel: { select: { subtotal: true, updatedAt: true } },
       },
     });
     if (!order) {
@@ -76,23 +82,69 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const storeName = order.storeName || 'buyer';
-    const dashboardTitle = 'Pricing sent to buyer';
-    const dashboardMessage = `Pricing for order #${order.orderId} was sent to ${storeName}.`;
-
-    await prisma.notification.create({
-      data: {
-        userId,
-        type: 'order',
-        title: dashboardTitle,
-        message: dashboardMessage,
-        metadata: {
-          orderId: order.orderId,
-          type: 'pricing_sent',
+    const isPricingUpdate = order.pricingSentAt != null;
+    if (
+      !isPricingNotifyAllowed(
+        order.pricingSentAt,
+        items.map((row) => row.updatedAt),
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            'Pricing already sent for the current amounts. Change a line price before sending an update.',
         },
-        actionUrl: `/orders/details/${order.orderId}`,
-      },
+        { status: 409, headers },
+      );
+    }
+
+    const eventType = isPricingUpdate ? 'pricing_updated' : 'pricing_sent';
+    const storeName = order.storeName || 'buyer';
+    const dashboardTitle = isPricingUpdate
+      ? 'Pricing update sent to buyer'
+      : 'Pricing sent to buyer';
+    const dashboardMessage = isPricingUpdate
+      ? `Updated pricing for order #${order.orderId} was sent to ${storeName}.`
+      : `Pricing for order #${order.orderId} was sent to ${storeName}.`;
+
+    const claimed = await prisma.$transaction(async (tx) => {
+      // Claim notify slot with the pricingSentAt we already validated against.
+      // Concurrent sends that raced past the allow-check lose here.
+      const claim = await tx.order.updateMany({
+        where: {
+          orderId: order.orderId,
+          userId,
+          pricingSentAt: order.pricingSentAt ?? null,
+        },
+        data: { pricingSentAt: new Date() },
+      });
+      if (claim.count !== 1) return false;
+
+      await tx.notification.create({
+        data: {
+          userId,
+          type: 'order',
+          title: dashboardTitle,
+          message: dashboardMessage,
+          metadata: {
+            orderId: order.orderId,
+            type: eventType,
+          },
+          actionUrl: `/orders/details/${order.orderId}`,
+        },
+      });
+      return true;
     });
+
+    if (!claimed) {
+      return NextResponse.json(
+        {
+          error:
+            'Pricing already sent for the current amounts. Change a line price before sending an update.',
+        },
+        { status: 409, headers },
+      );
+    }
 
     try {
       await broadcastDashboardNotification(userId);
@@ -100,7 +152,7 @@ export async function POST(request: NextRequest) {
         'order',
         dashboardTitle,
         dashboardMessage,
-        { orderId: order.orderId, type: 'pricing_sent' },
+        { orderId: order.orderId, type: eventType },
         userId,
         'dashboard',
       );
@@ -110,14 +162,16 @@ export async function POST(request: NextRequest) {
 
     const marketplaceUserId = parseMarketplaceUserIdFromBuyerId(order.buyerId);
     if (marketplaceUserId != null) {
-      const translations = translateMarketplacePricingSent({ orderId: order.orderId });
+      const translations = isPricingUpdate
+        ? translateMarketplacePricingUpdated({ orderId: order.orderId })
+        : translateMarketplacePricingSent({ orderId: order.orderId });
       // `type: 'order'` matches marketplace push/WS handlers; synthetic orderStatus + event
       // distinguish pricing (same pattern as fleet_assigned).
       const payload = {
         orderId: order.orderId,
         type: 'order',
-        orderStatus: 'pricing_sent',
-        event: 'pricing_sent',
+        orderStatus: eventType,
+        event: eventType,
       };
       try {
         const { tokenCount } = await sendExpoPushToMarketplaceUser(
@@ -147,7 +201,13 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { success: true, orderId: order.orderId, orderStatus: order.orderStatus },
+      {
+        success: true,
+        orderId: order.orderId,
+        orderStatus: order.orderStatus,
+        pricingEvent: eventType,
+        isPricingUpdate,
+      },
       { status: 200, headers },
     );
   } catch (error) {
