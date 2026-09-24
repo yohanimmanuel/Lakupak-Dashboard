@@ -110,7 +110,7 @@ export type PendingOrderPricePreview = {
 
 /**
  * Live Pending PO prices from Offers + catalog.
- * Dashboard Order Detail previews this without writing.
+ * Dashboard order detail and the orders table preview this without writing.
  * persist: true only from Send pricing, so the buyer price stays put until then.
  * - Active offer → current offer
  * - CRM buyer, no offer → product base/list price

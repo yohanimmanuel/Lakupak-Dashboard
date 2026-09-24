@@ -216,15 +216,52 @@ export async function getOrdersHandler(request: NextRequest) {
 
     const orders = initialOrders;
 
+    // Same live preview as order details: activating or deactivating a rate
+    // updates this list response only. Send pricing is still the only write.
+    const previewByOrderId = new Map<
+      string,
+      NonNullable<Awaited<ReturnType<typeof syncOrderItemPricingFromCatalog>>>
+    >();
+    const pendingForPreview = orders.filter(
+      (order) => order.orderStatus === 'Pending' && order.userId != null,
+    );
+    const previewConcurrency = 8;
+    for (let i = 0; i < pendingForPreview.length; i += previewConcurrency) {
+      const chunk = pendingForPreview.slice(i, i + previewConcurrency);
+      await Promise.all(
+        chunk.map(async (order) => {
+          const userId = order.userId;
+          if (userId == null) return;
+          try {
+            const preview = await syncOrderItemPricingFromCatalog({
+              orderId: order.orderId,
+              userId,
+              buyerId: order.buyerId,
+              persist: false,
+            });
+            if (preview) previewByOrderId.set(order.orderId, preview);
+          } catch (err) {
+            console.error('[getOrders] list price preview failed', order.orderId, err);
+          }
+        }),
+      );
+    }
+
     const ordersWithParsedItems = orders.map((order: OrderListRow) => {
+      const pricePreview = previewByOrderId.get(order.orderId) ?? null;
+      const previewByItemId = new Map((pricePreview?.updates ?? []).map((update) => [update.id, update]));
       const enrichedOrderItems = (order.orderItemsRel || []).map((oi) => ({
         id: oi.id,
         productId: oi.productId ?? null,
-        subtotal: decimalToNumber(oi.subtotal),
+        subtotal: previewByItemId.get(oi.id)?.subtotal ?? decimalToNumber(oi.subtotal),
         packageType: oi.packageType,
         piecesPerPackage: oi.piecesPerPackage,
         packageQuantity: oi.packageQuantity,
-        pricePerPackage: oi.pricePerPackage ? decimalToNumber(oi.pricePerPackage) : null,
+        pricePerPackage: previewByItemId.get(oi.id)
+          ? previewByItemId.get(oi.id)!.pricePerPackage
+          : oi.pricePerPackage
+            ? decimalToNumber(oi.pricePerPackage)
+            : null,
         productName: oi.product?.name || oi.productNameSnapshot || 'Unknown Product',
         category: oi.product?.productType || oi.productTypeSnapshot || 'Uncategorized',
         brand: oi.product?.brand || 'Unknown Brand',
@@ -237,24 +274,44 @@ export async function getOrdersHandler(request: NextRequest) {
         variantNameSnapshot: oi.variantNameSnapshot || null,
         variantId: oi.variantId || null,
         variantOptionId: oi.variantOptionId || null,
-        offerApplied: oi.offerApplied || false,
-        offerBadgeSnapshot: oi.offerBadgeSnapshot || null,
-        offerNameSnapshot: oi.offerNameSnapshot || null,
-        originalPriceSnapshot: oi.originalPriceSnapshot
-          ? typeof oi.originalPriceSnapshot === 'number'
-            ? oi.originalPriceSnapshot
-            : Number(oi.originalPriceSnapshot)
-          : null,
-        discountPercentage: oi.discountPercentage ? decimalToNumber(oi.discountPercentage) : null,
-        discountAmount: oi.discountAmount ? decimalToNumber(oi.discountAmount) : null,
-        promotionDetailsSnapshot: oi.promotionDetailsSnapshot || null,
+        offerApplied: previewByItemId.get(oi.id)?.offerApplied ?? (oi.offerApplied || false),
+        offerBadgeSnapshot: previewByItemId.has(oi.id)
+          ? previewByItemId.get(oi.id)!.offerBadgeSnapshot
+          : oi.offerBadgeSnapshot || null,
+        offerNameSnapshot: previewByItemId.has(oi.id)
+          ? previewByItemId.get(oi.id)!.offerNameSnapshot
+          : oi.offerNameSnapshot || null,
+        originalPriceSnapshot: (() => {
+          const previewLine = previewByItemId.get(oi.id);
+          if (previewLine) {
+            return previewLine.originalPriceSnapshot != null ? Number(previewLine.originalPriceSnapshot) : null;
+          }
+          return oi.originalPriceSnapshot
+            ? typeof oi.originalPriceSnapshot === 'number'
+              ? oi.originalPriceSnapshot
+              : Number(oi.originalPriceSnapshot)
+            : null;
+        })(),
+        discountPercentage: previewByItemId.has(oi.id)
+          ? previewByItemId.get(oi.id)!.discountPercentage
+          : oi.discountPercentage
+            ? decimalToNumber(oi.discountPercentage)
+            : null,
+        discountAmount: previewByItemId.has(oi.id)
+          ? previewByItemId.get(oi.id)!.discountAmount
+          : oi.discountAmount
+            ? decimalToNumber(oi.discountAmount)
+            : null,
+        promotionDetailsSnapshot: previewByItemId.has(oi.id)
+          ? previewByItemId.get(oi.id)!.promotionDetailsSnapshot
+          : oi.promotionDetailsSnapshot || null,
       }));
       return {
         ...order,
-        subtotal: decimalToNumber(order.subtotal),
+        subtotal: pricePreview?.subtotal ?? decimalToNumber(order.subtotal),
         discounts: decimalToNumber(order.discounts),
         shippingFee: decimalToNumber(order.shippingFee),
-        totalAmount: decimalToNumber(order.totalAmount),
+        totalAmount: pricePreview?.totalAmount ?? decimalToNumber(order.totalAmount),
         orderItems: enrichedOrderItems,
       };
     });
