@@ -31,6 +31,29 @@ export function parseMarketplaceUserIdFromBuyerId(buyerId: string | null | undef
   return null;
 }
 
+type OrderDetailRow = {
+  orderNo?: string;
+  syncedFromOrders?: boolean;
+  [key: string]: unknown;
+};
+
+function parseBuyerOrderDetails(raw: string | null | undefined): OrderDetailRow[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as OrderDetailRow[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Live marketplace/dashboard order rows vs CRM/import profile details. */
+function isLiveSyncedOrderDetail(entry: OrderDetailRow): boolean {
+  if (entry?.syncedFromOrders === true) return true;
+  const orderNo = String(entry?.orderNo || '').trim();
+  return /^LKO-\d+(?:-\d+)?$/i.test(orderNo);
+}
+
 /**
  * Sync a MarketplaceUser profile into all distributor-scoped Buyer rows.
  *
@@ -83,7 +106,7 @@ export async function syncMarketplaceUserToBuyerProfiles(marketplaceUserId: numb
   }
 }
 
-export async function syncOrderToBuyerProfile(buyerId: string, userId: number) {
+export async function syncOrderToBuyerProfile(buyerId: string, userId: number): Promise<boolean> {
   try {
     // Get buyer
     const buyer = await prisma.buyer.findUnique({
@@ -91,7 +114,7 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number) {
     });
 
     if (!buyer) {
-      return;
+      return false;
     }
 
     // Get all orders for this buyer that belong ONLY to the provided distributor (userId)
@@ -100,12 +123,30 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number) {
       where: {
         buyerId: buyerId,
         userId: userId,
+        isDeleted: false,
         orderStatus: { notIn: ['Cancelled', 'Returned'] } // Exclude cancelled and returned orders
       },
       include: {
         orderItemsRel: true
       }
     });
+
+    // No live orders: drop previously synced LKO rows, keep CRM/import details.
+    if (orders.length === 0) {
+      const existing = parseBuyerOrderDetails(buyer.orderDetails);
+      const preserved = existing.filter((row) => !isLiveSyncedOrderDetail(row));
+      if (preserved.length === existing.length) {
+        return false;
+      }
+      await prisma.buyer.update({
+        where: { buyerId },
+        data: {
+          orderDetails: JSON.stringify(preserved),
+          updatedAt: new Date(),
+        },
+      });
+      return true;
+    }
 
     // Calculate totals
     let totalSpend = 0;
@@ -114,13 +155,38 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number) {
     const monthlyData: { [key: string]: { spend: number; orders: number } } = {};
 
     for (const order of orders) {
-      // Convert Decimal values to numbers for calculations
-      const orderSpend = order.orderItemsRel.reduce((sum: number, item: { subtotal: unknown }) => {
-        return sum + parseMoney(item.subtotal as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
+      // Prefer order.totalAmount once pricing has been applied; fall back to lines + shipping.
+      const shippingFee = parseMoney(
+        (order as { shippingFee?: unknown }).shippingFee as
+          | string
+          | number
+          | { toNumber?: () => number; toString?: () => string }
+          | null
+          | undefined,
+      );
+      const lineSpend = order.orderItemsRel.reduce((sum: number, item: { subtotal: unknown }) => {
+        return (
+          sum +
+          parseMoney(
+            item.subtotal as
+              | string
+              | number
+              | { toNumber?: () => number; toString?: () => string }
+              | null
+              | undefined,
+          )
+        );
       }, 0);
-      const shippingFee = parseMoney((order as { shippingFee?: unknown }).shippingFee as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
-      const totalOrderAmount = orderSpend + shippingFee;
-      
+      const headerTotal = parseMoney(
+        (order as { totalAmount?: unknown }).totalAmount as
+          | string
+          | number
+          | { toNumber?: () => number; toString?: () => string }
+          | null
+          | undefined,
+      );
+      const totalOrderAmount = headerTotal > 0 ? headerTotal : lineSpend + shippingFee;
+
       totalSpend += totalOrderAmount;
       orderCount++;
 
@@ -189,37 +255,46 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number) {
         return sum + paidPackages + freePackages;
       }, 0);
       // Convert Decimal values to numbers for calculations
-      const orderSpend = order.orderItemsRel.reduce((sum: number, item: { subtotal: unknown }) => {
+      const lineSpend = order.orderItemsRel.reduce((sum: number, item: { subtotal: unknown }) => {
         return sum + parseMoney(item.subtotal as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
       }, 0);
       const shippingFee = parseMoney((order as { shippingFee?: unknown }).shippingFee as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
-      const orderTotal = orderSpend + shippingFee;
+      const headerTotal = parseMoney((order as { totalAmount?: unknown }).totalAmount as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
+      const orderTotal = headerTotal > 0 ? headerTotal : lineSpend + shippingFee;
       const orderOutstanding = (order.paymentStatus === 'Pending' || order.paymentStatus === 'Unpaid') ? orderTotal : 0;
       
       return {
         orderNo: order.orderId,
         product: productNames,
         totalOrders: totalOrders.toString(),
-        totalSpend: orderTotal.toString(), // Store product cost + shipping fee combined
+        totalSpend: orderTotal.toString(), // Prefer priced order total after send-pricing
         shippingFee: shippingFee.toString(),
         lastOrderDate: order.createdAt.toISOString().split('T')[0],
-        outstanding: orderOutstanding.toString()
+        outstanding: orderOutstanding.toString(),
+        syncedFromOrders: true,
       };
     });
+
+    // Keep CRM/import rows; replace only live-synced entries.
+    const existing = parseBuyerOrderDetails(buyer.orderDetails);
+    const preservedCrm = existing.filter((row) => !isLiveSyncedOrderDetail(row));
+    const mergedOrderDetails = [...preservedCrm, ...orderDetails];
 
     // Update buyer with synced order details - scope to this distributor
     await prisma.buyer.update({
       where: { buyerId },
       data: {
-        orderDetails: JSON.stringify(orderDetails),
+        orderDetails: JSON.stringify(mergedOrderDetails),
         updatedAt: new Date()
       }
     });
 
+    return true;
   } catch (error) {
     console.warn('[buyerSync] syncBuyerOrderDetails failed:', {
       buyerId,
       error: error instanceof Error ? error.message : String(error),
     });
+    return false;
   }
 }

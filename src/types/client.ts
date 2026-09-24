@@ -89,6 +89,8 @@ export interface OrderDetail {
   freeItems?: number;
   discountBadge?: string;
   offerApplied?: boolean;
+  /** Set when row was written by syncOrderToBuyerProfile from live Order rows. */
+  syncedFromOrders?: boolean;
 }
 
 export interface SupplyDetail {

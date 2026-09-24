@@ -151,7 +151,6 @@
     "discountTypes": {
       "percentage": "Persentase",
       "fixed_amount": "Potongan Nominal",
-      "fixed_price": "Harga Tetap",
       "fixed": "Potongan Nominal",
       "buy_x_get_y": "Beli X Gratis Y"
     },

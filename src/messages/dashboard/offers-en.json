@@ -152,7 +152,6 @@
     "discountTypes": {
       "percentage": "Percentage",
       "fixed_amount": "Fixed Amount Off",
-      "fixed_price": "Fixed Price",
       "fixed": "Fixed Amount Discount",
       "buy_x_get_y": "Buy X Get Y"
     },

@@ -246,6 +246,8 @@
       "offerDiscount": "Discount",
       "offerDates": "Dates",
       "offerStatus": "Status",
+      "offerActions": "Actions",
+      "editRate": "Edit rate",
       "importOrders": "Import Orders",
       "importing": "Importing...",
       "exportOrders": "Export Orders",

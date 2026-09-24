@@ -13,6 +13,7 @@ import {
 } from '@/utils/supplier-security';
 import type { SupplierFormData } from '@/types/client';
 import { NotificationService } from '../notifications';
+import { syncOrderToBuyerProfile } from '@/utils/buyerSync';
 
 const nullToUndefined = <T extends Record<string, unknown>>(obj: T): { [K in keyof T]: T[K] extends null ? undefined : T[K] } => {
   return Object.fromEntries(
@@ -355,6 +356,20 @@ const fetchSingleBuyer = async (args: { userId: number; id: string }) => {
 
   if (!buyer) {
     throw new Error('Buyer not found');
+  }
+
+  // Refresh spend/outstanding from live orders only when order-derived details exist
+  // (avoids wiping createBuyer / imported orderDetails with []).
+  try {
+    const synced = await syncOrderToBuyerProfile(buyer.buyerId, userId);
+    if (synced) {
+      const refreshed = isNumericId(id)
+        ? await prisma.buyer.findFirst({ where: { id: Number(id), userId } })
+        : await prisma.buyer.findFirst({ where: { buyerId: id, userId } });
+      if (refreshed) buyer = refreshed;
+    }
+  } catch {
+    // best-effort; return the row we already loaded
   }
 
   return mapBuyer(buyer);

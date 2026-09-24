@@ -1,21 +1,25 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getOrdersHandler } from './getOrders';
-import { createOrderHandler } from './createOrder';
 import { updateOrderHandler } from './updateOrder';
 import { deleteOrderHandler } from './deleteOrder';
+import { getOrderSecurityHeaders } from '@/utils/order-security';
 
-// This file is intentionally a move-only refactor of the previous `route.ts`.
-// Behavior is preserved; call sites should re-export these handlers.
+// Dashboard does not create orders — marketplace / mobile checkout owns creation.
+// POST kept as an explicit 405 so old clients get a clear response.
 
 export async function GET(request: NextRequest) {
   return getOrdersHandler(request);
 }
 
-// NOTE: POST/PUT/DELETE logic lives in the handler modules (`createOrder.ts`, `updateOrder.ts`, `deleteOrder.ts`).
-// This file is a thin orchestrator that delegates to those handlers.
-
 export async function POST(request: NextRequest) {
-  return createOrderHandler(request);
+  const headers = getOrderSecurityHeaders();
+  return NextResponse.json(
+    {
+      error:
+        'Order creation via the dashboard API is disabled. Create orders through the Lakupak marketplace checkout.',
+    },
+    { status: 405, headers: { ...headers, Allow: 'GET, PUT, DELETE' } },
+  );
 }
 
 export async function PUT(request: NextRequest) {
@@ -25,4 +29,3 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   return deleteOrderHandler(request);
 }
-

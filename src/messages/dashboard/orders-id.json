@@ -228,6 +228,7 @@
         "unpaid": "Menunggu pembayaran dari pembeli."
       },
       "orderDetailsTitle": "Detail Pesanan",
+      "orderId": "ID Pesanan:",
       "totalOrderPrice": "Total harga pesanan:",
       "shippingCost": "Biaya pengiriman:",
       "agreedSeparately": "Disepakati terpisah",

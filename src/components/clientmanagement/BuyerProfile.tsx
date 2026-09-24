@@ -104,7 +104,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
   const user = useUserStore(state => state.user);
   const router = useRouter();
   const { tBuyersProfile, tBuyersModal, tShared, translateStatus } = useClientsTranslations();
-  const { translateOfferStatus } = useOffersTranslations();
+  const { translateOfferStatus, tTable: tOffersTable } = useOffersTranslations();
   const dateLocale = user?.language === 'id' ? 'id-ID' : 'en-US';
 
   // Get user currency for display - safe to use on both server and client
@@ -150,6 +150,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
           `query OffersForBuyer($userId: Int!, $buyerId: String!) {
             offersForBuyer(userId: $userId, buyerId: $buyerId) {
               id offerId productId productName categoryId categoryLabel
+              variantOptionId variantName
               discountType discountValue buyQuantity freeQuantity startDate endDate status notes
             }
           }`,
@@ -675,7 +676,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
           </div>
         </div>
       </div>
-      {/* Active rates / Offers */}
+      {/* Active rates / Offers — match Order & Product Details card/table styling */}
       <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 relative">
         <div className="flex items-center justify-between mb-4">
           <div className="font-semibold text-md text-black">{tBuyersProfile('offersSection')}</div>
@@ -690,51 +691,73 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
         </div>
         {offersLoading ? (
           <div className="text-sm text-gray-500 py-6 text-center">{tBuyersProfile('offersLoading')}</div>
-        ) : buyerOffers.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 py-8 text-center text-sm text-gray-500">
-            {tBuyersProfile('noOffers')}
-          </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto rounded-lg">
+            <table className="min-w-full text-xs font-medium text-left">
               <thead>
-                <tr className="border-b border-[#e6e6e6] text-left text-gray-500">
-                  <th className="py-2 px-2 font-semibold">{tBuyersProfile('offerTarget')}</th>
-                  <th className="py-2 px-2 font-semibold">{tBuyersProfile('offerDiscount')}</th>
-                  <th className="py-2 px-2 font-semibold">{tBuyersProfile('offerDates')}</th>
-                  <th className="py-2 px-2 font-semibold">{tBuyersProfile('offerStatus')}</th>
+                <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
+                  <th className="py-2 px-4 font-medium uppercase">{tBuyersProfile('offerTarget')}</th>
+                  <th className="py-2 px-4 font-medium uppercase">{tBuyersProfile('offerDiscount')}</th>
+                  <th className="py-2 px-4 font-medium uppercase">{tBuyersProfile('offerDates')}</th>
+                  <th className="py-2 px-4 font-medium uppercase">{tBuyersProfile('offerStatus')}</th>
+                  <th className="py-2 px-4 font-medium uppercase text-right">{tBuyersProfile('offerActions')}</th>
                 </tr>
               </thead>
               <tbody>
-                {buyerOffers.map((offer) => (
-                  <tr key={offer.id} className="border-b border-[#f0f0f0]">
-                    <td className="py-2 px-2">
-                      {offer.productName || offer.categoryLabel || offer.categoryId || '—'}
-                    </td>
-                    <td className="py-2 px-2">
-                      {formatDiscount(offer, userCurrency)}
-                    </td>
-                    <td className="py-2 px-2 text-gray-600">
-                      {formatDate(offer.startDate)}
-                      {offer.endDate ? ` → ${formatDate(offer.endDate)}` : ' → ∞'}
-                    </td>
-                    <td className="py-2 px-2">
-                      <span
-                        className={`inline-flex px-2 py-0.5 rounded-full text-xs font-bold ${
-                          offer.status === 'active'
-                            ? 'bg-green-100 text-green-500'
-                            : offer.status === 'expired'
-                              ? 'bg-gray-100 text-gray-500'
-                              : offer.status === 'draft'
-                                ? 'bg-yellow-100 text-yellow-500'
-                                : 'bg-gray-100 text-gray-500'
-                        }`}
-                      >
-                        {translateOfferStatus(offer.status)}
-                      </span>
+                {buyerOffers.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-10 px-4 text-center text-sm text-gray-500">
+                      {tBuyersProfile('noOffers')}
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  buyerOffers.map((offer) => (
+                    <tr key={offer.id} className="border-b last:border-b-0">
+                      <td className="py-4 px-4 text-black">
+                        {offer.productName
+                          ? offer.variantName
+                            ? `${offer.productName} · ${offer.variantName}`
+                            : `${offer.productName} (${tOffersTable('allVariants')})`
+                          : offer.categoryLabel || offer.categoryId || '—'}
+                      </td>
+                      <td className="py-4 px-4 text-black">
+                        {formatDiscount(offer, userCurrency)}
+                      </td>
+                      <td className="py-4 px-4 text-black">
+                        {formatDate(offer.startDate)}
+                        {offer.endDate ? ` → ${formatDate(offer.endDate)}` : ' → ∞'}
+                      </td>
+                      <td className="py-4 px-4">
+                        <span
+                          className={`inline-flex px-2 py-1 rounded-full text-xs font-bold ${
+                            offer.status === 'active'
+                              ? 'bg-green-100 text-green-500'
+                              : offer.status === 'expired'
+                                ? 'bg-gray-100 text-gray-500'
+                                : offer.status === 'draft'
+                                  ? 'bg-yellow-100 text-yellow-500'
+                                  : 'bg-gray-100 text-gray-500'
+                          }`}
+                        >
+                          {translateOfferStatus(offer.status)}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-right">
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-xs"
+                          onClick={() =>
+                            router.push(`/offers/details?id=${encodeURIComponent(offer.id)}`)
+                          }
+                          title={tBuyersProfile('editRate')}
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                          {tBuyersProfile('editRate')}
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

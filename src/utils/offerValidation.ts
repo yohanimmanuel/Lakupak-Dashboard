@@ -68,8 +68,7 @@ function badgeForType(
   if (discountType === 'buy_x_get_y') return 'Promotion';
   if (
     discountType === 'percentage' ||
-    discountType === 'fixed_amount' ||
-    discountType === 'fixed_price'
+    discountType === 'fixed_amount'
   ) {
     return 'Discount';
   }
@@ -134,7 +133,7 @@ export async function validateOfferForProduct(
       isPromo &&
       (offer.discountType === 'percentage' ||
         offer.discountType === 'fixed_amount' ||
-        offer.discountType === 'fixed_price');
+        offer.discountType === 'fixed_amount');
 
     const discountPercentage =
       offer.discountType === 'percentage' ? applied.discountPercentage ?? undefined : undefined;

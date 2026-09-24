@@ -7,7 +7,6 @@ type DbClient = PrismaClient | Prisma.TransactionClient;
 export type OfferDiscountType =
   | 'percentage'
   | 'fixed_amount'
-  | 'fixed_price'
   | 'buy_x_get_y';
 
 export type ResolvedOffer = {
@@ -233,11 +232,6 @@ export function applyOfferToPrice(
     discountAmount = Math.min(base, Math.max(0, value));
     unitPrice = Math.max(0, base - discountAmount);
     // Do not derive a % — UI must show the fixed amount (e.g. Rp4.000 OFF).
-    discountPercentage = null;
-  } else if (offer.discountType === 'fixed_price') {
-    // Absolute client unit price (per-retailer rate).
-    unitPrice = Math.max(0, value);
-    discountAmount = Math.max(0, base - unitPrice);
     discountPercentage = null;
   }
 

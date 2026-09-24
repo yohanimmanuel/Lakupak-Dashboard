@@ -59,8 +59,7 @@ function buildOfferSnapshots(
     offer.discountType === 'percentage' ? applied.discountPercentage : null;
   const discountAmount =
     offer.discountType === 'percentage' ||
-    offer.discountType === 'fixed_amount' ||
-    offer.discountType === 'fixed_price'
+    offer.discountType === 'fixed_amount'
       ? applied.discountAmount
       : applied.discountAmount > 0
         ? applied.discountAmount

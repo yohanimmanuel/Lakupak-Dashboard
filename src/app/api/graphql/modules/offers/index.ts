@@ -5,7 +5,7 @@ import { sanitizePagination, buildPaginationInfo, parseMoney } from '../common/u
 import { withDashboardAuth } from '../common/auth';
 import { isValidMerchandisingSlug, getMerchandisingLabel } from '@/constants/merchandisingTaxonomy';
 
-const DISCOUNT_TYPES = new Set(['percentage', 'fixed_amount', 'fixed_price', 'buy_x_get_y']);
+const DISCOUNT_TYPES = new Set(['percentage', 'fixed_amount', 'buy_x_get_y']);
 /** User-selectable statuses only. Expired is set by the system when endDate passes. */
 const STATUSES = new Set(['draft', 'active']);
 
@@ -224,8 +224,7 @@ function resolveBxgyQuantities(input: {
 
   const isPriceType =
     input.discountType === 'percentage' ||
-    input.discountType === 'fixed_amount' ||
-    input.discountType === 'fixed_price';
+    input.discountType === 'fixed_amount';
 
   if (input.discountType === 'buy_x_get_y') {
     return { buyQuantity: buy, freeQuantity: free };
@@ -253,7 +252,7 @@ function validateDiscountFields(input: {
   allowIncomplete?: boolean;
 }) {
   if (!DISCOUNT_TYPES.has(input.discountType)) {
-    throw new Error('Invalid discount type. Use percentage, fixed_amount, fixed_price, or buy_x_get_y');
+    throw new Error('Invalid discount type. Use percentage, fixed_amount, or buy_x_get_y');
   }
   if (!(input.discountValue > 0)) {
     throw new Error('Discount value must be greater than 0');
@@ -276,8 +275,7 @@ function validateDiscountFields(input: {
   // Combo on price types: if either buy or free is set, both must be valid
   const isPriceType =
     input.discountType === 'percentage' ||
-    input.discountType === 'fixed_amount' ||
-    input.discountType === 'fixed_price';
+    input.discountType === 'fixed_amount';
   if (isPriceType) {
     const hasBuy = input.buyQuantity != null && Number(input.buyQuantity) > 0;
     const hasFree = input.freeQuantity != null && Number(input.freeQuantity) > 0;

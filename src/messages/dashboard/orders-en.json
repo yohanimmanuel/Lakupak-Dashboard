@@ -228,6 +228,7 @@
         "unpaid": "Awaiting payment from the buyer."
       },
       "orderDetailsTitle": "Order Details",
+      "orderId": "Order ID:",
       "totalOrderPrice": "Total Order price:",
       "shippingCost": "Shipping cost:",
       "agreedSeparately": "Agreed separately",

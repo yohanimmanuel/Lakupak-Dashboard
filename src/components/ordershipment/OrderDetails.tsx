@@ -129,7 +129,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const formatMoney = (amount: number | null | undefined) =>
     formatCurrency(Number(amount) || 0, user?.currency);
 
-  /** Percentage offers → "X% OFF"; fixed amount / fixed price → "RpX OFF". */
+  /** Percentage offers → "X% OFF"; fixed amount → "RpX OFF". */
   const formatDiscountBadge = (item: (typeof localItems)[number]) => {
     const pct = Number(item.discountPercentage);
     const amt = Number(item.discountAmount);
@@ -868,6 +868,10 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             <div>
               <div className="text-sm font-semibold text-gray-500 mb-3">{tDetails('totalOrder.orderDetailsTitle')}</div>
               <div className="space-y-3 text-xs">
+                <div className="flex justify-between gap-3">
+                  <span className="text-gray-600 shrink-0">{tDetails('totalOrder.orderId')}</span>
+                  <span className="font-medium text-black text-right break-all">{order.orderId}</span>
+                </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">{tDetails('totalOrder.totalOrderPrice')}</span>
                   <span className="font-medium text-black">

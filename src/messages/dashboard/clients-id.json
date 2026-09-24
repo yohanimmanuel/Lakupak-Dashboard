@@ -282,7 +282,9 @@
       "offerTarget": "Produk / Kategori",
       "offerDiscount": "Diskon",
       "offerDates": "Tanggal",
-      "offerStatus": "Status"
+      "offerStatus": "Status",
+      "offerActions": "Aksi",
+      "editRate": "Ubah tarif"
     },
     "modal": {
       "editTitle": "Edit Pembeli",
@@ -335,7 +337,9 @@
       "offerTarget": "Produk / Kategori",
       "offerDiscount": "Diskon",
       "offerDates": "Tanggal",
-      "offerStatus": "Status"
+      "offerStatus": "Status",
+      "offerActions": "Aksi",
+      "editRate": "Ubah tarif"
     }
   },
   "suppliers": {

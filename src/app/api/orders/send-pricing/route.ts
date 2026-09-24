@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getOrderSecurityHeaders } from '@/utils/order-security';
 import { getAuthenticatedUserId } from '@/utils/auth-helpers';
-import { parseMarketplaceUserIdFromBuyerId } from '@/utils/buyerSync';
+import { parseMarketplaceUserIdFromBuyerId, syncOrderToBuyerProfile } from '@/utils/buyerSync';
 import {
   broadcastDashboardNotification,
   broadcastNotification,
@@ -144,6 +144,15 @@ export async function POST(request: NextRequest) {
         },
         { status: 409, headers },
       );
+    }
+
+    // Refresh buyer profile Total Spend / Outstanding from priced order lines.
+    if (order.buyerId) {
+      try {
+        await syncOrderToBuyerProfile(order.buyerId, userId);
+      } catch (err) {
+        console.error('[send-pricing] syncOrderToBuyerProfile failed', err);
+      }
     }
 
     try {

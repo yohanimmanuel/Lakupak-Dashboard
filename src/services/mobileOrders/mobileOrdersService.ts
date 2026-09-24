@@ -928,7 +928,7 @@ export async function createMobileMarketplaceOrders(
         (productOffer.discountType === 'buy_x_get_y' ||
           productOffer.discountType === 'percentage' ||
           productOffer.discountType === 'fixed_amount' ||
-          productOffer.discountType === 'fixed_price');
+          productOffer.discountType === 'fixed_amount');
 
       if (hasBxgyPromo) {
         const promotionDetails = {
@@ -1142,7 +1142,7 @@ export async function createMobileMarketplaceOrders(
               (productOffer.discountType === 'buy_x_get_y' ||
                 productOffer.discountType === 'percentage' ||
                 productOffer.discountType === 'fixed_amount' ||
-                productOffer.discountType === 'fixed_price');
+                productOffer.discountType === 'fixed_amount');
 
             if (hasBxgyPromo) {
               const promotionDetails = {
