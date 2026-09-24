@@ -69,38 +69,37 @@ export async function getOrdersHandler(request: NextRequest) {
 
       if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404, headers });
 
-      // Re-apply live Offers + catalog prices while PO is still Pending so offer
-      // edits (e.g. Rp4.000 → Rp1.000) show on Order Detail. Confirmed+ stays frozen.
+      // Preview live Offers on this response only. Do not write them: the buyer
+      // keeps the last sent price until Send pricing persists and broadcasts.
+      let pricePreview: Awaited<ReturnType<typeof syncOrderItemPricingFromCatalog>> = null;
       if (order.userId && order.orderStatus === 'Pending') {
         try {
-          await syncOrderItemPricingFromCatalog({
+          pricePreview = await syncOrderItemPricingFromCatalog({
             orderId: order.orderId,
             userId: order.userId,
             buyerId: order.buyerId,
+            persist: false,
           });
         } catch (err) {
           console.error('[getOrders] syncOrderItemPricingFromCatalog failed', err);
         }
       }
 
-      const refreshed = await prisma.order.findFirst({
-        where: {
-          orderId: id,
-          ...userWhere,
-          ...(includeDeleted ? {} : { isDeleted: false }),
-        },
-        include: orderDetailInclude,
-      });
-      const detailOrder = refreshed ?? order;
+      const detailOrder = order;
+      const previewByItemId = new Map((pricePreview?.updates ?? []).map((update) => [update.id, update]));
 
       const enrichedOrderItems = (detailOrder.orderItemsRel || []).map((oi) => ({
         id: oi.id,
         productId: oi.productId ?? null,
-        subtotal: decimalToNumber(oi.subtotal),
+        subtotal: previewByItemId.get(oi.id)?.subtotal ?? decimalToNumber(oi.subtotal),
         packageType: oi.packageType,
         piecesPerPackage: oi.piecesPerPackage,
         packageQuantity: oi.packageQuantity,
-        pricePerPackage: oi.pricePerPackage ? decimalToNumber(oi.pricePerPackage) : null,
+        pricePerPackage: previewByItemId.get(oi.id)
+          ? previewByItemId.get(oi.id)!.pricePerPackage
+          : oi.pricePerPackage
+            ? decimalToNumber(oi.pricePerPackage)
+            : null,
         productName: oi.product?.name || oi.productNameSnapshot || 'Unknown Product',
         category: oi.product?.productType || oi.productTypeSnapshot || 'Uncategorized',
         brand: oi.product?.brand || 'Unknown Brand',
@@ -113,17 +112,37 @@ export async function getOrdersHandler(request: NextRequest) {
         variantNameSnapshot: oi.variantNameSnapshot || null,
         variantId: oi.variantId || null,
         variantOptionId: oi.variantOptionId || null,
-        offerApplied: oi.offerApplied || false,
-        offerBadgeSnapshot: oi.offerBadgeSnapshot || null,
-        offerNameSnapshot: oi.offerNameSnapshot || null,
-        originalPriceSnapshot: oi.originalPriceSnapshot
-          ? typeof oi.originalPriceSnapshot === 'number'
-            ? oi.originalPriceSnapshot
-            : Number(oi.originalPriceSnapshot)
-          : null,
-        discountPercentage: oi.discountPercentage ? decimalToNumber(oi.discountPercentage) : null,
-        discountAmount: oi.discountAmount ? decimalToNumber(oi.discountAmount) : null,
-        promotionDetailsSnapshot: oi.promotionDetailsSnapshot || null,
+        offerApplied: previewByItemId.get(oi.id)?.offerApplied ?? (oi.offerApplied || false),
+        offerBadgeSnapshot: previewByItemId.has(oi.id)
+          ? previewByItemId.get(oi.id)!.offerBadgeSnapshot
+          : oi.offerBadgeSnapshot || null,
+        offerNameSnapshot: previewByItemId.has(oi.id)
+          ? previewByItemId.get(oi.id)!.offerNameSnapshot
+          : oi.offerNameSnapshot || null,
+        originalPriceSnapshot: (() => {
+          const previewLine = previewByItemId.get(oi.id);
+          if (previewLine) {
+            return previewLine.originalPriceSnapshot != null ? Number(previewLine.originalPriceSnapshot) : null;
+          }
+          return oi.originalPriceSnapshot
+            ? typeof oi.originalPriceSnapshot === 'number'
+              ? oi.originalPriceSnapshot
+              : Number(oi.originalPriceSnapshot)
+            : null;
+        })(),
+        discountPercentage: previewByItemId.has(oi.id)
+          ? previewByItemId.get(oi.id)!.discountPercentage
+          : oi.discountPercentage
+            ? decimalToNumber(oi.discountPercentage)
+            : null,
+        discountAmount: previewByItemId.has(oi.id)
+          ? previewByItemId.get(oi.id)!.discountAmount
+          : oi.discountAmount
+            ? decimalToNumber(oi.discountAmount)
+            : null,
+        promotionDetailsSnapshot: previewByItemId.has(oi.id)
+          ? previewByItemId.get(oi.id)!.promotionDetailsSnapshot
+          : oi.promotionDetailsSnapshot || null,
       }));
 
       const company = detailOrder.user?.company;
@@ -139,18 +158,19 @@ export async function getOrdersHandler(request: NextRequest) {
         ...detailOrder,
         sellerUserId: detailOrder.userId,
         distributorUserId: detailOrder.userId,
-        subtotal: decimalToNumber(detailOrder.subtotal),
+        subtotal: pricePreview?.subtotal ?? decimalToNumber(detailOrder.subtotal),
         discounts: decimalToNumber(detailOrder.discounts),
         shippingFee: decimalToNumber(detailOrder.shippingFee),
-        totalAmount: decimalToNumber(detailOrder.totalAmount),
+        totalAmount: pricePreview?.totalAmount ?? decimalToNumber(detailOrder.totalAmount),
         orderItems: enrichedOrderItems,
         shippingOptionMinDays: shippingOptionMinDays ?? null,
         shippingOptionMaxDays: shippingOptionMaxDays ?? null,
-        // Re-enable Send pricing only after a line price changes (item.updatedAt > pricingSentAt).
-        pricingNotifyAllowed: isPricingNotifyAllowed(
-          detailOrder.pricingSentAt,
-          (detailOrder.orderItemsRel || []).map((oi) => oi.updatedAt),
-        ),
+        // Send stays available until the preview matches the last prices written for the buyer.
+        pricingNotifyAllowed:
+          isPricingNotifyAllowed(
+            detailOrder.pricingSentAt,
+            (detailOrder.orderItemsRel || []).map((oi) => oi.updatedAt),
+          ) || (pricePreview?.updates.length ?? 0) > 0,
       };
       return NextResponse.json(orderResponse, { headers });
     }
@@ -194,39 +214,7 @@ export async function getOrdersHandler(request: NextRequest) {
       prisma.order.count({ where }),
     ]);
 
-    // Align with detail GET: re-apply live Offers + catalog on Pending rows so
-    // OrdersTable totals match Order Details after offer activate/deactivate.
-    let orders = initialOrders;
-    const pendingToSync = orders.filter(
-      (o) => o.orderStatus === 'Pending' && o.userId != null,
-    );
-    if (pendingToSync.length > 0) {
-      const CONCURRENCY = 8;
-      for (let i = 0; i < pendingToSync.length; i += CONCURRENCY) {
-        const chunk = pendingToSync.slice(i, i + CONCURRENCY);
-        await Promise.all(
-          chunk.map((o) =>
-            syncOrderItemPricingFromCatalog({
-              orderId: o.orderId,
-              userId: o.userId as number,
-              buyerId: o.buyerId,
-            }).catch((err) => {
-              console.error('[getOrders] list syncOrderItemPricingFromCatalog failed', {
-                orderId: o.orderId,
-                err,
-              });
-            }),
-          ),
-        );
-      }
-      orders = await prisma.order.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: orderListInclude,
-      });
-    }
+    const orders = initialOrders;
 
     const ordersWithParsedItems = orders.map((order: OrderListRow) => {
       const enrichedOrderItems = (order.orderItemsRel || []).map((oi) => ({

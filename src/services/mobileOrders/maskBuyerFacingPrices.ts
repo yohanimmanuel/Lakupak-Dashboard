@@ -26,8 +26,8 @@ type BuyerPriceOrder = {
  * Distributor rows always keep catalog/offer amounts.
  * Buyers only receive money when:
  * - the distributor has sent pricing, or
- * - the line has a client rate, or
  * - auto-apply base price is on and this is the buyer's first order with that distributor.
+ * Offer activate/deactivate stays on the distributor order until Send pricing.
  * Any hidden line zeros the order total so list cards stay "Pending price".
  */
 export async function applyBuyerPriceVisibility<T extends BuyerPriceOrder>(
@@ -80,7 +80,7 @@ export async function applyBuyerPriceVisibility<T extends BuyerPriceOrder>(
 
     let anyHidden = false;
     const orderItems = order.orderItems.map((item) => {
-      if (released || item.offerApplied || showBase) return item;
+      if (released || showBase) return item;
       anyHidden = true;
       return {
         ...item,

@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/db';
+import { prisma, type Prisma } from '@/lib/db';
 import {
   applyOfferToPrice,
   getOfferForClientAndProduct,
@@ -85,53 +85,67 @@ function buildOfferSnapshots(
   };
 }
 
+export type PendingOrderPriceUpdate = {
+  id: number;
+  pricePerPackage: number;
+  subtotal: number;
+  unitPriceSnapshot: number;
+  offerApplied: boolean;
+  offerBadgeSnapshot: string | null;
+  offerNameSnapshot: string | null;
+  offerIdSnapshot: string | null;
+  originalPriceSnapshot: string | null;
+  discountAmount: number | null;
+  discountPercentage: number | null;
+  promotionDetailsSnapshot: string | null;
+};
+
+export type PendingOrderPricePreview = {
+  updates: PendingOrderPriceUpdate[];
+  subtotal: number;
+  totalAmount: number;
+  anyPending: boolean;
+  pendingCount: number;
+};
+
 /**
- * Distributor Order Detail: keep Pending PO lines in sync with live Offers (+ catalog
- * only while a CRM buyer relationship still exists).
- * - Active offer → re-apply current offer
- * - CRM buyer, no offer → product base/list price (distributor can Send pricing)
- * - No buyerId / buyer deleted → leave lines pending (do not refill catalog)
+ * Live Pending PO prices from Offers + catalog.
+ * Dashboard Order Detail previews this without writing.
+ * persist: true only from Send pricing, so the buyer price stays put until then.
+ * - Active offer → current offer
+ * - CRM buyer, no offer → product base/list price
+ * - No buyerId / buyer deleted → leave lines as stored
  */
 export async function syncOrderItemPricingFromCatalog(params: {
   orderId: string;
   userId: number;
   buyerId: string | null | undefined;
-}): Promise<void> {
+  persist?: boolean;
+  /** Join an existing transaction so a failed send claim rolls the price writes back. */
+  tx?: Prisma.TransactionClient;
+}): Promise<PendingOrderPricePreview | null> {
   const buyerId = String(params.buyerId || '').trim();
+  const db = params.tx ?? prisma;
 
-  const items = await prisma.orderItem.findMany({
+  const items = await db.orderItem.findMany({
     where: { orderId: params.orderId },
   });
-  if (items.length === 0) return;
+  if (items.length === 0) return null;
 
   const buyerStillLinked = buyerId
-    ? await prisma.buyer.findFirst({
+    ? await db.buyer.findFirst({
         where: { buyerId, userId: params.userId },
         select: { buyerId: true },
       })
     : null;
 
-  type ItemUpdate = {
-    id: number;
-    pricePerPackage: number;
-    subtotal: number;
-    unitPriceSnapshot: number;
-    offerApplied: boolean;
-    offerBadgeSnapshot: string | null;
-    offerNameSnapshot: string | null;
-    offerIdSnapshot: string | null;
-    originalPriceSnapshot: string | null;
-    discountAmount: number | null;
-    discountPercentage: number | null;
-    promotionDetailsSnapshot: string | null;
-  };
-  const updates: ItemUpdate[] = [];
+  const updates: PendingOrderPriceUpdate[] = [];
 
   for (const item of items) {
     if (!item.productId) continue;
 
     const productId = String(item.productId);
-    const product = await prisma.product.findFirst({
+    const product = await db.product.findFirst({
       where: { productId, userId: params.userId },
       include: { variantOptions: true },
     });
@@ -156,6 +170,7 @@ export async function syncOrderItemPricingFromCatalog(params: {
       ? await getOfferForClientAndProduct(buyerId, productId, {
           userId: params.userId,
           variantOptionId: item.variantOptionId ?? null,
+          db,
         })
       : null;
 
@@ -174,15 +189,29 @@ export async function syncOrderItemPricingFromCatalog(params: {
 
     const prevPrice = decimalToNumber(item.pricePerPackage);
     const prevSub = decimalToNumber(item.subtotal);
+    const prevUnit = item.unitPriceSnapshot != null ? decimalToNumber(item.unitPriceSnapshot) : null;
     const prevPct = item.discountPercentage != null ? decimalToNumber(item.discountPercentage) : null;
     const prevAmt = item.discountAmount != null ? decimalToNumber(item.discountAmount) : null;
+    const prevOriginal =
+      item.originalPriceSnapshot != null ? decimalToNumber(item.originalPriceSnapshot) : null;
+    const nextOriginal =
+      snapshots.originalPriceSnapshot != null ? Number(snapshots.originalPriceSnapshot) : null;
+    const sameMoney = (left: number | null, right: number | null) =>
+      Math.abs((left ?? 0) - (right ?? 0)) < 0.0001;
+    const sameText = (left: string | null | undefined, right: string | null | undefined) =>
+      (left || null) === (right || null);
     const unchanged =
-      Math.abs(prevPrice - pricePerPackage) < 0.0001 &&
-      Math.abs(prevSub - subtotal) < 0.0001 &&
+      sameMoney(prevPrice, pricePerPackage) &&
+      sameMoney(prevSub, subtotal) &&
+      sameMoney(prevUnit, snapshots.unitPrice) &&
       Boolean(item.offerApplied) === snapshots.offerApplied &&
-      (item.offerIdSnapshot || null) === (snapshots.offerIdSnapshot || null) &&
+      sameText(item.offerIdSnapshot, snapshots.offerIdSnapshot) &&
+      sameText(item.offerBadgeSnapshot, snapshots.offerBadgeSnapshot) &&
+      sameText(item.offerNameSnapshot, snapshots.offerNameSnapshot) &&
+      sameText(item.promotionDetailsSnapshot, snapshots.promotionDetailsSnapshot) &&
+      sameMoney(prevOriginal, nextOriginal) &&
       (prevPct ?? null) === (snapshots.discountPercentage ?? null) &&
-      Math.abs((prevAmt ?? 0) - (snapshots.discountAmount ?? 0)) < 0.0001;
+      sameMoney(prevAmt, snapshots.discountAmount);
 
     if (unchanged) continue;
 
@@ -202,9 +231,39 @@ export async function syncOrderItemPricingFromCatalog(params: {
     });
   }
 
-  if (updates.length === 0) return;
+  const updateById = new Map(updates.map((update) => [update.id, update]));
+  const resolvedSubtotal = items.reduce((sum, row) => {
+    const next = updateById.get(row.id);
+    return sum + (next ? next.subtotal : decimalToNumber(row.subtotal));
+  }, 0);
+  const pendingCount = items.reduce((count, row) => {
+    const next = updateById.get(row.id);
+    const subtotal = next ? next.subtotal : decimalToNumber(row.subtotal);
+    const offerApplied = next ? next.offerApplied : Boolean(row.offerApplied);
+    const pending = !(subtotal > 0) && !offerApplied;
+    return pending ? count + 1 : count;
+  }, 0);
+  const anyPending = pendingCount > 0;
+  const orderHeader = await db.order.findFirst({
+    where: { orderId: params.orderId, userId: params.userId },
+    select: { id: true, shippingFee: true, discounts: true },
+  });
+  const shippingFee = decimalToNumber(orderHeader?.shippingFee);
+  const discounts = decimalToNumber(orderHeader?.discounts);
+  const preview: PendingOrderPricePreview = {
+    updates,
+    subtotal: resolvedSubtotal,
+    totalAmount:
+      resolvedSubtotal <= 0 && anyPending
+        ? 0
+        : Math.max(0, resolvedSubtotal + shippingFee - discounts),
+    anyPending,
+    pendingCount,
+  };
 
-  await prisma.$transaction(async (tx) => {
+  if (!params.persist || updates.length === 0 || !orderHeader) return preview;
+
+  const writePrices = async (tx: Prisma.TransactionClient) => {
     for (const u of updates) {
       await tx.orderItem.update({
         where: { id: u.id },
@@ -224,37 +283,20 @@ export async function syncOrderItemPricingFromCatalog(params: {
       });
     }
 
-    const remaining = await tx.orderItem.findMany({
-      where: { orderId: params.orderId },
-      select: { subtotal: true, pricePerPackage: true, offerApplied: true },
-    });
-    const order = await tx.order.findFirst({
-      where: { orderId: params.orderId, userId: params.userId },
-      select: { id: true, shippingFee: true, discounts: true },
-    });
-    if (!order) return;
-
-    const resolvedSubtotal = remaining.reduce((sum, row) => sum + decimalToNumber(row.subtotal), 0);
-    const anyPending = remaining.some(
-      (row) =>
-        !(decimalToNumber(row.subtotal) > 0) &&
-        !(decimalToNumber(row.pricePerPackage) > 0) &&
-        !row.offerApplied,
-    );
-    const shippingFee = decimalToNumber(order.shippingFee);
-    const discounts = decimalToNumber(order.discounts);
-
     await tx.order.update({
-      where: { id: order.id },
+      where: { id: orderHeader.id },
       data: {
-        subtotal: resolvedSubtotal,
-        // Match set-item-price: keep a running total when some lines are priced;
-        // only force 0 when nothing resolved yet and lines are still pending.
-        totalAmount:
-          resolvedSubtotal <= 0 && anyPending
-            ? 0
-            : Math.max(0, resolvedSubtotal + shippingFee - discounts),
+        subtotal: preview.subtotal,
+        totalAmount: preview.totalAmount,
       },
     });
-  });
+  };
+
+  if (params.tx) {
+    await writePrices(params.tx);
+  } else {
+    await prisma.$transaction(writePrices);
+  }
+
+  return preview;
 }

@@ -6,6 +6,7 @@ import { parseMarketplaceUserIdFromBuyerId, syncOrderToBuyerProfile } from '@/ut
 import {
   broadcastDashboardNotification,
   broadcastNotification,
+  broadcastOrderUpdate,
 } from '@/utils/websocketBroadcast';
 import { sendExpoPushToMarketplaceUser } from '@/utils/expoPush';
 import {
@@ -14,6 +15,22 @@ import {
 } from '@/utils/marketplacePushTranslations';
 import { broadcastMarketplaceWsFallback } from '@/services/orders/enqueueOrderUpdateSideEffects';
 import { isPricingNotifyAllowed } from '@/services/orders/utils';
+import { syncOrderItemPricingFromCatalog } from '@/services/orders/resolvePendingOrderItemPricing';
+
+class PendingPricingError extends Error {
+  pendingCount: number;
+
+  constructor(pendingCount: number) {
+    super('PENDING_PRICING');
+    this.pendingCount = pendingCount;
+  }
+}
+
+class ClaimConflictError extends Error {
+  constructor() {
+    super('CLAIM_CONFLICT');
+  }
+}
 
 /**
  * POST /api/orders/send-pricing
@@ -50,7 +67,7 @@ export async function POST(request: NextRequest) {
         storeName: true,
         orderStatus: true,
         pricingSentAt: true,
-        orderItemsRel: { select: { subtotal: true, updatedAt: true } },
+        orderItemsRel: { select: { id: true, subtotal: true, updatedAt: true } },
       },
     });
     if (!order) {
@@ -65,15 +82,28 @@ export async function POST(request: NextRequest) {
         { status: 409, headers },
       );
     }
-    const items = order.orderItemsRel ?? [];
-    if (items.length === 0) {
+
+    const pricePreview = await syncOrderItemPricingFromCatalog({
+      orderId: order.orderId,
+      userId,
+      buyerId: order.buyerId,
+      persist: false,
+    });
+    const pricedItems = order.orderItemsRel ?? [];
+    if (!pricePreview || pricedItems.length === 0) {
       return NextResponse.json(
         { error: 'Order has no line items to price.' },
         { status: 409, headers },
       );
     }
-    const pendingCount = items.filter((row) => !(Number(row.subtotal) > 0)).length;
-    if (pendingCount > 0) {
+    if (pricePreview.anyPending) {
+      const pendingCount = pricePreview.updates.length
+        ? pricedItems.filter((row) => {
+            const next = pricePreview.updates.find((update) => update.id === row.id);
+            const subtotal = next ? next.subtotal : Number(row.subtotal);
+            return !(subtotal > 0);
+          }).length
+        : pricedItems.filter((row) => !(Number(row.subtotal) > 0)).length;
       return NextResponse.json(
         {
           error: `Cannot send pricing: ${pendingCount} item(s) still need a price greater than zero.`,
@@ -83,12 +113,13 @@ export async function POST(request: NextRequest) {
     }
 
     const isPricingUpdate = order.pricingSentAt != null;
-    if (
-      !isPricingNotifyAllowed(
+    const pricingChanged =
+      pricePreview.updates.length > 0 ||
+      isPricingNotifyAllowed(
         order.pricingSentAt,
-        items.map((row) => row.updatedAt),
-      )
-    ) {
+        pricedItems.map((row) => row.updatedAt),
+      );
+    if (!pricingChanged) {
       return NextResponse.json(
         {
           error:
@@ -107,43 +138,64 @@ export async function POST(request: NextRequest) {
       ? `Updated pricing for order #${order.orderId} was sent to ${storeName}.`
       : `Pricing for order #${order.orderId} was sent to ${storeName}.`;
 
-    const claimed = await prisma.$transaction(async (tx) => {
-      // Claim notify slot with the pricingSentAt we already validated against.
-      // Concurrent sends that raced past the allow-check lose here.
-      const claim = await tx.order.updateMany({
-        where: {
+    try {
+      await prisma.$transaction(async (tx) => {
+        const persisted = await syncOrderItemPricingFromCatalog({
           orderId: order.orderId,
           userId,
-          pricingSentAt: order.pricingSentAt ?? null,
-        },
-        data: { pricingSentAt: new Date() },
-      });
-      if (claim.count !== 1) return false;
+          buyerId: order.buyerId,
+          persist: true,
+          tx,
+        });
+        if (!persisted || persisted.anyPending) {
+          throw new PendingPricingError(persisted?.pendingCount ?? pricedItems.length);
+        }
 
-      await tx.notification.create({
-        data: {
-          userId,
-          type: 'order',
-          title: dashboardTitle,
-          message: dashboardMessage,
-          metadata: {
+        // Claim only after the persisted lines are confirmed sendable.
+        // A failed claim rolls this transaction's price writes back.
+        const claim = await tx.order.updateMany({
+          where: {
             orderId: order.orderId,
-            type: eventType,
+            userId,
+            pricingSentAt: order.pricingSentAt ?? null,
           },
-          actionUrl: `/orders/details/${order.orderId}`,
-        },
-      });
-      return true;
-    });
+          data: { pricingSentAt: new Date() },
+        });
+        if (claim.count !== 1) throw new ClaimConflictError();
 
-    if (!claimed) {
-      return NextResponse.json(
-        {
-          error:
-            'Pricing already sent for the current amounts. Change a line price before sending an update.',
-        },
-        { status: 409, headers },
-      );
+        await tx.notification.create({
+          data: {
+            userId,
+            type: 'order',
+            title: dashboardTitle,
+            message: dashboardMessage,
+            metadata: {
+              orderId: order.orderId,
+              type: eventType,
+            },
+            actionUrl: `/orders/details/${order.orderId}`,
+          },
+        });
+      });
+    } catch (err) {
+      if (err instanceof PendingPricingError) {
+        return NextResponse.json(
+          {
+            error: `Cannot send pricing: ${err.pendingCount} item(s) still need a price greater than zero.`,
+          },
+          { status: 409, headers },
+        );
+      }
+      if (err instanceof ClaimConflictError) {
+        return NextResponse.json(
+          {
+            error:
+              'Pricing already sent for the current amounts. Change a line price before sending an update.',
+          },
+          { status: 409, headers },
+        );
+      }
+      throw err;
     }
 
     // Refresh buyer profile Total Spend / Outstanding from priced order lines.
@@ -207,6 +259,12 @@ export async function POST(request: NextRequest) {
       } catch (err) {
         console.error('[send-pricing] marketplace notify failed', err);
       }
+    }
+
+    try {
+      await broadcastOrderUpdate([order.orderId]);
+    } catch (err) {
+      console.error('[send-pricing] order update broadcast failed', err);
     }
 
     return NextResponse.json(
