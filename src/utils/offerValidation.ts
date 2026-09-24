@@ -129,11 +129,8 @@ export async function validateOfferForProduct(
     const isPromo = Boolean(promo);
     const freeQty = promo?.freeQuantity ?? Math.round(offer.discountValue);
     const buyQty = promo?.buyQuantity ?? offer.buyQuantity ?? 1;
-    const hasCombo =
-      isPromo &&
-      (offer.discountType === 'percentage' ||
-        offer.discountType === 'fixed_amount' ||
-        offer.discountType === 'fixed_amount');
+    // promotionDetails is only set for BXGY / combo — no need to re-check discountType
+    const hasCombo = isPromo;
 
     const discountPercentage =
       offer.discountType === 'percentage' ? applied.discountPercentage ?? undefined : undefined;
