@@ -724,8 +724,9 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
                         {formatDiscount(offer, userCurrency)}
                       </td>
                       <td className="py-4 px-4 text-black">
-                        {formatDate(offer.startDate)}
-                        {offer.endDate ? ` → ${formatDate(offer.endDate)}` : ' → ∞'}
+                        {offer.endDate
+                          ? `${formatDate(offer.startDate)} → ${formatDate(offer.endDate)}`
+                          : tOffersTable('unlimited')}
                       </td>
                       <td className="py-4 px-4">
                         <span
