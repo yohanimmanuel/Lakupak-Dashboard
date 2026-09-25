@@ -145,7 +145,7 @@ export async function sendGmailMessage(args: {
   }
 }
 
-/** One SMTP session for many messages (campaign × buyers). Much faster than connect-per-mail. */
+/** One SMTP session for many messages. Much faster than connect-per-mail. */
 export async function sendGmailMessageBatch(args: {
   creds: GmailSmtpCredentials;
   messages: MailPayload[];

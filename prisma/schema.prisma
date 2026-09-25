@@ -46,7 +46,6 @@ model User {
   company       Company?   @relation("CompanyToUsers", fields: [companyId], references: [id], onDelete: SetNull)
   salesAgents   SalesAgent[]
   salesTeams    SalesTeam[]
-  campaigns     Campaign[]
   notifications Notification[]
   distributorReviewsReceived DistributorReview[]
   reportedDistributorReports DistributorReport[] @relation("ReportedDistributorReports")
@@ -964,38 +963,11 @@ model FavoriteProduct {
   @@index([productId])
 }
 
-model Campaign {
-  id            String   @id @default(cuid())
-  campaignId   String   @unique
-  name          String
-  description   String?
-  status        String   @default("Draft") // 'Draft' | 'Scheduled' | 'Sent' | 'Completed'
-  sentDate      DateTime? @db.Timestamptz(3)
-  recipients    String
-  opensCount    Int      @default(0)
-  clicksCount   Int      @default(0)
-  revenue       Decimal  @default(0) @db.Decimal(12, 2)
-  orders        Int      @default(0)
-  contentBlocks Json?    // Store CampaignContentBlock[] as JSON
-  /// Per-recipient email delivery log for marketing send (sent | failed | unattempted).
-  emailDelivery Json?
-  userId        Int?
-  createdAt     DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
-  
-  user          User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([status])
-  @@index([campaignId])
-  @@index([createdAt])
-}
-
 /// Notifications for dashboard users (distributors)
 model Notification {
   id              String    @id @default(cuid())
   userId          Int
-  type            String    // 'order' | 'inventory' | 'offer' | 'buyer' | 'campaign' | 'sales' | 'product' | 'system'
+  type            String    // 'order' | 'inventory' | 'offer' | 'buyer' | 'sales' | 'product' | 'system'
   title           String
   message         String
   isRead          Boolean   @default(false)

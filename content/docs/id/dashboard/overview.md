@@ -33,7 +33,7 @@ Dashboard memakai **sidebar** persisten (bisa dilipat di desktop, drawer di mobi
 | **Products** | `/products` | Katalog, stok, publish ke Marketplace |
 | **Orders** | `/orders` | Daftar pesanan B2B, peta, pemenuhan |
 | **Offers** | `/offers` | Diskon dan promosi |
-| **Marketing** | `/sales` | Hub **Team** dan **Campaigns** |
+| **Penjualan** | `/sales` | Hub **Tim** dan **Pekerjaan** |
 | **Analytics** | `/analytics` | Hub **Financial**, **Sales**, **Operational** |
 
 ### Menu sekunder
@@ -44,7 +44,7 @@ Dashboard memakai **sidebar** persisten (bisa dilipat di desktop, drawer di mobi
 | **Logistics** | `/logistics` | Armada, driver, pelacakan |
 | **Settings** | `/settings` | Profil, perusahaan, penagihan, keamanan, tur |
 
-Submenu di **Clients**, **Marketing**, dan **Analytics** untuk halaman di atas.
+Submenu di **Clients**, **Penjualan**, dan **Analytics** untuk halaman di atas.
 
 ## Setup minggu pertama (disarankan)
 
@@ -67,8 +67,8 @@ Submenu di **Clients**, **Marketing**, dan **Analytics** untuk halaman di atas.
 
 ### Pertumbuhan (opsional)
 
-9. **Offers** — kampanye pada produk.
-10. **Marketing → Campaigns** — outreach WhatsApp ke retailer.
+9. **Offers** — promosi pada produk.
+10. **Penjualan → Tim** — kelola agen, peran, dan pekerjaan.
 11. **Analytics** — laporan setelah ada riwayat pesanan.
 
 ## Tur produk dan onboarding

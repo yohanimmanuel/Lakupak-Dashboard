@@ -30,7 +30,7 @@ const PROHIBITED_DATA_PATTERNS: RegExp[] = [
   /\b(share|list|dump|reveal|expose|include|provide|give)\b[\s\S]{0,60}\b(all\s+)?(real\s+)?orders?\b/i,
   /\b(share|list|dump|reveal|expose|include)\b[\s\S]{0,60}\border\s*ids?\b/i,
   /\b(bank\s*(account|acc\.?|number|details?|credentials?)|account\s*number|iban|swift|routing\s*number)\b/i,
-  /\b(share|list|dump|reveal|expose|include)\b[\s\S]{0,60}\b(analytics|metrics|campaigns?|offers?)\b/i,
+  /\b(share|list|dump|reveal|expose|include)\b[\s\S]{0,60}\b(analytics|metrics|offers?)\b/i,
   /\b(share|list|dump|reveal|expose|include)\b[\s\S]{0,60}\b(suppliers?|fleets?|drivers?)\b/i,
   /\b(share|list|dump|reveal|expose|include)\b[\s\S]{0,60}\b(sales\s*agents?|internal\s*(directory|phone|contact))\b/i,
   /\b(share|list|dump|reveal|expose|include)\b[\s\S]{0,60}\bdraft\s+products?\b/i,
@@ -95,5 +95,5 @@ export const LAKU_AGENT_PRIVACY_POLICY = [
   '- Handoff replies are handled separately; when this run handles a normal CS message, do not repeat welcome topic bullets (products, orders, payment, delivery, returns).',
   '- When a buyer asks for a human and no actionable handoff is available: acknowledge briefly in one or two sentences only. Do not invent agent names, phones, or internal directories, and do not list help categories.',
   'You MAY answer (when asked) from context: published products, the buyer’s own order line items (product name, qty, price) after they give an order ID, payment method type + term days (never bank numbers), delivery/ops, return/cancel guidance, public company contact, human CS/sales handoff requests.',
-  'NEVER share: offers/campaigns/metrics, bank credentials, analytics, compliance, fleets/drivers, suppliers, internal sales-agent directories, draft products, or other buyers’ orders.',
+  'NEVER share: offers/metrics, bank credentials, analytics, compliance, fleets/drivers, suppliers, internal sales-agent directories, draft products, or other buyers’ orders.',
 ].join('\n');

@@ -38,7 +38,7 @@ export function pickedBuyerContactOverrides(
 
 /**
  * Preserve buyerIds order, dedupe by buyerId, and merge node vs DB contacts.
- * - prefer "config": node email/phone when valid (send_campaign)
+ * - prefer "config": node email/phone when valid
  * - prefer "db": DB email/phone when valid (channel buyer messages)
  */
 export function orderBuyersWithContactOverrides(

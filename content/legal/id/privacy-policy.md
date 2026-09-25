@@ -25,14 +25,14 @@ Kami mengumpulkan Data Pribadi ketika Anda, antara lain:
 - mengunjungi situs web Lakupak atau membuka Layanan Lakupak;
 - membuat atau mengelola Akun;
 - melengkapi profil perusahaan distributor, penagihan, atau bidang verifikasi;
-- menggunakan menu dan fitur Distributor Dashboard, termasuk Home (Dashboard), Clients (Buyers dan Suppliers), Products, Orders, Offers (program dan insentif), Marketing (Team dan Campaigns), Analytics (Financial, Sales, dan Operational), Automation, penerbitan Marketplace, Logistics (pesanan dan pengiriman), dan Settings;
+- menggunakan menu dan fitur Distributor Dashboard, termasuk Home (Dashboard), Clients (Buyers dan Suppliers), Products, Orders, Offers (program dan insentif), Penjualan (Tim dan Pekerjaan), Analytics (Financial, Sales, dan Operational), Automation, penerbitan Marketplace, Logistics (pesanan dan pengiriman), dan Settings;
 - membuat, memenuhi, membayar, membatalkan, atau mengembalikan pesanan di Marketplace;
 - mengunggah berkas (misalnya gambar produk, bukti pembayaran, bukti pengiriman, bukti retur, atau gambar ulasan);
 - menggunakan fitur lokasi (misalnya alamat pengiriman atau lokasi driver saat bertugas);
 - menghubungi dukungan, mengirim umpan balik, laporan, atau ulasan;
 - menerima one-time password (OTP) melalui SMS atau WhatsApp;
 - menggunakan masuk dengan Google untuk Distributor Dashboard (jika diaktifkan);
-- mengonfigurasi otomasi, notifikasi, atau berbagi kampanye; atau
+- mengonfigurasi otomasi atau notifikasi; atau
 - menghubungkan alat pihak ketiga opsional yang Anda pilih untuk diotorisasi.
 
 ### 1.2 Jenis Data Pribadi yang kami kumpulkan
@@ -55,7 +55,7 @@ Bergantung pada peran dan fitur yang Anda gunakan, Data Pribadi dapat mencakup:
 - data katalog produk, SKU, harga, stok, gambar, dan penawaran;
 - catatan CRM pembeli dan pemasok yang Anda masukkan (nama, telepon, email, alamat, catatan);
 - pesanan, status pesanan, status pembayaran, bukti pembayaran, faktur atau dokumen komisi, pembatalan, retur, dan catatan pengiriman;
-- pengaturan tim penjualan dan kampanye yang Anda konfigurasikan di Marketing;
+- pengaturan tim penjualan dan pekerjaan yang Anda konfigurasikan di Penjualan;
 - armada logistik, penugasan kendaraan dan driver, serta bukti pengiriman.
 
 **D. Data lokasi dan perangkat**
@@ -69,7 +69,7 @@ Bergantung pada peran dan fitur yang Anda gunakan, Data Pribadi dapat mencakup:
 - log pengiriman OTP;
 - notifikasi dalam aplikasi;
 - pesan, laporan, ulasan, rating, dan korespondensi dukungan yang Anda kirim kepada kami;
-- jika Anda menggunakan tautan berbagi kampanye, perangkat Anda dapat membuka WhatsApp; Lakupak tidak mengoperasikan akun WhatsApp pribadi Anda.
+- jika Anda menghubungkan WhatsApp untuk otomasi, Lakupak tidak mengoperasikan akun WhatsApp pribadi Anda.
 
 **F. Data pelanggan akhir yang diproses untuk distributor (peran pemroses)**
 - Ketika distributor menggunakan Lakupak untuk menyimpan kontak pembeli, mengirim notifikasi operasional, atau (jika tersedia) menghubungkan alat pesan bisnis, Lakupak dapat memproses nama, nomor telepon, alamat, dan pesan terkait pesanan pelanggan akhir berdasarkan instruksi distributor.

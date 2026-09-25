@@ -70,7 +70,7 @@
     "product_offers": "Produk & Penawaran",
     "lead_management": "Manajemen Prospek",
     "order_logistics": "Pesanan & Logistik",
-    "marketing": "Pemasaran"
+    "marketing": "Penjualan"
   },
   "shared": {
     "actions": "Tindakan",
@@ -86,7 +86,7 @@
     "untitled": "Alur kerja tanpa judul",
     "saveDraft": "Simpan draf",
     "activate": "Aktifkan",
-    "sendAtConfirmHint": "Mengubah waktu ini tidak mengirim kampanye. Klik Aktifkan untuk mengonfirmasi waktu kirim di masa depan.",
+    "sendAtConfirmHint": "Mengubah waktu ini tidak mengirim apa pun. Klik Aktifkan untuk mengonfirmasi waktu kirim di masa depan.",
     "sendAtMustBeFuture": "Waktu kirim harus di masa depan sebelum alur kerja dapat diaktifkan.",
     "testRun": "Uji coba",
     "undo": "Urungkan",
@@ -129,8 +129,7 @@
       "buyer_questions": "Berjalan saat pembeli (baru atau lama) bertanya soal bisnis, produk, pengiriman, atau operasional di WhatsApp",
       "order_paid": "Berjalan saat pembeli mengirim bukti pembayaran. Pasangkan dengan Tandai lunas dari bukti untuk mengubah status menjadi Lunas",
       "return_accepted": "Berjalan saat retur diterima dan stok dapat dipulihkan",
-      "cart_idle": "Berjalan saat keranjang marketplace menganggur selama X jam",
-      "campaign_schedule": "Kirim kampanye terpilih pada tanggal dan waktu yang ditentukan. Mengubah Kirim pada tidak mengirim sampai Anda klik Aktifkan."
+      "cart_idle": "Berjalan saat keranjang marketplace menganggur selama X jam"
     },
     "actionHints": {
       "replenish_stock": "Tulis jumlah isi ulang ke stok saat alur kerja aktif",
@@ -146,7 +145,6 @@
       "return_confirm_whatsapp": "Konfirmasi pemulihan stok dan beri tahu pembeli lewat WhatsApp, Email, atau keduanya",
       "mark_paid_from_proof": "Ubah status pembayaran pesanan menjadi Lunas jika bukti bayar sudah ada",
       "cart_winback": "Kirim win-back keranjang dengan penawaran opsional lewat WhatsApp, Email, atau keduanya",
-      "send_campaign": "Kirim kampanye yang sudah ada ke pembeli terpilih lewat WhatsApp, Email, atau keduanya. Tulis templat pesan pada aksi.",
       "notify_dashboard": "Mengirim hasil run langsung (mis. detail replenish) sebagai notifikasi dashboard, tanpa template."
     },
     "nodeApp": "Aplikasi",
@@ -270,23 +268,6 @@
     "productPickerVariantSummary": "Varian: {name}",
     "productPickerPickVariant": "Pilih varian untuk menyelesaikan pemicu ini.",
     "productPickerClear": "Hapus",
-    "campaignPickerOpen": "Pilih kampanye",
-    "campaignPickerChange": "Ubah",
-    "campaignPickerTitle": "Pilih kampanye",
-    "campaignPickerHint": "Pilih kampanye pemasaran yang sudah ada untuk langkah ini.",
-    "campaignPickerHintMulti": "Pilih satu atau lebih kampanye. Konfirmasi dengan Gunakan yang dipilih.",
-    "campaignPickerConfirm": "Gunakan yang dipilih",
-    "campaignPickerClose": "Tutup",
-    "campaignPickerSelectedCount": "{count} kampanye dipilih",
-    "campaignPickerSelectedHint": "{count} kampanye dipilih",
-    "campaignPickerAndMore": "...dan lainnya",
-    "campaignPickerPlaceholder": "Pilih kampanye",
-    "campaignPickerLoading": "Memuat kampanye…",
-    "campaignPickerLoadFailed": "Tidak dapat memuat kampanye.",
-    "campaignPickerRetry": "Coba lagi",
-    "campaignPickerEmpty": "Belum ada kampanye di akun ini. Buat dulu di Pemasaran.",
-    "campaignPickerClear": "Hapus",
-    "campaignPickerStatus": "Status: {status}",
     "offerPickerOpen": "Pilih penawaran (opsional)",
     "offerPickerChange": "Ubah",
     "offerPickerClear": "Hapus",
@@ -318,7 +299,7 @@
     "agentNote": "Instruksi agen",
     "agentNotePlaceholder": "mis. Selalu sapa dalam Bahasa Indonesia. Utamakan produk dengan MOQ ≤ 10. Jaga balasan singkat di WhatsApp.",
     "agentNoteHint": "Ditambahkan ke system prompt AI sebagai instruksi operator. Pakai untuk nada, bahasa, dan prioritas, bukan untuk mengubah apa yang boleh dibagikan Lakupak AI.",
-    "agentHint": "Lakupak AI menjawab pertanyaan pembeli soal produk terbit (termasuk MOQ/stok), pengiriman & pelacakan, serta jenis metode bayar dan tenor hari. Bantuan pesanan, retur, dan pembatalan membutuhkan ID pesanan pembeli sendiri. Tanpa rekening bank, penawaran, atau kampanye.",
+    "agentHint": "Lakupak AI menjawab pertanyaan pembeli soal produk terbit (termasuk MOQ/stok), pengiriman & pelacakan, serta jenis metode bayar dan tenor hari. Bantuan pesanan, retur, dan pembatalan membutuhkan ID pesanan pembeli sendiri. Tanpa rekening bank atau penawaran.",
     "agentSubtitle": "Lakupak AI",
     "agentModel": "Model",
     "agentModels": {
@@ -345,9 +326,7 @@
     "order_paid": "Pesanan dibayar",
     "return_accepted": "Retur diterima",
     "order_pending_too_long": "Pesanan pending terlalu lama",
-    "cart_idle": "Keranjang menganggur",
-    "campaign_schedule": "Kirim kampanye terjadwal",
-    "campaign_ended": "Kampanye berakhir"
+    "cart_idle": "Keranjang menganggur"
   },
   "actions": {
     "replenish_stock": "Isi ulang stok otomatis",
@@ -363,7 +342,6 @@
     "return_confirm_whatsapp": "Konfirmasi retur",
     "mark_paid_from_proof": "Tandai lunas dari bukti",
     "cart_winback": "Pesan win-back keranjang",
-    "send_campaign": "Kirim kampanye",
     "notify_dashboard": "Notifikasi di Dashboard",
     "draft_offer_flag": "Tandai draf penawaran",
     "assign_sales_agent_flag": "Tandai penugasan sales agent",
@@ -395,7 +373,6 @@
     "matchBy": "Cocokkan armada berdasarkan",
     "etaNote": "Catatan ETA",
     "offerId": "Penawaran terkait (opsional)",
-    "campaignId": "Kampanye",
     "channel": "Saluran",
     "sendAt": "Kirim pada",
     "paidWhen": "Picu saat",
@@ -429,13 +406,13 @@
     "empty": "Belum ada eksekusi. Gunakan Uji coba untuk membuat entri sementara.",
     "clearRun": "Hapus eksekusi",
     "clearAll": "Hapus semua",
-    "inProgressCampaigns": "Kampanye sedang dikirim.",
     "status": {
       "success": "Berhasil",
       "failed": "Gagal",
       "skipped": "Dilewati",
       "in_progress": "Sedang berjalan"
-    }
+    },
+    "inProgress": "Proses ini masih berjalan."
   },
   "csInbox": {
     "title": "Kotak masuk WhatsApp CS",

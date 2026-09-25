@@ -22,7 +22,7 @@ Jika Anda tidak setuju, jangan menggunakan Layanan Lakupak.
 
 **1.4 “Pengguna” / “Anda”** berarti distributor, pembeli, driver, anggota staf, atau orang atau badan lain yang menggunakan Layanan Lakupak.
 
-**1.5 “Distributor Dashboard”** berarti alat SaaS untuk distributor, termasuk menu seperti Home (Dashboard), Clients (Buyers dan Suppliers), Products, Orders, Offers (program dan insentif), Marketing (Team dan Campaigns), Analytics (Financial, Sales, dan Operational), Automation, Marketplace, Logistics, dan Settings.
+**1.5 “Distributor Dashboard”** berarti alat SaaS untuk distributor, termasuk menu seperti Home (Dashboard), Clients (Buyers dan Suppliers), Products, Orders, Offers (program dan insentif), Penjualan (Tim dan Pekerjaan), Analytics (Financial, Sales, dan Operational), Automation, Marketplace, Logistics, dan Settings.
 
 **1.6 “Marketplace”** berarti lingkungan pemesanan bagi retailer terverifikasi.
 
@@ -98,7 +98,7 @@ Jika Anda tidak setuju, jangan menggunakan Layanan Lakupak.
 
 **7.1** Lakupak dapat mengirim notifikasi layanan melalui pemberitahuan dalam aplikasi, email, notifikasi push, SMS, atau saluran OTP WhatsApp.
 
-**7.2** Alat kampanye “bagikan ke WhatsApp” dapat membuka WhatsApp di perangkat Anda agar Anda dapat mengirim pesan sendiri. Hal itu berbeda dari koneksi API bisnis apa pun.
+**7.2** Koneksi WhatsApp yang Anda aktifkan untuk otomasi dapat membuka WhatsApp di perangkat Anda agar Anda dapat mengirim pesan sendiri. Hal itu berbeda dari koneksi API bisnis apa pun.
 
 **7.3** Jika Anda mengaktifkan otomasi atau menghubungkan fitur pesan bisnis ketika ditawarkan, Anda memberi wewenang kepada Lakupak untuk memproses data operasional terkait dan mengirim pesan sesuai aturan yang Anda konfigurasikan. Anda tetap bertanggung jawab atas isi pesan, persetujuan penerima, dan kepatuhan terhadap aturan Meta/WhatsApp atau penyedia lain serta Hukum yang Berlaku.
 

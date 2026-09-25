@@ -72,7 +72,7 @@ export const DASHBOARD_SEARCH_CATALOG: DashboardSearchEntry[] = [
     description: 'Discounts and promotions',
     section: 'Main',
     href: '/offers',
-    keywords: ['promotion', 'discount', 'penawaran', 'campaign'],
+    keywords: ['promotion', 'discount', 'penawaran'],
   },
   {
     id: 'offers-new',
@@ -84,11 +84,11 @@ export const DASHBOARD_SEARCH_CATALOG: DashboardSearchEntry[] = [
   },
   {
     id: 'marketing',
-    title: 'Marketing',
-    description: 'Teams, campaigns, and outreach tools',
+    title: 'Sales',
+    description: 'Sales team, jobs, and follow-up',
     section: 'Main',
     href: '/sales',
-    keywords: ['whatsapp', 'pemasaran'],
+    keywords: ['sales', 'penjualan', 'team'],
   },
   {
     id: 'marketing-team',

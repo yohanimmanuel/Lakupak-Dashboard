@@ -14,7 +14,7 @@ Distributor mengelola produk di **Dashboard → Products**:
 
 - SKU draf dengan varian, stok, gambar
 - **Publish** agar pembeli melihat di Marketplace
-- **Offers** saat menjalankan kampanye
+- **Offers** pada produk
 
 Item tidak dipublikasikan tetap internal.
 

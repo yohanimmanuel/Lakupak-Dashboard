@@ -116,7 +116,6 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ source: str
               drivers: true,
               fleets: true,
               offers: true,
-              campaigns: true,
               salesAgents: true,
               salesTeams: true,
               notifications: true,

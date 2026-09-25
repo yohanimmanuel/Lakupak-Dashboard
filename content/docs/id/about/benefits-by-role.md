@@ -48,7 +48,7 @@ Panduan: [Driver](/id/docs/driver/overview).
 - **Satu record pesanan** dari checkout hingga terkirim
 - **Notifikasi** saat status berubah
 - **Jejak audit** untuk sengketa
-- Ruang tumbuh ke analitik dan kampanye tanpa alat baru
+- Ruang tumbuh ke analitik dan penawaran tanpa alat baru
 
 ## Dokumentasi terkait
 

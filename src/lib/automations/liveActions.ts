@@ -11,7 +11,6 @@ export const LIVE_ACTION_TYPES = new Set<ActionType>([
   'assign_agent_whatsapp',
   'cs_24h_window',
   'cart_winback',
-  'send_campaign',
 ]);
 
 export function isLiveActionType(actionType: string | null | undefined): boolean {

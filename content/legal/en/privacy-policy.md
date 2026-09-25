@@ -25,14 +25,14 @@ We collect Personal Data when you, among other things:
 - visit Lakupak websites or open the Lakupak Service;
 - create or manage an Account;
 - complete distributor company profile, billing, or verification fields;
-- use Distributor Dashboard menus and features, including Home (Dashboard), Clients (Buyers and Suppliers), Products, Orders, Offers (programs and incentives), Marketing (Team and Campaigns), Analytics (Financial, Sales, and Operational), Automation, Marketplace publishing, Logistics (orders and shipment), and Settings;
+- use Distributor Dashboard menus and features, including Home (Dashboard), Clients (Buyers and Suppliers), Products, Orders, Offers (programs and incentives), Sales (Team and Jobs), Analytics (Financial, Sales, and Operational), Automation, Marketplace publishing, Logistics (orders and shipment), and Settings;
 - place, fulfil, pay for, cancel, or return orders on the Marketplace;
 - upload files (for example product images, payment proofs, delivery proof, return evidence, or review images);
 - use location features (for example delivery addresses or driver location while on duty);
 - contact support, submit feedback, reports, or reviews;
 - receive one-time passwords (OTP) by SMS or WhatsApp;
 - use Google sign-in for the Distributor Dashboard (where enabled);
-- configure automations, notifications, or campaign sharing; or
+- configure automations or notifications; or
 - connect optional third-party tools that you choose to authorize.
 
 ### 1.2 Types of Personal Data we collect
@@ -55,7 +55,7 @@ Depending on your role and the features you use, Personal Data may include:
 - product catalog data, SKUs, prices, stock, images, and offers;
 - buyer and supplier CRM records you enter (names, phones, emails, addresses, notes);
 - orders, order status, payment status, payment proofs, invoices or commission documents, cancellations, returns, and delivery notes;
-- sales team and campaign settings you configure in Marketing;
+- sales team and job settings you configure in Sales;
 - logistics fleets, vehicle and driver assignments, and proof of delivery.
 
 **D. Location and device data**
@@ -69,7 +69,7 @@ Depending on your role and the features you use, Personal Data may include:
 - OTP delivery logs;
 - in-app notifications;
 - messages, reports, reviews, ratings, and support correspondence you send to us;
-- if you use click-to-share campaign links, your device may open WhatsApp; Lakupak does not operate your personal WhatsApp account.
+- if you connect WhatsApp for automations, Lakupak does not operate your personal WhatsApp account.
 
 **F. End-customer data processed for distributors (processor role)**
 - When a distributor uses Lakupak to store buyer contacts, send operational notifications, or (when available) connect business messaging tools, Lakupak may process end-customer names, phone numbers, addresses, and order-related messages on the distributor’s instructions.

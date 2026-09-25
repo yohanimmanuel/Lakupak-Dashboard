@@ -47,7 +47,7 @@ Jalur: **Settings → Notification Settings** (`/settings/notifications`).
 | **Push notifications** | Saklar utama |
 | **Orders** | Status, pembayaran, pengiriman |
 | **Latest updates** | Pengumuman platform |
-| **Promotions** | Voucher dan kampanye |
+| **Promotions** | Voucher dan penawaran |
 
 Catatan: notifikasi sistem perangkat tetap bisa masuk.
 

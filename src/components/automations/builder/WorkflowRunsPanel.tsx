@@ -42,15 +42,10 @@ function stripRunKeyPrefix(raw: string): string {
   return raw.replace(/^\[[^\]]+\]\s*/, '').trim();
 }
 
-function humanizeRunMessage(raw: string, status: string, inProgressCampaigns: string): string {
-  const trimmed = raw.trim();
-  const stripped = stripRunKeyPrefix(trimmed);
-  const isCampaignSchedule = /\[campaign_schedule:/i.test(trimmed);
-  if (
-    status === 'in_progress' &&
-    (isCampaignSchedule || stripped === '' || /^in_progress$/i.test(stripped))
-  ) {
-    return inProgressCampaigns;
+function humanizeRunMessage(raw: string, status: string, inProgressLabel: string): string {
+  const stripped = stripRunKeyPrefix(raw.trim());
+  if (status === 'in_progress' && (stripped === '' || /^in_progress$/i.test(stripped))) {
+    return inProgressLabel;
   }
   return stripped;
 }
@@ -81,10 +76,10 @@ function RunListItem({
   collapseLabel?: string;
 }) {
   const { tRuns } = useAutomationTranslations();
-  const inProgressCampaigns = tRuns.has('inProgressCampaigns')
-    ? tRuns('inProgressCampaigns')
-    : 'The campaign(s) are being delivered.';
-  const message = humanizeRunMessage(run.message ?? '', run.status, inProgressCampaigns);
+  const inProgressLabel = tRuns.has('inProgress')
+    ? tRuns('inProgress')
+    : 'This run is still in progress.';
+  const message = humanizeRunMessage(run.message ?? '', run.status, inProgressLabel);
   const canExpand =
     expandable && message.length > MODAL_COLLAPSED_MAX && Boolean(onToggleExpand);
   const displayMessage = !message

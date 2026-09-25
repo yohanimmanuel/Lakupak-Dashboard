@@ -118,7 +118,7 @@ export async function buildDistributorAgentContext(userId: number): Promise<stri
       'listing_or_summarizing_account_orders_unsolicited',
       'order_ids_store_names_amounts_without_buyer_request',
       'offers_and_promotions_internal',
-      'campaigns_and_marketing_metrics',
+      'sales_team_metrics',
       'bank_account_or_payment_credentials',
       'revenue_analytics',
       'compliance_internal_status',

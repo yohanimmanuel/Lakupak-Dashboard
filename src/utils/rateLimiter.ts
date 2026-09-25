@@ -1132,7 +1132,7 @@ export async function imageDeleteRateLimiter(
 }
 
 // ============================================================================
-// TIER 3: PRODUCTS, CAMPAIGNS, CLIENTS, SETTINGS
+// TIER 3: PRODUCTS, CLIENTS, SETTINGS
 // ============================================================================
 
 /**
@@ -1203,78 +1203,6 @@ export async function productBulkPublishRateLimiter(
     windowMs: 60 * 60 * 1000, // 1 hour
     maxRequests: 100,
     message: 'Too many bulk publish operations. Please try again later.',
-    keyGenerator: () => key,
-  });
-}
-
-/**
- * Campaigns: Query operations - 100 per hour per user
- */
-export async function campaignQueryRateLimiter(
-  req: NextRequest,
-  userId: number | null
-): Promise<NextResponse | null> {
-  const ip = getClientIp(req);
-  const key = userId ? `campaign-query:${userId}:${ip}` : `campaign-query:${ip}`;
-  
-  return rateLimit(req, {
-    windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 100,
-    message: 'Too many campaign queries. Please slow down.',
-    keyGenerator: () => key,
-  });
-}
-
-/**
- * Campaigns: Creation - 100 per hour per user
- */
-export async function campaignCreationRateLimiter(
-  req: NextRequest,
-  userId: number | null
-): Promise<NextResponse | null> {
-  const ip = getClientIp(req);
-  const key = userId ? `campaign-create:${userId}:${ip}` : `campaign-create:${ip}`;
-  
-  return rateLimit(req, {
-    windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 100,
-    message: 'Too many campaigns created. Please try again later.',
-    keyGenerator: () => key,
-  });
-}
-
-/**
- * Campaigns: Update operations - 100 per hour per user
- */
-export async function campaignUpdateRateLimiter(
-  req: NextRequest,
-  userId: number | null
-): Promise<NextResponse | null> {
-  const ip = getClientIp(req);
-  const key = userId ? `campaign-update:${userId}:${ip}` : `campaign-update:${ip}`;
-  
-  return rateLimit(req, {
-    windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 100,
-    message: 'Too many campaign updates. Please try again later.',
-    keyGenerator: () => key,
-  });
-}
-
-/**
- * Campaigns: Email send - 20 per hour per user (SMTP is expensive)
- */
-export async function campaignSendRateLimiter(
-  req: NextRequest,
-  userId: number | null
-): Promise<NextResponse | null> {
-  const ip = getClientIp(req);
-  const key = userId != null ? `campaign-send:${userId}` : `campaign-send:${ip}`;
-
-  return rateLimit(req, {
-    windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 20,
-    message: 'Too many campaign sends. Please try again later.',
     keyGenerator: () => key,
   });
 }
@@ -1515,23 +1443,6 @@ export async function driverTelemetrySessionRateLimiter(
     message: 'Too many telemetry requests. Please slow down.',
     keyGenerator: () => key,
     burstLimit: 20,
-    burstWindowMs: 1000,
-  });
-}
-
-/**
- * Campaign tracking (open/click) - public-ish mutation; protect from abuse/skew.
- */
-export async function campaignTrackRateLimiter(req: NextRequest): Promise<NextResponse | null> {
-  const ip = getClientIp(req);
-  const key = `campaign-track:${ip}`;
-
-  return rateLimit(req, {
-    windowMs: 60 * 1000, // 1 minute
-    maxRequests: 30,
-    message: 'Too many tracking events. Please slow down.',
-    keyGenerator: () => key,
-    burstLimit: 10,
     burstWindowMs: 1000,
   });
 }

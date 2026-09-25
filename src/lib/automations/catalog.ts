@@ -7,12 +7,10 @@ export type TriggerType =
   | 'order_paid'
   | 'return_accepted'
   | 'cart_idle'
-  | 'campaign_schedule'
   // Legacy (still allowed for existing saved workflows)
   | 'schedule_cron'
   | 'buyer_inactive'
-  | 'order_pending_too_long'
-  | 'campaign_ended';
+  | 'order_pending_too_long';
 
 export type ActionType =
   | 'replenish_stock'
@@ -23,7 +21,6 @@ export type ActionType =
   | 'return_confirm_whatsapp'
   | 'mark_paid_from_proof'
   | 'cart_winback'
-  | 'send_campaign'
   | 'notify_dashboard'
   // Legacy (still allowed for existing saved workflows)
   | 'assign_logistic'
@@ -45,7 +42,6 @@ export type CatalogField = {
     | 'buyer'
     | 'fleet'
     | 'product'
-    | 'campaign'
     | 'offer'
     | 'datetime';
   options?: string[];
@@ -55,7 +51,6 @@ const CHANNEL_AWARE_ACTIONS = new Set<string>([
   'share_product_whatsapp',
   'return_confirm_whatsapp',
   'cart_winback',
-  'send_campaign',
 ]);
 
 /** WhatsApp Cloud API message type is only relevant when WhatsApp is in the send channel. */
@@ -67,7 +62,7 @@ export function actionUsesWhatsAppChannel(
   const channel = String(config?.channel ?? '').trim();
   if (channel === 'email') return false;
   if (channel === 'whatsapp' || channel === 'both') return true;
-  return actionType !== 'send_campaign';
+  return true;
 }
 
 export function isActionFieldVisible(
@@ -252,14 +247,14 @@ const LEGACY_TRIGGERS_BY_WORKFLOW: Record<WorkflowType, TriggerType[]> = {
   product_offers: ['schedule_cron'],
   lead_management: ['buyer_inactive'],
   order_logistics: ['order_pending_too_long'],
-  marketing: ['campaign_ended', 'campaign_schedule'],
+  marketing: [],
 };
 
 const LEGACY_ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionType[]> = {
   product_offers: ['draft_offer_flag', 'draft_activate_offer'],
   lead_management: ['assign_sales_agent_flag', 'buyer_question_reply'],
   order_logistics: ['flag_for_fleet', 'assign_fleet', 'assign_driver', 'assign_logistic'],
-  marketing: ['send_campaign'],
+  marketing: [],
 };
 
 /** Field schemas for legacy action types still present on saved workflows. */
@@ -405,11 +400,6 @@ export function defaultConfigForFields(fields: CatalogField[]): Record<string, u
       config.variantId = '';
       config.variantLabel = '';
       config.selectedProducts = [];
-    } else if (field.kind === 'campaign') {
-      config[field.key] = '';
-      config.campaignLabel = '';
-      config.campaignStatus = '';
-      config.selectedCampaigns = [];
     } else if (field.kind === 'fleet') {
       config[field.key] = '';
       config.fleetLabel = '';
@@ -537,17 +527,6 @@ function fleetsMissing(config: Record<string, unknown> | null | undefined): bool
   return configMissing(config, 'fleetId');
 }
 
-function campaignsMissing(config: Record<string, unknown> | null | undefined): boolean {
-  const list = config?.selectedCampaigns;
-  if (Array.isArray(list) && list.length > 0) {
-    return list.some((item) => {
-      if (!item || typeof item !== 'object') return true;
-      return !String((item as Record<string, unknown>).campaignId ?? '').trim();
-    });
-  }
-  return configMissing(config, 'campaignId');
-}
-
 function nodeIssueLabel(nodeId: string | undefined, index: number, kind: string): string {
   const id = String(nodeId ?? '').trim();
   return id ? `${kind} "${id}"` : `${kind} #${index + 1}`;
@@ -614,9 +593,6 @@ export function collectAutomationDryRunIssues(args: {
     if (trigger.type === 'cart_idle' && parseIdleHours(trigger.config) == null) {
       issues.push(`${label}: Cart idle trigger needs idle hours.`);
     }
-    if (trigger.type === 'campaign_schedule' && configMissing(trigger.config, 'sendAt')) {
-      issues.push(`${label}: Scheduled campaign trigger needs a send time.`);
-    }
   }
 
   for (const action of actionsToCheck) {
@@ -646,18 +622,8 @@ export function collectAutomationDryRunIssues(args: {
     if (action.type === 'assign_driver' && assignDriverNeedsDriver(action.type, action.config)) {
       issues.push(`${label}: ${ASSIGN_DRIVER_REQUIRES_DRIVER_MESSAGE}`);
     }
-    if (action.type === 'send_campaign' || CHANNEL_MESSAGE_ACTION_TYPES.has(action.type)) {
-      if (action.type === 'send_campaign') {
-        if (campaignsMissing(action.config)) {
-          issues.push(`${label}: Send campaign needs a campaign.`);
-        }
-        if (buyersMissing(action.config)) {
-          issues.push(`${label}: Send campaign needs at least one buyer.`);
-        }
-      }
-      const channel =
-        String(action.config?.channel ?? '').trim() ||
-        (action.type === 'send_campaign' ? 'email' : 'whatsapp');
+    if (CHANNEL_MESSAGE_ACTION_TYPES.has(action.type)) {
+      const channel = String(action.config?.channel ?? '').trim() || 'whatsapp';
       const hasWhatsAppApp = nodes.some(
         (n) => n.data?.kind === 'app' && n.data?.catalogType === 'app_webhook',
       );
@@ -676,8 +642,7 @@ export function collectAutomationDryRunIssues(args: {
         action.type === 'share_product_whatsapp' ||
         action.type === 'return_confirm_whatsapp' ||
         action.type === 'buyer_question_reply' ||
-        action.type === 'cart_winback' ||
-        action.type === 'send_campaign') &&
+        action.type === 'cart_winback') &&
       configMissing(action.config, 'messageTemplate')
     ) {
       issues.push(`${label}: ${action.type} needs a message template.`);
@@ -687,8 +652,7 @@ export function collectAutomationDryRunIssues(args: {
         action.type === 'share_product_whatsapp' ||
         action.type === 'return_confirm_whatsapp' ||
         action.type === 'buyer_question_reply' ||
-        action.type === 'cart_winback' ||
-        action.type === 'send_campaign') &&
+        action.type === 'cart_winback') &&
       actionUsesWhatsAppChannel(action.type, action.config) &&
       configMissing(action.config, 'messageCategory')
     ) {

@@ -25,13 +25,6 @@ import {
   type IdleCart,
 } from '@/lib/automations/idleCarts';
 import {
-  isCampaignScheduleDue,
-  parseScheduledSendAtMs,
-  scheduleClaimMatches,
-  scheduledSendAtIdentity,
-  withScheduleClaim,
-} from '@/lib/automations/scheduleTime';
-import {
   credentialsFromWhatsAppAppConfig,
   normalizeE164Phone,
   sendTextMessage,
@@ -368,139 +361,6 @@ function orderPaidTriggerMatches(config: JsonRecord): boolean {
   return paidWhen === 'proof_submitted';
 }
 
-function campaignScheduleRunKey(workflowId: string, sendAtMs: number): string {
-  return `campaign_schedule:${workflowId}:${new Date(sendAtMs).toISOString()}`;
-}
-
-function stampAgentConfigScheduleClaim(
-  agentConfig: unknown,
-  runKey: string,
-  sendAtIdentity: string,
-): Prisma.InputJsonValue {
-  const root = asRecord(agentConfig) ?? {};
-  const canvas = asRecord(root.__canvas);
-  if (!canvas || !Array.isArray(canvas.nodes) || !sendAtIdentity) {
-    return root as Prisma.InputJsonValue;
-  }
-  const nodes = canvas.nodes.map((n) => {
-    const row = asRecord(n);
-    if (!row) return n;
-    const data = asRecord(row.data);
-    if (!data || data.kind !== 'trigger' || data.catalogType !== 'campaign_schedule') {
-      return n;
-    }
-    const config = asRecord(data.config);
-    if (scheduledSendAtIdentity(config) !== sendAtIdentity) return n;
-    return {
-      ...row,
-      data: {
-        ...data,
-        config: withScheduleClaim(config, runKey),
-      },
-    };
-  });
-  return { ...root, __canvas: { ...canvas, nodes } } as Prisma.InputJsonValue;
-}
-
-const SCHEDULE_CLAIM_MAX_ATTEMPTS = 5;
-
-class ScheduleClaimConflictError extends Error {
-  constructor() {
-    super('schedule claim conflict');
-    this.name = 'ScheduleClaimConflictError';
-  }
-}
-
-export type ClaimScheduleSlotOptions = {
-  /** Test seam: runs after the in-transaction workflow read, before the conditional update. */
-  afterWorkflowRead?: (workflowId: string) => Promise<void>;
-};
-
-/** One send per Send-at time. Survives cleared run history and overlapping ticks. */
-export async function claimCampaignScheduleSlot(
-  workflowId: string,
-  runKey: string,
-  sendAtIdentity: string,
-  opts?: ClaimScheduleSlotOptions,
-): Promise<boolean> {
-  const workflow = await prisma.automationWorkflow.findUnique({
-    where: { id: workflowId },
-  });
-  if (!workflow) return false;
-  const { triggers } = workflowSteps(workflow);
-  if (
-    scheduleClaimMatches(asRecord(workflow.triggerConfig), runKey) ||
-    triggers.some((t) => t.type === 'campaign_schedule' && scheduleClaimMatches(t.config, runKey))
-  ) {
-    return false;
-  }
-
-  const already = await prisma.automationRun.findFirst({
-    where: { workflowId, runKey },
-    select: { id: true },
-  });
-  if (already) return false;
-
-  for (let attempt = 0; attempt < SCHEDULE_CLAIM_MAX_ATTEMPTS; attempt += 1) {
-    try {
-      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-        await tx.automationRun.create({
-          data: {
-            workflowId,
-            status: RUN_STATUS_IN_PROGRESS,
-            message: `[${runKey}] in_progress`,
-            runKey,
-          },
-        });
-        const current = await tx.automationWorkflow.findUnique({
-          where: { id: workflowId },
-          select: { triggerConfig: true, agentConfig: true, updatedAt: true },
-        });
-        if (!current) {
-          throw new ScheduleClaimConflictError();
-        }
-        if (opts?.afterWorkflowRead) {
-          await opts.afterWorkflowRead(workflowId);
-        }
-        const triggerConfig = asRecord(current.triggerConfig);
-        const updated = await tx.automationWorkflow.updateMany({
-          where: { id: workflowId, updatedAt: current.updatedAt },
-          data: {
-            runs: { increment: 1 },
-            lastRunAt: new Date(),
-            triggerConfig:
-              sendAtIdentity &&
-              scheduledSendAtIdentity(triggerConfig) === sendAtIdentity
-                ? (withScheduleClaim(triggerConfig, runKey) as Prisma.InputJsonValue)
-                : undefined,
-            agentConfig: stampAgentConfigScheduleClaim(
-              current.agentConfig,
-              runKey,
-              sendAtIdentity,
-            ),
-            // Keep user-edit updatedAt so save-skew due checks are not shifted by claims.
-            updatedAt: current.updatedAt,
-          },
-        });
-        if (updated.count !== 1) {
-          throw new ScheduleClaimConflictError();
-        }
-      });
-      return true;
-    } catch (err) {
-      // Race between overlapping ticks: the other claim won.
-      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-        return false;
-      }
-      if (err instanceof ScheduleClaimConflictError && attempt < SCHEDULE_CLAIM_MAX_ATTEMPTS - 1) {
-        continue;
-      }
-      throw err;
-    }
-  }
-  return false;
-}
-
 async function recordRun(
   workflowId: string,
   status: TerminalRunStatus | typeof RUN_STATUS_IN_PROGRESS,
@@ -690,7 +550,7 @@ async function defaultNotifyBody(ctx: WorkflowRunContext): Promise<string> {
       products ? ` — ${products}${more}` : ''
     }.`;
   }
-  return `Scheduled campaign send at ${ctx.sendAt}.`;
+  return `Scheduled workflow run at ${ctx.sendAt}.`;
 }
 
 async function executeNotifyDashboard(
@@ -840,8 +700,6 @@ async function runWorkflowActions(
             'cart_winback skipped here (run Test run on a marketing workflow, or wait for cart idle).',
           );
         }
-      } else if (action.type === 'send_campaign') {
-        parts.push('send_campaign is no longer available.');
       }
     }
 
@@ -855,7 +713,7 @@ async function runWorkflowActions(
             ? `return_accepted:${ctx.event.orderId}`
             : ctx.kind === 'cart_idle'
               ? `cart_idle:${ctx.event.cart.marketplaceUserId}`
-              : `campaign_schedule:${ctx.sendAt}`;
+              : `scheduled:${ctx.sendAt}`;
       const body = parts.length > 0 ? parts.join(' ') : await defaultNotifyBody(ctx);
       // One dashboard notification per run (even if multiple notify nodes are on the canvas).
       await executeNotifyDashboard(workflow.userId, workflow.name, body, label, workflow.id);
@@ -1088,98 +946,6 @@ export async function dispatchDueCartIdleAutomations(opts?: {
       }
     } catch (err) {
       console.error(`[automations] cart_idle workflow ${workflow.id} failed`, err);
-    }
-  }
-
-  return { checked: workflows.length, fired };
-}
-
-/** Fire active campaign_schedule workflows whose Send at time is due. */
-export async function dispatchDueCampaignScheduleAutomations(opts?: {
-  workflowId?: string;
-}): Promise<{ checked: number; fired: number }> {
-  const workflows = await prisma.automationWorkflow.findMany({
-    where: {
-      status: 'active',
-      ...(opts?.workflowId ? { id: opts.workflowId } : {}),
-    },
-  });
-
-  const nowMs = Date.now();
-  let fired = 0;
-
-  for (const workflow of workflows) {
-    try {
-      const { triggers, actions } = workflowSteps(workflow);
-      const lastSavedAtMs = workflow.updatedAt.getTime();
-      const due = triggers.filter((t) => {
-        if (t.type !== 'campaign_schedule') return false;
-        const sendAtMs = parseScheduledSendAtMs(t.config);
-        return (
-          sendAtMs != null &&
-          isCampaignScheduleDue({ sendAtMs, nowMs, lastSavedAtMs })
-        );
-      });
-      if (due.length === 0) continue;
-
-      for (const trigger of due) {
-        let runKey: string | null = null;
-        let claimed = false;
-        try {
-          const sendAtMs = parseScheduledSendAtMs(trigger.config);
-          if (sendAtMs == null) continue;
-          const sendAtIso = new Date(sendAtMs).toISOString();
-          runKey = campaignScheduleRunKey(workflow.id, sendAtMs);
-          if (scheduleClaimMatches(trigger.config, runKey)) continue;
-          claimed = await claimCampaignScheduleSlot(
-            workflow.id,
-            runKey,
-            scheduledSendAtIdentity(trigger.config),
-          );
-          if (!claimed) continue;
-
-          const result = await runWorkflowActions(workflow, actions, {
-            kind: 'schedule',
-            sendAt: sendAtIso,
-          });
-          await prisma.automationRun.updateMany({
-            where: {
-              workflowId: workflow.id,
-              runKey,
-              status: RUN_STATUS_IN_PROGRESS,
-            },
-            data: {
-              status: result.status,
-              message: `[${runKey}] ${result.message}`,
-            },
-          });
-          if (result.status === 'success') {
-            fired += 1;
-          }
-        } catch (err) {
-          if (claimed && runKey) {
-            const detail = err instanceof Error ? err.message : String(err);
-            try {
-              await prisma.automationRun.updateMany({
-                where: {
-                  workflowId: workflow.id,
-                  runKey,
-                  status: RUN_STATUS_IN_PROGRESS,
-                },
-                data: {
-                  status: 'failed',
-                  message: `[${runKey}] Failed: ${detail}`,
-                },
-              });
-            } catch {
-              // best-effort finalize
-            }
-          }
-          console.error(`[automations] campaign_schedule workflow ${workflow.id} failed`, err);
-        }
-      }
-    } catch (err) {
-      console.error(`[automations] campaign_schedule workflow ${workflow.id} failed`, err);
     }
   }
 

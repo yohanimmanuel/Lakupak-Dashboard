@@ -49,7 +49,7 @@ Path: **Settings → Notification Settings** (`/settings/notifications`).
 | **Push notifications** | Master switch for all app pushes |
 | **Orders** | Status, payments, shipping |
 | **Latest updates** | Platform announcements |
-| **Promotions** | Vouchers and campaigns |
+| **Promotions** | Vouchers and offers |
 
 Note: **You may still receive notifications from your device system settings.**
 

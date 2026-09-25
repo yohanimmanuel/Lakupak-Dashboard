@@ -55,7 +55,7 @@ Doc hub: [Driver](/en/docs/driver/overview).
 - **One order record** from checkout to delivery
 - **Notifications** when status changes
 - **Audit trail** for disputes (POD, cancellations, returns)
-- **Room to grow** into analytics and campaigns without new tools
+- **Room to grow** into analytics and offers without new tools
 
 ## Related documentation
 

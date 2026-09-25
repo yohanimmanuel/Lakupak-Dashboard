@@ -467,7 +467,6 @@ export async function buildDistributorAppAssistantContext(userId: number): Promi
     supplierCount,
     offerCount,
     offers,
-    campaignCount,
     automationCount,
     fleetCount,
     recentOrders,
@@ -554,7 +553,6 @@ export async function buildDistributorAppAssistantContext(userId: number): Promi
         },
       },
     }),
-    prisma.campaign.count({ where: { userId } }),
     prisma.automationWorkflow.count({ where: { userId } }),
     prisma.fleet.count({ where: { userId } }),
     prisma.order.findMany({
@@ -985,7 +983,6 @@ export async function buildDistributorAppAssistantContext(userId: number): Promi
       buyers: buyerCount,
       suppliers: supplierCount,
       offers: offerCount,
-      campaigns: campaignCount,
       automations: automationCount,
       fleets: fleetCount,
     },

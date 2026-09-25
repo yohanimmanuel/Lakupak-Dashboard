@@ -22,7 +22,7 @@ If you do not agree, do not use the Lakupak Service.
 
 **1.4 “User” / “You”** means a distributor, buyer, driver, staff member, or other person or entity using the Lakupak Service.
 
-**1.5 “Distributor Dashboard”** means the SaaS tools for distributors, including menus such as Home (Dashboard), Clients (Buyers and Suppliers), Products, Orders, Offers (programs and incentives), Marketing (Team and Campaigns), Analytics (Financial, Sales, and Operational), Automation, Marketplace, Logistics, and Settings.
+**1.5 “Distributor Dashboard”** means the SaaS tools for distributors, including menus such as Home (Dashboard), Clients (Buyers and Suppliers), Products, Orders, Offers (programs and incentives), Sales (Team and Jobs), Analytics (Financial, Sales, and Operational), Automation, Marketplace, Logistics, and Settings.
 
 **1.6 “Marketplace”** means the buyer-facing ordering environment for verified retailers.
 
@@ -98,7 +98,7 @@ If you do not agree, do not use the Lakupak Service.
 
 **7.1** Lakupak may send service notifications by in-app notice, email, push notification, SMS, or WhatsApp OTP channels.
 
-**7.2** Campaign “share to WhatsApp” tools may open WhatsApp on your device so you can send a message yourself. That is different from any business API connection.
+**7.2** WhatsApp connections you enable for automations may open WhatsApp on your device so you can send a message yourself. That is different from any business API connection.
 
 **7.3** If you enable automations or connect business messaging features when offered, you authorize Lakupak to process related operational data and to send messages according to rules you configure. You remain responsible for message content, recipient consent, and compliance with Meta/WhatsApp or other provider rules and Applicable Law.
 

@@ -1,6 +1,6 @@
 /**
  * Skeleton for list/table pages:
- * Orders, Products, Buyers, Suppliers, Campaigns, Team, Offers, Logistics
+ * Orders, Products, Buyers, Suppliers, Team, Offers, Logistics
  *
  * Layout: header → stat cards → search bar → table rows
  */

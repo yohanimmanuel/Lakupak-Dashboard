@@ -33,7 +33,6 @@ import {
   ASSIGN_DRIVER_REQUIRES_DRIVER_MESSAGE,
   hasAssignDriverWithoutDriver,
 } from '@/lib/automations/catalog';
-import { isScheduledSendAtInFuture } from '@/lib/automations/scheduleTime';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
@@ -407,23 +406,6 @@ function DetailsInner() {
       setNameError(tBuilder('nameRequired'));
       setFormError(null);
       return false;
-    }
-    const nextStatus = statusOverride ?? draft.status;
-    if (nextStatus === 'active') {
-      const hasInvalidSchedule = draft.nodes.some(
-        (n) =>
-          n.data.kind === 'trigger' &&
-          n.data.catalogType === 'campaign_schedule' &&
-          !isScheduledSendAtInFuture(n.data.config),
-      );
-      if (hasInvalidSchedule) {
-        setFormError(
-          tBuilder.has('sendAtMustBeFuture')
-            ? tBuilder('sendAtMustBeFuture')
-            : 'Send at must be a future date and time before you can activate.',
-        );
-        return false;
-      }
     }
     const manageSaving = opts?.manageSaving !== false;
     if (manageSaving) setSaving(true);

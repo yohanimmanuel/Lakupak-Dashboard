@@ -70,7 +70,7 @@
     "product_offers": "Product & Offers",
     "lead_management": "Lead Management",
     "order_logistics": "Order & Logistics",
-    "marketing": "Marketing"
+    "marketing": "Sales"
   },
   "shared": {
     "actions": "Actions",
@@ -86,7 +86,7 @@
     "untitled": "Untitled workflow",
     "saveDraft": "Save draft",
     "activate": "Activate",
-    "sendAtConfirmHint": "Changing this time does not send the campaign. Click Activate to confirm a future send time.",
+    "sendAtConfirmHint": "Changing this time does not send anything. Click Activate to confirm a future send time.",
     "sendAtMustBeFuture": "Send at must be a future date and time before you can activate.",
     "testRun": "Test run",
     "undo": "Undo",
@@ -129,8 +129,7 @@
       "buyer_questions": "Fires when a buyer (new or existing) asks about the business, products, deliveries, or operations on WhatsApp",
       "order_paid": "Fires when a buyer submits payment proof. Pair with Mark paid from proof to set the order to Paid",
       "return_accepted": "Fires when a return is received and stock can be restored",
-      "cart_idle": "Fires when a marketplace cart stays idle for X hours",
-      "campaign_schedule": "Send a chosen campaign at a set date and time. Editing Send at does not send until you click Activate."
+      "cart_idle": "Fires when a marketplace cart stays idle for X hours"
     },
     "actionHints": {
       "replenish_stock": "Write replenish quantity into stock when the workflow is active",
@@ -146,7 +145,6 @@
       "return_confirm_whatsapp": "Confirm stock restore and notify the buyer on WhatsApp, Email, or both",
       "mark_paid_from_proof": "Set the order payment status to Paid when payment proof is on file",
       "cart_winback": "Send a cart win-back with optional offer on WhatsApp, Email, or both",
-      "send_campaign": "Send an existing campaign to selected buyers through WhatsApp, Email, or both. Write the message template on the action.",
       "notify_dashboard": "Posts the live run result (e.g. replenish details) as a dashboard notification, no template needed."
     },
     "nodeApp": "App",
@@ -270,23 +268,6 @@
     "productPickerVariantSummary": "Variant: {name}",
     "productPickerPickVariant": "Pick a variant to finish this trigger.",
     "productPickerClear": "Clear",
-    "campaignPickerOpen": "Select campaign",
-    "campaignPickerChange": "Change",
-    "campaignPickerTitle": "Select a campaign",
-    "campaignPickerHint": "Pick an existing marketing campaign for this step.",
-    "campaignPickerHintMulti": "Select one or more campaigns. Confirm with Use selected.",
-    "campaignPickerConfirm": "Use selected",
-    "campaignPickerClose": "Close",
-    "campaignPickerSelectedCount": "{count} campaigns selected",
-    "campaignPickerSelectedHint": "{count} campaigns selected",
-    "campaignPickerAndMore": "...and more",
-    "campaignPickerPlaceholder": "Select a campaign",
-    "campaignPickerLoading": "Loading campaigns…",
-    "campaignPickerLoadFailed": "Could not load campaigns.",
-    "campaignPickerRetry": "Try again",
-    "campaignPickerEmpty": "No campaigns in this account yet. Create one under Marketing first.",
-    "campaignPickerClear": "Clear",
-    "campaignPickerStatus": "Status: {status}",
     "offerPickerOpen": "Select offer (optional)",
     "offerPickerChange": "Change",
     "offerPickerClear": "Clear",
@@ -318,7 +299,7 @@
     "agentNote": "Agent instructions",
     "agentNotePlaceholder": "e.g. Always greet in Bahasa Indonesia. Prefer products with MOQ ≤ 10. Keep replies short on WhatsApp.",
     "agentNoteHint": "Added to the AI system prompt as operator instructions. Use for tone, language, and priorities, not to change what Lakupak AI is allowed to share.",
-    "agentHint": "Lakupak AI answers buyer questions about published products (incl. MOQ/stock), delivery & tracking, and payment method type and term days. Order, return, and cancellation help requires the buyer’s own order ID. Never bank accounts, offers, or campaigns.",
+    "agentHint": "Lakupak AI answers buyer questions about published products (incl. MOQ/stock), delivery & tracking, and payment method type and term days. Order, return, and cancellation help requires the buyer’s own order ID. Never bank accounts or offers.",
     "agentSubtitle": "Lakupak AI",
     "agentModel": "Model",
     "agentModels": {
@@ -345,9 +326,7 @@
     "order_paid": "Order paid",
     "return_accepted": "Return accepted",
     "order_pending_too_long": "Order pending too long",
-    "cart_idle": "Cart idle",
-    "campaign_schedule": "Scheduled campaign send",
-    "campaign_ended": "Campaign ended"
+    "cart_idle": "Cart idle"
   },
   "actions": {
     "replenish_stock": "Auto replenish stock",
@@ -363,7 +342,6 @@
     "return_confirm_whatsapp": "Return confirm",
     "mark_paid_from_proof": "Mark paid from proof",
     "cart_winback": "Cart win-back message",
-    "send_campaign": "Send campaign",
     "notify_dashboard": "Notify on Dashboard",
     "draft_offer_flag": "Flag draft offer",
     "assign_sales_agent_flag": "Flag sales agent assignment",
@@ -395,7 +373,6 @@
     "matchBy": "Match fleet by",
     "etaNote": "ETA note",
     "offerId": "Linked offer (optional)",
-    "campaignId": "Campaign",
     "channel": "Channel",
     "sendAt": "Send at",
     "paidWhen": "Trigger when",
@@ -429,13 +406,13 @@
     "empty": "No runs yet. Use Test run to create a stub entry.",
     "clearRun": "Remove run",
     "clearAll": "Clear all",
-    "inProgressCampaigns": "The campaign(s) are being delivered.",
     "status": {
       "success": "Success",
       "failed": "Failed",
       "skipped": "Skipped",
       "in_progress": "In progress"
-    }
+    },
+    "inProgress": "This run is still in progress."
   },
   "csInbox": {
     "title": "WhatsApp CS inbox",

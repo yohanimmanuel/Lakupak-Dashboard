@@ -1,6 +1,6 @@
 /**
  * Skeleton for create/edit/wizard pages:
- * Add Product, Edit Product, Create Campaign, Create Fleet, etc.
+ * Add Product, Edit Product, Create Fleet, etc.
  *
  * Layout: header with back button → tab bar → form fields
  */

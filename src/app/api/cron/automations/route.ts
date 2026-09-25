@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { tickCampaignSchedules } from '@/lib/automations/scheduler';
+import { tickAutomations } from '@/lib/automations/scheduler';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -14,7 +14,7 @@ async function run(request: Request) {
   if (!isAuthorizedCron(request)) {
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   }
-  const result = await tickCampaignSchedules();
+  const result = await tickAutomations();
   return NextResponse.json({ ok: true, ...result, ts: new Date().toISOString() });
 }
 

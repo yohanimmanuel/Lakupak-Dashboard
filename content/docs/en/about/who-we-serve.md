@@ -30,7 +30,7 @@ They may be:
 - Central **catalog** with variants, stock, and publish control
 - **Orders** pipeline from placement to delivery
 - **Clients** (buyers and suppliers) with history in one place
-- **Offers** and campaigns without manual price lists
+- **Offers** without manual price lists
 - **Logistics** and driver coordination
 - **Analytics** on sales, fulfillment, and inventory health
 

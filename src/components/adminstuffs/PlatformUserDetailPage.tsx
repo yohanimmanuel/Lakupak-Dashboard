@@ -1496,7 +1496,6 @@ export default function PlatformUserDetailPage() {
       { label: 'Drivers', value: u._count?.drivers ?? 0 },
       { label: 'Fleets', value: u._count?.fleets ?? 0 },
       { label: 'Offers', value: u._count?.offers ?? 0 },
-      { label: 'Campaigns', value: u._count?.campaigns ?? 0 },
       { label: 'Sales agents', value: u._count?.salesAgents ?? 0 },
       { label: 'Sales teams', value: u._count?.salesTeams ?? 0 },
       { label: 'Notifications', value: u._count?.notifications ?? 0 },

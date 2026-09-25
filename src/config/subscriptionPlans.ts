@@ -18,7 +18,6 @@ export type PlanQuotas = {
   salesAgents: number | null;
   drivers: number | null;
   activeOffers: number | null;
-  activeCampaigns: number | null;
   mediaStorageGb: number | null;
   automationRules: number | null;
   support: PlanSupportTier;
@@ -67,7 +66,6 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
       salesAgents: 10,
       drivers: 5,
       activeOffers: 20,
-      activeCampaigns: 20,
       mediaStorageGb: 5,
       automationRules: 10,
       support: 'standard_email',
@@ -84,7 +82,6 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
       salesAgents: 10,
       drivers: 5,
       activeOffers: 20,
-      activeCampaigns: 20,
       mediaStorageGb: 5,
       automationRules: 10,
       support: 'standard_email',
@@ -102,7 +99,6 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
       salesAgents: 20,
       drivers: 20,
       activeOffers: 40,
-      activeCampaigns: 35,
       mediaStorageGb: 10,
       automationRules: 25,
       support: 'priority_email',
@@ -119,7 +115,6 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
       salesAgents: 40,
       drivers: 35,
       activeOffers: 60,
-      activeCampaigns: 50,
       mediaStorageGb: 50,
       automationRules: 100,
       support: 'priority_chat',
@@ -137,7 +132,6 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
       salesAgents: null,
       drivers: null,
       activeOffers: null,
-      activeCampaigns: null,
       mediaStorageGb: null,
       automationRules: null,
       support: 'sla_csm',

@@ -37,7 +37,6 @@ export function toPickedBuyerRecord(b: DbBuyerSummary): PickedBuyerRecord {
 }
 
 const ACTIONS_WITH_BUYERS = new Set([
-  'send_campaign',
   'cart_winback',
   'share_product_whatsapp',
   'return_confirm_whatsapp',
@@ -57,14 +56,12 @@ function hasBuyerFields(catalogType?: string, config?: JsonRecord | null): boole
  * the database buyers:
  * 1. Removes any deleted buyers that no longer exist in the database.
  * 2. Updates remaining buyers with fresh label, email, and phone from the database.
- * 3. If all previously selected buyers were deleted from DB (or if none remain and the
- *    action requires buyers like send_campaign), automatically picks the available
- *    buyers from the database ("pick the ones available at most").
+ * 3. If all previously selected buyers were deleted from the database, picks the
+ *    buyers that are still available.
  */
 export function syncBuyerConfig(
   config: JsonRecord,
   dbBuyers: DbBuyerSummary[],
-  options?: { isSendCampaign?: boolean },
 ): { config: JsonRecord; changed: boolean } {
   const byId = new Map<string, DbBuyerSummary>();
   for (const b of dbBuyers) {
@@ -102,11 +99,10 @@ export function syncBuyerConfig(
   // If valid buyers remain from previous selection, keep them (deleted buyers removed).
   // If buyers were previously selected, but ALL were deleted from DB:
   // fall back to picking the available buyers from DB ("pick the ones available at most").
-  // If it is send_campaign and no buyers are selected yet, also pick available buyers from DB.
   let nextBuyers: DbBuyerSummary[] = [];
   if (validExisting.length > 0) {
     nextBuyers = validExisting;
-  } else if ((prevBuyerIds.length > 0 || options?.isSendCampaign) && dbBuyers.length > 0) {
+  } else if (prevBuyerIds.length > 0 && dbBuyers.length > 0) {
     nextBuyers = dbBuyers;
   } else {
     nextBuyers = [];
@@ -164,8 +160,7 @@ export function syncWorkflowConfigsBuyers(
   // 1. Sync flat actionConfig
   let nextActionConfig = asRecord(actionConfig) ?? {};
   if (hasBuyerFields(actionType ?? undefined, nextActionConfig)) {
-    const isSendCampaign = actionType === 'send_campaign';
-    const res = syncBuyerConfig(nextActionConfig, dbBuyers, { isSendCampaign });
+    const res = syncBuyerConfig(nextActionConfig, dbBuyers);
     if (res.changed) {
       nextActionConfig = res.config;
       changed = true;
@@ -188,8 +183,7 @@ export function syncWorkflowConfigsBuyers(
         const catalogType = typeof data.catalogType === 'string' ? data.catalogType : undefined;
         const nodeConfig = asRecord(data.config) ?? {};
         if (hasBuyerFields(catalogType, nodeConfig)) {
-          const isSendCampaign = catalogType === 'send_campaign';
-          const res = syncBuyerConfig(nodeConfig, dbBuyers, { isSendCampaign });
+          const res = syncBuyerConfig(nodeConfig, dbBuyers);
           if (res.changed) {
             canvasChanged = true;
             return {

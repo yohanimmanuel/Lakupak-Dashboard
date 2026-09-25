@@ -607,39 +607,6 @@ export const NotificationService = {
     return products.length;
   },
 
-  // Create campaign sent notification
-  async createCampaignSentNotification(
-    userId: number,
-    campaignId: string,
-    campaignName: string,
-    sendChannel?: string | null
-  ) {
-    const channel = String(sendChannel ?? '').trim().toLowerCase();
-    const destination =
-      channel === 'email'
-        ? 'Email'
-        : channel === 'whatsapp'
-          ? 'WhatsApp'
-          : channel === 'both'
-            ? 'WhatsApp and Email'
-            : '';
-    const message = destination
-      ? `Your campaign "${campaignName}" has been sent to ${destination}.`
-      : `Your campaign "${campaignName}" has been sent.`;
-
-    await prisma.notification.create({
-      data: {
-        userId,
-        type: 'campaign',
-        title: 'Campaign Sent',
-        message,
-        metadata: { campaignId, campaignName, sendChannel: channel || null, status: 'sent' },
-        actionUrl: '/sales',
-      },
-    });
-    emitDashboardNewNotification(userId);
-  },
-
   // Create new buyer notification
   async createNewBuyerNotification(
     userId: number,
@@ -672,26 +639,6 @@ export const NotificationService = {
       });
       emitDashboardNewNotification(userId);
     }
-  },
-
-  // Create campaign sent notification
-  async createCampaignNotification(
-    userId: number,
-    campaignId: string,
-    campaignName: string,
-    recipientCount: number
-  ) {
-    await prisma.notification.create({
-      data: {
-        userId,
-        type: 'campaign',
-        title: 'Campaign Sent Successfully',
-        message: `Your campaign "${campaignName}" has been sent to ${recipientCount} recipients.`,
-        metadata: { campaignId, campaignName, recipientCount },
-        actionUrl: '/sales',
-      },
-    });
-    emitDashboardNewNotification(userId);
   },
 
   // Create product published notification

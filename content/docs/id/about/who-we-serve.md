@@ -30,7 +30,7 @@ Mereka bisa berupa:
 - **Katalog** pusat dengan varian, stok, kontrol publish
 - Alur **Orders** dari pemesanan hingga pengiriman
 - **Clients** (pembeli dan pemasok) dengan riwayat
-- **Offers** dan kampanye tanpa daftar harga manual
+- **Offers** tanpa daftar harga manual
 - **Logistics** dan koordinasi driver
 - **Analytics** penjualan, pemenuhan, kesehatan stok
 

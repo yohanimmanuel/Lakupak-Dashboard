@@ -33,7 +33,7 @@ The Dashboard uses a persistent **sidebar** (collapsible on desktop, drawer on m
 | **Products** | `/products` | Catalog, stock, publish to Marketplace |
 | **Orders** | `/orders` | B2B order list, map, fulfillment |
 | **Offers** | `/offers` | Discounts and promotions |
-| **Marketing** | `/sales` | Hub for **Team** and **Campaigns** |
+| **Sales** | `/sales` | Hub for **Team** and **Jobs** |
 | **Analytics** | `/analytics` | Hub for **Financial**, **Sales**, **Operational** reports |
 
 ### Secondary menu
@@ -44,7 +44,7 @@ The Dashboard uses a persistent **sidebar** (collapsible on desktop, drawer on m
 | **Logistics** | `/logistics` | Fleets, drivers, delivery tracking |
 | **Settings** | `/settings` | Profile, company, billing, security, tours |
 
-Submenus open under **Clients**, **Marketing**, and **Analytics** for the pages listed above.
+Submenus open under **Clients**, **Sales**, and **Analytics** for the pages listed above.
 
 ## Recommended first-week setup
 
@@ -67,8 +67,8 @@ Submenus open under **Clients**, **Marketing**, and **Analytics** for the pages 
 
 ### Growth (optional)
 
-9. **Offers** — attach campaigns to products.
-10. **Marketing → Campaigns** — WhatsApp outreach to retailers where you use it.
+9. **Offers** — attach promotions to products.
+10. **Sales → Team** — manage agents, roles, and jobs.
 11. **Analytics** — review financial and operational reports after you have order history.
 
 ## Product tours and onboarding

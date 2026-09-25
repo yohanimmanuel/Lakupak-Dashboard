@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { MessageCircle, Bell, User, LogOut, Plus, Package, AlertTriangle, Tag, Users, Megaphone, ShoppingBag, Settings, Check, Trash2, X, Truck, Info, Receipt, Bot } from 'lucide-react';
+import { MessageCircle, Bell, User, LogOut, Plus, Package, AlertTriangle, Tag, Users, ShoppingBag, Settings, Check, Trash2, X, Truck, Info, Receipt, Bot } from 'lucide-react';
 import { Menu as MenuIcon } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useUserStore } from '@/store/userStore';
@@ -377,8 +377,6 @@ const Navbar = () => {
         return <Tag size={16} className="text-purple-500" />;
       case 'buyer':
         return <Users size={16} className="text-green-500" />;
-      case 'campaign':
-        return <Megaphone size={16} className="text-pink-500" />;
       case 'product':
         return <ShoppingBag size={16} className="text-indigo-500" />;
       case 'driver_request':

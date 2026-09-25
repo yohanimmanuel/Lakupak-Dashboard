@@ -14,7 +14,7 @@ The distributor maintains products in **Dashboard → Products**:
 
 - Draft SKUs with variants, stock, and images
 - **Publish** when ready so buyers can see them on Marketplace
-- Attach **offers** (discounts or promotions) when running campaigns
+- Attach **offers** (discounts or promotions) to products
 
 Unpublished items stay internal and never appear to buyers.
 
