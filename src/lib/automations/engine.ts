@@ -17,7 +17,6 @@ import { translateMarketplacePaymentConfirmed } from '@/utils/marketplacePushTra
 import { migrateOrderPaidTriggerConfig, parseIdleHours } from '@/lib/automations/catalog';
 import { isLiveActionType } from '@/lib/automations/liveActions';
 import { executeChannelBuyerMessage } from '@/lib/automations/deliverBuyerMessage';
-import { executeSendCampaign } from '@/lib/automations/sendCampaign';
 import { syncWorkflowBuyers } from '@/lib/automations/syncWorkflowBuyers';
 import {
   cartIdleRunKey,
@@ -842,13 +841,7 @@ async function runWorkflowActions(
           );
         }
       } else if (action.type === 'send_campaign') {
-        if (ctx.kind !== 'schedule') {
-          parts.push(
-            'send_campaign skipped here (run Test run on a marketing workflow, or wait for the scheduled send time).',
-          );
-          continue;
-        }
-        parts.push(await executeSendCampaign(workflow, action.config));
+        parts.push('send_campaign is no longer available.');
       }
     }
 

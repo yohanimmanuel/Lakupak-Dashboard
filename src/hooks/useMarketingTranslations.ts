@@ -4,11 +4,6 @@ import { useTranslations } from 'next-intl';
 
 export function useMarketingTranslations() {
   const tHub = useTranslations('dashboard.marketing.hub');
-  const tCampaigns = useTranslations('dashboard.marketing.campaigns');
-  const tCampaignTable = useTranslations('dashboard.marketing.campaignTable');
-  const tCampaignDetails = useTranslations('dashboard.marketing.campaignDetails');
-  const tCampaignBuilder = useTranslations('dashboard.marketing.campaignBuilder');
-  const tSendModal = useTranslations('dashboard.marketing.sendModal');
   const tTeam = useTranslations('dashboard.marketing.team');
   const tTeamList = useTranslations('dashboard.marketing.teamList');
   const tAgentForm = useTranslations('dashboard.marketing.agentForm');
@@ -18,17 +13,10 @@ export function useMarketingTranslations() {
   const tSalesTarget = useTranslations('dashboard.marketing.salesTarget');
   const tSalesDetails = useTranslations('dashboard.marketing.salesDetails');
   const tShared = useTranslations('dashboard.marketing.shared');
-  const tCampaignPreview = useTranslations('dashboard.marketing.campaignPreview');
   const tCommon = useTranslations('dashboard.common');
 
   const translateStatusTab = (tab: string) =>
     tShared.has(`statusTabs.${tab}`) ? tShared(`statusTabs.${tab}`) : tab;
-
-  const translateCampaignStatus = (status: string) =>
-    tShared.has(`campaignStatus.${status}`) ? tShared(`campaignStatus.${status}`) : status;
-
-  const translateRecipientOption = (option: string) =>
-    tShared.has(`recipientOptions.${option}`) ? tShared(`recipientOptions.${option}`) : option;
 
   const translateTeamTab = (tab: string) =>
     tShared.has(`teamTabs.${tab}`) ? tShared(`teamTabs.${tab}`) : tab;
@@ -58,31 +46,8 @@ export function useMarketingTranslations() {
   const translateFilter = (filter: string) =>
     tShared.has(`filters.${filter}`) ? tShared(`filters.${filter}`) : filter;
 
-  const translateBlockType = (type: string) =>
-    tCampaignBuilder.has(`blockTypes.${type}.label`)
-      ? tCampaignBuilder(`blockTypes.${type}.label`)
-      : type;
-
-  const translateBlockDescription = (type: string) =>
-    tCampaignBuilder.has(`blockTypes.${type}.description`)
-      ? tCampaignBuilder(`blockTypes.${type}.description`)
-      : type;
-
-  const translateTemplateName = (key: string) =>
-    tCampaignBuilder.has(`templates.${key}.name`) ? tCampaignBuilder(`templates.${key}.name`) : key;
-
-  const translateTemplateDescription = (key: string) =>
-    tCampaignBuilder.has(`templates.${key}.description`)
-      ? tCampaignBuilder(`templates.${key}.description`)
-      : key;
-
   return {
     tHub,
-    tCampaigns,
-    tCampaignTable,
-    tCampaignDetails,
-    tCampaignBuilder,
-    tSendModal,
     tTeam,
     tTeamList,
     tAgentForm,
@@ -92,11 +57,8 @@ export function useMarketingTranslations() {
     tSalesTarget,
     tSalesDetails,
     tShared,
-    tCampaignPreview,
     tCommon,
     translateStatusTab,
-    translateCampaignStatus,
-    translateRecipientOption,
     translateTeamTab,
     translateRoleFilter,
     translateStatusFilter,
@@ -105,9 +67,5 @@ export function useMarketingTranslations() {
     translateWizardTab,
     translateWizardTabDesc,
     translateFilter,
-    translateBlockType,
-    translateBlockDescription,
-    translateTemplateName,
-    translateTemplateDescription,
   };
 }

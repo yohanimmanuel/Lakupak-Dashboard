@@ -107,22 +107,6 @@ export const DASHBOARD_SEARCH_CATALOG: DashboardSearchEntry[] = [
     keywords: ['invite', 'agent'],
   },
   {
-    id: 'marketing-campaigns',
-    title: 'Campaigns',
-    description: 'WhatsApp and marketing campaigns',
-    section: 'Marketing',
-    href: '/sales/campaigns',
-    keywords: ['broadcast', 'kampanye'],
-  },
-  {
-    id: 'marketing-campaigns-create',
-    title: 'Create campaign',
-    description: 'Start a new marketing campaign',
-    section: 'Marketing',
-    href: '/sales/campaigns/create',
-    keywords: ['new', 'whatsapp'],
-  },
-  {
     id: 'automation',
     title: 'Automations',
     description: 'Agentic workflows across products, offers, leads, orders, logistics, and marketing',

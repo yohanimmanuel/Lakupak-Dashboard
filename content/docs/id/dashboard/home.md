@@ -6,7 +6,7 @@ module: dashboard
 order: 11
 ---
 
-Halaman **Beranda** adalah pusat kendali setelah Anda masuk. Halaman ini memuat snapshot pesanan, produk, pembeli, pemasok, dan kampanye, lalu menampilkannya melalui strip KPI dan kumpulan widget yang bisa Anda atur sesuai cara kerja tim.
+Halaman **Beranda** adalah pusat kendali setelah Anda masuk. Halaman ini memuat snapshot pesanan, produk, pembeli, dan pemasok, lalu menampilkannya melalui strip KPI dan kumpulan widget yang bisa Anda atur sesuai cara kerja tim.
 
 ## Kartu KPI di atas
 
@@ -88,25 +88,18 @@ Operasional pengiriman:
 
 **Active shipments map** menampilkan pesanan berjalan (Pending, Confirmed, Packed, Shipped) berdasarkan alamat kirim. Klik penanda untuk membuka detail pesanan. Gunakan **View logistics** atau area Pesanan untuk alur pemenuhan lengkap.
 
-### Marketing Performance (opsional)
+### Penjualan (opsional)
 
-Dua panel berdampingan:
-
-**Teams and people (Tim dan orang)**
+**Tim dan orang**
 
 - Jumlah tim, total agen, dan agen aktif
 - Jumlah anggota per tim (tim teratas ditampilkan)
 
-**Campaigns (Kampanye)**
-
-- Total kampanye, draft atau terjadwal, dan yang sudah terkirim
-- Untuk kampanye terkirim: pendapatan, penerima, tanggal terakhir dikirim, pesanan, saluran (misalnya WhatsApp), dan tingkat konversi
-
-Gunakan **View marketing** untuk mengelola tim dan kampanye.
+Gunakan **Lihat penjualan** untuk mengelola tim.
 
 ## Jika data masih kosong
 
-Widget menampilkan status kosong hingga ada pesanan, produk, pembeli, atau kampanye. Setelah data pertama masuk, Beranda terisi otomatis saat halaman dimuat ulang.
+Widget menampilkan status kosong hingga ada pesanan, produk, atau pembeli. Setelah data pertama masuk, Beranda terisi otomatis saat halaman dimuat ulang.
 
 ## Tautan terkait
 

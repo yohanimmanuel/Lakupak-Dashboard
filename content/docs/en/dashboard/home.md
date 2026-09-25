@@ -6,7 +6,7 @@ module: dashboard
 order: 11
 ---
 
-The **Home** page is your command center after login. It loads a snapshot of orders, products, buyers, suppliers, and campaigns, then presents that data through a KPI strip and a set of widgets you can rearrange to match how you work.
+The **Home** page is your command center after login. It loads a snapshot of orders, products, buyers, and suppliers, then presents that data through a KPI strip and a set of widgets you can rearrange to match how you work.
 
 ## Top KPI cards
 
@@ -88,25 +88,18 @@ Delivery operations at a glance:
 
 An **Active shipments map** plots in-progress orders (Pending, Confirmed, Packed, Shipped) by delivery address. Click a marker to open order details. Use **View logistics** or the Orders area for full fulfillment workflows.
 
-### Marketing Performance (optional)
-
-Two panels side by side:
+### Sales (optional)
 
 **Teams and people**
 
 - Team count, total agents, and active agents
 - Member count per team (top teams listed)
 
-**Campaigns**
-
-- Total, draft or planned, and sent campaign counts
-- For sent campaigns: revenue, recipients reached, last sent date, orders, channel (for example WhatsApp), and conversion rate
-
-Use **View marketing** to manage teams and campaigns.
+Use **View sales** to manage the team.
 
 ## When data looks empty
 
-Widgets show friendly empty states until you have orders, products, buyers, or campaigns. After your first orders and catalog items are in place, Home fills in automatically on refresh.
+Widgets show friendly empty states until you have orders, products, or buyers. After your first orders and catalog items are in place, Home fills in automatically on refresh.
 
 ## Related areas
 

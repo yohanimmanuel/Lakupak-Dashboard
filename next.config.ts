@@ -27,8 +27,38 @@ const nextConfig: NextConfig = {
         permanent: false,
       },
       {
+        source: '/marketing/campaigns',
+        destination: '/sales',
+        permanent: false,
+      },
+      {
+        source: '/marketing/campaigns/:path*',
+        destination: '/sales',
+        permanent: false,
+      },
+      {
         source: '/marketing/:path*',
         destination: '/sales/:path*',
+        permanent: false,
+      },
+      {
+        source: '/sales/campaigns',
+        destination: '/sales',
+        permanent: false,
+      },
+      {
+        source: '/sales/campaigns/:path*',
+        destination: '/sales',
+        permanent: false,
+      },
+      {
+        source: '/campaigns',
+        destination: '/sales',
+        permanent: false,
+      },
+      {
+        source: '/campaigns/:path*',
+        destination: '/sales',
         permanent: false,
       },
     ];

@@ -18,7 +18,6 @@ import { dashboardTypeDefs, dashboardResolvers } from './modules/dashboard';
 import { userActivityTypeDefs, userActivityResolvers } from './modules/userActivity';
 import { marketplaceTypeDefs, marketplaceResolvers } from './modules/marketplace';
 import { salesTypeDefs, salesResolvers } from './modules/sales';
-import { campaignsTypeDefs, campaignsResolvers } from './modules/campaigns';
 import { notificationsTypeDefs, notificationsResolvers } from './modules/notifications';
 import { logisticsTypeDefs, logisticsResolvers } from './modules/logistics';
 import { automationsTypeDefs, automationsResolvers } from './modules/automations';
@@ -39,9 +38,6 @@ import {
   productUpdateRateLimiter,
   productQueryRateLimiter,
   productBulkPublishRateLimiter,
-  campaignQueryRateLimiter,
-  campaignCreationRateLimiter,
-  campaignUpdateRateLimiter,
   clientQueryRateLimiter,
   clientCreationRateLimiter,
   clientUpdateRateLimiter,
@@ -62,7 +58,6 @@ const typeDefs = mergeTypeDefs([
   userActivityTypeDefs,
   marketplaceTypeDefs,
   salesTypeDefs,
-  campaignsTypeDefs,
   notificationsTypeDefs,
   logisticsTypeDefs,
   automationsTypeDefs,
@@ -78,7 +73,6 @@ const resolvers = mergeResolvers([
   userActivityResolvers,
   marketplaceResolvers,
   salesResolvers,
-  campaignsResolvers,
   notificationsResolvers,
   logisticsResolvers,
   automationsResolvers,
@@ -369,36 +363,6 @@ function isProductOperation(query: string): {
 }
 
 /**
- * Check if this is a campaign-related operation
- * Matches: campaigns, campaign, createCampaign, updateCampaign, deleteCampaign
- */
-function isCampaignOperation(query: string): { 
-  isCampaign: boolean; 
-  isCreate: boolean; 
-  isUpdate: boolean; 
-  isQuery: boolean;
-} {
-  const normalizedQuery = query.replace(/\s+/g, ' ').toLowerCase();
-  
-  const campaignsPattern = /\bcampaigns\s*\(/;
-  const campaignPattern = /\bcampaign\s*\(/;
-  const createCampaignPattern = /\bcreatecampaign\s*\(/;
-  const updateCampaignPattern = /\bupdatecampaign\s*\(/;
-  const deleteCampaignPattern = /\bdeletecampaign\s*\(/;
-  
-  return {
-    isCampaign: campaignsPattern.test(normalizedQuery) ||
-                campaignPattern.test(normalizedQuery) ||
-                createCampaignPattern.test(normalizedQuery) ||
-                updateCampaignPattern.test(normalizedQuery) ||
-                deleteCampaignPattern.test(normalizedQuery),
-    isCreate: createCampaignPattern.test(normalizedQuery),
-    isUpdate: updateCampaignPattern.test(normalizedQuery) || deleteCampaignPattern.test(normalizedQuery),
-    isQuery: campaignsPattern.test(normalizedQuery) || campaignPattern.test(normalizedQuery),
-  };
-}
-
-/**
  * Check if this is a client-related operation (buyers/suppliers)
  * Matches: buyers, buyer, createBuyer, updateBuyer, deleteBuyer,
  *         suppliers, supplier, createSupplier, updateSupplier, deleteSupplier
@@ -642,36 +606,6 @@ async function handler(request: NextRequest) {
           if (rateLimitResponse) {
             return NextResponse.json(
               { errors: [{ message: 'Too many product queries. Please slow down.', extensions: { code: 'RATE_LIMITED' } }] },
-              { status: 429, headers: rateLimitResponse.headers }
-            );
-          }
-        }
-      }
-      
-      // Check for campaign operations (works with or without userId - uses IP if userId is null)
-      const campaignOp = isCampaignOperation(query);
-      if (campaignOp.isCampaign) {
-        if (opType === 'mutation' && campaignOp.isCreate) {
-          const rateLimitResponse = await campaignCreationRateLimiter(request, userId);
-          if (rateLimitResponse) {
-            return NextResponse.json(
-              { errors: [{ message: 'Too many campaigns created. Please try again later.', extensions: { code: 'RATE_LIMITED' } }] },
-              { status: 429, headers: rateLimitResponse.headers }
-            );
-          }
-        } else if (opType === 'mutation' && campaignOp.isUpdate) {
-          const rateLimitResponse = await campaignUpdateRateLimiter(request, userId);
-          if (rateLimitResponse) {
-            return NextResponse.json(
-              { errors: [{ message: 'Too many campaign updates. Please try again later.', extensions: { code: 'RATE_LIMITED' } }] },
-              { status: 429, headers: rateLimitResponse.headers }
-            );
-          }
-        } else if (opType === 'query' && campaignOp.isQuery) {
-          const rateLimitResponse = await campaignQueryRateLimiter(request, userId);
-          if (rateLimitResponse) {
-            return NextResponse.json(
-              { errors: [{ message: 'Too many campaign queries. Please slow down.', extensions: { code: 'RATE_LIMITED' } }] },
               { status: 429, headers: rateLimitResponse.headers }
             );
           }

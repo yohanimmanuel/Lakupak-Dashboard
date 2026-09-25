@@ -25,7 +25,6 @@ import { WorkflowRunsPanel } from './WorkflowRunsPanel';
 import { WhatsAppCsInboxPanel } from './WhatsAppCsInboxPanel';
 import { useBuilderPanelControls } from './WorkflowBuilderShell';
 import { BuyerPickerField, normalizePickedBuyers, toPickedBuyer } from './BuyerPickerField';
-import { CampaignPickerField, normalizePickedCampaigns } from './CampaignPickerField';
 import { OfferPickerField, normalizePickedOffers } from './OfferPickerField';
 import { FleetPickerField, normalizePickedFleets } from './FleetPickerField';
 import { ProductPickerField, normalizePickedProducts } from './ProductPickerField';
@@ -680,34 +679,6 @@ export function StepDetailsPanel({
                             productLabel: '',
                             variantId: '',
                             variantLabel: '',
-                          },
-                        })
-                      }
-                    />
-                  ) : field.kind === 'campaign' ? (
-                    <CampaignPickerField
-                      key={field.key}
-                      label={tFields.has(field.key) ? tFields(field.key) : field.key}
-                      selectedCampaigns={normalizePickedCampaigns(selected.data.config)}
-                      onSelectAction={(picked) =>
-                        onUpdateNodeAction(selected.id, {
-                          config: {
-                            ...selected.data.config,
-                            selectedCampaigns: picked,
-                            campaignId: picked[0]?.campaignId ?? '',
-                            campaignLabel: picked[0]?.campaignLabel ?? '',
-                            campaignStatus: picked[0]?.campaignStatus ?? '',
-                          },
-                        })
-                      }
-                      onClearAction={() =>
-                        onUpdateNodeAction(selected.id, {
-                          config: {
-                            ...selected.data.config,
-                            selectedCampaigns: [],
-                            campaignId: '',
-                            campaignLabel: '',
-                            campaignStatus: '',
                           },
                         })
                       }

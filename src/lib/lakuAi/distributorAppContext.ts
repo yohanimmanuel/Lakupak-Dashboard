@@ -357,7 +357,7 @@ export const LAKU_APP_MODULES = [
   {
     id: 'marketing',
     path: '/sales',
-    role: 'Campaigns, sales team, field reports, and sales targets.',
+    role: 'Sales team, jobs, field reports, and sales targets.',
   },
   {
     id: 'analytics',

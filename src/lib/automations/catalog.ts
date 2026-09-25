@@ -150,12 +150,7 @@ const TRIGGERS_BY_WORKFLOW: Record<WorkflowType, TriggerDefinition[]> = {
   order_logistics: [
     { type: 'return_accepted', fields: [] },
   ],
-  marketing: [
-    {
-      type: 'campaign_schedule',
-      fields: [{ key: 'sendAt', kind: 'datetime' }],
-    },
-  ],
+  marketing: [],
 };
 
 const WHATSAPP_MESSAGE_CATEGORY_FIELD: CatalogField = {
@@ -248,16 +243,6 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
         { key: 'offerId', kind: 'offer' },
       ],
     },
-    {
-      type: 'send_campaign',
-      fields: [
-        { key: 'campaignId', kind: 'campaign' },
-        { key: 'buyerId', kind: 'buyer' },
-        CHANNEL_FIELD,
-        WHATSAPP_MESSAGE_CATEGORY_FIELD,
-        { key: 'messageTemplate', kind: 'textarea' },
-      ],
-    },
     { type: 'notify_dashboard', fields: [] },
   ],
 };
@@ -267,14 +252,14 @@ const LEGACY_TRIGGERS_BY_WORKFLOW: Record<WorkflowType, TriggerType[]> = {
   product_offers: ['schedule_cron'],
   lead_management: ['buyer_inactive'],
   order_logistics: ['order_pending_too_long'],
-  marketing: ['campaign_ended'],
+  marketing: ['campaign_ended', 'campaign_schedule'],
 };
 
 const LEGACY_ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionType[]> = {
   product_offers: ['draft_offer_flag', 'draft_activate_offer'],
   lead_management: ['assign_sales_agent_flag', 'buyer_question_reply'],
   order_logistics: ['flag_for_fleet', 'assign_fleet', 'assign_driver', 'assign_logistic'],
-  marketing: [],
+  marketing: ['send_campaign'],
 };
 
 /** Field schemas for legacy action types still present on saved workflows. */

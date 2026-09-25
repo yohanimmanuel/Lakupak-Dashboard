@@ -17,7 +17,6 @@ import {
   parseIdleHours,
 } from '@/lib/automations/catalog';
 import { runLakuAgentNode } from '@/lib/automations/runLakuAgent';
-import { executeSendCampaign } from '@/lib/automations/sendCampaign';
 import { preserveScheduleClaim, scheduledSendAtIdentity } from '@/lib/automations/scheduleTime';
 import {
   CHANNEL_MESSAGE_ACTIONS,
@@ -724,15 +723,8 @@ async function testWorkflow(args: {
             }))
         : [{ type: existing.actionType, config: actionConfig ?? {} }];
 
-    for (const action of outboundActions.filter((a) => a.type === 'send_campaign')) {
-      try {
-        const sent = await executeSendCampaign(existing, action.config, { testMode });
-        message = `${message} ${sent}`;
-      } catch (err) {
-        status = 'failed';
-        const detail = err instanceof Error ? err.message : String(err);
-        message = `${message} send_campaign failed: ${detail}`;
-      }
+    if (outboundActions.some((a) => a.type === 'send_campaign')) {
+      message = `${message} send_campaign is no longer available.`;
     }
 
     for (const action of outboundActions.filter((a) => CHANNEL_MESSAGE_ACTIONS.has(a.type))) {

@@ -634,7 +634,7 @@ export const NotificationService = {
         title: 'Campaign Sent',
         message,
         metadata: { campaignId, campaignName, sendChannel: channel || null, status: 'sent' },
-        actionUrl: `/sales/campaigns/details?id=${campaignId}`,
+        actionUrl: '/sales',
       },
     });
     emitDashboardNewNotification(userId);
@@ -688,7 +688,7 @@ export const NotificationService = {
         title: 'Campaign Sent Successfully',
         message: `Your campaign "${campaignName}" has been sent to ${recipientCount} recipients.`,
         metadata: { campaignId, campaignName, recipientCount },
-        actionUrl: `/sales/campaigns/details?id=${campaignId}`,
+        actionUrl: '/sales',
       },
     });
     emitDashboardNewNotification(userId);

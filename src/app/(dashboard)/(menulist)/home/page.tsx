@@ -301,22 +301,6 @@ const DASHBOARD_SNAPSHOT_QUERY = `
         onTimeDeliveryRate
         userId
       }
-      campaigns {
-        id
-        campaignId
-        name
-        description
-        status
-        sentDate
-        recipients
-        opensCount
-        clicksCount
-        revenue
-        orders
-        userId
-        createdAt
-        updatedAt
-      }
       marketingSummary {
         totalAgents
         activeAgents
@@ -822,21 +806,7 @@ function normalizeSupplier(raw: Record<string, unknown>): Supplier | null {
   };
 }
 
-/** Campaign fields from dashboard snapshot (for Marketing Performance widget) */
-interface DashboardCampaign {
-  id: string;
-  campaignId: string;
-  name: string;
-  status: string;
-  recipients: string;
-  opensCount: number;
-  clicksCount: number;
-  revenue: number;
-  orders: number;
-  sentDate?: string | null;
-}
-
-/** Marketing summary: teams and agents (for Marketing Performance widget) */
+/** Marketing summary: teams and agents (for Sales widget) */
 interface MarketingTeamSummary {
   id: string;
   name: string;
@@ -885,25 +855,6 @@ function safeParseJSON<T>(value: string | undefined, fallback: T): T {
   }
 }
 
-/** Parse campaign from dashboard snapshot for Marketing Performance widget */
-function normalizeDashboardCampaign(raw: Record<string, unknown>): DashboardCampaign | null {
-  const campaignId = parseString(raw.campaignId);
-  if (!campaignId) return null;
-  const sentDate = raw.sentDate != null && raw.sentDate !== '' ? String(raw.sentDate) : null;
-  return {
-    id: parseString(raw.id, campaignId),
-    campaignId,
-    name: parseString(raw.name, 'Unnamed Campaign'),
-    status: parseString(raw.status, 'Draft'),
-    recipients: parseString(raw.recipients, '0'),
-    opensCount: typeof raw.opensCount === 'number' ? raw.opensCount : parseNumber(raw.opensCount),
-    clicksCount: typeof raw.clicksCount === 'number' ? raw.clicksCount : parseNumber(raw.clicksCount),
-    revenue: parseNumber(raw.revenue),
-    orders: typeof raw.orders === 'number' ? raw.orders : parseNumber(raw.orders),
-    sentDate: sentDate ?? undefined,
-  };
-}
-
 const resolveProductStock = (product: Product) => {
   if (product.variantOptions && product.variantOptions.length > 0) {
     const variantStocks = product.variantOptions.map((variant) => ({
@@ -938,7 +889,6 @@ export default function HomePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [buyers, setBuyers] = useState<Buyer[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [campaigns, setCampaigns] = useState<DashboardCampaign[]>([]);
   const [marketingSummary, setMarketingSummary] = useState<MarketingSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1110,7 +1060,6 @@ export default function HomePage() {
           setProducts([]);
           setBuyers([]);
           setSuppliers([]);
-          setCampaigns([]);
           setMarketingSummary(null);
           setLoading(false);
           return;
@@ -1219,20 +1168,6 @@ export default function HomePage() {
           });
           setSuppliers(normalizedSuppliers);
 
-          const normalizedCampaigns: DashboardCampaign[] = [];
-          (Array.isArray((snapshot as { campaigns?: unknown[] }).campaigns)
-            ? (snapshot as { campaigns: unknown[] }).campaigns
-            : []
-          ).forEach((item: unknown) => {
-            if (item && typeof item === 'object') {
-              const normalized = normalizeDashboardCampaign(item as Record<string, unknown>);
-              if (normalized) {
-                normalizedCampaigns.push(normalized);
-              }
-            }
-          });
-          setCampaigns(normalizedCampaigns);
-
           const rawSummary = (snapshot as { marketingSummary?: Record<string, unknown> }).marketingSummary;
           if (rawSummary && typeof rawSummary === 'object') {
             const teamsRaw = Array.isArray(rawSummary.teams) ? rawSummary.teams : [];
@@ -1265,7 +1200,6 @@ export default function HomePage() {
           setProducts([]);
           setBuyers([]);
           setSuppliers([]);
-          setCampaigns([]);
           setMarketingSummary(null);
         }
       } finally {
@@ -1548,71 +1482,6 @@ const supplierInsights = useMemo(() => {
       avgDeliveryDays,
     };
   }, [orders]);
-
-  // Campaign performance metrics from real campaign data
-  const campaignMetrics = useMemo(() => {
-    const totalCampaigns = campaigns.length;
-    const plannedCount = campaigns.filter((c) =>
-      ['Draft', 'Scheduled'].includes(c.status),
-    ).length;
-    const sentCampaigns = campaigns.filter((c) =>
-      ['Sent', 'Completed'].includes(c.status),
-    );
-
-    const parseRecipientsCount = (recipients: string): number => {
-      const s = String(recipients || '').trim();
-      if (!s) return 0;
-      const asNumber = parseNumber(s);
-      if (asNumber > 0) return asNumber;
-      const parts = s.split(/[,;]/).map((p) => p.trim()).filter(Boolean);
-      return parts.length;
-    };
-
-    const totalRecipientsReached = sentCampaigns.reduce(
-      (sum, c) => sum + parseRecipientsCount(c.recipients),
-      0,
-    );
-    const totalOpens = sentCampaigns.reduce((sum, c) => sum + c.opensCount, 0);
-    const totalOrdersFromCampaigns = sentCampaigns.reduce(
-      (sum, c) => sum + c.orders,
-      0,
-    );
-    const totalRevenueFromCampaigns = sentCampaigns.reduce(
-      (sum, c) => sum + c.revenue,
-      0,
-    );
-
-    const reach = totalOpens > 0 ? totalOpens : totalRecipientsReached;
-    const conversionRatePercent =
-      reach > 0
-        ? Math.round((totalOrdersFromCampaigns / reach) * 10000) / 100
-        : 0;
-
-    const avgRevenuePerSentCampaign =
-      sentCampaigns.length > 0
-        ? totalRevenueFromCampaigns / sentCampaigns.length
-        : 0;
-
-    const sentDates = sentCampaigns
-      .map((c) => c.sentDate)
-      .filter((d): d is string => typeof d === 'string' && d.length > 0)
-      .map((d) => new Date(d).getTime());
-    const lastSentDate =
-      sentDates.length > 0 ? new Date(Math.max(...sentDates)) : null;
-
-    return {
-      totalCampaigns,
-      plannedCount,
-      sentCount: sentCampaigns.length,
-      conversionRatePercent,
-      totalOrdersFromCampaigns,
-      totalRevenueFromCampaigns,
-      avgRevenuePerSentCampaign,
-      totalRecipientsReached,
-      lastSentDate,
-      topChannel: 'WhatsApp',
-    };
-  }, [campaigns]);
 
   const revenueTrendData = useMemo(
     () => calculateRevenueData(orders, products, hasData),
@@ -2562,7 +2431,6 @@ const supplierInsights = useMemo(() => {
       case 'marketing': {
         const summary = marketingSummary ?? { teams: [], totalAgents: 0, activeAgents: 0 };
         const hasTeams = summary.teams.length > 0 || summary.totalAgents > 0;
-        const hasCampaigns = campaignMetrics.totalCampaigns > 0;
         return {
           action: (
             <Link
@@ -2574,150 +2442,63 @@ const supplierInsights = useMemo(() => {
             </Link>
           ),
           content: (
-            <div className="space-y-4">
-              {/* Two-column layout: Teams & People | Campaigns */}
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                {/* Left: Teams & People */}
-                <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-black">{widgetText('marketing', 'teamsAndPeople')}</h3>
-                    <Users className="h-4 w-4 text-gray-400" />
-                  </div>
-                  {hasTeams ? (
-                    <>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="rounded bg-gray-50 p-2 text-center">
-                          <p className="text-lg font-semibold text-black">{summary.teams.length}</p>
-                          <p className="text-[10px] uppercase text-gray-500">{widgetText('marketing', 'teams')}</p>
-                        </div>
-                        <div className="rounded bg-gray-50 p-2 text-center">
-                          <p className="text-lg font-semibold text-black">{summary.totalAgents}</p>
-                          <p className="text-[10px] uppercase text-gray-500">{widgetText('marketing', 'agents')}</p>
-                        </div>
-                        <div className="rounded bg-emerald-50 p-2 text-center">
-                          <p className="text-lg font-semibold text-emerald-700">{summary.activeAgents}</p>
-                          <p className="text-[10px] uppercase text-emerald-600">{tCommon('active')}</p>
-                        </div>
-                      </div>
-                      {summary.teams.length > 0 && (
-                        <div className="mt-3 border-t border-gray-100 pt-3">
-                          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
-                            {widgetText('marketing', 'byTeam')}
-                          </p>
-                          <ul className="space-y-1.5">
-                            {summary.teams.slice(0, 4).map((team) => (
-                              <li
-                                key={team.id}
-                                className="flex items-center justify-between text-sm"
-                              >
-                                <span className="truncate text-gray-800">{team.name}</span>
-                                <span className="ml-2 shrink-0 rounded bg-[#f0f7ff] px-2 py-0.5 text-xs font-medium text-[#0a61d7]">
-                                  {team.memberCount}{' '}
-                                  {team.memberCount === 1
-                                    ? widgetText('marketing', 'member')
-                                    : widgetText('marketing', 'members')}
-                                </span>
-                              </li>
-                            ))}
-                            {summary.teams.length > 4 && (
-                              <li className="text-xs text-gray-500">
-                                {summary.teams.length - 4 === 1
-                                  ? t('widgets.marketing.moreTeams', { count: summary.teams.length - 4 })
-                                  : t('widgets.marketing.moreTeamsPlural', { count: summary.teams.length - 4 })}
-                              </li>
-                            )}
-                          </ul>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-6 text-center">
-                      <Users className="mb-2 h-8 w-8 text-gray-300" />
-                      <p className="text-sm font-medium text-gray-600">{widgetText('marketing', 'noTeamsTitle')}</p>
-                      <p className="mt-1 text-xs text-gray-500">{widgetText('marketing', 'noTeamsHint')}</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Right: Campaigns */}
-                <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-black">{widgetText('marketing', 'campaigns')}</h3>
-                    <Megaphone className="h-4 w-4 text-gray-400" />
-                  </div>
-                  {hasCampaigns ? (
-                    <>
-                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                        <div className="rounded bg-emerald-50 p-2 text-center">
-                          <p className="text-lg font-semibold text-emerald-700">{campaignMetrics.totalCampaigns}</p>
-                          <p className="text-[10px] uppercase text-emerald-600">{tCommon('total')}</p>
-                        </div>
-                        <div className="rounded bg-amber-50 p-2 text-center">
-                          <p className="text-lg font-semibold text-amber-700">{campaignMetrics.plannedCount}</p>
-                          <p className="text-[10px] uppercase text-amber-600">{tCommon('draft')}</p>
-                        </div>
-                        <div className="rounded bg-blue-50 p-2 text-center">
-                          <p className="text-lg font-semibold text-[#0a61d7]">{campaignMetrics.sentCount}</p>
-                          <p className="text-[10px] uppercase text-[#0a61d7]">{tCommon('sent')}</p>
-                        </div>
-                      </div>
-                      {campaignMetrics.sentCount > 0 && (
-                        <div className="mt-3 space-y-2 border-t border-gray-100 pt-3">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">{tCommon('revenue')}</span>
-                            <span className="font-semibold text-black">
-                              {formatCurrency(campaignMetrics.totalRevenueFromCampaigns, userCurrency)}
-                            </span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">{widgetText('marketing', 'recipientsReached')}</span>
-                            <span className="font-medium text-black">
-                              {campaignMetrics.totalRecipientsReached.toLocaleString()}
-                            </span>
-                          </div>
-                          {campaignMetrics.lastSentDate && (
-                            <div className="flex justify-between text-sm">
-                              <span className="text-gray-500">{widgetText('marketing', 'lastSent')}</span>
-                              <span className="font-medium text-black">
-                                {formatOrderDate(campaignMetrics.lastSentDate)}
-                              </span>
-                            </div>
-                          )}
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">{tCommon('orders')}</span>
-                            <span className="font-medium text-black">{campaignMetrics.totalOrdersFromCampaigns}</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">{widgetText('marketing', 'channel')}</span>
-                            <span className="font-medium text-black">{campaignMetrics.topChannel}</span>
-                          </div>
-                          {campaignMetrics.totalRecipientsReached > 0 && (
-                            <div className="flex justify-between text-sm">
-                              <span className="text-gray-500">{widgetText('marketing', 'conversion')}</span>
-                              <span className="font-medium text-black">{campaignMetrics.conversionRatePercent}%</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-6 text-center">
-                      <Megaphone className="mb-2 h-8 w-8 text-gray-300" />
-                      <p className="text-sm font-medium text-gray-600">{widgetText('marketing', 'noCampaignsTitle')}</p>
-                      <p className="mt-1 text-xs text-gray-500">{widgetText('marketing', 'noCampaignsHint')}</p>
-                    </div>
-                  )}
-                </div>
+            <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-black">{widgetText('marketing', 'teamsAndPeople')}</h3>
+                <Users className="h-4 w-4 text-gray-400" />
               </div>
-
-              {/* One-line summary when both have data */}
-              {hasTeams && hasCampaigns && (
-                <div className="rounded-lg border border-[#e6e6e6] bg-[#f8fafc] px-4 py-2 text-center text-xs text-gray-600">
-                  {t('widgets.marketing.summary', {
-                    agents: summary.activeAgents,
-                    campaigns: campaignMetrics.sentCount,
-                    revenue: formatCurrency(campaignMetrics.totalRevenueFromCampaigns, userCurrency),
-                  })}
+              {hasTeams ? (
+                <>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="rounded bg-gray-50 p-2 text-center">
+                      <p className="text-lg font-semibold text-black">{summary.teams.length}</p>
+                      <p className="text-[10px] uppercase text-gray-500">{widgetText('marketing', 'teams')}</p>
+                    </div>
+                    <div className="rounded bg-gray-50 p-2 text-center">
+                      <p className="text-lg font-semibold text-black">{summary.totalAgents}</p>
+                      <p className="text-[10px] uppercase text-gray-500">{widgetText('marketing', 'agents')}</p>
+                    </div>
+                    <div className="rounded bg-emerald-50 p-2 text-center">
+                      <p className="text-lg font-semibold text-emerald-700">{summary.activeAgents}</p>
+                      <p className="text-[10px] uppercase text-emerald-600">{tCommon('active')}</p>
+                    </div>
+                  </div>
+                  {summary.teams.length > 0 && (
+                    <div className="mt-3 border-t border-gray-100 pt-3">
+                      <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                        {widgetText('marketing', 'byTeam')}
+                      </p>
+                      <ul className="space-y-1.5">
+                        {summary.teams.slice(0, 4).map((team) => (
+                          <li
+                            key={team.id}
+                            className="flex items-center justify-between text-sm"
+                          >
+                            <span className="truncate text-gray-800">{team.name}</span>
+                            <span className="ml-2 shrink-0 rounded bg-[#f0f7ff] px-2 py-0.5 text-xs font-medium text-[#0a61d7]">
+                              {team.memberCount}{' '}
+                              {team.memberCount === 1
+                                ? widgetText('marketing', 'member')
+                                : widgetText('marketing', 'members')}
+                            </span>
+                          </li>
+                        ))}
+                        {summary.teams.length > 4 && (
+                          <li className="text-xs text-gray-500">
+                            {summary.teams.length - 4 === 1
+                              ? t('widgets.marketing.moreTeams', { count: summary.teams.length - 4 })
+                              : t('widgets.marketing.moreTeamsPlural', { count: summary.teams.length - 4 })}
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-6 text-center">
+                  <Users className="mb-2 h-8 w-8 text-gray-300" />
+                  <p className="text-sm font-medium text-gray-600">{widgetText('marketing', 'noTeamsTitle')}</p>
+                  <p className="mt-1 text-xs text-gray-500">{widgetText('marketing', 'noTeamsHint')}</p>
                 </div>
               )}
             </div>
@@ -2833,7 +2614,6 @@ const supplierInsights = useMemo(() => {
                 setProducts([]);
                 setBuyers([]);
                 setSuppliers([]);
-                setCampaigns([]);
                 setMarketingSummary(null);
               }}
             >

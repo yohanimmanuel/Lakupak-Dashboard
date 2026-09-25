@@ -165,7 +165,6 @@ export const PLAN_QUOTA_COMPARISON_KEYS = [
   'salesAgents',
   'drivers',
   'activeOffers',
-  'activeCampaigns',
   'mediaStorageGb',
   'automationRules',
   'support',

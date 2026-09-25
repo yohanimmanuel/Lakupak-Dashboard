@@ -41,7 +41,6 @@ export const dashboardTypeDefs = /* GraphQL */ `
     products: [Product!]!
     buyers: [Buyer!]!
     suppliers: [Supplier!]!
-    campaigns: [Campaign!]!
     marketingSummary: MarketingSummary!
     totals: DashboardTotals!
     aggregates: DashboardAggregates!
@@ -56,24 +55,6 @@ export const dashboardTypeDefs = /* GraphQL */ `
     ): DashboardSnapshot!
   }
 `;
-
-// Campaign shape for dashboard (matches Campaign type from campaigns module)
-interface DashboardCampaign {
-  id: string;
-  campaignId: string;
-  name: string;
-  description: string | null;
-  status: string;
-  sentDate: string | null;
-  recipients: string;
-  opensCount: number;
-  clicksCount: number;
-  revenue: number;
-  orders: number;
-  userId: number | null;
-  createdAt: string | null;
-  updatedAt: string | null;
-}
 
 interface MarketingTeamSummary {
   id: string;
@@ -93,7 +74,6 @@ interface DashboardSnapshot {
   products: unknown[];
   buyers: unknown[];
   suppliers: unknown[];
-  campaigns: DashboardCampaign[];
   marketingSummary: MarketingSummary;
   totals: {
     orders: number;
@@ -199,14 +179,6 @@ const calculateDashboardAggregates = async (userId: number) => {
   };
 };
 
-const parseCampaignRevenue = (value: unknown): number => {
-  if (value == null) return 0;
-  if (typeof value === 'number' && !Number.isNaN(value)) return value;
-  const n = (value as { toNumber?: () => number })?.toNumber?.();
-  if (typeof n === 'number') return n;
-  return parseFloat(String(value)) || 0;
-};
-
 const buildDashboardSnapshot = async (args: {
   userId: number;
   ordersLimit: number;
@@ -222,7 +194,6 @@ const buildDashboardSnapshot = async (args: {
     buyersConnection,
     suppliersConnection,
     aggregates,
-    campaignsRows,
     teamsRows,
     totalAgentsCount,
     activeAgentsCount,
@@ -232,27 +203,6 @@ const buildDashboardSnapshot = async (args: {
     fetchBuyersConnection({ userId, page: 1, limit: contactsLimit }),
     fetchSuppliersConnection({ userId, page: 1, limit: contactsLimit }),
     calculateDashboardAggregates(userId),
-    prisma.campaign.findMany({
-      where: { userId },
-      take: 200,
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        campaignId: true,
-        name: true,
-        description: true,
-        status: true,
-        sentDate: true,
-        recipients: true,
-        opensCount: true,
-        clicksCount: true,
-        revenue: true,
-        orders: true,
-        userId: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    }),
     prisma.salesTeam.findMany({
       where: { userId },
       take: 50,
@@ -266,23 +216,6 @@ const buildDashboardSnapshot = async (args: {
     prisma.salesAgent.count({ where: { userId } }),
     prisma.salesAgent.count({ where: { userId, status: 'active' } }),
   ]);
-
-  const campaigns: DashboardCampaign[] = campaignsRows.map((c) => ({
-    id: c.id,
-    campaignId: c.campaignId,
-    name: c.name,
-    description: c.description,
-    status: c.status,
-    sentDate: c.sentDate?.toISOString() ?? null,
-    recipients: c.recipients ?? '',
-    opensCount: c.opensCount ?? 0,
-    clicksCount: c.clicksCount ?? 0,
-    revenue: parseCampaignRevenue(c.revenue),
-    orders: c.orders ?? 0,
-    userId: c.userId,
-    createdAt: c.createdAt?.toISOString() ?? null,
-    updatedAt: c.updatedAt?.toISOString() ?? null,
-  }));
 
   const marketingSummary: MarketingSummary = {
     teams: teamsRows.map((t) => ({
@@ -299,7 +232,6 @@ const buildDashboardSnapshot = async (args: {
     products: productsConnection.nodes,
     buyers: buyersConnection.nodes,
     suppliers: suppliersConnection.nodes,
-    campaigns,
     marketingSummary,
     totals: {
       orders: ordersConnection.pagination.totalCount,

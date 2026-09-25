@@ -22,7 +22,6 @@ const NAV_LABEL_KEYS: Record<string, string> = {
   Offers: 'offers',
   Marketing: 'marketing',
   Team: 'team',
-  Campaigns: 'campaigns',
   Jobs: 'jobs',
   Automation: 'automation',
   Analytics: 'analytics',

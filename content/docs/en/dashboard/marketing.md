@@ -1,16 +1,16 @@
 ---
-title: Marketing
-description: Marketing hub, sales teams, agents, and WhatsApp campaigns.
+title: Sales
+description: Sales hub, sales teams, agents, and jobs.
 section: Dashboard
 module: dashboard
 order: 16
 ---
 
-The **Marketing** hub connects customer outreach tools: sales teams, WhatsApp campaigns, and shortcuts to clients and offers.
+The **Sales** hub is where you manage your sales team and sales jobs, with shortcuts to clients and offers.
 
-Path: **Marketing** (`/sales`).
+Path: **Sales** (`/sales`).
 
-## Marketing hub
+## Sales hub
 
 **Tips** cards (dismissible) with detail modals:
 
@@ -18,17 +18,16 @@ Path: **Marketing** (`/sales`).
 |-----|--------|------|
 | **Invite New Customers** | **Invite customers** | Clients |
 | **Create Promotions** | **Create promotion** | Offers |
-| **Cart Abandonment** | **View campaigns** | Campaigns |
+| **Sales jobs** | **View jobs** | Jobs |
 
 **Tools** shortcuts:
 
 | Tool | Description |
 |------|-------------|
-| **Teams** | Manage marketing team members and roles |
-| **Campaigns** | Create and send rich message campaigns |
-| **Automation** | Automated workflows (page may be a stub until released) |
+| **Teams** | Manage sales team members and roles |
+| **Jobs** | Manage sales jobs for your team |
 
-Sidebar may show **Team** and **Campaigns**; **Automations** can be hidden until the feature ships.
+Sidebar shows **Team** and **Jobs**.
 
 ## Teams
 
@@ -69,41 +68,11 @@ Create/edit tabs:
 
 **Delete Agent** / **Delete Agents** confirmation modals.
 
-## Campaigns
+## Jobs
 
-Path: `/sales/campaigns`.
+Path: `/sales/jobs`.
 
-### Campaign list
-
-| Action | Purpose |
-|--------|---------|
-| **Create campaign** | New campaign wizard |
-
-**Status tabs:** All, Draft, Scheduled, Completed (includes Sent).
-
-**Search:** **Search campaigns...**
-
-**Filter:** **All Recipients** plus per-campaign recipient labels.
-
-Rows show name, description, **Recipients**, **Opened**, **Clicked**, status, and **Send Date** or **Not sent**.
-
-**Bulk (one selected):** **Send Campaign** / **Resend Campaign** (WhatsApp), **Remove Campaign**.
-
-Empty: **No campaigns found**.
-
-### Create and send
-
-Routes: `/sales/campaigns/create`, `/sales/campaigns/details?id=…&mode=edit|view`.
-
-Fields include auto **Campaign ID**, name, description, and **Campaign Completion** progress.
-
-After send, **Campaign Performance** shows Opens, Clicks, revenue, and orders.
-
-**SendCampaignModal** handles WhatsApp delivery. **Delete Campaign** confirmation before removal.
-
-## Automations
-
-`/sales/automation` may show a placeholder (**Automations** — *Manage your marketing automation workflows*) until workflows are released.
+Use this page to manage sales jobs for your team, such as visits, follow-ups, and targets.
 
 ## Related areas
 
@@ -111,5 +80,5 @@ After send, **Campaign Performance** shows Opens, Clicks, revenue, and orders.
 |------|--------|
 | Buyer records | [Clients](/en/docs/dashboard/clients) |
 | Product promotions | [Offers](/en/docs/dashboard/offers) |
-| Campaign metrics vs orders | [Orders](/en/docs/dashboard/orders) |
-| Home marketing widget | [Home](/en/docs/dashboard/home) |
+| Orders | [Orders](/en/docs/dashboard/orders) |
+| Home sales widget | [Home](/en/docs/dashboard/home) |
