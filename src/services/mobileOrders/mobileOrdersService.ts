@@ -152,8 +152,9 @@ function resolveLinePricing(params: {
   }
 
   // No client rate: always keep the catalog/base price on the order so the distributor
-  // sees an amount. Buyer apps only receive it when auto-apply is on for a first order,
-  // or after Send pricing (see maskBuyerFacingOrderPrices).
+  // sees an amount. Buyer apps see this base price until Send pricing, or right away
+  // with any client rate when the distributor shows discounted prices on submit
+  // (see applyBuyerPriceVisibility).
   if (Number.isFinite(params.baseUnitPrice) && params.baseUnitPrice > 0) {
     return { unitPrice: params.baseUnitPrice, pricingSource: 'base' };
   }

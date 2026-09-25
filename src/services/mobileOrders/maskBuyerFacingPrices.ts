@@ -1,12 +1,16 @@
-import { prisma } from '@/lib/db';
-
 type BuyerPriceLine = {
   offerApplied?: boolean | null;
   subtotal?: unknown;
   pricePerPackage?: unknown;
+  piecesPerPackage?: number | null;
+  packageQuantity?: number | null;
+  offerBadgeSnapshot?: string | null;
+  offerNameSnapshot?: string | null;
+  offerIdSnapshot?: string | null;
   originalPriceSnapshot?: unknown;
   discountPercentage?: unknown;
   discountAmount?: unknown;
+  promotionDetailsSnapshot?: string | null;
 };
 
 type BuyerPriceOrder = {
@@ -15,6 +19,8 @@ type BuyerPriceOrder = {
   userId?: number | null;
   pricingSentAt?: Date | string | null;
   subtotal?: unknown;
+  discounts?: unknown;
+  shippingFee?: unknown;
   totalAmount?: unknown;
   user?: {
     company?: { autoApplyBasePriceForFirstBuyers?: boolean | null } | null;
@@ -22,85 +28,76 @@ type BuyerPriceOrder = {
   orderItems: BuyerPriceLine[];
 };
 
+function toNumber(value: unknown): number {
+  if (value === null || value === undefined) return 0;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (typeof value === 'string') return parseFloat(value) || 0;
+  if (typeof value === 'object' && typeof (value as { toNumber?: () => number }).toNumber === 'function') {
+    return (value as { toNumber: () => number }).toNumber() || 0;
+  }
+  return Number(value) || 0;
+}
+
+/**
+ * Catalog price per package as stored at PO submit: client-rate lines keep the
+ * catalog unit price in `originalPriceSnapshot`, other lines store it directly.
+ */
+function basePricePerPackage(item: BuyerPriceLine): number {
+  const pieces = Math.max(1, Number(item.piecesPerPackage) || 1);
+  const originalUnit = toNumber(item.originalPriceSnapshot);
+  if (item.offerApplied && originalUnit > 0) return originalUnit * pieces;
+  return Math.max(0, toNumber(item.pricePerPackage));
+}
+
 /**
  * Distributor rows always keep catalog/offer amounts.
- * Buyers only receive money when:
+ * Buyers receive the PO (discounted) money when:
  * - the distributor has sent pricing, or
- * - auto-apply base price is on and this is the buyer's first order with that distributor.
+ * - the distributor shows discounted prices on submit
+ *   (`autoApplyBasePriceForFirstBuyers`, kept as the column name).
+ * Otherwise buyers see the catalog base price and no offer details.
  * Offer activate/deactivate stays on the distributor order until Send pricing.
- * Any hidden line zeros the order total so list cards stay "Pending price".
+ * A line without a base price zeros the order total so cards show "Pending price".
  */
 export async function applyBuyerPriceVisibility<T extends BuyerPriceOrder>(
   orders: T[],
 ): Promise<T[]> {
-  if (orders.length === 0) return orders;
-
-  const pairs = new Map<string, { buyerId: string; userId: number }>();
-  for (const order of orders) {
-    if (order.userId == null || !order.buyerId) continue;
-    const key = `${order.buyerId}::${order.userId}`;
-    if (!pairs.has(key)) {
-      pairs.set(key, { buyerId: order.buyerId, userId: order.userId });
-    }
-  }
-
-  const firstOrderIdByPair = new Map<string, string>();
-  const pairList = [...pairs.values()];
-  if (pairList.length > 0) {
-    const rows = await prisma.order.findMany({
-      where: {
-        isDeleted: false,
-        OR: pairList.map((pair) => ({ buyerId: pair.buyerId, userId: pair.userId })),
-      },
-      select: {
-        id: true,
-        orderId: true,
-        buyerId: true,
-        userId: true,
-      },
-      distinct: ['buyerId', 'userId'],
-      orderBy: [{ orderDate: 'asc' }, { id: 'asc' }],
-    });
-
-    for (const row of rows) {
-      if (row.userId == null || !row.buyerId) continue;
-      const key = `${row.buyerId}::${row.userId}`;
-      if (!pairs.has(key) || firstOrderIdByPair.has(key)) continue;
-      firstOrderIdByPair.set(key, row.orderId);
-    }
-  }
-
   return orders.map((order) => {
     const released = order.pricingSentAt != null;
-    const autoApply = Boolean(order.user?.company?.autoApplyBasePriceForFirstBuyers);
-    const pairKey =
-      order.userId != null && order.buyerId ? `${order.buyerId}::${order.userId}` : '';
-    const isFirstOrder = pairKey !== '' && firstOrderIdByPair.get(pairKey) === order.orderId;
-    const showBase = autoApply && isFirstOrder;
+    const showOnPo = Boolean(order.user?.company?.autoApplyBasePriceForFirstBuyers);
+    if (released || showOnPo) return order;
 
-    let anyHidden = false;
+    let subtotal = 0;
+    let anyPending = false;
     const orderItems = order.orderItems.map((item) => {
-      if (released || showBase) return item;
-      anyHidden = true;
+      const pricePerPackage = basePricePerPackage(item);
+      const quantity = Math.max(0, Number(item.packageQuantity) || 0);
+      const lineSubtotal = pricePerPackage * quantity;
+      if (!(lineSubtotal > 0)) anyPending = true;
+      subtotal += lineSubtotal;
       return {
         ...item,
-        subtotal: 0,
-        pricePerPackage: 0,
+        subtotal: lineSubtotal,
+        pricePerPackage,
+        offerApplied: false,
+        offerBadgeSnapshot: null,
+        offerNameSnapshot: null,
+        offerIdSnapshot: null,
         originalPriceSnapshot: null,
         discountPercentage: null,
         discountAmount: null,
+        promotionDetailsSnapshot: null,
       };
     });
 
-    if (!anyHidden) {
-      return { ...order, orderItems };
-    }
+    const totalAmount = anyPending ? 0 : subtotal + Math.max(0, toNumber(order.shippingFee));
 
     return {
       ...order,
       orderItems,
-      subtotal: 0,
-      totalAmount: 0,
+      subtotal: anyPending ? 0 : subtotal,
+      discounts: 0,
+      totalAmount,
     };
   });
 }
