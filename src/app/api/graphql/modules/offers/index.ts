@@ -437,7 +437,7 @@ const createOffer = async (args: {
     discountValue: number;
   buyQuantity?: number | null;
   freeQuantity?: number | null;
-  promotionApplyMode?: string | null;
+    promotionApplyMode?: string | null;
     startDate: string;
   endDate?: string | null;
   status?: string | null;

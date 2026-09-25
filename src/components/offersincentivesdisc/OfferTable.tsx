@@ -459,17 +459,18 @@ export default function OfferTable({
       setIsBulkWorking(true);
       setBulkError('');
       let success = 0;
-      let failed = 0;
+      let failedNoClient = 0;
+      let failedOther = 0;
 
       try {
         for (const group of selectedGroups) {
           // Activate requires a client on every member
           if (nextStatus === 'active' && !group.primary.buyerId) {
-            failed += 1;
+            failedNoClient += 1;
             continue;
           }
           if (nextStatus === 'active' && group.primary.status === 'expired') {
-            failed += 1;
+            failedOther += 1;
             continue;
           }
           try {
@@ -483,7 +484,7 @@ export default function OfferTable({
             }
             success += 1;
           } catch {
-            failed += 1;
+            failedOther += 1;
           }
         }
 
@@ -500,18 +501,38 @@ export default function OfferTable({
         );
         setSelectedKeys([]);
         onRefreshAction?.();
+        const failed = failedNoClient + failedOther;
         if (failed > 0) {
-          setBulkError(
-            nextStatus === 'active'
-              ? tTable('activatePartialSuccess', {
-                  success: String(success),
-                  failed: String(failed),
-                })
-              : tTable('deactivatePartialSuccess', {
-                  success: String(success),
-                  failed: String(failed),
-                }),
-          );
+          if (nextStatus === 'active' && failedNoClient > 0 && failedOther === 0) {
+            setBulkError(
+              success > 0
+                ? tTable('activatePartialNoClient', {
+                    success: String(success),
+                    failed: String(failedNoClient),
+                  })
+                : tTable('activateFailedNoClient', { count: String(failedNoClient) }),
+            );
+          } else if (nextStatus === 'active' && failedNoClient > 0) {
+            setBulkError(
+              tTable('activatePartialMixedNoClient', {
+                success: String(success),
+                noClient: String(failedNoClient),
+                other: String(failedOther),
+              }),
+            );
+          } else {
+            setBulkError(
+              nextStatus === 'active'
+                ? tTable('activatePartialSuccess', {
+                    success: String(success),
+                    failed: String(failed),
+                  })
+                : tTable('deactivatePartialSuccess', {
+                    success: String(success),
+                    failed: String(failed),
+                  }),
+            );
+          }
         }
       } catch {
         setBulkError(

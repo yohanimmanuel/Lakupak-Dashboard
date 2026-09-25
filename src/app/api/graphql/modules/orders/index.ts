@@ -108,6 +108,7 @@ export const ordersTypeDefs = /* GraphQL */ `
     deliveryConfirmation: String
     pod: String
     orderDate: String!
+    pricingSentAt: String
     fleetId: Int
     createdAt: String
     updatedAt: String
@@ -224,6 +225,7 @@ const mapOrder = (
   deliveryConfirmation: order?.deliveryConfirmation ?? null,
   pod: order?.pod ?? null,
   orderDate: order?.orderDate?.toISOString() ?? '',
+  pricingSentAt: order?.pricingSentAt?.toISOString() ?? null,
   fleetId: order?.fleetId ?? null,
   createdAt: order?.createdAt?.toISOString() ?? null,
   updatedAt: order?.updatedAt?.toISOString() ?? null,
