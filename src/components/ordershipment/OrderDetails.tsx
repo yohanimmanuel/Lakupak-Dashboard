@@ -1565,7 +1565,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                       }
                     }
                     return total;
-                  }, 0)} {tShared('pieces')}
+                  }, 0)}
                 </div>
               </div>
             </div>

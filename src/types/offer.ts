@@ -22,6 +22,8 @@ export interface Offer {
   discountValue: number;
   buyQuantity?: number | null;
   freeQuantity?: number | null;
+  /** from_zero counts free pieces before MOQ. after_moq counts only above MOQ. */
+  promotionApplyMode?: 'from_zero' | 'after_moq' | string | null;
   startDate: string;
   endDate?: string | null;
   status: OfferStatus | string;

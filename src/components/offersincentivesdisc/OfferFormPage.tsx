@@ -69,6 +69,7 @@ const SAVE_OFFER_GROUP_MUTATION = `
     $discountValue: Float!
     $buyQuantity: Int
     $freeQuantity: Int
+    $promotionApplyMode: String
     $startDate: String!
     $endDate: String
     $status: String
@@ -85,6 +86,7 @@ const SAVE_OFFER_GROUP_MUTATION = `
       discountValue: $discountValue
       buyQuantity: $buyQuantity
       freeQuantity: $freeQuantity
+      promotionApplyMode: $promotionApplyMode
       startDate: $startDate
       endDate: $endDate
       status: $status
@@ -118,6 +120,7 @@ function emptyForm(prefillBuyerId?: string | null): OfferWizardFormData {
     discountValue: '',
     buyQuantity: '',
     freeQuantity: '',
+    promotionApplyMode: 'after_moq',
     startDate: today,
     endDate: '',
     unlimitedEnd: true,
@@ -226,6 +229,8 @@ function offersToForm(offers: Offer[]): OfferWizardFormData {
     discountValue: isPrice ? String(offer.discountValue ?? '') : '',
     buyQuantity: offer.buyQuantity != null ? String(offer.buyQuantity) : '',
     freeQuantity: freeFromOffer,
+    promotionApplyMode:
+      offer.promotionApplyMode === 'from_zero' ? 'from_zero' : 'after_moq',
     startDate: toDateInput(offer.startDate),
     endDate: toDateInput(offer.endDate),
     unlimitedEnd: !offer.endDate,
@@ -418,7 +423,7 @@ export function OfferFormPage({ mode }: { mode: 'create' | 'edit' }) {
             offersInGroup(userId: $userId, id: $id) {
               id offerId groupId buyerId buyerStoreName productId productName categoryId categoryLabel
               variantOptionId variantName
-              discountType discountValue buyQuantity freeQuantity startDate endDate status notes description
+              discountType discountValue buyQuantity freeQuantity promotionApplyMode startDate endDate status notes description
             }
           }`,
           { userId: user.id, id: offerIdParam },
@@ -486,6 +491,9 @@ export function OfferFormPage({ mode }: { mode: 'create' | 'edit' }) {
       discountValue: encoded.discountValue,
       buyQuantity: encoded.buyQuantity,
       freeQuantity: encoded.freeQuantity,
+      promotionApplyMode: formData.enableBuyXGetY
+        ? formData.promotionApplyMode
+        : 'after_moq',
       startDate: new Date(
         formData.startDate || new Date().toISOString().slice(0, 10),
       ).toISOString(),

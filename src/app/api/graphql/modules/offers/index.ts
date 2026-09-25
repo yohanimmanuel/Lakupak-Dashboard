@@ -4,6 +4,7 @@ import { prisma } from '../common/prisma';
 import { sanitizePagination, buildPaginationInfo, parseMoney } from '../common/utils';
 import { withDashboardAuth } from '../common/auth';
 import { isValidMerchandisingSlug, getMerchandisingLabel } from '@/constants/merchandisingTaxonomy';
+import { normalizePromotionApplyMode } from '@/utils/promotionUtils';
 
 const DISCOUNT_TYPES = new Set(['percentage', 'fixed_amount', 'buy_x_get_y']);
 /** User-selectable statuses only. Expired is set by the system when endDate passes. */
@@ -27,6 +28,7 @@ export const offersTypeDefs = /* GraphQL */ `
     discountValue: Float!
     buyQuantity: Int
     freeQuantity: Int
+    promotionApplyMode: String
     startDate: String!
     endDate: String
     status: String!
@@ -89,6 +91,7 @@ export const offersTypeDefs = /* GraphQL */ `
       discountValue: Float!
       buyQuantity: Int
       freeQuantity: Int
+      promotionApplyMode: String
       startDate: String!
       endDate: String
       status: String
@@ -108,6 +111,7 @@ export const offersTypeDefs = /* GraphQL */ `
       discountValue: Float
       buyQuantity: Int
       freeQuantity: Int
+      promotionApplyMode: String
       startDate: String
       endDate: String
       status: String
@@ -132,6 +136,7 @@ export const offersTypeDefs = /* GraphQL */ `
       discountValue: Float!
       buyQuantity: Int
       freeQuantity: Int
+      promotionApplyMode: String
       startDate: String!
       endDate: String
       status: String
@@ -174,6 +179,7 @@ function mapOffer(offer: OfferRow) {
     discountValue: parseMoney(offer.discountValue),
     buyQuantity: offer.buyQuantity,
     freeQuantity: offer.freeQuantity ?? null,
+    promotionApplyMode: normalizePromotionApplyMode(offer.promotionApplyMode),
     startDate: offer.startDate.toISOString(),
     endDate: offer.endDate ? offer.endDate.toISOString() : null,
     status: offer.status,
@@ -431,6 +437,7 @@ const createOffer = async (args: {
     discountValue: number;
   buyQuantity?: number | null;
   freeQuantity?: number | null;
+  promotionApplyMode?: string | null;
     startDate: string;
   endDate?: string | null;
   status?: string | null;
@@ -517,6 +524,7 @@ const createOffer = async (args: {
       discountValue,
       buyQuantity: resolvedQty.buyQuantity,
       freeQuantity: resolvedQty.freeQuantity,
+      promotionApplyMode: normalizePromotionApplyMode(args.promotionApplyMode),
       startDate,
       endDate,
       status,
@@ -540,6 +548,7 @@ const updateOffer = async (args: {
   discountValue?: number | null;
   buyQuantity?: number | null;
   freeQuantity?: number | null;
+  promotionApplyMode?: string | null;
   startDate?: string | null;
   endDate?: string | null;
   status?: string | null;
@@ -652,6 +661,9 @@ const updateOffer = async (args: {
       discountValue,
       buyQuantity: resolvedQty.buyQuantity,
       freeQuantity: resolvedQty.freeQuantity,
+      ...(args.promotionApplyMode != null
+        ? { promotionApplyMode: normalizePromotionApplyMode(args.promotionApplyMode) }
+        : {}),
       startDate,
       endDate,
       ...(args.status != null ? { status: args.status } : {}),
@@ -771,6 +783,7 @@ const saveOfferGroup = async (args: {
   discountValue: number;
   buyQuantity?: number | null;
   freeQuantity?: number | null;
+  promotionApplyMode?: string | null;
   startDate: string;
   endDate?: string | null;
   status?: string | null;
@@ -887,6 +900,7 @@ const saveOfferGroup = async (args: {
     discountValue: args.discountValue,
     buyQuantity: resolvedQty.buyQuantity,
     freeQuantity: resolvedQty.freeQuantity,
+    promotionApplyMode: normalizePromotionApplyMode(args.promotionApplyMode),
     startDate,
     endDate,
     status,

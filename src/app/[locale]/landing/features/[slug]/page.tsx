@@ -12,7 +12,6 @@ export function generateStaticParams() {
     { slug: 'marketplace' },
     { slug: 'analytics' },
     { slug: 'automations' },
-    { slug: 'logistics' },
   ];
 }
 

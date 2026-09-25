@@ -20,13 +20,12 @@
       "modulesLabel": "Modules",
       "groups": {
         "sell": "Sell",
-        "grow": "Grow",
-        "deliver": "Deliver"
+        "grow": "Grow"
       }
     },
     "hub": {
-      "title": "Every module to run distribution on Lakupak",
-      "subtitle": "From client management to delivery and automations, explore the full loop across Dashboard, Marketplace, and Driver.",
+      "title": "Every module to run commerce and sales on Lakupak",
+      "subtitle": "Clients, catalog, per-retailer offers, orders, and your sales team, across Dashboard and Marketplace.",
       "exploreMore": "Explore more modules"
     },
     "overview": {
@@ -38,8 +37,7 @@
       "unlocksLabel": "What this unlocks",
       "surfaces": {
         "dashboard": "Dashboard",
-        "marketplace": "Marketplace",
-        "driver": "Driver"
+        "marketplace": "Marketplace"
       }
     },
     "clients": {
@@ -75,7 +73,7 @@
         },
         "3": {
           "title": "Complete profiles ready for ops",
-          "desc": "Capture store or company details, owners, phones, emails, addresses, business type, logistics preferences, and notes, with a completion bar that flags missing fields."
+          "desc": "Capture store or company details, owners, phones, emails, addresses, business type, and notes, with a completion bar that flags missing fields."
         },
         "4": {
           "title": "Order history on every buyer",
@@ -83,7 +81,7 @@
         },
         "5": {
           "title": "Supplier lines and purchase analytics",
-          "desc": "Record SKUs, volumes, and purchase value per supplier, then review monthly supply and purchase charts plus on-time delivery signals on the list."
+          "desc": "Record SKUs, volumes, and purchase value per supplier, then review monthly supply and purchase charts on the list."
         }
       }
     },
@@ -104,8 +102,8 @@
             "desc": "Each size or flavor combination carries its own SKU, selling price, minimum order quantity, and piece-level stock buyers must meet at checkout."
           },
           "3": {
-            "title": "Offers that reshape live list prices",
-            "desc": "Attach promotions to products. Active deals update catalog prices and lock variants so deal integrity holds on Marketplace cards."
+            "title": "A rate for each retailer",
+            "desc": "Attach an offer rate to a retailer. Marketplace cards keep the catalog base price."
           }
         }
       },
@@ -123,8 +121,8 @@
           "desc": "Show Halal, BPOM, original-product assurance, and return-policy days on product detail so retailers order with more confidence."
         },
         "4": {
-          "title": "Offer-safe live pricing",
-          "desc": "While a promotion is active, Lakupak locks variants and updates selling prices from the offer so deals stay consistent until you disconnect them."
+          "title": "Base price on the shelf",
+          "desc": "Published products show the catalog base price. A retailer's rate applies on their purchase order, not as a public price change."
         },
         "5": {
           "title": "Stock that follows orders",
@@ -134,83 +132,83 @@
     },
     "orders": {
       "menuLabel": "Orders",
-      "title": "Orders from Marketplace to Driver",
-      "subtitle": "Take wholesale demand from checkout into one Dashboard pipeline, then hand off to fleets with payment proof, POD, and returns on the same trail.",
+      "title": "Orders from the marketplace into sales",
+      "subtitle": "Retailer checkout lands in one Dashboard pipeline, with payment proof, status, and the price saved on that order.",
       "placeholder": "Orders module preview. Replace image",
       "overview": {
-        "summary": "Orders is the fulfillment spine of Lakupak. Marketplace checkout lands in Dashboard immediately, sales and ops share one status path, stock and buyer records move with the order, and fleets close delivery with proof you can audit.",
+        "summary": "Orders is the commerce spine of Lakupak. Marketplace checkout lands in Dashboard immediately, sales and ops share one status path, and stock and buyer records move with the order.",
         "highlights": {
           "1": {
             "title": "Marketplace to one fulfillment spine",
-            "desc": "Retailer checkout becomes a live Dashboard order with shared status for sales, ops, and logistics."
+            "desc": "Retailer checkout becomes a live Dashboard order with one status for sales and ops."
           },
           "2": {
             "title": "Stock and buyers that move with the order",
             "desc": "Confirm, cancel, or return adjusts inventory, and Marketplace buyers feed Clients profiles and spend history without re-entry."
           },
           "3": {
-            "title": "Driver handoff with proof you can audit",
-            "desc": "Assign fleets, collect photo POD or failure evidence, and close returns from pickup to warehouse confirm."
+            "title": "The agreed price stays on the order",
+            "desc": "Each order keeps the base price from when it was placed, and the retailer's rate when that price has been sent."
           }
         }
       },
       "points": {
         "1": {
           "title": "Status everyone shares",
-          "desc": "One pipeline from Pending through Delivered, with buyer and driver alerts on the same state instead of parallel chats."
+          "desc": "One pipeline from pending through completed, so sales and the buyer see the same order state."
         },
         "2": {
           "title": "Payment proof, not guesswork",
           "desc": "Buyers submit bank-transfer proof for review, or pay COD, so your team marks Paid after verification."
         },
         "3": {
-          "title": "POD on delivery and return",
-          "desc": "Capture proof in Driver or Dashboard so Delivered, Received, and Returned orders keep a file trail."
+          "title": "Price saved with the order",
+          "desc": "Order lines keep the catalog base price from checkout. A later catalog change does not rewrite that order."
         },
         "4": {
-          "title": "Fleet-ready fulfillment",
-          "desc": "Packed and Shipped work hands off to Lakupak Driver for Start and Complete Delivery without retyping the order."
+          "title": "Follow-up stays with sales",
+          "desc": "The same order is what your sales team works from, next to the retailer and the catalog."
         }
       }
     },
     "offers": {
       "menuLabel": "Offers",
-      "title": "Offers that rewrite live catalog prices",
-      "subtitle": "Attach percentage, fixed, or Buy X Get Y deals to products so Marketplace cards show the promotion while list prices and variants stay deal-safe.",
+      "title": "A rate for every retailer",
+      "subtitle": "Set a percentage, fixed amount, or Buy X Get Y rate for each retailer. The catalog keeps its base price. That shop's rate applies on their purchase order.",
       "placeholder": "Offers module preview. Replace image",
       "overview": {
-        "summary": "Offers sits on your product catalog. Schedule discounts or Buy X Get Y, rewrite live selling prices when money deals activate, lock connected variants while the deal runs, and surface badges on Marketplace product cards.",
+        "summary": "Offers are per retailer, not a public price change. Assign a rate to a buyer and a product or category. Marketplace cards keep the catalog base price. When that retailer orders, their rate is the one on the purchase order.",
         "highlights": {
           "1": {
-            "title": "Live list prices from active deals",
-            "desc": "Percentage and fixed offers rewrite Marketplace selling prices and show the original as strikethrough."
+            "title": "One shop, one rate",
+            "desc": "The same SKU can carry a different rate for each retailer. Other shops still see the catalog base price."
           },
           "2": {
-            "title": "Deal integrity lock",
-            "desc": "Connected products cannot silently change variants or prices until the offer is removed or deactivated."
+            "title": "The shelf stays the base price",
+            "desc": "Activating an offer does not rewrite Marketplace cards. The rate waits for that retailer's purchase order."
           },
           "3": {
-            "title": "Schedule to the shelf",
-            "desc": "Date windows auto schedule, activate, and expire so Discount and Promotion badges appear on published SKUs when deals go live."
+            "title": "A window you control",
+            "desc": "Set a start and end so the rate is active only while you want that retailer to order on those terms."
           }
         }
       },
       "points": {
         "1": {
-          "title": "Three deal structures in one place",
-          "desc": "Build percentage off, fixed off, and Buy X Get Y with MOQ-aware free packs, then attach them to catalog SKUs retailers already browse."
+          "title": "Three ways to set the rate",
+          "desc": "Use a percentage, a fixed amount, or Buy X Get Y, tied to that retailer and the products they buy."
         },
         "2": {
-          "title": "Catalog stays the source of truth",
-          "desc": "Promotions sit on products. Money discounts update list price automatically, and structure stays locked while the deal runs."
+          "title": "Catalog price stays the reference",
+          "desc": "Retailers browse the base price. Their own rate does not change what other shops see."
         },
         "3": {
-          "title": "Buyer-visible urgency on Marketplace",
-          "desc": "Published products show offer badges, strikethrough pricing when discounts apply, and Buy X Get Y labels without a separate promo site."
+          "title": "The rate lands on the purchase order",
+          "desc": "When that retailer orders, the purchase order uses their rate. You send the price when you want it confirmed."
         },
         "4": {
-          "title": "See what redeemed",
-          "desc": "Track usage and redemptions on each offer so you know which promotions actually moved volume."
+          "title": "See which rates were used",
+          "desc": "Track usage and discount given on each offer so you know which retailer rates actually moved volume."
         }
       }
     },
@@ -269,7 +267,7 @@
           },
           "3": {
             "title": "Retailer mobile wholesale loop",
-            "desc": "Buyers browse, follow distributors, shop offers, and place MOQ-aware orders that land in your Dashboard Orders."
+            "desc": "Buyers browse the catalog base price, follow distributors, and place MOQ-aware orders that land in your Dashboard."
           }
         }
       },
@@ -280,11 +278,11 @@
         },
         "2": {
           "title": "Buyer app path to checkout",
-          "desc": "Retailers go from Home, Categories, and Search to product detail, then Add to Cart or Buy Now with MOQ gates, bank transfer or COD, and your shipping rules."
+          "desc": "Retailers go from Home, Categories, and Search to product detail, then Add to Cart or Buy Now at the catalog base price, with MOQ gates and bank transfer or COD."
         },
         "3": {
           "title": "Orders that mirror Dashboard",
-          "desc": "Mobile order tabs cover pay, ship, receive, rate, return, and cancel, with invoice download and delivery timeline feeding the same order spine."
+          "desc": "Mobile order tabs cover payment, receipt, rating, return, and cancel, on the same order your sales team sees in Dashboard."
         },
         "4": {
           "title": "Storefront profile for buyers",
@@ -310,7 +308,7 @@
           },
           "3": {
             "title": "Fulfillment and stock health",
-            "desc": "Monitor completion rate, processing time, tracking coverage, inventory health, and delivery-method mix."
+            "desc": "Monitor completion rate, processing time, order coverage, and inventory health."
           }
         }
       },
@@ -336,10 +334,10 @@
     "automations": {
       "menuLabel": "Automations",
       "title": "Workflow automations scoped to Lakupak",
-      "subtitle": "Build trigger-based workflows like other SaaS engines, but scoped to distribution: catalog and offers, clients, orders and logistics, and sales.",
+      "subtitle": "Build trigger-based workflows scoped to commerce and sales: catalog and offers, clients, orders, and your sales team.",
       "placeholder": "Automations module preview. Replace image",
       "overview": {
-        "summary": "Automations is Lakupak's workflow engine for ecommerce distribution. Design trigger-to-action flows across product offers, lead and client follow-up, order logistics, and sales, then run them as active, paused, or draft workflows your team controls.",
+        "summary": "Automations is Lakupak's workflow engine for commerce and sales. Design trigger-to-action flows across offers, client follow-up, orders, and sales, then run them as active, paused, or draft workflows your team controls.",
         "highlights": {
           "1": {
             "title": "A workflow engine for distribution",
@@ -347,7 +345,7 @@
           },
           "2": {
             "title": "Scoped to the Lakupak loop",
-            "desc": "Automate product and offers, client leads, order logistics, and sales inside the platform you already operate."
+            "desc": "Automate catalog and per-retailer offers, client follow-up, orders, and sales inside the platform you already operate."
           },
           "3": {
             "title": "Triggers instead of chase",
@@ -362,60 +360,19 @@
         },
         "2": {
           "title": "Product and offers flows",
-          "desc": "Automate catalog and promotion routines so pricing and deal follow-ups stay consistent with what retailers see."
+          "desc": "Automate catalog and offer routines so each retailer's rate stays consistent with how you sell."
         },
         "3": {
           "title": "Client and lead follow-up",
           "desc": "Keep buyer and supplier network work moving with workflows that support lead and account follow-up."
         },
         "4": {
-          "title": "Order and logistics handoffs",
-          "desc": "Connect fulfillment steps so order and fleet routines can advance without manual coordination every time."
+          "title": "Order follow-up",
+          "desc": "Move order routines forward from the same purchase order, without retyping the steps in chat."
         },
         "5": {
           "title": "Active, paused, and draft control",
           "desc": "Manage workflow status, run counts, and last-run history so you know what is live and what is waiting."
-        }
-      }
-    },
-    "logistics": {
-      "menuLabel": "Logistics and Driver",
-      "title": "Fleets with Lakupak Driver in the field",
-      "subtitle": "Build trips from orders, give drivers app credentials and routes, and keep POD, GPS, and status synced for ops and buyers.",
-      "placeholder": "Logistics and Driver app preview. Replace image",
-      "overview": {
-        "summary": "Logistics turns confirmed orders into fleet trips. Assign a vehicle and driver, sequence stops, and run delivery on the Lakupak Driver app with photo POD, failure evidence, and live location that feeds Dashboard and Marketplace visibility.",
-        "highlights": {
-          "1": {
-            "title": "Fleet trips from orders",
-            "desc": "Build a trip with vehicle, driver credentials, and assigned orders in one wizard."
-          },
-          "2": {
-            "title": "Lakupak Driver in the field",
-            "desc": "Drivers get routes, status updates, photo POD, and failure evidence on the mobile app."
-          },
-          "3": {
-            "title": "Live delivery visibility",
-            "desc": "Dashboard and Marketplace stay aligned as GPS and status sync while the trip runs."
-          }
-        }
-      },
-      "points": {
-        "1": {
-          "title": "Active fleets and drivers in one place",
-          "desc": "Filter trips and open summary, vehicle, driver, and customer detail without leaving Logistics."
-        },
-        "2": {
-          "title": "Credentials you issue",
-          "desc": "Create driver logins in Logistics for the Lakupak Driver app. Access is distributor-managed, not open self-signup."
-        },
-        "3": {
-          "title": "Start, complete, or report failure",
-          "desc": "Packed to Start Delivery to Shipped, then photo POD to Delivered, or failure with a reason and photo evidence."
-        },
-        "4": {
-          "title": "Live location without phone chase",
-          "desc": "GPS and status updates keep ops and buyers informed; offline actions can queue until the driver reconnects."
         }
       }
     }
@@ -423,9 +380,9 @@
   "landing": {
     "hero": {
       "badge": "B2B E-commerce Platform for FMCG",
-      "titleBefore": "One Platform. Unify Operations. Expand Networks. ",
-      "titleAccent": "Scale Faster",
-      "subtitle": "Still running your business on seperated systems and deliveries without visibility? Lakupak unifies your business on AI powered dashboard, marketplace, and driver app so FMCG trade runs with clarity, trust, and control.",
+      "titleBefore": "Stop Pitching Blind. Close More. ",
+      "titleAccent": "Scale Faster.",
+      "subtitle": "AI commerce and sales platform that helps you know exactly which retailers are ready to buy, what to offer them, and when. Built on your own catalog, per-retailer pricing, and order history. One dashboard for your operations and sales team, one marketplace for your retailers.",
       "cta": "Start free trial",
       "learnmore": "Explore marketplace",
       "productPlaceholder": "Dashboard preview. Replace with product image"
@@ -435,8 +392,8 @@
       "logoPlaceholder": "Partner logo"
     },
     "platformMessage": {
-      "title": "One platform to run your full distribution loop",
-      "subtitle": "Lakupak brings client management, catalog and offers, orders, sales, analytics, and logistics together so distributors and retailers work from the same system. Our SaaS is powered by AI agents, where users can build their own workflows and automations to automate their daily business operations."
+      "title": "One platform for commerce and sales",
+      "subtitle": "Lakupak brings client management, catalog, per-retailer offer rates, orders, sales, and analytics together so distributors and retailers work from the same system. Build workflows that follow the sale, from who to reach to the rate on their purchase order."
     },
     "features": {
       "selling": {
@@ -448,7 +405,7 @@
         },
         "products": {
           "title": "Products and offers",
-          "desc": "Control catalog, pricing, and offers so every store sees the right assortment."
+          "desc": "Publish the catalog base price, then set an offer rate for each retailer."
         },
         "orders": {
           "title": "Orders",
@@ -466,15 +423,15 @@
           "desc": "Keep agents and roles where your retailers already buy."
         },
         "2": {
-          "title": "Targeted offers",
-          "desc": "Push the right deals to the right stores at the right time."
+          "title": "A rate per retailer",
+          "desc": "Give each shop its own offer rate without changing the catalog price everyone else sees."
         },
         "3": {
           "title": "Reorder momentum",
           "desc": "Keep your network engaged without leaving Lakupak."
         },
-        "title": "Sales that drives reorder",
-        "subtitle": "Organize your sales team and promotions inside the platform so follow-up stays with your retailers.",
+        "title": "Sales that knows the next retailer",
+        "subtitle": "Organize your sales team and each retailer's offer rate so follow-up stays with the shop.",
         "placeholder": "Marketing preview. Replace image"
       },
       "analytics": {
@@ -491,25 +448,8 @@
         },
         "operational": {
           "title": "Operational",
-          "desc": "Monitor fulfillment speed, coverage, and day-to-day distribution health."
+          "desc": "Monitor order flow, coverage, and day-to-day sales health."
         }
-      },
-      "logistics": {
-        "1": {
-          "title": "Driver app access",
-          "desc": "Drivers get routes and order context on the go."
-        },
-        "2": {
-          "title": "Fleet assignment",
-          "desc": "Match shipments to the right fleet without manual chase."
-        },
-        "3": {
-          "title": "Real-time delivery updates",
-          "desc": "Track status as goods move so retailers know what is coming."
-        },
-        "title": "Logistics with live delivery visibility",
-        "subtitle": "Give drivers app access, assign fleets, and share real-time delivery updates with your team and buyers.",
-        "placeholder": "Logistics preview. Replace image"
       },
       "automations": {
         "title": "Lakupak Agent automations for daily ops",
@@ -520,7 +460,7 @@
         },
         "triggers": {
           "title": "Agents that act on events",
-          "desc": "Hand off repeat ops to triggers across offers, leads, orders, logistics, and sales."
+          "desc": "Hand off repeat work to triggers across offers, clients, orders, and sales."
         },
         "control": {
           "title": "Activate, pause, and track",
@@ -548,7 +488,7 @@
       "2": {
         "name": "Siti Nurhaliza",
         "role": "Owner, Warung Makmur",
-        "text": "Ordering is easier, prices are clearer, and delivery updates keep my shelves stocked."
+        "text": "Ordering is easier, the catalog price is clear, and my rate is the one on the purchase order."
       },
       "title": "What teams are saying"
     },
@@ -562,8 +502,8 @@
         "desc": "Distributors publish catalog; retailers browse and compare wholesale options."
       },
       "3": {
-        "title": "Order and track",
-        "desc": "Place orders, track deliveries, and manage operations in one place."
+        "title": "Order at their rate",
+        "desc": "Retailers order from the catalog base price. Their offer rate is what lands on the purchase order."
       },
       "title": "Get started in three steps",
       "subtitle": "From signup to live orders without a long onboarding maze."
@@ -617,7 +557,7 @@
       "retailer": {
         "1": "Bulk Ordering in One Click",
         "2": "Auto-Replenishment Suggestions",
-        "3": "Real-Time Delivery Updates",
+        "3": "Your own offer rate",
         "4": "Mobile-First Experience",
         "5": "Smart Shopping Experience",
         "title": "Retailer Marketplace",
@@ -679,13 +619,13 @@
         ]
       },
       {
-        "badge": "Realtime",
-        "title": "Real-Time Delivery Updates",
-        "subtitle": "Track every shipment, every time.",
+        "badge": "Your rate",
+        "title": "A rate for your shop",
+        "subtitle": "Browse the catalog base price. Your offer rate applies when you order.",
         "points": [
-          "Instant notifications for every order.",
-          "Track shipments from warehouse to your store.",
-          "Never miss a delivery again."
+          "See the catalog base price before you order.",
+          "Your retailer rate is the one on the purchase order.",
+          "Other shops do not see your terms."
         ]
       },
       {
@@ -694,7 +634,7 @@
         "subtitle": "Order and track on the go.",
         "points": [
           "Seamless experience on any device.",
-          "Order and track shipments anytime, anywhere.",
+          "Order from the catalog anytime, anywhere.",
           "Get support and insights from your phone."
         ]
       }
@@ -712,7 +652,7 @@
     "hero": {
       "badge": "Pricing",
       "title": "Flexible pricing plans for every need",
-      "subtitle": "Choose a plan that fits your retail network scale. Every plan includes the full Lakupak platform: Dashboard, Marketplace, and Driver.",
+      "subtitle": "Choose a plan that fits your retail network. Every plan includes Dashboard and Marketplace for commerce and sales.",
       "trial": "30-day free trial. No credit card required."
     },
     "toggle": {
@@ -738,15 +678,15 @@
     "tiers": {
       "starter": {
         "name": "Starter",
-        "description": "Local grosir, early digital ops, small delivery team"
+        "description": "Local grosir starting digital sales"
       },
       "growth": {
         "name": "Growth",
-        "description": "Regional FMCG distributor with structured sales and fleet"
+        "description": "Regional distributor with a structured sales team"
       },
       "scale": {
         "name": "Scale",
-        "description": "Multi-route operation, high order volume, analytics-driven"
+        "description": "High order volume, with sales analytics"
       },
       "enterprise": {
         "name": "Enterprise",
@@ -813,8 +753,8 @@
         "a": "Yes. As your active retail connections grow, you can move to a higher tier. Downgrades take effect at the next billing cycle."
       },
       "6": {
-        "q": "Do all plans include Marketplace and Driver?",
-        "a": "Yes. Every plan includes the full Lakupak loop (Dashboard, Marketplace buyer app, and Driver) with no feature gating by tier. Plans only differ by usage capacity (products, agents, drivers, orders, and similar limits)."
+        "q": "Do all plans include Dashboard and Marketplace?",
+        "a": "Yes. Every plan includes Dashboard and the Marketplace buyer app, with no feature gating by tier. Plans differ by usage capacity such as products, sales agents, and orders."
       },
       "7": {
         "q": "When should I choose Enterprise?",
@@ -850,11 +790,11 @@
         ]
       },
       "right": {
-        "main": "Bulk Savings & Fast Delivery",
+        "main": "A rate for every retailer",
         "sub": [
-          "Save up to ",
-          "30%",
-          " on every order"
+          "",
+          "Your rate",
+          " on the purchase order"
         ]
       }
     },
@@ -879,8 +819,8 @@
           "desc": "See which products perform best and optimize your offers."
         },
         "5": {
-          "label": "Promotions & Bulk Deals",
-          "desc": "Run offers and bulk deals to boost sales."
+          "label": "Per-retailer offer rates",
+          "desc": "Set a rate for each retailer without changing the catalog price other shops see."
         },
         "title": "Sell Smarter, Grow Faster (For Distributors)"
       },
@@ -890,8 +830,8 @@
           "desc": "Multiple suppliers, one cart, one payment."
         },
         "2": {
-          "label": "Exclusive Wholesale Pricing",
-          "desc": "Bulk deals and seasonal promos you can’t find elsewhere."
+          "label": "Your own offer rate",
+          "desc": "Browse the catalog base price. Your rate is the one on the purchase order."
         },
         "3": {
           "label": "Real-Time Stock Updates",
@@ -902,8 +842,8 @@
           "desc": "Pay instantly or apply for trade credit."
         },
         "5": {
-          "label": "Fast, Reliable Delivery",
-          "desc": "Optimized routes and consolidated shipments save time and money."
+          "label": "Order from the catalog",
+          "desc": "Place the order at your rate. Other shops do not see your terms."
         },
         "title": "Buy Better, Save More (For Retailers)"
       }
@@ -927,7 +867,7 @@
       "4": {
         "name": "Siti Nurhaliza",
         "role": "Owner, Warung Makmur",
-        "text": "Ordering is now so easy! I get better prices and faster delivery. My customers are happier too."
+        "text": "Ordering is easier now. I see the catalog price, and my rate is the one on the order."
       },
       "5": {
         "name": "Budi Santoso",
@@ -951,8 +891,8 @@
         "desc": "Distributors list products, retailers browse and compare options"
       },
       "3": {
-        "title": "Order & track seamlessly",
-        "desc": "Place orders, track deliveries, and manage your business all in one place"
+        "title": "Order at their rate",
+        "desc": "Retailers order from the catalog base price. Their offer rate lands on the purchase order."
       },
       "title": "Get Started in 3 Simple Steps",
       "subtitle": "Join thousands of distributors and retailers already using Lakupak"
@@ -974,11 +914,11 @@
       "3": "Even if there were no waiting lines, that amount of products offered is beyond their capability of memorization. Under every visit sits a stack of tools that never helps the next one. Product lists live in spreadsheets. Orders arrive as WhatsApp threads. Payments get confirmed by phone. Stock sits in handwritten notes. None of it answers the questions that actually decide a sales round: who to call today, who is overdue for a reorder, and what price this retailer is entitled to. Every shop negotiates its own terms, and no spreadsheet was built to hold that. So the team does not sell smarter. They sell blind, stop after stop, hoping this one lands better than the last.",
       "4": "Retailers pay for that blindness too. A warung or kiosk lives on the distributor who supplies it. Too often they cannot tell when an order will arrive, or whether it will arrive at all. They also cannot tell who will show up to sell, or when. On a thin margin, an unreliable sales relationship hurts as much as an unreliable delivery.",
       "5": "That is when the real problem came into focus. This was not distribution in the abstract. Nobody was helping a sales team decide who to reach, and how. Messy stock and guessed shipments were symptoms. <b>The root was sales execution with no intelligence behind it.</b>",
-      "6": "I built Lakupak from the sale outward. Commercialization, efficiency, and a sales team empowered to know its next move: which retailer to reach, what to offer them, and when. That read sits on the distributor’s own relationships, catalog, and order history, and it leaves every retailer’s price and terms intact. Once the sale is that sharp, the rest of the business gets efficient with it. Logistics moves on demand that is already known. The marketplace fills with orders that were meant to happen. Relationship-driven trade stays alive because every visit has a reason. Lakupak is AI-native because this is a prioritization and timing problem. That is the kind of problem AI is actually good at.",
+      "6": "I built Lakupak from the sale outward. Commerce and a sales team that knows its next move: which retailer to reach, what rate to offer them, and when. That read sits on the distributor’s own relationships, catalog, and order history, and it leaves every retailer’s price and terms intact. The marketplace shows the catalog base price. The retailer’s rate is what lands on the purchase order. Relationship-driven trade stays alive because every visit has a reason. Lakupak is AI-native because this is a prioritization and timing problem. That is the kind of problem AI is actually good at.",
       "7": "The name carries the same idea. In Indonesian, <b>laku</b> means both a sale and movement. Trade only moves when the right sale reaches the right retailer at the right time. Lakupak exists to make that movement deliberate, not accidental.",
       "8": "A sales team should not have to work harder to grow. They should know where the demand already is. Lakupak gives that back: the confidence to know who to sell to next.",
       "vision": "That is where Lakupak began.",
-      "mission": "We are only at the start. The mission is still simple. Fix sales first. Inventory, logistics, and growth all depend on getting that right.",
+      "mission": "We are only at the start. The mission is still simple. Fix sales first. Catalog, orders, and growth all depend on getting that right.",
       "end": "And this is just the start."
     },
     "carousel": {
@@ -988,7 +928,7 @@
       },
       "2": {
         "title": "Our Vision",
-        "content": "Empower Indonesia’s distribution and logistics ecosystem, starting from sales itself. A sharper sale is what lets distribution, logistics, and the relationships around them move with purpose."
+        "content": "Empower Indonesia’s commerce, starting from sales itself. A sharper sale is what lets catalog, orders, and the relationships around them move with purpose."
       },
       "3": {
         "1": "Sales teams should work smarter, not harder.",
@@ -1003,7 +943,7 @@
     },
     "cta": {
       "title": "Fix the sales problem first.",
-      "subtitle": "Inventory, logistics, and growth all depend on a sales team that knows who to sell to next.",
+      "subtitle": "Catalog, orders, and growth all depend on a sales team that knows who to sell to next.",
       "button": "See Our Solutions"
     }
   },

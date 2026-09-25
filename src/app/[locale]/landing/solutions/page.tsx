@@ -11,8 +11,8 @@ import {
   Gift,
   ShoppingCart,
   Store,
+  Tag,
   TrendingUp,
-  Truck,
 } from 'lucide-react';
 import { AuthDecorativeBackground } from '@/components/auth/AuthDecorativeBackground';
 import {
@@ -25,7 +25,7 @@ import { Reveal } from '../Reveal';
 const ErrorBoundary = createErrorBoundary('Solutions');
 
 const DISTRIBUTOR_ICONS = [Store, BarChart2, FileText, TrendingUp, Gift] as const;
-const RETAILER_ICONS = [ShoppingCart, Store, Clock, CreditCard, Truck] as const;
+const RETAILER_ICONS = [ShoppingCart, Store, Clock, CreditCard, Tag] as const;
 
 /** Normalize badge sub-copy to [prefix, emphasis, suffix]; avoids rendering undefined. */
 function badgeSubParts(raw: unknown): [string, string, string] {

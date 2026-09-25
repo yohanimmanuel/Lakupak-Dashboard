@@ -24,6 +24,7 @@ function pickVariantOption<
 function buildOfferSnapshots(
   baseUnitPrice: number,
   offer: ResolvedOffer | null,
+  moq: number | null,
 ): {
   unitPrice: number;
   offerApplied: boolean;
@@ -79,7 +80,8 @@ function buildOfferSnapshots(
       ? JSON.stringify({
           minQuantity: applied.promotionDetails.buyQuantity,
           freeQuantity: applied.promotionDetails.freeQuantity,
-          applyMode: 'after_moq',
+          applyMode: applied.promotionDetails.applyMode,
+          moq: moq != null && moq > 0 ? moq : null,
         })
       : null,
   };
@@ -179,7 +181,11 @@ export async function syncOrderItemPricingFromCatalog(params: {
 
     if (!(baseUnitPrice > 0) && !offer) continue;
 
-    const snapshots = buildOfferSnapshots(baseUnitPrice, offer);
+    const moq =
+      item.moqSnapshot != null && item.moqSnapshot > 0
+        ? item.moqSnapshot
+        : (variantOption as { moq?: number | null } | null)?.moq ?? null;
+    const snapshots = buildOfferSnapshots(baseUnitPrice, offer, moq);
     const piecesPerPackage = Math.max(1, Number(item.piecesPerPackage) || 1);
     const packageQuantity = Math.max(1, Number(item.packageQuantity) || 1);
     const pricePerPackage = snapshots.unitPrice * piecesPerPackage;

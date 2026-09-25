@@ -7,7 +7,6 @@ import {
   Megaphone,
   Store,
   BarChart3,
-  Truck,
   Zap,
 } from 'lucide-react';
 
@@ -19,12 +18,11 @@ export type FeatureModuleSlug =
   | 'marketing'
   | 'marketplace'
   | 'analytics'
-  | 'automations'
-  | 'logistics';
+  | 'automations';
 
-export type FeatureMenuGroup = 'sell' | 'grow' | 'deliver';
+export type FeatureMenuGroup = 'sell' | 'grow';
 
-export type LakuSurface = 'dashboard' | 'marketplace' | 'driver';
+export type LakuSurface = 'dashboard' | 'marketplace';
 
 export type FeatureModuleDef = {
   slug: FeatureModuleSlug;
@@ -56,16 +54,15 @@ export const FEATURE_MODULES: FeatureModuleDef[] = [
     pointsCount: 5,
     highlightsCount: 3,
   },
-  { slug: 'orders', group: 'sell', icon: ShoppingCart, surfaces: ['dashboard', 'marketplace', 'driver'], pointsCount: 4, highlightsCount: 3 },
+  { slug: 'orders', group: 'sell', icon: ShoppingCart, surfaces: ['dashboard', 'marketplace'], pointsCount: 4, highlightsCount: 3 },
   { slug: 'offers', group: 'sell', icon: Tag, surfaces: ['dashboard', 'marketplace'], pointsCount: 4, highlightsCount: 3 },
   { slug: 'marketing', group: 'grow', icon: Megaphone, surfaces: ['dashboard'], pointsCount: 3, highlightsCount: 3 },
   { slug: 'marketplace', group: 'grow', icon: Store, featured: true, surfaces: ['dashboard', 'marketplace'], pointsCount: 4, highlightsCount: 3 },
   { slug: 'analytics', group: 'grow', icon: BarChart3, surfaces: ['dashboard'], pointsCount: 4, highlightsCount: 3 },
   { slug: 'automations', group: 'grow', icon: Zap, surfaces: ['dashboard'], pointsCount: 5, highlightsCount: 3 },
-  { slug: 'logistics', group: 'deliver', icon: Truck, surfaces: ['dashboard', 'driver'], pointsCount: 4, highlightsCount: 3 },
 ];
 
-export const FEATURE_MENU_GROUPS: FeatureMenuGroup[] = ['sell', 'grow', 'deliver'];
+export const FEATURE_MENU_GROUPS: FeatureMenuGroup[] = ['sell', 'grow'];
 
 export function getFeatureModule(slug: string): FeatureModuleDef | undefined {
   return FEATURE_MODULES.find((m) => m.slug === slug);

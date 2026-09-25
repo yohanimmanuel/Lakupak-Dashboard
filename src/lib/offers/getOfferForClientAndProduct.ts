@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient } from '@/lib/db';
+import { normalizePromotionApplyMode } from '@/utils/promotionUtils';
 import { getStartOfDay, getEndOfDay } from '@/lib/dateUtils';
 import { prisma as defaultPrisma } from '@/app/api/graphql/modules/common/prisma';
 
@@ -20,6 +21,7 @@ export type ResolvedOffer = {
   discountValue: number;
   buyQuantity: number | null;
   freeQuantity: number | null;
+  promotionApplyMode: 'from_zero' | 'after_moq';
   startDate: Date;
   endDate: Date | null;
   status: string;
@@ -38,6 +40,7 @@ export type AppliedOfferPrice = {
     buyQuantity: number;
     discountValue: number;
     freeQuantity: number;
+    applyMode: 'from_zero' | 'after_moq';
   } | null;
 };
 
@@ -63,6 +66,7 @@ function mapOffer(row: {
   discountValue: unknown;
   buyQuantity: number | null;
   freeQuantity?: number | null;
+  promotionApplyMode?: string | null;
   startDate: Date;
   endDate: Date | null;
   status: string;
@@ -80,6 +84,7 @@ function mapOffer(row: {
     discountValue: toNumber(row.discountValue),
     buyQuantity: row.buyQuantity,
     freeQuantity: row.freeQuantity ?? null,
+    promotionApplyMode: normalizePromotionApplyMode(row.promotionApplyMode),
     startDate: row.startDate,
     endDate: row.endDate,
     status: row.status,
@@ -214,7 +219,7 @@ export function applyOfferToPrice(
   offer: Pick<
     ResolvedOffer,
     'discountType' | 'discountValue' | 'buyQuantity' | 'freeQuantity'
-  >,
+  > & { promotionApplyMode?: string | null },
 ): AppliedOfferPrice {
   const base = Number.isFinite(basePrice) ? Math.max(0, basePrice) : 0;
   const value = Number.isFinite(offer.discountValue) ? offer.discountValue : 0;
@@ -253,6 +258,7 @@ export function applyOfferToPrice(
           buyQuantity: buyQty,
           discountValue: freeQty,
           freeQuantity: freeQty,
+          applyMode: normalizePromotionApplyMode(offer.promotionApplyMode),
         }
       : null;
 

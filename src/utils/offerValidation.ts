@@ -151,6 +151,7 @@ export async function validateOfferForProduct(
         ? {
             minQuantity: buyQty,
             freeQuantity: freeQty,
+            applyMode: applied.promotionDetails?.applyMode ?? 'after_moq',
             description: `Buy ${buyQty} get ${freeQty}`,
           }
         : undefined,

@@ -827,6 +827,7 @@ model Offer {
   discountValue      Decimal   @db.Decimal(10, 2)
   buyQuantity        Int? // required when buy_x_get_y; also set for combo with price discount
   freeQuantity       Int? // get-Y for buy_x_get_y / combo; null when price-only
+  promotionApplyMode String    @default("after_moq") // from_zero = count free pieces before MOQ; after_moq = only above MOQ
   startDate          DateTime  @db.Timestamptz(3)
   endDate            DateTime? @db.Timestamptz(3) // null = standing/indefinite
   status             String    @default("draft") // draft | active | expired

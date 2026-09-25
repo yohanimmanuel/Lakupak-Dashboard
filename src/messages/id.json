@@ -20,13 +20,12 @@
       "modulesLabel": "Modul",
       "groups": {
         "sell": "Jual",
-        "grow": "Tumbuh",
-        "deliver": "Kirim"
+        "grow": "Tumbuh"
       }
     },
     "hub": {
-      "title": "Setiap modul untuk menjalankan distribusi di Lakupak",
-      "subtitle": "Dari manajemen klien hingga pengiriman dan automasi, jelajahi loop lengkap di Dashboard, Marketplace, dan Driver.",
+      "title": "Setiap modul untuk perdagangan dan penjualan di Lakupak",
+      "subtitle": "Klien, katalog, tarif penawaran per retailer, pesanan, dan tim penjualan, di Dashboard dan Marketplace.",
       "exploreMore": "Jelajahi modul lainnya"
     },
     "overview": {
@@ -38,8 +37,7 @@
       "unlocksLabel": "Apa yang terbuka",
       "surfaces": {
         "dashboard": "Dashboard",
-        "marketplace": "Marketplace",
-        "driver": "Driver"
+        "marketplace": "Marketplace"
       }
     },
     "clients": {
@@ -75,7 +73,7 @@
         },
         "3": {
           "title": "Profil lengkap siap operasional",
-          "desc": "Catat detail toko atau perusahaan, pemilik, telepon, email, alamat, jenis usaha, preferensi logistik, dan catatan, dengan bilah kelengkapan yang menandai field yang belum diisi."
+          "desc": "Catat detail toko atau perusahaan, pemilik, telepon, email, alamat, jenis usaha, dan catatan, dengan bilah kelengkapan yang menandai field yang belum diisi."
         },
         "4": {
           "title": "Riwayat pesanan di setiap pembeli",
@@ -83,7 +81,7 @@
         },
         "5": {
           "title": "Baris pemasok dan analitik pembelian",
-          "desc": "Catat SKU, volume, dan nilai pembelian per pemasok, lalu tinjau grafik pasokan dan pembelian bulanan plus sinyal pengiriman tepat waktu di daftar."
+          "desc": "Catat SKU, volume, dan nilai pembelian per pemasok, lalu tinjau grafik pasokan dan pembelian bulanan di daftar."
         }
       }
     },
@@ -104,8 +102,8 @@
             "desc": "Setiap kombinasi ukuran atau rasa punya SKU, harga jual, minimum order quantity, dan stok per piece yang wajib dipenuhi saat checkout."
           },
           "3": {
-            "title": "Penawaran yang mengubah harga live",
-            "desc": "Lampirkan promo ke produk. Deal aktif memperbarui harga katalog dan mengunci varian agar integritas penawaran tetap terjaga di kartu Marketplace."
+            "title": "Tarif untuk setiap retailer",
+            "desc": "Lampirkan tarif penawaran ke seorang retailer. Kartu Marketplace tetap menampilkan harga dasar katalog."
           }
         }
       },
@@ -123,8 +121,8 @@
           "desc": "Tampilkan Halal, BPOM, jaminan produk original, dan hari kebijakan retur di detail produk agar retailer lebih yakin memesan."
         },
         "4": {
-          "title": "Harga live yang aman untuk penawaran",
-          "desc": "Saat promo aktif, Lakupak mengunci varian dan memperbarui harga jual dari penawaran agar deal konsisten sampai Anda melepasnya."
+          "title": "Harga dasar di etalase",
+          "desc": "Produk yang terbit menampilkan harga dasar katalog. Tarif retailer berlaku di pesanan pembelian mereka, bukan sebagai perubahan harga publik."
         },
         "5": {
           "title": "Stok yang mengikuti pesanan",
@@ -134,83 +132,83 @@
     },
     "orders": {
       "menuLabel": "Pesanan",
-      "title": "Pesanan dari Marketplace ke Driver",
-      "subtitle": "Bawa permintaan grosir dari checkout ke satu pipeline Dashboard, lalu serahkan ke armada dengan bukti pembayaran, POD, dan retur di jejak yang sama.",
+      "title": "Pesanan dari marketplace ke penjualan",
+      "subtitle": "Checkout retailer masuk ke satu pipeline Dashboard, dengan bukti pembayaran, status, dan harga yang tersimpan di pesanan itu.",
       "placeholder": "Pratinjau modul pesanan. Ganti gambar",
       "overview": {
-        "summary": "Pesanan adalah tulang punggung pemenuhan Lakupak. Checkout Marketplace masuk ke Dashboard segera, sales dan ops berbagi satu jalur status, stok dan data pembeli bergerak mengikuti pesanan, dan armada menutup pengiriman dengan bukti yang bisa diaudit.",
+        "summary": "Pesanan adalah tulang punggung perdagangan Lakupak. Checkout Marketplace masuk ke Dashboard segera, penjualan dan operasional berbagi satu jalur status, dan stok serta data pembeli bergerak mengikuti pesanan.",
         "highlights": {
           "1": {
             "title": "Marketplace ke satu jalur pemenuhan",
-            "desc": "Checkout retailer menjadi pesanan live di Dashboard dengan status bersama untuk sales, ops, dan logistik."
+            "desc": "Checkout retailer menjadi pesanan live di Dashboard dengan satu status untuk penjualan dan operasional."
           },
           "2": {
             "title": "Stok dan pembeli yang bergerak dengan pesanan",
             "desc": "Konfirmasi, batal, atau retur menyesuaikan inventori, dan pembeli Marketplace mengisi profil Klien serta riwayat belanja tanpa entri ulang."
           },
           "3": {
-            "title": "Serah terima Driver dengan bukti yang bisa diaudit",
-            "desc": "Tugaskan armada, kumpulkan foto POD atau bukti gagal, dan tutup retur dari penjemputan hingga konfirmasi gudang."
+            "title": "Harga yang disepakati tetap di pesanan",
+            "desc": "Setiap pesanan menyimpan harga dasar saat dibuat, dan tarif retailer setelah harga itu dikirim."
           }
         }
       },
       "points": {
         "1": {
           "title": "Status yang dibagikan semua orang",
-          "desc": "Satu pipeline dari Pending hingga Delivered, dengan notifikasi pembeli dan driver pada status yang sama, bukan chat paralel."
+          "desc": "Satu pipeline dari pending hingga selesai, agar penjualan dan pembeli melihat status pesanan yang sama."
         },
         "2": {
           "title": "Bukti pembayaran, bukan menebak",
           "desc": "Pembeli mengunggah bukti transfer untuk ditinjau, atau bayar COD, agar tim menandai Paid setelah verifikasi."
         },
         "3": {
-          "title": "POD saat pengiriman dan retur",
-          "desc": "Tangkap bukti di Driver atau Dashboard agar pesanan Delivered, Received, dan Returned punya jejak file."
+          "title": "Harga tersimpan bersama pesanan",
+          "desc": "Baris pesanan menyimpan harga dasar katalog dari checkout. Perubahan katalog kemudian tidak menulis ulang pesanan itu."
         },
         "4": {
-          "title": "Pemenuhan siap armada",
-          "desc": "Kerja Packed dan Shipped diserahkan ke Lakupak Driver untuk Mulai dan Selesaikan Pengiriman tanpa mengetik ulang pesanan."
+          "title": "Tindak lanjut tetap di penjualan",
+          "desc": "Pesanan yang sama adalah yang dikerjakan tim penjualan, di samping retailer dan katalog."
         }
       }
     },
     "offers": {
       "menuLabel": "Penawaran",
-      "title": "Penawaran yang menulis ulang harga katalog live",
-      "subtitle": "Tempalkan diskon persen, nominal tetap, atau Buy X Get Y ke produk agar kartu Marketplace menampilkan promo sambil harga dan varian tetap aman untuk deal.",
+      "title": "Tarif untuk setiap retailer",
+      "subtitle": "Atur tarif persen, nominal tetap, atau Buy X Get Y untuk setiap retailer. Katalog tetap pada harga dasar. Tarif toko itu berlaku di pesanan pembelian mereka.",
       "placeholder": "Pratinjau modul penawaran. Ganti gambar",
       "overview": {
-        "summary": "Penawaran menempel pada katalog produk Anda. Jadwalkan diskon atau Buy X Get Y, tulis ulang harga jual live saat deal uang aktif, kunci varian terhubung selama promo berjalan, dan tampilkan badge di kartu produk Marketplace.",
+        "summary": "Penawaran bersifat per retailer, bukan perubahan harga publik. Beri tarif ke pembeli dan produk atau kategori. Kartu Marketplace tetap menampilkan harga dasar katalog. Saat retailer itu memesan, tarif mereka yang masuk ke pesanan pembelian.",
         "highlights": {
           "1": {
-            "title": "Harga daftar live dari deal aktif",
-            "desc": "Penawaran persen dan nominal tetap menulis ulang harga jual Marketplace dan menampilkan harga asli sebagai coret."
+            "title": "Satu toko, satu tarif",
+            "desc": "SKU yang sama bisa punya tarif berbeda untuk setiap retailer. Toko lain tetap melihat harga dasar katalog."
           },
           "2": {
-            "title": "Kunci integritas deal",
-            "desc": "Produk terhubung tidak bisa diam-diam mengubah varian atau harga sampai penawaran dilepas atau dinonaktifkan."
+            "title": "Etalase tetap harga dasar",
+            "desc": "Mengaktifkan penawaran tidak menulis ulang kartu Marketplace. Tarif menunggu pesanan pembelian retailer itu."
           },
           "3": {
-            "title": "Jadwal ke etalase",
-            "desc": "Jendela tanggal otomatis menjadwalkan, mengaktifkan, dan mengakhiri agar badge Diskon dan Promosi muncul di SKU terbit saat deal live."
+            "title": "Jendela yang Anda kendalikan",
+            "desc": "Atur mulai dan akhir agar tarif hanya aktif selama Anda ingin retailer itu memesan dengan syarat tersebut."
           }
         }
       },
       "points": {
         "1": {
-          "title": "Tiga struktur deal di satu tempat",
-          "desc": "Bangun potongan persen, potongan tetap, dan Buy X Get Y dengan paket gratis sadar MOQ, lalu tempelkan ke SKU katalog yang sudah dibrowse retailer."
+          "title": "Tiga cara mengatur tarif",
+          "desc": "Pakai persen, nominal tetap, atau Buy X Get Y, terikat ke retailer itu dan produk yang mereka beli."
         },
         "2": {
-          "title": "Katalog tetap sumber kebenaran",
-          "desc": "Promosi menempel di produk. Diskon uang memperbarui harga daftar otomatis, dan struktur terkunci selama deal berjalan."
+          "title": "Harga katalog tetap acuan",
+          "desc": "Retailer melihat harga dasar. Tarif mereka sendiri tidak mengubah apa yang dilihat toko lain."
         },
         "3": {
-          "title": "Urgensi terlihat pembeli di Marketplace",
-          "desc": "Produk terbit menampilkan badge penawaran, harga coret saat diskon berlaku, dan label Buy X Get Y tanpa situs promo terpisah."
+          "title": "Tarif masuk ke pesanan pembelian",
+          "desc": "Saat retailer itu memesan, pesanan pembelian memakai tarif mereka. Anda mengirim harga saat ingin mengonfirmasinya."
         },
         "4": {
-          "title": "Lihat apa yang ditebus",
-          "desc": "Lacak penggunaan dan redemption pada setiap penawaran agar Anda tahu promo mana yang benar-benar menggerakkan volume."
+          "title": "Lihat tarif mana yang terpakai",
+          "desc": "Lacak penggunaan dan diskon yang diberikan pada setiap penawaran agar Anda tahu tarif retailer mana yang menggerakkan volume."
         }
       }
     },
@@ -269,7 +267,7 @@
           },
           "3": {
             "title": "Loop grosir mobile untuk retailer",
-            "desc": "Pembeli browse, follow distributor, belanja penawaran, dan pasang order sadar MOQ yang masuk ke Pesanan Dashboard Anda."
+            "desc": "Pembeli melihat harga dasar katalog, follow distributor, dan memasang order sadar MOQ yang masuk ke Dashboard."
           }
         }
       },
@@ -280,11 +278,11 @@
         },
         "2": {
           "title": "Jalur aplikasi pembeli ke checkout",
-          "desc": "Retailer dari Home, Categories, dan Search ke detail produk, lalu Add to Cart atau Buy Now dengan gerbang MOQ, transfer bank atau COD, dan aturan pengiriman Anda."
+          "desc": "Retailer dari Home, Categories, dan Search ke detail produk, lalu Add to Cart atau Buy Now pada harga dasar katalog, dengan gerbang MOQ serta transfer bank atau COD."
         },
         "3": {
           "title": "Pesanan yang mencerminkan Dashboard",
-          "desc": "Tab pesanan mobile mencakup bayar, kirim, terima, nilai, retur, dan batal, dengan unduhan invoice dan timeline pengiriman yang mengisi tulang punggung pesanan yang sama."
+          "desc": "Tab pesanan mobile mencakup pembayaran, penerimaan, penilaian, retur, dan batal, pada pesanan yang sama yang dilihat tim penjualan di Dashboard."
         },
         "4": {
           "title": "Profil storefront untuk pembeli",
@@ -310,7 +308,7 @@
           },
           "3": {
             "title": "Pemenuhan dan kesehatan stok",
-            "desc": "Monitor tingkat penyelesaian, waktu proses, cakupan tracking, kesehatan inventori, dan bauran metode pengiriman."
+            "desc": "Monitor tingkat penyelesaian, waktu proses, cakupan pesanan, dan kesehatan inventori."
           }
         }
       },
@@ -336,10 +334,10 @@
     "automations": {
       "menuLabel": "Automasi",
       "title": "Automasi workflow yang ter-scope ke Lakupak",
-      "subtitle": "Bangun workflow berbasis trigger seperti engine SaaS lain, tetapi ter-scope ke distribusi: katalog dan penawaran, klien, pesanan dan logistik, serta penjualan.",
+      "subtitle": "Bangun workflow berbasis trigger untuk perdagangan dan penjualan: katalog dan penawaran, klien, pesanan, dan tim penjualan.",
       "placeholder": "Pratinjau modul Automasi. Ganti gambar",
       "overview": {
-        "summary": "Automasi adalah workflow engine Lakupak untuk distribusi ecommerce. Rancang alur trigger-ke-aksi untuk penawaran produk, follow-up lead dan klien, logistik pesanan, dan penjualan, lalu jalankan sebagai workflow aktif, dijeda, atau draf yang dikontrol tim Anda.",
+        "summary": "Automasi adalah workflow engine Lakupak untuk perdagangan dan penjualan. Rancang alur trigger-ke-aksi untuk penawaran, follow-up klien, pesanan, dan penjualan, lalu jalankan sebagai workflow aktif, dijeda, atau draf yang dikontrol tim Anda.",
         "highlights": {
           "1": {
             "title": "Workflow engine untuk distribusi",
@@ -347,7 +345,7 @@
           },
           "2": {
             "title": "Ter-scope ke loop Lakupak",
-            "desc": "Otomatiskan produk dan penawaran, lead klien, logistik pesanan, dan penjualan di dalam platform yang sudah Anda operasikan."
+            "desc": "Otomatiskan katalog dan tarif per retailer, follow-up klien, pesanan, dan penjualan di dalam platform yang sudah Anda operasikan."
           },
           "3": {
             "title": "Trigger menggantikan kejar-kejaran",
@@ -362,60 +360,19 @@
         },
         "2": {
           "title": "Alur produk dan penawaran",
-          "desc": "Otomatiskan rutinitas katalog dan promosi agar harga dan follow-up deal tetap konsisten dengan yang dilihat retailer."
+          "desc": "Otomatiskan rutinitas katalog dan penawaran agar tarif setiap retailer tetap konsisten dengan cara Anda menjual."
         },
         "3": {
           "title": "Follow-up klien dan lead",
           "desc": "Jaga kerja jaringan pembeli dan pemasok tetap bergerak dengan workflow yang mendukung follow-up lead dan akun."
         },
         "4": {
-          "title": "Serah terima pesanan dan logistik",
-          "desc": "Hubungkan langkah pemenuhan agar rutinitas pesanan dan armada bisa maju tanpa koordinasi manual setiap saat."
+          "title": "Tindak lanjut pesanan",
+          "desc": "Majukan rutinitas pesanan dari pesanan pembelian yang sama, tanpa mengetik ulang langkah di chat."
         },
         "5": {
           "title": "Kontrol aktif, dijeda, dan draf",
           "desc": "Kelola status workflow, jumlah run, dan riwayat run terakhir agar Anda tahu mana yang live dan mana yang menunggu."
-        }
-      }
-    },
-    "logistics": {
-      "menuLabel": "Logistik dan Driver",
-      "title": "Armada dengan Lakupak Driver di lapangan",
-      "subtitle": "Bangun trip dari pesanan, beri kredensial dan rute ke driver, dan jaga POD, GPS, serta status tetap sinkron untuk ops dan pembeli.",
-      "placeholder": "Pratinjau Logistik dan aplikasi Driver. Ganti gambar",
-      "overview": {
-        "summary": "Logistik mengubah pesanan terkonfirmasi menjadi trip armada. Tugaskan kendaraan dan driver, urutkan stop, dan jalankan pengiriman di aplikasi Lakupak Driver dengan foto POD, bukti gagal, dan lokasi live yang mengisi visibilitas Dashboard dan Marketplace.",
-        "highlights": {
-          "1": {
-            "title": "Trip armada dari pesanan",
-            "desc": "Bangun trip dengan kendaraan, kredensial driver, dan pesanan yang ditugaskan dalam satu wizard."
-          },
-          "2": {
-            "title": "Lakupak Driver di lapangan",
-            "desc": "Driver mendapat rute, update status, foto POD, dan bukti gagal di aplikasi mobile."
-          },
-          "3": {
-            "title": "Visibilitas pengiriman live",
-            "desc": "Dashboard dan Marketplace tetap selaras saat GPS dan status sinkron selama trip berjalan."
-          }
-        }
-      },
-      "points": {
-        "1": {
-          "title": "Armada aktif dan driver di satu tempat",
-          "desc": "Filter trip dan buka ringkasan, kendaraan, driver, serta detail pelanggan tanpa meninggalkan Logistik."
-        },
-        "2": {
-          "title": "Kredensial yang Anda terbitkan",
-          "desc": "Buat login driver di Logistik untuk aplikasi Lakupak Driver. Akses dikelola distributor, bukan self-signup terbuka."
-        },
-        "3": {
-          "title": "Mulai, selesaikan, atau laporkan gagal",
-          "desc": "Packed ke Mulai Pengiriman ke Shipped, lalu foto POD ke Delivered, atau gagal dengan alasan dan bukti foto."
-        },
-        "4": {
-          "title": "Lokasi live tanpa kejar telepon",
-          "desc": "Update GPS dan status menjaga ops dan pembeli tetap terinformasi; aksi offline bisa mengantri sampai driver terhubung kembali."
         }
       }
     }
@@ -423,9 +380,9 @@
   "landing": {
     "hero": {
       "badge": "Platform Perdagangan B2B E-commerce FMCG",
-      "titleBefore": "Satu Platform. Satukan Operasi. Perluas Jaringan. ",
-      "titleAccent": "Scale Lebih Cepat",
-      "subtitle": "Masih kelola bisnis di sistem terpisah dan pengiriman tanpa visibilitas? Lakupak menyatukan bisnis Anda di dashboard, marketplace, dan aplikasi driver agar perdagangan FMCG berjalan jelas, terpercaya, dan terkendali.",
+      "titleBefore": "Berhenti Menjual Buta. Tutup Lebih Banyak. ",
+      "titleAccent": "Tumbuh Lebih Cepat.",
+      "subtitle": "Platform perdagangan dan penjualan berbasis AI yang membantu Anda tahu persis retailer mana yang siap membeli, apa yang ditawarkan, dan kapan. Dibangun di atas katalog, harga per retailer, dan riwayat pesanan Anda sendiri. Satu dashboard untuk operasional dan tim penjualan, satu marketplace untuk retailer Anda.",
       "cta": "Coba gratis",
       "learnmore": "Jelajahi marketplace",
       "productPlaceholder": "Pratinjau dashboard. Ganti dengan gambar produk"
@@ -435,8 +392,8 @@
       "logoPlaceholder": "Logo mitra"
     },
     "platformMessage": {
-      "title": "Satu platform untuk menjalankan loop distribusi lengkap",
-      "subtitle": "Lakupak mengintegrasikan manajemen klien, katalog dan penawaran, pemesanan, penjualan, analitik, serta logistik, sehingga distributor dan pengecer dapat bekerja menggunakan sistem yang sama. Layanan SaaS kami didukung oleh agen AI yang memungkinkan pengguna menyusun alur kerja dan otomatisasi sendiri untuk menjalankan operasional bisnis sehari-hari secara otomatis."
+      "title": "Satu platform untuk perdagangan dan penjualan",
+      "subtitle": "Lakupak menyatukan manajemen klien, katalog, tarif penawaran per retailer, pesanan, penjualan, dan analitik agar distributor dan retailer bekerja dari sistem yang sama. Bangun workflow yang mengikuti penjualan, dari siapa yang dihubungi sampai tarif di pesanan pembelian mereka."
     },
     "features": {
       "selling": {
@@ -448,7 +405,7 @@
         },
         "products": {
           "title": "Produk dan penawaran",
-          "desc": "Kontrol katalog, harga, dan penawaran agar setiap toko melihat assortment yang tepat."
+          "desc": "Terbitkan harga dasar katalog, lalu atur tarif penawaran untuk setiap retailer."
         },
         "orders": {
           "title": "Pesanan",
@@ -466,15 +423,15 @@
           "desc": "Simpan agen dan peran di tempat retailer sudah berbelanja."
         },
         "2": {
-          "title": "Penawaran tertarget",
-          "desc": "Dorong deal yang tepat ke toko yang tepat pada waktu yang tepat."
+          "title": "Tarif per retailer",
+          "desc": "Beri setiap toko tarif penawarannya sendiri tanpa mengubah harga katalog yang dilihat toko lain."
         },
         "3": {
           "title": "Momentum reorder",
           "desc": "Jaga jaringan tetap aktif tanpa meninggalkan Lakupak."
         },
-        "title": "Penjualan yang mendorong pemesanan ulang",
-        "subtitle": "Atur tim penjualan dan promosi di dalam platform agar tindak lanjut tetap bersama retailer Anda.",
+        "title": "Penjualan yang tahu retailer berikutnya",
+        "subtitle": "Atur tim penjualan dan tarif penawaran setiap retailer agar tindak lanjut tetap bersama toko itu.",
         "placeholder": "Pratinjau penjualan. Ganti gambar"
       },
       "analytics": {
@@ -491,25 +448,8 @@
         },
         "operational": {
           "title": "Operasional",
-          "desc": "Monitor kecepatan pemenuhan, cakupan, dan kesehatan distribusi harian."
+          "desc": "Monitor alur pesanan, cakupan, dan kesehatan penjualan harian."
         }
-      },
-      "logistics": {
-        "1": {
-          "title": "Akses app driver",
-          "desc": "Driver mendapat rute dan konteks pesanan di lapangan."
-        },
-        "2": {
-          "title": "Penugasan armada",
-          "desc": "Cocokkan pengiriman ke armada yang tepat tanpa kejar-kejaran manual."
-        },
-        "3": {
-          "title": "Update pengiriman real-time",
-          "desc": "Lacak status saat barang bergerak agar retailer tahu apa yang datang."
-        },
-        "title": "Logistik dengan visibilitas pengiriman live",
-        "subtitle": "Beri akses app ke driver, tugaskan armada, dan bagikan update pengiriman real-time ke tim dan pembeli.",
-        "placeholder": "Pratinjau logistik. Ganti gambar"
       },
       "automations": {
         "title": "Otomasi Lakupak Agent untuk operasional harian",
@@ -520,7 +460,7 @@
         },
         "triggers": {
           "title": "Agen yang bereaksi ke event",
-          "desc": "Serahkan pekerjaan berulang ke trigger di penawaran, lead, pesanan, logistik, dan penjualan."
+          "desc": "Serahkan pekerjaan berulang ke trigger di penawaran, klien, pesanan, dan penjualan."
         },
         "control": {
           "title": "Aktifkan, jeda, dan lacak",
@@ -548,7 +488,7 @@
       "2": {
         "name": "Siti Nurhaliza",
         "role": "Pemilik, Warung Makmur",
-        "text": "Order lebih mudah, harga lebih jelas, dan update pengiriman menjaga rak tetap terisi."
+        "text": "Order lebih mudah, harga katalog jelas, dan tarif saya yang masuk ke pesanan pembelian."
       },
       "title": "Apa kata mereka"
     },
@@ -562,8 +502,8 @@
         "desc": "Distributor mempublikasikan katalog; retailer membandingkan opsi grosir."
       },
       "3": {
-        "title": "Order dan pantau",
-        "desc": "Pasang pesanan, lacak pengiriman, dan kelola operasi di satu tempat."
+        "title": "Pesan dengan tarif mereka",
+        "desc": "Retailer memesan dari harga dasar katalog. Tarif penawaran mereka yang masuk ke pesanan pembelian."
       },
       "title": "Mulai dalam tiga langkah",
       "subtitle": "Dari daftar akun hingga order aktif tanpa onboarding yang berbelit."
@@ -617,7 +557,7 @@
       "retailer": {
         "1": "Pesan Grosir Sekali Klik",
         "2": "Saran Restock Otomatis",
-        "3": "Update Pengiriman Real-Time",
+        "3": "Tarif penawaran Anda sendiri",
         "4": "Pengalaman Mobile-First",
         "5": "Pengalaman Belanja Cerdas",
         "title": "Marketplace Retailer",
@@ -687,13 +627,13 @@
         ]
       },
       {
-        "badge": "Realtime",
-        "title": "Update Pengiriman Real-Time",
-        "subtitle": "Pantau setiap pengiriman, setiap saat.",
+        "badge": "Tarif Anda",
+        "title": "Tarif untuk toko Anda",
+        "subtitle": "Lihat harga dasar katalog. Tarif penawaran Anda berlaku saat memesan.",
         "points": [
-          "Notifikasi instan untuk setiap order.",
-          "Lacak pengiriman dari gudang ke toko Anda.",
-          "Tidak pernah ketinggalan pengiriman lagi."
+          "Lihat harga dasar katalog sebelum memesan.",
+          "Tarif retailer Anda yang masuk ke pesanan pembelian.",
+          "Toko lain tidak melihat syarat Anda."
         ]
       },
       {
@@ -702,7 +642,7 @@
         "subtitle": "Order & pantau di mana saja.",
         "points": [
           "Pengalaman mulus di semua perangkat.",
-          "Order & pantau pengiriman kapan saja, di mana saja.",
+          "Pesan dari katalog kapan saja, di mana saja.",
           "Dapatkan dukungan & insight langsung dari ponsel."
         ]
       }
@@ -712,7 +652,7 @@
     "hero": {
       "badge": "Harga",
       "title": "Paket harga fleksibel untuk setiap kebutuhan",
-      "subtitle": "Pilih paket yang sesuai dengan skala jaringan ritel Anda. Setiap paket mencakup platform Lakupak penuh: Dashboard, Marketplace, dan Driver.",
+      "subtitle": "Pilih paket yang sesuai dengan jaringan ritel Anda. Setiap paket mencakup Dashboard dan Marketplace untuk perdagangan dan penjualan.",
       "trial": "Coba gratis 30 hari. Tidak perlu kartu kredit."
     },
     "toggle": {
@@ -738,15 +678,15 @@
     "tiers": {
       "starter": {
         "name": "Starter",
-        "description": "Grosir lokal, operasi digital awal, tim pengiriman kecil"
+        "description": "Grosir lokal yang mulai penjualan digital"
       },
       "growth": {
         "name": "Growth",
-        "description": "Distributor FMCG regional dengan penjualan dan armada terstruktur"
+        "description": "Distributor regional dengan tim penjualan yang terstruktur"
       },
       "scale": {
         "name": "Scale",
-        "description": "Operasi multi-rute, volume order tinggi, berbasis analitik"
+        "description": "Volume order tinggi, dengan analitik penjualan"
       },
       "enterprise": {
         "name": "Enterprise",
@@ -813,8 +753,8 @@
         "a": "Ya. Seiring bertambahnya koneksi ritel aktif, Anda dapat naik ke tier lebih tinggi. Downgrade berlaku pada siklus penagihan berikutnya."
       },
       "6": {
-        "q": "Apakah semua paket termasuk Marketplace dan Driver?",
-        "a": "Ya. Setiap paket mencakup loop Lakupak penuh (Dashboard, aplikasi pembeli Marketplace, dan Driver) tanpa pembatasan fitur per tier. Paket hanya berbeda pada kapasitas penggunaan (produk, agent, driver, pesanan, dan batas serupa)."
+        "q": "Apakah semua paket termasuk Dashboard dan Marketplace?",
+        "a": "Ya. Setiap paket mencakup Dashboard dan aplikasi pembeli Marketplace, tanpa pembatasan fitur per tier. Paket berbeda pada kapasitas penggunaan seperti produk, sales agent, dan pesanan."
       },
       "7": {
         "q": "Kapan saya harus memilih Enterprise?",
@@ -850,11 +790,11 @@
         ]
       },
       "right": {
-        "main": "Hemat Besar & Pengiriman Cepat",
+        "main": "Tarif untuk setiap retailer",
         "sub": [
-          "Hemat hingga ",
-          "30%",
-          " di setiap order"
+          "",
+          "Tarif Anda",
+          " di pesanan pembelian"
         ]
       }
     },
@@ -879,8 +819,8 @@
           "desc": "Lihat produk terlaris dan optimalkan penawaran."
         },
         "5": {
-          "label": "Promosi & Penawaran Grosir",
-          "desc": "Jalankan penawaran dan deal grosir untuk meningkatkan penjualan."
+          "label": "Tarif penawaran per retailer",
+          "desc": "Atur tarif untuk setiap retailer tanpa mengubah harga katalog yang dilihat toko lain."
         },
         "title": "Jual Lebih Cerdas, Tumbuh Lebih Cepat (Untuk Distributor)"
       },
@@ -890,8 +830,8 @@
           "desc": "Banyak supplier, satu keranjang, satu pembayaran."
         },
         "2": {
-          "label": "Harga Grosir Eksklusif",
-          "desc": "Promo grosir & diskon musiman khusus."
+          "label": "Tarif penawaran Anda sendiri",
+          "desc": "Lihat harga dasar katalog. Tarif Anda yang masuk ke pesanan pembelian."
         },
         "3": {
           "label": "Update Stok Real-Time",
@@ -902,8 +842,8 @@
           "desc": "Bayar langsung atau ajukan kredit usaha."
         },
         "5": {
-          "label": "Pengiriman Cepat & Andal",
-          "desc": "Rute optimal & pengiriman terjadwal."
+          "label": "Pesan dari katalog",
+          "desc": "Pasang pesanan dengan tarif Anda. Toko lain tidak melihat syarat Anda."
         },
         "title": "Belanja Lebih Baik, Hemat Lebih Banyak (Untuk Retailer)"
       }
@@ -927,7 +867,7 @@
       "4": {
         "name": "Siti Nurhaliza",
         "role": "Pemilik, Warung Makmur",
-        "text": "Order sekarang sangat mudah! Harga lebih baik, pengiriman lebih cepat, pelanggan lebih puas."
+        "text": "Order sekarang lebih mudah. Saya melihat harga katalog, dan tarif saya yang masuk ke pesanan."
       },
       "5": {
         "name": "Budi Santoso",
@@ -951,8 +891,8 @@
         "desc": "Distributor listing produk, retailer membandingkan & memilih"
       },
       "3": {
-        "title": "Order & pantau dengan mudah",
-        "desc": "Order, lacak pengiriman, dan kelola bisnis dalam satu platform"
+        "title": "Pesan dengan tarif mereka",
+        "desc": "Retailer memesan dari harga dasar katalog. Tarif penawaran mereka masuk ke pesanan pembelian."
       },
       "title": "Mulai dalam 3 Langkah Mudah",
       "subtitle": "Bergabunglah dengan ribuan distributor & retailer yang sudah pakai Lakupak"
@@ -974,11 +914,11 @@
       "3": "Bahkan jika tidak ada antrean, jumlah produk yang ditawarkan itu tetap di luar kemampuan mereka untuk menghafalnya. Di bawah setiap kunjungan ada tumpukan alat yang tidak membantu kunjungan berikutnya. Daftar produk ada di spreadsheet. Order masuk lewat utas WhatsApp. Pembayaran dikonfirmasi lewat telepon. Stok tercatat di kertas. Tidak ada yang menjawab pertanyaan yang benar-benar menentukan putaran penjualan: siapa yang harus dihubungi hari ini, siapa yang sudah telat reorder, dan harga apa yang berhak diterima retailer ini. Setiap toko punya syaratnya sendiri, dan tidak ada spreadsheet yang dibuat untuk menyimpannya. Jadi tim tidak menjual lebih cerdas. Mereka menjual secara buta, toko demi toko, berharap yang ini lebih baik dari yang tadi.",
       "4": "Retailer juga menanggung kebutaan itu. Warung atau kios hidup dari distributor yang memasoknya. Terlalu sering mereka tidak tahu kapan order datang, atau apakah order itu datang. Mereka juga tidak tahu siapa yang akan datang menjual, atau kapan. Pada margin yang tipis, hubungan penjualan yang tidak bisa diandalkan sama menyakitkannya dengan pengiriman yang tidak bisa diandalkan.",
       "5": "Di situlah masalah yang sebenarnya jadi jelas. Ini bukan soal distribusi secara abstrak. Tidak ada yang membantu tim penjualan memutuskan siapa yang harus dijangkau, dan bagaimana. Stok yang berantakan dan pengiriman yang ditebak hanyalah gejala. <b>Akarnya adalah eksekusi penjualan tanpa kecerdasan di belakangnya.</b>",
-      "6": "Saya membangun Lakupak mulai dari penjualan itu sendiri. Komersialisasi, efisiensi, dan tim penjualan yang berdaya untuk tahu langkah berikutnya: retailer mana yang harus dijangkau, apa yang ditawarkan, dan kapan. Bacaan itu berdiri di atas hubungan, katalog, dan riwayat order milik distributor itu sendiri, dan harga serta syarat setiap retailer tetap utuh. Jika penjualan sudah setajam itu, bagian lain bisnis ikut efisien. Logistik bergerak di atas permintaan yang sudah diketahui. Marketplace terisi oleh order yang memang seharusnya terjadi. Bisnis yang digerakkan hubungan tetap hidup karena setiap kunjungan punya alasan. Lakupak bersifat AI-native karena ini masalah prioritas dan waktu. Itulah jenis masalah yang memang bisa ditutup AI.",
+      "6": "Saya membangun Lakupak mulai dari penjualan itu sendiri. Perdagangan dan tim penjualan yang tahu langkah berikutnya: retailer mana yang harus dijangkau, tarif apa yang ditawarkan, dan kapan. Bacaan itu berdiri di atas hubungan, katalog, dan riwayat order milik distributor itu sendiri, dan harga serta syarat setiap retailer tetap utuh. Marketplace menampilkan harga dasar katalog. Tarif retailer yang masuk ke pesanan pembelian. Bisnis yang digerakkan hubungan tetap hidup karena setiap kunjungan punya alasan. Lakupak bersifat AI-native karena ini masalah prioritas dan waktu. Itulah jenis masalah yang memang bisa ditutup AI.",
       "7": "Namanya membawa ide yang sama. Dalam bahasa Indonesia, <b>laku</b> berarti penjualan sekaligus pergerakan. Perdagangan hanya bergerak ketika penjualan yang tepat sampai ke retailer yang tepat pada waktu yang tepat. Lakupak ada agar pergerakan itu disengaja, bukan kebetulan.",
       "8": "Tim penjualan tidak harus bekerja lebih keras untuk tumbuh. Mereka harus tahu di mana permintaan sudah ada. Lakupak mengembalikan itu: keyakinan untuk tahu kepada siapa harus menjual berikutnya.",
       "vision": "Dari situlah Lakupak dimulai.",
-      "mission": "Kami baru di awal. Misinya tetap sederhana. Perbaiki penjualan lebih dulu. Stok, logistik, dan pertumbuhan bergantung pada hal itu dilakukan dengan benar.",
+      "mission": "Kami baru di awal. Misinya tetap sederhana. Perbaiki penjualan lebih dulu. Katalog, pesanan, dan pertumbuhan bergantung pada hal itu dilakukan dengan benar.",
       "end": "Dan ini baru permulaan."
     },
     "carousel": {
@@ -988,7 +928,7 @@
       },
       "2": {
         "title": "Visi Kami",
-        "content": "Memberdayakan ekosistem distribusi dan logistik Indonesia, mulai dari penjualan itu sendiri. Penjualan yang lebih tajam membuat distribusi, logistik, dan hubungan di sekitarnya bergerak dengan tujuan."
+        "content": "Memberdayakan perdagangan Indonesia, mulai dari penjualan itu sendiri. Penjualan yang lebih tajam membuat katalog, pesanan, dan hubungan di sekitarnya bergerak dengan tujuan."
       },
       "3": {
         "1": "Tim penjualan harus bekerja lebih cerdas, bukan lebih keras.",
@@ -1003,7 +943,7 @@
     },
     "cta": {
       "title": "Perbaiki masalah penjualan lebih dulu.",
-      "subtitle": "Stok, logistik, dan pertumbuhan bergantung pada tim penjualan yang tahu kepada siapa harus menjual berikutnya.",
+      "subtitle": "Katalog, pesanan, dan pertumbuhan bergantung pada tim penjualan yang tahu kepada siapa harus menjual berikutnya.",
       "button": "Lihat Solusi Kami"
     }
   },

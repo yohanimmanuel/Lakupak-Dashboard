@@ -143,6 +143,7 @@ export async function getOrdersHandler(request: NextRequest) {
         promotionDetailsSnapshot: previewByItemId.has(oi.id)
           ? previewByItemId.get(oi.id)!.promotionDetailsSnapshot
           : oi.promotionDetailsSnapshot || null,
+        moqSnapshot: oi.moqSnapshot ?? null,
       }));
 
       const company = detailOrder.user?.company;
@@ -305,6 +306,7 @@ export async function getOrdersHandler(request: NextRequest) {
         promotionDetailsSnapshot: previewByItemId.has(oi.id)
           ? previewByItemId.get(oi.id)!.promotionDetailsSnapshot
           : oi.promotionDetailsSnapshot || null,
+        moqSnapshot: oi.moqSnapshot ?? null,
       }));
       return {
         ...order,

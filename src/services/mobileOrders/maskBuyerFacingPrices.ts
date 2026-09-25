@@ -55,7 +55,8 @@ function basePricePerPackage(item: BuyerPriceLine): number {
  * - the distributor has sent pricing, or
  * - the distributor shows discounted prices on submit
  *   (`autoApplyBasePriceForFirstBuyers`, kept as the column name).
- * Otherwise buyers see the catalog base price and no offer details.
+ * Otherwise buyers see the catalog base price, without the discount amount.
+ * Buy X Get Y stays on the line so the order list can show it beside the quantity.
  * Offer activate/deactivate stays on the distributor order until Send pricing.
  * A line without a base price zeros the order total so cards show "Pending price".
  */
@@ -79,6 +80,8 @@ export async function applyBuyerPriceVisibility<T extends BuyerPriceOrder>(
         ...item,
         subtotal: lineSubtotal,
         pricePerPackage,
+        // Keep the Buy X Get Y snapshot so the order list can show it beside qty.
+        // Price fields above stay the catalog base until Send pricing or the PO toggle.
         offerApplied: false,
         offerBadgeSnapshot: null,
         offerNameSnapshot: null,
@@ -86,7 +89,7 @@ export async function applyBuyerPriceVisibility<T extends BuyerPriceOrder>(
         originalPriceSnapshot: null,
         discountPercentage: null,
         discountAmount: null,
-        promotionDetailsSnapshot: null,
+        promotionDetailsSnapshot: item.promotionDetailsSnapshot ?? null,
       };
     });
 

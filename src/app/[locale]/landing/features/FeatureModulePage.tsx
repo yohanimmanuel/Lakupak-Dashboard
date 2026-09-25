@@ -20,6 +20,8 @@ type PointMediaConfig =
       orientation?: 'tl-br' | 'tr-bl';
       /** Smaller stack so taller screenshots stay inside the stage. */
       scale?: 'xs' | 'sm' | 'md';
+      /** Which layer paints on top. Positions stay the same. */
+      overlap?: 'front' | 'back';
     }
   | {
       type: 'straight';
@@ -36,7 +38,8 @@ type PointMediaConfig =
       images: PointMedia[];
       /** Auto-advance interval in ms. */
       intervalMs?: number;
-    };
+    }
+  | { type: 'placeholder' };
 
 /** Real screenshots for specific detail steps; the rest fall back to placeholders. */
 const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaConfig>>> = {
@@ -107,30 +110,25 @@ const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaCo
       image: { src: '/Dashboardorders4.png', width: 947, height: 762 },
     },
     3: {
-      type: 'single',
-      placement: 'center',
-      image: { src: '/Dashboardorders6.png', width: 1000, height: 2048 },
-    },
-    4: {
       type: 'diagonal',
-      back: { src: '/Dashboardorders5.png', width: 492, height: 727 },
-      front: { src: '/Dashboardlogs.png', width: 751, height: 790 },
+      back: { src: '/Dashboardorders6.png', width: 845, height: 518 },
+      front: { src: '/Dashboardorders7.png', width: 628, height: 316 },
       orientation: 'tr-bl',
-      scale: 'sm',
+      scale: 'md',
+      overlap: 'back',
     },
+    4: { type: 'placeholder' },
   },
   offers: {
     1: {
-      type: 'diagonal',
-      back: { src: '/Dashboardoffers2.png', width: 737, height: 781 },
-      front: { src: '/Dashboardoffers.png', width: 487, height: 303 },
-      orientation: 'tr-bl',
-      scale: 'sm',
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardoffers2.png', width: 737, height: 781 },
     },
     2: {
       type: 'straight',
-      back: { src: '/Dashboardproducts10.png', width: 360, height: 601 },
-      front: { src: '/Dashboardproducts1.png', width: 650, height: 87 },
+      back: { src: '/Dashboardproducts.png', width: 362, height: 577 },
+      front: { src: '/Dashboardoffers.png', width: 648, height: 307 },
       backWidthClass: 'w-[52%] sm:w-[48%]',
       frontWidthClass: 'w-[72%] sm:w-[68%]',
     },
@@ -143,28 +141,6 @@ const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaCo
       type: 'single',
       placement: 'center',
       image: { src: '/Dashboardoffers4.png', width: 1505, height: 502 },
-    },
-  },
-  marketing: {
-    1: {
-      type: 'single',
-      placement: 'center',
-      image: { src: '/Dashboardmarketing3.png', width: 1477, height: 780 },
-    },
-    2: {
-      type: 'straight',
-      layout: 'iconRight',
-      back: { src: '/Dashboardmarketing4.png', width: 1163, height: 785 },
-      front: { src: '/Whatsappicon.png', width: 48, height: 48 },
-      backWidthClass: 'w-[82%] sm:w-[78%]',
-      frontWidthClass: 'w-12 sm:w-14',
-    },
-    3: {
-      type: 'diagonal',
-      back: { src: '/Dashboardmarketing2eng.png', width: 486, height: 726 },
-      front: { src: '/Dashboardmarketing5.png', width: 987, height: 737 },
-      orientation: 'tr-bl',
-      scale: 'sm',
     },
   },
   analytics: {
@@ -193,33 +169,6 @@ const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaCo
       front: { src: '/Dashboardanalytics5.png', width: 670, height: 702 },
       orientation: 'tr-bl',
       scale: 'sm',
-    },
-  },
-  logistics: {
-    1: {
-      type: 'straight',
-      back: { src: '/Dashboardlogseng.png', width: 750, height: 787 },
-      front: { src: '/Dashboardlogs3.png', width: 697, height: 207 },
-      backWidthClass: 'w-[52%] sm:w-[48%]',
-      frontWidthClass: 'w-[72%] sm:w-[68%]',
-    },
-    2: {
-      type: 'single',
-      placement: 'center',
-      image: { src: '/Dashboardlogs4.png', width: 1512, height: 753 },
-    },
-    3: {
-      type: 'straight',
-      layout: 'row',
-      back: { src: '/Dashboardlogs5.png', width: 492, height: 487 },
-      front: { src: '/Drivermobile.jpeg', width: 1006, height: 2048 },
-      backWidthClass: 'w-[48%] sm:w-[46%]',
-      frontWidthClass: 'w-[28%] sm:w-[26%]',
-    },
-    4: {
-      type: 'single',
-      placement: 'center',
-      image: { src: '/Dashboardlogs6.png', width: 1588, height: 767 },
     },
   },
   marketplace: {
@@ -272,30 +221,21 @@ const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaCo
   },
 };
 
-function ImagePlaceholder({ label, className = '' }: { label: string; className?: string }) {
-  return (
-    <div
-      className={`flex items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-gray-100/80 text-center px-6 ${className}`}
-      role="img"
-      aria-label={label}
-    >
-      <p className="text-sm text-gray-500 max-w-sm leading-relaxed">{label}</p>
-    </div>
-  );
-}
-
 function PointDiagonalStack({
   back,
   front,
   orientation = 'tl-br',
   scale = 'md',
+  overlap = 'front',
 }: {
   back: PointMedia;
   front: PointMedia;
   orientation?: 'tl-br' | 'tr-bl';
   scale?: 'xs' | 'sm' | 'md';
+  overlap?: 'front' | 'back';
 }) {
   const mirrored = orientation === 'tr-bl';
+  const backOnTop = overlap === 'back';
   const tiny = scale === 'xs';
   const compact = scale === 'sm' || tiny;
   const backWidth = tiny
@@ -334,7 +274,7 @@ function PointDiagonalStack({
   return (
     <div className="relative mx-auto h-full w-full">
       <div
-        className={`absolute z-0 ${backWidth} animate-fade-in motion-reduce:animate-none ${backPos}`}
+        className={`absolute ${backOnTop ? 'z-10' : 'z-0'} ${backWidth} animate-fade-in motion-reduce:animate-none ${backPos}`}
         style={{ animationDuration: '0.45s' }}
       >
         <div
@@ -360,7 +300,7 @@ function PointDiagonalStack({
         </div>
       </div>
       <div
-        className={`absolute z-10 ${frontWidth} animate-fade-in-up motion-reduce:animate-none ${frontPos}`}
+        className={`absolute ${backOnTop ? 'z-0' : 'z-10'} ${frontWidth} animate-fade-in-up motion-reduce:animate-none ${frontPos}`}
         style={{ animationDuration: '0.55s', animationDelay: '0.12s', opacity: 0 }}
       >
         <div
@@ -671,7 +611,7 @@ export function FeatureModulePage({
                 {t('overview.loopLabel')}
               </p>
               <div className="flex flex-wrap gap-2">
-                {(['dashboard', 'marketplace', 'driver'] as const).map((surface) => {
+                {(['dashboard', 'marketplace'] as const).map((surface) => {
                   const active = moduleDef.surfaces.includes(surface);
                   return (
                     <span
@@ -744,9 +684,9 @@ export function FeatureModulePage({
 
           <div className="space-y-16 sm:space-y-24">
             {points.map((n, i) => {
-              const imageLeft = i % 2 === 1;
               const title = t(`${slug}.points.${n}.title`);
               const pointMedia = POINT_MEDIA[slug]?.[n];
+              const imageLeft = Boolean(pointMedia) && i % 2 === 1;
               /** Fixed stage size so screenshot steps match placeholder steps. */
               const stageHeightClass = 'h-[240px] sm:h-[320px]';
               const media = pointMedia ? (
@@ -784,6 +724,18 @@ export function FeatureModulePage({
                       </div>
                     )}
                   </FeatureMediaFrame>
+                ) : pointMedia.type === 'placeholder' ? (
+                  <FeatureMediaFrame framed={false} minHeightClass={stageHeightClass}>
+                    <div
+                      className="flex h-full w-full items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white/70 px-6 text-center"
+                      role="img"
+                      aria-label={t('usesPlaceholder', { title })}
+                    >
+                      <p className="text-sm text-gray-500 max-w-sm leading-relaxed">
+                        {t('usesPlaceholder', { title })}
+                      </p>
+                    </div>
+                  </FeatureMediaFrame>
                 ) : pointMedia.type === 'carousel' ? (
                   <FeatureMediaFrame framed={false} minHeightClass={stageHeightClass}>
                     <PointAutoCarousel
@@ -809,17 +761,11 @@ export function FeatureModulePage({
                       front={pointMedia.front}
                       orientation={pointMedia.orientation}
                       scale={pointMedia.scale}
+                      overlap={pointMedia.overlap}
                     />
                   </FeatureMediaFrame>
                 )
-              ) : (
-                <FeatureMediaFrame minHeightClass={stageHeightClass}>
-                  <ImagePlaceholder
-                    label={t('usesPlaceholder', { title })}
-                    className="h-full w-full border-0 bg-white rounded-none"
-                  />
-                </FeatureMediaFrame>
-              );
+              ) : null;
               const copy = (
                 <div>
                   <p className="text-xs font-semibold tracking-widest text-[#0a61d7] mb-3">
@@ -836,7 +782,13 @@ export function FeatureModulePage({
 
               return (
                 <Reveal key={n} delayMs={i * 60}>
-                  <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
+                  <div
+                    className={
+                      media
+                        ? 'grid lg:grid-cols-2 gap-10 lg:gap-14 items-center'
+                        : 'max-w-3xl'
+                    }
+                  >
                     {imageLeft ? (
                       <>
                         {media}

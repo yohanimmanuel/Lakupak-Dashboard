@@ -24,9 +24,9 @@ const AUTOMATIONS_MEDIA: Partial<
 > = {
   workflows: { src: '/Dashboardautomations.png', width: 1552, height: 650, layout: 'full' },
   triggers: {
-    src: '/Dashboardmarketing2eng.png',
-    width: 486,
-    height: 726,
+    src: '/Dashboardoffers.png',
+    width: 487,
+    height: 303,
     layout: 'triggersFork',
   },
   control: {
@@ -275,19 +275,19 @@ function ProductsOffersFlow({ alt }: { alt: string }) {
           </svg>
         </div>
 
-        {/* Offers — left & right with center gap */}
-        <div className="relative z-10 mx-auto grid w-[82%] sm:w-[72%] grid-cols-2 gap-6 sm:gap-12 lg:gap-16">
+        {/* Offers — left & right with center gap. items-start keeps each white card as tall as its screenshot. */}
+        <div className="relative z-10 mx-auto grid w-[82%] sm:w-[72%] grid-cols-2 items-start gap-6 sm:gap-12 lg:gap-16">
           <div
-            className="rounded-xl border border-gray-200/90 bg-white p-1 shadow-[0_14px_36px_-16px_rgba(10,97,215,0.28)] overflow-hidden animate-fade-in-left motion-reduce:animate-none"
+            className="w-fit max-w-full justify-self-end rounded-xl border border-gray-200/90 bg-white p-1 shadow-[0_14px_36px_-16px_rgba(10,97,215,0.28)] overflow-hidden animate-fade-in-left motion-reduce:animate-none"
             style={{ animationDuration: '0.5s', animationDelay: '0.22s', opacity: 0 }}
           >
             <Image
               src="/Dashboardoffers.png"
               alt=""
-              width={487}
-              height={303}
+              width={648}
+              height={307}
               quality={90}
-              className="w-full h-auto block rounded-lg"
+              className="block h-auto w-auto max-w-full rounded-lg"
               sizes="(min-width: 1024px) 280px, 34vw"
             />
           </div>
@@ -430,7 +430,7 @@ function AutomationsTriggersForkFlow({ alt }: { alt: string }) {
           <Image src="/LakuAI.png" alt={alt} width={40} height={40} className="h-8 w-8 sm:h-9 sm:w-9" />
         </div>
 
-        {/* Dotted stem — Laku → marketing */}
+        {/* Dotted stem — Laku → offers */}
         <div
           className="relative z-0 h-12 w-8 sm:h-14 animate-fade-in motion-reduce:animate-none"
           style={{ animationDuration: '0.4s', animationDelay: '0.1s', opacity: 0 }}
@@ -447,7 +447,7 @@ function AutomationsTriggersForkFlow({ alt }: { alt: string }) {
                       </svg>
                   </div>
 
-        {/* Marketing flanked by product examples — wide spacing + side dotted lines */}
+        {/* Offers flanked by product examples */}
         <div className="relative z-10 flex w-full max-w-3xl items-center px-2 sm:px-6 lg:px-10">
           <div
             className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-gray-200/90 bg-white p-2 shadow-[0_14px_36px_-16px_rgba(10,97,215,0.28)] animate-fade-in-left motion-reduce:animate-none sm:h-16 sm:w-16"
@@ -484,10 +484,10 @@ function AutomationsTriggersForkFlow({ alt }: { alt: string }) {
             style={{ animationDuration: '0.55s', animationDelay: '0.12s', opacity: 0 }}
           >
                 <Image
-              src="/Dashboardmarketing2eng.png"
+              src="/Dashboardoffers.png"
               alt=""
-              width={486}
-              height={726}
+              width={487}
+              height={303}
               quality={90}
               className="w-full h-auto block rounded-lg"
               sizes="(min-width: 1024px) 184px, 32vw"
@@ -525,7 +525,7 @@ function AutomationsTriggersForkFlow({ alt }: { alt: string }) {
           </div>
         </div>
 
-        {/* Dotted Y-connectors — marketing → WhatsApp / Gmail */}
+        {/* Dotted Y-connectors — offers → WhatsApp / Gmail */}
         <div
           className="relative z-0 h-12 w-full max-w-md sm:h-14 sm:max-w-lg animate-fade-in motion-reduce:animate-none"
           style={{ animationDuration: '0.4s', animationDelay: '0.22s', opacity: 0 }}
@@ -796,18 +796,18 @@ function FeatureBlock({
   id,
   titleKey,
   subtitleKey,
-  placeholderKey,
   points,
   tone = 'muted',
   media,
+  mediaMinHeightClass = 'min-h-[280px] sm:min-h-[400px]',
 }: {
   id: string;
   titleKey: string;
   subtitleKey: string;
-  placeholderKey: string;
   points: { titleKey: string; descKey: string }[];
   tone?: 'muted' | 'white';
   media?: React.ReactNode;
+  mediaMinHeightClass?: string;
 }) {
   const t = useTranslations('landing');
 
@@ -821,16 +821,13 @@ function FeatureBlock({
           <p className="mt-3 text-base sm:text-lg text-gray-600 leading-relaxed">{t(subtitleKey)}</p>
         </Reveal>
 
-        <Reveal>
-          <FeatureMediaFrame className="mb-10" framed={!media} minHeightClass="min-h-[280px] sm:min-h-[400px]">
-            {media ?? (
-              <ImagePlaceholder
-                label={t(placeholderKey)}
-                className="min-h-[220px] sm:min-h-[320px] w-full border-0 bg-white rounded-none"
-              />
-            )}
-          </FeatureMediaFrame>
-        </Reveal>
+        {media ? (
+          <Reveal>
+            <FeatureMediaFrame className="mb-10" framed={false} minHeightClass={mediaMinHeightClass}>
+              {media}
+            </FeatureMediaFrame>
+          </Reveal>
+        ) : null}
 
         <Reveal>
           <div className="grid md:grid-cols-3 gap-6 md:gap-8">
@@ -846,56 +843,6 @@ function FeatureBlock({
         </Reveal>
       </div>
     </section>
-  );
-}
-
-/** Two marketing screenshots side by side with a circle-dotted connector. */
-function MarketingSideBySide({ alt }: { alt: string }) {
-  return (
-    <div className="relative mx-auto flex h-full w-full max-w-5xl items-center px-2 py-4 sm:px-4 sm:py-6">
-      <div className="relative flex w-full items-center gap-2 sm:gap-3">
-        <div className="relative z-10 w-[56%] sm:w-[58%] rounded-xl border border-gray-200/90 bg-white p-1 shadow-[0_14px_36px_-16px_rgba(15,23,42,0.28)] overflow-hidden">
-                <Image
-            src="/Dashboardmarketing3.png"
-            alt={alt}
-            width={1477}
-            height={780}
-            quality={90}
-            className="w-full h-auto block rounded-lg"
-            sizes="(min-width: 1024px) 520px, 55vw"
-                />
-              </div>
-
-        <div className="relative z-0 h-8 w-[6%] min-w-[24px] sm:h-10 sm:w-[8%]" aria-hidden>
-          <svg
-            className="absolute inset-0 h-full w-full"
-            viewBox="0 0 80 40"
-            preserveAspectRatio="none"
-          >
-            <path
-              d="M0 20 H80"
-              fill="none"
-              stroke="#94a3b8"
-              strokeWidth="3"
-              strokeDasharray="0 8"
-              strokeLinecap="round"
-            />
-          </svg>
-            </div>
-
-        <div className="relative z-10 w-[36%] sm:w-[32%] rounded-xl border border-gray-200/90 bg-white p-1 shadow-[0_14px_36px_-16px_rgba(10,97,215,0.28)] overflow-hidden">
-          <Image
-            src="/Dashboardmarketingeng.png"
-            alt=""
-            width={665}
-            height={571}
-            quality={90}
-            className="w-full h-auto block rounded-lg"
-            sizes="(min-width: 1024px) 300px, 32vw"
-          />
-                </div>
-                </div>
-              </div>
   );
 }
 
@@ -1138,7 +1085,7 @@ export default function LandingPage() {
             <HeroStagger delayMs={40}>
               <h1 className="text-4xl sm:text-5xl lg:text-[3.25rem] font-bold tracking-tight text-gray-900 leading-[1.12]">
                 {t('hero.titleBefore')}
-                <span className="text-[#0a61d7]">{t('hero.titleAccent')}</span>
+                <span className="block text-[#0a61d7]">{t('hero.titleAccent')}</span>
               </h1>
             </HeroStagger>
 
@@ -1287,53 +1234,27 @@ export default function LandingPage() {
           id="marketing"
           titleKey="features.marketing.title"
           subtitleKey="features.marketing.subtitle"
-          placeholderKey="features.marketing.placeholder"
           tone="white"
-          media={<MarketingSideBySide alt={t('features.marketing.title')} />}
+          mediaMinHeightClass="h-[420px] sm:h-[520px]"
+          media={
+            <div className="flex h-full w-full items-center justify-center px-2 sm:px-6">
+              <div className="w-full max-w-5xl overflow-hidden rounded-xl border border-gray-200/90 bg-white p-1.5 shadow-[0_16px_40px_-16px_rgba(15,23,42,0.28)]">
+                <Image
+                  src="/Dashboardoffers3.png"
+                  alt={t('features.marketing.title')}
+                  width={1532}
+                  height={698}
+                  quality={90}
+                  className="block h-auto w-full rounded-lg"
+                  sizes="(min-width: 1024px) 1024px, 100vw"
+                />
+              </div>
+            </div>
+          }
           points={[
             { titleKey: 'features.marketing.1.title', descKey: 'features.marketing.1.desc' },
             { titleKey: 'features.marketing.2.title', descKey: 'features.marketing.2.desc' },
             { titleKey: 'features.marketing.3.title', descKey: 'features.marketing.3.desc' },
-          ]}
-        />
-
-        <SplitFeatureSection
-          id="logistics"
-          titleKey="features.logistics.title"
-          subtitleKey="features.logistics.subtitle"
-          placeholderKey="features.logistics.placeholder"
-          mediaPosition="right"
-          tone="muted"
-          points={[
-            {
-              titleKey: 'features.logistics.1.title',
-              descKey: 'features.logistics.1.desc',
-              image: {
-                src: '/Drivermobile1.jpeg',
-                width: 1000,
-                height: 2048,
-                fit: 'phone',
-              },
-            },
-            {
-              titleKey: 'features.logistics.2.title',
-              descKey: 'features.logistics.2.desc',
-              image: {
-                src: '/Dashboardlogs.png',
-                width: 751,
-                height: 790,
-                fit: 'fill',
-                className: 'w-[72%] sm:w-[68%]',
-              },
-            },
-            {
-              titleKey: 'features.logistics.3.title',
-              descKey: 'features.logistics.3.desc',
-              images: [
-                { src: '/Drivermobile.jpeg', width: 1006, height: 2048 },
-                { src: '/Drivermobile2.jpeg', width: 1000, height: 2048 },
-              ],
-            },
           ]}
         />
 

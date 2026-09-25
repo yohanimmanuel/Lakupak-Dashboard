@@ -321,7 +321,7 @@
       "title": "Order Items",
       "seeMore": "See More ({count} more items)",
       "qty": "Qty: {qty} {packageType}",
-      "freePieces": "(+ {count} free pieces)",
+      "freePieces": "(+ {count} free qty)",
       "viewProductTitle": "Click to view product details",
       "allItemsTitle": "All Order Items",
       "category": "Category: {category}",

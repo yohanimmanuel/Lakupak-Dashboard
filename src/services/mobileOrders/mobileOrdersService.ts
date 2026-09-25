@@ -912,7 +912,7 @@ export async function createMobileMarketplaceOrders(
         const promotionDetails = {
           minQuantity: buyQty,
           freeQuantity: freeQty,
-          applyMode: 'after_moq' as const,
+          applyMode: productOffer?.promotionApplyMode ?? 'after_moq',
           moq: variantOption.moq ?? null,
         };
 
@@ -1110,7 +1110,7 @@ export async function createMobileMarketplaceOrders(
               const promotionDetails = {
                 minQuantity: buyQty,
                 freeQuantity: freeQty,
-                applyMode: 'after_moq' as const,
+                applyMode: productOffer?.promotionApplyMode ?? 'after_moq',
                 moq: variantOption.moq ?? null,
               };
               const qty = computeTotalQtyNeededWithBuyXGetY({
