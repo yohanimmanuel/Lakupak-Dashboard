@@ -7,7 +7,7 @@ import { useDashboardTour } from '@/components/tours/TourProvider';
 import { useUserStore } from '@/store/userStore';
 import { useSettingsTranslations } from '@/hooks/useSettingsTranslations';
 
-const TOUR_IDS: DashboardTourId[] = ['shell', 'products', 'orders', 'offers', 'marketplace', 'logistics'];
+const TOUR_IDS: DashboardTourId[] = ['shell', 'products', 'orders', 'offers', 'marketplace', 'automation'];
 
 export function DashboardToursPanel() {
   const { runTour, resetTour, getStatus } = useDashboardTour();

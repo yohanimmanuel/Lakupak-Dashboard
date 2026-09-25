@@ -364,7 +364,7 @@ export default function CampaignTable({
         onViewCampaign(originalCampaign);
       }
     } else {
-      router.push(`/marketing/campaigns/details?id=${campaign.id}`);
+      router.push(`/sales/campaigns/details?id=${campaign.id}`);
     }
   };
 

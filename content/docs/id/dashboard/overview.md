@@ -33,7 +33,7 @@ Dashboard memakai **sidebar** persisten (bisa dilipat di desktop, drawer di mobi
 | **Products** | `/products` | Katalog, stok, publish ke Marketplace |
 | **Orders** | `/orders` | Daftar pesanan B2B, peta, pemenuhan |
 | **Offers** | `/offers` | Diskon dan promosi |
-| **Marketing** | `/marketing` | Hub **Team** dan **Campaigns** |
+| **Marketing** | `/sales` | Hub **Team** dan **Campaigns** |
 | **Analytics** | `/analytics` | Hub **Financial**, **Sales**, **Operational** |
 
 ### Menu sekunder

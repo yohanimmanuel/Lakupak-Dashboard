@@ -15,6 +15,7 @@ import {
 import { SkeletonTablePage } from '@/components/skeleton/SkeletonTablePage';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
+import { usePendingDashboardTourStart } from '@/hooks/usePendingDashboardTourStart';
 
 const WORKFLOWS_QUERY = `
   query GetAutomationWorkflows($page: Int, $limit: Int) {
@@ -98,6 +99,8 @@ export default function AutomationPage() {
     void fetchWorkflows('initial');
   }, [fetchWorkflows]);
 
+  usePendingDashboardTourStart('automation', { ready: !initialLoading && !!user?.id });
+
   const handleDelete = async (id: string) => {
     if (!user?.id) return;
     try {
@@ -161,10 +164,10 @@ export default function AutomationPage() {
   return (
     <div className="p-4 w-full min-h-screen flex flex-col bg-gradient-to-b from-gray-50 to-white">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-        <div>
+        <div data-tour="automation-page-header">
           <h2 className="text-2xl font-bold text-black mb-2">{tPage('title')}</h2>
         </div>
-        <div className="flex gap-2 items-center">
+        <div className="flex gap-2 items-center" data-tour="automation-actions">
           <button
             type="button"
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm disabled:opacity-50"
@@ -189,14 +192,18 @@ export default function AutomationPage() {
         </div>
       )}
 
-      <AutomationStatcards workflows={rows} />
-      <AutomationTable
-        workflows={rows}
-        onDeleteAction={(id) => void handleDelete(id)}
-        onBulkDeleteAction={(ids) => void handleBulkDelete(ids)}
-        onStatusChangeAction={(ids, status) => void handleStatusChange(ids, status)}
-        onEditAction={(id) => router.push(`/automation/details?id=${id}`)}
-      />
+      <div data-tour="automation-stats">
+        <AutomationStatcards workflows={rows} />
+      </div>
+      <div data-tour="automation-table">
+        <AutomationTable
+          workflows={rows}
+          onDeleteAction={(id) => void handleDelete(id)}
+          onBulkDeleteAction={(ids) => void handleBulkDelete(ids)}
+          onStatusChangeAction={(ids, status) => void handleStatusChange(ids, status)}
+          onEditAction={(id) => router.push(`/automation/details?id=${id}`)}
+        />
+      </div>
     </div>
   );
 }

@@ -65,7 +65,7 @@ export default function SalesDetailsPage() {
 
   useEffect(() => {
     if (!agentId || !user?.id) {
-      if (!agentId) router.push('/marketing/team');
+      if (!agentId) router.push('/sales/team');
       return;
     }
 
@@ -106,7 +106,7 @@ export default function SalesDetailsPage() {
         <div className="text-center">
           <p className="text-gray-600 mb-4">{tSalesDetails('notFound')}</p>
           <button
-            onClick={() => router.push('/marketing/team')}
+            onClick={() => router.push('/sales/team')}
             className="px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors"
           >
             {tSalesDetails('backToTeamListButton')}
@@ -121,9 +121,9 @@ export default function SalesDetailsPage() {
       <div className="w-full mx-auto">
         <SalesDetails
           agent={agent}
-          onBack={() => router.push('/marketing/team')}
+          onBack={() => router.push('/sales/team')}
           onEdit={() => {
-            router.push(`/marketing/team/edit?id=${agent.id}`);
+            router.push(`/sales/team/edit?id=${agent.id}`);
           }}
         />
       </div>

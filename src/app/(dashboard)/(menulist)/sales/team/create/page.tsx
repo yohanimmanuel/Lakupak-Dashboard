@@ -166,7 +166,7 @@ export default function CreateSalesAgentPage() {
       });
 
       if (result.createSalesAgent) {
-        router.push('/marketing/team');
+        router.push('/sales/team');
       }
     } catch (error) {
       console.error('Error creating agent:', error);
@@ -177,7 +177,7 @@ export default function CreateSalesAgentPage() {
   };
 
   const handleCancel = () => {
-    router.push('/marketing/team');
+    router.push('/sales/team');
   };
 
   const renderActiveComponent = () => {

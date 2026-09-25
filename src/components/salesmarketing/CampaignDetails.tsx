@@ -265,7 +265,7 @@ export default function CampaignDetails({
     if (onCancel) {
       onCancel();
     } else {
-      router.push('/marketing/campaigns');
+      router.push('/sales/campaigns');
     }
   };
 
@@ -401,7 +401,7 @@ export default function CampaignDetails({
                     if (onSave) {
                       await onSave(campaignData);
                     } else {
-                      router.push('/marketing/campaigns');
+                      router.push('/sales/campaigns');
                     }
                   } catch (error) {
                     // Handle error

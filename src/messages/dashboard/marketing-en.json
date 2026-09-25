@@ -1,6 +1,6 @@
 {
   "hub": {
-    "title": "Marketing",
+    "title": "Sales",
     "tipsSection": "Tips",
     "toolsSection": "Tools",
     "dismissTip": "Dismiss tip",
@@ -39,31 +39,28 @@
           "Schedule promotions for peak seasons or special events"
         ]
       },
-      "cart-reminders": {
-        "title": "Cart Abandonment",
-        "description": "Follow up with customers who added products to their cart but haven't completed their purchase. Cart abandonment campaigns can recover lost sales by sending timely reminders and offering incentives.",
-        "actionLabel": "View campaigns",
-        "mainPurpose": "Identify customers and send automated reminder emails or notifications to WhatsApp Messaging, offer time-limited incentives or discounts to encourage completion, personalize follow-up messages based on cart contents. You can also create urgency with limited-time offers or stock availability alerts, A/B test different messaging and incentive strategies, convert abandoned carts into completed orders and revenue.",
+      "sales-jobs": {
+        "title": "Sales jobs",
+        "description": "Assign and track sales jobs for your team so visits, follow-ups, and targets stay organized.",
+        "actionLabel": "View jobs",
+        "mainPurpose": "Give each salesperson clear work: who to visit, what to follow up, and which targets to hit. Sales jobs keep that work visible so the team can see what is open, in progress, and done.",
         "fullDetails": [
-          "Identify customers with abandoned carts and incomplete purchases",
-          "Send automated reminder emails or notifications",
-          "Offer time-limited incentives or discounts to encourage completion",
-          "Personalize follow-up messages based on cart contents",
-          "Create urgency with limited-time offers or stock availability alerts",
-          "Track cart abandonment rates and recovery success metrics",
-          "A/B test different messaging and incentive strategies",
-          "Convert abandoned carts into completed orders and revenue"
+          "Create jobs for visits, follow-ups, and sales targets",
+          "Assign each job to a team member",
+          "Set what the job covers and when it should be done",
+          "Track which jobs are open, in progress, and completed",
+          "Review results by salesperson and buyer"
         ]
       }
     },
     "tools": {
       "teams": {
-        "name": "Teams",
-        "description": "Manage your marketing team members and assign roles."
+        "name": "Team",
+        "description": "Manage your sales team members and assign roles."
       },
-      "campaigns": {
-        "name": "Campaigns",
-        "description": "Create and manage marketing campaigns to reach your customers."
+      "jobs": {
+        "name": "Jobs",
+        "description": "Manage sales jobs for your team."
       }
     }
   },

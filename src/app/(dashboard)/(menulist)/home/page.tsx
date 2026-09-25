@@ -2566,7 +2566,7 @@ const supplierInsights = useMemo(() => {
         return {
           action: (
             <Link
-              href="/marketing"
+              href="/sales"
               className="inline-flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6]"
             >
               {widgetText('marketing', 'action')}

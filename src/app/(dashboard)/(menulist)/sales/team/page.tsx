@@ -193,16 +193,16 @@ export default function MarketingTeamPage() {
   }, [fetchData]); // fetchData is memoized with useCallback and depends on user?.id
 
   const handleViewAgent = (agent: SalesAgent) => {
-    router.push(`/marketing/team/details?id=${agent.id}`);
+    router.push(`/sales/team/details?id=${agent.id}`);
   };
 
   const handleCreateAgent = () => {
-    router.push('/marketing/team/create');
+    router.push('/sales/team/create');
   };
 
   const handleEditAgent = (agent: SalesAgent) => {
     // Navigate to edit agent page
-    router.push(`/marketing/team/edit?id=${agent.id}`);
+    router.push(`/sales/team/edit?id=${agent.id}`);
   };
 
   const handleDeleteAgent = async (agentId: string) => {

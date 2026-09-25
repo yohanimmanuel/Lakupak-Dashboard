@@ -31,7 +31,7 @@ async function postCampaignEmail(
   buyerIds: string[],
   fallbackError: string,
 ): Promise<void> {
-  const response = await fetch('/api/marketing/campaigns/send', {
+  const response = await fetch('/api/sales/campaigns/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

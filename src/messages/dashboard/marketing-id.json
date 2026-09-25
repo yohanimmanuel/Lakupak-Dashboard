@@ -1,6 +1,6 @@
 {
   "hub": {
-    "title": "Marketing",
+    "title": "Penjualan",
     "tipsSection": "Tips",
     "toolsSection": "Alat",
     "dismissTip": "Tutup tip",
@@ -39,31 +39,28 @@
           "Jadwalkan promosi untuk musim puncak atau acara khusus"
         ]
       },
-      "cart-reminders": {
-        "title": "Keranjang Tertinggal",
-        "description": "Tindak lanjuti pelanggan yang menambahkan produk ke keranjang tetapi belum menyelesaikan pembelian. Kampanye keranjang tertinggal dapat memulihkan penjualan yang hilang dengan mengirim pengingat tepat waktu dan menawarkan insentif.",
-        "actionLabel": "Lihat kampanye",
-        "mainPurpose": "Identifikasi pelanggan dan kirim email pengingat otomatis atau notifikasi ke WhatsApp Messaging, tawarkan insentif atau diskon berbatas waktu untuk mendorong penyelesaian pembelian, personalisasi pesan tindak lanjut berdasarkan isi keranjang. Anda juga dapat menciptakan urgensi dengan penawaran terbatas waktu atau peringatan ketersediaan stok, uji A/B berbagai strategi pesan dan insentif, konversi keranjang tertinggal menjadi pesanan selesai dan pendapatan.",
+      "sales-jobs": {
+        "title": "Pekerjaan penjualan",
+        "description": "Tetapkan dan pantau pekerjaan penjualan untuk tim Anda agar kunjungan, tindak lanjut, dan target tetap teratur.",
+        "actionLabel": "Lihat pekerjaan",
+        "mainPurpose": "Beri setiap tenaga penjualan pekerjaan yang jelas: siapa yang dikunjungi, apa yang ditindaklanjuti, dan target mana yang dikejar. Pekerjaan penjualan membuat pekerjaan itu terlihat, sehingga tim dapat melihat mana yang terbuka, sedang berjalan, dan selesai.",
         "fullDetails": [
-          "Identifikasi pelanggan dengan keranjang tertinggal dan pembelian yang belum selesai",
-          "Kirim email pengingat otomatis atau notifikasi",
-          "Tawarkan insentif atau diskon berbatas waktu untuk mendorong penyelesaian pembelian",
-          "Personalisasi pesan tindak lanjut berdasarkan isi keranjang",
-          "Ciptakan urgensi dengan penawaran terbatas waktu atau peringatan ketersediaan stok",
-          "Pantau tingkat keranjang tertinggal dan metrik keberhasilan pemulihan",
-          "Uji A/B berbagai strategi pesan dan insentif",
-          "Konversi keranjang tertinggal menjadi pesanan selesai dan pendapatan"
+          "Buat pekerjaan untuk kunjungan, tindak lanjut, dan target penjualan",
+          "Tetapkan setiap pekerjaan ke anggota tim",
+          "Tentukan cakupan pekerjaan dan kapan harus selesai",
+          "Pantau pekerjaan yang terbuka, sedang berjalan, dan selesai",
+          "Tinjau hasil menurut tenaga penjualan dan pembeli"
         ]
       }
     },
     "tools": {
       "teams": {
         "name": "Tim",
-        "description": "Kelola anggota tim marketing dan tetapkan peran."
+        "description": "Kelola anggota tim penjualan dan tetapkan peran."
       },
-      "campaigns": {
-        "name": "Kampanye",
-        "description": "Buat dan kelola kampanye marketing untuk menjangkau pelanggan Anda."
+      "jobs": {
+        "name": "Pekerjaan",
+        "description": "Kelola pekerjaan penjualan untuk tim Anda."
       }
     }
   },

@@ -96,7 +96,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
     if (onBack) {
       onBack();
     } else {
-      router.push('/marketing/team');
+      router.push('/sales/team');
     }
   };
 

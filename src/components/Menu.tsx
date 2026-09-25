@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { BadgePercentIcon, ChartBarIcon, ChevronDown, FileTextIcon, GiftIcon, HandshakeIcon, HomeIcon, ListIcon, PackageIcon, SettingsIcon, UsersIcon, X, DollarSign, TrendingUp, Activity, GlobeIcon, StoreIcon, MegaphoneIcon, ChartAreaIcon, TruckIcon, CircleHelp, PanelLeftClose, PanelLeft, NetworkIcon } from 'lucide-react';
+import { BadgePercentIcon, ChartBarIcon, ChevronDown, FileTextIcon, GiftIcon, HandshakeIcon, HomeIcon, ListIcon, PackageIcon, SettingsIcon, UsersIcon, X, DollarSign, TrendingUp, Activity, GlobeIcon, StoreIcon, BadgeDollarSign, ChartAreaIcon, CircleHelp, PanelLeftClose, PanelLeft, NetworkIcon } from 'lucide-react';
 import { useMenuContext } from '@/app/(dashboard)/(menulist)/DashboardClientLayout';
 import { DashboardHelpModal } from '@/components/dashboard/DashboardHelpModal';
 import { PromoSidePanel } from '@/components/dashboard/PromoSidePanel';
@@ -23,6 +23,7 @@ const NAV_LABEL_KEYS: Record<string, string> = {
   Marketing: 'marketing',
   Team: 'team',
   Campaigns: 'campaigns',
+  Jobs: 'jobs',
   Automation: 'automation',
   Analytics: 'analytics',
   Financial: 'financial',
@@ -41,6 +42,7 @@ const DATA_TOUR_BY_LABEL: Record<string, string> = {
   Orders: 'nav-orders',
   Offers: 'nav-offers',
   Marketing: 'nav-marketing',
+  Sales: 'nav-sales',
   Analytics: 'nav-analytics',
   Automation: 'nav-automation',
   Marketplace: 'nav-marketplace',
@@ -63,12 +65,12 @@ const mainMenuItems = [
   { label: 'Orders', href: '/orders', icon: <FileTextIcon className="w-5 h-5" /> },
   { label: 'Offers', href: '/offers', icon: <GiftIcon className="w-5 h-5" /> },
   {
-    label: 'Marketing',
-    href: '/marketing',
-    icon: <MegaphoneIcon className="w-5 h-5" />,
+    label: 'Sales',
+    href: '/sales',
+    icon: <BadgeDollarSign className="w-5 h-5" />,
     submenu: [
-      { icon: <ListIcon className="w-5 h-5" />, label: 'Team', href: '/marketing/team' },
-      { icon: <ListIcon className="w-5 h-5" />, label: 'Campaigns', href: '/marketing/campaigns' },
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Team', href: '/sales/team' },
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Jobs', href: '/sales/jobs' },
     ],
   },
   {
@@ -94,7 +96,6 @@ const secondaryMenuItems = [
     icon: <StoreIcon className="w-5 h-5" />,
     href: '/marketplace',
   },
-  { label: 'Logistics', href: '/logistics', icon: <TruckIcon className="w-5 h-5" /> },
   { label: 'Settings', href: '/settings', icon: <SettingsIcon className="w-5 h-5" /> },
 ];
 

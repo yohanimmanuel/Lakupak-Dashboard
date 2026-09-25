@@ -33,7 +33,7 @@ The Dashboard uses a persistent **sidebar** (collapsible on desktop, drawer on m
 | **Products** | `/products` | Catalog, stock, publish to Marketplace |
 | **Orders** | `/orders` | B2B order list, map, fulfillment |
 | **Offers** | `/offers` | Discounts and promotions |
-| **Marketing** | `/marketing` | Hub for **Team** and **Campaigns** |
+| **Marketing** | `/sales` | Hub for **Team** and **Campaigns** |
 | **Analytics** | `/analytics` | Hub for **Financial**, **Sales**, **Operational** reports |
 
 ### Secondary menu

@@ -4,12 +4,11 @@ import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import {
   Users,
-  Megaphone,
+  Briefcase,
   X,
   ArrowRight,
   UserPlus,
   Gift,
-  ShoppingCart,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
@@ -17,7 +16,7 @@ import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
 const TIP_CONFIG = [
   { id: 'new-customers', icon: UserPlus, actionLink: '/clients' },
   { id: 'promotions', icon: Gift, actionLink: '/offers' },
-  { id: 'cart-reminders', icon: ShoppingCart, actionLink: '/marketing/campaigns' },
+  { id: 'sales-jobs', icon: Briefcase, actionLink: '/sales/jobs' },
 ] as const;
 
 type TipId = (typeof TIP_CONFIG)[number]['id'];
@@ -34,8 +33,8 @@ interface MarketingTip {
 }
 
 const TOOL_CONFIG = [
-  { id: 'teams' as const, icon: Users, link: '/marketing/team' },
-  { id: 'campaigns' as const, icon: Megaphone, link: '/marketing/campaigns' },
+  { id: 'teams' as const, icon: Users, link: '/sales/team' },
+  { id: 'jobs' as const, icon: Briefcase, link: '/sales/jobs' },
 ];
 
 export default function MarketingPage() {

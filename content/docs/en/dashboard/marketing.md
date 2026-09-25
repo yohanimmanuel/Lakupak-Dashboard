@@ -8,7 +8,7 @@ order: 16
 
 The **Marketing** hub connects customer outreach tools: sales teams, WhatsApp campaigns, and shortcuts to clients and offers.
 
-Path: **Marketing** (`/marketing`).
+Path: **Marketing** (`/sales`).
 
 ## Marketing hub
 
@@ -32,7 +32,7 @@ Sidebar may show **Team** and **Campaigns**; **Automations** can be hidden until
 
 ## Teams
 
-Path: `/marketing/team`.
+Path: `/sales/team`.
 
 ### Team list actions
 
@@ -58,7 +58,7 @@ Path: `/marketing/team`.
 
 ### Agent profile
 
-Routes: `/marketing/team/create`, `/marketing/team/details?id=…`, `/marketing/team/edit?id=…`.
+Routes: `/sales/team/create`, `/sales/team/details?id=…`, `/sales/team/edit?id=…`.
 
 Create/edit tabs:
 
@@ -71,7 +71,7 @@ Create/edit tabs:
 
 ## Campaigns
 
-Path: `/marketing/campaigns`.
+Path: `/sales/campaigns`.
 
 ### Campaign list
 
@@ -93,7 +93,7 @@ Empty: **No campaigns found**.
 
 ### Create and send
 
-Routes: `/marketing/campaigns/create`, `/marketing/campaigns/details?id=…&mode=edit|view`.
+Routes: `/sales/campaigns/create`, `/sales/campaigns/details?id=…&mode=edit|view`.
 
 Fields include auto **Campaign ID**, name, description, and **Campaign Completion** progress.
 
@@ -103,7 +103,7 @@ After send, **Campaign Performance** shows Opens, Clicks, revenue, and orders.
 
 ## Automations
 
-`/marketing/automation` may show a placeholder (**Automations** — *Manage your marketing automation workflows*) until workflows are released.
+`/sales/automation` may show a placeholder (**Automations** — *Manage your marketing automation workflows*) until workflows are released.
 
 ## Related areas
 

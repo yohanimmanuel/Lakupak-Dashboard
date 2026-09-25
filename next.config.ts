@@ -20,7 +20,17 @@ const nextConfig: NextConfig = {
         source: '/',
         destination: '/id/landing',
         permanent: false
-      }
+      },
+      {
+        source: '/marketing',
+        destination: '/sales',
+        permanent: false,
+      },
+      {
+        source: '/marketing/:path*',
+        destination: '/sales/:path*',
+        permanent: false,
+      },
     ];
   },
   // Allow external connections for mobile development

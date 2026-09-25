@@ -14,7 +14,6 @@ import OrderfleetList, {
 import FleetDetails from '@/components/logisticsmanagement/FleetDetails';
 import { useUserStore } from '@/store/userStore';
 import { fetchFleets, fetchDrivers } from '@/data/logisticsFleetsApi';
-import { usePendingDashboardTourStart } from '@/hooks/usePendingDashboardTourStart';
 import { useLogisticsTranslations } from '@/hooks/useLogisticsTranslations';
 
 const VALID_DELIVERY_TYPES: DeliveryType[] = [
@@ -114,8 +113,6 @@ export default function LogisticsPage() {
       }
     };
   }, [loadFleets]);
-
-  usePendingDashboardTourStart('logistics', { ready: !loading && !!user?.id });
 
   // Derive effective selection: user's choice if still in list, otherwise first fleet (no Effect)
   const effectiveSelectedFleetId = useMemo(() => {

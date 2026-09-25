@@ -119,7 +119,7 @@ export default function EditSalesAgentPage() {
   // Fetch agent data
   useEffect(() => {
     if (!agentId || !user?.id) {
-      if (!agentId) router.push('/marketing/team');
+      if (!agentId) router.push('/sales/team');
       return;
     }
 
@@ -135,7 +135,7 @@ export default function EditSalesAgentPage() {
 
         if (!data.salesAgent) {
           alert(tAgentForm('alerts.notFound'));
-          router.push('/marketing/team');
+          router.push('/sales/team');
           return;
         }
 
@@ -159,7 +159,7 @@ export default function EditSalesAgentPage() {
       } catch (error) {
         console.error('Error fetching agent:', error);
         alert(error instanceof Error ? error.message : tAgentForm('alerts.loadFailed'));
-        router.push('/marketing/team');
+        router.push('/sales/team');
       } finally {
         setLoading(false);
       }
@@ -299,7 +299,7 @@ export default function EditSalesAgentPage() {
       });
 
       if (result.updateSalesAgent) {
-        router.push(`/marketing/team/details?id=${agentId}`);
+        router.push(`/sales/team/details?id=${agentId}`);
       }
     } catch (error) {
       console.error('Error updating agent:', error);
@@ -311,9 +311,9 @@ export default function EditSalesAgentPage() {
 
   const handleCancel = () => {
     if (agentId) {
-      router.push(`/marketing/team/details?id=${agentId}`);
+      router.push(`/sales/team/details?id=${agentId}`);
     } else {
-      router.push('/marketing/team');
+      router.push('/sales/team');
     }
   };
 

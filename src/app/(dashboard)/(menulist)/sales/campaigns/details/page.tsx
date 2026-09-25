@@ -70,12 +70,12 @@ export default function CampaignDetailsPage() {
           if (data.campaign) {
             setCampaign(data.campaign);
           } else {
-            router.push('/marketing/campaigns');
+            router.push('/sales/campaigns');
           }
         }
       } catch (error) {
         if (!ignore) {
-          router.push('/marketing/campaigns');
+          router.push('/sales/campaigns');
         }
       } finally {
         if (!ignore) {
@@ -163,13 +163,13 @@ export default function CampaignDetailsPage() {
         contentBlocks: updatedCampaign.contentBlocks || null,
         sendChannel: sendChannel || null,
       });
-      router.push('/marketing/campaigns');
+      router.push('/sales/campaigns');
     } catch (error) {
       console.error('Failed to save campaign:', error);
     }  };
 
   const handleCancel = () => {
-    router.push('/marketing/campaigns');
+    router.push('/sales/campaigns');
   };
 
   if (loading) {
@@ -182,7 +182,7 @@ export default function CampaignDetailsPage() {
         <div className="text-center">
           <p className="text-red-600 mb-4">{tCampaignDetails('notFound')}</p>
           <button
-            onClick={() => router.push('/marketing/campaigns')}
+            onClick={() => router.push('/sales/campaigns')}
             className="px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors"
           >
             {tCampaignDetails('goBack')}

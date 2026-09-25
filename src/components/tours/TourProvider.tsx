@@ -27,7 +27,7 @@ import { ordersTourSteps } from '@/components/tours/definitions/ordersTour';
 import { productsTourSteps } from '@/components/tours/definitions/productsTour';
 import { offersTourSteps } from '@/components/tours/definitions/offersTour';
 import { marketplaceTourSteps } from '@/components/tours/definitions/marketplaceTour';
-import { logisticsTourSteps } from '@/components/tours/definitions/logisticsTour';
+import { automationTourSteps } from '@/components/tours/definitions/automationTour';
 import { runDashboardTour } from '@/components/tours/runDashboardTour';
 
 function getTourSteps(id: DashboardTourId): TourStepDef[] {
@@ -42,8 +42,8 @@ function getTourSteps(id: DashboardTourId): TourStepDef[] {
       return offersTourSteps;
     case 'marketplace':
       return marketplaceTourSteps;
-    case 'logistics':
-      return logisticsTourSteps;
+    case 'automation':
+      return automationTourSteps;
     default: {
       const _exhaustive: never = id;
       return _exhaustive;

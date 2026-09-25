@@ -204,7 +204,7 @@ export default function TeamList({
     if (onViewAgent) {
       onViewAgent(agent);
     } else {
-      router.push(`/marketing/team/details?id=${agent.id}`);
+      router.push(`/sales/team/details?id=${agent.id}`);
     }
   };
 

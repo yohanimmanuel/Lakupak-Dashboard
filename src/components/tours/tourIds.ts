@@ -5,7 +5,7 @@ export const DASHBOARD_TOURS = {
   products: { id: 'products', version: 1 },
   offers: { id: 'offers', version: 1 },
   marketplace: { id: 'marketplace', version: 1 },
-  logistics: { id: 'logistics', version: 1 },
+  automation: { id: 'automation', version: 1 },
 } as const;
 
 export type DashboardTourId = keyof typeof DASHBOARD_TOURS;
@@ -18,7 +18,7 @@ export const MODULE_TOUR_HOME_PATH: Record<DashboardModuleTourId, string> = {
   products: '/products',
   offers: '/offers',
   marketplace: '/marketplace',
-  logistics: '/logistics',
+  automation: '/automation',
 };
 
 /** Base key; combine with user id so a new account is not suppressed by another user in the same browser tab. */

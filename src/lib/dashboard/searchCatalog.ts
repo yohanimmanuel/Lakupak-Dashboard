@@ -87,7 +87,7 @@ export const DASHBOARD_SEARCH_CATALOG: DashboardSearchEntry[] = [
     title: 'Marketing',
     description: 'Teams, campaigns, and outreach tools',
     section: 'Main',
-    href: '/marketing',
+    href: '/sales',
     keywords: ['whatsapp', 'pemasaran'],
   },
   {
@@ -95,7 +95,7 @@ export const DASHBOARD_SEARCH_CATALOG: DashboardSearchEntry[] = [
     title: 'Marketing team',
     description: 'Sales agents and team roles',
     section: 'Marketing',
-    href: '/marketing/team',
+    href: '/sales/team',
     keywords: ['agents', 'sales', 'tim'],
   },
   {
@@ -103,7 +103,7 @@ export const DASHBOARD_SEARCH_CATALOG: DashboardSearchEntry[] = [
     title: 'Add team member',
     description: 'Create a marketing or sales agent',
     section: 'Marketing',
-    href: '/marketing/team/create',
+    href: '/sales/team/create',
     keywords: ['invite', 'agent'],
   },
   {
@@ -111,7 +111,7 @@ export const DASHBOARD_SEARCH_CATALOG: DashboardSearchEntry[] = [
     title: 'Campaigns',
     description: 'WhatsApp and marketing campaigns',
     section: 'Marketing',
-    href: '/marketing/campaigns',
+    href: '/sales/campaigns',
     keywords: ['broadcast', 'kampanye'],
   },
   {
@@ -119,7 +119,7 @@ export const DASHBOARD_SEARCH_CATALOG: DashboardSearchEntry[] = [
     title: 'Create campaign',
     description: 'Start a new marketing campaign',
     section: 'Marketing',
-    href: '/marketing/campaigns/create',
+    href: '/sales/campaigns/create',
     keywords: ['new', 'whatsapp'],
   },
   {

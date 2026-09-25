@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import Image from 'next/image';
 import Link from 'next/link';
@@ -471,15 +471,15 @@ const Navbar = () => {
   };
 
   const handleAddSalesman = () => {
-    router.push('/marketing/team/create');
+    router.push('/sales/team/create');
   };
 
   const handleSalesmanClick = (agentId: string) => {
-    router.push(`/marketing/team/details?id=${agentId}`);
+    router.push(`/sales/team/details?id=${agentId}`);
   };
 
   const handleSalesTeamClick = () => {
-    router.push('/marketing/team');
+    router.push('/sales/team');
   };
 
   const formatRole = (role: string) => {

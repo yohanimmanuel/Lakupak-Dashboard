@@ -8,7 +8,7 @@ order: 16
 
 Hub **Marketing** menghubungkan alat outreach: tim penjualan, kampanye WhatsApp, dan pintasan ke klien serta penawaran.
 
-Jalur: **Marketing** (`/marketing`).
+Jalur: **Marketing** (`/sales`).
 
 ## Hub pemasaran
 
@@ -32,7 +32,7 @@ Sidebar biasanya **Team** dan **Campaigns**; **Automations** bisa disembunyikan.
 
 ## Tim (Teams)
 
-Jalur: `/marketing/team`.
+Jalur: `/sales/team`.
 
 ### Tindakan daftar tim
 
@@ -58,7 +58,7 @@ Modal: **Create New Team**, **Edit Team**.
 
 ### Profil agen
 
-Jalur: `/marketing/team/create`, `details`, `edit`.
+Jalur: `/sales/team/create`, `details`, `edit`.
 
 Tab buat/ubah: **Basic Profile**, **Favourite Products**, **Sales Reporting**, **Sales Target**.
 
@@ -66,7 +66,7 @@ Konfirmasi **Delete Agent** / **Delete Agents**.
 
 ## Kampanye (Campaigns)
 
-Jalur: `/marketing/campaigns`.
+Jalur: `/sales/campaigns`.
 
 ### Daftar kampanye
 
@@ -88,7 +88,7 @@ Kosong: **No campaigns found**.
 
 ### Buat dan kirim
 
-Jalur: `/marketing/campaigns/create`, `details?id=…&mode=edit|view`.
+Jalur: `/sales/campaigns/create`, `details?id=…&mode=edit|view`.
 
 Field: Campaign ID otomatis, nama, deskripsi, **Campaign Completion**.
 
@@ -98,7 +98,7 @@ Setelah kirim: **Campaign Performance** (Opens, Clicks, revenue, orders).
 
 ## Otomatisasi
 
-`/marketing/automation` bisa berupa placeholder hingga fitur dirilis.
+`/sales/automation` bisa berupa placeholder hingga fitur dirilis.
 
 ## Tautan terkait
 

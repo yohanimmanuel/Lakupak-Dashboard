@@ -5,7 +5,7 @@ export const shellTourSteps: TourStepDef[] = [
   {
     selector: '[data-tour="nav-sidebar"]',
     title: 'Your workspace',
-    body: 'Use the sidebar to navigate between Products, Orders, Offers, Marketplace, Logistics, and Settings.',
+    body: 'Use the sidebar to navigate between Products, Orders, Offers, Sales, Automation, Marketplace, and Settings.',
     side: 'right',
   },
   {
@@ -45,9 +45,9 @@ export const shellTourSteps: TourStepDef[] = [
     side: 'right',
   },
   {
-    selector: '[data-tour="nav-logistics"]',
-    title: 'Logistics',
-    body: 'Shipments, carriers, and delivery workflows tied to your orders.',
+    selector: '[data-tour="nav-automation"]',
+    title: 'Automation',
+    body: 'Build workflows that run across your catalog, clients, and orders.',
     side: 'right',
   },
   {

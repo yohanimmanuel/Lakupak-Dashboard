@@ -70,14 +70,14 @@ export default function CreateCampaignPage() {
         contentBlocks: campaign.contentBlocks || null,
         sendChannel: sendChannel || null,
       });
-      router.push('/marketing/campaigns');
+      router.push('/sales/campaigns');
     } catch (error) {
       alert(error instanceof Error ? error.message : tCampaigns('createFailed'));
     }
   };
 
   const handleCancel = () => {
-    router.push('/marketing/campaigns');
+    router.push('/sales/campaigns');
   };
 
   return (

@@ -103,7 +103,7 @@ export default function MarketingCampaignsPage() {
   const handleViewCampaign = (campaign: Campaign) => {
     // If campaign is Draft, open in edit mode, otherwise view mode
     const mode = campaign.status === 'Draft' ? 'edit' : 'view';
-    router.push(`/marketing/campaigns/details?id=${campaign.id}&mode=${mode}`);
+    router.push(`/sales/campaigns/details?id=${campaign.id}&mode=${mode}`);
   };
 
   const handleDuplicateCampaign = (campaign: Campaign) => {
@@ -228,7 +228,7 @@ export default function MarketingCampaignsPage() {
           <h1 className="text-2xl font-bold text-black mb-2">{tCampaigns('title')}</h1>
         </div>
         <Link
-          href="/marketing/campaigns/create"
+          href="/sales/campaigns/create"
           className="inline-flex items-center gap-2 px-6 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors text-sm font-semibold"
         >
           <Plus className="w-4 h-4" />
@@ -251,7 +251,7 @@ export default function MarketingCampaignsPage() {
               {tCampaigns('tipBanner')}
             </p>
             <Link
-              href="/marketing/campaigns/create"
+              href="/sales/campaigns/create"
               className="inline-flex items-center gap-1 text-sm font-semibold text-[#0a61d7] hover:text-[#084ba6] transition-colors"
             >
               {tCampaigns('createCampaign')}

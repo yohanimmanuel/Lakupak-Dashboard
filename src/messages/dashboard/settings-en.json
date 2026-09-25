@@ -595,7 +595,7 @@
     "items": {
       "shell": {
         "title": "Dashboard overview",
-        "description": "Sidebar modules (products, orders, offers, marketplace, logistics), search, account, and where to replay tours."
+        "description": "Sidebar modules (products, orders, offers, marketplace, automation), search, account, and where to replay tours."
       },
       "products": {
         "title": "Products",
@@ -613,9 +613,9 @@
         "title": "Marketplace",
         "description": "Performance metrics, storefront profile, and published listings."
       },
-      "logistics": {
-        "title": "Logistics",
-        "description": "Fleet list, drivers, and fleet detail with tracking."
+      "automation": {
+        "title": "Automation",
+        "description": "Workflow list, status counts, and starting a new workflow."
       }
     },
     "statusLabel": "Status: {status}",

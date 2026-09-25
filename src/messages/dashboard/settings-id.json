@@ -595,7 +595,7 @@
     "items": {
       "shell": {
         "title": "Ringkasan Dashboard",
-        "description": "Modul sidebar (produk, pesanan, penawaran, marketplace, logistik), pencarian, akun, dan tempat memutar ulang tur."
+        "description": "Modul sidebar (produk, pesanan, penawaran, marketplace, otomatisasi), pencarian, akun, dan tempat memutar ulang tur."
       },
       "products": {
         "title": "Produk",
@@ -613,9 +613,9 @@
         "title": "Marketplace",
         "description": "Metrik kinerja, profil toko, dan listing yang dipublikasikan."
       },
-      "logistics": {
-        "title": "Logistik",
-        "description": "Daftar armada, driver, dan detail armada dengan pelacakan."
+      "automation": {
+        "title": "Otomatisasi",
+        "description": "Daftar alur kerja, jumlah status, dan membuat alur kerja baru."
       }
     },
     "statusLabel": "Status: {status}",
