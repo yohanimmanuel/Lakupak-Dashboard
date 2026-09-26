@@ -613,12 +613,9 @@ const updateOffer = async (args: {
     throw new Error('Invalid status');
   }
 
-  const nextStatus = args.status ?? existing.status;
+  let nextStatus = args.status ?? existing.status;
+  if (!buyerId && nextStatus === 'active') nextStatus = 'draft';
   const allowIncomplete = nextStatus === 'draft';
-
-  if (!allowIncomplete && !buyerId) {
-    throw new Error('Client is required for active rates');
-  }
 
   validateDiscountFields({
     discountType,
@@ -666,7 +663,7 @@ const updateOffer = async (args: {
         : {}),
       startDate,
       endDate,
-      ...(args.status != null ? { status: args.status } : {}),
+      ...(nextStatus !== existing.status || args.status != null ? { status: nextStatus } : {}),
       ...(args.notes !== undefined ? { notes: args.notes?.trim() || null } : {}),
       ...(args.description !== undefined
         ? { description: args.description?.trim() || null }
@@ -798,12 +795,9 @@ const saveOfferGroup = async (args: {
   if (Number.isNaN(startDate.getTime())) throw new Error('Invalid startDate');
   if (endDate && Number.isNaN(endDate.getTime())) throw new Error('Invalid endDate');
 
-  const status = args.status && STATUSES.has(args.status) ? args.status : 'draft';
+  let status = args.status && STATUSES.has(args.status) ? args.status : 'draft';
+  if (!buyerId && status === 'active') status = 'draft';
   const allowIncomplete = status === 'draft';
-
-  if (!allowIncomplete && !buyerId) {
-    throw new Error('Client is required for active rates');
-  }
 
   if (!Array.isArray(args.targets) || args.targets.length === 0) {
     throw new Error('At least one target is required');

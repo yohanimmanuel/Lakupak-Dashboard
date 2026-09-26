@@ -41,6 +41,12 @@ Kontak: **Business Address**, **Business Phone**, **Business Email**.
 
 Nilai ini tampil di **Marketplace Dashboard** dan checkout pembeli.
 
+**Show discounted price when buyers submit a PO**
+
+Pembeli selalu melihat harga dasar katalog di kartu produk. Jika sakelar ini aktif, pesanan pembelian baru menampilkan tarif klien itu begitu mereka mengirim. Jika mati, pesanan tetap pada harga dasar katalog sampai Anda memakai **Send pricing to buyer** di pesanan. Hubungan pembeli yang sudah ada tidak menyalakan tarif dengan sendirinya.
+
+Lihat [Penawaran](/id/docs/dashboard/offers) dan [Pesanan](/id/docs/dashboard/orders).
+
 ## Features & Tours
 
 Tur ulang: Dashboard overview, Products, Orders, Offers, Marketplace, Logistics.

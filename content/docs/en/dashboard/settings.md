@@ -41,6 +41,12 @@ Contact: **Business Address**, **Business Phone**, **Business Email**.
 
 These values appear on the **Marketplace Dashboard** and buyer checkout where applicable.
 
+**Show discounted price when buyers submit a PO**
+
+Buyers always see the catalog base price on product cards. When this switch is on, a new purchase order shows that client's rate as soon as they submit. When it is off, the order stays at the catalog base price until you use **Send pricing to buyer** on the order. An existing buyer relationship does not turn the rate on by itself.
+
+See [Offers](/en/docs/dashboard/offers) and [Orders](/en/docs/dashboard/orders).
+
 ## Features and Tours
 
 Replay product tours:

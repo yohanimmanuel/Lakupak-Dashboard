@@ -661,7 +661,7 @@ const deleteBuyer = async (args: { userId: number; id: string }) => {
     // but explicit clear keeps offer drafts / standing rates without a client).
     await tx.offer.updateMany({
       where: { userId: distributorUserId, buyerId: buyerBusinessId },
-      data: { buyerId: null },
+      data: { buyerId: null, status: 'draft' },
     });
 
     // Pending unpaid POs for this relationship should look like a new buyer again

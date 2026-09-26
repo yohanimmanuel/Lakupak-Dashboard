@@ -1,12 +1,12 @@
 ---
 title: Penawaran
-description: Diskon, promosi, produk target, dan analitik penggunaan.
+description: Tarif per retailer, Buy X Get Y, aturan draf, dan kapan pembeli melihat harga.
 section: Dashboard
 module: dashboard
 order: 15
 ---
 
-**Offers & Incentives** untuk membuat diskon dan promosi beli-X-dapat-Y, menghubungkannya ke produk katalog, dan melacak penggunaan.
+**Client Rates & Offers** menetapkan tarif privat untuk satu retailer. Kartu produk di Marketplace selalu menampilkan harga dasar katalog. Tarif itu berlaku di pesanan pembelian retailer tersebut.
 
 Jalur: `/offers`, `/offers/new`, `/offers/details?id={offerId}`.
 
@@ -26,58 +26,89 @@ Jalur: `/offers`, `/offers/new`, `/offers/details?id={offerId}`.
 | Tindakan | Fungsi |
 |----------|--------|
 | **Export Data** | Ekspor XLSX |
-| **Create Offer** | Wizard buat penawaran |
+| **Create Rate** | Wizard buat tarif |
 
 ### Tab dan filter
 
-**Tab halaman:** All Offers, Discounts, Promotions.
+**Tab halaman:** All Rates, Discounts, Promotions.
 
-**Tab status tabel:** All, Active, Inactive.
+**Tab status tabel:** All, Active, Draft, Inactive, Expired.
 
-**Pencarian:** **Search offers...**
+**Pencarian:** klien, produk, atau catatan.
 
 **Filter tanggal:** All Time, Last 7 Days, Last 30 Days, Last 3 Months, This Year.
 
-**Kolom:** Name, Type, Discount, Status, Duration, Usage Status, Actions.
+**Kolom:** Name, Client, Product / Variant, Type, Discount, Status, Duration, Usage Status, Actions.
 
 **Tipe:** **Discount** atau **Promotion**. Penggunaan: **Used** / **Not Used**.
 
 ### Aksi massal
 
-- **Activate** / **Deactivate**
+- **Activate** / **Deactivate** (Activate dinonaktifkan jika rentang tanggal sudah kedaluwarsa)
 - **Remove**
 
-## Buat dan ubah penawaran
+**Activate** membutuhkan ID klien. Tarif tanpa klien tetap **Draft**. Pemberitahuan menyebut tidak ada ID klien dan hilang setelah 5 detik.
 
-### Langkah wizard
+Menghapus pembeli, atau mengosongkan klien pada tarif, mengembalikan tarif itu ke **Draft**. Tarif tidak bisa tetap **Active** tanpa klien.
 
-1. **Offer Type** — aturan diskon
-2. **Date Range** — jadwal berlaku
-3. **Products** — pilih SKU
-4. **Analytics** — lihat metrik
+## Apa yang bisa dilakukan tarif
 
-**Tindakan:** **Preview**, **Create Offer**, **Save as Inactive**.
+Tarif terikat ke satu klien dan ke produk atau varian yang mereka beli. SKU yang sama bisa punya tarif berbeda untuk tiap retailer. Toko lain tetap melihat harga dasar katalog.
 
-Modal **Offer Preview** menampilkan tampilan untuk pembeli.
+| Tipe | Efek di pesanan pembelian |
+|------|---------------------------|
+| **Percentage** | Memotong baris sebesar persen dari harga dasar katalog |
+| **Fixed Amount Off** | Mengurangi nominal tetap |
+| **Buy X Get Y** | Menambah kuantitas gratis saat aturan beli terpenuhi |
 
-### Halaman detail
+Diskon harga dan Buy X Get Y bisa digabung pada tarif yang sama.
 
-Empat tab sama saat edit. **Save Changes**, **Cancel**.
+### Buy X Get Y dan MOQ
 
-Status: **Active**, **Inactive**, **Expired** (banner kedaluwarsa).
+**Start counting free pieces** punya pilihan **Before MOQ** atau **After MOQ**.
+
+- **Before MOQ** menghitung kuantitas gratis dari paket pertama.
+- **After MOQ** menghitung kuantitas gratis hanya pada kuantitas di atas minimum produk. Pesanan yang sama dengan MOQ tidak mendapat kuantitas gratis.
+
+MOQ produk adalah minimum order quantity pada varian.
+
+## Buat dan ubah tarif
+
+### Tab wizard
+
+1. **Discount**: persen, nominal tetap, Buy X Get Y, dan status
+2. **Timing**: tanggal mulai dan tanggal akhir opsional
+3. **Product**: satu atau lebih produk, semua varian atau varian tertentu
+4. **Client**: pembeli yang menerima tarif privat ini
+
+**Create Rate** membuat tarif aktif jika klien sudah dipilih. **Save Draft** menyimpan progres saat klien atau produk belum siap.
+
+### Detail tarif
+
+Edit memakai tab yang sama. **Save Changes** dan **Cancel**.
+
+Status: **Active**, **Draft**, **Inactive**, dan **Expired** jika rentang tanggal sudah lewat.
+
+## Kapan pembeli melihat tarif
+
+Katalog tidak pernah menampilkan tarif klien. Pada pesanan pembelian baru, pembeli tetap melihat harga dasar katalog, termasuk jika mereka sudah berbelanja dari Anda.
+
+Dua kontrol yang membuka harga itu:
+
+- **Send pricing to buyer** pada pesanan (atau **Send pricing update** setelah Anda mengubah baris). Langkah ini menampilkan total diskon dan kuantitas gratis, lalu memberi tahu pembeli.
+- Pengaturan perusahaan **Show discounted price when buyers submit a PO** (Settings → Distributor Operations). Jika aktif, pesanan pembelian menampilkan tarif klien begitu pembeli mengirim. Jika mati, pesanan tetap pada harga dasar katalog sampai Anda mengirim harga.
 
 ## Hapus dan ekspor
 
-Konfirmasi **Delete Offer** / **Delete Offers**.
+**Delete Rate** / **Delete Rates** meminta konfirmasi.
 
 **Export:** Offer ID, Name, Type, Status, Products Count, Total Usage, Total Discount Given, Discount Types, Created At.
-
-Penawaran aktif tampil di Marketplace saat produk dipublikasikan.
 
 ## Tautan terkait
 
 | Tujuan | Ke |
 |--------|-----|
 | Produk | [Produk](/id/docs/dashboard/products) |
-| Pesanan | [Pesanan](/id/docs/dashboard/orders) |
+| Harga di pesanan pembelian | [Pesanan](/id/docs/dashboard/orders) |
+| Sakelar harga pembeli | [Pengaturan](/id/docs/dashboard/settings) |
 | Pemasaran | [Pemasaran](/id/docs/dashboard/marketing) |

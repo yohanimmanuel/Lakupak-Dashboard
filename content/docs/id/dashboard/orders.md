@@ -1,6 +1,6 @@
 ---
 title: Pesanan
-description: Daftar pesanan B2B, peta pelacakan, pemenuhan, arsip, dan ekspor.
+description: Daftar pesanan B2B, harga per retailer, harga aman pembeli, pemenuhan, dan ekspor.
 section: Dashboard
 module: dashboard
 order: 14
@@ -58,7 +58,21 @@ Ubah **order status:** Pending, Confirmed, Packed, Shipped, Delivered, Failed, C
 
 **Payment status:** Unpaid atau Paid.
 
-Badge **Discount** atau **Promotion** bisa muncul di baris pesanan.
+### Harga di pesanan pembelian
+
+Setiap baris menyimpan harga dasar katalog dari checkout. Perubahan katalog kemudian tidak menulis ulang pesanan itu.
+
+Tarif klien (persen, nominal tetap, atau Buy X Get Y) dihitung untuk retailer itu di pesanan pembelian. Anda melihatnya di halaman detail. Pembeli belum melihatnya sampai Anda membukanya.
+
+**Harga aman pembeli**
+
+- Kartu produk di Marketplace selalu menampilkan harga dasar katalog.
+- Setelah pembeli mengirim pesanan, pesanan mereka tetap menampilkan harga dasar itu. Hubungan yang sudah ada tidak membuka diskon klien atau kuantitas gratis.
+- **Send pricing to buyer** menulis harga pesanan pembelian, menampilkan diskon dan kuantitas gratis, lalu memberi tahu pembeli. **Send pricing update** melakukan hal yang sama setelah Anda mengubah baris. Setiap baris harus punya harga sebelum dikirim.
+- Jika suatu baris belum punya harga, total menampilkan **Pending price**. Total baris nol adalah baris yang benar-benar gratis hanya setelah harga dikirim.
+- Pengaturan perusahaan **Show discounted price when buyers submit a PO** (Settings → Distributor Operations) adalah pengecualian. Jika aktif, pembeli melihat tarif klien begitu mereka mengirim. Jika mati, mereka tetap pada harga dasar katalog sampai Anda mengirim harga.
+
+Badge **Discount** atau **Promotion** (Buy X Get Y) bisa muncul di baris. Kuantitas gratis dihitung **Before MOQ** atau **After MOQ**, sesuai aturan yang tersimpan pada tarif. **After MOQ** tidak memberi kuantitas gratis jika kuantitas pesanan sama dengan minimum produk.
 
 ### Pemenuhan
 
@@ -83,6 +97,7 @@ Tidak ada impor pesanan dari layar ini.
 | Tujuan | Ke |
 |--------|-----|
 | Profil pembeli | [Klien](/id/docs/dashboard/clients) |
-| Promosi | [Penawaran](/id/docs/dashboard/offers) |
+| Tarif klien | [Penawaran](/id/docs/dashboard/offers) |
+| Sakelar harga pembeli | [Pengaturan](/id/docs/dashboard/settings) |
 | Armada | [Logistik](/id/docs/dashboard/logistics) |
 | Laporan pendapatan | [Analitik](/id/docs/dashboard/analytics) |

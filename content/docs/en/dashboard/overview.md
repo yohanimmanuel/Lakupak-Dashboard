@@ -67,7 +67,7 @@ Submenus open under **Clients**, **Sales**, and **Analytics** for the pages list
 
 ### Growth (optional)
 
-9. **Offers** — attach promotions to products.
+9. **Offers**: set a private rate for each retailer. The catalog keeps the base price.
 10. **Sales → Team** — manage agents, roles, and jobs.
 11. **Analytics** — review financial and operational reports after you have order history.
 

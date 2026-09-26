@@ -276,6 +276,12 @@ export default function OfferTable({
   const [deleteError, setDeleteError] = useState('');
   const [bulkError, setBulkError] = useState('');
   const rowsPerPage = 8;
+
+  useEffect(() => {
+    if (!bulkError) return;
+    const timer = window.setTimeout(() => setBulkError(''), 5000);
+    return () => window.clearTimeout(timer);
+  }, [bulkError]);
   
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
@@ -461,6 +467,7 @@ export default function OfferTable({
       let success = 0;
       let failedNoClient = 0;
       let failedOther = 0;
+      const savedStatusById = new Map<string, string>();
 
       try {
         for (const group of selectedGroups) {
@@ -474,15 +481,31 @@ export default function OfferTable({
             continue;
           }
           try {
+            let blockedNoClient = false;
+            let blockedOther = false;
             // One update per group member keeps status in sync across product targets
             for (const member of group.members) {
-              await fetchGraphQL(UPDATE_STATUS_MUTATION, {
+              const data = await fetchGraphQL<{
+                updateOffer: { id: string; status: string };
+              }>(UPDATE_STATUS_MUTATION, {
                 userId: user.id,
                 id: member.id,
                 status: nextStatus,
               });
+              const savedStatus = data.updateOffer?.status;
+              if (savedStatus) savedStatusById.set(member.id, savedStatus);
+              // Missing buyerId is saved as draft and still returns success
+              if (nextStatus === 'active' && savedStatus !== 'active') {
+                if (savedStatus === 'draft') blockedNoClient = true;
+                else blockedOther = true;
+              }
             }
-            success += 1;
+            if (blockedNoClient || blockedOther) {
+              if (blockedNoClient && !blockedOther) failedNoClient += 1;
+              else failedOther += 1;
+            } else {
+              success += 1;
+            }
           } catch {
             failedOther += 1;
           }
@@ -490,13 +513,9 @@ export default function OfferTable({
 
         setOffersAction?.((prev) =>
           prev.map((o) => {
-            const inSelected = selectedGroups.some((g) =>
-              g.members.some((m) => m.id === o.id),
-            );
-            if (!inSelected) return o;
-            if (nextStatus === 'active' && !o.buyerId) return o;
-            if (nextStatus === 'active' && o.status === 'expired') return o;
-            return { ...o, status: nextStatus };
+            const savedStatus = savedStatusById.get(o.id);
+            if (!savedStatus || savedStatus === o.status) return o;
+            return { ...o, status: savedStatus };
           }),
         );
         setSelectedKeys([]);

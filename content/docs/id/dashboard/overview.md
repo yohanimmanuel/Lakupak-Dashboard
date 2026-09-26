@@ -67,7 +67,7 @@ Submenu di **Clients**, **Penjualan**, dan **Analytics** untuk halaman di atas.
 
 ### Pertumbuhan (opsional)
 
-9. **Offers** — promosi pada produk.
+9. **Offers**: atur tarif privat untuk tiap retailer. Katalog tetap pada harga dasar.
 10. **Penjualan → Tim** — kelola agen, peran, dan pekerjaan.
 11. **Analytics** — laporan setelah ada riwayat pesanan.
 

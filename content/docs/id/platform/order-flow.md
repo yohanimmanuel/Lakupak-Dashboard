@@ -14,7 +14,7 @@ Distributor mengelola produk di **Dashboard → Products**:
 
 - SKU draf dengan varian, stok, gambar
 - **Publish** agar pembeli melihat di Marketplace
-- **Offers** pada produk
+- **Offers** untuk tarif klien per retailer. Katalog tetap pada harga dasar. Tarif berlaku di pesanan pembelian retailer itu.
 
 Item tidak dipublikasikan tetap internal.
 
@@ -27,7 +27,7 @@ Pembeli memakai **Marketplace** untuk:
 - Keranjang atau **Buy Now** dengan MOQ
 - **Checkout** dengan alamat, pembayaran (transfer atau COD), opsi pengiriman
 
-Pesanan dibuat di workspace distributor setelah checkout.
+Pesanan dibuat di workspace distributor setelah checkout. Pembeli tetap melihat harga dasar katalog. Distributor membuka tarif klien dengan **Send pricing**, kecuali **Show discounted price when buyers submit a PO** aktif.
 
 ## 3. Pemenuhan distributor
 

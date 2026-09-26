@@ -1,6 +1,6 @@
 ---
 title: Orders
-description: B2B order list, map tracking, fulfillment, archive, and export.
+description: B2B order list, per-retailer pricing, buyer price safety, fulfillment, and export.
 section: Dashboard
 module: dashboard
 order: 14
@@ -60,7 +60,21 @@ Update **order status** inline: Pending, Confirmed, Packed, Shipped, Delivered, 
 
 **Payment status:** Unpaid or Paid.
 
-Offer badges on lines may show **Discount** or **Promotion** (Buy X Get Y).
+### Price on the purchase order
+
+Each line keeps the catalog base price from checkout. A later catalog change does not rewrite that order.
+
+The client rate (percentage, fixed amount, or Buy X Get Y) is calculated for that retailer on the purchase order. You see it on the detail page. The buyer does not, until you release it.
+
+**Buyer safety price**
+
+- Product cards in Marketplace always show the catalog base price.
+- After the buyer submits, their order still shows that base price. An existing relationship does not reveal the client discount or free quantity.
+- **Send pricing to buyer** writes the purchase-order price, shows the discount and any free quantity, and notifies the buyer. **Send pricing update** does the same after you change a line. Every line needs a price before you can send.
+- If a line has no price yet, the total shows **Pending price**. A zero line total is a real fully discounted line only after pricing has been sent.
+- Company setting **Show discounted price when buyers submit a PO** (Settings → Distributor Operations) is the exception. When it is on, the buyer sees the client rate as soon as they submit. When it is off, they stay on the catalog base price until you send pricing.
+
+Offer badges on lines may show **Discount** or **Promotion** (Buy X Get Y). Free quantity is counted **Before MOQ** or **After MOQ**, using the rule saved on the rate. **After MOQ** gives no free quantity when the ordered quantity equals the product minimum.
 
 ### Fulfillment fields
 
@@ -91,6 +105,7 @@ There is no order import from this screen.
 | Goal | Go to |
 |------|--------|
 | Buyer profiles | [Clients](/en/docs/dashboard/clients) |
-| Promotions on lines | [Offers](/en/docs/dashboard/offers) |
+| Client rates | [Offers](/en/docs/dashboard/offers) |
+| Buyer price toggle | [Settings](/en/docs/dashboard/settings) |
 | Fleet assignment | [Logistics](/en/docs/dashboard/logistics) |
 | Revenue reports | [Analytics](/en/docs/dashboard/analytics) |
