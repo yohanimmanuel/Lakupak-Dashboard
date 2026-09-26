@@ -1459,7 +1459,6 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                     <p className="text-xs text-gray-600">
                       {tDetails('orderItems.qty', {
                         qty: item.packageQuantity || 1,
-                        packageType: item.packageType || tShared('defaultPackageType'),
                       })}
                       {item.offerApplied && item.promotionDetailsSnapshot && (() => {
                         // Only show promotion details if available
@@ -1749,9 +1748,8 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                       {/* Quantity with promotion details under SKU */}
                       <p className="text-sm text-gray-600">
                         {tDetails('orderItems.qty', {
-                        qty: item.packageQuantity || 1,
-                        packageType: item.packageType || tShared('defaultPackageType'),
-                      })}
+                          qty: item.packageQuantity || 1,
+                        })}
                         {item.offerApplied && item.promotionDetailsSnapshot && (() => {
                           // Only show promotion details if available
                           try {
