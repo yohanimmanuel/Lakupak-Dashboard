@@ -55,6 +55,9 @@ model User {
   automationWorkflows AutomationWorkflow[]
   passwordResetTokens PasswordResetToken[]
   kycResubmitTokens KycResubmitToken[]
+  salesJobs SalesJob[]
+  salesJobSettings SalesJobSettings?
+  clientMatchCandidates ClientMatchCandidate[]
 
   @@index([companyId])
   @@index([accountStatus])
@@ -218,6 +221,8 @@ model Buyer {
   user         User?    @relation(fields: [userId], references: [id])
   orders       Order[]
   offers       Offer[]
+  salesJobs    SalesJob[]
+  matchCandidates ClientMatchCandidate[] @relation("MatchExistingClient")
 }
 
 model Supplier {
@@ -521,6 +526,8 @@ model Order {
   returnRequests          OrderReturnRequest[]
   orderCancellations      OrderCancellation[]
   orderFailedReasons      OrderFailedReason[]
+  matchCandidates         ClientMatchCandidate[]
+  salesJobs               SalesJob[]
 
   // Indexes for performance - added to fix slow queries
   @@index([userId])
@@ -895,6 +902,7 @@ model SalesAgent {
   fieldReports  FieldReport[]
   salesTargets  SalesTarget[]
   favoriteProducts FavoriteProduct[]
+  salesJobs        SalesJob[]
 
   @@index([teamId])
   @@index([userId])
@@ -1332,5 +1340,103 @@ model AutomationRun {
 
   @@unique([workflowId, runKey])
   @@index([workflowId, createdAt])
+}
+
+/// Field task for a sales rep. AI suggestions stay "suggested" until a manager approves them.
+model SalesJob {
+  id                String    @id @default(uuid())
+  distributorId     Int
+  assignedTo        String
+  clientId          String
+  /// First selected order. Points at Order.orderId.
+  orderId           String?
+  /// Every order linked to a take_order or collect_payment job.
+  orderIds          String[]  @default([])
+  /// take_order | collect_payment | promote_product | stock_check | prospect_new_outlet
+  jobType           String
+  priorityReason    String?
+  suggestedProducts String[]  @default([])
+  /// ai | manager
+  createdBy         String
+  /// suggested | approved | dispatched | in_progress | completed | skipped
+  status            String
+  scheduledDate     DateTime  @db.Timestamptz(3)
+  completionNotes   String?
+  /// order_placed, order_amount, payment_collected, payment_amount, stock_checked, products_demoed, notes
+  completionData    Json?
+  whatsappMessageId String?
+  dispatchNote      String?
+  dispatchedAt      DateTime? @db.Timestamptz(3)
+  completedAt       DateTime? @db.Timestamptz(3)
+  createdAt         DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @db.Timestamptz(3)
+
+  distributor User              @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+  agent       SalesAgent        @relation(fields: [assignedTo], references: [id], onDelete: Restrict)
+  client      Buyer             @relation(fields: [clientId], references: [buyerId], onDelete: Restrict)
+  order       Order?            @relation(fields: [orderId], references: [orderId], onDelete: SetNull)
+  schedules   SalesJobSchedule[]
+
+  @@index([distributorId, status])
+  @@index([assignedTo, scheduledDate])
+  @@index([clientId])
+  @@index([distributorId, scheduledDate])
+  @@index([orderId])
+}
+
+/// One visit date and the WhatsApp reminder clock time for that date.
+model SalesJobSchedule {
+  id             String    @id @default(uuid())
+  jobId          String
+  scheduledDate  DateTime  @db.Timestamptz(3)
+  reminderHour   Int
+  reminderMinute Int
+  sentAt         DateTime? @db.Timestamptz(3)
+
+  job SalesJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([scheduledDate, reminderHour, reminderMinute])
+}
+
+/// When the morning WhatsApp job list goes out, and when unanswered jobs are flagged.
+model SalesJobSettings {
+  distributorId        Int     @id
+  dispatchHour         Int     @default(7)
+  dispatchMinute       Int     @default(0)
+  unresolvedCutoffHour Int     @default(18)
+  timezone             String  @default("Asia/Jakarta")
+  lastSuggestedDateKey String?
+  updatedAt            DateTime @updatedAt @db.Timestamptz(3)
+
+  distributor User @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+}
+
+/// Possible duplicate between a rep-created client and a marketplace buyer.
+model ClientMatchCandidate {
+  id                   String    @id @default(uuid())
+  distributorId        Int
+  existingClientId     String
+  incomingOrderId      String
+  provisionalClientId  String?
+  confidenceScore      Int
+  matchedSignals       String[]  @default([])
+  /// pending | merged | not_a_match | needs_more_info
+  status               String
+  autoMerged           Boolean   @default(false)
+  /// Prior client status and the marketplace buyer profile, used by Undo.
+  undoSnapshot         Json?
+  undoneAt             DateTime? @db.Timestamptz(3)
+  createdAt            DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime  @updatedAt @db.Timestamptz(3)
+
+  distributor    User  @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+  existingClient Buyer @relation("MatchExistingClient", fields: [existingClientId], references: [buyerId], onDelete: Cascade)
+  incomingOrder  Order @relation(fields: [incomingOrderId], references: [orderId], onDelete: Cascade)
+
+  @@index([distributorId, status])
+  @@index([distributorId, autoMerged, createdAt])
+  @@index([incomingOrderId])
+  @@index([existingClientId])
 }
 

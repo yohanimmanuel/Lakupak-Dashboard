@@ -4,6 +4,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FileText, Plus, Calendar, Clock, MapPin, Trash2, Edit } from 'lucide-react';
 import { SalesAgent } from './TeamList';
 import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
+import { fetchGraphQL } from '@/lib/graphqlClient';
+import { useUserStore } from '@/store/userStore';
 
 interface FieldReport {
   id: string;
@@ -13,6 +15,7 @@ interface FieldReport {
     customersMet: number;
     productsDemonstrated: number;
     salesMade: number;
+    manualOverride?: boolean;
   };
   notes?: string;
   location?: string;
@@ -51,6 +54,8 @@ export default function SalesReporting({
   mode,
 }: SalesReportingProps) {
   const { tSalesReporting } = useMarketingTranslations();
+  const userId = useUserStore((state) => state.user?.id);
+  const [jobDays, setJobDays] = useState<Record<string, { visits: number; customersMet: number; productsDemonstrated: number; salesMade: number }>>({});
   const [reports, setReports] = useState<FieldReport[]>(() => {
     // Use existing reports from formData if available (both create and edit mode)
     if (formData.fieldReports && formData.fieldReports.length > 0) {
@@ -123,6 +128,57 @@ export default function SalesReporting({
     onTabCompletion('reporting', true);
   }, [onTabCompletion]);
 
+  useEffect(() => {
+    if (!userId || !formData.id) return;
+    fetchGraphQL<{ salesJobDayAggregates: { date: string; visits: number; customersMet: number; productsDemonstrated: number; salesMade: number }[] }>(
+      `query JobDays($userId: Int!, $agentId: String!) {
+        salesJobDayAggregates(userId: $userId, agentId: $agentId) { date visits customersMet productsDemonstrated salesMade }
+      }`,
+      { userId, agentId: formData.id },
+    )
+      .then((data) => {
+        const next: Record<string, { visits: number; customersMet: number; productsDemonstrated: number; salesMade: number }> = {};
+        for (const row of data.salesJobDayAggregates) next[row.date] = row;
+        setJobDays(next);
+      })
+      .catch(() => setJobDays({}));
+  }, [userId, formData.id]);
+
+  useEffect(() => {
+    if (Object.keys(jobDays).length === 0) return;
+    let changed = false;
+    const next = reportsRef.current.map((report) => {
+      if (report.activities?.manualOverride) return report;
+      const agg = jobDays[report.date.slice(0, 10)];
+      if (!agg) return report;
+      const current = report.activities;
+      if (
+        current &&
+        current.visits === agg.visits &&
+        current.customersMet === agg.customersMet &&
+        current.productsDemonstrated === agg.productsDemonstrated &&
+        current.salesMade === agg.salesMade
+      ) {
+        return report;
+      }
+      changed = true;
+      return { ...report, activities: { ...agg } };
+    });
+    if (!changed) return;
+    setReports(next);
+    onFormChange({
+      fieldReports: next.map((report) => ({
+        id: report.id,
+        date: report.date,
+        location: report.location,
+        startTime: report.startTime,
+        endTime: report.endTime,
+        activities: report.activities,
+        notes: report.notes,
+      })),
+    });
+  }, [jobDays, onFormChange]);
+
   const handleAddReport = () => {
     const newReport: FieldReport = {
       id: `report-${Date.now()}`,
@@ -174,7 +230,17 @@ export default function SalesReporting({
   };
 
   const handleUpdateReport = (reportId: string, updates: Partial<FieldReport>) => {
-    const updatedReports = reports.map(r => r.id === reportId ? { ...r, ...updates } : r);
+    let nextUpdates = updates;
+    if (updates.activities && !updates.date) {
+      nextUpdates = { ...updates, activities: { ...updates.activities, manualOverride: true } };
+    } else if (updates.date) {
+      const current = reports.find((report) => report.id === reportId);
+      const agg = jobDays[updates.date.slice(0, 10)];
+      if (agg && !current?.activities?.manualOverride) {
+        nextUpdates = { ...updates, activities: { ...agg } };
+      }
+    }
+    const updatedReports = reports.map(r => r.id === reportId ? { ...r, ...nextUpdates } : r);
     setReports(updatedReports);
     // Sync with formData
     onFormChange({ 
@@ -268,10 +334,11 @@ export default function SalesReporting({
 
             {/* Activities Summary */}
             <div className="border border-[#e6e6e6] rounded-lg p-4 mb-4">
-              <h4 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <h4 className="text-sm font-semibold text-gray-900 mb-1 flex items-center gap-2">
                 <FileText className="w-4 h-4" />
                 {tSalesReporting('dailyActivities')}
               </h4>
+              <p className="text-xs text-gray-500 mb-4">{tSalesReporting('prefilledFromJobs')}</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
                   <label className="text-xs text-gray-500 mb-1 block">{tSalesReporting('visits')}</label>

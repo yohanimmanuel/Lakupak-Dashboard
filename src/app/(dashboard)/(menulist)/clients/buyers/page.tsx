@@ -4,7 +4,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Statcards from '@/components/clientmanagement/Statcards';
 import BuyerTable from "@/components/clientmanagement/BuyerTable";
 import BuyerModal from '@/components/clientmanagement/BuyerModal';
-import { Plus, Upload, Download, RefreshCw, Check, AlertTriangle } from 'lucide-react';
+import Link from 'next/link';
+import { Plus, Upload, Download, RefreshCw, Check, AlertTriangle, GitCompare } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import ImportData from '@/components/clientmanagement/ImportData';
 import { useUserStore } from '@/store/userStore';
@@ -85,6 +86,7 @@ export default function BuyersPage() {
   const overlayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hasLoadedBuyersRef = useRef(false);
   const user = useUserStore(state => state.user);
+  const [pendingMatches, setPendingMatches] = useState(0);
 
   // Utility function to calculate monthly averages (same logic as BuyerProfile)
   const calculateMonthlyAverages = (orderDetails: OrderDetail[]) => {
@@ -254,6 +256,16 @@ export default function BuyersPage() {
     };
   }, [user?.id, fetchBuyers]);
 
+  useEffect(() => {
+    if (!user?.id) return;
+    fetchGraphQL<{ clientMatchPendingCount: number }>(
+      `query MatchCount($userId: Int!) { clientMatchPendingCount(userId: $userId) }`,
+      { userId: user.id },
+    )
+      .then((data) => setPendingMatches(data.clientMatchPendingCount || 0))
+      .catch(() => setPendingMatches(0));
+  }, [user?.id]);
+
   // Auto-hide success and error messages
   useEffect(() => {
     if (updateSuccess) {
@@ -299,6 +311,17 @@ export default function BuyersPage() {
           >
             <Download className="w-4 h-4" /> {tShared('exportData')}
           </button>
+          <Link
+            href="/clients/buyers/buyer-matching"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm"
+          >
+            <GitCompare className="w-4 h-4" /> {tBuyers('matchBuyers')}
+            {pendingMatches > 0 && (
+              <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-[#0a61d7] px-1.5 py-0.5 text-[10px] font-bold text-white">
+                {pendingMatches > 99 ? '99+' : pendingMatches}
+              </span>
+            )}
+          </Link>
           <button
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm"
             onClick={() => setShowAddModal(true)}

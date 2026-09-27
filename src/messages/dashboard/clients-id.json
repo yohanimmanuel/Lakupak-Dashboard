@@ -199,6 +199,7 @@
     "title": "Daftar Pembeli",
     "loading": "Memuat pembeli...",
     "addBuyer": "Tambah Pembeli",
+    "matchBuyers": "Cocokkan Pembeli",
     "refreshing": "Menyegarkan data pembeli",
     "loadingData": "Memuat data pembeli...",
     "loaded": "{count} pembeli dimuat",
@@ -230,6 +231,7 @@
       "title": "Detail Pembeli",
       "copyData": "Salin Data",
       "editDetails": "Edit Detail",
+      "matchWithOrder": "Cocokkan dengan pesanan marketplace",
       "profileCompletion": "Kelengkapan Profil",
       "fieldsCompleted": "{completed} dari {total} field terisi",
       "missingFields": "Kosong: {fields}",
@@ -533,6 +535,32 @@
       "totalSupplied": "Total Pasokan (Opsional)",
       "totalValue": "Nilai Total (Opsional)",
       "lastDelivery": "Pengiriman Terakhir (Opsional)"
+    }
+  },
+  "matching": {
+    "title": "Pencocokan Pembeli",
+    "subtitle": "Tinjau kemungkinan kecocokan antara prospek dan pesanan marketplace. Hanya kecocokan dengan keyakinan tinggi yang digabung otomatis.",
+    "pending": "Menunggu",
+    "needsInfo": "Perlu info lagi",
+    "autoMerged": "Baru digabung otomatis",
+    "empty": "Tidak ada data di daftar ini.",
+    "existing": "Pembeli yang ada",
+    "incoming": "Pesanan masuk",
+    "score": "Keyakinan {score}",
+    "merge": "Gabungkan",
+    "notMatch": "Bukan pasangan",
+    "needsMore": "Perlu info lagi",
+    "undo": "Batalkan",
+    "searchLabel": "Cari pesanan marketplace",
+    "searchPlaceholder": "Nama toko atau alamat",
+    "search": "Cari",
+    "prospect": "Pembeli prospek",
+    "mergeInto": "Gabungkan ke pembeli ini",
+    "signals": {
+      "phone_match": "Nomor HP cocok",
+      "address_match": "Alamat cocok",
+      "address_similar": "Alamat mirip",
+      "name_similar": "Nama mirip"
     }
   }
 }

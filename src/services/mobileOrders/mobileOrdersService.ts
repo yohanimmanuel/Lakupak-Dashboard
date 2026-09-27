@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { buildMobileBuyerId, syncOrderToBuyerProfile } from '@/utils/buyerSync';
+import { finalizeMarketplaceClientMatch, planMarketplaceClientMatch } from '@/lib/clientMatching/service';
 import { NotificationService } from '@/app/api/graphql/modules/notifications';
 import {
   validateOfferForProduct,
@@ -469,7 +470,18 @@ export async function createMobileMarketplaceOrders(
     }
 
     const buyerPerDistributorId = buildMobileBuyerId(marketplaceUser.id, distributorUserIdFromClient);
+    const matchPlan = await planMarketplaceClientMatch({
+      distributorId: distributorUserIdFromClient,
+      intendedBuyerId: buyerPerDistributorId,
+      phone: String(contactPhone || marketplaceUser.phone || ''),
+      storeName: String(storeName || marketplaceUser.storeName || ''),
+      ownerName: String(contactPerson || marketplaceUser.name || ''),
+      address: String(deliveryAddress || marketplaceUser.chosenAddress || ''),
+      email: customerEmail ? String(customerEmail) : marketplaceUser.email || '',
+      avatar: marketplaceUser.image || null,
+    });
 
+    if (!matchPlan.preserveExistingClient) {
     await prisma.buyer.upsert({
       where: { buyerId: buyerPerDistributorId },
       update: {
@@ -494,6 +506,7 @@ export async function createMobileMarketplaceOrders(
         userId: distributorUserIdFromClient,
       },
     });
+    }
 
     const groupSubtotal = Array.isArray(orderItems)
       ? orderItems.reduce((sum: number, it: OrderItemInput) => sum + parseFloat(String(it.subtotal || 0)), 0)
@@ -515,8 +528,8 @@ export async function createMobileMarketplaceOrders(
     );
     const orderData = {
       orderId: groupOrderId,
-      buyerId: buyerPerDistributorId,
-      buyerIdSnapshot: buyerPerDistributorId,
+      buyerId: matchPlan.buyerId,
+      buyerIdSnapshot: matchPlan.buyerId,
       orderDate: orderDateValue,
       orderDateSnapshot: orderDateValue,
       orderStatus: String(orderStatus || 'Pending'),
@@ -551,6 +564,11 @@ export async function createMobileMarketplaceOrders(
       userId: distributorUserIdFromClient,
     };
     const order = await prisma.order.create({ data: orderData });
+    try {
+      await finalizeMarketplaceClientMatch(matchPlan, order.orderId);
+    } catch (error) {
+      console.warn('[Mobile Orders] Client match finalize failed:', error);
+    }
 
     if (order.userId) {
       try {
@@ -683,7 +701,7 @@ export async function createMobileMarketplaceOrders(
             tx,
             packageQuantity,
             variantForValidation,
-            buyerPerDistributorId,
+            matchPlan.buyerId,
           );
 
           let variantNameSnapshot: string | null = null;
@@ -771,7 +789,7 @@ export async function createMobileMarketplaceOrders(
     }
 
     try {
-      await syncOrderToBuyerProfile(buyerPerDistributorId, distributorUserIdFromClient);
+      await syncOrderToBuyerProfile(matchPlan.buyerId, distributorUserIdFromClient);
     } catch (err) {
       console.error('[mobileOrdersService] Failed to sync order to buyer profile:', err);
     }
@@ -825,6 +843,7 @@ export async function createMobileMarketplaceOrders(
   // Validate items (variants + promo free qty + stock precheck) BEFORE creating any orders to avoid partial writes.
   // Stock precheck here is advisory only — no reservation or decrement; inventory is deducted on dashboard confirm.
   if (Array.isArray(orderItems) && orderItems.length > 0) {
+    const plannedBuyerByDistributor = new Map<number, string>();
     for (const item of orderItems) {
       const product = await prisma.product.findFirst({
         where: { productId: String(item.productId || '') },
@@ -878,9 +897,26 @@ export async function createMobileMarketplaceOrders(
       let orderedPieces = qtyForPrecheck.orderedPieces;
       let totalQtyNeeded = qtyForPrecheck.totalQtyNeeded;
 
-      const precheckBuyerId = product.userId
-        ? buildMobileBuyerId(marketplaceUser.id, product.userId)
-        : '';
+      let precheckBuyerId = '';
+      if (product.userId) {
+        const cachedBuyerId = plannedBuyerByDistributor.get(product.userId);
+        if (cachedBuyerId) {
+          precheckBuyerId = cachedBuyerId;
+        } else {
+          const precheckPlan = await planMarketplaceClientMatch({
+            distributorId: product.userId,
+            intendedBuyerId: buildMobileBuyerId(marketplaceUser.id, product.userId),
+            phone: String(contactPhone || marketplaceUser.phone || ''),
+            storeName: String(storeName || marketplaceUser.storeName || ''),
+            ownerName: String(contactPerson || marketplaceUser.name || ''),
+            address: String(deliveryAddress || marketplaceUser.chosenAddress || ''),
+            email: customerEmail ? String(customerEmail) : marketplaceUser.email || '',
+            avatar: marketplaceUser.image || null,
+          });
+          precheckBuyerId = precheckPlan.buyerId;
+          plannedBuyerByDistributor.set(product.userId, precheckPlan.buyerId);
+        }
+      }
       const productOffer = precheckBuyerId
         ? await getOfferForClientAndProduct(precheckBuyerId, product.productId, {
             userId: product.userId ?? undefined,
@@ -950,7 +986,18 @@ export async function createMobileMarketplaceOrders(
   for (const [distributorUserId, itemsForDistributor] of distributorToItems.entries()) {
     groupIndex += 1;
     const buyerPerDistributorId = buildMobileBuyerId(marketplaceUser.id, distributorUserId);
+    const matchPlan = await planMarketplaceClientMatch({
+      distributorId: distributorUserId,
+      intendedBuyerId: buyerPerDistributorId,
+      phone: String(contactPhone || marketplaceUser.phone || ''),
+      storeName: String(storeName || marketplaceUser.storeName || ''),
+      ownerName: String(contactPerson || marketplaceUser.name || ''),
+      address: String(deliveryAddress || marketplaceUser.chosenAddress || ''),
+      email: customerEmail ? String(customerEmail) : marketplaceUser.email || '',
+      avatar: marketplaceUser.image || null,
+    });
 
+    if (!matchPlan.preserveExistingClient) {
     await prisma.buyer.upsert({
       where: { buyerId: buyerPerDistributorId },
       update: {
@@ -975,6 +1022,7 @@ export async function createMobileMarketplaceOrders(
         userId: distributorUserId,
       },
     });
+    }
 
     const groupSubtotal = itemsForDistributor.reduce(
       (sum: number, it: OrderItemInput) => sum + parseFloat(String(it.subtotal || 0)),
@@ -1012,8 +1060,8 @@ export async function createMobileMarketplaceOrders(
     );
     const orderData = {
       orderId: groupOrderId,
-      buyerId: buyerPerDistributorId,
-      buyerIdSnapshot: buyerPerDistributorId,
+      buyerId: matchPlan.buyerId,
+      buyerIdSnapshot: matchPlan.buyerId,
       orderDate: orderDateValue,
       orderDateSnapshot: orderDateValue,
       orderStatus: String(orderStatus || 'Pending'),
@@ -1158,7 +1206,7 @@ export async function createMobileMarketplaceOrders(
               tx,
               packageQuantity,
               variantForValidation,
-              buyerPerDistributorId,
+              matchPlan.buyerId,
             );
 
             let variantNameSnapshot: string | null = null;
@@ -1250,6 +1298,11 @@ export async function createMobileMarketplaceOrders(
     }
 
     createdOrders.push({ orderId: order.orderId });
+    try {
+      await finalizeMarketplaceClientMatch(matchPlan, order.orderId);
+    } catch (error) {
+      console.warn('[Mobile Orders] Client match finalize failed:', error);
+    }
 
     if (order.userId) {
       try {

@@ -199,6 +199,7 @@
     "title": "Buyers List",
     "loading": "Loading buyers...",
     "addBuyer": "Add Buyer",
+    "matchBuyers": "Match Buyers",
     "refreshing": "Refreshing buyer data",
     "loadingData": "Loading buyer data...",
     "loaded": "{count} buyer(s) loaded",
@@ -230,6 +231,7 @@
       "title": "Buyer Details",
       "copyData": "Copy Data",
       "editDetails": "Edit Details",
+      "matchWithOrder": "Match with a marketplace order",
       "profileCompletion": "Profile Completion",
       "fieldsCompleted": "{completed} of {total} fields completed",
       "missingFields": "Missing: {fields}",
@@ -523,6 +525,32 @@
       "totalSupplied": "Total Supplied (Optional)",
       "totalValue": "Total Value (Optional)",
       "lastDelivery": "Last Delivery (Optional)"
+    }
+  },
+  "matching": {
+    "title": "Buyer Matching",
+    "subtitle": "Review possible matches between a prospect and a marketplace order. Only high-confidence matches are combined automatically.",
+    "pending": "Pending",
+    "needsInfo": "Needs more info",
+    "autoMerged": "Recently auto-merged",
+    "empty": "No matches in this list.",
+    "existing": "Existing buyer",
+    "incoming": "Incoming order",
+    "score": "Confidence {score}",
+    "merge": "Merge",
+    "notMatch": "Not a match",
+    "needsMore": "Needs more info",
+    "undo": "Undo",
+    "searchLabel": "Find a marketplace order",
+    "searchPlaceholder": "Shop name or address",
+    "search": "Search",
+    "prospect": "Prospect buyer",
+    "mergeInto": "Merge into this buyer",
+    "signals": {
+      "phone_match": "Phone match",
+      "address_match": "Address match",
+      "address_similar": "Address similar",
+      "name_similar": "Name similar"
     }
   }
 }

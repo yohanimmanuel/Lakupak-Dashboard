@@ -226,6 +226,53 @@ export async function sendTextMessage(args: {
   return { messageId, contacts };
 }
 
+export type ReplyButton = { id: string; title: string };
+
+/** Up to 3 quick-reply buttons. Titles are trimmed to WhatsApp's 20 character limit. */
+export async function sendReplyButtons(args: {
+  accessToken: string;
+  phoneNumberId: string;
+  to: string;
+  body: string;
+  buttons: ReplyButton[];
+}): Promise<SendTextMessageResult> {
+  const to = toWhatsAppCloudRecipient(args.to);
+  const text = normalizeWhatsAppMarkdown(args.body).trim();
+  const buttons = args.buttons.slice(0, 3).map((button) => ({
+    type: 'reply',
+    reply: {
+      id: button.id.slice(0, 256),
+      title: button.title.trim().slice(0, 20),
+    },
+  }));
+  if (!to) throw new WhatsAppCloudApiError('Recipient phone is required.', 400);
+  if (!text) throw new WhatsAppCloudApiError('Message text is required.', 400);
+  if (buttons.length === 0) throw new WhatsAppCloudApiError('At least one reply button is required.', 400);
+
+  const data = await graphRequest(`/${encodeURIComponent(args.phoneNumberId)}/messages`, args.accessToken, {
+    method: 'POST',
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to,
+      type: 'interactive',
+      interactive: {
+        type: 'button',
+        body: { text },
+        action: { buttons },
+      },
+    }),
+  });
+
+  const messages = Array.isArray(data.messages) ? data.messages : [];
+  const first = asRecord(messages[0]);
+  const messageId = trimStr(first?.id);
+  if (!messageId) {
+    throw new WhatsAppCloudApiError('WhatsApp API returned no message id.', 502);
+  }
+  return { messageId };
+}
+
 const TEMPLATE_NAME_RE = /^[a-z0-9_]{1,512}$/;
 
 export async function createMessageTemplate(args: {

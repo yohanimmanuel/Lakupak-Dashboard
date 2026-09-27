@@ -480,6 +480,11 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
               {buyer.status === 'Prospect' && (
                 <span className="inline-block px-2 py-1 rounded-full font-bold bg-amber-100 text-amber-600 text-xs">{translateStatus('Prospect')}</span>
               )}
+              {buyer.status === 'Prospect' && (
+                <Link href={`/clients/buyers/buyer-matching?buyerId=${encodeURIComponent(buyer.buyerId)}`} className="text-xs font-medium text-[#0a61d7]">
+                  {tBuyersProfile('matchWithOrder')}
+                </Link>
+              )}
               {buyer.status === 'Inactive' && (
                 <span className="inline-block px-2 py-1 rounded-full font-bold bg-gray-200 text-gray-500 text-xs">{translateStatus('Inactive')}</span>
               )}

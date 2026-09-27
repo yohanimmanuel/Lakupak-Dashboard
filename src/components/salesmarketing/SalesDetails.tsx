@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Edit, Mail, Phone, MapPin, Calendar, Eye, Package, X, Clock, User, Building2, Target, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { SalesAgent } from './TeamList';
 import { useUserStore } from '@/store/userStore';
+import { fetchGraphQL } from '@/lib/graphqlClient';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { formatDateLong } from '@/utils/dateUtils';
 import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
@@ -18,11 +19,13 @@ interface SalesDetailsProps {
 interface FieldReport {
   id: string;
   date: string;
+  dateKey?: string;
   activities?: {
     visits: number;
     customersMet: number;
     productsDemonstrated: number;
     salesMade: number;
+    manualOverride?: boolean;
   };
   notes?: string;
   location?: string;
@@ -47,6 +50,35 @@ interface FavoriteProduct {
   sellingPrice?: string;
 }
 
+type JobDay = { date: string; visits: number; customersMet: number; productsDemonstrated: number; salesMade: number };
+
+function jobDateKey(value: string): string {
+  if (/^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10);
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(parsed);
+}
+
+function periodIncludesDate(period: string, dateKey: string): boolean {
+  const [yearText, monthText] = dateKey.split('-');
+  const year = Number(yearText);
+  const month = Number(monthText);
+  if (!year || !month) return false;
+  const monthEn = new Date(Date.UTC(year, month - 1, 1)).toLocaleString('en-US', { month: 'long', timeZone: 'UTC' }).toLowerCase();
+  const monthId = ['januari', 'februari', 'maret', 'april', 'mei', 'juni', 'juli', 'agustus', 'september', 'oktober', 'november', 'desember'][month - 1];
+  const normalized = period.toLowerCase();
+  const yearMatch = normalized.match(/20\d{2}/);
+  if (!yearMatch || Number(yearMatch[0]) !== year) return false;
+  if (normalized.includes(monthEn) || normalized.includes(monthId)) return true;
+  const quarter = Math.floor((month - 1) / 3) + 1;
+  return normalized.includes(`q${quarter}`);
+}
+
 export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProps) {
   const { tSalesDetails, translateAgentRole, translateAgentStatus, tShared } = useMarketingTranslations();
   const router = useRouter();
@@ -59,6 +91,25 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
   const reportsPerPage = 5;
   const [targetPage, setTargetPage] = useState(1);
   const targetsPerPage = 4;
+  const [jobDays, setJobDays] = useState<Record<string, JobDay>>({});
+
+  useEffect(() => {
+    if (!user?.id || !agent.id) return;
+    fetchGraphQL<{ salesJobDayAggregates: JobDay[] }>(
+      `query JobDays($userId: Int!, $agentId: String!) {
+        salesJobDayAggregates(userId: $userId, agentId: $agentId) {
+          date visits customersMet productsDemonstrated salesMade
+        }
+      }`,
+      { userId: user.id, agentId: agent.id },
+    )
+      .then((data) => {
+        const next: Record<string, JobDay> = {};
+        for (const row of data.salesJobDayAggregates) next[row.date] = row;
+        setJobDays(next);
+      })
+      .catch(() => setJobDays({}));
+  }, [user?.id, agent.id]);
 
   // Get user currency for display - safe to use on both server and client
   const userCurrency = user?.currency || getDefaultCurrency();
@@ -66,7 +117,8 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
   // Use field reports from agent data, format dates properly
   const fieldReports: FieldReport[] = (agent.fieldReports || []).map(report => ({
     id: report.id,
-    date: formatDateLong(report.date) || report.date, // Format ISO date to readable format
+    date: formatDateLong(report.date) || report.date,
+    dateKey: jobDateKey(report.date),
     location: report.location,
     startTime: report.startTime,
     endTime: report.endTime,
@@ -78,6 +130,28 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
     } | undefined,
     notes: report.notes,
   }));
+
+  const displayReports: FieldReport[] = (() => {
+    const rows = new Map<string, FieldReport>();
+    for (const report of fieldReports) {
+      const key = report.dateKey || report.id;
+      const agg = report.dateKey ? jobDays[report.dateKey] : undefined;
+      if (agg && !report.activities?.manualOverride) rows.set(key, { ...report, activities: { ...agg } });
+      else rows.set(key, report);
+    }
+    for (const [key, agg] of Object.entries(jobDays)) {
+      if (!rows.has(key)) rows.set(key, { id: `jobs-${key}`, date: formatDateLong(key) || key, dateKey: key, activities: agg });
+    }
+    return Array.from(rows.values()).sort((a, b) => (b.dateKey || '').localeCompare(a.dateKey || ''));
+  })();
+
+  const achievedAmount = (target: SalesTarget) => {
+    const fromJobs = Object.entries(jobDays).reduce(
+      (sum, [date, row]) => (periodIncludesDate(target.period, date) ? sum + row.salesMade : sum),
+      0,
+    );
+    return fromJobs + target.achieved;
+  };
 
   // Use sales targets from agent data
   const salesTargets: SalesTarget[] = agent.salesTargets || [];
@@ -119,7 +193,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
   };
 
   const progressPercentage = currentMonthTarget && currentMonthTarget.goal > 0
-    ? getProgressPercentage(currentMonthTarget.achieved, currentMonthTarget.goal)
+    ? getProgressPercentage(achievedAmount(currentMonthTarget), currentMonthTarget.goal)
     : 0;
 
   return (
@@ -200,7 +274,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                   <div className="flex items-center gap-2">
                     <div className="w-1 h-4 bg-[#0a61d7] rounded"></div>
                     <span className="text-xs text-gray-500">{tSalesDetails('achieved')}</span>
-                    <span className="text-xs font-semibold text-gray-900 ml-auto">{formatCurrencyAmount(currentMonthTarget.achieved)}</span>
+                    <span className="text-xs font-semibold text-gray-900 ml-auto">{formatCurrencyAmount(achievedAmount(currentMonthTarget))}</span>
                   </div>
                 </div>
               </div>
@@ -310,6 +384,9 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
           <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
             <div className="mb-4">
               <h3 className="text-lg font-semibold text-gray-900">{tSalesDetails('dailyFieldReport')}</h3>
+              {Object.keys(jobDays).length > 0 && (
+                <p className="text-xs text-gray-500 mt-1">{tSalesDetails('fromCompletedJobs')}</p>
+              )}
             </div>
             
             <div className="flex items-center gap-2 mb-4">
@@ -320,10 +397,10 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
 
             {/* Pagination */}
             {(() => {
-              const totalReportPages = Math.ceil(fieldReports.length / reportsPerPage);
+              const totalReportPages = Math.ceil(displayReports.length / reportsPerPage);
               const fromReport = (reportPage - 1) * reportsPerPage + 1;
-              const toReport = Math.min(reportPage * reportsPerPage, fieldReports.length);
-              const paginatedReports = fieldReports.slice((reportPage - 1) * reportsPerPage, reportPage * reportsPerPage);
+              const toReport = Math.min(reportPage * reportsPerPage, displayReports.length);
+              const paginatedReports = displayReports.slice((reportPage - 1) * reportsPerPage, reportPage * reportsPerPage);
               
               return (
                 <>
@@ -346,11 +423,11 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                     ))}
                   </div>
 
-                  {fieldReports.length > 0 && (
+                  {displayReports.length > 0 && (
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-6 gap-2">
                       {/* Left: Showing X to Y of Z */}
                       <div className="text-sm text-gray-500">
-                        {tSalesDetails('pagination.showing', { from: fromReport, to: toReport, total: fieldReports.length })}
+                        {tSalesDetails('pagination.showing', { from: fromReport, to: toReport, total: displayReports.length })}
                       </div>
                       {/* Right: Pagination Controls */}
                       <div className="flex items-center gap-3">
@@ -422,6 +499,9 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
           <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
             <div className="mb-4">
               <h3 className="text-lg font-semibold text-gray-900">{tSalesDetails('salesTarget')}</h3>
+              {Object.keys(jobDays).length > 0 && (
+                <p className="text-xs text-gray-500 mt-1">{tSalesDetails('fromCompletedJobs')}</p>
+              )}
             </div>
             
             <div className="flex items-center gap-2 mb-4">
@@ -452,7 +532,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                           <tr key={idx} className="border-b border-[#e6e6e6] transition-colors">
                             <td className="py-3 px-4 text-xs font-medium text-gray-900">{target.period}</td>
                             <td className="py-3 px-4 text-xs text-black text-right">{formatCurrencyAmount(target.goal)}</td>
-                            <td className="py-3 px-4 text-xs text-black text-right">{formatCurrencyAmount(target.achieved)}</td>
+                            <td className="py-3 px-4 text-xs text-black text-right">{formatCurrencyAmount(achievedAmount(target))}</td>
                             <td className="py-3 px-4 text-xs text-black text-right">{target.unitsSold} {tSalesDetails('units')}</td>
                           </tr>
                         ))}

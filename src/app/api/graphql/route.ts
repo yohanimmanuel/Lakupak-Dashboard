@@ -18,6 +18,8 @@ import { dashboardTypeDefs, dashboardResolvers } from './modules/dashboard';
 import { userActivityTypeDefs, userActivityResolvers } from './modules/userActivity';
 import { marketplaceTypeDefs, marketplaceResolvers } from './modules/marketplace';
 import { salesTypeDefs, salesResolvers } from './modules/sales';
+import { salesJobsTypeDefs, salesJobsResolvers } from './modules/salesJobs';
+import { clientMatchingTypeDefs, clientMatchingResolvers } from './modules/clientMatching';
 import { notificationsTypeDefs, notificationsResolvers } from './modules/notifications';
 import { logisticsTypeDefs, logisticsResolvers } from './modules/logistics';
 import { automationsTypeDefs, automationsResolvers } from './modules/automations';
@@ -58,6 +60,8 @@ const typeDefs = mergeTypeDefs([
   userActivityTypeDefs,
   marketplaceTypeDefs,
   salesTypeDefs,
+  salesJobsTypeDefs,
+  clientMatchingTypeDefs,
   notificationsTypeDefs,
   logisticsTypeDefs,
   automationsTypeDefs,
@@ -73,6 +77,8 @@ const resolvers = mergeResolvers([
   userActivityResolvers,
   marketplaceResolvers,
   salesResolvers,
+  salesJobsResolvers,
+  clientMatchingResolvers,
   notificationsResolvers,
   logisticsResolvers,
   automationsResolvers,
@@ -461,8 +467,10 @@ function isSalesOperation(query: string): boolean {
   const createSalesTeamPattern = /\bcreatesalesteam\s*\(/;
   const updateSalesTeamPattern = /\bupdatesalesteam\s*\(/;
   const deleteSalesTeamPattern = /\bdeletesalesteam\s*\(/;
+  const salesJobPattern = /\b(salesjobs|unresolvedsalesjobs|salesjobdayaggregates|salesjobsettings|salesjobformoptions|salesjoborders|suggestsalesjobs|createsalesjobs|createsalesjob|reviewsalesjob|completesalesjob|updatesalesjobsettings|clientmatchcandidates|clientmatchpendingcount|searchordersforclientmatch|resolveclientmatch|undoclientmatch|manualmergeclient)\s*\(/;
   
   return salesAgentsPattern.test(normalizedQuery) ||
+         salesJobPattern.test(normalizedQuery) ||
          salesAgentPattern.test(normalizedQuery) ||
          createSalesAgentPattern.test(normalizedQuery) ||
          updateSalesAgentPattern.test(normalizedQuery) ||

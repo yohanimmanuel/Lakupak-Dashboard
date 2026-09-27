@@ -1280,7 +1280,7 @@ export async function settingsOperationRateLimiter(
 }
 
 /**
- * Sales: All operations - 100 per hour per user
+ * Sales: All operations - 100 per minute per user
  */
 export async function salesOperationRateLimiter(
   req: NextRequest,
@@ -1290,7 +1290,7 @@ export async function salesOperationRateLimiter(
   const key = userId ? `sales-operation:${userId}:${ip}` : `sales-operation:${ip}`;
   
   return rateLimit(req, {
-    windowMs: 60 * 60 * 1000, // 1 hour
+    windowMs: 60 * 1000, // 1 minute
     maxRequests: 100,
     message: 'Too many sales operations. Please try again later.',
     keyGenerator: () => key,

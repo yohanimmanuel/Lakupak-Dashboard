@@ -15,7 +15,14 @@ async function run(request: Request) {
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   }
   const result = await tickAutomations();
-  return NextResponse.json({ ok: true, ...result, ts: new Date().toISOString() });
+  let salesJobs: { suggested: number; dispatched: number; failed: number } | { error: string } | null = null;
+  try {
+    const { tickSalesJobs } = await import('@/lib/salesJobs/tick');
+    salesJobs = await tickSalesJobs();
+  } catch (error) {
+    salesJobs = { error: error instanceof Error ? error.message : 'sales jobs tick failed' };
+  }
+  return NextResponse.json({ ok: true, ...result, salesJobs, ts: new Date().toISOString() });
 }
 
 export async function GET(request: Request) {

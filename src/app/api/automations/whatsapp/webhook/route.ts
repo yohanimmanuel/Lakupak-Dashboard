@@ -53,7 +53,9 @@ export async function POST(request: NextRequest) {
 
   const messages = parseWhatsAppWebhookMessages(body);
   const statuses = parseWhatsAppWebhookStatuses(body);
-  if (messages.length > 0 || statuses.length > 0) {
+  const { parseSalesJobWhatsAppPayload } = await import('@/lib/salesJobs/whatsapp');
+  const salesJobReplies = parseSalesJobWhatsAppPayload(body);
+  if (messages.length > 0 || statuses.length > 0 || salesJobReplies.length > 0) {
     after(async () => {
       if (statuses.length > 0) {
         try {
@@ -67,6 +69,16 @@ export async function POST(request: NextRequest) {
           await dispatchInboundWhatsAppMessages(messages);
         } catch (err) {
           console.error('[whatsapp-webhook] inbound dispatch failed', err);
+        }
+      }
+      if (salesJobReplies.length > 0) {
+        const { handleWhatsAppReply } = await import('@/lib/salesJobs/whatsapp');
+        for (const reply of salesJobReplies) {
+          try {
+            await handleWhatsAppReply(reply);
+          } catch (err) {
+            console.error('[whatsapp-webhook] sales job reply failed', err);
+          }
         }
       }
     });
