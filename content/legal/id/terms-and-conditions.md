@@ -48,7 +48,7 @@ Jika Anda tidak setuju, jangan menggunakan Layanan Lakupak.
 
 ## 3. Peran dan penggunaan yang diizinkan
 
-**3.1 Distributor** dapat mengelola katalog, stok, harga, klien, pesanan, penawaran, alat pemasaran, analitik, logistik, penerbitan marketplace, otomasi, dan pengaturan mereka sendiri dalam Akun mereka. Distributor tidak boleh mengakses data rahasia distributor lain.
+**3.1 Distributor** dapat mengelola katalog, stok, harga, klien, pesanan, penawaran, alat penjualan, analitik, logistik, penerbitan marketplace, otomasi, dan pengaturan mereka sendiri dalam Akun mereka. Distributor tidak boleh mengakses data rahasia distributor lain.
 
 **3.2 Pembeli** dapat menelusuri dan memesan dari distributor sesuai aturan Marketplace, melacak pesanan, mengirim bukti pembayaran jika diperlukan, serta menggunakan fitur ulasan atau retur sebagaimana disediakan.
 

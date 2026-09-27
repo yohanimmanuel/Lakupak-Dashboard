@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useMemo, useLayoutEffect } from 're
 import { User, Mail, Phone, MapPin, Upload, X, ChevronDown } from 'lucide-react';
 import { SalesAgent } from './TeamList';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
-import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
+import { useSalesTranslations } from '@/hooks/useSalesTranslations';
 
 interface BasicProfileInfoProps {
   formData: Partial<SalesAgent>;
@@ -36,7 +36,7 @@ export default function BasicProfileInfo({
   onTabCompletion,
   mode,
 }: BasicProfileInfoProps) {
-  const { tBasicProfile, translateAgentRole, translateAgentStatus } = useMarketingTranslations();
+  const { tBasicProfile, translateAgentRole, translateAgentStatus } = useSalesTranslations();
   const [avatarPreview, setAvatarPreview] = useState<string | null>(formData.avatar || null);
   const [isUploading, setIsUploading] = useState(false);
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);

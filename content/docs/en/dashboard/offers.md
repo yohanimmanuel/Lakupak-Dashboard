@@ -113,4 +113,4 @@ Two controls release that price:
 | Attach products | [Products](/en/docs/dashboard/products) |
 | Price on the purchase order | [Orders](/en/docs/dashboard/orders) |
 | Buyer price toggle | [Settings](/en/docs/dashboard/settings) |
-| Campaigns hub | [Marketing](/en/docs/dashboard/marketing) |
+| Campaigns hub | [Sales](/en/docs/dashboard/sales) |

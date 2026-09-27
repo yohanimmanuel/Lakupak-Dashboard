@@ -8,7 +8,7 @@ import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { formatDateLong } from '@/utils/dateUtils';
-import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
+import { useSalesTranslations } from '@/hooks/useSalesTranslations';
 
 interface SalesDetailsProps {
   agent: SalesAgent;
@@ -80,7 +80,7 @@ function periodIncludesDate(period: string, dateKey: string): boolean {
 }
 
 export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProps) {
-  const { tSalesDetails, translateAgentRole, translateAgentStatus, tShared } = useMarketingTranslations();
+  const { tSalesDetails, translateAgentRole, translateAgentStatus, tShared } = useSalesTranslations();
   const router = useRouter();
   const user = useUserStore(state => state.user);
   const [selectedMonth] = useState('October, 2024');

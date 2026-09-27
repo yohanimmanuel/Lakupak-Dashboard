@@ -44,7 +44,7 @@ const sections = [
       ['dashboard/products', 'Products', 'Produk'],
       ['dashboard/orders', 'Orders', 'Pesanan'],
       ['dashboard/offers', 'Offers', 'Penawaran'],
-      ['dashboard/marketing', 'Marketing', 'Pemasaran'],
+      ['dashboard/sales', 'Sales', 'Pemasaran'],
       ['dashboard/analytics', 'Analytics', 'Analitik'],
       ['dashboard/marketplace-admin', 'Marketplace (admin)', 'Marketplace (admin)'],
       ['dashboard/logistics', 'Logistics', 'Logistik'],

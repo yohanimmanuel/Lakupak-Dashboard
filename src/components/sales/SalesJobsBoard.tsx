@@ -60,14 +60,15 @@ function ModalShell({
 }
 
 export default function SalesJobsBoard() {
-  const t = useTranslations('dashboard.marketing.salesJobs');
+  const t = useTranslations('dashboard.sales.salesJobs');
   const router = useRouter();
   const userId = useUserStore((state) => state.user?.id);
   const [jobs, setJobs] = useState<SalesJobRow[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [completing, setCompleting] = useState<SalesJobRow | null>(null);
+  const [completingIds, setCompletingIds] = useState<string[]>([]);
+  const [completingName, setCompletingName] = useState('');
   const [completion, setCompletion] = useState<SalesJobCompletion>(emptyCompletion());
 
   const load = useCallback(async () => {
@@ -199,16 +200,35 @@ export default function SalesJobsBoard() {
         jobs={jobs}
         onApproveAction={(ids) => review(ids, 'approve')}
         onRejectAction={(ids) => review(ids, 'reject')}
-        onCompleteAction={(job) => {
-          setCompleting(job);
-          setCompletion(job.completionData || emptyCompletion());
+        onEditAction={({ assignedTo, clientId }) =>
+          router.push(`/sales/jobs/edit?assignedTo=${encodeURIComponent(assignedTo)}&clientId=${encodeURIComponent(clientId)}`)
+        }
+        onDeleteAction={(ids) => {
+          setError('');
+          setMessage('');
+          void (async () => {
+            try {
+              await fetchGraphQL(
+                `mutation DeleteJobs($userId: Int!, $ids: [String!]!) { deleteSalesJobs(userId: $userId, ids: $ids) }`,
+                { userId, ids },
+              );
+              await load();
+            } catch (err) {
+              setError(err instanceof Error ? err.message : 'Request failed');
+            }
+          })();
+        }}
+        onCompleteAction={(rows) => {
+          setCompletingIds(rows.map((job) => job.id));
+          setCompletingName(Array.from(new Set(rows.map((job) => job.clientName))).join(', '));
+          setCompletion(rows.length === 1 ? rows[0].completionData || emptyCompletion() : emptyCompletion());
         }}
       />
 
-      {completing && (
-        <ModalShell title={t('complete')} onClose={() => setCompleting(null)}>
+      {completingIds.length > 0 && (
+        <ModalShell title={t('complete')} onClose={() => setCompletingIds([])}>
           <div className="grid gap-3">
-            <p className="text-sm font-medium text-gray-900">{completing.clientName}</p>
+            <p className="text-sm font-medium text-gray-900">{completingName}</p>
             <label className="text-xs text-gray-600 flex items-center gap-2">
               <input
                 type="checkbox"
@@ -270,11 +290,13 @@ export default function SalesJobsBoard() {
                 className="px-4 py-2 bg-[#0a61d7] text-white rounded-lg text-sm font-semibold hover:bg-[#084ba6]"
                 onClick={() =>
                   run(async () => {
-                    await fetchGraphQL(
-                      `mutation Complete($userId: Int!, $id: String!, $completion: SalesJobCompletionInput!) { completeSalesJob(userId: $userId, id: $id, completion: $completion) { id } }`,
-                      { userId, id: completing.id, completion },
-                    );
-                    setCompleting(null);
+                    for (const id of completingIds) {
+                      await fetchGraphQL(
+                        `mutation Complete($userId: Int!, $id: String!, $completion: SalesJobCompletionInput!) { completeSalesJob(userId: $userId, id: $id, completion: $completion) { id } }`,
+                        { userId, id, completion },
+                      );
+                    }
+                    setCompletingIds([]);
                   })
                 }
               >
@@ -283,7 +305,7 @@ export default function SalesJobsBoard() {
               <button
                 type="button"
                 className="px-4 py-2 border border-[#e6e6e6] rounded-lg text-sm font-medium hover:bg-gray-100"
-                onClick={() => setCompleting(null)}
+                onClick={() => setCompletingIds([])}
               >
                 {t('cancel')}
               </button>

@@ -79,6 +79,7 @@ function mapJob(job: {
   dispatchedAt: Date | null;
   completedAt: Date | null;
   orderId?: string | null;
+  orderIds?: string[];
   schedules?: { scheduledDate: Date; reminderHour: number; reminderMinute: number }[];
   agent: { id: string; name: string; phone: string; role: string };
   client: { buyerId: string; storeName: string; owner: string; phone: string; address: string; status: string };
@@ -108,6 +109,7 @@ function mapJob(job: {
     createdBy: job.createdBy,
     status: job.status,
     orderId: job.orderId ?? null,
+    orderIds: job.orderIds ?? [],
     schedules,
     scheduledDate: schedules[0]?.date ?? zonedParts(job.scheduledDate, timeZone).dateKey,
     completionNotes: job.completionNotes,
@@ -364,10 +366,20 @@ function normalizeSchedules(schedules: ScheduleInput[], timeZone: string) {
   });
 }
 
+export async function deleteSalesJobs(args: { distributorId: number; ids: string[] }) {
+  const ids = Array.from(new Set(args.ids.map((id) => id.trim()).filter(Boolean)));
+  if (ids.length === 0) return 0;
+  const result = await prisma.salesJob.deleteMany({
+    where: { id: { in: ids }, distributorId: args.distributorId },
+  });
+  return result.count;
+}
+
 export async function createSalesJobs(args: {
   distributorId: number;
   assignedTo: string;
   jobs: CreateSalesJobItem[];
+  replaceIds?: string[];
 }) {
   if (!args.jobs.length) throw new Error('Add at least one job');
   const agent = await prisma.salesAgent.findFirst({
@@ -379,6 +391,12 @@ export async function createSalesJobs(args: {
   const timeZone = settings?.timezone || DEFAULT_JOB_TIMEZONE;
 
   const created = await prisma.$transaction(async (tx) => {
+    const replaceIds = Array.from(new Set((args.replaceIds ?? []).map((id) => id.trim()).filter(Boolean)));
+    if (replaceIds.length > 0) {
+      await tx.salesJob.deleteMany({
+        where: { id: { in: replaceIds }, distributorId: args.distributorId },
+      });
+    }
     const rows = [];
     for (const item of args.jobs) {
       const jobType = assertJobType(item.jobType);
@@ -434,21 +452,32 @@ export async function createSalesJobs(args: {
         if (!customerNumber || !name || !storeName || !phone || !address) {
           throw new Error('Fill in the new outlet');
         }
-        const existing = await tx.buyer.findUnique({ where: { buyerId: customerNumber }, select: { buyerId: true } });
-        if (existing) throw new Error('Customer number already exists');
-        await tx.buyer.create({
-          data: {
-            buyerId: customerNumber,
-            userId: args.distributorId,
-            owner: name,
-            storeName,
-            phone,
-            address,
-            email: '',
-            businessType: '',
-            status: 'Prospect',
-          },
+        const existing = await tx.buyer.findUnique({
+          where: { buyerId: customerNumber },
+          select: { buyerId: true, userId: true },
         });
+        const canReuse = Boolean(args.replaceIds?.length) && existing?.userId === args.distributorId;
+        if (existing && !canReuse) throw new Error('Customer number already exists');
+        if (canReuse) {
+          await tx.buyer.update({
+            where: { buyerId: customerNumber },
+            data: { owner: name, storeName, phone, address },
+          });
+        } else {
+          await tx.buyer.create({
+            data: {
+              buyerId: customerNumber,
+              userId: args.distributorId,
+              owner: name,
+              storeName,
+              phone,
+              address,
+              email: '',
+              businessType: '',
+              status: 'Prospect',
+            },
+          });
+        }
         clientId = customerNumber;
       }
 

@@ -8,7 +8,7 @@ export function generateStaticParams() {
     { slug: 'products' },
     { slug: 'orders' },
     { slug: 'offers' },
-    { slug: 'marketing' },
+    { slug: 'sales' },
     { slug: 'marketplace' },
     { slug: 'analytics' },
     { slug: 'automations' },

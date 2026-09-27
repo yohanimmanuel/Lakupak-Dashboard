@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
-import { SALES_JOB_TYPES } from './salesJobTypes';
+import { SALES_JOB_TYPES, type SalesJobRow } from './salesJobTypes';
 
 type AgentOption = { id: string; name: string; role: string; status: string };
 type ClientOption = { buyerId: string; storeName: string; owner: string; phone: string; status: string };
@@ -172,7 +172,7 @@ function OrderPicker({
   selectedIds: string[];
   onChange: (orderIds: string[]) => void;
 }) {
-  const t = useTranslations('dashboard.marketing.salesJobs');
+  const t = useTranslations('dashboard.sales.salesJobs');
   const currency = useUserStore((state) => state.user?.currency) || getDefaultCurrency();
   const [search, setSearch] = useState('');
   const [orders, setOrders] = useState<OrderOption[]>([]);
@@ -295,7 +295,7 @@ function ProductPicker({
   hint: string;
   onChange: (ids: string[]) => void;
 }) {
-  const t = useTranslations('dashboard.marketing.salesJobs');
+  const t = useTranslations('dashboard.sales.salesJobs');
   const [search, setSearch] = useState('');
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -373,15 +373,40 @@ function ProductPicker({
   );
 }
 
-export default function CreateSalesJobForm() {
-  const t = useTranslations('dashboard.marketing.salesJobs');
+function draftsFromRows(rows: SalesJobRow[]): JobDraft[] {
+  return rows.map((job) => ({
+    key: job.id,
+    jobType: job.jobType,
+    clientId: job.jobType === 'prospect_new_outlet' ? '' : job.clientId,
+    orderIds: job.orderIds?.length ? job.orderIds : job.orderId ? [job.orderId] : [],
+    productIds: job.suggestedProducts ?? [],
+    customerNumber: job.jobType === 'prospect_new_outlet' ? job.clientId : '',
+    customerName: job.clientOwner || '',
+    storeName: job.clientName,
+    phone: job.clientPhone || '',
+    address: job.clientAddress || '',
+    reason: job.priorityReason || '',
+    schedules: (job.schedules?.length ? job.schedules : [{ date: job.scheduledDate, reminderTime: '07:00' }]).map((row) => ({
+      key: newKey(),
+      date: row.date,
+      time: row.reminderTime || '07:00',
+    })),
+  }));
+}
+
+export default function CreateSalesJobForm({
+  editing,
+}: {
+  editing?: { assignedTo: string; replaceIds: string[]; jobs: SalesJobRow[] };
+}) {
+  const t = useTranslations('dashboard.sales.salesJobs');
   const router = useRouter();
   const user = useUserStore((state) => state.user);
   const [agents, setAgents] = useState<AgentOption[]>([]);
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [products, setProducts] = useState<ProductOption[]>([]);
-  const [assignedTo, setAssignedTo] = useState('');
-  const [jobs, setJobs] = useState<JobDraft[]>([blankJob()]);
+  const [assignedTo, setAssignedTo] = useState(editing?.assignedTo ?? '');
+  const [jobs, setJobs] = useState<JobDraft[]>(editing ? draftsFromRows(editing.jobs) : [blankJob()]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [jobErrors, setJobErrors] = useState<Record<string, string>>({});
@@ -446,14 +471,7 @@ export default function CreateSalesJobForm() {
     setSaving(true);
     setError('');
     try {
-      await fetchGraphQL(
-        `mutation CreateSalesJobs($userId: Int!, $assignedTo: String!, $jobs: [CreateSalesJobItemInput!]!) {
-          createSalesJobs(userId: $userId, assignedTo: $assignedTo, jobs: $jobs) { id }
-        }`,
-        {
-          userId: user.id,
-          assignedTo,
-          jobs: jobs.map((job) => ({
+      const jobsInput = jobs.map((job) => ({
             jobType: job.jobType,
             priorityReason: job.reason.trim() || null,
             clientId: job.clientId || null,
@@ -473,7 +491,20 @@ export default function CreateSalesJobForm() {
               const time = parseTime(row.time)!;
               return { scheduledDate: row.date, reminderHour: time.reminderHour, reminderMinute: time.reminderMinute };
             }),
-          })),
+          }));
+      await fetchGraphQL(
+        editing
+          ? `mutation UpdateSalesJobs($userId: Int!, $assignedTo: String!, $replaceIds: [String!]!, $jobs: [CreateSalesJobItemInput!]!) {
+              updateSalesJobs(userId: $userId, assignedTo: $assignedTo, replaceIds: $replaceIds, jobs: $jobs) { id }
+            }`
+          : `mutation CreateSalesJobs($userId: Int!, $assignedTo: String!, $jobs: [CreateSalesJobItemInput!]!) {
+              createSalesJobs(userId: $userId, assignedTo: $assignedTo, jobs: $jobs) { id }
+            }`,
+        {
+          userId: user.id,
+          assignedTo,
+          jobs: jobsInput,
+          ...(editing ? { replaceIds: editing.replaceIds } : {}),
         },
       );
       router.push('/sales/jobs');
@@ -503,7 +534,7 @@ export default function CreateSalesJobForm() {
             <ArrowLeft className="w-4 h-4" />
             {t('form.backToJobs')}
           </button>
-          <h1 className="text-2xl font-bold text-black">{t('form.pageTitle')}</h1>
+          <h1 className="text-2xl font-bold text-black">{editing ? t('form.editTitle') : t('form.pageTitle')}</h1>
         </div>
         <button
           type="button"
@@ -511,7 +542,7 @@ export default function CreateSalesJobForm() {
           disabled={saving}
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm disabled:opacity-50"
         >
-          {saving ? t('form.saving') : t('form.saveJobs')}
+          {saving ? t('form.saving') : editing ? t('form.saveChanges') : t('form.saveJobs')}
         </button>
       </div>
 

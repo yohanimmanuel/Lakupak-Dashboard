@@ -1,6 +1,6 @@
 'use client';
 
-import CreateSalesJobForm from '@/components/salesmarketing/CreateSalesJobForm';
+import CreateSalesJobForm from '@/components/sales/CreateSalesJobForm';
 
 export default function NewSalesJobPage() {
   return <CreateSalesJobForm />;

@@ -11,7 +11,7 @@ import {
   Gift,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
+import { useSalesTranslations } from '@/hooks/useSalesTranslations';
 
 const TIP_CONFIG = [
   { id: 'new-customers', icon: UserPlus, actionLink: '/clients' },
@@ -21,7 +21,7 @@ const TIP_CONFIG = [
 
 type TipId = (typeof TIP_CONFIG)[number]['id'];
 
-interface MarketingTip {
+interface SalesTip {
   id: TipId;
   icon: LucideIcon;
   title: string;
@@ -37,12 +37,12 @@ const TOOL_CONFIG = [
   { id: 'jobs' as const, icon: Briefcase, link: '/sales/jobs' },
 ];
 
-export default function MarketingPage() {
-  const { tHub } = useMarketingTranslations();
+export default function SalesPage() {
+  const { tHub } = useSalesTranslations();
   const [dismissedTips, setDismissedTips] = useState<Set<string>>(new Set());
-  const [selectedTip, setSelectedTip] = useState<MarketingTip | null>(null);
+  const [selectedTip, setSelectedTip] = useState<SalesTip | null>(null);
 
-  const marketingTips: MarketingTip[] = useMemo(
+  const salesTips: SalesTip[] = useMemo(
     () =>
       TIP_CONFIG.map(({ id, icon, actionLink }) => {
         const rawDetails = tHub.raw(`tips.${id}.fullDetails`);
@@ -61,7 +61,7 @@ export default function MarketingPage() {
     [tHub],
   );
 
-  const marketingTools = useMemo(
+  const salesTools = useMemo(
     () =>
       TOOL_CONFIG.map(({ id, icon, link }) => ({
         id,
@@ -77,7 +77,7 @@ export default function MarketingPage() {
     setDismissedTips((prev) => new Set(prev).add(tipId));
   };
 
-  const visibleTips = marketingTips.filter((tip) => !dismissedTips.has(tip.id));
+  const visibleTips = salesTips.filter((tip) => !dismissedTips.has(tip.id));
 
   return (
     <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
@@ -136,7 +136,7 @@ export default function MarketingPage() {
       <section>
         <h2 className="text-lg font-semibold text-black mb-4">{tHub('toolsSection')}</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {marketingTools.map((tool) => {
+          {salesTools.map((tool) => {
             const IconComponent = tool.icon;
             return (
               <Link

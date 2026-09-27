@@ -10,7 +10,7 @@ export type HomeWidgetId =
   | 'suppliers'
   | 'logistics'
   | 'inventory'
-  | 'marketing';
+  | 'sales';
 
 export function useHomeTranslations() {
   const t = useTranslations('dashboard.home');

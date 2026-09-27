@@ -1,5 +1,5 @@
 /**
- * Skeleton for marketing/team page.
+ * Skeleton for sales/team page.
  * Matches: page header → TeamList (white card → pill tabs → search → agent rows)
  */
 import { Skeleton } from '@/components/ui/Skeleton';

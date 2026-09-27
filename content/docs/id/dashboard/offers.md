@@ -111,4 +111,4 @@ Dua kontrol yang membuka harga itu:
 | Produk | [Produk](/id/docs/dashboard/products) |
 | Harga di pesanan pembelian | [Pesanan](/id/docs/dashboard/orders) |
 | Sakelar harga pembeli | [Pengaturan](/id/docs/dashboard/settings) |
-| Pemasaran | [Pemasaran](/id/docs/dashboard/marketing) |
+| Penjualan | [Penjualan](/id/docs/dashboard/sales) |

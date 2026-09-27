@@ -67,7 +67,7 @@ Statuses: **Completed**, **Skipped / closed**, **Not started**.
 
 **Add Sales Team Member** / **Edit Sales Team Member** modals.
 
-Related to **Marketing → Teams** but focused on account-level sales configuration.
+Related to **Sales → Teams** but focused on account-level sales configuration.
 
 ## Language and Region
 
@@ -96,4 +96,4 @@ Keep billing and company data current to avoid payout or compliance issues.
 |------|--------|
 | Storefront preview | [Marketplace (admin)](/en/docs/dashboard/marketplace-admin) |
 | Publish products | [Products](/en/docs/dashboard/products) |
-| Marketing agents | [Marketing](/en/docs/dashboard/marketing) |
+| Sales agents | [Sales](/en/docs/dashboard/sales) |

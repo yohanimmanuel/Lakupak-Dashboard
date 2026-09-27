@@ -123,7 +123,7 @@ describe('cart idle win-back', () => {
       data: {
         userId: distributor.id,
         name: 'Cart idle',
-        type: 'marketing',
+        type: 'sales',
         status: 'active',
         triggerType: 'cart_idle',
         triggerConfig: { hours: 2 },

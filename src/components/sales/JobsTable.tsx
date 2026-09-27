@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Briefcase, Check, ChevronDown, ChevronLeft, ChevronRight, Filter, Search, X } from 'lucide-react';
+import { Briefcase, Check, ChevronDown, ChevronLeft, ChevronRight, Edit, Filter, Search, Trash, Trash2, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import {
   OPEN_SALES_JOB_STATUSES,
@@ -31,18 +31,88 @@ const STATUS_BADGE: Record<string, string> = {
   skipped: 'bg-gray-100 text-gray-700',
 };
 
+type JobGroup = {
+  id: string;
+  jobs: SalesJobRow[];
+  jobIds: string[];
+  clientName: string;
+  clientStatus: string;
+  agentName: string;
+  assignedTo: string;
+  clientId: string;
+  reasons: string[];
+  jobTypes: string[];
+  statuses: string[];
+  assignedDates: string[];
+};
+
+function groupJobs(jobs: SalesJobRow[]): JobGroup[] {
+  const order: string[] = [];
+  const grouped = new Map<string, SalesJobRow[]>();
+  for (const job of jobs) {
+    const id = `${job.assignedTo}::${job.clientId}`;
+    const list = grouped.get(id);
+    if (list) list.push(job);
+    else {
+      grouped.set(id, [job]);
+      order.push(id);
+    }
+  }
+  return order.map((id) => {
+    const rows = grouped.get(id) ?? [];
+    const first = rows[0];
+    const jobTypes: string[] = [];
+    const statuses: string[] = [];
+    const reasons: string[] = [];
+    const assignedDates: string[] = [];
+    const seenDates = new Set<string>();
+    for (const row of rows) {
+      if (!jobTypes.includes(row.jobType)) jobTypes.push(row.jobType);
+      if (!statuses.includes(row.status)) statuses.push(row.status);
+      const reason = row.priorityReason?.trim();
+      if (reason && !reasons.includes(reason)) reasons.push(reason);
+      const times = row.schedules?.length ? row.schedules : [{ date: row.scheduledDate, reminderTime: '' }];
+      for (const schedule of times) {
+        const date = schedule.date?.trim();
+        if (!date || seenDates.has(date)) continue;
+        seenDates.add(date);
+        assignedDates.push(date);
+      }
+    }
+    assignedDates.sort();
+    return {
+      id,
+      jobs: rows,
+      jobIds: rows.map((row) => row.id),
+      clientName: first.clientName,
+      clientStatus: first.clientStatus,
+      agentName: first.agentName,
+      assignedTo: first.assignedTo,
+      clientId: first.clientId,
+      reasons,
+      jobTypes,
+      statuses,
+      assignedDates,
+    };
+  });
+}
+
 export default function JobsTable({
   jobs,
   onApproveAction,
   onRejectAction,
   onCompleteAction,
+  onEditAction,
+  onDeleteAction,
 }: {
   jobs: SalesJobRow[];
   onApproveAction?: (ids: string[]) => void;
   onRejectAction?: (ids: string[]) => void;
-  onCompleteAction?: (job: SalesJobRow) => void;
+  onCompleteAction?: (jobs: SalesJobRow[]) => void;
+  onEditAction?: (group: { assignedTo: string; clientId: string }) => void;
+  onDeleteAction?: (ids: string[]) => void;
 }) {
-  const t = useTranslations('dashboard.marketing.salesJobs');
+  const t = useTranslations('dashboard.sales.salesJobs');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [selectedTab, setSelectedTab] = useState<(typeof STATUS_TABS)[number]>('all');
@@ -53,16 +123,16 @@ export default function JobsTable({
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
 
   const filteredRows = useMemo(() => {
-    let filtered = jobs;
-    if (selectedTab !== 'all') filtered = filtered.filter((job) => job.status === selectedTab);
-    if (typeFilter !== 'all') filtered = filtered.filter((job) => job.jobType === typeFilter);
+    let filtered = groupJobs(jobs);
+    if (selectedTab !== 'all') filtered = filtered.filter((group) => group.statuses.includes(selectedTab));
+    if (typeFilter !== 'all') filtered = filtered.filter((group) => group.jobTypes.includes(typeFilter));
     if (search.trim()) {
       const query = search.toLowerCase();
       filtered = filtered.filter(
-        (job) =>
-          job.clientName.toLowerCase().includes(query) ||
-          job.agentName.toLowerCase().includes(query) ||
-          (job.priorityReason || '').toLowerCase().includes(query),
+        (group) =>
+          group.clientName.toLowerCase().includes(query) ||
+          group.agentName.toLowerCase().includes(query) ||
+          group.reasons.some((reason) => reason.toLowerCase().includes(query)),
       );
     }
     return filtered;
@@ -101,7 +171,14 @@ export default function JobsTable({
     });
   };
 
-  const suggestedSelection = selectedIds.filter((id) => jobs.find((job) => job.id === id)?.status === 'suggested');
+  const selectedGroups = useMemo(
+    () => groupJobs(jobs).filter((group) => selectedIds.includes(group.id)),
+    [jobs, selectedIds],
+  );
+  const suggestedSelection = selectedGroups.flatMap((group) =>
+    group.jobs.filter((job) => job.status === 'suggested').map((job) => job.id),
+  );
+  const selectedJobIds = selectedGroups.flatMap((group) => group.jobIds);
 
   const typeLabel = (jobType: string) => t(`types.${jobType}` as 'types.take_order');
   const statusLabel = (status: string) => t(`status.${status}` as 'status.suggested');
@@ -221,6 +298,31 @@ export default function JobsTable({
                 <X className="w-4 h-4" />
                 {t('reject')}
               </button>
+              <button
+                onClick={() => {
+                  const openJobs = selectedGroups.flatMap((group) =>
+                    group.jobs.filter((job) => (OPEN_SALES_JOB_STATUSES as readonly string[]).includes(job.status)),
+                  );
+                  if (openJobs.length === 0) return;
+                  onCompleteAction?.(openJobs);
+                  setSelectedIds([]);
+                }}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium text-sm hover:bg-gray-100 transition-colors"
+              >
+                {t('complete')}
+              </button>
+              <button
+                onClick={() => {
+                  if (selectedJobIds.length === 0) return;
+                  if (!window.confirm(t('table.confirmDelete', { count: selectedJobIds.length }))) return;
+                  onDeleteAction?.(selectedJobIds);
+                  setSelectedIds([]);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
+              >
+                <Trash className="w-4 h-4" />
+                {t('table.delete')}
+              </button>
             </div>
           </div>
         </div>
@@ -266,8 +368,7 @@ export default function JobsTable({
               </tr>
             ) : (
               pagedRows.map((row) => {
-                const canReview = row.status === 'suggested';
-                const canComplete = (OPEN_SALES_JOB_STATUSES as readonly string[]).includes(row.status);
+                const canReview = row.statuses.includes('suggested');
                 return (
                   <tr
                     key={row.id}
@@ -297,42 +398,62 @@ export default function JobsTable({
                     </td>
                     <td className="py-4 px-4">
                       <div className="font-medium text-gray-900">{row.clientName}</div>
-                      <div className="text-gray-500 max-w-[280px] truncate" title={row.priorityReason || ''}>
-                        {row.priorityReason || row.clientStatus}
+                      <div className="text-gray-500 max-w-[280px] truncate" title={row.reasons.join('. ')}>
+                        {row.reasons.join('. ') || row.clientStatus}
                       </div>
                     </td>
-                    <td className="py-4 px-4">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${TYPE_BADGE[row.jobType] || TYPE_BADGE.prospect_new_outlet}`}>
-                        {typeLabel(row.jobType)}
-                      </span>
+                    <td className="py-4 px-4 whitespace-normal">
+                      <div className="flex flex-wrap gap-1">
+                        {row.jobTypes.map((jobType) => (
+                          <span
+                            key={jobType}
+                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${TYPE_BADGE[jobType] || TYPE_BADGE.prospect_new_outlet}`}
+                          >
+                            {typeLabel(jobType)}
+                          </span>
+                        ))}
+                      </div>
                     </td>
                     <td className="py-4 px-4 text-gray-700">{row.agentName}</td>
-                    <td className="py-4 px-4">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${STATUS_BADGE[row.status] || STATUS_BADGE.skipped}`}>
-                        {statusLabel(row.status as SalesJobStatus)}
-                      </span>
+                    <td className="py-4 px-4 whitespace-normal">
+                      <div className="flex flex-wrap gap-1">
+                        {row.statuses.map((status) => (
+                          <span
+                            key={status}
+                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${STATUS_BADGE[status] || STATUS_BADGE.skipped}`}
+                          >
+                            {statusLabel(status as SalesJobStatus)}
+                          </span>
+                        ))}
+                      </div>
                     </td>
                     <td className="py-4 px-4 text-gray-700 whitespace-normal">
-                      {row.schedules && row.schedules.length > 0 ? (
+                      {row.assignedDates.length > 0 ? (
                         <div className="flex flex-col gap-0.5">
-                          {row.schedules.map((schedule) => (
-                            <span key={`${schedule.date}-${schedule.reminderTime}`}>
-                              {schedule.date} · {schedule.reminderTime}
-                            </span>
+                          {row.assignedDates.map((date) => (
+                            <span key={date}>{date}</span>
                           ))}
                         </div>
-                      ) : (
-                        row.scheduledDate
-                      )}
+                      ) : null}
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-2 justify-center">
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onEditAction?.({ assignedTo: row.assignedTo, clientId: row.clientId });
+                          }}
+                          className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 transition-colors"
+                          title={t('table.edit')}
+                        >
+                          <Edit className="w-4 h-4 text-gray-500" />
+                        </button>
                         {canReview && (
                           <>
                             <button
                               onClick={(event) => {
                                 event.stopPropagation();
-                                onApproveAction?.([row.id]);
+                                onApproveAction?.(row.jobs.filter((job) => job.status === 'suggested').map((job) => job.id));
                               }}
                               className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 transition-colors"
                               title={t('approve')}
@@ -342,7 +463,7 @@ export default function JobsTable({
                             <button
                               onClick={(event) => {
                                 event.stopPropagation();
-                                onRejectAction?.([row.id]);
+                                onRejectAction?.(row.jobs.filter((job) => job.status === 'suggested').map((job) => job.id));
                               }}
                               className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-red-100 transition-colors"
                               title={t('reject')}
@@ -351,17 +472,17 @@ export default function JobsTable({
                             </button>
                           </>
                         )}
-                        {canComplete && (
-                          <button
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onCompleteAction?.(row);
-                            }}
-                            className="px-3 py-1.5 rounded-lg border border-[#e6e6e6] text-xs font-medium text-[#0a61d7] hover:bg-gray-100"
-                          >
-                            {t('complete')}
-                          </button>
-                        )}
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            if (!window.confirm(t('table.confirmDelete', { count: row.jobIds.length }))) return;
+                            onDeleteAction?.(row.jobIds);
+                          }}
+                          className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-red-100 transition-colors"
+                          title={t('table.remove')}
+                        >
+                          <Trash2 className="w-4 h-4 text-red-600" />
+                        </button>
                       </div>
                     </td>
                   </tr>

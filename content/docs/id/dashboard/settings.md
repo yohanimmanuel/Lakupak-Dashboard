@@ -65,7 +65,7 @@ Status: **Completed**, **Skipped / closed**, **Not started**.
 
 Modal **Add Sales Team Member** / **Edit Sales Team Member**.
 
-Terkait **Marketing → Teams** untuk konfigurasi penjualan di tingkat akun.
+Terkait **Sales → Teams** untuk konfigurasi penjualan di tingkat akun.
 
 ## Language & Region
 
@@ -91,4 +91,4 @@ Jaga data perusahaan dan penagihan tetap mutakhir.
 |--------|-----|
 | Lihat storefront | [Marketplace (admin)](/id/docs/dashboard/marketplace-admin) |
 | Publikasi produk | [Produk](/id/docs/dashboard/products) |
-| Agen pemasaran | [Pemasaran](/id/docs/dashboard/marketing) |
+| Agen penjualan | [Penjualan](/id/docs/dashboard/sales) |

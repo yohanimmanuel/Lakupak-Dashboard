@@ -3,6 +3,7 @@ import {
   completeSalesJob,
   createManualSalesJob,
   createSalesJobs,
+  deleteSalesJobs,
   getSalesJobSettings,
   listSalesJobOrders,
   listSalesJobs,
@@ -48,6 +49,7 @@ export const salesJobsTypeDefs = /* GraphQL */ `
     completionData: SalesJobCompletion!
     suggestedProductNames: [String!]!
     orderId: String
+    orderIds: [String!]!
     schedules: [SalesJobSchedule!]!
     dispatchNote: String
     dispatchedAt: String
@@ -156,6 +158,8 @@ export const salesJobsTypeDefs = /* GraphQL */ `
   extend type Mutation {
     suggestSalesJobs(userId: Int!): SuggestSalesJobsResult!
     createSalesJobs(userId: Int!, assignedTo: String!, jobs: [CreateSalesJobItemInput!]!): [SalesJob!]!
+    updateSalesJobs(userId: Int!, assignedTo: String!, replaceIds: [String!]!, jobs: [CreateSalesJobItemInput!]!): [SalesJob!]!
+    deleteSalesJobs(userId: Int!, ids: [String!]!): Int!
     createSalesJob(
       userId: Int!
       assignedTo: String!
@@ -230,6 +234,23 @@ export const salesJobsResolvers = {
         assignedTo: string;
         jobs: Parameters<typeof createSalesJobs>[0]['jobs'];
       }) => createSalesJobs({ distributorId: args.userId, assignedTo: args.assignedTo, jobs: args.jobs }),
+    ),
+    updateSalesJobs: withDashboardAuth(
+      async (args: {
+        userId: number;
+        assignedTo: string;
+        replaceIds: string[];
+        jobs: Parameters<typeof createSalesJobs>[0]['jobs'];
+      }) =>
+        createSalesJobs({
+          distributorId: args.userId,
+          assignedTo: args.assignedTo,
+          jobs: args.jobs,
+          replaceIds: args.replaceIds,
+        }),
+    ),
+    deleteSalesJobs: withDashboardAuth(async (args: { userId: number; ids: string[] }) =>
+      deleteSalesJobs({ distributorId: args.userId, ids: args.ids }),
     ),
     createSalesJob: withDashboardAuth(
       async (args: {

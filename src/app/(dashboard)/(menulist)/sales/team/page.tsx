@@ -5,12 +5,12 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { RefreshCcw, Download, Plus, Check } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import TeamList from '@/components/salesmarketing/TeamList';
-import { SalesAgent, SalesTeam } from '@/components/salesmarketing/TeamList';
+import TeamList from '@/components/sales/TeamList';
+import { SalesAgent, SalesTeam } from '@/components/sales/TeamList';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import type { SalesAgentConnection, SalesTeamConnection } from '@/types/sales';
-import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
+import { useSalesTranslations } from '@/hooks/useSalesTranslations';
 
 function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -92,8 +92,8 @@ const SALES_TEAMS_QUERY = `
   }
 `;
 
-export default function MarketingTeamPage() {
-  const { tTeam, tShared } = useMarketingTranslations();
+export default function SalesTeamPage() {
+  const { tTeam, tShared } = useSalesTranslations();
   const router = useRouter();
   const user = useUserStore(state => state.user);
   const [loading, setLoading] = useState(true);

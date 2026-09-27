@@ -1,6 +1,6 @@
 /**
  * Skeleton for hub/nav pages:
- * Clients hub, Marketing hub
+ * Clients hub, Sales hub
  *
  * Layout: header → tip banner → large navigation cards
  */

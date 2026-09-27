@@ -27,7 +27,6 @@
     "products": "Products",
     "orders": "Orders",
     "offers": "Offers",
-    "marketing": "Marketing",
     "team": "Team",
     "jobs": "Jobs",
     "automation": "Automation",
@@ -117,7 +116,7 @@
       "products": "Manage products, stock, and pricing",
       "orders": "Track and fulfill orders",
       "clients": "Organize buyers and suppliers",
-      "marketing": "Manage your sales team and automations",
+      "sales": "Manage your sales team and automations",
       "analytics": "Review sales and financial reports",
       "marketplace": "Publish and monitor storefront listings",
       "logistics": "Coordinate fleets and deliveries"
@@ -258,7 +257,7 @@
         "noActiveShipments": "No active shipments to display",
         "noActiveShipmentsHint": "Orders with delivery addresses will appear here"
       },
-      "marketing": {
+      "sales": {
         "name": "Sales",
         "description": "Teams and agents at a glance.",
         "teams": "Teams",

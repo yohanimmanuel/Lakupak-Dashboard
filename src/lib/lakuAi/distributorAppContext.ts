@@ -355,7 +355,7 @@ export const LAKU_APP_MODULES = [
     role: 'Create and manage product offers / discounts for buyers.',
   },
   {
-    id: 'marketing',
+    id: 'sales',
     path: '/sales',
     role: 'Sales team, jobs, field reports, and sales targets.',
   },

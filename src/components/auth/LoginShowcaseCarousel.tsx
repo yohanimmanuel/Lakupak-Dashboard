@@ -86,19 +86,19 @@ const SLIDES: SlideConfig[] = [
     ],
   },
   {
-    titleKey: 'showcaseSlideMarketingTitle',
-    subtitleKey: 'showcaseSlideMarketingSubtitle',
+    titleKey: 'showcaseSlideSalesTitle',
+    subtitleKey: 'showcaseSlideSalesSubtitle',
     images: [
       {
         src: '/Dashboardmarketing.png',
-        altKey: 'showcaseSlideMarketingPrimaryAlt',
+        altKey: 'showcaseSlideSalesPrimaryAlt',
         className: 'left-25 top-15 z-10 w-[50%]',
         animation: 'animate-showcase-float-slow',
         size: 'md',
       },
       {
         src: '/Dashboardmarketing2.png',
-        altKey: 'showcaseSlideMarketingSecondaryAlt',
+        altKey: 'showcaseSlideSalesSecondaryAlt',
         className: 'bottom-5 right-25 z-20 w-[30%]',
         animation: 'animate-showcase-float-slower animate-delay-500',
         size: 'sm',

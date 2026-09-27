@@ -1,5 +1,5 @@
 /**
- * Skeleton for the Marketing team agent details page.
+ * Skeleton for the Sales team agent details page.
  * Matches SalesDetails layout: white card → breadcrumb(back + name + edit) →
  * 3-column grid: left profile column (avatar/target/info/status + favourite products),
  * right column (about + daily field report list).

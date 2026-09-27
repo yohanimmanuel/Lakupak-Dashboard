@@ -31,7 +31,7 @@ Klik **Drag widgets to rearrange** (atau kontrol serupa di antarmuka) untuk memb
 
 Tata letak disimpan per pengguna di browser, sehingga pilihan Anda tetap ada saat login berikutnya.
 
-Widget bawaan: Analytics Overview, Orders Pipeline, Product Performance, Inventory Alerts, Buyer Engagement, dan Supplier Network. **Logistics Tracking** dan **Marketing Performance** tersedia di perpustakaan tetapi tidak aktif secara default.
+Widget bawaan: Analytics Overview, Orders Pipeline, Product Performance, Inventory Alerts, Buyer Engagement, dan Supplier Network. **Logistics Tracking** dan **Sales Performance** tersedia di perpustakaan tetapi tidak aktif secara default.
 
 ## Referensi widget
 

@@ -2,17 +2,17 @@
 
 import { useTranslations } from 'next-intl';
 
-export function useMarketingTranslations() {
-  const tHub = useTranslations('dashboard.marketing.hub');
-  const tTeam = useTranslations('dashboard.marketing.team');
-  const tTeamList = useTranslations('dashboard.marketing.teamList');
-  const tAgentForm = useTranslations('dashboard.marketing.agentForm');
-  const tBasicProfile = useTranslations('dashboard.marketing.basicProfile');
-  const tFavouriteProducts = useTranslations('dashboard.marketing.favouriteProducts');
-  const tSalesReporting = useTranslations('dashboard.marketing.salesReporting');
-  const tSalesTarget = useTranslations('dashboard.marketing.salesTarget');
-  const tSalesDetails = useTranslations('dashboard.marketing.salesDetails');
-  const tShared = useTranslations('dashboard.marketing.shared');
+export function useSalesTranslations() {
+  const tHub = useTranslations('dashboard.sales.hub');
+  const tTeam = useTranslations('dashboard.sales.team');
+  const tTeamList = useTranslations('dashboard.sales.teamList');
+  const tAgentForm = useTranslations('dashboard.sales.agentForm');
+  const tBasicProfile = useTranslations('dashboard.sales.basicProfile');
+  const tFavouriteProducts = useTranslations('dashboard.sales.favouriteProducts');
+  const tSalesReporting = useTranslations('dashboard.sales.salesReporting');
+  const tSalesTarget = useTranslations('dashboard.sales.salesTarget');
+  const tSalesDetails = useTranslations('dashboard.sales.salesDetails');
+  const tShared = useTranslations('dashboard.sales.shared');
   const tCommon = useTranslations('dashboard.common');
 
   const translateStatusTab = (tab: string) =>

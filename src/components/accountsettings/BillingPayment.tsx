@@ -293,7 +293,7 @@ export default function BillingPayment() {
   const [showPaymentKindDropdown, setShowPaymentKindDropdown] = useState(false);
   const paymentKindDropdownRef = useRef<HTMLDivElement>(null);
 
-  /** Full-page load (same idea as `loading` on marketing/team page). */
+  /** Full-page load (same idea as `loading` on sales/team page). */
   const [loading, setLoading] = useState(true);
   const [showOverlay, setShowOverlay] = useState(false);
   const [overlayMessage, setOverlayMessage] = useState('');

@@ -697,7 +697,7 @@ async function runWorkflowActions(
           );
         } else {
           parts.push(
-            'cart_winback skipped here (run Test run on a marketing workflow, or wait for cart idle).',
+            'cart_winback skipped here (run Test run on a sales workflow, or wait for cart idle).',
           );
         }
       }

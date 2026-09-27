@@ -3,14 +3,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, User, Package, FileText, Target, CheckCircle, AlertCircle } from 'lucide-react';
-import BasicProfileInfo from '@/components/salesmarketing/BasicProfileInfo';
-import FavouriteProducts from '@/components/salesmarketing/FavouriteProducts';
-import SalesReporting from '@/components/salesmarketing/SalesReporting';
-import SalesTarget from '@/components/salesmarketing/SalesTarget';
-import { SalesAgent } from '@/components/salesmarketing/TeamList';
+import BasicProfileInfo from '@/components/sales/BasicProfileInfo';
+import FavouriteProducts from '@/components/sales/FavouriteProducts';
+import SalesReporting from '@/components/sales/SalesReporting';
+import SalesTarget from '@/components/sales/SalesTarget';
+import { SalesAgent } from '@/components/sales/TeamList';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
-import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
+import { useSalesTranslations } from '@/hooks/useSalesTranslations';
 import { SkeletonWizardPage } from '@/components/skeleton/SkeletonWizardPage';
 
 type TabId = 'profile' | 'products' | 'reporting' | 'target';
@@ -32,7 +32,7 @@ interface Tab {
 }
 
 export default function EditSalesAgentPage() {
-  const { tAgentForm, translateWizardTab, translateWizardTabDesc } = useMarketingTranslations();
+  const { tAgentForm, translateWizardTab, translateWizardTabDesc } = useSalesTranslations();
   const router = useRouter();
   const searchParams = useSearchParams();
   const agentId = searchParams?.get('id') ?? null;

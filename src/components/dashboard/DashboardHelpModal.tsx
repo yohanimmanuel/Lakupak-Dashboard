@@ -12,7 +12,7 @@ type DashboardHelpModalProps = {
   onCloseAction: () => void;
 };
 
-const HELP_FEATURE_KEYS = ['products', 'orders', 'clients', 'marketing', 'analytics', 'marketplace', 'logistics'] as const;
+const HELP_FEATURE_KEYS = ['products', 'orders', 'clients', 'sales', 'analytics', 'marketplace', 'logistics'] as const;
 const HELP_TIP_KEYS = ['search', 'sidebar', 'tours'] as const;
 const SEARCH_VISIBLE_MQ = '(min-width: 640px)';
 

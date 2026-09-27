@@ -103,7 +103,7 @@ if (!appAccessToken) {
   process.exit(1);
 }
 
-console.log('\nStep 1: subscribe Lakupak Marketing app to WABA...');
+console.log('\nStep 1: subscribe Lakupak Sales app to WABA...');
 const step1 = await graphPost(`https://graph.facebook.com/${graphVersion}/${wabaId}/subscribed_apps`, {});
 console.log('Status:', step1.status, JSON.stringify(step1.json));
 

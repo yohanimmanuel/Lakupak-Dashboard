@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import SalesDetails from '@/components/salesmarketing/SalesDetails';
-import { SalesAgent } from '@/components/salesmarketing/TeamList';
+import SalesDetails from '@/components/sales/SalesDetails';
+import { SalesAgent } from '@/components/sales/TeamList';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
-import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
+import { useSalesTranslations } from '@/hooks/useSalesTranslations';
 import { SkeletonAgentDetailPage } from '@/components/skeleton/SkeletonAgentDetailPage';
 
 const GET_SALES_AGENT_QUERY = `
@@ -55,7 +55,7 @@ const GET_SALES_AGENT_QUERY = `
 `;
 
 export default function SalesDetailsPage() {
-  const { tSalesDetails } = useMarketingTranslations();
+  const { tSalesDetails } = useSalesTranslations();
   const searchParams = useSearchParams();
   const router = useRouter();
   const user = useUserStore(state => state.user);

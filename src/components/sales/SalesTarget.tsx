@@ -5,7 +5,7 @@ import { Target, Plus, Trash2, DollarSign } from 'lucide-react';
 import { SalesAgent } from './TeamList';
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
-import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
+import { useSalesTranslations } from '@/hooks/useSalesTranslations';
 
 interface SalesTargetRow {
   id: string;
@@ -28,7 +28,7 @@ export default function SalesTarget({
   onTabCompletion,
   mode,
 }: SalesTargetProps) {
-  const { tSalesTarget } = useMarketingTranslations();
+  const { tSalesTarget } = useSalesTranslations();
   const user = useUserStore(state => state.user);
   const [targetRows, setTargetRows] = useState<SalesTargetRow[]>(() => {
     // Use existing targets from formData if available (both create and edit mode)

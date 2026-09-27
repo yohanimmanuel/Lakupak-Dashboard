@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FileText, Plus, Calendar, Clock, MapPin, Trash2, Edit } from 'lucide-react';
 import { SalesAgent } from './TeamList';
-import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
+import { useSalesTranslations } from '@/hooks/useSalesTranslations';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
 
@@ -53,7 +53,7 @@ export default function SalesReporting({
   onTabCompletion,
   mode,
 }: SalesReportingProps) {
-  const { tSalesReporting } = useMarketingTranslations();
+  const { tSalesReporting } = useSalesTranslations();
   const userId = useUserStore((state) => state.user?.id);
   const [jobDays, setJobDays] = useState<Record<string, { visits: number; customersMet: number; productsDemonstrated: number; salesMade: number }>>({});
   const [reports, setReports] = useState<FieldReport[]>(() => {

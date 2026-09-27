@@ -42,6 +42,11 @@ const nextConfig: NextConfig = {
         permanent: false,
       },
       {
+        source: '/:locale/landing/features/marketing',
+        destination: '/:locale/landing/features/sales',
+        permanent: false,
+      },
+      {
         source: '/sales/campaigns',
         destination: '/sales',
         permanent: false,

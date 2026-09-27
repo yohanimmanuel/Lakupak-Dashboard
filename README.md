@@ -24,7 +24,7 @@ Our goal is to digitize the traditional distributor-to-retailer supply chain whi
 In Indonesia’s FMCG trade, distributors waste hours chasing the same buyers, and retailers get spammed with overlapping offers from different salesmen. Lakupak eliminates that chaos by giving both sides a shared, smart marketplace designed for wholesale buying:
 - **One platform, zero overlap** – Retailers see all offers from verified distributors in one place, without duplicated pitches.
 - **Wholesale-first tools** – Order by carton or box, schedule replenishments, and receive delivery updates instantly.
-- **Run your business, not just storing products** – From inventory tracking to analytics, ordering, sales, and marketing, distributors get an all-in-one SaaS to replace WhatsApp and paper ledgers.
+- **Run your business, not just storing products** – From inventory tracking to analytics, ordering, sales, and sales, distributors get an all-in-one SaaS to replace WhatsApp and paper ledgers.
 - **Protected relationships** – Role-based access keeps sensitive customer and price data safe from competitors.
 
 ## Core Features
@@ -35,7 +35,7 @@ In Indonesia’s FMCG trade, distributors waste hours chasing the same buyers, a
 - **Orders Management** - Track, fulfill, and invoice orders
 - **Analytics** - Sales trends, inventory turnover, customer behavior
 - **Supplier & Buyer Leads** - Discover and add new product sources and buyers
-- **Sales & Marketing** - Manage sales activities, manpower, and performance
+- **Sales & Sales** - Manage sales activities, manpower, and performance
 - **Programs & Incentives** - Offers discounts, promotions, and volume-based offers
 
 ### Buyer Interface

@@ -145,7 +145,7 @@ const TRIGGERS_BY_WORKFLOW: Record<WorkflowType, TriggerDefinition[]> = {
   order_logistics: [
     { type: 'return_accepted', fields: [] },
   ],
-  marketing: [],
+  sales: [],
 };
 
 const WHATSAPP_MESSAGE_CATEGORY_FIELD: CatalogField = {
@@ -227,7 +227,7 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
     },
     { type: 'notify_dashboard', fields: [] },
   ],
-  marketing: [
+  sales: [
     {
       type: 'cart_winback',
       fields: [
@@ -247,14 +247,14 @@ const LEGACY_TRIGGERS_BY_WORKFLOW: Record<WorkflowType, TriggerType[]> = {
   product_offers: ['schedule_cron'],
   lead_management: ['buyer_inactive'],
   order_logistics: ['order_pending_too_long'],
-  marketing: [],
+  sales: [],
 };
 
 const LEGACY_ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionType[]> = {
   product_offers: ['draft_offer_flag', 'draft_activate_offer'],
   lead_management: ['assign_sales_agent_flag', 'buyer_question_reply'],
   order_logistics: ['flag_for_fleet', 'assign_fleet', 'assign_driver', 'assign_logistic'],
-  marketing: [],
+  sales: [],
 };
 
 /** Field schemas for legacy action types still present on saved workflows. */

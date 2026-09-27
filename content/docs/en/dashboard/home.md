@@ -31,7 +31,7 @@ Click **Drag widgets to rearrange** to open the **Widget Library**. From there y
 
 Your layout is saved per user in the browser, so the Home page remembers your choices on the next visit.
 
-Default widgets: Analytics Overview, Orders Pipeline, Product Performance, Inventory Alerts, Buyer Engagement, and Supplier Network. **Logistics Tracking** and **Marketing Performance** are available in the library but off by default.
+Default widgets: Analytics Overview, Orders Pipeline, Product Performance, Inventory Alerts, Buyer Engagement, and Supplier Network. **Logistics Tracking** and **Sales Performance** are available in the library but off by default.
 
 ## Widget reference
 

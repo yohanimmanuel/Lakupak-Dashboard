@@ -48,7 +48,7 @@ If you do not agree, do not use the Lakupak Service.
 
 ## 3. Roles and permitted use
 
-**3.1 Distributors** may manage their own catalog, stock, prices, clients, orders, offers, marketing tools, analytics, logistics, marketplace publishing, automations, and settings within their Account. Distributors must not access another distributor’s confidential data.
+**3.1 Distributors** may manage their own catalog, stock, prices, clients, orders, offers, sales tools, analytics, logistics, marketplace publishing, automations, and settings within their Account. Distributors must not access another distributor’s confidential data.
 
 **3.2 Buyers** may browse and order from distributors according to Marketplace rules, track orders, submit payment proofs where required, and use reviews or returns features as provided.
 

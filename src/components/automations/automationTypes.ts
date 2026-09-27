@@ -2,7 +2,7 @@ export type WorkflowType =
   | 'product_offers'
   | 'lead_management'
   | 'order_logistics'
-  | 'marketing';
+  | 'sales';
 
 export type WorkflowStatus = 'active' | 'paused' | 'draft';
 
@@ -56,7 +56,7 @@ export const WORKFLOW_TYPES: WorkflowType[] = [
   'product_offers',
   'lead_management',
   'order_logistics',
-  'marketing',
+  'sales',
 ];
 
 export function toWorkflowRow(

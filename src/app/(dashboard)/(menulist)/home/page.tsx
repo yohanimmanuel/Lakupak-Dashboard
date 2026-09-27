@@ -60,7 +60,7 @@ type WidgetId =
   | 'suppliers'
   | 'logistics'
   | 'inventory'
-  | 'marketing';
+  | 'sales';
 
 interface WidgetDefinition {
   id: WidgetId;
@@ -105,7 +105,7 @@ const WIDGET_LIBRARY: WidgetDefinition[] = [
     icon: Globe2,
   },
   {
-    id: 'marketing',
+    id: 'sales',
     defaultActive: false,
     icon: Megaphone,
   },
@@ -301,7 +301,7 @@ const DASHBOARD_SNAPSHOT_QUERY = `
         onTimeDeliveryRate
         userId
       }
-      marketingSummary {
+      salesSummary {
         totalAgents
         activeAgents
         teams {
@@ -806,15 +806,15 @@ function normalizeSupplier(raw: Record<string, unknown>): Supplier | null {
   };
 }
 
-/** Marketing summary: teams and agents (for Sales widget) */
-interface MarketingTeamSummary {
+/** Sales summary: teams and agents (for Sales widget) */
+interface SalesTeamSummary {
   id: string;
   name: string;
   memberCount: number;
 }
 
-interface MarketingSummary {
-  teams: MarketingTeamSummary[];
+interface SalesSummary {
+  teams: SalesTeamSummary[];
   totalAgents: number;
   activeAgents: number;
 }
@@ -889,7 +889,7 @@ export default function HomePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [buyers, setBuyers] = useState<Buyer[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [marketingSummary, setMarketingSummary] = useState<MarketingSummary | null>(null);
+  const [salesSummary, setSalesSummary] = useState<SalesSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [aggregates, setAggregates] = useState<{
@@ -949,7 +949,8 @@ export default function HomePage() {
         : Array.isArray(parsed?.order)
           ? parsed.order
           : [];
-      const sanitized = rawOrder.filter((id): id is WidgetId =>
+      const normalized = rawOrder.map((id) => (id === 'marketing' ? 'sales' : id));
+      const sanitized = normalized.filter((id): id is WidgetId =>
         WIDGET_ID_SET.has(id as WidgetId),
       );
       const deduped = Array.from(new Set<WidgetId>(sanitized));
@@ -1060,7 +1061,7 @@ export default function HomePage() {
           setProducts([]);
           setBuyers([]);
           setSuppliers([]);
-          setMarketingSummary(null);
+          setSalesSummary(null);
           setLoading(false);
           return;
         }
@@ -1168,10 +1169,10 @@ export default function HomePage() {
           });
           setSuppliers(normalizedSuppliers);
 
-          const rawSummary = (snapshot as { marketingSummary?: Record<string, unknown> }).marketingSummary;
+          const rawSummary = (snapshot as { salesSummary?: Record<string, unknown> }).salesSummary;
           if (rawSummary && typeof rawSummary === 'object') {
             const teamsRaw = Array.isArray(rawSummary.teams) ? rawSummary.teams : [];
-            const teams: MarketingTeamSummary[] = teamsRaw
+            const teams: SalesTeamSummary[] = teamsRaw
               .filter((t): t is Record<string, unknown> => t != null && typeof t === 'object')
               .map((t) => ({
                 id: parseString(t.id, ''),
@@ -1179,13 +1180,13 @@ export default function HomePage() {
                 memberCount: typeof t.memberCount === 'number' ? t.memberCount : parseNumber(t.memberCount),
               }))
               .filter((t) => t.id);
-            setMarketingSummary({
+            setSalesSummary({
               teams,
               totalAgents: typeof rawSummary.totalAgents === 'number' ? rawSummary.totalAgents : parseNumber(rawSummary.totalAgents),
               activeAgents: typeof rawSummary.activeAgents === 'number' ? rawSummary.activeAgents : parseNumber(rawSummary.activeAgents),
             });
           } else {
-            setMarketingSummary({ teams: [], totalAgents: 0, activeAgents: 0 });
+            setSalesSummary({ teams: [], totalAgents: 0, activeAgents: 0 });
           }
       } catch (fetchError) {
         if (
@@ -1200,7 +1201,7 @@ export default function HomePage() {
           setProducts([]);
           setBuyers([]);
           setSuppliers([]);
-          setMarketingSummary(null);
+          setSalesSummary(null);
         }
       } finally {
         // Only clear loading if THIS run wasn't aborted. When the effect re-runs
@@ -2428,8 +2429,8 @@ const supplierInsights = useMemo(() => {
           ),
         };
       }
-      case 'marketing': {
-        const summary = marketingSummary ?? { teams: [], totalAgents: 0, activeAgents: 0 };
+      case 'sales': {
+        const summary = salesSummary ?? { teams: [], totalAgents: 0, activeAgents: 0 };
         const hasTeams = summary.teams.length > 0 || summary.totalAgents > 0;
         return {
           action: (
@@ -2437,14 +2438,14 @@ const supplierInsights = useMemo(() => {
               href="/sales"
               className="inline-flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6]"
             >
-              {widgetText('marketing', 'action')}
+              {widgetText('sales', 'action')}
               <ArrowRight className="w-4 h-4" />
             </Link>
           ),
           content: (
             <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-black">{widgetText('marketing', 'teamsAndPeople')}</h3>
+                <h3 className="text-sm font-semibold text-black">{widgetText('sales', 'teamsAndPeople')}</h3>
                 <Users className="h-4 w-4 text-gray-400" />
               </div>
               {hasTeams ? (
@@ -2452,11 +2453,11 @@ const supplierInsights = useMemo(() => {
                   <div className="grid grid-cols-3 gap-2">
                     <div className="rounded bg-gray-50 p-2 text-center">
                       <p className="text-lg font-semibold text-black">{summary.teams.length}</p>
-                      <p className="text-[10px] uppercase text-gray-500">{widgetText('marketing', 'teams')}</p>
+                      <p className="text-[10px] uppercase text-gray-500">{widgetText('sales', 'teams')}</p>
                     </div>
                     <div className="rounded bg-gray-50 p-2 text-center">
                       <p className="text-lg font-semibold text-black">{summary.totalAgents}</p>
-                      <p className="text-[10px] uppercase text-gray-500">{widgetText('marketing', 'agents')}</p>
+                      <p className="text-[10px] uppercase text-gray-500">{widgetText('sales', 'agents')}</p>
                     </div>
                     <div className="rounded bg-emerald-50 p-2 text-center">
                       <p className="text-lg font-semibold text-emerald-700">{summary.activeAgents}</p>
@@ -2466,7 +2467,7 @@ const supplierInsights = useMemo(() => {
                   {summary.teams.length > 0 && (
                     <div className="mt-3 border-t border-gray-100 pt-3">
                       <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
-                        {widgetText('marketing', 'byTeam')}
+                        {widgetText('sales', 'byTeam')}
                       </p>
                       <ul className="space-y-1.5">
                         {summary.teams.slice(0, 4).map((team) => (
@@ -2478,16 +2479,16 @@ const supplierInsights = useMemo(() => {
                             <span className="ml-2 shrink-0 rounded bg-[#f0f7ff] px-2 py-0.5 text-xs font-medium text-[#0a61d7]">
                               {team.memberCount}{' '}
                               {team.memberCount === 1
-                                ? widgetText('marketing', 'member')
-                                : widgetText('marketing', 'members')}
+                                ? widgetText('sales', 'member')
+                                : widgetText('sales', 'members')}
                             </span>
                           </li>
                         ))}
                         {summary.teams.length > 4 && (
                           <li className="text-xs text-gray-500">
                             {summary.teams.length - 4 === 1
-                              ? t('widgets.marketing.moreTeams', { count: summary.teams.length - 4 })
-                              : t('widgets.marketing.moreTeamsPlural', { count: summary.teams.length - 4 })}
+                              ? t('widgets.sales.moreTeams', { count: summary.teams.length - 4 })
+                              : t('widgets.sales.moreTeamsPlural', { count: summary.teams.length - 4 })}
                           </li>
                         )}
                       </ul>
@@ -2497,8 +2498,8 @@ const supplierInsights = useMemo(() => {
               ) : (
                 <div className="flex flex-col items-center justify-center py-6 text-center">
                   <Users className="mb-2 h-8 w-8 text-gray-300" />
-                  <p className="text-sm font-medium text-gray-600">{widgetText('marketing', 'noTeamsTitle')}</p>
-                  <p className="mt-1 text-xs text-gray-500">{widgetText('marketing', 'noTeamsHint')}</p>
+                  <p className="text-sm font-medium text-gray-600">{widgetText('sales', 'noTeamsTitle')}</p>
+                  <p className="mt-1 text-xs text-gray-500">{widgetText('sales', 'noTeamsHint')}</p>
                 </div>
               )}
             </div>
@@ -2614,7 +2615,7 @@ const supplierInsights = useMemo(() => {
                 setProducts([]);
                 setBuyers([]);
                 setSuppliers([]);
-                setMarketingSummary(null);
+                setSalesSummary(null);
               }}
             >
               {tCommon('retry')}

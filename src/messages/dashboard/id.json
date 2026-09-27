@@ -27,7 +27,6 @@
     "products": "Produk",
     "orders": "Pesanan",
     "offers": "Penawaran",
-    "marketing": "Pemasaran",
     "team": "Tim",
     "jobs": "Pekerjaan",
     "automation": "Otomatisasi",
@@ -117,7 +116,7 @@
       "products": "Kelola produk, stok, dan harga",
       "orders": "Lacak dan proses pesanan",
       "clients": "Atur pembeli dan pemasok",
-      "marketing": "Kelola tim penjualan dan otomatisasi",
+      "sales": "Kelola tim penjualan dan otomatisasi",
       "analytics": "Tinjau laporan penjualan dan keuangan",
       "marketplace": "Terbitkan dan pantau listing toko",
       "logistics": "Koordinasikan armada dan pengiriman"
@@ -258,7 +257,7 @@
         "noActiveShipments": "Tidak ada pengiriman aktif untuk ditampilkan",
         "noActiveShipmentsHint": "Pesanan dengan alamat pengiriman akan muncul di sini"
       },
-      "marketing": {
+      "sales": {
         "name": "Penjualan",
         "description": "Tim dan agen dalam satu pandangan.",
         "teams": "Tim",

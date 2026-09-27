@@ -24,14 +24,14 @@ export const dashboardTypeDefs = /* GraphQL */ `
     uniqueCustomers: Int!
   }
 
-  type MarketingTeamSummary {
+  type SalesTeamSummary {
     id: String!
     name: String!
     memberCount: Int!
   }
 
-  type MarketingSummary {
-    teams: [MarketingTeamSummary!]!
+  type SalesSummary {
+    teams: [SalesTeamSummary!]!
     totalAgents: Int!
     activeAgents: Int!
   }
@@ -41,7 +41,7 @@ export const dashboardTypeDefs = /* GraphQL */ `
     products: [Product!]!
     buyers: [Buyer!]!
     suppliers: [Supplier!]!
-    marketingSummary: MarketingSummary!
+    salesSummary: SalesSummary!
     totals: DashboardTotals!
     aggregates: DashboardAggregates!
   }
@@ -56,14 +56,14 @@ export const dashboardTypeDefs = /* GraphQL */ `
   }
 `;
 
-interface MarketingTeamSummary {
+interface SalesTeamSummary {
   id: string;
   name: string;
   memberCount: number;
 }
 
-interface MarketingSummary {
-  teams: MarketingTeamSummary[];
+interface SalesSummary {
+  teams: SalesTeamSummary[];
   totalAgents: number;
   activeAgents: number;
 }
@@ -74,7 +74,7 @@ interface DashboardSnapshot {
   products: unknown[];
   buyers: unknown[];
   suppliers: unknown[];
-  marketingSummary: MarketingSummary;
+  salesSummary: SalesSummary;
   totals: {
     orders: number;
     products: number;
@@ -217,7 +217,7 @@ const buildDashboardSnapshot = async (args: {
     prisma.salesAgent.count({ where: { userId, status: 'active' } }),
   ]);
 
-  const marketingSummary: MarketingSummary = {
+  const salesSummary: SalesSummary = {
     teams: teamsRows.map((t) => ({
       id: t.id,
       name: t.name,
@@ -232,7 +232,7 @@ const buildDashboardSnapshot = async (args: {
     products: productsConnection.nodes,
     buyers: buyersConnection.nodes,
     suppliers: suppliersConnection.nodes,
-    marketingSummary,
+    salesSummary,
     totals: {
       orders: ordersConnection.pagination.totalCount,
       products: productsConnection.pagination.totalCount,

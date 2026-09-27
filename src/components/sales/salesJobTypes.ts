@@ -19,9 +19,15 @@ export type SalesJobRow = {
   agentName: string;
   clientId: string;
   clientName: string;
+  clientOwner?: string;
+  clientPhone?: string;
+  clientAddress?: string;
   clientStatus: string;
   jobType: string;
   priorityReason: string | null;
+  suggestedProducts?: string[];
+  orderIds?: string[];
+  orderId?: string | null;
   suggestedProductNames: string[];
   createdBy: string;
   status: string;

@@ -6,7 +6,7 @@ import { Search, Edit, Plus, ChevronDown, ChevronRight, Users, User, Trash2, Mai
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
-import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
+import { useSalesTranslations } from '@/hooks/useSalesTranslations';
 
 export interface FavoriteProduct {
   productId: string;
@@ -111,7 +111,7 @@ export default function TeamList({
     translateStatusFilter,
     translateAgentRole,
     translateAgentStatus,
-  } = useMarketingTranslations();
+  } = useSalesTranslations();
   const router = useRouter();
   const user = useUserStore(state => state.user);
   const [selectedTab, setSelectedTab] = useState('individuals');

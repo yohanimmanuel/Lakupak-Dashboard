@@ -8,7 +8,7 @@ import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { formatCurrency, getDefaultCurrency, parsePrice } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
-import { useMarketingTranslations } from '@/hooks/useMarketingTranslations';
+import { useSalesTranslations } from '@/hooks/useSalesTranslations';
 
 interface FavouriteProductsProps {
   formData: Partial<SalesAgent>;
@@ -23,7 +23,7 @@ export default function FavouriteProducts({
   onTabCompletion,
   mode,
 }: FavouriteProductsProps) {
-  const { tFavouriteProducts, translateFilter } = useMarketingTranslations();
+  const { tFavouriteProducts, translateFilter } = useSalesTranslations();
   const user = useUserStore(state => state.user);
   const userCurrency = user?.currency || getDefaultCurrency();
   

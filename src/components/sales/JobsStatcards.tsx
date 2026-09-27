@@ -42,7 +42,7 @@ function JobStatCard({ label, count, hint, icon, iconBg }: Omit<StatCardConfig, 
 }
 
 export default function JobsStatcards({ jobs }: { jobs: SalesJobRow[] }) {
-  const t = useTranslations('dashboard.marketing.salesJobs');
+  const t = useTranslations('dashboard.sales.salesJobs');
 
   const stats = useMemo((): StatCardConfig[] => {
     const total = jobs.length;

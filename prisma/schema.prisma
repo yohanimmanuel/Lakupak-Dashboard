@@ -1299,7 +1299,7 @@ model AutomationWorkflow {
   userId        Int
   name          String
   description   String   @default("")
-  /// 'product_offers' | 'lead_management' | 'order_logistics' | 'marketing'
+  /// 'product_offers' | 'lead_management' | 'order_logistics' | 'sales'
   type          String
   /// 'active' | 'paused' | 'draft'
   status        String   @default("draft")

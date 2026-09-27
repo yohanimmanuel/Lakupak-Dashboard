@@ -1231,9 +1231,9 @@ export default function LandingPage() {
         />
 
         <FeatureBlock
-          id="marketing"
-          titleKey="features.marketing.title"
-          subtitleKey="features.marketing.subtitle"
+          id="sales"
+          titleKey="features.sales.title"
+          subtitleKey="features.sales.subtitle"
           tone="white"
           mediaMinHeightClass="h-[420px] sm:h-[520px]"
           media={
@@ -1241,7 +1241,7 @@ export default function LandingPage() {
               <div className="w-full max-w-5xl overflow-hidden rounded-xl border border-gray-200/90 bg-white p-1.5 shadow-[0_16px_40px_-16px_rgba(15,23,42,0.28)]">
                 <Image
                   src="/Dashboardoffers3.png"
-                  alt={t('features.marketing.title')}
+                  alt={t('features.sales.title')}
                   width={1532}
                   height={698}
                   quality={90}
@@ -1252,9 +1252,9 @@ export default function LandingPage() {
             </div>
           }
           points={[
-            { titleKey: 'features.marketing.1.title', descKey: 'features.marketing.1.desc' },
-            { titleKey: 'features.marketing.2.title', descKey: 'features.marketing.2.desc' },
-            { titleKey: 'features.marketing.3.title', descKey: 'features.marketing.3.desc' },
+            { titleKey: 'features.sales.1.title', descKey: 'features.sales.1.desc' },
+            { titleKey: 'features.sales.2.title', descKey: 'features.sales.2.desc' },
+            { titleKey: 'features.sales.3.title', descKey: 'features.sales.3.desc' },
           ]}
         />
 

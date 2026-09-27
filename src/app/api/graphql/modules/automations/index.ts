@@ -34,7 +34,7 @@ import {
 import { AUTOMATION_RUN_STATUSES, type WorkflowType } from '@/components/automations/automationTypes';
 import { normalizeConditionConfig } from '@/components/automations/builder/canvasTypes';
 
-const WORKFLOW_TYPES = new Set(['product_offers', 'lead_management', 'order_logistics', 'marketing']);
+const WORKFLOW_TYPES = new Set(['product_offers', 'lead_management', 'order_logistics', 'sales']);
 const WORKFLOW_STATUSES = new Set(['active', 'paused', 'draft']);
 const RUN_STATUSES = new Set<string>(AUTOMATION_RUN_STATUSES);
 
@@ -270,7 +270,7 @@ function mapWorkflow(row: AutomationWorkflow) {
     userId: row.userId,
     name: row.name,
     description: row.description ?? '',
-    type: row.type,
+    type: normalizeWorkflowType(row.type),
     status: row.status,
     triggerType: row.triggerType,
     triggerConfig: row.triggerConfig,
@@ -294,6 +294,10 @@ function mapRun(row: AutomationRun) {
     message: row.message,
     createdAt: row.createdAt.toISOString(),
   };
+}
+
+function normalizeWorkflowType(type: string): string {
+  return type === 'marketing' ? 'sales' : type;
 }
 
 function assertWorkflowType(type: string): asserts type is WorkflowType {
@@ -327,8 +331,9 @@ async function fetchWorkflowsConnection(args: {
     where.status = status;
   }
   if (type && type !== 'all') {
-    assertWorkflowType(type);
-    where.type = type;
+    const normalizedType = normalizeWorkflowType(type);
+    assertWorkflowType(normalizedType);
+    where.type = normalizedType === 'sales' ? { in: ['sales', 'marketing'] } : normalizedType;
   }
 
   const [totalCount, nodes, dbBuyers] = await Promise.all([
@@ -392,6 +397,8 @@ async function createWorkflow(args: {
   whatsappPhone?: string | null;
   gmailEmail?: string | null;
 }) {
+  args.type = normalizeWorkflowType(args.type);
+  args.type = normalizeWorkflowType(args.type);
   assertWorkflowType(args.type);
   const status = args.status ?? 'draft';
   assertStatus(status);
@@ -485,8 +492,8 @@ async function updateWorkflow(args: {
     throw new GraphQLError('Workflow not found', { extensions: { code: 'NOT_FOUND' } });
   }
 
-  const nextType = (args.type ?? existing.type) as WorkflowType;
-  if (args.type) assertWorkflowType(args.type);
+  const nextType = normalizeWorkflowType(args.type ?? existing.type) as WorkflowType;
+  if (args.type) assertWorkflowType(nextType);
   if (args.status) assertStatus(args.status);
 
   const nextTrigger = String(
@@ -543,7 +550,7 @@ async function updateWorkflow(args: {
   const data: Prisma.AutomationWorkflowUpdateInput = {};
   if (args.name != null) data.name = args.name.trim();
   if (args.description != null) data.description = args.description.trim();
-  if (args.type != null) data.type = args.type;
+  if (args.type != null) data.type = normalizeWorkflowType(args.type);
   if (args.status != null) data.status = args.status;
   if (args.triggerType != null) data.triggerType = nextTrigger;
   if (args.triggerConfig !== undefined) {
