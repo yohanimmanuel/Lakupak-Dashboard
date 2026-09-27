@@ -20,6 +20,10 @@ const TYPE_BADGE: Record<string, string> = {
   promote_product: 'bg-purple-100 text-purple-800',
   stock_check: 'bg-amber-100 text-amber-800',
   prospect_new_outlet: 'bg-gray-100 text-gray-700',
+  returns_pickup: 'bg-rose-100 text-rose-800',
+  competitor_intel: 'bg-sky-100 text-sky-800',
+  new_product_activation: 'bg-indigo-100 text-indigo-800',
+  scheme_reconciliation: 'bg-teal-100 text-teal-800',
 };
 
 const STATUS_BADGE: Record<string, string> = {
@@ -43,7 +47,7 @@ type JobGroup = {
   reasons: string[];
   jobTypes: string[];
   statuses: string[];
-  assignedDates: string[];
+  createdDates: string[];
 };
 
 function groupJobs(jobs: SalesJobRow[]): JobGroup[] {
@@ -64,22 +68,19 @@ function groupJobs(jobs: SalesJobRow[]): JobGroup[] {
     const jobTypes: string[] = [];
     const statuses: string[] = [];
     const reasons: string[] = [];
-    const assignedDates: string[] = [];
+    const createdDates: string[] = [];
     const seenDates = new Set<string>();
     for (const row of rows) {
       if (!jobTypes.includes(row.jobType)) jobTypes.push(row.jobType);
       if (!statuses.includes(row.status)) statuses.push(row.status);
       const reason = row.priorityReason?.trim();
       if (reason && !reasons.includes(reason)) reasons.push(reason);
-      const times = row.schedules?.length ? row.schedules : [{ date: row.scheduledDate, reminderTime: '' }];
-      for (const schedule of times) {
-        const date = schedule.date?.trim();
-        if (!date || seenDates.has(date)) continue;
-        seenDates.add(date);
-        assignedDates.push(date);
-      }
+      const date = row.createdAt?.trim();
+      if (!date || seenDates.has(date)) continue;
+      seenDates.add(date);
+      createdDates.push(date);
     }
-    assignedDates.sort();
+    createdDates.sort();
     return {
       id,
       jobs: rows,
@@ -92,7 +93,7 @@ function groupJobs(jobs: SalesJobRow[]): JobGroup[] {
       reasons,
       jobTypes,
       statuses,
-      assignedDates,
+      createdDates,
     };
   });
 }
@@ -119,6 +120,8 @@ export default function JobsTable({
   const [typeFilter, setTypeFilter] = useState<(typeof SALES_JOB_TYPES)[number] | 'all'>('all');
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<{ ids: string[]; name: string; bulk: boolean } | null>(null);
+  const deleteDialogRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
 
@@ -179,6 +182,65 @@ export default function JobsTable({
     group.jobs.filter((job) => job.status === 'suggested').map((job) => job.id),
   );
   const selectedJobIds = selectedGroups.flatMap((group) => group.jobIds);
+
+  const confirmDelete = () => {
+    if (!deleteTarget) return;
+    onDeleteAction?.(deleteTarget.ids);
+    if (deleteTarget.bulk) setSelectedIds([]);
+    setDeleteTarget(null);
+  };
+
+  useLayoutEffect(() => {
+    if (!deleteTarget) return;
+    const root = deleteDialogRef.current;
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const getFocusable = () => {
+      if (!root) return [];
+      return Array.from(
+        root.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => !el.hasAttribute('disabled') && el.getAttribute('aria-hidden') !== 'true');
+    };
+    const frame = window.requestAnimationFrame(() => {
+      const focusable = getFocusable();
+      (focusable[0] ?? root)?.focus();
+    });
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setDeleteTarget(null);
+        return;
+      }
+      if (event.key !== 'Tab' || !root) return;
+      const focusable = getFocusable();
+      if (focusable.length === 0) {
+        event.preventDefault();
+        root.focus();
+        return;
+      }
+      if (!root.contains(document.activeElement)) {
+        event.preventDefault();
+        focusable[0]?.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener('keydown', onKeyDown, true);
+      previouslyFocused?.focus();
+    };
+  }, [deleteTarget]);
 
   const typeLabel = (jobType: string) => t(`types.${jobType}` as 'types.take_order');
   const statusLabel = (status: string) => t(`status.${status}` as 'status.suggested');
@@ -314,9 +376,7 @@ export default function JobsTable({
               <button
                 onClick={() => {
                   if (selectedJobIds.length === 0) return;
-                  if (!window.confirm(t('table.confirmDelete', { count: selectedJobIds.length }))) return;
-                  onDeleteAction?.(selectedJobIds);
-                  setSelectedIds([]);
+                  setDeleteTarget({ ids: selectedJobIds, name: '', bulk: true });
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
               >
@@ -402,16 +462,24 @@ export default function JobsTable({
                         {row.reasons.join('. ') || row.clientStatus}
                       </div>
                     </td>
-                    <td className="py-4 px-4 whitespace-normal">
-                      <div className="flex flex-wrap gap-1">
-                        {row.jobTypes.map((jobType) => (
+                    <td className="py-4 px-4 whitespace-nowrap">
+                      <div className="flex flex-nowrap items-center gap-1">
+                        {row.jobTypes.slice(0, 3).map((jobType) => (
                           <span
                             key={jobType}
-                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${TYPE_BADGE[jobType] || TYPE_BADGE.prospect_new_outlet}`}
+                            className={`inline-flex shrink-0 px-2 py-1 text-xs font-semibold rounded-full ${TYPE_BADGE[jobType] || TYPE_BADGE.prospect_new_outlet}`}
                           >
                             {typeLabel(jobType)}
                           </span>
                         ))}
+                        {row.jobTypes.length > 3 && (
+                          <span
+                            className="shrink-0 text-xs font-medium text-gray-500"
+                            title={row.jobTypes.slice(3).map((jobType) => typeLabel(jobType)).join(', ')}
+                          >
+                            {t('table.moreTypes')}
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="py-4 px-4 text-gray-700">{row.agentName}</td>
@@ -428,9 +496,9 @@ export default function JobsTable({
                       </div>
                     </td>
                     <td className="py-4 px-4 text-gray-700 whitespace-normal">
-                      {row.assignedDates.length > 0 ? (
+                      {row.createdDates.length > 0 ? (
                         <div className="flex flex-col gap-0.5">
-                          {row.assignedDates.map((date) => (
+                          {row.createdDates.map((date) => (
                             <span key={date}>{date}</span>
                           ))}
                         </div>
@@ -475,8 +543,7 @@ export default function JobsTable({
                         <button
                           onClick={(event) => {
                             event.stopPropagation();
-                            if (!window.confirm(t('table.confirmDelete', { count: row.jobIds.length }))) return;
-                            onDeleteAction?.(row.jobIds);
+                            setDeleteTarget({ ids: row.jobIds, name: row.clientName, bulk: false });
                           }}
                           className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-red-100 transition-colors"
                           title={t('table.remove')}
@@ -527,6 +594,44 @@ export default function JobsTable({
           </button>
         </div>
       </div>
+
+      {deleteTarget && (
+        <div
+          ref={deleteDialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="jobs-delete-title"
+          tabIndex={-1}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+        >
+          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 w-full max-w-sm">
+            <h2 id="jobs-delete-title" className="text-lg font-bold mb-2 text-red-500">
+              {deleteTarget.bulk || deleteTarget.ids.length > 1 ? t('table.deleteBulkTitle') : t('table.deleteTitle')}
+            </h2>
+            <p className="mb-4 text-gray-500">
+              {deleteTarget.bulk
+                ? t('table.deleteBulkConfirm', { count: deleteTarget.ids.length })
+                : t('table.deleteConfirm', { name: deleteTarget.name })}
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500"
+                onClick={() => setDeleteTarget(null)}
+              >
+                {t('table.cancel')}
+              </button>
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
+                onClick={confirmDelete}
+              >
+                {t('table.delete')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

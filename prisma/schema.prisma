@@ -1352,7 +1352,7 @@ model SalesJob {
   orderId           String?
   /// Every order linked to a take_order or collect_payment job.
   orderIds          String[]  @default([])
-  /// take_order | collect_payment | promote_product | stock_check | prospect_new_outlet
+  /// take_order | collect_payment | promote_product | stock_check | prospect_new_outlet | returns_pickup | competitor_intel | new_product_activation | scheme_reconciliation
   jobType           String
   priorityReason    String?
   suggestedProducts String[]  @default([])
@@ -1362,7 +1362,7 @@ model SalesJob {
   status            String
   scheduledDate     DateTime  @db.Timestamptz(3)
   completionNotes   String?
-  /// order_placed, order_amount, payment_collected, payment_amount, stock_checked, products_demoed, notes
+  /// Shared fields plus a block for returns_pickup, competitor_intel, new_product_activation, or scheme_reconciliation
   completionData    Json?
   whatsappMessageId String?
   dispatchNote      String?

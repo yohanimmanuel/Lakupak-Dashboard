@@ -13,10 +13,15 @@ import {
   updateSalesJobSettings,
 } from '@/lib/salesJobs/service';
 import { suggestSalesJobsForDistributor } from '@/lib/salesJobs/suggest';
-import { readCompletion } from '@/lib/salesJobs/completion';
 import { prisma } from '@/lib/db';
 
 export const salesJobsTypeDefs = /* GraphQL */ `
+  type SalesJobReturnedItem {
+    product_id: String!
+    quantity: Int!
+    reason: String!
+  }
+
   type SalesJobCompletion {
     order_placed: Boolean!
     order_amount: Float
@@ -25,6 +30,22 @@ export const salesJobsTypeDefs = /* GraphQL */ `
     stock_checked: Boolean!
     products_demoed: Int!
     notes: String!
+    items_returned: [SalesJobReturnedItem!]
+    replacement_issued: Boolean
+    replacement_value: Float
+    competitor_name: String
+    competitor_product: String
+    observed_price: Float
+    observed_promo: String
+    shelf_share_observation: String
+    product_id: String
+    product_ids: [String!]
+    display_setup_completed: Boolean
+    samples_given: Int
+    retailer_briefed: Boolean
+    scheme_reference: String
+    execution_confirmed: Boolean
+    claim_amount: Float
   }
 
   type SalesJob {
@@ -45,6 +66,7 @@ export const salesJobsTypeDefs = /* GraphQL */ `
     createdBy: String!
     status: String!
     scheduledDate: String!
+    createdAt: String!
     completionNotes: String
     completionData: SalesJobCompletion!
     suggestedProductNames: [String!]!
@@ -126,6 +148,7 @@ export const salesJobsTypeDefs = /* GraphQL */ `
   }
 
   input CreateSalesJobItemInput {
+    id: String
     jobType: String!
     priorityReason: String
     clientId: String
@@ -136,6 +159,12 @@ export const salesJobsTypeDefs = /* GraphQL */ `
     schedules: [SalesJobScheduleInput!]!
   }
 
+  input SalesJobReturnedItemInput {
+    product_id: String!
+    quantity: Int!
+    reason: String!
+  }
+
   input SalesJobCompletionInput {
     order_placed: Boolean!
     order_amount: Float
@@ -144,6 +173,22 @@ export const salesJobsTypeDefs = /* GraphQL */ `
     stock_checked: Boolean!
     products_demoed: Int!
     notes: String
+    items_returned: [SalesJobReturnedItemInput!]
+    replacement_issued: Boolean
+    replacement_value: Float
+    competitor_name: String
+    competitor_product: String
+    observed_price: Float
+    observed_promo: String
+    shelf_share_observation: String
+    product_id: String
+    product_ids: [String!]
+    display_setup_completed: Boolean
+    samples_given: Int
+    retailer_briefed: Boolean
+    scheme_reference: String
+    execution_confirmed: Boolean
+    claim_amount: Float
   }
 
   extend type Query {
@@ -294,22 +339,8 @@ export const salesJobsResolvers = {
           priorityReason: args.priorityReason,
         }),
     ),
-    completeSalesJob: withDashboardAuth(
-      async (args: { userId: number; id: string; completion: Parameters<typeof readCompletion>[0] }) => {
-        const raw = args.completion;
-        if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-          const row = raw as Record<string, unknown>;
-          for (const key of ['order_amount', 'payment_amount']) {
-            if (row[key] == null || row[key] === '') continue;
-            const amount = Number(row[key]);
-            if (Number.isFinite(amount) && amount < 0) {
-              throw new Error('Completion amounts cannot be negative');
-            }
-          }
-        }
-        const completion = readCompletion(args.completion);
-        return completeSalesJob({ distributorId: args.userId, id: args.id, completion, notes: completion.notes });
-      },
+    completeSalesJob: withDashboardAuth(async (args: { userId: number; id: string; completion: unknown }) =>
+      completeSalesJob({ distributorId: args.userId, id: args.id, completion: args.completion }),
     ),
     updateSalesJobSettings: withDashboardAuth(
       async (args: { userId: number; dispatchHour: number; dispatchMinute: number; unresolvedCutoffHour: number }) =>

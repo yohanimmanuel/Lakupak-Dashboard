@@ -63,11 +63,13 @@ function LakupakSelect({
   value,
   placeholder,
   options,
+  allowEmpty = true,
   onChange,
 }: {
   value: string;
   placeholder: string;
   options: { value: string; label: string }[];
+  allowEmpty?: boolean;
   onChange: (value: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -94,16 +96,18 @@ function LakupakSelect({
       </button>
       {open && (
         <div className="absolute z-50 w-full mt-1 bg-white border border-[#e6e6e6] rounded-lg shadow-lg max-h-48 overflow-y-auto">
-          <button
-            type="button"
-            onClick={() => {
-              onChange('');
-              setOpen(false);
-            }}
-            className={`w-full px-3 py-2 text-xs text-left hover:bg-gray-100 ${value === '' ? 'text-[#0a61d7] font-semibold bg-gray-50' : 'text-gray-500'}`}
-          >
-            {placeholder}
-          </button>
+          {allowEmpty && (
+            <button
+              type="button"
+              onClick={() => {
+                onChange('');
+                setOpen(false);
+              }}
+              className={`w-full px-3 py-2 text-xs text-left hover:bg-gray-100 ${value === '' ? 'text-[#0a61d7] font-semibold bg-gray-50' : 'text-gray-500'}`}
+            >
+              {placeholder}
+            </button>
+          )}
           {options.map((option) => (
             <button
               key={option.value}
@@ -165,11 +169,13 @@ function OrderPicker({
   userId,
   purpose,
   selectedIds,
+  clientId,
   onChange,
 }: {
   userId: number;
   purpose: 'take_order' | 'collect_payment';
   selectedIds: string[];
+  clientId?: string;
   onChange: (orderIds: string[]) => void;
 }) {
   const t = useTranslations('dashboard.sales.salesJobs');
@@ -207,7 +213,10 @@ function OrderPicker({
     return () => clearTimeout(timer);
   }, [userId, purpose, search]);
 
-  const lockedBuyerId = selectedIds.length > 0 ? (knownBuyers[selectedIds[0]] ?? null) : undefined;
+  const knownBuyer = selectedIds.length > 0 && Object.prototype.hasOwnProperty.call(knownBuyers, selectedIds[0])
+    ? knownBuyers[selectedIds[0]]
+    : undefined;
+  const lockedBuyerId = selectedIds.length > 0 ? clientId?.trim() || knownBuyer : undefined;
 
   const toggle = (order: OrderOption) => {
     if (selectedIds.includes(order.orderId)) {
@@ -218,7 +227,7 @@ function OrderPicker({
     const incomingBuyerId = order.buyerId ?? null;
     if (
       lockedBuyerId === null ||
-      (lockedBuyerId !== undefined && (incomingBuyerId === null || incomingBuyerId !== lockedBuyerId))
+      (typeof lockedBuyerId === 'string' && (incomingBuyerId === null || incomingBuyerId !== lockedBuyerId))
     ) {
       setNotice(t('form.sameClient'));
       return;
@@ -442,8 +451,6 @@ export default function CreateSalesJobForm({
 
   const validate = () => {
     const next: Record<string, string> = {};
-    if (!assignedTo) setError(t('form.needRep'));
-    else setError('');
     for (const job of jobs) {
       const times = job.schedules.map((row) => parseTime(row.time));
       const datesOk = job.schedules.every((row) => /^\d{4}-\d{2}-\d{2}$/.test(row.date) && parseTime(row.time));
@@ -454,15 +461,20 @@ export default function CreateSalesJobForm({
       }
       if (job.jobType === 'take_order' || job.jobType === 'collect_payment') {
         if (job.orderIds.length === 0) next[job.key] = t('form.needOrder');
-      } else if (job.jobType === 'promote_product' || job.jobType === 'stock_check') {
+      } else if (job.jobType === 'promote_product' || job.jobType === 'stock_check' || job.jobType === 'new_product_activation') {
         if (!job.clientId) next[job.key] = t('form.needClient');
         else if (job.productIds.length === 0) next[job.key] = t('form.needProduct');
+      } else if (job.jobType === 'returns_pickup' || job.jobType === 'competitor_intel' || job.jobType === 'scheme_reconciliation') {
+        if (!job.clientId) next[job.key] = t('form.needClient');
       } else if (!job.customerNumber.trim() || !job.customerName.trim() || !job.storeName.trim() || !job.phone.trim() || !job.address.trim()) {
         next[job.key] = t('form.needOutlet');
       }
     }
+    const firstJobError = Object.values(next)[0] || '';
+    if (!assignedTo) setError(t('form.needRep'));
+    else setError(firstJobError);
     setJobErrors(next);
-    return Boolean(assignedTo) && Object.keys(next).length === 0;
+    return Boolean(assignedTo) && !firstJobError;
   };
 
   const save = async () => {
@@ -472,21 +484,23 @@ export default function CreateSalesJobForm({
     setError('');
     try {
       const jobsInput = jobs.map((job) => ({
+            ...(editing?.replaceIds.includes(job.key) ? { id: job.key } : {}),
             jobType: job.jobType,
             priorityReason: job.reason.trim() || null,
             clientId: job.clientId || null,
             orderIds: job.orderIds,
             productIds: job.productIds,
-            prospect:
-              job.jobType === 'prospect_new_outlet'
-                ? {
+            ...(job.jobType === 'prospect_new_outlet'
+              ? {
+                  prospect: {
                     customerNumber: job.customerNumber.trim(),
                     name: job.customerName.trim(),
                     storeName: job.storeName.trim(),
                     phone: job.phone.trim(),
                     address: job.address.trim(),
-                  }
-                : null,
+                  },
+                }
+              : {}),
             schedules: job.schedules.map((row) => {
               const time = parseTime(row.time)!;
               return { scheduledDate: row.date, reminderHour: time.reminderHour, reminderMinute: time.reminderMinute };
@@ -577,22 +591,20 @@ export default function CreateSalesJobForm({
           </div>
           <div className="p-4 space-y-4">
             {jobErrors[job.key] && <p className="text-xs text-red-600">{jobErrors[job.key]}</p>}
-            <div className="flex flex-wrap gap-2">
-              {SALES_JOB_TYPES.map((jobType) => {
-                const selected = job.jobType === jobType;
-                return (
-                  <button
-                    key={jobType}
-                    type="button"
-                    onClick={() => updateJob(job.key, { jobType })}
-                    className={`px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${
-                      selected ? 'bg-[#0a61d7] text-white border-[#0a61d7]' : 'bg-white text-gray-700 border-[#e6e6e6] hover:bg-gray-100'
-                    }`}
-                  >
-                    {t(`types.${jobType}` as 'types.take_order')}
-                  </button>
-                );
-              })}
+            <div>
+              <label className={labelClass}>
+                {t('type')} <span className="text-red-500">*</span>
+              </label>
+              <LakupakSelect
+                value={job.jobType}
+                placeholder={t('type')}
+                allowEmpty={false}
+                options={SALES_JOB_TYPES.map((jobType) => ({
+                  value: jobType,
+                  label: t(`types.${jobType}` as 'types.take_order'),
+                }))}
+                onChange={(jobType) => updateJob(job.key, { jobType })}
+              />
             </div>
 
             {(job.jobType === 'take_order' || job.jobType === 'collect_payment') && user?.id && (
@@ -600,11 +612,17 @@ export default function CreateSalesJobForm({
                 userId={user.id}
                 purpose={job.jobType}
                 selectedIds={job.orderIds}
+                clientId={job.clientId}
                 onChange={(orderIds) => updateJob(job.key, { orderIds })}
               />
             )}
 
-            {(job.jobType === 'promote_product' || job.jobType === 'stock_check') && (
+            {(job.jobType === 'promote_product' ||
+              job.jobType === 'stock_check' ||
+              job.jobType === 'new_product_activation' ||
+              job.jobType === 'returns_pickup' ||
+              job.jobType === 'competitor_intel' ||
+              job.jobType === 'scheme_reconciliation') && (
               <>
                 <div>
                   <label className={labelClass}>
@@ -617,12 +635,20 @@ export default function CreateSalesJobForm({
                     onChange={(clientId) => updateJob(job.key, { clientId })}
                   />
                 </div>
-                <ProductPicker
-                  products={products}
-                  selectedIds={job.productIds}
-                  hint={job.jobType === 'promote_product' ? t('form.productHintPromote') : t('form.productHintStock')}
-                  onChange={(productIds) => updateJob(job.key, { productIds })}
-                />
+                {(job.jobType === 'promote_product' || job.jobType === 'stock_check' || job.jobType === 'new_product_activation') && (
+                  <ProductPicker
+                    products={products}
+                    selectedIds={job.productIds}
+                    hint={
+                      job.jobType === 'promote_product'
+                        ? t('form.productHintPromote')
+                        : job.jobType === 'new_product_activation'
+                          ? t('form.productHintActivate')
+                          : t('form.productHintStock')
+                    }
+                    onChange={(productIds) => updateJob(job.key, { productIds })}
+                  />
+                )}
               </>
             )}
 
@@ -741,7 +767,12 @@ export default function CreateSalesJobForm({
 
       <button
         type="button"
-        onClick={() => setJobs((prev) => [...prev, blankJob()])}
+        onClick={() =>
+          setJobs((prev) => {
+            const clientId = prev.find((job) => job.clientId)?.clientId ?? '';
+            return [...prev, { ...blankJob(), clientId }];
+          })
+        }
         className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-sm font-medium text-black hover:bg-gray-100"
       >
         <Plus className="w-4 h-4" />

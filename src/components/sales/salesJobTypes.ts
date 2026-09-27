@@ -1,3 +1,9 @@
+export type SalesJobReturnedItem = {
+  product_id: string;
+  quantity: number;
+  reason: 'expired' | 'damaged' | 'unsold_near_expiry' | 'other';
+};
+
 export type SalesJobCompletion = {
   order_placed: boolean;
   order_amount: number | null;
@@ -6,6 +12,22 @@ export type SalesJobCompletion = {
   stock_checked: boolean;
   products_demoed: number;
   notes: string;
+  items_returned?: SalesJobReturnedItem[];
+  replacement_issued?: boolean;
+  replacement_value?: number | null;
+  competitor_name?: string;
+  competitor_product?: string;
+  observed_price?: number | null;
+  observed_promo?: string;
+  shelf_share_observation?: string;
+  product_id?: string;
+  product_ids?: string[];
+  display_setup_completed?: boolean;
+  samples_given?: number | null;
+  retailer_briefed?: boolean;
+  scheme_reference?: string;
+  execution_confirmed?: boolean;
+  claim_amount?: number | null;
 };
 
 export type SalesJobSchedule = {
@@ -32,6 +54,7 @@ export type SalesJobRow = {
   createdBy: string;
   status: string;
   scheduledDate: string;
+  createdAt: string;
   schedules?: SalesJobSchedule[];
   completionData: SalesJobCompletion;
   dispatchNote: string | null;
@@ -43,6 +66,10 @@ export const SALES_JOB_TYPES = [
   'promote_product',
   'stock_check',
   'prospect_new_outlet',
+  'returns_pickup',
+  'competitor_intel',
+  'new_product_activation',
+  'scheme_reconciliation',
 ] as const;
 
 export const SALES_JOB_STATUSES = [

@@ -50,6 +50,14 @@ function jobLabel(jobType: string): string {
       return 'Stock check';
     case 'prospect_new_outlet':
       return 'Prospect new outlet';
+    case 'returns_pickup':
+      return 'Pick up return';
+    case 'competitor_intel':
+      return 'Competitor check';
+    case 'new_product_activation':
+      return 'Activate new product';
+    case 'scheme_reconciliation':
+      return 'Reconcile scheme';
     default:
       return jobType;
   }

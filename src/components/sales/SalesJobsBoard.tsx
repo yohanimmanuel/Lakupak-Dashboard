@@ -8,15 +8,25 @@ import * as XLSX from 'xlsx';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
 import { SkeletonTablePage } from '@/components/skeleton/SkeletonTablePage';
+import JobCompletionFields, { CompletionOffer, CompletionProduct, completionInput, completionIsPerVisit } from './JobCompletionFields';
 import JobsStatcards from './JobsStatcards';
 import JobsTable from './JobsTable';
 import { SalesJobCompletion, SalesJobRow } from './salesJobTypes';
 
+const COMPLETION_FIELDS = `
+  order_placed order_amount payment_collected payment_amount stock_checked products_demoed notes
+  items_returned { product_id quantity reason }
+  replacement_issued replacement_value
+  competitor_name competitor_product observed_price observed_promo shelf_share_observation
+  product_id product_ids display_setup_completed samples_given retailer_briefed
+  scheme_reference execution_confirmed claim_amount
+`;
+
 const JOB_FIELDS = `
   id assignedTo agentName clientId clientName clientStatus jobType priorityReason
-  suggestedProductNames createdBy status scheduledDate dispatchNote
+  suggestedProducts suggestedProductNames createdBy status scheduledDate createdAt dispatchNote
   schedules { date reminderTime }
-  completionData { order_placed order_amount payment_collected payment_amount stock_checked products_demoed notes }
+  completionData { ${COMPLETION_FIELDS} }
 `;
 
 const JOBS_QUERY = `
@@ -33,7 +43,48 @@ const emptyCompletion = (): SalesJobCompletion => ({
   stock_checked: false,
   products_demoed: 0,
   notes: '',
+  items_returned: [],
+  replacement_issued: false,
+  replacement_value: null,
+  competitor_name: '',
+  competitor_product: '',
+  observed_price: null,
+  observed_promo: '',
+  shelf_share_observation: '',
+  product_id: '',
+  product_ids: [],
+  display_setup_completed: false,
+  samples_given: null,
+  retailer_briefed: false,
+  scheme_reference: '',
+  execution_confirmed: false,
+  claim_amount: null,
 });
+
+function completionFromJob(job?: SalesJobRow): SalesJobCompletion {
+  const base = emptyCompletion();
+  if (!job) return base;
+  const saved = job.completionData;
+  return {
+    ...base,
+    ...saved,
+    notes: saved?.notes ?? '',
+    items_returned: saved?.items_returned ?? [],
+    competitor_name: saved?.competitor_name ?? '',
+    competitor_product: saved?.competitor_product ?? '',
+    observed_promo: saved?.observed_promo ?? '',
+    shelf_share_observation: saved?.shelf_share_observation ?? '',
+    product_id: saved?.product_ids?.[0] || saved?.product_id || job.suggestedProducts?.[0] || '',
+    product_ids: saved?.product_ids?.length
+      ? saved.product_ids
+      : saved?.product_id
+        ? [saved.product_id]
+        : job.suggestedProducts ?? [],
+    scheme_reference: saved?.scheme_reference ?? '',
+  };
+}
+
+type CompletingJob = { id: string; jobType: string; clientId: string };
 
 function ModalShell({
   title,
@@ -46,7 +97,7 @@ function ModalShell({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
-      <div className="w-full max-w-lg bg-white rounded-lg border border-[#e6e6e6] flex flex-col max-h-[90vh] overflow-hidden">
+      <div className="w-full max-w-2xl bg-white rounded-lg border border-[#e6e6e6] flex flex-col max-h-[90vh] overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-[#e6e6e6]">
           <h3 className="text-base font-semibold text-gray-900">{title}</h3>
           <button type="button" onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 text-gray-700" aria-label="Close">
@@ -67,9 +118,11 @@ export default function SalesJobsBoard() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [completingIds, setCompletingIds] = useState<string[]>([]);
+  const [completing, setCompleting] = useState<CompletingJob[]>([]);
   const [completingName, setCompletingName] = useState('');
   const [completion, setCompletion] = useState<SalesJobCompletion>(emptyCompletion());
+  const [completionProducts, setCompletionProducts] = useState<CompletionProduct[]>([]);
+  const [completionOffers, setCompletionOffers] = useState<CompletionOffer[]>([]);
 
   const load = useCallback(async () => {
     if (!userId) {
@@ -86,6 +139,66 @@ export default function SalesJobsBoard() {
       .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Failed to load jobs'))
       .finally(() => setInitialLoading(false));
   }, [load]);
+
+  useEffect(() => {
+    let active = true;
+    setCompletionProducts([]);
+    setCompletionOffers([]);
+    if (!userId || completing.length === 0) {
+      return () => {
+        active = false;
+      };
+    }
+    const types = new Set(completing.map((job) => job.jobType));
+    if (types.has('returns_pickup') || types.has('new_product_activation')) {
+      fetchGraphQL<{ products: { nodes: CompletionProduct[] } }>(
+        `query CompletionProducts($userId: Int!) { products(userId: $userId, page: 1, limit: 500) { nodes { productId name } } }`,
+        { userId },
+      )
+        .then((result) => {
+          if (active) setCompletionProducts(result.products.nodes);
+        })
+        .catch(() => {
+          if (active) setCompletionProducts([]);
+        });
+    }
+    if (types.has('scheme_reconciliation')) {
+      const buyerIds = Array.from(
+        new Set(completing.filter((job) => job.jobType === 'scheme_reconciliation').map((job) => job.clientId)),
+      );
+      const apply = (rows: { offerId: string; productName?: string | null; discountType: string }[]) => {
+        if (!active) return;
+        setCompletionOffers(
+          rows.map((row) => ({
+            offerId: row.offerId,
+            label: row.productName ? `${row.offerId} · ${row.productName}` : `${row.offerId} · ${row.discountType}`,
+          })),
+        );
+      };
+      if (buyerIds.length === 1) {
+        fetchGraphQL<{ offersForBuyer: { offerId: string; productName?: string | null; discountType: string }[] }>(
+          `query CompletionOffers($userId: Int!, $buyerId: String!) { offersForBuyer(userId: $userId, buyerId: $buyerId) { offerId productName discountType } }`,
+          { userId, buyerId: buyerIds[0] },
+        )
+          .then((result) => apply(result.offersForBuyer))
+          .catch(() => {
+            if (active) setCompletionOffers([]);
+          });
+      } else {
+        fetchGraphQL<{ offers: { nodes: { offerId: string; productName?: string | null; discountType: string }[] } }>(
+          `query CompletionOffers($userId: Int!) { offers(userId: $userId, page: 1, limit: 100) { nodes { offerId productName discountType } } }`,
+          { userId },
+        )
+          .then((result) => apply(result.offers.nodes))
+          .catch(() => {
+            if (active) setCompletionOffers([]);
+          });
+      }
+    }
+    return () => {
+      active = false;
+    };
+  }, [userId, completing]);
 
   const run = async (work: () => Promise<void>) => {
     setError('');
@@ -133,7 +246,7 @@ export default function SalesJobsBoard() {
       typeLabel(job.jobType),
       job.agentName,
       statusLabel(job.status),
-      job.scheduledDate,
+      job.createdAt,
       job.priorityReason || '',
       job.createdBy === 'ai' ? t('ai') : t('manager'),
       job.suggestedProductNames.join(', '),
@@ -219,70 +332,36 @@ export default function SalesJobsBoard() {
           })();
         }}
         onCompleteAction={(rows) => {
-          setCompletingIds(rows.map((job) => job.id));
+          if (rows.length > 1 && rows.some((job) => completionIsPerVisit(job.jobType))) {
+            setMessage('');
+            setError(t('completeSeparately'));
+            return;
+          }
+          setError('');
+          setCompleting(rows.map((job) => ({ id: job.id, jobType: job.jobType, clientId: job.clientId })));
           setCompletingName(Array.from(new Set(rows.map((job) => job.clientName))).join(', '));
-          setCompletion(rows.length === 1 ? rows[0].completionData || emptyCompletion() : emptyCompletion());
+          const next = completionFromJob(rows.length === 1 ? rows[0] : undefined);
+          const activationProducts = Array.from(
+            new Set(rows.filter((job) => job.jobType === 'new_product_activation').flatMap((job) => job.suggestedProducts ?? [])),
+          );
+          if ((next.product_ids ?? []).length === 0 && activationProducts.length > 0) {
+            next.product_ids = activationProducts;
+            next.product_id = activationProducts[0];
+          }
+          setCompletion(next);
         }}
       />
 
-      {completingIds.length > 0 && (
-        <ModalShell title={t('complete')} onClose={() => setCompletingIds([])}>
+      {completing.length > 0 && (
+        <ModalShell title={t('complete')} onClose={() => setCompleting([])}>
           <div className="grid gap-3">
             <p className="text-sm font-medium text-gray-900">{completingName}</p>
-            <label className="text-xs text-gray-600 flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={completion.order_placed}
-                onChange={(event) => setCompletion((prev) => ({ ...prev, order_placed: event.target.checked }))}
-              />
-              {t('orderPlaced')}
-            </label>
-            <input
-              type="number"
-              placeholder={t('orderAmount')}
-              className="border border-[#e6e6e6] rounded-lg px-3 py-2 text-sm text-black"
-              value={completion.order_amount ?? ''}
-              onChange={(event) =>
-                setCompletion((prev) => ({ ...prev, order_amount: event.target.value === '' ? null : Number(event.target.value) }))
-              }
-            />
-            <label className="text-xs text-gray-600 flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={completion.payment_collected}
-                onChange={(event) => setCompletion((prev) => ({ ...prev, payment_collected: event.target.checked }))}
-              />
-              {t('paymentCollected')}
-            </label>
-            <input
-              type="number"
-              placeholder={t('paymentAmount')}
-              className="border border-[#e6e6e6] rounded-lg px-3 py-2 text-sm text-black"
-              value={completion.payment_amount ?? ''}
-              onChange={(event) =>
-                setCompletion((prev) => ({ ...prev, payment_amount: event.target.value === '' ? null : Number(event.target.value) }))
-              }
-            />
-            <label className="text-xs text-gray-600 flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={completion.stock_checked}
-                onChange={(event) => setCompletion((prev) => ({ ...prev, stock_checked: event.target.checked }))}
-              />
-              {t('stockChecked')}
-            </label>
-            <input
-              type="number"
-              placeholder={t('productsDemoed')}
-              className="border border-[#e6e6e6] rounded-lg px-3 py-2 text-sm text-black"
-              value={completion.products_demoed}
-              onChange={(event) => setCompletion((prev) => ({ ...prev, products_demoed: Number(event.target.value) || 0 }))}
-            />
-            <input
-              className="border border-[#e6e6e6] rounded-lg px-3 py-2 text-sm text-black"
-              placeholder={t('notes')}
-              value={completion.notes}
-              onChange={(event) => setCompletion((prev) => ({ ...prev, notes: event.target.value }))}
+            <JobCompletionFields
+              jobTypes={completing.map((job) => job.jobType)}
+              completion={completion}
+              products={completionProducts}
+              offers={completionOffers}
+              onChangeAction={setCompletion}
             />
             <div className="flex gap-2 pt-1">
               <button
@@ -290,13 +369,16 @@ export default function SalesJobsBoard() {
                 className="px-4 py-2 bg-[#0a61d7] text-white rounded-lg text-sm font-semibold hover:bg-[#084ba6]"
                 onClick={() =>
                   run(async () => {
-                    for (const id of completingIds) {
+                    if (completing.length > 1 && completing.some((job) => completionIsPerVisit(job.jobType))) {
+                      throw new Error(t('completeSeparately'));
+                    }
+                    for (const job of completing) {
                       await fetchGraphQL(
                         `mutation Complete($userId: Int!, $id: String!, $completion: SalesJobCompletionInput!) { completeSalesJob(userId: $userId, id: $id, completion: $completion) { id } }`,
-                        { userId, id, completion },
+                        { userId, id: job.id, completion: completionInput(job.jobType, completion) },
                       );
                     }
-                    setCompletingIds([]);
+                    setCompleting([]);
                   })
                 }
               >
@@ -305,7 +387,7 @@ export default function SalesJobsBoard() {
               <button
                 type="button"
                 className="px-4 py-2 border border-[#e6e6e6] rounded-lg text-sm font-medium hover:bg-gray-100"
-                onClick={() => setCompletingIds([])}
+                onClick={() => setCompleting([])}
               >
                 {t('cancel')}
               </button>

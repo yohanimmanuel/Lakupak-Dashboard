@@ -1,8 +1,8 @@
 import { prisma } from '@/lib/db';
 import {
+  buildStoredCompletion,
   readCompletion,
   SALES_JOB_TYPES,
-  type CompletionData,
   type SalesJobType,
 } from '@/lib/salesJobs/completion';
 import { DEFAULT_JOB_TIMEZONE, zonedDayRange, zonedParts } from '@/lib/salesJobs/time';
@@ -78,6 +78,7 @@ function mapJob(job: {
   dispatchNote: string | null;
   dispatchedAt: Date | null;
   completedAt: Date | null;
+  createdAt: Date;
   orderId?: string | null;
   orderIds?: string[];
   schedules?: { scheduledDate: Date; reminderHour: number; reminderMinute: number }[];
@@ -112,6 +113,7 @@ function mapJob(job: {
     orderIds: job.orderIds ?? [],
     schedules,
     scheduledDate: schedules[0]?.date ?? zonedParts(job.scheduledDate, timeZone).dateKey,
+    createdAt: zonedParts(job.createdAt, timeZone).dateKey,
     completionNotes: job.completionNotes,
     completionData: readCompletion(job.completionData),
     dispatchNote: job.dispatchNote,
@@ -215,7 +217,7 @@ export async function reviewSalesJob(args: {
 export async function completeSalesJob(args: {
   distributorId: number;
   id: string;
-  completion: CompletionData;
+  completion: unknown;
   notes?: string | null;
 }) {
   const existing = await prisma.salesJob.findFirst({
@@ -226,12 +228,39 @@ export async function completeSalesJob(args: {
     },
   });
   if (!existing) throw new Error('Job cannot be completed');
+  const completion = buildStoredCompletion(existing.jobType, args.completion);
+  if (existing.jobType === 'returns_pickup') {
+    const productIds = Array.from(new Set((completion.items_returned ?? []).map((item) => item.product_id)));
+    if (productIds.length > 0) {
+      const products = await prisma.product.findMany({
+        where: { userId: args.distributorId, productId: { in: productIds } },
+        select: { productId: true },
+      });
+      if (products.length !== productIds.length) throw new Error('One or more products were not found');
+    }
+  }
+  if (existing.jobType === 'new_product_activation') {
+    const productIds = Array.from(new Set(completion.product_ids ?? (completion.product_id ? [completion.product_id] : [])));
+    if (productIds.length === 0) throw new Error('Select at least one product');
+    const products = await prisma.product.findMany({
+      where: { userId: args.distributorId, productId: { in: productIds } },
+      select: { productId: true },
+    });
+    if (products.length !== productIds.length) throw new Error('One or more products were not found');
+  }
+  if (existing.jobType === 'scheme_reconciliation' && completion.scheme_reference) {
+    const offer = await prisma.offer.findFirst({
+      where: { userId: args.distributorId, offerId: completion.scheme_reference },
+      select: { buyerId: true },
+    });
+    if (offer?.buyerId && offer.buyerId !== existing.clientId) throw new Error('That offer belongs to another client');
+  }
   const updated = await prisma.salesJob.update({
     where: { id: existing.id },
     data: {
       status: 'completed',
-      completionData: args.completion,
-      completionNotes: args.notes?.trim() || args.completion.notes || existing.completionNotes,
+      completionData: completion,
+      completionNotes: args.notes?.trim() || completion.notes || existing.completionNotes,
       completedAt: new Date(),
     },
     include: JOB_INCLUDE,
@@ -332,6 +361,7 @@ export async function listUnresolvedSalesJobs(distributorId: number) {
 type ScheduleInput = { scheduledDate: string; reminderHour: number; reminderMinute: number };
 
 export type CreateSalesJobItem = {
+  id?: string | null;
   jobType: string;
   priorityReason?: string | null;
   clientId?: string | null;
@@ -389,12 +419,20 @@ export async function createSalesJobs(args: {
   if (!agent) throw new Error('Sales rep not found');
   const settings = await prisma.salesJobSettings.findUnique({ where: { distributorId: args.distributorId } });
   const timeZone = settings?.timezone || DEFAULT_JOB_TIMEZONE;
+  const submittedIds = args.jobs.map((item) => item.id?.trim() || '').filter(Boolean);
+  if (new Set(submittedIds).size !== submittedIds.length) throw new Error('A job cannot be updated more than once');
 
   const created = await prisma.$transaction(async (tx) => {
     const replaceIds = Array.from(new Set((args.replaceIds ?? []).map((id) => id.trim()).filter(Boolean)));
-    if (replaceIds.length > 0) {
+    const keptIds = new Set(
+      args.jobs
+        .map((item) => item.id?.trim() || '')
+        .filter((id) => id && replaceIds.includes(id)),
+    );
+    const droppedIds = replaceIds.filter((id) => !keptIds.has(id));
+    if (droppedIds.length > 0) {
       await tx.salesJob.deleteMany({
-        where: { id: { in: replaceIds }, distributorId: args.distributorId },
+        where: { id: { in: droppedIds }, distributorId: args.distributorId },
       });
     }
     const rows = [];
@@ -428,7 +466,7 @@ export async function createSalesJobs(args: {
         clientId = orders[0].buyerId as string;
         linkedOrderIds = requested;
         orderId = requested[0];
-      } else if (jobType === 'promote_product' || jobType === 'stock_check') {
+      } else if (jobType === 'promote_product' || jobType === 'stock_check' || jobType === 'new_product_activation') {
         if (!clientId) throw new Error('Select a client');
         const client = await tx.buyer.findFirst({
           where: { buyerId: clientId, userId: args.distributorId },
@@ -442,6 +480,13 @@ export async function createSalesJobs(args: {
           select: { productId: true },
         });
         if (products.length !== productIds.length) throw new Error('One or more products were not found');
+      } else if (jobType === 'returns_pickup' || jobType === 'competitor_intel' || jobType === 'scheme_reconciliation') {
+        if (!clientId) throw new Error('Select a client');
+        const client = await tx.buyer.findFirst({
+          where: { buyerId: clientId, userId: args.distributorId },
+          select: { buyerId: true },
+        });
+        if (!client) throw new Error('Client not found');
       } else {
         const prospect = item.prospect;
         const customerNumber = prospect?.customerNumber.trim() ?? '';
@@ -481,29 +526,49 @@ export async function createSalesJobs(args: {
         clientId = customerNumber;
       }
 
-      const row = await tx.salesJob.create({
-        data: {
-          distributorId: args.distributorId,
-          assignedTo: args.assignedTo,
-          clientId,
-          orderId,
-          orderIds: linkedOrderIds,
-          jobType,
-          priorityReason: item.priorityReason?.trim() || null,
-          suggestedProducts: productIds,
-          createdBy: 'manager',
-          status: 'approved',
-          scheduledDate: earliest.start,
-          schedules: {
-            create: schedules.map((schedule) => ({
-              scheduledDate: schedule.start,
-              reminderHour: schedule.reminderHour,
-              reminderMinute: schedule.reminderMinute,
-            })),
-          },
-        },
-        include: JOB_INCLUDE,
-      });
+      const scheduleRows = schedules.map((schedule) => ({
+        scheduledDate: schedule.start,
+        reminderHour: schedule.reminderHour,
+        reminderMinute: schedule.reminderMinute,
+      }));
+      const jobFields = {
+        assignedTo: args.assignedTo,
+        clientId,
+        orderId,
+        orderIds: linkedOrderIds,
+        jobType,
+        priorityReason: item.priorityReason?.trim() || null,
+        suggestedProducts: productIds,
+        scheduledDate: earliest.start,
+      };
+      const existingId = item.id?.trim() || '';
+      if (keptIds.has(existingId)) {
+        const owned = await tx.salesJob.findFirst({
+          where: { id: existingId, distributorId: args.distributorId },
+          select: { id: true },
+        });
+        if (!owned) throw new Error('Job not found');
+      }
+      const row = keptIds.has(existingId)
+        ? await tx.salesJob.update({
+            where: { id: existingId },
+            data: {
+              ...jobFields,
+              status: 'approved',
+              schedules: { deleteMany: {}, create: scheduleRows },
+            },
+            include: JOB_INCLUDE,
+          })
+        : await tx.salesJob.create({
+            data: {
+              ...jobFields,
+              distributorId: args.distributorId,
+              createdBy: 'manager',
+              status: 'approved',
+              schedules: { create: scheduleRows },
+            },
+            include: JOB_INCLUDE,
+          });
       rows.push(row);
     }
     return rows;
