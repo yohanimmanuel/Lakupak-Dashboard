@@ -625,9 +625,7 @@ export default function FavouriteProducts({
 
       {/* Info Note */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-sm text-blue-800">
         <p className="text-sm text-blue-800">{tFavouriteProducts('tip')}</p>
-        </p>
       </div>
     </div>
   );
