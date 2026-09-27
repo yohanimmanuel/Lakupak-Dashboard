@@ -65,11 +65,13 @@
     "statusTabs": {
       "All": "All",
       "Active": "Active",
+      "Prospect": "Prospect",
       "Inactive": "Inactive",
       "Blocked": "Blocked"
     },
     "recordStatus": {
       "Active": "Active",
+      "Prospect": "Prospect",
       "Inactive": "Inactive",
       "Blocked": "Blocked"
     },

@@ -477,6 +477,9 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
               {buyer.status === 'Active' && (
                 <span className="inline-block px-2 py-1 rounded-full font-bold bg-green-100 text-green-500 text-xs">{translateStatus('Active')}</span>
               )}
+              {buyer.status === 'Prospect' && (
+                <span className="inline-block px-2 py-1 rounded-full font-bold bg-amber-100 text-amber-600 text-xs">{translateStatus('Prospect')}</span>
+              )}
               {buyer.status === 'Inactive' && (
                 <span className="inline-block px-2 py-1 rounded-full font-bold bg-gray-200 text-gray-500 text-xs">{translateStatus('Inactive')}</span>
               )}

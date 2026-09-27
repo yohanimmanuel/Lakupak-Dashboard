@@ -65,11 +65,13 @@
     "statusTabs": {
       "All": "Semua",
       "Active": "Aktif",
+      "Prospect": "Prospek",
       "Inactive": "Tidak aktif",
       "Blocked": "Diblokir"
     },
     "recordStatus": {
       "Active": "Aktif",
+      "Prospect": "Prospek",
       "Inactive": "Tidak aktif",
       "Blocked": "Diblokir"
     },

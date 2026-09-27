@@ -14,6 +14,7 @@ import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 const statusTabs = [
   { label: "All" },
   { label: "Active" },
+  { label: "Prospect" },
   { label: "Inactive" },
   { label: "Blocked" },
 ];
@@ -318,7 +319,7 @@ export default function BuyerTable({
     setShowDeleteModal(true);
   }, []);
 
-  const BULK_STATUS_OPTIONS = ['Active', 'Inactive', 'Blocked'] as const;
+  const BULK_STATUS_OPTIONS = ['Active', 'Prospect', 'Inactive', 'Blocked'] as const;
 
   const handleBulkStatusUpdate = useCallback(
     async (status: (typeof BULK_STATUS_OPTIONS)[number]) => {
@@ -483,6 +484,7 @@ export default function BuyerTable({
   // Enhanced status color helper
   const statusBadge = useCallback((status: string) => {
     if (status === "Active") return "bg-green-100 text-green-500";
+    if (status === "Prospect") return "bg-amber-100 text-amber-600";
     if (status === "Inactive") return "bg-gray-100 text-gray-500";
     if (status === "Blocked") return "bg-red-100 text-red-500";
     return "bg-gray-100 text-gray-500";
@@ -672,7 +674,9 @@ export default function BuyerTable({
                       <span className={`inline-block h-2 w-2 rounded-full ${
                         status === 'Active'
                           ? 'bg-green-500'
-                          : status === 'Blocked'
+                          : status === 'Prospect'
+                            ? 'bg-amber-500'
+                            : status === 'Blocked'
                             ? 'bg-red-500'
                             : 'bg-gray-400'
                       }`} />
@@ -754,7 +758,9 @@ export default function BuyerTable({
                         <span className={`inline-block h-2 w-2 rounded-full ${
                           status === 'Active'
                             ? 'bg-green-500'
-                            : status === 'Blocked'
+                            : status === 'Prospect'
+                              ? 'bg-amber-500'
+                              : status === 'Blocked'
                               ? 'bg-red-500'
                               : 'bg-gray-400'
                         }`} />

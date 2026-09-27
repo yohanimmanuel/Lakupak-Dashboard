@@ -20,7 +20,7 @@ import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 
-const statusOptions = ["Active", "Inactive", "Blocked"];
+const statusOptions = ["Active", "Prospect", "Inactive", "Blocked"];
 
 interface BuyerModalProps {
   open: boolean;
@@ -548,10 +548,10 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
       aria-modal="true"
       aria-labelledby="buyer-modal-title"
     >
-      <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 w-full max-w-5xl relative max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-lg border border-[#e6e6e6] w-full max-w-5xl relative max-h-[90vh] overflow-hidden flex flex-col">
         <button
           type="button"
-          className="absolute top-5 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors z-10"
           onClick={onClose}
           aria-label={tShared('closeModal')}
         >
@@ -559,7 +559,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
         </button>
         
         {/* Header */}
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-3 px-4 pt-4 pb-4 pr-14">
           <div className="w-10 h-10 bg-[#0a61d7] rounded-lg flex items-center justify-center">
             <User className="w-5 h-5 text-white" />
           </div>
@@ -569,18 +569,18 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
             </h2>
           </div>
         </div>
-        <div className="border-b border-gray-200 -mx-6"></div>
+        <div className="border-b border-gray-200"></div>
         
         {/* Enhanced Error/Success Messages */}
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+          <div className="mx-4 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
             <AlertCircle className="w-5 h-5 text-red-500" />
             <span className="text-red-700 text-sm">{error}</span>
           </div>
         )}
         
         {success && (
-          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+          <div className="mx-4 mt-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
             <CheckCircle className="w-5 h-5 text-green-500" />
             <span className="text-green-700 text-sm">{success}</span>
           </div>
@@ -588,7 +588,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
         
         <form 
           ref={formRef}
-          className="flex flex-col gap-2 overflow-y-auto max-h-[60vh]"
+          className="flex flex-col gap-2 overflow-y-auto flex-1 min-h-0 px-4 py-4"
           onSubmit={handleSubmit}
         >
           {/* Avatar Section */}
@@ -916,10 +916,10 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
         </form>
         
         {/* Footer Border */}
-        <div className="border-t border-gray-200 -mx-6"></div>
+        <div className="border-t border-gray-200"></div>
         
         {/* Enhanced Action Buttons */}
-        <div className="flex justify-end gap-2 mt-4 text-sm">
+        <div className="flex justify-end gap-2 px-4 py-4 text-sm">
           <button 
             type="button" 
             className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50" 

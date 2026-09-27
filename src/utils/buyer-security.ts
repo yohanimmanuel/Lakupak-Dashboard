@@ -18,7 +18,7 @@ type BuyerInput = {
   phone?: string;
   businessType?: string;
   address?: string;
-  status?: 'Active' | 'Inactive' | 'Blocked' | string;
+  status?: 'Active' | 'Prospect' | 'Inactive' | 'Blocked' | string;
   avatar?: string | null;
   logistics?: string | null;
   notes?: string | null;
@@ -71,7 +71,7 @@ export const validateBuyerInput = (data: BuyerInput): { valid: boolean; error?: 
   }
   
   // Status validation
-  const validStatuses = ['Active', 'Inactive', 'Blocked'];
+  const validStatuses = ['Active', 'Prospect', 'Inactive', 'Blocked'];
   if (data.status && !validStatuses.includes(data.status)) {
     return { valid: false, error: 'Invalid status value' };
   }
@@ -120,7 +120,7 @@ export const validateBuyerUpdate = (data: BuyerInput): { valid: boolean; error?:
   
   // Status validation if provided
   if (data.status !== undefined) {
-    const validStatuses = ['Active', 'Inactive', 'Blocked'];
+    const validStatuses = ['Active', 'Prospect', 'Inactive', 'Blocked'];
     if (!validStatuses.includes(data.status)) {
       return { valid: false, error: 'Invalid status value' };
     }
