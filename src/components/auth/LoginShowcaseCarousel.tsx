@@ -92,7 +92,7 @@ const SLIDES: SlideConfig[] = [
       {
         src: '/Dashboardmarketing.png',
         altKey: 'showcaseSlideSalesPrimaryAlt',
-        className: 'left-25 top-15 z-10 w-[50%]',
+        className: 'left-1/2 top-1/2 z-10 w-[78%] -translate-x-1/2 -translate-y-1/2',
         animation: 'animate-showcase-float-slow',
         size: 'md',
       },

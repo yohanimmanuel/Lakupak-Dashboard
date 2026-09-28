@@ -8,7 +8,7 @@ export type HomeWidgetId =
   | 'products'
   | 'buyers'
   | 'suppliers'
-  | 'logistics'
+  | 'salesJobs'
   | 'inventory'
   | 'sales';
 

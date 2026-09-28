@@ -455,6 +455,7 @@ export async function createSalesJobs(args: {
     }
     const rows = [];
     for (const item of args.jobs) {
+      const existingId = item.id?.trim() || '';
       const jobType = assertJobType(item.jobType);
       const schedules = normalizeSchedules(item.schedules ?? [], timeZone);
       const earliest = schedules.slice().sort((a, b) => a.start.getTime() - b.start.getTime())[0];
@@ -516,31 +517,40 @@ export async function createSalesJobs(args: {
         if (!customerNumber || !name || !storeName || !phone || !address) {
           throw new Error('Fill in the new outlet');
         }
-        const owned = clientId
+        const editingThisJob = Boolean(existingId) && keptIds.has(existingId);
+        let storedClientId: string | null = null;
+        if (editingThisJob) {
+          const current = await tx.salesJob.findFirst({
+            where: { id: existingId, distributorId: args.distributorId },
+            select: { clientId: true },
+          });
+          storedClientId = current?.clientId ?? null;
+          if (!clientId) clientId = storedClientId;
+        }
+        const linked = clientId
           ? await tx.buyer.findFirst({
-              where: {
-                buyerId: clientId,
-                userId: args.distributorId,
-                OR: [{ status: 'Prospect' }, { buyerId: { startsWith: 'LKP-' } }],
-              },
-              select: { buyerId: true },
+              where: { buyerId: clientId, userId: args.distributorId },
+              select: { buyerId: true, status: true },
             })
           : null;
+        const reusable = Boolean(linked && (linked.status === 'Prospect' || linked.buyerId.startsWith('LKP-')));
+        const sameStoredBuyer = Boolean(linked && storedClientId && linked.buyerId === storedClientId);
+        const keepLinked = Boolean(linked && (reusable || (editingThisJob && sameStoredBuyer)));
         const duplicate = await tx.buyer.findFirst({
           where: {
             userId: args.distributorId,
             customerNumber,
-            ...(owned ? { buyerId: { not: owned.buyerId } } : {}),
+            ...(keepLinked && linked ? { buyerId: { not: linked.buyerId } } : {}),
           },
           select: { buyerId: true },
         });
         if (duplicate) throw new Error('Customer number already exists');
-        if (owned) {
+        if (keepLinked && linked) {
           await tx.buyer.update({
-            where: { buyerId: owned.buyerId },
+            where: { buyerId: linked.buyerId },
             data: { customerNumber, owner: name, storeName, phone, address },
           });
-          clientId = owned.buyerId;
+          clientId = linked.buyerId;
         } else {
           const buyerId = `LKP-${randomUUID()}`;
           await tx.buyer.create({
@@ -576,7 +586,6 @@ export async function createSalesJobs(args: {
         suggestedProducts: productIds,
         scheduledDate: earliest.start,
       };
-      const existingId = item.id?.trim() || '';
       if (keptIds.has(existingId)) {
         const owned = await tx.salesJob.findFirst({
           where: { id: existingId, distributorId: args.distributorId },

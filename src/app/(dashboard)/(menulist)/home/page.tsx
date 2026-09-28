@@ -19,7 +19,7 @@ import {
   Settings2,
   X,
   Layers,
-  Globe2,
+  Briefcase,
   Megaphone,
   Activity,
   Loader2,
@@ -50,6 +50,8 @@ import {
   MapCoordinates,
   getOrderStatusMarkerColor,
 } from '@/utils/mapboxUtils';
+import { useTranslations } from 'next-intl';
+import { salesJobStatusKey } from '@/components/sales/salesJobTypes';
 import { useHomeTranslations } from './useHomeTranslations';
 
 type WidgetId =
@@ -58,7 +60,7 @@ type WidgetId =
   | 'products'
   | 'buyers'
   | 'suppliers'
-  | 'logistics'
+  | 'salesJobs'
   | 'inventory'
   | 'sales';
 
@@ -100,9 +102,9 @@ const WIDGET_LIBRARY: WidgetDefinition[] = [
     icon: Building2,
   },
   {
-    id: 'logistics',
+    id: 'salesJobs',
     defaultActive: false,
-    icon: Globe2,
+    icon: Briefcase,
   },
   {
     id: 'sales',
@@ -126,7 +128,7 @@ type WidgetLayoutStorage = {
 /** Uniform size for all widgets in the 2-column dashboard layout */
 const UNIFORM_WIDGET_LAYOUT = 'min-h-[320px]';
 
-const MAX_PIPELINE_ROWS = 4;
+const MAX_PIPELINE_ROWS = 3;
 const MAX_PRODUCT_PERFORMANCE_ROWS = 3;
 
 const WIDGET_LAYOUT_STORAGE_PREFIX = 'laku-dashboard-widgets';
@@ -819,6 +821,27 @@ interface SalesSummary {
   activeAgents: number;
 }
 
+interface HomeSalesJob {
+  id: string;
+  assignedTo: string;
+  clientId: string;
+  agentName: string;
+  clientName: string;
+  jobType: string;
+  status: string;
+  createdAt: string;
+}
+
+const JOB_STATUS_BADGE: Record<string, string> = {
+  pending: 'bg-yellow-100 text-yellow-800',
+  dispatched: 'bg-purple-100 text-purple-800',
+  in_progress: 'bg-blue-100 text-blue-800',
+  completed: 'bg-green-100 text-green-800',
+  skipped: 'bg-gray-100 text-gray-700',
+};
+
+const MAX_SALES_JOB_ROWS = 4;
+
 interface WidgetRenderResult {
   content: ReactNode;
   action?: ReactNode;
@@ -883,13 +906,16 @@ export default function HomePage() {
     widgetDescription,
     widgetText,
     translateRecordStatus,
+    translateOrderStatus,
   } = useHomeTranslations();
+  const tJobs = useTranslations('dashboard.sales.salesJobs');
   const { user, isHydrated } = useUserStore();
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [buyers, setBuyers] = useState<Buyer[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [salesSummary, setSalesSummary] = useState<SalesSummary | null>(null);
+  const [salesJobs, setSalesJobs] = useState<HomeSalesJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [aggregates, setAggregates] = useState<{
@@ -949,7 +975,11 @@ export default function HomePage() {
         : Array.isArray(parsed?.order)
           ? parsed.order
           : [];
-      const normalized = rawOrder.map((id) => (id === 'marketing' ? 'sales' : id));
+      const normalized = rawOrder.map((id) => {
+        if (id === 'marketing') return 'sales';
+        if (id === 'logistics') return 'salesJobs';
+        return id;
+      });
       const sanitized = normalized.filter((id): id is WidgetId =>
         WIDGET_ID_SET.has(id as WidgetId),
       );
@@ -1062,6 +1092,7 @@ export default function HomePage() {
           setBuyers([]);
           setSuppliers([]);
           setSalesSummary(null);
+          setSalesJobs([]);
           setLoading(false);
           return;
         }
@@ -1188,6 +1219,46 @@ export default function HomePage() {
           } else {
             setSalesSummary({ teams: [], totalAgents: 0, activeAgents: 0 });
           }
+
+          try {
+            const jobsResponse = await fetch('/api/graphql', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              signal: controller.signal,
+              body: JSON.stringify({
+                query: `query HomeSalesJobs($userId: Int!) {
+                  salesJobs(userId: $userId) {
+                    id assignedTo clientId agentName clientName jobType status createdAt
+                  }
+                }`,
+                variables: { userId: user!.id },
+              }),
+            });
+            if (controller.signal.aborted) return;
+            if (!jobsResponse.ok) {
+              setSalesJobs([]);
+            } else {
+              const jobsPayload = await jobsResponse.json();
+              const rows = Array.isArray(jobsPayload?.data?.salesJobs) ? jobsPayload.data.salesJobs : [];
+              setSalesJobs(
+                rows
+                  .filter((row: unknown): row is Record<string, unknown> => row != null && typeof row === 'object')
+                  .map((row: Record<string, unknown>) => ({
+                    id: parseString(row.id, ''),
+                    assignedTo: parseString(row.assignedTo, ''),
+                    clientId: parseString(row.clientId, ''),
+                    agentName: parseString(row.agentName, ''),
+                    clientName: parseString(row.clientName, ''),
+                    jobType: parseString(row.jobType, ''),
+                    status: parseString(row.status, 'pending'),
+                    createdAt: parseString(row.createdAt, ''),
+                  }))
+                  .filter((row: HomeSalesJob) => row.id),
+              );
+            }
+          } catch {
+            if (!controller.signal.aborted) setSalesJobs([]);
+          }
       } catch (fetchError) {
         if (
           !(fetchError instanceof DOMException && fetchError.name === 'AbortError')
@@ -1202,6 +1273,7 @@ export default function HomePage() {
           setBuyers([]);
           setSuppliers([]);
           setSalesSummary(null);
+          setSalesJobs([]);
         }
       } finally {
         // Only clear loading if THIS run wasn't aborted. When the effect re-runs
@@ -1428,62 +1500,6 @@ const supplierInsights = useMemo(() => {
   };
 }, [suppliers]);
 
-  // Logistics metrics from orders: on-time delivery % (vs estimated date/range) and avg delivery time
-  const logisticsMetrics = useMemo(() => {
-    const deliveredOrders = orders.filter(
-      (o) => o.orderStatus === 'Delivered',
-    );
-    const toDateOnly = (d: Date) =>
-      new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-    const msPerDay = 24 * 60 * 60 * 1000;
-
-    // On-time: delivered on or before estimated delivery (estimatedDeliveryDate or derived from min/max days)
-    const deliveredWithEstimated = deliveredOrders.filter((o) => {
-      if (o.estimatedDeliveryDate != null) return true;
-      if (o.estimatedDeliveryMinDays != null || o.estimatedDeliveryMaxDays != null) return true;
-      return false;
-    });
-    const onTimeCount = deliveredWithEstimated.filter((o) => {
-      const deliveredAt = o.deliveredAt ? new Date(o.deliveredAt) : new Date(o.updatedAt);
-      const deliveredOnly = toDateOnly(deliveredAt);
-
-      if (o.estimatedDeliveryDate != null) {
-        const estimatedOnly = toDateOnly(new Date(o.estimatedDeliveryDate));
-        return deliveredOnly <= estimatedOnly;
-      }
-      const refDate = o.acceptedAt ? new Date(o.acceptedAt) : new Date(o.createdAt);
-      const maxDays = o.estimatedDeliveryMaxDays ?? o.estimatedDeliveryMinDays ?? 0;
-      const latestEstimated = new Date(refDate.getTime() + maxDays * msPerDay);
-      return deliveredOnly <= toDateOnly(latestEstimated);
-    }).length;
-    const onTimeDeliveryPercent =
-      deliveredWithEstimated.length > 0
-        ? Math.round((onTimeCount / deliveredWithEstimated.length) * 100)
-        : 0;
-
-    // Average delivery time: days from order creation to deliveredAt (or updatedAt as fallback)
-    const deliveryDays =
-      deliveredOrders.length > 0
-        ? deliveredOrders.map((o) => {
-            const created = new Date(o.createdAt).getTime();
-            const delivered = (o.deliveredAt ? new Date(o.deliveredAt) : new Date(o.updatedAt)).getTime();
-            return (delivered - created) / msPerDay;
-          })
-        : [];
-    const avgDeliveryDays =
-      deliveryDays.length > 0
-        ? deliveryDays.reduce((a, b) => a + b, 0) / deliveryDays.length
-        : 0;
-
-    return {
-      onTimeDeliveryPercent,
-      onTimeCount,
-      deliveredWithEstimatedCount: deliveredWithEstimated.length,
-      deliveredCount: deliveredOrders.length,
-      avgDeliveryDays,
-    };
-  }, [orders]);
-
   const revenueTrendData = useMemo(
     () => calculateRevenueData(orders, products, hasData),
     [orders, products, hasData],
@@ -1525,6 +1541,22 @@ const supplierInsights = useMemo(() => {
     );
   return sorted.slice(0, MAX_PIPELINE_ROWS);
   }, [orders, hasData]);
+
+  const salesJobCounts = useMemo(() => {
+    const counts = { pending: 0, dispatched: 0, in_progress: 0, completed: 0 };
+    for (const job of salesJobs) {
+      const key = salesJobStatusKey(job.status);
+      if (key === 'pending' || key === 'dispatched' || key === 'in_progress' || key === 'completed') {
+        counts[key] += 1;
+      }
+    }
+    return counts;
+  }, [salesJobs]);
+
+  const recentSalesJobs = useMemo(
+    () => [...salesJobs].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, MAX_SALES_JOB_ROWS),
+    [salesJobs],
+  );
 
   const logisticsMapMarkers: LogisticsMapMarker[] = useMemo(() => {
     return logisticsActiveOrders
@@ -1839,57 +1871,87 @@ const supplierInsights = useMemo(() => {
               <ArrowRight className="w-4 h-4" />
             </Link>
           ),
-          content: recentOrders.length === 0 ? (
-            <div className="flex h-90 flex-col items-center justify-center rounded-lg">
-              <ShoppingCart className="mb-3 h-10 w-10 text-gray-300" />
-              <p className="text-sm font-semibold text-gray-600">
-                {widgetText('orders', 'emptyTitle')}
-              </p>
-              <p className="mt-1 text-xs text-gray-500">
-                {widgetText('orders', 'emptyHint')}
-              </p>
+          content: (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-sm font-semibold text-black">{widgetText('orders', 'activeShipmentsMap')}</p>
+                  <span className="text-xs text-gray-500">
+                    {logisticsMapMarkers.length.toLocaleString()}{' '}
+                    {logisticsMapMarkers.length === 1
+                      ? widgetText('orders', 'location')
+                      : widgetText('orders', 'locations')}
+                  </span>
+                </div>
+                {isLogisticsGeocoding && logisticsMapMarkers.length === 0 ? (
+                  <div className="flex h-72 flex-col items-center justify-center rounded-lg bg-gray-100">
+                    <Loader2 className="mb-3 h-8 w-8 animate-spin text-gray-400" />
+                    <p className="text-sm font-semibold text-gray-600">{widgetText('orders', 'loadingLocations')}</p>
+                    <p className="text-xs text-gray-500">{widgetText('orders', 'geocoding')}</p>
+                  </div>
+                ) : logisticsMapMarkers.length > 0 ? (
+                  <MapComponent
+                    accessToken={mapboxToken}
+                    markers={logisticsMapMarkers}
+                    center={logisticsMapCenter}
+                    height="250px"
+                    showControls
+                    onMarkerClick={handleLogisticsMarkerClick}
+                  />
+                ) : (
+                  <div className="flex h-72 flex-col items-center justify-center rounded-lg bg-gray-100">
+                    <MapPin className="mb-3 h-10 w-10 text-gray-400" />
+                    <p className="text-sm font-semibold text-gray-600">{widgetText('orders', 'noActiveShipments')}</p>
+                    <p className="text-xs text-gray-500">{widgetText('orders', 'noActiveShipmentsHint')}</p>
+                  </div>
+                )}
+              </div>
+              {recentOrders.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-lg py-6">
+                  <ShoppingCart className="mb-2 h-8 w-8 text-gray-300" />
+                  <p className="text-sm font-semibold text-gray-600">{widgetText('orders', 'emptyTitle')}</p>
+                  <p className="mt-1 text-xs text-gray-500">{widgetText('orders', 'emptyHint')}</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-lg border border-[#e6e6e6]">
+                  <table className="min-w-full text-xs">
+                    <thead>
+                      <tr className="bg-gray-100 text-gray-500 whitespace-nowrap">
+                        <th className="px-3 py-2 text-left font-medium uppercase">{widgetText('orders', 'store')}</th>
+                        <th className="px-3 py-2 text-left font-medium uppercase">{widgetText('orders', 'contact')}</th>
+                        <th className="px-3 py-2 text-left font-medium uppercase">{widgetText('orders', 'date')}</th>
+                        <th className="px-3 py-2 text-left font-medium uppercase">{widgetText('orders', 'amount')}</th>
+                        <th className="px-3 py-2 text-left font-medium uppercase">{widgetText('orders', 'status')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {recentOrders.map((order) => {
+                        const statusClass = statusStyles[order.orderStatus] ?? 'bg-gray-100 text-gray-600 border-gray-200';
+                        return (
+                          <tr key={order.id} className="border-b border-[#e6e6e6] last:border-b-0">
+                            <td className="px-3 py-2 font-semibold text-black whitespace-nowrap">
+                              <Link href={`/orders/details/${order.orderId}`} className="hover:text-[#0a61d7]">
+                                {order.storeName}
+                              </Link>
+                            </td>
+                            <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{order.contactPerson}</td>
+                            <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{formatOrderDate(order.orderDate)}</td>
+                            <td className="px-3 py-2 font-semibold text-black whitespace-nowrap">
+                              {formatCurrency(order.totalAmount, userCurrency)}
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap">
+                              <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${statusClass}`}>
+                                {translateOrderStatus(order.orderStatus)}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
-          ) : (
-            <ul className="space-y-3">
-              {recentOrders.map((order) => {
-                const orderDate = formatOrderDate(order.orderDate);
-                const statusClass = statusStyles[order.orderStatus] ?? 'bg-gray-100 text-gray-600 border-gray-200';
-                return (
-                  <li
-                    key={order.id}
-                    className="flex flex-col gap-4 rounded-lg border border-[#e6e6e6] bg-white px-4 py-3"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-black">
-                          {order.storeName}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {order.contactPerson} · {orderDate}
-                        </p>
-                     </div>
-                      <span
-                        className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${statusClass}`}
-                      >
-                        {order.orderStatus}
-                      </span>
-                    </div>
-                    <div className="flex items-end justify-between">
-                      <span className="text-sm font-semibold text-black">
-                        {formatCurrency(order.totalAmount, userCurrency)}
-                      </span>
-                      <Link
-                        href={`/orders/details/${order.orderId}`}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6]"
-                      >
-                        {tCommon('details')}
-                        <ArrowRight className="w-4 h-4" />
-                      </Link>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
           ),
         };
       case 'products':
@@ -2198,106 +2260,76 @@ const supplierInsights = useMemo(() => {
             </div>
           ),
         };
-      case 'logistics':
+      case 'salesJobs': {
+        const jobTypeLabel = (jobType: string) =>
+          tJobs.has(`types.${jobType}`) ? tJobs(`types.${jobType}` as 'types.take_order') : jobType;
+        const jobStatusLabel = (status: string) => {
+          const key = salesJobStatusKey(status);
+          return tJobs.has(`status.${key}`) ? tJobs(`status.${key}` as 'status.pending') : key;
+        };
+        const countCards = [
+          { key: 'pending', label: widgetText('salesJobs', 'pending'), hint: widgetText('salesJobs', 'pendingHint'), value: salesJobCounts.pending, valueClass: 'text-yellow-700' },
+          { key: 'dispatched', label: widgetText('salesJobs', 'dispatched'), hint: widgetText('salesJobs', 'dispatchedHint'), value: salesJobCounts.dispatched, valueClass: 'text-purple-700' },
+          { key: 'in_progress', label: widgetText('salesJobs', 'inProgress'), hint: widgetText('salesJobs', 'inProgressHint'), value: salesJobCounts.in_progress, valueClass: 'text-[#0a61d7]' },
+          { key: 'completed', label: widgetText('salesJobs', 'completed'), hint: widgetText('salesJobs', 'completedHint'), value: salesJobCounts.completed, valueClass: 'text-emerald-600' },
+        ] as const;
         return {
           action: (
             <Link
-              href="/orders"
+              href="/sales/jobs"
               className="inline-flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6]"
             >
-              {widgetText('logistics', 'action')}
+              {widgetText('salesJobs', 'action')}
               <ArrowRight className="w-4 h-4" />
             </Link>
           ),
           content: (
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
-                  <p className="text-xs text-gray-500">{widgetText('logistics', 'totalShipments')}</p>
-                  <p className="mt-1 text-2xl font-semibold text-black">
-                    {orders.filter(order => order.deliveryMethod === 'Seller/Distributor Delivery').length.toLocaleString()}
-                  </p>
-                  <p className="mt-1 text-[11px] uppercase tracking-wide text-gray-500">
-                    {widgetText('logistics', 'sellerDelivery')}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
-                  <p className="text-xs text-gray-500">{widgetText('logistics', 'delivered')}</p>
-                  <p className="mt-1 text-2xl font-semibold text-black">
-                    {logisticsMetrics.deliveredCount.toLocaleString()}
-                  </p>
-                  <p className="mt-1 text-[11px] uppercase tracking-wide text-emerald-600">
-                    {widgetText('logistics', 'shipments')}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
-                  <p className="text-xs text-gray-500">{widgetText('logistics', 'onTimeDelivery')}</p>
-                  <p className="mt-1 text-2xl font-semibold text-black">
-                    {logisticsMetrics.deliveredWithEstimatedCount === 0
-                      ? '—'
-                      : `${logisticsMetrics.onTimeDeliveryPercent}%`}
-                  </p>
-                  <p className="mt-1 text-[11px] uppercase tracking-wide text-gray-500">
-                    {logisticsMetrics.deliveredWithEstimatedCount === 0
-                      ? widgetText('logistics', 'setEstimatedDates')
-                      : t('widgets.logistics.onTimeSummary', {
-                          onTime: logisticsMetrics.onTimeCount,
-                          total: logisticsMetrics.deliveredWithEstimatedCount,
-                        })}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
-                  <p className="text-xs text-gray-500">{widgetText('logistics', 'avgDeliveryTime')}</p>
-                  <p className="mt-1 text-2xl font-semibold text-black">
-                    {logisticsMetrics.deliveredCount === 0
-                      ? '—'
-                      : logisticsMetrics.avgDeliveryDays < 1
-                        ? widgetText('logistics', 'lessThanOneDay')
-                        : t('widgets.logistics.days', {
-                            count: Math.round(logisticsMetrics.avgDeliveryDays * 10) / 10,
-                          })}
-                  </p>
-                  <p className="mt-1 text-[11px] uppercase tracking-wide text-gray-500">
-                    {widgetText('logistics', 'acrossShipments')}
-                  </p>
-                </div>
-              </div>
-              <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm font-semibold text-black">{widgetText('logistics', 'activeShipmentsMap')}</p>
-                  <span className="text-xs text-gray-500">
-                    {logisticsMapMarkers.length.toLocaleString()}{' '}
-                    {logisticsMapMarkers.length === 1
-                      ? widgetText('logistics', 'location')
-                      : widgetText('logistics', 'locations')}
-                  </span>
-                </div>
-                {isLogisticsGeocoding && logisticsMapMarkers.length === 0 ? (
-                  <div className="flex h-72 flex-col items-center justify-center rounded-lg bg-gray-100">
-                    <Loader2 className="mb-3 h-8 w-8 text-gray-400 animate-spin" />
-                    <p className="text-sm font-semibold text-gray-600">{widgetText('logistics', 'loadingLocations')}</p>
-                    <p className="text-xs text-gray-500">{widgetText('logistics', 'geocoding')}</p>
+                {countCards.map((card) => (
+                  <div key={card.key} className="rounded-lg border border-[#e6e6e6] bg-white p-4">
+                    <p className="text-xs text-gray-500">{card.label}</p>
+                    <p className={`mt-1 text-2xl font-semibold ${card.valueClass}`}>{card.value.toLocaleString()}</p>
+                    <p className="mt-1 text-[11px] uppercase tracking-wide text-gray-500">{card.hint}</p>
                   </div>
-                ) : logisticsMapMarkers.length > 0 ? (
-                  <MapComponent
-                    accessToken={mapboxToken}
-                    markers={logisticsMapMarkers}
-                    center={logisticsMapCenter}
-                    height="320px"
-                    showControls
-                    onMarkerClick={handleLogisticsMarkerClick}
-                  />
-                ) : (
-                  <div className="flex h-72 flex-col items-center justify-center rounded-lg bg-gray-100">
-                    <MapPin className="mb-3 h-10 w-10 text-gray-400" />
-                    <p className="text-sm font-semibold text-gray-600">{widgetText('logistics', 'noActiveShipments')}</p>
-                    <p className="text-xs text-gray-500">{widgetText('logistics', 'noActiveShipmentsHint')}</p>
-                  </div>
-                )}
+                ))}
               </div>
+              {recentSalesJobs.length === 0 ? (
+                <div className="flex h-40 flex-col items-center justify-center rounded-lg">
+                  <Briefcase className="mb-3 h-8 w-8 text-gray-300" />
+                  <p className="text-sm font-semibold text-gray-600">{widgetText('salesJobs', 'emptyTitle')}</p>
+                  <p className="mt-1 text-xs text-gray-500">{widgetText('salesJobs', 'emptyHint')}</p>
+                </div>
+              ) : (
+                <div>
+                  <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    {widgetText('salesJobs', 'recentJobs')}
+                  </h3>
+                  <ul className="space-y-3">
+                    {recentSalesJobs.map((job) => {
+                      const statusKey = salesJobStatusKey(job.status);
+                      return (
+                        <li key={job.id} className="flex items-center justify-between gap-3 rounded-lg border border-[#e6e6e6] bg-white px-4 py-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-black">{job.clientName || job.agentName}</p>
+                            <p className="truncate text-xs text-gray-500">
+                              {jobTypeLabel(job.jobType)}
+                              {job.agentName ? ` · ${job.agentName}` : ''}
+                            </p>
+                          </div>
+                          <span className={`inline-flex shrink-0 rounded-full px-2 py-1 text-xs font-semibold ${JOB_STATUS_BADGE[statusKey] || JOB_STATUS_BADGE.skipped}`}>
+                            {jobStatusLabel(job.status)}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
             </div>
           ),
         };
+      }
       case 'inventory': {
         const totalProducts = products.length;
         const activeProductCount = products.filter((p) => p.status === 'Published').length;
@@ -2616,6 +2648,7 @@ const supplierInsights = useMemo(() => {
                 setBuyers([]);
                 setSuppliers([]);
                 setSalesSummary(null);
+                setSalesJobs([]);
               }}
             >
               {tCommon('retry')}
