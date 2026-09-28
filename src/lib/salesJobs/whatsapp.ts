@@ -64,7 +64,7 @@ function jobLabel(jobType: string): string {
 }
 
 function messageBody(job: DispatchJobInput): string {
-  const lines = [`${job.clientName}`, jobLabel(job.jobType)];
+  const lines = [job.clientName, jobLabel(job.jobType)].filter(Boolean);
   if (job.priorityReason) lines.push(job.priorityReason);
   if (job.suggestedProductNames.length > 0) {
     lines.push(`Suggested: ${job.suggestedProductNames.join(', ')}`);
@@ -294,7 +294,7 @@ export async function handleWhatsAppReply(reply: SalesJobWhatsAppReply): Promise
     await prisma.salesJob.update({
       where: { id: job.id },
       data: {
-        status: 'approved',
+        status: 'pending',
         scheduledDate: next,
         dispatchNote: 'Rescheduled from WhatsApp',
         dispatchedAt: null,

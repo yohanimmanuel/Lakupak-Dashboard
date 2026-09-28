@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db';
 import { withDashboardAuth } from '../common/auth';
-import { dismissCandidate, manualMergeOrder, mergeCandidate, undoAutoMerge } from '@/lib/clientMatching/service';
+import { dismissCandidate, getClientMatchSettings, manualMergeOrder, mergeCandidate, reopenUndoneMatches, setClientMatchSettings, undoAutoMerge, undoDismissedMatch } from '@/lib/clientMatching/service';
 
 export const clientMatchingTypeDefs = /* GraphQL */ `
   type ClientMatchSide {
@@ -36,9 +36,14 @@ export const clientMatchingTypeDefs = /* GraphQL */ `
     orderDate: String!
   }
 
+  type ClientMatchSettings {
+    autoMatch: Boolean!
+  }
+
   extend type Query {
     clientMatchCandidates(userId: Int!, queue: String): [ClientMatchCandidate!]!
     clientMatchPendingCount(userId: Int!): Int!
+    clientMatchSettings(userId: Int!): ClientMatchSettings!
     searchOrdersForClientMatch(userId: Int!, query: String!): [ClientMatchOrderHit!]!
   }
 
@@ -46,6 +51,7 @@ export const clientMatchingTypeDefs = /* GraphQL */ `
     resolveClientMatch(userId: Int!, id: String!, action: String!): Boolean!
     undoClientMatch(userId: Int!, id: String!): Boolean!
     manualMergeClient(userId: Int!, existingClientId: String!, incomingOrderId: String!): Boolean!
+    updateClientMatchSettings(userId: Int!, autoMatch: Boolean!): ClientMatchSettings!
   }
 `;
 
@@ -113,7 +119,6 @@ export const clientMatchingResolvers = {
         const rows = await prisma.clientMatchCandidate.findMany({
           where: {
             distributorId: args.userId,
-            autoMerged: true,
             status: 'merged',
             undoneAt: null,
             createdAt: { gte: since },
@@ -123,6 +128,15 @@ export const clientMatchingResolvers = {
         });
         return rows.map(mapCandidate);
       }
+      if (queue === 'not_a_match') {
+        const rows = await prisma.clientMatchCandidate.findMany({
+          where: { distributorId: args.userId, status: 'not_a_match' },
+          include,
+          orderBy: { createdAt: 'desc' },
+        });
+        return rows.map(mapCandidate);
+      }
+      if (queue === 'pending') await reopenUndoneMatches(args.userId);
       const statuses = queue === 'needs_more_info' ? ['needs_more_info'] : ['pending', 'needs_more_info'];
       const rows = await prisma.clientMatchCandidate.findMany({
         where: { distributorId: args.userId, status: { in: statuses } },
@@ -131,11 +145,13 @@ export const clientMatchingResolvers = {
       });
       return rows.map(mapCandidate);
     }),
-    clientMatchPendingCount: withDashboardAuth(async (args: { userId: number }) =>
-      prisma.clientMatchCandidate.count({
+    clientMatchPendingCount: withDashboardAuth(async (args: { userId: number }) => {
+      await reopenUndoneMatches(args.userId);
+      return prisma.clientMatchCandidate.count({
         where: { distributorId: args.userId, status: { in: ['pending', 'needs_more_info'] } },
-      }),
-    ),
+      });
+    }),
+    clientMatchSettings: withDashboardAuth(async (args: { userId: number }) => getClientMatchSettings(args.userId)),
     searchOrdersForClientMatch: withDashboardAuth(async (args: { userId: number; query: string }) => {
       const q = args.query.trim();
       if (q.length < 2) return [];
@@ -176,12 +192,21 @@ export const clientMatchingResolvers = {
       return true;
     }),
     undoClientMatch: withDashboardAuth(async (args: { userId: number; id: string }) => {
-      await undoAutoMerge(args.userId, args.id);
+      const row = await prisma.clientMatchCandidate.findFirst({
+        where: { id: args.id, distributorId: args.userId },
+        select: { status: true },
+      });
+      if (!row) throw new Error('Match not found');
+      if (row.status === 'not_a_match') await undoDismissedMatch(args.userId, args.id);
+      else await undoAutoMerge(args.userId, args.id);
       return true;
     }),
     manualMergeClient: withDashboardAuth(async (args: { userId: number; existingClientId: string; incomingOrderId: string }) => {
       await manualMergeOrder(args.userId, args.existingClientId, args.incomingOrderId);
       return true;
     }),
+    updateClientMatchSettings: withDashboardAuth(async (args: { userId: number; autoMatch: boolean }) =>
+      setClientMatchSettings(args.userId, args.autoMatch),
+    ),
   },
 };

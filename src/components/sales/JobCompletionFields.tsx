@@ -8,7 +8,7 @@ import { SalesJobCompletion, SalesJobReturnedItem } from './salesJobTypes';
 const ORIGINAL_TYPES = new Set(['take_order', 'collect_payment', 'promote_product', 'stock_check', 'prospect_new_outlet']);
 const RETURN_REASONS = ['expired', 'damaged', 'unsold_near_expiry', 'other'] as const;
 
-const inputClass = 'w-full border border-[#e6e6e6] rounded-lg px-3 py-2 text-sm text-black bg-white';
+const inputClass = 'w-full border border-[#e6e6e6] rounded-lg px-3 py-2 text-xs text-black bg-white';
 
 export type CompletionProduct = { productId: string; name: string };
 export type CompletionOffer = { offerId: string; label: string };
@@ -72,7 +72,7 @@ function FieldSelect({
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className="w-full px-3 py-2 text-sm border border-[#e6e6e6] rounded-lg text-left flex items-center justify-between bg-white"
+        className="w-full px-3 py-2 text-xs border border-[#e6e6e6] rounded-lg text-left flex items-center justify-between bg-white"
       >
         <span className={selected ? 'text-black truncate' : 'text-gray-500 truncate'}>{selected?.label || placeholder}</span>
         <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />

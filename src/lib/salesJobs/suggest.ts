@@ -137,7 +137,7 @@ export async function suggestSalesJobsForDistributor(
             priorityReason: reasons.join('. '),
             suggestedProducts,
             createdBy: 'ai',
-            status: 'suggested',
+            status: 'pending',
             scheduledDate: start,
           },
         });
@@ -163,7 +163,7 @@ export async function suggestSalesJobsForDistributor(
               new Set(expiring.map((offer) => offer.productId).filter((id): id is string => Boolean(id))),
             ),
             createdBy: 'ai',
-            status: 'suggested',
+            status: 'pending',
             scheduledDate: start,
           },
         });

@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { prisma } from '@/lib/db';
 import {
   buildStoredCompletion,
@@ -9,7 +10,7 @@ import { DEFAULT_JOB_TIMEZONE, zonedDayRange, zonedParts } from '@/lib/salesJobs
 
 const JOB_INCLUDE = {
   agent: { select: { id: true, name: true, phone: true, role: true } },
-  client: { select: { buyerId: true, storeName: true, owner: true, phone: true, address: true, status: true } },
+  client: { select: { buyerId: true, customerNumber: true, storeName: true, owner: true, phone: true, address: true, status: true } },
   schedules: { orderBy: { scheduledDate: 'asc' as const } },
 } as const;
 
@@ -66,7 +67,7 @@ async function attachProductNames<T extends { suggestedProducts: string[] }>(row
 function mapJob(job: {
   id: string;
   assignedTo: string;
-  clientId: string;
+  clientId: string | null;
   jobType: string;
   priorityReason: string | null;
   suggestedProducts: string[];
@@ -83,7 +84,7 @@ function mapJob(job: {
   orderIds?: string[];
   schedules?: { scheduledDate: Date; reminderHour: number; reminderMinute: number }[];
   agent: { id: string; name: string; phone: string; role: string };
-  client: { buyerId: string; storeName: string; owner: string; phone: string; address: string; status: string };
+  client: { buyerId: string; customerNumber: string | null; storeName: string; owner: string; phone: string; address: string; status: string } | null;
 }, timeZone: string) {
   const schedules = (job.schedules ?? [])
     .slice()
@@ -98,12 +99,13 @@ function mapJob(job: {
     agentName: job.agent.name,
     agentPhone: job.agent.phone,
     agentRole: job.agent.role,
-    clientId: job.clientId,
-    clientName: job.client.storeName || job.client.owner,
-    clientOwner: job.client.owner,
-    clientPhone: job.client.phone,
-    clientAddress: job.client.address,
-    clientStatus: job.client.status,
+    clientId: job.clientId ?? '',
+    clientCustomerNumber: job.client?.customerNumber ?? '',
+    clientName: job.client ? job.client.storeName || job.client.owner : '',
+    clientOwner: job.client?.owner ?? '',
+    clientPhone: job.client?.phone ?? '',
+    clientAddress: job.client?.address ?? '',
+    clientStatus: job.client?.status ?? '',
     jobType: job.jobType,
     priorityReason: job.priorityReason,
     suggestedProducts: job.suggestedProducts,
@@ -153,7 +155,7 @@ export async function createManualSalesJob(args: {
       priorityReason: args.priorityReason?.trim() || null,
       suggestedProducts: args.suggestedProducts?.filter(Boolean) ?? [],
       createdBy: 'manager',
-      status: 'approved',
+      status: 'pending',
       scheduledDate: start,
     },
     include: JOB_INCLUDE,
@@ -202,7 +204,7 @@ export async function reviewSalesJob(args: {
   const updated = await prisma.salesJob.update({
     where: { id: existing.id },
     data: {
-      status: 'approved',
+      status: 'pending',
       clientId,
       jobType: args.jobType ? assertJobType(args.jobType) : existing.jobType,
       scheduledDate,
@@ -212,6 +214,22 @@ export async function reviewSalesJob(args: {
     include: JOB_INCLUDE,
   });
   return (await attachProductNames([mapJob(updated, timeZone)]))[0];
+}
+
+const MARK_PENDING_SOURCE_STATUSES = ['pending', 'approved', 'suggested', 'dispatched', 'in_progress', 'completed', 'skipped'] as const;
+
+export async function markSalesJobsPending(args: { distributorId: number; ids: string[] }) {
+  const ids = Array.from(new Set(args.ids.map((id) => id.trim()).filter(Boolean)));
+  if (ids.length === 0) return 0;
+  const result = await prisma.salesJob.updateMany({
+    where: {
+      id: { in: ids },
+      distributorId: args.distributorId,
+      status: { in: [...MARK_PENDING_SOURCE_STATUSES] },
+    },
+    data: { status: 'pending', completedAt: null },
+  });
+  return result.count;
 }
 
 export async function completeSalesJob(args: {
@@ -224,7 +242,7 @@ export async function completeSalesJob(args: {
     where: {
       id: args.id,
       distributorId: args.distributorId,
-      status: { in: ['approved', 'dispatched', 'in_progress'] },
+      status: { in: ['pending', 'approved', 'suggested', 'dispatched', 'in_progress'] },
     },
   });
   if (!existing) throw new Error('Job cannot be completed');
@@ -284,7 +302,7 @@ export async function salesJobDayAggregates(distributorId: number, agentId: stri
     const row = byDate.get(key) ?? { clients: new Set<string>(), visits: 0, products: 0, sales: 0 };
     const data = readCompletion(job.completionData);
     row.visits += 1;
-    row.clients.add(job.clientId);
+    if (job.clientId) row.clients.add(job.clientId);
     row.products += data.products_demoed;
     if (data.order_placed && data.order_amount) row.sales += data.order_amount;
     byDate.set(key, row);
@@ -440,12 +458,12 @@ export async function createSalesJobs(args: {
       const jobType = assertJobType(item.jobType);
       const schedules = normalizeSchedules(item.schedules ?? [], timeZone);
       const earliest = schedules.slice().sort((a, b) => a.start.getTime() - b.start.getTime())[0];
-      let clientId = item.clientId?.trim() || '';
+      let clientId: string | null = item.clientId?.trim() || null;
       let orderId: string | null = null;
       let productIds: string[] = [];
 
       let linkedOrderIds: string[] = [];
-      if (jobType === 'take_order' || jobType === 'collect_payment') {
+      if (jobType === 'take_order' || jobType === 'collect_payment' || jobType === 'returns_pickup') {
         const requested = Array.from(
           new Set([...(item.orderIds ?? []), item.orderId ?? ''].map((id) => id.trim()).filter(Boolean)),
         );
@@ -466,27 +484,28 @@ export async function createSalesJobs(args: {
         clientId = orders[0].buyerId as string;
         linkedOrderIds = requested;
         orderId = requested[0];
-      } else if (jobType === 'promote_product' || jobType === 'stock_check' || jobType === 'new_product_activation') {
+      } else if (
+        jobType === 'promote_product' ||
+        jobType === 'stock_check' ||
+        jobType === 'new_product_activation' ||
+        jobType === 'competitor_intel' ||
+        jobType === 'scheme_reconciliation'
+      ) {
         if (!clientId) throw new Error('Select a client');
         const client = await tx.buyer.findFirst({
           where: { buyerId: clientId, userId: args.distributorId },
           select: { buyerId: true },
         });
         if (!client) throw new Error('Client not found');
-        productIds = Array.from(new Set((item.productIds ?? []).map((id) => id.trim()).filter(Boolean)));
-        if (productIds.length === 0) throw new Error('Select at least one product');
-        const products = await tx.product.findMany({
-          where: { userId: args.distributorId, productId: { in: productIds } },
-          select: { productId: true },
-        });
-        if (products.length !== productIds.length) throw new Error('One or more products were not found');
-      } else if (jobType === 'returns_pickup' || jobType === 'competitor_intel' || jobType === 'scheme_reconciliation') {
-        if (!clientId) throw new Error('Select a client');
-        const client = await tx.buyer.findFirst({
-          where: { buyerId: clientId, userId: args.distributorId },
-          select: { buyerId: true },
-        });
-        if (!client) throw new Error('Client not found');
+        if (jobType === 'promote_product' || jobType === 'stock_check' || jobType === 'new_product_activation') {
+          productIds = Array.from(new Set((item.productIds ?? []).map((id) => id.trim()).filter(Boolean)));
+          if (productIds.length === 0) throw new Error('Select at least one product');
+          const products = await tx.product.findMany({
+            where: { userId: args.distributorId, productId: { in: productIds } },
+            select: { productId: true },
+          });
+          if (products.length !== productIds.length) throw new Error('One or more products were not found');
+        }
       } else {
         const prospect = item.prospect;
         const customerNumber = prospect?.customerNumber.trim() ?? '';
@@ -497,21 +516,37 @@ export async function createSalesJobs(args: {
         if (!customerNumber || !name || !storeName || !phone || !address) {
           throw new Error('Fill in the new outlet');
         }
-        const existing = await tx.buyer.findUnique({
-          where: { buyerId: customerNumber },
-          select: { buyerId: true, userId: true },
+        const owned = clientId
+          ? await tx.buyer.findFirst({
+              where: {
+                buyerId: clientId,
+                userId: args.distributorId,
+                OR: [{ status: 'Prospect' }, { buyerId: { startsWith: 'LKP-' } }],
+              },
+              select: { buyerId: true },
+            })
+          : null;
+        const duplicate = await tx.buyer.findFirst({
+          where: {
+            userId: args.distributorId,
+            customerNumber,
+            ...(owned ? { buyerId: { not: owned.buyerId } } : {}),
+          },
+          select: { buyerId: true },
         });
-        const canReuse = Boolean(args.replaceIds?.length) && existing?.userId === args.distributorId;
-        if (existing && !canReuse) throw new Error('Customer number already exists');
-        if (canReuse) {
+        if (duplicate) throw new Error('Customer number already exists');
+        if (owned) {
           await tx.buyer.update({
-            where: { buyerId: customerNumber },
-            data: { owner: name, storeName, phone, address },
+            where: { buyerId: owned.buyerId },
+            data: { customerNumber, owner: name, storeName, phone, address },
           });
+          clientId = owned.buyerId;
         } else {
+          const buyerId = `LKP-${randomUUID()}`;
           await tx.buyer.create({
             data: {
-              buyerId: customerNumber,
+              buyerId,
+              customerNumber,
               userId: args.distributorId,
               owner: name,
               storeName,
@@ -522,8 +557,8 @@ export async function createSalesJobs(args: {
               status: 'Prospect',
             },
           });
+          clientId = buyerId;
         }
-        clientId = customerNumber;
       }
 
       const scheduleRows = schedules.map((schedule) => ({
@@ -554,7 +589,7 @@ export async function createSalesJobs(args: {
             where: { id: existingId },
             data: {
               ...jobFields,
-              status: 'approved',
+              status: 'pending',
               schedules: { deleteMany: {}, create: scheduleRows },
             },
             include: JOB_INCLUDE,
@@ -564,7 +599,7 @@ export async function createSalesJobs(args: {
               ...jobFields,
               distributorId: args.distributorId,
               createdBy: 'manager',
-              status: 'approved',
+              status: 'pending',
               schedules: { create: scheduleRows },
             },
             include: JOB_INCLUDE,

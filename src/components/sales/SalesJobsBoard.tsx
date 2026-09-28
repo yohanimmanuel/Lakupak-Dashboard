@@ -2,16 +2,17 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Download, Plus, X } from 'lucide-react';
+import { Download, Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import * as XLSX from 'xlsx';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
 import { SkeletonTablePage } from '@/components/skeleton/SkeletonTablePage';
-import JobCompletionFields, { CompletionOffer, CompletionProduct, completionInput, completionIsPerVisit } from './JobCompletionFields';
+import CompleteSalesJobModal from './CompleteSalesJobModal';
+import { completionIsPerVisit } from './JobCompletionFields';
 import JobsStatcards from './JobsStatcards';
 import JobsTable from './JobsTable';
-import { SalesJobCompletion, SalesJobRow } from './salesJobTypes';
+import { SalesJobRow, salesJobStatusKey } from './salesJobTypes';
 
 const COMPLETION_FIELDS = `
   order_placed order_amount payment_collected payment_amount stock_checked products_demoed notes
@@ -23,7 +24,7 @@ const COMPLETION_FIELDS = `
 `;
 
 const JOB_FIELDS = `
-  id assignedTo agentName clientId clientName clientStatus jobType priorityReason
+  id assignedTo agentName clientId clientCustomerNumber clientName clientOwner clientPhone clientAddress clientStatus jobType priorityReason
   suggestedProducts suggestedProductNames createdBy status scheduledDate createdAt dispatchNote
   schedules { date reminderTime }
   completionData { ${COMPLETION_FIELDS} }
@@ -35,81 +36,6 @@ const JOBS_QUERY = `
   }
 `;
 
-const emptyCompletion = (): SalesJobCompletion => ({
-  order_placed: false,
-  order_amount: null,
-  payment_collected: false,
-  payment_amount: null,
-  stock_checked: false,
-  products_demoed: 0,
-  notes: '',
-  items_returned: [],
-  replacement_issued: false,
-  replacement_value: null,
-  competitor_name: '',
-  competitor_product: '',
-  observed_price: null,
-  observed_promo: '',
-  shelf_share_observation: '',
-  product_id: '',
-  product_ids: [],
-  display_setup_completed: false,
-  samples_given: null,
-  retailer_briefed: false,
-  scheme_reference: '',
-  execution_confirmed: false,
-  claim_amount: null,
-});
-
-function completionFromJob(job?: SalesJobRow): SalesJobCompletion {
-  const base = emptyCompletion();
-  if (!job) return base;
-  const saved = job.completionData;
-  return {
-    ...base,
-    ...saved,
-    notes: saved?.notes ?? '',
-    items_returned: saved?.items_returned ?? [],
-    competitor_name: saved?.competitor_name ?? '',
-    competitor_product: saved?.competitor_product ?? '',
-    observed_promo: saved?.observed_promo ?? '',
-    shelf_share_observation: saved?.shelf_share_observation ?? '',
-    product_id: saved?.product_ids?.[0] || saved?.product_id || job.suggestedProducts?.[0] || '',
-    product_ids: saved?.product_ids?.length
-      ? saved.product_ids
-      : saved?.product_id
-        ? [saved.product_id]
-        : job.suggestedProducts ?? [],
-    scheme_reference: saved?.scheme_reference ?? '',
-  };
-}
-
-type CompletingJob = { id: string; jobType: string; clientId: string };
-
-function ModalShell({
-  title,
-  onClose,
-  children,
-}: {
-  title: string;
-  onClose: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
-      <div className="w-full max-w-2xl bg-white rounded-lg border border-[#e6e6e6] flex flex-col max-h-[90vh] overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#e6e6e6]">
-          <h3 className="text-base font-semibold text-gray-900">{title}</h3>
-          <button type="button" onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 text-gray-700" aria-label="Close">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        <div className="flex-1 min-h-0 overflow-y-auto p-4">{children}</div>
-      </div>
-    </div>
-  );
-}
-
 export default function SalesJobsBoard() {
   const t = useTranslations('dashboard.sales.salesJobs');
   const router = useRouter();
@@ -118,11 +44,7 @@ export default function SalesJobsBoard() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [completing, setCompleting] = useState<CompletingJob[]>([]);
-  const [completingName, setCompletingName] = useState('');
-  const [completion, setCompletion] = useState<SalesJobCompletion>(emptyCompletion());
-  const [completionProducts, setCompletionProducts] = useState<CompletionProduct[]>([]);
-  const [completionOffers, setCompletionOffers] = useState<CompletionOffer[]>([]);
+  const [completing, setCompleting] = useState<SalesJobRow[]>([]);
 
   const load = useCallback(async () => {
     if (!userId) {
@@ -140,66 +62,6 @@ export default function SalesJobsBoard() {
       .finally(() => setInitialLoading(false));
   }, [load]);
 
-  useEffect(() => {
-    let active = true;
-    setCompletionProducts([]);
-    setCompletionOffers([]);
-    if (!userId || completing.length === 0) {
-      return () => {
-        active = false;
-      };
-    }
-    const types = new Set(completing.map((job) => job.jobType));
-    if (types.has('returns_pickup') || types.has('new_product_activation')) {
-      fetchGraphQL<{ products: { nodes: CompletionProduct[] } }>(
-        `query CompletionProducts($userId: Int!) { products(userId: $userId, page: 1, limit: 500) { nodes { productId name } } }`,
-        { userId },
-      )
-        .then((result) => {
-          if (active) setCompletionProducts(result.products.nodes);
-        })
-        .catch(() => {
-          if (active) setCompletionProducts([]);
-        });
-    }
-    if (types.has('scheme_reconciliation')) {
-      const buyerIds = Array.from(
-        new Set(completing.filter((job) => job.jobType === 'scheme_reconciliation').map((job) => job.clientId)),
-      );
-      const apply = (rows: { offerId: string; productName?: string | null; discountType: string }[]) => {
-        if (!active) return;
-        setCompletionOffers(
-          rows.map((row) => ({
-            offerId: row.offerId,
-            label: row.productName ? `${row.offerId} · ${row.productName}` : `${row.offerId} · ${row.discountType}`,
-          })),
-        );
-      };
-      if (buyerIds.length === 1) {
-        fetchGraphQL<{ offersForBuyer: { offerId: string; productName?: string | null; discountType: string }[] }>(
-          `query CompletionOffers($userId: Int!, $buyerId: String!) { offersForBuyer(userId: $userId, buyerId: $buyerId) { offerId productName discountType } }`,
-          { userId, buyerId: buyerIds[0] },
-        )
-          .then((result) => apply(result.offersForBuyer))
-          .catch(() => {
-            if (active) setCompletionOffers([]);
-          });
-      } else {
-        fetchGraphQL<{ offers: { nodes: { offerId: string; productName?: string | null; discountType: string }[] } }>(
-          `query CompletionOffers($userId: Int!) { offers(userId: $userId, page: 1, limit: 100) { nodes { offerId productName discountType } } }`,
-          { userId },
-        )
-          .then((result) => apply(result.offers.nodes))
-          .catch(() => {
-            if (active) setCompletionOffers([]);
-          });
-      }
-    }
-    return () => {
-      active = false;
-    };
-  }, [userId, completing]);
-
   const run = async (work: () => Promise<void>) => {
     setError('');
     setMessage('');
@@ -212,28 +74,7 @@ export default function SalesJobsBoard() {
   };
 
   const typeLabel = (jobType: string) => t(`types.${jobType}` as 'types.take_order');
-  const statusLabel = (status: string) => t(`status.${status}` as 'status.suggested');
-
-  const review = (ids: string[], action: 'approve' | 'reject') => {
-    setError('');
-    setMessage('');
-    return (async () => {
-      try {
-        for (const id of ids) {
-          await fetchGraphQL(
-            `mutation Review($userId: Int!, $id: String!, $action: String!) { reviewSalesJob(userId: $userId, id: $id, action: $action) { id } }`,
-            { userId, id, action },
-          );
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Request failed');
-      } finally {
-        await load().catch((err: unknown) => {
-          setError((current) => current || (err instanceof Error ? err.message : 'Request failed'));
-        });
-      }
-    })();
-  };
+  const statusLabel = (status: string) => t(`status.${salesJobStatusKey(status)}` as 'status.pending');
 
   const exportJobs = () => {
     if (jobs.length === 0) {
@@ -311,8 +152,14 @@ export default function SalesJobsBoard() {
       <JobsStatcards jobs={jobs} />
       <JobsTable
         jobs={jobs}
-        onApproveAction={(ids) => review(ids, 'approve')}
-        onRejectAction={(ids) => review(ids, 'reject')}
+        onPendingAction={(ids) =>
+          run(async () => {
+            await fetchGraphQL(
+              `mutation MarkPending($userId: Int!, $ids: [String!]!) { markSalesJobsPending(userId: $userId, ids: $ids) }`,
+              { userId, ids },
+            );
+          })
+        }
         onEditAction={({ assignedTo, clientId }) =>
           router.push(`/sales/jobs/edit?assignedTo=${encodeURIComponent(assignedTo)}&clientId=${encodeURIComponent(clientId)}`)
         }
@@ -338,62 +185,19 @@ export default function SalesJobsBoard() {
             return;
           }
           setError('');
-          setCompleting(rows.map((job) => ({ id: job.id, jobType: job.jobType, clientId: job.clientId })));
-          setCompletingName(Array.from(new Set(rows.map((job) => job.clientName))).join(', '));
-          const next = completionFromJob(rows.length === 1 ? rows[0] : undefined);
-          const activationProducts = Array.from(
-            new Set(rows.filter((job) => job.jobType === 'new_product_activation').flatMap((job) => job.suggestedProducts ?? [])),
-          );
-          if ((next.product_ids ?? []).length === 0 && activationProducts.length > 0) {
-            next.product_ids = activationProducts;
-            next.product_id = activationProducts[0];
-          }
-          setCompletion(next);
+          setCompleting(rows);
         }}
       />
 
       {completing.length > 0 && (
-        <ModalShell title={t('complete')} onClose={() => setCompleting([])}>
-          <div className="grid gap-3">
-            <p className="text-sm font-medium text-gray-900">{completingName}</p>
-            <JobCompletionFields
-              jobTypes={completing.map((job) => job.jobType)}
-              completion={completion}
-              products={completionProducts}
-              offers={completionOffers}
-              onChangeAction={setCompletion}
-            />
-            <div className="flex gap-2 pt-1">
-              <button
-                type="button"
-                className="px-4 py-2 bg-[#0a61d7] text-white rounded-lg text-sm font-semibold hover:bg-[#084ba6]"
-                onClick={() =>
-                  run(async () => {
-                    if (completing.length > 1 && completing.some((job) => completionIsPerVisit(job.jobType))) {
-                      throw new Error(t('completeSeparately'));
-                    }
-                    for (const job of completing) {
-                      await fetchGraphQL(
-                        `mutation Complete($userId: Int!, $id: String!, $completion: SalesJobCompletionInput!) { completeSalesJob(userId: $userId, id: $id, completion: $completion) { id } }`,
-                        { userId, id: job.id, completion: completionInput(job.jobType, completion) },
-                      );
-                    }
-                    setCompleting([]);
-                  })
-                }
-              >
-                {t('save')}
-              </button>
-              <button
-                type="button"
-                className="px-4 py-2 border border-[#e6e6e6] rounded-lg text-sm font-medium hover:bg-gray-100"
-                onClick={() => setCompleting([])}
-              >
-                {t('cancel')}
-              </button>
-            </div>
-          </div>
-        </ModalShell>
+        <CompleteSalesJobModal
+          jobs={completing}
+          onClose={() => setCompleting([])}
+          onSaved={() => {
+            setCompleting([]);
+            void load();
+          }}
+        />
       )}
     </div>
   );

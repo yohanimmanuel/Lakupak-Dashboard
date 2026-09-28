@@ -56,6 +56,92 @@ function profileFrom(input: {
   };
 }
 
+const PLACEHOLDERS = new Set(['marketplace buyer', 'mobile user', 'mobile store', 'store', 'unknown', 'unknown store']);
+
+function present(value: string | null | undefined): string | null {
+  const trimmed = String(value ?? '').trim();
+  if (!trimmed || PLACEHOLDERS.has(trimmed.toLowerCase())) return null;
+  return trimmed;
+}
+
+function preferIncoming(incoming: string | null | undefined, prospect: string | null | undefined, fallback = ''): string {
+  return present(incoming) ?? present(prospect) ?? fallback;
+}
+
+type BuyerSnapshot = {
+  buyerId: string;
+  owner: string;
+  email: string;
+  phone: string;
+  storeName: string;
+  businessType: string;
+  address: string;
+  avatar: string | null;
+  status: string;
+  customerNumber: string | null;
+  logistics: string | null;
+  notes: string | null;
+};
+
+type MergeUndoSnapshot = {
+  priorStatus: string;
+  prospect: BuyerSnapshot;
+  marketplaceBefore: BuyerSnapshot;
+  movedOrderIds: string[];
+  movedJobIds: string[];
+  movedOfferIds: string[];
+  /** Orders whose buyerId was null before this merge. Undo clears that link. */
+  nullOriginOrderIds?: string[];
+};
+
+function snapshotBuyer(buyer: BuyerSnapshot): BuyerSnapshot {
+  return {
+    buyerId: buyer.buyerId,
+    owner: buyer.owner,
+    email: buyer.email,
+    phone: buyer.phone,
+    storeName: buyer.storeName,
+    businessType: buyer.businessType,
+    address: buyer.address,
+    avatar: buyer.avatar,
+    status: buyer.status,
+    customerNumber: buyer.customerNumber,
+    logistics: buyer.logistics,
+    notes: buyer.notes,
+  };
+}
+
+const BUYER_SNAPSHOT_SELECT = {
+  buyerId: true,
+  owner: true,
+  email: true,
+  phone: true,
+  storeName: true,
+  businessType: true,
+  address: true,
+  avatar: true,
+  status: true,
+  customerNumber: true,
+  logistics: true,
+  notes: true,
+} as const;
+
+export async function getClientMatchSettings(distributorId: number) {
+  const user = await prisma.user.findUnique({
+    where: { id: distributorId },
+    select: { autoClientMatch: true },
+  });
+  return { autoMatch: user?.autoClientMatch ?? false };
+}
+
+export async function setClientMatchSettings(distributorId: number, autoMatch: boolean) {
+  await prisma.user.update({
+    where: { id: distributorId },
+    data: { autoClientMatch: autoMatch },
+  });
+  return { autoMatch };
+}
+
 export async function planMarketplaceClientMatch(input: {
   distributorId: number;
   intendedBuyerId: string;
@@ -108,8 +194,9 @@ export async function planMarketplaceClientMatch(input: {
       existingStoreName: client.storeName,
       existingOwnerName: client.owner,
     });
+    if (isMarketplaceBuyerId(client.buyerId)) continue;
     if (result.level === 'none') continue;
-    if (!best || result.score > best.result.score) {
+    if (!best || phoneMatchOutranks(result, best.result)) {
       best = { buyerId: client.buyerId, status: client.status, result };
     }
   }
@@ -125,15 +212,16 @@ export async function planMarketplaceClientMatch(input: {
     };
   }
 
-  if (best.result.level === 'high') {
+  const autoMatch = best.result.level === 'high' ? (await getClientMatchSettings(input.distributorId)).autoMatch : false;
+  if (best.result.level === 'high' && autoMatch) {
     return {
       distributorId: input.distributorId,
-      buyerId: best.buyerId,
-      preserveExistingClient: true,
+      buyerId: input.intendedBuyerId,
+      preserveExistingClient: false,
       kind: 'high',
       candidate: {
         existingClientId: best.buyerId,
-        provisionalClientId: null,
+        provisionalClientId: input.intendedBuyerId,
         confidenceScore: best.result.score,
         matchedSignals: best.result.signals,
         priorStatus: best.status,
@@ -158,30 +246,293 @@ export async function planMarketplaceClientMatch(input: {
   };
 }
 
+function isMarketplaceBuyerId(buyerId: string): boolean {
+  return /^LKB-\d+-\d+$/.test(buyerId) || buyerId.startsWith('mobile_user_');
+}
+
+function phoneMatchOutranks(
+  next: ReturnType<typeof classifyClientSignals>,
+  current: ReturnType<typeof classifyClientSignals>,
+): boolean {
+  const nextPhone = next.signals.includes('phone_match');
+  const currentPhone = current.signals.includes('phone_match');
+  if (nextPhone !== currentPhone) return nextPhone;
+  return next.score > current.score;
+}
+
+type IncomingProfile = {
+  owner?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  storeName?: string | null;
+  businessType?: string | null;
+  address?: string | null;
+  avatar?: string | null;
+};
+
+async function mergeProspectIntoMarketplace(
+  tx: Tx,
+  args: {
+    distributorId: number;
+    prospectId: string;
+    marketplaceBuyerId: string;
+    incoming: IncomingProfile;
+    incomingOrderId: string;
+    keepCandidateId?: string;
+  },
+): Promise<MergeUndoSnapshot | null> {
+  if (args.prospectId === args.marketplaceBuyerId) return null;
+  if (isMarketplaceBuyerId(args.prospectId)) throw new Error('Marketplace buyer cannot be merged as a prospect');
+  if (!isMarketplaceBuyerId(args.marketplaceBuyerId)) throw new Error('Merge target must be a marketplace buyer');
+  const prospect = await tx.buyer.findFirst({
+    where: { buyerId: args.prospectId, userId: args.distributorId },
+    select: BUYER_SNAPSHOT_SELECT,
+  });
+  const market = await tx.buyer.findFirst({
+    where: { buyerId: args.marketplaceBuyerId, userId: args.distributorId },
+    select: BUYER_SNAPSHOT_SELECT,
+  });
+  if (!prospect || !market) throw new Error('Client not found');
+
+  const [orders, jobs, offers] = await Promise.all([
+    tx.order.findMany({ where: { buyerId: prospect.buyerId, userId: args.distributorId }, select: { orderId: true } }),
+    tx.salesJob.findMany({ where: { clientId: prospect.buyerId, distributorId: args.distributorId }, select: { id: true } }),
+    tx.offer.findMany({ where: { buyerId: prospect.buyerId, userId: args.distributorId }, select: { offerId: true } }),
+  ]);
+
+  const customerNumber = market.customerNumber || prospect.customerNumber;
+  if (prospect.customerNumber && prospect.customerNumber !== market.customerNumber) {
+    await tx.buyer.update({ where: { buyerId: prospect.buyerId }, data: { customerNumber: null } });
+  }
+
+  await tx.buyer.update({
+    where: { buyerId: market.buyerId },
+    data: {
+      owner: preferIncoming(args.incoming.owner, prospect.owner, market.owner),
+      email: preferIncoming(args.incoming.email, prospect.email, market.email),
+      phone: preferIncoming(args.incoming.phone, prospect.phone, market.phone),
+      storeName: preferIncoming(args.incoming.storeName, prospect.storeName, market.storeName),
+      businessType: preferIncoming(args.incoming.businessType, prospect.businessType, market.businessType || 'Retailer'),
+      address: preferIncoming(args.incoming.address, prospect.address, market.address),
+      avatar: args.incoming.avatar || prospect.avatar || market.avatar,
+      customerNumber,
+      logistics: present(market.logistics) ?? prospect.logistics,
+      notes: present(market.notes) ?? prospect.notes,
+      status: 'Active',
+    },
+  });
+
+  if (orders.length > 0) {
+    await tx.order.updateMany({
+      where: { orderId: { in: orders.map((order) => order.orderId) }, userId: args.distributorId },
+      data: { buyerId: market.buyerId },
+    });
+  }
+  if (jobs.length > 0) {
+    await tx.salesJob.updateMany({
+      where: { id: { in: jobs.map((job) => job.id) }, distributorId: args.distributorId },
+      data: { clientId: market.buyerId },
+    });
+  }
+  if (offers.length > 0) {
+    await tx.offer.updateMany({
+      where: { offerId: { in: offers.map((offer) => offer.offerId) }, userId: args.distributorId },
+      data: { buyerId: market.buyerId },
+    });
+  }
+  await tx.clientMatchCandidate.updateMany({
+    where: {
+      distributorId: args.distributorId,
+      existingClientId: prospect.buyerId,
+      status: { notIn: ['pending', 'needs_more_info'] },
+    },
+    data: { existingClientId: market.buyerId },
+  });
+  if (args.keepCandidateId) {
+    await tx.clientMatchCandidate.updateMany({
+      where: { id: args.keepCandidateId, distributorId: args.distributorId, existingClientId: prospect.buyerId },
+      data: { existingClientId: market.buyerId },
+    });
+  }
+  await tx.clientMatchCandidate.updateMany({
+    where: {
+      distributorId: args.distributorId,
+      existingClientId: prospect.buyerId,
+      status: { in: ['pending', 'needs_more_info'] },
+      incomingOrderId: { not: args.incomingOrderId },
+    },
+    data: { existingClientId: market.buyerId },
+  });
+  await tx.clientMatchCandidate.deleteMany({
+    where: {
+      distributorId: args.distributorId,
+      existingClientId: prospect.buyerId,
+      status: { in: ['pending', 'needs_more_info'] },
+      incomingOrderId: args.incomingOrderId,
+    },
+  });
+  await tx.buyer.delete({ where: { buyerId: prospect.buyerId } });
+
+  return {
+    priorStatus: prospect.status,
+    prospect: snapshotBuyer(prospect),
+    marketplaceBefore: snapshotBuyer(market),
+    movedOrderIds: orders.map((order) => order.orderId),
+    movedJobIds: jobs.map((job) => job.id),
+    movedOfferIds: offers.map((offer) => offer.offerId),
+  };
+}
+
+async function fillBuyerFromIncoming(tx: Tx, buyerId: string, incoming: IncomingProfile): Promise<BuyerSnapshot> {
+  const buyer = await tx.buyer.findUnique({ where: { buyerId }, select: BUYER_SNAPSHOT_SELECT });
+  if (!buyer) throw new Error('Client not found');
+  const before = snapshotBuyer(buyer);
+  await tx.buyer.update({
+    where: { buyerId },
+    data: {
+      owner: preferIncoming(incoming.owner, buyer.owner, buyer.owner),
+      email: preferIncoming(incoming.email, buyer.email, buyer.email),
+      phone: preferIncoming(incoming.phone, buyer.phone, buyer.phone),
+      storeName: preferIncoming(incoming.storeName, buyer.storeName, buyer.storeName),
+      businessType: preferIncoming(incoming.businessType, buyer.businessType, buyer.businessType),
+      address: preferIncoming(incoming.address, buyer.address, buyer.address),
+      avatar: incoming.avatar || buyer.avatar,
+      status: buyer.status === 'Prospect' ? 'Active' : buyer.status,
+    },
+  });
+  return before;
+}
+
+function inPlaceUndo(before: BuyerSnapshot): MergeUndoSnapshot {
+  return {
+    priorStatus: before.status,
+    prospect: before,
+    marketplaceBefore: before,
+    movedOrderIds: [],
+    movedJobIds: [],
+    movedOfferIds: [],
+  };
+}
+
+async function applyBuyerSnapshot(tx: Tx, distributorId: number, buyer: BuyerSnapshot, createIfMissing: boolean) {
+  if (buyer.customerNumber) {
+    await tx.buyer.updateMany({
+      where: {
+        userId: distributorId,
+        customerNumber: buyer.customerNumber,
+        buyerId: { not: buyer.buyerId },
+      },
+      data: { customerNumber: null },
+    });
+  }
+  const data = {
+    owner: buyer.owner,
+    email: buyer.email,
+    phone: buyer.phone,
+    storeName: buyer.storeName,
+    businessType: buyer.businessType || 'Retailer',
+    address: buyer.address,
+    avatar: buyer.avatar,
+    status: buyer.status || 'Prospect',
+    customerNumber: buyer.customerNumber,
+    logistics: buyer.logistics,
+    notes: buyer.notes,
+  };
+  const existing = await tx.buyer.findUnique({
+    where: { buyerId: buyer.buyerId },
+    select: { buyerId: true, userId: true },
+  });
+  if (existing) {
+    if (existing.userId !== distributorId) throw new Error('Client not found');
+    await tx.buyer.update({ where: { buyerId: buyer.buyerId }, data });
+    return;
+  }
+  if (!createIfMissing) return;
+  await tx.buyer.create({
+    data: {
+      buyerId: buyer.buyerId,
+      userId: distributorId,
+      ...data,
+    },
+  });
+}
+
+async function restoreProspectSnapshot(tx: Tx, distributorId: number, snapshot: MergeUndoSnapshot) {
+  const prospect = snapshot.prospect;
+  const before = snapshot.marketplaceBefore;
+  if (before?.buyerId && before.buyerId !== prospect.buyerId) {
+    await applyBuyerSnapshot(tx, distributorId, before, false);
+  }
+  await applyBuyerSnapshot(tx, distributorId, prospect, true);
+  if ((snapshot.movedOrderIds ?? []).length > 0) {
+    await tx.order.updateMany({
+      where: { orderId: { in: snapshot.movedOrderIds }, userId: distributorId },
+      data: { buyerId: prospect.buyerId },
+    });
+  }
+  if ((snapshot.movedJobIds ?? []).length > 0) {
+    await tx.salesJob.updateMany({
+      where: { id: { in: snapshot.movedJobIds }, distributorId },
+      data: { clientId: prospect.buyerId },
+    });
+  }
+  if ((snapshot.movedOfferIds ?? []).length > 0) {
+    await tx.offer.updateMany({
+      where: { offerId: { in: snapshot.movedOfferIds }, userId: distributorId },
+      data: { buyerId: prospect.buyerId },
+    });
+  }
+  await clearNullOriginOrders(tx, distributorId, snapshot.nullOriginOrderIds);
+}
+
+async function claimNullBuyerOrder(tx: Tx, distributorId: number, orderId: string, buyerId: string): Promise<string[]> {
+  const order = await tx.order.findFirst({
+    where: { orderId, userId: distributorId, isDeleted: false },
+    select: { buyerId: true },
+  });
+  if (!order || order.buyerId) return [];
+  await tx.order.updateMany({
+    where: { orderId, userId: distributorId, buyerId: order.buyerId },
+    data: { buyerId },
+  });
+  return [orderId];
+}
+
+async function clearNullOriginOrders(tx: Tx, distributorId: number, orderIds: string[] | undefined) {
+  if (!orderIds?.length) return;
+  await tx.order.updateMany({
+    where: { orderId: { in: orderIds }, userId: distributorId },
+    data: { buyerId: null },
+  });
+}
+
 export async function finalizeMarketplaceClientMatch(plan: MarketplaceMatchPlan, incomingOrderId: string) {
   if (!plan.candidate) return;
   if (plan.kind === 'high') {
-    if (plan.candidate.priorStatus === 'Prospect') {
-      await prisma.buyer.update({
-        where: { buyerId: plan.candidate.existingClientId },
-        data: { status: 'Active' },
-      });
-    }
-    await prisma.clientMatchCandidate.create({
-      data: {
+    await prisma.$transaction(async (tx) => {
+      const undo = await mergeProspectIntoMarketplace(tx, {
         distributorId: plan.distributorId,
-        existingClientId: plan.candidate.existingClientId,
+        prospectId: plan.candidate!.existingClientId,
+        marketplaceBuyerId: plan.buyerId,
+        incoming: plan.candidate!.provisionalProfile,
         incomingOrderId,
-        provisionalClientId: null,
-        confidenceScore: plan.candidate.confidenceScore,
-        matchedSignals: plan.candidate.matchedSignals,
-        status: 'merged',
-        autoMerged: true,
-        undoSnapshot: {
-          priorStatus: plan.candidate.priorStatus,
-          provisionalProfile: plan.candidate.provisionalProfile,
+      });
+      await tx.clientMatchCandidate.create({
+        data: {
+          distributorId: plan.distributorId,
+          existingClientId: plan.buyerId,
+          incomingOrderId,
+          provisionalClientId: plan.candidate!.existingClientId,
+          confidenceScore: plan.candidate!.confidenceScore,
+          matchedSignals: plan.candidate!.matchedSignals,
+          status: 'merged',
+          autoMerged: true,
+          undoSnapshot: (undo ?? {
+            priorStatus: plan.candidate!.priorStatus,
+            provisionalProfile: plan.candidate!.provisionalProfile,
+          }) as Prisma.InputJsonValue,
         },
-      },
+      });
     });
     return;
   }
@@ -206,35 +557,6 @@ export async function finalizeMarketplaceClientMatch(plan: MarketplaceMatchPlan,
   }
 }
 
-async function moveOrdersToClient(tx: Tx, fromBuyerId: string, toBuyerId: string, distributorId: number, onlyOrderId?: string) {
-  await tx.order.updateMany({
-    where: {
-      userId: distributorId,
-      buyerId: fromBuyerId,
-      ...(onlyOrderId ? { orderId: onlyOrderId } : {}),
-    },
-    data: { buyerId: toBuyerId },
-  });
-  await tx.salesJob.updateMany({
-    where: onlyOrderId
-      ? {
-          distributorId,
-          clientId: fromBuyerId,
-          OR: [{ orderId: onlyOrderId }, { orderIds: { has: onlyOrderId } }],
-        }
-      : { distributorId, clientId: fromBuyerId },
-    data: { clientId: toBuyerId },
-  });
-}
-
-async function deleteBuyerIfUnused(tx: Tx, buyerId: string) {
-  const orders = await tx.order.count({ where: { buyerId } });
-  if (orders > 0) return;
-  const jobs = await tx.salesJob.count({ where: { clientId: buyerId } });
-  if (jobs > 0) return;
-  await tx.buyer.delete({ where: { buyerId } }).catch(() => undefined);
-}
-
 export async function mergeCandidate(distributorId: number, candidateId: string) {
   const candidate = await prisma.clientMatchCandidate.findFirst({
     where: { id: candidateId, distributorId },
@@ -248,21 +570,39 @@ export async function mergeCandidate(distributorId: number, candidateId: string)
   });
   if (!existing) throw new Error('Existing client not found');
 
+  const stored = candidate.undoSnapshot as { provisionalProfile?: ProvisionalProfile } | null;
+  const incoming = stored?.provisionalProfile;
+  const marketplaceBuyerId =
+    candidate.provisionalClientId && candidate.provisionalClientId !== existing.buyerId
+      ? candidate.provisionalClientId
+      : null;
+
   await prisma.$transaction(async (tx) => {
-    if (candidate.provisionalClientId && candidate.provisionalClientId !== existing.buyerId) {
-      await moveOrdersToClient(tx, candidate.provisionalClientId, existing.buyerId, distributorId);
-      await deleteBuyerIfUnused(tx, candidate.provisionalClientId);
-    } else {
-      await tx.order.updateMany({
-        where: { orderId: candidate.incomingOrderId, userId: distributorId },
-        data: { buyerId: existing.buyerId },
+    let undo: MergeUndoSnapshot | null = null;
+    let survivingId = existing.buyerId;
+    if (marketplaceBuyerId) {
+      undo = await mergeProspectIntoMarketplace(tx, {
+        distributorId,
+        prospectId: existing.buyerId,
+        marketplaceBuyerId,
+        incoming: incoming ?? {},
+        incomingOrderId: candidate.incomingOrderId,
+        keepCandidateId: candidate.id,
       });
+      survivingId = marketplaceBuyerId;
+    } else if (incoming) {
+      undo = inPlaceUndo(await fillBuyerFromIncoming(tx, existing.buyerId, incoming));
+    } else if (existing.status === 'Prospect') {
+      await tx.buyer.update({ where: { buyerId: existing.buyerId }, data: { status: 'Active' } });
     }
-    if (existing.status === 'Prospect') {
-      await tx.buyer.update({
-        where: { buyerId: existing.buyerId },
-        data: { status: 'Active' },
-      });
+    if (!marketplaceBuyerId) {
+      const nullOriginOrderIds = await claimNullBuyerOrder(tx, distributorId, candidate.incomingOrderId, existing.buyerId);
+      if (nullOriginOrderIds.length > 0) {
+        undo = {
+          ...((undo ?? candidate.undoSnapshot ?? { priorStatus: existing.status }) as MergeUndoSnapshot),
+          nullOriginOrderIds,
+        };
+      }
     }
     await tx.clientMatchCandidate.update({
       where: { id: candidate.id },
@@ -270,7 +610,8 @@ export async function mergeCandidate(distributorId: number, candidateId: string)
         status: 'merged',
         autoMerged: false,
         undoneAt: null,
-        undoSnapshot: candidate.undoSnapshot ?? { priorStatus: existing.status },
+        existingClientId: survivingId,
+        undoSnapshot: (undo ?? candidate.undoSnapshot ?? { priorStatus: existing.status }) as Prisma.InputJsonValue,
       },
     });
   });
@@ -284,14 +625,50 @@ export async function dismissCandidate(distributorId: number, candidateId: strin
   if (updated.count === 0) throw new Error('Match not found');
 }
 
+export async function undoDismissedMatch(distributorId: number, candidateId: string) {
+  const updated = await prisma.clientMatchCandidate.updateMany({
+    where: { id: candidateId, distributorId, status: 'not_a_match' },
+    data: { status: 'pending', undoneAt: null },
+  });
+  if (updated.count === 0) throw new Error('Match not found');
+}
+
 export async function undoAutoMerge(distributorId: number, candidateId: string) {
   const candidate = await prisma.clientMatchCandidate.findFirst({
-    where: { id: candidateId, distributorId, autoMerged: true, status: 'merged', undoneAt: null },
+    where: { id: candidateId, distributorId, status: 'merged', undoneAt: null },
   });
-  if (!candidate) throw new Error('Auto-merge not found');
-  const snapshot = candidate.undoSnapshot as { priorStatus?: string; provisionalProfile?: ProvisionalProfile } | null;
+  if (!candidate) throw new Error('Merge not found');
+  const snapshot = candidate.undoSnapshot as (MergeUndoSnapshot & { provisionalProfile?: ProvisionalProfile }) | null;
+  if (snapshot?.prospect?.buyerId) {
+    await prisma.$transaction(async (tx) => {
+      await restoreProspectSnapshot(tx, distributorId, snapshot);
+      const before = snapshot.marketplaceBefore;
+      const separateMarketplace = Boolean(before?.buyerId && before.buyerId !== snapshot.prospect.buyerId);
+      await tx.clientMatchCandidate.update({
+        where: { id: candidate.id },
+        data: {
+          status: 'pending',
+          undoneAt: null,
+          existingClientId: snapshot.prospect.buyerId,
+          provisionalClientId: separateMarketplace ? before?.buyerId ?? null : candidate.provisionalClientId,
+        },
+      });
+    });
+    return;
+  }
+
   const profile = snapshot?.provisionalProfile;
-  if (!profile?.buyerId) throw new Error('This auto-merge cannot be undone');
+  if (!profile?.buyerId) {
+    if (!snapshot?.nullOriginOrderIds?.length) throw new Error('This merge cannot be undone');
+    await prisma.$transaction(async (tx) => {
+      await clearNullOriginOrders(tx, distributorId, snapshot.nullOriginOrderIds);
+      await tx.clientMatchCandidate.update({
+        where: { id: candidate.id },
+        data: { status: 'pending', undoneAt: null },
+      });
+    });
+    return;
+  }
 
   await prisma.$transaction(async (tx) => {
     const prior = await tx.buyer.findUnique({ where: { buyerId: profile.buyerId }, select: { buyerId: true } });
@@ -315,7 +692,8 @@ export async function undoAutoMerge(distributorId: number, candidateId: string) 
       where: { orderId: candidate.incomingOrderId, userId: distributorId },
       data: { buyerId: profile.buyerId },
     });
-    if (snapshot?.priorStatus) {
+    await clearNullOriginOrders(tx, distributorId, snapshot?.nullOriginOrderIds);
+    if (snapshot?.priorStatus && candidate.existingClientId !== profile.buyerId) {
       const remainingOrders = await tx.order.count({
         where: { buyerId: candidate.existingClientId, userId: distributorId, isDeleted: false },
       });
@@ -328,9 +706,42 @@ export async function undoAutoMerge(distributorId: number, candidateId: string) 
     }
     await tx.clientMatchCandidate.update({
       where: { id: candidate.id },
-      data: { undoneAt: new Date(), provisionalClientId: profile.buyerId },
+      data: {
+        status: 'pending',
+        undoneAt: null,
+        existingClientId: candidate.existingClientId,
+        provisionalClientId: profile.buyerId,
+      },
     });
   });
+}
+
+export async function reopenUndoneMatches(distributorId: number) {
+  const rows = await prisma.clientMatchCandidate.findMany({
+    where: { distributorId, status: 'merged', undoneAt: { not: null } },
+  });
+  for (const candidate of rows) {
+    const snapshot = candidate.undoSnapshot as MergeUndoSnapshot | null;
+    if (!snapshot?.prospect?.buyerId) continue;
+    try {
+      await prisma.$transaction(async (tx) => {
+        await restoreProspectSnapshot(tx, distributorId, snapshot);
+        const before = snapshot.marketplaceBefore;
+        const separateMarketplace = Boolean(before?.buyerId && before.buyerId !== snapshot.prospect.buyerId);
+        await tx.clientMatchCandidate.update({
+          where: { id: candidate.id },
+          data: {
+            status: 'pending',
+            undoneAt: null,
+            existingClientId: snapshot.prospect.buyerId,
+            provisionalClientId: separateMarketplace ? before?.buyerId ?? null : candidate.provisionalClientId,
+          },
+        });
+      });
+    } catch (error) {
+      console.error('Failed to reopen undone client match', candidate.id, error);
+    }
+  }
 }
 
 export async function manualMergeOrder(distributorId: number, existingClientId: string, incomingOrderId: string) {
@@ -338,6 +749,7 @@ export async function manualMergeOrder(distributorId: number, existingClientId: 
     where: { buyerId: existingClientId, userId: distributorId },
   });
   if (!existing) throw new Error('Client not found');
+  if (isMarketplaceBuyerId(existing.buyerId)) throw new Error('Select a prospect, not a marketplace buyer');
   const order = await prisma.order.findFirst({
     where: { orderId: incomingOrderId, userId: distributorId, isDeleted: false },
   });
@@ -357,31 +769,49 @@ export async function manualMergeOrder(distributorId: number, existingClientId: 
     return;
   }
 
+  const marketplaceBuyerId = order.buyerId && order.buyerId !== existing.buyerId ? order.buyerId : null;
   await prisma.$transaction(async (tx) => {
-    const provisionalId = order.buyerId;
-    if (provisionalId && provisionalId !== existing.buyerId) {
-      await moveOrdersToClient(tx, provisionalId, existing.buyerId, distributorId, incomingOrderId);
-      await deleteBuyerIfUnused(tx, provisionalId);
-    } else {
-      await tx.order.update({
-        where: { orderId: incomingOrderId },
-        data: { buyerId: existing.buyerId },
+    let undo: MergeUndoSnapshot | null = null;
+    let survivingId = existing.buyerId;
+    if (marketplaceBuyerId) {
+      undo = await mergeProspectIntoMarketplace(tx, {
+        distributorId,
+        prospectId: existing.buyerId,
+        marketplaceBuyerId,
+        incoming: {
+          owner: order.contactPerson,
+          email: order.customerEmail,
+          phone: order.contactPhone,
+          storeName: order.storeName,
+          address: order.deliveryAddress,
+        },
+        incomingOrderId,
       });
-    }
-    if (existing.status === 'Prospect') {
-      await tx.buyer.update({ where: { buyerId: existing.buyerId }, data: { status: 'Active' } });
+      survivingId = marketplaceBuyerId;
+    } else {
+      undo = inPlaceUndo(
+        await fillBuyerFromIncoming(tx, existing.buyerId, {
+          owner: order.contactPerson,
+          email: order.customerEmail,
+          phone: order.contactPhone,
+          storeName: order.storeName,
+          address: order.deliveryAddress,
+        }),
+      );
+      const nullOriginOrderIds = await claimNullBuyerOrder(tx, distributorId, order.orderId, existing.buyerId);
+      if (nullOriginOrderIds.length > 0) undo = { ...undo, nullOriginOrderIds };
     }
     await tx.clientMatchCandidate.create({
       data: {
         distributorId,
-        existingClientId,
+        existingClientId: survivingId,
         incomingOrderId,
-        provisionalClientId: provisionalId && provisionalId !== existing.buyerId ? provisionalId : null,
+        provisionalClientId: marketplaceBuyerId,
         confidenceScore: 0,
         matchedSignals: [],
         status: 'merged',
         autoMerged: false,
-        undoSnapshot: { priorStatus: existing.status },
+        undoSnapshot: (undo ?? { priorStatus: existing.status }) as Prisma.InputJsonValue,
       },
     });
   });

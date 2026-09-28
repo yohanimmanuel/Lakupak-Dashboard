@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { Briefcase, CheckCircle2, ClipboardList, Sparkles } from 'lucide-react';
+import { Briefcase, CheckCircle2, ClipboardList, Clock } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import {
   STAT_ICON_BG_BLUE,
@@ -9,7 +9,7 @@ import {
   STAT_ICON_BLUE,
   STAT_ICON_GREEN,
 } from '@/utils/statCardStyles';
-import { OPEN_SALES_JOB_STATUSES, SalesJobRow } from './salesJobTypes';
+import { OPEN_SALES_JOB_STATUSES, PENDING_SALES_JOB_STATUSES, SalesJobRow } from './salesJobTypes';
 
 type StatCardConfig = {
   key: string;
@@ -46,7 +46,7 @@ export default function JobsStatcards({ jobs }: { jobs: SalesJobRow[] }) {
 
   const stats = useMemo((): StatCardConfig[] => {
     const total = jobs.length;
-    const suggested = jobs.filter((job) => job.status === 'suggested').length;
+    const pending = jobs.filter((job) => (PENDING_SALES_JOB_STATUSES as readonly string[]).includes(job.status)).length;
     const open = jobs.filter((job) => (OPEN_SALES_JOB_STATUSES as readonly string[]).includes(job.status)).length;
     const completed = jobs.filter((job) => job.status === 'completed').length;
     const share = (count: number) => (total > 0 ? Math.round((count / total) * 100) : 0);
@@ -62,11 +62,11 @@ export default function JobsStatcards({ jobs }: { jobs: SalesJobRow[] }) {
         iconBg: STAT_ICON_BG_BLUE,
       },
       {
-        key: 'suggested',
-        label: t('status.suggested'),
-        count: suggested,
-        hint: hint(suggested),
-        icon: <Sparkles className={`w-6 h-6 ${STAT_ICON_BLUE}`} />,
+        key: 'pending',
+        label: t('status.pending'),
+        count: pending,
+        hint: hint(pending),
+        icon: <Clock className={`w-6 h-6 ${STAT_ICON_BLUE}`} />,
         iconBg: STAT_ICON_BG_BLUE,
       },
       {

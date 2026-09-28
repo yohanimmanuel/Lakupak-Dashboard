@@ -34,6 +34,8 @@ model User {
   dashboardTourState Json?
   /// Monotonic counter for round-robin sales-agent assignment (per distributor user).
   salesAgentRoundRobinCursor Int @default(0)
+  /// High-confidence buyer matches stay in the review list until this is turned on.
+  autoClientMatch Boolean @default(false)
   /// Dashboard account lifecycle: "active" | "pending". New registrations start pending until KYC is approved.
   accountStatus String     @default("active")
   accounts      Account[]
@@ -204,6 +206,8 @@ model CommissionInvoice {
 model Buyer {
   id           Int      @id @default(autoincrement())
   buyerId      String   @unique
+  /// Distributor account number. Never used as buyerId, so marketplace orders stay on the marketplace id.
+  customerNumber String?
   avatar       String?
   owner        String
   email        String
@@ -223,6 +227,8 @@ model Buyer {
   offers       Offer[]
   salesJobs    SalesJob[]
   matchCandidates ClientMatchCandidate[] @relation("MatchExistingClient")
+
+  @@unique([userId, customerNumber])
 }
 
 model Supplier {
@@ -1347,10 +1353,10 @@ model SalesJob {
   id                String    @id @default(uuid())
   distributorId     Int
   assignedTo        String
-  clientId          String
+  clientId          String?
   /// First selected order. Points at Order.orderId.
   orderId           String?
-  /// Every order linked to a take_order or collect_payment job.
+  /// Every order linked to a take_order, collect_payment, or returns_pickup job.
   orderIds          String[]  @default([])
   /// take_order | collect_payment | promote_product | stock_check | prospect_new_outlet | returns_pickup | competitor_intel | new_product_activation | scheme_reconciliation
   jobType           String
@@ -1358,7 +1364,7 @@ model SalesJob {
   suggestedProducts String[]  @default([])
   /// ai | manager
   createdBy         String
-  /// suggested | approved | dispatched | in_progress | completed | skipped
+  /// pending | dispatched | in_progress | completed | skipped. Older rows may still say approved or suggested; those are pending.
   status            String
   scheduledDate     DateTime  @db.Timestamptz(3)
   completionNotes   String?
@@ -1373,7 +1379,7 @@ model SalesJob {
 
   distributor User              @relation(fields: [distributorId], references: [id], onDelete: Cascade)
   agent       SalesAgent        @relation(fields: [assignedTo], references: [id], onDelete: Restrict)
-  client      Buyer             @relation(fields: [clientId], references: [buyerId], onDelete: Restrict)
+  client      Buyer?            @relation(fields: [clientId], references: [buyerId], onDelete: Restrict)
   order       Order?            @relation(fields: [orderId], references: [orderId], onDelete: SetNull)
   schedules   SalesJobSchedule[]
 

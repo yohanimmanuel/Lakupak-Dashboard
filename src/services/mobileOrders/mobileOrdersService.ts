@@ -485,12 +485,12 @@ export async function createMobileMarketplaceOrders(
     await prisma.buyer.upsert({
       where: { buyerId: buyerPerDistributorId },
       update: {
-        owner: marketplaceUser.name || 'Mobile User',
-        email: marketplaceUser.email || '',
-        phone: marketplaceUser.phone || '',
-        storeName: marketplaceUser.storeName || 'Mobile Store',
-        address: marketplaceUser.chosenAddress || '',
-        avatar: marketplaceUser.image || null,
+        ...(marketplaceUser.name ? { owner: marketplaceUser.name } : {}),
+        ...(marketplaceUser.email ? { email: marketplaceUser.email } : {}),
+        ...(marketplaceUser.phone ? { phone: marketplaceUser.phone } : {}),
+        ...(marketplaceUser.storeName ? { storeName: marketplaceUser.storeName } : {}),
+        ...(marketplaceUser.chosenAddress ? { address: marketplaceUser.chosenAddress } : {}),
+        ...(marketplaceUser.image ? { avatar: marketplaceUser.image } : {}),
         userId: distributorUserIdFromClient,
       },
       create: {
@@ -1001,12 +1001,12 @@ export async function createMobileMarketplaceOrders(
     await prisma.buyer.upsert({
       where: { buyerId: buyerPerDistributorId },
       update: {
-        owner: marketplaceUser.name || 'Mobile User',
-        email: marketplaceUser.email || '',
-        phone: marketplaceUser.phone || '',
-        storeName: marketplaceUser.storeName || 'Mobile Store',
-        address: marketplaceUser.chosenAddress || '',
-        avatar: marketplaceUser.image || null,
+        ...(marketplaceUser.name ? { owner: marketplaceUser.name } : {}),
+        ...(marketplaceUser.email ? { email: marketplaceUser.email } : {}),
+        ...(marketplaceUser.phone ? { phone: marketplaceUser.phone } : {}),
+        ...(marketplaceUser.storeName ? { storeName: marketplaceUser.storeName } : {}),
+        ...(marketplaceUser.chosenAddress ? { address: marketplaceUser.chosenAddress } : {}),
+        ...(marketplaceUser.image ? { avatar: marketplaceUser.image } : {}),
         userId: distributorUserId,
       },
       create: {

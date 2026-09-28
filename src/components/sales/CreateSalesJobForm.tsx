@@ -7,7 +7,9 @@ import { useTranslations } from 'next-intl';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
-import { SALES_JOB_TYPES, type SalesJobRow } from './salesJobTypes';
+import CompleteSalesJobModal from './CompleteSalesJobModal';
+import { completionIsPerVisit } from './JobCompletionFields';
+import { OPEN_SALES_JOB_STATUSES, SALES_JOB_TYPES, type SalesJobCompletion, type SalesJobRow } from './salesJobTypes';
 
 type AgentOption = { id: string; name: string; role: string; status: string };
 type ClientOption = { buyerId: string; storeName: string; owner: string; phone: string; status: string };
@@ -173,7 +175,7 @@ function OrderPicker({
   onChange,
 }: {
   userId: number;
-  purpose: 'take_order' | 'collect_payment';
+  purpose: 'take_order' | 'collect_payment' | 'returns_pickup';
   selectedIds: string[];
   clientId?: string;
   onChange: (orderIds: string[]) => void;
@@ -238,7 +240,9 @@ function OrderPicker({
 
   return (
     <div>
-      <p className="text-xs text-gray-500 mb-2">{purpose === 'collect_payment' ? t('form.orderHintPay') : t('form.orderHintTake')}</p>
+      <p className="text-xs text-gray-500 mb-2">
+        {purpose === 'collect_payment' ? t('form.orderHintPay') : purpose === 'returns_pickup' ? t('form.orderHintReturn') : t('form.orderHintTake')}
+      </p>
       <div className="relative mb-2">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         <input
@@ -382,14 +386,21 @@ function ProductPicker({
   );
 }
 
+function outletNumber(job: SalesJobRow): string {
+  if (job.clientCustomerNumber) return job.clientCustomerNumber;
+  const id = job.clientId || '';
+  if (!id || id.startsWith('LKB-') || id.startsWith('LKP-') || id.startsWith('mobile_user_')) return '';
+  return id;
+}
+
 function draftsFromRows(rows: SalesJobRow[]): JobDraft[] {
   return rows.map((job) => ({
     key: job.id,
     jobType: job.jobType,
-    clientId: job.jobType === 'prospect_new_outlet' ? '' : job.clientId,
+    clientId: job.clientId,
     orderIds: job.orderIds?.length ? job.orderIds : job.orderId ? [job.orderId] : [],
     productIds: job.suggestedProducts ?? [],
-    customerNumber: job.jobType === 'prospect_new_outlet' ? job.clientId : '',
+    customerNumber: job.jobType === 'prospect_new_outlet' ? outletNumber(job) : '',
     customerName: job.clientOwner || '',
     storeName: job.clientName,
     phone: job.clientPhone || '',
@@ -418,6 +429,8 @@ export default function CreateSalesJobForm({
   const [jobs, setJobs] = useState<JobDraft[]>(editing ? draftsFromRows(editing.jobs) : [blankJob()]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [completingJobs, setCompletingJobs] = useState<SalesJobRow[]>([]);
   const [jobErrors, setJobErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -459,12 +472,12 @@ export default function CreateSalesJobForm({
         next[job.key] = t('form.needSchedule');
         continue;
       }
-      if (job.jobType === 'take_order' || job.jobType === 'collect_payment') {
+      if (job.jobType === 'take_order' || job.jobType === 'collect_payment' || job.jobType === 'returns_pickup') {
         if (job.orderIds.length === 0) next[job.key] = t('form.needOrder');
       } else if (job.jobType === 'promote_product' || job.jobType === 'stock_check' || job.jobType === 'new_product_activation') {
         if (!job.clientId) next[job.key] = t('form.needClient');
         else if (job.productIds.length === 0) next[job.key] = t('form.needProduct');
-      } else if (job.jobType === 'returns_pickup' || job.jobType === 'competitor_intel' || job.jobType === 'scheme_reconciliation') {
+      } else if (job.jobType === 'competitor_intel' || job.jobType === 'scheme_reconciliation') {
         if (!job.clientId) next[job.key] = t('form.needClient');
       } else if (!job.customerNumber.trim() || !job.customerName.trim() || !job.storeName.trim() || !job.phone.trim() || !job.address.trim()) {
         next[job.key] = t('form.needOutlet');
@@ -536,6 +549,44 @@ export default function CreateSalesJobForm({
     }
   };
 
+  const completionRow = (draft: JobDraft): SalesJobRow => {
+    const saved = editing?.jobs.find((job) => job.id === draft.key);
+    const client = clients.find((row) => row.buyerId === draft.clientId);
+    const agent = agents.find((row) => row.id === assignedTo);
+    const prospect = draft.jobType === 'prospect_new_outlet';
+    const completionData: SalesJobCompletion = saved?.completionData ?? {
+      order_placed: false,
+      order_amount: null,
+      payment_collected: false,
+      payment_amount: null,
+      stock_checked: false,
+      products_demoed: 0,
+      notes: '',
+    };
+    return {
+      id: draft.key,
+      assignedTo,
+      agentName: agent?.name || saved?.agentName || '',
+      clientId: draft.clientId,
+      clientCustomerNumber: prospect ? draft.customerNumber : saved?.clientCustomerNumber || '',
+      clientName: prospect ? draft.storeName : client?.storeName || saved?.clientName || '',
+      clientOwner: prospect ? draft.customerName : client?.owner || saved?.clientOwner || '',
+      clientPhone: prospect ? draft.phone : saved?.clientPhone || '',
+      clientAddress: prospect ? draft.address : saved?.clientAddress || '',
+      clientStatus: saved?.clientStatus || client?.status || '',
+      jobType: draft.jobType,
+      priorityReason: draft.reason || null,
+      suggestedProducts: draft.productIds,
+      suggestedProductNames: saved?.suggestedProductNames ?? [],
+      createdBy: saved?.createdBy || 'manager',
+      status: saved?.status || 'pending',
+      scheduledDate: draft.schedules[0]?.date || saved?.scheduledDate || '',
+      createdAt: saved?.createdAt || '',
+      completionData,
+      dispatchNote: saved?.dispatchNote ?? null,
+    };
+  };
+
   return (
     <div className="p-4 space-y-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
       <div className="flex items-center justify-between gap-4">
@@ -550,17 +601,65 @@ export default function CreateSalesJobForm({
           </button>
           <h1 className="text-2xl font-bold text-black">{editing ? t('form.editTitle') : t('form.pageTitle')}</h1>
         </div>
-        <button
-          type="button"
-          onClick={() => void save()}
-          disabled={saving}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm disabled:opacity-50"
-        >
-          {saving ? t('form.saving') : editing ? t('form.saveChanges') : t('form.saveJobs')}
-        </button>
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {editing && (
+            <>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => {
+                  const rows = jobs
+                    .filter((job) => editing.replaceIds.includes(job.key))
+                    .map((job) => completionRow(job))
+                    .filter((job) => (OPEN_SALES_JOB_STATUSES as readonly string[]).includes(job.status));
+                  if (rows.length === 0) return;
+                  if (rows.length > 1 && rows.some((job) => completionIsPerVisit(job.jobType))) {
+                    setNotice('');
+                    setError(t('completeSeparately'));
+                    return;
+                  }
+                  setError('');
+                  setCompletingJobs(rows);
+                }}
+                className="px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm disabled:opacity-50"
+              >
+                {t('complete')}
+              </button>
+              <button
+                type="button"
+                disabled={saving || !user?.id}
+                onClick={() => {
+                  if (!user?.id) return;
+                  setSaving(true);
+                  setError('');
+                  setNotice('');
+                  void fetchGraphQL(
+                    `mutation MarkPending($userId: Int!, $ids: [String!]!) { markSalesJobsPending(userId: $userId, ids: $ids) }`,
+                    { userId: user.id, ids: editing.replaceIds },
+                  )
+                    .then(() => setNotice(t('markedPending')))
+                    .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Request failed'))
+                    .finally(() => setSaving(false));
+                }}
+                className="px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm disabled:opacity-50"
+              >
+                {t('pending')}
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => void save()}
+            disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm disabled:opacity-50"
+          >
+            {saving ? t('form.saving') : editing ? t('form.saveChanges') : t('form.saveJobs')}
+          </button>
+        </div>
       </div>
 
-      {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      {notice && <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-xs text-green-700">{notice}</div>}
+      {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">{error}</div>}
 
       <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
         <label className={labelClass}>
@@ -607,7 +706,7 @@ export default function CreateSalesJobForm({
               />
             </div>
 
-            {(job.jobType === 'take_order' || job.jobType === 'collect_payment') && user?.id && (
+            {(job.jobType === 'take_order' || job.jobType === 'collect_payment' || job.jobType === 'returns_pickup') && user?.id && (
               <OrderPicker
                 userId={user.id}
                 purpose={job.jobType}
@@ -620,7 +719,6 @@ export default function CreateSalesJobForm({
             {(job.jobType === 'promote_product' ||
               job.jobType === 'stock_check' ||
               job.jobType === 'new_product_activation' ||
-              job.jobType === 'returns_pickup' ||
               job.jobType === 'competitor_intel' ||
               job.jobType === 'scheme_reconciliation') && (
               <>
@@ -778,6 +876,16 @@ export default function CreateSalesJobForm({
         <Plus className="w-4 h-4" />
         {t('form.addJob')}
       </button>
+      {completingJobs.length > 0 && (
+        <CompleteSalesJobModal
+          jobs={completingJobs}
+          onClose={() => setCompletingJobs([])}
+          onSaved={() => {
+            setCompletingJobs([]);
+            router.push('/sales/jobs');
+          }}
+        />
+      )}
     </div>
   );
 }

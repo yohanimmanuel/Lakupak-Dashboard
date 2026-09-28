@@ -21,7 +21,7 @@ export type ReturnedItem = {
   reason: ReturnReason;
 };
 
-export const OPEN_JOB_STATUSES = ['suggested', 'approved', 'dispatched', 'in_progress'] as const;
+export const OPEN_JOB_STATUSES = ['pending', 'approved', 'suggested', 'dispatched', 'in_progress'] as const;
 
 export type CompletionData = {
   order_placed: boolean;

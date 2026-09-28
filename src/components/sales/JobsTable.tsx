@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Briefcase, Check, ChevronDown, ChevronLeft, ChevronRight, Edit, Filter, Search, Trash, Trash2, X } from 'lucide-react';
+import { Briefcase, ChevronDown, ChevronLeft, ChevronRight, Edit, Filter, Search, Trash, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import {
   OPEN_SALES_JOB_STATUSES,
   SALES_JOB_STATUSES,
   SALES_JOB_TYPES,
   SalesJobRow,
-  SalesJobStatus,
+  salesJobStatusKey,
 } from './salesJobTypes';
 
 const STATUS_TABS = ['all', ...SALES_JOB_STATUSES] as const;
@@ -27,7 +27,8 @@ const TYPE_BADGE: Record<string, string> = {
 };
 
 const STATUS_BADGE: Record<string, string> = {
-  suggested: 'bg-amber-100 text-amber-700',
+  pending: 'bg-blue-100 text-blue-800',
+  suggested: 'bg-blue-100 text-blue-800',
   approved: 'bg-blue-100 text-blue-800',
   dispatched: 'bg-purple-100 text-purple-800',
   in_progress: 'bg-yellow-100 text-yellow-800',
@@ -72,7 +73,8 @@ function groupJobs(jobs: SalesJobRow[]): JobGroup[] {
     const seenDates = new Set<string>();
     for (const row of rows) {
       if (!jobTypes.includes(row.jobType)) jobTypes.push(row.jobType);
-      if (!statuses.includes(row.status)) statuses.push(row.status);
+      const status = salesJobStatusKey(row.status);
+      if (!statuses.includes(status)) statuses.push(status);
       const reason = row.priorityReason?.trim();
       if (reason && !reasons.includes(reason)) reasons.push(reason);
       const date = row.createdAt?.trim();
@@ -100,15 +102,13 @@ function groupJobs(jobs: SalesJobRow[]): JobGroup[] {
 
 export default function JobsTable({
   jobs,
-  onApproveAction,
-  onRejectAction,
+  onPendingAction,
   onCompleteAction,
   onEditAction,
   onDeleteAction,
 }: {
   jobs: SalesJobRow[];
-  onApproveAction?: (ids: string[]) => void;
-  onRejectAction?: (ids: string[]) => void;
+  onPendingAction?: (ids: string[]) => void;
   onCompleteAction?: (jobs: SalesJobRow[]) => void;
   onEditAction?: (group: { assignedTo: string; clientId: string }) => void;
   onDeleteAction?: (ids: string[]) => void;
@@ -178,9 +178,6 @@ export default function JobsTable({
     () => groupJobs(jobs).filter((group) => selectedIds.includes(group.id)),
     [jobs, selectedIds],
   );
-  const suggestedSelection = selectedGroups.flatMap((group) =>
-    group.jobs.filter((job) => job.status === 'suggested').map((job) => job.id),
-  );
   const selectedJobIds = selectedGroups.flatMap((group) => group.jobIds);
 
   const confirmDelete = () => {
@@ -243,7 +240,7 @@ export default function JobsTable({
   }, [deleteTarget]);
 
   const typeLabel = (jobType: string) => t(`types.${jobType}` as 'types.take_order');
-  const statusLabel = (status: string) => t(`status.${status}` as 'status.suggested');
+  const statusLabel = (status: string) => t(`status.${salesJobStatusKey(status)}` as 'status.pending');
 
   return (
     <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6] p-4 mt-3">
@@ -340,28 +337,6 @@ export default function JobsTable({
             <div className="flex gap-2">
               <button
                 onClick={() => {
-                  if (suggestedSelection.length === 0) return;
-                  onApproveAction?.(suggestedSelection);
-                  setSelectedIds([]);
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white font-semibold text-sm rounded-lg hover:bg-[#084ba6] transition-colors"
-              >
-                <Check className="w-4 h-4" />
-                {t('approve')}
-              </button>
-              <button
-                onClick={() => {
-                  if (suggestedSelection.length === 0) return;
-                  onRejectAction?.(suggestedSelection);
-                  setSelectedIds([]);
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold text-sm rounded-lg hover:bg-red-700 transition-colors"
-              >
-                <X className="w-4 h-4" />
-                {t('reject')}
-              </button>
-              <button
-                onClick={() => {
                   const openJobs = selectedGroups.flatMap((group) =>
                     group.jobs.filter((job) => (OPEN_SALES_JOB_STATUSES as readonly string[]).includes(job.status)),
                   );
@@ -369,9 +344,19 @@ export default function JobsTable({
                   onCompleteAction?.(openJobs);
                   setSelectedIds([]);
                 }}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium text-sm hover:bg-gray-100 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white font-semibold text-sm rounded-lg hover:bg-[#084ba6] transition-colors"
               >
                 {t('complete')}
+              </button>
+              <button
+                onClick={() => {
+                  if (selectedJobIds.length === 0) return;
+                  onPendingAction?.(selectedJobIds);
+                  setSelectedIds([]);
+                }}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium text-sm hover:bg-gray-100 transition-colors"
+              >
+                {t('pending')}
               </button>
               <button
                 onClick={() => {
@@ -428,7 +413,6 @@ export default function JobsTable({
               </tr>
             ) : (
               pagedRows.map((row) => {
-                const canReview = row.statuses.includes('suggested');
                 return (
                   <tr
                     key={row.id}
@@ -490,7 +474,7 @@ export default function JobsTable({
                             key={status}
                             className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${STATUS_BADGE[status] || STATUS_BADGE.skipped}`}
                           >
-                            {statusLabel(status as SalesJobStatus)}
+                            {statusLabel(status)}
                           </span>
                         ))}
                       </div>
@@ -516,34 +500,10 @@ export default function JobsTable({
                         >
                           <Edit className="w-4 h-4 text-gray-500" />
                         </button>
-                        {canReview && (
-                          <>
-                            <button
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                onApproveAction?.(row.jobs.filter((job) => job.status === 'suggested').map((job) => job.id));
-                              }}
-                              className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 transition-colors"
-                              title={t('approve')}
-                            >
-                              <Check className="w-4 h-4 text-[#0a61d7]" />
-                            </button>
-                            <button
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                onRejectAction?.(row.jobs.filter((job) => job.status === 'suggested').map((job) => job.id));
-                              }}
-                              className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-red-100 transition-colors"
-                              title={t('reject')}
-                            >
-                              <X className="w-4 h-4 text-red-600" />
-                            </button>
-                          </>
-                        )}
                         <button
                           onClick={(event) => {
                             event.stopPropagation();
-                            setDeleteTarget({ ids: row.jobIds, name: row.clientName, bulk: false });
+                            setDeleteTarget({ ids: row.jobIds, name: row.clientName || row.agentName, bulk: false });
                           }}
                           className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-red-100 transition-colors"
                           title={t('table.remove')}

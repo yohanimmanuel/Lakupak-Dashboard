@@ -40,6 +40,7 @@ export type SalesJobRow = {
   assignedTo: string;
   agentName: string;
   clientId: string;
+  clientCustomerNumber?: string;
   clientName: string;
   clientOwner?: string;
   clientPhone?: string;
@@ -73,8 +74,7 @@ export const SALES_JOB_TYPES = [
 ] as const;
 
 export const SALES_JOB_STATUSES = [
-  'suggested',
-  'approved',
+  'pending',
   'dispatched',
   'in_progress',
   'completed',
@@ -83,4 +83,11 @@ export const SALES_JOB_STATUSES = [
 
 export type SalesJobStatus = (typeof SALES_JOB_STATUSES)[number];
 
-export const OPEN_SALES_JOB_STATUSES = ['approved', 'dispatched', 'in_progress'] as const;
+export const PENDING_SALES_JOB_STATUSES = ['pending', 'approved', 'suggested'] as const;
+
+export const OPEN_SALES_JOB_STATUSES = ['pending', 'approved', 'suggested', 'dispatched', 'in_progress'] as const;
+
+export function salesJobStatusKey(status: string): string {
+  if (status === 'approved' || status === 'suggested') return 'pending';
+  return status;
+}

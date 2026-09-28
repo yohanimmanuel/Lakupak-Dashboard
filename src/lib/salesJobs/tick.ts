@@ -10,7 +10,7 @@ type DispatchableJob = {
   suggestedProducts: string[];
   status: string;
   agent: { phone: string; status: string };
-  client: { storeName: string; owner: string };
+  client: { storeName: string; owner: string } | null;
 };
 
 async function sendApprovedJob(job: DispatchableJob, productName: Map<string, string>) {
@@ -26,14 +26,16 @@ async function sendApprovedJob(job: DispatchableJob, productName: Map<string, st
       id: job.id,
       jobType: job.jobType,
       priorityReason: job.priorityReason,
-      clientName: job.client.storeName || job.client.owner,
+      clientName: job.client ? job.client.storeName || job.client.owner : '',
       suggestedProductNames: job.suggestedProducts.map((id) => productName.get(id) || id),
       agentPhone: job.agent.phone,
     });
     await prisma.salesJob.update({
       where: { id: job.id },
       data: {
-        ...(job.status === 'approved' ? { status: 'dispatched' as const, dispatchedAt: new Date() } : {}),
+        ...(job.status === 'approved' || job.status === 'pending' || job.status === 'suggested'
+          ? { status: 'dispatched' as const, dispatchedAt: new Date() }
+          : {}),
         whatsappMessageId: sent.messageId,
         dispatchNote: null,
       },
@@ -51,8 +53,8 @@ async function sendApprovedJob(job: DispatchableJob, productName: Map<string, st
 /**
  * Every minute: send unsent WhatsApp reminders scheduled for today at or before the current local time.
  * After the distributor morning time, once per local day: create AI suggestions.
- * After that morning time: send approved jobs that have no explicit reminder.
- * Suggestions created in the same pass stay suggested until a manager approves them.
+ * After that morning time: send pending jobs that have no explicit reminder.
+ * Suggestions are created as pending and can be sent the same morning.
  */
 export async function tickSalesJobs(now = new Date()): Promise<{ suggested: number; dispatched: number; failed: number }> {
   const distributors = await prisma.user.findMany({
@@ -92,7 +94,7 @@ export async function tickSalesJobs(now = new Date()): Promise<{ suggested: numb
         ],
         job: {
           distributorId: distributor.id,
-          status: { in: ['approved', 'dispatched', 'in_progress'] },
+          status: { in: ['pending', 'approved', 'suggested', 'dispatched', 'in_progress'] },
         },
       },
       include: {
@@ -150,7 +152,7 @@ export async function tickSalesJobs(now = new Date()): Promise<{ suggested: numb
     const jobs = await prisma.salesJob.findMany({
       where: {
         distributorId: distributor.id,
-        status: 'approved',
+        status: { in: ['pending', 'approved', 'suggested'] },
         scheduledDate: { gte: range.start, lt: range.end },
         schedules: { none: {} },
       },

@@ -20,6 +20,7 @@ function digits(value: string | null | undefined): string {
   return String(value ?? '').replace(/\D/g, '');
 }
 
+/** Same digits, with or without a country code. A shared phone is a unique match. */
 export function phonesMatch(a: string | null | undefined, b: string | null | undefined): boolean {
   const da = digits(a);
   const db = digits(b);

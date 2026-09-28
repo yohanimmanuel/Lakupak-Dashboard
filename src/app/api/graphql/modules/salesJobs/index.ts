@@ -8,6 +8,7 @@ import {
   listSalesJobOrders,
   listSalesJobs,
   listUnresolvedSalesJobs,
+  markSalesJobsPending,
   reviewSalesJob,
   salesJobDayAggregates,
   updateSalesJobSettings,
@@ -55,6 +56,7 @@ export const salesJobsTypeDefs = /* GraphQL */ `
     agentPhone: String!
     agentRole: String!
     clientId: String!
+    clientCustomerNumber: String!
     clientName: String!
     clientOwner: String!
     clientPhone: String!
@@ -205,6 +207,7 @@ export const salesJobsTypeDefs = /* GraphQL */ `
     createSalesJobs(userId: Int!, assignedTo: String!, jobs: [CreateSalesJobItemInput!]!): [SalesJob!]!
     updateSalesJobs(userId: Int!, assignedTo: String!, replaceIds: [String!]!, jobs: [CreateSalesJobItemInput!]!): [SalesJob!]!
     deleteSalesJobs(userId: Int!, ids: [String!]!): Int!
+    markSalesJobsPending(userId: Int!, ids: [String!]!): Int!
     createSalesJob(
       userId: Int!
       assignedTo: String!
@@ -296,6 +299,9 @@ export const salesJobsResolvers = {
     ),
     deleteSalesJobs: withDashboardAuth(async (args: { userId: number; ids: string[] }) =>
       deleteSalesJobs({ distributorId: args.userId, ids: args.ids }),
+    ),
+    markSalesJobsPending: withDashboardAuth(async (args: { userId: number; ids: string[] }) =>
+      markSalesJobsPending({ distributorId: args.userId, ids: args.ids }),
     ),
     createSalesJob: withDashboardAuth(
       async (args: {
