@@ -1,6 +1,7 @@
 import type { Prisma } from '@/lib/db';
 import { prisma } from '@/lib/db';
 import { classifyClientSignals, type MatchSignal } from '@/lib/clientMatching/signals';
+import { parseMarketplaceUserIdFromBuyerId } from '@/utils/buyerSync';
 
 type Tx = Prisma.TransactionClient;
 
@@ -66,6 +67,14 @@ function present(value: string | null | undefined): string | null {
 
 function preferIncoming(incoming: string | null | undefined, prospect: string | null | undefined, fallback = ''): string {
   return present(incoming) ?? present(prospect) ?? fallback;
+}
+
+function firstPresent(...values: Array<string | null | undefined>): string {
+  for (const value of values) {
+    const found = present(value);
+    if (found) return found;
+  }
+  return '';
 }
 
 type BuyerSnapshot = {
@@ -294,7 +303,18 @@ async function mergeProspectIntoMarketplace(
   });
   if (!prospect || !market) throw new Error('Client not found');
 
-  const [orders, jobs, offers] = await Promise.all([
+  const marketplaceUserId = parseMarketplaceUserIdFromBuyerId(market.buyerId);
+  const [marketplaceUser, incomingOrder, orders, jobs, offers] = await Promise.all([
+    marketplaceUserId
+      ? tx.marketplaceUser.findUnique({
+          where: { id: marketplaceUserId },
+          select: { name: true, email: true, phone: true, storeName: true, chosenAddress: true, image: true },
+        })
+      : Promise.resolve(null),
+    tx.order.findFirst({
+      where: { orderId: args.incomingOrderId, userId: args.distributorId },
+      select: { storeName: true, contactPerson: true, contactPhone: true, deliveryAddress: true, customerEmail: true },
+    }),
     tx.order.findMany({ where: { buyerId: prospect.buyerId, userId: args.distributorId }, select: { orderId: true } }),
     tx.salesJob.findMany({ where: { clientId: prospect.buyerId, distributorId: args.distributorId }, select: { id: true } }),
     tx.offer.findMany({ where: { buyerId: prospect.buyerId, userId: args.distributorId }, select: { offerId: true } }),
@@ -308,13 +328,13 @@ async function mergeProspectIntoMarketplace(
   await tx.buyer.update({
     where: { buyerId: market.buyerId },
     data: {
-      owner: preferIncoming(args.incoming.owner, prospect.owner, market.owner),
-      email: preferIncoming(args.incoming.email, prospect.email, market.email),
-      phone: preferIncoming(args.incoming.phone, prospect.phone, market.phone),
-      storeName: preferIncoming(args.incoming.storeName, prospect.storeName, market.storeName),
-      businessType: preferIncoming(args.incoming.businessType, prospect.businessType, market.businessType || 'Retailer'),
-      address: preferIncoming(args.incoming.address, prospect.address, market.address),
-      avatar: args.incoming.avatar || prospect.avatar || market.avatar,
+      owner: firstPresent(marketplaceUser?.name, incomingOrder?.contactPerson, args.incoming.owner, market.owner, prospect.owner),
+      email: firstPresent(marketplaceUser?.email, incomingOrder?.customerEmail, args.incoming.email, market.email, prospect.email),
+      phone: firstPresent(marketplaceUser?.phone, incomingOrder?.contactPhone, args.incoming.phone, market.phone, prospect.phone),
+      storeName: firstPresent(marketplaceUser?.storeName, incomingOrder?.storeName, args.incoming.storeName, market.storeName, prospect.storeName),
+      businessType: firstPresent(market.businessType, args.incoming.businessType, prospect.businessType) || 'Retailer',
+      address: firstPresent(marketplaceUser?.chosenAddress, incomingOrder?.deliveryAddress, args.incoming.address, market.address, prospect.address),
+      avatar: marketplaceUser?.image || market.avatar || args.incoming.avatar || prospect.avatar,
       customerNumber,
       logistics: present(market.logistics) ?? prospect.logistics,
       notes: present(market.notes) ?? prospect.notes,

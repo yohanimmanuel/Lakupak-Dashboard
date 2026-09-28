@@ -467,7 +467,7 @@ function isSalesOperation(query: string): boolean {
   const createSalesTeamPattern = /\bcreatesalesteam\s*\(/;
   const updateSalesTeamPattern = /\bupdatesalesteam\s*\(/;
   const deleteSalesTeamPattern = /\bdeletesalesteam\s*\(/;
-  const salesJobPattern = /\b(salesjobs|unresolvedsalesjobs|salesjobdayaggregates|salesjobsettings|salesjobformoptions|salesjoborders|suggestsalesjobs|createsalesjobs|createsalesjob|updatesalesjobs|deletesalesjobs|reviewsalesjob|completesalesjob|marksalesjobspending|updatesalesjobsettings|clientmatchcandidates|clientmatchpendingcount|clientmatchsettings|searchordersforclientmatch|resolveclientmatch|undoclientmatch|manualmergeclient|updateclientmatchsettings)\s*\(/;
+  const salesJobPattern = /\b(salesjobs|unresolvedsalesjobs|salesjobdayaggregates|salesjobsettings|salesjobformoptions|salesjoborders|suggestsalesjobs|createsalesjobs|createsalesjob|updatesalesjobs|deletesalesjobs|reviewsalesjob|completesalesjob|marksalesjobspending|updatesalesjobsettings|clientmatchcandidates|clientmatchpendingcount|clientmatchqueuecounts|clientmatchsettings|searchordersforclientmatch|resolveclientmatch|undoclientmatch|manualmergeclient|updateclientmatchsettings)\s*\(/;
   
   return salesAgentsPattern.test(normalizedQuery) ||
          salesJobPattern.test(normalizedQuery) ||

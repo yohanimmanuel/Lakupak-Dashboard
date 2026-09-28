@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ChevronDown, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ChevronDown, Clock, Plus, Save, Search, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
@@ -621,8 +621,9 @@ export default function CreateSalesJobForm({
                   setError('');
                   setCompletingJobs(rows);
                 }}
-                className="px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm disabled:opacity-50"
               >
+                <CheckCircle2 className="w-4 h-4" />
                 {t('complete')}
               </button>
               <button
@@ -641,8 +642,9 @@ export default function CreateSalesJobForm({
                     .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Request failed'))
                     .finally(() => setSaving(false));
                 }}
-                className="px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm disabled:opacity-50"
               >
+                <Clock className="w-4 h-4" />
                 {t('pending')}
               </button>
             </>
@@ -653,6 +655,7 @@ export default function CreateSalesJobForm({
             disabled={saving}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm disabled:opacity-50"
           >
+            <Save className="w-4 h-4" />
             {saving ? t('form.saving') : editing ? t('form.saveChanges') : t('form.saveJobs')}
           </button>
         </div>

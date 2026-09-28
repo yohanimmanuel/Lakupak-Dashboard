@@ -8,8 +8,6 @@ import * as XLSX from 'xlsx';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
 import { SkeletonTablePage } from '@/components/skeleton/SkeletonTablePage';
-import CompleteSalesJobModal from './CompleteSalesJobModal';
-import { completionIsPerVisit } from './JobCompletionFields';
 import JobsStatcards from './JobsStatcards';
 import JobsTable from './JobsTable';
 import { SalesJobRow, salesJobStatusKey } from './salesJobTypes';
@@ -44,7 +42,6 @@ export default function SalesJobsBoard() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [completing, setCompleting] = useState<SalesJobRow[]>([]);
 
   const load = useCallback(async () => {
     if (!userId) {
@@ -152,14 +149,6 @@ export default function SalesJobsBoard() {
       <JobsStatcards jobs={jobs} />
       <JobsTable
         jobs={jobs}
-        onPendingAction={(ids) =>
-          run(async () => {
-            await fetchGraphQL(
-              `mutation MarkPending($userId: Int!, $ids: [String!]!) { markSalesJobsPending(userId: $userId, ids: $ids) }`,
-              { userId, ids },
-            );
-          })
-        }
         onEditAction={({ assignedTo, clientId }) =>
           router.push(`/sales/jobs/edit?assignedTo=${encodeURIComponent(assignedTo)}&clientId=${encodeURIComponent(clientId)}`)
         }
@@ -178,27 +167,7 @@ export default function SalesJobsBoard() {
             }
           })();
         }}
-        onCompleteAction={(rows) => {
-          if (rows.length > 1 && rows.some((job) => completionIsPerVisit(job.jobType))) {
-            setMessage('');
-            setError(t('completeSeparately'));
-            return;
-          }
-          setError('');
-          setCompleting(rows);
-        }}
       />
-
-      {completing.length > 0 && (
-        <CompleteSalesJobModal
-          jobs={completing}
-          onClose={() => setCompleting([])}
-          onSaved={() => {
-            setCompleting([]);
-            void load();
-          }}
-        />
-      )}
     </div>
   );
 }

@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { ChevronDown, Search, Users } from 'lucide-react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Clock, Search, UserX, Users } from 'lucide-react';
+import { STAT_ICON_BG_BLUE, STAT_ICON_BG_GREEN, STAT_ICON_BLUE, STAT_ICON_GREEN } from '@/utils/statCardStyles';
 import { useTranslations } from 'next-intl';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
@@ -23,28 +23,22 @@ type Candidate = {
   incoming: Side;
 };
 
-type OrderHit = {
-  orderId: string;
-  storeName: string;
-  contactPerson: string;
-  contactPhone: string;
-  deliveryAddress: string;
-  orderDate: string;
-};
+type QueueCounts = { pending: number; needsMoreInfo: number; notAMatch: number; recentlyMerged: number };
 
-type ClientOption = { buyerId: string; storeName: string; status: string };
-
-const TABS = ['pending', 'needs_more_info', 'not_a_match', 'auto'] as const;
-
-function isMarketplaceBuyerId(buyerId: string): boolean {
-  return /^LKB-\d+-\d+$/.test(buyerId) || buyerId.startsWith('mobile_user_');
-}
+const TABS = ['all', 'pending', 'needs_more_info', 'not_a_match', 'auto'] as const;
+const PAGE_SIZE = 5;
+const EMPTY_COUNTS: QueueCounts = { pending: 0, needsMoreInfo: 0, notAMatch: 0, recentlyMerged: 0 };
 
 function confidenceScoreClass(score: number): string {
   if (score >= 75) return 'text-green-600';
   if (score >= 50) return 'text-lime-600';
   if (score >= 25) return 'text-orange-600';
   return 'text-red-600';
+}
+
+function existingBuyerStatus(row: Candidate): string | null {
+  if (row.incoming.status && row.incoming.status !== 'Prospect') return row.incoming.status;
+  return null;
 }
 
 function cardEdgeClass(status: string): string {
@@ -54,7 +48,6 @@ function cardEdgeClass(status: string): string {
   return '';
 }
 const CARD = 'bg-white rounded-lg border border-[#e6e6e6] p-4';
-const LABEL = 'block text-xs font-medium text-gray-700 mb-2';
 const INPUT =
   'w-full px-3 py-2 text-xs text-black border border-[#e6e6e6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] bg-white';
 const PRIMARY = 'px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold text-sm hover:bg-[#084ba6] transition-colors disabled:opacity-50';
@@ -100,83 +93,34 @@ function Field({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-function ProspectSelect({
-  value,
-  placeholder,
-  options,
-  onChange,
-}: {
-  value: string;
-  placeholder: string;
-  options: { value: string; label: string }[];
-  onChange: (value: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const selected = options.find((option) => option.value === value);
-
-  useEffect(() => {
-    const close = (event: MouseEvent) => {
-      if (!ref.current?.contains(event.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, []);
-
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        className="w-full px-3 py-2 text-xs border border-[#e6e6e6] rounded-lg text-left flex items-center justify-between bg-white hover:bg-gray-100"
-      >
-        <span className={`truncate ${selected ? 'text-black' : 'text-gray-500'}`}>{selected?.label || placeholder}</span>
-        <ChevronDown className="w-4 h-4 text-gray-500 shrink-0 ml-2" />
-      </button>
-      {open && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-[#e6e6e6] rounded-lg shadow-lg max-h-48 overflow-y-auto">
-          <button
-            type="button"
-            onClick={() => {
-              onChange('');
-              setOpen(false);
-            }}
-            className={`w-full px-4 py-2 text-xs text-left hover:bg-gray-100 first:rounded-t-lg ${value === '' ? 'text-[#0a61d7] font-semibold bg-gray-50' : 'text-gray-500'}`}
-          >
-            {placeholder}
-          </button>
-          {options.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => {
-                onChange(option.value);
-                setOpen(false);
-              }}
-              className={`w-full px-4 py-2 text-xs text-left hover:bg-gray-100 last:rounded-b-lg ${
-                value === option.value ? 'text-[#0a61d7] font-semibold bg-gray-50' : 'text-gray-700'
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+function rowMatches(row: Candidate, query: string): boolean {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return true;
+  const parts = [
+    row.existing.name,
+    row.existing.owner,
+    row.existing.phone,
+    row.existing.address,
+    row.incoming.name,
+    row.incoming.owner,
+    row.incoming.phone,
+    row.incoming.address,
+  ];
+  if (parts.some((part) => (part ?? '').toLowerCase().includes(needle))) return true;
+  const digits = needle.replace(/\D/g, '');
+  if (digits.length < 3) return false;
+  return [row.existing.phone, row.incoming.phone].some((phone) => (phone ?? '').replace(/\D/g, '').includes(digits));
 }
 
 export default function ClientMatchingQueue() {
   const t = useTranslations('dashboard.clients.matching');
-  const { translateStatus } = useClientsTranslations();
+  const { translateStatus, tShared } = useClientsTranslations();
   const userId = useUserStore((state) => state.user?.id);
-  const params = useSearchParams();
   const [queue, setQueue] = useState<(typeof TABS)[number]>('pending');
   const [rows, setRows] = useState<Candidate[]>([]);
-  const [clients, setClients] = useState<ClientOption[]>([]);
-  const [clientId, setClientId] = useState(params?.get('buyerId') || '');
+  const [counts, setCounts] = useState<QueueCounts>(EMPTY_COUNTS);
   const [query, setQuery] = useState('');
-  const [hits, setHits] = useState<OrderHit[]>([]);
+  const [page, setPage] = useState(1);
   const [error, setError] = useState('');
   const [listLoading, setListLoading] = useState(true);
   const [autoMatch, setAutoMatch] = useState(false);
@@ -187,7 +131,7 @@ export default function ClientMatchingQueue() {
     if (!userId) return;
     setListLoading(true);
     try {
-      const [listResult, optionsResult, settingsResult] = await Promise.allSettled([
+      const [listResult, countsResult, settingsResult] = await Promise.allSettled([
       fetchGraphQL<{ clientMatchCandidates: Candidate[] }>(
         `query Matches($userId: Int!, $queue: String) {
           clientMatchCandidates(userId: $userId, queue: $queue) {
@@ -198,8 +142,10 @@ export default function ClientMatchingQueue() {
         }`,
         { userId, queue },
       ),
-      fetchGraphQL<{ salesJobFormOptions: { clients: ClientOption[] } }>(
-        `query Clients($userId: Int!) { salesJobFormOptions(userId: $userId) { clients { buyerId storeName status } } }`,
+      fetchGraphQL<{ clientMatchQueueCounts: QueueCounts }>(
+        `query Counts($userId: Int!) {
+          clientMatchQueueCounts(userId: $userId) { pending needsMoreInfo notAMatch recentlyMerged }
+        }`,
         { userId },
       ),
       fetchGraphQL<{ clientMatchSettings: { autoMatch: boolean } }>(
@@ -210,17 +156,13 @@ export default function ClientMatchingQueue() {
       if (listResult.status === 'fulfilled') {
         setRows(listResult.value.clientMatchCandidates);
       }
-      if (optionsResult.status === 'fulfilled') {
-        setClients(
-          optionsResult.value.salesJobFormOptions.clients.filter(
-            (client) => (client.status === 'Prospect' || client.status === 'Active') && !isMarketplaceBuyerId(client.buyerId),
-          ),
-        );
+      if (countsResult.status === 'fulfilled') {
+        setCounts(countsResult.value.clientMatchQueueCounts);
       }
       if (settingsResult.status === 'fulfilled') {
         setAutoMatch(settingsResult.value.clientMatchSettings.autoMatch);
       }
-      const failure = listResult.status === 'rejected' ? listResult.reason : optionsResult.status === 'rejected' ? optionsResult.reason : settingsResult.status === 'rejected' ? settingsResult.reason : null;
+      const failure = listResult.status === 'rejected' ? listResult.reason : countsResult.status === 'rejected' ? countsResult.reason : settingsResult.status === 'rejected' ? settingsResult.reason : null;
       if (failure) {
         setError(failure instanceof Error ? failure.message : 'Failed to load');
       }
@@ -258,6 +200,7 @@ export default function ClientMatchingQueue() {
     )
       .then(() => {
         setQueue('pending');
+        setPage(1);
       })
       .catch((err: unknown) => {
         setListLoading(false);
@@ -267,12 +210,54 @@ export default function ClientMatchingQueue() {
 
   const signalLabel = (signal: string) => t(`signals.${signal}` as 'signals.phone_match');
   const tabLabel = (tab: (typeof TABS)[number]) => {
+    if (tab === 'all') return t('all');
     if (tab === 'pending') return t('pending');
     if (tab === 'needs_more_info') return t('needsInfo');
     if (tab === 'not_a_match') return t('notMatch');
     return t('autoMerged');
   };
   const statusLabel = (status: string) => translateStatus(status);
+  const visibleRows = useMemo(() => rows.filter((row) => rowMatches(row, query)), [rows, query]);
+  const totalRows = visibleRows.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pagedRows = visibleRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const fromRow = totalRows === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+  const toRow = Math.min(safePage * PAGE_SIZE, totalRows);
+  const statCards: { key: string; label: string; count: number; hint: string; icon: React.ReactNode; iconBg: string }[] = [
+    {
+      key: 'pending',
+      label: t('pending'),
+      count: counts.pending,
+      hint: t('statsPendingHint'),
+      icon: <Clock className={`w-6 h-6 ${STAT_ICON_BLUE}`} />,
+      iconBg: STAT_ICON_BG_BLUE,
+    },
+    {
+      key: 'needs_more_info',
+      label: t('needsInfo'),
+      count: counts.needsMoreInfo,
+      hint: t('statsNeedsHint'),
+      icon: <ClipboardList className={`w-6 h-6 ${STAT_ICON_BLUE}`} />,
+      iconBg: STAT_ICON_BG_BLUE,
+    },
+    {
+      key: 'not_a_match',
+      label: t('notMatch'),
+      count: counts.notAMatch,
+      hint: t('statsNotMatchHint'),
+      icon: <UserX className={`w-6 h-6 ${STAT_ICON_BLUE}`} />,
+      iconBg: STAT_ICON_BG_BLUE,
+    },
+    {
+      key: 'auto',
+      label: t('autoMerged'),
+      count: counts.recentlyMerged,
+      hint: t('statsMergedHint'),
+      icon: <CheckCircle2 className={`w-6 h-6 ${STAT_ICON_GREEN}`} />,
+      iconBg: STAT_ICON_BG_GREEN,
+    },
+  ];
 
   return (
     <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
@@ -307,96 +292,22 @@ export default function ClientMatchingQueue() {
 
       {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">{error}</div>}
 
-      <section className={`${CARD} mb-4`}>
-        <h2 className="text-sm font-semibold text-black mb-4">{t('searchLabel')}</h2>
-        <div className="grid md:grid-cols-3 gap-4">
-          <div>
-            <label className={LABEL}>{t('prospect')}</label>
-            <ProspectSelect
-              value={clientId}
-              placeholder={t('selectProspect')}
-              options={clients.map((client) => ({
-                value: client.buyerId,
-                label: `${client.storeName} (${statusLabel(client.status)})`,
-              }))}
-              onChange={setClientId}
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className={LABEL} htmlFor="match-order-search">
-              {t('orderLabel')}
-            </label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <input
-                  id="match-order-search"
-                  className={`${INPUT} pl-10`}
-                  value={query}
-                  placeholder={t('searchPlaceholder')}
-                  onChange={(event) => setQuery(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key !== 'Enter') return;
-                    event.preventDefault();
-                    void act(async () => {
-                      const data = await fetchGraphQL<{ searchOrdersForClientMatch: OrderHit[] }>(
-                        `query Search($userId: Int!, $query: String!) { searchOrdersForClientMatch(userId: $userId, query: $query) { orderId storeName contactPerson contactPhone deliveryAddress orderDate } }`,
-                        { userId, query },
-                      );
-                      setHits(data.searchOrdersForClientMatch);
-                    });
-                  }}
-                />
-                <Search className="absolute left-3 top-2 text-gray-400 w-4 h-4" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        {statCards.map((card) => (
+          <div key={card.key} className="flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6]">
+            <div className="flex items-center gap-4 border-b border-[#e6e6e6] pb-4">
+              <div className={`flex items-center justify-center w-12 h-12 rounded-lg ${card.iconBg}`}>{card.icon}</div>
+              <div>
+                <div className="text-xs text-gray-500 font-semibold uppercase tracking-wide">{card.label}</div>
+                <div className="text-xl font-bold text-black">{card.count.toLocaleString()}</div>
               </div>
-              <button
-                type="button"
-                className="px-3 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold text-xs hover:bg-[#084ba6] transition-colors shrink-0"
-                onClick={() =>
-                  act(async () => {
-                    const data = await fetchGraphQL<{ searchOrdersForClientMatch: OrderHit[] }>(
-                      `query Search($userId: Int!, $query: String!) { searchOrdersForClientMatch(userId: $userId, query: $query) { orderId storeName contactPerson contactPhone deliveryAddress orderDate } }`,
-                      { userId, query },
-                    );
-                    setHits(data.searchOrdersForClientMatch);
-                  })
-                }
-              >
-                {t('search')}
-              </button>
+            </div>
+            <div className="mt-4 ml-1">
+              <span className="inline-flex items-center rounded-md bg-[#f3f4f6] px-2 py-1 text-xs text-gray-500">{card.hint}</span>
             </div>
           </div>
-        </div>
-        {hits.length > 0 && (
-          <div className="mt-4 space-y-2">
-            {hits.map((hit) => (
-              <div key={hit.orderId} className="flex flex-wrap items-center justify-between gap-3 border border-[#e6e6e6] rounded-lg p-4">
-                <div className="grid sm:grid-cols-2 gap-3 min-w-0 flex-1">
-                  <Field label={t('incoming')} value={hit.storeName} />
-                  <Field label={t('owner')} value={hit.contactPerson} />
-                  <Field label={t('phone')} value={hit.contactPhone} />
-                  <Field label={t('address')} value={hit.deliveryAddress} />
-                </div>
-                <button
-                  type="button"
-                  className={PRIMARY}
-                  disabled={!clientId}
-                  onClick={() =>
-                    act(async () => {
-                      await fetchGraphQL(
-                        `mutation Merge($userId: Int!, $existingClientId: String!, $incomingOrderId: String!) { manualMergeClient(userId: $userId, existingClientId: $existingClientId, incomingOrderId: $incomingOrderId) }`,
-                        { userId, existingClientId: clientId, incomingOrderId: hit.orderId },
-                      );
-                      setHits((prev) => prev.filter((row) => row.orderId !== hit.orderId));
-                    })
-                  }
-                >
-                  {t('mergeInto')}
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+        ))}
+      </div>
 
       <div className={CARD}>
         <div className="relative w-full flex items-center overflow-x-auto mb-4">
@@ -412,7 +323,10 @@ export default function ClientMatchingQueue() {
                 ref={(el) => {
                   tabRefs.current[idx] = el;
                 }}
-                onClick={() => setQueue(tab)}
+                onClick={() => {
+                  setQueue(tab);
+                  setPage(1);
+                }}
                 className={`relative z-10 px-4 py-2 font-medium text-[14px] transition-colors duration-200 focus:outline-none whitespace-nowrap ${
                   queue === tab ? 'text-white' : 'text-gray-700 hover:text-[#0a61d7]'
                 } ${idx === 0 ? 'rounded-l-lg' : idx === TABS.length - 1 ? 'rounded-r-lg' : ''}`}
@@ -423,17 +337,30 @@ export default function ClientMatchingQueue() {
             ))}
           </div>
         </div>
+        <div className="relative mb-4">
+          <input
+            id="match-search"
+            className={`${INPUT} pl-10`}
+            value={query}
+            placeholder={t('searchPlaceholder')}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setPage(1);
+            }}
+          />
+          <Search className="absolute left-3 top-2 text-gray-400 w-4 h-4" />
+        </div>
 
         {listLoading ? (
           <MatchListSkeleton />
-        ) : rows.length === 0 ? (
+        ) : visibleRows.length === 0 ? (
           <div className="py-12 text-center text-gray-500">
             <Users className="w-12 h-12 text-gray-400 mx-auto mb-2" />
             <p className="text-sm font-medium">{t('empty')}</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {rows.map((row) => (
+            {pagedRows.map((row) => (
               <article
                 key={row.id}
                 className={`rounded-lg border border-[#e6e6e6] p-4 ${cardEdgeClass(row.status)}`}
@@ -464,12 +391,12 @@ export default function ClientMatchingQueue() {
                 </div>
                 <div className="grid md:grid-cols-2 gap-3">
                   <div className="border border-[#e6e6e6] rounded-lg p-4 bg-gray-50">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t('existing')}</p>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t('prospect')}</p>
                     <div className="grid gap-3">
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-sm font-semibold text-black">{row.existing.name}</p>
-                        {row.existing.status && (
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${STATUS_BADGE[row.existing.status] || STATUS_BADGE.Prospect}`}>
+                        {row.existing.status === 'Prospect' && (
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${STATUS_BADGE.Prospect}`}>
                             {statusLabel(row.existing.status)}
                           </span>
                         )}
@@ -480,9 +407,16 @@ export default function ClientMatchingQueue() {
                     </div>
                   </div>
                   <div className="border border-[#e6e6e6] rounded-lg p-4">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t('incoming')}</p>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t('existing')}</p>
                     <div className="grid gap-3">
-                      <p className="text-sm font-semibold text-black">{row.incoming.name}</p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-black">{row.incoming.name}</p>
+                        {existingBuyerStatus(row) && (
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${STATUS_BADGE[existingBuyerStatus(row) as string] || STATUS_BADGE.Active}`}>
+                            {statusLabel(existingBuyerStatus(row) as string)}
+                          </span>
+                        )}
+                      </div>
                       <Field label={t('owner')} value={row.incoming.owner} />
                       <Field label={t('phone')} value={row.incoming.phone} />
                       <Field label={t('address')} value={row.incoming.address} />
@@ -491,7 +425,7 @@ export default function ClientMatchingQueue() {
                   </div>
                 </div>
                 <div className="flex flex-wrap justify-end gap-2 mt-4">
-                  {(queue === 'pending' || queue === 'needs_more_info') && (
+                  {(row.status === 'pending' || row.status === 'needs_more_info') && (
                     <>
                       <button
                         type="button"
@@ -537,7 +471,7 @@ export default function ClientMatchingQueue() {
                       </button>
                     </>
                   )}
-                  {(queue === 'auto' || queue === 'not_a_match') && (
+                  {(row.status === 'merged' || row.status === 'not_a_match') && (
                     <button type="button" className={OUTLINE} onClick={() => undoMatch(row.id)}>
                       {t('undo')}
                     </button>
@@ -545,6 +479,50 @@ export default function ClientMatchingQueue() {
                 </div>
               </article>
             ))}
+          </div>
+        )}
+        {!listLoading && totalRows > 0 && (
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-6 gap-2">
+            <div className="text-sm text-gray-500">
+              {tShared('pagination.showing', { from: fromRow, to: toRow, total: totalRows })}
+              {query.trim() && (
+                <span className="ml-2 text-blue-600">{tShared('pagination.filteredFrom', { total: rows.length })}</span>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onClick={() => setPage(Math.max(1, safePage - 1))}
+                disabled={safePage === 1}
+                aria-label={tShared('previousPage')}
+              >
+                <ChevronLeft className="w-4 h-4 text-gray-500" />
+              </button>
+              {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNum) => (
+                <button
+                  key={pageNum}
+                  type="button"
+                  className={`px-3 py-2 rounded-lg font-semibold text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    pageNum === safePage ? 'bg-[#0a61d7] text-white' : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
+                  }`}
+                  onClick={() => setPage(pageNum)}
+                  aria-label={`${pageNum}`}
+                  aria-current={pageNum === safePage ? 'page' : undefined}
+                >
+                  {pageNum}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onClick={() => setPage(Math.min(totalPages, safePage + 1))}
+                disabled={safePage === totalPages}
+                aria-label={tShared('nextPage')}
+              >
+                <ChevronRight className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
           </div>
         )}
       </div>

@@ -40,9 +40,17 @@ export const clientMatchingTypeDefs = /* GraphQL */ `
     autoMatch: Boolean!
   }
 
+  type ClientMatchQueueCounts {
+    pending: Int!
+    needsMoreInfo: Int!
+    notAMatch: Int!
+    recentlyMerged: Int!
+  }
+
   extend type Query {
     clientMatchCandidates(userId: Int!, queue: String): [ClientMatchCandidate!]!
     clientMatchPendingCount(userId: Int!): Int!
+    clientMatchQueueCounts(userId: Int!): ClientMatchQueueCounts!
     clientMatchSettings(userId: Int!): ClientMatchSettings!
     searchOrdersForClientMatch(userId: Int!, query: String!): [ClientMatchOrderHit!]!
   }
@@ -74,7 +82,9 @@ function mapCandidate(row: {
     deliveryAddress: string;
     orderDate: Date;
   };
-}) {
+  undoSnapshot?: unknown;
+}, keepProspect?: boolean) {
+  const savedProspect = keepProspect ? prospectFromSnapshot(row.undoSnapshot) : null;
   return {
     id: row.id,
     existingClientId: row.existingClientId,
@@ -86,21 +96,41 @@ function mapCandidate(row: {
     autoMerged: row.autoMerged,
     undoneAt: row.undoneAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
-    existing: {
-      name: row.existingClient.storeName,
-      owner: row.existingClient.owner,
-      phone: row.existingClient.phone,
-      address: row.existingClient.address,
-      status: row.existingClient.status,
-    },
+    existing: savedProspect
+      ? {
+          name: savedProspect.storeName,
+          owner: savedProspect.owner,
+          phone: savedProspect.phone,
+          address: savedProspect.address,
+          status: savedProspect.status || 'Prospect',
+        }
+      : {
+          name: row.existingClient.storeName,
+          owner: row.existingClient.owner,
+          phone: row.existingClient.phone,
+          address: row.existingClient.address,
+          status: row.existingClient.status,
+        },
     incoming: {
       name: row.incomingOrder.storeName,
       owner: row.incomingOrder.contactPerson,
       phone: row.incomingOrder.contactPhone,
       address: row.incomingOrder.deliveryAddress,
-      status: null,
+      status: savedProspect ? row.existingClient.status : null,
     },
   };
+}
+
+function prospectFromSnapshot(snapshot: unknown): { storeName: string; owner: string; phone: string; address: string; status: string } | null {
+  if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return null;
+  const prospect = (snapshot as { prospect?: { storeName?: string; owner?: string; phone?: string; address?: string; status?: string } }).prospect;
+  if (!prospect) return null;
+  const storeName = String(prospect.storeName ?? '').trim();
+  const owner = String(prospect.owner ?? '').trim();
+  const phone = String(prospect.phone ?? '').trim();
+  const address = String(prospect.address ?? '').trim();
+  if (!storeName && !owner && !phone && !address) return null;
+  return { storeName, owner, phone, address, status: prospect.status || 'Prospect' };
 }
 
 const include = {
@@ -114,6 +144,15 @@ export const clientMatchingResolvers = {
   Query: {
     clientMatchCandidates: withDashboardAuth(async (args: { userId: number; queue?: string | null }) => {
       const queue = args.queue || 'pending';
+      if (queue === 'all') {
+        await reopenUndoneMatches(args.userId);
+        const rows = await prisma.clientMatchCandidate.findMany({
+          where: { distributorId: args.userId },
+          include,
+          orderBy: { createdAt: 'desc' },
+        });
+        return rows.map((row) => mapCandidate(row, row.status === 'merged'));
+      }
       if (queue === 'auto') {
         const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
         const rows = await prisma.clientMatchCandidate.findMany({
@@ -126,7 +165,7 @@ export const clientMatchingResolvers = {
           include,
           orderBy: { createdAt: 'desc' },
         });
-        return rows.map(mapCandidate);
+        return rows.map((row) => mapCandidate(row, true));
       }
       if (queue === 'not_a_match') {
         const rows = await prisma.clientMatchCandidate.findMany({
@@ -134,7 +173,7 @@ export const clientMatchingResolvers = {
           include,
           orderBy: { createdAt: 'desc' },
         });
-        return rows.map(mapCandidate);
+        return rows.map((row) => mapCandidate(row));
       }
       if (queue === 'pending') await reopenUndoneMatches(args.userId);
       const statuses = queue === 'needs_more_info' ? ['needs_more_info'] : ['pending', 'needs_more_info'];
@@ -143,13 +182,27 @@ export const clientMatchingResolvers = {
         include,
         orderBy: { createdAt: 'desc' },
       });
-      return rows.map(mapCandidate);
+      return rows.map((row) => mapCandidate(row));
     }),
     clientMatchPendingCount: withDashboardAuth(async (args: { userId: number }) => {
       await reopenUndoneMatches(args.userId);
       return prisma.clientMatchCandidate.count({
         where: { distributorId: args.userId, status: { in: ['pending', 'needs_more_info'] } },
       });
+    }),
+    clientMatchQueueCounts: withDashboardAuth(async (args: { userId: number }) => {
+      await reopenUndoneMatches(args.userId);
+      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const where = { distributorId: args.userId };
+      const [pending, needsMoreInfo, notAMatch, recentlyMerged] = await Promise.all([
+        prisma.clientMatchCandidate.count({ where: { ...where, status: { in: ['pending', 'needs_more_info'] } } }),
+        prisma.clientMatchCandidate.count({ where: { ...where, status: 'needs_more_info' } }),
+        prisma.clientMatchCandidate.count({ where: { ...where, status: 'not_a_match' } }),
+        prisma.clientMatchCandidate.count({
+          where: { ...where, status: 'merged', undoneAt: null, createdAt: { gte: since } },
+        }),
+      ]);
+      return { pending, needsMoreInfo, notAMatch, recentlyMerged };
     }),
     clientMatchSettings: withDashboardAuth(async (args: { userId: number }) => getClientMatchSettings(args.userId)),
     searchOrdersForClientMatch: withDashboardAuth(async (args: { userId: number; query: string }) => {

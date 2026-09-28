@@ -3,13 +3,7 @@
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Briefcase, ChevronDown, ChevronLeft, ChevronRight, Edit, Filter, Search, Trash, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import {
-  OPEN_SALES_JOB_STATUSES,
-  SALES_JOB_STATUSES,
-  SALES_JOB_TYPES,
-  SalesJobRow,
-  salesJobStatusKey,
-} from './salesJobTypes';
+import { SALES_JOB_STATUSES, SALES_JOB_TYPES, SalesJobRow, salesJobStatusKey } from './salesJobTypes';
 
 const STATUS_TABS = ['all', ...SALES_JOB_STATUSES] as const;
 const ROWS_PER_PAGE = 5;
@@ -27,11 +21,11 @@ const TYPE_BADGE: Record<string, string> = {
 };
 
 const STATUS_BADGE: Record<string, string> = {
-  pending: 'bg-blue-100 text-blue-800',
-  suggested: 'bg-blue-100 text-blue-800',
-  approved: 'bg-blue-100 text-blue-800',
+  pending: 'bg-yellow-100 text-yellow-800',
+  suggested: 'bg-yellow-100 text-yellow-800',
+  approved: 'bg-yellow-100 text-yellow-800',
   dispatched: 'bg-purple-100 text-purple-800',
-  in_progress: 'bg-yellow-100 text-yellow-800',
+  in_progress: 'bg-blue-100 text-blue-800',
   completed: 'bg-green-100 text-green-800',
   skipped: 'bg-gray-100 text-gray-700',
 };
@@ -102,14 +96,10 @@ function groupJobs(jobs: SalesJobRow[]): JobGroup[] {
 
 export default function JobsTable({
   jobs,
-  onPendingAction,
-  onCompleteAction,
   onEditAction,
   onDeleteAction,
 }: {
   jobs: SalesJobRow[];
-  onPendingAction?: (ids: string[]) => void;
-  onCompleteAction?: (jobs: SalesJobRow[]) => void;
   onEditAction?: (group: { assignedTo: string; clientId: string }) => void;
   onDeleteAction?: (ids: string[]) => void;
 }) {
@@ -335,29 +325,6 @@ export default function JobsTable({
               {t('table.selected', { count: selectedIds.length })}
             </span>
             <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  const openJobs = selectedGroups.flatMap((group) =>
-                    group.jobs.filter((job) => (OPEN_SALES_JOB_STATUSES as readonly string[]).includes(job.status)),
-                  );
-                  if (openJobs.length === 0) return;
-                  onCompleteAction?.(openJobs);
-                  setSelectedIds([]);
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white font-semibold text-sm rounded-lg hover:bg-[#084ba6] transition-colors"
-              >
-                {t('complete')}
-              </button>
-              <button
-                onClick={() => {
-                  if (selectedJobIds.length === 0) return;
-                  onPendingAction?.(selectedJobIds);
-                  setSelectedIds([]);
-                }}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium text-sm hover:bg-gray-100 transition-colors"
-              >
-                {t('pending')}
-              </button>
               <button
                 onClick={() => {
                   if (selectedJobIds.length === 0) return;
