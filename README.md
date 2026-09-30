@@ -1,54 +1,60 @@
 # Lakupak
 
 ## Overview
-Lakupak is a B2B vertical SaaS + marketplace platform designed for FMCG distributors in Indonesia who sell directly to small shops, kiosks, warungs, and other neighborhood stores. It combines a vertical SaaS platform for distributors with a marketplace for their buyers small shops, kiosks, warungs, and local retailers. The platform is designed to streamline operations, protect sensitive pricing information, and create a trusted environment for both parties to transact. 
+Lakupak is an AI-native commercial platform built to modernize Indonesia's B2B FMCG distribution, starting from the problem that costs distributors the most: sales execution.
 
-On the SaaS side, distributors gain access to a private dashboard for managing inventory, processing orders, tracking analytics, maintaining customer relationships, and generating detailed sales reports. Each distributor operates in their own secure environment, with no visibility into competitor data or pricing. On the marketplace side, verified buyers can browse and purchase products from approved distributors, but are restricted from comparing prices across multiple suppliers for the same product, ensuring fair competition and price stability. 
+At its core, Lakupak is a vertical SaaS system of record for distributors. Retailer relationships, the product catalog, and order history live in one private, secure environment. Per-retailer pricing and discount terms are modeled explicitly, because no two retailers buy on the same terms.
 
-Lakupak goes beyond simple order management by offering value-added features like verified buyer and supplier lead generation. This helps distributors expand their network and discover new opportunities without exposing sensitive business data. Over time, the platform will integrate additional services such as embedded logistics, digital payments, and financing solutions, enabling faster order fulfillment and easier access to working capital. 
+On top of that data, Lakupak's AI layer is a sales copilot for the distributor's own team. It surfaces which retailers are overdue for a reorder, flags drop-offs in usual volume, and recommends the right basket and price for each account. That replaces salespeople queuing at shops, pitching blind, and often leaving before they are heard. This is decision support for the distributor's sales force, not a retailer-facing chatbot.
 
-By digitizing a traditionally manual and fragmented sector, Lakupak aims to empower distributors and small retailers alike. It replaces outdated, scattered tools such as spreadsheets, chat-based ordering, and paper records with a single mobile-friendly solution. The result is improved efficiency, stronger business relationships, and a healthier competitive landscape for Indonesia’s consumer goods market.
+A marketplace layer connects verified retailers, small shops, kiosks, and warungs to approved distributors for direct ordering, without cross-distributor price comparison. It protects distributor pricing and gives retailers a reliable, always-open channel to order from suppliers they already trust. This layer comes after the SaaS core is proven, because its value depends on distributors already running real operations, and real data, on the platform.
 
-The platform combines:
-- **Vertical SaaS Dashboard** – A business management suite tailored for distributors, enabling them to manage products, orders, customers, suppliers, and analytics.
-- **B2B Marketplace** – A secure, trusted environment for warungs and small shops to discover and buy from verified distributors.
+Logistics and fleet visibility are delivered by integrating with existing providers, not by building a fleet. Lakupak stays on sales intelligence and transaction infrastructure, not physical delivery infrastructure. Marketing and lightweight automation are one function: the channel that carries the AI's sales recommendations to the distributor's team and, over time, to their retailers.
 
-Our goal is to digitize the traditional distributor-to-retailer supply chain while respecting the realities of competition, price sensitivity, and confidentiality in the Indonesian wholesale market.
+Replacing spreadsheets, WhatsApp order-taking, and manual sales rounds with one AI-assisted system is meant to improve sales outcomes, not only to digitize the trade. Distributors close more of the demand that is already there. Retailers get faster, more consistent service. Both sides run on a system built for how FMCG trade actually works in Indonesia, not a generic e-commerce template fitted onto it.
 
 ## Key Security & Trust Principles
-- **Buyer Restrictions**: Buyers can browse and purchase products from distributors but distributors have no ability to compare prices for the same product across different distributors, preventing destructive price wars and maintaining trust.
-- **Distributor Privacy**: Distributors can only access their own business data, customer list, and analytics — no competitor insight leakage. This ensures fair competition while preserving the core value of marketplaces, buyer choice and price transparency.
-- **Verified Network**: Both buyers and distributors undergo verification to maintain a trusted marketplace ecosystem.
+- **Private system of record**: Each distributor's retailers, catalog, orders, prices, and discounts stay in their own environment. Competitors cannot see that data.
+- **Explicit commercial terms**: Prices and discounts are set per retailer. They are not a shared rate card.
+- **No cross-distributor price comparison**: A retailer orders from approved distributors they already trust. The marketplace does not line up competing distributors' prices for the same product.
+- **Sales copilot, not a retailer chatbot**: AI recommendations are for the distributor's own sales team. They are not an automated pitch sent at the shop.
+- **Confirmed buyer identity**: A prospect and a marketplace account stay separate until someone confirms they are the same buyer. Automatic matching stays off until the distributor turns it on. Undoing a merge restores the original prospect.
+- **Verified network**: Retailers and distributors are verified before they transact.
 
 ## Why Lakupak is Different
-In Indonesia’s FMCG trade, distributors waste hours chasing the same buyers, and retailers get spammed with overlapping offers from different salesmen. Lakupak eliminates that chaos by giving both sides a shared, smart marketplace designed for wholesale buying:
-- **One platform, zero overlap** – Retailers see all offers from verified distributors in one place, without duplicated pitches.
-- **Wholesale-first tools** – Order by carton or box, schedule replenishments, and receive delivery updates instantly.
-- **Run your business, not just storing products** – From inventory tracking to analytics, ordering, sales, and sales, distributors get an all-in-one SaaS to replace WhatsApp and paper ledgers.
-- **Protected relationships** – Role-based access keeps sensitive customer and price data safe from competitors.
+Indonesia's FMCG trade still runs on shop visits, WhatsApp orders, and spreadsheets. Lakupak starts with sales execution, then keeps the rest of the commercial relationship on the same record:
+- **Sales execution first**: The worklist tells a rep who to visit, what to do, and what to offer, instead of a blind pitch at the shutter.
+- **One record, per-retailer terms**: Catalog, orders, and each shop's own price and discount live together. Two retailers do not have to buy on the same terms.
+- **Copilot for the distributor's team**: Overdue reorders, volume drop-offs, and a recommended basket are decision support for the sales force.
+- **Marketplace without a price war**: Retailers order from suppliers they already trust. They do not compare distributor prices side by side. Buying from another distributor is a choice, not a comparison action. 
+- **Logistics by integration**: Shipment visibility uses existing providers. Lakupak does not operate the fleet.
+- **One commercial channel**: Marketing and lightweight automation carry the same recommendations to the team, and later to retailers, instead of sitting as separate general-purpose tools.
 
 ## Core Features
 
 ### Distributor Dashboard
-- **Products Management** - Add/edit in bulk, set carton pricing
-- **Customer/Supplier Management** - CRM functionality
-- **Orders Management** - Track, fulfill, and invoice orders
-- **Analytics** - Sales trends, inventory turnover, customer behavior
-- **Supplier & Buyer Leads** - Discover and add new product sources and buyers
-- **Sales & Sales** - Manage sales activities, manpower, and performance
-- **Programs & Incentives** - Offers discounts, promotions, and volume-based offers
+- **System of record**: Retailers, suppliers, product catalog, stock, and order history in one private dashboard.
+- **Per-retailer offers**: Discounts, promotions, and volume terms set for a specific buyer, not one price for every shop.
+- **Orders**: Track, fulfill, and review orders, with shipment locations shown on a map through provider data.
+- **Sales jobs**: A rep worklist for taking an order, collecting payment, promoting a product, checking stock, prospecting a new outlet, picking up a return, checking a competitor, activating a new product, or reconciling a scheme. Jobs move through pending, dispatched, in progress, completed, and skipped. AI can suggest the next jobs. WhatsApp is how those jobs reach the rep.
+- **Buyer matching**: Review a prospect against a marketplace order before they become one account, and undo a merge if it was wrong.
+- **Analytics**: Sales trends, inventory, and customer behavior from the distributor's own orders.
+- **Marketing and automation**: One function for getting sales recommendations to the team and, over time, to retailers.
 
 ### Buyer Interface
-- **Marketplace Search & Browse**
-- **Bulk Ordering** - By carton/box 
-- **Single Order** - To try out product tastes
-- **Order Tracking**
-- **Repeat Purchase Shortcuts**
+The buyer interface is the marketplace, used by verified small shops, kiosks, and warungs. It is an ordering channel, not a chatbot.
+- **Order from approved distributors** the retailer already trusts
+- **No cross-distributor price comparison**
+- **Carton and single-piece ordering**, including a first small order to try a product
+- **Order tracking**
+- **Repeat purchase** from prior orders
+- **Always open**, so a shop can order without waiting for a sales visit
 
 ## Business Model
-- **SaaS Subscription** – Monthly fee for distributors to use the platform's management tools
-- **Seller Commission Fee** – 0.5%–1% fee on transactions
-- **Optional Value-Added Services** – Logistics integration, financing, supplier leads
+- **SaaS subscription**: The core product. Distributors pay to run retailer relationships, catalog, orders, per-retailer terms, and the sales copilot.
+- **Commission fee**: 0.25% to 0.5% on marketplace transactions, Gross Merchandise Value (GMV).
+- **Marketplace**: A transaction layer for verified retailers and approved distributors. It turns on once distributors are already operating, with real data, on Lakupak.
+- **Partner services, not owned infrastructure**: Logistics, fleet visibility, payments, and financing connect through existing providers. They are not a Lakupak-built delivery or lending business.
 
 ## Technical Architecture
 - Frontend Distributor SaaS Dashboard (Next.js React)
