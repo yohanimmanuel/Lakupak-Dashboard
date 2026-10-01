@@ -171,7 +171,7 @@ const Navbar = () => {
   const [hasMounted, setHasMounted] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
-  const aiOpen = pathname === '/copilot' || pathname.startsWith('/copilot/');
+  const aiOpen = pathname === '/copilot' || pathname?.startsWith('/copilot/') === true;
 
   useEffect(() => {
     setHasMounted(true);

@@ -293,7 +293,7 @@ export default function AutomationCopilot({
                       key={id}
                       type="button"
                       style={enterStyle(shown, 460 + index * 90, reduceMotion)}
-                      className="rounded-2xl border border-[#e6e6e6] bg-white p-4 text-left shadow-sm transition hover:border-[#c5daff] hover:shadow-md"
+                      className="rounded-2xl border border-[#e6e6e6] bg-white p-4 text-left transition hover:border-[#c5daff]"
                       onClick={() => void submit(t(recipeKey(id, 'prompt')))}
                     >
                       <span className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-[#f7faff] text-[#0a61d7]">
