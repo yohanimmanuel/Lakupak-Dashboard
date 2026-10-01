@@ -29,6 +29,46 @@
     "emptyTitle": "Apa yang harus dilakukan alur kerja ini?",
     "applied": "Struktur alur kerja sudah ada di kanvas. Simpan saat siap.",
     "reviewCanvas": "Tinjau di kanvas",
+    "suggestionAsk": "Tanya",
+    "suggestionAutomate": "Otomatiskan",
+    "suggestions": {
+      "margins": {
+        "label": "Tinjau margin",
+        "title": "Ke mana margin bergerak",
+        "summary": "Bandingkan pendapatan dan biaya bulan ini, lalu daftar pembayaran yang masih terbuka dan layak ditagih.",
+        "prompt": "Tinjau keuangan bulan ini. Ke mana margin bergerak, pembayaran mana yang masih terbuka, dan apa yang harus saya tagih lebih dulu?"
+      },
+      "orders": {
+        "label": "Pesanan terbuka",
+        "title": "Pesanan yang menunggu",
+        "summary": "Pisahkan pesanan terbuka menjadi sudah dibayar, sedang dikemas, dan terlambat, lalu sebut langkah berikutnya ada di kita atau di pembeli.",
+        "prompt": "Lihat pesanan terbuka saya. Mana yang sudah dibayar, sedang dikemas, atau terlambat, dan apa yang harus saya tindaklanjuti hari ini?"
+      },
+      "buyers": {
+        "label": "Pembeli sepi",
+        "title": "Pembeli yang mulai sepi",
+        "summary": "Temukan toko yang berhenti memesan, dan toko yang pesanan terbarunya menunjukkan siap dikunjungi lagi.",
+        "prompt": "Analisis pembeli saya. Siapa yang mulai sepi, siapa yang memesan lebih banyak, dan siapa yang harus dikunjungi tim penjualan berikutnya?"
+      },
+      "products": {
+        "label": "Produk lambat",
+        "title": "Produk yang tertekan",
+        "summary": "Temukan barang di bawah batas stok, di bawah margin, atau hampir tidak laku, lalu sebut apa yang diperbaiki lebih dulu.",
+        "prompt": "Tinjau produk saya. Mana yang stoknya rendah, marginnya lemah, atau hampir tidak laku, dan apa yang harus saya perbaiki lebih dulu?"
+      },
+      "restock": {
+        "label": "Isi ulang stok",
+        "title": "Isi ulang sebelum kehabisan",
+        "summary": "Saat produk turun di bawah batas stok, isi ulang jumlah yang Anda tetapkan dan beri tahu dasbor.",
+        "prompt": "Saat stok rendah, isi ulang dan beri tahu saya"
+      },
+      "winback": {
+        "label": "Ajak kembali",
+        "title": "Ajak kembali keranjang menganggur",
+        "summary": "Saat keranjang menganggur sehari, kirim ajakan kembali di WhatsApp. Jika mereka sudah memesan, proses berhenti.",
+        "prompt": "Saat keranjang menganggur, kirim ajakan kembali di WhatsApp"
+      }
+    },
     "unknown": "Saya belum bisa menjawab itu. Coba lagi, atau tanyakan pesanan, pembeli, produk, penjualan, atau otomatisasi.",
     "recipes": {
       "low_stock": {

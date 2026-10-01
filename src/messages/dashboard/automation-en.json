@@ -29,6 +29,46 @@
     "emptyTitle": "What should this workflow do?",
     "applied": "The workflow structure is on the canvas. Save it when you are ready.",
     "reviewCanvas": "Review on the canvas",
+    "suggestionAsk": "Ask",
+    "suggestionAutomate": "Automate",
+    "suggestions": {
+      "margins": {
+        "label": "Review margins",
+        "title": "Where margin moved",
+        "summary": "Compare revenue and cost this month, then list payments that are still open and worth chasing.",
+        "prompt": "Review this month's financials. Where did margin move, which payments are still open, and what should I chase first?"
+      },
+      "orders": {
+        "label": "Open orders",
+        "title": "Orders waiting on someone",
+        "summary": "Split open orders into paid, packing, and late, and say whether the next step is ours or the buyer's.",
+        "prompt": "Look at my open orders. Which are paid, packing, or late, and what should I follow up on today?"
+      },
+      "buyers": {
+        "label": "Quiet buyers",
+        "title": "Buyers who went quiet",
+        "summary": "Find shops that stopped ordering, and the ones whose recent orders say they are ready for another visit.",
+        "prompt": "Analyze my buyers. Who has gone quiet, who is ordering more, and who should the sales team visit next?"
+      },
+      "products": {
+        "label": "Slow products",
+        "title": "Products under pressure",
+        "summary": "Find items under the stock line, under margin, or barely moving, and say what to fix first.",
+        "prompt": "Review my products. Which are low on stock, weak on margin, or barely selling, and what should I fix first?"
+      },
+      "restock": {
+        "label": "Restock alert",
+        "title": "Replenish before a stockout",
+        "summary": "When a product crosses under its stock line, restock the quantity you set and notify the dashboard.",
+        "prompt": "When stock is low, replenish and notify me"
+      },
+      "winback": {
+        "label": "Win-back carts",
+        "title": "Bring back an idle cart",
+        "summary": "When a cart sits idle for a day, send a WhatsApp win-back. If they already ordered, the run stops.",
+        "prompt": "When a cart sits idle, send a win-back on WhatsApp"
+      }
+    },
     "unknown": "I could not answer that just now. Try again, or ask about orders, buyers, products, sales, or an automation.",
     "recipes": {
       "low_stock": {

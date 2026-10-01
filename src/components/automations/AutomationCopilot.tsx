@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { ArrowUp, Boxes, Briefcase, MessageCircle, Sparkles } from 'lucide-react';
+import { ArrowUp, Boxes, ShoppingBag, Sparkles, TrendingUp } from 'lucide-react';
 import {
   copilotRecipeById,
   type CopilotRecipe,
@@ -13,14 +13,13 @@ import {
 import { useUserStore } from '@/store/userStore';
 import { AiChatMarkdown } from '@/components/AiChatMarkdown';
 
-const FEATURED_IDS = ['low_stock', 'buyer_question', 'sales_jobs'] as const;
-const PILL_IDS = ['return_accepted', 'new_buyer', 'order_paid', 'cart_idle'] as const;
+const PILL_IDS = ['margins', 'orders', 'buyers', 'products', 'winback'] as const;
 
-const CARD_ICONS = {
-  low_stock: Boxes,
-  buyer_question: MessageCircle,
-  sales_jobs: Briefcase,
-} as const;
+const CARDS = [
+  { id: 'margins', kind: 'ask', icon: TrendingUp },
+  { id: 'orders', kind: 'ask', icon: ShoppingBag },
+  { id: 'restock', kind: 'automate', icon: Boxes },
+] as const;
 
 type ChatLine = {
   id: string;
@@ -208,9 +207,9 @@ export default function AutomationCopilot({
                 key={id}
                 type="button"
                 className="rounded-full border border-[#e6e6e6] bg-[#f7faff] px-3 py-1 text-xs font-medium text-black hover:bg-white"
-                onClick={() => void submit(t(recipeKey(id, 'prompt')))}
+                onClick={() => void submit(t(`suggestions.${id}.prompt`))}
               >
-                {t(recipeKey(id, 'chip'))}
+                {t(`suggestions.${id}.label`)}
               </button>
             ))}
           </div>
@@ -286,21 +285,28 @@ export default function AutomationCopilot({
                 {landingComposer}
               </div>
               <div className="mt-5 grid grid-cols-1 gap-3 text-left sm:grid-cols-3">
-                {FEATURED_IDS.map((id, index) => {
-                  const Icon = CARD_ICONS[id];
+                {CARDS.map((card, index) => {
+                  const Icon = card.icon;
                   return (
                     <button
-                      key={id}
+                      key={card.id}
                       type="button"
-                      style={enterStyle(shown, 460 + index * 90, reduceMotion)}
+                      style={enterStyle(shown, 460 + index * 70, reduceMotion)}
                       className="rounded-2xl border border-[#e6e6e6] bg-white p-4 text-left transition hover:border-[#c5daff]"
-                      onClick={() => void submit(t(recipeKey(id, 'prompt')))}
+                      onClick={() => void submit(t(`suggestions.${card.id}.prompt`))}
                     >
                       <span className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-[#f7faff] text-[#0a61d7]">
                         <Icon className="h-4 w-4" />
                       </span>
-                      <span className="block text-sm font-semibold text-black">{t(recipeKey(id, 'chip'))}</span>
-                      <span className="mt-1 block text-xs leading-5 text-gray-500">{t(recipeKey(id, 'summary'))}</span>
+                      <span
+                        className={`mb-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                          card.kind === 'ask' ? 'bg-[#f7faff] text-[#0a61d7]' : 'bg-[#f3f4f6] text-gray-600'
+                        }`}
+                      >
+                        {t(card.kind === 'ask' ? 'suggestionAsk' : 'suggestionAutomate')}
+                      </span>
+                      <span className="block text-sm font-semibold text-black">{t(`suggestions.${card.id}.title`)}</span>
+                      <span className="mt-1 block text-xs leading-5 text-gray-500">{t(`suggestions.${card.id}.summary`)}</span>
                     </button>
                   );
                 })}
