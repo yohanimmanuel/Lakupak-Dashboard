@@ -4,6 +4,8 @@ export type AiChatMessage = {
   id: string;
   role: AiChatRole;
   content: string;
+  /** Set when this reply drafted a catalog workflow. The canvas link uses it. */
+  recipeId?: string | null;
 };
 
 export type AiChatSession = {

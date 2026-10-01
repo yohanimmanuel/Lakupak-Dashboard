@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useLocale, useTranslations } from 'next-intl';
 import { WorkflowBuilderShell } from '@/components/automations/builder/WorkflowBuilderShell';
 import { WorkflowCanvas } from '@/components/automations/builder/WorkflowCanvas';
 import {
@@ -22,6 +23,8 @@ import {
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
+import { buildCopilotDraft } from '@/components/automations/buildCopilotDraft';
+import { copilotRecipeById } from '@/lib/automations/copilotRecipes';
 
 const CREATE_MUTATION = `
   mutation CreateAutomationWorkflow(
@@ -73,7 +76,10 @@ function buildInitialDraft(
 export default function NewAutomationPage() {
   const router = useRouter();
   const user = useUserStore((s) => s.user);
-  const { tBuilder } = useAutomationTranslations();
+  const { tBuilder, tTriggers, tActions } = useAutomationTranslations();
+  const locale = useLocale();
+  const tCopilot = useTranslations('dashboard.automation.copilot');
+  const recipeBootstrapped = useRef(false);
 
   const labels = useMemo(
     () => ({
@@ -224,6 +230,43 @@ export default function NewAutomationPage() {
       setSaving(false);
     }
   };
+
+  useEffect(() => {
+    if (recipeBootstrapped.current) return;
+    const recipeId = new URLSearchParams(window.location.search).get('recipe');
+    if (!recipeId) return;
+    const recipe = copilotRecipeById(recipeId);
+    if (!recipe || recipe.kind !== 'workflow') return;
+    recipeBootstrapped.current = true;
+    const templateKey = `recipes.${recipe.id}.template`;
+    const built = buildCopilotDraft({
+      recipe,
+      locale,
+      labels,
+      triggerLabel: tTriggers.has(recipe.triggerType) ? tTriggers(recipe.triggerType) : labels.triggerSubtitle,
+      actionLabels: recipe.actions.map((action) =>
+        tActions.has(action.type) ? tActions(action.type) : labels.actionTitle,
+      ),
+      note: tCopilot(`recipes.${recipe.id}.logic`),
+      name: tCopilot(`recipes.${recipe.id}.name`),
+      description: tCopilot(`recipes.${recipe.id}.summary`),
+      messageTemplate: tCopilot.has(templateKey) ? tCopilot(templateKey) : undefined,
+    });
+    const current = draftRef.current;
+    history.push({ nodes: current.nodes, edges: current.edges }, { force: true });
+    setDraft({
+      name: built.name.trim(),
+      description: built.description,
+      type: built.type,
+      status: current.status,
+      nodes: built.nodes,
+      edges: built.edges,
+    });
+    setSelectedNodeId(built.nodes[0]?.id ?? null);
+    setNameError(null);
+    setFormError(null);
+    window.history.replaceState(null, '', '/automation/new');
+  }, [history, labels, locale, tActions, tCopilot, tTriggers]);
 
   return (
     <WorkflowBuilderShell

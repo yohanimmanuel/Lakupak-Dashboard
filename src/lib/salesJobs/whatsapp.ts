@@ -15,6 +15,10 @@ export type SalesJobWhatsAppAction = 'order_placed' | 'no_order' | 'reschedule' 
 export type SalesJobWhatsAppReply = {
   jobId?: string;
   fromPhone?: string;
+  /** Inbound WhatsApp message id, when the provider sent one. */
+  inboundMessageId?: string;
+  /** Original text that produced this structured reply. Button taps omit it. */
+  sourceText?: string;
   /** WhatsApp id of the outbound message this reply is answering. */
   contextMessageId?: string;
   action: SalesJobWhatsAppAction;
@@ -69,7 +73,8 @@ function messageBody(job: DispatchJobInput): string {
   if (job.suggestedProductNames.length > 0) {
     lines.push(`Suggested: ${job.suggestedProductNames.join(', ')}`);
   }
-  lines.push('Reply with a button, or send the order amount after Order Placed.');
+  lines.push('Reply with a button, or describe the visit in one message: the shop, what happened, and any amount.');
+  lines.push('Balas dengan tombol, atau jelaskan kunjungan dalam satu pesan: toko, hasilnya, dan nilainya jika ada.');
   return lines.join('\n');
 }
 
@@ -166,9 +171,11 @@ export function parseSalesJobWhatsAppPayload(body: unknown): SalesJobWhatsAppRep
         const buttonId = String(button?.id ?? '');
         const buttonMatch = BUTTON_ID.exec(buttonId);
         if (buttonMatch) {
+          const inboundMessageId = String(msg.id ?? '').trim();
           replies.push({
             jobId: buttonMatch[1],
             fromPhone: from,
+            inboundMessageId: inboundMessageId || undefined,
             action: buttonMatch[2].toLowerCase() as SalesJobWhatsAppAction,
             note: String(button?.title ?? ''),
           });
@@ -179,8 +186,11 @@ export function parseSalesJobWhatsAppPayload(body: unknown): SalesJobWhatsAppRep
         const action = actionFromText(text);
         if (!action) continue;
         const contextId = String(asRecord(msg.context)?.id ?? '').trim();
+        const inboundMessageId = String(msg.id ?? '').trim();
         replies.push({
           fromPhone: from,
+          inboundMessageId: inboundMessageId || undefined,
+          sourceText: text,
           contextMessageId: contextId || undefined,
           action,
           amount: action === 'amount' || action === 'order_placed' ? parseAmount(action === 'order_placed' ? text.replace(/^\s*1\s+/, '') : text) : null,

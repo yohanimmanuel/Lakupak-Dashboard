@@ -2,22 +2,28 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { MessageCircle, Bell, User, LogOut, Plus, Package, AlertTriangle, Tag, Users, ShoppingBag, Settings, Check, Trash2, X, Truck, Info, Receipt, Bot } from 'lucide-react';
+import { Bell, User, LogOut, Plus, Package, AlertTriangle, Tag, Users, ShoppingBag, Settings, Check, Trash2, X, Truck, Info, Receipt, ClipboardCheck, Plug } from 'lucide-react';
 import { Menu as MenuIcon } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useUserStore } from '@/store/userStore';
 import { useDashboardNotificationSocket } from '@/hooks/useDashboardNotificationSocket';
 import ReactDOM from 'react-dom';
 import { useMenuContext } from '@/app/(dashboard)/(menulist)/DashboardClientLayout';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { DashboardSearchBar } from '@/components/dashboard/DashboardSearchBar';
-import { NavbarAiAgentPanel } from '@/components/NavbarAiAgentPanel';
 import { useTranslations } from 'next-intl';
 
 const DROPDOWN_WIDTH = 300;
-const AI_PANEL_ID = 'navbar-ai-agent-panel';
+
+type NavbarGlance = {
+  salesJobs: number;
+  clientMatches: number;
+  draftAutomations: number;
+  whatsapp: 'connected' | 'disconnected' | 'unused';
+  gmail: 'connected' | 'disconnected' | 'unused';
+};
 
 interface SalesAgent {
   id: string;
@@ -146,9 +152,9 @@ const Navbar = () => {
   const clearUser = useUserStore(state => state.clearUser);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
-  const [showMsgDropdown, setShowMsgDropdown] = useState(false);
-  const [showAiPanel, setShowAiPanel] = useState(false);
-  const [aiPanelMounted, setAiPanelMounted] = useState(false);
+  const [showAppsDropdown, setShowAppsDropdown] = useState(false);
+  const [showReviewDropdown, setShowReviewDropdown] = useState(false);
+  const [glance, setGlance] = useState<NavbarGlance | null>(null);
   const [salesAgents, setSalesAgents] = useState<SalesAgent[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -159,19 +165,13 @@ const Navbar = () => {
   const [driverRequestModalNotif, setDriverRequestModalNotif] = useState<Notification | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLButtonElement>(null);
-  const msgRef = useRef<HTMLButtonElement>(null);
-  const aiRef = useRef<HTMLButtonElement>(null);
+  const appsRef = useRef<HTMLButtonElement>(null);
+  const reviewRef = useRef<HTMLButtonElement>(null);
   const { toggleMenu } = useMenuContext();
   const [hasMounted, setHasMounted] = useState(false);
   const router = useRouter();
-
-  const handleAiPanelExited = useCallback(() => {
-    setAiPanelMounted(false);
-  }, []);
-
-  useEffect(() => {
-    if (showAiPanel) setAiPanelMounted(true);
-  }, [showAiPanel]);
+  const pathname = usePathname();
+  const aiOpen = pathname === '/copilot' || pathname.startsWith('/copilot/');
 
   useEffect(() => {
     setHasMounted(true);
@@ -277,6 +277,32 @@ const Navbar = () => {
 
   // Real-time: WebSocket pushes new notifications so we refetch without reload
   useDashboardNotificationSocket(user?.id ?? undefined, fetchNotifications);
+
+  const fetchGlance = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const res = await fetch('/api/navbar/glance');
+      if (!res.ok) return;
+      const payload = (await res.json()) as NavbarGlance;
+      if (
+        typeof payload.salesJobs !== 'number' ||
+        typeof payload.clientMatches !== 'number' ||
+        typeof payload.draftAutomations !== 'number'
+      ) {
+        return;
+      }
+      setGlance(payload);
+    } catch {
+      // Keep the last glance. A failed refresh should not clear the badge.
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    void fetchGlance();
+    const interval = setInterval(() => void fetchGlance(), 60000);
+    return () => clearInterval(interval);
+  }, [user?.id, fetchGlance]);
 
   // Mark notification as read
   const handleMarkAsRead = async (notificationId: string) => {
@@ -442,23 +468,23 @@ const Navbar = () => {
           setShowNotifDropdown(false);
         }
       }
-      if (msgRef.current && !msgRef.current.contains(target)) {
-        setShowMsgDropdown(false);
+      if (showAppsDropdown) {
+        const isClickOnApps = appsRef.current?.contains(target);
+        const isClickOnAppsPortal = (target as Element).closest('[data-portal-type="apps"]');
+        if (!isClickOnApps && !isClickOnAppsPortal) setShowAppsDropdown(false);
       }
 
-      if (showAiPanel) {
-        const isClickOnAiButton = aiRef.current?.contains(target);
-        const isClickOnAiPortal = (target as Element).closest('[data-portal-type="ai-agent"]');
-        if (!isClickOnAiButton && !isClickOnAiPortal) {
-          setShowAiPanel(false);
-        }
+      if (showReviewDropdown) {
+        const isClickOnReview = reviewRef.current?.contains(target);
+        const isClickOnReviewPortal = (target as Element).closest('[data-portal-type="review"]');
+        if (!isClickOnReview && !isClickOnReviewPortal) setShowReviewDropdown(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showDropdown, showNotifDropdown, showAiPanel]);
+  }, [showDropdown, showNotifDropdown, showAppsDropdown, showReviewDropdown]);
 
   const handleSignOut = async () => {
     // Clear NextAuth session first
@@ -568,54 +594,191 @@ const Navbar = () => {
           </button>
         </div>
 
-        {/* AI Agent */}
+        <Link
+          href="/copilot"
+          className={`w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition border ${
+            aiOpen
+              ? 'bg-[#eef4fc] border-[#0a61d7]'
+              : 'bg-white border-gray-200 hover:bg-gray-100'
+          }`}
+          aria-label={tNavbar('aiAgentTitle')}
+          title={tNavbar('aiAgentTitle')}
+          onClick={() => {
+            setShowReviewDropdown(false);
+            setShowAppsDropdown(false);
+            setShowNotifDropdown(false);
+            setShowDropdown(false);
+          }}
+        >
+          <Image src="/LakuAI.png" alt="" width={22} height={22} className="h-[22px] w-[22px] object-contain" />
+        </Link>
+
+        {/* Review queue */}
         <button
           type="button"
-          ref={aiRef}
+          ref={reviewRef}
           className={`p-2 w-9 h-9 rounded-full flex items-center justify-center cursor-pointer relative transition border ${
-            showAiPanel
+            showReviewDropdown
               ? 'bg-[#0a61d7] border-[#0a61d7] text-white'
               : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-100'
           }`}
           onClick={() => {
-            setShowAiPanel(v => !v);
-            setShowMsgDropdown(false);
+            setShowReviewDropdown((v) => !v);
+            setShowAppsDropdown(false);
             setShowNotifDropdown(false);
             setShowDropdown(false);
           }}
-          aria-label={tNavbar('aiAgent')}
-          title={tNavbar('aiAgent')}
+          aria-label={tNavbar('reviewQueue')}
+          title={tNavbar('reviewQueue')}
           aria-haspopup="dialog"
-          aria-expanded={showAiPanel}
-          aria-controls={AI_PANEL_ID}
+          aria-expanded={showReviewDropdown}
         >
-          <Bot className="w-5 h-5" />
+          <ClipboardCheck className="w-5 h-5" />
+          {(glance?.salesJobs ?? 0) + (glance?.clientMatches ?? 0) + (glance?.draftAutomations ?? 0) > 0 && (
+            <span className={`absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[9px] font-semibold px-0.5 ${
+              showReviewDropdown ? 'bg-white text-[#0a61d7]' : 'bg-[#0a61d7] text-white'
+            }`}>
+              {(() => {
+                const total =
+                  (glance?.salesJobs ?? 0) + (glance?.clientMatches ?? 0) + (glance?.draftAutomations ?? 0);
+                return total > 99 ? '99+' : total;
+              })()}
+            </span>
+          )}
         </button>
+        <DropdownPortal anchorRef={reviewRef} show={showReviewDropdown} dataPortalType="review">
+          <div className="px-3 py-2 border-b border-gray-200">
+            <div className="font-semibold text-sm text-gray-800">{tNavbar('reviewQueue')}</div>
+            <p className="mt-0.5 text-[11px] text-gray-500">{tNavbar('reviewQueueHint')}</p>
+          </div>
+          {(
+            [
+              {
+                key: 'jobs',
+                href: '/sales/jobs',
+                label: tNavbar('reviewSalesJobs'),
+                hint: tNavbar('reviewSalesJobsHint'),
+                count: glance?.salesJobs ?? 0,
+              },
+              {
+                key: 'matches',
+                href: '/clients/buyers/buyer-matching',
+                label: tNavbar('reviewMatches'),
+                hint: tNavbar('reviewMatchesHint'),
+                count: glance?.clientMatches ?? 0,
+              },
+              {
+                key: 'drafts',
+                href: '/automation',
+                label: tNavbar('reviewDrafts'),
+                hint: tNavbar('reviewDraftsHint'),
+                count: glance?.draftAutomations ?? 0,
+              },
+            ] as const
+          ).map((row) => (
+            <Link
+              key={row.key}
+              href={row.href}
+              onClick={() => setShowReviewDropdown(false)}
+              className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs font-medium text-gray-900">{row.label}</span>
+                <span className="block text-[11px] text-gray-500">{row.hint}</span>
+              </span>
+              <span
+                className={`inline-flex min-w-[1.5rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${
+                  row.count > 0 ? 'bg-[#eef4fc] text-[#0a61d7]' : 'bg-gray-100 text-gray-500'
+                }`}
+              >
+                {row.count > 99 ? '99+' : row.count}
+              </span>
+            </Link>
+          ))}
+        </DropdownPortal>
 
-        {/* Messages */}
+        {/* Connected apps */}
         <button
           type="button"
-          className="p-2 w-9 h-9 rounded-full bg-white flex items-center justify-center cursor-pointer relative hover:bg-gray-100 transition border border-gray-200"
-          ref={msgRef}
+          className={`p-2 w-9 h-9 rounded-full flex items-center justify-center cursor-pointer relative transition border ${
+            showAppsDropdown
+              ? 'bg-[#0a61d7] border-[#0a61d7] text-white'
+              : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-100'
+          }`}
+          ref={appsRef}
           onClick={() => {
-            setShowMsgDropdown(v => !v);
+            setShowAppsDropdown((v) => !v);
+            setShowReviewDropdown(false);
             setShowNotifDropdown(false);
             setShowDropdown(false);
-            setShowAiPanel(false);
           }}
-          aria-label={tNavbar('messages')}
+          aria-label={tNavbar('connectedApps')}
+          title={tNavbar('connectedApps')}
+          aria-haspopup="dialog"
+          aria-expanded={showAppsDropdown}
         >
-          <MessageCircle className="w-5 h-5 text-gray-500" />
+          <Plug className="w-5 h-5" />
+          {glance && (
+            <span
+              className={`absolute bottom-0.5 right-0.5 h-2 w-2 rounded-full ring-2 ring-white ${
+                glance.whatsapp === 'connected' && glance.gmail === 'connected'
+                  ? 'bg-green-500'
+                  : glance.whatsapp === 'disconnected' || glance.gmail === 'disconnected'
+                    ? 'bg-red-500'
+                    : 'bg-gray-400'
+              }`}
+            />
+          )}
         </button>
-        <DropdownPortal anchorRef={msgRef} show={showMsgDropdown}>
-          <div className="px-2 pt-2 text-center">
-            <div className="font-bold text-xs text-gray-800 mb-2">{tNavbar('yourMessages')}</div>
+        <DropdownPortal anchorRef={appsRef} show={showAppsDropdown} dataPortalType="apps">
+          <div className="px-3 py-2 border-b border-gray-200">
+            <div className="font-semibold text-sm text-gray-800">{tNavbar('connectedApps')}</div>
+            <p className="mt-0.5 text-[11px] text-gray-500">{tNavbar('connectedAppsHint')}</p>
           </div>
-          <div className="border-t border-gray-200" />
-          <div className="px-6 py-6 text-gray-500 text-xs text-center">{tNavbar('noMessages')}</div>
-          <div className="border-t border-gray-200" />
-          <div className="flex justify-center py-2">
-            <button className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-2 rounded-full text-xs shadow transition">{tNavbar('viewAllMessages')}</button>
+          {!glance ? (
+            <div className="px-3 py-4 text-xs text-gray-500">{tNavbar('loading')}</div>
+          ) : (
+            (
+              [
+                { key: 'whatsapp', label: 'WhatsApp', status: glance.whatsapp },
+                { key: 'gmail', label: 'Gmail', status: glance.gmail },
+              ] as const
+            ).map((app) => {
+              const tone =
+                app.status === 'connected'
+                  ? 'text-green-700'
+                  : app.status === 'disconnected'
+                    ? 'text-red-600'
+                    : 'text-gray-500';
+              const dot =
+                app.status === 'connected'
+                  ? 'bg-green-500'
+                  : app.status === 'disconnected'
+                    ? 'bg-red-500'
+                    : 'bg-gray-400';
+              const label =
+                app.status === 'connected'
+                  ? tNavbar('appConnected')
+                  : app.status === 'disconnected'
+                    ? tNavbar('appDisconnected')
+                    : tNavbar('appUnused');
+              return (
+                <div key={app.key} className="flex items-center gap-3 px-3 py-2.5">
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${dot}`} />
+                  <span className="min-w-0 flex-1 text-xs font-medium text-gray-900">{app.label}</span>
+                  <span className={`text-[11px] font-medium ${tone}`}>{label}</span>
+                </div>
+              );
+            })
+          )}
+          <div className="border-t border-gray-200 px-3 py-2">
+            <Link
+              href="/automation"
+              onClick={() => setShowAppsDropdown(false)}
+              className="text-xs font-semibold text-[#0a61d7] hover:underline"
+            >
+              {tNavbar('openAutomations')}
+            </Link>
           </div>
         </DropdownPortal>
 
@@ -626,9 +789,9 @@ const Navbar = () => {
           ref={notifRef}
           onClick={() => {
             setShowNotifDropdown(v => !v);
-            setShowMsgDropdown(false);
+            setShowAppsDropdown(false);
             setShowDropdown(false);
-            setShowAiPanel(false);
+            setShowReviewDropdown(false);
           }}
           aria-label={tNavbar('notifications')}
         >
@@ -869,8 +1032,8 @@ const Navbar = () => {
               onClick={() => {
                 setShowDropdown(v => !v);
                 setShowNotifDropdown(false);
-                setShowMsgDropdown(false);
-                setShowAiPanel(false);
+                setShowAppsDropdown(false);
+                setShowReviewDropdown(false);
               }}
             >
               {user?.avatar && user.avatar !== null && user.avatar.trim() !== '' ? (
@@ -911,16 +1074,6 @@ const Navbar = () => {
         </div>
       </div>
 
-      {/* AI Agent chat panel — top right below navbar */}
-      {aiPanelMounted && ReactDOM.createPortal(
-        <NavbarAiAgentPanel
-          panelId={AI_PANEL_ID}
-          open={showAiPanel}
-          onCloseAction={() => setShowAiPanel(false)}
-          onExitedAction={handleAiPanelExited}
-        />,
-        document.body
-      )}
     </div>
   );
 };

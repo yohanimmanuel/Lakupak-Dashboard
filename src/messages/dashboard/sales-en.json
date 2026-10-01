@@ -383,7 +383,6 @@
   },
   "salesJobs": {
     "title": "Jobs",
-    "subtitle": "Jobs stay pending until you mark them complete.",
     "generate": "Generate suggestions",
     "newJob": "New job",
     "exportData": "Export Data",

@@ -103,8 +103,7 @@ export default function SalesJobsBoard() {
     <div className="p-4 w-full min-h-screen flex flex-col bg-gradient-to-b from-gray-50 to-white">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
         <div>
-          <h2 className="text-2xl font-bold text-black mb-2">{t('title')}</h2>
-          <p className="text-sm text-gray-600">{t('subtitle')}</p>
+          <h2 className="text-2xl font-bold text-black">{t('title')}</h2>
         </div>
         <div className="flex gap-2 items-center flex-wrap">
           <button

@@ -365,9 +365,14 @@ export const LAKU_APP_MODULES = [
     role: 'Sales, financial, and operational performance reports.',
   },
   {
+    id: 'copilot',
+    path: '/copilot',
+    role: 'Lakupak AI chat for analysis, orders, buyers, products, sales reminders, and workflow drafts. Saved workflows are listed at /automation. Creating or editing a workflow opens the canvas, where a draft is reviewed before it is saved or activated.',
+  },
+  {
     id: 'automation',
     path: '/automation',
-    role: 'Workflow builder (triggers, WhatsApp/Gmail apps, Lakupak AI buyer CS, actions).',
+    role: 'Saved workflow list. Open a workflow to review the canvas. WhatsApp and Gmail only. Sales agent replies on the distributor WhatsApp number are filed onto the open sales job when the facts are clear. Missing facts are asked back to the agent, not the admin.',
   },
   {
     id: 'marketplace',

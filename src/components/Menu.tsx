@@ -202,7 +202,14 @@ const Menu = () => {
   };
 
   type SubItem = { icon: React.ReactNode; label: string; href: string };
-  type MenuItem = { label: string; href?: string; color?: string; icon: React.ReactNode; submenu?: SubItem[] };
+  type MenuItem = {
+    label: string;
+    href?: string;
+    color?: string;
+    icon: React.ReactNode;
+    submenu?: SubItem[];
+    activePaths?: string[];
+  };
 
   const getTextColorClasses = (isActive: boolean | undefined) =>
     isActive ? LAKU_PRIMARY_TEXT : 'text-gray-600 group-hover:text-[#0a61d7]';
@@ -220,7 +227,11 @@ const Menu = () => {
   );
 
   const renderMenuItem = (item: MenuItem) => {
-    const isActive: boolean = Boolean(currentPath === item.href || (item.href && currentPath.startsWith(item.href + '/')));
+    const matchesPath = (path: string | undefined) =>
+      Boolean(path && (currentPath === path || currentPath.startsWith(path + '/')));
+    const isActive: boolean = Boolean(
+      matchesPath(item.href) || item.activePaths?.some((path) => matchesPath(path)),
+    );
     if (item.submenu) {
       const isOpen = openMenus[item.label];
       const isAnySubActive = item.submenu.some((sub: SubItem) => currentPath === sub.href || (sub.href && currentPath.startsWith(sub.href + '/')));

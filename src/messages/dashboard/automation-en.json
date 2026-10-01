@@ -1,12 +1,89 @@
 {
   "page": {
     "title": "Automations",
+    "askAi": "Ask AI",
     "newWorkflow": "New Workflow",
     "refresh": "Refresh",
     "deleteFailed": "Could not delete workflow.",
     "bulkDeletePartialFailed": "Could not delete {failed} of {total} workflows.",
     "statusChangeFailed": "Could not update workflow status.",
     "loadFailed": "Could not load workflows."
+  },
+  "copilot": {
+    "title": "Draft a workflow",
+    "hint": "Describe what should happen. Review the draft on the canvas. Nothing turns on until you activate it.",
+    "placeholder": "Ask Lakupak AI about orders, buyers, products, or an automation...",
+    "greetingMorning": "Good morning",
+    "greetingAfternoon": "Good afternoon",
+    "greetingEvening": "Good evening",
+    "greetingAsk": "How can I help with sales and commerce today?",
+    "greetingAskHighlight": "sales and commerce",
+    "assistantLabel": "Lakupak AI",
+    "send": "Send",
+    "thinking": "Thinking",
+    "saveDraft": "Apply to this workflow",
+    "saving": "Applying",
+    "saveFailed": "Could not apply this draft.",
+    "draftNote": "This updates the canvas only. Nothing is saved until you save it.",
+    "salesNote": "This runs on your distributor WhatsApp number. Agent replies are filed onto the open job. Buyer chats stay in customer service.",
+    "emptyTitle": "What should this workflow do?",
+    "applied": "The workflow structure is on the canvas. Save it when you are ready.",
+    "reviewCanvas": "Review on the canvas",
+    "unknown": "I could not answer that just now. Try again, or ask about orders, buyers, products, sales, or an automation.",
+    "recipes": {
+      "low_stock": {
+        "chip": "Low stock",
+        "prompt": "When stock is low, replenish and notify me",
+        "name": "Replenish low stock",
+        "summary": "When a product falls under its stock line, restock it and notify the dashboard.",
+        "logic": "If stock is still above the line, the run stops. If it crossed under, replenish the quantity you set, then notify the dashboard. Pick the product on the canvas before you turn this on."
+      },
+      "buyer_question": {
+        "chip": "Buyer question",
+        "prompt": "When a buyer asks on WhatsApp, stay in customer service",
+        "name": "Buyer WhatsApp service",
+        "summary": "When a buyer messages your WhatsApp number, stay in the 24 hour service window.",
+        "logic": "Answer catalog and order questions in that window. If they ask for a person, hand the chat off. Otherwise stop the run after the reply."
+      },
+      "return_accepted": {
+        "chip": "Return accepted",
+        "prompt": "When a return is accepted, confirm it on WhatsApp",
+        "name": "Confirm an accepted return",
+        "summary": "When a return is accepted, confirm it to the buyer and notify the dashboard.",
+        "logic": "Send the confirmation on WhatsApp, then notify the dashboard. Add the buyer and connect WhatsApp on the canvas before you turn this on.",
+        "template": "Your return was accepted. We will confirm the next step."
+      },
+      "new_buyer": {
+        "chip": "New buyer",
+        "prompt": "When a new buyer is created, assign a sales agent",
+        "name": "Assign a new buyer",
+        "summary": "When a buyer places a first order, tell the sales team and notify the dashboard.",
+        "logic": "Message the team on WhatsApp to assign an agent, then notify the dashboard. If nobody is available, stop and leave the notice on the dashboard.",
+        "template": "A new buyer placed a first order. Assign a sales agent."
+      },
+      "order_paid": {
+        "chip": "Payment proof",
+        "prompt": "When payment proof is submitted, mark the order paid",
+        "name": "Mark paid from proof",
+        "summary": "When a buyer submits payment proof, mark the order paid and notify the dashboard.",
+        "logic": "Only a submitted proof starts this. Mark the order paid from that proof, then notify the dashboard. If there is no proof, the run does not start."
+      },
+      "cart_idle": {
+        "chip": "Idle cart",
+        "prompt": "When a cart sits idle, send a win-back on WhatsApp",
+        "name": "Win back an idle cart",
+        "summary": "When a cart sits idle for 24 hours, send a win-back on WhatsApp.",
+        "logic": "Wait 24 hours. If the cart is still idle, send the win-back. If they already ordered, stop. Connect WhatsApp and pick the buyer on the canvas before you turn this on.",
+        "template": "You left items in your cart. Reply if you still want them."
+      },
+      "sales_jobs": {
+        "chip": "Sales jobs",
+        "prompt": "Remind sales agents and file their WhatsApp replies on the job",
+        "name": "Sales job replies",
+        "summary": "Your distributor WhatsApp number sends job assignments to sales agents and can also serve buyers.",
+        "logic": "When an agent replies in ordinary language, the visit is matched to their open job. If several shops are open, they are asked which shop. If a required fact is missing, they are asked on WhatsApp. Clear facts are saved on the job. You can still correct them on the job page."
+      }
+    }
   },
   "stats": {
     "totalWorkflows": "Total Workflows",

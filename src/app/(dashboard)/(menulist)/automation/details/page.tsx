@@ -37,7 +37,6 @@ import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
 import { useLocale } from 'next-intl';
-
 const WORKFLOW_QUERY = `
   query GetAutomationWorkflow($id: String!) {
     automationWorkflow(id: $id) {

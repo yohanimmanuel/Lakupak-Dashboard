@@ -1,12 +1,89 @@
 {
   "page": {
     "title": "Otomatisasi",
+    "askAi": "Tanya AI",
     "newWorkflow": "Alur Kerja Baru",
     "refresh": "Segarkan",
     "deleteFailed": "Tidak dapat menghapus alur kerja.",
     "bulkDeletePartialFailed": "Tidak dapat menghapus {failed} dari {total} alur kerja.",
     "statusChangeFailed": "Tidak dapat memperbarui status alur kerja.",
     "loadFailed": "Tidak dapat memuat alur kerja."
+  },
+  "copilot": {
+    "title": "Buat draf alur kerja",
+    "hint": "Jelaskan apa yang harus terjadi. Tinjau draf di kanvas. Tidak ada yang aktif sampai Anda mengaktifkannya.",
+    "placeholder": "Tanya Lakupak AI tentang pesanan, pembeli, produk, atau otomatisasi...",
+    "greetingMorning": "Selamat pagi",
+    "greetingAfternoon": "Selamat siang",
+    "greetingEvening": "Selamat malam",
+    "greetingAsk": "Bagaimana saya bisa membantu penjualan dan perdagangan hari ini?",
+    "greetingAskHighlight": "penjualan dan perdagangan",
+    "assistantLabel": "Lakupak AI",
+    "send": "Kirim",
+    "thinking": "Sedang berpikir",
+    "saveDraft": "Terapkan pada alur kerja ini",
+    "saving": "Menerapkan",
+    "saveFailed": "Tidak dapat menerapkan draf ini.",
+    "draftNote": "Ini hanya mengubah kanvas. Belum tersimpan sampai Anda menyimpannya.",
+    "salesNote": "Ini berjalan di nomor WhatsApp distributor Anda. Balasan agen disimpan pada pekerjaan yang terbuka. Chat pembeli tetap di layanan pelanggan.",
+    "emptyTitle": "Apa yang harus dilakukan alur kerja ini?",
+    "applied": "Struktur alur kerja sudah ada di kanvas. Simpan saat siap.",
+    "reviewCanvas": "Tinjau di kanvas",
+    "unknown": "Saya belum bisa menjawab itu. Coba lagi, atau tanyakan pesanan, pembeli, produk, penjualan, atau otomatisasi.",
+    "recipes": {
+      "low_stock": {
+        "chip": "Stok rendah",
+        "prompt": "Saat stok rendah, isi ulang dan beri tahu saya",
+        "name": "Isi ulang stok rendah",
+        "summary": "Saat produk turun di bawah batas stok, isi ulang dan beri tahu dasbor.",
+        "logic": "Jika stok masih di atas batas, proses berhenti. Jika sudah turun, isi ulang jumlah yang Anda tetapkan, lalu beri tahu dasbor. Pilih produk di kanvas sebelum diaktifkan."
+      },
+      "buyer_question": {
+        "chip": "Pertanyaan pembeli",
+        "prompt": "Saat pembeli bertanya di WhatsApp, tetap di layanan pelanggan",
+        "name": "Layanan WhatsApp pembeli",
+        "summary": "Saat pembeli mengirim pesan ke nomor WhatsApp Anda, tetap di jendela layanan 24 jam.",
+        "logic": "Jawab pertanyaan katalog dan pesanan di jendela itu. Jika mereka minta bicara dengan orang, alihkan chat. Jika tidak, hentikan proses setelah balasan."
+      },
+      "return_accepted": {
+        "chip": "Retur diterima",
+        "prompt": "Saat retur diterima, konfirmasi di WhatsApp",
+        "name": "Konfirmasi retur yang diterima",
+        "summary": "Saat retur diterima, konfirmasi ke pembeli dan beri tahu dasbor.",
+        "logic": "Kirim konfirmasi di WhatsApp, lalu beri tahu dasbor. Tambahkan pembeli dan hubungkan WhatsApp di kanvas sebelum diaktifkan.",
+        "template": "Retur Anda diterima. Kami akan mengonfirmasi langkah berikutnya."
+      },
+      "new_buyer": {
+        "chip": "Pembeli baru",
+        "prompt": "Saat pembeli baru dibuat, tugaskan agen penjualan",
+        "name": "Tugaskan pembeli baru",
+        "summary": "Saat pembeli membuat pesanan pertama, beri tahu tim penjualan dan dasbor.",
+        "logic": "Kirim pesan ke tim di WhatsApp untuk menugaskan agen, lalu beri tahu dasbor. Jika tidak ada yang tersedia, berhenti dan biarkan pemberitahuan di dasbor.",
+        "template": "Pembeli baru membuat pesanan pertama. Tugaskan agen penjualan."
+      },
+      "order_paid": {
+        "chip": "Bukti bayar",
+        "prompt": "Saat bukti pembayaran dikirim, tandai pesanan lunas",
+        "name": "Tandai lunas dari bukti",
+        "summary": "Saat pembeli mengirim bukti pembayaran, tandai pesanan lunas dan beri tahu dasbor.",
+        "logic": "Hanya bukti yang terkirim yang memulai ini. Tandai pesanan lunas dari bukti itu, lalu beri tahu dasbor. Jika tidak ada bukti, proses tidak mulai."
+      },
+      "cart_idle": {
+        "chip": "Keranjang menganggur",
+        "prompt": "Saat keranjang menganggur, kirim ajakan kembali di WhatsApp",
+        "name": "Ajak kembali keranjang menganggur",
+        "summary": "Saat keranjang menganggur 24 jam, kirim ajakan kembali di WhatsApp.",
+        "logic": "Tunggu 24 jam. Jika keranjang masih menganggur, kirim ajakan kembali. Jika mereka sudah memesan, berhenti. Hubungkan WhatsApp dan pilih pembeli di kanvas sebelum diaktifkan.",
+        "template": "Anda meninggalkan barang di keranjang. Balas jika masih menginginkannya."
+      },
+      "sales_jobs": {
+        "chip": "Pekerjaan penjualan",
+        "prompt": "Ingatkan agen penjualan dan simpan balasan WhatsApp mereka pada pekerjaan",
+        "name": "Balasan pekerjaan penjualan",
+        "summary": "Nomor WhatsApp distributor mengirim penugasan ke agen penjualan dan juga bisa melayani pembeli.",
+        "logic": "Saat agen membalas dengan bahasa biasa, kunjungan dicocokkan ke pekerjaan yang terbuka. Jika beberapa toko terbuka, mereka ditanya toko yang mana. Jika ada fakta wajib yang kurang, mereka ditanya di WhatsApp. Fakta yang jelas disimpan pada pekerjaan. Anda tetap bisa memperbaikinya di halaman pekerjaan."
+      }
+    }
   },
   "stats": {
     "totalWorkflows": "Total Alur Kerja",

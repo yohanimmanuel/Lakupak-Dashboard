@@ -4,6 +4,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { ArrowLeft, ChevronRight, Loader2, Play, RefreshCw, Save, Undo2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
+import { AskAiNavButton } from '@/components/automations/AutomationCopilot';
 import type { WorkflowStatus } from '../automationTypes';
 
 type BuilderPanelControls = { closeWorkflowDetails: () => void };
@@ -218,6 +219,7 @@ export function WorkflowBuilderShell({
               {savedLabel}
             </span>
           )}
+          <AskAiNavButton />
           <span className="mx-0.5 hidden h-6 w-px bg-[#e6e6e6] sm:inline-block" aria-hidden />
           {onUndoAction && (
             <button

@@ -64,13 +64,6 @@ export async function POST(request: NextRequest) {
           console.error('[whatsapp-webhook] status dispatch failed', err);
         }
       }
-      if (messages.length > 0) {
-        try {
-          await dispatchInboundWhatsAppMessages(messages);
-        } catch (err) {
-          console.error('[whatsapp-webhook] inbound dispatch failed', err);
-        }
-      }
       if (salesJobReplies.length > 0) {
         const { handleWhatsAppReply } = await import('@/lib/salesJobs/whatsapp');
         for (const reply of salesJobReplies) {
@@ -79,6 +72,44 @@ export async function POST(request: NextRequest) {
           } catch (err) {
             console.error('[whatsapp-webhook] sales job reply failed', err);
           }
+        }
+      }
+      if (messages.length > 0) {
+        try {
+          const { consumeAgentWhatsAppTexts } = await import('@/lib/salesJobs/agentReply');
+          const { toWhatsAppCloudRecipient } = await import('@/lib/whatsapp/cloudApi');
+          const knownIds = new Set(
+            messages.flatMap((message) => (message.messageId ? [message.messageId] : [])),
+          );
+          const matchedIds = new Set(
+            salesJobReplies.flatMap((reply) =>
+              reply.inboundMessageId && knownIds.has(reply.inboundMessageId) ? [reply.inboundMessageId] : [],
+            ),
+          );
+          const unmatchedReplies = salesJobReplies.filter(
+            (reply) =>
+              Boolean(reply.sourceText) &&
+              !(reply.inboundMessageId && matchedIds.has(reply.inboundMessageId)),
+          );
+          const usedReplies = new Set<number>();
+          const leftover = messages.filter((message) => {
+            if (message.messageId && matchedIds.has(message.messageId)) return false;
+            const from = toWhatsAppCloudRecipient(message.from);
+            const index = unmatchedReplies.findIndex((reply, replyIndex) => {
+              if (usedReplies.has(replyIndex)) return false;
+              const replyFrom = toWhatsAppCloudRecipient(reply.fromPhone || '');
+              return Boolean(from && replyFrom && from === replyFrom && reply.sourceText === message.text);
+            });
+            if (index < 0) return true;
+            usedReplies.add(index);
+            return false;
+          });
+          const buyerMessages = await consumeAgentWhatsAppTexts(leftover);
+          if (buyerMessages.length > 0) {
+            await dispatchInboundWhatsAppMessages(buyerMessages);
+          }
+        } catch (err) {
+          console.error('[whatsapp-webhook] inbound dispatch failed', err);
         }
       }
     });

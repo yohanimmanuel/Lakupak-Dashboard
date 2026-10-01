@@ -1,5 +1,6 @@
 import { chatWithOpenRouter, isOpenRouterConfigured } from '@/lib/automations/openrouter';
 import { resolveLakuAgentProviderModel } from '@/lib/automations/agentModels';
+import { copilotRecipeById } from '@/lib/automations/copilotRecipes';
 import { buildDistributorAppAssistantContext } from '@/lib/lakuAi/distributorAppContext';
 import { searchDocsLocal } from '@/lib/docs/search';
 import { docUrl, getDocsNav } from '@/lib/docs/load';
@@ -11,8 +12,72 @@ export type DistributorAppChatMessage = {
 };
 
 export type DistributorAppAssistantResult =
-  | { ok: true; reply: string; model: string }
+  | { ok: true; reply: string; model: string; recipeId: string | null }
   | { ok: false; error: string; code?: 'unauthorized' | 'not_configured' | 'bad_request' | 'upstream' };
+
+const AUTOMATION_RECIPES = [
+  'low_stock: stock falls under its line, then replenish and notify the dashboard. The user picks the product and quantity on the canvas.',
+  'buyer_question: a buyer messages the distributor WhatsApp number. Stay in the 24 hour service window. Hand off if they ask for a person.',
+  'return_accepted: a return is accepted. Confirm on WhatsApp and notify the dashboard.',
+  'new_buyer: a buyer places a first order. Message the team to assign an agent and notify the dashboard.',
+  'order_paid: payment proof is submitted. Mark the order paid from that proof and notify the dashboard.',
+  'cart_idle: a cart sits idle for 24 hours. Send a WhatsApp win-back. Stop if they already ordered.',
+  'sales_jobs: guide only. Sales agent replies on the distributor WhatsApp number are filed on the open job when the facts are clear. Several shops means ask which shop. A missing fact means ask the agent.',
+].join('\n');
+
+function recipeFromJson(raw: string): { recipeId: string | null } | null {
+  try {
+    const parsed = JSON.parse(raw) as { recipeId?: unknown };
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || !('recipeId' in parsed)) return null;
+    const id = typeof parsed.recipeId === 'string' ? parsed.recipeId.trim() : '';
+    return { recipeId: id && copilotRecipeById(id) ? id : null };
+  } catch {
+    return null;
+  }
+}
+
+function recipeInChunk(chunk: string): { recipeId: string | null } | null {
+  const whole = recipeFromJson(chunk.trim());
+  if (whole) return whole;
+  const inlines = [...chunk.matchAll(/\{[^{}]*"recipeId"[^{}]*\}/g)];
+  for (let i = inlines.length - 1; i >= 0; i -= 1) {
+    const parsed = recipeFromJson(inlines[i][0]);
+    if (parsed) return parsed;
+  }
+  return null;
+}
+
+function extractRecipeReply(content: string): { reply: string; recipeId: string | null } {
+  const text = content.replace(/\u2014|\u2013/g, '-').trim();
+  const markers: { start: number; end: number; recipeId: string | null }[] = [];
+  const fences = [...text.matchAll(/```(?:json)?\s*([\s\S]*?)```/g)];
+  for (const fence of fences) {
+    if (fence.index == null) continue;
+    const parsed = recipeInChunk(fence[1] ?? '');
+    if (!parsed) continue;
+    markers.push({
+      start: fence.index,
+      end: fence.index + fence[0].length,
+      recipeId: parsed.recipeId,
+    });
+  }
+  for (const inline of text.matchAll(/\{[^{}]*"recipeId"[^{}]*\}/g)) {
+    if (inline.index == null) continue;
+    const insideFence = markers.some((marker) => inline.index! >= marker.start && inline.index! < marker.end);
+    if (insideFence) continue;
+    const parsed = recipeFromJson(inline[0]);
+    if (!parsed) continue;
+    markers.push({
+      start: inline.index,
+      end: inline.index + inline[0].length,
+      recipeId: parsed.recipeId,
+    });
+  }
+  if (markers.length === 0) return { reply: text, recipeId: null };
+  const selected = markers.reduce((last, marker) => (marker.start >= last.start ? marker : last));
+  const reply = `${text.slice(0, selected.start)}${text.slice(selected.end)}`.trim();
+  return { reply, recipeId: selected.recipeId };
+}
 
 function normalizeLocale(locale: string | null | undefined): 'en' | 'id' {
   const raw = String(locale ?? '')
@@ -50,7 +115,7 @@ function buildDocsHitsForQuestion(locale: DocLocale, message: string) {
 }
 
 /**
- * Navbar Laku AI — distributor business / app guide for the whole dashboard.
+ * Shared Lakupak AI for the navbar and the automation copilot.
  * Not the buyer-facing WhatsApp CS agent (that one is more restricted).
  */
 export async function runDistributorAppAssistant(input: {
@@ -142,7 +207,18 @@ export async function runDistributorAppAssistant(input: {
     'You MAY use and discuss any fields present in the account context JSON for THIS distributor only.',
     'Do not invent orders, products, buyers, metrics, or other accounts.',
     'Do not ask for or expose passwords, API keys, or payment card numbers.',
-    'This assistant is for distributors inside Lakupak — not the restricted buyer WhatsApp CS agent.',
+    'This assistant is for distributors inside Lakupak, not the restricted buyer WhatsApp CS agent.',
+    'ONE ASSISTANT:',
+    'You are the same Lakupak AI everywhere: analysis, order taking, buyer analysis, product creation, offers, sales reminders, and automation drafts. Do not tell the user to open a different chatbot.',
+    'Answer the question they asked. If they want numbers, use the account context. If they want to create a product, buyer, or order, explain the practical next step and the module path.',
+    'AUTOMATION DRAFTS:',
+    'When they ask you to build, automate, remind, or set up a repeating process, explain the draft in plain language and end with one JSON line: {"recipeId":"<id>"}',
+    'Use only these ids. Channels for drafts are WhatsApp and Gmail only. Do not invent other apps.',
+    'If they are not asking to build a workflow, end with {"recipeId":null}. A greeting, an analysis question, order help, buyer help, or product help is not a workflow.',
+    'If none of the ids fit, answer in conversation and use null. Do not invent a workflow.',
+    'The JSON line is removed before they see the reply. Do not mention it.',
+    'Do not claim a workflow is saved or active. They review it on the canvas, then save or activate it themselves.',
+    AUTOMATION_RECIPES,
   ].join('\n\n');
 
   const history = (input.history ?? [])
@@ -177,13 +253,11 @@ export async function runDistributorAppAssistant(input: {
       temperature: 0.35,
       maxTokens: 6144,
     });
-    const reply = String(result.content ?? '')
-      .replace(/\u2014|\u2013/g, '-')
-      .trim();
-    if (!reply) {
+    const parsed = extractRecipeReply(String(result.content ?? ''));
+    if (!parsed.reply) {
       return { ok: false, code: 'upstream', error: 'Empty reply from model.' };
     }
-    return { ok: true, reply, model: result.model };
+    return { ok: true, reply: parsed.reply, model: result.model, recipeId: parsed.recipeId };
   } catch (e) {
     const raw = e instanceof Error ? e.message : 'Upstream error';
     const timedOut = /timeout|aborted|AbortError/i.test(raw);

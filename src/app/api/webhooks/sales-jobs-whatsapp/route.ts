@@ -32,5 +32,15 @@ export async function POST(request: NextRequest) {
   for (const reply of replies) {
     results.push(await handleWhatsAppReply(reply));
   }
+  if (replies.length === 0 && body && typeof body === 'object') {
+    const row = body as { fromPhone?: unknown; text?: unknown };
+    const fromPhone = typeof row.fromPhone === 'string' ? row.fromPhone : '';
+    const text = typeof row.text === 'string' ? row.text : '';
+    if (fromPhone && text) {
+      const { handleFreeformAgentReply } = await import('@/lib/salesJobs/agentReply');
+      const outcome = await handleFreeformAgentReply({ fromPhone, text });
+      return NextResponse.json({ ok: true, handled: outcome.handled ? 1 : 0, results: [outcome] });
+    }
+  }
   return NextResponse.json({ ok: true, handled: results.filter((row) => row.handled).length, results });
 }

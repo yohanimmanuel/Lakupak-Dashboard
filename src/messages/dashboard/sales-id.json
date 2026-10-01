@@ -383,7 +383,6 @@
   },
   "salesJobs": {
     "title": "Pekerjaan",
-    "subtitle": "Pekerjaan tetap menunggu sampai Anda menandai selesai.",
     "generate": "Buat saran",
     "newJob": "Pekerjaan baru",
     "exportData": "Ekspor Data",

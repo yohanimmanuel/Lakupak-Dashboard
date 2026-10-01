@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronRight, Maximize2, Minimize2, Package, Send, Truck, TrendingUp, X } from 'lucide-react';
+import { ChevronRight, Maximize2, Minimize2, Package, Send, Sparkles, Truck, TrendingUp, X } from 'lucide-react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { useUserStore } from '@/store/userStore';
 import { AiChatMarkdown } from '@/components/AiChatMarkdown';
+import { copilotRecipeById } from '@/lib/automations/copilotRecipes';
 import {
   beginAiChatSend,
   getActiveAiChatSend,
@@ -93,6 +95,10 @@ export function NavbarAiAgentPanel({
       logistics: {
         explore: tNavbar('aiAgentExploreLogistics'),
         prompt: tNavbar('aiAgentOptionLogisticsPrompt'),
+      },
+      copilot: {
+        explore: tNavbar('aiAgentExploreCopilot'),
+        prompt: tNavbar('aiAgentOptionCopilotPrompt'),
       },
     }),
     [tNavbar],
@@ -318,7 +324,7 @@ export function NavbarAiAgentPanel({
           if (!isAiChatSessionGenerationCurrent(generation)) return;
 
           const payload = (await res.json().catch(() => null)) as
-            | { reply?: string; error?: string }
+            | { reply?: string; error?: string; recipeId?: string | null }
             | null;
           if (!isAiChatSessionGenerationCurrent(generation)) return;
 
@@ -328,10 +334,12 @@ export function NavbarAiAgentPanel({
           const reply = String(payload?.reply ?? '').trim();
           if (!reply) throw new Error(tNavbar('aiAgentError'));
 
+          const recipe = payload?.recipeId ? copilotRecipeById(payload.recipeId) : null;
           const assistantMsg: ChatMessage = {
             id: newId(),
             role: 'assistant',
             content: reply,
+            recipeId: recipe?.kind === 'workflow' ? recipe.id : null,
           };
           const latest = loadAiChatSession(userKey);
           const baseMessages = latest?.messages ?? messagesWithUser;
@@ -511,12 +519,13 @@ export function NavbarAiAgentPanel({
               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
             </div>
 
-            <div className="mt-4 grid grid-cols-3 gap-2">
+            <div className="mt-4 grid grid-cols-2 gap-2">
               {(
                 [
                   { key: 'financial', icon: TrendingUp, label: quickOptions.financial.explore, prompt: quickOptions.financial.prompt },
                   { key: 'products', icon: Package, label: quickOptions.products.explore, prompt: quickOptions.products.prompt },
                   { key: 'logistics', icon: Truck, label: quickOptions.logistics.explore, prompt: quickOptions.logistics.prompt },
+                  { key: 'copilot', icon: Sparkles, label: quickOptions.copilot.explore, prompt: quickOptions.copilot.prompt },
                 ] as const
               ).map((opt) => (
                 <button
@@ -553,7 +562,18 @@ export function NavbarAiAgentPanel({
                   }`}
                 >
                   {m.role === 'assistant' ? (
-                    <AiChatMarkdown content={m.content} size={expanded ? 'md' : 'sm'} />
+                    <>
+                      <AiChatMarkdown content={m.content} size={expanded ? 'md' : 'sm'} />
+                      {m.recipeId ? (
+                        <Link
+                          href={`/automation/new?recipe=${encodeURIComponent(m.recipeId)}`}
+                          onClick={onCloseAction}
+                          className="mt-2 inline-flex text-xs font-semibold text-[#0a61d7] hover:underline"
+                        >
+                          {tNavbar('aiAgentReviewCanvas')}
+                        </Link>
+                      ) : null}
+                    </>
                   ) : (
                     m.content
                   )}
