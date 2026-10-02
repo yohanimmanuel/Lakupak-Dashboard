@@ -23,8 +23,9 @@ import {
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
-import { buildCopilotDraft } from '@/components/automations/buildCopilotDraft';
-import { copilotRecipeById } from '@/lib/automations/copilotRecipes';
+import { buildCopilotDraftFromRecipe } from '@/components/automations/buildCopilotDraft';
+import { clearPendingBuilderChat } from '@/lib/lakuAi/pendingBuilderChat';
+import { writeCopilotWorkflowLink } from '@/lib/lakuAi/copilotWorkflowLink';
 
 const CREATE_MUTATION = `
   mutation CreateAutomationWorkflow(
@@ -80,6 +81,9 @@ export default function NewAutomationPage() {
   const locale = useLocale();
   const tCopilot = useTranslations('dashboard.automation.copilot');
   const recipeBootstrapped = useRef(false);
+  const chatIdRef = useRef<string | null>(null);
+  const [linkedChatId, setLinkedChatId] = useState<string | null>(null);
+  const closeAskAiRef = useRef<(() => void) | null>(null);
 
   const labels = useMemo(
     () => ({
@@ -98,11 +102,46 @@ export default function NewAutomationPage() {
     () => draft.nodes[0]?.id ?? null,
   );
   const [saving, setSaving] = useState(false);
+  const [aiApplying, setAiApplying] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const draftRef = useRef(draft);
   draftRef.current = draft;
   const history = useCanvasHistory();
+  const applySeqRef = useRef(0);
+
+  const applyWorkflowRecipe = useCallback(async (recipeId: string) => {
+    const built = buildCopilotDraftFromRecipe({
+      recipeId,
+      locale,
+      labels,
+      text: (key) => tCopilot(key),
+      has: (key) => tCopilot.has(key),
+      triggerLabel: (type) => tTriggers(type),
+      hasTrigger: (type) => tTriggers.has(type),
+      actionLabel: (type) => tActions(type),
+      hasAction: (type) => tActions.has(type),
+    });
+    if (!built) return;
+    const seq = ++applySeqRef.current;
+    setAiApplying(true);
+    await new Promise((resolve) => window.setTimeout(resolve, 700));
+    if (seq !== applySeqRef.current) return;
+    const current = draftRef.current;
+    history.push({ nodes: current.nodes, edges: current.edges }, { force: true });
+    setDraft({
+      name: built.name.trim(),
+      description: built.description,
+      type: built.type,
+      status: current.status,
+      nodes: built.nodes,
+      edges: built.edges,
+    });
+    setSelectedNodeId(built.nodes[0]?.id ?? null);
+    setNameError(null);
+    setFormError(null);
+    setAiApplying(false);
+  }, [history, labels, locale, tActions, tCopilot, tTriggers]);
 
   const checkpointHistory = useCallback(() => {
     const current = draftRef.current;
@@ -217,6 +256,8 @@ export default function NewAutomationPage() {
           gmailEmail: flat.gmailEmail || null,
         },
       );
+      clearPendingBuilderChat();
+      if (chatIdRef.current) writeCopilotWorkflowLink(chatIdRef.current, result.createAutomationWorkflow.id);
       if (status === 'draft') {
         window.location.href = `/automation/details?id=${result.createAutomationWorkflow.id}`;
         return true;
@@ -232,47 +273,34 @@ export default function NewAutomationPage() {
   };
 
   useEffect(() => {
+    const chat = new URLSearchParams(window.location.search).get('chat');
+    if (chat) {
+      chatIdRef.current = chat;
+      setLinkedChatId(chat);
+    }
+  }, []);
+
+  useEffect(() => {
     if (recipeBootstrapped.current) return;
-    const recipeId = new URLSearchParams(window.location.search).get('recipe');
+    const params = new URLSearchParams(window.location.search);
+    const recipeId = params.get('recipe');
+    chatIdRef.current = params.get('chat') ?? chatIdRef.current;
     if (!recipeId) return;
-    const recipe = copilotRecipeById(recipeId);
-    if (!recipe || recipe.kind !== 'workflow') return;
     recipeBootstrapped.current = true;
-    const templateKey = `recipes.${recipe.id}.template`;
-    const built = buildCopilotDraft({
-      recipe,
-      locale,
-      labels,
-      triggerLabel: tTriggers.has(recipe.triggerType) ? tTriggers(recipe.triggerType) : labels.triggerSubtitle,
-      actionLabels: recipe.actions.map((action) =>
-        tActions.has(action.type) ? tActions(action.type) : labels.actionTitle,
-      ),
-      note: tCopilot(`recipes.${recipe.id}.logic`),
-      name: tCopilot(`recipes.${recipe.id}.name`),
-      description: tCopilot(`recipes.${recipe.id}.summary`),
-      messageTemplate: tCopilot.has(templateKey) ? tCopilot(templateKey) : undefined,
-    });
-    const current = draftRef.current;
-    history.push({ nodes: current.nodes, edges: current.edges }, { force: true });
-    setDraft({
-      name: built.name.trim(),
-      description: built.description,
-      type: built.type,
-      status: current.status,
-      nodes: built.nodes,
-      edges: built.edges,
-    });
-    setSelectedNodeId(built.nodes[0]?.id ?? null);
-    setNameError(null);
-    setFormError(null);
     window.history.replaceState(null, '', '/automation/new');
-  }, [history, labels, locale, tActions, tCopilot, tTriggers]);
+    void applyWorkflowRecipe(recipeId);
+  }, [applyWorkflowRecipe]);
 
   return (
     <WorkflowBuilderShell
       title={draft.name || tBuilder('untitled')}
       status={draft.status}
       saving={saving}
+      aiApplying={aiApplying}
+      onApplyWorkflowRecipeAction={(recipeId) => void applyWorkflowRecipe(recipeId)}
+      initialConversationId={linkedChatId}
+      onDismissStepDetailsAction={() => setSelectedNodeId(null)}
+      closeAskAiRef={closeAskAiRef}
       onSaveDraftAction={() => save('draft')}
       onActivateAction={() => save('active')}
       onUndoAction={undo}
@@ -285,7 +313,10 @@ export default function NewAutomationPage() {
           selectedNodeId={selectedNodeId}
           onNodesChangeAction={(nodes: WorkflowFlowNode[]) => patch({ nodes })}
           onEdgesChangeAction={(edges: WorkflowFlowEdge[]) => patch({ edges })}
-          onSelectNodeAction={setSelectedNodeId}
+          onSelectNodeAction={(nodeId) => {
+            setSelectedNodeId(nodeId);
+            if (nodeId) closeAskAiRef.current?.();
+          }}
           onHistoryCheckpointAction={checkpointHistory}
         />
       }

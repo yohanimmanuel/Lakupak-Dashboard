@@ -1242,36 +1242,28 @@ export default function OfferTable({
       </div>
 
       {showDeleteModal && (groupToDelete || isBulkDelete) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-lg border border-[#e6e6e6] w-full max-w-md p-5 space-y-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-              <div>
-                <h3 className="text-base font-semibold text-black">
-              {isBulkDelete 
-                    ? tTable('deleteOffersTitle')
-                    : tTable('deleteOffer')}
-                </h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  {isBulkDelete
-                    ? tTable('deleteBulkConfirm', {
-                        count: String(selectedKeys.length),
-                      })
-                    : groupToDelete && groupToDelete.members.length > 1
-                      ? tTable('deleteGroupConfirm', {
-                          count: String(groupToDelete.members.length),
-                        })
-                      : tTable('deleteConfirm')}
-                </p>
-                {deleteError && (
-                  <p className="text-sm text-red-600 mt-2">{deleteError}</p>
-                )}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 w-full max-w-sm">
+            <h2 className="text-lg font-bold mb-2 text-red-500">
+              {isBulkDelete ? tTable('deleteOffersTitle') : tTable('deleteOffer')}
+            </h2>
+            {deleteError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-500" />
+                <span className="text-red-700 text-sm">{deleteError}</span>
               </div>
-            </div>
+            )}
+            <p className="mb-4 text-gray-500">
+              {isBulkDelete
+                ? tTable('deleteBulkConfirm', { count: String(selectedKeys.length) })
+                : groupToDelete && groupToDelete.members.length > 1
+                  ? tTable('deleteGroupConfirm', { count: String(groupToDelete.members.length) })
+                  : tTable('deleteConfirm')}
+            </p>
             <div className="flex justify-end gap-2">
               <button
                 type="button"
-                className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm"
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500"
                 onClick={() => {
                   setShowDeleteModal(false);
                   setGroupToDelete(null);
@@ -1283,15 +1275,15 @@ export default function OfferTable({
               </button>
               <button
                 type="button"
-                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold disabled:opacity-50"
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 flex items-center gap-2 disabled:opacity-50"
                 onClick={handleDelete}
                 disabled={isDeleting}
               >
                 {isDeleting ? (
-                  <span className="inline-flex items-center gap-2">
+                  <>
                     <Loader2 className="w-4 h-4 animate-spin" />
                     {tShared('deleting')}
-                  </span>
+                  </>
                 ) : (
                   tShared('delete')
                 )}

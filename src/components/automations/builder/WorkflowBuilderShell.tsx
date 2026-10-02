@@ -4,7 +4,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { ArrowLeft, ChevronRight, Loader2, Play, RefreshCw, Save, Undo2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
-import { AskAiNavButton } from '@/components/automations/AutomationCopilot';
+import AutomationCopilot, { AskAiNavButton } from '@/components/automations/AutomationCopilot';
 import type { WorkflowStatus } from '../automationTypes';
 
 type BuilderPanelControls = { closeWorkflowDetails: () => void };
@@ -41,6 +41,12 @@ export function WorkflowBuilderShell({
   leftPanel,
   rightPanel,
   rightPanelOpen,
+  aiAutomationId = null,
+  aiApplying = false,
+  onApplyWorkflowRecipeAction,
+  onDismissStepDetailsAction,
+  closeAskAiRef,
+  initialConversationId = null,
 }: {
   title: string;
   status: WorkflowStatus;
@@ -56,10 +62,30 @@ export function WorkflowBuilderShell({
   rightPanel: React.ReactNode;
   /** Step details follow canvas selection — no manual toggle. */
   rightPanelOpen: boolean;
+  /** Saved workflow id. Null on a new workflow until the first save. */
+  aiAutomationId?: string | null;
+  /** Canvas is receiving an AI draft and should ignore clicks. */
+  aiApplying?: boolean;
+  onApplyWorkflowRecipeAction?: (recipeId: string) => void;
+  /** Shared Copilot conversation to continue in Ask AI. */
+  initialConversationId?: string | null;
+  /** Closes the step details card so Ask AI can use that side. */
+  onDismissStepDetailsAction?: () => void;
+  /** Canvas selection calls this to close Ask AI. */
+  closeAskAiRef?: React.MutableRefObject<(() => void) | null>;
 }) {
   const router = useRouter();
   const { tBuilder, translateStatus } = useAutomationTranslations();
   const [leftOpen, setLeftOpen] = useState(true);
+  const [aiOpen, setAiOpen] = useState(false);
+
+  useEffect(() => {
+    if (!closeAskAiRef) return;
+    closeAskAiRef.current = () => setAiOpen(false);
+    return () => {
+      closeAskAiRef.current = null;
+    };
+  }, [closeAskAiRef]);
   const [returnFocusToLeftToggle, setReturnFocusToLeftToggle] = useState(false);
   const leftToggleRef = useRef<HTMLButtonElement>(null);
   const [toolbarBusy, setToolbarBusy] = useState<ToolbarBusy>(null);
@@ -185,6 +211,21 @@ export function WorkflowBuilderShell({
     <div className="relative h-[calc(100dvh-4rem)] w-full overflow-hidden bg-[#f7f9fc]">
       <div className="absolute inset-0 z-0">{canvas}</div>
 
+      {aiApplying ? (
+        <div
+          className={`absolute inset-0 z-[35] flex items-center justify-center bg-white/50 ${
+            aiOpen ? 'pr-[min(100%,26rem)]' : ''
+          }`}
+          role="status"
+          aria-live="polite"
+        >
+          <div className="flex items-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-3">
+            <Loader2 className="h-4 w-4 animate-spin text-[#0a61d7]" />
+            <span className="text-sm font-medium text-black">{tBuilder('applyingWorkflow')}</span>
+          </div>
+        </div>
+      ) : null}
+
       <div className="absolute left-3 right-3 top-3 z-30 flex flex-col gap-3 rounded-xl border border-[#e6e6e6] bg-white p-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <button
@@ -219,7 +260,17 @@ export function WorkflowBuilderShell({
               {savedLabel}
             </span>
           )}
-          <AskAiNavButton />
+          <AskAiNavButton
+            pressed={aiOpen}
+            onPressAction={() => {
+              if (aiOpen) {
+                setAiOpen(false);
+                return;
+              }
+              onDismissStepDetailsAction?.();
+              setAiOpen(true);
+            }}
+          />
           <span className="mx-0.5 hidden h-6 w-px bg-[#e6e6e6] sm:inline-block" aria-hidden />
           {onUndoAction && (
             <button
@@ -313,6 +364,27 @@ export function WorkflowBuilderShell({
           </div>
         </aside>
       </div>
+
+      <aside
+        className={`absolute bottom-16 right-3 top-18 z-40 flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${
+          aiOpen
+            ? 'pointer-events-auto w-[min(100vw-1.5rem,24rem)] translate-x-0 opacity-100'
+            : 'pointer-events-none w-0 translate-x-3 opacity-0'
+        }`}
+        aria-hidden={!aiOpen}
+        inert={!aiOpen}
+      >
+        <div className="flex h-full min-h-0 w-[min(100vw-1.5rem,24rem)] flex-col overflow-hidden rounded-xl border border-[#e6e6e6] bg-white">
+          <AutomationCopilot
+            surface="dock"
+            automationId={aiAutomationId}
+            active={aiOpen}
+            onCloseAction={() => setAiOpen(false)}
+            onApplyWorkflowRecipeAction={onApplyWorkflowRecipeAction}
+            initialConversationId={initialConversationId}
+          />
+        </div>
+      </aside>
 
       {/* Right: step details — slides in when a canvas node is selected or created */}
       <div className="pointer-events-none absolute bottom-16 right-3 top-18 z-30 flex max-h-full min-h-0 items-stretch">

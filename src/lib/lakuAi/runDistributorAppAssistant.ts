@@ -123,6 +123,7 @@ export async function runDistributorAppAssistant(input: {
   message: string;
   history?: DistributorAppChatMessage[];
   locale?: string | null;
+  onCanvas?: boolean;
 }): Promise<DistributorAppAssistantResult> {
   const message = String(input.message ?? '').trim();
   if (!message) {
@@ -212,14 +213,20 @@ export async function runDistributorAppAssistant(input: {
     'You are the same Lakupak AI everywhere: analysis, order taking, buyer analysis, product creation, offers, sales reminders, and automation drafts. Do not tell the user to open a different chatbot.',
     'Answer the question they asked. If they want numbers, use the account context. If they want to create a product, buyer, or order, explain the practical next step and the module path.',
     'AUTOMATION DRAFTS:',
-    'When they ask you to build, automate, remind, or set up a repeating process, explain the draft in plain language and end with one JSON line: {"recipeId":"<id>"}',
+    'When they ask you to build, change, replace, switch, or edit a workflow, explain the draft in plain language and end with one JSON line: {"recipeId":"<id>"}',
     'Use only these ids. Channels for drafts are WhatsApp and Gmail only. Do not invent other apps.',
-    'If they are not asking to build a workflow, end with {"recipeId":null}. A greeting, an analysis question, order help, buyer help, or product help is not a workflow.',
+    'Changing the workflow already on the canvas still needs a recipeId. Pick the id that matches the workflow they want.',
+    'If they are not asking to build or change a workflow, end with {"recipeId":null}. A greeting, an analysis question, order help, buyer help, or product help is not a workflow.',
     'If none of the ids fit, answer in conversation and use null. Do not invent a workflow.',
     'The JSON line is removed before they see the reply. Do not mention it.',
-    'Do not claim a workflow is saved or active. They review it on the canvas, then save or activate it themselves.',
+    'Do not claim a workflow is saved or active. The canvas shows the draft, then they save or activate it. Do not tell them to open Automations, click Create Workflow, or leave the page.',
+    input.onCanvas
+      ? 'The user is on the automation canvas now. A recipeId updates that canvas in place. Do not tell them to go somewhere else to edit it.'
+      : '',
     AUTOMATION_RECIPES,
-  ].join('\n\n');
+  ]
+    .filter(Boolean)
+    .join('\n\n');
 
   const history = (input.history ?? [])
     .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && String(m.content ?? '').trim())

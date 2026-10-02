@@ -3,8 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
-import { ArrowUp, Boxes, ShoppingBag, Sparkles, TrendingUp } from 'lucide-react';
+import { ArrowUp, AlertCircle, Boxes, EllipsisVertical, History, Loader2, PanelLeftClose, Pencil, Pin, Plus, ShoppingBag, Sparkles, Trash2, TrendingUp, X } from 'lucide-react';
 import {
   copilotRecipeById,
   type CopilotRecipe,
@@ -12,6 +11,8 @@ import {
 } from '@/lib/automations/copilotRecipes';
 import { useUserStore } from '@/store/userStore';
 import { AiChatMarkdown } from '@/components/AiChatMarkdown';
+import { clearPendingBuilderChat } from '@/lib/lakuAi/pendingBuilderChat';
+import { readCopilotWorkflowLink, writeCopilotWorkflowLink } from '@/lib/lakuAi/copilotWorkflowLink';
 
 const PILL_IDS = ['margins', 'orders', 'buyers', 'products', 'winback'] as const;
 
@@ -26,6 +27,15 @@ type ChatLine = {
   role: 'user' | 'assistant';
   text: string;
   recipeId?: string;
+  instant?: boolean;
+};
+
+type HistoryRow = {
+  id: string;
+  title: string;
+  updatedAt: string;
+  automationId: string | null;
+  pinned?: boolean;
 };
 
 function recipeKey(id: string, field: string) {
@@ -34,6 +44,62 @@ function recipeKey(id: string, field: string) {
 
 function lineId() {
   return `m_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function TypingReply({
+  text,
+  reduceMotion,
+  instant = false,
+  onProgress,
+  children,
+}: {
+  text: string;
+  reduceMotion: boolean;
+  instant?: boolean;
+  onProgress?: () => void;
+  children?: React.ReactNode;
+}) {
+  const [count, setCount] = useState(instant || reduceMotion ? text.length : 0);
+  const onProgressRef = useRef(onProgress);
+  onProgressRef.current = onProgress;
+  const done = count >= text.length;
+
+  useEffect(() => {
+    if (instant || reduceMotion) {
+      setCount(text.length);
+      return;
+    }
+    const duration = Math.min(2400, Math.max(350, text.length * 3));
+    const jumps = Math.max(1, Math.floor(duration / 70));
+    const chunk = Math.max(6, Math.ceil(text.length / jumps));
+    let frame = 0;
+    let start = 0;
+    let lastCommit = 0;
+    const step = (now: number) => {
+      if (!start) start = now;
+      const elapsed = now - start;
+      const raw = Math.min(text.length, Math.ceil((elapsed / duration) * text.length));
+      const next = raw >= text.length ? text.length : Math.min(text.length, Math.ceil(raw / chunk) * chunk);
+      if (now - lastCommit >= 50 || next >= text.length) {
+        lastCommit = now;
+        setCount(next);
+        onProgressRef.current?.();
+      }
+      if (next < text.length) frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [instant, reduceMotion, text]);
+
+  return (
+    <>
+      <AiChatMarkdown content={text.slice(0, count)} size="md" />
+      {!done && (
+        <span className="mt-1 inline-block h-3.5 w-0.5 bg-[#0a61d7] motion-safe:animate-pulse" aria-hidden />
+      )}
+      {done ? children : null}
+    </>
+  );
 }
 
 /** Plays once per full page load. */
@@ -55,14 +121,22 @@ function enterStyle(shown: boolean, delayMs: number, reduceMotion: boolean): Rea
   };
 }
 
-export function AskAiNavButton() {
+export function AskAiNavButton({
+  pressed = false,
+  onPressAction,
+}: {
+  pressed?: boolean;
+  onPressAction?: () => void;
+}) {
   const router = useRouter();
   const tPage = useTranslations('dashboard.automation.page');
   return (
     <button
       type="button"
-      onClick={() => router.push('/copilot')}
-      className="inline-flex items-center gap-1.5 rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-xs font-medium text-black hover:bg-gray-100"
+      onClick={() => (onPressAction ? onPressAction() : router.push('/copilot'))}
+      className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium hover:bg-gray-100 ${
+        pressed ? 'border-[#0a61d7] bg-[#f7faff] text-[#0a61d7]' : 'border-[#e6e6e6] bg-white text-black'
+      }`}
     >
       <Sparkles className="h-3.5 w-3.5 text-[#0a61d7]" />
       {tPage('askAi')}
@@ -72,8 +146,20 @@ export function AskAiNavButton() {
 
 export default function AutomationCopilot({
   active = true,
+  surface = 'page',
+  automationId = null,
+  onCloseAction,
+  onApplyWorkflowRecipeAction,
+  initialConversationId = null,
 }: {
   active?: boolean;
+  surface?: 'page' | 'dock';
+  automationId?: string | null;
+  onCloseAction?: () => void;
+  /** Dock only. Puts a workflow draft on the open canvas. Does not save it. */
+  onApplyWorkflowRecipeAction?: (recipeId: string) => void;
+  /** Conversation to reopen, shared with the Copilot page. */
+  initialConversationId?: string | null;
 }) {
   const t = useTranslations('dashboard.automation.copilot');
   const locale = useLocale();
@@ -87,7 +173,170 @@ export default function AutomationCopilot({
   const [reduceMotion, setReduceMotion] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const historyMenuRef = useRef<HTMLDivElement>(null);
+  const chatMenuRef = useRef<HTMLDivElement>(null);
+  const deleteDialogRef = useRef<HTMLDivElement>(null);
+  const deleteInvokerRef = useRef<HTMLButtonElement | null>(null);
+  const conversationIdRef = useRef<string | null>(null);
+  const skipAutoloadRef = useRef(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [history, setHistory] = useState<HistoryRow[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(true);
+  const [historyMenu, setHistoryMenu] = useState(false);
+  const [chatAction, setChatAction] = useState<HistoryRow | null>(null);
+  const [chatMenuPos, setChatMenuPos] = useState<{ top: number; left: number } | null>(null);
+  const [actionBusy, setActionBusy] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [deletingChat, setDeletingChat] = useState<HistoryRow | null>(null);
   const hour = new Date().getHours();
+
+  const rememberConversation = (id: string | null) => {
+    conversationIdRef.current = id;
+    setConversationId(id);
+  };
+
+  const toLines = (messages: { role: string; content: string; recipeId?: string | null }[], instant: boolean): ChatLine[] =>
+    messages
+      .filter((message) => message.role === 'user' || message.role === 'assistant')
+      .map((message) => ({
+        id: lineId(),
+        role: message.role === 'assistant' ? 'assistant' as const : 'user' as const,
+        text: message.content,
+        recipeId: message.recipeId || undefined,
+        instant,
+      }));
+
+  const refreshHistory = async () => {
+    const generalResponse = await fetch('/api/laku-ai/conversations?scope=general');
+    if (!generalResponse.ok) return;
+    const generalPayload = (await generalResponse.json()) as { conversations?: HistoryRow[] };
+    let rows = generalPayload.conversations ?? [];
+    if (surface === 'dock' && automationId) {
+      const workflowResponse = await fetch(`/api/laku-ai/conversations?automationId=${encodeURIComponent(automationId)}`);
+      if (workflowResponse.ok) {
+        const workflowPayload = (await workflowResponse.json()) as { conversations?: HistoryRow[] };
+        const seen = new Set(rows.map((row) => row.id));
+        rows = [...rows, ...(workflowPayload.conversations ?? []).filter((row) => !seen.has(row.id))];
+      }
+    }
+    rows.sort((a, b) => {
+      if (Boolean(a.pinned) !== Boolean(b.pinned)) return a.pinned ? -1 : 1;
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+    });
+    setHistory(rows);
+  };
+
+  const openConversation = async (id: string) => {
+    const response = await fetch(`/api/laku-ai/conversations?id=${encodeURIComponent(id)}`);
+    if (!response.ok) return;
+    const payload = (await response.json()) as {
+      conversation?: HistoryRow & { messages?: { role: string; content: string; recipeId?: string | null }[] };
+    };
+    const conversation = payload.conversation;
+    if (!conversation) return;
+    const tagged = Boolean(conversation.automationId);
+    if (surface === 'page' && tagged) return;
+    if (surface === 'dock' && tagged && conversation.automationId !== automationId) return;
+    rememberConversation(conversation.id);
+    setLines(toLines(conversation.messages ?? [], true));
+    setHistoryMenu(false);
+    setError('');
+    if (surface === 'dock' && !automationId) clearPendingBuilderChat();
+  };
+
+  const startNewChat = () => {
+    skipAutoloadRef.current = true;
+    rememberConversation(null);
+    setLines([]);
+    setInput('');
+    setError('');
+    setHistoryMenu(false);
+    if (surface === 'dock' && !automationId) clearPendingBuilderChat();
+  };
+
+  const runChatAction = async (kind: 'pin') => {
+    if (!chatAction || actionBusy) return;
+    setActionBusy(true);
+    setActionError('');
+    const target = chatAction;
+    try {
+      const response = await fetch('/api/laku-ai/conversations', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId: target.id, pinned: !target.pinned }),
+      });
+      if (!response.ok) throw new Error('failed');
+      setChatAction(null);
+      await refreshHistory();
+    } catch {
+      setActionError(t('history.actionFailed'));
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const beginDelete = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (!chatAction || actionBusy) return;
+    deleteInvokerRef.current = event.currentTarget;
+    setDeletingChat(chatAction);
+    setActionError('');
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingChat || actionBusy) return;
+    setActionBusy(true);
+    setActionError('');
+    const target = deletingChat;
+    try {
+      const response = await fetch(`/api/laku-ai/conversations?id=${encodeURIComponent(target.id)}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('failed');
+      if (conversationIdRef.current === target.id) startNewChat();
+      setDeletingChat(null);
+      requestAnimationFrame(() => setChatAction(null));
+      await refreshHistory();
+    } catch {
+      setActionError(t('history.actionFailed'));
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const beginRename = () => {
+    if (!chatAction || actionBusy) return;
+    setRenamingId(chatAction.id);
+    setRenameValue(chatAction.title);
+    setActionError('');
+    setChatAction(null);
+  };
+
+  const saveRename = async () => {
+    if (!renamingId || actionBusy) return;
+    const next = renameValue.replace(/\s+/g, ' ').trim();
+    if (!next) return;
+    const current = history.find((item) => item.id === renamingId);
+    if (next === current?.title) {
+      setRenamingId(null);
+      return;
+    }
+    setActionBusy(true);
+    setActionError('');
+    try {
+      const response = await fetch('/api/laku-ai/conversations', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId: renamingId, title: next }),
+      });
+      if (!response.ok) throw new Error('failed');
+      setRenamingId(null);
+      await refreshHistory();
+    } catch {
+      setActionError(t('history.actionFailed'));
+    } finally {
+      setActionBusy(false);
+    }
+  };
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -116,16 +365,79 @@ export default function AutomationCopilot({
   }, [active, reduceMotion]);
 
   useEffect(() => {
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: reduceMotion ? 'auto' : 'smooth' });
+    if (surface !== 'dock') return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (!historyMenuRef.current?.contains(event.target as Node)) setHistoryMenu(false);
+    };
+    window.addEventListener('mousedown', onPointerDown);
+    return () => window.removeEventListener('mousedown', onPointerDown);
+  }, [surface, automationId]);
+
+  useEffect(() => {
+    if (!chatAction) return;
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (deleteDialogRef.current?.contains(target)) return;
+      if (chatMenuRef.current?.contains(target)) return;
+      if (target.closest?.('[data-chat-actions]')) return;
+      setChatAction(null);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !deleteDialogRef.current) setChatAction(null);
+    };
+    window.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('mousedown', onPointerDown);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [chatAction]);
+
+  useEffect(() => {
+    if (!deletingChat) return;
+    const dialog = deleteDialogRef.current;
+    const invoker = deleteInvokerRef.current;
+    dialog?.querySelector<HTMLElement>('button:not([disabled])')?.focus();
+    return () => {
+      if (invoker?.isConnected) invoker.focus();
+    };
+  }, [deletingChat]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      if (surface === 'page') {
+        await refreshHistory();
+        return;
+      }
+      if (!cancelled) await refreshHistory();
+      if (cancelled || conversationIdRef.current || !initialConversationId) return;
+      await openConversation(initialConversationId);
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+    // History refresh stays on this effect. Sends update the list themselves.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [surface, automationId, initialConversationId]);
+
+  const scrollToEnd = () => {
+    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'auto' });
+  };
+
+  useEffect(() => {
+    scrollToEnd();
   }, [lines, sending, reduceMotion]);
 
   const askModel = async (text: string, history: ChatLine[]) => {
     const response = await fetch('/api/automations/copilot', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+        body: JSON.stringify({
         message: text,
         locale,
+        onCanvas: surface === 'dock',
         history: history.slice(-8).map((line) => ({ role: line.role, content: line.text })),
       }),
     });
@@ -139,6 +451,7 @@ export default function AutomationCopilot({
   const submit = async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || sending) return;
+    skipAutoloadRef.current = true;
     setSending(true);
     setError('');
     setInput('');
@@ -151,10 +464,38 @@ export default function AutomationCopilot({
       const reply =
         payload.reply?.trim() ||
         (recipe ? `${t(recipeKey(recipe.id, 'summary'))}\n\n${t(recipeKey(recipe.id, 'logic'))}` : t('unknown'));
-      setLines((current) => [
-        ...current,
-        { id: lineId(), role: 'assistant', text: reply, recipeId: recipe?.id },
-      ]);
+      const assistantLine: ChatLine = { id: lineId(), role: 'assistant', text: reply, recipeId: recipe?.id };
+      setLines((current) => [...current, assistantLine]);
+      if (surface === 'dock' && recipe?.kind === 'workflow') onApplyWorkflowRecipeAction?.(recipe.id);
+      const existingId = conversationIdRef.current;
+      const response = await fetch('/api/laku-ai/conversations', {
+        method: existingId ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(
+          existingId
+            ? {
+                conversationId: existingId,
+                userContent: trimmed,
+                assistantContent: reply,
+                recipeId: recipe?.id ?? null,
+              }
+            : {
+                automationId: null,
+                messages: [
+                  { role: 'user', content: trimmed },
+                  { role: 'assistant', content: reply, recipeId: recipe?.id ?? null },
+                ],
+              },
+        ),
+      });
+      if (!response.ok) {
+        setError(t('history.saveFailed'));
+      } else {
+        clearPendingBuilderChat();
+        const saved = (await response.json()) as { conversation?: { id: string } };
+        if (!existingId && saved.conversation?.id) rememberConversation(saved.conversation.id);
+        await refreshHistory();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : t('unknown'));
     } finally {
@@ -164,7 +505,16 @@ export default function AutomationCopilot({
   };
 
   const apply = (recipe: CopilotWorkflowRecipe) => {
-    router.push(`/automation/new?recipe=${encodeURIComponent(recipe.id)}`);
+    const conversationId = conversationIdRef.current;
+    const linked = conversationId ? readCopilotWorkflowLink(conversationId) : null;
+    const targetId = surface === 'dock' && automationId ? automationId : linked;
+    const chat = conversationId ? `&chat=${encodeURIComponent(conversationId)}` : '';
+    if (targetId) {
+      if (conversationId) writeCopilotWorkflowLink(conversationId, targetId);
+      router.push(`/automation/details?id=${encodeURIComponent(targetId)}&recipe=${encodeURIComponent(recipe.id)}${chat}`);
+      return;
+    }
+    router.push(`/automation/new?recipe=${encodeURIComponent(recipe.id)}${chat}`);
   };
 
   const empty = lines.length === 0 && !sending;
@@ -190,23 +540,23 @@ export default function AutomationCopilot({
         void submit(input);
       }}
     >
-      <div className="mx-auto flex w-full max-w-3xl flex-col rounded-3xl border border-[#d7e6ff] bg-white px-4 py-3 shadow-[0_12px_40px_rgba(10,97,215,0.08)]">
+      <div className="mx-auto flex w-full max-w-2xl flex-col rounded-2xl border border-[#d7e6ff] bg-white px-3 py-2 shadow-[0_12px_40px_rgba(10,97,215,0.08)]">
         <textarea
           ref={inputRef}
           value={input}
-          rows={3}
+          rows={2}
           onChange={(event) => setInput(event.target.value)}
           onKeyDown={onComposerKeyDown}
           placeholder={t('placeholder')}
-          className="max-h-40 min-h-[4.5rem] w-full resize-none bg-transparent py-2 text-sm text-black outline-none"
+          className="max-h-24 min-h-[2.75rem] w-full resize-none bg-transparent py-1 text-xs text-black outline-none"
         />
-        <div className="mt-1 flex items-end justify-between gap-3">
-          <div className="flex flex-wrap gap-2">
+        <div className="mt-1 flex items-end justify-between gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {PILL_IDS.map((id) => (
               <button
                 key={id}
                 type="button"
-                className="rounded-full border border-[#e6e6e6] bg-[#f7faff] px-3 py-1 text-xs font-medium text-black hover:bg-white"
+                className="rounded-full border border-[#e6e6e6] bg-[#f7faff] px-2 py-0.5 text-[11px] font-medium text-black hover:bg-white"
                 onClick={() => void submit(t(`suggestions.${id}.prompt`))}
               >
                 {t(`suggestions.${id}.label`)}
@@ -217,9 +567,9 @@ export default function AutomationCopilot({
             type="submit"
             disabled={sending || !input.trim()}
             aria-label={t('send')}
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#0a61d7] text-white hover:bg-[#084ba6] disabled:opacity-50"
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#0a61d7] text-white hover:bg-[#084ba6] disabled:opacity-50"
           >
-            <ArrowUp className="h-4 w-4" />
+            <ArrowUp className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
@@ -258,33 +608,194 @@ export default function AutomationCopilot({
     </form>
   );
 
+  const pinnedHistory = history.filter((item) => item.pinned);
+  const recentHistory = history.filter((item) => !item.pinned);
+
+  const renderHistoryRow = (item: HistoryRow) => {
+    const selected = item.id === conversationId;
+    const menuOpen = chatAction?.id === item.id;
+    return (
+      <div
+        key={item.id}
+        className={`group flex items-center rounded-lg hover:bg-gray-50 ${
+          selected ? 'bg-gray-50 font-semibold text-[#0a61d7]' : 'text-black'
+        }`}
+      >
+        <button
+          type="button"
+          onClick={() => void openConversation(item.id)}
+          className="min-w-0 flex-1 px-3 py-2 text-left"
+        >
+          <span className="block truncate text-xs">{item.title}</span>
+        </button>
+        <button
+          type="button"
+          data-chat-actions
+          onClick={(event) => {
+            if (menuOpen) {
+              setChatAction(null);
+              return;
+            }
+            const rect = event.currentTarget.getBoundingClientRect();
+            const menuHeight = 120;
+            const top = rect.bottom + 4 + menuHeight > window.innerHeight ? rect.top - menuHeight - 4 : rect.bottom + 4;
+            setActionError('');
+            setChatMenuPos({ top, left: rect.right });
+            setChatAction(item);
+          }}
+          className={`mr-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 ${
+            menuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
+          }`}
+          aria-label={t('history.actions')}
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+        >
+          <EllipsisVertical className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  };
+
+  const historyList = (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <button
+        type="button"
+        onClick={startNewChat}
+        className="mb-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-xs font-medium text-black hover:bg-gray-100"
+      >
+        <Plus className="h-3.5 w-3.5" />
+        {t('history.newChat')}
+      </button>
+      <div className="min-h-0 flex-1 space-y-1 overflow-y-auto">
+        {history.length === 0 ? (
+          <p className="px-2 py-3 text-xs text-gray-500">{t('history.empty')}</p>
+        ) : (
+          <>
+            {pinnedHistory.length > 0 ? (
+              <div className="space-y-1">
+                <p className="px-3 pb-1 pt-1 text-[11px] font-medium text-gray-500">{t('history.pinnedSection')}</p>
+                {pinnedHistory.map(renderHistoryRow)}
+              </div>
+            ) : null}
+            {recentHistory.length > 0 ? (
+              <div className="space-y-1">
+                {pinnedHistory.length > 0 ? (
+                  <p className="px-3 pb-1 pt-3 text-[11px] font-medium text-gray-500">{t('history.recents')}</p>
+                ) : null}
+                {recentHistory.map(renderHistoryRow)}
+              </div>
+            ) : null}
+          </>
+        )}
+      </div>
+    </div>
+  );
+
   return (
+    <div className={surface === 'page' ? 'flex h-[calc(100dvh-4rem)] w-full' : 'flex h-full min-h-0 w-full flex-col bg-white'}>
+      {surface === 'page' ? (
+        <aside
+          className={`h-full shrink-0 overflow-hidden bg-white transition-[width] duration-300 ease-out motion-reduce:transition-none ${
+            historyOpen ? 'w-72' : 'w-0'
+          }`}
+          aria-hidden={!historyOpen}
+        >
+          <div className="flex h-full w-72 min-h-0 flex-col border-r border-[#e6e6e6] p-3">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-black">{t('history.title')}</p>
+              <button
+                type="button"
+                onClick={() => setHistoryOpen(false)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#e6e6e6] bg-white text-black hover:bg-gray-100"
+                aria-label={t('history.collapse')}
+              >
+                <PanelLeftClose className="h-4 w-4" />
+              </button>
+            </div>
+            {historyList}
+          </div>
+        </aside>
+      ) : null}
     <div
-      className="flex h-[calc(100dvh-4rem)] w-full flex-col bg-gradient-to-b from-[#f4f8ff] to-white motion-reduce:opacity-100"
-      style={enterStyle(shown || reduceMotion, 0, reduceMotion)}
+      className={
+        surface === 'page'
+          ? 'relative flex min-w-0 flex-1 flex-col bg-gradient-to-b from-[#f4f8ff] to-white motion-reduce:opacity-100'
+          : 'flex min-h-0 flex-1 flex-col'
+      }
+      style={surface === 'page' ? enterStyle(shown || reduceMotion, 0, reduceMotion) : undefined}
     >
+      {surface === 'page' ? (
+        <button
+          type="button"
+          onClick={() => setHistoryOpen(true)}
+          className={`absolute left-3 top-3 z-20 inline-flex items-center gap-1.5 rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-xs font-medium text-black transition-all duration-300 ease-out hover:bg-gray-100 motion-reduce:transition-none ${
+            historyOpen ? 'pointer-events-none -translate-x-2 opacity-0' : 'translate-x-0 opacity-100'
+          }`}
+          aria-label={t('history.expand')}
+          tabIndex={historyOpen ? -1 : 0}
+        >
+          <History className="h-4 w-4" />
+          {t('history.title')}
+        </button>
+      ) : null}
+      {surface === 'dock' ? (
+        <header className="flex items-center justify-between gap-2 border-b border-[#e6e6e6] px-3 py-2">
+          <p className="truncate text-xs font-semibold text-black">{t('assistantLabel')}</p>
+          <div className="flex items-center gap-1">
+            <div className="relative" ref={historyMenuRef}>
+              <button
+                type="button"
+                onClick={() => setHistoryMenu((open) => !open)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#e6e6e6] bg-white text-black hover:bg-gray-100"
+                aria-label={t('history.title')}
+                aria-expanded={historyMenu}
+              >
+                <History className="h-4 w-4" />
+              </button>
+              {historyMenu ? (
+                <div className="absolute right-0 z-50 mt-1 flex max-h-80 w-64 flex-col rounded-lg border border-[#e6e6e6] bg-white p-2 shadow-lg">
+                  {historyList}
+                </div>
+              ) : null}
+            </div>
+            {onCloseAction ? (
+              <button
+                type="button"
+                onClick={onCloseAction}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#e6e6e6] bg-white text-black hover:bg-gray-100"
+                aria-label={t('history.close')}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            ) : null}
+          </div>
+        </header>
+      ) : null}
       <div ref={listRef} className="flex-1 overflow-y-auto">
         <div className={`mx-auto flex w-full max-w-3xl flex-col px-4 ${empty ? 'min-h-full justify-center py-6' : 'py-6'}`}>
-          {empty && (
-            <div className="mb-6 text-center">
-              <div className="relative mx-auto mb-5 h-16 w-16" style={enterStyle(shown, 80, reduceMotion)}>
+          {surface === 'dock' && empty && (
+            <p className="mb-4 text-center text-sm text-gray-600">{t('history.dockEmpty')}</p>
+          )}
+          {surface === 'page' && empty && (
+            <div className="mx-auto mb-4 w-full max-w-2xl text-center">
+              <div className="relative mx-auto mb-3 h-11 w-11" style={enterStyle(shown, 80, reduceMotion)}>
                 <div className="absolute inset-0 rounded-full bg-[#8eb6ff] opacity-40 blur-md motion-safe:animate-pulse" />
-                <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-[#eef4fc] shadow-[0_8px_24px_rgba(10,97,215,0.2)] ring-1 ring-[#0a61d7]/15">
-                  <Image src="/LakuAI.png" alt="" width={48} height={48} className="h-12 w-12 object-contain" priority />
+                <div className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#8eb6ff] to-[#0a61d7] shadow-[0_8px_24px_rgba(10,97,215,0.2)]">
+                  <Sparkles className="h-5 w-5 text-white" />
                 </div>
               </div>
-              <h2 className="text-3xl font-bold tracking-tight text-black" style={enterStyle(shown, 160, reduceMotion)}>
+              <h2 className="text-xl font-bold tracking-tight text-black" style={enterStyle(shown, 160, reduceMotion)}>
                 {firstName ? `${greeting}, ${firstName}` : greeting}
               </h2>
-              <p className="mt-2 text-2xl font-semibold text-gray-700" style={enterStyle(shown, 240, reduceMotion)}>
+              <p className="mt-1 text-sm font-medium text-gray-700" style={enterStyle(shown, 240, reduceMotion)}>
                 {askBefore}
                 {askWord && <span className="text-[#0a61d7]">{askWord}</span>}
                 {askAfter}
               </p>
-              <div className="mt-6" style={enterStyle(shown, 340, reduceMotion)}>
+              <div className="mt-4" style={enterStyle(shown, 340, reduceMotion)}>
                 {landingComposer}
               </div>
-              <div className="mt-5 grid grid-cols-1 gap-3 text-left sm:grid-cols-3">
+              <div className="mt-3 grid grid-cols-1 gap-2 text-left sm:grid-cols-3">
                 {CARDS.map((card, index) => {
                   const Icon = card.icon;
                   return (
@@ -292,21 +803,21 @@ export default function AutomationCopilot({
                       key={card.id}
                       type="button"
                       style={enterStyle(shown, 460 + index * 70, reduceMotion)}
-                      className="rounded-2xl border border-[#e6e6e6] bg-white p-4 text-left transition hover:border-[#c5daff]"
+                      className="rounded-xl border border-[#e6e6e6] bg-white p-3 text-left transition hover:border-[#c5daff]"
                       onClick={() => void submit(t(`suggestions.${card.id}.prompt`))}
                     >
-                      <span className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-[#f7faff] text-[#0a61d7]">
-                        <Icon className="h-4 w-4" />
+                      <span className="mb-2 flex h-7 w-7 items-center justify-center rounded-lg bg-[#f7faff] text-[#0a61d7]">
+                        <Icon className="h-3.5 w-3.5" />
                       </span>
                       <span
-                        className={`mb-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                        className={`mb-1.5 inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
                           card.kind === 'ask' ? 'bg-[#f7faff] text-[#0a61d7]' : 'bg-[#f3f4f6] text-gray-600'
                         }`}
                       >
                         {t(card.kind === 'ask' ? 'suggestionAsk' : 'suggestionAutomate')}
                       </span>
-                      <span className="block text-sm font-semibold text-black">{t(`suggestions.${card.id}.title`)}</span>
-                      <span className="mt-1 block text-xs leading-5 text-gray-500">{t(`suggestions.${card.id}.summary`)}</span>
+                      <span className="block text-xs font-semibold text-black">{t(`suggestions.${card.id}.title`)}</span>
+                      <span className="mt-1 block text-[11px] leading-4 text-gray-500">{t(`suggestions.${card.id}.summary`)}</span>
                     </button>
                   );
                 })}
@@ -332,18 +843,19 @@ export default function AutomationCopilot({
                   <div key={line.id} className="flex justify-start">
                     <div className="max-w-[85%] rounded-2xl border border-[#e6e6e6] bg-white px-4 py-3">
                       <p className="mb-1 text-[11px] font-semibold text-[#0a61d7]">{t('assistantLabel')}</p>
-                      <AiChatMarkdown content={line.text} size="md" />
-                      {workflow && (
-                        <div className="mt-3 flex flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            className="rounded-lg bg-[#0a61d7] px-3 py-2 text-xs font-semibold text-white hover:bg-[#084ba6]"
-                            onClick={() => apply(workflow)}
-                          >
-                            {t('reviewCanvas')}
-                          </button>
-                        </div>
-                      )}
+                      <TypingReply text={line.text} reduceMotion={reduceMotion} instant={line.instant} onProgress={scrollToEnd}>
+                        {workflow && surface === 'page' ? (
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              className="rounded-lg bg-[#0a61d7] px-3 py-2 text-xs font-semibold text-white hover:bg-[#084ba6]"
+                              onClick={() => apply(workflow)}
+                            >
+                              {t('reviewCanvas')}
+                            </button>
+                          </div>
+                        ) : null}
+                      </TypingReply>
                     </div>
                   </div>
                 );
@@ -357,7 +869,185 @@ export default function AutomationCopilot({
         </div>
       </div>
 
-      {!empty && chatComposer}
+      {(surface === 'dock' || !empty) && chatComposer}
+     </div>
+      {chatAction && chatMenuPos ? (
+        <div
+          ref={chatMenuRef}
+          role="menu"
+          className="fixed z-50 w-40 -translate-x-full rounded-lg border border-[#e6e6e6] bg-white py-1 shadow-lg"
+          style={{ top: chatMenuPos.top, left: chatMenuPos.left }}
+        >
+          {actionError ? <p className="px-3 py-1.5 text-xs text-red-700">{actionError}</p> : null}
+          <button
+            type="button"
+            role="menuitem"
+            disabled={actionBusy}
+            onClick={() => void runChatAction('pin')}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-black hover:bg-gray-50 disabled:opacity-50"
+          >
+            <Pin className="h-3.5 w-3.5" />
+            {chatAction.pinned ? t('history.unpin') : t('history.pin')}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={actionBusy}
+            onClick={beginRename}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-black hover:bg-gray-50 disabled:opacity-50"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            {t('history.rename')}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={actionBusy}
+            onClick={beginDelete}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-red-600 hover:bg-gray-50 disabled:opacity-50"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            {t('history.delete')}
+          </button>
+        </div>
+      ) : null}
+      {renamingId ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="rename-chat-title"
+          onKeyDown={(event) => {
+            if (event.key === 'Escape' && !actionBusy) setRenamingId(null);
+          }}
+        >
+          <form
+            className="relative mx-4 flex w-full max-w-sm flex-col overflow-hidden rounded-lg border border-[#e6e6e6] bg-white"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void saveRename();
+            }}
+          >
+            <button
+              type="button"
+              className="absolute right-4 top-4 z-10 rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+              onClick={() => setRenamingId(null)}
+              disabled={actionBusy}
+              aria-label={t('history.close')}
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <div className="flex items-center gap-2 p-3 pr-10">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0a61d7]">
+                <Pencil className="h-5 w-5 text-white" />
+              </div>
+              <h2 id="rename-chat-title" className="text-md font-bold text-black">
+                {t('history.renameTitle')}
+              </h2>
+            </div>
+            <div className="border-b border-gray-200" />
+            <div className="p-4">
+              {actionError ? <p className="mb-2 text-xs text-red-700">{actionError}</p> : null}
+              <label htmlFor="rename-chat-input" className="mb-1 block text-xs font-medium text-gray-700">
+                {t('history.renameLabel')}
+              </label>
+              <input
+                id="rename-chat-input"
+                autoFocus
+                value={renameValue}
+                onChange={(event) => setRenameValue(event.target.value)}
+                className="w-full rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 text-xs text-black outline-none"
+              />
+            </div>
+            <div className="border-t border-gray-200" />
+            <div className="flex justify-end gap-2 p-3">
+              <button
+                type="button"
+                className="px-4 py-2 text-sm text-gray-600 transition-colors hover:text-gray-800"
+                onClick={() => setRenamingId(null)}
+                disabled={actionBusy}
+              >
+                {t('history.cancel')}
+              </button>
+              <button
+                type="submit"
+                disabled={actionBusy || !renameValue.trim()}
+                className="rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#084ba6] disabled:opacity-50"
+              >
+                {t('history.renameSave')}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+      {deletingChat ? (
+        <div
+          ref={deleteDialogRef}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-chat-title"
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              if (!actionBusy) setDeletingChat(null);
+              return;
+            }
+            if (event.key !== 'Tab') return;
+            const dialog = deleteDialogRef.current;
+            if (!dialog) return;
+            const items = Array.from(dialog.querySelectorAll<HTMLElement>('button:not([disabled])'));
+            if (items.length === 0) return;
+            const first = items[0];
+            const last = items[items.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+              event.preventDefault();
+              last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+              event.preventDefault();
+              first.focus();
+            }
+          }}
+        >
+          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 w-full max-w-sm mx-4">
+            <h2 id="delete-chat-title" className="text-lg font-bold mb-2 text-red-500">
+              {t('history.deleteTitle')}
+            </h2>
+            {actionError ? (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-500" />
+                <span className="text-red-700 text-sm">{actionError}</span>
+              </div>
+            ) : null}
+            <p className="mb-1 text-sm font-medium text-black truncate">{deletingChat.title}</p>
+            <p className="mb-4 text-gray-500">{t('history.deleteBody')}</p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500"
+                onClick={() => setDeletingChat(null)}
+                disabled={actionBusy}
+              >
+                {t('history.cancel')}
+              </button>
+              <button
+                type="button"
+                disabled={actionBusy}
+                onClick={() => void confirmDelete()}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 flex items-center gap-2 disabled:opacity-50"
+              >
+                {actionBusy ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    {t('history.deleting')}
+                  </>
+                ) : (
+                  t('history.delete')
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

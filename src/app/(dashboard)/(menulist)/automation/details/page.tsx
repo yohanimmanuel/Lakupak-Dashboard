@@ -36,7 +36,8 @@ import {
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { buildCopilotDraftFromRecipe } from '@/components/automations/buildCopilotDraft';
 const WORKFLOW_QUERY = `
   query GetAutomationWorkflow($id: String!) {
     automationWorkflow(id: $id) {
@@ -161,12 +162,14 @@ function DetailsInner() {
   const id = searchParams?.get('id') ?? null;
   const user = useUserStore((s) => s.user);
   const locale = useLocale();
-  const { tBuilder, translateTrigger, translateAction } = useAutomationTranslations();
+  const tCopilot = useTranslations('dashboard.automation.copilot');
+  const { tBuilder, tTriggers, tActions, translateTrigger, translateAction } = useAutomationTranslations();
 
   const [draft, setDraft] = useState<WorkflowDraft | null>(null);
   const [runs, setRuns] = useState<AutomationRun[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [aiApplying, setAiApplying] = useState(false);
   const [clearingRuns, setClearingRuns] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -178,6 +181,11 @@ function DetailsInner() {
   draftRef.current = draft;
   latestIdRef.current = id;
   const history = useCanvasHistory();
+  const applySeqRef = useRef(0);
+  const appliedRecipeRef = useRef<string | null>(null);
+  const recipeId = searchParams?.get('recipe') ?? null;
+  const linkedChatId = searchParams?.get('chat') ?? null;
+  const closeAskAiRef = useRef<(() => void) | null>(null);
 
   const load = useCallback(async (opts?: { silent?: boolean; preserveRuns?: boolean }) => {
     if (!user?.id || !id) {
@@ -286,6 +294,66 @@ function DetailsInner() {
     // Only re-fetch when the workflow or user changes — not on translator identity churn.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load is intentionally omitted
   }, [user?.id, id]);
+
+  const applyWorkflowRecipe = useCallback(async (recipeId: string) => {
+    const labels = {
+      triggerTitle: tBuilder('nodeTrigger'),
+      triggerSubtitle: tBuilder('nodeTrigger'),
+      agentTitle: tBuilder('nodeAgent'),
+      agentSubtitle: tBuilder('nodeAgent'),
+      actionTitle: tBuilder('nodeAction'),
+      actionSubtitle: tBuilder('nodeAction'),
+    };
+    const built = buildCopilotDraftFromRecipe({
+      recipeId,
+      locale,
+      labels,
+      text: (key) => tCopilot(key),
+      has: (key) => tCopilot.has(key),
+      triggerLabel: (type) => tTriggers(type),
+      hasTrigger: (type) => tTriggers.has(type),
+      actionLabel: (type) => tActions(type),
+      hasAction: (type) => tActions.has(type),
+    });
+    if (!built) return;
+    const workflowId = latestIdRef.current;
+    const seq = ++applySeqRef.current;
+    setAiApplying(true);
+    await new Promise((resolve) => window.setTimeout(resolve, 700));
+    if (seq !== applySeqRef.current) return;
+    if (latestIdRef.current !== workflowId) {
+      setAiApplying(false);
+      return;
+    }
+    const current = draftRef.current;
+    if (current) history.push({ nodes: current.nodes, edges: current.edges }, { force: true });
+    setDraft((currentDraft) =>
+      currentDraft
+        ? {
+            ...currentDraft,
+            name: built.name.trim(),
+            description: built.description,
+            type: built.type,
+            nodes: built.nodes,
+            edges: built.edges,
+          }
+        : currentDraft,
+    );
+    setSelectedNodeId(built.nodes[0]?.id ?? null);
+    setNameError(null);
+    setFormError(null);
+    setAiApplying(false);
+  }, [history, locale, tActions, tBuilder, tCopilot, tTriggers]);
+
+  useEffect(() => {
+    if (!recipeId || loading || !draft || appliedRecipeRef.current === recipeId) return;
+    appliedRecipeRef.current = recipeId;
+    void applyWorkflowRecipe(recipeId);
+    const next = new URLSearchParams(searchParams?.toString() ?? '');
+    next.delete('recipe');
+    const query = next.toString();
+    router.replace(query ? `/automation/details?${query}` : '/automation/details');
+  }, [recipeId, loading, draft, applyWorkflowRecipe, router, searchParams]);
 
   useEffect(() => {
     if (!user?.id || !id) return;
@@ -550,6 +618,12 @@ function DetailsInner() {
     <WorkflowBuilderShell
       title={draft.name || tBuilder('untitled')}
       status={draft.status}
+      aiAutomationId={id}
+      aiApplying={aiApplying}
+      onApplyWorkflowRecipeAction={(recipeId) => void applyWorkflowRecipe(recipeId)}
+      initialConversationId={linkedChatId}
+      onDismissStepDetailsAction={() => setSelectedNodeId(null)}
+      closeAskAiRef={closeAskAiRef}
       saving={saving}
       showTestRun
       onSaveDraftAction={() => save('draft')}
@@ -565,7 +639,10 @@ function DetailsInner() {
           selectedNodeId={selectedNodeId}
           onNodesChangeAction={(nodes) => patch({ nodes })}
           onEdgesChangeAction={(edges) => patch({ edges })}
-          onSelectNodeAction={setSelectedNodeId}
+          onSelectNodeAction={(nodeId) => {
+            setSelectedNodeId(nodeId);
+            if (nodeId) closeAskAiRef.current?.();
+          }}
           onHistoryCheckpointAction={checkpointHistory}
         />
       }

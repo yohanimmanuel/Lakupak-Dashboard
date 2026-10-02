@@ -1,7 +1,7 @@
 import type { WorkflowType } from './automationTypes';
 import { createLegacyFlatCanvas } from './builder/canvasUtils';
 import { DEFAULT_EDGE_TYPE, newNodeId, type WorkflowFlowEdge, type WorkflowFlowNode } from './builder/canvasTypes';
-import type { CopilotWorkflowRecipe } from '@/lib/automations/copilotRecipes';
+import { copilotRecipeById, type CopilotWorkflowRecipe } from '@/lib/automations/copilotRecipes';
 
 export type CopilotBuiltDraft = {
   name: string;
@@ -89,4 +89,34 @@ export function buildCopilotDraft(input: {
     nodes: canvas.nodes,
     edges: canvas.edges,
   };
+}
+
+/** Local canvas draft for a catalog recipe. Returns null when the id is not a workflow. */
+export function buildCopilotDraftFromRecipe(input: {
+  recipeId: string;
+  locale: string;
+  labels: CanvasLabels;
+  text: (key: string) => string;
+  has: (key: string) => boolean;
+  triggerLabel: (type: string) => string;
+  hasTrigger: (type: string) => boolean;
+  actionLabel: (type: string) => string;
+  hasAction: (type: string) => boolean;
+}): CopilotBuiltDraft | null {
+  const recipe = copilotRecipeById(input.recipeId);
+  if (!recipe || recipe.kind !== 'workflow') return null;
+  const templateKey = `recipes.${recipe.id}.template`;
+  return buildCopilotDraft({
+    recipe,
+    locale: input.locale,
+    labels: input.labels,
+    triggerLabel: input.hasTrigger(recipe.triggerType) ? input.triggerLabel(recipe.triggerType) : input.labels.triggerSubtitle,
+    actionLabels: recipe.actions.map((action) =>
+      input.hasAction(action.type) ? input.actionLabel(action.type) : input.labels.actionTitle,
+    ),
+    note: input.text(`recipes.${recipe.id}.logic`),
+    name: input.text(`recipes.${recipe.id}.name`),
+    description: input.text(`recipes.${recipe.id}.summary`),
+    messageTemplate: input.has(templateKey) ? input.text(templateKey) : undefined,
+  });
 }

@@ -41,7 +41,13 @@ export async function POST(request: NextRequest) {
     })
     .filter((row): row is { role: 'user' | 'assistant'; content: string } => Boolean(row));
 
-  const result = await runDistributorAppAssistant({ userId, message, history, locale });
+  const result = await runDistributorAppAssistant({
+    userId,
+    message,
+    history,
+    locale,
+    onCanvas: record.onCanvas === true,
+  });
   if (!result.ok) {
     const status = result.code === 'bad_request' ? 400 : result.code === 'not_configured' ? 503 : 502;
     return NextResponse.json({ error: result.error, code: result.code }, { status });

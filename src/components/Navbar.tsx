@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { Bell, User, LogOut, Plus, Package, AlertTriangle, Tag, Users, ShoppingBag, Settings, Check, Trash2, X, Truck, Info, Receipt, ClipboardCheck, Plug } from 'lucide-react';
+import { Bell, User, LogOut, Plus, Package, AlertTriangle, Tag, Users, ShoppingBag, Settings, Check, Trash2, X, Truck, Info, Receipt, ClipboardCheck, Plug, Sparkles } from 'lucide-react';
 import { Menu as MenuIcon } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useUserStore } from '@/store/userStore';
@@ -587,7 +587,7 @@ const Navbar = () => {
           </div>
           <button
             onClick={handleAddSalesman}
-            className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-blue-50 shadow-sm transition-colors relative flex-shrink-0"
+            className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-blue-50 transition-colors relative flex-shrink-0"
             title={tNavbar('addSalesAgent')}
           >
             <Plus size={16} />
@@ -610,7 +610,7 @@ const Navbar = () => {
             setShowDropdown(false);
           }}
         >
-          <Image src="/LakuAI.png" alt="" width={22} height={22} className="h-[22px] w-[22px] object-contain" />
+          <Sparkles className="h-4 w-4 text-[#0a61d7]" />
         </Link>
 
         {/* Review queue */}
@@ -635,9 +635,7 @@ const Navbar = () => {
         >
           <ClipboardCheck className="w-5 h-5" />
           {(glance?.salesJobs ?? 0) + (glance?.clientMatches ?? 0) + (glance?.draftAutomations ?? 0) > 0 && (
-            <span className={`absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[9px] font-semibold px-0.5 ${
-              showReviewDropdown ? 'bg-white text-[#0a61d7]' : 'bg-[#0a61d7] text-white'
-            }`}>
+            <span className="absolute -top-0.5 -right-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#f97316] px-0.5 text-[9px] font-semibold text-white">
               {(() => {
                 const total =
                   (glance?.salesJobs ?? 0) + (glance?.clientMatches ?? 0) + (glance?.draftAutomations ?? 0);
@@ -785,7 +783,11 @@ const Navbar = () => {
         {/* Notifications */}
         <button
           type="button"
-          className="p-2 w-9 h-9 rounded-full bg-white flex items-center justify-center cursor-pointer relative hover:bg-gray-100 transition border border-gray-200"
+          className={`p-2 w-9 h-9 rounded-full flex items-center justify-center cursor-pointer relative transition border ${
+            showNotifDropdown
+              ? 'bg-[#0a61d7] border-[#0a61d7] text-white'
+              : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-100'
+          }`}
           ref={notifRef}
           onClick={() => {
             setShowNotifDropdown(v => !v);
@@ -794,8 +796,9 @@ const Navbar = () => {
             setShowReviewDropdown(false);
           }}
           aria-label={tNavbar('notifications')}
+          aria-expanded={showNotifDropdown}
         >
-          <Bell className="w-5 h-5 text-gray-500" />
+          <Bell className="w-5 h-5" />
           {unreadCount > 0 && (
             <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center bg-green-500 text-white rounded-full text-[9px] font-semibold px-0.5">
               {unreadCount > 99 ? '99+' : unreadCount}

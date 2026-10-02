@@ -60,6 +60,7 @@ model User {
   salesJobs SalesJob[]
   salesJobSettings SalesJobSettings?
   clientMatchCandidates ClientMatchCandidate[]
+  aiConversations AiConversation[]
 
   @@index([companyId])
   @@index([accountStatus])
@@ -1326,6 +1327,7 @@ model AutomationWorkflow {
 
   user User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   runsLog AutomationRun[]
+  aiConversations AiConversation[]
 
   @@index([userId, status])
   @@index([userId, type])
@@ -1346,6 +1348,37 @@ model AutomationRun {
 
   @@unique([workflowId, runKey])
   @@index([workflowId, createdAt])
+}
+
+/// Lakupak AI thread. automationId is set only when the chat starts inside a saved workflow, and it is never changed afterward.
+model AiConversation {
+  id           String   @id @default(cuid())
+  userId       Int
+  title        String
+  automationId String?
+  pinned       Boolean  @default(false)
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+
+  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  automation AutomationWorkflow? @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  messages   AiMessage[]
+
+  @@index([userId, updatedAt])
+  @@index([userId, automationId, updatedAt])
+}
+
+model AiMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           String
+  content        String
+  recipeId       String?
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+
+  conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
 }
 
 /// Field task for a sales rep. AI suggestions stay "suggested" until a manager approves them.
