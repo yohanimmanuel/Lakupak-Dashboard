@@ -12,7 +12,7 @@
   "copilot": {
     "title": "Draft a workflow",
     "hint": "Describe what should happen. Review the draft on the canvas. Nothing turns on until you activate it.",
-    "placeholder": "Ask Lakupak AI about orders, buyers, products, or an automation...",
+    "placeholder": "Ask Lakupak AI...",
     "greetingMorning": "Good morning",
     "greetingAfternoon": "Good afternoon",
     "greetingEvening": "Good evening",
@@ -99,6 +99,7 @@
       }
     },
     "unknown": "I could not answer that just now. Try again, or ask about orders, buyers, products, sales, or an automation.",
+    "featureUnavailable": "Workflow feature is not available, try another thing.",
     "recipes": {
       "low_stock": {
         "chip": "Low stock",

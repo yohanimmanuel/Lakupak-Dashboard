@@ -11,7 +11,9 @@ import {
 } from '@/lib/automations/copilotRecipes';
 import { useUserStore } from '@/store/userStore';
 import { AiChatMarkdown } from '@/components/AiChatMarkdown';
+import { writeCopilotReviewPlan } from '@/lib/lakuAi/copilotReviewPlan';
 import { clearPendingBuilderChat } from '@/lib/lakuAi/pendingBuilderChat';
+import type { WorkflowCanvasEdit, WorkflowFieldUpdate, WorkflowPlanStep } from '@/lib/lakuAi/workflowPlan';
 import { readCopilotWorkflowLink, writeCopilotWorkflowLink } from '@/lib/lakuAi/copilotWorkflowLink';
 
 const PILL_IDS = ['margins', 'orders', 'buyers', 'products', 'winback'] as const;
@@ -27,6 +29,8 @@ type ChatLine = {
   role: 'user' | 'assistant';
   text: string;
   recipeId?: string;
+  plan?: WorkflowPlanStep[];
+  edit?: WorkflowCanvasEdit;
   instant?: boolean;
 };
 
@@ -150,6 +154,8 @@ export default function AutomationCopilot({
   automationId = null,
   onCloseAction,
   onApplyWorkflowRecipeAction,
+  onApplyWorkflowPlanAction,
+  canvasSteps = null,
   initialConversationId = null,
 }: {
   active?: boolean;
@@ -158,6 +164,9 @@ export default function AutomationCopilot({
   onCloseAction?: () => void;
   /** Dock only. Puts a workflow draft on the open canvas. Does not save it. */
   onApplyWorkflowRecipeAction?: (recipeId: string) => void;
+  onApplyWorkflowPlanAction?: (edit: WorkflowCanvasEdit) => void;
+  /** Steps already on the open canvas, so an edit keeps them. */
+  canvasSteps?: WorkflowPlanStep[] | null;
   /** Conversation to reopen, shared with the Copilot page. */
   initialConversationId?: string | null;
 }) {
@@ -438,6 +447,7 @@ export default function AutomationCopilot({
         message: text,
         locale,
         onCanvas: surface === 'dock',
+        canvas: surface === 'dock' ? canvasSteps ?? null : null,
         history: history.slice(-8).map((line) => ({ role: line.role, content: line.text })),
       }),
     });
@@ -445,7 +455,29 @@ export default function AutomationCopilot({
       const payload = (await response.json().catch(() => null)) as { error?: string } | null;
       throw new Error(payload?.error || t('unknown'));
     }
-    return (await response.json()) as { reply?: string; recipeId?: string | null };
+    return (await response.json()) as {
+      reply?: string;
+      recipeId?: string | null;
+      plan?: WorkflowPlanStep[] | null;
+      unavailable?: boolean;
+      name?: string | null;
+      description?: string | null;
+      updates?: WorkflowFieldUpdate[] | null;
+    };
+  };
+
+  const editFromPayload = (payload: {
+    plan?: WorkflowPlanStep[] | null;
+    name?: string | null;
+    description?: string | null;
+    updates?: WorkflowFieldUpdate[] | null;
+  }): WorkflowCanvasEdit | null => {
+    const steps = payload.plan?.length ? payload.plan : null;
+    const name = payload.name?.trim() || null;
+    const description = payload.description?.trim() || null;
+    const updates = payload.updates ?? [];
+    if (!steps && !name && !description && updates.length === 0) return null;
+    return { steps, name, description, updates };
   };
 
   const submit = async (text: string) => {
@@ -460,13 +492,26 @@ export default function AutomationCopilot({
     setLines((current) => [...current, userLine]);
     try {
       const payload = await askModel(trimmed, history);
+      const edit = editFromPayload(payload);
       const recipe = payload.recipeId ? copilotRecipeById(payload.recipeId) : null;
-      const reply =
-        payload.reply?.trim() ||
-        (recipe ? `${t(recipeKey(recipe.id, 'summary'))}\n\n${t(recipeKey(recipe.id, 'logic'))}` : t('unknown'));
-      const assistantLine: ChatLine = { id: lineId(), role: 'assistant', text: reply, recipeId: recipe?.id };
+      const reply = payload.unavailable
+        ? t('featureUnavailable')
+        : payload.reply?.trim() ||
+          (recipe ? `${t(recipeKey(recipe.id, 'summary'))}\n\n${t(recipeKey(recipe.id, 'logic'))}` : t('unknown'));
+      const assistantLine: ChatLine = {
+        id: lineId(),
+        role: 'assistant',
+        text: reply,
+        recipeId: recipe?.id,
+        plan: edit?.steps ?? undefined,
+        edit: edit ?? undefined,
+      };
       setLines((current) => [...current, assistantLine]);
-      if (surface === 'dock' && recipe?.kind === 'workflow') onApplyWorkflowRecipeAction?.(recipe.id);
+      if (surface === 'dock' && !payload.unavailable && edit) {
+        onApplyWorkflowPlanAction?.(edit);
+      } else if (surface === 'dock' && !payload.unavailable && recipe?.kind === 'workflow') {
+        onApplyWorkflowRecipeAction?.(recipe.id);
+      }
       const existingId = conversationIdRef.current;
       const response = await fetch('/api/laku-ai/conversations', {
         method: existingId ? 'PATCH' : 'POST',
@@ -502,6 +547,19 @@ export default function AutomationCopilot({
       setSending(false);
       inputRef.current?.focus();
     }
+  };
+
+  const reviewPlan = (edit: WorkflowCanvasEdit) => {
+    writeCopilotReviewPlan(edit);
+    const conversationId = conversationIdRef.current;
+    const linked = conversationId ? readCopilotWorkflowLink(conversationId) : null;
+    const chat = conversationId ? `&chat=${encodeURIComponent(conversationId)}` : '';
+    if (linked) {
+      if (conversationId) writeCopilotWorkflowLink(conversationId, linked);
+      router.push(`/automation/details?id=${encodeURIComponent(linked)}&plan=1${chat}`);
+      return;
+    }
+    router.push(`/automation/new?plan=1${chat}`);
   };
 
   const apply = (recipe: CopilotWorkflowRecipe) => {
@@ -844,12 +902,18 @@ export default function AutomationCopilot({
                     <div className="max-w-[85%] rounded-2xl border border-[#e6e6e6] bg-white px-4 py-3">
                       <p className="mb-1 text-[11px] font-semibold text-[#0a61d7]">{t('assistantLabel')}</p>
                       <TypingReply text={line.text} reduceMotion={reduceMotion} instant={line.instant} onProgress={scrollToEnd}>
-                        {workflow && surface === 'page' ? (
+                        {(line.edit || line.plan?.length || workflow) && surface === 'page' ? (
                           <div className="mt-3 flex flex-wrap items-center gap-2">
                             <button
                               type="button"
                               className="rounded-lg bg-[#0a61d7] px-3 py-2 text-xs font-semibold text-white hover:bg-[#084ba6]"
-                              onClick={() => apply(workflow)}
+                              onClick={() =>
+                                line.edit
+                                  ? reviewPlan(line.edit)
+                                  : line.plan?.length
+                                    ? reviewPlan({ steps: line.plan, name: null, description: null, updates: [] })
+                                    : workflow && apply(workflow)
+                              }
                             >
                               {t('reviewCanvas')}
                             </button>

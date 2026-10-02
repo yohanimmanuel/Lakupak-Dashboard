@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runDistributorAppAssistant } from '@/lib/lakuAi/runDistributorAppAssistant';
+import { validateWorkflowPlan } from '@/lib/lakuAi/workflowPlan';
 import { setDbSecurityContextFromRequest } from '@/lib/db';
 
 async function getSessionUserId(): Promise<number | null> {
@@ -47,10 +48,21 @@ export async function POST(request: NextRequest) {
     history,
     locale,
     onCanvas: record.onCanvas === true,
+    canvas: validateWorkflowPlan(record.canvas),
   });
   if (!result.ok) {
     const status = result.code === 'bad_request' ? 400 : result.code === 'not_configured' ? 503 : 502;
     return NextResponse.json({ error: result.error, code: result.code }, { status });
   }
-  return NextResponse.json({ reply: result.reply, recipeId: result.recipeId, model: result.model, source: 'model' });
+  return NextResponse.json({
+    reply: result.reply,
+    recipeId: result.recipeId,
+    plan: result.plan,
+    unavailable: result.unavailable,
+    name: result.name,
+    description: result.description,
+    updates: result.updates,
+    model: result.model,
+    source: 'model',
+  });
 }

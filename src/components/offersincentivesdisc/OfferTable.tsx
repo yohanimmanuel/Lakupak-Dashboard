@@ -1254,7 +1254,7 @@ export default function OfferTable({
               </div>
             )}
             <p className="mb-4 text-gray-500">
-              {isBulkDelete
+              {isBulkDelete 
                 ? tTable('deleteBulkConfirm', { count: String(selectedKeys.length) })
                 : groupToDelete && groupToDelete.members.length > 1
                   ? tTable('deleteGroupConfirm', { count: String(groupToDelete.members.length) })

@@ -12,7 +12,7 @@
   "copilot": {
     "title": "Buat draf alur kerja",
     "hint": "Jelaskan apa yang harus terjadi. Tinjau draf di kanvas. Tidak ada yang aktif sampai Anda mengaktifkannya.",
-    "placeholder": "Tanya Lakupak AI tentang pesanan, pembeli, produk, atau otomatisasi...",
+    "placeholder": "Tanya Lakupak AI...",
     "greetingMorning": "Selamat pagi",
     "greetingAfternoon": "Selamat siang",
     "greetingEvening": "Selamat malam",
@@ -99,6 +99,7 @@
       }
     },
     "unknown": "Saya belum bisa menjawab itu. Coba lagi, atau tanyakan pesanan, pembeli, produk, penjualan, atau otomatisasi.",
+    "featureUnavailable": "Fitur alur kerja belum tersedia, coba hal lain.",
     "recipes": {
       "low_stock": {
         "chip": "Stok rendah",

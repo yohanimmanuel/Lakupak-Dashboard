@@ -420,12 +420,12 @@ export default function ClientMatchingQueue() {
                       <Field label={t('owner')} value={row.incoming.owner} />
                       <Field label={t('phone')} value={row.incoming.phone} />
                       <Field label={t('address')} value={row.incoming.address} />
-                      <Field label={t('orderId')} value={row.incomingOrderId} />
+                      {row.incomingOrderId ? <Field label={t('orderId')} value={row.incomingOrderId} /> : null}
                     </div>
                   </div>
                 </div>
                 <div className="flex flex-wrap justify-end gap-2 mt-4">
-                  {(row.status === 'pending' || row.status === 'needs_more_info') && (
+                  {(row.status === 'pending' || row.status === 'needs_more_info') && row.incomingOrderId ? (
                     <>
                       <button
                         type="button"
@@ -470,7 +470,7 @@ export default function ClientMatchingQueue() {
                         {t('needsMore')}
                       </button>
                     </>
-                  )}
+                  ) : null}
                   {(row.status === 'merged' || row.status === 'not_a_match') && (
                     <button type="button" className={OUTLINE} onClick={() => undoMatch(row.id)}>
                       {t('undo')}

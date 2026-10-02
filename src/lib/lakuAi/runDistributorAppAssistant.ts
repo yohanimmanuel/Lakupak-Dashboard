@@ -1,6 +1,20 @@
 import { chatWithOpenRouter, isOpenRouterConfigured } from '@/lib/automations/openrouter';
 import { resolveLakuAgentProviderModel } from '@/lib/automations/agentModels';
-import { copilotRecipeById } from '@/lib/automations/copilotRecipes';
+import {
+  allowedWorkflowCatalog,
+  describeWorkflowEdit,
+  fallbackMessageTemplate,
+  fallbackWorkflowDescription,
+  fieldsForCatalogType,
+  readAssistantWorkflow,
+  settleWorkflowPlan,
+  workflowInputGuide,
+  catalogTypeLabel,
+  workflowMetaFromMessage,
+  type WorkflowFieldUpdate,
+  type WorkflowPlanStep,
+} from '@/lib/lakuAi/workflowPlan';
+import { resolveWorkflowInputs, workflowRecordHints } from '@/lib/lakuAi/resolveWorkflowInputs';
 import { buildDistributorAppAssistantContext } from '@/lib/lakuAi/distributorAppContext';
 import { searchDocsLocal } from '@/lib/docs/search';
 import { docUrl, getDocsNav } from '@/lib/docs/load';
@@ -12,7 +26,17 @@ export type DistributorAppChatMessage = {
 };
 
 export type DistributorAppAssistantResult =
-  | { ok: true; reply: string; model: string; recipeId: string | null }
+  | {
+      ok: true;
+      reply: string;
+      model: string;
+      recipeId: string | null;
+      plan: WorkflowPlanStep[] | null;
+      unavailable: boolean;
+      name: string | null;
+      description: string | null;
+      updates: WorkflowFieldUpdate[];
+    }
   | { ok: false; error: string; code?: 'unauthorized' | 'not_configured' | 'bad_request' | 'upstream' };
 
 const AUTOMATION_RECIPES = [
@@ -24,60 +48,6 @@ const AUTOMATION_RECIPES = [
   'cart_idle: a cart sits idle for 24 hours. Send a WhatsApp win-back. Stop if they already ordered.',
   'sales_jobs: guide only. Sales agent replies on the distributor WhatsApp number are filed on the open job when the facts are clear. Several shops means ask which shop. A missing fact means ask the agent.',
 ].join('\n');
-
-function recipeFromJson(raw: string): { recipeId: string | null } | null {
-  try {
-    const parsed = JSON.parse(raw) as { recipeId?: unknown };
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || !('recipeId' in parsed)) return null;
-    const id = typeof parsed.recipeId === 'string' ? parsed.recipeId.trim() : '';
-    return { recipeId: id && copilotRecipeById(id) ? id : null };
-  } catch {
-    return null;
-  }
-}
-
-function recipeInChunk(chunk: string): { recipeId: string | null } | null {
-  const whole = recipeFromJson(chunk.trim());
-  if (whole) return whole;
-  const inlines = [...chunk.matchAll(/\{[^{}]*"recipeId"[^{}]*\}/g)];
-  for (let i = inlines.length - 1; i >= 0; i -= 1) {
-    const parsed = recipeFromJson(inlines[i][0]);
-    if (parsed) return parsed;
-  }
-  return null;
-}
-
-function extractRecipeReply(content: string): { reply: string; recipeId: string | null } {
-  const text = content.replace(/\u2014|\u2013/g, '-').trim();
-  const markers: { start: number; end: number; recipeId: string | null }[] = [];
-  const fences = [...text.matchAll(/```(?:json)?\s*([\s\S]*?)```/g)];
-  for (const fence of fences) {
-    if (fence.index == null) continue;
-    const parsed = recipeInChunk(fence[1] ?? '');
-    if (!parsed) continue;
-    markers.push({
-      start: fence.index,
-      end: fence.index + fence[0].length,
-      recipeId: parsed.recipeId,
-    });
-  }
-  for (const inline of text.matchAll(/\{[^{}]*"recipeId"[^{}]*\}/g)) {
-    if (inline.index == null) continue;
-    const insideFence = markers.some((marker) => inline.index! >= marker.start && inline.index! < marker.end);
-    if (insideFence) continue;
-    const parsed = recipeFromJson(inline[0]);
-    if (!parsed) continue;
-    markers.push({
-      start: inline.index,
-      end: inline.index + inline[0].length,
-      recipeId: parsed.recipeId,
-    });
-  }
-  if (markers.length === 0) return { reply: text, recipeId: null };
-  const selected = markers.reduce((last, marker) => (marker.start >= last.start ? marker : last));
-  const reply = `${text.slice(0, selected.start)}${text.slice(selected.end)}`.trim();
-  return { reply, recipeId: selected.recipeId };
-}
 
 function normalizeLocale(locale: string | null | undefined): 'en' | 'id' {
   const raw = String(locale ?? '')
@@ -124,6 +94,7 @@ export async function runDistributorAppAssistant(input: {
   history?: DistributorAppChatMessage[];
   locale?: string | null;
   onCanvas?: boolean;
+  canvas?: WorkflowPlanStep[] | null;
 }): Promise<DistributorAppAssistantResult> {
   const message = String(input.message ?? '').trim();
   if (!message) {
@@ -213,15 +184,33 @@ export async function runDistributorAppAssistant(input: {
     'You are the same Lakupak AI everywhere: analysis, order taking, buyer analysis, product creation, offers, sales reminders, and automation drafts. Do not tell the user to open a different chatbot.',
     'Answer the question they asked. If they want numbers, use the account context. If they want to create a product, buyer, or order, explain the practical next step and the module path.',
     'AUTOMATION DRAFTS:',
-    'When they ask you to build, change, replace, switch, or edit a workflow, explain the draft in plain language and end with one JSON line: {"recipeId":"<id>"}',
-    'Use only these ids. Channels for drafts are WhatsApp and Gmail only. Do not invent other apps.',
-    'Changing the workflow already on the canvas still needs a recipeId. Pick the id that matches the workflow they want.',
-    'If they are not asking to build or change a workflow, end with {"recipeId":null}. A greeting, an analysis question, order help, buyer help, or product help is not a workflow.',
-    'If none of the ids fit, answer in conversation and use null. Do not invent a workflow.',
-    'The JSON line is removed before they see the reply. Do not mention it.',
+    'When they ask you to build, edit, name, describe, or fill inputs on a workflow, end with one JSON object: {"plan":[steps] or null, "name": string or null, "description": string or null, "updates":[{"type":"...","config":{}}]}.',
+    'Each step is one of {"kind":"trigger","type":"...","config":{}}, {"kind":"action","type":"...","config":{}}, {"kind":"agent"}, {"kind":"app","type":"..."}, {"kind":"condition","type":"..."}, {"kind":"end","type":"..."}. Omit config when you are not filling inputs.',
+    'The first step is the trigger. Then only the steps the request needs, in order. Build the workflow they asked for. A direct task such as replenish stock or mark paid is trigger then action, with no agent.',
+    'An If condition always has two different next steps that you choose for this request. The step right after the condition is Yes. The step after that is No. Do not leave a condition with one path. Do not reuse a previous workflow when they asked for a different one.',
+    'Examples, copy the shape only when the request matches that example:',
+    'Replenish: {"kind":"trigger","type":"stock_below"}, {"kind":"action","type":"replenish_stock"}, {"kind":"action","type":"notify_dashboard"}.',
+    'Mark paid: {"kind":"trigger","type":"order_paid"}, {"kind":"action","type":"mark_paid_from_proof"}, {"kind":"action","type":"notify_dashboard"}.',
+    'Buyer handoff: {"kind":"trigger","type":"buyer_questions"}, {"kind":"agent"}, {"kind":"app","type":"app_webhook"}, {"kind":"action","type":"cs_24h_window"}, {"kind":"condition","type":"yes_no"}, {"kind":"action","type":"assign_agent_whatsapp"}, {"kind":"end","type":"stay_in_cs"}. Yes assigns an agent. No stays in customer service.',
+    'Use only the catalog below. Channels are WhatsApp and Gmail only.',
+    allowedWorkflowCatalog(),
+    'If they ask for a step, channel, or behavior that is not in that catalog, do not invent it. Reply with exactly "Workflow feature is not available, try another thing." in English, or "Fitur alur kerja belum tersedia, coba hal lain." in Indonesian, and end with {"plan":"unavailable"}.',
+    'WORKFLOW NAME, DESCRIPTION, AND INPUTS:',
+    'A rename, a description, or a filled input is a workflow edit. If the steps stay the same, set plan to null and set name, description, and updates.',
+    'name is the workflow title they asked for, kept short. description is one or two sentences about what this workflow does for their business. Write it yourself when they ask for a description and do not supply the words.',
+    'updates fill inputs that already exist on a step. Use the catalog type, for example cart_winback or cart_idle. config may include buyers (store names), products (product names), messageTemplate, channel, messageCategory, hours, replenishQty, and offerId.',
+    'messageTemplate is the message a buyer or the team will actually receive. Write it for this request, specific and ready to send, in the reply language. Do not use a placeholder like [name] unless they asked for one. No em dashes.',
+    'Pick buyers and products only from the account list in the user message. Use the store name. If the name is not in that list, leave buyers empty. Never invent an id.',
+    'Win-back and promo messages use channel whatsapp and messageCategory MARKETING unless they asked for email or both.',
+    'Allowed inputs:',
+    workflowInputGuide(),
+    'If they are not asking to build, rename, describe, or fill a workflow, end with {"plan":null}. A greeting, an analysis question, order help, buyer help, or product help is not a workflow edit.',
+    'The JSON is removed before they see the reply. Do not mention it, tool calls, function calls, safety labels, or recipe ids.',
+    'Name every step you keep, in order, in the reply: the trigger, then each app, Lakupak AI, action, condition, or end.',
+    'When a current canvas is included, return the full plan after the edit. Keep every current step the user did not ask to remove.',
     'Do not claim a workflow is saved or active. The canvas shows the draft, then they save or activate it. Do not tell them to open Automations, click Create Workflow, or leave the page.',
     input.onCanvas
-      ? 'The user is on the automation canvas now. A recipeId updates that canvas in place. Do not tell them to go somewhere else to edit it.'
+      ? 'The user is on the automation canvas now. The plan updates that canvas in place. Do not tell them to go somewhere else to edit it.'
       : '',
     AUTOMATION_RECIPES,
   ]
@@ -236,15 +225,22 @@ export async function runDistributorAppAssistant(input: {
       content: String(m.content).trim().slice(0, 4000),
     }));
 
+  const wantsRecords =
+    input.onCanvas === true ||
+    /workflow|automation|canvas|buyer|template|message|win-?back|alur|pembeli|pesan|deskripsi|description/i.test(message);
+  const recordHints = wantsRecords ? await workflowRecordHints(input.userId) : '';
+
   const userContent = [
     `Reply language: ${locale === 'id' ? 'Indonesian' : 'English'}`,
     '',
     'Distributor account + app context (JSON):',
     accountContext,
+    recordHints ? `\nRecords you may select:\n${recordHints}` : '',
     '',
     'Documentation context (JSON):',
     JSON.stringify(documentation),
     '',
+    input.canvas?.length ? `Current canvas steps (JSON):\n${JSON.stringify(input.canvas)}` : '',
     'User question:',
     message.slice(0, 4000),
   ].join('\n');
@@ -260,11 +256,127 @@ export async function runDistributorAppAssistant(input: {
       temperature: 0.35,
       maxTokens: 6144,
     });
-    const parsed = extractRecipeReply(String(result.content ?? ''));
-    if (!parsed.reply) {
+    const raw = String(result.content ?? '');
+    const parsed = readAssistantWorkflow(raw);
+    const unavailableCopy =
+      locale === 'id'
+        ? 'Fitur alur kerja belum tersedia, coba hal lain.'
+        : 'Workflow feature is not available, try another thing.';
+    const leaked = /<\|tool_call|safety\s*:/i.test(raw);
+    const readableFallback =
+      locale === 'id'
+        ? 'Saya tidak menangkap itu. Coba lagi dengan langkah yang ada di kanvas.'
+        : 'I did not catch that. Try again with a step from the canvas.';
+    const settled = settleWorkflowPlan({
+      message,
+      plan: parsed.plan,
+      recipeOnly: parsed.recipeOnly,
+      canvas: input.canvas ?? null,
+      unavailable: parsed.unavailable,
+    });
+    const hinted = workflowMetaFromMessage(message);
+    const name = parsed.name || (input.onCanvas ? hinted.name : null);
+    const canvasSteps = settled.plan ?? input.canvas ?? null;
+    const description =
+      parsed.description ||
+      (input.onCanvas && hinted.wantsDescription && canvasSteps?.length
+        ? fallbackWorkflowDescription(canvasSteps, locale)
+        : null);
+    const resolved =
+      parsed.updates.length || input.onCanvas
+        ? await resolveWorkflowInputs(input.userId, parsed.updates, {
+            message,
+            canvasTypes: (input.canvas ?? []).flatMap((step) => (step.kind === 'agent' ? [] : [step.type])),
+          })
+        : { updates: [], missing: [] };
+    const canvasTypes = new Set(
+      (input.canvas ?? []).flatMap((step) => (step.kind === 'agent' ? [] : [step.type])),
+    );
+    const planTypes = new Set(
+      (settled.plan ?? []).flatMap((step) => (step.kind === 'agent' ? [] : [step.type])),
+    );
+    const updates = resolved.updates.filter((update) => {
+      if (!input.onCanvas) return true;
+      if (settled.plan && !settled.unchanged) return planTypes.has(update.type);
+      return canvasTypes.has(update.type);
+    });
+    const skipped = resolved.updates
+      .filter((update) => !updates.some((kept) => kept.type === update.type))
+      .map((update) => catalogTypeLabel(update.type, locale));
+    const asksMessage = /\b(message template|write a message|draft a message|tulis pesan|buat pesan|buatkan pesan)\b/i.test(
+      message,
+    );
+    if (input.onCanvas && asksMessage && !updates.some((update) => String(update.config.messageTemplate ?? '').trim())) {
+      const target = (input.canvas ?? []).find(
+        (step) =>
+          step.kind !== 'agent' && fieldsForCatalogType(step.type).some((field) => field.key === 'messageTemplate'),
+      );
+      if (target && target.kind !== 'agent') {
+        const template = fallbackMessageTemplate(target.type, locale);
+        if (template) {
+          const existing = updates.find((update) => update.type === target.type);
+          const config: Record<string, unknown> = { ...(existing?.config ?? {}), messageTemplate: template };
+          if (target.type === 'cart_winback') {
+            if (!config.channel) config.channel = 'whatsapp';
+            if (!config.messageCategory) config.messageCategory = 'MARKETING';
+          }
+          if (existing) existing.config = config;
+          else updates.push({ type: target.type, config });
+        }
+      }
+    }
+    if (settled.plan) {
+      for (const step of settled.plan) {
+        if (step.kind === 'agent') continue;
+        const update = updates.find((item) => item.type === step.type);
+        if (update) step.config = update.config;
+      }
+    }
+    const hidePlan = Boolean(input.onCanvas && settled.unchanged);
+    const plan = settled.plan && !hidePlan ? settled.plan : null;
+    const hasEdit = Boolean(name || description || updates.length);
+    const claimedUpdate = /updated the canvas|memperbarui kanvas|these steps:|langkah ini:/i.test(parsed.reply);
+    const missedCanvasEdit =
+      locale === 'id'
+        ? 'Kanvas tidak berubah. Sebutkan langkah yang ada di pembangun alur kerja.'
+        : 'The canvas did not change. Name a step the workflow builder already has.';
+    const reply =
+      settled.plan || hasEdit
+        ? describeWorkflowEdit({
+            locale,
+            name,
+            description,
+            steps: settled.plan,
+            stepMode: settled.plan
+              ? input.onCanvas
+                ? settled.unchanged
+                  ? 'already'
+                  : 'updated'
+                : 'draft'
+              : null,
+            updates,
+            missing: resolved.missing,
+            skipped,
+          })
+        : input.onCanvas && claimedUpdate
+          ? missedCanvasEdit
+          : parsed.unavailable
+            ? unavailableCopy
+            : parsed.reply || (leaked ? readableFallback : '');
+    if (!reply) {
       return { ok: false, code: 'upstream', error: 'Empty reply from model.' };
     }
-    return { ok: true, reply: parsed.reply, model: result.model, recipeId: parsed.recipeId };
+    return {
+      ok: true,
+      reply,
+      model: result.model,
+      recipeId: plan ? parsed.recipeId : null,
+      plan,
+      unavailable: !plan && !hasEdit && parsed.unavailable,
+      name,
+      description,
+      updates,
+    };
   } catch (e) {
     const raw = e instanceof Error ? e.message : 'Upstream error';
     const timedOut = /timeout|aborted|AbortError/i.test(raw);

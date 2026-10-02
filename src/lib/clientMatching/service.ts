@@ -143,6 +143,109 @@ export async function getClientMatchSettings(distributorId: number) {
   return { autoMatch: user?.autoClientMatch ?? false };
 }
 
+const REVIEW_OPEN_STATUSES = ['pending', 'needs_more_info'] as const;
+/** A possible match counts when it is still open, or the score is above this. */
+const POSSIBLE_MATCH_SCORE = 50;
+
+export type ReviewBuyerMatch = {
+  id: string;
+  existingClientId: string;
+  incomingOrderId: string;
+  provisionalClientId: string | null;
+  confidenceScore: number;
+  matchedSignals: MatchSignal[];
+  status: 'pending';
+  autoMerged: false;
+  undoneAt: null;
+  createdAt: string;
+  existing: { name: string; owner: string | null; phone: string | null; address: string | null; status: string };
+  incoming: { name: string; owner: string | null; phone: string | null; address: string | null; status: string };
+};
+
+function buyerMatchSide(buyer: { storeName: string; owner: string; phone: string; address: string; status: string }) {
+  return {
+    name: buyer.storeName,
+    owner: buyer.owner,
+    phone: buyer.phone,
+    address: buyer.address,
+    status: buyer.status,
+  };
+}
+
+/** Prospects that look like another buyer and are not already in the open review queue. */
+export async function findPossibleBuyerMatches(distributorId: number): Promise<ReviewBuyerMatch[]> {
+  const open = await prisma.clientMatchCandidate.findMany({
+    where: { distributorId, status: { in: [...REVIEW_OPEN_STATUSES] } },
+    select: { existingClientId: true, provisionalClientId: true },
+  });
+  const covered = new Set<string>();
+  for (const row of open) {
+    covered.add(row.existingClientId);
+    if (row.provisionalClientId) covered.add(row.provisionalClientId);
+  }
+
+  const buyers = await prisma.buyer.findMany({
+    where: { userId: distributorId, status: { in: ['Prospect', 'Active'] } },
+    select: { buyerId: true, owner: true, phone: true, storeName: true, address: true, status: true },
+  });
+  const prospects = buyers.filter((buyer) => buyer.status === 'Prospect' && !covered.has(buyer.buyerId));
+  const matches: ReviewBuyerMatch[] = [];
+  const seen = new Set<string>();
+
+  for (const prospect of prospects) {
+    let best: { buyer: (typeof buyers)[number]; result: ReturnType<typeof classifyClientSignals> } | null = null;
+    for (const other of buyers) {
+      if (other.buyerId === prospect.buyerId) continue;
+      const result = classifyClientSignals({
+        incomingPhone: prospect.phone,
+        incomingAddress: prospect.address,
+        incomingStoreName: prospect.storeName,
+        incomingOwnerName: prospect.owner,
+        existingPhone: other.phone,
+        existingAddress: other.address,
+        existingStoreName: other.storeName,
+        existingOwnerName: other.owner,
+      });
+      if (result.score <= POSSIBLE_MATCH_SCORE) continue;
+      if (!best || result.score > best.result.score) best = { buyer: other, result };
+    }
+    if (!best) continue;
+    const key = [prospect.buyerId, best.buyer.buyerId].sort().join('|');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    matches.push({
+      id: `possible:${prospect.buyerId}:${best.buyer.buyerId}`,
+      existingClientId: prospect.buyerId,
+      incomingOrderId: '',
+      provisionalClientId: best.buyer.buyerId,
+      confidenceScore: best.result.score,
+      matchedSignals: best.result.signals,
+      status: 'pending',
+      autoMerged: false,
+      undoneAt: null,
+      createdAt: new Date().toISOString(),
+      existing: buyerMatchSide(prospect),
+      incoming: buyerMatchSide(best.buyer),
+    });
+  }
+  return matches;
+}
+
+/** Open review rows, plus possible matches still pending or above 50 confidence. */
+export async function countBuyerMatchesForReview(distributorId: number): Promise<number> {
+  const open = await prisma.clientMatchCandidate.count({
+    where: {
+      distributorId,
+      OR: [
+        { status: { in: [...REVIEW_OPEN_STATUSES] } },
+        { confidenceScore: { gt: POSSIBLE_MATCH_SCORE }, status: { notIn: ['merged', 'not_a_match'] } },
+      ],
+    },
+  });
+  const possible = await findPossibleBuyerMatches(distributorId);
+  return open + possible.length;
+}
+
 export async function setClientMatchSettings(distributorId: number, autoMatch: boolean) {
   await prisma.user.update({
     where: { id: distributorId },

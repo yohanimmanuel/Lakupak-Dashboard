@@ -1,3 +1,4 @@
+import { countBuyerMatchesForReview } from '@/lib/clientMatching/service';
 import { prisma } from '@/lib/db';
 import {
   WHATSAPP_GRAPH_VERSION,
@@ -15,7 +16,6 @@ export type NavbarGlance = {
 };
 
 const REVIEW_JOB_STATUSES = ['pending', 'suggested', 'approved'] as const;
-const REVIEW_MATCH_STATUSES = ['pending', 'needs_more_info'] as const;
 
 const WHATSAPP_TTL_MS = 2 * 60 * 1000;
 
@@ -113,12 +113,7 @@ export async function loadNavbarGlance(userId: number): Promise<NavbarGlance> {
         status: { in: [...REVIEW_JOB_STATUSES] },
       },
     }),
-    prisma.clientMatchCandidate.count({
-      where: {
-        distributorId: userId,
-        status: { in: [...REVIEW_MATCH_STATUSES] },
-      },
-    }),
+    countBuyerMatchesForReview(userId),
     prisma.automationWorkflow.count({
       where: { userId, status: 'draft' },
     }),

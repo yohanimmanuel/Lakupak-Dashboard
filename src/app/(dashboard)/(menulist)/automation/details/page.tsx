@@ -37,7 +37,9 @@ import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
 import { useLocale, useTranslations } from 'next-intl';
-import { buildCopilotDraftFromRecipe } from '@/components/automations/buildCopilotDraft';
+import { applyFieldUpdates, buildCopilotDraftFromPlan, buildCopilotDraftFromRecipe } from '@/components/automations/buildCopilotDraft';
+import { takeCopilotReviewPlan } from '@/lib/lakuAi/copilotReviewPlan';
+import { planFromCanvasNodes, type WorkflowCanvasEdit } from '@/lib/lakuAi/workflowPlan';
 import { requestGlanceRefresh } from '@/lib/navbar/glanceRefresh';
 const WORKFLOW_QUERY = `
   query GetAutomationWorkflow($id: String!) {
@@ -185,6 +187,8 @@ function DetailsInner() {
   const applySeqRef = useRef(0);
   const appliedRecipeRef = useRef<string | null>(null);
   const recipeId = searchParams?.get('recipe') ?? null;
+  const planFlag = searchParams?.get('plan') ?? null;
+  const appliedPlanRef = useRef(false);
   const linkedChatId = searchParams?.get('chat') ?? null;
   const closeAskAiRef = useRef<(() => void) | null>(null);
 
@@ -345,6 +349,75 @@ function DetailsInner() {
     setFormError(null);
     setAiApplying(false);
   }, [history, locale, tActions, tBuilder, tCopilot, tTriggers]);
+
+  const applyWorkflowPlan = useCallback(async (edit: WorkflowCanvasEdit) => {
+    const labels = {
+      triggerTitle: tBuilder('nodeTrigger'),
+      triggerSubtitle: tBuilder('nodeTrigger'),
+      agentTitle: tBuilder('nodeAgent'),
+      agentSubtitle: tBuilder('nodeAgent'),
+      actionTitle: tBuilder('nodeAction'),
+      actionSubtitle: tBuilder('nodeAction'),
+    };
+    const steps = edit.steps?.length ? edit.steps : null;
+    const built = steps
+      ? buildCopilotDraftFromPlan({
+          steps,
+          locale,
+          labels,
+          triggerLabel: (type) => tTriggers(type),
+          hasTrigger: (type) => tTriggers.has(type),
+          actionLabel: (type) => tActions(type),
+          hasAction: (type) => tActions.has(type),
+          appTitle: (type) => tBuilder(type === 'app_email' ? 'appEmail' : 'appWebhook'),
+          appSubtitle: tBuilder('nodeApp'),
+          conditionTitle: tBuilder('nodeCondition'),
+          endTitle: (type) => tBuilder(type === 'stay_in_cs' ? 'endStayInCs' : 'endStop'),
+          endSubtitle: tBuilder('nodeEnd'),
+          name: edit.name?.trim() || '',
+          description: edit.description?.trim() || '',
+        })
+      : null;
+    if (steps && !built) return;
+    const workflowId = latestIdRef.current;
+    const seq = ++applySeqRef.current;
+    setAiApplying(true);
+    await new Promise((resolve) => window.setTimeout(resolve, 700));
+    if (seq !== applySeqRef.current) return;
+    if (latestIdRef.current !== workflowId) {
+      setAiApplying(false);
+      return;
+    }
+    const current = draftRef.current;
+    if (current) history.push({ nodes: current.nodes, edges: current.edges }, { force: true });
+    setDraft((currentDraft) => {
+      if (!currentDraft) return currentDraft;
+      const nodes = applyFieldUpdates(built?.nodes ?? currentDraft.nodes, edit.updates);
+      return {
+        ...currentDraft,
+        name: edit.name?.trim() || currentDraft.name || built?.name || '',
+        description: edit.description?.trim() || currentDraft.description || built?.description || '',
+        type: built?.type ?? currentDraft.type,
+        nodes,
+        edges: built?.edges ?? currentDraft.edges,
+      };
+    });
+    setSelectedNodeId(null);
+    setNameError(null);
+    setFormError(null);
+    setAiApplying(false);
+  }, [history, locale, tActions, tBuilder, tTriggers]);
+
+  useEffect(() => {
+    if (planFlag !== '1' || loading || !draft || appliedPlanRef.current) return;
+    appliedPlanRef.current = true;
+    const edit = takeCopilotReviewPlan();
+    const next = new URLSearchParams(searchParams?.toString() ?? '');
+    next.delete('plan');
+    const query = next.toString();
+    router.replace(query ? `/automation/details?${query}` : '/automation/details');
+    if (edit) void applyWorkflowPlan(edit);
+  }, [planFlag, loading, draft, applyWorkflowPlan, router, searchParams]);
 
   useEffect(() => {
     if (!recipeId || loading || !draft || appliedRecipeRef.current === recipeId) return;
@@ -623,6 +696,8 @@ function DetailsInner() {
       aiAutomationId={id}
       aiApplying={aiApplying}
       onApplyWorkflowRecipeAction={(recipeId) => void applyWorkflowRecipe(recipeId)}
+      onApplyWorkflowPlanAction={(steps) => void applyWorkflowPlan(steps)}
+      canvasSteps={draft ? planFromCanvasNodes(draft.nodes, draft.edges) : null}
       initialConversationId={linkedChatId}
       onDismissStepDetailsAction={() => setSelectedNodeId(null)}
       closeAskAiRef={closeAskAiRef}

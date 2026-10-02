@@ -23,7 +23,9 @@ import {
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
-import { buildCopilotDraftFromRecipe } from '@/components/automations/buildCopilotDraft';
+import { applyFieldUpdates, buildCopilotDraftFromPlan, buildCopilotDraftFromRecipe } from '@/components/automations/buildCopilotDraft';
+import { takeCopilotReviewPlan } from '@/lib/lakuAi/copilotReviewPlan';
+import { planFromCanvasNodes, type WorkflowCanvasEdit } from '@/lib/lakuAi/workflowPlan';
 import { clearPendingBuilderChat } from '@/lib/lakuAi/pendingBuilderChat';
 import { writeCopilotWorkflowLink } from '@/lib/lakuAi/copilotWorkflowLink';
 import { requestGlanceRefresh } from '@/lib/navbar/glanceRefresh';
@@ -143,6 +145,52 @@ export default function NewAutomationPage() {
     setFormError(null);
     setAiApplying(false);
   }, [history, labels, locale, tActions, tCopilot, tTriggers]);
+
+  const applyWorkflowPlan = useCallback(async (edit: WorkflowCanvasEdit) => {
+    const current = draftRef.current;
+    const steps = edit.steps?.length ? edit.steps : null;
+    const nextName = edit.name?.trim() || current.name;
+    const nextDescription = edit.description?.trim() || current.description;
+    if (!steps && nextName === current.name && nextDescription === current.description && !edit.updates.length) return;
+    const built = steps
+      ? buildCopilotDraftFromPlan({
+          steps,
+          locale,
+          labels,
+          triggerLabel: (type) => tTriggers(type),
+          hasTrigger: (type) => tTriggers.has(type),
+          actionLabel: (type) => tActions(type),
+          hasAction: (type) => tActions.has(type),
+          appTitle: (type) => tBuilder(type === 'app_email' ? 'appEmail' : 'appWebhook'),
+          appSubtitle: tBuilder('nodeApp'),
+          conditionTitle: tBuilder('nodeCondition'),
+          endTitle: (type) => tBuilder(type === 'stay_in_cs' ? 'endStayInCs' : 'endStop'),
+          endSubtitle: tBuilder('nodeEnd'),
+          name: nextName,
+          description: nextDescription,
+        })
+      : null;
+    if (steps && !built) return;
+    const seq = ++applySeqRef.current;
+    setAiApplying(true);
+    await new Promise((resolve) => window.setTimeout(resolve, 700));
+    if (seq !== applySeqRef.current) return;
+    const latest = draftRef.current;
+    history.push({ nodes: latest.nodes, edges: latest.edges }, { force: true });
+    const nodes = applyFieldUpdates(built?.nodes ?? latest.nodes, edit.updates);
+    setDraft({
+      name: edit.name?.trim() || latest.name || built?.name || '',
+      description: edit.description?.trim() || latest.description || built?.description || '',
+      type: built?.type ?? latest.type,
+      status: latest.status,
+      nodes,
+      edges: built?.edges ?? latest.edges,
+    });
+    setSelectedNodeId(null);
+    setNameError(null);
+    setFormError(null);
+    setAiApplying(false);
+  }, [history, labels, locale, tActions, tBuilder, tTriggers]);
 
   const checkpointHistory = useCallback(() => {
     const current = draftRef.current;
@@ -285,13 +333,20 @@ export default function NewAutomationPage() {
   useEffect(() => {
     if (recipeBootstrapped.current) return;
     const params = new URLSearchParams(window.location.search);
-    const recipeId = params.get('recipe');
     chatIdRef.current = params.get('chat') ?? chatIdRef.current;
+    if (params.get('plan') === '1') {
+      recipeBootstrapped.current = true;
+      const edit = takeCopilotReviewPlan();
+      window.history.replaceState(null, '', '/automation/new');
+      if (edit) void applyWorkflowPlan(edit);
+      return;
+    }
+    const recipeId = params.get('recipe');
     if (!recipeId) return;
     recipeBootstrapped.current = true;
     window.history.replaceState(null, '', '/automation/new');
     void applyWorkflowRecipe(recipeId);
-  }, [applyWorkflowRecipe]);
+  }, [applyWorkflowRecipe, applyWorkflowPlan]);
 
   return (
     <WorkflowBuilderShell
@@ -300,6 +355,8 @@ export default function NewAutomationPage() {
       saving={saving}
       aiApplying={aiApplying}
       onApplyWorkflowRecipeAction={(recipeId) => void applyWorkflowRecipe(recipeId)}
+      onApplyWorkflowPlanAction={(steps) => void applyWorkflowPlan(steps)}
+      canvasSteps={planFromCanvasNodes(draft.nodes, draft.edges)}
       initialConversationId={linkedChatId}
       onDismissStepDetailsAction={() => setSelectedNodeId(null)}
       closeAskAiRef={closeAskAiRef}

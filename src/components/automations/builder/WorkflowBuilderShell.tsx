@@ -5,6 +5,7 @@ import { ArrowLeft, ChevronRight, Loader2, Play, RefreshCw, Save, Undo2 } from '
 import { useRouter } from 'next/navigation';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
 import AutomationCopilot, { AskAiNavButton } from '@/components/automations/AutomationCopilot';
+import type { WorkflowCanvasEdit, WorkflowPlanStep } from '@/lib/lakuAi/workflowPlan';
 import type { WorkflowStatus } from '../automationTypes';
 
 type BuilderPanelControls = { closeWorkflowDetails: () => void };
@@ -44,6 +45,8 @@ export function WorkflowBuilderShell({
   aiAutomationId = null,
   aiApplying = false,
   onApplyWorkflowRecipeAction,
+  onApplyWorkflowPlanAction,
+  canvasSteps = null,
   onDismissStepDetailsAction,
   closeAskAiRef,
   initialConversationId = null,
@@ -67,6 +70,9 @@ export function WorkflowBuilderShell({
   /** Canvas is receiving an AI draft and should ignore clicks. */
   aiApplying?: boolean;
   onApplyWorkflowRecipeAction?: (recipeId: string) => void;
+  onApplyWorkflowPlanAction?: (edit: WorkflowCanvasEdit) => void;
+  /** Steps on the canvas now, sent with Ask AI so an edit keeps them. */
+  canvasSteps?: WorkflowPlanStep[] | null;
   /** Shared Copilot conversation to continue in Ask AI. */
   initialConversationId?: string | null;
   /** Closes the step details card so Ask AI can use that side. */
@@ -381,6 +387,8 @@ export function WorkflowBuilderShell({
             active={aiOpen}
             onCloseAction={() => setAiOpen(false)}
             onApplyWorkflowRecipeAction={onApplyWorkflowRecipeAction}
+            onApplyWorkflowPlanAction={onApplyWorkflowPlanAction}
+            canvasSteps={canvasSteps}
             initialConversationId={initialConversationId}
           />
         </div>

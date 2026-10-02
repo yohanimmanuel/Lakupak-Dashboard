@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db';
 import { withDashboardAuth } from '../common/auth';
-import { dismissCandidate, getClientMatchSettings, manualMergeOrder, mergeCandidate, reopenUndoneMatches, setClientMatchSettings, undoAutoMerge, undoDismissedMatch } from '@/lib/clientMatching/service';
+import { countBuyerMatchesForReview, dismissCandidate, findPossibleBuyerMatches, getClientMatchSettings, manualMergeOrder, mergeCandidate, reopenUndoneMatches, setClientMatchSettings, undoAutoMerge, undoDismissedMatch } from '@/lib/clientMatching/service';
 
 export const clientMatchingTypeDefs = /* GraphQL */ `
   type ClientMatchSide {
@@ -133,6 +133,30 @@ function prospectFromSnapshot(snapshot: unknown): { storeName: string; owner: st
   return { storeName, owner, phone, address, status: prospect.status || 'Prospect' };
 }
 
+function buyerPairKey(existingClientId: string, provisionalClientId: string | null | undefined): string | null {
+  const left = existingClientId.trim();
+  const right = String(provisionalClientId ?? '').trim();
+  if (!left || !right) return null;
+  return [left, right].sort().join('|');
+}
+
+/** Drops synthetic pairs that a saved candidate already represents. */
+function withoutKnownPairs<T extends { existingClientId: string; provisionalClientId: string | null }>(
+  rows: { existingClientId: string; provisionalClientId: string | null }[],
+  possible: T[],
+): T[] {
+  const known = new Set<string>();
+  for (const row of rows) {
+    const key = buyerPairKey(row.existingClientId, row.provisionalClientId);
+    if (key) known.add(key);
+  }
+  if (!known.size) return possible;
+  return possible.filter((match) => {
+    const key = buyerPairKey(match.existingClientId, match.provisionalClientId);
+    return key == null || !known.has(key);
+  });
+}
+
 const include = {
   existingClient: { select: { storeName: true, owner: true, phone: true, address: true, status: true } },
   incomingOrder: {
@@ -151,7 +175,8 @@ export const clientMatchingResolvers = {
           include,
           orderBy: { createdAt: 'desc' },
         });
-        return rows.map((row) => mapCandidate(row, row.status === 'merged'));
+        const possible = await findPossibleBuyerMatches(args.userId);
+        return [...rows.map((row) => mapCandidate(row, row.status === 'merged')), ...withoutKnownPairs(rows, possible)];
       }
       if (queue === 'auto') {
         const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -182,20 +207,21 @@ export const clientMatchingResolvers = {
         include,
         orderBy: { createdAt: 'desc' },
       });
-      return rows.map((row) => mapCandidate(row));
+      const mapped = rows.map((row) => mapCandidate(row));
+      if (queue === 'needs_more_info') return mapped;
+      const possible = await findPossibleBuyerMatches(args.userId);
+      return [...mapped, ...withoutKnownPairs(rows, possible)];
     }),
     clientMatchPendingCount: withDashboardAuth(async (args: { userId: number }) => {
       await reopenUndoneMatches(args.userId);
-      return prisma.clientMatchCandidate.count({
-        where: { distributorId: args.userId, status: { in: ['pending', 'needs_more_info'] } },
-      });
+      return countBuyerMatchesForReview(args.userId);
     }),
     clientMatchQueueCounts: withDashboardAuth(async (args: { userId: number }) => {
       await reopenUndoneMatches(args.userId);
       const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       const where = { distributorId: args.userId };
       const [pending, needsMoreInfo, notAMatch, recentlyMerged] = await Promise.all([
-        prisma.clientMatchCandidate.count({ where: { ...where, status: { in: ['pending', 'needs_more_info'] } } }),
+        countBuyerMatchesForReview(args.userId),
         prisma.clientMatchCandidate.count({ where: { ...where, status: 'needs_more_info' } }),
         prisma.clientMatchCandidate.count({ where: { ...where, status: 'not_a_match' } }),
         prisma.clientMatchCandidate.count({
