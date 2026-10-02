@@ -16,6 +16,7 @@ import { SkeletonTablePage } from '@/components/skeleton/SkeletonTablePage';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
 import { usePendingDashboardTourStart } from '@/hooks/usePendingDashboardTourStart';
+import { requestGlanceRefresh } from '@/lib/navbar/glanceRefresh';
 
 const WORKFLOWS_QUERY = `
   query GetAutomationWorkflows($page: Int, $limit: Int) {
@@ -151,6 +152,7 @@ export default function AutomationPage() {
       setWorkflows((prev) =>
         prev.map((w) => (ids.includes(w.id) ? { ...w, status } : w)),
       );
+      requestGlanceRefresh();
       setActionError(null);
     } catch (e) {
       setActionError(e instanceof Error ? e.message : tPage('statusChangeFailed'));

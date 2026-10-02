@@ -26,6 +26,7 @@ import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
 import { buildCopilotDraftFromRecipe } from '@/components/automations/buildCopilotDraft';
 import { clearPendingBuilderChat } from '@/lib/lakuAi/pendingBuilderChat';
 import { writeCopilotWorkflowLink } from '@/lib/lakuAi/copilotWorkflowLink';
+import { requestGlanceRefresh } from '@/lib/navbar/glanceRefresh';
 
 const CREATE_MUTATION = `
   mutation CreateAutomationWorkflow(
@@ -258,6 +259,7 @@ export default function NewAutomationPage() {
       );
       clearPendingBuilderChat();
       if (chatIdRef.current) writeCopilotWorkflowLink(chatIdRef.current, result.createAutomationWorkflow.id);
+      requestGlanceRefresh();
       if (status === 'draft') {
         window.location.href = `/automation/details?id=${result.createAutomationWorkflow.id}`;
         return true;

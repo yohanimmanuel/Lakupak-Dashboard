@@ -38,6 +38,7 @@ import { useUserStore } from '@/store/userStore';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
 import { useLocale, useTranslations } from 'next-intl';
 import { buildCopilotDraftFromRecipe } from '@/components/automations/buildCopilotDraft';
+import { requestGlanceRefresh } from '@/lib/navbar/glanceRefresh';
 const WORKFLOW_QUERY = `
   query GetAutomationWorkflow($id: String!) {
     automationWorkflow(id: $id) {
@@ -515,6 +516,7 @@ function DetailsInner() {
       if (statusOverride) {
         setDraft((prev) => (prev ? { ...prev, status: statusOverride } : prev));
       }
+      requestGlanceRefresh();
       // Keep run history as-is. Save draft / activate must not create or reload run rows.
       await load({ silent: true, preserveRuns: true });
       return true;

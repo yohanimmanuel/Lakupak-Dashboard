@@ -14,6 +14,7 @@ import { signOut } from 'next-auth/react';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { DashboardSearchBar } from '@/components/dashboard/DashboardSearchBar';
 import { useTranslations } from 'next-intl';
+import { subscribeGlanceRefresh } from '@/lib/navbar/glanceRefresh';
 
 const DROPDOWN_WIDTH = 300;
 
@@ -281,7 +282,7 @@ const Navbar = () => {
   const fetchGlance = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const res = await fetch('/api/navbar/glance');
+      const res = await fetch('/api/navbar/glance', { cache: 'no-store' });
       if (!res.ok) return;
       const payload = (await res.json()) as NavbarGlance;
       if (
@@ -301,7 +302,11 @@ const Navbar = () => {
     if (!user?.id) return;
     void fetchGlance();
     const interval = setInterval(() => void fetchGlance(), 60000);
-    return () => clearInterval(interval);
+    const unsubscribe = subscribeGlanceRefresh(() => void fetchGlance());
+    return () => {
+      clearInterval(interval);
+      unsubscribe();
+    };
   }, [user?.id, fetchGlance]);
 
   // Mark notification as read
@@ -598,8 +603,8 @@ const Navbar = () => {
           href="/copilot"
           className={`w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition border ${
             aiOpen
-              ? 'bg-[#eef4fc] border-[#0a61d7]'
-              : 'bg-white border-gray-200 hover:bg-gray-100'
+              ? 'bg-[#0a61d7] border-[#0a61d7] text-white'
+              : 'bg-white border-gray-200 text-[#0a61d7] hover:bg-gray-100'
           }`}
           aria-label={tNavbar('aiAgentTitle')}
           title={tNavbar('aiAgentTitle')}
@@ -610,7 +615,7 @@ const Navbar = () => {
             setShowDropdown(false);
           }}
         >
-          <Sparkles className="h-4 w-4 text-[#0a61d7]" />
+          <Sparkles className="h-4 w-4" />
         </Link>
 
         {/* Review queue */}
