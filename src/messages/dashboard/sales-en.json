@@ -481,11 +481,14 @@
       "noJobs": "No jobs yet"
     },
     "tabs": {
-      "all": "All"
+      "all": "All",
+      "pending": "Pending",
+      "complete": "Complete"
     },
     "table": {
       "searchPlaceholder": "Search client or rep",
       "allTypes": "All types",
+      "allReps": "All reps",
       "selected": "{count} selected",
       "selectAll": "Select all",
       "selectRow": "Select row",

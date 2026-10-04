@@ -481,11 +481,14 @@
       "noJobs": "Belum ada pekerjaan"
     },
     "tabs": {
-      "all": "Semua"
+      "all": "Semua",
+      "pending": "Menunggu",
+      "complete": "Selesai"
     },
     "table": {
       "searchPlaceholder": "Cari klien atau sales",
       "allTypes": "Semua jenis",
+      "allReps": "Semua sales",
       "selected": "{count} dipilih",
       "selectAll": "Pilih semua",
       "selectRow": "Pilih baris",

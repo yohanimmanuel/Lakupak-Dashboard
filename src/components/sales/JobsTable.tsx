@@ -3,9 +3,9 @@
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Briefcase, ChevronDown, ChevronLeft, ChevronRight, Edit, Filter, Search, Trash, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { SALES_JOB_STATUSES, SALES_JOB_TYPES, SalesJobRow, salesJobStatusKey } from './salesJobTypes';
+import { SALES_JOB_TYPES, SalesJobRow, salesJobStatusKey } from './salesJobTypes';
 
-const STATUS_TABS = ['all', ...SALES_JOB_STATUSES] as const;
+const STATUS_TABS = ['all', 'pending', 'complete'] as const;
 const ROWS_PER_PAGE = 5;
 
 const TYPE_BADGE: Record<string, string> = {
@@ -98,17 +98,37 @@ export default function JobsTable({
   const [page, setPage] = useState(1);
   const [selectedTab, setSelectedTab] = useState<(typeof STATUS_TABS)[number]>('all');
   const [typeFilter, setTypeFilter] = useState<(typeof SALES_JOB_TYPES)[number] | 'all'>('all');
+  const [repFilter, setRepFilter] = useState('all');
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [showRepDropdown, setShowRepDropdown] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<{ ids: string[]; name: string; bulk: boolean } | null>(null);
   const deleteDialogRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
 
+  const reps = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const job of jobs) {
+      if (!job.assignedTo || seen.has(job.assignedTo)) continue;
+      seen.set(job.assignedTo, job.agentName || job.assignedTo);
+    }
+    return Array.from(seen, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [jobs]);
+
   const filteredRows = useMemo(() => {
     let filtered = groupJobs(jobs);
-    if (selectedTab !== 'all') filtered = filtered.filter((group) => group.statuses.includes(selectedTab));
+    if (selectedTab === 'complete') {
+      filtered = filtered.filter(
+        (group) => group.jobs.length > 0 && group.jobs.every((job) => salesJobStatusKey(job.status) === 'completed'),
+      );
+    } else if (selectedTab === 'pending') {
+      filtered = filtered.filter(
+        (group) => group.jobs.some((job) => salesJobStatusKey(job.status) !== 'completed'),
+      );
+    }
     if (typeFilter !== 'all') filtered = filtered.filter((group) => group.jobTypes.includes(typeFilter));
+    if (repFilter !== 'all') filtered = filtered.filter((group) => group.assignedTo === repFilter);
     if (search.trim()) {
       const query = search.toLowerCase();
       filtered = filtered.filter(
@@ -119,7 +139,7 @@ export default function JobsTable({
       );
     }
     return filtered;
-  }, [jobs, selectedTab, typeFilter, search]);
+  }, [jobs, selectedTab, typeFilter, repFilter, search]);
 
   const totalRows = filteredRows.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / ROWS_PER_PAGE));
@@ -220,7 +240,7 @@ export default function JobsTable({
   }, [deleteTarget]);
 
   const typeLabel = (jobType: string) => t(`types.${jobType}` as 'types.take_order');
-  const statusLabel = (status: string) => t(`status.${salesJobStatusKey(status)}` as 'status.pending');
+  const repLabel = reps.find((rep) => rep.id === repFilter)?.name || t('table.allReps');
 
   return (
     <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6] p-4 mt-3">
@@ -247,7 +267,7 @@ export default function JobsTable({
                 } ${idx === 0 ? 'rounded-l-lg' : idx === STATUS_TABS.length - 1 ? 'rounded-r-lg' : ''}`}
                 style={{ background: 'transparent', boxShadow: 'none' }}
               >
-                {tab === 'all' ? t('tabs.all') : statusLabel(tab)}
+                {t(`tabs.${tab}`)}
               </button>
             ))}
           </div>
@@ -271,7 +291,10 @@ export default function JobsTable({
           <div className="relative">
             <button
               className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
-              onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+              onClick={() => {
+                setShowRepDropdown(false);
+                setShowFilterDropdown((open) => !open);
+              }}
             >
               <Filter className="w-4 h-4" />
               {typeFilter === 'all' ? t('table.allTypes') : typeLabel(typeFilter)}
@@ -300,6 +323,48 @@ export default function JobsTable({
                     className={`w-full text-left px-4 py-2 text-sm last:rounded-b-lg ${typeFilter === type ? 'text-[#0a61d7] font-semibold hover:bg-gray-100' : 'text-gray-700 hover:bg-gray-100'}`}
                   >
                     {typeLabel(type)}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="relative">
+            <button
+              type="button"
+              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm whitespace-nowrap"
+              onClick={() => {
+                setShowFilterDropdown(false);
+                setShowRepDropdown((open) => !open);
+              }}
+            >
+              {repLabel}
+              <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
+            </button>
+            {showRepDropdown && (
+              <div className="absolute right-0 mt-2 w-52 bg-white border border-[#e6e6e6] rounded-lg shadow z-20 max-h-64 overflow-y-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRepFilter('all');
+                    setShowRepDropdown(false);
+                    setPage(1);
+                  }}
+                  className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg ${repFilter === 'all' ? 'text-[#0a61d7] font-semibold bg-gray-50' : 'text-gray-700 hover:bg-gray-100'}`}
+                >
+                  {t('table.allReps')}
+                </button>
+                {reps.map((rep) => (
+                  <button
+                    key={rep.id}
+                    type="button"
+                    onClick={() => {
+                      setRepFilter(rep.id);
+                      setShowRepDropdown(false);
+                      setPage(1);
+                    }}
+                    className={`w-full text-left px-4 py-2 text-sm last:rounded-b-lg ${repFilter === rep.id ? 'text-[#0a61d7] font-semibold bg-gray-50' : 'text-gray-700 hover:bg-gray-100'}`}
+                  >
+                    {rep.name}
                   </button>
                 ))}
               </div>
