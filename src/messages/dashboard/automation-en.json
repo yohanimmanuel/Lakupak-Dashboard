@@ -146,6 +146,14 @@
         "logic": "Wait 24 hours. If the cart is still idle, send the win-back. If they already ordered, stop. Connect WhatsApp and pick the buyer on the canvas before you turn this on.",
         "template": "You left items in your cart. Reply if you still want them."
       },
+      "sales_job_assign": {
+        "chip": "Assign sales job",
+        "prompt": "When a sales job is created, assign it and message the salesman on WhatsApp",
+        "name": "Assign a sales job",
+        "summary": "When a sales job is created, Lakupak AI assigns it to the salesman and sends the WhatsApp message.",
+        "logic": "Start when the job is created. Lakupak AI connects through WhatsApp, then Assign sales job sends the message to that salesman.",
+        "template": "New job for {store}: {job}. {reason} Reply in this chat when the visit is done."
+      },
       "sales_jobs": {
         "chip": "Sales jobs",
         "prompt": "Remind sales agents and file their WhatsApp replies on the job",
@@ -277,7 +285,8 @@
       "buyer_questions": "Fires when a buyer (new or existing) asks about the business, products, deliveries, or operations on WhatsApp",
       "order_paid": "Fires when a buyer submits payment proof. Pair with Mark paid from proof to set the order to Paid",
       "return_accepted": "Fires when a return is received and stock can be restored",
-      "cart_idle": "Fires when a marketplace cart stays idle for X hours"
+      "cart_idle": "Fires when a marketplace cart stays idle for X hours",
+      "sales_job_created": "Fires when a sales job is created"
     },
     "actionHints": {
       "replenish_stock": "Write replenish quantity into stock when the workflow is active",
@@ -293,6 +302,7 @@
       "return_confirm_whatsapp": "Confirm stock restore and notify the buyer on WhatsApp, Email, or both",
       "mark_paid_from_proof": "Set the order payment status to Paid when payment proof is on file",
       "cart_winback": "Send a cart win-back with optional offer on WhatsApp, Email, or both",
+      "assign_sales_job": "Assign the new sales job to its salesman and send the WhatsApp message",
       "notify_dashboard": "Posts the live run result (e.g. replenish details) as a dashboard notification, no template needed."
     },
     "nodeApp": "App",
@@ -474,7 +484,8 @@
     "order_paid": "Order paid",
     "return_accepted": "Return accepted",
     "order_pending_too_long": "Order pending too long",
-    "cart_idle": "Cart idle"
+    "cart_idle": "Cart idle",
+    "sales_job_created": "Sales job created"
   },
   "actions": {
     "replenish_stock": "Auto replenish stock",
@@ -490,6 +501,7 @@
     "return_confirm_whatsapp": "Return confirm",
     "mark_paid_from_proof": "Mark paid from proof",
     "cart_winback": "Cart win-back message",
+    "assign_sales_job": "Assign sales job",
     "notify_dashboard": "Notify on Dashboard",
     "draft_offer_flag": "Flag draft offer",
     "assign_sales_agent_flag": "Flag sales agent assignment",
@@ -524,6 +536,7 @@
     "channel": "Channel",
     "sendAt": "Send at",
     "paidWhen": "Trigger when",
+    "jobType": "Job type",
     "options": {
       "status_paid": "Payment status becomes Paid",
       "proof_submitted": "Buyer submits payment proof",
@@ -541,7 +554,17 @@
       "both": "WhatsApp and Email",
       "UTILITY": "Utility",
       "AUTHENTICATION": "Authentication",
-      "MARKETING": "Marketing"
+      "MARKETING": "Marketing",
+      "any": "Any job",
+      "take_order": "Take order",
+      "collect_payment": "Collect payment",
+      "promote_product": "Promote product",
+      "stock_check": "Stock check",
+      "prospect_new_outlet": "Prospect new outlet",
+      "returns_pickup": "Pick up return",
+      "competitor_intel": "Competitor check",
+      "new_product_activation": "Activate new product",
+      "scheme_reconciliation": "Reconcile scheme"
     }
   },
   "runs": {

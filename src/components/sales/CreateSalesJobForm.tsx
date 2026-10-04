@@ -8,7 +8,6 @@ import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import CompleteSalesJobModal from './CompleteSalesJobModal';
-import { completionIsPerVisit } from './JobCompletionFields';
 import { OPEN_SALES_JOB_STATUSES, SALES_JOB_TYPES, type SalesJobCompletion, type SalesJobRow } from './salesJobTypes';
 
 type AgentOption = { id: string; name: string; role: string; status: string };
@@ -39,6 +38,7 @@ type JobDraft = {
   address: string;
   reason: string;
   schedules: ScheduleDraft[];
+  status: string;
 };
 
 const labelClass = 'block text-xs font-medium text-gray-700 mb-2';
@@ -157,6 +157,7 @@ function blankJob(): JobDraft {
     address: '',
     reason: '',
     schedules: [blankSchedule()],
+    status: 'pending',
   };
 }
 
@@ -406,6 +407,7 @@ function draftsFromRows(rows: SalesJobRow[]): JobDraft[] {
     phone: job.clientPhone || '',
     address: job.clientAddress || '',
     reason: job.priorityReason || '',
+    status: job.status,
     schedules: (job.schedules?.length ? job.schedules : [{ date: job.scheduledDate, reminderTime: '07:00' }]).map((row) => ({
       key: newKey(),
       date: row.date,
@@ -431,6 +433,7 @@ export default function CreateSalesJobForm({
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [completingJobs, setCompletingJobs] = useState<SalesJobRow[]>([]);
+  const [statusJobId, setStatusJobId] = useState<string | null>(null);
   const [jobErrors, setJobErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -579,7 +582,7 @@ export default function CreateSalesJobForm({
       suggestedProducts: draft.productIds,
       suggestedProductNames: saved?.suggestedProductNames ?? [],
       createdBy: saved?.createdBy || 'manager',
-      status: saved?.status || 'pending',
+      status: draft.status || saved?.status || 'pending',
       scheduledDate: draft.schedules[0]?.date || saved?.scheduledDate || '',
       createdAt: saved?.createdAt || '',
       completionData,
@@ -602,53 +605,6 @@ export default function CreateSalesJobForm({
           <h1 className="text-2xl font-bold text-black">{editing ? t('form.editTitle') : t('form.pageTitle')}</h1>
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
-          {editing && (
-            <>
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => {
-                  const rows = jobs
-                    .filter((job) => editing.replaceIds.includes(job.key))
-                    .map((job) => completionRow(job))
-                    .filter((job) => (OPEN_SALES_JOB_STATUSES as readonly string[]).includes(job.status));
-                  if (rows.length === 0) return;
-                  if (rows.length > 1 && rows.some((job) => completionIsPerVisit(job.jobType))) {
-                    setNotice('');
-                    setError(t('completeSeparately'));
-                    return;
-                  }
-                  setError('');
-                  setCompletingJobs(rows);
-                }}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm disabled:opacity-50"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                {t('complete')}
-              </button>
-              <button
-                type="button"
-                disabled={saving || !user?.id}
-                onClick={() => {
-                  if (!user?.id) return;
-                  setSaving(true);
-                  setError('');
-                  setNotice('');
-                  void fetchGraphQL(
-                    `mutation MarkPending($userId: Int!, $ids: [String!]!) { markSalesJobsPending(userId: $userId, ids: $ids) }`,
-                    { userId: user.id, ids: editing.replaceIds },
-                  )
-                    .then(() => setNotice(t('markedPending')))
-                    .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Request failed'))
-                    .finally(() => setSaving(false));
-                }}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm disabled:opacity-50"
-              >
-                <Clock className="w-4 h-4" />
-                {t('pending')}
-              </button>
-            </>
-          )}
           <button
             type="button"
             onClick={() => void save()}
@@ -677,19 +633,73 @@ export default function CreateSalesJobForm({
         <p className="text-xs text-gray-500 mt-2">{t('form.repHint')}</p>
       </div>
 
-      {jobs.map((job, index) => (
+      {jobs.map((job, index) => {
+        const savedJob = Boolean(editing?.replaceIds.includes(job.key));
+        const isProspect = job.jobType === 'prospect_new_outlet';
+        const canComplete = savedJob && !isProspect && (OPEN_SALES_JOB_STATUSES as readonly string[]).includes(job.status);
+        return (
         <section key={job.key} className="bg-white rounded-lg border border-[#e6e6e6]">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[#e6e6e6]">
-            <h2 className="text-sm font-semibold text-gray-900">{t('form.jobNumber', { number: index + 1 })}</h2>
-            {jobs.length > 1 && (
-              <button
-                type="button"
-                onClick={() => setJobs((prev) => prev.filter((row) => row.key !== job.key))}
-                className="text-xs font-medium text-red-600 hover:text-red-700"
-              >
-                {t('form.removeJob')}
-              </button>
-            )}
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[#e6e6e6]">
+            <div className="flex items-center gap-2 min-w-0">
+              <h2 className="text-sm font-semibold text-gray-900">{t('form.jobNumber', { number: index + 1 })}</h2>
+              {job.status === 'completed' && (
+                <span className="inline-flex shrink-0 px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                  {t('status.completed')}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              {canComplete && (
+                <button
+                  type="button"
+                  disabled={saving || statusJobId === job.key}
+                  onClick={() => {
+                    setError('');
+                    setNotice('');
+                    setCompletingJobs([completionRow(job)]);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm disabled:opacity-50"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  {t('complete')}
+                </button>
+              )}
+              {savedJob && !isProspect && (
+                <button
+                  type="button"
+                  disabled={saving || !user?.id || Boolean(statusJobId)}
+                  onClick={() => {
+                    if (!user?.id || statusJobId) return;
+                    setStatusJobId(job.key);
+                    setError('');
+                    setNotice('');
+                    void fetchGraphQL(
+                      `mutation MarkPending($userId: Int!, $ids: [String!]!) { markSalesJobsPending(userId: $userId, ids: $ids) }`,
+                      { userId: user.id, ids: [job.key] },
+                    )
+                      .then(() => {
+                        updateJob(job.key, { status: 'pending' });
+                        setNotice(t('markedPending'));
+                      })
+                      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Request failed'))
+                      .finally(() => setStatusJobId(null));
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm disabled:opacity-50"
+                >
+                  <Clock className="w-4 h-4" />
+                  {t('pending')}
+                </button>
+              )}
+              {jobs.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setJobs((prev) => prev.filter((row) => row.key !== job.key))}
+                  className="text-xs font-medium text-red-600 hover:text-red-700"
+                >
+                  {t('form.removeJob')}
+                </button>
+              )}
+            </div>
           </div>
           <div className="p-4 space-y-4">
             {jobErrors[job.key] && <p className="text-xs text-red-600">{jobErrors[job.key]}</p>}
@@ -864,7 +874,8 @@ export default function CreateSalesJobForm({
             </div>
           </div>
         </section>
-      ))}
+        );
+      })}
 
       <button
         type="button"
@@ -884,8 +895,10 @@ export default function CreateSalesJobForm({
           jobs={completingJobs}
           onClose={() => setCompletingJobs([])}
           onSaved={() => {
+            const ids = completingJobs.map((row) => row.id);
             setCompletingJobs([]);
-            router.push('/sales/jobs');
+            setJobs((prev) => prev.map((row) => (ids.includes(row.key) ? { ...row, status: 'completed' } : row)));
+            setNotice(t('markedComplete'));
           }}
         />
       )}

@@ -65,10 +65,56 @@ export function buildCopilotDraft(input: {
     actionConfig: actions[0]?.config,
     agentNote: input.note,
   });
-  if (recipe.id !== 'buyer_question') {
+  if (recipe.id !== 'buyer_question' && recipe.id !== 'sales_job_assign') {
     const linked = dropAgentNode(canvas);
     canvas.nodes = linked.nodes;
     canvas.edges = linked.edges;
+  }
+  if (recipe.id === 'sales_job_assign') {
+    const agent = canvas.nodes.find((node) => node.data.kind === 'agent');
+    const action = canvas.nodes.find((node) => node.data.kind === 'action');
+    if (agent && action) {
+      const appId = newNodeId('app');
+      const appNode: WorkflowFlowNode = {
+        id: appId,
+        type: 'workflow',
+        position: { x: 280, y: 360 },
+        data: {
+          kind: 'app',
+          catalogType: 'app_webhook',
+          name: '',
+          title: 'WhatsApp',
+          subtitle: input.locale === 'id' ? 'Aplikasi' : 'App',
+          config: { connected: false, phone: '' },
+        },
+      };
+      canvas.edges = canvas.edges.filter((edge) => !(edge.source === agent.id && edge.target === action.id));
+      canvas.edges.push(
+        {
+          id: `e_${agent.id}_${appId}`,
+          source: agent.id,
+          target: appId,
+          sourceHandle: 'source-bottom',
+          targetHandle: 'source-top',
+          type: DEFAULT_EDGE_TYPE,
+          animated: true,
+        },
+        {
+          id: `e_${appId}_${action.id}`,
+          source: appId,
+          target: action.id,
+          sourceHandle: 'source-bottom',
+          targetHandle: 'source-top',
+          type: DEFAULT_EDGE_TYPE,
+          animated: true,
+        },
+      );
+      const trigger = canvas.nodes.find((node) => node.data.kind === 'trigger');
+      canvas.nodes = [trigger, agent, appNode, action].filter((node): node is WorkflowFlowNode => Boolean(node));
+      canvas.nodes.forEach((node, index) => {
+        node.position = { x: 280, y: 40 + index * 160 };
+      });
+    }
   }
   if (actions.length > 1) {
     const previous = canvas.nodes[canvas.nodes.length - 1];

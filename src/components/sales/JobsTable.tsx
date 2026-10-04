@@ -20,16 +20,6 @@ const TYPE_BADGE: Record<string, string> = {
   scheme_reconciliation: 'bg-teal-100 text-teal-800',
 };
 
-const STATUS_BADGE: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  suggested: 'bg-yellow-100 text-yellow-800',
-  approved: 'bg-yellow-100 text-yellow-800',
-  dispatched: 'bg-purple-100 text-purple-800',
-  in_progress: 'bg-blue-100 text-blue-800',
-  completed: 'bg-green-100 text-green-800',
-  skipped: 'bg-gray-100 text-gray-700',
-};
-
 type JobGroup = {
   id: string;
   jobs: SalesJobRow[];
@@ -380,6 +370,9 @@ export default function JobsTable({
               </tr>
             ) : (
               pagedRows.map((row) => {
+                const completedCount = row.jobs.filter((job) => salesJobStatusKey(job.status) === 'completed').length;
+                const totalJobs = row.jobs.length;
+                const allComplete = totalJobs > 0 && completedCount === totalJobs;
                 return (
                   <tr
                     key={row.id}
@@ -435,16 +428,14 @@ export default function JobsTable({
                     </td>
                     <td className="py-4 px-4 text-gray-700">{row.agentName}</td>
                     <td className="py-4 px-4 whitespace-normal">
-                      <div className="flex flex-wrap gap-1">
-                        {row.statuses.map((status) => (
-                          <span
-                            key={status}
-                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${STATUS_BADGE[status] || STATUS_BADGE.skipped}`}
-                          >
-                            {statusLabel(status)}
-                          </span>
-                        ))}
-                      </div>
+                      <span
+                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          allComplete ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                        }`}
+                        title={t('table.statusCount', { done: completedCount, total: totalJobs })}
+                      >
+                        {completedCount}/{totalJobs}
+                      </span>
                     </td>
                     <td className="py-4 px-4 text-gray-700 whitespace-normal">
                       {row.createdDates.length > 0 ? (

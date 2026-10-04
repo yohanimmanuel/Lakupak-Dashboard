@@ -277,7 +277,7 @@
         "completedHint": "Finished",
         "recentJobs": "Recent jobs",
         "emptyTitle": "No sales jobs yet",
-        "emptyHint": "Create a job or generate suggestions to see them here."
+        "emptyHint": "Create a job to see it here."
       },
       "sales": {
         "name": "Sales",

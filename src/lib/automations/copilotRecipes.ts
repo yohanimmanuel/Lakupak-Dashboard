@@ -119,6 +119,30 @@ export const COPILOT_RECIPES: CopilotRecipe[] = [
     ],
   },
   {
+    id: 'sales_job_assign',
+    kind: 'workflow',
+    workflowType: 'sales',
+    keywords: [
+      'assign sales job',
+      'sales job created',
+      'sales job creation',
+      'tugaskan pekerjaan',
+      'pekerjaan penjualan baru',
+      'assign job to salesman',
+    ],
+    triggerType: 'sales_job_created',
+    triggerConfig: { jobType: 'any' },
+    actions: [
+      {
+        type: 'assign_sales_job',
+        config: {
+          messageTemplate:
+            'New job for {store}: {job}. {reason} Reply in this chat when the visit is done.',
+        },
+      },
+    ],
+  },
+  {
     id: 'sales_jobs',
     kind: 'guide',
     keywords: [

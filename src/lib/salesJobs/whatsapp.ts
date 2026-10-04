@@ -33,6 +33,8 @@ export type DispatchJobInput = {
   clientName: string;
   suggestedProductNames: string[];
   agentPhone: string;
+  /** Replaces the default assignment text. Reply buttons stay on the message. */
+  body?: string;
 };
 
 const BUTTON_ID = /^sj:([0-9a-f-]{36}):(order_placed|no_order|reschedule)$/i;
@@ -42,7 +44,7 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>;
 }
 
-function jobLabel(jobType: string): string {
+export function salesJobTypeLabel(jobType: string): string {
   switch (jobType) {
     case 'take_order':
       return 'Take order';
@@ -68,7 +70,7 @@ function jobLabel(jobType: string): string {
 }
 
 function messageBody(job: DispatchJobInput): string {
-  const lines = [job.clientName, jobLabel(job.jobType)].filter(Boolean);
+  const lines = [job.clientName, salesJobTypeLabel(job.jobType)].filter(Boolean);
   if (job.priorityReason) lines.push(job.priorityReason);
   if (job.suggestedProductNames.length > 0) {
     lines.push(`Suggested: ${job.suggestedProductNames.join(', ')}`);
@@ -87,7 +89,7 @@ export async function dispatchJobToWhatsApp(job: DispatchJobInput): Promise<{ me
   if (!creds?.accessToken || !creds.phoneNumberId || !isWhatsAppCloudConfigured()) {
     throw new Error('WhatsApp is not configured');
   }
-  const body = messageBody(job);
+  const body = job.body?.trim() || messageBody(job);
   const buttons = [
     { id: `sj:${job.id}:order_placed`, title: 'Order Placed' },
     { id: `sj:${job.id}:no_order`, title: 'No Order' },

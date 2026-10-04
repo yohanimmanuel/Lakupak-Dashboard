@@ -46,6 +46,7 @@ const AUTOMATION_RECIPES = [
   'new_buyer: a buyer places a first order. Message the team to assign an agent and notify the dashboard.',
   'order_paid: payment proof is submitted. Mark the order paid from that proof and notify the dashboard.',
   'cart_idle: a cart sits idle for 24 hours. Send a WhatsApp win-back. Stop if they already ordered.',
+  'sales_job_assign: a sales job is created. Lakupak AI, then WhatsApp, then assign that job to the salesman.',
   'sales_jobs: guide only. Sales agent replies on the distributor WhatsApp number are filed on the open job when the facts are clear. Several shops means ask which shop. A missing fact means ask the agent.',
 ].join('\n');
 
@@ -192,6 +193,7 @@ export async function runDistributorAppAssistant(input: {
     'Replenish: {"kind":"trigger","type":"stock_below"}, {"kind":"action","type":"replenish_stock"}, {"kind":"action","type":"notify_dashboard"}.',
     'Mark paid: {"kind":"trigger","type":"order_paid"}, {"kind":"action","type":"mark_paid_from_proof"}, {"kind":"action","type":"notify_dashboard"}.',
     'Buyer handoff: {"kind":"trigger","type":"buyer_questions"}, {"kind":"agent"}, {"kind":"app","type":"app_webhook"}, {"kind":"action","type":"cs_24h_window"}, {"kind":"condition","type":"yes_no"}, {"kind":"action","type":"assign_agent_whatsapp"}, {"kind":"end","type":"stay_in_cs"}. Yes assigns an agent. No stays in customer service.',
+    'Assign sales job: {"kind":"trigger","type":"sales_job_created"}, {"kind":"agent"}, {"kind":"app","type":"app_webhook"}, {"kind":"action","type":"assign_sales_job"}. WhatsApp is the connection. Assign sales job sends the message. Use {store}, {job}, {salesman}, {reason}, and {products} in the message when they fit.',
     'Use only the catalog below. Channels are WhatsApp and Gmail only.',
     allowedWorkflowCatalog(),
     'If they ask for a step, channel, or behavior that is not in that catalog, do not invent it. Reply with exactly "Workflow feature is not available, try another thing." in English, or "Fitur alur kerja belum tersedia, coba hal lain." in Indonesian, and end with {"plan":"unavailable"}.',

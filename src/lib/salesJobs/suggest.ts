@@ -13,10 +13,10 @@ export async function suggestSalesJobsForDistributor(
   distributorId: number,
   dateKey?: string,
 ): Promise<{ created: number }> {
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(${SUGGEST_JOBS_ADVISORY_KEY}, ${distributorId})`;
     const settings = await tx.salesJobSettings.findUnique({ where: { distributorId } });
-    if (dateKey && settings?.lastSuggestedDateKey === dateKey) return { created: 0 };
+    if (dateKey && settings?.lastSuggestedDateKey === dateKey) return { created: 0, jobIds: [] as string[] };
     if (dateKey) {
       await tx.salesJobSettings.upsert({
         where: { distributorId },
@@ -35,8 +35,9 @@ export async function suggestSalesJobsForDistributor(
     });
     const reps = agents.filter((agent) => isFieldRep(agent.role));
     const pool = reps.length > 0 ? reps : agents;
-    if (pool.length === 0) return { created: 0 };
+    if (pool.length === 0) return { created: 0, jobIds: [] as string[] };
 
+    const createdIds: string[] = [];
     const user = await tx.user.findUnique({
       where: { id: distributorId },
       select: { salesAgentRoundRobinCursor: true },
@@ -47,7 +48,7 @@ export async function suggestSalesJobsForDistributor(
       where: { userId: distributorId, status: { in: ['Prospect', 'Active'] } },
       select: { buyerId: true },
     });
-    if (buyers.length === 0) return { created: 0 };
+    if (buyers.length === 0) return { created: 0, jobIds: [] as string[] };
 
     const now = new Date();
     const recentStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -128,7 +129,7 @@ export async function suggestSalesJobsForDistributor(
       if (reasons.length > 0 && !openKey.has(`${buyer.buyerId}:take_order`)) {
         const agent = pool[cursor % pool.length];
         cursor += 1;
-        await tx.salesJob.create({
+        const row = await tx.salesJob.create({
           data: {
             distributorId,
             assignedTo: agent.id,
@@ -141,6 +142,7 @@ export async function suggestSalesJobsForDistributor(
             scheduledDate: start,
           },
         });
+        createdIds.push(row.id);
         openKey.add(`${buyer.buyerId}:take_order`);
         created += 1;
       }
@@ -152,7 +154,7 @@ export async function suggestSalesJobsForDistributor(
         }, 99);
         const agent = pool[cursor % pool.length];
         cursor += 1;
-        await tx.salesJob.create({
+        const row = await tx.salesJob.create({
           data: {
             distributorId,
             assignedTo: agent.id,
@@ -167,6 +169,7 @@ export async function suggestSalesJobsForDistributor(
             scheduledDate: start,
           },
         });
+        createdIds.push(row.id);
         openKey.add(`${buyer.buyerId}:promote_product`);
         created += 1;
       }
@@ -178,6 +181,16 @@ export async function suggestSalesJobsForDistributor(
         data: { salesAgentRoundRobinCursor: cursor },
       });
     }
-    return { created };
+    return { created, jobIds: createdIds };
   }, { timeout: 60_000 });
+
+  if (result.jobIds.length > 0) {
+    try {
+      const { dispatchSalesJobCreatedAutomations } = await import('@/lib/automations/engine');
+      await dispatchSalesJobCreatedAutomations(distributorId, result.jobIds);
+    } catch (error) {
+      console.error('[automations] sales_job_created failed', error);
+    }
+  }
+  return { created: result.created };
 }

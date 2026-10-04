@@ -16,6 +16,7 @@ import {
 import { translateMarketplacePaymentConfirmed } from '@/utils/marketplacePushTranslations';
 import { migrateOrderPaidTriggerConfig, parseIdleHours } from '@/lib/automations/catalog';
 import { isLiveActionType } from '@/lib/automations/liveActions';
+import { executeAssignSalesJob } from '@/lib/automations/assignSalesJob';
 import { executeChannelBuyerMessage } from '@/lib/automations/deliverBuyerMessage';
 import { syncWorkflowBuyers } from '@/lib/automations/syncWorkflowBuyers';
 import {
@@ -73,6 +74,12 @@ export type CartIdleEvent = {
   cart: IdleCart;
 };
 
+export type SalesJobCreatedEvent = {
+  userId: number;
+  jobId: string;
+  jobType: string;
+};
+
 type ScheduleContext = { kind: 'schedule'; sendAt: string };
 
 type WorkflowRunContext =
@@ -80,6 +87,7 @@ type WorkflowRunContext =
   | { kind: 'order_paid'; event: OrderPaidProofEvent }
   | { kind: 'return_accepted'; event: ReturnAcceptedEvent }
   | { kind: 'cart_idle'; event: CartIdleEvent }
+  | { kind: 'sales_job_created'; event: SalesJobCreatedEvent }
   | ScheduleContext;
 
 function asRecord(value: unknown): JsonRecord | null {
@@ -401,6 +409,40 @@ async function hasExistingRun(workflowId: string, runKey: string): Promise<boole
   return existing != null;
 }
 
+function isUniqueConflict(err: unknown): boolean {
+  return Boolean(err && typeof err === 'object' && 'code' in err && (err as { code?: unknown }).code === 'P2002');
+}
+
+/** Insert the run, or take over a failed one. Null means another dispatch already owns this key. */
+async function claimSalesJobRun(workflowId: string, runKey: string): Promise<string | null> {
+  const message = `[${runKey}] in_progress`;
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const run = await tx.automationRun.create({
+        data: { workflowId, status: RUN_STATUS_IN_PROGRESS, message, runKey },
+        select: { id: true },
+      });
+      await tx.automationWorkflow.update({
+        where: { id: workflowId },
+        data: { runs: { increment: 1 }, lastRunAt: new Date() },
+      });
+      return run.id;
+    });
+  } catch (err) {
+    if (!isUniqueConflict(err)) throw err;
+  }
+  const existing = await prisma.automationRun.findFirst({
+    where: { workflowId, runKey, status: 'failed' },
+    select: { id: true },
+  });
+  if (!existing) return null;
+  const claimed = await prisma.automationRun.updateMany({
+    where: { id: existing.id, status: 'failed' },
+    data: { status: RUN_STATUS_IN_PROGRESS, message },
+  });
+  return claimed.count === 1 ? existing.id : null;
+}
+
 async function executeReplenishStock(
   userId: number,
   config: JsonRecord,
@@ -541,6 +583,9 @@ async function defaultNotifyBody(ctx: WorkflowRunContext): Promise<string> {
   if (ctx.kind === 'return_accepted') {
     return `Return items received for order #${ctx.event.orderId}.`;
   }
+  if (ctx.kind === 'sales_job_created') {
+    return `Sales job ${ctx.event.jobId} was created.`;
+  }
   if (ctx.kind === 'cart_idle') {
     const cart = ctx.event.cart;
     const products = cart.productNames.slice(0, 3).join(', ');
@@ -621,7 +666,12 @@ async function runWorkflowActions(
         }
         parts.push(await executeMarkPaidFromProof(ctx.event));
       } else if (action.type === 'whatsapp_buyer') {
-        if (ctx.kind === 'schedule' || ctx.kind === 'return_accepted' || ctx.kind === 'cart_idle') {
+        if (
+          ctx.kind === 'schedule' ||
+          ctx.kind === 'return_accepted' ||
+          ctx.kind === 'cart_idle' ||
+          ctx.kind === 'sales_job_created'
+        ) {
           parts.push('whatsapp_buyer skipped (wrong trigger context).');
           continue;
         }
@@ -667,6 +717,18 @@ async function runWorkflowActions(
         parts.push('assign_agent_whatsapp runs on inbound buyer WhatsApp handoff.');
       } else if (action.type === 'cs_24h_window') {
         parts.push('cs_24h_window runs on inbound buyer WhatsApp messages.');
+      } else if (action.type === 'assign_sales_job') {
+        if (ctx.kind !== 'sales_job_created') {
+          parts.push('assign_sales_job skipped (wait for a sales job to be created).');
+          continue;
+        }
+        parts.push(
+          await executeAssignSalesJob({
+            userId: workflow.userId,
+            jobId: ctx.event.jobId,
+            messageTemplate: String(action.config.messageTemplate ?? ''),
+          }),
+        );
       } else if (action.type === 'cart_winback') {
         if (ctx.kind === 'cart_idle') {
           const cart = ctx.event.cart;
@@ -713,7 +775,9 @@ async function runWorkflowActions(
             ? `return_accepted:${ctx.event.orderId}`
             : ctx.kind === 'cart_idle'
               ? `cart_idle:${ctx.event.cart.marketplaceUserId}`
-              : `scheduled:${ctx.sendAt}`;
+              : ctx.kind === 'sales_job_created'
+                ? `sales_job_created:${ctx.event.jobId}`
+                : `scheduled:${ctx.sendAt}`;
       const body = parts.length > 0 ? parts.join(' ') : await defaultNotifyBody(ctx);
       // One dashboard notification per run (even if multiple notify nodes are on the canvas).
       await executeNotifyDashboard(workflow.userId, workflow.name, body, label, workflow.id);
@@ -843,6 +907,70 @@ export async function dispatchReturnAcceptedAutomations(
       event,
     });
     await recordRun(workflow.id, result.status, result.message);
+  }
+}
+
+function salesJobTriggerMatches(config: JsonRecord, jobType: string): boolean {
+  const filter = String(config.jobType ?? 'any').trim();
+  return !filter || filter === 'any' || filter === jobType;
+}
+
+/** Fire active sales_job_created workflows after a sales job is saved. */
+export async function dispatchSalesJobCreatedAutomations(userId: number, jobIds: string[]): Promise<void> {
+  const ids = Array.from(new Set(jobIds.map((id) => id.trim()).filter(Boolean)));
+  if (!userId || ids.length === 0) return;
+  const jobs = await prisma.salesJob.findMany({
+    where: { id: { in: ids }, distributorId: userId },
+    select: { id: true, jobType: true },
+  });
+  if (jobs.length === 0) return;
+  const workflows = await loadActiveWorkflows(userId);
+  const failures: string[] = [];
+  for (const job of jobs) {
+    for (const workflow of workflows) {
+      let runId: string | null = null;
+      let runKey = '';
+      try {
+        const { triggers, actions } = workflowSteps(workflow);
+        const matching = triggers.filter(
+          (trigger) => trigger.type === 'sales_job_created' && salesJobTriggerMatches(trigger.config, job.jobType),
+        );
+        if (matching.length === 0) continue;
+        runKey = `sales_job_created:${workflow.id}:${job.id}`;
+        runId = await claimSalesJobRun(workflow.id, runKey);
+        if (!runId) continue;
+        const result = await runWorkflowActions(workflow, actions, {
+          kind: 'sales_job_created',
+          event: { userId, jobId: job.id, jobType: job.jobType },
+        });
+        await prisma.automationRun.update({
+          where: { id: runId },
+          data: {
+            status: result.status,
+            message: `[${runKey}] ${result.message}`,
+          },
+        });
+        if (result.status === 'failed') failures.push(`${job.id}: ${result.message}`);
+      } catch (err) {
+        const detail = err instanceof Error ? err.message : String(err);
+        if (runId) {
+          try {
+            await prisma.automationRun.update({
+              where: { id: runId },
+              data: { status: 'failed', message: `[${runKey}] Failed: ${detail}` },
+            });
+          } catch {
+            // best-effort finalize
+          }
+        }
+        failures.push(`${job.id}: ${detail}`);
+      }
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(
+      failures.length === 1 ? failures[0] : `${failures.length} sales job workflows failed. ${failures[0]}`,
+    );
   }
 }
 

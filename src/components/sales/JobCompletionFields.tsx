@@ -5,7 +5,7 @@ import { ChevronDown, Plus, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { SalesJobCompletion, SalesJobReturnedItem } from './salesJobTypes';
 
-const ORIGINAL_TYPES = new Set(['take_order', 'collect_payment', 'promote_product', 'stock_check', 'prospect_new_outlet']);
+const ORIGINAL_TYPES = new Set(['take_order', 'collect_payment', 'promote_product', 'stock_check']);
 const RETURN_REASONS = ['expired', 'damaged', 'unsold_near_expiry', 'other'] as const;
 
 const inputClass = 'w-full border border-[#e6e6e6] rounded-lg px-3 py-2 text-xs text-black bg-white';

@@ -400,6 +400,7 @@
     "complete": "Mark complete",
     "details": "Job details",
     "markedPending": "Marked pending.",
+    "markedComplete": "Marked complete.",
     "completeSeparately": "Jobs with visit details must be completed one at a time.",
     "client": "Client",
     "rep": "Sales rep",
@@ -491,7 +492,7 @@
       "status": "Status",
       "actions": "Actions",
       "empty": "No jobs yet",
-      "emptyHint": "Generate suggestions or create a job.",
+      "emptyHint": "Create a job.",
       "showing": "Showing {from} to {to} of {total}",
       "previousPage": "Previous page",
       "edit": "Edit",
@@ -507,7 +508,8 @@
       "sheetName": "Jobs",
       "createdBy": "Created by",
       "noJobsToExport": "No jobs to export",
-      "moreTypes": "+ more"
+      "moreTypes": "+ more",
+      "statusCount": "{done} of {total} complete"
     },
     "missingFields": "Choose a sales rep and a client.",
     "form": {

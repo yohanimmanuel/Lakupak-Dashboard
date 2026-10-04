@@ -400,6 +400,7 @@
     "complete": "Tandai selesai",
     "details": "Detail pekerjaan",
     "markedPending": "Ditandai menunggu.",
+    "markedComplete": "Ditandai selesai.",
     "completeSeparately": "Pekerjaan dengan detail kunjungan harus diselesaikan satu per satu.",
     "client": "Klien",
     "rep": "Sales",
@@ -491,7 +492,7 @@
       "status": "Status",
       "actions": "Aksi",
       "empty": "Belum ada pekerjaan",
-      "emptyHint": "Buat saran atau buat pekerjaan baru.",
+      "emptyHint": "Buat pekerjaan baru.",
       "showing": "Menampilkan {from} sampai {to} dari {total}",
       "previousPage": "Halaman sebelumnya",
       "edit": "Ubah",
@@ -507,7 +508,8 @@
       "sheetName": "Pekerjaan",
       "createdBy": "Dibuat oleh",
       "noJobsToExport": "Tidak ada pekerjaan untuk diekspor",
-      "moreTypes": "+ lainnya"
+      "moreTypes": "+ lainnya",
+      "statusCount": "{done} dari {total} selesai"
     },
     "missingFields": "Pilih sales dan klien.",
     "form": {

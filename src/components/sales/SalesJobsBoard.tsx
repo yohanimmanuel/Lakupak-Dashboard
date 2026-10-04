@@ -40,7 +40,6 @@ export default function SalesJobsBoard() {
   const userId = useUserStore((state) => state.user?.id);
   const [jobs, setJobs] = useState<SalesJobRow[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
@@ -58,17 +57,6 @@ export default function SalesJobsBoard() {
       .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Failed to load jobs'))
       .finally(() => setInitialLoading(false));
   }, [load]);
-
-  const run = async (work: () => Promise<void>) => {
-    setError('');
-    setMessage('');
-    try {
-      await work();
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Request failed');
-    }
-  };
 
   const typeLabel = (jobType: string) => t(`types.${jobType}` as 'types.take_order');
   const statusLabel = (status: string) => t(`status.${salesJobStatusKey(status)}` as 'status.pending');
@@ -115,21 +103,6 @@ export default function SalesJobsBoard() {
           </button>
           <button
             type="button"
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm"
-            onClick={() =>
-              run(async () => {
-                const result = await fetchGraphQL<{ suggestSalesJobs: { created: number } }>(
-                  `mutation Suggest($userId: Int!) { suggestSalesJobs(userId: $userId) { created } }`,
-                  { userId },
-                );
-                setMessage(t('suggestedCount', { count: result.suggestSalesJobs.created }));
-              })
-            }
-          >
-            {t('generate')}
-          </button>
-          <button
-            type="button"
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm"
             onClick={() => router.push('/sales/jobs/new')}
           >
@@ -138,9 +111,6 @@ export default function SalesJobsBoard() {
         </div>
       </div>
 
-      {message && (
-        <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{message}</div>
-      )}
       {error && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       )}
@@ -153,7 +123,6 @@ export default function SalesJobsBoard() {
         }
         onDeleteAction={(ids) => {
           setError('');
-          setMessage('');
           void (async () => {
             try {
               await fetchGraphQL(

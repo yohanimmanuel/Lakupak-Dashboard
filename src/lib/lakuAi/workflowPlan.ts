@@ -35,6 +35,7 @@ const TRIGGER_WORKFLOW: Record<string, WorkflowType> = {
   new_buyer: 'lead_management',
   order_paid: 'order_logistics',
   cart_idle: 'sales',
+  sales_job_created: 'sales',
 };
 
 export function workflowTypeForTrigger(triggerType: string): WorkflowType {
@@ -48,7 +49,7 @@ export function allowedWorkflowCatalog(): string {
     `Triggers: ${triggers}.`,
     `Actions: ${actions}.`,
     'Apps: app_webhook (WhatsApp connection), app_email (Gmail connection).',
-    'Optional agent: include {"kind":"agent"} only when the workflow must read a buyer message and answer or decide. Leave it out for replenish stock, mark paid, notify, win-back, and other direct steps.',
+    'Optional agent: include {"kind":"agent"} only when the workflow must read a message and answer, or when a new sales job is assigned to a salesman. Leave it out for replenish stock, mark paid, notify, win-back, and other direct steps.',
     'Logic: {"kind":"condition","type":"yes_no"} then two different steps you choose. The next step is Yes. The step after that is No. Ends are {"kind":"end","type":"stay_in_cs"} or {"kind":"end","type":"stop"}.',
   ].join('\n');
 }
@@ -66,8 +67,14 @@ export function planFromRecipe(recipeId: string): WorkflowPlanStep[] | null {
   const recipe = copilotRecipeById(recipeId);
   if (!recipe || recipe.kind !== 'workflow') return null;
   const steps: WorkflowPlanStep[] = [{ kind: 'trigger', type: recipe.triggerType }];
-  if (recipe.id === 'buyer_question') steps.push({ kind: 'agent' });
-  for (const action of recipe.actions) steps.push({ kind: 'action', type: action.type });
+  if (recipe.id === 'buyer_question' || recipe.id === 'sales_job_assign') steps.push({ kind: 'agent' });
+  if (recipe.id === 'sales_job_assign') steps.push({ kind: 'app', type: 'app_webhook' });
+  for (const action of recipe.actions) {
+    const config = Object.fromEntries(
+      Object.entries(action.config).filter(([, value]) => value != null && String(value).trim() !== ''),
+    );
+    steps.push(Object.keys(config).length ? { kind: 'action', type: action.type, config } : { kind: 'action', type: action.type });
+  }
   return steps.every(knownStep) ? steps : null;
 }
 
@@ -405,6 +412,7 @@ const STEP_LABELS: Record<'en' | 'id', Record<string, string>> = {
     'trigger:new_buyer': 'New buyer',
     'trigger:order_paid': 'Order paid',
     'trigger:cart_idle': 'Cart idle',
+    'trigger:sales_job_created': 'Sales job created',
     'action:replenish_stock': 'Replenish stock',
     'action:whatsapp_buyer': 'WhatsApp the buyer',
     'action:share_product_whatsapp': 'Share a product',
@@ -414,6 +422,7 @@ const STEP_LABELS: Record<'en' | 'id', Record<string, string>> = {
     'action:mark_paid_from_proof': 'Mark paid from proof',
     'action:return_confirm_whatsapp': 'Confirm the return',
     'action:cart_winback': 'Send a cart win-back',
+    'action:assign_sales_job': 'Assign sales job',
     'app:app_webhook': 'WhatsApp',
     'app:app_email': 'Gmail',
     'condition:yes_no': 'If the buyer asks for a person',
@@ -428,6 +437,7 @@ const STEP_LABELS: Record<'en' | 'id', Record<string, string>> = {
     'trigger:new_buyer': 'Pembeli baru',
     'trigger:order_paid': 'Pesanan dibayar',
     'trigger:cart_idle': 'Keranjang menganggur',
+    'trigger:sales_job_created': 'Pekerjaan penjualan dibuat',
     'action:replenish_stock': 'Isi ulang stok',
     'action:whatsapp_buyer': 'WhatsApp ke pembeli',
     'action:share_product_whatsapp': 'Bagikan produk',
@@ -437,6 +447,7 @@ const STEP_LABELS: Record<'en' | 'id', Record<string, string>> = {
     'action:mark_paid_from_proof': 'Tandai lunas dari bukti',
     'action:return_confirm_whatsapp': 'Konfirmasi retur',
     'action:cart_winback': 'Kirim ajakan kembali keranjang',
+    'action:assign_sales_job': 'Tugaskan pekerjaan penjualan',
     'app:app_webhook': 'WhatsApp',
     'app:app_email': 'Gmail',
     'condition:yes_no': 'Jika pembeli minta berbicara dengan orang',
@@ -507,6 +518,11 @@ export function workflowMetaFromMessage(message: string): { name: string | null;
 
 export function fallbackWorkflowDescription(steps: WorkflowPlanStep[], locale: 'en' | 'id'): string {
   const types = new Set(steps.flatMap((step) => (step.kind === 'agent' ? [] : [step.type])));
+  if (types.has('assign_sales_job') || types.has('sales_job_created')) {
+    return locale === 'id'
+      ? 'Saat pekerjaan penjualan dibuat, Lakupak AI terhubung lewat WhatsApp, lalu menugaskan pekerjaan ke salesman.'
+      : 'When a sales job is created, Lakupak AI connects through WhatsApp, then assigns the job to the salesman.';
+  }
   if (types.has('cart_winback')) {
     return locale === 'id'
       ? 'Mengirim ajakan kembali saat keranjang pembeli menganggur, lalu memberi tahu dasbor.'

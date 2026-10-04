@@ -7,6 +7,7 @@ export type TriggerType =
   | 'order_paid'
   | 'return_accepted'
   | 'cart_idle'
+  | 'sales_job_created'
   // Legacy (still allowed for existing saved workflows)
   | 'schedule_cron'
   | 'buyer_inactive'
@@ -21,6 +22,7 @@ export type ActionType =
   | 'return_confirm_whatsapp'
   | 'mark_paid_from_proof'
   | 'cart_winback'
+  | 'assign_sales_job'
   | 'notify_dashboard'
   // Legacy (still allowed for existing saved workflows)
   | 'assign_logistic'
@@ -145,7 +147,29 @@ const TRIGGERS_BY_WORKFLOW: Record<WorkflowType, TriggerDefinition[]> = {
   order_logistics: [
     { type: 'return_accepted', fields: [] },
   ],
-  sales: [],
+  sales: [
+    {
+      type: 'sales_job_created',
+      fields: [
+        {
+          key: 'jobType',
+          kind: 'select',
+          options: [
+            'any',
+            'take_order',
+            'collect_payment',
+            'promote_product',
+            'stock_check',
+            'prospect_new_outlet',
+            'returns_pickup',
+            'competitor_intel',
+            'new_product_activation',
+            'scheme_reconciliation',
+          ],
+        },
+      ],
+    },
+  ],
 };
 
 const WHATSAPP_MESSAGE_CATEGORY_FIELD: CatalogField = {
@@ -237,6 +261,10 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
         { key: 'messageTemplate', kind: 'textarea' },
         { key: 'offerId', kind: 'offer' },
       ],
+    },
+    {
+      type: 'assign_sales_job',
+      fields: [{ key: 'messageTemplate', kind: 'textarea' }],
     },
     { type: 'notify_dashboard', fields: [] },
   ],
@@ -642,10 +670,19 @@ export function collectAutomationDryRunIssues(args: {
         action.type === 'share_product_whatsapp' ||
         action.type === 'return_confirm_whatsapp' ||
         action.type === 'buyer_question_reply' ||
-        action.type === 'cart_winback') &&
+        action.type === 'cart_winback' ||
+        action.type === 'assign_sales_job') &&
       configMissing(action.config, 'messageTemplate')
     ) {
       issues.push(`${label}: ${action.type} needs a message template.`);
+    }
+    if (action.type === 'assign_sales_job') {
+      const hasWhatsAppApp = nodes.some(
+        (n) => n.data?.kind === 'app' && n.data?.catalogType === 'app_webhook',
+      );
+      if (!hasWhatsAppApp) {
+        issues.push(`${label}: Assign sales job needs a WhatsApp app node on this workflow.`);
+      }
     }
     if (
       (action.type === 'whatsapp_buyer' ||

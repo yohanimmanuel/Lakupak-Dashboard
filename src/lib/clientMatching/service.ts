@@ -1,5 +1,6 @@
 import type { Prisma } from '@/lib/db';
 import { prisma } from '@/lib/db';
+import { completeActiveProspectJobs, reopenProspectJobs } from '@/lib/salesJobs/service';
 import { classifyClientSignals, type MatchSignal } from '@/lib/clientMatching/signals';
 import { parseMarketplaceUserIdFromBuyerId } from '@/utils/buyerSync';
 
@@ -606,6 +607,9 @@ async function restoreProspectSnapshot(tx: Tx, distributorId: number, snapshot: 
     });
   }
   await clearNullOriginOrders(tx, distributorId, snapshot.nullOriginOrderIds);
+  if ((prospect.status || 'Prospect') !== 'Active') {
+    await reopenProspectJobs(distributorId, [prospect.buyerId], tx);
+  }
 }
 
 async function claimNullBuyerOrder(tx: Tx, distributorId: number, orderId: string, buyerId: string): Promise<string[]> {
@@ -640,6 +644,7 @@ export async function finalizeMarketplaceClientMatch(plan: MarketplaceMatchPlan,
         incoming: plan.candidate!.provisionalProfile,
         incomingOrderId,
       });
+      await completeActiveProspectJobs(plan.distributorId, tx);
       await tx.clientMatchCandidate.create({
         data: {
           distributorId: plan.distributorId,
@@ -727,6 +732,7 @@ export async function mergeCandidate(distributorId: number, candidateId: string)
         };
       }
     }
+    await completeActiveProspectJobs(distributorId, tx);
     await tx.clientMatchCandidate.update({
       where: { id: candidate.id },
       data: {
@@ -825,6 +831,9 @@ export async function undoAutoMerge(distributorId: number, candidateId: string) 
           where: { buyerId: candidate.existingClientId },
           data: { status: snapshot.priorStatus },
         });
+        if (snapshot.priorStatus !== 'Active') {
+          await reopenProspectJobs(distributorId, [candidate.existingClientId], tx);
+        }
       }
     }
     await tx.clientMatchCandidate.update({
@@ -924,6 +933,7 @@ export async function manualMergeOrder(distributorId: number, existingClientId: 
       const nullOriginOrderIds = await claimNullBuyerOrder(tx, distributorId, order.orderId, existing.buyerId);
       if (nullOriginOrderIds.length > 0) undo = { ...undo, nullOriginOrderIds };
     }
+    await completeActiveProspectJobs(distributorId, tx);
     await tx.clientMatchCandidate.create({
       data: {
         distributorId,

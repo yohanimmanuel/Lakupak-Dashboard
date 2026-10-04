@@ -146,6 +146,14 @@
         "logic": "Tunggu 24 jam. Jika keranjang masih menganggur, kirim ajakan kembali. Jika mereka sudah memesan, berhenti. Hubungkan WhatsApp dan pilih pembeli di kanvas sebelum diaktifkan.",
         "template": "Anda meninggalkan barang di keranjang. Balas jika masih menginginkannya."
       },
+      "sales_job_assign": {
+        "chip": "Tugaskan pekerjaan",
+        "prompt": "Saat pekerjaan penjualan dibuat, tugaskan dan kirim pesan WhatsApp ke salesman",
+        "name": "Tugaskan pekerjaan penjualan",
+        "summary": "Saat pekerjaan penjualan dibuat, Lakupak AI menugaskannya ke salesman dan mengirim pesan WhatsApp.",
+        "logic": "Mulai saat pekerjaan dibuat. Lakupak AI terhubung lewat WhatsApp, lalu Tugaskan pekerjaan penjualan mengirim pesan ke salesman itu.",
+        "template": "Pekerjaan baru untuk {store}: {job}. {reason} Balas di chat ini setelah kunjungan selesai."
+      },
       "sales_jobs": {
         "chip": "Pekerjaan penjualan",
         "prompt": "Ingatkan agen penjualan dan simpan balasan WhatsApp mereka pada pekerjaan",
@@ -277,7 +285,8 @@
       "buyer_questions": "Berjalan saat pembeli (baru atau lama) bertanya soal bisnis, produk, pengiriman, atau operasional di WhatsApp",
       "order_paid": "Berjalan saat pembeli mengirim bukti pembayaran. Pasangkan dengan Tandai lunas dari bukti untuk mengubah status menjadi Lunas",
       "return_accepted": "Berjalan saat retur diterima dan stok dapat dipulihkan",
-      "cart_idle": "Berjalan saat keranjang marketplace menganggur selama X jam"
+      "cart_idle": "Berjalan saat keranjang marketplace menganggur selama X jam",
+      "sales_job_created": "Berjalan saat pekerjaan penjualan dibuat"
     },
     "actionHints": {
       "replenish_stock": "Tulis jumlah isi ulang ke stok saat alur kerja aktif",
@@ -293,6 +302,7 @@
       "return_confirm_whatsapp": "Konfirmasi pemulihan stok dan beri tahu pembeli lewat WhatsApp, Email, atau keduanya",
       "mark_paid_from_proof": "Ubah status pembayaran pesanan menjadi Lunas jika bukti bayar sudah ada",
       "cart_winback": "Kirim win-back keranjang dengan penawaran opsional lewat WhatsApp, Email, atau keduanya",
+      "assign_sales_job": "Tugaskan pekerjaan penjualan baru ke salesman dan kirim pesan WhatsApp",
       "notify_dashboard": "Mengirim hasil run langsung (mis. detail replenish) sebagai notifikasi dashboard, tanpa template."
     },
     "nodeApp": "Aplikasi",
@@ -474,7 +484,8 @@
     "order_paid": "Pesanan dibayar",
     "return_accepted": "Retur diterima",
     "order_pending_too_long": "Pesanan pending terlalu lama",
-    "cart_idle": "Keranjang menganggur"
+    "cart_idle": "Keranjang menganggur",
+    "sales_job_created": "Pekerjaan penjualan dibuat"
   },
   "actions": {
     "replenish_stock": "Isi ulang stok otomatis",
@@ -490,6 +501,7 @@
     "return_confirm_whatsapp": "Konfirmasi retur",
     "mark_paid_from_proof": "Tandai lunas dari bukti",
     "cart_winback": "Pesan win-back keranjang",
+    "assign_sales_job": "Tugaskan pekerjaan penjualan",
     "notify_dashboard": "Notifikasi di Dashboard",
     "draft_offer_flag": "Tandai draf penawaran",
     "assign_sales_agent_flag": "Tandai penugasan sales agent",
@@ -524,6 +536,7 @@
     "channel": "Saluran",
     "sendAt": "Kirim pada",
     "paidWhen": "Picu saat",
+    "jobType": "Jenis pekerjaan",
     "options": {
       "status_paid": "Status pembayaran menjadi Lunas",
       "proof_submitted": "Pembeli mengirim bukti pembayaran",
@@ -541,7 +554,17 @@
       "both": "WhatsApp dan Email",
       "UTILITY": "Utilitas",
       "AUTHENTICATION": "Autentikasi",
-      "MARKETING": "Pemasaran"
+      "MARKETING": "Pemasaran",
+      "any": "Semua pekerjaan",
+      "take_order": "Ambil pesanan",
+      "collect_payment": "Tagih pembayaran",
+      "promote_product": "Promosikan produk",
+      "stock_check": "Cek stok",
+      "prospect_new_outlet": "Prospek outlet baru",
+      "returns_pickup": "Jemput retur",
+      "competitor_intel": "Cek pesaing",
+      "new_product_activation": "Aktivasi produk baru",
+      "scheme_reconciliation": "Rekonsiliasi skema"
     }
   },
   "runs": {

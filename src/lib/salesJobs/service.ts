@@ -1,12 +1,14 @@
 import { randomUUID } from 'crypto';
-import { prisma } from '@/lib/db';
+import { prisma, type Prisma } from '@/lib/db';
 import {
   buildStoredCompletion,
+  OPEN_JOB_STATUSES,
   readCompletion,
   SALES_JOB_TYPES,
   type SalesJobType,
 } from '@/lib/salesJobs/completion';
 import { DEFAULT_JOB_TIMEZONE, zonedDayRange, zonedParts } from '@/lib/salesJobs/time';
+import { enqueueSideEffect } from '@/lib/sideEffectQueue';
 
 const JOB_INCLUDE = {
   agent: { select: { id: true, name: true, phone: true, role: true } },
@@ -21,12 +23,41 @@ function assertJobType(value: string): SalesJobType {
   return value as SalesJobType;
 }
 
+type SalesJobWriter = Pick<Prisma.TransactionClient, 'salesJob'>;
+
+export async function completeActiveProspectJobs(distributorId: number, db: SalesJobWriter = prisma) {
+  await db.salesJob.updateMany({
+    where: {
+      distributorId,
+      jobType: 'prospect_new_outlet',
+      status: { in: [...OPEN_JOB_STATUSES] },
+      client: { is: { status: 'Active' } },
+    },
+    data: { status: 'completed', completedAt: new Date() },
+  });
+}
+
+export async function reopenProspectJobs(distributorId: number, clientIds: string[], db: SalesJobWriter = prisma) {
+  const ids = Array.from(new Set(clientIds.map((id) => id.trim()).filter(Boolean)));
+  if (ids.length === 0) return;
+  await db.salesJob.updateMany({
+    where: {
+      distributorId,
+      clientId: { in: ids },
+      jobType: 'prospect_new_outlet',
+      status: 'completed',
+    },
+    data: { status: 'pending', completedAt: null },
+  });
+}
+
 export async function listSalesJobs(args: {
   distributorId: number;
   status?: string | null;
   assignedTo?: string | null;
   date?: string | null;
 }) {
+  await completeActiveProspectJobs(args.distributorId);
   const settings = await prisma.salesJobSettings.findUnique({ where: { distributorId: args.distributorId } });
   const timeZone = settings?.timezone || DEFAULT_JOB_TIMEZONE;
   const range = args.date ? zonedDayRange(args.date, timeZone) : null;
@@ -440,6 +471,7 @@ export async function createSalesJobs(args: {
   const submittedIds = args.jobs.map((item) => item.id?.trim() || '').filter(Boolean);
   if (new Set(submittedIds).size !== submittedIds.length) throw new Error('A job cannot be updated more than once');
 
+  const createdIds: string[] = [];
   const created = await prisma.$transaction(async (tx) => {
     const replaceIds = Array.from(new Set((args.replaceIds ?? []).map((id) => id.trim()).filter(Boolean)));
     const keptIds = new Set(
@@ -598,7 +630,6 @@ export async function createSalesJobs(args: {
             where: { id: existingId },
             data: {
               ...jobFields,
-              status: 'pending',
               schedules: { deleteMany: {}, create: scheduleRows },
             },
             include: JOB_INCLUDE,
@@ -613,10 +644,20 @@ export async function createSalesJobs(args: {
             },
             include: JOB_INCLUDE,
           });
+      if (!keptIds.has(existingId)) createdIds.push(row.id);
       rows.push(row);
     }
     return rows;
   });
+
+  if (createdIds.length > 0) {
+    const distributorId = args.distributorId;
+    const jobIds = [...createdIds];
+    enqueueSideEffect('sales_job_created', async () => {
+      const { dispatchSalesJobCreatedAutomations } = await import('@/lib/automations/engine');
+      await dispatchSalesJobCreatedAutomations(distributorId, jobIds);
+    });
+  }
 
   return attachProductNames(created.map((job) => mapJob(job, timeZone)));
 }

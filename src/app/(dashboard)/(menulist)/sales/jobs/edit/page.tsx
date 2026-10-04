@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import CreateSalesJobForm from '@/components/sales/CreateSalesJobForm';
 import { SalesJobRow } from '@/components/sales/salesJobTypes';
-import { SkeletonTablePage } from '@/components/skeleton/SkeletonTablePage';
+import { SkeletonSalesJobForm } from '@/components/skeleton/SkeletonSalesJobForm';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
 
@@ -55,7 +55,7 @@ export default function EditSalesJobPage() {
     return <div className="p-4 text-sm text-red-700">{error}</div>;
   }
 
-  if (!jobs) return <SkeletonTablePage statCards={0} rows={6} />;
+  if (!jobs) return <SkeletonSalesJobForm />;
 
   if (jobs.length === 0) {
     return (
