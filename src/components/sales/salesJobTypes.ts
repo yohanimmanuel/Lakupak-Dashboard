@@ -35,6 +35,7 @@ export type SalesJobCompletion = {
   product_ids?: string[];
   display_setup_completed?: boolean;
   samples_given?: number | null;
+  given_counts?: { product_id: string; quantity: number }[];
   retailer_briefed?: boolean;
   scheme_reference?: string;
   execution_confirmed?: boolean;
@@ -62,6 +63,7 @@ export type SalesJobRow = {
   priorityReason: string | null;
   suggestedProducts?: string[];
   orderIds?: string[];
+  clientIds?: string[];
   orderId?: string | null;
   suggestedProductNames: string[];
   createdBy: string;

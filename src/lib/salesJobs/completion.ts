@@ -54,6 +54,7 @@ export type CompletionData = {
   product_ids?: string[];
   display_setup_completed?: boolean;
   samples_given?: number | null;
+  given_counts?: { product_id: string; quantity: number }[];
   retailer_briefed?: boolean;
   scheme_reference?: string;
   execution_confirmed?: boolean;
@@ -154,6 +155,17 @@ export function readCompletion(value: unknown): CompletionData {
   }
   if (typeof row.display_setup_completed === 'boolean') data.display_setup_completed = row.display_setup_completed;
   if (row.samples_given != null && row.samples_given !== '') data.samples_given = finiteAmount(row.samples_given);
+  if (Array.isArray(row.given_counts)) {
+    const given: { product_id: string; quantity: number }[] = [];
+    for (const entry of row.given_counts) {
+      const line = asRecord(entry);
+      const productId = optionalText(line?.product_id);
+      const quantity = finiteAmount(line?.quantity);
+      if (!productId || quantity == null || !Number.isInteger(quantity) || quantity < 0) continue;
+      given.push({ product_id: productId, quantity });
+    }
+    if (given.length > 0) data.given_counts = given;
+  }
   if (typeof row.retailer_briefed === 'boolean') data.retailer_briefed = row.retailer_briefed;
   if (typeof row.scheme_reference === 'string') data.scheme_reference = row.scheme_reference;
   if (typeof row.execution_confirmed === 'boolean') data.execution_confirmed = row.execution_confirmed;
@@ -163,6 +175,20 @@ export function readCompletion(value: unknown): CompletionData {
 
 function rejectNegative(value: number | null, label: string) {
   if (value != null && value < 0) throw new Error(`${label} cannot be negative`);
+}
+
+function strictGivenCounts(value: unknown): { product_id: string; quantity: number }[] {
+  if (!Array.isArray(value)) return [];
+  const byProduct = new Map<string, number>();
+  for (const entry of value) {
+    const line = asRecord(entry);
+    const productId = optionalText(line?.product_id);
+    if (!productId) throw new Error('Each given line needs a product');
+    const quantity = finiteAmount(line?.quantity);
+    if (quantity == null || !Number.isInteger(quantity) || quantity < 0) throw new Error('Product given cannot be negative');
+    byProduct.set(productId, quantity);
+  }
+  return Array.from(byProduct, ([product_id, quantity]) => ({ product_id, quantity }));
 }
 
 function strictStockCounts(value: unknown): StockCount[] {
@@ -230,12 +256,13 @@ export function buildStoredCompletion(jobType: string, value: unknown): Completi
       competitor_product: optionalText(row?.competitor_product),
       observed_price: observedPrice,
       observed_promo: optionalText(row?.observed_promo),
-      shelf_share_observation: optionalText(row?.shelf_share_observation),
     };
   }
 
   if (jobType === 'new_product_activation') {
-    const samplesGiven = finiteAmount(row?.samples_given);
+    const given = strictGivenCounts(row?.given_counts);
+    const summed = given.reduce((sum, line) => sum + line.quantity, 0);
+    const samplesGiven = given.length > 0 ? summed : finiteAmount(row?.samples_given);
     if (samplesGiven != null && (!Number.isInteger(samplesGiven) || samplesGiven < 0)) {
       throw new Error('Product given cannot be negative');
     }
@@ -243,6 +270,7 @@ export function buildStoredCompletion(jobType: string, value: unknown): Completi
       ...cleared(notes),
       product_given: row?.product_given === true,
       samples_given: samplesGiven == null ? null : Math.floor(samplesGiven),
+      ...(given.length > 0 ? { given_counts: given } : {}),
       retailer_briefed: false,
     };
   }

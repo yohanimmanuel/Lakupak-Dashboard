@@ -131,6 +131,14 @@ async function sendAgentDigest(args: {
     extra.forEach((product) => args.productName.set(product.productId, product.name));
   }
   const names = (ids: string[]) => ids.map((id) => args.productName.get(id) || id);
+  const clientIds = Array.from(new Set(listedJobs.flatMap((job) => job.clientIds)));
+  const buyerRows = clientIds.length
+    ? await prisma.buyer.findMany({
+        where: { buyerId: { in: clientIds } },
+        select: { buyerId: true, storeName: true, owner: true },
+      })
+    : [];
+  const storeByClient = new Map(buyerRows.map((buyer) => [buyer.buyerId, (buyer.storeName || buyer.owner).trim()]));
   const orderIds = Array.from(new Set(listedJobs.flatMap((job) => job.orderIds)));
   const orderRows = orderIds.length
     ? await prisma.order.findMany({
@@ -141,12 +149,17 @@ async function sendAgentDigest(args: {
   const storeByOrder = new Map(
     orderRows.map((order) => [order.orderId, (order.buyer?.storeName || order.buyer?.owner || order.storeName).trim()]),
   );
-  const clientNames = (job: { orderIds: string[]; client: { storeName: string; owner: string } | null }) => {
+  const clientNames = (job: { jobType: string; clientIds: string[]; orderIds: string[]; client: { storeName: string; owner: string } | null }) => {
     const shops: string[] = [];
+    for (const clientId of job.clientIds) {
+      const name = storeByClient.get(clientId);
+      if (name && !shops.includes(name)) shops.push(name);
+    }
     for (const orderId of job.orderIds) {
       const name = storeByOrder.get(orderId);
       if (name && !shops.includes(name)) shops.push(name);
     }
+    if (job.jobType === 'stock_check' && shops.length === 0) return '';
     return shops.join(', ') || clientLabel(job.client);
   };
 

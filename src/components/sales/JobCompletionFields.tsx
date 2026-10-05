@@ -11,11 +11,13 @@ export default function JobCompletionFields({
   jobTypes,
   completion,
   stockProducts,
+  activationProducts = [],
   onChangeAction,
 }: {
   jobTypes: string[];
   completion: SalesJobCompletion;
   stockProducts: CompletionProduct[];
+  activationProducts?: CompletionProduct[];
   onChangeAction: (next: SalesJobCompletion) => void;
 }) {
   const t = useTranslations('dashboard.sales.salesJobs');
@@ -141,34 +143,55 @@ export default function JobCompletionFields({
             value={completion.observed_promo ?? ''}
             onChange={(event) => onChangeAction({ ...completion, observed_promo: event.target.value })}
           />
-          <input
-            className={inputClass}
-            placeholder={t('completion.shelfShare')}
-            value={completion.shelf_share_observation ?? ''}
-            onChange={(event) => onChangeAction({ ...completion, shelf_share_observation: event.target.value })}
-          />
         </div>
       )}
 
       {types.has('new_product_activation') && (
-        <div className="flex items-center gap-2">
+        <div className="grid gap-2">
           <CheckRow
             checked={completion.product_given === true}
             label={t('completion.productGiven')}
             onChangeAction={(product_given) => onChangeAction({ ...completion, product_given })}
           />
-          <input
-            type="number"
-            min={0}
-            step={1}
-            aria-label={t('completion.productGiven')}
-            placeholder={t('completion.quantity')}
-            className="w-28 border border-[#e6e6e6] rounded-lg px-3 py-2 text-xs text-black bg-white"
-            value={completion.samples_given ?? ''}
-            onChange={(event) =>
-              onChangeAction({ ...completion, samples_given: event.target.value === '' ? null : Number(event.target.value) })
-            }
-          />
+          {activationProducts.length > 0
+            ? activationProducts.map((product) => {
+                const line = (completion.given_counts ?? []).find((row) => row.product_id === product.productId);
+                return (
+                  <div key={product.productId} className="flex items-center gap-2">
+                    <span className="text-xs text-gray-700 truncate flex-1">{product.name}</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      aria-label={product.name}
+                      placeholder={t('completion.quantity')}
+                      className="w-28 border border-[#e6e6e6] rounded-lg px-3 py-2 text-xs text-black bg-white"
+                      value={line?.quantity ?? ''}
+                      onChange={(event) => {
+                        const quantity = event.target.value === '' ? null : Number(event.target.value);
+                        const rest = (completion.given_counts ?? []).filter((row) => row.product_id !== product.productId);
+                        const given_counts = quantity == null ? rest : [...rest, { product_id: product.productId, quantity }];
+                        const samples_given = given_counts.reduce((sum, row) => sum + row.quantity, 0);
+                        onChangeAction({ ...completion, given_counts, samples_given: given_counts.length ? samples_given : null });
+                      }}
+                    />
+                  </div>
+                );
+              })
+            : (
+              <input
+                type="number"
+                min={0}
+                step={1}
+                aria-label={t('completion.productGiven')}
+                placeholder={t('completion.quantity')}
+                className="w-28 border border-[#e6e6e6] rounded-lg px-3 py-2 text-xs text-black bg-white"
+                value={completion.samples_given ?? ''}
+                onChange={(event) =>
+                  onChangeAction({ ...completion, samples_given: event.target.value === '' ? null : Number(event.target.value) })
+                }
+              />
+            )}
         </div>
       )}
 
@@ -270,14 +293,16 @@ export function completionInput(jobType: string, completion: SalesJobCompletion)
       competitor_product: completion.competitor_product ?? '',
       observed_price: completion.observed_price ?? null,
       observed_promo: completion.observed_promo ?? '',
-      shelf_share_observation: completion.shelf_share_observation ?? '',
     };
   }
   if (jobType === 'new_product_activation') {
     return {
       ...shared,
       product_given: completion.product_given === true,
-      samples_given: completion.samples_given ?? null,
+      samples_given: completion.given_counts?.length
+        ? completion.given_counts.reduce((sum, line) => sum + line.quantity, 0)
+        : completion.samples_given ?? null,
+      given_counts: completion.given_counts ?? [],
     };
   }
   return shared;

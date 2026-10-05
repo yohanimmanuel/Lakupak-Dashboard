@@ -1391,6 +1391,8 @@ model SalesJob {
   orderId           String?
   /// Every order linked to a take_order, collect_payment, or returns_pickup job.
   orderIds          String[]  @default([])
+  /// Clients on one promote or activation job. Stock check stays empty.
+  clientIds         String[]  @default([])
   /// take_order | collect_payment | promote_product | stock_check | prospect_new_outlet | returns_pickup | competitor_intel | new_product_activation | scheme_reconciliation
   jobType           String
   priorityReason    String?

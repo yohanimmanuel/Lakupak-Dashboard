@@ -103,6 +103,14 @@ export async function executeAssignSalesJob(args: {
     });
     products.push(...extra);
   }
+  const clientIds = Array.from(new Set(upcoming.flatMap((row) => row.clientIds)));
+  const buyerRows = clientIds.length
+    ? await prisma.buyer.findMany({
+        where: { buyerId: { in: clientIds }, userId: args.userId },
+        select: { buyerId: true, storeName: true, owner: true },
+      })
+    : [];
+  const storeByClient = new Map(buyerRows.map((buyer) => [buyer.buyerId, (buyer.storeName || buyer.owner).trim()]));
   const orderIds = Array.from(new Set(upcoming.flatMap((row) => row.orderIds)));
   const orderRows = orderIds.length
     ? await prisma.order.findMany({
@@ -115,10 +123,15 @@ export async function executeAssignSalesJob(args: {
   );
   const clientNames = (row: (typeof upcoming)[number]) => {
     const shops: string[] = [];
+    for (const clientId of row.clientIds) {
+      const name = storeByClient.get(clientId);
+      if (name && !shops.includes(name)) shops.push(name);
+    }
     for (const orderId of row.orderIds) {
       const name = storeByOrder.get(orderId);
       if (name && !shops.includes(name)) shops.push(name);
     }
+    if (row.jobType === 'stock_check' && shops.length === 0) return '';
     return shops.join(', ') || row.client?.storeName || row.client?.owner || '';
   };
   const lines = (upcoming.length ? upcoming : [job]).map((row) => ({

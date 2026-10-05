@@ -29,6 +29,11 @@ export const salesJobsTypeDefs = /* GraphQL */ `
     counted: Int
   }
 
+  type SalesJobGivenCount {
+    product_id: String!
+    quantity: Int!
+  }
+
   type SalesJobCompletion {
     order_placed: Boolean!
     order_amount: Float
@@ -54,6 +59,7 @@ export const salesJobsTypeDefs = /* GraphQL */ `
     product_ids: [String!]
     display_setup_completed: Boolean
     samples_given: Int
+    given_counts: [SalesJobGivenCount!]
     retailer_briefed: Boolean
     scheme_reference: String
     execution_confirmed: Boolean
@@ -93,6 +99,7 @@ export const salesJobsTypeDefs = /* GraphQL */ `
     suggestedProductNames: [String!]!
     orderId: String
     orderIds: [String!]!
+    clientIds: [String!]!
     schedules: [SalesJobSchedule!]!
     dispatchNote: String
     dispatchedAt: String
@@ -187,6 +194,11 @@ export const salesJobsTypeDefs = /* GraphQL */ `
     reason: String!
   }
 
+  input SalesJobGivenCountInput {
+    product_id: String!
+    quantity: Int!
+  }
+
   input SalesJobStockCountInput {
     product_id: String!
     checked: Boolean!
@@ -218,6 +230,7 @@ export const salesJobsTypeDefs = /* GraphQL */ `
     product_ids: [String!]
     display_setup_completed: Boolean
     samples_given: Int
+    given_counts: [SalesJobGivenCountInput!]
     retailer_briefed: Boolean
     scheme_reference: String
     execution_confirmed: Boolean

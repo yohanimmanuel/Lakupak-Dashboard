@@ -14,12 +14,12 @@ import { SalesJobRow, salesJobStatusKey } from './salesJobTypes';
 
 const COMPLETION_FIELDS = `
   order_placed order_amount payment_collected payment_amount stock_checked products_demoed notes
-  delivered promoted returned product_given samples_given
+  delivered promoted returned product_given samples_given given_counts { product_id quantity }
   stock_counts { product_id checked counted }
   items_returned { product_id quantity reason }
   replacement_issued replacement_value
   competitor_name competitor_product observed_price observed_promo shelf_share_observation
-  product_id product_ids display_setup_completed samples_given retailer_briefed
+  product_id product_ids display_setup_completed retailer_briefed
   scheme_reference execution_confirmed claim_amount
 `;
 

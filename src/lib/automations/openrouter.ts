@@ -169,6 +169,13 @@ export async function chatWithOpenRouter(args: {
     if (!response.ok) {
       const detail = extractErrorMessage(payload, response.statusText);
       lastError = detail;
+      if (/reasoning is mandatory/i.test(detail) && body.reasoning) {
+        delete body.reasoning;
+        if (attempt >= OPENROUTER_MAX_ATTEMPTS - 1) {
+          attempt = OPENROUTER_MAX_ATTEMPTS - 2;
+        }
+        continue;
+      }
       if (attempt < OPENROUTER_MAX_ATTEMPTS - 1 && isTransientOpenRouterFailure(response.status, detail)) {
         await sleep(retryDelayMs(attempt, response.headers.get('Retry-After')));
         continue;

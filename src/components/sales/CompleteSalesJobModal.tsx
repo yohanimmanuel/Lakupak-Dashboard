@@ -102,7 +102,7 @@ export default function CompleteSalesJobModal({
 }: {
   jobs: SalesJobRow[];
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (completion: SalesJobCompletion) => void;
 }) {
   const t = useTranslations('dashboard.sales.salesJobs');
   const tSales = useTranslations('dashboard.sales.salesDetails');
@@ -166,7 +166,7 @@ export default function CompleteSalesJobModal({
           { userId, id: job.id, completion: completionInput(job.jobType, completion) },
         );
       }
-      onSaved();
+      onSaved(completion);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Request failed');
     } finally {
@@ -178,6 +178,11 @@ export default function CompleteSalesJobModal({
   const stockProducts = (stockJob?.suggestedProducts ?? []).map((productId, index) => ({
     productId,
     name: stockJob?.suggestedProductNames[index] || productId,
+  }));
+  const activationJob = jobs.find((job) => job.jobType === 'new_product_activation');
+  const activationProducts = (activationJob?.suggestedProducts ?? []).map((productId, index) => ({
+    productId,
+    name: activationJob?.suggestedProductNames[index] || productId,
   }));
 
   return (
@@ -196,7 +201,7 @@ export default function CompleteSalesJobModal({
             <CheckCircle2 className="w-5 h-5 text-white" />
           </div>
           <h2 id="complete-job-title" className="text-xl font-bold text-black">
-            {t('complete')}
+            {jobs.every((job) => job.status === 'completed') ? t('viewCompletion') : t('complete')}
           </h2>
         </div>
         <div className="border-b border-gray-200" />
@@ -223,6 +228,7 @@ export default function CompleteSalesJobModal({
             jobTypes={jobs.map((job) => job.jobType)}
             completion={completion}
             stockProducts={stockProducts}
+            activationProducts={activationProducts}
             onChangeAction={setCompletion}
           />
         </div>

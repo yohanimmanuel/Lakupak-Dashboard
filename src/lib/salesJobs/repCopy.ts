@@ -58,7 +58,12 @@ export function upcomingJobsMessage(locale: SalesReplyLocale, agentName: string,
   const greeting = locale === 'id' ? `Hai ${name}.` : `Hi ${name}.`;
   const intro = locale === 'id' ? 'Berikut pekerjaan mendatang Anda:' : 'Here are your upcoming jobs:';
   const lines = jobs.map((job, index) => {
-    const store = job.clientName.trim() || (locale === 'id' ? 'Toko' : 'Shop');
+    const store =
+      job.jobType === 'stock_check' && !job.clientName.trim()
+        ? locale === 'id'
+          ? 'Gudang'
+          : 'Warehouse'
+        : job.clientName.trim() || (locale === 'id' ? 'Toko' : 'Shop');
     const type = jobTypeLabel(locale, job.jobType);
     const products = job.productNames.map((item) => item.trim()).filter(Boolean);
     const parts = [`${index + 1}. ${store}`, type];
@@ -105,6 +110,32 @@ export function joinShopNames(locale: SalesReplyLocale, shops: string[]): string
   return `${head.join(', ')}${joiner}${last}`;
 }
 
+export function competitorHeardReply(
+  locale: SalesReplyLocale,
+  shop: string,
+  heard: { name: string; product: string; price: string; promo: string },
+  corrected = false,
+): string {
+  const store = shop.trim() || (locale === 'id' ? 'toko itu' : 'that shop');
+  const close = corrected
+    ? salesCopy(locale, 'I corrected that.', 'Sudah saya betulkan.')
+    : salesCopy(locale, 'I saved that.', 'Sudah saya catat.');
+  return salesCopy(
+    locale,
+    `Got it. At ${store}, the competitor is ${heard.name}, the product is ${heard.product}, the price is about ${heard.price}, and the promo is ${heard.promo}. ${close}`,
+    `Oke. Di ${store}, pesaingnya ${heard.name}, produknya ${heard.product}, harganya sekitar ${heard.price}, dan promonya ${heard.promo}. ${close}`,
+  );
+}
+
+export function quantityHeardReply(locale: SalesReplyLocale, shop: string, lines: string[], corrected = false): string {
+  const store = shop.trim() || (locale === 'id' ? 'toko itu' : 'that shop');
+  const list = joinShopNames(locale, lines);
+  const close = corrected
+    ? salesCopy(locale, 'I corrected that.', 'Sudah saya betulkan.')
+    : salesCopy(locale, 'I saved that.', 'Sudah saya catat.');
+  return salesCopy(locale, `Got it. At ${store}, ${list}. ${close}`, `Oke. Di ${store}, ${list}. ${close}`);
+}
+
 export function checklistUpdatedReply(locale: SalesReplyLocale, store: string, jobType: string): string {
   const shop = store.trim() || (locale === 'id' ? 'toko ini' : 'this shop');
   const type = jobTypeLabel(locale, jobType);
@@ -113,6 +144,69 @@ export function checklistUpdatedReply(locale: SalesReplyLocale, store: string, j
     `Got it. I updated the ${type} checklist for ${shop}.`,
     `Baik. Checklist ${type} untuk ${shop} sudah saya update.`,
   );
+}
+
+export function stockCountAsk(locale: SalesReplyLocale, shop: string, missing: string[], noted: string[]): string {
+  const store = shop.trim() || (locale === 'id' ? 'toko ini' : 'this shop');
+  const left = joinShopNames(locale, missing);
+  const example = missing
+    .slice(0, 2)
+    .map((name, index) => `${name} ${index === 0 ? 12 : 4}`)
+    .join(', ');
+  const waiting = salesCopy(
+    locale,
+    `For ${store}, enter the counted stock for ${left}. For example: ${example}.`,
+    `Untuk ${store}, isi stok terhitung untuk ${left}. Contoh: ${example}.`,
+  );
+  if (noted.length === 0) return waiting;
+  const done = joinShopNames(locale, noted);
+  return salesCopy(locale, `Got it. I noted ${done}. ${waiting}`, `Baik. ${done} saya catat. ${waiting}`);
+}
+
+export function activationQtyAsk(locale: SalesReplyLocale, shop: string, missing: string[], noted: string[]): string {
+  const store = shop.trim() || (locale === 'id' ? 'toko ini' : 'this shop');
+  const names = joinShopNames(locale, missing);
+  const waiting =
+    missing.length === 0
+      ? salesCopy(locale, `For ${store}, how many products were given?`, `Untuk ${store}, berapa produk yang diberikan?`)
+      : salesCopy(
+          locale,
+          `For ${store}, how many products were given for ${names}?`,
+          `Untuk ${store}, berapa produk yang diberikan untuk ${names}?`,
+        );
+  if (noted.length === 0) return waiting;
+  const done = joinShopNames(locale, noted);
+  return salesCopy(locale, `Got it. I noted ${done}. ${waiting}`, `Baik. ${done} saya catat. ${waiting}`);
+}
+
+const COMPETITOR_FIELD_LABEL = {
+  name: { en: 'Competitor name', id: 'Nama pesaing' },
+  product: { en: 'Competitor product', id: 'Produk pesaing' },
+  price: { en: 'Observed price', id: 'Harga yang terlihat' },
+  promo: { en: 'Observed promo', id: 'Promo yang terlihat' },
+} as const;
+
+export type CompetitorField = keyof typeof COMPETITOR_FIELD_LABEL;
+
+export function competitorInputAsk(
+  locale: SalesReplyLocale,
+  shop: string,
+  missing: CompetitorField[],
+  noted: string[],
+): string {
+  const store = shop.trim() || (locale === 'id' ? 'toko ini' : 'this shop');
+  const left = joinShopNames(
+    locale,
+    missing.map((field) => COMPETITOR_FIELD_LABEL[field][locale === 'id' ? 'id' : 'en']),
+  );
+  const waiting = salesCopy(
+    locale,
+    `For ${store}, list the competitor check: ${left}.`,
+    `Untuk ${store}, sebut hasil cek kompetitor: ${left}.`,
+  );
+  if (noted.length === 0) return waiting;
+  const done = joinShopNames(locale, noted);
+  return salesCopy(locale, `Got it. I noted ${done}. ${waiting}`, `Baik. ${done} saya catat. ${waiting}`);
 }
 
 export function buyersStillOpenReply(

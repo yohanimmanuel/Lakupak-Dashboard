@@ -11,12 +11,13 @@ import { useUserStore } from '@/store/userStore';
 
 const JOB_FIELDS = `
   id assignedTo agentName clientId clientCustomerNumber clientName clientOwner clientPhone clientAddress clientStatus
-  jobType priorityReason suggestedProducts orderId orderIds scheduledDate createdAt updatedAt listGroupId
+  jobType priorityReason suggestedProducts orderId orderIds clientIds scheduledDate createdAt updatedAt listGroupId
   schedules { date reminderTime }
   suggestedProductNames createdBy status dispatchNote
   completionData { order_placed order_amount payment_collected payment_amount stock_checked products_demoed notes
-    delivered promoted returned product_given samples_given
-    stock_counts { product_id checked counted } }
+    delivered promoted returned product_given samples_given given_counts { product_id quantity }
+    stock_counts { product_id checked counted }
+    competitor_name competitor_product observed_price observed_promo shelf_share_observation }
 `;
 
 export default function EditSalesJobPage() {

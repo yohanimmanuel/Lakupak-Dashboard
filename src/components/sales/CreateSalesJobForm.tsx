@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, CheckCircle2, ChevronDown, Clock, Plus, Save, Search, Trash2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ChevronDown, ClipboardList, Clock, Plus, Save, Search, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
@@ -476,11 +476,52 @@ function combineSplitOrderJobs(rows: SalesJobRow[]): SalesJobRow[] {
   return combined;
 }
 
+const SHARED_PRODUCT_JOB_TYPES = new Set(['promote_product', 'stock_check', 'new_product_activation']);
+
+function productSignature(job: SalesJobRow): string {
+  return [...(job.suggestedProducts ?? [])].slice().sort().join(',');
+}
+
+function clientIdsOf(job: SalesJobRow): string[] {
+  if (job.jobType === 'stock_check') return [];
+  const ids = [...(job.clientIds ?? []), job.clientId || ''].map((id) => id.trim()).filter(Boolean);
+  return Array.from(new Set(ids));
+}
+
+/** Older saves stored one row per client. Same products fold back into one job. */
+function combineSharedProductJobs(rows: SalesJobRow[]): SalesJobRow[] {
+  const combined: SalesJobRow[] = [];
+  for (const job of rows) {
+    if (!SHARED_PRODUCT_JOB_TYPES.has(job.jobType)) {
+      combined.push(job);
+      continue;
+    }
+    const key = `${splitKey(job)}|${productSignature(job)}`;
+    const existingIndex = combined.findIndex(
+      (existing) =>
+        SHARED_PRODUCT_JOB_TYPES.has(existing.jobType) &&
+        `${splitKey(existing)}|${productSignature(existing)}` === key &&
+        existing.status === job.status &&
+        existing.status !== 'completed' &&
+        job.status !== 'completed',
+    );
+    if (existingIndex === -1) {
+      const clientIds = clientIdsOf(job);
+      combined.push({ ...job, clientIds, clientId: clientIds[0] || job.clientId });
+      continue;
+    }
+    const existing = combined[existingIndex];
+    const clientIds = job.jobType === 'stock_check' ? [] : Array.from(new Set([...clientIdsOf(existing), ...clientIdsOf(job)]));
+    combined[existingIndex] = { ...existing, clientIds, clientId: clientIds[0] || '' };
+  }
+  return combined;
+}
+
 function draftsFromRows(rows: SalesJobRow[]): JobDraft[] {
-  return combineSplitOrderJobs(rows).map((job) => ({
+  return combineSharedProductJobs(combineSplitOrderJobs(rows)).map((job) => ({
     key: job.id,
     jobType: job.jobType,
-    clientIds: job.clientId ? [job.clientId] : [],
+    clientIds: job.jobType === 'stock_check' ? [] : clientIdsOf(job),
     orderIds: job.orderIds?.length ? job.orderIds : job.orderId ? [job.orderId] : [],
     productIds: job.suggestedProducts ?? [],
     customerNumber: job.jobType === 'prospect_new_outlet' ? outletNumber(job) : '',
@@ -515,6 +556,7 @@ export default function CreateSalesJobForm({
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [completingJobs, setCompletingJobs] = useState<SalesJobRow[]>([]);
+  const [savedCompletions, setSavedCompletions] = useState<Record<string, SalesJobCompletion>>({});
   const [statusJobId, setStatusJobId] = useState<string | null>(null);
   const [jobErrors, setJobErrors] = useState<Record<string, string>>({});
 
@@ -559,7 +601,9 @@ export default function CreateSalesJobForm({
       }
       if (job.jobType === 'take_order' || job.jobType === 'collect_payment' || job.jobType === 'returns_pickup') {
         if (job.orderIds.length === 0) next[job.key] = t('form.needOrder');
-      } else if (job.jobType === 'promote_product' || job.jobType === 'stock_check' || job.jobType === 'new_product_activation') {
+      } else if (job.jobType === 'stock_check') {
+        if (job.productIds.length === 0) next[job.key] = t('form.needProduct');
+      } else if (job.jobType === 'promote_product' || job.jobType === 'new_product_activation') {
         if (job.clientIds.length === 0) next[job.key] = t('form.needClient');
         else if (job.productIds.length === 0) next[job.key] = t('form.needProduct');
       } else if (job.jobType === 'competitor_intel' || job.jobType === 'scheme_reconciliation') {
@@ -585,8 +629,8 @@ export default function CreateSalesJobForm({
             ...(editing?.replaceIds.includes(job.key) ? { id: job.key } : {}),
             jobType: job.jobType,
             priorityReason: job.reason.trim() || null,
-            clientId: job.clientIds[0] || null,
-            clientIds: job.clientIds,
+            clientId: job.jobType === 'stock_check' ? null : job.clientIds[0] || null,
+            clientIds: job.jobType === 'stock_check' ? [] : job.clientIds,
             orderIds: job.orderIds,
             productIds: job.productIds,
             ...(job.jobType === 'prospect_new_outlet'
@@ -640,7 +684,7 @@ export default function CreateSalesJobForm({
     const client = clients.find((row) => row.buyerId === clientId);
     const agent = agents.find((row) => row.id === assignedTo);
     const prospect = draft.jobType === 'prospect_new_outlet';
-    const completionData: SalesJobCompletion = saved?.completionData ?? {
+    const completionData: SalesJobCompletion = savedCompletions[draft.key] ?? saved?.completionData ?? {
       order_placed: false,
       order_amount: null,
       payment_collected: false,
@@ -663,7 +707,11 @@ export default function CreateSalesJobForm({
       jobType: draft.jobType,
       priorityReason: draft.reason || null,
       suggestedProducts: draft.productIds,
-      suggestedProductNames: saved?.suggestedProductNames ?? [],
+      suggestedProductNames: draft.productIds.map((productId) => {
+        const savedIndex = (saved?.suggestedProducts ?? []).indexOf(productId);
+        const fromSaved = savedIndex >= 0 ? saved?.suggestedProductNames?.[savedIndex] : '';
+        return fromSaved || products.find((product) => product.productId === productId)?.name || productId;
+      }),
       createdBy: saved?.createdBy || 'manager',
       status: draft.status || saved?.status || 'pending',
       scheduledDate: draft.schedules[0]?.date || saved?.scheduledDate || '',
@@ -747,6 +795,20 @@ export default function CreateSalesJobForm({
                   {t('complete')}
                 </button>
               )}
+              {savedJob && !isProspect && job.status === 'completed' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError('');
+                    setNotice('');
+                    setCompletingJobs([completionRow(job)]);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm"
+                >
+                  <ClipboardList className="w-4 h-4" />
+                  {t('viewCompletion')}
+                </button>
+              )}
               {savedJob && !isProspect && (
                 <button
                   type="button"
@@ -803,7 +865,7 @@ export default function CreateSalesJobForm({
                     ? [{ value: 'scheme_reconciliation', label: t('types.scheme_reconciliation') }]
                     : []),
                 ]}
-                onChange={(jobType) => updateJob(job.key, { jobType })}
+                onChange={(jobType) => updateJob(job.key, { jobType, ...(jobType === 'stock_check' ? { clientIds: [] } : {}) })}
               />
             </div>
 
@@ -817,38 +879,39 @@ export default function CreateSalesJobForm({
             )}
 
             {(job.jobType === 'promote_product' ||
-              job.jobType === 'stock_check' ||
               job.jobType === 'new_product_activation' ||
               job.jobType === 'competitor_intel' ||
               job.jobType === 'scheme_reconciliation') && (
-              <>
-                <div>
-                  <label className={labelClass}>
-                    {t('client')} <span className="text-red-500">*</span>
-                  </label>
-                  <ClientMultiSelect
-                    values={job.clientIds}
-                    placeholder={t('client')}
-                    options={clients.map((client) => ({ value: client.buyerId, label: `${client.storeName} (${client.status})` }))}
-                    onChange={(clientIds) => updateJob(job.key, { clientIds })}
-                  />
-                  <p className="text-xs text-gray-500 mt-2">{t('form.clientHint')}</p>
-                </div>
-                {(job.jobType === 'promote_product' || job.jobType === 'stock_check' || job.jobType === 'new_product_activation') && (
-                  <ProductPicker
-                    products={products}
-                    selectedIds={job.productIds}
-                    hint={
-                      job.jobType === 'promote_product'
-                        ? t('form.productHintPromote')
-                        : job.jobType === 'new_product_activation'
-                          ? t('form.productHintActivate')
-                          : t('form.productHintStock')
-                    }
-                    onChange={(productIds) => updateJob(job.key, { productIds })}
-                  />
-                )}
-              </>
+              <div>
+                <label className={labelClass}>
+                  {t('client')} <span className="text-red-500">*</span>
+                </label>
+                <ClientMultiSelect
+                  values={job.clientIds}
+                  placeholder={t('client')}
+                  options={clients.map((client) => ({ value: client.buyerId, label: `${client.storeName} (${client.status})` }))}
+                  onChange={(clientIds) => updateJob(job.key, { clientIds })}
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  {job.jobType === 'promote_product' || job.jobType === 'new_product_activation'
+                    ? t('form.clientHintShared')
+                    : t('form.clientHint')}
+                </p>
+              </div>
+            )}
+            {(job.jobType === 'promote_product' || job.jobType === 'stock_check' || job.jobType === 'new_product_activation') && (
+              <ProductPicker
+                products={products}
+                selectedIds={job.productIds}
+                hint={
+                  job.jobType === 'promote_product'
+                    ? t('form.productHintPromote')
+                    : job.jobType === 'new_product_activation'
+                      ? t('form.productHintActivate')
+                      : t('form.productHintStock')
+                }
+                onChange={(productIds) => updateJob(job.key, { productIds })}
+              />
             )}
 
             {job.jobType === 'prospect_new_outlet' && (
@@ -982,11 +1045,17 @@ export default function CreateSalesJobForm({
         <CompleteSalesJobModal
           jobs={completingJobs}
           onClose={() => setCompletingJobs([])}
-          onSaved={() => {
+          onSaved={(completion) => {
             const ids = completingJobs.map((row) => row.id);
+            const alreadyCompleted = completingJobs.every((row) => row.status === 'completed');
+            setSavedCompletions((prev) => {
+              const next = { ...prev };
+              for (const id of ids) next[id] = completion;
+              return next;
+            });
             setCompletingJobs([]);
             setJobs((prev) => prev.map((row) => (ids.includes(row.key) ? { ...row, status: 'completed' } : row)));
-            setNotice(t('markedComplete'));
+            if (!alreadyCompleted) setNotice(t('markedComplete'));
           }}
         />
       )}

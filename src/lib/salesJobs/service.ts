@@ -129,9 +129,10 @@ export async function listSalesJobs(args: {
 }
 
 async function attachOrderClients<
-  T extends { orderIds?: string[]; clientName: string; clientStatus: string },
+  T extends { orderIds?: string[]; clientIds?: string[]; clientName: string; clientStatus: string },
 >(rows: T[]) {
   const orderIds = Array.from(new Set(rows.flatMap((row) => row.orderIds ?? [])));
+  const clientIds = Array.from(new Set(rows.flatMap((row) => row.clientIds ?? [])));
   const orders = orderIds.length
     ? await prisma.order.findMany({
         where: { orderId: { in: orderIds }, isDeleted: false },
@@ -142,7 +143,14 @@ async function attachOrderClients<
         },
       })
     : [];
+  const buyers = clientIds.length
+    ? await prisma.buyer.findMany({
+        where: { buyerId: { in: clientIds } },
+        select: { buyerId: true, storeName: true, owner: true, status: true },
+      })
+    : [];
   const byOrder = new Map(orders.map((order) => [order.orderId, order]));
+  const byBuyer = new Map(buyers.map((buyer) => [buyer.buyerId, buyer]));
   return rows.map((row) => {
     const linkedClients: { name: string; status: string }[] = [];
     const seen = new Set<string>();
@@ -152,6 +160,11 @@ async function attachOrderClients<
       seen.add(trimmed);
       linkedClients.push({ name: trimmed, status });
     };
+    for (const buyerId of row.clientIds ?? []) {
+      const buyer = byBuyer.get(buyerId);
+      if (!buyer) continue;
+      add(buyer.storeName || buyer.owner, buyer.status);
+    }
     for (const orderId of row.orderIds ?? []) {
       const order = byOrder.get(orderId);
       if (!order) continue;
@@ -196,6 +209,7 @@ function mapJob(job: {
   listGroupId?: string | null;
   orderId?: string | null;
   orderIds?: string[];
+  clientIds?: string[];
   schedules?: { scheduledDate: Date; reminderHour: number; reminderMinute: number }[];
   agent: { id: string; name: string; phone: string; role: string };
   client: { buyerId: string; customerNumber: string | null; storeName: string; owner: string; phone: string; address: string; status: string } | null;
@@ -227,6 +241,7 @@ function mapJob(job: {
     status: job.status,
     orderId: job.orderId ?? null,
     orderIds: job.orderIds ?? [],
+    clientIds: job.clientIds ?? [],
     schedules,
     scheduledDate: schedules[0]?.date ?? zonedParts(job.scheduledDate, timeZone).dateKey,
     createdAt: zonedParts(job.createdAt, timeZone).dateKey,
@@ -354,12 +369,19 @@ export async function completeSalesJob(args: {
   id: string;
   completion: unknown;
   notes?: string | null;
+  revise?: boolean;
 }) {
+  const open = ['pending', 'approved', 'suggested', 'dispatched', 'in_progress'] as const;
   const existing = await prisma.salesJob.findFirst({
     where: {
       id: args.id,
       distributorId: args.distributorId,
-      status: { in: ['pending', 'approved', 'suggested', 'dispatched', 'in_progress'] },
+      ...(args.revise
+        ? {
+            jobType: { in: ['stock_check', 'competitor_intel', 'new_product_activation'] },
+            status: { in: [...open, 'completed'] },
+          }
+        : { status: { in: [...open] } }),
     },
   });
   if (!existing) throw new Error('Job cannot be completed');
@@ -387,7 +409,7 @@ export async function completeSalesJob(args: {
       status: 'completed',
       completionData: completion,
       completionNotes: args.notes?.trim() || completion.notes || existing.completionNotes,
-      completedAt: new Date(),
+      ...(existing.status === 'completed' ? {} : { completedAt: new Date() }),
     },
     include: JOB_INCLUDE,
   });
@@ -401,7 +423,7 @@ export async function salesJobDayAggregates(distributorId: number, agentId: stri
   const timeZone = settings?.timezone || DEFAULT_JOB_TIMEZONE;
   const jobs = await prisma.salesJob.findMany({
     where: { distributorId, assignedTo: agentId, status: 'completed' },
-    select: { clientId: true, completedAt: true, scheduledDate: true, completionData: true },
+    select: { clientId: true, clientIds: true, completedAt: true, scheduledDate: true, completionData: true },
   });
   const byDate = new Map<string, { clients: Set<string>; visits: number; products: number; sales: number }>();
   for (const job of jobs) {
@@ -410,7 +432,8 @@ export async function salesJobDayAggregates(distributorId: number, agentId: stri
     const row = byDate.get(key) ?? { clients: new Set<string>(), visits: 0, products: 0, sales: 0 };
     const data = readCompletion(job.completionData);
     row.visits += 1;
-    if (job.clientId) row.clients.add(job.clientId);
+    const countedClients = job.clientIds.length > 0 ? job.clientIds : job.clientId ? [job.clientId] : [];
+    for (const clientId of countedClients) row.clients.add(clientId);
     row.products += data.products_demoed;
     if (data.order_placed && data.order_amount) row.sales += data.order_amount;
     byDate.set(key, row);
@@ -600,7 +623,7 @@ export async function createSalesJobs(args: {
         storedClientId = owned.clientId;
       }
 
-      const slices: { clientId: string | null; orderId: string | null; linkedOrderIds: string[]; productIds: string[] }[] = [];
+      const slices: { clientId: string | null; clientIds: string[]; orderId: string | null; linkedOrderIds: string[]; productIds: string[] }[] = [];
       if (jobType === 'take_order' || jobType === 'collect_payment' || jobType === 'returns_pickup') {
         const requested = Array.from(
           new Set([...(item.orderIds ?? []), item.orderId ?? ''].map((id) => id.trim()).filter(Boolean)),
@@ -623,7 +646,7 @@ export async function createSalesJobs(args: {
           if (buyerId && !buyerIds.includes(buyerId)) buyerIds.push(buyerId);
         }
         const clientId = storedClientId && buyerIds.includes(storedClientId) ? storedClientId : buyerIds[0] ?? null;
-        slices.push({ clientId, orderId: requested[0] ?? null, linkedOrderIds: requested, productIds: [] });
+        slices.push({ clientId, clientIds: buyerIds, orderId: requested[0] ?? null, linkedOrderIds: requested, productIds: [] });
       } else if (
         jobType === 'promote_product' ||
         jobType === 'stock_check' ||
@@ -631,12 +654,16 @@ export async function createSalesJobs(args: {
         jobType === 'competitor_intel' ||
         jobType === 'scheme_reconciliation'
       ) {
-        if (requestedClientIds.length === 0) throw new Error('Select a client');
-        const clients = await tx.buyer.findMany({
-          where: { buyerId: { in: requestedClientIds }, userId: args.distributorId },
-          select: { buyerId: true },
-        });
-        if (clients.length !== requestedClientIds.length) throw new Error('Client not found');
+        const warehouse = jobType === 'stock_check';
+        const sharedClients = jobType === 'promote_product' || jobType === 'new_product_activation';
+        if (!warehouse && requestedClientIds.length === 0) throw new Error('Select a client');
+        if (!warehouse) {
+          const clients = await tx.buyer.findMany({
+            where: { buyerId: { in: requestedClientIds }, userId: args.distributorId },
+            select: { buyerId: true },
+          });
+          if (clients.length !== requestedClientIds.length) throw new Error('Client not found');
+        }
         let productIds: string[] = [];
         if (jobType === 'promote_product' || jobType === 'stock_check' || jobType === 'new_product_activation') {
           productIds = Array.from(new Set((item.productIds ?? []).map((id) => id.trim()).filter(Boolean)));
@@ -647,8 +674,18 @@ export async function createSalesJobs(args: {
           });
           if (products.length !== productIds.length) throw new Error('One or more products were not found');
         }
-        for (const clientId of requestedClientIds) {
-          slices.push({ clientId, orderId: null, linkedOrderIds: [], productIds });
+        if (warehouse || sharedClients) {
+          slices.push({
+            clientId: warehouse ? null : requestedClientIds[0] ?? null,
+            clientIds: warehouse ? [] : requestedClientIds,
+            orderId: null,
+            linkedOrderIds: [],
+            productIds,
+          });
+        } else {
+          for (const clientId of requestedClientIds) {
+            slices.push({ clientId, clientIds: [clientId], orderId: null, linkedOrderIds: [], productIds });
+          }
         }
       } else {
         const prospect = item.prospect;
@@ -704,7 +741,7 @@ export async function createSalesJobs(args: {
           });
           clientId = buyerId;
         }
-        slices.push({ clientId, orderId: null, linkedOrderIds: [], productIds: [] });
+        slices.push({ clientId, clientIds: clientId ? [clientId] : [], orderId: null, linkedOrderIds: [], productIds: [] });
       }
 
       const idSlice = slices.find((slice) => slice.clientId && slice.clientId === storedClientId) ?? slices[0];
@@ -737,6 +774,7 @@ export async function createSalesJobs(args: {
         const jobFields = {
           assignedTo: args.assignedTo,
           clientId: slice.clientId,
+          clientIds: slice.clientIds,
           orderId: slice.orderId,
           orderIds: slice.linkedOrderIds,
           jobType,
