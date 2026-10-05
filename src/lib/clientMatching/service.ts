@@ -1,7 +1,7 @@
 import type { Prisma } from '@/lib/db';
 import { prisma } from '@/lib/db';
-import { completeActiveProspectJobs, reopenProspectJobs } from '@/lib/salesJobs/service';
-import { classifyClientSignals, type MatchSignal } from '@/lib/clientMatching/signals';
+import { completeActiveProspectJobs, reopenProspectJobs, withSuppressAutoComplete } from '@/lib/salesJobs/service';
+import { classifyClientSignals, phonesMatch, type MatchSignal } from '@/lib/clientMatching/signals';
 import { parseMarketplaceUserIdFromBuyerId } from '@/utils/buyerSync';
 
 type Tx = Prisma.TransactionClient;
@@ -99,6 +99,8 @@ type MergeUndoSnapshot = {
   marketplaceBefore: BuyerSnapshot;
   movedOrderIds: string[];
   movedJobIds: string[];
+  /** Prospect jobs this merge moved, with the client they had before the merge. */
+  splitProspectJobs?: { id: string; clientId: string }[];
   movedOfferIds: string[];
   /** Orders whose buyerId was null before this merge. Undo clears that link. */
   nullOriginOrderIds?: string[];
@@ -420,7 +422,10 @@ async function mergeProspectIntoMarketplace(
       select: { storeName: true, contactPerson: true, contactPhone: true, deliveryAddress: true, customerEmail: true },
     }),
     tx.order.findMany({ where: { buyerId: prospect.buyerId, userId: args.distributorId }, select: { orderId: true } }),
-    tx.salesJob.findMany({ where: { clientId: prospect.buyerId, distributorId: args.distributorId }, select: { id: true } }),
+    tx.salesJob.findMany({
+      where: { clientId: prospect.buyerId, distributorId: args.distributorId },
+      select: { id: true, jobType: true, clientId: true },
+    }),
     tx.offer.findMany({ where: { buyerId: prospect.buyerId, userId: args.distributorId }, select: { offerId: true } }),
   ]);
 
@@ -503,6 +508,9 @@ async function mergeProspectIntoMarketplace(
     marketplaceBefore: snapshotBuyer(market),
     movedOrderIds: orders.map((order) => order.orderId),
     movedJobIds: jobs.map((job) => job.id),
+    splitProspectJobs: jobs
+      .filter((job) => job.jobType === 'prospect_new_outlet' && job.clientId)
+      .map((job) => ({ id: job.id, clientId: job.clientId as string })),
     movedOfferIds: offers.map((offer) => offer.offerId),
   };
 }
@@ -581,6 +589,53 @@ async function applyBuyerSnapshot(tx: Tx, distributorId: number, buyer: BuyerSna
   });
 }
 
+async function restoreMovedJobs(
+  tx: Tx,
+  distributorId: number,
+  prospectBuyerId: string,
+  movedJobIds: string[],
+  splitProspectJobs: { id: string; clientId: string }[] = [],
+) {
+  if (!movedJobIds.length) return;
+  const originalClient = new Map(splitProspectJobs.map((row) => [row.id, row.clientId]));
+  const moved = await tx.salesJob.findMany({
+    where: { id: { in: movedJobIds }, distributorId },
+    select: { id: true, assignedTo: true, clientId: true, jobType: true, completionData: true },
+  });
+  const clientIds = Array.from(new Set(moved.map((job) => job.clientId).filter((id): id is string => Boolean(id))));
+  const siblings = clientIds.length
+    ? await tx.salesJob.findMany({
+        where: { distributorId, clientId: { in: clientIds } },
+        select: { id: true, assignedTo: true, clientId: true },
+      })
+    : [];
+  const movedSet = new Set(moved.map((job) => job.id));
+  const stay = [];
+  const moveIds: string[] = [];
+  for (const job of moved) {
+    const group = siblings.filter((row) => row.clientId === job.clientId && row.assignedTo === job.assignedTo);
+    const anchored = group.some((row) => !movedSet.has(row.id));
+    if (job.jobType === 'prospect_new_outlet' && anchored) stay.push(job);
+    else moveIds.push(job.id);
+  }
+  for (const id of moveIds) {
+    await tx.salesJob.update({
+      where: { id },
+      data: { clientId: originalClient.get(id) || prospectBuyerId },
+    });
+  }
+  for (const job of stay) {
+    await tx.salesJob.update({
+      where: { id: job.id },
+      data: {
+        status: 'pending',
+        completedAt: null,
+        completionData: withSuppressAutoComplete(job.completionData),
+      },
+    });
+  }
+}
+
 async function restoreProspectSnapshot(tx: Tx, distributorId: number, snapshot: MergeUndoSnapshot) {
   const prospect = snapshot.prospect;
   const before = snapshot.marketplaceBefore;
@@ -594,12 +649,13 @@ async function restoreProspectSnapshot(tx: Tx, distributorId: number, snapshot: 
       data: { buyerId: prospect.buyerId },
     });
   }
-  if ((snapshot.movedJobIds ?? []).length > 0) {
-    await tx.salesJob.updateMany({
-      where: { id: { in: snapshot.movedJobIds }, distributorId },
-      data: { clientId: prospect.buyerId },
-    });
-  }
+  await restoreMovedJobs(
+    tx,
+    distributorId,
+    prospect.buyerId,
+    snapshot.movedJobIds ?? [],
+    snapshot.splitProspectJobs ?? [],
+  );
   if ((snapshot.movedOfferIds ?? []).length > 0) {
     await tx.offer.updateMany({
       where: { offerId: { in: snapshot.movedOfferIds }, userId: distributorId },
@@ -644,7 +700,7 @@ export async function finalizeMarketplaceClientMatch(plan: MarketplaceMatchPlan,
         incoming: plan.candidate!.provisionalProfile,
         incomingOrderId,
       });
-      await completeActiveProspectJobs(plan.distributorId, tx);
+      await completeActiveProspectJobs(plan.distributorId, tx, true, [plan.buyerId]);
       await tx.clientMatchCandidate.create({
         data: {
           distributorId: plan.distributorId,
@@ -732,7 +788,7 @@ export async function mergeCandidate(distributorId: number, candidateId: string)
         };
       }
     }
-    await completeActiveProspectJobs(distributorId, tx);
+    await completeActiveProspectJobs(distributorId, tx, true, [survivingId]);
     await tx.clientMatchCandidate.update({
       where: { id: candidate.id },
       data: {
@@ -933,7 +989,7 @@ export async function manualMergeOrder(distributorId: number, existingClientId: 
       const nullOriginOrderIds = await claimNullBuyerOrder(tx, distributorId, order.orderId, existing.buyerId);
       if (nullOriginOrderIds.length > 0) undo = { ...undo, nullOriginOrderIds };
     }
-    await completeActiveProspectJobs(distributorId, tx);
+    await completeActiveProspectJobs(distributorId, tx, true, [survivingId]);
     await tx.clientMatchCandidate.create({
       data: {
         distributorId,

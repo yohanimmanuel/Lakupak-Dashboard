@@ -348,7 +348,9 @@ function planNodeData(
   if (step.kind === 'action') {
     const fields = getAllActions().find((item) => item.type === step.type)?.fields ?? [];
     const config = defaultConfigForFields(fields);
-    if (step.type === 'cs_24h_window') config.csReplyLanguage = input.locale === 'id' ? 'id' : 'en';
+    if (step.type === 'cs_24h_window' || step.type === 'assign_sales_job') {
+      config.csReplyLanguage = input.locale === 'id' ? 'id' : 'en';
+    }
     Object.assign(config, mergePlanConfig({}, step.config));
     const title = input.hasAction(step.type) ? input.actionLabel(step.type) : input.labels.actionSubtitle;
     return {

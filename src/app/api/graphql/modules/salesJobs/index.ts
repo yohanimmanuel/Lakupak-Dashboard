@@ -23,6 +23,12 @@ export const salesJobsTypeDefs = /* GraphQL */ `
     reason: String!
   }
 
+  type SalesJobStockCount {
+    product_id: String!
+    checked: Boolean!
+    counted: Int
+  }
+
   type SalesJobCompletion {
     order_placed: Boolean!
     order_amount: Float
@@ -31,6 +37,11 @@ export const salesJobsTypeDefs = /* GraphQL */ `
     stock_checked: Boolean!
     products_demoed: Int!
     notes: String!
+    delivered: Boolean
+    promoted: Boolean
+    returned: Boolean
+    product_given: Boolean
+    stock_counts: [SalesJobStockCount!]
     items_returned: [SalesJobReturnedItem!]
     replacement_issued: Boolean
     replacement_value: Float
@@ -49,6 +60,11 @@ export const salesJobsTypeDefs = /* GraphQL */ `
     claim_amount: Float
   }
 
+  type SalesJobLinkedClient {
+    name: String!
+    status: String!
+  }
+
   type SalesJob {
     id: String!
     assignedTo: String!
@@ -62,6 +78,7 @@ export const salesJobsTypeDefs = /* GraphQL */ `
     clientPhone: String!
     clientAddress: String!
     clientStatus: String!
+    linkedClients: [SalesJobLinkedClient!]!
     jobType: String!
     priorityReason: String
     suggestedProducts: [String!]!
@@ -69,6 +86,8 @@ export const salesJobsTypeDefs = /* GraphQL */ `
     status: String!
     scheduledDate: String!
     createdAt: String!
+    updatedAt: String!
+    listGroupId: String!
     completionNotes: String
     completionData: SalesJobCompletion!
     suggestedProductNames: [String!]!
@@ -154,6 +173,7 @@ export const salesJobsTypeDefs = /* GraphQL */ `
     jobType: String!
     priorityReason: String
     clientId: String
+    clientIds: [String!]
     orderId: String
     orderIds: [String!]
     productIds: [String!]
@@ -167,6 +187,12 @@ export const salesJobsTypeDefs = /* GraphQL */ `
     reason: String!
   }
 
+  input SalesJobStockCountInput {
+    product_id: String!
+    checked: Boolean!
+    counted: Int
+  }
+
   input SalesJobCompletionInput {
     order_placed: Boolean!
     order_amount: Float
@@ -175,6 +201,11 @@ export const salesJobsTypeDefs = /* GraphQL */ `
     stock_checked: Boolean!
     products_demoed: Int!
     notes: String
+    delivered: Boolean
+    promoted: Boolean
+    returned: Boolean
+    product_given: Boolean
+    stock_counts: [SalesJobStockCountInput!]
     items_returned: [SalesJobReturnedItemInput!]
     replacement_issued: Boolean
     replacement_value: Float
@@ -204,8 +235,8 @@ export const salesJobsTypeDefs = /* GraphQL */ `
 
   extend type Mutation {
     suggestSalesJobs(userId: Int!): SuggestSalesJobsResult!
-    createSalesJobs(userId: Int!, assignedTo: String!, jobs: [CreateSalesJobItemInput!]!): [SalesJob!]!
-    updateSalesJobs(userId: Int!, assignedTo: String!, replaceIds: [String!]!, jobs: [CreateSalesJobItemInput!]!): [SalesJob!]!
+    createSalesJobs(userId: Int!, assignedTo: String!, jobs: [CreateSalesJobItemInput!]!, timeZone: String): [SalesJob!]!
+    updateSalesJobs(userId: Int!, assignedTo: String!, replaceIds: [String!]!, jobs: [CreateSalesJobItemInput!]!, timeZone: String): [SalesJob!]!
     deleteSalesJobs(userId: Int!, ids: [String!]!): Int!
     markSalesJobsPending(userId: Int!, ids: [String!]!): Int!
     createSalesJob(
@@ -281,7 +312,14 @@ export const salesJobsResolvers = {
         userId: number;
         assignedTo: string;
         jobs: Parameters<typeof createSalesJobs>[0]['jobs'];
-      }) => createSalesJobs({ distributorId: args.userId, assignedTo: args.assignedTo, jobs: args.jobs }),
+        timeZone?: string | null;
+      }) =>
+        createSalesJobs({
+          distributorId: args.userId,
+          assignedTo: args.assignedTo,
+          jobs: args.jobs,
+          timeZone: args.timeZone,
+        }),
     ),
     updateSalesJobs: withDashboardAuth(
       async (args: {
@@ -289,12 +327,14 @@ export const salesJobsResolvers = {
         assignedTo: string;
         replaceIds: string[];
         jobs: Parameters<typeof createSalesJobs>[0]['jobs'];
+        timeZone?: string | null;
       }) =>
         createSalesJobs({
           distributorId: args.userId,
           assignedTo: args.assignedTo,
           jobs: args.jobs,
           replaceIds: args.replaceIds,
+          timeZone: args.timeZone,
         }),
     ),
     deleteSalesJobs: withDashboardAuth(async (args: { userId: number; ids: string[] }) =>

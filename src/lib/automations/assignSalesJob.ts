@@ -1,31 +1,19 @@
 import { prisma } from '@/lib/db';
-import { dispatchJobToWhatsApp, salesJobTypeLabel } from '@/lib/salesJobs/whatsapp';
+import { salesRepReplyLocale, upcomingJobsMessage } from '@/lib/salesJobs/repCopy';
+import { DEFAULT_JOB_TIMEZONE, zonedDayRange, zonedParts } from '@/lib/salesJobs/time';
+import { dispatchJobToWhatsApp } from '@/lib/salesJobs/whatsapp';
 
-function fillSalesJobTemplate(
-  template: string,
-  facts: { store: string; job: string; salesman: string; reason: string; products: string },
-): string {
-  return template
-    .replace(/\{store\}/gi, facts.store)
-    .replace(/\{job\}/gi, facts.job)
-    .replace(/\{salesman\}/gi, facts.salesman)
-    .replace(/\{reason\}/gi, facts.reason)
-    .replace(/\{products\}/gi, facts.products)
-    .replace(/[ \t]{2,}/g, ' ')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
-
-/** Sends the new job to the salesman already assigned on it. */
+/** Sends the salesman's upcoming jobs. Report buttons stay off until they say a job is finished. */
 export async function executeAssignSalesJob(args: {
   userId: number;
   jobId: string;
-  messageTemplate: string;
+  messageTemplate?: string;
+  csReplyLanguage?: string;
 }): Promise<string> {
   const job = await prisma.salesJob.findFirst({
     where: { id: args.jobId, distributorId: args.userId },
     include: {
-      agent: { select: { name: true, phone: true, status: true } },
+      agent: { select: { id: true, name: true, phone: true, status: true } },
       client: { select: { storeName: true, owner: true } },
     },
   });
@@ -45,34 +33,54 @@ export async function executeAssignSalesJob(args: {
     throw new Error(agentNote);
   }
 
-  const products = job.suggestedProducts.length
+  const products: { productId: string; name: string }[] = job.suggestedProducts.length
     ? await prisma.product.findMany({
         where: { userId: args.userId, productId: { in: job.suggestedProducts } },
         select: { productId: true, name: true },
       })
     : [];
-  const productNames = job.suggestedProducts.map(
-    (id) => products.find((product) => product.productId === id)?.name || id,
-  );
   const store = job.client?.storeName || job.client?.owner || '';
-  const template = args.messageTemplate.trim();
-  const body = template
-    ? fillSalesJobTemplate(template, {
-        store,
-        job: salesJobTypeLabel(job.jobType),
-        salesman: job.agent.name,
-        reason: job.priorityReason?.trim() || '',
-        products: productNames.join(', '),
-      })
-    : undefined;
+  const configured = String(args.csReplyLanguage ?? '').trim().toLowerCase();
+  const locale = configured === 'id' || configured === 'en' ? configured : await salesRepReplyLocale(args.userId);
+  const settings = await prisma.salesJobSettings.findUnique({ where: { distributorId: args.userId } });
+  const timeZone = settings?.timezone || DEFAULT_JOB_TIMEZONE;
+  const today = zonedDayRange(zonedParts(new Date(), timeZone).dateKey, timeZone);
+  const upcoming = await prisma.salesJob.findMany({
+    where: {
+      distributorId: args.userId,
+      assignedTo: job.assignedTo,
+      status: { in: ['pending', 'approved', 'suggested', 'dispatched', 'in_progress'] },
+      OR: [{ id: job.id }, { scheduledDate: { gte: today.start } }, { schedules: { some: { scheduledDate: { gte: today.start } } } }],
+    },
+    include: { client: { select: { storeName: true, owner: true } } },
+    orderBy: { scheduledDate: 'asc' },
+  });
+  const upcomingIds = Array.from(new Set(upcoming.flatMap((row) => row.suggestedProducts)));
+  const missingIds = upcomingIds.filter((id) => !products.some((product) => product.productId === id));
+  if (missingIds.length) {
+    const extra = await prisma.product.findMany({
+      where: { userId: args.userId, productId: { in: missingIds } },
+      select: { productId: true, name: true },
+    });
+    products.push(...extra);
+  }
+  const lines = (upcoming.length ? upcoming : [job]).map((row) => ({
+    clientName: row.client?.storeName || row.client?.owner || '',
+    jobType: row.jobType,
+    productNames: row.suggestedProducts.map((id) => products.find((product) => product.productId === id)?.name || id),
+    reason: row.priorityReason,
+  }));
+  const body = upcomingJobsMessage(locale, job.agent.name, lines);
   const sent = await dispatchJobToWhatsApp({
     id: job.id,
     jobType: job.jobType,
     priorityReason: job.priorityReason,
     clientName: store,
-    suggestedProductNames: productNames,
+    suggestedProductNames: job.suggestedProducts.map((id) => products.find((product) => product.productId === id)?.name || id),
     agentPhone: job.agent.phone,
     body,
+    locale,
+    withButtons: false,
   });
   await prisma.salesJob.update({
     where: { id: job.id },

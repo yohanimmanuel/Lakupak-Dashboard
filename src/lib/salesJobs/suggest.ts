@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { prisma } from '@/lib/db';
 import { isFieldRep, OPEN_JOB_STATUSES } from '@/lib/salesJobs/completion';
 import { DEFAULT_JOB_TIMEZONE, zonedDayRange, zonedParts } from '@/lib/salesJobs/time';
@@ -139,6 +140,7 @@ export async function suggestSalesJobsForDistributor(
             suggestedProducts,
             createdBy: 'ai',
             status: 'pending',
+            listGroupId: randomUUID(),
             scheduledDate: start,
           },
         });
@@ -166,6 +168,7 @@ export async function suggestSalesJobsForDistributor(
             ),
             createdBy: 'ai',
             status: 'pending',
+            listGroupId: randomUUID(),
             scheduledDate: start,
           },
         });
@@ -184,13 +187,5 @@ export async function suggestSalesJobsForDistributor(
     return { created, jobIds: createdIds };
   }, { timeout: 60_000 });
 
-  if (result.jobIds.length > 0) {
-    try {
-      const { dispatchSalesJobCreatedAutomations } = await import('@/lib/automations/engine');
-      await dispatchSalesJobCreatedAutomations(distributorId, result.jobIds);
-    } catch (error) {
-      console.error('[automations] sales_job_created failed', error);
-    }
-  }
   return { created: result.created };
 }

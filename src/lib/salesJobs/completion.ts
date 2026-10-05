@@ -21,6 +21,12 @@ export type ReturnedItem = {
   reason: ReturnReason;
 };
 
+export type StockCount = {
+  product_id: string;
+  checked: boolean;
+  counted: number | null;
+};
+
 export const OPEN_JOB_STATUSES = ['pending', 'approved', 'suggested', 'dispatched', 'in_progress'] as const;
 
 export type CompletionData = {
@@ -31,6 +37,11 @@ export type CompletionData = {
   stock_checked: boolean;
   products_demoed: number;
   notes: string;
+  delivered?: boolean;
+  promoted?: boolean;
+  returned?: boolean;
+  product_given?: boolean;
+  stock_counts?: StockCount[];
   items_returned?: ReturnedItem[];
   replacement_issued?: boolean;
   replacement_value?: number | null;
@@ -76,6 +87,24 @@ function optionalText(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function parseStockCounts(value: unknown): StockCount[] {
+  if (!Array.isArray(value)) return [];
+  const lines: StockCount[] = [];
+  for (const entry of value) {
+    const row = asRecord(entry);
+    if (!row) continue;
+    const productId = optionalText(row.product_id);
+    if (!productId) continue;
+    const counted = row.counted == null || row.counted === '' ? null : finiteAmount(row.counted);
+    lines.push({
+      product_id: productId,
+      checked: row.checked !== false,
+      counted: counted == null ? null : Math.max(0, Math.floor(counted)),
+    });
+  }
+  return lines;
+}
+
 function parseReturnedItems(value: unknown): ReturnedItem[] {
   if (!Array.isArray(value)) return [];
   const items: ReturnedItem[] = [];
@@ -106,6 +135,11 @@ export function readCompletion(value: unknown): CompletionData {
     products_demoed: productsDemoed == null ? 0 : Math.max(0, Math.floor(productsDemoed)),
     notes: typeof row.notes === 'string' ? row.notes : '',
   };
+  if (Array.isArray(row.stock_counts)) data.stock_counts = parseStockCounts(row.stock_counts);
+  if (typeof row.delivered === 'boolean') data.delivered = row.delivered;
+  if (typeof row.promoted === 'boolean') data.promoted = row.promoted;
+  if (typeof row.returned === 'boolean') data.returned = row.returned;
+  if (typeof row.product_given === 'boolean') data.product_given = row.product_given;
   if (Array.isArray(row.items_returned)) data.items_returned = parseReturnedItems(row.items_returned);
   if (typeof row.replacement_issued === 'boolean') data.replacement_issued = row.replacement_issued;
   if (row.replacement_value != null && row.replacement_value !== '') data.replacement_value = finiteAmount(row.replacement_value);
@@ -131,47 +165,58 @@ function rejectNegative(value: number | null, label: string) {
   if (value != null && value < 0) throw new Error(`${label} cannot be negative`);
 }
 
-function strictReturnedItems(value: unknown): ReturnedItem[] {
+function strictStockCounts(value: unknown): StockCount[] {
   if (!Array.isArray(value)) return [];
   return value.map((entry) => {
     const row = asRecord(entry);
     const productId = optionalText(row?.product_id);
-    const quantity = finiteAmount(row?.quantity);
-    const reason = optionalText(row?.reason);
-    if (!productId || quantity == null || !Number.isInteger(quantity) || quantity <= 0 || !(RETURN_REASONS as readonly string[]).includes(reason)) {
-      throw new Error('Each returned item needs a product, a quantity, and a reason');
-    }
-    rejectNegative(quantity, 'Returned quantity');
-    return { product_id: productId, quantity: Math.floor(quantity), reason: reason as ReturnReason };
+    if (!productId) throw new Error('Each stock line needs a product');
+    const counted = row?.counted == null || row?.counted === '' ? null : finiteAmount(row?.counted);
+    if (counted != null && (!Number.isInteger(counted) || counted < 0)) throw new Error('Counted stock cannot be negative');
+    return { product_id: productId, checked: row?.checked !== false, counted: counted == null ? null : Math.floor(counted) };
   });
+}
+
+function cleared(notes: string): CompletionData {
+  return {
+    order_placed: false,
+    order_amount: null,
+    payment_collected: false,
+    payment_amount: null,
+    stock_checked: false,
+    products_demoed: 0,
+    notes,
+  };
 }
 
 /** Keeps the shared completion fields and adds only the block for this job type. */
 export function buildStoredCompletion(jobType: string, value: unknown): CompletionData {
   const row = asRecord(value);
-  const base = readCompletion(value);
-  const shared: CompletionData = {
-    order_placed: base.order_placed,
-    order_amount: base.order_amount,
-    payment_collected: base.payment_collected,
-    payment_amount: base.payment_amount,
-    stock_checked: base.stock_checked,
-    products_demoed: base.products_demoed,
-    notes: base.notes,
-  };
-  rejectNegative(shared.order_amount, 'Completion amounts');
-  rejectNegative(shared.payment_amount, 'Completion amounts');
+  const notes = typeof row?.notes === 'string' ? row.notes : '';
+
+  if (jobType === 'take_order') {
+    const delivered = row?.delivered === true || (row?.delivered == null && row?.order_placed === true);
+    return { ...cleared(notes), delivered, order_placed: delivered, order_amount: finiteAmount(row?.order_amount) };
+  }
+
+  if (jobType === 'collect_payment') {
+    return { ...cleared(notes), payment_collected: row?.payment_collected === true, payment_amount: null };
+  }
+
+  if (jobType === 'promote_product') {
+    return { ...cleared(notes), promoted: row?.promoted === true };
+  }
+
+  if (jobType === 'stock_check') {
+    return {
+      ...cleared(notes),
+      stock_checked: row?.stock_checked === true,
+      stock_counts: strictStockCounts(row?.stock_counts),
+    };
+  }
 
   if (jobType === 'returns_pickup') {
-    const replacementIssued = row?.replacement_issued === true;
-    const replacementValue = finiteAmount(row?.replacement_value);
-    rejectNegative(replacementValue, 'Replacement value');
-    return {
-      ...shared,
-      items_returned: strictReturnedItems(row?.items_returned),
-      replacement_issued: replacementIssued,
-      replacement_value: replacementIssued ? replacementValue : null,
-    };
+    return { ...cleared(notes), returned: row?.returned === true, items_returned: [] };
   }
 
   if (jobType === 'competitor_intel') {
@@ -180,7 +225,7 @@ export function buildStoredCompletion(jobType: string, value: unknown): Completi
     const observedPrice = finiteAmount(row?.observed_price);
     rejectNegative(observedPrice, 'Observed price');
     return {
-      ...shared,
+      ...cleared(notes),
       competitor_name: competitorName,
       competitor_product: optionalText(row?.competitor_product),
       observed_price: observedPrice,
@@ -190,20 +235,15 @@ export function buildStoredCompletion(jobType: string, value: unknown): Completi
   }
 
   if (jobType === 'new_product_activation') {
-    const listed = Array.isArray(row?.product_ids) ? row.product_ids.map((id) => optionalText(id)).filter(Boolean) : [];
-    const productIds = Array.from(new Set([...listed, optionalText(row?.product_id)].filter(Boolean)));
-    if (productIds.length === 0) throw new Error('Select at least one product');
     const samplesGiven = finiteAmount(row?.samples_given);
     if (samplesGiven != null && (!Number.isInteger(samplesGiven) || samplesGiven < 0)) {
-      throw new Error('Samples given cannot be negative');
+      throw new Error('Product given cannot be negative');
     }
     return {
-      ...shared,
-      product_id: productIds[0],
-      product_ids: productIds,
-      display_setup_completed: row?.display_setup_completed === true,
+      ...cleared(notes),
+      product_given: row?.product_given === true,
       samples_given: samplesGiven == null ? null : Math.floor(samplesGiven),
-      retailer_briefed: row?.retailer_briefed === true,
+      retailer_briefed: false,
     };
   }
 
@@ -211,14 +251,14 @@ export function buildStoredCompletion(jobType: string, value: unknown): Completi
     const claimAmount = finiteAmount(row?.claim_amount);
     rejectNegative(claimAmount, 'Claim amount');
     return {
-      ...shared,
+      ...cleared(notes),
       scheme_reference: optionalText(row?.scheme_reference),
       execution_confirmed: row?.execution_confirmed === true,
       claim_amount: claimAmount,
     };
   }
 
-  return shared;
+  return cleared(notes);
 }
 
 export function isFieldRep(role: string): boolean {

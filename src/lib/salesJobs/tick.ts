@@ -1,52 +1,164 @@
 import { prisma } from '@/lib/db';
-import { dispatchJobToWhatsApp } from '@/lib/salesJobs/whatsapp';
+import { salesRepReplyLocale, upcomingJobsMessage, type RepJobLine } from '@/lib/salesJobs/repCopy';
 import { suggestSalesJobsForDistributor } from '@/lib/salesJobs/suggest';
 import { DEFAULT_JOB_TIMEZONE, zonedDayRange, zonedParts } from '@/lib/salesJobs/time';
+import { dispatchJobToWhatsApp } from '@/lib/salesJobs/whatsapp';
 
-type DispatchableJob = {
+const OPEN_JOB_STATUSES = ['pending', 'approved', 'suggested', 'dispatched', 'in_progress'] as const;
+
+type AgentRow = { id: string; name: string; phone: string; status: string };
+
+type DigestJob = {
   id: string;
   jobType: string;
   priorityReason: string | null;
   suggestedProducts: string[];
   status: string;
-  agent: { phone: string; status: string };
-  client: { storeName: string; owner: string } | null;
+  clientName: string;
+  scheduleIds: string[];
 };
 
-async function sendApprovedJob(job: DispatchableJob, productName: Map<string, string>) {
-  if (job.agent.status !== 'active' || !job.agent.phone) {
-    await prisma.salesJob.update({
-      where: { id: job.id },
-      data: { dispatchNote: 'Sales rep has no WhatsApp number' },
+type AgentBucket = {
+  agent: AgentRow;
+  jobs: Map<string, DigestJob>;
+};
+
+function clientLabel(client: { storeName: string; owner: string } | null): string {
+  return client ? client.storeName || client.owner : '';
+}
+
+function addDigestJob(bucket: AgentBucket, job: Omit<DigestJob, 'scheduleIds'>, scheduleId?: string) {
+  const current = bucket.jobs.get(job.id) ?? { ...job, scheduleIds: [] };
+  if (scheduleId && !current.scheduleIds.includes(scheduleId)) current.scheduleIds.push(scheduleId);
+  bucket.jobs.set(job.id, current);
+}
+
+async function sendAgentDigest(args: {
+  distributorId: number;
+  bucket: AgentBucket;
+  productName: Map<string, string>;
+  rangeStart: Date;
+}): Promise<'sent' | 'failed'> {
+  const due = Array.from(args.bucket.jobs.values());
+  const note =
+    args.bucket.agent.status !== 'active'
+      ? 'Sales rep is inactive'
+      : !args.bucket.agent.phone
+        ? 'Sales rep has no WhatsApp number'
+        : null;
+  if (note) {
+    await prisma.salesJob.updateMany({
+      where: { id: { in: due.map((job) => job.id) } },
+      data: { dispatchNote: note },
     });
-    return 'failed' as const;
+    return 'failed';
   }
-  try {
-    const sent = await dispatchJobToWhatsApp({
-      id: job.id,
+
+  const upcoming = await prisma.salesJob.findMany({
+    where: {
+      distributorId: args.distributorId,
+      assignedTo: args.bucket.agent.id,
+      status: { in: [...OPEN_JOB_STATUSES] },
+      OR: [
+        { scheduledDate: { gte: args.rangeStart } },
+        { schedules: { some: { scheduledDate: { gte: args.rangeStart } } } },
+      ],
+    },
+    include: { client: { select: { storeName: true, owner: true } } },
+    orderBy: { scheduledDate: 'asc' },
+  });
+
+  const productIds = Array.from(
+    new Set([...upcoming.flatMap((job) => job.suggestedProducts), ...due.flatMap((job) => job.suggestedProducts)]),
+  );
+  const missing = productIds.filter((id) => !args.productName.has(id));
+  if (missing.length) {
+    const extra = await prisma.product.findMany({
+      where: { productId: { in: missing } },
+      select: { productId: true, name: true },
+    });
+    extra.forEach((product) => args.productName.set(product.productId, product.name));
+  }
+  const names = (ids: string[]) => ids.map((id) => args.productName.get(id) || id);
+  const orderIds = Array.from(new Set(upcoming.flatMap((job) => job.orderIds)));
+  const orderRows = orderIds.length
+    ? await prisma.order.findMany({
+        where: { orderId: { in: orderIds } },
+        select: { orderId: true, storeName: true, buyer: { select: { storeName: true, owner: true } } },
+      })
+    : [];
+  const storeByOrder = new Map(
+    orderRows.map((order) => [order.orderId, (order.buyer?.storeName || order.buyer?.owner || order.storeName).trim()]),
+  );
+  const clientNames = (job: { orderIds: string[]; client: { storeName: string; owner: string } | null }) => {
+    const shops: string[] = [];
+    for (const orderId of job.orderIds) {
+      const name = storeByOrder.get(orderId);
+      if (name && !shops.includes(name)) shops.push(name);
+    }
+    return shops.join(', ') || clientLabel(job.client);
+  };
+
+  const listed = new Map<string, RepJobLine>();
+  for (const job of upcoming) {
+    listed.set(job.id, {
+      clientName: clientNames(job),
       jobType: job.jobType,
-      priorityReason: job.priorityReason,
-      clientName: job.client ? job.client.storeName || job.client.owner : '',
-      suggestedProductNames: job.suggestedProducts.map((id) => productName.get(id) || id),
-      agentPhone: job.agent.phone,
+      productNames: names(job.suggestedProducts),
+      reason: job.priorityReason,
     });
-    await prisma.salesJob.update({
-      where: { id: job.id },
-      data: {
-        ...(job.status === 'approved' || job.status === 'pending' || job.status === 'suggested'
-          ? { status: 'dispatched' as const, dispatchedAt: new Date() }
-          : {}),
-        whatsappMessageId: sent.messageId,
-        dispatchNote: null,
-      },
+  }
+  for (const job of due) {
+    if (listed.has(job.id)) continue;
+    listed.set(job.id, {
+      clientName: job.clientName,
+      jobType: job.jobType,
+      productNames: names(job.suggestedProducts),
+      reason: job.priorityReason,
     });
-    return 'sent' as const;
+  }
+  const lines = Array.from(listed.values());
+  if (!lines.length) return 'failed';
+
+  try {
+    const locale = await salesRepReplyLocale(args.distributorId);
+    const sent = await dispatchJobToWhatsApp({
+      id: due[0].id,
+      jobType: due[0].jobType,
+      priorityReason: due[0].priorityReason,
+      clientName: due[0].clientName,
+      suggestedProductNames: names(due[0].suggestedProducts),
+      agentPhone: args.bucket.agent.phone,
+      locale,
+      withButtons: false,
+      body: upcomingJobsMessage(locale, args.bucket.agent.name, lines),
+    });
+    const scheduleIds = due.flatMap((job) => job.scheduleIds);
+    if (scheduleIds.length) {
+      await prisma.salesJobSchedule.updateMany({
+        where: { id: { in: scheduleIds } },
+        data: { sentAt: new Date() },
+      });
+    }
+    for (const job of due) {
+      await prisma.salesJob.update({
+        where: { id: job.id },
+        data: {
+          ...(job.status === 'approved' || job.status === 'pending' || job.status === 'suggested'
+            ? { status: 'dispatched' as const, dispatchedAt: new Date() }
+            : {}),
+          whatsappMessageId: sent.messageId,
+          dispatchNote: null,
+        },
+      });
+    }
+    return 'sent';
   } catch (error) {
-    await prisma.salesJob.update({
-      where: { id: job.id },
+    await prisma.salesJob.updateMany({
+      where: { id: { in: due.map((job) => job.id) } },
       data: { dispatchNote: error instanceof Error ? error.message : 'WhatsApp send failed' },
     });
-    return 'failed' as const;
+    return 'failed';
   }
 }
 
@@ -100,7 +212,7 @@ export async function tickSalesJobs(now = new Date()): Promise<{ suggested: numb
       include: {
         job: {
           include: {
-            agent: { select: { phone: true, status: true } },
+            agent: { select: { id: true, name: true, phone: true, status: true } },
             client: { select: { storeName: true, owner: true } },
           },
         },
@@ -116,62 +228,61 @@ export async function tickSalesJobs(now = new Date()): Promise<{ suggested: numb
       : [];
     const productName = new Map(products.map((product) => [product.productId, product.name]));
 
-    const byJob = new Map<string, { job: DispatchableJob; scheduleIds: string[] }>();
+    const buckets = new Map<string, AgentBucket>();
+    const bucketFor = (agent: AgentRow) => {
+      const current = buckets.get(agent.id);
+      if (current) return current;
+      const created: AgentBucket = { agent, jobs: new Map() };
+      buckets.set(agent.id, created);
+      return created;
+    };
     for (const row of dueSchedules) {
-      const current = byJob.get(row.jobId) ?? {
-        job: {
+      addDigestJob(
+        bucketFor(row.job.agent),
+        {
           id: row.job.id,
           jobType: row.job.jobType,
           priorityReason: row.job.priorityReason,
           suggestedProducts: row.job.suggestedProducts,
           status: row.job.status,
-          agent: row.job.agent,
-          client: row.job.client,
+          clientName: clientLabel(row.job.client),
         },
-        scheduleIds: [],
-      };
-      current.scheduleIds.push(row.id);
-      byJob.set(row.jobId, current);
+        row.id,
+      );
     }
 
-    for (const entry of byJob.values()) {
-      const result = await sendApprovedJob(entry.job, productName);
-      if (result === 'sent') {
-        await prisma.salesJobSchedule.updateMany({
-          where: { id: { in: entry.scheduleIds } },
-          data: { sentAt: new Date() },
+    if (isMorning) {
+      const jobs = await prisma.salesJob.findMany({
+        where: {
+          distributorId: distributor.id,
+          status: { in: ['pending', 'approved', 'suggested'] },
+          scheduledDate: { gte: range.start, lt: range.end },
+          schedules: { none: {} },
+        },
+        include: {
+          agent: { select: { id: true, name: true, phone: true, status: true } },
+          client: { select: { storeName: true, owner: true } },
+        },
+      });
+      for (const job of jobs) {
+        addDigestJob(bucketFor(job.agent), {
+          id: job.id,
+          jobType: job.jobType,
+          priorityReason: job.priorityReason,
+          suggestedProducts: job.suggestedProducts,
+          status: job.status,
+          clientName: clientLabel(job.client),
         });
-        dispatched += 1;
-      } else {
-        failed += 1;
       }
     }
 
-    if (!isMorning) continue;
-
-    const jobs = await prisma.salesJob.findMany({
-      where: {
+    for (const bucket of buckets.values()) {
+      const result = await sendAgentDigest({
         distributorId: distributor.id,
-        status: { in: ['pending', 'approved', 'suggested'] },
-        scheduledDate: { gte: range.start, lt: range.end },
-        schedules: { none: {} },
-      },
-      include: {
-        agent: { select: { phone: true, status: true } },
-        client: { select: { storeName: true, owner: true } },
-      },
-    });
-    const legacyProductIds = Array.from(new Set(jobs.flatMap((job) => job.suggestedProducts)));
-    const missingIds = legacyProductIds.filter((id) => !productName.has(id));
-    if (missingIds.length) {
-      const extra = await prisma.product.findMany({
-        where: { productId: { in: missingIds } },
-        select: { productId: true, name: true },
+        bucket,
+        productName,
+        rangeStart: range.start,
       });
-      extra.forEach((product) => productName.set(product.productId, product.name));
-    }
-    for (const job of jobs) {
-      const result = await sendApprovedJob(job, productName);
       if (result === 'sent') dispatched += 1;
       else failed += 1;
     }

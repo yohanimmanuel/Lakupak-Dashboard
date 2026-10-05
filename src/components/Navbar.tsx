@@ -724,7 +724,7 @@ const Navbar = () => {
           {glance && (
             <span
               className={`absolute bottom-0.5 right-0.5 h-2 w-2 rounded-full ring-2 ring-white ${
-                glance.whatsapp === 'connected' && glance.gmail === 'connected'
+                glance.whatsapp === 'connected' || glance.gmail === 'connected'
                   ? 'bg-green-500'
                   : glance.whatsapp === 'disconnected' || glance.gmail === 'disconnected'
                     ? 'bg-red-500'

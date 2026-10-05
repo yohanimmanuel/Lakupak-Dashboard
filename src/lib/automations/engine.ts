@@ -722,11 +722,13 @@ async function runWorkflowActions(
           parts.push('assign_sales_job skipped (wait for a sales job to be created).');
           continue;
         }
+        const replyLanguage = action.config.csReplyLanguage;
         parts.push(
           await executeAssignSalesJob({
             userId: workflow.userId,
             jobId: ctx.event.jobId,
             messageTemplate: String(action.config.messageTemplate ?? ''),
+            csReplyLanguage: typeof replyLanguage === 'string' && replyLanguage.trim() ? replyLanguage : undefined,
           }),
         );
       } else if (action.type === 'cart_winback') {

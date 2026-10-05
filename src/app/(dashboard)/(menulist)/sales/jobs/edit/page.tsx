@@ -11,10 +11,12 @@ import { useUserStore } from '@/store/userStore';
 
 const JOB_FIELDS = `
   id assignedTo agentName clientId clientCustomerNumber clientName clientOwner clientPhone clientAddress clientStatus
-  jobType priorityReason suggestedProducts orderId orderIds scheduledDate
+  jobType priorityReason suggestedProducts orderId orderIds scheduledDate createdAt updatedAt listGroupId
   schedules { date reminderTime }
   suggestedProductNames createdBy status dispatchNote
-  completionData { order_placed order_amount payment_collected payment_amount stock_checked products_demoed notes }
+  completionData { order_placed order_amount payment_collected payment_amount stock_checked products_demoed notes
+    delivered promoted returned product_given samples_given
+    stock_counts { product_id checked counted } }
 `;
 
 export default function EditSalesJobPage() {
@@ -23,24 +25,31 @@ export default function EditSalesJobPage() {
   const searchParams = useSearchParams();
   const userId = useUserStore((state) => state.user?.id);
   const assignedTo = searchParams?.get('assignedTo') || '';
+  const groupId = searchParams?.get('groupId') || '';
   const hasClientParam = searchParams?.has('clientId') ?? false;
   const clientId = searchParams?.get('clientId') || '';
   const [jobs, setJobs] = useState<SalesJobRow[] | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!userId || !assignedTo || !hasClientParam) return;
+    if (!userId || !assignedTo || (!groupId && !hasClientParam)) return;
     fetchGraphQL<{ salesJobs: SalesJobRow[] }>(
       `query EditSalesJobs($userId: Int!) { salesJobs(userId: $userId) { ${JOB_FIELDS} } }`,
       { userId },
     )
       .then((result) => {
-        setJobs(result.salesJobs.filter((job) => job.assignedTo === assignedTo && (job.clientId || '') === clientId));
+        setJobs(
+          result.salesJobs.filter((job) =>
+            groupId
+              ? job.listGroupId === groupId
+              : job.assignedTo === assignedTo && (job.clientId || '') === clientId,
+          ),
+        );
       })
       .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Failed to load'));
-  }, [userId, assignedTo, clientId, hasClientParam]);
+  }, [userId, assignedTo, clientId, hasClientParam, groupId]);
 
-  if (!assignedTo || !hasClientParam) {
+  if (!assignedTo || (!groupId && !hasClientParam)) {
     return (
       <div className="p-4">
         <p className="text-sm text-red-700">{t('form.jobMissing')}</p>

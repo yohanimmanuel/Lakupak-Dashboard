@@ -193,7 +193,7 @@ export async function runDistributorAppAssistant(input: {
     'Replenish: {"kind":"trigger","type":"stock_below"}, {"kind":"action","type":"replenish_stock"}, {"kind":"action","type":"notify_dashboard"}.',
     'Mark paid: {"kind":"trigger","type":"order_paid"}, {"kind":"action","type":"mark_paid_from_proof"}, {"kind":"action","type":"notify_dashboard"}.',
     'Buyer handoff: {"kind":"trigger","type":"buyer_questions"}, {"kind":"agent"}, {"kind":"app","type":"app_webhook"}, {"kind":"action","type":"cs_24h_window"}, {"kind":"condition","type":"yes_no"}, {"kind":"action","type":"assign_agent_whatsapp"}, {"kind":"end","type":"stay_in_cs"}. Yes assigns an agent. No stays in customer service.',
-    'Assign sales job: {"kind":"trigger","type":"sales_job_created"}, {"kind":"agent"}, {"kind":"app","type":"app_webhook"}, {"kind":"action","type":"assign_sales_job"}. WhatsApp is the connection. Assign sales job sends the message. Use {store}, {job}, {salesman}, {reason}, and {products} in the message when they fit.',
+    'Assign sales job: {"kind":"trigger","type":"sales_job_created"}, {"kind":"agent"}, {"kind":"app","type":"app_webhook"}, {"kind":"action","type":"assign_sales_job"}. WhatsApp is the connection. Assign sales job sends the message. Set escalateOutOfScope to yes or no, and csReplyLanguage to en or id.',
     'Use only the catalog below. Channels are WhatsApp and Gmail only.',
     allowedWorkflowCatalog(),
     'If they ask for a step, channel, or behavior that is not in that catalog, do not invent it. Reply with exactly "Workflow feature is not available, try another thing." in English, or "Fitur alur kerja belum tersedia, coba hal lain." in Indonesian, and end with {"plan":"unavailable"}.',

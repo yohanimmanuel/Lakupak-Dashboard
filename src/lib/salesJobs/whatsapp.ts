@@ -35,6 +35,10 @@ export type DispatchJobInput = {
   agentPhone: string;
   /** Replaces the default assignment text. Reply buttons stay on the message. */
   body?: string;
+  /** Reply language. One language only. */
+  locale?: 'en' | 'id';
+  /** Report buttons. The first job list leaves this off. */
+  withButtons?: boolean;
 };
 
 const BUTTON_ID = /^sj:([0-9a-f-]{36}):(order_placed|no_order|reschedule)$/i;
@@ -42,6 +46,31 @@ const BUTTON_ID = /^sj:([0-9a-f-]{36}):(order_placed|no_order|reschedule)$/i;
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   return value as Record<string, unknown>;
+}
+
+export function salesJobTypeLabelId(jobType: string): string {
+  switch (jobType) {
+    case 'take_order':
+      return 'Ambil pesanan';
+    case 'collect_payment':
+      return 'Tagih pembayaran';
+    case 'promote_product':
+      return 'Promosikan produk';
+    case 'stock_check':
+      return 'Cek stok';
+    case 'prospect_new_outlet':
+      return 'Prospek outlet baru';
+    case 'returns_pickup':
+      return 'Jemput retur';
+    case 'competitor_intel':
+      return 'Cek pesaing';
+    case 'new_product_activation':
+      return 'Aktivasi produk baru';
+    case 'scheme_reconciliation':
+      return 'Rekonsiliasi skema';
+    default:
+      return salesJobTypeLabel(jobType);
+  }
 }
 
 export function salesJobTypeLabel(jobType: string): string {
@@ -70,14 +99,30 @@ export function salesJobTypeLabel(jobType: string): string {
 }
 
 function messageBody(job: DispatchJobInput): string {
-  const lines = [job.clientName, salesJobTypeLabel(job.jobType)].filter(Boolean);
+  const locale = job.locale === 'id' ? 'id' : 'en';
+  const jobLabel = locale === 'id' ? salesJobTypeLabelId(job.jobType) : salesJobTypeLabel(job.jobType);
+  const lines = [job.clientName, jobLabel].filter(Boolean);
   if (job.priorityReason) lines.push(job.priorityReason);
   if (job.suggestedProductNames.length > 0) {
-    lines.push(`Suggested: ${job.suggestedProductNames.join(', ')}`);
+    lines.push(
+      locale === 'id'
+        ? `Produk: ${job.suggestedProductNames.join(', ')}`
+        : `Products: ${job.suggestedProductNames.join(', ')}`,
+    );
   }
-  lines.push('Reply with a button, or describe the visit in one message: the shop, what happened, and any amount.');
-  lines.push('Balas dengan tombol, atau jelaskan kunjungan dalam satu pesan: toko, hasilnya, dan nilainya jika ada.');
   return lines.join('\n');
+}
+
+function replyButtons(job: DispatchJobInput): { id: string; title: string }[] {
+  const titles =
+    job.locale === 'id'
+      ? (['Ada pesanan', 'Tidak ada order', 'Jadwal ulang'] as const)
+      : (['Order placed', 'No order', 'Reschedule'] as const);
+  return [
+    { id: `sj:${job.id}:order_placed`, title: titles[0] },
+    { id: `sj:${job.id}:no_order`, title: titles[1] },
+    { id: `sj:${job.id}:reschedule`, title: titles[2] },
+  ];
 }
 
 /**
@@ -90,11 +135,19 @@ export async function dispatchJobToWhatsApp(job: DispatchJobInput): Promise<{ me
     throw new Error('WhatsApp is not configured');
   }
   const body = job.body?.trim() || messageBody(job);
-  const buttons = [
-    { id: `sj:${job.id}:order_placed`, title: 'Order Placed' },
-    { id: `sj:${job.id}:no_order`, title: 'No Order' },
-    { id: `sj:${job.id}:reschedule`, title: 'Reschedule' },
-  ];
+  if (!job.withButtons) {
+    const sent = await sendTextMessage({
+      accessToken: creds.accessToken,
+      phoneNumberId: creds.phoneNumberId,
+      to: job.agentPhone,
+      body,
+      bizOpaqueCallbackData: `sj:${job.id}`,
+    });
+    return { messageId: sent.messageId };
+  }
+  const buttons = replyButtons(job);
+  const fallbackChoices =
+    job.locale === 'id' ? '1 Ada pesanan\n2 Tidak ada order\n3 Jadwal ulang' : '1 Order placed\n2 No order\n3 Reschedule';
   try {
     const sent = await sendReplyButtons({
       accessToken: creds.accessToken,
@@ -109,7 +162,7 @@ export async function dispatchJobToWhatsApp(job: DispatchJobInput): Promise<{ me
       accessToken: creds.accessToken,
       phoneNumberId: creds.phoneNumberId,
       to: job.agentPhone,
-      body: `${body}\n1 Order Placed\n2 No Order\n3 Reschedule`,
+      body: `${body}\n${fallbackChoices}`,
       bizOpaqueCallbackData: `sj:${job.id}`,
     });
     return { messageId: sent.messageId };
@@ -127,7 +180,7 @@ function parseAmount(text: string): number | null {
 
 function actionFromText(text: string): SalesJobWhatsAppAction | null {
   const normalized = text.trim().toLowerCase();
-  if (/^(1\b|order placed|ada order|order masuk)/.test(normalized)) return 'order_placed';
+  if (/^(1\b|order placed|ada order|ada pesanan|order masuk)/.test(normalized)) return 'order_placed';
   if (/^(2\b|no order|tidak ada order|tidak order)/.test(normalized)) return 'no_order';
   if (/^(3\b|reschedule|jadwal ulang)/.test(normalized)) return 'reschedule';
   if (parseAmount(text) != null && lettersAreLight(text)) return 'amount';

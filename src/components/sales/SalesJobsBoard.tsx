@@ -14,6 +14,8 @@ import { SalesJobRow, salesJobStatusKey } from './salesJobTypes';
 
 const COMPLETION_FIELDS = `
   order_placed order_amount payment_collected payment_amount stock_checked products_demoed notes
+  delivered promoted returned product_given samples_given
+  stock_counts { product_id checked counted }
   items_returned { product_id quantity reason }
   replacement_issued replacement_value
   competitor_name competitor_product observed_price observed_promo shelf_share_observation
@@ -22,8 +24,9 @@ const COMPLETION_FIELDS = `
 `;
 
 const JOB_FIELDS = `
-  id assignedTo agentName clientId clientCustomerNumber clientName clientOwner clientPhone clientAddress clientStatus jobType priorityReason
-  suggestedProducts suggestedProductNames createdBy status scheduledDate createdAt dispatchNote
+  id assignedTo agentName clientId clientCustomerNumber clientName clientOwner clientPhone clientAddress clientStatus
+  linkedClients { name status } jobType priorityReason
+  suggestedProducts suggestedProductNames createdBy status scheduledDate createdAt updatedAt listGroupId dispatchNote
   schedules { date reminderTime }
   completionData { ${COMPLETION_FIELDS} }
 `;
@@ -72,7 +75,7 @@ export default function SalesJobsBoard() {
       typeLabel(job.jobType),
       job.agentName,
       statusLabel(job.status),
-      job.createdAt,
+      job.updatedAt || job.createdAt,
       job.priorityReason || '',
       job.createdBy === 'ai' ? t('ai') : t('manager'),
       job.suggestedProductNames.join(', '),
@@ -118,8 +121,10 @@ export default function SalesJobsBoard() {
       <JobsStatcards jobs={jobs} />
       <JobsTable
         jobs={jobs}
-        onEditAction={({ assignedTo, clientId }) =>
-          router.push(`/sales/jobs/edit?assignedTo=${encodeURIComponent(assignedTo)}&clientId=${encodeURIComponent(clientId)}`)
+        onEditAction={({ assignedTo, clientId, listGroupId }) =>
+          router.push(
+            `/sales/jobs/edit?assignedTo=${encodeURIComponent(assignedTo)}&clientId=${encodeURIComponent(clientId)}&groupId=${encodeURIComponent(listGroupId)}`,
+          )
         }
         onDeleteAction={(ids) => {
           setError('');

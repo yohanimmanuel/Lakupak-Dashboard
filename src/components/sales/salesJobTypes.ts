@@ -4,6 +4,12 @@ export type SalesJobReturnedItem = {
   reason: 'expired' | 'damaged' | 'unsold_near_expiry' | 'other';
 };
 
+export type SalesJobStockCount = {
+  product_id: string;
+  checked: boolean;
+  counted: number | null;
+};
+
 export type SalesJobCompletion = {
   order_placed: boolean;
   order_amount: number | null;
@@ -12,6 +18,11 @@ export type SalesJobCompletion = {
   stock_checked: boolean;
   products_demoed: number;
   notes: string;
+  delivered?: boolean;
+  promoted?: boolean;
+  returned?: boolean;
+  product_given?: boolean;
+  stock_counts?: SalesJobStockCount[];
   items_returned?: SalesJobReturnedItem[];
   replacement_issued?: boolean;
   replacement_value?: number | null;
@@ -46,6 +57,7 @@ export type SalesJobRow = {
   clientPhone?: string;
   clientAddress?: string;
   clientStatus: string;
+  linkedClients?: { name: string; status: string }[];
   jobType: string;
   priorityReason: string | null;
   suggestedProducts?: string[];
@@ -56,6 +68,8 @@ export type SalesJobRow = {
   status: string;
   scheduledDate: string;
   createdAt: string;
+  updatedAt?: string;
+  listGroupId?: string;
   schedules?: SalesJobSchedule[];
   completionData: SalesJobCompletion;
   dispatchNote: string | null;
@@ -70,7 +84,6 @@ export const SALES_JOB_TYPES = [
   'returns_pickup',
   'competitor_intel',
   'new_product_activation',
-  'scheme_reconciliation',
 ] as const;
 
 export const SALES_JOB_STATUSES = [

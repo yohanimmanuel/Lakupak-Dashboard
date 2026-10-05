@@ -104,6 +104,8 @@ export async function chatWithOpenRouter(args: {
   messages: OpenRouterChatMessage[];
   temperature?: number;
   maxTokens?: number;
+  /** Look up public pages for the products named in the message. */
+  webSearch?: boolean;
 }): Promise<OpenRouterChatResult> {
   const apiKey = openRouterApiKey();
   if (!apiKey) {
@@ -130,6 +132,9 @@ export async function chatWithOpenRouter(args: {
   };
   if (typeof args.maxTokens === 'number' && args.maxTokens > 0) {
     body.max_tokens = args.maxTokens;
+  }
+  if (args.webSearch) {
+    body.plugins = [{ id: 'web', max_results: 4 }];
   }
 
   let lastError = 'OpenRouter request failed';

@@ -135,10 +135,7 @@ export const COPILOT_RECIPES: CopilotRecipe[] = [
     actions: [
       {
         type: 'assign_sales_job',
-        config: {
-          messageTemplate:
-            'New job for {store}: {job}. {reason} Reply in this chat when the visit is done.',
-        },
+        config: { escalateOutOfScope: 'yes', csReplyLanguage: 'en' },
       },
     ],
   },

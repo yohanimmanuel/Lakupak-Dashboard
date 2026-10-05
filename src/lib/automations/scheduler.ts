@@ -4,6 +4,7 @@ const TICK_MS = 30_000;
 const globalForScheduler = globalThis as unknown as {
   __lakuAutomationTimer?: ReturnType<typeof setInterval>;
   __lakuAutomationTicking?: boolean;
+  __lakuSalesJobTicking?: boolean;
 };
 
 export async function tickAutomations(): Promise<{
@@ -32,12 +33,26 @@ export async function tickAutomations(): Promise<{
   }
 }
 
+async function tickSalesJobReminders(): Promise<void> {
+  if (globalForScheduler.__lakuSalesJobTicking) return;
+  globalForScheduler.__lakuSalesJobTicking = true;
+  try {
+    const { tickSalesJobs } = await import('@/lib/salesJobs/tick');
+    await tickSalesJobs();
+  } finally {
+    globalForScheduler.__lakuSalesJobTicking = false;
+  }
+}
+
 /** Local `next dev` / long-lived Node. Vercel serverless uses /api/cron/automations instead. */
 export function startAutomationScheduler(): void {
   if (globalForScheduler.__lakuAutomationTimer) return;
   const tick = () => {
     void tickAutomations().catch((err) => {
       console.error('[automations] scheduler tick failed', err);
+    });
+    void tickSalesJobReminders().catch((err) => {
+      console.error('[sales-jobs] scheduler tick failed', err);
     });
   };
   tick();

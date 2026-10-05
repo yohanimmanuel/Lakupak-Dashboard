@@ -164,7 +164,6 @@ const TRIGGERS_BY_WORKFLOW: Record<WorkflowType, TriggerDefinition[]> = {
             'returns_pickup',
             'competitor_intel',
             'new_product_activation',
-            'scheme_reconciliation',
           ],
         },
       ],
@@ -264,7 +263,18 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
     },
     {
       type: 'assign_sales_job',
-      fields: [{ key: 'messageTemplate', kind: 'textarea' }],
+      fields: [
+        {
+          key: 'escalateOutOfScope',
+          kind: 'select',
+          options: ['yes', 'no'],
+        },
+        {
+          key: 'csReplyLanguage',
+          kind: 'select',
+          options: ['en', 'id'],
+        },
+      ],
     },
     { type: 'notify_dashboard', fields: [] },
   ],
@@ -670,8 +680,7 @@ export function collectAutomationDryRunIssues(args: {
         action.type === 'share_product_whatsapp' ||
         action.type === 'return_confirm_whatsapp' ||
         action.type === 'buyer_question_reply' ||
-        action.type === 'cart_winback' ||
-        action.type === 'assign_sales_job') &&
+        action.type === 'cart_winback') &&
       configMissing(action.config, 'messageTemplate')
     ) {
       issues.push(`${label}: ${action.type} needs a message template.`);

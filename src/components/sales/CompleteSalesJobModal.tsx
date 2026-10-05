@@ -5,8 +5,8 @@ import { CheckCircle2, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
-import JobCompletionFields, { CompletionOffer, CompletionProduct, completionInput, completionIsPerVisit } from './JobCompletionFields';
-import { SalesJobCompletion, SalesJobRow } from './salesJobTypes';
+import JobCompletionFields, { completionInput, completionIsPerVisit } from './JobCompletionFields';
+import { SalesJobCompletion, SalesJobRow, SalesJobStockCount } from './salesJobTypes';
 
 const emptyCompletion = (): SalesJobCompletion => ({
   order_placed: false,
@@ -16,6 +16,11 @@ const emptyCompletion = (): SalesJobCompletion => ({
   stock_checked: false,
   products_demoed: 0,
   notes: '',
+  delivered: false,
+  promoted: false,
+  returned: false,
+  product_given: false,
+  stock_counts: [],
   items_returned: [],
   replacement_issued: false,
   replacement_value: null,
@@ -33,6 +38,15 @@ const emptyCompletion = (): SalesJobCompletion => ({
   execution_confirmed: false,
   claim_amount: null,
 });
+
+function stockLinesFor(job: SalesJobRow | undefined, saved: SalesJobStockCount[] | undefined): SalesJobStockCount[] {
+  const ids = job?.suggestedProducts ?? [];
+  return ids.map((productId) => {
+    const existing = saved?.find((line) => line.product_id === productId);
+    if (existing) return { product_id: productId, checked: existing.checked !== false, counted: existing.counted ?? null };
+    return { product_id: productId, checked: true, counted: null };
+  });
+}
 
 function completionFromJob(job?: SalesJobRow): SalesJobCompletion {
   const base = emptyCompletion();
@@ -53,9 +67,22 @@ function completionFromJob(job?: SalesJobRow): SalesJobCompletion {
       : saved?.product_id
         ? [saved.product_id]
         : job.suggestedProducts ?? [],
+    delivered: saved?.delivered === true || (saved?.delivered == null && saved?.order_placed === true),
+    promoted: saved?.promoted === true,
+    returned: saved?.returned === true,
+    product_given: saved?.product_given === true,
+    stock_counts: job.jobType === 'stock_check' ? stockLinesFor(job, saved?.stock_counts) : saved?.stock_counts ?? [],
     scheme_reference: saved?.scheme_reference ?? '',
   };
 }
+
+type SalesRepDetails = {
+  name: string;
+  email: string;
+  phone: string;
+  territory: string | null;
+  favoriteProducts: { name: string }[];
+};
 
 function Detail({ label, value }: { label: string; value?: string | null }) {
   const text = value?.trim();
@@ -78,12 +105,13 @@ export default function CompleteSalesJobModal({
   onSaved: () => void;
 }) {
   const t = useTranslations('dashboard.sales.salesJobs');
+  const tSales = useTranslations('dashboard.sales.salesDetails');
   const userId = useUserStore((state) => state.user?.id);
   const [completion, setCompletion] = useState<SalesJobCompletion>(() => completionFromJob(jobs.length === 1 ? jobs[0] : undefined));
-  const [products, setProducts] = useState<CompletionProduct[]>([]);
-  const [offers, setOffers] = useState<CompletionOffer[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [salesRep, setSalesRep] = useState<SalesRepDetails | null>(null);
+  const assignedTo = jobs[0]?.assignedTo || '';
 
   useEffect(() => {
     const next = completionFromJob(jobs.length === 1 ? jobs[0] : undefined);
@@ -98,64 +126,30 @@ export default function CompleteSalesJobModal({
   }, [jobs]);
 
   useEffect(() => {
+    if (!userId || !assignedTo) {
+      setSalesRep(null);
+      return;
+    }
     let active = true;
-    setProducts([]);
-    setOffers([]);
-    if (!userId || jobs.length === 0) {
-      return () => {
-        active = false;
-      };
-    }
-    const types = new Set(jobs.map((job) => job.jobType));
-    if (types.has('returns_pickup') || types.has('new_product_activation')) {
-      fetchGraphQL<{ products: { nodes: CompletionProduct[] } }>(
-        `query CompletionProducts($userId: Int!) { products(userId: $userId, page: 1, limit: 500) { nodes { productId name } } }`,
-        { userId },
-      )
-        .then((result) => {
-          if (active) setProducts(result.products.nodes);
-        })
-        .catch(() => {
-          if (active) setProducts([]);
-        });
-    }
-    if (types.has('scheme_reconciliation')) {
-      const buyerIds = Array.from(new Set(jobs.filter((job) => job.jobType === 'scheme_reconciliation').map((job) => job.clientId).filter(Boolean)));
-      const apply = (rows: { offerId: string; productName?: string | null; discountType: string }[]) => {
-        if (!active) return;
-        setOffers(
-          rows.map((row) => ({
-            offerId: row.offerId,
-            label: row.productName ? `${row.offerId} · ${row.productName}` : `${row.offerId} · ${row.discountType}`,
-          })),
-        );
-      };
-      if (buyerIds.length === 1) {
-        fetchGraphQL<{ offersForBuyer: { offerId: string; productName?: string | null; discountType: string }[] }>(
-          `query CompletionOffers($userId: Int!, $buyerId: String!) { offersForBuyer(userId: $userId, buyerId: $buyerId) { offerId productName discountType } }`,
-          { userId, buyerId: buyerIds[0] },
-        )
-          .then((result) => apply(result.offersForBuyer))
-          .catch(() => {
-            if (active) setOffers([]);
-          });
-      } else {
-        fetchGraphQL<{ offers: { nodes: { offerId: string; productName?: string | null; discountType: string }[] } }>(
-          `query CompletionOffers($userId: Int!) { offers(userId: $userId, page: 1, limit: 100) { nodes { offerId productName discountType } } }`,
-          { userId },
-        )
-          .then((result) => apply(result.offers.nodes))
-          .catch(() => {
-            if (active) setOffers([]);
-          });
-      }
-    }
+    fetchGraphQL<{ salesAgent: SalesRepDetails }>(
+      `query SalesRepDetails($userId: Int!, $id: String!) {
+        salesAgent(userId: $userId, id: $id) {
+          name email phone territory
+          favoriteProducts { name }
+        }
+      }`,
+      { userId, id: assignedTo },
+    )
+      .then((result) => {
+        if (active) setSalesRep(result.salesAgent);
+      })
+      .catch(() => {
+        if (active) setSalesRep(null);
+      });
     return () => {
       active = false;
     };
-  }, [userId, jobs]);
-
-  const typeLabel = (jobType: string) => t(`types.${jobType}` as 'types.take_order');
+  }, [userId, assignedTo]);
 
   const save = async () => {
     if (!userId || saving) return;
@@ -180,6 +174,12 @@ export default function CompleteSalesJobModal({
     }
   };
 
+  const stockJob = jobs.find((job) => job.jobType === 'stock_check');
+  const stockProducts = (stockJob?.suggestedProducts ?? []).map((productId, index) => ({
+    productId,
+    name: stockJob?.suggestedProductNames[index] || productId,
+  }));
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" role="dialog" aria-modal="true" aria-labelledby="complete-job-title">
       <div className="bg-white rounded-lg border border-[#e6e6e6] w-full max-w-2xl relative max-h-[90vh] overflow-hidden flex flex-col mx-4">
@@ -203,29 +203,18 @@ export default function CompleteSalesJobModal({
         <div className="overflow-y-auto flex-1 min-h-0 px-4 py-4 flex flex-col gap-4">
           {error && <p className="text-xs text-red-700">{error}</p>}
           {jobs.map((job) => {
-            const prospect = job.jobType === 'prospect_new_outlet';
+            const favourite = (salesRep?.favoriteProducts ?? []).map((product) => product.name).filter(Boolean).join(', ');
             return (
               <section key={job.id} className="border border-[#e6e6e6] rounded-lg p-4">
                 <h3 className="text-xs font-semibold text-gray-900 mb-3">{t('details')}</h3>
                 <div className="grid md:grid-cols-2 gap-3">
-                  <Detail label={t('rep')} value={job.agentName} />
-                  <Detail label={t('type')} value={typeLabel(job.jobType)} />
-                  <Detail label={t('form.customerNumber')} value={prospect ? job.clientCustomerNumber : ''} />
-                  <Detail label={t('form.outletName')} value={job.clientOwner} />
-                  <Detail label={prospect ? t('form.storeName') : t('client')} value={job.clientName} />
-                  <Detail label={t('form.phone')} value={job.clientPhone} />
+                  <Detail label={t('rep')} value={salesRep?.name || job.agentName} />
+                  <Detail label={t('salesPhone')} value={salesRep?.phone} />
+                  <Detail label={t('salesEmail')} value={salesRep?.email} />
+                  <Detail label={t('salesLocation')} value={salesRep?.territory} />
                   <div className="md:col-span-2">
-                    <Detail label={t('form.address')} value={job.clientAddress} />
+                    <Detail label={t('favouriteProducts')} value={favourite || tSales('noFavoriteProducts')} />
                   </div>
-                  <Detail label={t('date')} value={job.scheduledDate} />
-                  <div className="md:col-span-2">
-                    <Detail label={t('reason')} value={job.priorityReason} />
-                  </div>
-                  {job.suggestedProductNames.length > 0 && (
-                    <div className="md:col-span-2">
-                      <Detail label={t('products')} value={job.suggestedProductNames.join(', ')} />
-                    </div>
-                  )}
                 </div>
               </section>
             );
@@ -233,8 +222,7 @@ export default function CompleteSalesJobModal({
           <JobCompletionFields
             jobTypes={jobs.map((job) => job.jobType)}
             completion={completion}
-            products={products}
-            offers={offers}
+            stockProducts={stockProducts}
             onChangeAction={setCompletion}
           />
         </div>

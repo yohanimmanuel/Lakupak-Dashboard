@@ -28,7 +28,7 @@ type ScheduleDraft = { key: string; date: string; time: string };
 type JobDraft = {
   key: string;
   jobType: string;
-  clientId: string;
+  clientIds: string[];
   orderIds: string[];
   productIds: string[];
   customerNumber: string;
@@ -147,7 +147,7 @@ function blankJob(): JobDraft {
   return {
     key: newKey(),
     jobType: 'take_order',
-    clientId: '',
+    clientIds: [],
     orderIds: [],
     productIds: [],
     customerNumber: '',
@@ -168,26 +168,85 @@ function parseTime(value: string) {
   return { reminderHour: hour, reminderMinute: minute };
 }
 
+function ClientMultiSelect({
+  values,
+  placeholder,
+  options,
+  onChange,
+}: {
+  values: string[];
+  placeholder: string;
+  options: { value: string; label: string }[];
+  onChange: (values: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const selected = options.filter((option) => values.includes(option.value));
+
+  useEffect(() => {
+    const close = (event: MouseEvent) => {
+      if (!ref.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, []);
+
+  const toggle = (value: string) => {
+    onChange(values.includes(value) ? values.filter((id) => id !== value) : [...values, value]);
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent text-black text-left flex items-center justify-between gap-2 bg-white"
+      >
+        <span className={`truncate ${selected.length ? 'text-black' : 'text-gray-500'}`}>
+          {selected.length ? selected.map((option) => option.label).join(', ') : placeholder}
+        </span>
+        <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+      </button>
+      {open && (
+        <div className="absolute z-50 w-full mt-1 bg-white border border-[#e6e6e6] rounded-lg shadow-lg max-h-48 overflow-y-auto">
+          {options.map((option) => {
+            const checked = values.includes(option.value);
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => toggle(option.value)}
+                className={`w-full px-3 py-2 text-xs text-left hover:bg-gray-100 flex items-center gap-2 ${
+                  checked ? 'text-[#0a61d7] font-semibold bg-gray-50' : 'text-gray-700'
+                }`}
+              >
+                <GreenCheckbox checked={checked} />
+                <span className="truncate">{option.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function OrderPicker({
   userId,
   purpose,
   selectedIds,
-  clientId,
   onChange,
 }: {
   userId: number;
   purpose: 'take_order' | 'collect_payment' | 'returns_pickup';
   selectedIds: string[];
-  clientId?: string;
   onChange: (orderIds: string[]) => void;
 }) {
   const t = useTranslations('dashboard.sales.salesJobs');
   const currency = useUserStore((state) => state.user?.currency) || getDefaultCurrency();
   const [search, setSearch] = useState('');
   const [orders, setOrders] = useState<OrderOption[]>([]);
-  const [knownBuyers, setKnownBuyers] = useState<Record<string, string | null>>({});
   const [loading, setLoading] = useState(true);
-  const [notice, setNotice] = useState('');
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -200,42 +259,18 @@ function OrderPicker({
         }`,
         { userId, purpose, search },
       )
-        .then((result) => {
-          setOrders(result.salesJobOrders);
-          setKnownBuyers((current) => {
-            const next = { ...current };
-            result.salesJobOrders.forEach((order) => {
-              next[order.orderId] = order.buyerId;
-            });
-            return next;
-          });
-        })
+        .then((result) => setOrders(result.salesJobOrders))
         .catch(() => setOrders([]))
         .finally(() => setLoading(false));
     }, 250);
     return () => clearTimeout(timer);
   }, [userId, purpose, search]);
 
-  const knownBuyer = selectedIds.length > 0 && Object.prototype.hasOwnProperty.call(knownBuyers, selectedIds[0])
-    ? knownBuyers[selectedIds[0]]
-    : undefined;
-  const lockedBuyerId = selectedIds.length > 0 ? clientId?.trim() || knownBuyer : undefined;
-
   const toggle = (order: OrderOption) => {
     if (selectedIds.includes(order.orderId)) {
       onChange(selectedIds.filter((id) => id !== order.orderId));
-      setNotice('');
       return;
     }
-    const incomingBuyerId = order.buyerId ?? null;
-    if (
-      lockedBuyerId === null ||
-      (typeof lockedBuyerId === 'string' && (incomingBuyerId === null || incomingBuyerId !== lockedBuyerId))
-    ) {
-      setNotice(t('form.sameClient'));
-      return;
-    }
-    setNotice('');
     onChange([...selectedIds, order.orderId]);
   };
 
@@ -258,7 +293,6 @@ function OrderPicker({
           {t('form.selectedOrders', { count: selectedIds.length })}
         </div>
       )}
-      {notice && <p className="text-xs text-red-600 mb-2">{notice}</p>}
       <div className="max-h-72 overflow-y-auto border border-[#e6e6e6] rounded-lg">
         {loading ? (
           <p className="px-3 py-4 text-xs text-gray-500">{t('form.loadingOrders')}</p>
@@ -394,11 +428,59 @@ function outletNumber(job: SalesJobRow): string {
   return id;
 }
 
+const ORDER_JOB_TYPES = new Set(['take_order', 'collect_payment', 'returns_pickup']);
+
+function scheduleSignature(job: SalesJobRow): string {
+  const rows = job.schedules?.length ? job.schedules : [{ date: job.scheduledDate, reminderTime: '07:00' }];
+  return rows
+    .map((row) => `${row.date}|${row.reminderTime || '07:00'}`)
+    .sort()
+    .join(',');
+}
+
+function splitKey(job: SalesJobRow): string {
+  return `${job.jobType}|${job.priorityReason || ''}|${scheduleSignature(job)}`;
+}
+
+/** The old save created one row per client from a single order job. Only those rows fold back together. */
+function isOldClientSplit(existing: SalesJobRow, job: SalesJobRow): boolean {
+  const left = existing.clientId?.trim() || '';
+  const right = job.clientId?.trim() || '';
+  if (!left || !right || left === right) return false;
+  if (existing.status !== job.status) return false;
+  if (existing.status === 'completed' || job.status === 'completed') return false;
+  return true;
+}
+
+function combineSplitOrderJobs(rows: SalesJobRow[]): SalesJobRow[] {
+  const combined: SalesJobRow[] = [];
+  for (const job of rows) {
+    if (!ORDER_JOB_TYPES.has(job.jobType)) {
+      combined.push(job);
+      continue;
+    }
+    const key = splitKey(job);
+    const existingIndex = combined.findIndex(
+      (existing) => ORDER_JOB_TYPES.has(existing.jobType) && splitKey(existing) === key && isOldClientSplit(existing, job),
+    );
+    if (existingIndex === -1) {
+      combined.push({ ...job, orderIds: [...(job.orderIds ?? [])] });
+      continue;
+    }
+    const existing = combined[existingIndex];
+    const orderIds = Array.from(
+      new Set([...(existing.orderIds ?? []), ...(job.orderIds ?? []), existing.orderId || '', job.orderId || ''].filter(Boolean)),
+    );
+    combined[existingIndex] = { ...existing, orderIds, orderId: orderIds[0] ?? existing.orderId };
+  }
+  return combined;
+}
+
 function draftsFromRows(rows: SalesJobRow[]): JobDraft[] {
-  return rows.map((job) => ({
+  return combineSplitOrderJobs(rows).map((job) => ({
     key: job.id,
     jobType: job.jobType,
-    clientId: job.clientId,
+    clientIds: job.clientId ? [job.clientId] : [],
     orderIds: job.orderIds?.length ? job.orderIds : job.orderId ? [job.orderId] : [],
     productIds: job.suggestedProducts ?? [],
     customerNumber: job.jobType === 'prospect_new_outlet' ? outletNumber(job) : '',
@@ -478,10 +560,10 @@ export default function CreateSalesJobForm({
       if (job.jobType === 'take_order' || job.jobType === 'collect_payment' || job.jobType === 'returns_pickup') {
         if (job.orderIds.length === 0) next[job.key] = t('form.needOrder');
       } else if (job.jobType === 'promote_product' || job.jobType === 'stock_check' || job.jobType === 'new_product_activation') {
-        if (!job.clientId) next[job.key] = t('form.needClient');
+        if (job.clientIds.length === 0) next[job.key] = t('form.needClient');
         else if (job.productIds.length === 0) next[job.key] = t('form.needProduct');
       } else if (job.jobType === 'competitor_intel' || job.jobType === 'scheme_reconciliation') {
-        if (!job.clientId) next[job.key] = t('form.needClient');
+        if (job.clientIds.length === 0) next[job.key] = t('form.needClient');
       } else if (!job.customerNumber.trim() || !job.customerName.trim() || !job.storeName.trim() || !job.phone.trim() || !job.address.trim()) {
         next[job.key] = t('form.needOutlet');
       }
@@ -503,7 +585,8 @@ export default function CreateSalesJobForm({
             ...(editing?.replaceIds.includes(job.key) ? { id: job.key } : {}),
             jobType: job.jobType,
             priorityReason: job.reason.trim() || null,
-            clientId: job.clientId || null,
+            clientId: job.clientIds[0] || null,
+            clientIds: job.clientIds,
             orderIds: job.orderIds,
             productIds: job.productIds,
             ...(job.jobType === 'prospect_new_outlet'
@@ -524,16 +607,17 @@ export default function CreateSalesJobForm({
           }));
       await fetchGraphQL(
         editing
-          ? `mutation UpdateSalesJobs($userId: Int!, $assignedTo: String!, $replaceIds: [String!]!, $jobs: [CreateSalesJobItemInput!]!) {
-              updateSalesJobs(userId: $userId, assignedTo: $assignedTo, replaceIds: $replaceIds, jobs: $jobs) { id }
+          ? `mutation UpdateSalesJobs($userId: Int!, $assignedTo: String!, $replaceIds: [String!]!, $jobs: [CreateSalesJobItemInput!]!, $timeZone: String) {
+              updateSalesJobs(userId: $userId, assignedTo: $assignedTo, replaceIds: $replaceIds, jobs: $jobs, timeZone: $timeZone) { id }
             }`
-          : `mutation CreateSalesJobs($userId: Int!, $assignedTo: String!, $jobs: [CreateSalesJobItemInput!]!) {
-              createSalesJobs(userId: $userId, assignedTo: $assignedTo, jobs: $jobs) { id }
+          : `mutation CreateSalesJobs($userId: Int!, $assignedTo: String!, $jobs: [CreateSalesJobItemInput!]!, $timeZone: String) {
+              createSalesJobs(userId: $userId, assignedTo: $assignedTo, jobs: $jobs, timeZone: $timeZone) { id }
             }`,
         {
           userId: user.id,
           assignedTo,
           jobs: jobsInput,
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           ...(editing ? { replaceIds: editing.replaceIds } : {}),
         },
       );
@@ -543,9 +627,7 @@ export default function CreateSalesJobForm({
       setError(
         message.includes('already exists')
           ? t('form.customerExists')
-          : message.includes('same client')
-            ? t('form.sameClient')
-            : message,
+          : message,
       );
     } finally {
       setSaving(false);
@@ -554,7 +636,8 @@ export default function CreateSalesJobForm({
 
   const completionRow = (draft: JobDraft): SalesJobRow => {
     const saved = editing?.jobs.find((job) => job.id === draft.key);
-    const client = clients.find((row) => row.buyerId === draft.clientId);
+    const clientId = saved?.clientId || draft.clientIds[0] || '';
+    const client = clients.find((row) => row.buyerId === clientId);
     const agent = agents.find((row) => row.id === assignedTo);
     const prospect = draft.jobType === 'prospect_new_outlet';
     const completionData: SalesJobCompletion = saved?.completionData ?? {
@@ -570,7 +653,7 @@ export default function CreateSalesJobForm({
       id: draft.key,
       assignedTo,
       agentName: agent?.name || saved?.agentName || '',
-      clientId: draft.clientId,
+      clientId,
       clientCustomerNumber: prospect ? draft.customerNumber : saved?.clientCustomerNumber || '',
       clientName: prospect ? draft.storeName : client?.storeName || saved?.clientName || '',
       clientOwner: prospect ? draft.customerName : client?.owner || saved?.clientOwner || '',
@@ -711,10 +794,15 @@ export default function CreateSalesJobForm({
                 value={job.jobType}
                 placeholder={t('type')}
                 allowEmpty={false}
-                options={SALES_JOB_TYPES.map((jobType) => ({
-                  value: jobType,
-                  label: t(`types.${jobType}` as 'types.take_order'),
-                }))}
+                options={[
+                  ...SALES_JOB_TYPES.map((jobType) => ({
+                    value: jobType,
+                    label: t(`types.${jobType}` as 'types.take_order'),
+                  })),
+                  ...(job.jobType === 'scheme_reconciliation'
+                    ? [{ value: 'scheme_reconciliation', label: t('types.scheme_reconciliation') }]
+                    : []),
+                ]}
                 onChange={(jobType) => updateJob(job.key, { jobType })}
               />
             </div>
@@ -724,7 +812,6 @@ export default function CreateSalesJobForm({
                 userId={user.id}
                 purpose={job.jobType}
                 selectedIds={job.orderIds}
-                clientId={job.clientId}
                 onChange={(orderIds) => updateJob(job.key, { orderIds })}
               />
             )}
@@ -739,12 +826,13 @@ export default function CreateSalesJobForm({
                   <label className={labelClass}>
                     {t('client')} <span className="text-red-500">*</span>
                   </label>
-                  <LakupakSelect
-                    value={job.clientId}
+                  <ClientMultiSelect
+                    values={job.clientIds}
                     placeholder={t('client')}
                     options={clients.map((client) => ({ value: client.buyerId, label: `${client.storeName} (${client.status})` }))}
-                    onChange={(clientId) => updateJob(job.key, { clientId })}
+                    onChange={(clientIds) => updateJob(job.key, { clientIds })}
                   />
+                  <p className="text-xs text-gray-500 mt-2">{t('form.clientHint')}</p>
                 </div>
                 {(job.jobType === 'promote_product' || job.jobType === 'stock_check' || job.jobType === 'new_product_activation') && (
                   <ProductPicker
@@ -881,8 +969,8 @@ export default function CreateSalesJobForm({
         type="button"
         onClick={() =>
           setJobs((prev) => {
-            const clientId = prev.find((job) => job.clientId)?.clientId ?? '';
-            return [...prev, { ...blankJob(), clientId }];
+            const clientIds = prev.find((job) => job.clientIds.length > 0)?.clientIds ?? [];
+            return [...prev, { ...blankJob(), clientIds: [...clientIds] }];
           })
         }
         className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-sm font-medium text-black hover:bg-gray-100"

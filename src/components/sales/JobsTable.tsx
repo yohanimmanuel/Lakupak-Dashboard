@@ -29,17 +29,18 @@ type JobGroup = {
   agentName: string;
   assignedTo: string;
   clientId: string;
+  clients: { name: string; status: string }[];
   reasons: string[];
   jobTypes: string[];
   statuses: string[];
-  createdDates: string[];
+  updatedAt: string;
 };
 
 function groupJobs(jobs: SalesJobRow[]): JobGroup[] {
   const order: string[] = [];
   const grouped = new Map<string, SalesJobRow[]>();
   for (const job of jobs) {
-    const id = `${job.assignedTo}::${job.clientId}`;
+    const id = job.listGroupId?.trim() || `${job.assignedTo}::${job.clientId}`;
     const list = grouped.get(id);
     if (list) list.push(job);
     else {
@@ -53,33 +54,36 @@ function groupJobs(jobs: SalesJobRow[]): JobGroup[] {
     const jobTypes: string[] = [];
     const statuses: string[] = [];
     const reasons: string[] = [];
-    const createdDates: string[] = [];
-    const seenDates = new Set<string>();
+    const clients: { name: string; status: string }[] = [];
+    let updatedAt = '';
     for (const row of rows) {
       if (!jobTypes.includes(row.jobType)) jobTypes.push(row.jobType);
       const status = salesJobStatusKey(row.status);
       if (!statuses.includes(status)) statuses.push(status);
       const reason = row.priorityReason?.trim();
       if (reason && !reasons.includes(reason)) reasons.push(reason);
-      const date = row.createdAt?.trim();
-      if (!date || seenDates.has(date)) continue;
-      seenDates.add(date);
-      createdDates.push(date);
+      const linked = row.linkedClients?.filter((client) => client.name.trim()) ?? [];
+      const rowClients = linked.length ? linked : row.clientName?.trim() ? [{ name: row.clientName.trim(), status: row.clientStatus }] : [];
+      for (const client of rowClients) {
+        if (!clients.some((existing) => existing.name === client.name)) clients.push(client);
+      }
+      const saved = row.updatedAt?.trim() || row.createdAt?.trim() || '';
+      if (saved && (!updatedAt || saved > updatedAt)) updatedAt = saved;
     }
-    createdDates.sort();
     return {
       id,
       jobs: rows,
       jobIds: rows.map((row) => row.id),
-      clientName: first.clientName,
+      clientName: clients.map((client) => client.name).join(', ') || first.clientName,
       clientStatus: first.clientStatus,
+      clients,
       agentName: first.agentName,
       assignedTo: first.assignedTo,
       clientId: first.clientId,
       reasons,
       jobTypes,
       statuses,
-      createdDates,
+      updatedAt,
     };
   });
 }
@@ -90,7 +94,7 @@ export default function JobsTable({
   onDeleteAction,
 }: {
   jobs: SalesJobRow[];
-  onEditAction?: (group: { assignedTo: string; clientId: string }) => void;
+  onEditAction?: (group: { assignedTo: string; clientId: string; listGroupId: string }) => void;
   onDeleteAction?: (ids: string[]) => void;
 }) {
   const t = useTranslations('dashboard.sales.salesJobs');
@@ -414,9 +418,9 @@ export default function JobsTable({
                   )}
                 </button>
               </th>
-              <th className="text-left py-3 px-4 font-medium text-xs uppercase">{t('client')}</th>
-              <th className="text-left py-3 px-4 font-medium text-xs uppercase">{t('type')}</th>
               <th className="text-left py-3 px-4 font-medium text-xs uppercase">{t('rep')}</th>
+              <th className="text-left py-3 px-4 font-medium text-xs uppercase">{t('type')}</th>
+              <th className="text-left py-3 px-4 font-medium text-xs uppercase">{t('client')}</th>
               <th className="text-left py-3 px-4 font-medium text-xs uppercase">{t('table.status')}</th>
               <th className="text-left py-3 px-4 font-medium text-xs uppercase">{t('date')}</th>
               <th className="text-center py-3 px-4 font-medium text-xs uppercase">{t('table.actions')}</th>
@@ -438,6 +442,10 @@ export default function JobsTable({
                 const completedCount = row.jobs.filter((job) => salesJobStatusKey(job.status) === 'completed').length;
                 const totalJobs = row.jobs.length;
                 const allComplete = totalJobs > 0 && completedCount === totalJobs;
+                const clients = row.clients.length ? row.clients : [{ name: row.clientName, status: row.clientStatus }];
+                const visibleClients = clients.slice(0, 2);
+                const hiddenClients = clients.slice(2);
+                const reason = row.reasons.join('. ');
                 return (
                   <tr
                     key={row.id}
@@ -465,12 +473,7 @@ export default function JobsTable({
                         )}
                       </button>
                     </td>
-                    <td className="py-4 px-4">
-                      <div className="font-medium text-gray-900">{row.clientName}</div>
-                      <div className="text-gray-500 max-w-[280px] truncate" title={row.reasons.join('. ')}>
-                        {row.reasons.join('. ') || row.clientStatus}
-                      </div>
-                    </td>
+                    <td className="py-4 px-4 text-gray-700">{row.agentName}</td>
                     <td className="py-4 px-4 whitespace-nowrap">
                       <div className="flex flex-nowrap items-center gap-1">
                         {row.jobTypes.slice(0, 3).map((jobType) => (
@@ -491,7 +494,31 @@ export default function JobsTable({
                         )}
                       </div>
                     </td>
-                    <td className="py-4 px-4 text-gray-700">{row.agentName}</td>
+                    <td className="py-4 px-4">
+                      <div className="flex items-start gap-3 min-w-0 max-w-[280px]">
+                        {visibleClients.map((client) => {
+                          const subtitle = clients.length === 1 ? reason || client.status : client.status;
+                          return (
+                            <div key={client.name} className="min-w-0">
+                              <div className="font-medium text-gray-900 truncate" title={client.name}>
+                                {client.name}
+                              </div>
+                              <div className="text-gray-500 truncate" title={subtitle}>
+                                {subtitle}
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {hiddenClients.length > 0 && (
+                          <span
+                            className="shrink-0 self-center text-xs font-medium text-gray-500"
+                            title={hiddenClients.map((client) => client.name).join(', ')}
+                          >
+                            {t('table.moreClients', { count: hiddenClients.length })}
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="py-4 px-4 whitespace-normal">
                       <span
                         className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
@@ -502,21 +529,17 @@ export default function JobsTable({
                         {completedCount}/{totalJobs}
                       </span>
                     </td>
-                    <td className="py-4 px-4 text-gray-700 whitespace-normal">
-                      {row.createdDates.length > 0 ? (
-                        <div className="flex flex-col gap-0.5">
-                          {row.createdDates.map((date) => (
-                            <span key={date}>{date}</span>
-                          ))}
-                        </div>
-                      ) : null}
-                    </td>
+                    <td className="py-4 px-4 text-gray-700 whitespace-normal">{row.updatedAt}</td>
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-2 justify-center">
                         <button
                           onClick={(event) => {
                             event.stopPropagation();
-                            onEditAction?.({ assignedTo: row.assignedTo, clientId: row.clientId });
+                            onEditAction?.({
+                              assignedTo: row.assignedTo,
+                              clientId: row.clientId,
+                              listGroupId: row.jobs[0]?.listGroupId?.trim() || '',
+                            });
                           }}
                           className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 transition-colors"
                           title={t('table.edit')}

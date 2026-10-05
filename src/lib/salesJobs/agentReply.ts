@@ -1,7 +1,17 @@
+import { chatWithOpenRouter, isOpenRouterConfigured } from '@/lib/automations/openrouter';
 import { prisma } from '@/lib/db';
-import { RETURN_REASONS, type ReturnReason } from '@/lib/salesJobs/completion';
 import { completeSalesJob } from '@/lib/salesJobs/service';
 import { DEFAULT_JOB_TIMEZONE, zonedDayRange, zonedParts } from '@/lib/salesJobs/time';
+import {
+  jobTypeLabel,
+  reportButtonPrompt,
+  salesCopy,
+  salesRepReplyLocale,
+  whichJobPrompt,
+  wantsFinishedJobReport,
+  type SalesReplyLocale,
+} from '@/lib/salesJobs/repCopy';
+import { dispatchJobToWhatsApp } from '@/lib/salesJobs/whatsapp';
 import {
   isWhatsAppCloudConfigured,
   resolveWhatsAppCloudCredentials,
@@ -21,6 +31,14 @@ const VAGUE = /^(ok|okay|oke|done|sudah|selesai|yes|ya|sip|beres|baik|noted)\.?!
 
 function isVague(text: string): boolean {
   return VAGUE.test(text.trim());
+}
+
+function isJobQuestion(text: string): boolean {
+  const trimmed = text.trim();
+  if (trimmed.includes('?') || trimmed.includes('？')) return true;
+  return /^(what|which|why|how|when|where|who|can you|could you|apa|apakah|berapa|kapan|di\s*mana|dimana|kenapa|mengapa|bagaimana|tolong|jelaskan|explain|tell me)\b/i.test(
+    trimmed,
+  );
 }
 
 /** Explicit amounts only. Thousands separators and ribu/juta suffixes are kept. Phone-like numbers are ignored. */
@@ -104,15 +122,6 @@ function paymentSignal(text: string): boolean | null {
   return null;
 }
 
-function returnReason(text: string): ReturnReason | null {
-  const lower = text.toLowerCase();
-  if (/kadaluarsa|kadaluwarsa|expired/.test(lower)) return 'expired';
-  if (/rusak|damaged|pecah/.test(lower)) return 'damaged';
-  if (/tidak laku|unsold|hampir expired|near expiry/.test(lower)) return 'unsold_near_expiry';
-  if (/\b(other|lainnya)\b/.test(lower)) return 'other';
-  return null;
-}
-
 function labeledQty(text: string): number | null {
   const labeled = text.match(/(\d{1,3})\s*(pcs|pc|dus|pack|unit|qty|buah|sample|sampel)\b/i);
   if (!labeled) return null;
@@ -135,75 +144,50 @@ export function extractAgentFacts(
   jobType: string,
   text: string,
   products: CatalogProduct[] = [],
+  locale: SalesReplyLocale = 'en',
 ): AgentFacts {
   const body = text.trim();
   if (!body || isVague(body)) {
-    return ask(questionFor(jobType));
+    return ask(questionFor(jobType, locale));
   }
 
   if (jobType === 'take_order') {
     const placed = orderSignal(body);
-    if (placed == null) return ask(questionFor(jobType));
-    if (!placed) {
-      return { ready: true, completion: shared(body, { order_placed: false }) };
-    }
-    const amount = parseSpokenAmount(body);
-    if (amount == null) return ask('Send the order amount, or say no order. / Kirim nilai order, atau tulis tidak ada order.');
-    return { ready: true, completion: shared(body, { order_placed: true, order_amount: amount }) };
+    if (placed == null) return ask(questionFor(jobType, locale));
+    return { ready: true, completion: shared(body, { delivered: placed, order_placed: placed, order_amount: parseSpokenAmount(body) }) };
   }
 
   if (jobType === 'collect_payment') {
     const paid = paymentSignal(body);
-    if (paid == null) return ask(questionFor(jobType));
-    if (!paid) return { ready: true, completion: shared(body, { payment_collected: false }) };
-    const amount = parseSpokenAmount(body);
-    if (amount == null) return ask('How much was collected? / Berapa yang tertagih?');
-    return { ready: true, completion: shared(body, { payment_collected: true, payment_amount: amount }) };
+    if (paid == null) return ask(questionFor(jobType, locale));
+    return { ready: true, completion: shared(body, { payment_collected: paid, payment_amount: null }) };
   }
 
   if (jobType === 'stock_check') {
-    if (!/\b(stok|stock)\b/i.test(body) || body.length < 8) return ask(questionFor(jobType));
+    if (!/\b(stok|stock|checked|dicek|cek)\b/i.test(body)) return ask(questionFor(jobType, locale));
     return { ready: true, completion: shared(body, { stock_checked: true }) };
   }
 
   if (jobType === 'promote_product') {
-    const counted = body.match(/(\d{1,3})\s*(produk|product|sku|item)\b/i);
-    const demo = /\b(promosi|promo|demo|ditawarkan|shown|display)\b/i.test(body);
-    if (counted) {
-      const n = Number(counted[1]);
-      if (n > 0) return { ready: true, completion: shared(body, { products_demoed: n }) };
-    }
-    if (demo && matchCatalogProduct(body, products)) {
-      return { ready: true, completion: shared(body, { products_demoed: 1 }) };
-    }
-    return ask(questionFor(jobType));
+    const promoted = /\b(promosi|promo|promoted|dipromosikan|ditawarkan|shown|display)\b/i.test(body);
+    if (!promoted) return ask(questionFor(jobType, locale));
+    return { ready: true, completion: shared(body, { promoted: true }) };
   }
 
   if (jobType === 'prospect_new_outlet') {
-    if (body.length < 20) return ask(questionFor(jobType));
+    if (body.length < 20) return ask(questionFor(jobType, locale));
     return { ready: true, completion: shared(body, {}) };
   }
 
   if (jobType === 'returns_pickup') {
-    const product = matchCatalogProduct(body, products);
-    const quantity = labeledQty(body);
-    const reason = returnReason(body);
-    if (!product || quantity == null || !reason || !(RETURN_REASONS as readonly string[]).includes(reason)) {
-      return ask(questionFor(jobType));
-    }
-    return {
-      ready: true,
-      completion: shared(body, {
-        items_returned: [{ product_id: product.productId, quantity, reason }],
-        replacement_issued: false,
-        replacement_value: null,
-      }),
-    };
+    const returned = /\b(returned|retur|diretur|sudah diambil|picked up|diambil)\b/i.test(body);
+    if (!returned) return ask(questionFor(jobType, locale));
+    return { ready: true, completion: shared(body, { returned: true, items_returned: [] }) };
   }
 
   if (jobType === 'competitor_intel') {
     const name = competitorName(body);
-    if (!name) return ask(questionFor(jobType));
+    if (!name) return ask(questionFor(jobType, locale));
     return {
       ready: true,
       completion: shared(body, {
@@ -218,16 +202,16 @@ export function extractAgentFacts(
 
   if (jobType === 'new_product_activation') {
     const product = matchCatalogProduct(body, products);
-    if (!product) return ask(questionFor(jobType));
+    if (!product) return ask(questionFor(jobType, locale));
     const samples = labeledQty(body);
     return {
       ready: true,
       completion: shared(body, {
         product_id: product.productId,
         product_ids: [product.productId],
-        display_setup_completed: /\b(display|pajang|rak)\b/i.test(body),
+        product_given: true,
         samples_given: samples,
-        retailer_briefed: /\b(brief|jelaskan|dijelaskan|kasih tahu|explained)\b/i.test(body),
+        retailer_briefed: false,
       }),
     };
   }
@@ -235,7 +219,7 @@ export function extractAgentFacts(
   if (jobType === 'scheme_reconciliation') {
     const amount = parseSpokenAmount(body);
     const confirmed = /\b(konfirm|confirmed|sudah jalan|executed|sesuai)\b/i.test(body);
-    if (amount == null && !confirmed) return ask(questionFor(jobType));
+    if (amount == null && !confirmed) return ask(questionFor(jobType, locale));
     return {
       ready: true,
       completion: shared(body, {
@@ -246,31 +230,31 @@ export function extractAgentFacts(
     };
   }
 
-  return ask(questionFor(jobType));
+  return ask(questionFor(jobType, locale));
 }
 
-function questionFor(jobType: string): string {
+function questionFor(jobType: string, locale: SalesReplyLocale): string {
   switch (jobType) {
     case 'take_order':
-      return 'Did this shop place an order? Send the amount, or say no order. / Apakah toko ini pesan? Kirim nilainya, atau tulis tidak ada order.';
+      return salesCopy(locale, 'Was this order delivered?', 'Apakah order ini sudah terkirim?');
     case 'collect_payment':
-      return 'Was payment collected, and how much? / Apakah pembayaran tertagih, dan berapa?';
+      return salesCopy(locale, 'Was payment collected?', 'Apakah pembayaran sudah tertagih?');
     case 'stock_check':
-      return 'What is the stock situation at this shop? / Bagaimana stok di toko ini?';
+      return salesCopy(locale, 'Was the stock checked?', 'Apakah stok sudah dicek?');
     case 'promote_product':
-      return 'How many products did you show? Name them if you can. / Berapa produk yang Anda tunjukkan? Sebutkan namanya jika bisa.';
+      return salesCopy(locale, 'Was the product promoted?', 'Apakah produk sudah dipromosikan?');
     case 'prospect_new_outlet':
-      return 'Send a short note about this new outlet. / Kirim catatan singkat tentang outlet baru ini.';
+      return salesCopy(locale, 'Send a short note about this new outlet.', 'Kirim catatan singkat tentang outlet baru ini.');
     case 'returns_pickup':
-      return 'Which product was returned, how many (for example 2 dus), and why (expired, damaged, unsold, or other)? / Produk apa yang diretur, berapa (misalnya 2 dus), dan kenapa (kadaluarsa, rusak, tidak laku, atau lainnya)?';
+      return salesCopy(locale, 'Was the return picked up?', 'Apakah retur sudah diambil?');
     case 'competitor_intel':
-      return 'Name the competitor and the price you saw. / Sebut nama kompetitor dan harga yang Anda lihat.';
+      return salesCopy(locale, 'Name the competitor and the price you saw.', 'Sebut nama kompetitor dan harga yang Anda lihat.');
     case 'new_product_activation':
-      return 'Which product did you activate at this shop? / Produk apa yang Anda aktifkan di toko ini?';
+      return salesCopy(locale, 'How many units were given?', 'Berapa unit yang diberikan?');
     case 'scheme_reconciliation':
-      return 'Was the scheme executed, and what claim amount did you see? / Apakah skema berjalan, dan berapa nilai klaimnya?';
+      return salesCopy(locale, 'Was the scheme executed, and what claim amount did you see?', 'Apakah skema berjalan, dan berapa nilai klaimnya?');
     default:
-      return 'Send the visit result in one message, including any amount. / Kirim hasil kunjungan dalam satu pesan, termasuk nilainya jika ada.';
+      return salesCopy(locale, 'Send the visit result in one message, including any amount.', 'Kirim hasil kunjungan dalam satu pesan, termasuk nilainya jika ada.');
   }
 }
 
@@ -282,15 +266,238 @@ function shopLabel(storeName: string | null | undefined, owner: string | null | 
   return 'Open job';
 }
 
-function isScheduledToday(date: Date, timeZone: string, now = new Date()): boolean {
-  const today = zonedDayRange(zonedParts(now, timeZone).dateKey, timeZone);
-  const time = date.getTime();
-  return time >= today.start.getTime() && time < today.end.getTime();
-}
-
 function shopMentioned(text: string, label: string): boolean {
   const name = label.trim().toLowerCase();
   return name.length >= 4 && name !== 'open job' && text.toLowerCase().includes(name);
+}
+
+function pickedJobIndex(text: string, count: number): number | null {
+  const named = text.match(/\b(?:nomor|number|no\.?|angka|#)\s*(\d{1,2})\b/i);
+  const bare = text.trim().match(/^(\d{1,2})$/);
+  const raw = named?.[1] ?? bare?.[1];
+  if (!raw) return null;
+  const index = Number(raw) - 1;
+  return index >= 0 && index < count ? index : null;
+}
+
+function looksLikeVisitResult(text: string): boolean {
+  if (orderSignal(text) != null || paymentSignal(text) != null) return true;
+  return /\b(stok|stock|checked|dicek|dipromosikan|promoted|returned|diretur|retur|sampel|samples|diberikan|kompetitor|competitor|pesaing)\b/i.test(
+    text,
+  );
+}
+
+function wantsProductAdvice(text: string): boolean {
+  return /\b(pitch|offer|tawarkan|nawarin|cara jual|cara nawar|rekomendas|recommend|menarik|promosi|bagaimana jual|how to sell|how to pitch|empower)\b/i.test(
+    text,
+  );
+}
+
+async function answerRep(
+  phone: string,
+  locale: SalesReplyLocale,
+  distributorId: number,
+  jobs: {
+    jobType: string;
+    priorityReason: string | null;
+    suggestedProducts: string[];
+    orderIds: string[];
+    clientId: string | null;
+    client: {
+      storeName: string | null;
+      owner: string | null;
+      phone: string | null;
+      address: string | null;
+      status: string | null;
+    } | null;
+  }[],
+  text: string,
+): Promise<void> {
+  const products = await prisma.product.findMany({
+    where: { userId: distributorId },
+    select: { productId: true, name: true, brand: true, description: true },
+    orderBy: { name: 'asc' },
+    take: 40,
+  });
+  const nameOf = (id: string) => products.find((product) => product.productId === id)?.name || id;
+  const onJobs = new Set(jobs.flatMap((job) => job.suggestedProducts));
+  const mentioned = products.filter((product) => {
+    const name = product.name.trim().toLowerCase();
+    return name.length >= 4 && text.toLowerCase().includes(name);
+  });
+  const focus = (mentioned.length ? mentioned : products.filter((product) => onJobs.has(product.productId))).slice(0, 6);
+  const focusLines = focus
+    .map((product) => {
+      const description = product.description?.replace(/\s+/g, ' ').trim().slice(0, 180);
+      return [product.name.trim(), product.brand?.trim(), description].filter(Boolean).join('. ');
+    })
+    .join('\n');
+  const orderIds = Array.from(new Set(jobs.flatMap((job) => job.orderIds)));
+  const clientIds = Array.from(new Set(jobs.map((job) => job.clientId).filter((id): id is string => Boolean(id))));
+  const orders =
+    orderIds.length || clientIds.length
+      ? await prisma.order.findMany({
+          where: {
+            userId: distributorId,
+            isDeleted: false,
+            OR: [
+              ...(orderIds.length ? [{ orderId: { in: orderIds } }] : []),
+              ...(clientIds.length ? [{ buyerId: { in: clientIds } }] : []),
+            ],
+          },
+          select: {
+            orderId: true,
+            storeName: true,
+            contactPerson: true,
+            orderStatus: true,
+            paymentStatus: true,
+            totalAmount: true,
+            orderDate: true,
+            deliveryAddress: true,
+            buyer: { select: { storeName: true, owner: true, phone: true, address: true, status: true } },
+            orderItemsRel: { select: { productNameSnapshot: true }, take: 4 },
+          },
+          orderBy: { orderDate: 'desc' },
+          take: 20,
+        })
+      : [];
+  const orderLines = orders
+    .map((order) => {
+      const shop = order.buyer?.storeName || order.storeName;
+      const items = order.orderItemsRel.map((item) => item.productNameSnapshot?.trim()).filter(Boolean);
+      return [
+        shop,
+        order.buyer?.owner || order.contactPerson,
+        order.orderId,
+        order.orderStatus,
+        order.paymentStatus,
+        String(order.totalAmount),
+        order.orderDate.toISOString().slice(0, 10),
+        order.buyer?.address || order.deliveryAddress,
+        items.length ? items.join(', ') : '',
+      ]
+        .filter(Boolean)
+        .join(' | ');
+    })
+    .join('\n');
+  const jobLines = jobs
+    .map((job, index) => {
+      const names = job.suggestedProducts.map(nameOf).filter(Boolean);
+      const reason = job.priorityReason?.trim();
+      const outlet = [
+        shopLabel(job.client?.storeName, job.client?.owner),
+        job.client?.status || '',
+        job.client?.phone || '',
+        job.client?.address || '',
+      ]
+        .filter(Boolean)
+        .join(', ');
+      return [
+        `${index + 1}. ${outlet}`,
+        jobTypeLabel(locale, job.jobType),
+        names.length ? (locale === 'id' ? `Produk: ${names.join(', ')}` : `Products: ${names.join(', ')}`) : '',
+        reason || '',
+      ]
+        .filter(Boolean)
+        .join('. ');
+    })
+    .join('\n');
+  const catalog = products
+    .map((product) => product.name.trim())
+    .filter(Boolean)
+    .join(', ');
+  const advice = wantsProductAdvice(text);
+  const languageRule =
+    locale === 'id'
+      ? 'Reply entirely in Indonesian. Keep product names and shop names as written. Do not switch to English.'
+      : 'Reply entirely in English. Keep product names and shop names as written. Do not switch to Indonesian.';
+  let body =
+    locale === 'id'
+      ? `Ini pekerjaan Anda:\n${jobLines}`
+      : `Here are your jobs:\n${jobLines}`;
+  if (isOpenRouterConfigured()) {
+    try {
+      const result = await chatWithOpenRouter({
+        temperature: 0.4,
+        maxTokens: advice ? 1400 : 700,
+        messages: [
+          {
+            role: 'system',
+            content: `You text one sales rep on WhatsApp. Write like a person and answer the question they asked. Plain sentences only: no markdown, no headings, no asterisks, and no links. The jobs, outlets, and orders below are already loaded from this distributor's dashboard for this rep. If a shop is in those records, answer about its jobs and orders. Do not say the shop is missing, and do not ask for an outlet code, owner, or address when the records already include it. When they ask how to pitch, offer, or sell, cover every product they asked about. Give each product its own short paragraph: who it is for, one reason to try it, and a line they can say in the shop. Finish the last product. Use the public web notes for that product advice. Do not use the web for private records, and do not look at any other distributor. Do not invent prices or stock that are not in the records. ${languageRule} No em dashes.`,
+          },
+          {
+            role: 'user',
+            content: `${advice ? `Look up these products on the public web for selling advice:\n${focusLines || catalog || (locale === 'id' ? 'tidak ada' : 'none')}\n\n` : ''}Jobs:\n${jobLines}\n\nOrders for this rep:\n${orderLines || (locale === 'id' ? 'tidak ada' : 'none')}\n\nProducts this distributor sells:\n${catalog || (locale === 'id' ? 'tidak ada' : 'none')}\n\nMessage:\n${text}`,
+          },
+        ],
+        webSearch: advice,
+      });
+      const reply = result.content.replace(/\u2014|\u2013/g, '-').trim();
+      if (reply) body = reply;
+    } catch (err) {
+      console.error('[sales-job-agent-reply] job question failed', err);
+    }
+  }
+  await sendRepReply(phone, body);
+}
+
+function plainWhatsApp(text: string): string {
+  return text
+    .replace(/\u2014|\u2013/g, '-')
+    .replace(/^#{1,6}\s*/gm, '')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '$1')
+    .replace(/\*\*/g, '')
+    .trim();
+}
+
+function whatsAppChunks(text: string): string[] {
+  const clean = plainWhatsApp(text);
+  const limit = 3500;
+  if (clean.length <= limit) return clean ? [clean] : [];
+  const chunks: string[] = [];
+  let rest = clean;
+  while (rest.length > limit) {
+    const window = rest.slice(0, limit);
+    const paragraph = window.lastIndexOf('\n\n');
+    const line = window.lastIndexOf('\n');
+    const sentence = window.lastIndexOf('. ');
+    const breakAt = paragraph > 400 ? paragraph : line > 400 ? line : sentence > 400 ? sentence + 1 : limit;
+    chunks.push(rest.slice(0, breakAt).trim());
+    rest = rest.slice(breakAt).trim();
+  }
+  if (rest) chunks.push(rest);
+  return chunks;
+}
+
+async function sendRepReply(phone: string, body: string): Promise<void> {
+  for (const chunk of whatsAppChunks(body)) {
+    await askAgent(phone, chunk);
+  }
+}
+
+function isShopChoice(text: string, label: string): boolean {
+  if (!shopMentioned(text, label)) return false;
+  const rest = text.toLowerCase().replace(label.toLowerCase(), '').replace(/[^a-z0-9]/g, '');
+  return rest.length <= 6;
+}
+
+async function sendReportButtons(
+  phone: string,
+  locale: SalesReplyLocale,
+  job: { id: string; jobType: string; client: { storeName: string | null; owner: string | null } | null },
+): Promise<void> {
+  const store = shopLabel(job.client?.storeName, job.client?.owner);
+  await dispatchJobToWhatsApp({
+    id: job.id,
+    jobType: job.jobType,
+    priorityReason: null,
+    clientName: store,
+    suggestedProductNames: [],
+    agentPhone: phone,
+    locale,
+    withButtons: true,
+    body: reportButtonPrompt(locale, store),
+  });
 }
 
 async function askAgent(phone: string, body: string): Promise<boolean> {
@@ -342,7 +549,7 @@ export async function handleFreeformAgentReply(args: {
     const today = zonedDayRange(zonedParts(now, timeZone).dateKey, timeZone);
     return {
       assignedTo: { in: matched.filter((agent) => agent.userId === distributorId).map((agent) => agent.id) },
-      scheduledDate: { gte: today.start, lt: today.end },
+      scheduledDate: { gte: today.start },
     };
   });
   const unassignedIds = matched.filter((agent) => agent.userId == null).map((agent) => agent.id);
@@ -350,51 +557,65 @@ export async function handleFreeformAgentReply(args: {
     const today = zonedDayRange(zonedParts(now, DEFAULT_JOB_TIMEZONE).dateKey, DEFAULT_JOB_TIMEZONE);
     dayFilters.push({
       assignedTo: { in: unassignedIds },
-      scheduledDate: { gte: today.start, lt: today.end },
+      scheduledDate: { gte: today.start },
     });
   }
   if (dayFilters.length === 0) return { handled: false };
 
   const jobs = await prisma.salesJob.findMany({
     where: {
-      status: { in: ['dispatched', 'in_progress'] },
+      status: { in: ['pending', 'approved', 'suggested', 'dispatched', 'in_progress'] },
       OR: dayFilters,
     },
     include: {
-      client: { select: { storeName: true, owner: true } },
+      client: { select: { buyerId: true, storeName: true, owner: true, phone: true, address: true, status: true } },
     },
     orderBy: { scheduledDate: 'desc' },
     take: 12,
   });
   if (jobs.length === 0) return { handled: false };
 
-  const mentioned = jobs.filter((job) => shopMentioned(text, shopLabel(job.client?.storeName, job.client?.owner)));
-  const sole = jobs.length === 1 ? jobs[0] : null;
-  const soleToday = sole
-    ? isScheduledToday(
-        sole.scheduledDate,
-        timeZoneByDistributor.get(sole.distributorId) || DEFAULT_JOB_TIMEZONE,
-        now,
-      )
-    : false;
-  let job = sole && soleToday ? sole : mentioned.length === 1 ? mentioned[0] : null;
-  if (!job) {
-    const lines = jobs.map((row) => shopLabel(row.client?.storeName, row.client?.owner));
-    const unique = Array.from(new Set(lines));
-    await askAgent(
-      fromPhone,
-      `Which shop is this update for? / Toko yang mana?\n${unique.map((name) => `- ${name}`).join('\n')}`,
-    );
-    return { handled: true, asked: true };
+  const distributorId = matched.find((agent) => agent.userId != null)?.userId ?? jobs[0].distributorId;
+  const locale = await salesRepReplyLocale(distributorId);
+  const ordered = jobs.slice().sort((a, b) => a.scheduledDate.getTime() - b.scheduledDate.getTime());
+  const mentioned = ordered.filter((job) => shopMentioned(text, shopLabel(job.client?.storeName, job.client?.owner)));
+  const picked = pickedJobIndex(text, ordered.length);
+  const numbered = picked == null ? null : ordered[picked];
+  const job = ordered.length === 1 ? ordered[0] : mentioned.length === 1 ? mentioned[0] : numbered;
+
+  if (
+    (wantsFinishedJobReport(text) && !looksLikeVisitResult(text)) ||
+    (job && isShopChoice(text, shopLabel(job.client?.storeName, job.client?.owner)))
+  ) {
+    if (!job) {
+      const lines = ordered.map(
+        (row) => `${shopLabel(row.client?.storeName, row.client?.owner)}. ${jobTypeLabel(locale, row.jobType)}`,
+      );
+      await askAgent(fromPhone, whichJobPrompt(locale, lines));
+      return { handled: true, asked: true };
+    }
+    await sendReportButtons(fromPhone, locale, job);
+    return { handled: true, asked: true, jobId: job.id };
+  }
+
+  const filing =
+    Boolean(job) &&
+    (job?.status === 'dispatched' || job?.status === 'in_progress') &&
+    looksLikeVisitResult(text) &&
+    !isJobQuestion(text);
+  if (!filing || !job) {
+    await answerRep(fromPhone, locale, distributorId, ordered, text);
+    return { handled: true, asked: true, jobId: job?.id };
   }
 
   const products = await prisma.product.findMany({
     where: { userId: job.distributorId },
     select: { productId: true, name: true },
   });
-  const facts = extractAgentFacts(job.jobType, text, products);
+
+  const facts = extractAgentFacts(job.jobType, text, products, locale);
   if (!facts.ready || !facts.completion) {
-    await askAgent(fromPhone, facts.question || questionFor(job.jobType));
+    await askAgent(fromPhone, facts.question || questionFor(job.jobType, locale));
     return { handled: true, asked: true, jobId: job.id };
   }
 
@@ -409,7 +630,7 @@ export async function handleFreeformAgentReply(args: {
     console.error('[sales-job-agent-reply] could not complete', job.id, err);
     await askAgent(
       fromPhone,
-      'Could not save this update. Please try again. / Pembaruan ini belum tersimpan. Coba lagi.',
+      salesCopy(locale, 'Could not save this update. Please try again.', 'Pembaruan ini belum tersimpan. Coba lagi.'),
     );
     return { handled: true, asked: true, jobId: job.id };
   }

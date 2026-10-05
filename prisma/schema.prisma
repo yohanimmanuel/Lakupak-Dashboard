@@ -1409,6 +1409,8 @@ model SalesJob {
   completedAt       DateTime? @db.Timestamptz(3)
   createdAt         DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt         DateTime  @updatedAt @db.Timestamptz(3)
+  /// Jobs saved together stay on one table row. A new id is created only from the create page.
+  listGroupId       String?
 
   distributor User              @relation(fields: [distributorId], references: [id], onDelete: Cascade)
   agent       SalesAgent        @relation(fields: [assignedTo], references: [id], onDelete: Restrict)
@@ -1419,6 +1421,7 @@ model SalesJob {
   @@index([distributorId, status])
   @@index([assignedTo, scheduledDate])
   @@index([clientId])
+  @@index([listGroupId])
   @@index([distributorId, scheduledDate])
   @@index([orderId])
 }
