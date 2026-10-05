@@ -106,6 +106,8 @@ export async function chatWithOpenRouter(args: {
   maxTokens?: number;
   /** Look up public pages for the products named in the message. */
   webSearch?: boolean;
+  /** When false, the model must answer directly and must not spend the reply on reasoning. */
+  reasoning?: boolean;
 }): Promise<OpenRouterChatResult> {
   const apiKey = openRouterApiKey();
   if (!apiKey) {
@@ -135,6 +137,9 @@ export async function chatWithOpenRouter(args: {
   }
   if (args.webSearch) {
     body.plugins = [{ id: 'web', max_results: 4 }];
+  }
+  if (args.reasoning === false) {
+    body.reasoning = { effort: 'none', exclude: true };
   }
 
   let lastError = 'OpenRouter request failed';

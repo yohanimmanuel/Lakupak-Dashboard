@@ -86,26 +86,52 @@ export function reportButtonPrompt(locale: SalesReplyLocale, store: string): str
     : `Report the finished job for ${store}.`;
 }
 
-export function whichJobPrompt(locale: SalesReplyLocale, shops: string[]): string {
-  const list = shops.map((shop, index) => `${index + 1}. ${shop}`).join('\n');
-  return locale === 'id'
-    ? `Pekerjaan yang mana yang sudah selesai? Balas dengan nomornya.\n${list}`
-    : `Which finished job should I open the report for? Reply with the number.\n${list}`;
+export function nameTheFinishedWork(locale: SalesReplyLocale): string {
+  return salesCopy(
+    locale,
+    'Tell me the finished work in your own words, such as the promotion or the delivery, and I will update that checklist.',
+    'Sebut pekerjaan yang sudah selesai, misalnya promosi atau pengantaran, supaya saya update checklist-nya.',
+  );
 }
 
-export function forwardedChecklistReply(
-  locale: SalesReplyLocale,
-  number: number,
-  store: string,
-  jobType: string,
-): string {
+export function joinShopNames(locale: SalesReplyLocale, shops: string[]): string {
+  const names = Array.from(new Set(shops.map((shop) => shop.trim()).filter(Boolean)));
+  if (names.length === 0) return locale === 'id' ? 'toko ini' : 'this shop';
+  if (names.length === 1) return names[0];
+  const last = names[names.length - 1];
+  const head = names.slice(0, -1);
+  const joiner = locale === 'id' ? ' dan ' : ' and ';
+  if (head.length === 1) return `${head[0]}${joiner}${last}`;
+  return `${head.join(', ')}${joiner}${last}`;
+}
+
+export function checklistUpdatedReply(locale: SalesReplyLocale, store: string, jobType: string): string {
   const shop = store.trim() || (locale === 'id' ? 'toko ini' : 'this shop');
   const type = jobTypeLabel(locale, jobType);
   return salesCopy(
     locale,
-    `Got it. I forwarded job ${number}, ${shop}, ${type}, to the admin to update the checklist.`,
-    `Baik. Saya teruskan pekerjaan ${number}, ${shop}, ${type}, ke admin untuk mengupdate checklist.`,
+    `Got it. I updated the ${type} checklist for ${shop}.`,
+    `Baik. Checklist ${type} untuk ${shop} sudah saya update.`,
   );
+}
+
+export function buyersStillOpenReply(
+  locale: SalesReplyLocale,
+  jobType: string,
+  noted: string[],
+  remaining: string[],
+): string {
+  const left = joinShopNames(locale, remaining);
+  const type = jobTypeLabel(locale, jobType);
+  const verb = remaining.length > 1 ? 'are' : 'is';
+  const waiting = salesCopy(
+    locale,
+    `${type} stays open until ${left} ${verb} finished too.`,
+    `${type} belum selesai sampai ${left} juga selesai.`,
+  );
+  if (noted.length === 0) return waiting;
+  const done = joinShopNames(locale, noted);
+  return salesCopy(locale, `Got it. I noted ${done}. ${waiting}`, `Baik. ${done} saya catat. ${waiting}`);
 }
 
 export function wantsFinishedJobReport(text: string): boolean {

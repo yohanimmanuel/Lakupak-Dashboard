@@ -321,12 +321,19 @@ export async function tickSalesJobs(now = new Date()): Promise<{ suggested: numb
       const covered: DigestJob[] = [];
       const uncovered: DigestJob[] = [];
       const inProgress: DigestJob[] = [];
+      let sentThisBatch = false;
       for (const job of due) {
+        if (sentThisBatch) {
+          covered.push(job);
+          continue;
+        }
         try {
           const outcome = await dispatchSalesJobCreatedAutomations(distributor.id, [job.id], reminderScope(job));
           const finished = outcome.executed + outcome.completedExisting > 0;
-          if (finished && outcome.inProgressExisting === 0) covered.push(job);
-          else if (outcome.inProgressExisting === 0) uncovered.push(job);
+          if (finished && outcome.inProgressExisting === 0) {
+            covered.push(job);
+            if (outcome.executed > 0) sentThisBatch = true;
+          } else if (outcome.inProgressExisting === 0) uncovered.push(job);
           else inProgress.push(job);
         } catch (error) {
           console.error('[sales-jobs] workflow dispatch failed', distributor.id, job.id, error);

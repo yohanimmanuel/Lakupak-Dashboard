@@ -51,7 +51,12 @@ export async function completeActiveProspectJobs(
       distributorId,
       jobType: 'prospect_new_outlet',
       status: { in: [...OPEN_JOB_STATUSES] },
-      client: { is: { status: 'Active' } },
+      client: {
+        is: {
+          status: 'Active',
+          orders: { some: { isDeleted: false, userId: distributorId } },
+        },
+      },
       ...(ids ? { clientId: { in: Array.from(new Set(ids)) } } : {}),
     },
     select: { id: true, completionData: true },

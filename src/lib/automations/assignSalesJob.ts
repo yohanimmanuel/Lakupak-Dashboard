@@ -104,13 +104,22 @@ export async function executeAssignSalesJob(args: {
     locale,
     withButtons: false,
   });
+  const sentAt = new Date();
+  const coveredIds = Array.from(new Set((upcoming.length ? upcoming : [job]).map((row) => row.id)));
+  const listedWithThisMessage = coveredIds.filter((id) => id !== job.id);
+  if (listedWithThisMessage.length) {
+    await prisma.salesJob.updateMany({
+      where: { id: { in: listedWithThisMessage }, distributorId: args.userId },
+      data: { dispatchedAt: sentAt, whatsappMessageId: sent.messageId, dispatchNote: null },
+    });
+  }
   await prisma.salesJob.update({
     where: { id: job.id },
     data: {
       ...(job.status === 'pending' || job.status === 'approved' || job.status === 'suggested'
         ? { status: 'dispatched' as const }
         : {}),
-      dispatchedAt: new Date(),
+      dispatchedAt: sentAt,
       whatsappMessageId: sent.messageId,
       dispatchNote: null,
     },
