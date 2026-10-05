@@ -93,6 +93,21 @@ export function whichJobPrompt(locale: SalesReplyLocale, shops: string[]): strin
     : `Which finished job should I open the report for? Reply with the number.\n${list}`;
 }
 
+export function forwardedChecklistReply(
+  locale: SalesReplyLocale,
+  number: number,
+  store: string,
+  jobType: string,
+): string {
+  const shop = store.trim() || (locale === 'id' ? 'toko ini' : 'this shop');
+  const type = jobTypeLabel(locale, jobType);
+  return salesCopy(
+    locale,
+    `Got it. I forwarded job ${number}, ${shop}, ${type}, to the admin to update the checklist.`,
+    `Baik. Saya teruskan pekerjaan ${number}, ${shop}, ${type}, ke admin untuk mengupdate checklist.`,
+  );
+}
+
 export function wantsFinishedJobReport(text: string): boolean {
   return /\b(laporan|lapor|report|finish the job|job is finished|sudah selesai|pekerjaan selesai|kunjungan selesai|mark complete|tombol laporan)\b/i.test(
     text,

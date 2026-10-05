@@ -1,3 +1,4 @@
+import { noteSalesWorkflowOutbound } from '@/lib/automations/engine';
 import { chatWithOpenRouter, isOpenRouterConfigured } from '@/lib/automations/openrouter';
 import { prisma } from '@/lib/db';
 import { completeSalesJob } from '@/lib/salesJobs/service';
@@ -8,6 +9,7 @@ import {
   salesCopy,
   salesRepReplyLocale,
   whichJobPrompt,
+  forwardedChecklistReply,
   wantsFinishedJobReport,
   type SalesReplyLocale,
 } from '@/lib/salesJobs/repCopy';
@@ -169,7 +171,7 @@ export function extractAgentFacts(
   }
 
   if (jobType === 'promote_product') {
-    const promoted = /\b(promosi|promo|promoted|dipromosikan|ditawarkan|shown|display)\b/i.test(body);
+    const promoted = /\b(promosi|promo|promoted|dipromosikan|mempromosikan\w*|ditawarkan|shown|display)\b/i.test(body);
     if (!promoted) return ask(questionFor(jobType, locale));
     return { ready: true, completion: shared(body, { promoted: true }) };
   }
@@ -282,7 +284,7 @@ function pickedJobIndex(text: string, count: number): number | null {
 
 function looksLikeVisitResult(text: string): boolean {
   if (orderSignal(text) != null || paymentSignal(text) != null) return true;
-  return /\b(stok|stock|checked|dicek|dipromosikan|promoted|returned|diretur|retur|sampel|samples|diberikan|kompetitor|competitor|pesaing)\b/i.test(
+  return /\b(stok|stock|checked|dicek|dipromosikan|mempromosikan\w*|promoted|returned|diretur|retur|sampel|samples|diberikan|kompetitor|competitor|pesaing)\b/i.test(
     text,
   );
 }
@@ -417,28 +419,44 @@ async function answerRep(
       : `Here are your jobs:\n${jobLines}`;
   if (isOpenRouterConfigured()) {
     try {
-      const result = await chatWithOpenRouter({
-        temperature: 0.4,
-        maxTokens: advice ? 1400 : 700,
-        messages: [
-          {
-            role: 'system',
-            content: `You text one sales rep on WhatsApp. Write like a person and answer the question they asked. Plain sentences only: no markdown, no headings, no asterisks, and no links. The jobs, outlets, and orders below are already loaded from this distributor's dashboard for this rep. If a shop is in those records, answer about its jobs and orders. Do not say the shop is missing, and do not ask for an outlet code, owner, or address when the records already include it. When they ask how to pitch, offer, or sell, cover every product they asked about. Give each product its own short paragraph: who it is for, one reason to try it, and a line they can say in the shop. Finish the last product. Use the public web notes for that product advice. Do not use the web for private records, and do not look at any other distributor. Do not invent prices or stock that are not in the records. ${languageRule} No em dashes.`,
-          },
-          {
-            role: 'user',
-            content: `${advice ? `Look up these products on the public web for selling advice:\n${focusLines || catalog || (locale === 'id' ? 'tidak ada' : 'none')}\n\n` : ''}Jobs:\n${jobLines}\n\nOrders for this rep:\n${orderLines || (locale === 'id' ? 'tidak ada' : 'none')}\n\nProducts this distributor sells:\n${catalog || (locale === 'id' ? 'tidak ada' : 'none')}\n\nMessage:\n${text}`,
-          },
-        ],
-        webSearch: advice,
-      });
-      const reply = result.content.replace(/\u2014|\u2013/g, '-').trim();
+      const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
+        {
+          role: 'system',
+          content: `You text one sales rep on WhatsApp. Write like a person and answer the question they asked. Plain sentences only: no markdown, no headings, no asterisks, and no links. Never write a safety label, including User Safety. The jobs, outlets, and orders below are already loaded from this distributor's dashboard for this rep. If a shop is in those records, answer about its jobs and orders. Do not say the shop is missing, and do not ask for an outlet code, owner, or address when the records already include it. When they ask how to pitch, offer, or sell, cover every product they asked about. Give each product its own short paragraph: who it is for, one reason to try it, and a line they can say in the shop. Finish the last product before you stop. Use the public web notes for that product advice. Do not use the web for private records, and do not look at any other distributor. Do not invent prices or stock that are not in the records. ${languageRule} No em dashes.`,
+        },
+        {
+          role: 'user',
+          content: `${advice ? `Look up these products on the public web for selling advice:\n${focusLines || catalog || (locale === 'id' ? 'tidak ada' : 'none')}\n\n` : ''}Jobs:\n${jobLines}\n\nOrders for this rep:\n${orderLines || (locale === 'id' ? 'tidak ada' : 'none')}\n\nProducts this distributor sells:\n${catalog || (locale === 'id' ? 'tidak ada' : 'none')}\n\nMessage:\n${text}`,
+        },
+      ];
+      let reply = '';
+      for (let part = 0; part < 4; part += 1) {
+        const result = await chatWithOpenRouter({
+          temperature: 0.4,
+          maxTokens: advice ? 2000 : 900,
+          messages,
+          webSearch: advice && part === 0,
+        });
+        const next = result.content.replace(/\u2014|\u2013/g, '-').trim();
+        if (next) {
+          reply = !reply ? next : /[.!?]$/.test(reply) ? `${reply}\n\n${next}` : `${reply} ${next}`;
+        }
+        const stoppedEarly = result.finishReason === 'length' || result.finishReason === 'max_tokens';
+        if (!next || !stoppedEarly) break;
+        messages.push({ role: 'assistant', content: next });
+        messages.push({
+          role: 'user',
+          content:
+            'Continue from the next word. Finish every product that is still incomplete. Do not repeat text you already wrote.',
+        });
+      }
       if (reply) body = reply;
     } catch (err) {
       console.error('[sales-job-agent-reply] job question failed', err);
     }
   }
-  await sendRepReply(phone, body);
+  const sent = await sendRepReply(phone, body);
+  if (sent) await noteSalesWorkflowOutbound(distributorId, plainWhatsApp(body));
 }
 
 function plainWhatsApp(text: string): string {
@@ -447,6 +465,9 @@ function plainWhatsApp(text: string): string {
     .replace(/^#{1,6}\s*/gm, '')
     .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '$1')
     .replace(/\*\*/g, '')
+    .replace(/^[ \t]*(?:user|response|model|content)\s+safety\s*:\s*.+$/gim, '')
+    .replace(/\b(?:user|response|model|content)\s+safety\s*:\s*[\w.-]+/gi, '')
+    .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
 
@@ -469,10 +490,13 @@ function whatsAppChunks(text: string): string[] {
   return chunks;
 }
 
-async function sendRepReply(phone: string, body: string): Promise<void> {
-  for (const chunk of whatsAppChunks(body)) {
-    await askAgent(phone, chunk);
+async function sendRepReply(phone: string, body: string): Promise<boolean> {
+  const chunks = whatsAppChunks(body);
+  if (chunks.length === 0) return false;
+  for (const chunk of chunks) {
+    if (!(await askAgent(phone, chunk))) return false;
   }
+  return true;
 }
 
 function isShopChoice(text: string, label: string): boolean {
@@ -582,6 +606,21 @@ export async function handleFreeformAgentReply(args: {
   const picked = pickedJobIndex(text, ordered.length);
   const numbered = picked == null ? null : ordered[picked];
   const job = ordered.length === 1 ? ordered[0] : mentioned.length === 1 ? mentioned[0] : numbered;
+
+  if (/^(?:nomor|number|no\.?|angka|#)?\s*\d{1,2}$/i.test(text)) {
+    if (!numbered || picked == null) {
+      await askAgent(fromPhone, salesCopy(locale, 'Reply with a number from the list.', 'Balas dengan nomor yang ada di daftar.'));
+      return { handled: true, asked: true };
+    }
+    const reply = forwardedChecklistReply(
+      locale,
+      picked + 1,
+      shopLabel(numbered.client?.storeName, numbered.client?.owner),
+      numbered.jobType,
+    );
+    if (await askAgent(fromPhone, reply)) await noteSalesWorkflowOutbound(distributorId, reply);
+    return { handled: true, asked: true, jobId: numbered.id };
+  }
 
   if (
     (wantsFinishedJobReport(text) && !looksLikeVisitResult(text)) ||

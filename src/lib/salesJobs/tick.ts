@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db';
+import { dispatchSalesJobCreatedAutomations, noteSalesWorkflowOutbound } from '@/lib/automations/engine';
 import { salesRepReplyLocale, upcomingJobsMessage, type RepJobLine } from '@/lib/salesJobs/repCopy';
 import { suggestSalesJobsForDistributor } from '@/lib/salesJobs/suggest';
 import { DEFAULT_JOB_TIMEZONE, zonedDayRange, zonedParts } from '@/lib/salesJobs/time';
@@ -33,11 +34,17 @@ function addDigestJob(bucket: AgentBucket, job: Omit<DigestJob, 'scheduleIds'>, 
   bucket.jobs.set(job.id, current);
 }
 
+function reminderScope(job: DigestJob): string {
+  const scheduleIds = job.scheduleIds.filter(Boolean).slice().sort();
+  return scheduleIds.length > 0 ? `schedules:${scheduleIds.join(',')}` : `job:${job.id}`;
+}
+
 async function sendAgentDigest(args: {
   distributorId: number;
   bucket: AgentBucket;
   productName: Map<string, string>;
   rangeStart: Date;
+  excludeJobIds?: ReadonlySet<string>;
 }): Promise<'sent' | 'failed'> {
   const due = Array.from(args.bucket.jobs.values());
   const note =
@@ -101,6 +108,7 @@ async function sendAgentDigest(args: {
 
   const listed = new Map<string, RepJobLine>();
   for (const job of upcoming) {
+    if (args.excludeJobIds?.has(job.id)) continue;
     listed.set(job.id, {
       clientName: clientNames(job),
       jobType: job.jobType,
@@ -109,7 +117,7 @@ async function sendAgentDigest(args: {
     });
   }
   for (const job of due) {
-    if (listed.has(job.id)) continue;
+    if (args.excludeJobIds?.has(job.id) || listed.has(job.id)) continue;
     listed.set(job.id, {
       clientName: job.clientName,
       jobType: job.jobType,
@@ -152,6 +160,10 @@ async function sendAgentDigest(args: {
         },
       });
     }
+    await noteSalesWorkflowOutbound(
+      args.distributorId,
+      `Sent the WhatsApp job list to ${args.bucket.agent.name}.`,
+    );
     return 'sent';
   } catch (error) {
     await prisma.salesJob.updateMany({
@@ -159,6 +171,34 @@ async function sendAgentDigest(args: {
       data: { dispatchNote: error instanceof Error ? error.message : 'WhatsApp send failed' },
     });
     return 'failed';
+  }
+}
+
+async function markDigestHandled(due: DigestJob[]) {
+  if (!due.length) return;
+  const scheduleIds = due.flatMap((job) => job.scheduleIds);
+  if (scheduleIds.length) {
+    await prisma.salesJobSchedule.updateMany({
+      where: { id: { in: scheduleIds }, sentAt: null },
+      data: { sentAt: new Date() },
+    });
+  }
+  const sent = await prisma.salesJob.findFirst({
+    where: { id: due[0].id },
+    select: { whatsappMessageId: true },
+  });
+  for (const job of due) {
+    await prisma.salesJob.update({
+      where: { id: job.id },
+      data: {
+        ...(job.status === 'approved' || job.status === 'pending' || job.status === 'suggested'
+          ? { status: 'dispatched' as const }
+          : {}),
+        dispatchedAt: new Date(),
+        ...(sent?.whatsappMessageId ? { whatsappMessageId: sent.whatsappMessageId } : {}),
+        dispatchNote: null,
+      },
+    });
   }
 }
 
@@ -277,14 +317,38 @@ export async function tickSalesJobs(now = new Date()): Promise<{ suggested: numb
     }
 
     for (const bucket of buckets.values()) {
+      const due = Array.from(bucket.jobs.values());
+      const covered: DigestJob[] = [];
+      const uncovered: DigestJob[] = [];
+      const inProgress: DigestJob[] = [];
+      for (const job of due) {
+        try {
+          const outcome = await dispatchSalesJobCreatedAutomations(distributor.id, [job.id], reminderScope(job));
+          const finished = outcome.executed + outcome.completedExisting > 0;
+          if (finished && outcome.inProgressExisting === 0) covered.push(job);
+          else if (outcome.inProgressExisting === 0) uncovered.push(job);
+          else inProgress.push(job);
+        } catch (error) {
+          console.error('[sales-jobs] workflow dispatch failed', distributor.id, job.id, error);
+          failed += 1;
+        }
+      }
+      if (covered.length > 0) {
+        await markDigestHandled(covered);
+        dispatched += 1;
+      }
+      if (uncovered.length === 0) continue;
       const result = await sendAgentDigest({
         distributorId: distributor.id,
-        bucket,
+        bucket: { agent: bucket.agent, jobs: new Map(uncovered.map((job) => [job.id, job])) },
         productName,
         rangeStart: range.start,
+        excludeJobIds: new Set([...covered, ...inProgress].map((job) => job.id)),
       });
-      if (result === 'sent') dispatched += 1;
-      else failed += 1;
+      if (result === 'sent') {
+        await markDigestHandled(uncovered);
+        dispatched += 1;
+      } else failed += 1;
     }
   }
 

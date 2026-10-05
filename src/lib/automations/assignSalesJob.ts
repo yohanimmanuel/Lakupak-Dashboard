@@ -18,7 +18,11 @@ export async function executeAssignSalesJob(args: {
     },
   });
   if (!job) throw new Error('Sales job not found');
-  if (job.whatsappMessageId) return `Sales job for ${job.agent.name} was already sent on WhatsApp.`;
+  const sentRecently =
+    Boolean(job.whatsappMessageId) &&
+    job.dispatchedAt != null &&
+    Date.now() - job.dispatchedAt.getTime() < 90_000;
+  if (sentRecently) return `Sales job for ${job.agent.name} was already sent on WhatsApp.`;
   const agentNote =
     job.agent.status !== 'active'
       ? 'Sales rep is inactive'
@@ -64,8 +68,26 @@ export async function executeAssignSalesJob(args: {
     });
     products.push(...extra);
   }
+  const orderIds = Array.from(new Set(upcoming.flatMap((row) => row.orderIds)));
+  const orderRows = orderIds.length
+    ? await prisma.order.findMany({
+        where: { orderId: { in: orderIds }, userId: args.userId },
+        select: { orderId: true, storeName: true, buyer: { select: { storeName: true, owner: true } } },
+      })
+    : [];
+  const storeByOrder = new Map(
+    orderRows.map((order) => [order.orderId, (order.buyer?.storeName || order.buyer?.owner || order.storeName).trim()]),
+  );
+  const clientNames = (row: (typeof upcoming)[number]) => {
+    const shops: string[] = [];
+    for (const orderId of row.orderIds) {
+      const name = storeByOrder.get(orderId);
+      if (name && !shops.includes(name)) shops.push(name);
+    }
+    return shops.join(', ') || row.client?.storeName || row.client?.owner || '';
+  };
   const lines = (upcoming.length ? upcoming : [job]).map((row) => ({
-    clientName: row.client?.storeName || row.client?.owner || '',
+    clientName: clientNames(row),
     jobType: row.jobType,
     productNames: row.suggestedProducts.map((id) => products.find((product) => product.productId === id)?.name || id),
     reason: row.priorityReason,
@@ -86,8 +108,9 @@ export async function executeAssignSalesJob(args: {
     where: { id: job.id },
     data: {
       ...(job.status === 'pending' || job.status === 'approved' || job.status === 'suggested'
-        ? { status: 'dispatched', dispatchedAt: new Date() }
+        ? { status: 'dispatched' as const }
         : {}),
+      dispatchedAt: new Date(),
       whatsappMessageId: sent.messageId,
       dispatchNote: null,
     },

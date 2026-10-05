@@ -917,17 +917,50 @@ function salesJobTriggerMatches(config: JsonRecord, jobType: string): boolean {
   return !filter || filter === 'any' || filter === jobType;
 }
 
-/** Fire active sales_job_created workflows after a sales job is saved. */
-export async function dispatchSalesJobCreatedAutomations(userId: number, jobIds: string[]): Promise<void> {
+/** Record a sales WhatsApp outbound on each active sales workflow, and notify the dashboard when that node is present. */
+export async function noteSalesWorkflowOutbound(userId: number, message: string): Promise<void> {
+  const text = message.trim().slice(0, 1200);
+  if (!userId || !text) return;
+  let workflows: AutomationWorkflow[];
+  try {
+    workflows = await loadActiveWorkflows(userId);
+  } catch (err) {
+    console.error('[automations] sales outbound note failed', err);
+    return;
+  }
+  for (const workflow of workflows) {
+    try {
+      const { triggers, actions } = workflowSteps(workflow);
+      if (!triggers.some((trigger) => trigger.type === 'sales_job_created')) continue;
+      if (actions.some((action) => action.type === 'notify_dashboard')) {
+        await executeNotifyDashboard(workflow.userId, workflow.name, text, 'sales_agent_outbound', workflow.id);
+      }
+      await recordRun(workflow.id, 'success', text);
+    } catch (err) {
+      console.error('[automations] sales outbound note failed', workflow.id, err);
+    }
+  }
+}
+
+/** Fire active sales_job_created workflows for these jobs. runScope makes a later reminder its own run. */
+export async function dispatchSalesJobCreatedAutomations(
+  userId: number,
+  jobIds: string[],
+  runScope?: string,
+): Promise<{ executed: number; completedExisting: number; inProgressExisting: number }> {
   const ids = Array.from(new Set(jobIds.map((id) => id.trim()).filter(Boolean)));
-  if (!userId || ids.length === 0) return;
+  if (!userId || ids.length === 0) return { executed: 0, completedExisting: 0, inProgressExisting: 0 };
   const jobs = await prisma.salesJob.findMany({
     where: { id: { in: ids }, distributorId: userId },
     select: { id: true, jobType: true },
   });
-  if (jobs.length === 0) return;
+  if (jobs.length === 0) return { executed: 0, completedExisting: 0, inProgressExisting: 0 };
   const workflows = await loadActiveWorkflows(userId);
   const failures: string[] = [];
+  let executed = 0;
+  let completedExisting = 0;
+  let inProgressExisting = 0;
+  const scope = runScope?.trim();
   for (const job of jobs) {
     for (const workflow of workflows) {
       let runId: string | null = null;
@@ -938,9 +971,32 @@ export async function dispatchSalesJobCreatedAutomations(userId: number, jobIds:
           (trigger) => trigger.type === 'sales_job_created' && salesJobTriggerMatches(trigger.config, job.jobType),
         );
         if (matching.length === 0) continue;
-        runKey = `sales_job_created:${workflow.id}:${job.id}`;
+        runKey = scope
+          ? `sales_job_created:${workflow.id}:${job.id}:${scope}`
+          : `sales_job_created:${workflow.id}:${job.id}`;
+        const jobRunPrefix = `sales_job_created:${workflow.id}:${job.id}`;
+        const openRun = await prisma.automationRun.findFirst({
+          where: {
+            workflowId: workflow.id,
+            status: RUN_STATUS_IN_PROGRESS,
+            OR: [{ runKey: jobRunPrefix }, { runKey: { startsWith: `${jobRunPrefix}:` } }],
+          },
+          select: { runKey: true },
+        });
+        if (openRun && openRun.runKey !== runKey) {
+          inProgressExisting += 1;
+          continue;
+        }
         runId = await claimSalesJobRun(workflow.id, runKey);
-        if (!runId) continue;
+        if (!runId) {
+          const existing = await prisma.automationRun.findFirst({
+            where: { workflowId: workflow.id, runKey },
+            select: { status: true },
+          });
+          if (existing?.status === 'success') completedExisting += 1;
+          else if (existing?.status !== 'skipped') inProgressExisting += 1;
+          continue;
+        }
         const result = await runWorkflowActions(workflow, actions, {
           kind: 'sales_job_created',
           event: { userId, jobId: job.id, jobType: job.jobType },
@@ -952,7 +1008,8 @@ export async function dispatchSalesJobCreatedAutomations(userId: number, jobIds:
             message: `[${runKey}] ${result.message}`,
           },
         });
-        if (result.status === 'failed') failures.push(`${job.id}: ${result.message}`);
+        if (result.status === 'success') executed += 1;
+        else if (result.status === 'failed') failures.push(`${job.id}: ${result.message}`);
       } catch (err) {
         const detail = err instanceof Error ? err.message : String(err);
         if (runId) {
@@ -974,6 +1031,7 @@ export async function dispatchSalesJobCreatedAutomations(userId: number, jobIds:
       failures.length === 1 ? failures[0] : `${failures.length} sales job workflows failed. ${failures[0]}`,
     );
   }
+  return { executed, completedExisting, inProgressExisting };
 }
 
 /** Fire active cart_idle workflows for marketplace carts that sat untouched. */
