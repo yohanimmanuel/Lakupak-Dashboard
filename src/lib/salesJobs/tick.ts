@@ -5,9 +5,14 @@ import { suggestSalesJobsForDistributor } from '@/lib/salesJobs/suggest';
 import { DEFAULT_JOB_TIMEZONE, zonedDayRange, zonedParts } from '@/lib/salesJobs/time';
 import { dispatchJobToWhatsApp } from '@/lib/salesJobs/whatsapp';
 
-const OPEN_JOB_STATUSES = ['pending', 'approved', 'suggested', 'dispatched', 'in_progress'] as const;
-
 type AgentRow = { id: string; name: string; phone: string; status: string };
+
+type ReminderSlot = {
+  dateKey: string;
+  hour: number;
+  minute: number;
+  scheduleId: string;
+};
 
 type DigestJob = {
   id: string;
@@ -16,7 +21,7 @@ type DigestJob = {
   suggestedProducts: string[];
   status: string;
   clientName: string;
-  scheduleIds: string[];
+  slots: ReminderSlot[];
 };
 
 type AgentBucket = {
@@ -28,22 +33,66 @@ function clientLabel(client: { storeName: string; owner: string } | null): strin
   return client ? client.storeName || client.owner : '';
 }
 
-function addDigestJob(bucket: AgentBucket, job: Omit<DigestJob, 'scheduleIds'>, scheduleId?: string) {
-  const current = bucket.jobs.get(job.id) ?? { ...job, scheduleIds: [] };
-  if (scheduleId && !current.scheduleIds.includes(scheduleId)) current.scheduleIds.push(scheduleId);
+function addDigestJob(bucket: AgentBucket, job: Omit<DigestJob, 'slots'>, slot?: ReminderSlot) {
+  const current = bucket.jobs.get(job.id) ?? { ...job, slots: [] };
+  if (slot && !current.slots.some((row) => row.scheduleId === slot.scheduleId)) current.slots.push(slot);
   bucket.jobs.set(job.id, current);
 }
 
 function reminderScope(job: DigestJob): string {
-  const scheduleIds = job.scheduleIds.filter(Boolean).slice().sort();
+  const scheduleIds = job.slots.map((slot) => slot.scheduleId).filter(Boolean).slice().sort();
   return scheduleIds.length > 0 ? `schedules:${scheduleIds.join(',')}` : `job:${job.id}`;
+}
+
+function slotKey(slot: ReminderSlot): string {
+  return `${slot.dateKey}|${slot.hour}|${slot.minute}`;
+}
+
+/** One WhatsApp list per reminder clock time. A 14:27 job stays out of the 20:24 list. */
+function groupsFor(jobs: DigestJob[], todayKey: string): { key: string; jobs: DigestJob[]; reminder?: { dateKey: string; hour: number; minute: number }; unscheduled: boolean }[] {
+  const groups = new Map<string, { key: string; jobs: DigestJob[]; reminder?: { dateKey: string; hour: number; minute: number }; unscheduled: boolean }>();
+  for (const job of jobs) {
+    if (job.slots.length === 0) {
+      const key = `unscheduled:${todayKey}`;
+      const group = groups.get(key) ?? { key, jobs: [], unscheduled: true };
+      group.jobs.push(job);
+      groups.set(key, group);
+      continue;
+    }
+    const bySlot = new Map<string, DigestJob>();
+    for (const slot of job.slots) {
+      const key = slotKey(slot);
+      const existing = bySlot.get(key);
+      if (existing) {
+        existing.slots.push(slot);
+        continue;
+      }
+      bySlot.set(key, { ...job, slots: [slot] });
+    }
+    for (const [key, slotJob] of bySlot) {
+      const slot = slotJob.slots[0];
+      const group = groups.get(key) ?? {
+        key,
+        jobs: [],
+        unscheduled: false,
+        reminder: { dateKey: slot.dateKey, hour: slot.hour, minute: slot.minute },
+      };
+      group.jobs.push(slotJob);
+      groups.set(key, group);
+    }
+  }
+  return Array.from(groups.values()).sort((a, b) => {
+    if (a.unscheduled !== b.unscheduled) return a.unscheduled ? -1 : 1;
+    const hour = (a.reminder?.hour ?? 0) - (b.reminder?.hour ?? 0);
+    if (hour !== 0) return hour;
+    return (a.reminder?.minute ?? 0) - (b.reminder?.minute ?? 0);
+  });
 }
 
 async function sendAgentDigest(args: {
   distributorId: number;
   bucket: AgentBucket;
   productName: Map<string, string>;
-  rangeStart: Date;
   excludeJobIds?: ReadonlySet<string>;
 }): Promise<'sent' | 'failed'> {
   const due = Array.from(args.bucket.jobs.values());
@@ -61,22 +110,17 @@ async function sendAgentDigest(args: {
     return 'failed';
   }
 
-  const upcoming = await prisma.salesJob.findMany({
-    where: {
-      distributorId: args.distributorId,
-      assignedTo: args.bucket.agent.id,
-      status: { in: [...OPEN_JOB_STATUSES] },
-      OR: [
-        { scheduledDate: { gte: args.rangeStart } },
-        { schedules: { some: { scheduledDate: { gte: args.rangeStart } } } },
-      ],
-    },
-    include: { client: { select: { storeName: true, owner: true } } },
-    orderBy: { scheduledDate: 'asc' },
-  });
+  const dueIds = due.map((job) => job.id).filter((id) => !args.excludeJobIds?.has(id));
+  const listedJobs = dueIds.length
+    ? await prisma.salesJob.findMany({
+        where: { id: { in: dueIds }, distributorId: args.distributorId },
+        include: { client: { select: { storeName: true, owner: true } } },
+        orderBy: { scheduledDate: 'asc' },
+      })
+    : [];
 
   const productIds = Array.from(
-    new Set([...upcoming.flatMap((job) => job.suggestedProducts), ...due.flatMap((job) => job.suggestedProducts)]),
+    new Set([...listedJobs.flatMap((job) => job.suggestedProducts), ...due.flatMap((job) => job.suggestedProducts)]),
   );
   const missing = productIds.filter((id) => !args.productName.has(id));
   if (missing.length) {
@@ -87,7 +131,7 @@ async function sendAgentDigest(args: {
     extra.forEach((product) => args.productName.set(product.productId, product.name));
   }
   const names = (ids: string[]) => ids.map((id) => args.productName.get(id) || id);
-  const orderIds = Array.from(new Set(upcoming.flatMap((job) => job.orderIds)));
+  const orderIds = Array.from(new Set(listedJobs.flatMap((job) => job.orderIds)));
   const orderRows = orderIds.length
     ? await prisma.order.findMany({
         where: { orderId: { in: orderIds } },
@@ -107,19 +151,9 @@ async function sendAgentDigest(args: {
   };
 
   const listed = new Map<string, RepJobLine>();
-  for (const job of upcoming) {
-    if (args.excludeJobIds?.has(job.id)) continue;
+  for (const job of listedJobs) {
     listed.set(job.id, {
       clientName: clientNames(job),
-      jobType: job.jobType,
-      productNames: names(job.suggestedProducts),
-      reason: job.priorityReason,
-    });
-  }
-  for (const job of due) {
-    if (args.excludeJobIds?.has(job.id) || listed.has(job.id)) continue;
-    listed.set(job.id, {
-      clientName: job.clientName,
       jobType: job.jobType,
       productNames: names(job.suggestedProducts),
       reason: job.priorityReason,
@@ -141,7 +175,7 @@ async function sendAgentDigest(args: {
       withButtons: false,
       body: upcomingJobsMessage(locale, args.bucket.agent.name, lines),
     });
-    const scheduleIds = due.flatMap((job) => job.scheduleIds);
+    const scheduleIds = due.flatMap((job) => job.slots.map((slot) => slot.scheduleId));
     if (scheduleIds.length) {
       await prisma.salesJobSchedule.updateMany({
         where: { id: { in: scheduleIds } },
@@ -176,7 +210,7 @@ async function sendAgentDigest(args: {
 
 async function markDigestHandled(due: DigestJob[]) {
   if (!due.length) return;
-  const scheduleIds = due.flatMap((job) => job.scheduleIds);
+  const scheduleIds = due.flatMap((job) => job.slots.map((slot) => slot.scheduleId));
   if (scheduleIds.length) {
     await prisma.salesJobSchedule.updateMany({
       where: { id: { in: scheduleIds }, sentAt: null },
@@ -204,6 +238,7 @@ async function markDigestHandled(due: DigestJob[]) {
 
 /**
  * Every minute: send unsent WhatsApp reminders scheduled for today at or before the current local time.
+ * Each reminder clock time is its own message. A 14:27 job is not listed in the 20:24 message.
  * After the distributor morning time, once per local day: create AI suggestions.
  * After that morning time: send pending jobs that have no explicit reminder.
  * Suggestions are created as pending and can be sent the same morning.
@@ -287,7 +322,12 @@ export async function tickSalesJobs(now = new Date()): Promise<{ suggested: numb
           status: row.job.status,
           clientName: clientLabel(row.job.client),
         },
-        row.id,
+        {
+          dateKey: zonedParts(row.scheduledDate, timeZone).dateKey,
+          hour: row.reminderHour,
+          minute: row.reminderMinute,
+          scheduleId: row.id,
+        },
       );
     }
 
@@ -317,45 +357,48 @@ export async function tickSalesJobs(now = new Date()): Promise<{ suggested: numb
     }
 
     for (const bucket of buckets.values()) {
-      const due = Array.from(bucket.jobs.values());
-      const covered: DigestJob[] = [];
-      const uncovered: DigestJob[] = [];
-      const inProgress: DigestJob[] = [];
-      let sentThisBatch = false;
-      for (const job of due) {
-        if (sentThisBatch) {
-          covered.push(job);
-          continue;
-        }
-        try {
-          const outcome = await dispatchSalesJobCreatedAutomations(distributor.id, [job.id], reminderScope(job));
-          const finished = outcome.executed + outcome.completedExisting > 0;
-          if (finished && outcome.inProgressExisting === 0) {
+      const groups = groupsFor(Array.from(bucket.jobs.values()), parts.dateKey);
+      for (const group of groups) {
+        const due = group.jobs;
+        const covered: DigestJob[] = [];
+        const uncovered: DigestJob[] = [];
+        const inProgress: DigestJob[] = [];
+        let sentThisBatch = false;
+        const reminder = group.unscheduled ? { dateKey: parts.dateKey, unscheduled: true as const } : group.reminder;
+        for (const job of due) {
+          if (sentThisBatch) {
             covered.push(job);
-            if (outcome.executed > 0) sentThisBatch = true;
-          } else if (outcome.inProgressExisting === 0) uncovered.push(job);
-          else inProgress.push(job);
-        } catch (error) {
-          console.error('[sales-jobs] workflow dispatch failed', distributor.id, job.id, error);
-          failed += 1;
+            continue;
+          }
+          try {
+            const outcome = await dispatchSalesJobCreatedAutomations(distributor.id, [job.id], reminderScope(job), reminder);
+            const finished = outcome.executed + outcome.completedExisting > 0;
+            if (finished && outcome.inProgressExisting === 0) {
+              covered.push(job);
+              if (outcome.executed > 0) sentThisBatch = true;
+            } else if (outcome.inProgressExisting === 0) uncovered.push(job);
+            else inProgress.push(job);
+          } catch (error) {
+            console.error('[sales-jobs] workflow dispatch failed', distributor.id, job.id, error);
+            failed += 1;
+          }
         }
+        if (covered.length > 0) {
+          await markDigestHandled(covered);
+          dispatched += 1;
+        }
+        if (uncovered.length === 0) continue;
+        const result = await sendAgentDigest({
+          distributorId: distributor.id,
+          bucket: { agent: bucket.agent, jobs: new Map(uncovered.map((job) => [job.id, job])) },
+          productName,
+          excludeJobIds: new Set([...covered, ...inProgress].map((job) => job.id)),
+        });
+        if (result === 'sent') {
+          await markDigestHandled(uncovered);
+          dispatched += 1;
+        } else failed += 1;
       }
-      if (covered.length > 0) {
-        await markDigestHandled(covered);
-        dispatched += 1;
-      }
-      if (uncovered.length === 0) continue;
-      const result = await sendAgentDigest({
-        distributorId: distributor.id,
-        bucket: { agent: bucket.agent, jobs: new Map(uncovered.map((job) => [job.id, job])) },
-        productName,
-        rangeStart: range.start,
-        excludeJobIds: new Set([...covered, ...inProgress].map((job) => job.id)),
-      });
-      if (result === 'sent') {
-        await markDigestHandled(uncovered);
-        dispatched += 1;
-      } else failed += 1;
     }
   }
 

@@ -78,6 +78,10 @@ export type SalesJobCreatedEvent = {
   userId: number;
   jobId: string;
   jobType: string;
+  reminderDateKey?: string;
+  reminderHour?: number;
+  reminderMinute?: number;
+  unscheduledReminder?: boolean;
 };
 
 type ScheduleContext = { kind: 'schedule'; sendAt: string };
@@ -729,6 +733,10 @@ async function runWorkflowActions(
             jobId: ctx.event.jobId,
             messageTemplate: String(action.config.messageTemplate ?? ''),
             csReplyLanguage: typeof replyLanguage === 'string' && replyLanguage.trim() ? replyLanguage : undefined,
+            reminderDateKey: ctx.event.reminderDateKey,
+            reminderHour: ctx.event.reminderHour,
+            reminderMinute: ctx.event.reminderMinute,
+            unscheduledReminder: ctx.event.unscheduledReminder,
           }),
         );
       } else if (action.type === 'cart_winback') {
@@ -947,6 +955,7 @@ export async function dispatchSalesJobCreatedAutomations(
   userId: number,
   jobIds: string[],
   runScope?: string,
+  reminder?: { dateKey: string; hour?: number; minute?: number; unscheduled?: boolean },
 ): Promise<{ executed: number; completedExisting: number; inProgressExisting: number }> {
   const ids = Array.from(new Set(jobIds.map((id) => id.trim()).filter(Boolean)));
   if (!userId || ids.length === 0) return { executed: 0, completedExisting: 0, inProgressExisting: 0 };
@@ -999,7 +1008,16 @@ export async function dispatchSalesJobCreatedAutomations(
         }
         const result = await runWorkflowActions(workflow, actions, {
           kind: 'sales_job_created',
-          event: { userId, jobId: job.id, jobType: job.jobType },
+          event: {
+            userId,
+            jobId: job.id,
+            jobType: job.jobType,
+            ...(reminder?.dateKey ? { reminderDateKey: reminder.dateKey } : {}),
+            ...(reminder?.unscheduled ? { unscheduledReminder: true } : {}),
+            ...(reminder && !reminder.unscheduled && reminder.hour != null && reminder.minute != null
+              ? { reminderHour: reminder.hour, reminderMinute: reminder.minute }
+              : {}),
+          },
         });
         await prisma.automationRun.update({
           where: { id: runId },

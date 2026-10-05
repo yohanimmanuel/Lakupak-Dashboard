@@ -3,12 +3,16 @@ import { salesRepReplyLocale, upcomingJobsMessage } from '@/lib/salesJobs/repCop
 import { DEFAULT_JOB_TIMEZONE, zonedDayRange, zonedParts } from '@/lib/salesJobs/time';
 import { dispatchJobToWhatsApp } from '@/lib/salesJobs/whatsapp';
 
-/** Sends the salesman's upcoming jobs. Report buttons stay off until they say a job is finished. */
+/** Sends the jobs that share this reminder date and time. Report buttons stay off until they say a job is finished. */
 export async function executeAssignSalesJob(args: {
   userId: number;
   jobId: string;
   messageTemplate?: string;
   csReplyLanguage?: string;
+  reminderDateKey?: string;
+  reminderHour?: number;
+  reminderMinute?: number;
+  unscheduledReminder?: boolean;
 }): Promise<string> {
   const job = await prisma.salesJob.findFirst({
     where: { id: args.jobId, distributorId: args.userId },
@@ -48,14 +52,45 @@ export async function executeAssignSalesJob(args: {
   const locale = configured === 'id' || configured === 'en' ? configured : await salesRepReplyLocale(args.userId);
   const settings = await prisma.salesJobSettings.findUnique({ where: { distributorId: args.userId } });
   const timeZone = settings?.timezone || DEFAULT_JOB_TIMEZONE;
-  const today = zonedDayRange(zonedParts(new Date(), timeZone).dateKey, timeZone);
+  const todayKey = args.reminderDateKey || zonedParts(new Date(), timeZone).dateKey;
+  const day = zonedDayRange(todayKey, timeZone);
+  const open = ['pending', 'approved', 'suggested', 'dispatched', 'in_progress'];
+  const slotHour = args.reminderHour;
+  const slotMinute = args.reminderMinute;
+  const hasSlot = !args.unscheduledReminder && slotHour != null && slotMinute != null;
   const upcoming = await prisma.salesJob.findMany({
-    where: {
-      distributorId: args.userId,
-      assignedTo: job.assignedTo,
-      status: { in: ['pending', 'approved', 'suggested', 'dispatched', 'in_progress'] },
-      OR: [{ id: job.id }, { scheduledDate: { gte: today.start } }, { schedules: { some: { scheduledDate: { gte: today.start } } } }],
-    },
+    where: hasSlot
+      ? {
+          distributorId: args.userId,
+          assignedTo: job.assignedTo,
+          status: { in: open },
+          OR: [
+            { id: job.id },
+            {
+              schedules: {
+                some: {
+                  scheduledDate: { gte: day.start, lt: day.end },
+                  reminderHour: slotHour,
+                  reminderMinute: slotMinute,
+                },
+              },
+            },
+          ],
+        }
+      : args.unscheduledReminder
+        ? {
+            distributorId: args.userId,
+            assignedTo: job.assignedTo,
+            OR: [
+              { id: job.id },
+              {
+                status: { in: ['pending', 'approved', 'suggested'] },
+                scheduledDate: { gte: day.start, lt: day.end },
+                schedules: { none: {} },
+              },
+            ],
+          }
+        : { id: job.id, distributorId: args.userId },
     include: { client: { select: { storeName: true, owner: true } } },
     orderBy: { scheduledDate: 'asc' },
   });
