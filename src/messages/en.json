@@ -214,38 +214,42 @@
     },
     "sales": {
       "menuLabel": "Sales",
-      "title": "A sales team next to your catalog",
-      "subtitle": "Manage agents, roles, and sales jobs beside the catalog retailers already buy from.",
+      "title": "Field work from manager to completion",
+      "subtitle": "Add a sales manager, create jobs, assign each one to a sales rep, and record completion in Dashboard.",
       "placeholder": "Sales module preview. Replace image",
       "overview": {
-        "summary": "Sales helps distributors organize the people who follow up with retailers. Keep agents, teams, roles, and jobs in one hub next to the catalog.",
+        "summary": "Sales is how a distributor runs field work from Dashboard. Add a manager, create the jobs, assign each job to a sales rep, and record completion when the work is done.",
         "highlights": {
           "1": {
-            "title": "Sales team in one place",
-            "desc": "Manage agents, roles, territories, and favorite products from the Sales hub."
+            "title": "A manager for the team",
+            "desc": "Add the sales manager who creates the work and follows what each rep still has open."
           },
           "2": {
-            "title": "Jobs for follow-up",
-            "desc": "Assign visits, follow-ups, and targets without a separate outreach tool."
+            "title": "Jobs assigned to each sales rep",
+            "desc": "Give each rep their own jobs, from taking an order to checking stock, a competitor, or a new outlet."
           },
           "3": {
-            "title": "Tied to the catalog",
-            "desc": "The team works from the same products and offers retailers already see."
+            "title": "Completion stays on the job",
+            "desc": "Mark a job complete with the details that job type needs, and correct them later if the numbers were wrong."
           }
         }
       },
       "points": {
         "1": {
-          "title": "Agents and roles",
-          "desc": "Add sales managers, reps, and support, then group them into teams."
+          "title": "Add a sales manager",
+          "desc": "Add the manager who runs the field team. They create the jobs and keep track of what each sales rep still has open."
         },
         "2": {
-          "title": "Jobs your team can run",
-          "desc": "Track visits, follow-ups, and targets from the Sales jobs page."
+          "title": "Create the jobs",
+          "desc": "Add a job for the visit: take an order, promote products, check warehouse stock, collect a payment, pick up a return, check a competitor, activate a new product, or open a new outlet."
         },
         "3": {
-          "title": "Follow-up stays with the catalog",
-          "desc": "Agents keep favorite products and targets next to the assortment you sell."
+          "title": "Assign each job to a sales rep",
+          "desc": "Put every job on the rep who will do it. The same products can cover several clients on one job. A stock check stays with the rep and the warehouse, with no client attached."
+        },
+        "4": {
+          "title": "Record completion",
+          "desc": "When the rep finishes, mark the job complete and fill in what that job type asks for. A finished job can be corrected later. A prospect stays open until a marketplace order matches it."
         }
       }
     },
@@ -419,19 +423,23 @@
       },
       "sales": {
         "1": {
-          "title": "Sales team",
-          "desc": "Keep agents and roles where your retailers already buy."
+          "title": "Add a sales manager",
+          "desc": "Add the manager who creates the jobs and follows the team."
         },
         "2": {
-          "title": "A rate per retailer",
-          "desc": "Give each shop its own offer rate without changing the catalog price everyone else sees."
+          "title": "Create the jobs",
+          "desc": "Add the visit: an order, a promotion, stock, a payment, a return, a competitor, a new product, or a new outlet."
         },
         "3": {
-          "title": "Reorder momentum",
-          "desc": "Keep your network engaged without leaving Lakupak."
+          "title": "Assign each sales rep",
+          "desc": "Put every job on the rep who will do it."
         },
-        "title": "Sales that knows the next retailer",
-        "subtitle": "Organize your sales team and each retailer's offer rate so follow-up stays with the shop.",
+        "4": {
+          "title": "Record completion",
+          "desc": "Mark the job complete and keep the details that job asked for."
+        },
+        "title": "Field work from manager to completion",
+        "subtitle": "Add a sales manager, create jobs, assign each one to a sales rep, and record completion in Dashboard.",
         "placeholder": "Sales preview. Replace image"
       },
       "analytics": {

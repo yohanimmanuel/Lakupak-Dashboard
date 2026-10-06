@@ -143,6 +143,28 @@ const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaCo
       image: { src: '/Dashboardoffers4.png', width: 1515, height: 521 },
     },
   },
+  sales: {
+    1: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardsales.png', width: 1538, height: 687 },
+    },
+    2: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardsales1.png', width: 1533, height: 727 },
+    },
+    3: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardsales3.png', width: 1511, height: 452 },
+    },
+    4: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardsales2.png', width: 812, height: 512 },
+    },
+  },
   analytics: {
     1: {
       type: 'carousel',

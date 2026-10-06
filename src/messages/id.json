@@ -214,38 +214,42 @@
     },
     "sales": {
       "menuLabel": "Penjualan",
-      "title": "Tim penjualan di samping katalog Anda",
-      "subtitle": "Kelola agen, peran, dan pekerjaan penjualan di samping katalog yang sudah dibeli retailer.",
+      "title": "Pekerjaan lapangan dari manager sampai selesai",
+      "subtitle": "Tambah sales manager, buat pekerjaan, tetapkan masing-masing ke sales, dan catat penyelesaian di Dashboard.",
       "placeholder": "Pratinjau modul penjualan. Ganti gambar",
       "overview": {
-        "summary": "Penjualan membantu distributor mengatur orang yang menindaklanjuti retailer. Simpan agen, tim, peran, dan pekerjaan dalam satu hub di samping katalog.",
+        "summary": "Penjualan adalah cara distributor menjalankan pekerjaan lapangan dari Dashboard. Tambah manager, buat pekerjaan, tetapkan tiap pekerjaan ke sales, lalu catat penyelesaian saat pekerjaan selesai.",
         "highlights": {
           "1": {
-            "title": "Tim penjualan di satu tempat",
-            "desc": "Kelola agen, peran, wilayah, dan produk favorit dari hub Penjualan."
+            "title": "Manager untuk tim",
+            "desc": "Tambahkan sales manager yang membuat pekerjaan dan memantau apa yang masih terbuka pada tiap sales."
           },
           "2": {
-            "title": "Pekerjaan untuk tindak lanjut",
-            "desc": "Tetapkan kunjungan, tindak lanjut, dan target tanpa alat outreach terpisah."
+            "title": "Pekerjaan untuk tiap sales",
+            "desc": "Berikan tiap sales pekerjaannya sendiri, dari ambil pesanan sampai cek stok, pesaing, atau outlet baru."
           },
           "3": {
-            "title": "Terikat ke katalog",
-            "desc": "Tim bekerja dari produk dan penawaran yang sama yang dilihat retailer."
+            "title": "Penyelesaian tetap di pekerjaan",
+            "desc": "Tandai pekerjaan selesai dengan detail yang diminta jenis pekerjaan itu, lalu koreksi nanti jika angkanya salah."
           }
         }
       },
       "points": {
         "1": {
-          "title": "Agen dan peran",
-          "desc": "Tambahkan sales manager, rep, dan support, lalu kelompokkan ke dalam tim."
+          "title": "Tambah sales manager",
+          "desc": "Tambahkan manager yang mengatur tim lapangan. Mereka membuat pekerjaan dan memantau apa yang masih terbuka pada tiap sales."
         },
         "2": {
-          "title": "Pekerjaan yang dijalankan tim",
-          "desc": "Lacak kunjungan, tindak lanjut, dan target dari halaman pekerjaan penjualan."
+          "title": "Buat pekerjaan",
+          "desc": "Tambahkan pekerjaan untuk kunjungan: ambil pesanan, promosikan produk, cek stok gudang, tagih pembayaran, jemput retur, cek pesaing, aktivasi produk baru, atau buka outlet baru."
         },
         "3": {
-          "title": "Tindak lanjut tetap di katalog",
-          "desc": "Agen menyimpan produk favorit dan target di samping assortment yang Anda jual."
+          "title": "Tetapkan tiap pekerjaan ke sales",
+          "desc": "Pasang tiap pekerjaan pada sales yang akan menjalankannya. Produk yang sama bisa mencakup beberapa klien dalam satu pekerjaan. Cek stok tetap bersama sales dan gudang, tanpa klien."
+        },
+        "4": {
+          "title": "Catat penyelesaian",
+          "desc": "Saat sales selesai, tandai pekerjaan selesai dan isi data yang diminta jenis pekerjaan itu. Pekerjaan yang sudah selesai bisa dikoreksi nanti. Prospek tetap terbuka sampai ada pesanan marketplace yang cocok."
         }
       }
     },
@@ -419,19 +423,23 @@
       },
       "sales": {
         "1": {
-          "title": "Tim penjualan",
-          "desc": "Simpan agen dan peran di tempat retailer sudah berbelanja."
+          "title": "Tambah sales manager",
+          "desc": "Tambahkan manager yang membuat pekerjaan dan memantau tim."
         },
         "2": {
-          "title": "Tarif per retailer",
-          "desc": "Beri setiap toko tarif penawarannya sendiri tanpa mengubah harga katalog yang dilihat toko lain."
+          "title": "Buat pekerjaan",
+          "desc": "Tambahkan kunjungan: pesanan, promosi, stok, pembayaran, retur, pesaing, produk baru, atau outlet baru."
         },
         "3": {
-          "title": "Momentum reorder",
-          "desc": "Jaga jaringan tetap aktif tanpa meninggalkan Lakupak."
+          "title": "Tetapkan tiap sales",
+          "desc": "Pasang tiap pekerjaan pada sales yang akan menjalankannya."
         },
-        "title": "Penjualan yang tahu retailer berikutnya",
-        "subtitle": "Atur tim penjualan dan tarif penawaran setiap retailer agar tindak lanjut tetap bersama toko itu.",
+        "4": {
+          "title": "Catat penyelesaian",
+          "desc": "Tandai pekerjaan selesai dan simpan detail yang diminta pekerjaan itu."
+        },
+        "title": "Pekerjaan lapangan dari manager sampai selesai",
+        "subtitle": "Tambah sales manager, buat pekerjaan, tetapkan masing-masing ke sales, dan catat penyelesaian di Dashboard.",
         "placeholder": "Pratinjau penjualan. Ganti gambar"
       },
       "analytics": {

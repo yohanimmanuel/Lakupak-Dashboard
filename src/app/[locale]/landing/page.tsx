@@ -830,7 +830,7 @@ function FeatureBlock({
         ) : null}
 
         <Reveal>
-          <div className="grid md:grid-cols-3 gap-6 md:gap-8">
+          <div className={`grid gap-6 md:gap-8 ${points.length > 3 ? 'sm:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-3'}`}>
             {points.map((point) => (
               <div key={point.titleKey}>
                 <h3 className="text-base sm:text-lg font-bold text-gray-900 leading-snug">
@@ -1240,10 +1240,10 @@ export default function LandingPage() {
             <div className="flex h-full w-full items-center justify-center px-2 sm:px-6">
               <div className="w-full max-w-5xl overflow-hidden rounded-xl border border-gray-200/90 bg-white p-1.5 shadow-[0_16px_40px_-16px_rgba(15,23,42,0.28)]">
                 <Image
-                  src="/Dashboardoffers3.png"
+                  src="/Dashboardsales3.png"
                   alt={t('features.sales.title')}
-                  width={1532}
-                  height={698}
+                  width={1511}
+                  height={452}
                   quality={90}
                   className="block h-auto w-full rounded-lg"
                   sizes="(min-width: 1024px) 1024px, 100vw"
@@ -1255,6 +1255,7 @@ export default function LandingPage() {
             { titleKey: 'features.sales.1.title', descKey: 'features.sales.1.desc' },
             { titleKey: 'features.sales.2.title', descKey: 'features.sales.2.desc' },
             { titleKey: 'features.sales.3.title', descKey: 'features.sales.3.desc' },
+            { titleKey: 'features.sales.4.title', descKey: 'features.sales.4.desc' },
           ]}
         />
 
