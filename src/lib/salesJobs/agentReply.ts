@@ -906,6 +906,42 @@ function isCourtesy(text: string): boolean {
   return /\b(terima kasih|makasih|thanks|thank you|thx)\b/i.test(text);
 }
 
+function isGreeting(text: string): boolean {
+  return /^(?:halo|hai|hello|hi|hey|pagi|siang|sore|malam|selamat\s+(?:pagi|siang|sore|malam))[.!\s]*$/i.test(text.trim());
+}
+
+function asksForMoreWork(text: string): boolean {
+  if (saysJobIsDone(text)) return false;
+  if (!/\b(?:pekerjaan|kerjaan|tugas|jobs?|work)\b/i.test(text)) return false;
+  const asks =
+    isJobQuestion(text) || /\b(?:ada|is there|are there|what(?:'s| is) left|any more|anymore)\b/i.test(text);
+  return asks && /\b(?:lagi|tambahan|lain|sisa|masih|left|more|else|another|any|additional|extra)\b/i.test(text);
+}
+
+function remainingWorkReply(locale: SalesReplyLocale, jobs: ReportedJob[]): string {
+  if (jobs.length === 0) {
+    return salesCopy(
+      locale,
+      "That's everything for today. Send a message if you want to ask something.",
+      'Untuk hari ini sudah selesai. Balas saja kalau ada yang mau ditanya.',
+    );
+  }
+  const bits = jobs.map((job) => {
+    const shop = shopTitle(locale, job);
+    return locale === 'id' ? `${jobTypeLabel(locale, job.jobType)} di ${shop}` : `${jobTypeLabel(locale, job.jobType)} at ${shop}`;
+  });
+  const list = joinShopNames(locale, bits);
+  return salesCopy(locale, `Yes. Still open: ${list}.`, `Masih ada. ${list}.`);
+}
+
+function keepChatOpenReply(locale: SalesReplyLocale): string {
+  return salesCopy(
+    locale,
+    "I'm here. Ask me about the work, or tell me if something needs a correction.",
+    'Saya di sini. Tanya saja soal pekerjaannya, atau kabari kalau ada yang perlu dikoreksi.',
+  );
+}
+
 function wantsProductAdvice(text: string): boolean {
   return /\b(pitch|offer|tawarkan|nawarin|cara jual|cara nawar|rekomendas|recommend|menarik|promosi|bagaimana jual|how to sell|how to pitch|empower)\b/i.test(
     text,
@@ -1209,9 +1245,11 @@ async function answerRep(
     }
   }
   if (!body.trim()) {
-    body = ordersFollowUp(locale, text, jobs, orders) ?? coachingReply(locale, text, jobs) ?? '';
+    body = ordersFollowUp(locale, text, jobs, orders) ?? coachingReply(locale, text, jobs) ?? keepChatOpenReply(locale);
   }
-  if (!body.trim() || body.startsWith('Ini pekerjaan Anda') || body.startsWith('Here are your jobs')) return;
+  if (!body.trim() || body.startsWith('Ini pekerjaan Anda') || body.startsWith('Here are your jobs')) {
+    body = keepChatOpenReply(locale);
+  }
   const sent = await sendRepReply(phone, body);
   if (sent) await noteSalesWorkflowOutbound(distributorId, plainWhatsApp(body));
 }
@@ -2013,8 +2051,25 @@ export async function handleFreeformAgentReply(args: {
     const distributorId = matched.find((agent) => agent.userId != null)?.userId;
     if (distributorId == null) return { handled: false };
     const locale = await salesRepReplyLocale(distributorId);
+    if (asksForMoreWork(text)) {
+      const reply = remainingWorkReply(locale, []);
+      if (await askAgent(fromPhone, reply)) await noteSalesWorkflowOutbound(distributorId, reply);
+      return { handled: true, asked: true };
+    }
+    if (isCourtesy(text)) {
+      const reply = salesCopy(locale, "You're welcome. Anything else you want to check?", 'Sama-sama. Ada lagi yang mau dicek?');
+      if (await askAgent(fromPhone, reply)) await noteSalesWorkflowOutbound(distributorId, reply);
+      return { handled: true, asked: true };
+    }
+    if (isGreeting(text)) {
+      const reply = salesCopy(locale, 'Hi. What do you want to check?', 'Hai. Ada yang mau ditanya?');
+      if (await askAgent(fromPhone, reply)) await noteSalesWorkflowOutbound(distributorId, reply);
+      return { handled: true, asked: true };
+    }
     const revised = await reviseCompletedInput(fromPhone, locale, distributorId, matched.map((agent) => agent.id), text);
-    return revised ?? { handled: false };
+    if (revised) return revised;
+    await answerRep(fromPhone, locale, distributorId, [], text);
+    return { handled: true, asked: true };
   }
 
   const distributorId = matched.find((agent) => agent.userId != null)?.userId ?? jobs[0].distributorId;
@@ -2059,6 +2114,12 @@ export async function handleFreeformAgentReply(args: {
     return { handled: true, asked: true };
   }
 
+  if (isGreeting(text)) {
+    const reply = salesCopy(locale, 'Hi. What do you want to check?', 'Hai. Ada yang mau ditanya?');
+    if (await askAgent(fromPhone, reply)) await noteSalesWorkflowOutbound(distributorId, reply);
+    return { handled: true, asked: true };
+  }
+
   if (isCourtesy(text)) {
     const passingItOn = /\b(forward|teruskan|oper)\b/i.test(text);
     const reply = passingItOn
@@ -2070,6 +2131,12 @@ export async function handleFreeformAgentReply(args: {
       : salesCopy(locale, "You're welcome. Anything else you want to check?", 'Sama-sama. Ada lagi yang mau dicek?');
     if (await askAgent(fromPhone, reply)) await noteSalesWorkflowOutbound(distributorId, reply);
     return { handled: true, asked: true };
+  }
+
+  if (asksForMoreWork(text)) {
+    const reply = remainingWorkReply(locale, ordered);
+    if (await askAgent(fromPhone, reply)) await noteSalesWorkflowOutbound(distributorId, reply);
+    return { handled: true, asked: true, jobId: job?.id };
   }
 
   if (isJobQuestion(text)) {
