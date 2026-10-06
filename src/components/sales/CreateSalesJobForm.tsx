@@ -380,8 +380,8 @@ function ProductPicker({
       {filtered.length === 0 ? (
         <p className="text-xs text-gray-500 py-6 text-center border border-dashed border-gray-300 rounded-lg">{t('form.noProducts')}</p>
       ) : (
-        <div className="max-h-[420px] overflow-y-auto pr-1">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div className="max-h-[280px] overflow-y-auto pr-1">
+          <div className="grid grid-cols-2 gap-3">
             {filtered.map((product) => {
               const selected = selectedIds.includes(product.productId);
               const image = product.images?.[0] || '/placeholder-product.png';
@@ -764,22 +764,34 @@ export default function CreateSalesJobForm({
         <p className="text-xs text-gray-500 mt-2">{t('form.repHint')}</p>
       </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
       {jobs.map((job, index) => {
         const savedJob = Boolean(editing?.replaceIds.includes(job.key));
         const isProspect = job.jobType === 'prospect_new_outlet';
         const canComplete = savedJob && !isProspect && (OPEN_SALES_JOB_STATUSES as readonly string[]).includes(job.status);
         return (
-        <section key={job.key} className="bg-white rounded-lg border border-[#e6e6e6]">
-          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[#e6e6e6]">
-            <div className="flex items-center gap-2 min-w-0">
+        <section key={job.key} className="bg-white rounded-lg border border-[#e6e6e6] min-w-0 h-[36rem] flex flex-col">
+          <div className="flex flex-col gap-2 px-4 py-3 border-b border-[#e6e6e6]">
+            <div className="flex items-center justify-between gap-2 min-h-8">
+              <div className="flex items-center gap-2 min-w-0">
               <h2 className="text-sm font-semibold text-gray-900">{t('form.jobNumber', { number: index + 1 })}</h2>
               {job.status === 'completed' && (
                 <span className="inline-flex shrink-0 px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
                   {t('status.completed')}
                 </span>
               )}
+              </div>
+              {jobs.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setJobs((prev) => prev.filter((row) => row.key !== job.key))}
+                  className="shrink-0 text-xs font-medium text-red-600 hover:text-red-700"
+                >
+                  {t('form.removeJob')}
+                </button>
+              )}
             </div>
-            <div className="flex items-center gap-2 flex-wrap justify-end">
+            <div className="flex items-center gap-1.5 flex-wrap min-h-8">
               {canComplete && (
                 <button
                   type="button"
@@ -789,9 +801,9 @@ export default function CreateSalesJobForm({
                     setNotice('');
                     setCompletingJobs([completionRow(job)]);
                   }}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm disabled:opacity-50"
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-xs disabled:opacity-50"
                 >
-                  <CheckCircle2 className="w-4 h-4" />
+                  <CheckCircle2 className="w-3.5 h-3.5" />
                   {t('complete')}
                 </button>
               )}
@@ -803,9 +815,9 @@ export default function CreateSalesJobForm({
                     setNotice('');
                     setCompletingJobs([completionRow(job)]);
                   }}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm"
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-xs"
                 >
-                  <ClipboardList className="w-4 h-4" />
+                  <ClipboardList className="w-3.5 h-3.5" />
                   {t('viewCompletion')}
                 </button>
               )}
@@ -829,24 +841,15 @@ export default function CreateSalesJobForm({
                       .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Request failed'))
                       .finally(() => setStatusJobId(null));
                   }}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm disabled:opacity-50"
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-xs disabled:opacity-50"
                 >
-                  <Clock className="w-4 h-4" />
+                  <Clock className="w-3.5 h-3.5" />
                   {t('pending')}
-                </button>
-              )}
-              {jobs.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => setJobs((prev) => prev.filter((row) => row.key !== job.key))}
-                  className="text-xs font-medium text-red-600 hover:text-red-700"
-                >
-                  {t('form.removeJob')}
                 </button>
               )}
             </div>
           </div>
-          <div className="p-4 space-y-4">
+          <div className="p-4 space-y-4 flex-1 overflow-y-auto">
             {jobErrors[job.key] && <p className="text-xs text-red-600">{jobErrors[job.key]}</p>}
             <div>
               <label className={labelClass}>
@@ -956,14 +959,14 @@ export default function CreateSalesJobForm({
 
             <div>
               <div className="flex items-center justify-between gap-3 mb-2">
-                <div>
+                <div className="min-w-0">
                   <h3 className="text-xs font-medium text-gray-700">{t('form.schedulesTitle')}</h3>
                   <p className="text-xs text-gray-500 mt-1">{t('form.schedulesHint')}</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => updateJob(job.key, { schedules: [...job.schedules, blankSchedule()] })}
-                  className="flex items-center gap-1 px-3 py-2 rounded-lg bg-white border border-[#e6e6e6] text-xs font-medium text-black hover:bg-gray-100"
+                  className="shrink-0 whitespace-nowrap inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-white border border-[#e6e6e6] text-xs font-medium text-black hover:bg-gray-100"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   {t('form.addDate')}
@@ -1027,7 +1030,6 @@ export default function CreateSalesJobForm({
         </section>
         );
       })}
-
       <button
         type="button"
         onClick={() =>
@@ -1036,11 +1038,12 @@ export default function CreateSalesJobForm({
             return [...prev, { ...blankJob(), clientIds: [...clientIds] }];
           })
         }
-        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-sm font-medium text-black hover:bg-gray-100"
+        className="h-[36rem] flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dotted border-[#c4c4c4] bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition"
       >
-        <Plus className="w-4 h-4" />
+        <Plus className="w-5 h-5" />
         {t('form.addJob')}
       </button>
+      </div>
       {completingJobs.length > 0 && (
         <CompleteSalesJobModal
           jobs={completingJobs}
