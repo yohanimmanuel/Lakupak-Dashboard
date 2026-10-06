@@ -85,6 +85,7 @@ export async function executeAssignSalesJob(args: {
               { id: job.id },
               {
                 status: { in: ['pending', 'approved', 'suggested'] },
+                dispatchedAt: null,
                 scheduledDate: { gte: day.start, lt: day.end },
                 schedules: { none: {} },
               },

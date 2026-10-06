@@ -475,6 +475,17 @@
       "new_product_activation": "Aktivasi produk baru",
       "scheme_reconciliation": "Rekonsiliasi skema"
     },
+    "typeHints": {
+      "take_order": "Ambil pesanan pada kunjungan ini. Pilih order untuk klien di rute itu.",
+      "collect_payment": "Tagih pembayaran untuk order yang belum lunas.",
+      "promote_product": "Promosikan produk yang dipilih ke klien yang dipilih. Produk yang sama tetap di satu pekerjaan.",
+      "stock_check": "Hitung produk yang dipilih di gudang. Pekerjaan ini tidak memakai klien.",
+      "prospect_new_outlet": "Tambah outlet baru. Selesai saat pembeli itu Active dan sudah ada pesanan marketplace.",
+      "returns_pickup": "Jemput retur untuk order yang dipilih.",
+      "competitor_intel": "Catat nama pesaing, produk, harga, dan promo. Pekerjaan ini tidak memakai klien.",
+      "new_product_activation": "Bagikan produk baru dan catat berapa yang diterima tiap klien.",
+      "scheme_reconciliation": "Cek skema dagang terhadap penawaran yang diterima klien."
+    },
     "status": {
       "pending": "Menunggu",
       "suggested": "Disarankan",

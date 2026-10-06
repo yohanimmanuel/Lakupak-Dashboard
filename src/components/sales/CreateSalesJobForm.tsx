@@ -136,7 +136,9 @@ function newKey() {
 }
 
 function todayKey() {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  }).format(new Date());
 }
 
 function blankSchedule(): ScheduleDraft {
@@ -482,8 +484,12 @@ function productSignature(job: SalesJobRow): string {
   return [...(job.suggestedProducts ?? [])].slice().sort().join(',');
 }
 
+function jobSkipsClient(jobType: string) {
+  return jobType === 'stock_check' || jobType === 'competitor_intel';
+}
+
 function clientIdsOf(job: SalesJobRow): string[] {
-  if (job.jobType === 'stock_check') return [];
+  if (jobSkipsClient(job.jobType)) return [];
   const ids = [...(job.clientIds ?? []), job.clientId || ''].map((id) => id.trim()).filter(Boolean);
   return Array.from(new Set(ids));
 }
@@ -511,7 +517,7 @@ function combineSharedProductJobs(rows: SalesJobRow[]): SalesJobRow[] {
       continue;
     }
     const existing = combined[existingIndex];
-    const clientIds = job.jobType === 'stock_check' ? [] : Array.from(new Set([...clientIdsOf(existing), ...clientIdsOf(job)]));
+    const clientIds = jobSkipsClient(job.jobType) ? [] : Array.from(new Set([...clientIdsOf(existing), ...clientIdsOf(job)]));
     combined[existingIndex] = { ...existing, clientIds, clientId: clientIds[0] || '' };
   }
   return combined;
@@ -521,7 +527,7 @@ function draftsFromRows(rows: SalesJobRow[]): JobDraft[] {
   return combineSharedProductJobs(combineSplitOrderJobs(rows)).map((job) => ({
     key: job.id,
     jobType: job.jobType,
-    clientIds: job.jobType === 'stock_check' ? [] : clientIdsOf(job),
+    clientIds: jobSkipsClient(job.jobType) ? [] : clientIdsOf(job),
     orderIds: job.orderIds?.length ? job.orderIds : job.orderId ? [job.orderId] : [],
     productIds: job.suggestedProducts ?? [],
     customerNumber: job.jobType === 'prospect_new_outlet' ? outletNumber(job) : '',
@@ -606,9 +612,9 @@ export default function CreateSalesJobForm({
       } else if (job.jobType === 'promote_product' || job.jobType === 'new_product_activation') {
         if (job.clientIds.length === 0) next[job.key] = t('form.needClient');
         else if (job.productIds.length === 0) next[job.key] = t('form.needProduct');
-      } else if (job.jobType === 'competitor_intel' || job.jobType === 'scheme_reconciliation') {
+      } else if (job.jobType === 'scheme_reconciliation') {
         if (job.clientIds.length === 0) next[job.key] = t('form.needClient');
-      } else if (!job.customerNumber.trim() || !job.customerName.trim() || !job.storeName.trim() || !job.phone.trim() || !job.address.trim()) {
+      } else if (job.jobType !== 'competitor_intel' && (!job.customerNumber.trim() || !job.customerName.trim() || !job.storeName.trim() || !job.phone.trim() || !job.address.trim())) {
         next[job.key] = t('form.needOutlet');
       }
     }
@@ -629,8 +635,8 @@ export default function CreateSalesJobForm({
             ...(editing?.replaceIds.includes(job.key) ? { id: job.key } : {}),
             jobType: job.jobType,
             priorityReason: job.reason.trim() || null,
-            clientId: job.jobType === 'stock_check' ? null : job.clientIds[0] || null,
-            clientIds: job.jobType === 'stock_check' ? [] : job.clientIds,
+            clientId: jobSkipsClient(job.jobType) ? null : job.clientIds[0] || null,
+            clientIds: jobSkipsClient(job.jobType) ? [] : job.clientIds,
             orderIds: job.orderIds,
             productIds: job.productIds,
             ...(job.jobType === 'prospect_new_outlet'
@@ -774,7 +780,9 @@ export default function CreateSalesJobForm({
           <div className="flex flex-col gap-2 px-4 py-3 border-b border-[#e6e6e6]">
             <div className="flex items-center justify-between gap-2 min-h-8">
               <div className="flex items-center gap-2 min-w-0">
-              <h2 className="text-sm font-semibold text-gray-900">{t('form.jobNumber', { number: index + 1 })}</h2>
+              <h2 className="text-sm font-semibold text-gray-900 truncate">
+                {t('form.jobNumber', { number: index + 1 })} ({t(`types.${job.jobType}` as 'types.take_order')})
+              </h2>
               {job.status === 'completed' && (
                 <span className="inline-flex shrink-0 px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
                   {t('status.completed')}
@@ -868,8 +876,9 @@ export default function CreateSalesJobForm({
                     ? [{ value: 'scheme_reconciliation', label: t('types.scheme_reconciliation') }]
                     : []),
                 ]}
-                onChange={(jobType) => updateJob(job.key, { jobType, ...(jobType === 'stock_check' ? { clientIds: [] } : {}) })}
+                onChange={(jobType) => updateJob(job.key, { jobType, ...(jobSkipsClient(jobType) ? { clientIds: [] } : {}) })}
               />
+              <p className="text-xs text-gray-500 mt-2">{t(`typeHints.${job.jobType}` as 'typeHints.take_order')}</p>
             </div>
 
             {(job.jobType === 'take_order' || job.jobType === 'collect_payment' || job.jobType === 'returns_pickup') && user?.id && (
@@ -883,7 +892,6 @@ export default function CreateSalesJobForm({
 
             {(job.jobType === 'promote_product' ||
               job.jobType === 'new_product_activation' ||
-              job.jobType === 'competitor_intel' ||
               job.jobType === 'scheme_reconciliation') && (
               <div>
                 <label className={labelClass}>

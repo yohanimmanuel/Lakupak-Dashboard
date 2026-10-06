@@ -48,6 +48,17 @@ function slotKey(slot: ReminderSlot): string {
   return `${slot.dateKey}|${slot.hour}|${slot.minute}`;
 }
 
+/** Due only when the visit date and the reminder clock both match now in this timezone. */
+function reminderIsDue(
+  row: { scheduledDate: Date; reminderHour: number; reminderMinute: number },
+  timeZone: string,
+  now: Date,
+): boolean {
+  const nowParts = zonedParts(now, timeZone);
+  const dateKey = zonedParts(row.scheduledDate, timeZone).dateKey;
+  return dateKey === nowParts.dateKey && row.reminderHour === nowParts.hour && row.reminderMinute === nowParts.minute;
+}
+
 /** One WhatsApp list per reminder clock time. A 14:27 job stays out of the 20:24 list. */
 function groupsFor(jobs: DigestJob[], todayKey: string): { key: string; jobs: DigestJob[]; reminder?: { dateKey: string; hour: number; minute: number }; unscheduled: boolean }[] {
   const groups = new Map<string, { key: string; jobs: DigestJob[]; reminder?: { dateKey: string; hour: number; minute: number }; unscheduled: boolean }>();
@@ -250,8 +261,8 @@ async function markDigestHandled(due: DigestJob[]) {
 }
 
 /**
- * Every minute: send unsent WhatsApp reminders scheduled for today at or before the current local time.
- * Each reminder clock time is its own message. A 14:27 job is not listed in the 20:24 message.
+ * Every minute: send a WhatsApp reminder only when its visit date and clock time match now.
+ * A 07:00 reminder is not sent at 17:52. Each clock time is its own message.
  * After the distributor morning time, once per local day: create AI suggestions.
  * After that morning time: send pending jobs that have no explicit reminder.
  * Suggestions are created as pending and can be sent the same morning.
@@ -288,10 +299,8 @@ export async function tickSalesJobs(now = new Date()): Promise<{ suggested: numb
       where: {
         sentAt: null,
         scheduledDate: { gte: range.start, lt: range.end },
-        OR: [
-          { reminderHour: { lt: parts.hour } },
-          { reminderHour: parts.hour, reminderMinute: { lte: parts.minute } },
-        ],
+        reminderHour: parts.hour,
+        reminderMinute: parts.minute,
         job: {
           distributorId: distributor.id,
           status: { in: ['pending', 'approved', 'suggested', 'dispatched', 'in_progress'] },
@@ -325,6 +334,7 @@ export async function tickSalesJobs(now = new Date()): Promise<{ suggested: numb
       return created;
     };
     for (const row of dueSchedules) {
+      if (!reminderIsDue(row, timeZone, now)) continue;
       addDigestJob(
         bucketFor(row.job.agent),
         {
@@ -349,6 +359,7 @@ export async function tickSalesJobs(now = new Date()): Promise<{ suggested: numb
         where: {
           distributorId: distributor.id,
           status: { in: ['pending', 'approved', 'suggested'] },
+          dispatchedAt: null,
           scheduledDate: { gte: range.start, lt: range.end },
           schedules: { none: {} },
         },

@@ -475,6 +475,17 @@
       "new_product_activation": "Activate new product",
       "scheme_reconciliation": "Reconcile scheme"
     },
+    "typeHints": {
+      "take_order": "Take an order on this visit. Choose the orders for the clients on the route.",
+      "collect_payment": "Collect payment for orders that are still unpaid.",
+      "promote_product": "Promote the products you pick at the clients you select. The same products stay on one job.",
+      "stock_check": "Count the products you pick in the warehouse. This job has no client.",
+      "prospect_new_outlet": "Add a new outlet. It finishes when that buyer is Active and has a marketplace order.",
+      "returns_pickup": "Pick up returns for the orders you select.",
+      "competitor_intel": "Record a competitor name, product, price, and promo. This job has no client.",
+      "new_product_activation": "Give out the new products and record how many each client received.",
+      "scheme_reconciliation": "Check a trade scheme against what the client was offered."
+    },
     "status": {
       "pending": "Pending",
       "suggested": "Suggested",

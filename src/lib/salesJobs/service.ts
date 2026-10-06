@@ -353,6 +353,22 @@ const MARK_PENDING_SOURCE_STATUSES = ['pending', 'approved', 'suggested', 'dispa
 export async function markSalesJobsPending(args: { distributorId: number; ids: string[] }) {
   const ids = Array.from(new Set(args.ids.map((id) => id.trim()).filter(Boolean)));
   if (ids.length === 0) return 0;
+  const completed = await prisma.salesJob.findMany({
+    where: { id: { in: ids }, distributorId: args.distributorId, status: 'completed' },
+    select: { id: true },
+  });
+  const completedIds = completed.map((job) => job.id);
+  if (completedIds.length > 0) {
+    const sentAt = new Date();
+    await prisma.salesJobSchedule.updateMany({
+      where: { jobId: { in: completedIds }, sentAt: null },
+      data: { sentAt },
+    });
+    await prisma.salesJob.updateMany({
+      where: { id: { in: completedIds }, distributorId: args.distributorId, status: 'completed', dispatchedAt: null },
+      data: { dispatchedAt: sentAt },
+    });
+  }
   const result = await prisma.salesJob.updateMany({
     where: {
       id: { in: ids },
@@ -566,6 +582,37 @@ function acceptedTimeZone(value: string | null | undefined): string | null {
   }
 }
 
+/** Keep each saved calendar date when the distributor timezone changes. Clock times stay as entered. */
+async function migrateScheduleTimeZone(
+  db: Pick<typeof prisma, 'salesJob' | 'salesJobSchedule'>,
+  distributorId: number,
+  fromZone: string,
+  toZone: string,
+) {
+  if (fromZone === toZone) return;
+  const jobs = await db.salesJob.findMany({
+    where: { distributorId },
+    select: {
+      id: true,
+      scheduledDate: true,
+      schedules: { select: { id: true, scheduledDate: true } },
+    },
+  });
+  for (const job of jobs) {
+    const jobDateKey = zonedParts(job.scheduledDate, fromZone).dateKey;
+    const jobStart = zonedDayRange(jobDateKey, toZone).start;
+    if (jobStart.getTime() !== job.scheduledDate.getTime()) {
+      await db.salesJob.update({ where: { id: job.id }, data: { scheduledDate: jobStart } });
+    }
+    for (const schedule of job.schedules) {
+      const dateKey = zonedParts(schedule.scheduledDate, fromZone).dateKey;
+      const start = zonedDayRange(dateKey, toZone).start;
+      if (start.getTime() === schedule.scheduledDate.getTime()) continue;
+      await db.salesJobSchedule.update({ where: { id: schedule.id }, data: { scheduledDate: start } });
+    }
+  }
+}
+
 export async function createSalesJobs(args: {
   distributorId: number;
   assignedTo: string;
@@ -579,11 +626,20 @@ export async function createSalesJobs(args: {
     select: { id: true },
   });
   if (!agent) throw new Error('Sales rep not found');
-  const settings = await prisma.salesJobSettings.findUnique({ where: { distributorId: args.distributorId } });
-  const timeZone = settings?.timezone || acceptedTimeZone(args.timeZone) || DEFAULT_JOB_TIMEZONE;
   const submittedIds = args.jobs.map((item) => item.id?.trim() || '').filter(Boolean);
   if (new Set(submittedIds).size !== submittedIds.length) throw new Error('A job cannot be updated more than once');
   const created = await prisma.$transaction(async (tx) => {
+    const settings = await tx.salesJobSettings.findUnique({ where: { distributorId: args.distributorId } });
+    const previousZone = settings?.timezone || DEFAULT_JOB_TIMEZONE;
+    const timeZone = acceptedTimeZone(args.timeZone) || previousZone;
+    if (timeZone !== previousZone) {
+      await migrateScheduleTimeZone(tx, args.distributorId, previousZone, timeZone);
+      await tx.salesJobSettings.upsert({
+        where: { distributorId: args.distributorId },
+        update: { timezone: timeZone },
+        create: { distributorId: args.distributorId, timezone: timeZone },
+      });
+    }
     const replaceIds = Array.from(new Set((args.replaceIds ?? []).map((id) => id.trim()).filter(Boolean)));
     const keptIds = new Set(
       args.jobs
@@ -654,10 +710,10 @@ export async function createSalesJobs(args: {
         jobType === 'competitor_intel' ||
         jobType === 'scheme_reconciliation'
       ) {
-        const warehouse = jobType === 'stock_check';
+        const noClient = jobType === 'stock_check' || jobType === 'competitor_intel';
         const sharedClients = jobType === 'promote_product' || jobType === 'new_product_activation';
-        if (!warehouse && requestedClientIds.length === 0) throw new Error('Select a client');
-        if (!warehouse) {
+        if (!noClient && requestedClientIds.length === 0) throw new Error('Select a client');
+        if (!noClient) {
           const clients = await tx.buyer.findMany({
             where: { buyerId: { in: requestedClientIds }, userId: args.distributorId },
             select: { buyerId: true },
@@ -674,10 +730,10 @@ export async function createSalesJobs(args: {
           });
           if (products.length !== productIds.length) throw new Error('One or more products were not found');
         }
-        if (warehouse || sharedClients) {
+        if (noClient || sharedClients) {
           slices.push({
-            clientId: warehouse ? null : requestedClientIds[0] ?? null,
-            clientIds: warehouse ? [] : requestedClientIds,
+            clientId: noClient ? null : requestedClientIds[0] ?? null,
+            clientIds: noClient ? [] : requestedClientIds,
             orderId: null,
             linkedOrderIds: [],
             productIds,
@@ -805,10 +861,10 @@ export async function createSalesJobs(args: {
         rows.push(row);
       }
     }
-    return rows;
+    return { rows, timeZone };
   });
 
-  return attachOrderClients(await attachProductNames(created.map((job) => mapJob(job, timeZone))));
+  return attachOrderClients(await attachProductNames(created.rows.map((job) => mapJob(job, created.timeZone))));
 }
 
 export async function listSalesJobOrders(args: { distributorId: number; purpose: string; search?: string | null }) {
