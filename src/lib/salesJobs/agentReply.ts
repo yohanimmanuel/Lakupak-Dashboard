@@ -365,7 +365,25 @@ function productAliases(product: CatalogProduct, peers: CatalogProduct[]): strin
   return [full, ...tokens].filter((name) => name.trim().length >= 3);
 }
 
-/** The number in the same phrase as each product. "54 pocky" and "pocky ada 54" both count. */
+function quantityAppliesToEveryProduct(text: string): boolean {
+  return /\b(?:setiap|tiap|semua(?:nya)?|each|every|all)\s+(?:produk(?:nya)?|products?)\b/i.test(text)
+    || /\b(?:produk(?:nya)?|products?)\s+(?:setiap|tiap|semua(?:nya)?|each|every|all)\b/i.test(text);
+}
+
+function isQuantityOnly(text: string): boolean {
+  const leftover = text
+    .toLowerCase()
+    .replace(/\b\d{1,6}\b/g, ' ')
+    .replace(
+      /\b(?:pack|packs|pcs|pc|dus|unit|qty|buah|sample|sampel|box|kotak|produk(?:nya)?|product|products|kasih(?:nya)?|dikasih|beri|diberi|memberikan|diberikan|saya|aku|untuk|yang|aja|saja|udah|sudah|juga|ada|sebanyak|setiap|tiap|masing|semua(?:nya)?|each|every|all|per)\b/gi,
+      ' ',
+    )
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+  return leftover.length === 0;
+}
+
+/** The number in the same phrase as each product. "54 pocky" and "pocky ada 54" both count. One number for every product counts too. */
 function quantitiesNearProducts(text: string, focus: CatalogProduct[]): Map<string, number> {
   const hay = text.toLowerCase();
   const mentions = focus.flatMap((product) => {
@@ -382,6 +400,14 @@ function quantitiesNearProducts(text: string, focus: CatalogProduct[]): Map<stri
     const quantity = Number(match[1]);
     return match.index == null || !Number.isInteger(quantity) ? [] : [{ quantity, index: match.index }];
   });
+  const appliesToEveryProduct = quantityAppliesToEveryProduct(hay);
+  const eachOfNamed = /\bmasing[-\s]?masing\b/i.test(hay);
+  if (focus.length > 0 && numbers.length === 1 && (appliesToEveryProduct || (mentions.length === 0 && (eachOfNamed || isQuantityOnly(hay))))) {
+    return new Map(focus.map((product) => [product.productId, numbers[0].quantity]));
+  }
+  if (focus.length > 0 && numbers.length === 1 && eachOfNamed && mentions.length > 0) {
+    return new Map(mentions.map((mention) => [mention.productId, numbers[0].quantity]));
+  }
   const found = new Map<string, number>();
   const usedNumbers = new Set<number>();
   const usedProducts = new Set<string>();
@@ -1687,6 +1713,56 @@ async function continueAwaitedInput(
     focusProducts(job.suggestedProducts ?? [], catalog).some((product) => textNamesFocusProduct(text, product)),
   );
   const target = waiting.length === 1 ? waiting[0] : namedShop.length === 1 ? namedShop[0] : namedProduct.length === 1 ? namedProduct[0] : null;
+  const sameInput = new Set(waiting.map((job) => job.jobType));
+  if (
+    !target &&
+    sameInput.size === 1 &&
+    (sameInput.has('stock_check') || sameInput.has('new_product_activation')) &&
+    (isQuantityOnly(text) || quantityAppliesToEveryProduct(text) || /\bmasing[-\s]?masing\b/i.test(text))
+  ) {
+    const resolved = await Promise.all(
+      waiting.map(async (job) => ({
+        job,
+        shop: shopTitle(locale, job),
+        resolution: await resolveRequiredInput(
+          job.jobType,
+          text,
+          shopTitle(locale, job),
+          focusProducts(job.suggestedProducts ?? [], catalog),
+          locale,
+          readPending(job.completionData),
+        ),
+      })),
+    );
+    if (resolved.every((item) => item.resolution?.ready)) {
+      const saved: string[] = [];
+      for (const item of resolved) {
+        if (!item.resolution?.ready) continue;
+        try {
+          await completeSalesJob({
+            distributorId: item.job.distributorId,
+            id: item.job.id,
+            completion: item.resolution.completion,
+            notes: text.slice(0, 1000),
+          });
+        } catch (err) {
+          console.error('[sales-job-agent-reply] could not update checklist', item.job.id, err);
+          saved.push(
+            salesCopy(
+              locale,
+              `Could not save the update for ${item.shop}. Please try again.`,
+              `Pembaruan untuk ${item.shop} belum tersimpan. Coba lagi.`,
+            ),
+          );
+          continue;
+        }
+        saved.push(savedJobReply(locale, item.shop, item.job.jobType, item.resolution.completion, catalog));
+      }
+      const reply = saved.filter(Boolean).join('\n\n');
+      if (reply && (await askAgent(fromPhone, reply))) await noteSalesWorkflowOutbound(distributorId, reply);
+      return { handled: true, asked: true };
+    }
+  }
   if (!target) {
     const reply = waiting
       .map((job) => requiredInputQuestion(locale, job, catalog))
@@ -1949,11 +2025,13 @@ export async function handleFreeformAgentReply(args: {
     .sort((a, b) => a.scheduledDate.getTime() - b.scheduledDate.getTime())
     .map((job) => ({ ...job, shops: shopByJob.get(job.id) ?? [] }));
   const mentioned = ordered.filter((job) => shopsOf(job).some((shop) => shopMentioned(text, shop)));
-  const picked = pickedJobIndex(text, ordered.length);
+  const waiting = ordered.filter((job) => readPending(job.completionData));
+  const quantityForWaiting = waiting.length > 0 && isQuantityOnly(text);
+  const picked = quantityForWaiting ? null : pickedJobIndex(text, ordered.length);
   const numbered = picked == null ? null : ordered[picked];
   const job = ordered.length === 1 ? ordered[0] : mentioned.length === 1 ? mentioned[0] : numbered;
 
-  const pickedIndexes = pickedJobIndexes(text, ordered.length);
+  const pickedIndexes = quantityForWaiting ? null : pickedJobIndexes(text, ordered.length);
   if (pickedIndexes) {
     if (pickedIndexes.length === 0) {
       await askAgent(fromPhone, salesCopy(locale, 'Reply with a number from the list.', 'Balas dengan nomor yang ada di daftar.'));
@@ -1962,7 +2040,6 @@ export async function handleFreeformAgentReply(args: {
     return saveReportedChecklists(fromPhone, locale, distributorId, ordered, pickedIndexes, text);
   }
 
-  const waiting = ordered.filter((job) => readPending(job.completionData));
   if (/^(iya|ya|yes|yup|yap)\.?!?$/i.test(text)) {
     if (waiting.length === 1) return continueAwaitedInput(fromPhone, locale, distributorId, waiting, text);
     if (ordered.length === 1) {
