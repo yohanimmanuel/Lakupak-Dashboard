@@ -241,7 +241,7 @@
         },
         "2": {
           "title": "Create the jobs",
-          "desc": "Add a job for the visit: take an order, promote products, check warehouse stock, collect a payment, pick up a return, check a competitor, activate a new product, or open a new outlet."
+          "desc": "Add a job for the visit: take an order, promote products and record how many were given, check warehouse stock, collect a payment, pick up a return, check a competitor, or open a new outlet."
         },
         "3": {
           "title": "Assign each job to a sales rep",
@@ -428,7 +428,7 @@
         },
         "2": {
           "title": "Create the jobs",
-          "desc": "Add the visit: an order, a promotion, stock, a payment, a return, a competitor, a new product, or a new outlet."
+          "desc": "Add the visit: an order, a promotion with how many were given, stock, a payment, a return, a competitor, or a new outlet."
         },
         "3": {
           "title": "Assign each sales rep",

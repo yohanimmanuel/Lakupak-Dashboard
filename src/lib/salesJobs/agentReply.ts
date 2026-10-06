@@ -200,7 +200,16 @@ function competitorFactsFromText(text: string): { name: string; product: string;
   return facts;
 }
 
-const INPUT_JOB_TYPES = new Set(['stock_check', 'competitor_intel', 'new_product_activation']);
+const INPUT_JOB_TYPES = new Set(['stock_check', 'competitor_intel', 'promote_product', 'new_product_activation']);
+
+function isSampleJob(jobType: string) {
+  return jobType === 'promote_product' || jobType === 'new_product_activation';
+}
+
+function namedTypeMatches(jobType: string, types: Set<string>) {
+  if (types.has(jobType)) return true;
+  return isSampleJob(jobType) && (types.has('promote_product') || types.has('new_product_activation'));
+}
 
 type PendingInput = {
   stock_counts?: { product_id: string; counted: number }[];
@@ -289,7 +298,7 @@ async function readSpokenFacts(args: {
   const known =
     args.jobType === 'stock_check'
       ? (args.pending?.stock_counts ?? []).map((line) => `${line.product_id}: ${line.counted}`).join(', ')
-      : args.jobType === 'new_product_activation'
+      : args.jobType === 'promote_product' || args.jobType === 'new_product_activation'
         ? (args.pending?.given_counts ?? []).map((line) => `${line.product_id}: ${line.quantity}`).join(', ')
         : [
             args.pending?.competitor_name,
@@ -309,7 +318,7 @@ async function readSpokenFacts(args: {
         {
           role: 'system',
           content:
-            'You extract facts from one WhatsApp message sent by a sales rep. Reply with JSON only. Read the wording they actually used. A number can sit before or after the product, with other words in between. In quantities, set name to the matching product from the list, even when the message uses a shorter name. Leave a field empty when the message does not state it. Never guess a number, a name, a price, a promo, or a shelf note.',
+            'You extract facts from one WhatsApp message sent by a sales rep. Reply with JSON only. Read the wording they actually used. A number can sit before or after the product, with other words in between. In quantities, set name to the matching product from the list, even when the message uses a shorter name. Leave a field empty when the message does not state it. Never guess a number, a name, a price, a promo, or a shelf note. A count of buyers, clients, shops, or people is not a product quantity. If the message only says how many buyers received products, return an empty quantities array.',
         },
         {
           role: 'user',
@@ -398,7 +407,10 @@ function quantitiesNearProducts(text: string, focus: CatalogProduct[]): Map<stri
   mentions.sort((left, right) => left.index - right.index);
   const numbers = Array.from(hay.matchAll(/\b(\d{1,6})\b/g)).flatMap((match) => {
     const quantity = Number(match[1]);
-    return match.index == null || !Number.isInteger(quantity) ? [] : [{ quantity, index: match.index }];
+    if (match.index == null || !Number.isInteger(quantity)) return [];
+    const after = hay.slice(match.index + match[1].length).trimStart();
+    if (/^(?:buyer|buyers|klien|client|clients|toko|outlet|orang)\b/i.test(after)) return [];
+    return [{ quantity, index: match.index }];
   });
   const appliesToEveryProduct = quantityAppliesToEveryProduct(hay);
   const eachOfNamed = /\bmasing[-\s]?masing\b/i.test(hay);
@@ -525,7 +537,7 @@ async function resolveRequiredInput(
     };
   }
 
-  if (jobType === 'new_product_activation') {
+  if (jobType === 'promote_product' || jobType === 'new_product_activation') {
     const counts = new Map((pending?.given_counts ?? []).map((line) => [line.product_id, line.quantity]));
     for (const [productId, quantity] of heard) counts.set(productId, quantity);
     const missing = focus.filter((product) => !counts.has(product.productId));
@@ -552,6 +564,7 @@ async function resolveRequiredInput(
     return {
       ready: true,
       completion: shared(text, {
+        ...(jobType === 'promote_product' ? { promoted: true } : {}),
         product_given: true,
         samples_given: samples,
         given_counts: lines,
@@ -633,9 +646,9 @@ export function extractAgentFacts(
   }
 
   if (jobType === 'promote_product') {
-    const promoted = /\b(promosi|promo|promoted|dipromosikan|mempromosikan\w*|ditawarkan|shown|display)\b/i.test(body);
+    const promoted = /\b(promosi(?:kan)?|promo|promoted|dipromosikan|mempromosikan\w*|ditawarkan|shown|display|sampel|samples|produk baru|new product)\b/i.test(body);
     if (!promoted) return ask(questionFor(jobType, locale));
-    return { ready: true, completion: shared(body, { promoted: true }) };
+    return { ready: false, question: questionFor(jobType, locale) };
   }
 
   if (jobType === 'prospect_new_outlet') {
@@ -705,7 +718,11 @@ function questionFor(jobType: string, locale: SalesReplyLocale): string {
     case 'stock_check':
       return salesCopy(locale, 'Was the stock checked?', 'Apakah stok sudah dicek?');
     case 'promote_product':
-      return salesCopy(locale, 'Was the product promoted?', 'Apakah produk sudah dipromosikan?');
+      return salesCopy(
+        locale,
+        'How many of each product were given?',
+        'Berapa masing-masing produk yang diberikan?',
+      );
     case 'prospect_new_outlet':
       return salesCopy(locale, 'Send a short note about this new outlet.', 'Kirim catatan singkat tentang outlet baru ini.');
     case 'returns_pickup':
@@ -770,7 +787,7 @@ function buyerProgress(
 }
 
 const VISIT_ACT =
-  /\b(?:di|meng|ter|ke)?(?:kirim|kirm|ambil|jemput|antar|serah|tagih|aktivasi)\w*\b|\b(?:promosi|mempromosikan\w*|dipromosikan|promoted|deliver\w*|delivered|picked|sent|memberikan|diberikan|menagih)\b/i;
+  /\b(?:di|meng|ter|ke)?(?:kirim|kirm|ambil|jemput|antar|serah|tagih|aktivasi)\w*\b|\b(?:promosi(?:kan)?|mempromosikan\w*|dipromosikan|promoted|deliver\w*|delivered|picked|sent|memberikan|diberikan|menagih)\b/i;
 
 function saysJobStillOpen(text: string): boolean {
   if (isJobQuestion(text)) return false;
@@ -788,7 +805,7 @@ function saysJobIsDone(text: string): boolean {
 
 function jobTypesInText(text: string): string[] {
   const types: string[] = [];
-  if (/\b(promosi|promo|mempromosikan\w*|dipromosikan|promoted|promote)\b/i.test(text)) types.push('promote_product');
+  if (/\b(promosi(?:kan)?|promo|mempromosikan\w*|dipromosikan|promoted|promote)\b/i.test(text)) types.push('promote_product');
   const aboutReturn = /\b(retur|return)\b/i.test(text);
   if (
     /\b(?:pesanan|orderan|ambil pesanan|order)\b/i.test(text) ||
@@ -805,10 +822,11 @@ function jobTypesInText(text: string): string[] {
   if (/\b(retur|return|pengembalian)\b/i.test(text)) types.push('returns_pickup');
   if (/\b(prospek|outlet baru|prospect)\b/i.test(text)) types.push('prospect_new_outlet');
   if (
-    /\b(sampel|samples|aktivasi|activation|produk baru|new product|product given)\b/i.test(text) ||
-    (/\b(memberikan|diberikan|bagikan|dikasih)\b/i.test(text) && /\b(produk|product|sampel|samples)\b/i.test(text))
+    !types.includes('promote_product') &&
+    (/\b(sampel|samples|aktivasi|activation|produk baru|new product|product given)\b/i.test(text) ||
+      (/\b(memberikan|diberikan|bagikan|dikasih)\b/i.test(text) && /\b(produk|product|sampel|samples)\b/i.test(text)))
   ) {
-    types.push('new_product_activation');
+    types.push('promote_product');
   }
   if (/\b(?:kompetitor|competitor|pesaing)(?:nya)?\b/i.test(text)) types.push('competitor_intel');
   return types;
@@ -828,7 +846,7 @@ function matchDoneJobs(
   });
   if (shopIndexes.length) indexes = shopIndexes;
   if (types.size) {
-    const typed = indexes.filter((index) => types.has(ordered[index].jobType));
+    const typed = indexes.filter((index) => namedTypeMatches(ordered[index].jobType, types));
     if (typed.length) indexes = typed;
   }
   const mentionedProspect = types.has('prospect_new_outlet');
@@ -837,7 +855,7 @@ function matchDoneJobs(
   if (indexes.length === 0) return { indexes: [], ask: false, holdProspect: true };
   if (indexes.length === 1) {
     const candidate = indexes[0];
-    const identified = types.has(ordered[candidate].jobType) || shopIndexes.includes(candidate);
+    const identified = namedTypeMatches(ordered[candidate].jobType, types) || shopIndexes.includes(candidate);
     const prospectRemoved = beforeProspect.length > indexes.length;
     if (!identified && (prospectRemoved || mentionedProspect)) {
       return { indexes: beforeProspect, ask: true, holdProspect: mentionedProspect };
@@ -851,7 +869,7 @@ function matchDoneJobs(
     typeCount.set(type, (typeCount.get(type) ?? 0) + 1);
   }
   const eachTypeOnce = indexes.every((index) => typeCount.get(ordered[index].jobType) === 1);
-  const namedTypesCoverSelection = types.size > 0 && indexes.every((index) => types.has(ordered[index].jobType));
+  const namedTypesCoverSelection = types.size > 0 && indexes.every((index) => namedTypeMatches(ordered[index].jobType, types));
   if (namedTypesCoverSelection && (eachTypeOnce || !namedShop)) {
     return { indexes, ask: false, holdProspect: false };
   }
@@ -1045,14 +1063,14 @@ function coachingReply(
       'Hitung tiap produk di gudang, lalu kirim jumlahnya ke saya.',
     );
   }
-  if (topic === 'new_product_activation') {
+  if (isSampleJob(topic)) {
     return salesCopy(
       locale,
-      `At ${place}, note how many of each product you gave them, then send me the quantities.`,
-      `Di ${place}, catat berapa banyak tiap produk yang kamu berikan, lalu kirim jumlahnya ke saya.`,
+      `At ${place}, promote the products and tell me how many of each you gave the buyers.`,
+      `Di ${place}, promosikan produknya dan kabari berapa banyak tiap produk yang kamu berikan ke buyer.`,
     );
   }
-  if (topic === 'promote_product' || wantsProductAdvice(text)) {
+  if (wantsProductAdvice(text)) {
     return salesCopy(
       locale,
       `At ${place}, say who the product is for, one reason to try it, and a short line they can tell the buyer.`,
@@ -1475,7 +1493,7 @@ function requiredInputQuestion(locale: SalesReplyLocale, job: ReportedJob, catal
       .map((product) => `${product.name} ${counted.get(product.productId)}`);
     return stockCountAsk(locale, shop, missing.length > 0 ? missing : focus.map((product) => product.name), noted);
   }
-  if (job.jobType === 'new_product_activation') {
+  if (isSampleJob(job.jobType)) {
     const given = new Map((pending?.given_counts ?? []).map((line) => [line.product_id, line.quantity]));
     const missing = focus.filter((product) => !given.has(product.productId)).map((product) => product.name);
     const noted = focus
@@ -1561,7 +1579,7 @@ function savedJobReply(
     });
     if (lines.length > 0) return quantityHeardReply(locale, shop, lines, corrected);
   }
-  if (jobType === 'new_product_activation' && Array.isArray(completion?.given_counts)) {
+  if (isSampleJob(jobType) && Array.isArray(completion?.given_counts)) {
     const lines = completion.given_counts.flatMap((entry) => {
       if (!entry || typeof entry !== 'object') return [];
       const line = entry as { product_id?: unknown; quantity?: unknown };
@@ -1585,6 +1603,29 @@ function savedJobReply(
     { name, product, price: range ? `${range[1]}-${range[2]}` : String(price), promo },
     corrected,
   );
+}
+
+function completionForSampleRow(completion: Record<string, unknown>, suggestedProducts: string[]): Record<string, unknown> {
+  const own = new Set(suggestedProducts);
+  const given = Array.isArray(completion.given_counts)
+    ? completion.given_counts.flatMap((entry) => {
+        if (!entry || typeof entry !== 'object') return [];
+        const line = entry as { product_id?: unknown; quantity?: unknown };
+        const productId = typeof line.product_id === 'string' ? line.product_id : '';
+        if (!productId || !own.has(productId) || typeof line.quantity !== 'number') return [];
+        return [{ product_id: productId, quantity: line.quantity }];
+      })
+    : [];
+  const productIds = Array.isArray(completion.product_ids)
+    ? completion.product_ids.filter((id): id is string => typeof id === 'string' && own.has(id))
+    : suggestedProducts.filter((id) => given.some((line) => line.product_id === id));
+  return {
+    ...completion,
+    given_counts: given,
+    product_ids: productIds,
+    product_id: productIds[0] ?? null,
+    samples_given: given.reduce((sum, line) => sum + line.quantity, 0),
+  };
 }
 
 async function saveReportedChecklists(
@@ -1624,6 +1665,64 @@ async function saveReportedChecklists(
   const needsInput = Array.from(finishing.values()).some((row) => INPUT_JOB_TYPES.has(row.jobType));
   const catalog = needsInput ? await loadCatalog(distributorId) : [];
   const finishedTakeOrderShops: string[] = [];
+  const sampleRows = Array.from(finishing.values()).filter((row) => isSampleJob(row.jobType));
+  if (sampleRows.length > 0) {
+    const shops = Array.from(new Set(sampleRows.flatMap((row) => shopsOf(row))));
+    const shop = joinShopNames(locale, shops);
+    const productIds = Array.from(new Set(sampleRows.flatMap((row) => row.suggestedProducts ?? [])));
+    const resolution = await resolveRequiredInput(
+      'promote_product',
+      text,
+      shop,
+      focusProducts(productIds, catalog),
+      locale,
+      readPending(sampleRows.find((row) => readPending(row.completionData))?.completionData ?? sampleRows[0].completionData),
+    );
+    if (resolution && !resolution.ready) {
+      for (const row of sampleRows) {
+        try {
+          await notePending(row, resolution.pending);
+          jobId = jobId ?? row.id;
+        } catch (err) {
+          console.error('[sales-job-agent-reply] could not keep the pending input', row.id, err);
+        }
+      }
+      saved.push(
+        saysJobIsDone(text)
+          ? salesCopy(
+              locale,
+              `Got it, the promotion is done. ${resolution.question}`,
+              `Baik, promosinya sudah selesai. ${resolution.question}`,
+            )
+          : resolution.question,
+      );
+    } else if (resolution?.ready) {
+      for (const row of sampleRows) {
+        const completion = completionForSampleRow(resolution.completion, row.suggestedProducts ?? []);
+        try {
+          await completeSalesJob({
+            distributorId: row.distributorId,
+            id: row.id,
+            completion,
+            notes: text.slice(0, 1000),
+          });
+        } catch (err) {
+          console.error('[sales-job-agent-reply] could not update checklist', row.id, err);
+          saved.push(
+            salesCopy(
+              locale,
+              `Could not save the update for ${shopTitle(locale, row)}. Please try again.`,
+              `Pembaruan untuk ${shopTitle(locale, row)} belum tersimpan. Coba lagi.`,
+            ),
+          );
+          continue;
+        }
+        saved.push(savedJobReply(locale, shopTitle(locale, row), row.jobType, completion, catalog));
+        jobId = jobId ?? row.id;
+      }
+    }
+    for (const row of sampleRows) finishing.delete(row.id);
+  }
   for (const row of finishing.values()) {
     try {
       if (INPUT_JOB_TYPES.has(row.jobType)) {
@@ -1730,7 +1829,7 @@ async function messageConcernsWaitingJob(
   const namedTypes = new Set(jobTypesInText(text));
   const otherOpenType =
     (looksLikeVisitResult(text) || namedTypes.size > 0) &&
-    ordered.some((job) => !waitingIds.has(job.id) && namedTypes.has(job.jobType));
+    ordered.some((job) => !waitingIds.has(job.id) && namedTypeMatches(job.jobType, namedTypes));
   if (!otherOpenType) return true;
   const catalog = await loadCatalog(distributorId);
   return waiting.some((job) =>
@@ -1752,11 +1851,11 @@ async function continueAwaitedInput(
   );
   const target = waiting.length === 1 ? waiting[0] : namedShop.length === 1 ? namedShop[0] : namedProduct.length === 1 ? namedProduct[0] : null;
   const sameInput = new Set(waiting.map((job) => job.jobType));
+  const sampleFamily = waiting.length > 0 && waiting.every((job) => isSampleJob(job.jobType));
   if (
     !target &&
-    sameInput.size === 1 &&
-    (sameInput.has('stock_check') || sameInput.has('new_product_activation')) &&
-    (isQuantityOnly(text) || quantityAppliesToEveryProduct(text) || /\bmasing[-\s]?masing\b/i.test(text))
+    ((sameInput.size === 1 && sameInput.has('stock_check')) || sampleFamily) &&
+    (isQuantityOnly(text) || quantityAppliesToEveryProduct(text) || /\bmasing[-\s]?masing\b/i.test(text) || (sampleFamily && /\d/.test(text)))
   ) {
     const resolved = await Promise.all(
       waiting.map(async (job) => ({
@@ -1798,6 +1897,20 @@ async function continueAwaitedInput(
       }
       const reply = saved.filter(Boolean).join('\n\n');
       if (reply && (await askAgent(fromPhone, reply))) await noteSalesWorkflowOutbound(distributorId, reply);
+      return { handled: true, asked: true };
+    }
+    if (sampleFamily) {
+      const pending = resolved.find((item) => item.resolution && !item.resolution.ready);
+      const question = pending?.resolution && !pending.resolution.ready ? pending.resolution.question : '';
+      for (const item of resolved) {
+        if (!item.resolution || item.resolution.ready) continue;
+        try {
+          await notePending(item.job, item.resolution.pending);
+        } catch (err) {
+          console.error('[sales-job-agent-reply] could not keep the pending input', item.job.id, err);
+        }
+      }
+      if (question && (await askAgent(fromPhone, question))) await noteSalesWorkflowOutbound(distributorId, question);
       return { handled: true, asked: true };
     }
   }
@@ -2170,13 +2283,20 @@ export async function handleFreeformAgentReply(args: {
     return { handled: true, asked: true };
   }
 
-  const namedInputTypes = jobTypesInText(text).filter((type) => INPUT_JOB_TYPES.has(type));
-  if (namedInputTypes.length > 0) {
-    let candidates = ordered.filter((row) => namedInputTypes.includes(row.jobType));
+  const namedInputTypes = new Set(jobTypesInText(text).filter((type) => INPUT_JOB_TYPES.has(type)));
+  if (namedInputTypes.size > 0) {
+    let candidates = ordered.filter((row) => INPUT_JOB_TYPES.has(row.jobType) && namedTypeMatches(row.jobType, namedInputTypes));
     const byShop = candidates.filter((row) => shopsOf(row).some((shop) => shopMentioned(text, shop)));
     if (byShop.length > 0) candidates = byShop;
-    if (candidates.length === 1) {
-      return saveReportedChecklists(fromPhone, locale, distributorId, ordered, [ordered.indexOf(candidates[0])], text);
+    if (candidates.length === 1 || (candidates.length > 1 && candidates.every((row) => isSampleJob(row.jobType)))) {
+      return saveReportedChecklists(
+        fromPhone,
+        locale,
+        distributorId,
+        ordered,
+        candidates.map((row) => ordered.indexOf(row)),
+        text,
+      );
     }
     if (candidates.length > 1) {
       const catalog = await loadCatalog(distributorId);

@@ -526,7 +526,7 @@ function combineSharedProductJobs(rows: SalesJobRow[]): SalesJobRow[] {
 function draftsFromRows(rows: SalesJobRow[]): JobDraft[] {
   return combineSharedProductJobs(combineSplitOrderJobs(rows)).map((job) => ({
     key: job.id,
-    jobType: job.jobType,
+    jobType: job.jobType === 'new_product_activation' ? 'promote_product' : job.jobType,
     clientIds: jobSkipsClient(job.jobType) ? [] : clientIdsOf(job),
     orderIds: job.orderIds?.length ? job.orderIds : job.orderId ? [job.orderId] : [],
     productIds: job.suggestedProducts ?? [],

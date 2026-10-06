@@ -478,7 +478,7 @@
     "typeHints": {
       "take_order": "Take an order on this visit. Choose the orders for the clients on the route.",
       "collect_payment": "Collect payment for orders that are still unpaid.",
-      "promote_product": "Promote the products you pick at the clients you select. The same products stay on one job.",
+      "promote_product": "Promote the products you pick at the clients you select, and record how many of each were given. The same products stay on one job.",
       "stock_check": "Count the products you pick in the warehouse. This job has no client.",
       "prospect_new_outlet": "Add a new outlet. It finishes when that buyer is Active and has a marketplace order.",
       "returns_pickup": "Pick up returns for the orders you select.",
@@ -561,7 +561,7 @@
       "searchOrders": "Search order or store",
       "selectedOrders": "{count} orders selected",
       "sameClient": "Choose orders for the same client.",
-      "productHintPromote": "Choose the products this rep should promote.",
+      "productHintPromote": "Choose the products this rep should promote. Completion asks how many of each were given to the buyers.",
       "productHintStock": "Choose the products to count in the warehouse. This check has no client.",
       "productHintActivate": "Choose the products to activate.",
       "needOneProduct": "Select one product.",

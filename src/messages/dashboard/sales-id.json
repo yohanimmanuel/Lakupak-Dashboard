@@ -478,7 +478,7 @@
     "typeHints": {
       "take_order": "Ambil pesanan pada kunjungan ini. Pilih order untuk klien di rute itu.",
       "collect_payment": "Tagih pembayaran untuk order yang belum lunas.",
-      "promote_product": "Promosikan produk yang dipilih ke klien yang dipilih. Produk yang sama tetap di satu pekerjaan.",
+      "promote_product": "Promosikan produk yang dipilih ke klien yang dipilih, dan catat berapa yang diberikan untuk tiap produk. Produk yang sama tetap di satu pekerjaan.",
       "stock_check": "Hitung produk yang dipilih di gudang. Pekerjaan ini tidak memakai klien.",
       "prospect_new_outlet": "Tambah outlet baru. Selesai saat pembeli itu Active dan sudah ada pesanan marketplace.",
       "returns_pickup": "Jemput retur untuk order yang dipilih.",
@@ -561,7 +561,7 @@
       "searchOrders": "Cari order atau toko",
       "selectedOrders": "{count} order dipilih",
       "sameClient": "Pilih order untuk klien yang sama.",
-      "productHintPromote": "Pilih produk yang harus dipromosikan sales ini.",
+      "productHintPromote": "Pilih produk yang harus dipromosikan sales ini. Saat selesai, isi berapa yang diberikan ke buyer untuk tiap produk.",
       "productHintStock": "Pilih produk yang stok gudangnya harus dicek. Pengecekan ini tidak memakai klien.",
       "productHintActivate": "Pilih produk-produk yang akan diaktifkan.",
       "needOneProduct": "Pilih satu produk.",

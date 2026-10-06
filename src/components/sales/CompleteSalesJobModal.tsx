@@ -116,7 +116,11 @@ export default function CompleteSalesJobModal({
   useEffect(() => {
     const next = completionFromJob(jobs.length === 1 ? jobs[0] : undefined);
     const activationProducts = Array.from(
-      new Set(jobs.filter((job) => job.jobType === 'new_product_activation').flatMap((job) => job.suggestedProducts ?? [])),
+      new Set(
+        jobs
+          .filter((job) => job.jobType === 'promote_product' || job.jobType === 'new_product_activation')
+          .flatMap((job) => job.suggestedProducts ?? []),
+      ),
     );
     if ((next.product_ids ?? []).length === 0 && activationProducts.length > 0) {
       next.product_ids = activationProducts;
@@ -179,7 +183,7 @@ export default function CompleteSalesJobModal({
     productId,
     name: stockJob?.suggestedProductNames[index] || productId,
   }));
-  const activationJob = jobs.find((job) => job.jobType === 'new_product_activation');
+  const activationJob = jobs.find((job) => job.jobType === 'promote_product' || job.jobType === 'new_product_activation');
   const activationProducts = (activationJob?.suggestedProducts ?? []).map((productId, index) => ({
     productId,
     name: activationJob?.suggestedProductNames[index] || productId,

@@ -56,12 +56,63 @@ export default function JobCompletionFields({
           onChangeAction={(payment_collected) => onChangeAction({ ...completion, payment_collected, payment_amount: null })}
         />
       )}
-      {types.has('promote_product') && (
-        <CheckRow
-          checked={completion.promoted === true}
-          label={t('completion.promoted')}
-          onChangeAction={(promoted) => onChangeAction({ ...completion, promoted })}
-        />
+      {(types.has('promote_product') || types.has('new_product_activation')) && (
+        <div className="grid gap-2">
+          {types.has('promote_product') ? (
+            <CheckRow
+              checked={completion.promoted === true}
+              label={t('completion.promoted')}
+              onChangeAction={(promoted) => onChangeAction({ ...completion, promoted })}
+            />
+          ) : (
+            <CheckRow
+              checked={completion.product_given === true}
+              label={t('completion.productGiven')}
+              onChangeAction={(product_given) => onChangeAction({ ...completion, product_given })}
+            />
+          )}
+          {activationProducts.length > 0
+            ? activationProducts.map((product) => {
+                const line = (completion.given_counts ?? []).find((row) => row.product_id === product.productId);
+                return (
+                  <div key={product.productId} className="flex items-center gap-2">
+                    <span className="text-xs text-gray-700 truncate flex-1">{product.name}</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      aria-label={product.name}
+                      placeholder={t('completion.quantity')}
+                      className="w-28 border border-[#e6e6e6] rounded-lg px-3 py-2 text-xs text-black bg-white"
+                      value={line?.quantity ?? ''}
+                      onChange={(event) => {
+                        const raw = event.target.value;
+                        const parsed = raw === '' ? null : Number(raw);
+                        const quantity = parsed == null || !Number.isFinite(parsed) ? null : Math.max(0, Math.floor(parsed));
+                        const rest = (completion.given_counts ?? []).filter((row) => row.product_id !== product.productId);
+                        const given_counts = quantity == null ? rest : [...rest, { product_id: product.productId, quantity }];
+                        const samples_given = given_counts.reduce((sum, row) => sum + row.quantity, 0);
+                        onChangeAction({ ...completion, given_counts, samples_given: given_counts.length ? samples_given : null });
+                      }}
+                    />
+                  </div>
+                );
+              })
+            : (
+              <input
+                type="number"
+                min={0}
+                step={1}
+                aria-label={t('completion.productGiven')}
+                placeholder={t('completion.quantity')}
+                className="w-28 border border-[#e6e6e6] rounded-lg px-3 py-2 text-xs text-black bg-white"
+                value={completion.samples_given ?? ''}
+                onChange={(event) =>
+                  onChangeAction({ ...completion, samples_given: event.target.value === '' ? null : Number(event.target.value) })
+                }
+              />
+            )}
+        </div>
       )}
       {types.has('stock_check') && (
         <div className="grid gap-2">
@@ -146,55 +197,6 @@ export default function JobCompletionFields({
         </div>
       )}
 
-      {types.has('new_product_activation') && (
-        <div className="grid gap-2">
-          <CheckRow
-            checked={completion.product_given === true}
-            label={t('completion.productGiven')}
-            onChangeAction={(product_given) => onChangeAction({ ...completion, product_given })}
-          />
-          {activationProducts.length > 0
-            ? activationProducts.map((product) => {
-                const line = (completion.given_counts ?? []).find((row) => row.product_id === product.productId);
-                return (
-                  <div key={product.productId} className="flex items-center gap-2">
-                    <span className="text-xs text-gray-700 truncate flex-1">{product.name}</span>
-                    <input
-                      type="number"
-                      min={0}
-                      step={1}
-                      aria-label={product.name}
-                      placeholder={t('completion.quantity')}
-                      className="w-28 border border-[#e6e6e6] rounded-lg px-3 py-2 text-xs text-black bg-white"
-                      value={line?.quantity ?? ''}
-                      onChange={(event) => {
-                        const quantity = event.target.value === '' ? null : Number(event.target.value);
-                        const rest = (completion.given_counts ?? []).filter((row) => row.product_id !== product.productId);
-                        const given_counts = quantity == null ? rest : [...rest, { product_id: product.productId, quantity }];
-                        const samples_given = given_counts.reduce((sum, row) => sum + row.quantity, 0);
-                        onChangeAction({ ...completion, given_counts, samples_given: given_counts.length ? samples_given : null });
-                      }}
-                    />
-                  </div>
-                );
-              })
-            : (
-              <input
-                type="number"
-                min={0}
-                step={1}
-                aria-label={t('completion.productGiven')}
-                placeholder={t('completion.quantity')}
-                className="w-28 border border-[#e6e6e6] rounded-lg px-3 py-2 text-xs text-black bg-white"
-                value={completion.samples_given ?? ''}
-                onChange={(event) =>
-                  onChangeAction({ ...completion, samples_given: event.target.value === '' ? null : Number(event.target.value) })
-                }
-              />
-            )}
-        </div>
-      )}
-
       <input
         className={inputClass}
         placeholder={t('notes')}
@@ -270,7 +272,14 @@ export function completionInput(jobType: string, completion: SalesJobCompletion)
     return { ...shared, payment_collected: completion.payment_collected };
   }
   if (jobType === 'promote_product') {
-    return { ...shared, promoted: completion.promoted === true };
+    return {
+      ...shared,
+      promoted: completion.promoted === true,
+      samples_given: completion.given_counts?.length
+        ? completion.given_counts.reduce((sum, line) => sum + line.quantity, 0)
+        : completion.samples_given ?? null,
+      given_counts: completion.given_counts ?? [],
+    };
   }
   if (jobType === 'stock_check') {
     return {

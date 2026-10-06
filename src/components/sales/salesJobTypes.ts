@@ -85,7 +85,6 @@ export const SALES_JOB_TYPES = [
   'prospect_new_outlet',
   'returns_pickup',
   'competitor_intel',
-  'new_product_activation',
 ] as const;
 
 export const SALES_JOB_STATUSES = [

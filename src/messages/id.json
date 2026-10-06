@@ -241,7 +241,7 @@
         },
         "2": {
           "title": "Buat pekerjaan",
-          "desc": "Tambahkan pekerjaan untuk kunjungan: ambil pesanan, promosikan produk, cek stok gudang, tagih pembayaran, jemput retur, cek pesaing, aktivasi produk baru, atau buka outlet baru."
+          "desc": "Tambahkan pekerjaan untuk kunjungan: ambil pesanan, promosikan produk dan catat berapa yang diberikan, cek stok gudang, tagih pembayaran, jemput retur, cek pesaing, atau buka outlet baru."
         },
         "3": {
           "title": "Tetapkan tiap pekerjaan ke sales",
@@ -428,7 +428,7 @@
         },
         "2": {
           "title": "Buat pekerjaan",
-          "desc": "Tambahkan kunjungan: pesanan, promosi, stok, pembayaran, retur, pesaing, produk baru, atau outlet baru."
+          "desc": "Tambahkan kunjungan: pesanan, promosi beserta jumlah yang diberikan, stok, pembayaran, retur, pesaing, atau outlet baru."
         },
         "3": {
           "title": "Tetapkan tiap sales",

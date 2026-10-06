@@ -230,7 +230,18 @@ export function buildStoredCompletion(jobType: string, value: unknown): Completi
   }
 
   if (jobType === 'promote_product') {
-    return { ...cleared(notes), promoted: row?.promoted === true };
+    const given = strictGivenCounts(row?.given_counts);
+    const summed = given.reduce((sum, line) => sum + line.quantity, 0);
+    const samplesGiven = given.length > 0 ? summed : finiteAmount(row?.samples_given);
+    if (samplesGiven != null && (!Number.isInteger(samplesGiven) || samplesGiven < 0)) {
+      throw new Error('Product given cannot be negative');
+    }
+    return {
+      ...cleared(notes),
+      promoted: row?.promoted === true,
+      samples_given: samplesGiven == null ? null : Math.floor(samplesGiven),
+      ...(given.length > 0 ? { given_counts: given } : {}),
+    };
   }
 
   if (jobType === 'stock_check') {

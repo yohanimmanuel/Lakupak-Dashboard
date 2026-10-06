@@ -394,7 +394,7 @@ export async function completeSalesJob(args: {
       distributorId: args.distributorId,
       ...(args.revise
         ? {
-            jobType: { in: ['stock_check', 'competitor_intel', 'new_product_activation'] },
+            jobType: { in: ['stock_check', 'competitor_intel', 'promote_product', 'new_product_activation'] },
             status: { in: [...open, 'completed'] },
           }
         : { status: { in: [...open] } }),
