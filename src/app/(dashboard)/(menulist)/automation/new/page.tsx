@@ -259,7 +259,7 @@ export default function NewAutomationPage() {
     lastDataHistoryAtRef.current = 0;
   }, [history]);
 
-  const save = async (status: 'draft' | 'active'): Promise<boolean> => {
+  const save = async (status: 'draft' | 'paused' | 'active'): Promise<boolean> => {
     if (!user?.id) return false;
     if (!draft.name.trim()) {
       setNameError(tBuilder('nameRequired'));
@@ -361,6 +361,7 @@ export default function NewAutomationPage() {
       onDismissStepDetailsAction={() => setSelectedNodeId(null)}
       closeAskAiRef={closeAskAiRef}
       onSaveDraftAction={() => save('draft')}
+      onPauseAction={() => save('paused')}
       onActivateAction={() => save('active')}
       onUndoAction={undo}
       canUndo={history.canUndo}

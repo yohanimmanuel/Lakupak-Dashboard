@@ -539,7 +539,7 @@ function DetailsInner() {
   }, [history]);
 
   const save = async (
-    statusOverride?: 'draft' | 'active',
+    statusOverride?: 'draft' | 'paused' | 'active',
     opts?: { manageSaving?: boolean },
   ): Promise<boolean> => {
     if (!user?.id || !id || !draft) return false;
@@ -704,6 +704,7 @@ function DetailsInner() {
       saving={saving}
       showTestRun
       onSaveDraftAction={() => save('draft')}
+      onPauseAction={() => save('paused')}
       onActivateAction={() => save('active')}
       onTestRunAction={() => testRun()}
       onUndoAction={undo}

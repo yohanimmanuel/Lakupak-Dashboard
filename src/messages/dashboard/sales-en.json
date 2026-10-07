@@ -550,6 +550,7 @@
       "jobNumber": "Job {number}",
       "schedulesTitle": "Dates and WhatsApp reminders",
       "schedulesHint": "Add each visit date and the time this rep should get the WhatsApp reminder. The time follows this computer's clock.",
+      "schedulesNotice": "This is an automatic outbound message. A Sales Job automation enables follow-up after a job completes.",
       "addDate": "Add date",
       "reminder": "WhatsApp reminder",
       "removeDate": "Remove date",

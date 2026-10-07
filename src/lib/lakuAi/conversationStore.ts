@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db';
+import { packCanvasReply, readCanvasReply } from '@/lib/lakuAi/copilotReviewPlan';
 import { conversationListWhere, conversationTitle, type ConversationListScope } from '@/lib/lakuAi/conversationTitle';
 
 export type StoredTurn = {
@@ -9,11 +10,21 @@ export type StoredTurn = {
 
 const CONTENT_LIMIT = 20000;
 
+function clipStoredContent(content: string): string {
+  const trimmed = content.trim();
+  if (trimmed.length <= CONTENT_LIMIT) return trimmed;
+  const { text, edit } = readCanvasReply(trimmed);
+  if (!edit) return text.slice(0, CONTENT_LIMIT);
+  const markerLength = packCanvasReply('', edit).length;
+  if (markerLength > CONTENT_LIMIT) return text.slice(0, CONTENT_LIMIT);
+  return packCanvasReply(text.slice(0, CONTENT_LIMIT - markerLength), edit);
+}
+
 function cleanTurns(turns: StoredTurn[]): StoredTurn[] {
   return turns
     .map((turn) => ({
       role: turn.role === 'assistant' ? 'assistant' as const : 'user' as const,
-      content: String(turn.content ?? '').trim().slice(0, CONTENT_LIMIT),
+      content: clipStoredContent(String(turn.content ?? '')),
       recipeId: turn.role === 'assistant' && turn.recipeId ? String(turn.recipeId).slice(0, 80) : null,
     }))
     .filter((turn) => turn.role === 'user' || turn.role === 'assistant')
@@ -96,7 +107,7 @@ export async function appendConversationTurn(
   });
   if (!existing) return { error: 'not_found' as const };
   const userText = userContent.trim().slice(0, CONTENT_LIMIT);
-  const assistantText = assistantContent.trim().slice(0, CONTENT_LIMIT);
+  const assistantText = clipStoredContent(assistantContent);
   if (!userText || !assistantText) return { error: 'bad_request' as const };
   const started = Date.now();
   const updated = await prisma.aiConversation.update({

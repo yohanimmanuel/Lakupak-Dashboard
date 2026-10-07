@@ -5,6 +5,8 @@ import {
   describeWorkflowEdit,
   fallbackMessageTemplate,
   fallbackWorkflowDescription,
+  businessEmailAddress,
+  emailAddressInText,
   fieldsForCatalogType,
   readAssistantWorkflow,
   settleWorkflowPlan,
@@ -186,7 +188,7 @@ export async function runDistributorAppAssistant(input: {
     'Answer the question they asked. If they want numbers, use the account context. If they want to create a product, buyer, or order, explain the practical next step and the module path.',
     'AUTOMATION DRAFTS:',
     'When they ask you to build, edit, name, describe, or fill inputs on a workflow, end with one JSON object: {"plan":[steps] or null, "name": string or null, "description": string or null, "updates":[{"type":"...","config":{}}]}.',
-    'Each step is one of {"kind":"trigger","type":"...","config":{}}, {"kind":"action","type":"...","config":{}}, {"kind":"agent"}, {"kind":"app","type":"..."}, {"kind":"condition","type":"..."}, {"kind":"end","type":"..."}. Omit config when you are not filling inputs.',
+    'Each step is one of {"kind":"trigger","type":"...","config":{}}, {"kind":"action","type":"...","config":{}}, {"kind":"agent"}, {"kind":"app","type":"...","config":{}}, {"kind":"condition","type":"..."}, {"kind":"end","type":"..."}. Omit config when you are not filling inputs.',
     'The first step is the trigger. Then only the steps the request needs, in order. Build the workflow they asked for. A direct task such as replenish stock or mark paid is trigger then action, with no agent.',
     'An If condition always has two different next steps that you choose for this request. The step right after the condition is Yes. The step after that is No. Do not leave a condition with one path. Do not reuse a previous workflow when they asked for a different one.',
     'Examples, copy the shape only when the request matches that example:',
@@ -200,7 +202,8 @@ export async function runDistributorAppAssistant(input: {
     'WORKFLOW NAME, DESCRIPTION, AND INPUTS:',
     'A rename, a description, or a filled input is a workflow edit. If the steps stay the same, set plan to null and set name, description, and updates.',
     'name is the workflow title they asked for, kept short. description is one or two sentences about what this workflow does for their business. Write it yourself when they ask for a description and do not supply the words.',
-    'updates fill inputs that already exist on a step. Use the catalog type, for example cart_winback or cart_idle. config may include buyers (store names), products (product names), messageTemplate, channel, messageCategory, hours, replenishQty, and offerId.',
+    'updates fill inputs that already exist on a step. Use the catalog type, for example cart_winback, cart_idle, or app_email. config may include buyers (store names), products (product names), messageTemplate, channel, messageCategory, hours, replenishQty, offerId, and email.',
+    'When they give a Gmail address, put that exact address on the app_email step as config.email. That fills the business Gmail field and marks the app connected. Do not leave the Gmail address empty after they named one.',
     'messageTemplate is the message a buyer or the team will actually receive. Write it for this request, specific and ready to send, in the reply language. Do not use a placeholder like [name] unless they asked for one. No em dashes.',
     'Pick buyers and products only from the account list in the user message. Use the store name. If the name is not in that list, leave buyers empty. Never invent an id.',
     'Win-back and promo messages use channel whatsapp and messageCategory MARKETING unless they asked for email or both.',
@@ -327,11 +330,19 @@ export async function runDistributorAppAssistant(input: {
         }
       }
     }
+    const namedEmail = emailAddressInText(message);
+    const gmailOnCanvas = planTypes.has('app_email') || canvasTypes.has('app_email');
+    const existingEmail = updates.find((update) => update.type === 'app_email');
+    if (namedEmail && gmailOnCanvas && !businessEmailAddress(existingEmail?.config.email)) {
+      const config = { ...(existingEmail?.config ?? {}), email: namedEmail, connected: true };
+      if (existingEmail) existingEmail.config = config;
+      else updates.push({ type: 'app_email', config });
+    }
     if (settled.plan) {
       for (const step of settled.plan) {
         if (step.kind === 'agent') continue;
         const update = updates.find((item) => item.type === step.type);
-        if (update) step.config = update.config;
+        if (update) step.config = { ...(step.config ?? {}), ...update.config };
       }
     }
     const hidePlan = Boolean(input.onCanvas && settled.unchanged);

@@ -86,6 +86,17 @@ function cleanCopy(value: unknown, max: number): string {
     .slice(0, max);
 }
 
+export function businessEmailAddress(value: unknown): string | null {
+  const email = cleanCopy(value, 240).toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
+  return email;
+}
+
+export function emailAddressInText(text: string): string | null {
+  const match = text.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i);
+  return match ? businessEmailAddress(match[0]) : null;
+}
+
 export function fieldsForCatalogType(catalogType: string) {
   return (
     getAllTriggers().find((item) => item.type === catalogType)?.fields ??
@@ -124,6 +135,13 @@ export function sanitizeStepConfig(catalogType: string, raw: unknown): Record<st
     const names = row.products.map((item) => cleanCopy(item, 120)).filter(Boolean).slice(0, 20);
     if (names.length) config.products = names;
   }
+  if (catalogType === 'app_email') {
+    const email = businessEmailAddress(row.email);
+    if (email) {
+      config.email = email;
+      config.connected = true;
+    }
+  }
   return config;
 }
 
@@ -136,6 +154,7 @@ export function workflowInputGuide(): string {
       .join(', ');
     lines.push(`${item.type}: ${fields}.`);
   }
+  lines.push('app_email: email. The business Gmail address for this workflow.');
   return lines.join('\n');
 }
 
@@ -602,6 +621,8 @@ function summarizeFieldUpdate(update: WorkflowFieldUpdate, locale: 'en' | 'id'):
   if (config.replenishQty != null && config.replenishQty !== '') {
     parts.push(locale === 'id' ? `Jumlah: ${config.replenishQty}` : `Quantity: ${config.replenishQty}`);
   }
+  const email = businessEmailAddress(config.email);
+  if (email) parts.push(locale === 'id' ? `Email: ${email}` : `Email: ${email}`);
   const template = String(config.messageTemplate ?? '').trim();
   if (template) {
     const shown = template.length > 180 ? `${template.slice(0, 177)}...` : template;

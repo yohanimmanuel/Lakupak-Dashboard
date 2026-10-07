@@ -966,21 +966,10 @@ export default function CreateSalesJobForm({
             </div>
 
             <div>
-              <div className="flex items-center justify-between gap-3 mb-2">
-                <div className="min-w-0">
-                  <h3 className="text-xs font-medium text-gray-700">{t('form.schedulesTitle')}</h3>
-                  <p className="text-xs text-gray-500 mt-1">{t('form.schedulesHint')}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => updateJob(job.key, { schedules: [...job.schedules, blankSchedule()] })}
-                  className="shrink-0 whitespace-nowrap inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-white border border-[#e6e6e6] text-xs font-medium text-black hover:bg-gray-100"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  {t('form.addDate')}
-                </button>
-              </div>
-              <div className="overflow-x-auto rounded-lg border border-[#e6e6e6]">
+              <h3 className="text-xs font-medium text-gray-700">{t('form.schedulesTitle')}</h3>
+              <p className="text-xs text-gray-500 mt-1">{t('form.schedulesHint')}</p>
+              <p className="text-xs text-gray-500 mt-1">{t('form.schedulesNotice')}</p>
+              <div className="mt-2 overflow-x-auto rounded-lg border border-[#e6e6e6]">
                 <table className="w-full">
                   <thead>
                     <tr className="bg-gray-100 text-gray-500">
@@ -1033,6 +1022,14 @@ export default function CreateSalesJobForm({
                   </tbody>
                 </table>
               </div>
+              <button
+                type="button"
+                onClick={() => updateJob(job.key, { schedules: [...job.schedules, blankSchedule()] })}
+                className="mt-2 inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-white border border-[#e6e6e6] text-xs font-medium text-black hover:bg-gray-100"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                {t('form.addDate')}
+              </button>
             </div>
           </div>
         </section>

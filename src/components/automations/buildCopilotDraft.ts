@@ -373,13 +373,15 @@ function planNodeData(
     };
   }
   if (step.kind === 'app') {
+    const config = step.type === 'app_email' ? { connected: false, email: '' } : { connected: false, phone: '' };
+    Object.assign(config, mergePlanConfig({}, step.config));
     return {
       kind: 'app',
       catalogType: step.type,
       name: '',
       title: input.appTitle(step.type),
       subtitle: input.appSubtitle,
-      config: step.type === 'app_email' ? { connected: false, email: '' } : { connected: false, phone: '' },
+      config,
     };
   }
   if (step.kind === 'condition') {

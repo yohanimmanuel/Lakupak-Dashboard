@@ -550,6 +550,7 @@
       "jobNumber": "Pekerjaan {number}",
       "schedulesTitle": "Tanggal dan pengingat WhatsApp",
       "schedulesHint": "Tambahkan setiap tanggal kunjungan dan jam pengingat WhatsApp untuk sales ini. Jam mengikuti jam di komputer ini.",
+      "schedulesNotice": "Ini pesan keluar otomatis. Otomatisasi Pekerjaan Penjualan memungkinkan tindak lanjut setelah pekerjaan selesai.",
       "addDate": "Tambah tanggal",
       "reminder": "Pengingat WhatsApp",
       "removeDate": "Hapus tanggal",

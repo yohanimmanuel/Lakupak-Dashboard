@@ -240,6 +240,7 @@
     "back": "Back",
     "untitled": "Untitled workflow",
     "saveDraft": "Save draft",
+    "pause": "Pause",
     "applyingWorkflow": "Updating workflow",
     "activate": "Activate",
     "sendAtConfirmHint": "Changing this time does not send anything. Click Activate to confirm a future send time.",

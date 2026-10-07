@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { ArrowUp, AlertCircle, Boxes, EllipsisVertical, History, Loader2, PanelLeftClose, Pencil, Pin, Plus, ShoppingBag, Sparkles, Trash2, TrendingUp, X } from 'lucide-react';
@@ -11,7 +12,7 @@ import {
 } from '@/lib/automations/copilotRecipes';
 import { useUserStore } from '@/store/userStore';
 import { AiChatMarkdown } from '@/components/AiChatMarkdown';
-import { writeCopilotReviewPlan } from '@/lib/lakuAi/copilotReviewPlan';
+import { packCanvasReply, readCanvasReply, writeCopilotReviewPlan } from '@/lib/lakuAi/copilotReviewPlan';
 import { clearPendingBuilderChat } from '@/lib/lakuAi/pendingBuilderChat';
 import type { WorkflowCanvasEdit, WorkflowFieldUpdate, WorkflowPlanStep } from '@/lib/lakuAi/workflowPlan';
 import { readCopilotWorkflowLink, writeCopilotWorkflowLink } from '@/lib/lakuAi/copilotWorkflowLink';
@@ -186,6 +187,7 @@ export default function AutomationCopilot({
   const chatMenuRef = useRef<HTMLDivElement>(null);
   const deleteDialogRef = useRef<HTMLDivElement>(null);
   const deleteInvokerRef = useRef<HTMLButtonElement | null>(null);
+  const historyFocusFallbackRef = useRef<HTMLButtonElement | null>(null);
   const conversationIdRef = useRef<string | null>(null);
   const skipAutoloadRef = useRef(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -199,6 +201,10 @@ export default function AutomationCopilot({
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [deletingChat, setDeletingChat] = useState<HistoryRow | null>(null);
+  const renamingRef = useRef(renamingId);
+  const deletingRef = useRef(deletingChat);
+  renamingRef.current = renamingId;
+  deletingRef.current = deletingChat;
   const hour = new Date().getHours();
 
   const rememberConversation = (id: string | null) => {
@@ -209,13 +215,18 @@ export default function AutomationCopilot({
   const toLines = (messages: { role: string; content: string; recipeId?: string | null }[], instant: boolean): ChatLine[] =>
     messages
       .filter((message) => message.role === 'user' || message.role === 'assistant')
-      .map((message) => ({
-        id: lineId(),
-        role: message.role === 'assistant' ? 'assistant' as const : 'user' as const,
-        text: message.content,
-        recipeId: message.recipeId || undefined,
-        instant,
-      }));
+      .map((message) => {
+        const saved = message.role === 'assistant' ? readCanvasReply(message.content) : { text: message.content, edit: null };
+        return {
+          id: lineId(),
+          role: message.role === 'assistant' ? 'assistant' as const : 'user' as const,
+          text: saved.text,
+          recipeId: message.recipeId || undefined,
+          plan: saved.edit?.steps ?? undefined,
+          edit: saved.edit ?? undefined,
+          instant,
+        };
+      });
 
   const refreshHistory = async () => {
     const generalResponse = await fetch('/api/laku-ai/conversations?scope=general');
@@ -261,15 +272,18 @@ export default function AutomationCopilot({
     setLines([]);
     setInput('');
     setError('');
+    setActionError('');
     setHistoryMenu(false);
     if (surface === 'dock' && !automationId) clearPendingBuilderChat();
   };
 
   const runChatAction = async (kind: 'pin') => {
     if (!chatAction || actionBusy) return;
+    const target = chatAction;
+    setChatAction(null);
+    setHistoryMenu(true);
     setActionBusy(true);
     setActionError('');
-    const target = chatAction;
     try {
       const response = await fetch('/api/laku-ai/conversations', {
         method: 'PATCH',
@@ -277,7 +291,6 @@ export default function AutomationCopilot({
         body: JSON.stringify({ conversationId: target.id, pinned: !target.pinned }),
       });
       if (!response.ok) throw new Error('failed');
-      setChatAction(null);
       await refreshHistory();
     } catch {
       setActionError(t('history.actionFailed'));
@@ -286,10 +299,14 @@ export default function AutomationCopilot({
     }
   };
 
-  const beginDelete = (event: React.MouseEvent<HTMLButtonElement>) => {
+  const beginDelete = () => {
     if (!chatAction || actionBusy) return;
-    deleteInvokerRef.current = event.currentTarget;
+    deleteInvokerRef.current = document.querySelector<HTMLButtonElement>(
+      `[data-chat-actions][data-conversation-id="${CSS.escape(chatAction.id)}"]`,
+    );
     setDeletingChat(chatAction);
+    setChatAction(null);
+    setHistoryMenu(true);
     setActionError('');
   };
 
@@ -302,8 +319,10 @@ export default function AutomationCopilot({
       const response = await fetch(`/api/laku-ai/conversations?id=${encodeURIComponent(target.id)}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('failed');
       if (conversationIdRef.current === target.id) startNewChat();
+      deleteInvokerRef.current = null;
       setDeletingChat(null);
-      requestAnimationFrame(() => setChatAction(null));
+      setChatAction(null);
+      setHistoryMenu(true);
       await refreshHistory();
     } catch {
       setActionError(t('history.actionFailed'));
@@ -318,6 +337,7 @@ export default function AutomationCopilot({
     setRenameValue(chatAction.title);
     setActionError('');
     setChatAction(null);
+    setHistoryMenu(true);
   };
 
   const saveRename = async () => {
@@ -339,6 +359,7 @@ export default function AutomationCopilot({
       });
       if (!response.ok) throw new Error('failed');
       setRenamingId(null);
+      setHistoryMenu(true);
       await refreshHistory();
     } catch {
       setActionError(t('history.actionFailed'));
@@ -376,7 +397,12 @@ export default function AutomationCopilot({
   useEffect(() => {
     if (surface !== 'dock') return;
     const onPointerDown = (event: MouseEvent) => {
-      if (!historyMenuRef.current?.contains(event.target as Node)) setHistoryMenu(false);
+      if (renamingRef.current || deletingRef.current) return;
+      const raw = event.target;
+      const target = raw instanceof Element ? raw : raw instanceof Node ? raw.parentElement : null;
+      if (target?.closest('[data-keep-history]')) return;
+      if (historyMenuRef.current?.contains(raw as Node)) return;
+      setHistoryMenu(false);
     };
     window.addEventListener('mousedown', onPointerDown);
     return () => window.removeEventListener('mousedown', onPointerDown);
@@ -405,10 +431,14 @@ export default function AutomationCopilot({
   useEffect(() => {
     if (!deletingChat) return;
     const dialog = deleteDialogRef.current;
-    const invoker = deleteInvokerRef.current;
     dialog?.querySelector<HTMLElement>('button:not([disabled])')?.focus();
     return () => {
-      if (invoker?.isConnected) invoker.focus();
+      const invoker = deleteInvokerRef.current;
+      if (invoker?.isConnected) {
+        invoker.focus();
+        return;
+      }
+      historyFocusFallbackRef.current?.focus();
     };
   }, [deletingChat]);
 
@@ -492,7 +522,7 @@ export default function AutomationCopilot({
     setLines((current) => [...current, userLine]);
     try {
       const payload = await askModel(trimmed, history);
-      const edit = editFromPayload(payload);
+      const edit = editFromPayload(payload) ?? readCanvasReply(String(payload.reply ?? '')).edit;
       const recipe = payload.recipeId ? copilotRecipeById(payload.recipeId) : null;
       const reply = payload.unavailable
         ? t('featureUnavailable')
@@ -513,6 +543,7 @@ export default function AutomationCopilot({
         onApplyWorkflowRecipeAction?.(recipe.id);
       }
       const existingId = conversationIdRef.current;
+      const storedReply = packCanvasReply(reply, edit);
       const response = await fetch('/api/laku-ai/conversations', {
         method: existingId ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -521,14 +552,14 @@ export default function AutomationCopilot({
             ? {
                 conversationId: existingId,
                 userContent: trimmed,
-                assistantContent: reply,
+                assistantContent: storedReply,
                 recipeId: recipe?.id ?? null,
               }
             : {
                 automationId: null,
                 messages: [
                   { role: 'user', content: trimmed },
-                  { role: 'assistant', content: reply, recipeId: recipe?.id ?? null },
+                  { role: 'assistant', content: storedReply, recipeId: recipe?.id ?? null },
                 ],
               },
         ),
@@ -689,6 +720,7 @@ export default function AutomationCopilot({
         <button
           type="button"
           data-chat-actions
+          data-conversation-id={item.id}
           onClick={(event) => {
             if (menuOpen) {
               setChatAction(null);
@@ -718,12 +750,16 @@ export default function AutomationCopilot({
     <div className="flex min-h-0 flex-1 flex-col">
       <button
         type="button"
+        ref={historyFocusFallbackRef}
         onClick={startNewChat}
         className="mb-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-xs font-medium text-black hover:bg-gray-100"
       >
         <Plus className="h-3.5 w-3.5" />
         {t('history.newChat')}
       </button>
+      {actionError && !renamingId && !deletingChat ? (
+        <p className="mb-2 px-2 text-xs text-red-700">{actionError}</p>
+      ) : null}
       <div className="min-h-0 flex-1 space-y-1 overflow-y-auto">
         {history.length === 0 ? (
           <p className="px-2 py-3 text-xs text-gray-500">{t('history.empty')}</p>
@@ -811,7 +847,7 @@ export default function AutomationCopilot({
                 <History className="h-4 w-4" />
               </button>
               {historyMenu ? (
-                <div className="absolute right-0 z-50 mt-1 flex max-h-80 w-64 flex-col rounded-lg border border-[#e6e6e6] bg-white p-2 shadow-lg">
+                <div data-keep-history className="absolute right-0 z-50 mt-1 flex max-h-80 w-64 flex-col rounded-lg border border-[#e6e6e6] bg-white p-2 shadow-lg">
                   {historyList}
                 </div>
               ) : null}
@@ -902,18 +938,20 @@ export default function AutomationCopilot({
                     <div className="max-w-[85%] rounded-2xl border border-[#e6e6e6] bg-white px-4 py-3">
                       <p className="mb-1 text-[11px] font-semibold text-[#0a61d7]">{t('assistantLabel')}</p>
                       <TypingReply text={line.text} reduceMotion={reduceMotion} instant={line.instant} onProgress={scrollToEnd}>
-                        {(line.edit || line.plan?.length || workflow) && surface === 'page' ? (
+                        {line.edit || line.plan?.length || workflow ? (
                           <div className="mt-3 flex flex-wrap items-center gap-2">
                             <button
                               type="button"
                               className="rounded-lg bg-[#0a61d7] px-3 py-2 text-xs font-semibold text-white hover:bg-[#084ba6]"
-                              onClick={() =>
-                                line.edit
-                                  ? reviewPlan(line.edit)
-                                  : line.plan?.length
-                                    ? reviewPlan({ steps: line.plan, name: null, description: null, updates: [] })
-                                    : workflow && apply(workflow)
-                              }
+                              onClick={() => {
+                                const edit = line.edit ?? (line.plan?.length ? { steps: line.plan, name: null, description: null, updates: [] } : null);
+                                if (surface === 'dock' && edit && onApplyWorkflowPlanAction) {
+                                  onApplyWorkflowPlanAction(edit);
+                                  return;
+                                }
+                                if (edit) reviewPlan(edit);
+                                else if (workflow) apply(workflow);
+                              }}
                             >
                               {t('reviewCanvas')}
                             </button>
@@ -935,11 +973,14 @@ export default function AutomationCopilot({
 
       {(surface === 'dock' || !empty) && chatComposer}
      </div>
-      {chatAction && chatMenuPos ? (
+      {chatAction && chatMenuPos && typeof document !== 'undefined'
+        ? createPortal(
         <div
           ref={chatMenuRef}
+          data-keep-history
           role="menu"
-          className="fixed z-50 w-40 -translate-x-full rounded-lg border border-[#e6e6e6] bg-white py-1 shadow-lg"
+          onMouseDown={(event) => event.stopPropagation()}
+          className="fixed z-[80] w-40 -translate-x-full rounded-lg border border-[#e6e6e6] bg-white py-1 shadow-lg"
           style={{ top: chatMenuPos.top, left: chatMenuPos.left }}
         >
           {actionError ? <p className="px-3 py-1.5 text-xs text-red-700">{actionError}</p> : null}
@@ -973,16 +1014,23 @@ export default function AutomationCopilot({
             <Trash2 className="h-3.5 w-3.5" />
             {t('history.delete')}
           </button>
-        </div>
+        </div>,
+        document.body,
       ) : null}
-      {renamingId ? (
+      {renamingId && typeof document !== 'undefined'
+        ? createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          data-keep-history
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50"
           role="dialog"
           aria-modal="true"
           aria-labelledby="rename-chat-title"
+          onMouseDown={(event) => event.stopPropagation()}
           onKeyDown={(event) => {
-            if (event.key === 'Escape' && !actionBusy) setRenamingId(null);
+            if (event.key === 'Escape' && !actionBusy) {
+              setRenamingId(null);
+              setHistoryMenu(true);
+            }
           }}
         >
           <form
@@ -995,7 +1043,10 @@ export default function AutomationCopilot({
             <button
               type="button"
               className="absolute right-4 top-4 z-10 rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
-              onClick={() => setRenamingId(null)}
+              onClick={() => {
+                setRenamingId(null);
+                setHistoryMenu(true);
+              }}
               disabled={actionBusy}
               aria-label={t('history.close')}
             >
@@ -1028,7 +1079,10 @@ export default function AutomationCopilot({
               <button
                 type="button"
                 className="px-4 py-2 text-sm text-gray-600 transition-colors hover:text-gray-800"
-                onClick={() => setRenamingId(null)}
+                onClick={() => {
+                  setRenamingId(null);
+                  setHistoryMenu(true);
+                }}
                 disabled={actionBusy}
               >
                 {t('history.cancel')}
@@ -1042,18 +1096,25 @@ export default function AutomationCopilot({
               </button>
             </div>
           </form>
-        </div>
+        </div>,
+        document.body,
       ) : null}
-      {deletingChat ? (
+      {deletingChat && typeof document !== 'undefined'
+        ? createPortal(
         <div
           ref={deleteDialogRef}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          data-keep-history
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50"
           role="dialog"
           aria-modal="true"
           aria-labelledby="delete-chat-title"
+          onMouseDown={(event) => event.stopPropagation()}
           onKeyDown={(event) => {
             if (event.key === 'Escape') {
-              if (!actionBusy) setDeletingChat(null);
+              if (!actionBusy) {
+                setDeletingChat(null);
+                setHistoryMenu(true);
+              }
               return;
             }
             if (event.key !== 'Tab') return;
@@ -1088,7 +1149,10 @@ export default function AutomationCopilot({
               <button
                 type="button"
                 className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500"
-                onClick={() => setDeletingChat(null)}
+                onClick={() => {
+                  setDeletingChat(null);
+                  setHistoryMenu(true);
+                }}
                 disabled={actionBusy}
               >
                 {t('history.cancel')}
@@ -1110,7 +1174,8 @@ export default function AutomationCopilot({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   );

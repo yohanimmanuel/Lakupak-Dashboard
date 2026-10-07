@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ChevronRight, Loader2, Play, RefreshCw, Save, Undo2 } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Loader2, Pause, Play, RefreshCw, Save, Undo2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
 import AutomationCopilot, { AskAiNavButton } from '@/components/automations/AutomationCopilot';
@@ -26,13 +26,14 @@ export function useBuilderPanelControls() {
   return useContext(BuilderPanelContext);
 }
 
-type ToolbarBusy = 'undo' | 'test' | 'save' | 'activate' | null;
+type ToolbarBusy = 'undo' | 'test' | 'save' | 'pause' | 'activate' | null;
 
 export function WorkflowBuilderShell({
   title,
   status,
   saving,
   onSaveDraftAction,
+  onPauseAction,
   onActivateAction,
   onTestRunAction,
   showTestRun,
@@ -55,6 +56,7 @@ export function WorkflowBuilderShell({
   status: WorkflowStatus;
   saving?: boolean;
   onSaveDraftAction: () => boolean | Promise<boolean>;
+  onPauseAction: () => boolean | void | Promise<boolean | void>;
   onActivateAction: () => boolean | void | Promise<boolean | void>;
   onTestRunAction?: () => void | Promise<unknown>;
   showTestRun?: boolean;
@@ -172,6 +174,20 @@ export function WorkflowBuilderShell({
       setToolbarBusy(null);
     }
   }, [busy, onTestRunAction]);
+
+  const handlePause = useCallback(async () => {
+    if (busy) return;
+    setToolbarBusy('pause');
+    try {
+      const ok = await onPauseAction();
+      if (ok === false) return;
+      const savedAt = Date.now();
+      setLastSavedAt(savedAt);
+      setNowTs(savedAt);
+    } finally {
+      setToolbarBusy(null);
+    }
+  }, [busy, onPauseAction]);
 
   const handleActivate = useCallback(async () => {
     if (busy) return;
@@ -321,6 +337,19 @@ export function WorkflowBuilderShell({
               <Save className="h-4 w-4" />
             )}
             {tBuilder('saveDraft')}
+          </button>
+          <button
+            type="button"
+            onClick={() => void handlePause()}
+            disabled={busy}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-xs font-medium text-black hover:bg-gray-50 disabled:opacity-50"
+          >
+            {toolbarBusy === 'pause' ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Pause className="h-4 w-4" />
+            )}
+            {tBuilder('pause')}
           </button>
           <button
             type="button"
