@@ -8,6 +8,7 @@ export type RepJobLine = {
   jobType: string;
   productNames: string[];
   reason?: string | null;
+  done?: boolean;
 };
 
 export function asSalesReplyLocale(value: unknown): SalesReplyLocale | null {
@@ -53,32 +54,51 @@ export function jobTypeLabel(locale: SalesReplyLocale, jobType: string): string 
   return locale === 'id' ? salesJobTypeLabelId(jobType) : salesJobTypeLabel(jobType);
 }
 
+export function jobListBody(locale: SalesReplyLocale, jobs: RepJobLine[]): string {
+  return jobs
+    .map((job, index) => {
+      const store =
+        job.jobType === 'stock_check' && !job.clientName.trim()
+          ? locale === 'id'
+            ? 'Gudang'
+            : 'Warehouse'
+          : job.clientName.trim() || (locale === 'id' ? 'Toko' : 'Shop');
+      const type = jobTypeLabel(locale, job.jobType);
+      const products = job.productNames.map((item) => item.trim()).filter(Boolean);
+      const parts = [`${index + 1}. ${store}`, type];
+      if (products.length) {
+        parts.push(locale === 'id' ? `Produk: ${products.join(', ')}` : `Products: ${products.join(', ')}`);
+      }
+      const reason = job.reason?.trim();
+      if (reason) parts.push(reason);
+      if (job.done) parts.push(locale === 'id' ? 'Selesai' : 'Done');
+      return parts.join('\n');
+    })
+    .join('\n\n');
+}
+
 export function upcomingJobsMessage(locale: SalesReplyLocale, agentName: string, jobs: RepJobLine[]): string {
   const name = agentName.trim() || (locale === 'id' ? 'Sales' : 'there');
   const greeting = locale === 'id' ? `Hai ${name}.` : `Hi ${name}.`;
   const intro = locale === 'id' ? 'Berikut pekerjaan mendatang Anda:' : 'Here are your upcoming jobs:';
-  const lines = jobs.map((job, index) => {
-    const store =
-      job.jobType === 'stock_check' && !job.clientName.trim()
-        ? locale === 'id'
-          ? 'Gudang'
-          : 'Warehouse'
-        : job.clientName.trim() || (locale === 'id' ? 'Toko' : 'Shop');
-    const type = jobTypeLabel(locale, job.jobType);
-    const products = job.productNames.map((item) => item.trim()).filter(Boolean);
-    const parts = [`${index + 1}. ${store}`, type];
-    if (products.length) {
-      parts.push(locale === 'id' ? `Produk: ${products.join(', ')}` : `Products: ${products.join(', ')}`);
-    }
-    const reason = job.reason?.trim();
-    if (reason) parts.push(reason);
-    return parts.join('\n');
-  });
   const close =
     locale === 'id'
       ? 'Balas saja kalau mau tanya soal pekerjaan ini, produknya, atau penjualan Anda. Kalau ada yang sudah selesai, beri tahu saya.'
       : 'Reply if you want to ask about these jobs, the products, or your sales. If one is finished, tell me.';
-  return [greeting, intro, ...lines, close].join('\n\n');
+  return [greeting, intro, jobListBody(locale, jobs), close].join('\n\n');
+}
+
+/** Same numbered list as the outbound reminder, without the greeting. Finished jobs are marked done. */
+export function remainingJobsMessage(locale: SalesReplyLocale, jobs: RepJobLine[]): string {
+  if (jobs.length === 0) {
+    return salesCopy(
+      locale,
+      "That's everything for today. Send a message if you want to ask something.",
+      'Untuk hari ini sudah selesai. Balas saja kalau ada yang mau ditanya.',
+    );
+  }
+  const intro = locale === 'id' ? 'Berikut pekerjaan Anda:' : 'Here are your jobs:';
+  return [intro, jobListBody(locale, jobs)].join('\n\n');
 }
 
 export function reportButtonTitles(locale: SalesReplyLocale): [string, string, string] {

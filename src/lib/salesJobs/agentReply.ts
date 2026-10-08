@@ -8,6 +8,7 @@ import {
   jobTypeLabel,
   reportButtonPrompt,
   salesCopy,
+  remainingJobsMessage,
   salesRepReplyLocale,
   nameTheFinishedWork,
   checklistUpdatedReply,
@@ -20,6 +21,7 @@ import {
   competitorInputAsk,
   type CompetitorField,
   wantsFinishedJobReport,
+  type RepJobLine,
   type SalesReplyLocale,
 } from '@/lib/salesJobs/repCopy';
 import { dispatchJobToWhatsApp } from '@/lib/salesJobs/whatsapp';
@@ -171,7 +173,7 @@ function tidyLabelValue(key: 'name' | 'product' | 'price' | 'promo', value: stri
 /** The competitor name, product, price, and promo written in the rep's own words. */
 function competitorFactsFromText(text: string): { name: string; product: string; price: number | null; promo: string } {
   const labels: { key: 'name' | 'product' | 'price' | 'promo'; pattern: RegExp }[] = [
-    { key: 'name', pattern: /\b(?:nama\s+(?:competitor|kompetitor|pesaing)(?:nya)?|(?:competitor|kompetitor|pesaing)(?:\s*nya|\s+name)?|nama\s+pesaing)\b/i },
+    { key: 'name', pattern: /\b(?:namanya|nama\s+(?:competitor|kompetitor|pesaing)(?:nya)?|(?:competitor|kompetitor|pesaing)(?:\s*nya|\s+name)?|nama\s+pesaing)\b/i },
     { key: 'product', pattern: /\b(?:produk(?:nya)?|competitor\s+product|produk\s+pesaing)\b/i },
     { key: 'price', pattern: /\b(?:harga(?:nya)?|price)\b/i },
     { key: 'promo', pattern: /\bpromo(?:nya)?\b/i },
@@ -193,6 +195,7 @@ function competitorFactsFromText(text: string): { name: string; product: string;
       if (price != null && Number.isInteger(price)) facts.price = price;
       return;
     }
+    if (!/[\p{L}\p{N}]/u.test(value)) return;
     if (label.key === 'name') facts.name = value;
     if (label.key === 'product') facts.product = value;
     if (label.key === 'promo') facts.promo = value;
@@ -789,10 +792,24 @@ function buyerProgress(
 const VISIT_ACT =
   /\b(?:di|meng|ter|ke)?(?:kirim|kirm|ambil|jemput|antar|serah|tagih|aktivasi)\w*\b|\b(?:promosi(?:kan)?|mempromosikan\w*|dipromosikan|promoted|deliver\w*|delivered|picked|sent|memberikan|diberikan|menagih)\b/i;
 
+const NOT_YET = /\b(?:belum|belom|blum|blom|blm|not yet|haven't|have not)\b/i;
+
 function saysJobStillOpen(text: string): boolean {
   if (isJobQuestion(text)) return false;
-  if (!/\b(belum|belom|not yet|haven't|have not)\b/i.test(text)) return false;
-  return VISIT_ACT.test(text) || /\b(selesai|kelar|beres|done|finished|siap)\b/i.test(text);
+  if (!NOT_YET.test(text)) return false;
+  return VISIT_ACT.test(text) || /\b(?:selesai|kelar|beres|done|finished|siap|tunggu|wait)\b/i.test(text);
+}
+
+function stillOpenReply(locale: SalesReplyLocale, text: string): string {
+  const type = jobTypesInText(text)[0];
+  const label = type ? jobTypeLabel(locale, type).toLowerCase() : '';
+  const waiting = /\b(?:tunggu|wait)\b/i.test(text);
+  if (locale === 'id') {
+    const job = label || 'pekerjaannya';
+    return waiting ? `Oke, saya tunggu. Kabari saya kalau ${job} sudah selesai.` : `Oke. Kabari saya kalau ${job} sudah selesai.`;
+  }
+  const job = label || 'that job';
+  return waiting ? `Okay, I'll wait. Tell me when ${job} is finished.` : `Okay. Tell me when ${job} is finished.`;
 }
 
 function saysJobIsDone(text: string): boolean {
@@ -919,44 +936,23 @@ function looksLikeVisitResult(text: string): boolean {
   );
 }
 
-function isCourtesy(text: string): boolean {
-  if (isJobQuestion(text) || saysJobIsDone(text)) return false;
-  return /\b(terima kasih|makasih|thanks|thank you|thx)\b/i.test(text);
-}
-
-function isGreeting(text: string): boolean {
-  return /^(?:halo|hai|hello|hi|hey|pagi|siang|sore|malam|selamat\s+(?:pagi|siang|sore|malam))[.!\s]*$/i.test(text.trim());
-}
-
 function asksForMoreWork(text: string): boolean {
   if (saysJobIsDone(text)) return false;
+  if (/\b(?:anything left|left behind|ketinggalan|tertinggal)\b/i.test(text)) return true;
+  if (/\b(?:forgot|forgotten|lupa)\b/i.test(text) && /\b(?:pekerjaan|kerjaan|tugas|jobs?|work|do|ngerjain)\b/i.test(text)) {
+    return true;
+  }
   if (!/\b(?:pekerjaan|kerjaan|tugas|jobs?|work)\b/i.test(text)) return false;
   const asks =
     isJobQuestion(text) || /\b(?:ada|is there|are there|what(?:'s| is) left|any more|anymore)\b/i.test(text);
   return asks && /\b(?:lagi|tambahan|lain|sisa|masih|left|more|else|another|any|additional|extra)\b/i.test(text);
 }
 
-function remainingWorkReply(locale: SalesReplyLocale, jobs: ReportedJob[]): string {
-  if (jobs.length === 0) {
-    return salesCopy(
-      locale,
-      "That's everything for today. Send a message if you want to ask something.",
-      'Untuk hari ini sudah selesai. Balas saja kalau ada yang mau ditanya.',
-    );
-  }
-  const bits = jobs.map((job) => {
-    const shop = shopTitle(locale, job);
-    return locale === 'id' ? `${jobTypeLabel(locale, job.jobType)} di ${shop}` : `${jobTypeLabel(locale, job.jobType)} at ${shop}`;
-  });
-  const list = joinShopNames(locale, bits);
-  return salesCopy(locale, `Yes. Still open: ${list}.`, `Masih ada. ${list}.`);
-}
-
 function keepChatOpenReply(locale: SalesReplyLocale): string {
   return salesCopy(
     locale,
-    "I'm here. Ask me about the work, or tell me if something needs a correction.",
-    'Saya di sini. Tanya saja soal pekerjaannya, atau kabari kalau ada yang perlu dikoreksi.',
+    "I'm here. Message me whenever you want.",
+    'Saya di sini. Kabari saja kapan pun.',
   );
 }
 
@@ -1124,6 +1120,7 @@ async function answerRep(
     } | null;
   }[],
   text: string,
+  savedNotes = '',
 ): Promise<void> {
   const products = await prisma.product.findMany({
     where: { userId: distributorId },
@@ -1223,11 +1220,11 @@ async function answerRep(
       const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
         {
           role: 'system',
-          content: `You text one sales rep on WhatsApp. You are their sales manager, the same way a buyer chat stays a conversation. Answer what they asked in a few plain sentences. If they only say thanks or that they will follow up with the buyer, reply with one short friendly sentence and do not list jobs. Never paste the internal job list, phone numbers, or street addresses. Plain sentences only: no markdown, no headings, no asterisks, and no links. Never write a safety label, including User Safety or Safety Categories. Never write a thinking process, analysis, or recap of these instructions. When they ask which orders to deliver or pick up, name each shop they asked about, the products, the status, and the total from the records. Do not pitch products unless they asked how to sell. Do not repeat their message. The jobs, outlets, and orders below are already loaded for this rep. If a shop is in those records, answer about its jobs and orders. Do not say the shop is missing, and do not ask for an outlet code, owner, or address when the records already include it. When they ask what to look for, how to check a competitor, stock, a new product, a payment, or a return, answer in a few plain sentences as their manager. When they ask how to pitch, offer, or sell, cover every product they asked about. Give each product its own short paragraph: who it is for, one reason to try it, and a line they can say in the shop. Finish the last product before you stop. Use the public web notes for that product advice. Do not use the web for private records, and do not look at any other distributor. Do not invent prices or stock that are not in the records. ${languageRule} No em dashes.`,
+          content: `You text one sales rep on WhatsApp. You are their sales manager, the same way a buyer chat stays a conversation. Answer what they asked in a few plain sentences. If they thank you, say they will try, say goodbye, or say see you tomorrow, answer that like a person in one or two short sentences. Wish them well. The chat stays open if they write again. Do not ask whether there is anything else to check, and do not bring up unfinished checklists. Never paste the internal job list, phone numbers, or street addresses. Plain sentences only: no markdown, no headings, no asterisks, and no links. Never write a safety label, including User Safety or Safety Categories. Never write a thinking process, analysis, or recap of these instructions. When they ask which orders to deliver or pick up, name each shop they asked about, the products, the status, and the total from the records. Do not pitch products unless they asked how to sell. Do not repeat their message. The jobs, outlets, and orders below are already loaded for this rep. If a shop is in those records, answer about its jobs and orders. Do not say the shop is missing, and do not ask for an outlet code, owner, or address when the records already include it. When they ask whether a competitor, stock count, or promotion was saved, answer from Already saved today. Do not ask them to send those facts again when they are already listed there. When they ask what to look for, how to check a competitor, stock, a new product, a payment, or a return, answer in a few plain sentences as their manager. When they ask how to pitch, offer, or sell, cover every product they asked about. Give each product its own short paragraph: who it is for, one reason to try it, and a line they can say in the shop. Finish the last product before you stop. Use the public web notes for that product advice. Do not use the web for private records, and do not look at any other distributor. Do not invent prices or stock that are not in the records. ${languageRule} No em dashes.`,
         },
         {
           role: 'user',
-          content: `${advice ? `Look up these products on the public web for selling advice:\n${focusLines || catalog || (locale === 'id' ? 'tidak ada' : 'none')}\n\n` : ''}Jobs:\n${jobLines}\n\nOrders for this rep:\n${orderLines || (locale === 'id' ? 'tidak ada' : 'none')}\n\nProducts this distributor sells:\n${catalog || (locale === 'id' ? 'tidak ada' : 'none')}\n\nMessage:\n${text}`,
+          content: `${advice ? `Look up these products on the public web for selling advice:\n${focusLines || catalog || (locale === 'id' ? 'tidak ada' : 'none')}\n\n` : ''}Jobs:\n${jobLines}\n\nOrders for this rep:\n${orderLines || (locale === 'id' ? 'tidak ada' : 'none')}\n\nAlready saved today:\n${savedNotes || (locale === 'id' ? 'tidak ada' : 'none')}\n\nProducts this distributor sells:\n${catalog || (locale === 'id' ? 'tidak ada' : 'none')}\n\nMessage:\n${text}`,
         },
       ];
       let reply = '';
@@ -1378,6 +1375,68 @@ async function askAgent(phone: string, body: string): Promise<boolean> {
   return true;
 }
 
+function leaveStructured(draft: string): boolean {
+  return /^\s*\d+\.\s/m.test(draft) || /berikut pekerjaan|here are your jobs/i.test(draft);
+}
+
+function spokenKeepsFacts(draft: string, spoken: string): boolean {
+  const numbers = draft.match(/\d+/g) ?? [];
+  if (numbers.some((number) => !spoken.includes(number))) return false;
+  const stop = new Set([
+    'untuk', 'sudah', 'saya', 'catat', 'produk', 'oke', 'okay', 'baik', 'berapa', 'diberikan', 'selesai',
+    'tunggu', 'kabari', 'checklist', 'dengan', 'yang', 'dari', 'atau', 'this', 'that', 'shop', 'toko',
+    'have', 'been', 'with', 'your', 'updated', 'saved',
+  ]);
+  const tokens = [...new Set(draft.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length >= 5 && !stop.has(token)))];
+  const hay = spoken.toLowerCase();
+  return tokens.every((token) => hay.includes(token));
+}
+
+/** Rewrites a fixed reply into a short WhatsApp text. Facts stay. A model failure keeps the original. */
+async function speak(locale: SalesReplyLocale, userText: string, draft: string): Promise<string> {
+  const cleaned = draft.trim();
+  if (!cleaned || leaveStructured(cleaned) || !isOpenRouterConfigured()) return cleaned;
+  if (/could not save|belum tersimpan|please try again|coba lagi/i.test(cleaned)) return cleaned;
+  const language = locale === 'id' ? 'Indonesian' : 'English';
+  try {
+    const result = await chatWithOpenRouter({
+      temperature: 0.5,
+      maxTokens: 220,
+      reasoning: false,
+      messages: [
+        {
+          role: 'system',
+          content: `You text one sales rep as their manager. Rewrite the meaning as a person would on WhatsApp, in ${language}. One to three short sentences. Keep every shop name, product name, and number exactly. If the meaning asks for a missing fact, ask for that fact in a natural way. If they are thanking you or signing off, wish them well and leave the chat open. Do not ask whether there is anything else to check. Do not add a fact that is not in the meaning. No markdown, no labels, and no em dashes.`,
+        },
+        {
+          role: 'user',
+          content: `They wrote:\n${userText}\n\nMeaning:\n${cleaned}`,
+        },
+      ],
+    });
+    const spoken = stripModelThinking(result.content).replace(/^["']|["']$/g, '').trim();
+    if (!spoken || spoken.length > 900 || !spokenKeepsFacts(cleaned, spoken)) return cleaned;
+    return spoken;
+  } catch (err) {
+    console.error('[sales-job-agent-reply] could not phrase the reply', err);
+    return cleaned;
+  }
+}
+
+async function deliver(
+  fromPhone: string,
+  locale: SalesReplyLocale,
+  distributorId: number,
+  userText: string,
+  draft: string,
+): Promise<boolean> {
+  const body = await speak(locale, userText, draft);
+  if (!body) return false;
+  const sent = await askAgent(fromPhone, body);
+  if (sent) await noteSalesWorkflowOutbound(distributorId, body);
+  return sent;
+}
+
 /**
  * Files a free-text WhatsApp reply from a sales agent onto today's open job.
  * Buyer numbers are ignored. Missing facts get one question back to the agent.
@@ -1419,6 +1478,99 @@ function shopsOf(job: ReportedJob): string[] {
   if (job.shops.length) return job.shops;
   const fallback = shopLabel(job.client?.storeName, job.client?.owner);
   return fallback === 'Open job' ? [] : [fallback];
+}
+
+function messageClauses(text: string): string[] {
+  return text
+    .split(/\s*(?:,|;|\btapi\b|\btetapi\b|\bnamun\b|\bsedangkan\b|\bbut\b)\s*/i)
+    .map((part) => part.replace(/^(?:tapi|tetapi|namun|sedangkan|but)\b\s*/i, '').trim())
+    .filter((part) => part.length > 0);
+}
+
+function mixedWaitLine(locale: SalesReplyLocale, openText: string): string {
+  const type = jobTypesInText(openText)[0];
+  const label = type ? jobTypeLabel(locale, type) : '';
+  if (locale === 'id') return label ? `${label} saya tunggu dulu.` : 'Yang belum selesai saya tunggu dulu.';
+  return label ? `I'll wait on the ${label.toLowerCase()}.` : "I'll wait on the job that is not finished.";
+}
+
+/** One message can leave one job open and finish another. Save only the finished part. */
+async function recordFinishedClauses(
+  fromPhone: string,
+  locale: SalesReplyLocale,
+  distributorId: number,
+  ordered: ReportedJob[],
+  text: string,
+): Promise<{ handled: true; asked: true; jobId?: string } | null> {
+  const clauses = messageClauses(text);
+  if (clauses.length < 2) return null;
+  const openClauses = clauses.filter((clause) => saysJobStillOpen(clause));
+  const doneClauses = clauses.filter((clause) => saysJobIsDone(clause) && !saysJobStillOpen(clause));
+  if (openClauses.length === 0 || doneClauses.length === 0) return null;
+
+  const openTypes = new Set(openClauses.flatMap((clause) => jobTypesInText(clause)));
+  const indexes = new Set<number>();
+  let unclear = false;
+  for (const clause of doneClauses) {
+    const done = matchDoneJobs(clause, ordered);
+    if (!done || done.ask || done.indexes.length === 0) {
+      unclear = true;
+      continue;
+    }
+    for (const index of done.indexes) {
+      const job = ordered[index];
+      if (!job || INPUT_JOB_TYPES.has(job.jobType)) continue;
+      if (openTypes.size > 0 && namedTypeMatches(job.jobType, openTypes)) continue;
+      indexes.add(index);
+    }
+  }
+
+  const openLine = mixedWaitLine(locale, openClauses.join(' '));
+  if (indexes.size === 0) {
+    if (!unclear) return null;
+    const reply = `${nameTheFinishedWork(locale)} ${openLine}`;
+    await deliver(fromPhone, locale, distributorId, text, reply);
+    return { handled: true, asked: true };
+  }
+
+  const byType = new Map<string, string[]>();
+  let jobId: string | undefined;
+  const doneText = doneClauses.join('. ');
+  for (const index of indexes) {
+    const row = ordered[index];
+    try {
+      await completeSalesJob({
+        distributorId: row.distributorId,
+        id: row.id,
+        completion: completionForWords(row.jobType, doneText),
+        notes: text.slice(0, 1000),
+      });
+    } catch (err) {
+      console.error('[sales-job-agent-reply] could not update checklist', row.id, err);
+      continue;
+    }
+    jobId = jobId ?? row.id;
+    const names = byType.get(row.jobType) ?? [];
+    for (const name of shopsOf(row)) {
+      if (!names.some((item) => sameShop(item, name))) names.push(name);
+    }
+    byType.set(row.jobType, names);
+  }
+  if (!jobId) {
+    const reply = salesCopy(locale, 'Could not save this update. Please try again.', 'Pembaruan ini belum tersimpan. Coba lagi.');
+    await askAgent(fromPhone, reply);
+    return { handled: true, asked: true };
+  }
+  const savedLine = [...byType.entries()]
+    .map(([type, shops]) => {
+      const shop = joinShopNames(locale, shops);
+      const label = jobTypeLabel(locale, type);
+      return locale === 'id' ? `${label} untuk ${shop} sudah saya catat` : `I saved the ${label.toLowerCase()} for ${shop}`;
+    })
+    .join('. ');
+  const reply = locale === 'id' ? `Oke. ${savedLine}. ${openLine}` : `Okay. ${savedLine}. ${openLine}`;
+  await deliver(fromPhone, locale, distributorId, text, reply);
+  return { handled: true, asked: true, jobId };
 }
 
 async function shopNamesByJob(
@@ -1466,6 +1618,76 @@ async function shopNamesByJob(
     map.set(job.id, shops);
   }
   return map;
+}
+
+async function remainingJobsReply(
+  locale: SalesReplyLocale,
+  dayFilters: { assignedTo: { in: string[] }; scheduledDate: { gte: Date } }[],
+): Promise<string> {
+  const rows = await prisma.salesJob.findMany({
+    where: {
+      status: { in: ['pending', 'approved', 'suggested', 'dispatched', 'in_progress', 'completed'] },
+      OR: dayFilters,
+    },
+    include: { client: { select: { storeName: true, owner: true } } },
+    orderBy: { scheduledDate: 'asc' },
+    take: 20,
+  });
+  const shopByJob = await shopNamesByJob(rows);
+  const productIds = Array.from(new Set(rows.flatMap((row) => row.suggestedProducts)));
+  const products = productIds.length
+    ? await prisma.product.findMany({
+        where: { productId: { in: productIds } },
+        select: { productId: true, name: true },
+      })
+    : [];
+  const nameOf = new Map(products.map((product) => [product.productId, product.name]));
+  const lines: RepJobLine[] = rows.map((row) => {
+    const shops = shopByJob.get(row.id) ?? [];
+    return {
+      clientName: shops.length ? joinShopNames(locale, shops) : '',
+      jobType: row.jobType,
+      productNames: row.suggestedProducts.map((id) => nameOf.get(id) || id),
+      reason: row.priorityReason,
+      done: row.status === 'completed',
+    };
+  });
+  return remainingJobsMessage(locale, lines);
+}
+
+async function savedTodayNotes(
+  locale: SalesReplyLocale,
+  dayFilters: { assignedTo: { in: string[] }; scheduledDate: { gte: Date } }[],
+): Promise<string> {
+  const rows = await prisma.salesJob.findMany({
+    where: {
+      status: 'completed',
+      OR: dayFilters.flatMap((filter) => {
+        const start = filter.scheduledDate.gte;
+        const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+        return [
+          { assignedTo: filter.assignedTo, scheduledDate: filter.scheduledDate },
+          { assignedTo: filter.assignedTo, completedAt: { gte: start, lt: end } },
+        ];
+      }),
+    },
+    include: { client: { select: { storeName: true, owner: true } } },
+    orderBy: { updatedAt: 'desc' },
+    take: 12,
+  });
+  return rows
+    .map((row) => {
+      const data = readCompletion(row.completionData);
+      const shop = shopLabel(row.client?.storeName, row.client?.owner);
+      const bits = [jobTypeLabel(locale, row.jobType)];
+      if (shop && shop !== 'Open job') bits.push(shop);
+      if (data.competitor_name) bits.push(data.competitor_name);
+      if (data.competitor_product) bits.push(data.competitor_product);
+      if (data.observed_price != null) bits.push(String(data.observed_price));
+      if (data.observed_promo) bits.push(data.observed_promo);
+      return bits.join(', ');
+    })
+    .join('\n');
 }
 
 function shopTitle(locale: SalesReplyLocale, job: ReportedJob): string {
@@ -1808,7 +2030,7 @@ async function saveReportedChecklists(
     return { handled: true, asked: true };
   }
   const reply = saved.join('\n\n');
-  if (await askAgent(fromPhone, reply)) await noteSalesWorkflowOutbound(distributorId, reply);
+  await deliver(fromPhone, locale, distributorId, text, reply);
   return { handled: true, asked: true, jobId };
 }
 
@@ -1817,24 +2039,109 @@ function textNamesFocusProduct(text: string, product: CatalogProduct): boolean {
   return name.length >= 4 && text.toLowerCase().includes(name);
 }
 
-/** A waiting job owns this message when it names that shop or product, or no other open job type. */
-async function messageConcernsWaitingJob(
-  text: string,
-  ordered: ReportedJob[],
-  waiting: ReportedJob[],
+function inputFilledCount(pending: PendingInput | null): number {
+  if (!pending) return 0;
+  let count = 0;
+  if (pending.competitor_name?.trim()) count += 1;
+  if (pending.competitor_product?.trim()) count += 1;
+  if (pending.observed_price != null) count += 1;
+  if (pending.observed_promo?.trim()) count += 1;
+  count += pending.given_counts?.length ?? 0;
+  count += pending.stock_counts?.length ?? 0;
+  return count;
+}
+
+/** The message contains facts for this job, using the same readers that save the checklist. */
+function messageFeedsJob(text: string, job: ReportedJob, catalog: CatalogProduct[]): boolean {
+  if (isJobQuestion(text)) return false;
+  if (job.jobType === 'competitor_intel') {
+    const facts = competitorFactsFromText(text);
+    return Boolean(facts.name || facts.product || facts.price != null || facts.promo);
+  }
+  if (job.jobType !== 'stock_check' && !isSampleJob(job.jobType)) return false;
+  const focus = focusProducts(job.suggestedProducts ?? [], catalog);
+  if (quantitiesNearProducts(text, focus).size > 0) return true;
+  return quantityAppliesToEveryProduct(text) && /\d/.test(text);
+}
+
+/**
+ * Saves every open checklist the message actually fills.
+ * A promotion question that is still waiting does not swallow a competitor report in the same text.
+ */
+async function fileIncomingFacts(
+  fromPhone: string,
+  locale: SalesReplyLocale,
   distributorId: number,
-): Promise<boolean> {
-  if (waiting.some((job) => shopsOf(job).some((shop) => shopMentioned(text, shop)))) return true;
-  const waitingIds = new Set(waiting.map((job) => job.id));
-  const namedTypes = new Set(jobTypesInText(text));
-  const otherOpenType =
-    (looksLikeVisitResult(text) || namedTypes.size > 0) &&
-    ordered.some((job) => !waitingIds.has(job.id) && namedTypeMatches(job.jobType, namedTypes));
-  if (!otherOpenType) return true;
+  ordered: ReportedJob[],
+  text: string,
+): Promise<{ handled: true; asked: true; jobId?: string } | null> {
+  if (isJobQuestion(text)) return null;
+  const inputs = ordered.filter((job) => INPUT_JOB_TYPES.has(job.jobType));
+  if (inputs.length === 0) return null;
   const catalog = await loadCatalog(distributorId);
-  return waiting.some((job) =>
-    focusProducts(job.suggestedProducts ?? [], catalog).some((product) => textNamesFocusProduct(text, product)),
-  );
+  const namesProduct = catalog.some((product) => textNamesFocusProduct(text, product));
+  const namesShop = ordered.some((job) => shopsOf(job).some((shop) => shopMentioned(text, shop)));
+  const pool =
+    isQuantityOnly(text) && !namesProduct && !namesShop
+      ? inputs.filter((job) => readPending(job.completionData))
+      : inputs;
+  const fed = pool.filter((job) => messageFeedsJob(text, job, catalog));
+  if (fed.length === 0) return null;
+  const replies: string[] = [];
+  let jobId: string | undefined;
+  let advanced = false;
+  for (const job of fed) {
+    const before = readPending(job.completionData);
+    const shop = shopTitle(locale, job);
+    const resolution = await resolveRequiredInput(
+      job.jobType,
+      text,
+      shop,
+      focusProducts(job.suggestedProducts ?? [], catalog),
+      locale,
+      before,
+    );
+    if (!resolution) continue;
+    const moved = resolution.ready || inputFilledCount(resolution.pending) > inputFilledCount(before);
+    if (!moved) continue;
+    advanced = true;
+    if (!resolution.ready) {
+      try {
+        await notePending(job, resolution.pending);
+      } catch (err) {
+        console.error('[sales-job-agent-reply] could not keep the pending input', job.id, err);
+      }
+      replies.push(resolution.question);
+      jobId = jobId ?? job.id;
+      continue;
+    }
+    try {
+      const completion = isSampleJob(job.jobType)
+        ? completionForSampleRow(resolution.completion, job.suggestedProducts ?? [])
+        : resolution.completion;
+      await completeSalesJob({
+        distributorId: job.distributorId,
+        id: job.id,
+        completion,
+        notes: text.slice(0, 1000),
+      });
+      replies.push(savedJobReply(locale, shop, job.jobType, completion, catalog));
+      jobId = jobId ?? job.id;
+    } catch (err) {
+      console.error('[sales-job-agent-reply] could not update checklist', job.id, err);
+      replies.push(
+        salesCopy(
+          locale,
+          `Could not save the update for ${shop}. Please try again.`,
+          `Pembaruan untuk ${shop} belum tersimpan. Coba lagi.`,
+        ),
+      );
+    }
+  }
+  if (!advanced) return null;
+  const reply = replies.filter(Boolean).join('\n\n');
+  await deliver(fromPhone, locale, distributorId, text, reply);
+  return { handled: true, asked: true, jobId };
 }
 
 async function continueAwaitedInput(
@@ -1896,7 +2203,7 @@ async function continueAwaitedInput(
         saved.push(savedJobReply(locale, item.shop, item.job.jobType, item.resolution.completion, catalog));
       }
       const reply = saved.filter(Boolean).join('\n\n');
-      if (reply && (await askAgent(fromPhone, reply))) await noteSalesWorkflowOutbound(distributorId, reply);
+      await deliver(fromPhone, locale, distributorId, text, reply);
       return { handled: true, asked: true };
     }
     if (sampleFamily) {
@@ -1910,7 +2217,7 @@ async function continueAwaitedInput(
           console.error('[sales-job-agent-reply] could not keep the pending input', item.job.id, err);
         }
       }
-      if (question && (await askAgent(fromPhone, question))) await noteSalesWorkflowOutbound(distributorId, question);
+      await deliver(fromPhone, locale, distributorId, text, question);
       return { handled: true, asked: true };
     }
   }
@@ -1919,7 +2226,7 @@ async function continueAwaitedInput(
       .map((job) => requiredInputQuestion(locale, job, catalog))
       .filter(Boolean)
       .join('\n\n');
-    if (reply && (await askAgent(fromPhone, reply))) await noteSalesWorkflowOutbound(distributorId, reply);
+    await deliver(fromPhone, locale, distributorId, text, reply);
     return { handled: true, asked: true };
   }
   const shop = shopTitle(locale, target);
@@ -1938,7 +2245,7 @@ async function continueAwaitedInput(
     } catch (err) {
       console.error('[sales-job-agent-reply] could not keep the pending input', target.id, err);
     }
-    if (await askAgent(fromPhone, resolution.question)) await noteSalesWorkflowOutbound(distributorId, resolution.question);
+    await deliver(fromPhone, locale, distributorId, text, resolution.question);
     return { handled: true, asked: true, jobId: target.id };
   }
   try {
@@ -1957,7 +2264,7 @@ async function continueAwaitedInput(
     return { handled: true, asked: true, jobId: target.id };
   }
   const reply = savedJobReply(locale, shop, target.jobType, resolution.completion, catalog);
-  if (await askAgent(fromPhone, reply)) await noteSalesWorkflowOutbound(distributorId, reply);
+  await deliver(fromPhone, locale, distributorId, text, reply);
   return { handled: true, asked: true, jobId: target.id };
 }
 
@@ -2066,7 +2373,7 @@ async function reviseCompletedInput(
       `Which job should I correct? ${choices.join(', ')}.`,
       `Pekerjaan yang mana yang perlu saya betulkan? ${choices.join(', ')}.`,
     );
-    if (await askAgent(fromPhone, reply)) await noteSalesWorkflowOutbound(distributorId, reply);
+    await deliver(fromPhone, locale, distributorId, text, reply);
     return { handled: true, asked: true };
   }
   const chosen = tied[0].row;
@@ -2083,7 +2390,7 @@ async function reviseCompletedInput(
   if (!resolution?.ready) {
     const question = resolution?.question?.trim();
     if (!question) return null;
-    if (await askAgent(fromPhone, question)) await noteSalesWorkflowOutbound(distributorId, question);
+    await deliver(fromPhone, locale, distributorId, text, question);
     return { handled: true, asked: true, jobId: job.id };
   }
   try {
@@ -2099,7 +2406,7 @@ async function reviseCompletedInput(
     return null;
   }
   const reply = savedJobReply(locale, shop, job.jobType, resolution.completion, Array.from(byId.values()), true);
-  if (await askAgent(fromPhone, reply)) await noteSalesWorkflowOutbound(distributorId, reply);
+  await deliver(fromPhone, locale, distributorId, text, reply);
   return { handled: true, asked: true, jobId: job.id };
 }
 
@@ -2165,23 +2472,13 @@ export async function handleFreeformAgentReply(args: {
     if (distributorId == null) return { handled: false };
     const locale = await salesRepReplyLocale(distributorId);
     if (asksForMoreWork(text)) {
-      const reply = remainingWorkReply(locale, []);
-      if (await askAgent(fromPhone, reply)) await noteSalesWorkflowOutbound(distributorId, reply);
-      return { handled: true, asked: true };
-    }
-    if (isCourtesy(text)) {
-      const reply = salesCopy(locale, "You're welcome. Anything else you want to check?", 'Sama-sama. Ada lagi yang mau dicek?');
-      if (await askAgent(fromPhone, reply)) await noteSalesWorkflowOutbound(distributorId, reply);
-      return { handled: true, asked: true };
-    }
-    if (isGreeting(text)) {
-      const reply = salesCopy(locale, 'Hi. What do you want to check?', 'Hai. Ada yang mau ditanya?');
-      if (await askAgent(fromPhone, reply)) await noteSalesWorkflowOutbound(distributorId, reply);
+      const reply = await remainingJobsReply(locale, dayFilters);
+      await deliver(fromPhone, locale, distributorId, text, reply);
       return { handled: true, asked: true };
     }
     const revised = await reviseCompletedInput(fromPhone, locale, distributorId, matched.map((agent) => agent.id), text);
     if (revised) return revised;
-    await answerRep(fromPhone, locale, distributorId, [], text);
+    await answerRep(fromPhone, locale, distributorId, [], text, await savedTodayNotes(locale, dayFilters));
     return { handled: true, asked: true };
   }
 
@@ -2213,56 +2510,44 @@ export async function handleFreeformAgentReply(args: {
     if (ordered.length === 1) {
       return saveReportedChecklists(fromPhone, locale, distributorId, ordered, [0], text);
     }
-    await askAgent(fromPhone, nameTheFinishedWork(locale));
+    await deliver(fromPhone, locale, distributorId, text, nameTheFinishedWork(locale));
     return { handled: true, asked: true };
   }
+
+  const filed = await fileIncomingFacts(fromPhone, locale, distributorId, ordered, text);
+  if (filed) return filed;
+
+  const mixed = await recordFinishedClauses(fromPhone, locale, distributorId, ordered, text);
+  if (mixed) return mixed;
 
   if (saysJobStillOpen(text)) {
-    const reply = salesCopy(
-      locale,
-      'Got it. Tell me when that job is finished.',
-      'Baik. Kabari saya kalau pekerjaan itu sudah selesai.',
-    );
-    if (await askAgent(fromPhone, reply)) await noteSalesWorkflowOutbound(distributorId, reply);
-    return { handled: true, asked: true };
-  }
-
-  if (isGreeting(text)) {
-    const reply = salesCopy(locale, 'Hi. What do you want to check?', 'Hai. Ada yang mau ditanya?');
-    if (await askAgent(fromPhone, reply)) await noteSalesWorkflowOutbound(distributorId, reply);
-    return { handled: true, asked: true };
-  }
-
-  if (isCourtesy(text)) {
-    const passingItOn = /\b(forward|teruskan|oper)\b/i.test(text);
-    const reply = passingItOn
-      ? salesCopy(
-          locale,
-          "You're welcome. Tell me once the buyer has replied.",
-          'Sama-sama. Kabari saya kalau buyer-nya sudah balas.',
-        )
-      : salesCopy(locale, "You're welcome. Anything else you want to check?", 'Sama-sama. Ada lagi yang mau dicek?');
-    if (await askAgent(fromPhone, reply)) await noteSalesWorkflowOutbound(distributorId, reply);
+    const reply = stillOpenReply(locale, text);
+    await deliver(fromPhone, locale, distributorId, text, reply);
     return { handled: true, asked: true };
   }
 
   if (asksForMoreWork(text)) {
-    const reply = remainingWorkReply(locale, ordered);
-    if (await askAgent(fromPhone, reply)) await noteSalesWorkflowOutbound(distributorId, reply);
+    const reply = await remainingJobsReply(locale, dayFilters);
+    await deliver(fromPhone, locale, distributorId, text, reply);
     return { handled: true, asked: true, jobId: job?.id };
   }
 
   if (isJobQuestion(text)) {
-    await answerRep(fromPhone, locale, distributorId, ordered, text);
+    await answerRep(fromPhone, locale, distributorId, ordered, text, await savedTodayNotes(locale, dayFilters));
     return { handled: true, asked: true, jobId: job?.id };
   }
 
+  const namedNow = new Set(jobTypesInText(text));
+  const waitingFocus =
+    namedNow.size > 0 ? waiting.filter((row) => namedTypeMatches(row.jobType, namedNow)) : waiting;
+  const waitingCatalog = waitingFocus.length > 0 ? await loadCatalog(distributorId) : [];
+  const feedsWaiting = waitingFocus.some((row) => messageFeedsJob(text, row, waitingCatalog));
   if (
-    waiting.length > 0 &&
+    waitingFocus.length > 0 &&
     !saysJobIsDone(text) &&
-    (await messageConcernsWaitingJob(text, ordered, waiting, distributorId))
+    (namedNow.size > 0 || feedsWaiting || (isQuantityOnly(text) && /\d/.test(text)))
   ) {
-    return continueAwaitedInput(fromPhone, locale, distributorId, waiting, text);
+    return continueAwaitedInput(fromPhone, locale, distributorId, waitingFocus, text);
   }
 
   const done = matchDoneJobs(text, ordered);
@@ -2273,13 +2558,13 @@ export async function handleFreeformAgentReply(args: {
         'Got it. That prospect stays open until a marketplace order matches it.',
         'Baik. Prospek itu tetap terbuka sampai ada pesanan marketplace yang cocok.',
       );
-      if (await askAgent(fromPhone, reply)) await noteSalesWorkflowOutbound(distributorId, reply);
+      await deliver(fromPhone, locale, distributorId, text, reply);
       return { handled: true, asked: true };
     }
     if (!done.ask && done.indexes.length > 0) {
       return saveReportedChecklists(fromPhone, locale, distributorId, ordered, done.indexes, text);
     }
-    await askAgent(fromPhone, nameTheFinishedWork(locale));
+    await deliver(fromPhone, locale, distributorId, text, nameTheFinishedWork(locale));
     return { handled: true, asked: true };
   }
 
@@ -2304,7 +2589,7 @@ export async function handleFreeformAgentReply(args: {
         .map((row) => requiredInputQuestion(locale, row, catalog))
         .filter(Boolean)
         .join('\n\n');
-      if (reply && (await askAgent(fromPhone, reply))) await noteSalesWorkflowOutbound(distributorId, reply);
+      await deliver(fromPhone, locale, distributorId, text, reply);
       return { handled: true, asked: true };
     }
   }
@@ -2322,7 +2607,7 @@ export async function handleFreeformAgentReply(args: {
   if (!filing || !job) {
     const revised = await reviseCompletedInput(fromPhone, locale, distributorId, matched.map((agent) => agent.id), text, ordered);
     if (revised) return revised;
-    await answerRep(fromPhone, locale, distributorId, ordered, text);
+    await answerRep(fromPhone, locale, distributorId, ordered, text, await savedTodayNotes(locale, dayFilters));
     return { handled: true, asked: true, jobId: job?.id };
   }
 
@@ -2332,7 +2617,7 @@ export async function handleFreeformAgentReply(args: {
       'Got it. That prospect stays open until a marketplace order matches it.',
       'Baik. Prospek itu tetap terbuka sampai ada pesanan marketplace yang cocok.',
     );
-    if (await askAgent(fromPhone, reply)) await noteSalesWorkflowOutbound(distributorId, reply);
+    await deliver(fromPhone, locale, distributorId, text, reply);
     return { handled: true, asked: true, jobId: job.id };
   }
 
@@ -2357,7 +2642,7 @@ export async function handleFreeformAgentReply(args: {
       } catch (err) {
         console.error('[sales-job-agent-reply] could not keep the pending input', job.id, err);
       }
-      if (await askAgent(fromPhone, resolution.question)) await noteSalesWorkflowOutbound(distributorId, resolution.question);
+      await deliver(fromPhone, locale, distributorId, text, resolution.question);
       return { handled: true, asked: true, jobId: job.id };
     }
     if (resolution?.ready) {
@@ -2377,14 +2662,14 @@ export async function handleFreeformAgentReply(args: {
         return { handled: true, asked: true, jobId: job.id };
       }
       const updated = savedJobReply(locale, shop, job.jobType, resolution.completion, products);
-      if (await askAgent(fromPhone, updated)) await noteSalesWorkflowOutbound(distributorId, updated);
+      await deliver(fromPhone, locale, distributorId, text, updated);
       return { handled: true, asked: true, jobId: job.id };
     }
   }
 
   const facts = extractAgentFacts(job.jobType, text, products, locale);
   if (!facts.ready || !facts.completion) {
-    await askAgent(fromPhone, facts.question || questionFor(job.jobType, locale));
+    await deliver(fromPhone, locale, distributorId, text, facts.question || questionFor(job.jobType, locale));
     return { handled: true, asked: true, jobId: job.id };
   }
 
@@ -2404,7 +2689,7 @@ export async function handleFreeformAgentReply(args: {
     return { handled: true, asked: true, jobId: job.id };
   }
   const reply = savedJobReply(locale, shopTitle(locale, job), job.jobType, facts.completion, products);
-  if (await askAgent(fromPhone, reply)) await noteSalesWorkflowOutbound(distributorId, reply);
+  await deliver(fromPhone, locale, distributorId, text, reply);
   return { handled: true, asked: true, jobId: job.id };
 }
 
