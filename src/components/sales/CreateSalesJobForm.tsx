@@ -31,11 +31,6 @@ type JobDraft = {
   clientIds: string[];
   orderIds: string[];
   productIds: string[];
-  customerNumber: string;
-  customerName: string;
-  storeName: string;
-  phone: string;
-  address: string;
   reason: string;
   schedules: ScheduleDraft[];
   status: string;
@@ -152,11 +147,6 @@ function blankJob(): JobDraft {
     clientIds: [],
     orderIds: [],
     productIds: [],
-    customerNumber: '',
-    customerName: '',
-    storeName: '',
-    phone: '',
-    address: '',
     reason: '',
     schedules: [blankSchedule()],
     status: 'pending',
@@ -423,13 +413,6 @@ function ProductPicker({
   );
 }
 
-function outletNumber(job: SalesJobRow): string {
-  if (job.clientCustomerNumber) return job.clientCustomerNumber;
-  const id = job.clientId || '';
-  if (!id || id.startsWith('LKB-') || id.startsWith('LKP-') || id.startsWith('mobile_user_')) return '';
-  return id;
-}
-
 const ORDER_JOB_TYPES = new Set(['take_order', 'collect_payment', 'returns_pickup']);
 
 function scheduleSignature(job: SalesJobRow): string {
@@ -530,11 +513,6 @@ function draftsFromRows(rows: SalesJobRow[]): JobDraft[] {
     clientIds: jobSkipsClient(job.jobType) ? [] : clientIdsOf(job),
     orderIds: job.orderIds?.length ? job.orderIds : job.orderId ? [job.orderId] : [],
     productIds: job.suggestedProducts ?? [],
-    customerNumber: job.jobType === 'prospect_new_outlet' ? outletNumber(job) : '',
-    customerName: job.clientOwner || '',
-    storeName: job.clientName,
-    phone: job.clientPhone || '',
-    address: job.clientAddress || '',
     reason: job.priorityReason || '',
     status: job.status,
     schedules: (job.schedules?.length ? job.schedules : [{ date: job.scheduledDate, reminderTime: '07:00' }]).map((row) => ({
@@ -614,8 +592,6 @@ export default function CreateSalesJobForm({
         else if (job.productIds.length === 0) next[job.key] = t('form.needProduct');
       } else if (job.jobType === 'scheme_reconciliation') {
         if (job.clientIds.length === 0) next[job.key] = t('form.needClient');
-      } else if (job.jobType !== 'competitor_intel' && (!job.customerNumber.trim() || !job.customerName.trim() || !job.storeName.trim() || !job.phone.trim() || !job.address.trim())) {
-        next[job.key] = t('form.needOutlet');
       }
     }
     const firstJobError = Object.values(next)[0] || '';
@@ -639,17 +615,6 @@ export default function CreateSalesJobForm({
             clientIds: jobSkipsClient(job.jobType) ? [] : job.clientIds,
             orderIds: job.orderIds,
             productIds: job.productIds,
-            ...(job.jobType === 'prospect_new_outlet'
-              ? {
-                  prospect: {
-                    customerNumber: job.customerNumber.trim(),
-                    name: job.customerName.trim(),
-                    storeName: job.storeName.trim(),
-                    phone: job.phone.trim(),
-                    address: job.address.trim(),
-                  },
-                }
-              : {}),
             schedules: job.schedules.map((row) => {
               const time = parseTime(row.time)!;
               return { scheduledDate: row.date, reminderHour: time.reminderHour, reminderMinute: time.reminderMinute };
@@ -689,7 +654,6 @@ export default function CreateSalesJobForm({
     const clientId = saved?.clientId || draft.clientIds[0] || '';
     const client = clients.find((row) => row.buyerId === clientId);
     const agent = agents.find((row) => row.id === assignedTo);
-    const prospect = draft.jobType === 'prospect_new_outlet';
     const completionData: SalesJobCompletion = savedCompletions[draft.key] ?? saved?.completionData ?? {
       order_placed: false,
       order_amount: null,
@@ -704,11 +668,11 @@ export default function CreateSalesJobForm({
       assignedTo,
       agentName: agent?.name || saved?.agentName || '',
       clientId,
-      clientCustomerNumber: prospect ? draft.customerNumber : saved?.clientCustomerNumber || '',
-      clientName: prospect ? draft.storeName : client?.storeName || saved?.clientName || '',
-      clientOwner: prospect ? draft.customerName : client?.owner || saved?.clientOwner || '',
-      clientPhone: prospect ? draft.phone : saved?.clientPhone || '',
-      clientAddress: prospect ? draft.address : saved?.clientAddress || '',
+      clientCustomerNumber: saved?.clientCustomerNumber || '',
+      clientName: client?.storeName || saved?.clientName || '',
+      clientOwner: client?.owner || saved?.clientOwner || '',
+      clientPhone: saved?.clientPhone || '',
+      clientAddress: saved?.clientAddress || '',
       clientStatus: saved?.clientStatus || client?.status || '',
       jobType: draft.jobType,
       priorityReason: draft.reason || null,
@@ -923,41 +887,6 @@ export default function CreateSalesJobForm({
                 }
                 onChange={(productIds) => updateJob(job.key, { productIds })}
               />
-            )}
-
-            {job.jobType === 'prospect_new_outlet' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className={labelClass}>
-                    {t('form.customerNumber')} <span className="text-red-500">*</span>
-                  </label>
-                  <input className={inputClass} maxLength={50} value={job.customerNumber} onChange={(event) => updateJob(job.key, { customerNumber: event.target.value })} />
-                </div>
-                <div>
-                  <label className={labelClass}>
-                    {t('form.outletName')} <span className="text-red-500">*</span>
-                  </label>
-                  <input className={inputClass} maxLength={100} value={job.customerName} onChange={(event) => updateJob(job.key, { customerName: event.target.value })} />
-                </div>
-                <div>
-                  <label className={labelClass}>
-                    {t('form.storeName')} <span className="text-red-500">*</span>
-                  </label>
-                  <input className={inputClass} maxLength={100} value={job.storeName} onChange={(event) => updateJob(job.key, { storeName: event.target.value })} />
-                </div>
-                <div>
-                  <label className={labelClass}>
-                    {t('form.phone')} <span className="text-red-500">*</span>
-                  </label>
-                  <input className={inputClass} maxLength={20} value={job.phone} onChange={(event) => updateJob(job.key, { phone: event.target.value })} />
-                </div>
-                <div className="md:col-span-2">
-                  <label className={labelClass}>
-                    {t('form.address')} <span className="text-red-500">*</span>
-                  </label>
-                  <input className={inputClass} maxLength={500} value={job.address} onChange={(event) => updateJob(job.key, { address: event.target.value })} />
-                </div>
-              </div>
             )}
 
             <div>

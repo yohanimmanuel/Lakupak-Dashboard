@@ -69,10 +69,12 @@ export default function EditSalesJobPage() {
 
   if (!jobs) return <SkeletonSalesJobForm />;
 
-  if (jobs.length === 0) {
+  const editableJobs = jobs.filter((job) => job.jobType !== 'prospect_new_outlet');
+
+  if (jobs.length === 0 || editableJobs.length === 0) {
     return (
       <div className="p-4">
-        <p className="text-sm text-gray-700">{t('form.jobMissing')}</p>
+        <p className="text-sm text-gray-700">{jobs.length === 0 ? t('form.jobMissing') : t('form.prospectMoved')}</p>
         <button type="button" className="mt-3 flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors" onClick={() => router.push('/sales/jobs')}>
           <ArrowLeft className="w-4 h-4" />
           {t('form.backToJobs')}
@@ -81,5 +83,5 @@ export default function EditSalesJobPage() {
     );
   }
 
-  return <CreateSalesJobForm editing={{ assignedTo, replaceIds: jobs.map((job) => job.id), jobs }} />;
+  return <CreateSalesJobForm editing={{ assignedTo, replaceIds: editableJobs.map((job) => job.id), jobs: editableJobs }} />;
 }

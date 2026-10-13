@@ -9,6 +9,7 @@ import {
   ArrowRight,
   UserPlus,
   Gift,
+  Store,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useSalesTranslations } from '@/hooks/useSalesTranslations';
@@ -35,6 +36,7 @@ interface SalesTip {
 const TOOL_CONFIG = [
   { id: 'teams' as const, icon: Users, link: '/sales/team' },
   { id: 'jobs' as const, icon: Briefcase, link: '/sales/jobs' },
+  { id: 'prospects' as const, icon: Store, link: '/sales/prospects' },
 ];
 
 export default function SalesPage() {

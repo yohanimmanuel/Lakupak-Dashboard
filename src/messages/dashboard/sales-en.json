@@ -61,6 +61,10 @@
       "jobs": {
         "name": "Jobs",
         "description": "Manage sales jobs for your team."
+      },
+      "prospects": {
+        "name": "Prospect",
+        "description": "Add prospect retailers and outlets before they place a marketplace order."
       }
     }
   },
@@ -583,9 +587,45 @@
       "needClient": "Select a client.",
       "needProduct": "Select at least one product.",
       "needOutlet": "Fill in the new outlet.",
+      "prospectMoved": "New outlets are added from Prospect.",
       "customerExists": "That customer number is already used.",
       "selectRep": "Select a sales rep",
       "loadingOrders": "Loading orders"
     }
+  },
+  "prospects": {
+    "title": "Prospect",
+    "exportData": "Export Data",
+    "create": "Create new prospect",
+    "createTitle": "Create new prospect",
+    "editTitle": "Edit prospect",
+    "save": "Save",
+    "saving": "Saving...",
+    "back": "Back",
+    "retailers": "Prospect retailers",
+    "outlets": "Prospect outlets",
+    "customerNumber": "Customer number",
+    "retailer": "Name",
+    "outlet": "Store name",
+    "phone": "Phone number",
+    "address": "Address",
+    "edit": "Edit",
+    "empty": "No prospects yet.",
+    "emptyHint": "Create a prospect to see it here.",
+    "searchPlaceholder": "Search prospects",
+    "allRegions": "All regions",
+    "region": "Region",
+    "noRegion": "No region",
+    "actions": "Actions",
+    "showing": "Showing {from} to {to} of {total}",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "mapHint": "Click the map to set the address.",
+    "sheetName": "Prospects",
+    "needFields": "Fill in the customer number, name, store, phone, and address.",
+    "customerExists": "That customer number is already used.",
+    "missing": "This prospect could not be found.",
+    "loadFailed": "Could not load prospects.",
+    "saveFailed": "Could not save this prospect."
   }
 }

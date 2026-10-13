@@ -82,7 +82,6 @@ export const SALES_JOB_TYPES = [
   'collect_payment',
   'promote_product',
   'stock_check',
-  'prospect_new_outlet',
   'returns_pickup',
   'competitor_intel',
 ] as const;

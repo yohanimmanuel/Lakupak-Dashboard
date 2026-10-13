@@ -61,6 +61,10 @@
       "jobs": {
         "name": "Pekerjaan",
         "description": "Kelola pekerjaan penjualan untuk tim Anda."
+      },
+      "prospects": {
+        "name": "Prospek",
+        "description": "Tambah pengecer dan outlet prospek sebelum mereka membuat pesanan marketplace."
       }
     }
   },
@@ -583,9 +587,45 @@
       "needClient": "Pilih klien.",
       "needProduct": "Pilih minimal satu produk.",
       "needOutlet": "Isi data outlet baru.",
+      "prospectMoved": "Outlet baru ditambahkan dari Prospek.",
       "customerExists": "Nomor pelanggan sudah dipakai.",
       "selectRep": "Pilih sales",
       "loadingOrders": "Memuat order"
     }
+  },
+  "prospects": {
+    "title": "Prospek",
+    "exportData": "Ekspor Data",
+    "create": "Buat prospek baru",
+    "createTitle": "Buat prospek baru",
+    "editTitle": "Ubah prospek",
+    "save": "Simpan",
+    "saving": "Menyimpan...",
+    "back": "Kembali",
+    "retailers": "Pengecer prospek",
+    "outlets": "Outlet prospek",
+    "customerNumber": "Nomor pelanggan",
+    "retailer": "Nama",
+    "outlet": "Nama toko",
+    "phone": "Nomor HP",
+    "address": "Alamat",
+    "edit": "Ubah",
+    "empty": "Belum ada prospek.",
+    "emptyHint": "Buat prospek untuk melihatnya di sini.",
+    "searchPlaceholder": "Cari prospek",
+    "allRegions": "Semua wilayah",
+    "region": "Wilayah",
+    "noRegion": "Tanpa wilayah",
+    "actions": "Aksi",
+    "showing": "Menampilkan {from} sampai {to} dari {total}",
+    "previousPage": "Halaman sebelumnya",
+    "nextPage": "Halaman berikutnya",
+    "mapHint": "Klik peta untuk mengisi alamat.",
+    "sheetName": "Prospek",
+    "needFields": "Isi nomor pelanggan, nama, toko, telepon, dan alamat.",
+    "customerExists": "Nomor pelanggan sudah dipakai.",
+    "missing": "Prospek ini tidak ditemukan.",
+    "loadFailed": "Prospek tidak dapat dimuat.",
+    "saveFailed": "Prospek ini tidak dapat disimpan."
   }
 }

@@ -216,6 +216,7 @@ model Buyer {
   storeName    String
   businessType String
   address      String
+  region       String?
   status       String
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
   logistics    String?

@@ -99,6 +99,14 @@ export const DASHBOARD_SEARCH_CATALOG: DashboardSearchEntry[] = [
     keywords: ['agents', 'sales', 'tim'],
   },
   {
+    id: 'sales-prospects',
+    title: 'Prospect',
+    description: 'Prospect retailers and outlets',
+    section: 'Sales',
+    href: '/sales/prospects',
+    keywords: ['prospect', 'outlet', 'prospek', 'retailer'],
+  },
+  {
     id: 'sales-team-create',
     title: 'Add team member',
     description: 'Create a sales agent',

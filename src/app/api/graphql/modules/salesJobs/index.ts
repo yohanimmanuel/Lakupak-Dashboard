@@ -14,6 +14,7 @@ import {
   updateSalesJobSettings,
 } from '@/lib/salesJobs/service';
 import { suggestSalesJobsForDistributor } from '@/lib/salesJobs/suggest';
+import { createSalesProspect, getSalesProspect, listSalesProspects, updateSalesProspect } from '@/lib/salesJobs/prospects';
 import { prisma } from '@/lib/db';
 
 export const salesJobsTypeDefs = /* GraphQL */ `
@@ -237,7 +238,20 @@ export const salesJobsTypeDefs = /* GraphQL */ `
     claim_amount: Float
   }
 
+  type SalesProspect {
+    buyerId: String!
+    customerNumber: String!
+    owner: String!
+    storeName: String!
+    phone: String!
+    address: String!
+    region: String!
+    status: String!
+  }
+
   extend type Query {
+    salesProspects(userId: Int!): [SalesProspect!]!
+    salesProspect(userId: Int!, buyerId: String!): SalesProspect
     salesJobs(userId: Int!, status: String, assignedTo: String, date: String): [SalesJob!]!
     unresolvedSalesJobs(userId: Int!): [SalesJob!]!
     salesJobDayAggregates(userId: Int!, agentId: String!): [SalesJobDayAggregate!]!
@@ -247,6 +261,25 @@ export const salesJobsTypeDefs = /* GraphQL */ `
   }
 
   extend type Mutation {
+    createSalesProspect(
+      userId: Int!
+      customerNumber: String!
+      name: String!
+      storeName: String!
+      phone: String!
+      address: String!
+      region: String
+    ): SalesProspect!
+    updateSalesProspect(
+      userId: Int!
+      buyerId: String!
+      customerNumber: String!
+      name: String!
+      storeName: String!
+      phone: String!
+      address: String!
+      region: String
+    ): SalesProspect!
     suggestSalesJobs(userId: Int!): SuggestSalesJobsResult!
     createSalesJobs(userId: Int!, assignedTo: String!, jobs: [CreateSalesJobItemInput!]!, timeZone: String): [SalesJob!]!
     updateSalesJobs(userId: Int!, assignedTo: String!, replaceIds: [String!]!, jobs: [CreateSalesJobItemInput!]!, timeZone: String): [SalesJob!]!
@@ -300,6 +333,10 @@ async function formOptions(userId: number) {
 
 export const salesJobsResolvers = {
   Query: {
+    salesProspects: withDashboardAuth(async (args: { userId: number }) => listSalesProspects(args.userId)),
+    salesProspect: withDashboardAuth(async (args: { userId: number; buyerId: string }) =>
+      getSalesProspect(args.userId, args.buyerId),
+    ),
     salesJobs: withDashboardAuth(async (args: { userId: number; status?: string | null; assignedTo?: string | null; date?: string | null }) =>
       listSalesJobs({
         distributorId: args.userId,
@@ -319,6 +356,29 @@ export const salesJobsResolvers = {
     ),
   },
   Mutation: {
+    createSalesProspect: withDashboardAuth(
+      async (args: {
+        userId: number;
+        customerNumber: string;
+        name: string;
+        storeName: string;
+        phone: string;
+        address: string;
+        region?: string | null;
+      }) => createSalesProspect(args.userId, args),
+    ),
+    updateSalesProspect: withDashboardAuth(
+      async (args: {
+        userId: number;
+        buyerId: string;
+        customerNumber: string;
+        name: string;
+        storeName: string;
+        phone: string;
+        address: string;
+        region?: string | null;
+      }) => updateSalesProspect(args.userId, args.buyerId, args),
+    ),
     suggestSalesJobs: withDashboardAuth(async (args: { userId: number }) => suggestSalesJobsForDistributor(args.userId)),
     createSalesJobs: withDashboardAuth(
       async (args: {
