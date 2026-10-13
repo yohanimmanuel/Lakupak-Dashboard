@@ -144,19 +144,21 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
       <div className="w-full mx-auto">
         {/* Breadcrumb */}
         <div className="mb-4">
-          <button
-            onClick={handleBack}
-            className="flex items-center gap-2 text-lg font-bold text-gray-500 hover:text-black transition-colors mb-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            {tOrderfleetDetails('backToFleetList')}
-          </button>
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-2xl font-bold text-gray-900">{fleet.orderCode}</h1>
-              <span className={`inline-flex rounded-full px-3 py-1.5 text-xs font-semibold ${deliveryStatusStyles[fleet.status]}`}>
-                {translateFleetStatus(fleet.status)}
-              </span>
+            <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
+              <button
+                onClick={handleBack}
+                className="flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                {tOrderfleetDetails('backToFleetList')}
+              </button>
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <h1 className="min-w-0 break-words text-2xl font-bold text-gray-900">{fleet.orderCode}</h1>
+                <span className={`inline-flex rounded-full px-3 py-1.5 text-xs font-semibold ${deliveryStatusStyles[fleet.status]}`}>
+                  {translateFleetStatus(fleet.status)}
+                </span>
+              </div>
             </div>
             {onEdit && (
               <button

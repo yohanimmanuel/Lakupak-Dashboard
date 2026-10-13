@@ -228,6 +228,7 @@
       "error": "Error"
     },
     "profile": {
+      "back": "Back",
       "title": "Buyer Details",
       "copyData": "Copy Data",
       "editDetails": "Edit Details",
@@ -358,6 +359,7 @@
       "error": "Error"
     },
     "profile": {
+      "back": "Back",
       "title": "Supplier Details",
       "copyData": "Copy Data",
       "editDetails": "Edit Details",

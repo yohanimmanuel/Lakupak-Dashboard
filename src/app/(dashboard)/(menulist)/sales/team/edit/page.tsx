@@ -350,7 +350,7 @@ export default function EditSalesAgentPage() {
         <div className="flex items-center gap-4">
           <button
             onClick={handleCancel}
-            className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-black hover:bg-gray-100 rounded-lg transition-colors"
+            className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             {tAgentForm('backToDetails')}

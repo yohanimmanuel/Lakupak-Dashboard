@@ -67,6 +67,32 @@ export async function updateOrderHandler(request: NextRequest) {
     // Owner id every operation must be scoped to (null = unrestricted platform admin).
     const ownerScopeUserId: number | null = isPlatformAdmin ? null : (authenticatedUserId ?? null);
 
+    if (body.distributorEdit === true) {
+      if (!authenticatedUserId) {
+        return NextResponse.json({ error: 'Unauthorized', code: 'unauthorized' }, { status: 401, headers });
+      }
+      const { updateDistributorOrderHandler } = await import('./createDistributorOrder');
+      const distributorResponse = await updateDistributorOrderHandler(authenticatedUserId, body);
+      if (distributorResponse.status >= 200 && distributorResponse.status < 300) {
+        try {
+          const payload = (await distributorResponse.clone().json()) as { orderId?: unknown };
+          const orderId = typeof payload.orderId === 'string' ? payload.orderId : '';
+          if (orderId) {
+            auditOrder(request, {
+              action: 'update',
+              resourceId: orderId,
+              actorId: authenticatedUserId,
+              actorType: 'dashboard',
+            });
+            enqueueBroadcastOrderUpdates('order-update', [orderId]);
+          }
+        } catch {
+          // Keep the handler response available for the caller.
+        }
+      }
+      return distributorResponse;
+    }
+
     // Bulk archive support
     if (Array.isArray(body.archiveOrderIds) && body.archiveOrderIds.length > 0) {
       const baseWhere: Record<string, unknown> = {};

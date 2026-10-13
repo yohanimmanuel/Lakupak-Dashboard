@@ -19,6 +19,8 @@ interface MapComponentProps {
   className?: string;
   showControls?: boolean;
   onMarkerClick?: (markerId: string) => void;
+  /** Click the map to place a delivery pin. Used by manual order create. */
+  onMapClick?: (coordinates: MapCoordinates) => void;
   /** Token from useMapboxToken(); if not provided, hook is used inside. */
   accessToken?: string | null;
 }
@@ -31,6 +33,7 @@ export default function MapComponent({
   className = '',
   showControls = true,
   onMarkerClick,
+  onMapClick,
   accessToken: accessTokenProp,
 }: MapComponentProps) {
   const { token: tokenFromHook, isLoading } = useMapboxToken();
@@ -40,6 +43,8 @@ export default function MapComponent({
   const map = useRef<mapboxgl.Map | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const onMapClickRef = useRef(onMapClick);
+  onMapClickRef.current = onMapClick;
 
   useEffect(() => {
     if (!mapContainer.current || !accessToken) return;
@@ -89,6 +94,23 @@ export default function MapComponent({
     if (!map.current || !mapLoaded) return;
     map.current.resize();
   }, [height, mapLoaded]);
+
+  useEffect(() => {
+    if (!map.current || !mapLoaded || !onMapClick) return;
+    const handler = (event: mapboxgl.MapMouseEvent) => {
+      onMapClickRef.current?.({
+        longitude: event.lngLat.lng,
+        latitude: event.lngLat.lat,
+      });
+    };
+    map.current.on('click', handler);
+    const canvas = map.current.getCanvas();
+    canvas.style.cursor = 'crosshair';
+    return () => {
+      map.current?.off('click', handler);
+      if (map.current) map.current.getCanvas().style.cursor = '';
+    };
+  }, [mapLoaded, onMapClick]);
 
   useEffect(() => {
     if (!map.current || !mapLoaded) return;

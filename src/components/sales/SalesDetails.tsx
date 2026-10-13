@@ -200,16 +200,18 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
     <div className="bg-white p-4 rounded-lg border border-[#e6e6e6]">
       <div className="w-full mx-auto">
         {/* Breadcrumb Navigation */}
-        <div className="mb-4">
-          <button
-            onClick={handleBack}
-            className="flex items-center gap-2 text-lg font-bold text-gray-500 hover:text-black transition-colors mb-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            {tSalesDetails('backToTeamList')}
-          </button>
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">{agent.name}</h1>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
+            <button
+              onClick={handleBack}
+              className="flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              {tSalesDetails('backToTeamList')}
+            </button>
+            <h1 className="min-w-0 max-w-full truncate text-2xl font-bold text-gray-900">{agent.name}</h1>
+          </div>
+          <div className="flex shrink-0 items-center">
             {onEdit && (
               <button
                 onClick={onEdit}

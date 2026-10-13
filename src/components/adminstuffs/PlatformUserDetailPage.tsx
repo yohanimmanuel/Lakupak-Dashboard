@@ -1419,7 +1419,7 @@ export default function PlatformUserDetailPage() {
   if ('error' in state) {
     return (
       <div className="bg-white p-4 rounded-lg border border-[#e6e6e6] space-y-4">
-        <Link href="/admin/users" className="inline-flex items-center gap-1 text-sm text-[#0a61d7] hover:underline">
+        <Link href="/admin/users" className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors">
           <ArrowLeft className="w-4 h-4" />
           Back to users
         </Link>
@@ -1506,7 +1506,7 @@ export default function PlatformUserDetailPage() {
     return (
       <div className="bg-white p-4 sm:p-5 rounded-lg border border-[#e6e6e6]">
         <div className="flex flex-wrap items-center gap-3 justify-between mb-5">
-          <Link href="/admin/users" className="inline-flex items-center gap-1 text-sm text-[#0a61d7] hover:underline">
+          <Link href="/admin/users" className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors">
             <ArrowLeft className="w-4 h-4" />
             Back to users
           </Link>
@@ -1983,7 +1983,7 @@ export default function PlatformUserDetailPage() {
     return (
       <div className="bg-white p-4 sm:p-5 rounded-lg border border-[#e6e6e6]">
         <div className="flex flex-wrap items-center gap-3 justify-between mb-5">
-          <Link href="/admin/users" className="inline-flex items-center gap-1 text-sm text-[#0a61d7] hover:underline">
+          <Link href="/admin/users" className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors">
             <ArrowLeft className="w-4 h-4" />
             Back to users
           </Link>
@@ -2321,7 +2321,7 @@ export default function PlatformUserDetailPage() {
   return (
     <div className="bg-white p-4 sm:p-5 rounded-lg border border-[#e6e6e6]">
       <div className="flex flex-wrap items-center gap-3 justify-between mb-5">
-        <Link href="/admin/users" className="inline-flex items-center gap-1 text-sm text-[#0a61d7] hover:underline">
+        <Link href="/admin/users" className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors">
           <ArrowLeft className="w-4 h-4" />
           Back to users
         </Link>

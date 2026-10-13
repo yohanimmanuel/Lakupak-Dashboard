@@ -228,6 +228,7 @@
       "error": "Kesalahan"
     },
     "profile": {
+      "back": "Kembali",
       "title": "Detail Pembeli",
       "copyData": "Salin Data",
       "editDetails": "Edit Detail",
@@ -368,6 +369,7 @@
       "error": "Kesalahan"
     },
     "profile": {
+      "back": "Kembali",
       "title": "Detail Pemasok",
       "copyData": "Salin Data",
       "editDetails": "Edit Detail",

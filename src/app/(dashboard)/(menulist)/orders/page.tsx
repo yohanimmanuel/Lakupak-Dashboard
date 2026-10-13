@@ -2,7 +2,8 @@
 import { SkeletonOrdersPage } from '@/components/skeleton/SkeletonOrdersPage';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
-import { Download, Archive, Eye, Check, RefreshCw } from 'lucide-react';
+import Link from 'next/link';
+import { Download, Archive, Eye, Check, RefreshCw, Plus } from 'lucide-react';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import OrdersCards from '@/components/ordershipment/OrdersCards';
@@ -228,11 +229,18 @@ export default function OrdersPage() {
               </button>
               <button
                 onClick={exportOrdersXLSX}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#0a61d7] rounded-lg hover:bg-[#0851b8] transition-colors"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm"
               >
                 <Download className="w-4 h-4" />
                 {tList('exportData')}
               </button>
+              <Link
+                href="/orders/new"
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#0a61d7] rounded-lg hover:bg-[#0851b8] transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                {tList('createOrder')}
+              </Link>
             </div>
           </div>
         </div>

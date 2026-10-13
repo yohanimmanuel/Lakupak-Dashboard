@@ -1,7 +1,7 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, MapPin, Star, Package, DollarSign, Truck, CheckCircle, Clock, User, X, ChevronDown, Pencil, Gift, Loader2, ArrowRight, Maximize2, FileText, Download } from 'lucide-react';
+import { ArrowLeft, MapPin, Star, Package, DollarSign, Truck, CheckCircle, Clock, User, X, Pencil, Gift, Loader2, ArrowRight, Maximize2, FileText, Download } from 'lucide-react';
 import {
   isPaymentProofPdfUrl,
   paymentProofDisplayName,
@@ -13,7 +13,6 @@ import { Order, OrderWithSnapshots } from '@/types/order';
 import { useUserStore } from '@/store/userStore';
 import { calculateOrderTotalQuantity } from '@/utils/orderCalculations';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
-import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { calculateOrderItemPromotion } from '@/utils/promotionUtils';
 import MapComponent from './MapComponent';
 import MapFullscreenModal from '@/components/MapFullscreenModal';
@@ -40,20 +39,12 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
     translatePaymentStatus,
     translateDeliveryMethod,
     translateReturnReason,
-    translateFieldName,
   } = useOrdersTranslations();
   const [showAllItems, setShowAllItems] = useState(false);
   const [earningsPage, setEarningsPage] = useState(1);
   const [orderStatus, setOrderStatus] = useState<string>(order.orderStatus);
-  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
-  const [isUpdatingOrderStatus, setIsUpdatingOrderStatus] = useState(false);
-  const [paymentStatus, setPaymentStatus] = useState<Order['paymentStatus']>(order.paymentStatus);
-  const [showPaymentDropdown, setShowPaymentDropdown] = useState(false);
-  const [isUpdatingPaymentStatus, setIsUpdatingPaymentStatus] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [paymentStatus] = useState<Order['paymentStatus']>(order.paymentStatus);
   const [showPaymentProofModal, setShowPaymentProofModal] = useState(false);
-  const [showDeliveryMethodDropdown, setShowDeliveryMethodDropdown] = useState(false);
-  const deliveryMethodDropdownRef = useRef<HTMLDivElement>(null);
   const [geocodeResult, setGeocodeResult] = useState<GeocodeResult | null>(null);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [showMapFullscreen, setShowMapFullscreen] = useState(false);
@@ -89,13 +80,8 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
     deliveryMethod: source.deliveryMethod as DeliveryMethod,
     pod: source.pod || '',
   });
-  const [committedFields, setCommittedFields] = useState(() => buildEditFields(orderWithDuration));
-  const [formFields, setFormFields] = useState(() => buildEditFields(orderWithDuration));
-  const [isSavingEdit, setIsSavingEdit] = useState(false);
-  const [isCancelingEdit, setIsCancelingEdit] = useState(false);
-  const [podFileName, setPodFileName] = useState<string>('');
+  const [committedFields] = useState(() => buildEditFields(orderWithDuration));
   const [showPodPreview, setShowPodPreview] = useState(false);
-  const [durationError, setDurationError] = useState<string | null>(null);
   const [localItems, setLocalItems] = useState(order.orderItems);
   const [setPriceError, setSetPriceError] = useState<string | null>(null);
   const [sendPricingSuccess, setSendPricingSuccess] = useState<string | null>(null);
@@ -222,40 +208,6 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
     !returnItemsReceivedAt &&
     (!orderWithReturnFlow.fleetId || Boolean(orderWithReturnFlow.returnCollectedAt));
 
-  // POD file upload handler
-  const handlePodUpload = async (file: File) => {
-    if (!file) return;
-
-    setPodFileName(file.name);
-
-    try {
-      const result = await uploadToCloudinaryDirect(file, 'orders/pod');
-
-      if (result.success && result.url) {
-        setFormFields({ ...formFields, pod: result.url });
-      } else {
-        throw new Error(result.error || 'Upload failed');
-      }
-    } catch (error) {
-      alert(tDetails('alerts.podUploadFailed', {
-        error: error instanceof Error ? error.message : tCommon('notAvailable'),
-      }));
-    }
-  };
-
-  const handleCancelEdit = () => {
-    if (isSavingEdit || isCancelingEdit) return;
-    setIsCancelingEdit(true);
-    setTimeout(() => {
-      setFormFields(committedFields);
-      setDurationError(null);
-      setPodFileName('');
-      setShowDeliveryMethodDropdown(false);
-      setShowEditModal(false);
-      setIsCancelingEdit(false);
-    }, 250);
-  };
-  
   // Use buyerId snapshot when buyer is deleted (FK set null)
   const buyerIdDisplay = order.buyerId || order.buyerIdSnapshot || '';
   const buyerHref = order.buyerId
@@ -289,16 +241,6 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
     geocodeDeliveryAddress();
   }, [deliveryAddressDisplay]);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (deliveryMethodDropdownRef.current && !deliveryMethodDropdownRef.current.contains(event.target as Node)) {
-        setShowDeliveryMethodDropdown(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-   
   // Extract unique offer badges from order items
   const getOrderOfferBadges = () => {
     const badges: Array<{ type: string; details?: Record<string, unknown> }> = [];
@@ -382,8 +324,6 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
       default: return 'bg-gray-100 text-gray-800 font-semibold';
     }
   };
-
-  const PAYMENT_STATUS_OPTIONS: Array<Order['paymentStatus']> = ['Unpaid', 'Paid'];
 
   const paymentMethodLabel = (() => {
     const raw = (order.paymentTerms || '').trim();
@@ -496,65 +436,17 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const estimatedDeliveryMaxDaysValue =
     committedFields.estimatedDeliveryMaxDays !== '' ? Number(committedFields.estimatedDeliveryMaxDays) : null;
 
-  const requiredOrderFields = [
-    { name: 'contactPerson', value: String(committedFields.contactPerson || '').trim() },
-    { name: 'contactPhone', value: String(committedFields.contactPhone || '').trim() },
-    { name: 'deliveryAddress', value: String(committedFields.deliveryAddress || '').trim() },
-    { name: 'deliveryMethod', value: String(committedFields.deliveryMethod || '').trim() },
-    {
-      name: 'estimatedDelivery',
-      value:
-        Boolean(committedFields.estimatedDeliveryDate) ||
-        (estimatedDeliveryMinDaysValue != null &&
-          !Number.isNaN(estimatedDeliveryMinDaysValue) &&
-          estimatedDeliveryMaxDaysValue != null &&
-          !Number.isNaN(estimatedDeliveryMaxDaysValue)),
-    },
-  ];
-  const completedOrderFields = requiredOrderFields.filter(f => typeof f.value === 'boolean' ? f.value : f.value !== '');
-  const orderCompletionPercentage = Math.round((completedOrderFields.length / requiredOrderFields.length) * 100);
-  const missingOrderFields = requiredOrderFields.filter(f => typeof f.value === 'boolean' ? !f.value : f.value === '');
-
   return (
     <div className="bg-white p-4 rounded-lg border border-[#e6e6e6]">
       <div className="w-full mx-auto">
-        {/* Order completion progress */}
-        <div className="mx-0 mt-0 mb-4 p-4 bg-gradient-to-r from-blue-50 to-amber-50 border border-blue-200 rounded-lg">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-semibold text-gray-800">{tDetails('completion.title')}</h3>
-            <span className={`text-sm font-bold ${orderCompletionPercentage === 100 ? 'text-green-600' : 'text-amber-700'}`}>
-              {orderCompletionPercentage}%
-            </span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-            <div
-              className={`h-2 rounded-full transition-all duration-300 ${orderCompletionPercentage === 100 ? 'bg-green-500' : 'bg-amber-500'}`}
-              style={{ width: `${orderCompletionPercentage}%` }}
-            />
-          </div>
-          <div className="text-xs text-gray-600">
-            {tDetails('completion.fieldsCompleted', {
-              completed: completedOrderFields.length,
-              total: requiredOrderFields.length,
-            })}
-            {missingOrderFields.length > 0 && (
-              <span className="ml-2 text-amber-700">
-                • {tDetails('completion.missing', {
-                  fields: missingOrderFields.map((f) => translateFieldName(f.name)).join(', '),
-                })}
-              </span>
-            )}
-          </div>
-        </div>
-
         {/* Header */}
         <div className="flex justify-between items-start mb-4">
           <button
             onClick={onBack}
-            className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors"
+            className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <ArrowLeft className="w-5 h-5" />   
-            <span className="text-xl font-semibold">{tDetails('backButton')}</span>
+            <ArrowLeft className="w-4 h-4" />
+            {tDetails('backButton')}
           </button>
           
           {/* Status Buttons - Top Right */}
@@ -599,170 +491,19 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               </div>
               );
             })}
-            {/* Order Status Dropdown */}
-            <div className="relative group">
-              <button
-                type="button"
-                disabled={isUpdatingOrderStatus}
-                className={`flex items-center gap-1 py-2 px-4 rounded-lg text-sm font-medium min-w-[120px] ${getStatusColor(orderStatus)} hover:opacity-80 transition-all duration-200 disabled:cursor-wait disabled:opacity-80`}
-                onClick={() => {
-                  if (isUpdatingOrderStatus) return;
-                  setShowPaymentDropdown(false);
-                  setShowStatusDropdown((v) => !v);
-                }}
-                title={tDetails('statusTooltip')}
-              >
-                {translateOrderStatus(orderStatus)}
-                {isUpdatingOrderStatus ? (
-                  <Loader2 className="w-4 h-4 ml-3 animate-spin text-gray-500" aria-hidden />
-                ) : (
-                  <ChevronDown className="w-4 h-4 ml-3 text-gray-500" aria-hidden />
-                )}
-              </button>
-              
-              {/* Hover tooltip */}
-              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
-                {tDetails('statusTooltip')}
-                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
-              </div>
-              
-              {/* Dropdown Menu */}
-              {showStatusDropdown && !isUpdatingOrderStatus && (
-                <div className="absolute right-0 mt-2 w-32 bg-white border border-[#e6e6e6] rounded-lg shadow-lg z-20">
-                  {['Pending', 'Confirmed', 'Packed', 'Shipped', 'Delivered', 'Failed', 'Cancelled', 'Returned'].map(status => (
-                    <button
-                      key={status}
-                      type="button"
-                      disabled={isUpdatingOrderStatus}
-                      onClick={async () => {
-                        if (status === orderStatus) {
-                          setShowStatusDropdown(false);
-                          return;
-                        }
-                        setShowStatusDropdown(false);
-                        setIsUpdatingOrderStatus(true);
-                        try {
-                          const requestBody: Record<string, unknown> = {
-                            orderId: order.orderId,
-                            orderStatus: status
-                          };
-                          
-                          // Add userId if user is authenticated
-                          if (user?.id) {
-                            requestBody.userId = user.id;
-                          }
-
-                          const response = await fetch('/api/orders', {
-                            method: 'PUT',
-                            headers: {
-                              'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify(requestBody),
-                          });
-                          
-                          
-                          if (!response.ok) {
-                            const errorText = await response.text();
-                            throw new Error(`Failed to update order status: ${response.status}`);
-                          }
-                          
-                          await response.json();
-                          
-                          setOrderStatus(status);
-                        } catch (error) {
-                        } finally {
-                          setIsUpdatingOrderStatus(false);
-                        }
-                      }}
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 first:rounded-t-lg last:rounded-b-lg disabled:opacity-60 ${
-                        orderStatus === status ? 'font-bold text-[#0a61d7] bg-blue-50' : 'text-gray-700'
-                      }`}
-                    >
-                      {translateOrderStatus(status)}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            
-            {/* Payment Status (manual) */}
-            <div className="relative">
-              <button
-                type="button"
-                disabled={isUpdatingPaymentStatus}
-                onClick={() => {
-                  if (isUpdatingPaymentStatus) return;
-                  setShowStatusDropdown(false);
-                  setShowPaymentDropdown((v) => !v);
-                }}
-                className={`py-2 px-4 rounded-lg text-sm font-medium min-w-[120px] flex items-center justify-between gap-2 ${getPaymentStatusColor(paymentStatus)} disabled:cursor-wait disabled:opacity-80`}
-              >
-                {translatePaymentStatus(paymentStatus)}
-                {isUpdatingPaymentStatus ? (
-                  <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
-                ) : (
-                  <ChevronDown className="w-4 h-4" aria-hidden />
-                )}
-              </button>
-
-              {showPaymentDropdown && !isUpdatingPaymentStatus && (
-                <div className="absolute right-0 mt-2 w-40 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
-                  {PAYMENT_STATUS_OPTIONS.map((status) => (
-                    <button
-                      key={status}
-                      type="button"
-                      disabled={isUpdatingPaymentStatus}
-                      onClick={async () => {
-                        if (status === paymentStatus) {
-                          setShowPaymentDropdown(false);
-                          return;
-                        }
-                        setShowPaymentDropdown(false);
-                        setIsUpdatingPaymentStatus(true);
-                        try {
-                          const response = await fetch('/api/orders', {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              orderId: order.orderId,
-                              paymentStatus: status,
-                              ...(user?.id ? { userId: user.id } : {}),
-                            }),
-                          });
-                          if (!response.ok) return;
-                          setPaymentStatus(status);
-                        } catch {
-                          // ignore
-                        } finally {
-                          setIsUpdatingPaymentStatus(false);
-                        }
-                      }}
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 first:rounded-t-lg last:rounded-b-lg disabled:opacity-60 ${
-                        paymentStatus === status ? 'font-bold text-[#0a61d7] bg-blue-50' : 'text-gray-700'
-                      }`}
-                    >
-                      {translatePaymentStatus(status)}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            
-            
-            {/* Edit Button */}
-            <button
-              onClick={() => {
-                setFormFields(committedFields);
-                setDurationError(null);
-                setPodFileName('');
-                setShowDeliveryMethodDropdown(false);
-                setShowEditModal(true);
-              }}
-              className="flex items-center gap-2 py-2 px-4 rounded-lg text-sm text-black font-medium border border-gray-300 hover:bg-gray-50"
+            <span className={`flex items-center gap-1 py-2 px-3 rounded-lg text-xs font-semibold ${getStatusColor(orderStatus)}`}>
+              {translateOrderStatus(orderStatus)}
+            </span>
+            <span className={`flex items-center gap-1 py-2 px-3 rounded-lg text-xs font-semibold ${getPaymentStatusColor(paymentStatus)}`}>
+              {translatePaymentStatus(paymentStatus)}
+            </span>
+            <Link
+              href={`/orders/edit/${order.orderId}`}
+              className="flex items-center gap-1 py-2 px-3 rounded-lg text-xs font-semibold text-black border border-gray-300 hover:bg-gray-50"
               title={tDetails('editButtonTitle')}
             >
-              <Pencil className="w-4 h-4" /> {tDetails('editButton')}
-            </button>
+              <Pencil className="w-3 h-3" /> {tDetails('editButton')}
+            </Link>
 
           </div>
         </div>
@@ -1813,308 +1554,6 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Order Modal */}
-      {showEditModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-[#e6e6e6]">
-              <h2 className="text-xl font-semibold text-gray-900">{tDetails('editModal.title')}</h2>
-              <button
-                onClick={handleCancelEdit}
-                className="text-gray-700 hover:bg-gray-200 rounded-lg p-2 transition-colors disabled:opacity-60"
-                disabled={isSavingEdit || isCancelingEdit}
-                aria-label={tDetails('editModal.closeAria')}
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            <div className="p-4 overflow-y-auto max-h-[70vh]">
-              <p className="p-4 bg-orange-50 rounded-lg border border-orange-200 text-xs text-orange-600 mb-3 italic">
-                {tDetails('editModal.notice')}
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs text-gray-500">{tDetails('editModal.labels.contactPerson')}</label>
-                  <input
-                    className="w-full mt-1 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg"
-                    placeholder={tDetails('editModal.placeholders.contactPerson')}
-                    value={formFields.contactPerson}
-                    onChange={(e) => setFormFields({ ...formFields, contactPerson: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500">{tDetails('editModal.labels.contactPhone')}</label>
-                  <input
-                    className="w-full mt-1 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg"
-                    placeholder={tDetails('editModal.placeholders.contactPhone')}
-                    value={formFields.contactPhone}
-                    onChange={(e) => setFormFields({ ...formFields, contactPhone: e.target.value })}
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="text-xs text-gray-500">{tDetails('editModal.labels.deliveryAddress')}</label>
-                  <input
-                    className="w-full mt-1 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg"
-                    placeholder={tDetails('editModal.placeholders.deliveryAddress')}
-                    value={formFields.deliveryAddress}
-                    onChange={(e) => setFormFields({ ...formFields, deliveryAddress: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500">{tDetails('editModal.labels.preferredDeliveryTime')}</label>
-                  <input
-                    className="w-full mt-1 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg"
-                    placeholder={tDetails('editModal.placeholders.preferredDeliveryTime')}
-                    value={formFields.preferredDeliveryTime}
-                    onChange={(e) => setFormFields({ ...formFields, preferredDeliveryTime: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500">{tDetails('editModal.labels.estimatedDeliveryDate')}</label>
-                  <input
-                    type="date"
-                    className="w-full mt-1 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg"
-                    value={formFields.estimatedDeliveryDate}
-                    onChange={(e) => setFormFields({ ...formFields, estimatedDeliveryDate: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500">{tDetails('editModal.labels.estimatedDeliveryDuration')}</label>
-                  <div className="mt-1 flex items-center gap-2 flex-wrap">
-                    <input
-                      type="number"
-                      min={0}
-                      max={365}
-                      placeholder={tDetails('editModal.placeholders.minDays')}
-                      className={`w-full max-w-[72px] px-3 py-2 text-xs text-black border rounded-lg ${durationError ? 'border-red-500' : 'border-gray-300'}`}
-                      value={formFields.estimatedDeliveryMinDays}
-                      onChange={(e) => {
-                        setFormFields({ ...formFields, estimatedDeliveryMinDays: e.target.value });
-                        setDurationError(null);
-                      }}
-                    />
-                    <span className="text-xs text-gray-500">{tDetails('editModal.durationTo')}</span>
-                    <input
-                      type="number"
-                      min={0}
-                      max={365}
-                      placeholder={tDetails('editModal.placeholders.maxDays')}
-                      className={`w-full max-w-[72px] px-3 py-2 text-xs text-black border rounded-lg ${durationError ? 'border-red-500' : 'border-gray-300'}`}
-                      value={formFields.estimatedDeliveryMaxDays}
-                      onChange={(e) => {
-                        setFormFields({ ...formFields, estimatedDeliveryMaxDays: e.target.value });
-                        setDurationError(null);
-                      }}
-                    />
-                    <span className="text-xs text-gray-500">{tDetails('editModal.durationDays')}</span>
-                  </div>
-                  {durationError && (
-                    <p className="mt-1 text-xs text-red-600" role="alert">{durationError}</p>
-                  )}
-                </div>
-                <div className="relative" ref={deliveryMethodDropdownRef}>
-                  <label className="text-xs text-gray-500">{tDetails('editModal.labels.deliveryMethod')}</label>
-                  <button
-                    type="button"
-                    className="w-full mt-1 flex items-center justify-between gap-2 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-left"
-                    onClick={() => setShowDeliveryMethodDropdown((v) => !v)}
-                  >
-                    <span>{translateDeliveryMethod(formFields.deliveryMethod)}</span>
-                    <ChevronDown className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                  </button>
-                  {showDeliveryMethodDropdown && (
-                    <div className="absolute left-0 right-0 mt-1 bg-white border border-[#e6e6e6] rounded-lg shadow-lg z-20 overflow-hidden">
-                      {(['Self Pickup', 'Seller/Distributor Delivery', 'Buyer-arranged Courier'] as const).map((method) => (
-                        <button
-                          key={method}
-                          type="button"
-                          onClick={() => {
-                            setFormFields({ ...formFields, deliveryMethod: method });
-                            setShowDeliveryMethodDropdown(false);
-                          }}
-                          className={`w-full text-left px-4 py-2 text-xs first:rounded-t-lg last:rounded-b-lg transition-colors ${
-                            formFields.deliveryMethod === method
-                              ? 'bg-[#0a61d7] text-white font-medium'
-                              : 'text-black hover:bg-gray-100'
-                          }`}
-                        >
-                          {translateDeliveryMethod(method)}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500">{tDetails('editModal.labels.assignedLogistics')}</label>
-                  <input
-                    className="w-full mt-1 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg"
-                    placeholder={tDetails('editModal.placeholders.assignedLogistics')}
-                    value={formFields.assignedLogistics}
-                    onChange={(e) => setFormFields({ ...formFields, assignedLogistics: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500">{tDetails('editModal.labels.trackingNumber')}</label>
-                  <input
-                    className="w-full mt-1 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg"
-                    placeholder={tDetails('editModal.placeholders.trackingNumber')}
-                    value={formFields.trackingNumber}
-                    onChange={(e) => setFormFields({ ...formFields, trackingNumber: e.target.value })}
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="text-xs text-gray-500">{tDetails('editModal.labels.deliveryNote')}</label>
-                  <textarea
-                    className="w-full mt-1 px-3 py-2 text-xs text-black border border-gray-300 rounded-lg"
-                    rows={3}
-                    placeholder={tDetails('editModal.placeholders.deliveryNote')}
-                    value={formFields.deliveryNote}
-                    onChange={(e) => setFormFields({ ...formFields, deliveryNote: e.target.value })}
-                  />
-                </div>
-                {(POD_TRACKING_STATUSES as readonly string[]).includes(orderStatus) && (
-                  <div className="md:col-span-2">
-                    <label className="text-xs text-gray-500">{tDetails('editModal.labels.pod')}</label>
-                    <div
-                      className="mt-1 p-6 bg-gray-50 rounded-lg border border-dashed border-gray-300 text-center cursor-pointer select-none"
-                      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const file = e.dataTransfer.files?.[0];
-                        if (file) handlePodUpload(file);
-                      }}
-                      onClick={() => document.getElementById('pod-file-input')?.click()}
-                      role="button"
-                      aria-label={tDetails('editModal.podUploadAria')}
-                    >
-                      <input
-                        id="pod-file-input"
-                        type="file"
-                        accept="image/*,application/pdf"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handlePodUpload(file);
-                        }}
-                      />
-                      <div className="text-xs text-gray-600">
-                        {podFileName ? (
-                          <span className="font-medium">{tDetails('editModal.podSelected', { fileName: podFileName })}</span>
-                        ) : formFields.pod ? (
-                          <span className="font-medium">{tDetails('editModal.podExisting')}</span>
-                        ) : (
-                          <>
-                            <span className="font-medium text-gray-700">{tDetails('editModal.podDragDrop')}</span> {tDetails('editModal.podDragDropSuffix')} <span className="text-[#0a61d7] font-semibold">{tDetails('editModal.podBrowse')}</span>
-                          </>
-                        )}
-                      </div>
-                      <p className="text-[10px] text-gray-500 mt-1">{tDetails('editModal.podAcceptedFormats')}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="p-4 border-t border-[#e6e6e6] flex justify-end gap-2">
-              <button
-                type="button"
-                disabled={isSavingEdit || isCancelingEdit}
-                onClick={handleCancelEdit}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-black border border-gray-300 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
-              >
-                {isCancelingEdit ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    {tDetails('editModal.canceling')}
-                  </>
-                ) : (
-                  tDetails('editModal.cancel')
-                )}
-              </button>
-              <button
-                type="button"
-                disabled={isSavingEdit || isCancelingEdit}
-                onClick={async () => {
-                  if (isSavingEdit || isCancelingEdit) return;
-                  setDurationError(null);
-                  const minRaw = formFields.estimatedDeliveryMinDays === '' ? null : formFields.estimatedDeliveryMinDays;
-                  const maxRaw = formFields.estimatedDeliveryMaxDays === '' ? null : formFields.estimatedDeliveryMaxDays;
-                  const minNum = minRaw != null && minRaw !== '' ? Number(minRaw) : null;
-                  const maxNum = maxRaw != null && maxRaw !== '' ? Number(maxRaw) : null;
-
-                  if (minNum != null && maxNum != null && !Number.isNaN(minNum) && !Number.isNaN(maxNum) && minNum > maxNum) {
-                    setDurationError(tDetails('editModal.errors.minGreaterThanMax'));
-                    return;
-                  }
-                  const minInvalid = minRaw != null && minRaw !== '' && (minNum == null || Number.isNaN(minNum) || minNum < 0);
-                  const maxInvalid = maxRaw != null && maxRaw !== '' && (maxNum == null || Number.isNaN(maxNum) || maxNum < 0);
-                  if (minInvalid || maxInvalid) {
-                    setDurationError(tDetails('editModal.errors.invalidDuration'));
-                    return;
-                  }
-
-                  setIsSavingEdit(true);
-                  try {
-                    const requestBody: Record<string, unknown> = {
-                      orderId: order.orderId,
-                      deliveryAddress: formFields.deliveryAddress,
-                      contactPerson: formFields.contactPerson,
-                      contactPhone: formFields.contactPhone,
-                      preferredDeliveryTime: formFields.preferredDeliveryTime,
-                      estimatedDeliveryDate: formFields.estimatedDeliveryDate ? `${formFields.estimatedDeliveryDate}T12:00:00.000Z` : null,
-                      estimatedDeliveryMinDays: minNum,
-                      estimatedDeliveryMaxDays: maxNum,
-                      deliveryNote: formFields.deliveryNote,
-                      assignedLogistics: formFields.assignedLogistics,
-                      trackingNumber: formFields.trackingNumber,
-                      deliveryMethod: formFields.deliveryMethod,
-                      shippingMethodLabel: formFields.deliveryMethod,
-                      shippingMethod: formFields.deliveryMethod
-                    };
-                    if ((POD_TRACKING_STATUSES as readonly string[]).includes(orderStatus) && formFields.pod) {
-                      requestBody.pod = formFields.pod;
-                      requestBody.deliveryConfirmation = 'delivered';
-                    }
-                    if (user?.id) requestBody.userId = user.id;
-                    const response = await fetch('/api/orders', {
-                      method: 'PUT',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify(requestBody)
-                    });
-                    if (response.ok) {
-                      setCommittedFields(formFields);
-                      setDurationError(null);
-                      setPodFileName('');
-                      setShowDeliveryMethodDropdown(false);
-                      setShowEditModal(false);
-                    } else {
-                      const text = await response.text().catch(() => '');
-                      alert(tDetails('alerts.saveOrderFailed', { detail: text || String(response.status) }));
-                    }
-                  } catch (error) {
-                    alert(tDetails('alerts.saveOrderFailed', {
-                      detail: error instanceof Error ? error.message : tCommon('notAvailable'),
-                    }));
-                  } finally {
-                    setIsSavingEdit(false);
-                  }
-                }}
-                className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-[#0a61d7] hover:bg-[#084ba6] disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
-              >
-                {isSavingEdit ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    {tDetails('editModal.saving')}
-                  </>
-                ) : (
-                  tDetails('editModal.saveChanges')
-                )}
-              </button>
             </div>
           </div>
         </div>

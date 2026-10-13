@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import CreateSalesJobForm from '@/components/sales/CreateSalesJobForm';
@@ -54,7 +55,8 @@ export default function EditSalesJobPage() {
     return (
       <div className="p-4">
         <p className="text-sm text-red-700">{t('form.jobMissing')}</p>
-        <button type="button" className="mt-3 text-sm text-[#0a61d7]" onClick={() => router.push('/sales/jobs')}>
+        <button type="button" className="mt-3 flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors" onClick={() => router.push('/sales/jobs')}>
+          <ArrowLeft className="w-4 h-4" />
           {t('form.backToJobs')}
         </button>
       </div>
@@ -71,7 +73,8 @@ export default function EditSalesJobPage() {
     return (
       <div className="p-4">
         <p className="text-sm text-gray-700">{t('form.jobMissing')}</p>
-        <button type="button" className="mt-3 text-sm text-[#0a61d7]" onClick={() => router.push('/sales/jobs')}>
+        <button type="button" className="mt-3 flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors" onClick={() => router.push('/sales/jobs')}>
+          <ArrowLeft className="w-4 h-4" />
           {t('form.backToJobs')}
         </button>
       </div>

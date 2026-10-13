@@ -11,6 +11,7 @@ export function useOrdersTranslations() {
   const tTour = useTranslations('dashboard.orders.tour');
   const tDetailsPage = useTranslations('dashboard.orders.detailsPage');
   const tDetails = useTranslations('dashboard.orders.details');
+  const tCreate = useTranslations('dashboard.orders.create');
   const tCommon = useTranslations('dashboard.common');
 
   /** Order status values are standard English across apps — do not translate. */
@@ -47,6 +48,7 @@ export function useOrdersTranslations() {
     tTour,
     tDetailsPage,
     tDetails,
+    tCreate,
     tCommon,
     translateStatusTab,
     translatePaymentTab,

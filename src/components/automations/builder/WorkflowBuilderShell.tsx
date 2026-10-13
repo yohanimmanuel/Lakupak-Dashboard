@@ -253,7 +253,7 @@ export function WorkflowBuilderShell({
           <button
             type="button"
             onClick={() => router.push('/automation')}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[#e6e6e6] px-3 py-2 text-xs font-medium text-black hover:bg-gray-50"
+            className="flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800"
           >
             <ArrowLeft className="h-4 w-4" />
             {tBuilder('back')}
