@@ -215,10 +215,10 @@
     "sales": {
       "menuLabel": "Penjualan",
       "title": "Pekerjaan lapangan dari manager sampai selesai",
-      "subtitle": "Tambah sales manager, buat pekerjaan, tetapkan masing-masing ke sales, dan catat penyelesaian di Dashboard.",
+      "subtitle": "Tambah sales manager, buat pekerjaan, tetapkan masing-masing ke sales, catat penyelesaian, dan tambah prospek di Dashboard.",
       "placeholder": "Pratinjau modul penjualan. Ganti gambar",
       "overview": {
-        "summary": "Penjualan adalah cara distributor menjalankan pekerjaan lapangan dari Dashboard. Tambah manager, buat pekerjaan, tetapkan tiap pekerjaan ke sales, lalu catat penyelesaian saat pekerjaan selesai.",
+        "summary": "Penjualan adalah cara distributor menjalankan pekerjaan lapangan dari Dashboard. Tambah manager, buat pekerjaan, tetapkan tiap pekerjaan ke sales, catat penyelesaian saat pekerjaan selesai, dan simpan prospek sebelum mereka memesan.",
         "highlights": {
           "1": {
             "title": "Manager untuk tim",
@@ -226,7 +226,7 @@
           },
           "2": {
             "title": "Pekerjaan untuk tiap sales",
-            "desc": "Berikan tiap sales pekerjaannya sendiri, dari ambil pesanan sampai cek stok, pesaing, atau outlet baru."
+            "desc": "Berikan tiap sales pekerjaannya sendiri, dari ambil pesanan sampai cek stok atau pesaing."
           },
           "3": {
             "title": "Penyelesaian tetap di pekerjaan",
@@ -241,7 +241,7 @@
         },
         "2": {
           "title": "Buat pekerjaan",
-          "desc": "Tambahkan pekerjaan untuk kunjungan: ambil pesanan, promosikan produk dan catat berapa yang diberikan, cek stok gudang, tagih pembayaran, jemput retur, cek pesaing, atau buka outlet baru."
+          "desc": "Tambahkan pekerjaan untuk kunjungan: ambil pesanan, promosikan produk dan catat berapa yang diberikan, cek stok gudang, tagih pembayaran, jemput retur, atau cek pesaing."
         },
         "3": {
           "title": "Tetapkan tiap pekerjaan ke sales",
@@ -249,7 +249,11 @@
         },
         "4": {
           "title": "Catat penyelesaian",
-          "desc": "Saat sales selesai, tandai pekerjaan selesai dan isi data yang diminta jenis pekerjaan itu. Pekerjaan yang sudah selesai bisa dikoreksi nanti. Prospek tetap terbuka sampai ada pesanan marketplace yang cocok."
+          "desc": "Saat sales selesai, tandai pekerjaan selesai dan isi data yang diminta jenis pekerjaan itu. Pekerjaan yang sudah selesai bisa dikoreksi nanti."
+        },
+        "5": {
+          "title": "Tambah prospek",
+          "desc": "Catat pengecer dan outlet prospek sebelum mereka memesan. Simpan nomor pelanggan, nama, toko, telepon, wilayah, dan alamat di peta. Mereka tetap prospek sampai ada pesanan marketplace."
         }
       }
     },

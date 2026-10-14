@@ -215,10 +215,10 @@
     "sales": {
       "menuLabel": "Sales",
       "title": "Field work from manager to completion",
-      "subtitle": "Add a sales manager, create jobs, assign each one to a sales rep, and record completion in Dashboard.",
+      "subtitle": "Add a sales manager, create jobs, assign each one to a sales rep, record completion, and add prospects in Dashboard.",
       "placeholder": "Sales module preview. Replace image",
       "overview": {
-        "summary": "Sales is how a distributor runs field work from Dashboard. Add a manager, create the jobs, assign each job to a sales rep, and record completion when the work is done.",
+        "summary": "Sales is how a distributor runs field work from Dashboard. Add a manager, create the jobs, assign each job to a sales rep, record completion when the work is done, and keep prospects before they order.",
         "highlights": {
           "1": {
             "title": "A manager for the team",
@@ -226,7 +226,7 @@
           },
           "2": {
             "title": "Jobs assigned to each sales rep",
-            "desc": "Give each rep their own jobs, from taking an order to checking stock, a competitor, or a new outlet."
+            "desc": "Give each rep their own jobs, from taking an order to checking stock or a competitor."
           },
           "3": {
             "title": "Completion stays on the job",
@@ -241,7 +241,7 @@
         },
         "2": {
           "title": "Create the jobs",
-          "desc": "Add a job for the visit: take an order, promote products and record how many were given, check warehouse stock, collect a payment, pick up a return, check a competitor, or open a new outlet."
+          "desc": "Add a job for the visit: take an order, promote products and record how many were given, check warehouse stock, collect a payment, pick up a return, or check a competitor."
         },
         "3": {
           "title": "Assign each job to a sales rep",
@@ -249,7 +249,11 @@
         },
         "4": {
           "title": "Record completion",
-          "desc": "When the rep finishes, mark the job complete and fill in what that job type asks for. A finished job can be corrected later. A prospect stays open until a marketplace order matches it."
+          "desc": "When the rep finishes, mark the job complete and fill in what that job type asks for. A finished job can be corrected later."
+        },
+        "5": {
+          "title": "Add prospects",
+          "desc": "Record a prospect retailer and outlet before they order. Save the customer number, name, store, phone, region, and address on the map. They stay a prospect until they place a marketplace order."
         }
       }
     },

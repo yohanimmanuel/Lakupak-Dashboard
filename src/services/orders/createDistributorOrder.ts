@@ -7,6 +7,7 @@ import {
   getOfferForClientAndProduct,
 } from '@/lib/offers/getOfferForClientAndProduct';
 import { reverseOfferUsage, trackOfferUsage } from '@/utils/offerValidation';
+import { recordManualOrderClientMatch } from '@/lib/clientMatching/service';
 import { syncOrderToBuyerProfile } from '@/utils/buyerSync';
 import { invalidateDashboardCache } from '@/lib/queryCache';
 import {
@@ -357,7 +358,7 @@ export async function createDistributorOrderHandler(request: NextRequest) {
 
   const buyer = await prisma.buyer.findFirst({
     where: { buyerId, userId },
-    select: { buyerId: true },
+    select: { buyerId: true, businessType: true, region: true, avatar: true },
   });
   if (!buyer) {
     return NextResponse.json({ error: 'Client not found', code: 'client_not_found' }, { status: 404, headers });
@@ -378,18 +379,31 @@ export async function createDistributorOrderHandler(request: NextRequest) {
   const now = new Date();
 
   let orderId = '';
+  let activeBuyerId = '';
   for (let attempt = 0; attempt < 3; attempt += 1) {
     orderId = generateSecureOrderId();
+    activeBuyerId = `LKB-${Math.floor(10000000 + Math.random() * 90000000)}`;
     try {
       await prisma.$transaction(async (tx) => {
-        await tx.buyer.update({
-          where: { buyerId },
-          data: { status: 'Active' },
+        await tx.buyer.create({
+          data: {
+            buyerId: activeBuyerId,
+            userId,
+            owner: contactPerson,
+            email: customerEmail || '',
+            phone: contactPhone,
+            storeName,
+            businessType: buyer.businessType || 'Retailer',
+            address: deliveryAddress,
+            region: buyer.region,
+            avatar: buyer.avatar,
+            status: 'Active',
+          },
         });
         await tx.order.create({
           data: {
             orderId,
-            buyerId,
+            buyerId: activeBuyerId,
             userId,
             orderDate: orderDate as Date,
             orderStatus,
@@ -418,7 +432,7 @@ export async function createDistributorOrderHandler(request: NextRequest) {
             trackingNumber: trackingNumber || null,
             deliveryNote: deliveryNote || null,
             pod: pod || null,
-            buyerIdSnapshot: buyerId,
+            buyerIdSnapshot: activeBuyerId,
             contactPersonSnapshot: contactPerson,
             contactPhoneSnapshot: contactPhone,
             customerEmailSnapshot: customerEmail || null,
@@ -449,7 +463,18 @@ export async function createDistributorOrderHandler(request: NextRequest) {
     }
   }
 
-  await syncOrderToBuyerProfile(buyerId, userId).catch(() => undefined);
+  await syncOrderToBuyerProfile(activeBuyerId, userId).catch(() => undefined);
+  await recordManualOrderClientMatch({
+    distributorId: userId,
+    existingClientId: buyerId,
+    activeBuyerId,
+    orderId,
+    phone: contactPhone,
+    storeName,
+    ownerName: contactPerson,
+    address: deliveryAddress,
+    email: customerEmail,
+  }).catch(() => undefined);
   await invalidateDashboardCache(userId).catch(() => undefined);
 
   return NextResponse.json({ orderId }, { status: 201, headers });
@@ -579,7 +604,6 @@ export async function updateDistributorOrderHandler(userId: number, body: Record
 
   try {
   await prisma.$transaction(async (tx) => {
-    await tx.buyer.update({ where: { buyerId }, data: { status: 'Active' } });
     let stockAlreadyDeducted = false;
     if (priced) {
       const current = await tx.order.findFirst({

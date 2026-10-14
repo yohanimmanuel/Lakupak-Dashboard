@@ -39,6 +39,7 @@ export default function ProspectForm({ buyerId }: { buyerId?: string }) {
   const [region, setRegion] = useState('');
   const [pin, setPin] = useState<MapCoordinates | null>(null);
   const [resolvingAddress, setResolvingAddress] = useState(false);
+  const [addressSearchError, setAddressSearchError] = useState('');
   const geocodeRequest = useRef(0);
   const [loading, setLoading] = useState(editing);
   const [saving, setSaving] = useState(false);
@@ -89,6 +90,7 @@ export default function ProspectForm({ buyerId }: { buyerId?: string }) {
     const requestId = geocodeRequest.current + 1;
     geocodeRequest.current = requestId;
     setPin(coordinates);
+    setAddressSearchError('');
     setResolvingAddress(true);
     void (async () => {
       try {
@@ -107,6 +109,33 @@ export default function ProspectForm({ buyerId }: { buyerId?: string }) {
       }
     })();
   }, []);
+
+  const searchTypedAddress = useCallback(
+    (rawAddress: string) => {
+      const typed = rawAddress.trim();
+      if (!typed) return;
+      const regionText = region.trim();
+      const query =
+        regionText && !typed.toLowerCase().includes(regionText.toLowerCase()) ? `${typed}, ${regionText}` : typed;
+      const requestId = geocodeRequest.current + 1;
+      geocodeRequest.current = requestId;
+      setResolvingAddress(true);
+      setAddressSearchError('');
+      void (async () => {
+        try {
+          const found = await geocodeAddress(query);
+          if (geocodeRequest.current !== requestId) return;
+          if (found.coordinates) setPin(found.coordinates);
+          else setAddressSearchError(t('addressNotFound'));
+        } catch {
+          if (geocodeRequest.current === requestId) setAddressSearchError(t('addressNotFound'));
+        } finally {
+          if (geocodeRequest.current === requestId) setResolvingAddress(false);
+        }
+      })();
+    },
+    [region, t],
+  );
 
   const save = async () => {
     if (!userId || saving || resolvingAddress) return;
@@ -222,8 +251,23 @@ export default function ProspectForm({ buyerId }: { buyerId?: string }) {
                 <label className={labelClass} htmlFor="prospect-address">
                   {t('address')} <span className="text-red-500">*</span>
                 </label>
-                <input id="prospect-address" className={inputClass} maxLength={500} value={address} onChange={(event) => setAddress(event.target.value)} />
+                <input
+                  id="prospect-address"
+                  className={inputClass}
+                  maxLength={500}
+                  value={address}
+                  onChange={(event) => {
+                    setAddress(event.target.value);
+                    setAddressSearchError('');
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter') return;
+                    event.preventDefault();
+                    searchTypedAddress(event.currentTarget.value);
+                  }}
+                />
                 <p className="mt-2 text-xs text-gray-500">{t('mapHint')}</p>
+                {addressSearchError && <p className="mt-1 text-xs text-red-600">{addressSearchError}</p>}
                 <div className="mt-3 overflow-hidden rounded-lg border border-[#e6e6e6]">
                   <MapComponent
                     height="280px"

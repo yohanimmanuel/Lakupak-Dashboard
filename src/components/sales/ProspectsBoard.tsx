@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, ChevronLeft, ChevronRight, Download, Pencil, Plus, Search, Store } from 'lucide-react';
+import { AlertCircle, Check, ChevronDown, ChevronLeft, ChevronRight, Download, Edit, Loader2, Plus, Search, Store, Trash, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import * as XLSX from 'xlsx';
 import { SkeletonTablePage } from '@/components/skeleton/SkeletonTablePage';
@@ -41,6 +41,12 @@ export default function ProspectsBoard() {
   const [regionFilter, setRegionFilter] = useState('all');
   const [showRegionDropdown, setShowRegionDropdown] = useState(false);
   const [page, setPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [deleteIds, setDeleteIds] = useState<string[]>([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [notice, setNotice] = useState('');
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -94,6 +100,50 @@ export default function ProspectsBoard() {
     XLSX.utils.book_append_sheet(book, sheet, t('sheetName'));
     XLSX.writeFile(book, 'prospects.xlsx');
   };
+
+  const filteredIds = filteredRows.map((row) => row.buyerId);
+  const allFilteredSelected = filteredIds.length > 0 && filteredIds.every((id) => selectedIds.includes(id));
+  const bulkDelete = deleteIds.length > 1;
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
+  };
+
+  const openDelete = (ids: string[]) => {
+    setDeleteIds(ids);
+    setDeleteError('');
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!userId || deleting || deleteIds.length === 0) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      const result = await fetchGraphQL<{ deleteSalesProspects: { deleted: number; skipped: number } }>(
+        `mutation DeleteProspects($userId: Int!, $buyerIds: [String!]!) {
+          deleteSalesProspects(userId: $userId, buyerIds: $buyerIds) { deleted skipped }
+        }`,
+        { userId, buyerIds: deleteIds },
+      );
+      const { deleted, skipped } = result.deleteSalesProspects;
+      const removed = new Set(deleteIds);
+      setShowDeleteModal(false);
+      setDeleteIds([]);
+      setSelectedIds((current) => current.filter((id) => !removed.has(id)));
+      setNotice(deleted === 0 ? t('deleteNone') : skipped > 0 ? t('deleteSkipped', { count: skipped }) : '');
+      await load();
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : t('deleteFailed'));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const checkboxClass = (selected: boolean) =>
+    `flex h-4 w-4 items-center justify-center rounded border-2 transition-all duration-200 ${
+      selected ? 'border-green-500 bg-green-500' : 'border-gray-300 bg-white hover:border-green-400'
+    }`;
 
   if (loading) return <SkeletonTablePage statCards={0} rows={8} />;
 
@@ -177,61 +227,128 @@ export default function ProspectsBoard() {
           </div>
         </div>
 
+        {notice && (
+          <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">{notice}</div>
+        )}
+
+        {selectedIds.length > 0 && (
+          <div className="mb-3 rounded-lg border border-[#e6e6e6] border-l-4 border-l-green-500 bg-white p-3 shadow-sm md:p-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <span className="text-sm font-semibold text-[#0a61d7]">
+                {selectedIds.length} {selectedIds.length === 1 ? t('buyerSelected') : t('buyersSelected')} {t('selected')}
+              </span>
+              <div className="flex items-center gap-2 md:gap-4">
+                <span className="hidden text-xs font-semibold text-gray-600 md:block">{t('bulkActionHint')}</span>
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={() => openDelete(selectedIds)}
+                  className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+                >
+                  <Trash className="h-4 w-4" />
+                  {t('remove')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="overflow-x-auto rounded-lg">
-          <table className="w-full">
-            <thead>
-              <tr className="whitespace-nowrap bg-gray-100 text-gray-500">
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase">{t('customerNumber')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase">{t('retailer')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase">{t('outlet')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase">{t('phone')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase">{t('region')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase">{t('address')}</th>
-                <th className="px-4 py-3 text-center text-xs font-medium uppercase">{t('actions')}</th>
+          <table className="min-w-full whitespace-nowrap text-left text-sm text-xs">
+            <thead className="whitespace-nowrap bg-gray-100 text-gray-500">
+              <tr>
+                <th className="w-10 px-4 py-3 font-medium uppercase">
+                  <button type="button" onClick={() => setSelectedIds(allFilteredSelected ? [] : filteredIds)} aria-label={t('selectAll')} className={checkboxClass(allFilteredSelected)}>
+                    {allFilteredSelected && <Check className="h-3 w-3 text-white" />}
+                  </button>
+                </th>
+                <th className="px-4 py-3 font-medium uppercase">{t('customerNumber')}</th>
+                <th className="px-4 py-3 font-medium uppercase">{t('retailer')}</th>
+                <th className="px-4 py-3 font-medium uppercase">{t('outlet')}</th>
+                <th className="px-4 py-3 font-medium uppercase">{t('phone')}</th>
+                <th className="px-4 py-3 font-medium uppercase">{t('region')}</th>
+                <th className="px-4 py-3 font-medium uppercase">{t('address')}</th>
+                <th className="px-4 py-3 text-center font-medium uppercase">{t('actions')}</th>
               </tr>
             </thead>
-            <tbody className="whitespace-nowrap text-xs">
+            <tbody className="bg-white">
               {pagedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-gray-500">
+                  <td colSpan={8} className="py-12 text-center text-gray-500">
                     <div className="flex flex-col items-center gap-2">
                       <Store className="h-12 w-12 text-gray-400" />
-                      <p className="text-sm font-medium">{t('empty')}</p>
-                      <p className="text-xs">{t('emptyHint')}</p>
+                      <p className="text-sm">{t('empty')}</p>
                     </div>
                   </td>
                 </tr>
               ) : (
-                pagedRows.map((row) => (
-                  <tr key={row.buyerId} className="border-b border-[#e6e6e6] transition hover:bg-gray-50">
-                    <td className="px-4 py-4 text-gray-700">{row.customerNumber}</td>
-                    <td className="px-4 py-4">
-                      <div className="max-w-[180px] truncate font-medium text-gray-900" title={row.owner}>
-                        {row.owner}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="max-w-[180px] truncate text-gray-700" title={row.storeName}>
-                        {row.storeName}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-gray-700">{row.phone}</td>
-                    <td className="px-4 py-4 text-gray-700">{row.region || t('noRegion')}</td>
-                    <td className="max-w-[240px] whitespace-normal px-4 py-4 text-gray-700">{row.address}</td>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center justify-center">
+                pagedRows.map((row) => {
+                  const selected = selectedIds.includes(row.buyerId);
+                  return (
+                    <tr
+                      key={row.buyerId}
+                      className={`cursor-pointer border-b border-[#f0f0f0] transition ${selected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                      onClick={(event) => {
+                        if ((event.target as HTMLElement).closest('button')) return;
+                        toggleSelect(row.buyerId);
+                      }}
+                    >
+                      <td className="px-4 py-3">
                         <button
                           type="button"
-                          onClick={() => router.push(`/sales/prospects/edit/${encodeURIComponent(row.buyerId)}`)}
-                          className="inline-flex items-center justify-center rounded-lg p-2 transition-colors hover:bg-gray-100"
-                          title={t('edit')}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggleSelect(row.buyerId);
+                          }}
+                          aria-label={t('selectRow')}
+                          className={checkboxClass(selected)}
                         >
-                          <Pencil className="h-4 w-4 text-gray-500" />
+                          {selected && <Check className="h-3 w-3 text-white" />}
                         </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="px-4 py-3 text-black">{row.customerNumber}</td>
+                      <td className="px-4 py-3">
+                        <div className="max-w-[180px] truncate font-medium text-black" title={row.owner}>
+                          {row.owner}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="max-w-[180px] truncate text-black" title={row.storeName}>
+                          {row.storeName}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-black">{row.phone}</td>
+                      <td className="px-4 py-3 text-gray-600">{row.region || t('noRegion')}</td>
+                      <td className="max-w-[240px] whitespace-normal px-4 py-3 text-gray-600">{row.address}</td>
+                      <td className="px-4 py-3 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              router.push(`/sales/prospects/edit/${encodeURIComponent(row.buyerId)}`);
+                            }}
+                            className="inline-flex items-center justify-center rounded-lg p-2 transition-colors hover:bg-gray-100 focus:outline-none"
+                            title={t('edit')}
+                          >
+                            <Edit className="h-4 w-4 text-gray-500" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openDelete([row.buyerId]);
+                            }}
+                            className="inline-flex items-center justify-center rounded-lg p-2 transition-colors hover:bg-red-100 focus:outline-none"
+                            title={t('remove')}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -273,6 +390,51 @@ export default function ProspectsBoard() {
           </div>
         </div>
       </div>
+
+      {showDeleteModal && deleteIds.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-sm rounded-lg border border-[#e6e6e6] bg-white p-4">
+            <h2 className="mb-2 text-lg font-bold text-red-500">{bulkDelete ? t('deleteBulkTitle') : t('deleteTitle')}</h2>
+            {deleteError && (
+              <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3">
+                <AlertCircle className="h-5 w-5 text-red-500" />
+                <span className="text-sm text-red-700">{deleteError}</span>
+              </div>
+            )}
+            <p className="mb-4 text-gray-500">
+              {bulkDelete ? t('deleteBulkConfirm', { count: deleteIds.length }) : t('deleteConfirm')}
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className="rounded-lg bg-gray-200 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteIds([]);
+                }}
+                disabled={deleting}
+              >
+                {t('cancel')}
+              </button>
+              <button
+                type="button"
+                className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50"
+                onClick={() => void confirmDelete()}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {t('deleting')}
+                  </>
+                ) : (
+                  t('delete')
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

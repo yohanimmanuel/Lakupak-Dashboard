@@ -177,14 +177,18 @@ function buyerMatchSide(buyer: { storeName: string; owner: string; phone: string
 
 /** Prospects that look like another buyer and are not already in the open review queue. */
 export async function findPossibleBuyerMatches(distributorId: number): Promise<ReviewBuyerMatch[]> {
-  const open = await prisma.clientMatchCandidate.findMany({
-    where: { distributorId, status: { in: [...REVIEW_OPEN_STATUSES] } },
-    select: { existingClientId: true, provisionalClientId: true },
+  const known = await prisma.clientMatchCandidate.findMany({
+    where: { distributorId },
+    select: { existingClientId: true, provisionalClientId: true, status: true },
   });
   const covered = new Set<string>();
-  for (const row of open) {
-    covered.add(row.existingClientId);
-    if (row.provisionalClientId) covered.add(row.provisionalClientId);
+  const knownPairs = new Set<string>();
+  for (const row of known) {
+    if (REVIEW_OPEN_STATUSES.includes(row.status as (typeof REVIEW_OPEN_STATUSES)[number])) {
+      covered.add(row.existingClientId);
+      if (row.provisionalClientId) covered.add(row.provisionalClientId);
+    }
+    if (row.provisionalClientId) knownPairs.add([row.existingClientId, row.provisionalClientId].sort().join('|'));
   }
 
   const buyers = await prisma.buyer.findMany({
@@ -214,7 +218,7 @@ export async function findPossibleBuyerMatches(distributorId: number): Promise<R
     }
     if (!best) continue;
     const key = [prospect.buyerId, best.buyer.buyerId].sort().join('|');
-    if (seen.has(key)) continue;
+    if (seen.has(key) || knownPairs.has(key)) continue;
     seen.add(key);
     matches.push({
       id: `possible:${prospect.buyerId}:${best.buyer.buyerId}`,
@@ -230,6 +234,23 @@ export async function findPossibleBuyerMatches(distributorId: number): Promise<R
       existing: buyerMatchSide(prospect),
       incoming: buyerMatchSide(best.buyer),
     });
+  }
+  if (matches.length === 0) return matches;
+  const buyerIds = Array.from(
+    new Set(matches.flatMap((match) => [match.existingClientId, match.provisionalClientId].filter((id): id is string => Boolean(id)))),
+  );
+  const orders = await prisma.order.findMany({
+    where: { userId: distributorId, isDeleted: false, buyerId: { in: buyerIds } },
+    orderBy: { createdAt: 'desc' },
+    select: { orderId: true, buyerId: true },
+  });
+  const orderByBuyer = new Map<string, string>();
+  for (const order of orders) {
+    if (order.buyerId && !orderByBuyer.has(order.buyerId)) orderByBuyer.set(order.buyerId, order.orderId);
+  }
+  for (const match of matches) {
+    match.incomingOrderId =
+      (match.provisionalClientId && orderByBuyer.get(match.provisionalClientId)) || orderByBuyer.get(match.existingClientId) || '';
   }
   return matches;
 }
@@ -398,7 +419,6 @@ async function mergeProspectIntoMarketplace(
 ): Promise<MergeUndoSnapshot | null> {
   if (args.prospectId === args.marketplaceBuyerId) return null;
   if (isMarketplaceBuyerId(args.prospectId)) throw new Error('Marketplace buyer cannot be merged as a prospect');
-  if (!isMarketplaceBuyerId(args.marketplaceBuyerId)) throw new Error('Merge target must be a marketplace buyer');
   const prospect = await tx.buyer.findFirst({
     where: { buyerId: args.prospectId, userId: args.distributorId },
     select: BUYER_SNAPSHOT_SELECT,
@@ -741,7 +761,167 @@ export async function finalizeMarketplaceClientMatch(plan: MarketplaceMatchPlan,
   }
 }
 
+function parsePossibleMatchId(candidateId: string): { prospectId: string; otherId: string } | null {
+  if (!candidateId.startsWith('possible:')) return null;
+  const rest = candidateId.slice('possible:'.length);
+  const splitAt = rest.indexOf(':');
+  if (splitAt <= 0 || splitAt === rest.length - 1) return null;
+  return { prospectId: rest.slice(0, splitAt), otherId: rest.slice(splitAt + 1) };
+}
+
+async function materializePossibleMatch(distributorId: number, candidateId: string): Promise<string> {
+  const parsed = parsePossibleMatchId(candidateId);
+  if (!parsed) throw new Error('Match not found');
+  const open = await prisma.clientMatchCandidate.findFirst({
+    where: {
+      distributorId,
+      status: { in: [...REVIEW_OPEN_STATUSES] },
+      OR: [
+        { existingClientId: parsed.prospectId, provisionalClientId: parsed.otherId },
+        { existingClientId: parsed.otherId, provisionalClientId: parsed.prospectId },
+      ],
+    },
+    select: { id: true },
+  });
+  if (open) return open.id;
+
+  const [prospect, other, order] = await Promise.all([
+    prisma.buyer.findFirst({
+      where: { buyerId: parsed.prospectId, userId: distributorId },
+      select: BUYER_SNAPSHOT_SELECT,
+    }),
+    prisma.buyer.findFirst({
+      where: { buyerId: parsed.otherId, userId: distributorId },
+      select: { owner: true, phone: true, storeName: true, address: true },
+    }),
+    prisma.order.findFirst({
+      where: { userId: distributorId, isDeleted: false, buyerId: { in: [parsed.prospectId, parsed.otherId] } },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        orderId: true,
+        buyerId: true,
+        contactPerson: true,
+        contactPhone: true,
+        customerEmail: true,
+        storeName: true,
+        deliveryAddress: true,
+      },
+    }),
+  ]);
+  if (!prospect || !other) throw new Error('Client not found');
+  if (!order) throw new Error('This match needs an order');
+  const signals = classifyClientSignals({
+    incomingPhone: prospect.phone,
+    incomingAddress: prospect.address,
+    incomingStoreName: prospect.storeName,
+    incomingOwnerName: prospect.owner,
+    existingPhone: other.phone,
+    existingAddress: other.address,
+    existingStoreName: other.storeName,
+    existingOwnerName: other.owner,
+  });
+  const created = await prisma.clientMatchCandidate.create({
+    data: {
+      distributorId,
+      existingClientId: parsed.prospectId,
+      provisionalClientId: parsed.otherId,
+      incomingOrderId: order.orderId,
+      confidenceScore: signals.score,
+      matchedSignals: signals.signals,
+      status: 'pending',
+      autoMerged: false,
+      undoSnapshot: {
+        priorStatus: prospect.status,
+        provisionalProfile: {
+          buyerId: parsed.otherId,
+          owner: order.contactPerson || '',
+          email: order.customerEmail || '',
+          phone: order.contactPhone || '',
+          storeName: order.storeName || '',
+          businessType: 'Retailer',
+          address: order.deliveryAddress || '',
+          avatar: null,
+          status: 'Active',
+          userId: distributorId,
+        },
+      },
+    },
+    select: { id: true },
+  });
+  return created.id;
+}
+
+export async function recordManualOrderClientMatch(input: {
+  distributorId: number;
+  existingClientId: string;
+  activeBuyerId: string;
+  orderId: string;
+  phone: string;
+  storeName: string;
+  ownerName: string;
+  address: string;
+  email: string;
+}) {
+  if (!input.existingClientId || input.existingClientId === input.activeBuyerId) return;
+  const existing = await prisma.buyer.findFirst({
+    where: { buyerId: input.existingClientId, userId: input.distributorId },
+    select: { buyerId: true, owner: true, phone: true, storeName: true, address: true, status: true },
+  });
+  if (!existing) return;
+  const preserveSelected = isMarketplaceBuyerId(existing.buyerId);
+  const preservedClientId = preserveSelected ? input.existingClientId : input.activeBuyerId;
+  const absorbedClientId = preserveSelected ? input.activeBuyerId : input.existingClientId;
+  const already = await prisma.clientMatchCandidate.findFirst({
+    where: {
+      distributorId: input.distributorId,
+      existingClientId: absorbedClientId,
+      incomingOrderId: input.orderId,
+      status: { in: [...REVIEW_OPEN_STATUSES] },
+    },
+    select: { id: true },
+  });
+  if (already) return;
+  const result = classifyClientSignals({
+    incomingPhone: input.phone,
+    incomingAddress: input.address,
+    incomingStoreName: input.storeName,
+    incomingOwnerName: input.ownerName,
+    existingPhone: existing.phone,
+    existingAddress: existing.address,
+    existingStoreName: existing.storeName,
+    existingOwnerName: existing.owner,
+  });
+  await prisma.clientMatchCandidate.create({
+    data: {
+      distributorId: input.distributorId,
+      existingClientId: absorbedClientId,
+      provisionalClientId: preservedClientId,
+      incomingOrderId: input.orderId,
+      confidenceScore: result.score,
+      matchedSignals: result.signals,
+      status: 'pending',
+      autoMerged: false,
+      undoSnapshot: {
+        priorStatus: preserveSelected ? 'Active' : existing.status,
+        provisionalProfile: {
+          buyerId: preservedClientId,
+          owner: input.ownerName || '',
+          email: input.email || '',
+          phone: input.phone || '',
+          storeName: input.storeName || '',
+          businessType: 'Retailer',
+          address: input.address || '',
+          avatar: null,
+          status: 'Active',
+          userId: input.distributorId,
+        },
+      },
+    },
+  });
+}
+
 export async function mergeCandidate(distributorId: number, candidateId: string) {
+  if (candidateId.startsWith('possible:')) candidateId = await materializePossibleMatch(distributorId, candidateId);
   const candidate = await prisma.clientMatchCandidate.findFirst({
     where: { id: candidateId, distributorId },
   });
@@ -803,6 +983,7 @@ export async function mergeCandidate(distributorId: number, candidateId: string)
 }
 
 export async function dismissCandidate(distributorId: number, candidateId: string, status: 'not_a_match' | 'needs_more_info') {
+  if (candidateId.startsWith('possible:')) candidateId = await materializePossibleMatch(distributorId, candidateId);
   const updated = await prisma.clientMatchCandidate.updateMany({
     where: { id: candidateId, distributorId, status: { in: ['pending', 'needs_more_info'] } },
     data: { status },

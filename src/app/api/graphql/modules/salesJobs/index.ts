@@ -14,7 +14,13 @@ import {
   updateSalesJobSettings,
 } from '@/lib/salesJobs/service';
 import { suggestSalesJobsForDistributor } from '@/lib/salesJobs/suggest';
-import { createSalesProspect, getSalesProspect, listSalesProspects, updateSalesProspect } from '@/lib/salesJobs/prospects';
+import {
+  createSalesProspect,
+  deleteSalesProspects,
+  getSalesProspect,
+  listSalesProspects,
+  updateSalesProspect,
+} from '@/lib/salesJobs/prospects';
 import { prisma } from '@/lib/db';
 
 export const salesJobsTypeDefs = /* GraphQL */ `
@@ -249,6 +255,11 @@ export const salesJobsTypeDefs = /* GraphQL */ `
     status: String!
   }
 
+  type DeleteSalesProspectsResult {
+    deleted: Int!
+    skipped: Int!
+  }
+
   extend type Query {
     salesProspects(userId: Int!): [SalesProspect!]!
     salesProspect(userId: Int!, buyerId: String!): SalesProspect
@@ -280,6 +291,7 @@ export const salesJobsTypeDefs = /* GraphQL */ `
       address: String!
       region: String
     ): SalesProspect!
+    deleteSalesProspects(userId: Int!, buyerIds: [String!]!): DeleteSalesProspectsResult!
     suggestSalesJobs(userId: Int!): SuggestSalesJobsResult!
     createSalesJobs(userId: Int!, assignedTo: String!, jobs: [CreateSalesJobItemInput!]!, timeZone: String): [SalesJob!]!
     updateSalesJobs(userId: Int!, assignedTo: String!, replaceIds: [String!]!, jobs: [CreateSalesJobItemInput!]!, timeZone: String): [SalesJob!]!
@@ -378,6 +390,9 @@ export const salesJobsResolvers = {
         address: string;
         region?: string | null;
       }) => updateSalesProspect(args.userId, args.buyerId, args),
+    ),
+    deleteSalesProspects: withDashboardAuth(async (args: { userId: number; buyerIds: string[] }) =>
+      deleteSalesProspects(args.userId, args.buyerIds),
     ),
     suggestSalesJobs: withDashboardAuth(async (args: { userId: number }) => suggestSalesJobsForDistributor(args.userId)),
     createSalesJobs: withDashboardAuth(

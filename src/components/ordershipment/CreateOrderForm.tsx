@@ -154,6 +154,27 @@ function logisticsLabel(raw: string | null | undefined): string {
   }
 }
 
+const INTERNAL_FLEET = 'Internal fleet';
+const THIRD_PARTY_PREFIX = '3PL: ';
+
+function splitAssignedLogistics(value: string): { mode: '' | 'internal' | '3pl'; vendor: string } {
+  const trimmed = value.trim();
+  if (!trimmed) return { mode: '', vendor: '' };
+  if (trimmed.toLowerCase() === 'internal fleet' || trimmed.toLowerCase() === 'armada internal') {
+    return { mode: 'internal', vendor: '' };
+  }
+  if (trimmed.toLowerCase() === '3pl') return { mode: '3pl', vendor: '' };
+  if (trimmed.toLowerCase().startsWith('3pl:')) return { mode: '3pl', vendor: trimmed.slice(4).trim() };
+  return { mode: '3pl', vendor: trimmed };
+}
+
+function joinAssignedLogistics(mode: string, vendor: string): string {
+  if (mode === 'internal') return INTERNAL_FLEET;
+  if (mode !== '3pl') return '';
+  const name = vendor.trim();
+  return name ? `${THIRD_PARTY_PREFIX}${name}` : '3PL';
+}
+
 function offerIsCurrent(offer: OfferNode): boolean {
   if (offer.status !== 'active') return false;
   const start = new Date(offer.startDate);
@@ -311,7 +332,8 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
   const [estimatedDate, setEstimatedDate] = useState('');
   const [minDays, setMinDays] = useState('');
   const [maxDays, setMaxDays] = useState('');
-  const [assignedLogistics, setAssignedLogistics] = useState('');
+  const [logisticsMode, setLogisticsMode] = useState('');
+  const [logisticsVendor, setLogisticsVendor] = useState('');
   const [trackingNumber, setTrackingNumber] = useState('');
   const [deliveryNote, setDeliveryNote] = useState('');
   const [pod, setPod] = useState('');
@@ -423,7 +445,9 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
         setEstimatedDate(dateInput(order.estimatedDeliveryDate));
         setMinDays(order.estimatedDeliveryMinDays != null ? String(order.estimatedDeliveryMinDays) : '');
         setMaxDays(order.estimatedDeliveryMaxDays != null ? String(order.estimatedDeliveryMaxDays) : '');
-        setAssignedLogistics(order.assignedLogistics || '');
+        const logistics = splitAssignedLogistics(order.assignedLogistics || '');
+        setLogisticsMode(logistics.mode);
+        setLogisticsVendor(logistics.vendor);
         setTrackingNumber(order.trackingNumber || '');
         setDeliveryNote(order.deliveryNote || '');
         setPod(order.pod || '');
@@ -534,7 +558,9 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
     setEmail(buyer.email || '');
     setStoreName(buyer.storeName || '');
     setDeliveryAddress(buyer.address || '');
-    setAssignedLogistics(logisticsLabel(buyer.logistics));
+    const logistics = splitAssignedLogistics(logisticsLabel(buyer.logistics));
+    setLogisticsMode(logistics.mode);
+    setLogisticsVendor(logistics.vendor);
     if (buyer.address) void placeAddress(buyer.address);
   }
 
@@ -661,7 +687,7 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
       estimatedDeliveryDate: estimatedDate || null,
       estimatedDeliveryMinDays: min,
       estimatedDeliveryMaxDays: max,
-      assignedLogistics: assignedLogistics.trim(),
+      assignedLogistics: joinAssignedLogistics(logisticsMode, logisticsVendor),
       trackingNumber: trackingNumber.trim(),
       deliveryNote: deliveryNote.trim(),
       pod: pod || null,
@@ -805,7 +831,7 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
                     {tCreate('clientEmpty')} <Link href="/clients/buyers" className="font-medium text-[#0a61d7]">{tCreate('createClient')}</Link>
                   </p>
                 )}
-                {buyerId && <p className="mt-2 text-xs text-gray-500">{tCreate('activeNote')}</p>}
+                {!editing && buyerId && <p className="mt-2 text-xs text-gray-500">{tCreate('activeNote')}</p>}
               </div>
               <div>
                 <label className={labelClass}>{tCreate('contactPerson')}</label>
@@ -937,7 +963,31 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className={labelClass}>{tCreate('assignedLogistics')}</label>
-                  <input className={inputClass} value={assignedLogistics} onChange={(event) => setAssignedLogistics(event.target.value)} placeholder={tDetails('editModal.placeholders.assignedLogistics')} />
+                  <LakupakSelect
+                    value={logisticsMode}
+                    placeholder={tCreate('assignedLogistics')}
+                    options={[
+                      { value: 'internal', label: tCreate('internalFleet') },
+                      { value: '3pl', label: tCreate('thirdPartyLogistics') },
+                    ]}
+                    onChange={(value) => {
+                      setLogisticsMode(value);
+                      if (value !== '3pl') setLogisticsVendor('');
+                    }}
+                  />
+                  {logisticsMode === '3pl' && (
+                    <div className="mt-3">
+                      <label className={labelClass} htmlFor="order-logistics-vendor">{tCreate('logisticsVendor')}</label>
+                      <input
+                        id="order-logistics-vendor"
+                        className={inputClass}
+                        maxLength={80}
+                        value={logisticsVendor}
+                        onChange={(event) => setLogisticsVendor(event.target.value)}
+                        placeholder={tCreate('logisticsVendorPlaceholder')}
+                      />
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className={labelClass}>{tCreate('trackingNumber')}</label>

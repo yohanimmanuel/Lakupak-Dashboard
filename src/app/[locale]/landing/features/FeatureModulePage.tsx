@@ -164,6 +164,7 @@ const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaCo
       placement: 'center',
       image: { src: '/Dashboardsales2.png', width: 812, height: 512 },
     },
+    5: { type: 'placeholder' },
   },
   analytics: {
     1: {

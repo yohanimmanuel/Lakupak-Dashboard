@@ -142,3 +142,51 @@ export async function updateSalesProspect(distributorId: number, buyerId: string
   if (!row) throw new Error('Prospect not found');
   return mapProspect(row);
 }
+
+export async function deleteSalesProspects(distributorId: number, buyerIds: string[]) {
+  const ids = [...new Set(buyerIds.map((id) => id.trim()).filter(Boolean))];
+  if (!ids.length) return { deleted: 0, skipped: 0 };
+
+  return prisma.$transaction(async (tx) => {
+    let deleted = 0;
+    let skipped = 0;
+    for (let start = 0; start < ids.length; start += 100) {
+      const chunk = ids.slice(start, start + 100);
+      const prospects = await tx.buyer.findMany({
+        where: { userId: distributorId, status: 'Prospect', buyerId: { in: chunk } },
+        select: { buyerId: true },
+      });
+      const prospectIds = prospects.map((row) => row.buyerId);
+      if (!prospectIds.length) continue;
+
+      const ordered = await tx.order.findMany({
+        where: { buyerId: { in: prospectIds } },
+        select: { buyerId: true },
+      });
+      const blocked = new Set(ordered.map((row) => row.buyerId).filter((id): id is string => Boolean(id)));
+      const deletable = prospectIds.filter((id) => !blocked.has(id));
+      skipped += blocked.size;
+      if (!deletable.length) continue;
+
+      await tx.salesJob.updateMany({
+        where: { distributorId, clientId: { in: deletable } },
+        data: { clientId: null },
+      });
+      const linkedJobs = await tx.salesJob.findMany({
+        where: { distributorId, clientIds: { hasSome: deletable } },
+        select: { id: true, clientIds: true },
+      });
+      for (const job of linkedJobs) {
+        const nextIds = job.clientIds.filter((id) => !deletable.includes(id));
+        if (nextIds.length === job.clientIds.length) continue;
+        await tx.salesJob.update({ where: { id: job.id }, data: { clientIds: nextIds } });
+      }
+
+      const removed = await tx.buyer.deleteMany({
+        where: { userId: distributorId, status: 'Prospect', buyerId: { in: deletable } },
+      });
+      deleted += removed.count;
+    }
+    return { deleted, skipped };
+  });
+}

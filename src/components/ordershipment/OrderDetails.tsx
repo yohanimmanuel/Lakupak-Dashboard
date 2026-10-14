@@ -23,6 +23,20 @@ import { useOrdersTranslations } from '@/hooks/useOrdersTranslations';
 /** Statuses where POD is shown and can be edited — distributor delivery records after handoff */
 const POD_TRACKING_STATUSES = ['Delivered', 'Received', 'Returned'] as const;
 
+function displayAssignedLogistics(value: string, t: (key: string) => string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (trimmed.toLowerCase() === 'internal fleet' || trimmed.toLowerCase() === 'armada internal') {
+    return t('deliveryService.internalFleet');
+  }
+  if (trimmed.toLowerCase() === '3pl') return t('deliveryService.thirdPartyLogistics');
+  if (trimmed.toLowerCase().startsWith('3pl:')) {
+    const vendor = trimmed.slice(4).trim();
+    return vendor ? `${t('deliveryService.thirdPartyLogistics')}: ${vendor}` : t('deliveryService.thirdPartyLogistics');
+  }
+  return trimmed;
+}
+
 interface OrderDetailsProps {
   order: OrderWithSnapshots;
   onBack: () => void;
@@ -665,7 +679,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
             {/* Service Provider Card */}
             <div className="bg-blue-50 rounded-lg p-4 border border-blue-200 mt-4">
               <div className="text-sm font-semibold text-blue-800 mb-1">{tDetails('deliveryService.title')}</div>
-              <div className="text-lg font-bold text-blue-900 mb-2">{committedFields.assignedLogistics || tDetails('deliveryService.noneAssigned')}</div>
+              <div className="text-lg font-bold text-blue-900 mb-2">{displayAssignedLogistics(committedFields.assignedLogistics, tDetails) || tDetails('deliveryService.noneAssigned')}</div>
               <div className="text-xs space-y-2">
                 <div>
                   <span className="text-blue-700">{tDetails('deliveryService.estimatedDelivery')}</span>
