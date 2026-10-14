@@ -162,14 +162,15 @@ export const DASHBOARD_SEARCH_CATALOG: DashboardSearchEntry[] = [
     href: '/analytics/performance',
     keywords: ['operations', 'operasional', 'delivery'],
   },
-  {
-    id: 'marketplace',
-    title: 'Marketplace',
-    description: 'Storefront performance and published products',
-    section: 'Secondary',
-    href: '/marketplace',
-    keywords: ['storefront', 'published', 'buyer app'],
-  },
+  // Marketplace search entry paused until buyer demand is validated.
+  // {
+  //   id: 'marketplace',
+  //   title: 'Marketplace',
+  //   description: 'Storefront performance and published products',
+  //   section: 'Secondary',
+  //   href: '/marketplace',
+  //   keywords: ['storefront', 'published', 'buyer app'],
+  // },
   {
     id: 'logistics',
     title: 'Logistics',

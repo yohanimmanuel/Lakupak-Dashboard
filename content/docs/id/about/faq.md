@@ -10,9 +10,15 @@ Jawaban untuk pertanyaan yang sering diajukan distributor, pembeli, dan mitra.
 
 ## Umum
 
+### Apakah Lakupak software untuk distributor?
+
+Ya. Lakupak adalah **platform perdagangan dan penjualan B2B**. Distributor menjalankan operasi harian dan pekerjaan penjualan di **Dashboard**, dan driver menjalankannya di **Driver**. Lihat [Misi dan cerita](/id/docs/about/mission-and-story).
+
+<!--
 ### Apakah Lakupak marketplace atau software distributor?
 
 Keduanya, sengaja. Lakupak adalah **platform operasi perdagangan B2B**: distributor di **Dashboard**, pembeli di **Marketplace**, driver di **Driver**. Lihat [Misi dan cerita](/id/docs/about/mission-and-story).
+-->
 
 ### Siapa pemilik hubungan pelanggan?
 
@@ -24,9 +30,15 @@ Produk dan bahasa dibangun untuk kebiasaan grosir dan ritel **Indonesia** (warun
 
 ## Untuk distributor
 
+<!--
 ### Haruskah semua pembeli dipindah ke marketplace?
 
 Tidak. Anda mengontrol **produk published** dan pembeli mana yang aktif digital. Banyak distributor mulai dari subset SKU atau akun kunci.
+-->
+
+### Bagaimana prospek retailer bekerja?
+
+Distributor menetapkan persona pelanggan, persyaratan, dan kriteria siapa yang ingin dihubungi. Lapisan AI menemukan retailer yang cocok.
 
 ### Bolehkah tetap pakai WhatsApp?
 
@@ -42,9 +54,11 @@ Buat akun di **Dashboard → Logistics**. Driver tidak self-register untuk produ
 
 Dari **distributor** yang katalognya Anda lihat. Lakupak adalah alat pesan dan lacak. Pembayaran mengikuti aturan distributor.
 
+<!--
 ### Bisa bandingkan harga banyak distributor?
 
 Lakupak bukan situs perbandingan harga terbuka antar distributor. Anda belanja di **storefront masing-masing distributor**. Lihat [Marketplace terkendali](/id/docs/about/controlled-marketplace).
+-->
 
 ### Bagaimana retur?
 

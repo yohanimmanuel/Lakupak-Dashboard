@@ -23,6 +23,7 @@ Typical wins: fewer order errors, faster fulfillment, better retention of key wa
 
 Doc hub: [Dashboard](/en/docs/dashboard/overview).
 
+<!--
 ## Retail buyers
 
 | Area | Without Lakupak | With Lakupak |
@@ -36,6 +37,15 @@ Doc hub: [Dashboard](/en/docs/dashboard/overview).
 Typical wins: less time ordering, fewer stockouts before peak hours, clearer payment and delivery expectations.
 
 Doc hub: [Marketplace](/en/docs/marketplace/overview).
+-->
+
+## Sales teams
+
+| Area | Without Lakupak | With Lakupak |
+|------|--------------|-----------|
+| The day's work | A list of 15 to 20 products, and only a few get pitched | Jobs assigned to each rep |
+| New retailers | Google, Google Maps, WhatsApp, social media, friends and relatives | A customer persona, requirements, and criteria. The AI layer finds suitable retailers |
+| Completion | Memory and chat | The details that job asked for, saved on the job |
 
 ## Drivers
 

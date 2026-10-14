@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { BadgePercentIcon, ChartBarIcon, ChevronDown, FileTextIcon, GiftIcon, HandshakeIcon, HomeIcon, ListIcon, PackageIcon, SettingsIcon, UsersIcon, X, DollarSign, TrendingUp, Activity, GlobeIcon, StoreIcon, BadgeDollarSign, ChartAreaIcon, CircleHelp, PanelLeftClose, PanelLeft, NetworkIcon } from 'lucide-react';
+import { BadgePercentIcon, ChartBarIcon, ChevronDown, FileTextIcon, GiftIcon, HandshakeIcon, HomeIcon, ListIcon, PackageIcon, SettingsIcon, UsersIcon, X, DollarSign, TrendingUp, Activity, GlobeIcon, BadgeDollarSign, ChartAreaIcon, CircleHelp, PanelLeftClose, PanelLeft, NetworkIcon } from 'lucide-react';
 import { useMenuContext } from '@/app/(dashboard)/(menulist)/DashboardClientLayout';
 import { DashboardHelpModal } from '@/components/dashboard/DashboardHelpModal';
 import { PromoSidePanel } from '@/components/dashboard/PromoSidePanel';
@@ -90,11 +90,12 @@ const secondaryMenuItems = [
     icon: <NetworkIcon className="w-5 h-5" />,
     href: '/automation',
   },
-  {
-    label: 'Marketplace',
-    icon: <StoreIcon className="w-5 h-5" />,
-    href: '/marketplace',
-  },
+  // Marketplace sidebar entry paused until buyer demand is validated. The page and copy stay in the app.
+  // {
+  //   label: 'Marketplace',
+  //   icon: <StoreIcon className="w-5 h-5" />,
+  //   href: '/marketplace',
+  // },
   { label: 'Settings', href: '/settings', icon: <SettingsIcon className="w-5 h-5" /> },
 ];
 

@@ -25,7 +25,8 @@
     },
     "hub": {
       "title": "Every module to run commerce and sales on Lakupak",
-      "subtitle": "Clients, catalog, per-retailer offers, orders, and your sales team, across Dashboard and Marketplace.",
+      "subtitle": "Clients, catalog, per-retailer offers, orders, and your sales team, in one Dashboard.",
+      "subtitlePausedMarketplace": "Clients, catalog, per-retailer offers, orders, and your sales team, across Dashboard and Marketplace.",
       "exploreMore": "Explore more modules"
     },
     "overview": {
@@ -253,7 +254,8 @@
         },
         "5": {
           "title": "Add prospects",
-          "desc": "Record a prospect retailer and outlet before they order. Save the customer number, name, store, phone, region, and address on the map. They stay a prospect until they place a marketplace order."
+          "desc": "Set a customer persona, the requirements, and the criteria for who you want to reach. The AI layer finds suitable retailers that match.",
+          "descPausedMarketplace": "Record a prospect retailer and outlet before they order. Save the customer number, name, store, phone, region, and address on the map. They stay a prospect until they place a marketplace order."
         }
       }
     },
@@ -390,7 +392,8 @@
       "badge": "B2B E-commerce Platform for FMCG",
       "titleBefore": "Stop Pitching Blind. Close More. ",
       "titleAccent": "Scale Faster.",
-      "subtitle": "AI commerce and sales platform that helps you know exactly which retailers are ready to buy, what to offer them, and when. Built on your own catalog, per-retailer pricing, and order history. One dashboard for your operations and sales team, one marketplace for your retailers.",
+      "subtitle": "AI commerce and sales platform that helps you know exactly which retailers are ready to buy, what to offer them, and when. Built on your own catalog, per-retailer pricing, and order history. One dashboard for your operations and sales team.",
+      "subtitlePausedMarketplace": "AI commerce and sales platform that helps you know exactly which retailers are ready to buy, what to offer them, and when. Built on your own catalog, per-retailer pricing, and order history. One dashboard for your operations and sales team, one marketplace for your retailers.",
       "cta": "Start free trial",
       "learnmore": "Explore marketplace",
       "productPlaceholder": "Dashboard preview. Replace with product image"
@@ -445,6 +448,34 @@
         "title": "Field work from manager to completion",
         "subtitle": "Add a sales manager, create jobs, assign each one to a sales rep, and record completion in Dashboard.",
         "placeholder": "Sales preview. Replace image"
+      },
+      "moat": {
+        "title": "Built for distributors enterprise tools do not reach",
+        "subtitle": "Enterprise sales platforms only reach a distributor after a CPG principal deploys them. Lakupak is the sales operating layer an independent FMCG distributor can adopt on its own.",
+        "1": {
+          "title": "Adoption without a principal",
+          "desc": "Those platforms started as SFA and IT vendors. A brand buys the system and rolls it out. If the principal does not list a distributor, that distributor never gets the tool."
+        },
+        "2": {
+          "title": "Finding retailers is still manual",
+          "desc": "A single-brand storefront does not help a distributor find new retailers. Teams still look on Google, Google Maps, WhatsApp, social media, and through friends and relatives."
+        },
+        "3": {
+          "title": "No enterprise stack required",
+          "desc": "Shelf audits, dozens of API integrations, and trade-claim settlement assume an ERP. About 65% of Indonesian SME distributors have no ERP or CRM."
+        },
+        "4": {
+          "title": "Built for Indonesian SME distributors",
+          "desc": "Those buyer and distributor apps are built for India. Both sides would have to adopt before either side gets value, and that misses this segment."
+        },
+        "5": {
+          "title": "Daily sales operations",
+          "desc": "Clients, products, orders, and sales jobs stay in one place. A manager assigns each rep the day's work, so a list of 15 to 20 products does not collapse to the 3 someone remembers."
+        },
+        "6": {
+          "title": "AI retailer prospecting",
+          "desc": "The distributor sets a customer persona, the requirements, and the criteria for who they want to reach. The AI layer finds suitable retailers that match. If the team contacts those retailers and converts them, discovery is a real pain worth building further."
+        }
       },
       "analytics": {
         "title": "Analytics across every signal",
@@ -510,12 +541,16 @@
         "desc": "Create your account and complete business verification in minutes."
       },
       "2": {
-        "title": "List or browse products",
-        "desc": "Distributors publish catalog; retailers browse and compare wholesale options."
+        "title": "Set up catalog, clients, and the team",
+        "desc": "Add products, clients, and a sales manager in Dashboard.",
+        "titlePausedMarketplace": "List or browse products",
+        "descPausedMarketplace": "Distributors publish catalog; retailers browse and compare wholesale options."
       },
       "3": {
-        "title": "Order at their rate",
-        "desc": "Retailers order from the catalog base price. Their offer rate is what lands on the purchase order."
+        "title": "Assign the day's jobs",
+        "desc": "Each rep gets the work. For new coverage, set a customer persona, the requirements, and the criteria. The AI layer finds suitable retailers.",
+        "titlePausedMarketplace": "Order at their rate",
+        "descPausedMarketplace": "Retailers order from the catalog base price. Their offer rate is what lands on the purchase order."
       },
       "title": "Get started in three steps",
       "subtitle": "From signup to live orders without a long onboarding maze."
@@ -664,7 +699,8 @@
     "hero": {
       "badge": "Pricing",
       "title": "Flexible pricing plans for every need",
-      "subtitle": "Choose a plan that fits your retail network. Every plan includes Dashboard and Marketplace for commerce and sales.",
+      "subtitle": "Choose a plan that fits your retail network. Every plan includes Dashboard for commerce and sales.",
+      "subtitlePausedMarketplace": "Choose a plan that fits your retail network. Every plan includes Dashboard and Marketplace for commerce and sales.",
       "trial": "30-day free trial. No credit card required."
     },
     "toggle": {
@@ -708,8 +744,10 @@
     "quotaBullets": {
       "allFeatures": "All features included. Limits are usage only",
       "retailers": "Up to {band} active retailers",
-      "products": "{count} marketplace products",
-      "productsCustom": "Custom marketplace product capacity",
+      "products": "{count} products",
+      "productsPausedMarketplace": "{count} marketplace products",
+      "productsCustom": "Custom product capacity",
+      "productsCustomPausedMarketplace": "Custom marketplace product capacity",
       "salesAgents": "{count} sales agents",
       "salesAgentsCustom": "Custom sales agent capacity",
       "drivers": "{count} drivers",
@@ -726,7 +764,8 @@
         "connections": "Active retailers",
         "price": "Price",
         "platformAccess": "Platform access",
-        "marketplaceProducts": "Marketplace products",
+        "marketplaceProducts": "Products",
+        "marketplaceProductsPaused": "Marketplace products",
         "ordersPerMonth": "Orders / month",
         "salesAgents": "Sales agents",
         "drivers": "Drivers",
@@ -926,7 +965,8 @@
       "3": "Even if there were no waiting lines, that amount of products offered is beyond their capability of memorization. Under every visit sits a stack of tools that never helps the next one. Product lists live in spreadsheets. Orders arrive as WhatsApp threads. Payments get confirmed by phone. Stock sits in handwritten notes. None of it answers the questions that actually decide a sales round: who to call today, who is overdue for a reorder, and what price this retailer is entitled to. Every shop negotiates its own terms, and no spreadsheet was built to hold that. So the team does not sell smarter. They sell blind, stop after stop, hoping this one lands better than the last.",
       "4": "Retailers pay for that blindness too. A warung or kiosk lives on the distributor who supplies it. Too often they cannot tell when an order will arrive, or whether it will arrive at all. They also cannot tell who will show up to sell, or when. On a thin margin, an unreliable sales relationship hurts as much as an unreliable delivery.",
       "5": "That is when the real problem came into focus. This was not distribution in the abstract. Nobody was helping a sales team decide who to reach, and how. Messy stock and guessed shipments were symptoms. <b>The root was sales execution with no intelligence behind it.</b>",
-      "6": "I built Lakupak from the sale outward. Commerce and a sales team that knows its next move: which retailer to reach, what rate to offer them, and when. That read sits on the distributor’s own relationships, catalog, and order history, and it leaves every retailer’s price and terms intact. The marketplace shows the catalog base price. The retailer’s rate is what lands on the purchase order. Relationship-driven trade stays alive because every visit has a reason. Lakupak is AI-native because this is a prioritization and timing problem. That is the kind of problem AI is actually good at.",
+      "6": "I built Lakupak from the sale outward. Commerce and a sales team that knows its next move: which retailer to reach, what rate to offer them, and when. That read sits on the distributor’s own relationships, catalog, and order history, and it leaves every retailer’s price and terms intact. When coverage has to grow, the distributor sets a customer persona, the requirements, and the criteria for who they want to reach. The AI layer finds suitable retailers, in place of searching Google, Google Maps, WhatsApp, social media, and personal contacts by hand. The retailer’s rate is what lands on the purchase order. Relationship-driven trade stays alive because every visit has a reason. Lakupak is AI-native because this is a prioritization and timing problem. That is the kind of problem AI is actually good at.",
+      "pausedMarketplace": "The marketplace shows the catalog base price.",
       "7": "The name carries the same idea. In Indonesian, <b>laku</b> means both a sale and movement. Trade only moves when the right sale reaches the right retailer at the right time. Lakupak exists to make that movement deliberate, not accidental.",
       "8": "A sales team should not have to work harder to grow. They should know where the demand already is. Lakupak gives that back: the confidence to know who to sell to next.",
       "vision": "That is where Lakupak began.",

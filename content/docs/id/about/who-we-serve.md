@@ -36,6 +36,11 @@ Mereka bisa berupa:
 
 Mulai: [Ringkasan Dashboard](/id/docs/dashboard/overview).
 
+## Tim penjualan
+
+Manager membuat pekerjaan dan menugaskan masing-masing ke sales. Sales mencatat penyelesaian. Untuk jangkauan baru, distributor menetapkan persona pelanggan, persyaratan, dan kriteria siapa yang ingin dihubungi. Lapisan AI menemukan retailer yang cocok.
+
+<!--
 ## Pembeli ritel (warung, kios, toko kecil)
 
 Pengguna tipikal memakai **Lakupak Marketplace** di mobile.
@@ -50,6 +55,7 @@ Kebutuhan: restock andal dari distributor yang dikenal, kuantitas grosir, MOQ je
 - **Follow** distributor dan **offers**
 
 Mulai: [Ringkasan Marketplace](/id/docs/marketplace/overview).
+-->
 
 ## Driver armada
 
@@ -67,10 +73,20 @@ Mulai: [Ringkasan Driver](/id/docs/driver/overview).
 ## Cara ketiga pihak terhubung
 
 ```text
+Distributor (Dashboard)  →  katalog, pesanan, pekerjaan penjualan, prospek
+        ↓
+Sales                    →  pekerjaan hari itu dan kunjungan retailer
+        ↓
+Driver (Driver)          →  kirim, konfirmasi, laporkan masalah
+```
+
+<!--
+```text
 Distributor (Dashboard)  →  publikasi katalog, pemenuhan
 Pembeli (Marketplace)    →  temukan, pesan, bayar, lacak
 Driver (Driver)          →  kirim, konfirmasi, laporkan masalah
 ```
+-->
 
 Lihat [Alur pesanan](/id/docs/platform/order-flow).
 

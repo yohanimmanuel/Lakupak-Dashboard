@@ -634,7 +634,10 @@ export function FeatureModulePage({
                 {t('overview.loopLabel')}
               </p>
               <div className="flex flex-wrap gap-2">
+                {/* Marketplace surface pill paused until buyer demand is validated.
                 {(['dashboard', 'marketplace'] as const).map((surface) => {
+                */}
+                {(['dashboard'] as const).map((surface) => {
                   const active = moduleDef.surfaces.includes(surface);
                   return (
                     <span

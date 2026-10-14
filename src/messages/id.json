@@ -25,7 +25,8 @@
     },
     "hub": {
       "title": "Setiap modul untuk perdagangan dan penjualan di Lakupak",
-      "subtitle": "Klien, katalog, tarif penawaran per retailer, pesanan, dan tim penjualan, di Dashboard dan Marketplace.",
+      "subtitle": "Klien, katalog, tarif penawaran per retailer, pesanan, dan tim penjualan, dalam satu Dashboard.",
+      "subtitlePausedMarketplace": "Klien, katalog, tarif penawaran per retailer, pesanan, dan tim penjualan, di Dashboard dan Marketplace.",
       "exploreMore": "Jelajahi modul lainnya"
     },
     "overview": {
@@ -253,7 +254,8 @@
         },
         "5": {
           "title": "Tambah prospek",
-          "desc": "Catat pengecer dan outlet prospek sebelum mereka memesan. Simpan nomor pelanggan, nama, toko, telepon, wilayah, dan alamat di peta. Mereka tetap prospek sampai ada pesanan marketplace."
+          "desc": "Tetapkan persona pelanggan, persyaratan, dan kriteria siapa yang ingin dihubungi. Lapisan AI menemukan retailer yang cocok.",
+          "descPausedMarketplace": "Catat pengecer dan outlet prospek sebelum mereka memesan. Simpan nomor pelanggan, nama, toko, telepon, wilayah, dan alamat di peta. Mereka tetap prospek sampai ada pesanan marketplace."
         }
       }
     },
@@ -390,7 +392,8 @@
       "badge": "Platform Perdagangan B2B E-commerce FMCG",
       "titleBefore": "Berhenti Menjual Buta. Tutup Lebih Banyak. ",
       "titleAccent": "Tumbuh Lebih Cepat.",
-      "subtitle": "Platform perdagangan dan penjualan berbasis AI yang membantu Anda tahu persis retailer mana yang siap membeli, apa yang ditawarkan, dan kapan. Dibangun di atas katalog, harga per retailer, dan riwayat pesanan Anda sendiri. Satu dashboard untuk operasional dan tim penjualan, satu marketplace untuk retailer Anda.",
+      "subtitle": "Platform perdagangan dan penjualan berbasis AI yang membantu Anda tahu persis retailer mana yang siap membeli, apa yang ditawarkan, dan kapan. Dibangun di atas katalog, harga per retailer, dan riwayat pesanan Anda sendiri. Satu dashboard untuk operasional dan tim penjualan.",
+      "subtitlePausedMarketplace": "Platform perdagangan dan penjualan berbasis AI yang membantu Anda tahu persis retailer mana yang siap membeli, apa yang ditawarkan, dan kapan. Dibangun di atas katalog, harga per retailer, dan riwayat pesanan Anda sendiri. Satu dashboard untuk operasional dan tim penjualan, satu marketplace untuk retailer Anda.",
       "cta": "Coba gratis",
       "learnmore": "Jelajahi marketplace",
       "productPlaceholder": "Pratinjau dashboard. Ganti dengan gambar produk"
@@ -445,6 +448,34 @@
         "title": "Pekerjaan lapangan dari manager sampai selesai",
         "subtitle": "Tambah sales manager, buat pekerjaan, tetapkan masing-masing ke sales, dan catat penyelesaian di Dashboard.",
         "placeholder": "Pratinjau penjualan. Ganti gambar"
+      },
+      "moat": {
+        "title": "Dibangun untuk distributor yang tidak dijangkau alat enterprise",
+        "subtitle": "Platform penjualan enterprise hanya menjangkau distributor setelah principal CPG menggelarnya. Lakupak adalah lapisan operasi penjualan yang bisa diadopsi distributor FMCG independen sendiri.",
+        "1": {
+          "title": "Adopsi tanpa principal",
+          "desc": "Platform itu berawal sebagai vendor SFA dan IT. Merek yang membeli sistem, lalu menggelarnya. Jika principal tidak memasukkan distributor, distributor itu tidak pernah mendapat alatnya."
+        },
+        "2": {
+          "title": "Mencari retailer masih manual",
+          "desc": "Etalase satu merek tidak membantu distributor menemukan retailer baru. Tim masih mencari di Google, Google Maps, WhatsApp, media sosial, dan lewat teman serta kerabat."
+        },
+        "3": {
+          "title": "Tidak perlu tumpukan enterprise",
+          "desc": "Audit rak, puluhan integrasi API, dan penyelesaian klaim dagang mengasumsikan ERP. Sekitar 65% distributor UKM Indonesia tidak punya ERP atau CRM."
+        },
+        "4": {
+          "title": "Untuk distributor UKM Indonesia",
+          "desc": "Aplikasi pembeli dan distributor itu dibangun untuk India. Kedua sisi harus mengadopsi sebelum ada yang mendapat nilai, dan itu meleset dari segmen ini."
+        },
+        "5": {
+          "title": "Operasi penjualan harian",
+          "desc": "Klien, produk, pesanan, dan pekerjaan penjualan ada di satu tempat. Manager menugaskan pekerjaan hari itu ke tiap sales, supaya daftar 15 sampai 20 produk tidak menyusut jadi 3 yang diingat."
+        },
+        "6": {
+          "title": "Prospek retailer dengan AI",
+          "desc": "Distributor menetapkan persona pelanggan, persyaratan, dan kriteria siapa yang ingin dihubungi. Lapisan AI menemukan retailer yang cocok. Jika tim menghubungi retailer itu dan mengonversinya, pencarian pembeli adalah nyeri yang pantas dibangun lebih jauh."
+        }
       },
       "analytics": {
         "title": "Analytics di setiap sinyal",
@@ -510,12 +541,16 @@
         "desc": "Buat akun dan selesaikan verifikasi bisnis dalam hitungan menit."
       },
       "2": {
-        "title": "Listing atau cari produk",
-        "desc": "Distributor mempublikasikan katalog; retailer membandingkan opsi grosir."
+        "title": "Siapkan katalog, klien, dan tim",
+        "desc": "Tambah produk, klien, dan sales manager di Dashboard.",
+        "titlePausedMarketplace": "Listing atau cari produk",
+        "descPausedMarketplace": "Distributor mempublikasikan katalog; retailer membandingkan opsi grosir."
       },
       "3": {
-        "title": "Pesan dengan tarif mereka",
-        "desc": "Retailer memesan dari harga dasar katalog. Tarif penawaran mereka yang masuk ke pesanan pembelian."
+        "title": "Tugaskan pekerjaan hari itu",
+        "desc": "Tiap sales mendapat pekerjaannya. Untuk jangkauan baru, tetapkan persona pelanggan, persyaratan, dan kriteria. Lapisan AI menemukan retailer yang cocok.",
+        "titlePausedMarketplace": "Pesan dengan tarif mereka",
+        "descPausedMarketplace": "Retailer memesan dari harga dasar katalog. Tarif penawaran mereka yang masuk ke pesanan pembelian."
       },
       "title": "Mulai dalam tiga langkah",
       "subtitle": "Dari daftar akun hingga order aktif tanpa onboarding yang berbelit."
@@ -664,7 +699,8 @@
     "hero": {
       "badge": "Harga",
       "title": "Paket harga fleksibel untuk setiap kebutuhan",
-      "subtitle": "Pilih paket yang sesuai dengan jaringan ritel Anda. Setiap paket mencakup Dashboard dan Marketplace untuk perdagangan dan penjualan.",
+      "subtitle": "Pilih paket yang sesuai dengan jaringan ritel Anda. Setiap paket mencakup Dashboard untuk perdagangan dan penjualan.",
+      "subtitlePausedMarketplace": "Pilih paket yang sesuai dengan jaringan ritel Anda. Setiap paket mencakup Dashboard dan Marketplace untuk perdagangan dan penjualan.",
       "trial": "Coba gratis 30 hari. Tidak perlu kartu kredit."
     },
     "toggle": {
@@ -708,8 +744,10 @@
     "quotaBullets": {
       "allFeatures": "Semua fitur tersedia. Yang dibatasi hanya kapasitas penggunaan",
       "retailers": "Hingga {band} retailer aktif",
-      "products": "{count} produk marketplace",
-      "productsCustom": "Kapasitas produk marketplace kustom",
+      "products": "{count} produk",
+      "productsPausedMarketplace": "{count} produk marketplace",
+      "productsCustom": "Kapasitas produk kustom",
+      "productsCustomPausedMarketplace": "Kapasitas produk marketplace kustom",
       "salesAgents": "{count} sales agent",
       "salesAgentsCustom": "Kapasitas sales agent kustom",
       "drivers": "{count} driver",
@@ -726,7 +764,8 @@
         "connections": "Retailer aktif",
         "price": "Harga",
         "platformAccess": "Akses platform",
-        "marketplaceProducts": "Produk marketplace",
+        "marketplaceProducts": "Produk",
+        "marketplaceProductsPaused": "Produk marketplace",
         "ordersPerMonth": "Pesanan / bulan",
         "salesAgents": "Sales agent",
         "drivers": "Driver",
@@ -926,7 +965,8 @@
       "3": "Bahkan jika tidak ada antrean, jumlah produk yang ditawarkan itu tetap di luar kemampuan mereka untuk menghafalnya. Di bawah setiap kunjungan ada tumpukan alat yang tidak membantu kunjungan berikutnya. Daftar produk ada di spreadsheet. Order masuk lewat utas WhatsApp. Pembayaran dikonfirmasi lewat telepon. Stok tercatat di kertas. Tidak ada yang menjawab pertanyaan yang benar-benar menentukan putaran penjualan: siapa yang harus dihubungi hari ini, siapa yang sudah telat reorder, dan harga apa yang berhak diterima retailer ini. Setiap toko punya syaratnya sendiri, dan tidak ada spreadsheet yang dibuat untuk menyimpannya. Jadi tim tidak menjual lebih cerdas. Mereka menjual secara buta, toko demi toko, berharap yang ini lebih baik dari yang tadi.",
       "4": "Retailer juga menanggung kebutaan itu. Warung atau kios hidup dari distributor yang memasoknya. Terlalu sering mereka tidak tahu kapan order datang, atau apakah order itu datang. Mereka juga tidak tahu siapa yang akan datang menjual, atau kapan. Pada margin yang tipis, hubungan penjualan yang tidak bisa diandalkan sama menyakitkannya dengan pengiriman yang tidak bisa diandalkan.",
       "5": "Di situlah masalah yang sebenarnya jadi jelas. Ini bukan soal distribusi secara abstrak. Tidak ada yang membantu tim penjualan memutuskan siapa yang harus dijangkau, dan bagaimana. Stok yang berantakan dan pengiriman yang ditebak hanyalah gejala. <b>Akarnya adalah eksekusi penjualan tanpa kecerdasan di belakangnya.</b>",
-      "6": "Saya membangun Lakupak mulai dari penjualan itu sendiri. Perdagangan dan tim penjualan yang tahu langkah berikutnya: retailer mana yang harus dijangkau, tarif apa yang ditawarkan, dan kapan. Bacaan itu berdiri di atas hubungan, katalog, dan riwayat order milik distributor itu sendiri, dan harga serta syarat setiap retailer tetap utuh. Marketplace menampilkan harga dasar katalog. Tarif retailer yang masuk ke pesanan pembelian. Bisnis yang digerakkan hubungan tetap hidup karena setiap kunjungan punya alasan. Lakupak bersifat AI-native karena ini masalah prioritas dan waktu. Itulah jenis masalah yang memang bisa ditutup AI.",
+      "6": "Saya membangun Lakupak mulai dari penjualan itu sendiri. Perdagangan dan tim penjualan yang tahu langkah berikutnya: retailer mana yang harus dijangkau, tarif apa yang ditawarkan, dan kapan. Bacaan itu berdiri di atas hubungan, katalog, dan riwayat order milik distributor itu sendiri, dan harga serta syarat setiap retailer tetap utuh. Ketika jangkauan perlu bertambah, distributor menetapkan persona pelanggan, persyaratan, dan kriteria siapa yang ingin dihubungi. Lapisan AI menemukan retailer yang cocok, menggantikan pencarian manual di Google, Google Maps, WhatsApp, media sosial, dan kenalan. Tarif retailer yang masuk ke pesanan pembelian. Bisnis yang digerakkan hubungan tetap hidup karena setiap kunjungan punya alasan. Lakupak bersifat AI-native karena ini masalah prioritas dan waktu. Itulah jenis masalah yang memang bisa ditutup AI.",
+      "pausedMarketplace": "Marketplace menampilkan harga dasar katalog.",
       "7": "Namanya membawa ide yang sama. Dalam bahasa Indonesia, <b>laku</b> berarti penjualan sekaligus pergerakan. Perdagangan hanya bergerak ketika penjualan yang tepat sampai ke retailer yang tepat pada waktu yang tepat. Lakupak ada agar pergerakan itu disengaja, bukan kebetulan.",
       "8": "Tim penjualan tidak harus bekerja lebih keras untuk tumbuh. Mereka harus tahu di mana permintaan sudah ada. Lakupak mengembalikan itu: keyakinan untuk tahu kepada siapa harus menjual berikutnya.",
       "vision": "Dari situlah Lakupak dimulai.",

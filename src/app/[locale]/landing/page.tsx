@@ -1057,14 +1057,15 @@ export default function LandingPage() {
     trackConversion('cta_click', 'register_button');
     router.push('/register');
   };
-  
-  const handleLearnMoreClick = () => {
-    trackConversion('cta_click', 'explore_marketplace_button');
-    const marketplaceUrl = (
-      process.env.NEXT_PUBLIC_MARKETPLACE_URL || 'https://lakupak-marketplace-web.onrender.com'
-    ).replace(/\/$/, '');
-    window.open(marketplaceUrl, '_blank', 'noopener,noreferrer');
-  };
+
+  // Marketplace buyer app stays built. The public CTA is paused until discovery demand is validated.
+  // const handleLearnMoreClick = () => {
+  //   trackConversion('cta_click', 'explore_marketplace_button');
+  //   const marketplaceUrl = (
+  //     process.env.NEXT_PUBLIC_MARKETPLACE_URL || 'https://lakupak-marketplace-web.onrender.com'
+  //   ).replace(/\/$/, '');
+  //   window.open(marketplaceUrl, '_blank', 'noopener,noreferrer');
+  // };
 
   return (
     <ErrorBoundary>
@@ -1105,6 +1106,7 @@ export default function LandingPage() {
                  >
                   {t('hero.cta')}
                  </button>
+                 {/* Marketplace explore CTA paused until buyer demand is validated.
                  <button 
                   type="button"
                    onClick={handleLearnMoreClick}
@@ -1113,6 +1115,7 @@ export default function LandingPage() {
                  >
                   {t('hero.learnmore')}
                  </button>
+                 */}
                  </div>
             </HeroStagger>
              </div>
@@ -1258,6 +1261,34 @@ export default function LandingPage() {
             { titleKey: 'features.sales.4.title', descKey: 'features.sales.4.desc' },
           ]}
         />
+
+        <section id="moat" className="py-16 sm:py-20 bg-[#f7f9fc] border-t border-gray-200">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <Reveal className="max-w-3xl mb-12">
+              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">
+                {t('features.moat.title')}
+              </h2>
+              <p className="mt-4 text-base sm:text-lg text-gray-600 leading-relaxed">
+                {t('features.moat.subtitle')}
+              </p>
+            </Reveal>
+            <div className="grid md:grid-cols-2 gap-8 md:gap-10">
+              {([1, 2, 3, 4, 5, 6] as const).map((i) => (
+                <Reveal key={i} delayMs={i * 40}>
+                  <div className="border-t border-gray-200 pt-6">
+                    <p className="text-xs font-semibold tracking-widest text-[#0a61d7] mb-3">
+                      {String(i).padStart(2, '0')}
+                    </p>
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">
+                      {t(`features.moat.${i}.title`)}
+                    </h3>
+                    <p className="text-sm text-gray-600 leading-relaxed">{t(`features.moat.${i}.desc`)}</p>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </section>
 
         <AutomationsSection />
 

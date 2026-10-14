@@ -40,7 +40,7 @@ The Dashboard uses a persistent **sidebar** (collapsible on desktop, drawer on m
 
 | Item | Route | What you do there |
 |------|-------|-------------------|
-| **Marketplace** | `/marketplace` | Storefront performance (not the buyer app) |
+<!-- | **Marketplace** | `/marketplace` | Storefront performance (not the buyer app) | -->
 | **Logistics** | `/logistics` | Fleets, drivers, delivery tracking |
 | **Settings** | `/settings` | Profile, company, billing, security, tours |
 

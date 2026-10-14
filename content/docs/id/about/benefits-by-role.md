@@ -21,6 +21,7 @@ Ringkasan **hasil bisnis** per peran. Untuk langkah penggunaan, buka panduan mod
 
 Panduan: [Dashboard](/id/docs/dashboard/overview).
 
+<!--
 ## Pembeli ritel
 
 | Area | Tanpa Lakupak | Dengan Lakupak |
@@ -31,6 +32,15 @@ Panduan: [Dashboard](/id/docs/dashboard/overview).
 | Promosi | Info terlambat | **Special Offers** |
 
 Panduan: [Marketplace](/id/docs/marketplace/overview).
+-->
+
+## Tim penjualan
+
+| Area | Tanpa Lakupak | Dengan Lakupak |
+|------|------------|-------------|
+| Pekerjaan hari itu | Daftar 15 sampai 20 produk, hanya sedikit yang ditawarkan | Pekerjaan yang ditugaskan ke tiap sales |
+| Retailer baru | Google, Google Maps, WhatsApp, media sosial, teman dan kerabat | Persona pelanggan, persyaratan, dan kriteria. Lapisan AI menemukan retailer yang cocok |
+| Penyelesaian | Ingatan dan chat | Detail yang diminta pekerjaan, tersimpan di pekerjaan itu |
 
 ## Driver
 

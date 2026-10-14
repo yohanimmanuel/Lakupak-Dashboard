@@ -10,9 +10,15 @@ Answers to questions distributors, buyers, and partners often ask about Lakupak.
 
 ## General
 
+### Is Lakupak software for distributors?
+
+Yes. Lakupak is a **B2B commerce and sales platform**. Distributors run daily operations and sales jobs in **Dashboard**, and drivers execute in **Driver**. See [Mission and story](/en/docs/about/mission-and-story).
+
+<!--
 ### Is Lakupak a marketplace or software for distributors?
 
 Both, intentionally. Lakupak is a **B2B commerce operating platform**: distributors run daily operations in **Dashboard**, buyers order in **Marketplace**, and drivers execute in **Driver**. See [Mission and story](/en/docs/about/mission-and-story).
+-->
 
 ### Who owns the customer relationship?
 
@@ -24,9 +30,15 @@ The product and language support are built for **Indonesia** wholesale and retai
 
 ## For distributors
 
+<!--
 ### Do I have to put all my buyers on the marketplace?
 
 No. You control **which products are published** and which buyers engage digitally. Many distributors start with a subset of SKUs or key accounts, then expand.
+-->
+
+### How does retailer prospecting work?
+
+The distributor sets a customer persona, the requirements, and the criteria for who they want to reach. The AI layer finds suitable retailers that match.
 
 ### Can I keep using WhatsApp with buyers?
 
@@ -42,9 +54,11 @@ You create driver accounts in **Dashboard → Logistics**. Drivers do not self-r
 
 You buy from the **distributor** whose catalog you see. Lakupak is the ordering and tracking tool. Payment terms (transfer, COD) follow that distributor's rules.
 
+<!--
 ### Can I compare prices from many distributors in one place?
 
 Lakupak is not designed as an open cross-distributor price comparison site. You shop **within each distributor's storefront** you have access to. See [Controlled marketplace](/en/docs/about/controlled-marketplace).
+-->
 
 ### How do returns work?
 

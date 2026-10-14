@@ -18,8 +18,8 @@ export function getDocsCategories(locale: DocLocale): DocsCategory[] {
       title: locale === 'id' ? 'Tentang Lakupak' : 'About Lakupak',
       description:
         locale === 'id'
-          ? 'Misi, siapa yang dilayani, marketplace terkendali, dan FAQ.'
-          : 'Mission, who we serve, controlled marketplace, and FAQ.',
+          ? 'Misi, siapa yang dilayani, lapisan penjualan, dan FAQ.'
+          : 'Mission, who we serve, the sales layer, and FAQ.',
       href: `${base}/about/mission-and-story`,
       icon: 'about',
     },
@@ -33,6 +33,8 @@ export function getDocsCategories(locale: DocLocale): DocsCategory[] {
       href: `${base}/dashboard/overview`,
       icon: 'dashboard',
     },
+    /*
+    Marketplace docs stay in content/docs. Hidden from the docs home until demand is validated.
     {
       id: 'marketplace',
       title: 'Marketplace',
@@ -43,6 +45,7 @@ export function getDocsCategories(locale: DocLocale): DocsCategory[] {
       href: `${base}/marketplace/overview`,
       icon: 'marketplace',
     },
+    */
     {
       id: 'driver',
       title: 'Driver',

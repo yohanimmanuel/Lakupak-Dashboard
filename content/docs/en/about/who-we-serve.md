@@ -36,6 +36,11 @@ They may be:
 
 Start: [Dashboard overview](/en/docs/dashboard/overview).
 
+## Sales teams
+
+Managers create jobs and assign each one to a sales rep. Reps record completion. For new coverage, the distributor sets a customer persona, the requirements, and the criteria for who they want to reach. The AI layer finds suitable retailers that match.
+
+<!--
 ## Retail buyers (warungs, kiosks, small shops)
 
 Typical users run **Lakupak Marketplace** on mobile.
@@ -55,6 +60,7 @@ They need:
 - **Follow** favorite distributors and see **offers**
 
 Start: [Marketplace overview](/en/docs/marketplace/overview).
+-->
 
 ## Fleet drivers
 
@@ -74,12 +80,22 @@ Start: [Driver overview](/en/docs/driver/overview).
 ## How the three sides connect
 
 ```text
+Distributor (Dashboard)  →  catalog, orders, sales jobs, prospecting
+        ↓
+Sales rep                →  the day's jobs and retailer visits
+        ↓
+Driver (Driver app)      →  delivers, confirms, reports issues
+```
+
+<!--
+```text
 Distributor (Dashboard)  →  publishes catalog, fulfills orders
         ↓
 Buyer (Marketplace)    →  discovers, orders, pays, tracks
         ↓
 Driver (Driver app)    →  delivers, confirms, reports issues
 ```
+-->
 
 All three see the **same order** at different stages. See [How orders flow](/en/docs/platform/order-flow).
 

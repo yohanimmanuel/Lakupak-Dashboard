@@ -112,9 +112,12 @@ export default function PricingPage() {
   });
 
   const faqs = Array.from({ length: 8 }, (_, i) => ({
+    n: i + 1,
     question: t(`faq.${i + 1}.q`),
     answer: t(`faq.${i + 1}.a`),
-  }));
+  }))
+    // FAQ 6 explains Dashboard and Marketplace. Keep the copy, hide it until the marketplace launches.
+    .filter((faq) => faq.n !== 6);
 
   const goRegister = () => {
     trackConversion('cta_click', 'free_trial');

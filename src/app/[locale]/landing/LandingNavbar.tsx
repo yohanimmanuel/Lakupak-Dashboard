@@ -185,7 +185,7 @@ export default function LandingNavbar() {
                             {tf('menu.modulesLabel')}
                           </p>
                           <ul className="grid grid-cols-2 gap-x-1 gap-y-0.5">
-                            {FEATURE_MODULES.filter((m) => m.slug !== 'marketplace').map((m) => {
+                            {FEATURE_MODULES.filter((m) => m.slug !== 'marketplace' && !m.featured).map((m) => {
                               const Icon = m.icon;
                               return (
                                 <li key={m.slug}>
@@ -394,6 +394,7 @@ export default function LandingNavbar() {
                         </button>
                       );
                     })}
+                    {/* Marketplace nav paused until buyer demand is validated.
                     <button
                       type="button"
                       onClick={() => goToFeature('marketplace')}
@@ -402,6 +403,7 @@ export default function LandingNavbar() {
                       <FeaturedIcon className="w-4 h-4 text-gray-500" strokeWidth={1.75} />
                       {tf('marketplace.menuLabel')}
                     </button>
+                    */}
                     <button
                       type="button"
                       onClick={() => goToFeature()}

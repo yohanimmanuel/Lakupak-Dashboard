@@ -40,7 +40,7 @@ Dashboard memakai **sidebar** persisten (bisa dilipat di desktop, drawer di mobi
 
 | Item | Route | Fungsi |
 |------|-------|--------|
-| **Marketplace** | `/marketplace` | Performa storefront (bukan aplikasi pembeli) |
+<!-- | **Marketplace** | `/marketplace` | Performa storefront (bukan aplikasi pembeli) | -->
 | **Logistics** | `/logistics` | Armada, driver, pelacakan |
 | **Settings** | `/settings` | Profil, perusahaan, penagihan, keamanan, tur |
 
