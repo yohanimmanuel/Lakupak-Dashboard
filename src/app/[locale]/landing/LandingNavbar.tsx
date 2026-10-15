@@ -19,11 +19,12 @@ export default function LandingNavbar() {
   const tf = useTranslations('featureModules');
   const [langOpen, setLangOpen] = React.useState(false);
   const [featuresOpen, setFeaturesOpen] = React.useState(false);
+  const [featuresRendered, setFeaturesRendered] = React.useState(false);
   const [mobileFeaturesOpen, setMobileFeaturesOpen] = React.useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [scrolled, setScrolled] = React.useState(false);
   const featuresRef = React.useRef<HTMLDivElement>(null);
-  const featuresCloseTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const featuresPanelRef = React.useRef<HTMLDivElement>(null);
   const locale = pathname?.split('/')[1] === 'id' ? 'id' : 'en';
   const langOptions = [
     { code: 'en', label: 'English', icon: '/USIcon.svg' },
@@ -79,25 +80,54 @@ export default function LandingNavbar() {
   }, [featuresOpen]);
 
   React.useEffect(() => {
-    return () => {
-      if (featuresCloseTimer.current) clearTimeout(featuresCloseTimer.current);
+    if (!featuresOpen) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const pointerOverMenu = (x: number, y: number) => {
+      const trigger = featuresRef.current?.getBoundingClientRect();
+      const panel = featuresPanelRef.current?.getBoundingClientRect();
+      if (!trigger || !panel) return true;
+      const pad = 24;
+      const left = Math.min(trigger.left, panel.left) - pad;
+      const right = Math.max(trigger.right, panel.right) + pad;
+      const top = Math.min(trigger.top, panel.top) - pad;
+      const bottom = Math.max(trigger.bottom, panel.bottom) + pad;
+      return x >= left && x <= right && y >= top && y <= bottom;
     };
-  }, []);
+    const onMove = (event: MouseEvent) => {
+      if (pointerOverMenu(event.clientX, event.clientY)) {
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+        return;
+      }
+      if (timer) return;
+      timer = setTimeout(() => {
+        setFeaturesOpen(false);
+        timer = null;
+      }, 220);
+    };
+    document.addEventListener('mousemove', onMove);
+    return () => {
+      document.removeEventListener('mousemove', onMove);
+      if (timer) clearTimeout(timer);
+    };
+  }, [featuresOpen]);
+
+  React.useEffect(() => {
+    if (featuresOpen) {
+      setFeaturesRendered(true);
+      return;
+    }
+    if (!featuresRendered) return;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const timeout = window.setTimeout(() => setFeaturesRendered(false), reduced ? 0 : 240);
+    return () => window.clearTimeout(timeout);
+  }, [featuresOpen, featuresRendered]);
 
   const openFeaturesMenu = () => {
-    if (featuresCloseTimer.current) {
-      clearTimeout(featuresCloseTimer.current);
-      featuresCloseTimer.current = null;
-    }
+    setFeaturesRendered(true);
     setFeaturesOpen(true);
-  };
-
-  const scheduleCloseFeaturesMenu = () => {
-    if (featuresCloseTimer.current) clearTimeout(featuresCloseTimer.current);
-    featuresCloseTimer.current = setTimeout(() => {
-      setFeaturesOpen(false);
-      featuresCloseTimer.current = null;
-    }, 160);
   };
 
   const handleLocaleChange = (newLocale: string) => {
@@ -125,7 +155,7 @@ export default function LandingNavbar() {
   const linkClass =
     'text-sm text-gray-600 hover:text-[#0a61d7] transition-colors bg-transparent border-none cursor-pointer';
 
-  const solidNav = scrolled || mobileMenuOpen || featuresOpen;
+  const solidNav = scrolled || mobileMenuOpen || featuresOpen || featuresRendered;
 
   return (
     <>
@@ -159,12 +189,7 @@ export default function LandingNavbar() {
                 {t('home')}
               </button>
 
-              <div
-                className="relative"
-                ref={featuresRef}
-                onMouseEnter={openFeaturesMenu}
-                onMouseLeave={scheduleCloseFeaturesMenu}
-              >
+              <div className="relative" ref={featuresRef} onMouseEnter={openFeaturesMenu}>
                 <button
                   type="button"
                   onClick={() => setFeaturesOpen((open) => !open)}
@@ -180,9 +205,17 @@ export default function LandingNavbar() {
                   />
                 </button>
 
-                {featuresOpen && (
-                  <div className="absolute left-0 top-full pt-4 w-max max-w-[calc(100vw-2rem)]">
-                    <div className="rounded-2xl border border-gray-200 bg-white shadow-xl overflow-hidden">
+                {featuresRendered && (
+                  <div className="fixed inset-x-0 top-16 z-[60] flex justify-center px-4 pt-2">
+                    <div
+                      className={`w-max max-w-[calc(100vw-2rem)] origin-top motion-reduce:animate-none ${
+                        featuresOpen ? 'features-menu-in' : 'features-menu-out'
+                      }`}
+                    >
+                    <div
+                      ref={featuresPanelRef}
+                      className="rounded-2xl border border-gray-200 bg-white shadow-xl overflow-hidden"
+                    >
                       <div className="grid grid-cols-[14rem_12rem_13rem]">
                         <div className="p-4 border-r border-gray-100">
                           <p className="px-2 mb-2 text-[11px] font-semibold tracking-widest uppercase text-gray-400">
@@ -262,6 +295,7 @@ export default function LandingNavbar() {
                           {tf('menu.viewAll')} →
                         </button>
                       </div>
+                    </div>
                     </div>
                   </div>
                 )}

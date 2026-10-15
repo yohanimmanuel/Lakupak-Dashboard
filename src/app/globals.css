@@ -127,6 +127,28 @@ body {
   }
 }
 
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -149,6 +171,14 @@ body {
 
 .animate-fade-in-right {
   animation: fadeInRight 0.8s ease-out forwards;
+}
+
+.features-menu-in {
+  animation: slideDown 0.22s ease-out;
+}
+
+.features-menu-out {
+  animation: slideUp 0.22s ease-in forwards;
 }
 
 .animate-scale-in {
