@@ -22,6 +22,8 @@ type PointMediaConfig =
       scale?: 'xs' | 'sm' | 'md';
       /** Which layer paints on top. Positions stay the same. */
       overlap?: 'front' | 'back';
+      /** Overrides the front layer width from scale. */
+      frontWidthClass?: string;
     }
   | {
       type: 'straight';
@@ -109,15 +111,7 @@ const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaCo
       placement: 'center',
       image: { src: '/Dashboardorders4.png', width: 947, height: 762 },
     },
-    3: {
-      type: 'diagonal',
-      back: { src: '/Dashboardorders6.png', width: 845, height: 518 },
-      front: { src: '/Dashboardorders7.png', width: 628, height: 316 },
-      orientation: 'tr-bl',
-      scale: 'md',
-      overlap: 'back',
-    },
-    4: { type: 'placeholder' },
+    3: { type: 'placeholder' },
   },
   offers: {
     1: {
@@ -152,19 +146,10 @@ const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaCo
     2: {
       type: 'single',
       placement: 'center',
-      image: { src: '/Dashboardsales1.png', width: 1533, height: 727 },
-    },
-    3: {
-      type: 'single',
-      placement: 'center',
       image: { src: '/Dashboardsales3.png', width: 1511, height: 452 },
     },
-    4: {
-      type: 'single',
-      placement: 'center',
-      image: { src: '/Dashboardsales2.png', width: 812, height: 512 },
-    },
-    5: { type: 'placeholder' },
+    3: { type: 'placeholder' },
+    4: { type: 'placeholder' },
   },
   analytics: {
     1: {
@@ -236,10 +221,32 @@ const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaCo
       backWidthClass: 'w-[52%] sm:w-[48%]',
       frontWidthClass: 'w-[72%] sm:w-[68%]',
     },
-    5: {
+    4: {
       type: 'single',
       placement: 'center',
       image: { src: '/Dashboardautomations7.png', width: 1492, height: 371 },
+    },
+  },
+  'laku-ai': {
+    1: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/DashboardAI.png', width: 1451, height: 785 },
+    },
+    2: {
+      type: 'diagonal',
+      back: { src: '/DashboardAI2.png', width: 945, height: 2048 },
+      front: { src: '/Dashboardsales1.png', width: 1533, height: 727 },
+      orientation: 'tr-bl',
+      scale: 'sm',
+      overlap: 'back',
+      frontWidthClass: 'w-[92%] sm:w-[86%]',
+    },
+    3: { type: 'placeholder' },
+    4: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/DashboardAI4.png', width: 940, height: 638 },
     },
   },
 };
@@ -250,12 +257,14 @@ function PointDiagonalStack({
   orientation = 'tl-br',
   scale = 'md',
   overlap = 'front',
+  frontWidthClass,
 }: {
   back: PointMedia;
   front: PointMedia;
   orientation?: 'tl-br' | 'tr-bl';
   scale?: 'xs' | 'sm' | 'md';
   overlap?: 'front' | 'back';
+  frontWidthClass?: string;
 }) {
   const mirrored = orientation === 'tr-bl';
   const backOnTop = overlap === 'back';
@@ -266,11 +275,13 @@ function PointDiagonalStack({
     : compact
       ? 'w-[42%] sm:w-[40%]'
       : 'w-[66%] sm:w-[62%]';
-  const frontWidth = tiny
-    ? 'w-[44%] sm:w-[40%]'
-    : compact
-      ? 'w-[52%] sm:w-[48%]'
-      : 'w-[78%] sm:w-[72%]';
+  const frontWidth =
+    frontWidthClass ??
+    (tiny
+      ? 'w-[44%] sm:w-[40%]'
+      : compact
+        ? 'w-[52%] sm:w-[48%]'
+        : 'w-[78%] sm:w-[72%]');
   const backPos = mirrored
     ? tiny
       ? 'right-[14%] top-[8%]'
@@ -282,17 +293,21 @@ function PointDiagonalStack({
       : compact
         ? 'left-[8%] top-[12%]'
         : 'left-[4%] top-[10%]';
-  const frontPos = mirrored
-    ? tiny
-      ? 'left-[12%] bottom-[8%]'
-      : compact
-        ? 'left-[10%] bottom-[10%]'
-        : 'left-[2%] bottom-[6%]'
-    : tiny
-      ? 'right-[12%] bottom-[8%]'
-      : compact
-        ? 'right-[10%] bottom-[10%]'
-        : 'right-[2%] bottom-[6%]';
+  const frontPos = frontWidthClass
+    ? mirrored
+      ? 'left-[2%] bottom-[2%]'
+      : 'right-[2%] bottom-[2%]'
+    : mirrored
+      ? tiny
+        ? 'left-[12%] bottom-[8%]'
+        : compact
+          ? 'left-[10%] bottom-[10%]'
+          : 'left-[2%] bottom-[6%]'
+      : tiny
+        ? 'right-[12%] bottom-[8%]'
+        : compact
+          ? 'right-[10%] bottom-[10%]'
+          : 'right-[2%] bottom-[6%]';
 
   return (
     <div className="relative mx-auto h-full w-full">
@@ -339,11 +354,13 @@ function PointDiagonalStack({
             quality={92}
             className="block h-auto w-full rounded-lg"
             sizes={
-              tiny
-                ? '(min-width: 1024px) 240px, 44vw'
-                : compact
-                  ? '(min-width: 1024px) 280px, 52vw'
-                  : '(min-width: 1024px) 420px, 74vw'
+              frontWidthClass
+                ? '(min-width: 1024px) 720px, 86vw'
+                : tiny
+                  ? '(min-width: 1024px) 240px, 44vw'
+                  : compact
+                    ? '(min-width: 1024px) 280px, 52vw'
+                    : '(min-width: 1024px) 420px, 74vw'
             }
           />
         </div>
@@ -788,6 +805,7 @@ export function FeatureModulePage({
                       orientation={pointMedia.orientation}
                       scale={pointMedia.scale}
                       overlap={pointMedia.overlap}
+                      frontWidthClass={pointMedia.frontWidthClass}
                     />
                   </FeatureMediaFrame>
                 )
@@ -839,7 +857,7 @@ export function FeatureModulePage({
           <Reveal>
             <p className="text-sm font-medium text-gray-500 mb-6">{t('hub.exploreMore')}</p>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {FEATURE_MODULES.filter((m) => m.slug !== slug).map((m) => {
+              {FEATURE_MODULES.filter((m) => m.slug !== slug && m.slug !== 'marketplace').map((m) => {
                 const ModIcon = m.icon;
                 return (
                   <button

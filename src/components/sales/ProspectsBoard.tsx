@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 import * as XLSX from 'xlsx';
 import { SkeletonTablePage } from '@/components/skeleton/SkeletonTablePage';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { isProspectBuyerType } from '@/lib/salesJobs/prospectBuyerTypes';
 import { useUserStore } from '@/store/userStore';
 
 export type ProspectRow = {
@@ -17,6 +18,8 @@ export type ProspectRow = {
   phone: string;
   address: string;
   region: string;
+  buyerType: string;
+  notes: string;
   status: string;
 };
 
@@ -25,7 +28,7 @@ const ROWS_PER_PAGE = 5;
 const PROSPECTS_QUERY = `
   query SalesProspects($userId: Int!) {
     salesProspects(userId: $userId) {
-      buyerId customerNumber owner storeName phone address region status
+      buyerId customerNumber owner storeName phone address region buyerType notes status
     }
   }
 `;
@@ -74,16 +77,21 @@ export default function ProspectsBoard() {
     return Array.from(seen).sort((a, b) => a.localeCompare(b));
   }, [rows]);
 
+  const buyerTypeLabel = useCallback(
+    (buyerType: string) => (isProspectBuyerType(buyerType) ? t(`buyerTypes.${buyerType}`) : ''),
+    [t],
+  );
+
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase();
     return rows.filter((row) => {
       if (regionFilter !== 'all' && row.region.trim() !== regionFilter) return false;
       if (!query) return true;
-      return [row.customerNumber, row.owner, row.storeName, row.phone, row.address, row.region].some((value) =>
+      return [row.customerNumber, row.owner, row.storeName, row.phone, row.address, row.region, row.notes, buyerTypeLabel(row.buyerType)].some((value) =>
         value.toLowerCase().includes(query),
       );
     });
-  }, [rows, search, regionFilter]);
+  }, [rows, search, regionFilter, buyerTypeLabel]);
 
   const totalRows = filteredRows.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / ROWS_PER_PAGE));
@@ -93,8 +101,17 @@ export default function ProspectsBoard() {
   const toRow = Math.min(safePage * ROWS_PER_PAGE, totalRows);
 
   const exportRows = () => {
-    const headers = [t('customerNumber'), t('retailer'), t('outlet'), t('phone'), t('address'), t('region')];
-    const sheetRows = filteredRows.map((row) => [row.customerNumber, row.owner, row.storeName, row.phone, row.address, row.region]);
+    const headers = [t('customerNumber'), t('retailer'), t('outlet'), t('phone'), t('address'), t('region'), t('buyerType'), t('notes')];
+    const sheetRows = filteredRows.map((row) => [
+      row.customerNumber,
+      row.owner,
+      row.storeName,
+      row.phone,
+      row.address,
+      row.region,
+      buyerTypeLabel(row.buyerType),
+      row.notes,
+    ]);
     const sheet = XLSX.utils.aoa_to_sheet([headers, ...sheetRows]);
     const book = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(book, sheet, t('sheetName'));
@@ -267,6 +284,7 @@ export default function ProspectsBoard() {
                 <th className="px-4 py-3 font-medium uppercase">{t('outlet')}</th>
                 <th className="px-4 py-3 font-medium uppercase">{t('phone')}</th>
                 <th className="px-4 py-3 font-medium uppercase">{t('region')}</th>
+                <th className="px-4 py-3 font-medium uppercase">{t('buyerType')}</th>
                 <th className="px-4 py-3 font-medium uppercase">{t('address')}</th>
                 <th className="px-4 py-3 text-center font-medium uppercase">{t('actions')}</th>
               </tr>
@@ -274,7 +292,7 @@ export default function ProspectsBoard() {
             <tbody className="bg-white">
               {pagedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-gray-500">
+                  <td colSpan={9} className="py-12 text-center text-gray-500">
                     <div className="flex flex-col items-center gap-2">
                       <Store className="h-12 w-12 text-gray-400" />
                       <p className="text-sm">{t('empty')}</p>
@@ -319,6 +337,7 @@ export default function ProspectsBoard() {
                       </td>
                       <td className="px-4 py-3 text-black">{row.phone}</td>
                       <td className="px-4 py-3 text-gray-600">{row.region || t('noRegion')}</td>
+                      <td className="px-4 py-3 text-gray-600">{buyerTypeLabel(row.buyerType) || t('noBuyerType')}</td>
                       <td className="max-w-[240px] whitespace-normal px-4 py-3 text-gray-600">{row.address}</td>
                       <td className="px-4 py-3 text-center">
                         <div className="flex items-center justify-center gap-2">

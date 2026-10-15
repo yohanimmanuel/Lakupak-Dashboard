@@ -8,6 +8,7 @@ import {
   Store,
   BarChart3,
   Zap,
+  Sparkles,
 } from 'lucide-react';
 
 export type FeatureModuleSlug =
@@ -18,9 +19,10 @@ export type FeatureModuleSlug =
   | 'sales'
   | 'marketplace'
   | 'analytics'
-  | 'automations';
+  | 'automations'
+  | 'laku-ai';
 
-export type FeatureMenuGroup = 'sell' | 'grow';
+export type FeatureMenuGroup = 'sell' | 'grow' | 'intelligence';
 
 export type LakuSurface = 'dashboard' | 'marketplace';
 
@@ -54,16 +56,17 @@ export const FEATURE_MODULES: FeatureModuleDef[] = [
     pointsCount: 5,
     highlightsCount: 3,
   },
-  { slug: 'orders', group: 'sell', icon: ShoppingCart, surfaces: ['dashboard', 'marketplace'], pointsCount: 4, highlightsCount: 3 },
+  { slug: 'orders', group: 'sell', icon: ShoppingCart, surfaces: ['dashboard', 'marketplace'], pointsCount: 3, highlightsCount: 3 },
   { slug: 'offers', group: 'sell', icon: Tag, surfaces: ['dashboard', 'marketplace'], pointsCount: 4, highlightsCount: 3 },
-  { slug: 'sales', group: 'grow', icon: BadgeDollarSign, featured: true, surfaces: ['dashboard'], pointsCount: 5, highlightsCount: 3 },
+  { slug: 'sales', group: 'grow', icon: BadgeDollarSign, featured: true, surfaces: ['dashboard'], pointsCount: 4, highlightsCount: 3 },
   // Marketplace module page stays in the list for later validation. It is not featured and is hidden from navigation.
   { slug: 'marketplace', group: 'grow', icon: Store, surfaces: ['dashboard', 'marketplace'], pointsCount: 4, highlightsCount: 3 },
   { slug: 'analytics', group: 'grow', icon: BarChart3, surfaces: ['dashboard'], pointsCount: 4, highlightsCount: 3 },
-  { slug: 'automations', group: 'grow', icon: Zap, surfaces: ['dashboard'], pointsCount: 5, highlightsCount: 3 },
+  { slug: 'automations', group: 'grow', icon: Zap, surfaces: ['dashboard'], pointsCount: 4, highlightsCount: 3 },
+  { slug: 'laku-ai', group: 'intelligence', icon: Sparkles, surfaces: ['dashboard'], pointsCount: 4, highlightsCount: 3 },
 ];
 
-export const FEATURE_MENU_GROUPS: FeatureMenuGroup[] = ['sell', 'grow'];
+export const FEATURE_MENU_GROUPS: FeatureMenuGroup[] = ['sell', 'grow', 'intelligence'];
 
 export function getFeatureModule(slug: string): FeatureModuleDef | undefined {
   return FEATURE_MODULES.find((m) => m.slug === slug);

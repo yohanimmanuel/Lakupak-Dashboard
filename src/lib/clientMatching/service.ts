@@ -213,7 +213,7 @@ export async function findPossibleBuyerMatches(distributorId: number): Promise<R
         existingStoreName: other.storeName,
         existingOwnerName: other.owner,
       });
-      if (result.score <= POSSIBLE_MATCH_SCORE) continue;
+      if (result.score < POSSIBLE_MATCH_SCORE) continue;
       if (!best || result.score > best.result.score) best = { buyer: other, result };
     }
     if (!best) continue;

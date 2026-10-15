@@ -32,6 +32,10 @@ export default function LandingNavbar() {
   const currentLang = langOptions.find((l) => l.code === locale);
   const featured = getFeaturedModule();
   const FeaturedIcon = featured.icon;
+  const menuFeatures = FEATURE_MODULES.filter(
+    (m) => m.slug !== 'marketplace' && m.group !== 'intelligence',
+  );
+  const intelligenceFeatures = FEATURE_MODULES.filter((m) => m.group === 'intelligence');
 
   const navItems = [
     { label: t('home'), href: `/${locale}/landing` },
@@ -177,15 +181,39 @@ export default function LandingNavbar() {
                 </button>
 
                 {featuresOpen && (
-                  <div className="absolute left-1/2 -translate-x-1/2 top-full pt-4 w-[min(94vw,40rem)]">
+                  <div className="absolute left-0 top-full pt-4 w-max max-w-[calc(100vw-2rem)]">
                     <div className="rounded-2xl border border-gray-200 bg-white shadow-xl overflow-hidden">
-                      <div className="grid grid-cols-[1fr_13rem]">
-                        <div className="p-4">
+                      <div className="grid grid-cols-[14rem_12rem_13rem]">
+                        <div className="p-4 border-r border-gray-100">
                           <p className="px-2 mb-2 text-[11px] font-semibold tracking-widest uppercase text-gray-400">
                             {tf('menu.modulesLabel')}
                           </p>
-                          <ul className="grid grid-cols-2 gap-x-1 gap-y-0.5">
-                            {FEATURE_MODULES.filter((m) => m.slug !== 'marketplace' && !m.featured).map((m) => {
+                          <ul className="flex flex-col">
+                            {menuFeatures.filter((m) => !m.featured).map((m) => {
+                              const Icon = m.icon;
+                              return (
+                                <li key={m.slug}>
+                                  <button
+                                    type="button"
+                                    onClick={() => goToFeature(m.slug)}
+                                    className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 hover:text-[#0a61d7] transition-colors"
+                                  >
+                                    <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
+                                      <Icon className="w-4 h-4" strokeWidth={1.75} />
+                                    </span>
+                                    <span className="leading-snug">{tf(`${m.slug}.menuLabel`)}</span>
+                                  </button>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                        <div className="p-4 border-r border-gray-100">
+                          <p className="px-2 mb-2 text-[11px] font-semibold tracking-widest uppercase text-gray-400">
+                            {tf('menu.groups.intelligence')}
+                          </p>
+                          <ul className="flex flex-col">
+                            {intelligenceFeatures.map((m) => {
                               const Icon = m.icon;
                               return (
                                 <li key={m.slug}>
@@ -380,7 +408,24 @@ export default function LandingNavbar() {
                     <p className="px-3 pt-1 pb-1 text-[11px] font-semibold tracking-widest uppercase text-gray-400">
                       {tf('menu.modulesLabel')}
                     </p>
-                    {FEATURE_MODULES.filter((m) => m.slug !== 'marketplace').map((m) => {
+                    {menuFeatures.map((m) => {
+                      const Icon = m.icon;
+                      return (
+                        <button
+                          key={m.slug}
+                          type="button"
+                          onClick={() => goToFeature(m.slug)}
+                          className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          <Icon className="w-4 h-4 text-gray-500" strokeWidth={1.75} />
+                          {tf(`${m.slug}.menuLabel`)}
+                        </button>
+                      );
+                    })}
+                    <p className="px-3 pt-3 pb-1 text-[11px] font-semibold tracking-widest uppercase text-gray-400">
+                      {tf('menu.groups.intelligence')}
+                    </p>
+                    {intelligenceFeatures.map((m) => {
                       const Icon = m.icon;
                       return (
                         <button

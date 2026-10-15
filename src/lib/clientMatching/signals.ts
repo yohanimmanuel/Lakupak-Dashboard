@@ -1,4 +1,12 @@
-export type MatchSignal = 'phone_match' | 'address_match' | 'address_similar' | 'name_similar';
+export type MatchSignal =
+  | 'phone_match'
+  | 'address_match'
+  | 'address_similar'
+  | 'store_match'
+  | 'store_similar'
+  | 'owner_match'
+  | 'owner_similar'
+  | 'name_similar';
 
 export type SignalLevel = 'high' | 'medium' | 'none';
 
@@ -65,8 +73,19 @@ function addressRelation(
   if (na.length < 6 || nb.length < 6) return 'none';
   if (na === nb) return 'exact';
   if (na.includes(nb) || nb.includes(na)) return 'near';
-  if (tokenOverlap(na, nb) >= 0.6) return 'near';
+  if (tokenOverlap(na, nb) >= 0.45) return 'near';
   return 'none';
+}
+
+const FIELD_EXACT = 25;
+const FIELD_SIMILAR = 15;
+
+function textField(a: string | null | undefined, b: string | null | undefined): 'exact' | 'similar' | 'none' {
+  const na = normalizeText(a);
+  const nb = normalizeText(b);
+  if (na.length < 3 || nb.length < 3) return 'none';
+  if (na === nb) return 'exact';
+  return textSimilar(a, b) ? 'similar' : 'none';
 }
 
 export function classifyClientSignals(input: {
@@ -84,38 +103,36 @@ export function classifyClientSignals(input: {
 
   if (phonesMatch(input.incomingPhone, input.existingPhone)) {
     signals.push('phone_match');
-    score += 40;
+    score += FIELD_EXACT;
+  }
+
+  const store = textField(input.incomingStoreName, input.existingStoreName);
+  if (store === 'exact') {
+    signals.push('store_match');
+    score += FIELD_EXACT;
+  } else if (store === 'similar') {
+    signals.push('store_similar');
+    score += FIELD_SIMILAR;
+  }
+
+  const owner = textField(input.incomingOwnerName, input.existingOwnerName);
+  if (owner === 'exact') {
+    signals.push('owner_match');
+    score += FIELD_EXACT;
+  } else if (owner === 'similar') {
+    signals.push('owner_similar');
+    score += FIELD_SIMILAR;
   }
 
   const address = addressRelation(input.incomingAddress, input.existingAddress);
   if (address === 'exact') {
     signals.push('address_match');
-    score += 40;
+    score += FIELD_EXACT;
   } else if (address === 'near') {
     signals.push('address_similar');
-    score += 25;
+    score += FIELD_SIMILAR;
   }
 
-  const nameHit =
-    textSimilar(input.incomingStoreName, input.existingStoreName) ||
-    textSimilar(input.incomingStoreName, input.existingOwnerName) ||
-    textSimilar(input.incomingOwnerName, input.existingStoreName) ||
-    textSimilar(input.incomingOwnerName, input.existingOwnerName);
-  if (nameHit) {
-    signals.push('name_similar');
-    const exact =
-      normalizeText(input.incomingStoreName) === normalizeText(input.existingStoreName) &&
-      normalizeText(input.incomingStoreName).length >= 3;
-    score += exact ? 45 : 30;
-  }
-
-  const categories = [
-    signals.includes('phone_match'),
-    signals.includes('address_match') || signals.includes('address_similar'),
-    signals.includes('name_similar'),
-  ].filter(Boolean).length;
-
-  const strongIdentity = signals.includes('phone_match') || signals.includes('address_match');
-  const level: SignalLevel = categories >= 2 && strongIdentity ? 'high' : categories >= 1 ? 'medium' : 'none';
+  const level: SignalLevel = score >= 75 ? 'high' : score >= 50 ? 'medium' : 'none';
   return { signals, score: Math.min(100, score), level };
 }

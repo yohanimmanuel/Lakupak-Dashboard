@@ -17,10 +17,11 @@
       "viewAll": "See all features",
       "featuredLabel": "Featured",
       "featuredCta": "Explore feature",
-      "modulesLabel": "Modules",
+      "modulesLabel": "Features",
       "groups": {
         "sell": "Sell",
-        "grow": "Grow"
+        "grow": "Grow",
+        "intelligence": "Intelligence"
       }
     },
     "hub": {
@@ -133,40 +134,41 @@
     },
     "orders": {
       "menuLabel": "Orders",
-      "title": "Orders from the marketplace into sales",
-      "subtitle": "Retailer checkout lands in one Dashboard pipeline, with payment proof, status, and the price saved on that order.",
+      "title": "Orders your team can run",
+      "titlePausedMarketplace": "Orders from the marketplace into sales",
+      "subtitle": "Record an order, keep payment and status on it, and follow it through fulfillment in Dashboard.",
+      "subtitlePausedMarketplace": "Retailer checkout lands in one Dashboard pipeline, with payment proof, status, and the price saved on that order.",
       "placeholder": "Orders module preview. Replace image",
       "overview": {
-        "summary": "Orders is the commerce spine of Lakupak. Marketplace checkout lands in Dashboard immediately, sales and ops share one status path, and stock and buyer records move with the order.",
+        "summary": "Orders is where a distributor records wholesale orders. Sales and operations share one status path, and stock and the buyer record move with the order.",
+        "summaryPausedMarketplace": "Orders is the commerce spine of Lakupak. Marketplace checkout lands in Dashboard immediately, sales and ops share one status path, and stock and buyer records move with the order.",
         "highlights": {
           "1": {
-            "title": "Marketplace to one fulfillment spine",
-            "desc": "Retailer checkout becomes a live Dashboard order with one status for sales and ops."
+            "title": "One fulfillment spine",
+            "titlePausedMarketplace": "Marketplace to one fulfillment spine",
+            "desc": "A new order is a live Dashboard order with one status for sales and operations."
           },
           "2": {
             "title": "Stock and buyers that move with the order",
-            "desc": "Confirm, cancel, or return adjusts inventory, and Marketplace buyers feed Clients profiles and spend history without re-entry."
+            "desc": "Confirm, cancel, or return adjusts inventory, and the buyer on the order stays tied to that client's profile.",
+            "descPausedMarketplace": "Confirm, cancel, or return adjusts inventory, and Marketplace buyers feed Clients profiles and spend history without re-entry."
           },
           "3": {
             "title": "The agreed price stays on the order",
-            "desc": "Each order keeps the base price from when it was placed, and the retailer's rate when that price has been sent."
+            "desc": "Each order keeps the price from when it was saved, and the retailer's rate when that price has been set."
           }
         }
       },
       "points": {
         "1": {
           "title": "Status everyone shares",
-          "desc": "One pipeline from pending through completed, so sales and the buyer see the same order state."
+          "desc": "One pipeline from pending through completed, so sales and operations see the same order state."
         },
         "2": {
-          "title": "Payment proof, not guesswork",
-          "desc": "Buyers submit bank-transfer proof for review, or pay COD, so your team marks Paid after verification."
+          "title": "Payment recorded on the order",
+          "desc": "Attach transfer proof or mark cash on delivery, then set the order paid after your team checks it."
         },
         "3": {
-          "title": "Price saved with the order",
-          "desc": "Order lines keep the catalog base price from checkout. A later catalog change does not rewrite that order."
-        },
-        "4": {
           "title": "Follow-up stays with sales",
           "desc": "The same order is what your sales team works from, next to the retailer and the catalog."
         }
@@ -216,22 +218,22 @@
     "sales": {
       "menuLabel": "Sales",
       "title": "Field work from manager to completion",
-      "subtitle": "Add a sales manager, create jobs, assign each one to a sales rep, record completion, and add prospects in Dashboard.",
+      "subtitle": "Add a sales manager, run the day's jobs, delegate them on WhatsApp, and ask which buyers to reach.",
       "placeholder": "Sales module preview. Replace image",
       "overview": {
-        "summary": "Sales is how a distributor runs field work from Dashboard. Add a manager, create the jobs, assign each job to a sales rep, record completion when the work is done, and keep prospects before they order.",
+        "summary": "Sales is how a distributor runs field work from Dashboard. A manager creates the jobs, assigns them, and records completion. The AI sends that work to each rep on WhatsApp, and buyer questions find retailers that match who you want to reach.",
         "highlights": {
           "1": {
             "title": "A manager for the team",
             "desc": "Add the sales manager who creates the work and follows what each rep still has open."
           },
           "2": {
-            "title": "Jobs assigned to each sales rep",
-            "desc": "Give each rep their own jobs, from taking an order to checking stock or a competitor."
+            "title": "Jobs from creation to completion",
+            "desc": "Create the visit, put it on the rep who will do it, and mark it complete with the details that job asked for."
           },
           "3": {
-            "title": "Completion stays on the job",
-            "desc": "Mark a job complete with the details that job type needs, and correct them later if the numbers were wrong."
+            "title": "The day's work on WhatsApp",
+            "desc": "The AI sends each rep their job list. They reply in chat, and the job records what they finished."
           }
         }
       },
@@ -241,21 +243,16 @@
           "desc": "Add the manager who runs the field team. They create the jobs and keep track of what each sales rep still has open."
         },
         "2": {
-          "title": "Create the jobs",
-          "desc": "Add a job for the visit: take an order, promote products and record how many were given, check warehouse stock, collect a payment, pick up a return, or check a competitor."
+          "title": "Create, assign, and complete the jobs",
+          "desc": "Add the visit, put it on the rep who will do it, and mark it complete with the details that job asked for. The same products can cover several clients. A stock check stays with the warehouse. A finished job can be corrected later."
         },
         "3": {
-          "title": "Assign each job to a sales rep",
-          "desc": "Put every job on the rep who will do it. The same products can cover several clients on one job. A stock check stays with the rep and the warehouse, with no client attached."
+          "title": "Delegate the day on WhatsApp",
+          "desc": "The AI sends each rep their job list on WhatsApp. The rep replies in chat with what they finished, and the job records the promotion, stock, payment, return, or competitor."
         },
         "4": {
-          "title": "Record completion",
-          "desc": "When the rep finishes, mark the job complete and fill in what that job type asks for. A finished job can be corrected later."
-        },
-        "5": {
-          "title": "Add prospects",
-          "desc": "Set a customer persona, the requirements, and the criteria for who you want to reach. The AI layer finds suitable retailers that match.",
-          "descPausedMarketplace": "Record a prospect retailer and outlet before they order. Save the customer number, name, store, phone, region, and address on the map. They stay a prospect until they place a marketplace order."
+          "title": "Buyer questions",
+          "desc": "Set a customer persona, the requirements, and the criteria for who you want to reach. The AI layer finds suitable retailers that match."
         }
       }
     },
@@ -377,12 +374,49 @@
           "desc": "Keep buyer and supplier network work moving with workflows that support lead and account follow-up."
         },
         "4": {
-          "title": "Order follow-up",
-          "desc": "Move order routines forward from the same purchase order, without retyping the steps in chat."
-        },
-        "5": {
           "title": "Active, paused, and draft control",
           "desc": "Manage workflow status, run counts, and last-run history so you know what is live and what is waiting."
+        }
+      }
+    },
+    "laku-ai": {
+      "menuLabel": "Laku AI",
+      "title": "An AI-native service for your business",
+      "subtitle": "Prompt Laku AI and it creates products, offers, clients, and orders. It also analyzes the business, delegates a sales job, and asks which buyer to reach.",
+      "placeholder": "Laku AI preview. Replace image",
+      "overview": {
+        "summary": "Laku AI is an AI-native service inside Dashboard. Prompt it and it builds the operation for you: products, offers, clients, and orders. It also turns orders and sales into analysis and insights, then hands off the sales job and the buyer to reach.",
+        "highlights": {
+          "1": {
+            "title": "Analysis and insights",
+            "desc": "Read what is moving across clients, orders, and sales, so the next action starts from the numbers."
+          },
+          "2": {
+            "title": "The sales job and the buyer",
+            "desc": "Delegate a sales job and ask which buyer to reach in the same step. Laku AI carries the follow-up."
+          },
+          "3": {
+            "title": "Prompt, and it is built",
+            "desc": "Ask for a product, an offer, a client, or an order. Laku AI makes it, so the operation starts from one prompt."
+          }
+        }
+      },
+      "points": {
+        "1": {
+          "title": "Analysis and insights",
+          "desc": "Laku AI reviews clients, orders, and sales and returns the insight behind the next decision."
+        },
+        "2": {
+          "title": "Delegate the sales job and the buyer",
+          "desc": "Hand the day's sales jobs to each rep, and ask which buyer to reach. Set a persona, the requirements, and the criteria. Laku AI finds suitable retailers, and the job records the promotion, stock, payment, return, or competitor."
+        },
+        "3": {
+          "title": "Prompt it, and the operation is built",
+          "desc": "Laku AI is an AI-native service. Prompt it to create products, offers, clients, and orders. It makes them for you, so you automate the operation instantly."
+        },
+        "4": {
+          "title": "Draft the automation",
+          "desc": "Describe the routine in chat. Laku AI drafts the trigger and the actions, and you review them on the canvas before the workflow goes live."
         }
       }
     }

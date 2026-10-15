@@ -567,6 +567,10 @@
       "phone_match": "Phone match",
       "address_match": "Address match",
       "address_similar": "Address similar",
+      "store_match": "Store match",
+      "store_similar": "Store similar",
+      "owner_match": "Owner match",
+      "owner_similar": "Owner similar",
       "name_similar": "Name similar"
     }
   }

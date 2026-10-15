@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { prisma } from '@/lib/db';
+import { isProspectBuyerType } from '@/lib/salesJobs/prospectBuyerTypes';
 
 export type SalesProspect = {
   buyerId: string;
@@ -9,6 +10,8 @@ export type SalesProspect = {
   phone: string;
   address: string;
   region: string;
+  buyerType: string;
+  notes: string;
   status: string;
 };
 
@@ -19,6 +22,8 @@ type ProspectInput = {
   phone: string;
   address: string;
   region?: string | null;
+  buyerType?: string | null;
+  notes?: string | null;
 };
 
 const prospectSelect = {
@@ -29,6 +34,8 @@ const prospectSelect = {
   phone: true,
   address: true,
   region: true,
+  businessType: true,
+  notes: true,
   status: true,
 } as const;
 
@@ -43,10 +50,15 @@ function readFields(input: ProspectInput) {
   const phone = clip(input.phone, 20);
   const address = clip(input.address, 500);
   const region = clip(input.region ?? '', 80);
+  const buyerType = clip(input.buyerType ?? '', 40);
+  const notes = clip(input.notes ?? '', 500);
   if (!customerNumber || !owner || !storeName || !phone || !address) {
     throw new Error('Fill in the new outlet');
   }
-  return { customerNumber, owner, storeName, phone, address, region: region || null };
+  if (buyerType && !isProspectBuyerType(buyerType)) {
+    throw new Error('Fill in the new outlet');
+  }
+  return { customerNumber, owner, storeName, phone, address, region: region || null, businessType: buyerType, notes: notes || null };
 }
 
 function mapProspect(row: {
@@ -57,6 +69,8 @@ function mapProspect(row: {
   phone: string;
   address: string;
   region: string | null;
+  businessType: string;
+  notes: string | null;
   status: string;
 }): SalesProspect {
   return {
@@ -67,6 +81,8 @@ function mapProspect(row: {
     phone: row.phone,
     address: row.address,
     region: row.region ?? '',
+    buyerType: row.businessType ?? '',
+    notes: row.notes ?? '',
     status: row.status,
   };
 }
@@ -114,7 +130,8 @@ export async function createSalesProspect(distributorId: number, input: Prospect
       address: fields.address,
       region: fields.region,
       email: '',
-      businessType: '',
+      businessType: fields.businessType,
+      notes: fields.notes,
       status: 'Prospect',
     },
     select: prospectSelect,
@@ -123,16 +140,21 @@ export async function createSalesProspect(distributorId: number, input: Prospect
 }
 
 export async function updateSalesProspect(distributorId: number, buyerId: string, input: ProspectInput) {
-  const fields = readFields(input);
+  const { notes, businessType, ...rest } = readFields(input);
+  const data = {
+    ...rest,
+    ...(input.notes !== undefined ? { notes } : {}),
+    ...(businessType ? { businessType } : {}),
+  };
   const existing = await prisma.buyer.findFirst({
     where: { buyerId, userId: distributorId, status: 'Prospect' },
     select: { buyerId: true },
   });
   if (!existing) throw new Error('Prospect not found');
-  await assertUniqueCustomerNumber(distributorId, fields.customerNumber, buyerId);
+  await assertUniqueCustomerNumber(distributorId, rest.customerNumber, buyerId);
   const updated = await prisma.buyer.updateMany({
     where: { buyerId, userId: distributorId, status: 'Prospect' },
-    data: fields,
+    data,
   });
   if (updated.count !== 1) throw new Error('Prospect not found');
   const row = await prisma.buyer.findFirst({

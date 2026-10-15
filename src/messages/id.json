@@ -17,10 +17,11 @@
       "viewAll": "Lihat semua fitur",
       "featuredLabel": "Unggulan",
       "featuredCta": "Jelajahi fitur",
-      "modulesLabel": "Modul",
+      "modulesLabel": "Fitur",
       "groups": {
         "sell": "Jual",
-        "grow": "Tumbuh"
+        "grow": "Tumbuh",
+        "intelligence": "Inteligensi"
       }
     },
     "hub": {
@@ -133,40 +134,41 @@
     },
     "orders": {
       "menuLabel": "Pesanan",
-      "title": "Pesanan dari marketplace ke penjualan",
-      "subtitle": "Checkout retailer masuk ke satu pipeline Dashboard, dengan bukti pembayaran, status, dan harga yang tersimpan di pesanan itu.",
+      "title": "Pesanan yang bisa dijalankan tim",
+      "titlePausedMarketplace": "Pesanan dari marketplace ke penjualan",
+      "subtitle": "Catat pesanan, simpan pembayaran dan status di pesanan itu, lalu ikuti pemenuhannya di Dashboard.",
+      "subtitlePausedMarketplace": "Checkout retailer masuk ke satu pipeline Dashboard, dengan bukti pembayaran, status, dan harga yang tersimpan di pesanan itu.",
       "placeholder": "Pratinjau modul pesanan. Ganti gambar",
       "overview": {
-        "summary": "Pesanan adalah tulang punggung perdagangan Lakupak. Checkout Marketplace masuk ke Dashboard segera, penjualan dan operasional berbagi satu jalur status, dan stok serta data pembeli bergerak mengikuti pesanan.",
+        "summary": "Pesanan adalah tempat distributor mencatat pesanan grosir. Penjualan dan operasional berbagi satu jalur status, dan stok serta data pembeli bergerak mengikuti pesanan.",
+        "summaryPausedMarketplace": "Pesanan adalah tulang punggung perdagangan Lakupak. Checkout Marketplace masuk ke Dashboard segera, penjualan dan operasional berbagi satu jalur status, dan stok serta data pembeli bergerak mengikuti pesanan.",
         "highlights": {
           "1": {
-            "title": "Marketplace ke satu jalur pemenuhan",
-            "desc": "Checkout retailer menjadi pesanan live di Dashboard dengan satu status untuk penjualan dan operasional."
+            "title": "Satu jalur pemenuhan",
+            "titlePausedMarketplace": "Marketplace ke satu jalur pemenuhan",
+            "desc": "Pesanan baru adalah pesanan live di Dashboard dengan satu status untuk penjualan dan operasional."
           },
           "2": {
             "title": "Stok dan pembeli yang bergerak dengan pesanan",
-            "desc": "Konfirmasi, batal, atau retur menyesuaikan inventori, dan pembeli Marketplace mengisi profil Klien serta riwayat belanja tanpa entri ulang."
+            "desc": "Konfirmasi, batal, atau retur menyesuaikan inventori, dan pembeli pada pesanan tetap terhubung ke profil klien itu.",
+            "descPausedMarketplace": "Konfirmasi, batal, atau retur menyesuaikan inventori, dan pembeli Marketplace mengisi profil Klien serta riwayat belanja tanpa entri ulang."
           },
           "3": {
             "title": "Harga yang disepakati tetap di pesanan",
-            "desc": "Setiap pesanan menyimpan harga dasar saat dibuat, dan tarif retailer setelah harga itu dikirim."
+            "desc": "Setiap pesanan menyimpan harga saat disimpan, dan tarif retailer setelah harga itu diatur."
           }
         }
       },
       "points": {
         "1": {
           "title": "Status yang dibagikan semua orang",
-          "desc": "Satu pipeline dari pending hingga selesai, agar penjualan dan pembeli melihat status pesanan yang sama."
+          "desc": "Satu pipeline dari pending hingga selesai, agar penjualan dan operasional melihat status pesanan yang sama."
         },
         "2": {
-          "title": "Bukti pembayaran, bukan menebak",
-          "desc": "Pembeli mengunggah bukti transfer untuk ditinjau, atau bayar COD, agar tim menandai Paid setelah verifikasi."
+          "title": "Pembayaran tercatat di pesanan",
+          "desc": "Lampirkan bukti transfer atau tandai bayar di tempat, lalu set pesanan lunas setelah tim memeriksanya."
         },
         "3": {
-          "title": "Harga tersimpan bersama pesanan",
-          "desc": "Baris pesanan menyimpan harga dasar katalog dari checkout. Perubahan katalog kemudian tidak menulis ulang pesanan itu."
-        },
-        "4": {
           "title": "Tindak lanjut tetap di penjualan",
           "desc": "Pesanan yang sama adalah yang dikerjakan tim penjualan, di samping retailer dan katalog."
         }
@@ -216,22 +218,22 @@
     "sales": {
       "menuLabel": "Penjualan",
       "title": "Pekerjaan lapangan dari manager sampai selesai",
-      "subtitle": "Tambah sales manager, buat pekerjaan, tetapkan masing-masing ke sales, catat penyelesaian, dan tambah prospek di Dashboard.",
+      "subtitle": "Tambah sales manager, jalankan pekerjaan hari itu, delegasikan lewat WhatsApp, dan tanyakan pembeli mana yang dihubungi.",
       "placeholder": "Pratinjau modul penjualan. Ganti gambar",
       "overview": {
-        "summary": "Penjualan adalah cara distributor menjalankan pekerjaan lapangan dari Dashboard. Tambah manager, buat pekerjaan, tetapkan tiap pekerjaan ke sales, catat penyelesaian saat pekerjaan selesai, dan simpan prospek sebelum mereka memesan.",
+        "summary": "Penjualan adalah cara distributor menjalankan pekerjaan lapangan dari Dashboard. Manager membuat pekerjaan, menugaskan, dan mencatat penyelesaian. AI mengirim pekerjaan itu ke tiap sales lewat WhatsApp, dan pertanyaan pembeli menemukan retailer yang sesuai siapa yang ingin dihubungi.",
         "highlights": {
           "1": {
             "title": "Manager untuk tim",
             "desc": "Tambahkan sales manager yang membuat pekerjaan dan memantau apa yang masih terbuka pada tiap sales."
           },
           "2": {
-            "title": "Pekerjaan untuk tiap sales",
-            "desc": "Berikan tiap sales pekerjaannya sendiri, dari ambil pesanan sampai cek stok atau pesaing."
+            "title": "Pekerjaan dari dibuat sampai selesai",
+            "desc": "Buat kunjungan, pasang pada sales yang akan menjalankannya, dan tandai selesai dengan detail yang diminta pekerjaan itu."
           },
           "3": {
-            "title": "Penyelesaian tetap di pekerjaan",
-            "desc": "Tandai pekerjaan selesai dengan detail yang diminta jenis pekerjaan itu, lalu koreksi nanti jika angkanya salah."
+            "title": "Pekerjaan hari itu di WhatsApp",
+            "desc": "AI mengirim daftar pekerjaan ke tiap sales. Mereka membalas di chat, dan pekerjaan mencatat apa yang sudah selesai."
           }
         }
       },
@@ -241,21 +243,16 @@
           "desc": "Tambahkan manager yang mengatur tim lapangan. Mereka membuat pekerjaan dan memantau apa yang masih terbuka pada tiap sales."
         },
         "2": {
-          "title": "Buat pekerjaan",
-          "desc": "Tambahkan pekerjaan untuk kunjungan: ambil pesanan, promosikan produk dan catat berapa yang diberikan, cek stok gudang, tagih pembayaran, jemput retur, atau cek pesaing."
+          "title": "Buat, tetapkan, dan selesaikan pekerjaan",
+          "desc": "Tambahkan kunjungan, pasang pada sales yang akan menjalankannya, dan tandai selesai dengan detail yang diminta pekerjaan itu. Produk yang sama bisa mencakup beberapa klien. Cek stok tetap di gudang. Pekerjaan yang sudah selesai bisa dikoreksi nanti."
         },
         "3": {
-          "title": "Tetapkan tiap pekerjaan ke sales",
-          "desc": "Pasang tiap pekerjaan pada sales yang akan menjalankannya. Produk yang sama bisa mencakup beberapa klien dalam satu pekerjaan. Cek stok tetap bersama sales dan gudang, tanpa klien."
+          "title": "Delegasikan hari itu lewat WhatsApp",
+          "desc": "AI mengirim daftar pekerjaan tiap sales lewat WhatsApp. Sales membalas di chat dengan apa yang sudah selesai, dan pekerjaan mencatat promosi, stok, pembayaran, retur, atau pesaing."
         },
         "4": {
-          "title": "Catat penyelesaian",
-          "desc": "Saat sales selesai, tandai pekerjaan selesai dan isi data yang diminta jenis pekerjaan itu. Pekerjaan yang sudah selesai bisa dikoreksi nanti."
-        },
-        "5": {
-          "title": "Tambah prospek",
-          "desc": "Tetapkan persona pelanggan, persyaratan, dan kriteria siapa yang ingin dihubungi. Lapisan AI menemukan retailer yang cocok.",
-          "descPausedMarketplace": "Catat pengecer dan outlet prospek sebelum mereka memesan. Simpan nomor pelanggan, nama, toko, telepon, wilayah, dan alamat di peta. Mereka tetap prospek sampai ada pesanan marketplace."
+          "title": "Pertanyaan pembeli",
+          "desc": "Tetapkan persona pelanggan, persyaratan, dan kriteria siapa yang ingin dihubungi. Lapisan AI menemukan retailer yang cocok."
         }
       }
     },
@@ -377,12 +374,49 @@
           "desc": "Jaga kerja jaringan pembeli dan pemasok tetap bergerak dengan workflow yang mendukung follow-up lead dan akun."
         },
         "4": {
-          "title": "Tindak lanjut pesanan",
-          "desc": "Majukan rutinitas pesanan dari pesanan pembelian yang sama, tanpa mengetik ulang langkah di chat."
-        },
-        "5": {
           "title": "Kontrol aktif, dijeda, dan draf",
           "desc": "Kelola status workflow, jumlah run, dan riwayat run terakhir agar Anda tahu mana yang live dan mana yang menunggu."
+        }
+      }
+    },
+    "laku-ai": {
+      "menuLabel": "Laku AI",
+      "title": "Layanan berbasis AI untuk bisnis Anda",
+      "subtitle": "Beri prompt ke Laku AI dan ia membuat produk, penawaran, klien, dan pesanan. Ia juga menganalisis bisnis, mendelegasikan pekerjaan penjualan, dan menanyakan pembeli mana yang dihubungi.",
+      "placeholder": "Pratinjau Laku AI. Ganti gambar",
+      "overview": {
+        "summary": "Laku AI adalah layanan berbasis AI di dalam Dashboard. Beri prompt dan ia membangun operasional untuk Anda: produk, penawaran, klien, dan pesanan. Ia juga mengubah pesanan dan penjualan menjadi analisis dan wawasan, lalu menyerahkan pekerjaan penjualan dan pembeli yang perlu dihubungi.",
+        "highlights": {
+          "1": {
+            "title": "Analisis dan wawasan",
+            "desc": "Baca apa yang bergerak di klien, pesanan, dan penjualan, agar langkah berikutnya mulai dari angkanya."
+          },
+          "2": {
+            "title": "Pekerjaan penjualan dan pembelinya",
+            "desc": "Delegasikan pekerjaan penjualan dan tanyakan pembeli mana yang dihubungi dalam satu langkah. Laku AI melanjutkan tindak lanjutnya."
+          },
+          "3": {
+            "title": "Beri prompt, lalu terbentuk",
+            "desc": "Minta produk, penawaran, klien, atau pesanan. Laku AI membuatnya, sehingga operasional mulai dari satu prompt."
+          }
+        }
+      },
+      "points": {
+        "1": {
+          "title": "Analisis dan wawasan",
+          "desc": "Laku AI meninjau klien, pesanan, dan penjualan, lalu mengembalikan wawasan di balik keputusan berikutnya."
+        },
+        "2": {
+          "title": "Delegasikan pekerjaan penjualan dan pembelinya",
+          "desc": "Serahkan pekerjaan penjualan hari itu ke tiap sales, dan tanyakan pembeli mana yang dihubungi. Tetapkan persona, persyaratan, dan kriteria. Laku AI menemukan retailer yang cocok, dan pekerjaan mencatat promosi, stok, pembayaran, retur, atau pesaing."
+        },
+        "3": {
+          "title": "Beri prompt, dan operasional terbentuk",
+          "desc": "Laku AI adalah layanan berbasis AI. Beri prompt untuk membuat produk, penawaran, klien, dan pesanan. Ia membuatnya untuk Anda, sehingga operasional terotomasi seketika."
+        },
+        "4": {
+          "title": "Susun automasinya",
+          "desc": "Jelaskan rutinitas di chat. Laku AI menyusun trigger dan aksinya, lalu Anda meninjau di kanvas sebelum workflow dijalankan."
         }
       }
     }

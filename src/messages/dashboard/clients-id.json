@@ -577,6 +577,10 @@
       "phone_match": "Nomor HP cocok",
       "address_match": "Alamat cocok",
       "address_similar": "Alamat mirip",
+      "store_match": "Toko cocok",
+      "store_similar": "Toko mirip",
+      "owner_match": "Pemilik cocok",
+      "owner_similar": "Pemilik mirip",
       "name_similar": "Nama mirip"
     }
   }

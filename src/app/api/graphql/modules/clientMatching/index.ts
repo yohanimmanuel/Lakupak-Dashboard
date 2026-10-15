@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db';
+import { classifyClientSignals } from '@/lib/clientMatching/signals';
 import { withDashboardAuth } from '../common/auth';
 import { countBuyerMatchesForReview, dismissCandidate, findPossibleBuyerMatches, getClientMatchSettings, manualMergeOrder, mergeCandidate, reopenUndoneMatches, setClientMatchSettings, undoAutoMerge, undoDismissedMatch } from '@/lib/clientMatching/service';
 
@@ -85,39 +86,54 @@ function mapCandidate(row: {
   undoSnapshot?: unknown;
 }, keepProspect?: boolean) {
   const savedProspect = keepProspect ? prospectFromSnapshot(row.undoSnapshot) : null;
+  const existing = savedProspect
+    ? {
+        name: savedProspect.storeName,
+        owner: savedProspect.owner,
+        phone: savedProspect.phone,
+        address: savedProspect.address,
+        status: savedProspect.status || 'Prospect',
+      }
+    : {
+        name: row.existingClient.storeName,
+        owner: row.existingClient.owner,
+        phone: row.existingClient.phone,
+        address: row.existingClient.address,
+        status: row.existingClient.status,
+      };
+  const incoming = {
+    name: row.incomingOrder.storeName,
+    owner: row.incomingOrder.contactPerson,
+    phone: row.incomingOrder.contactPhone,
+    address: row.incomingOrder.deliveryAddress,
+    status: savedProspect ? row.existingClient.status : null,
+  };
+  const openForReview = row.status === 'pending' || row.status === 'needs_more_info';
+  const scored = openForReview
+    ? classifyClientSignals({
+        incomingPhone: incoming.phone,
+        incomingAddress: incoming.address,
+        incomingStoreName: incoming.name,
+        incomingOwnerName: incoming.owner,
+        existingPhone: existing.phone,
+        existingAddress: existing.address,
+        existingStoreName: existing.name,
+        existingOwnerName: existing.owner,
+      })
+    : null;
   return {
     id: row.id,
     existingClientId: row.existingClientId,
     incomingOrderId: row.incomingOrderId,
     provisionalClientId: row.provisionalClientId,
-    confidenceScore: row.confidenceScore,
-    matchedSignals: row.matchedSignals,
+    confidenceScore: scored ? scored.score : row.confidenceScore,
+    matchedSignals: scored ? scored.signals : row.matchedSignals,
     status: row.status,
     autoMerged: row.autoMerged,
     undoneAt: row.undoneAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
-    existing: savedProspect
-      ? {
-          name: savedProspect.storeName,
-          owner: savedProspect.owner,
-          phone: savedProspect.phone,
-          address: savedProspect.address,
-          status: savedProspect.status || 'Prospect',
-        }
-      : {
-          name: row.existingClient.storeName,
-          owner: row.existingClient.owner,
-          phone: row.existingClient.phone,
-          address: row.existingClient.address,
-          status: row.existingClient.status,
-        },
-    incoming: {
-      name: row.incomingOrder.storeName,
-      owner: row.incomingOrder.contactPerson,
-      phone: row.incomingOrder.contactPhone,
-      address: row.incomingOrder.deliveryAddress,
-      status: savedProspect ? row.existingClient.status : null,
-    },
+    existing,
+    incoming,
   };
 }
 

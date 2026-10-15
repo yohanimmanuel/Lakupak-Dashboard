@@ -252,6 +252,8 @@ export const salesJobsTypeDefs = /* GraphQL */ `
     phone: String!
     address: String!
     region: String!
+    buyerType: String!
+    notes: String!
     status: String!
   }
 
@@ -280,6 +282,8 @@ export const salesJobsTypeDefs = /* GraphQL */ `
       phone: String!
       address: String!
       region: String
+      buyerType: String
+      notes: String
     ): SalesProspect!
     updateSalesProspect(
       userId: Int!
@@ -290,6 +294,8 @@ export const salesJobsTypeDefs = /* GraphQL */ `
       phone: String!
       address: String!
       region: String
+      buyerType: String
+      notes: String
     ): SalesProspect!
     deleteSalesProspects(userId: Int!, buyerIds: [String!]!): DeleteSalesProspectsResult!
     suggestSalesJobs(userId: Int!): SuggestSalesJobsResult!
@@ -377,6 +383,8 @@ export const salesJobsResolvers = {
         phone: string;
         address: string;
         region?: string | null;
+        buyerType?: string | null;
+        notes?: string | null;
       }) => createSalesProspect(args.userId, args),
     ),
     updateSalesProspect: withDashboardAuth(
@@ -389,6 +397,8 @@ export const salesJobsResolvers = {
         phone: string;
         address: string;
         region?: string | null;
+        buyerType?: string | null;
+        notes?: string | null;
       }) => updateSalesProspect(args.userId, args.buyerId, args),
     ),
     deleteSalesProspects: withDashboardAuth(async (args: { userId: number; buyerIds: string[] }) =>
