@@ -99,7 +99,7 @@ export default function BuyerDetailsPage() {
 
   if (!id) {
     return (
-      <div className="p-4 w-full min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
+      <div className="flex min-h-full w-full min-w-0 flex-col items-center justify-center bg-gradient-to-b from-gray-50 to-white p-4">
         <div className="text-center">
           <div className="text-gray-500 text-lg font-semibold mb-2">{tPage('notFound')}</div>
           <div className="text-gray-600">{tPage('notFoundDescription')}</div>
@@ -110,7 +110,7 @@ export default function BuyerDetailsPage() {
 
   if (!user?.id) {
     return (
-      <div className="p-4 w-full min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
+      <div className="flex min-h-full w-full min-w-0 flex-col items-center justify-center bg-gradient-to-b from-gray-50 to-white p-4">
         <div className="text-center">
           <div className="text-red-500 text-lg font-semibold mb-2">{tPage('authRequired')}</div>
           <div className="text-gray-600">{tPage('loginRequired')}</div>
@@ -121,7 +121,7 @@ export default function BuyerDetailsPage() {
 
   if (error) {
     return (
-      <div className="p-4 w-full min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
+      <div className="flex min-h-full w-full min-w-0 flex-col items-center justify-center bg-gradient-to-b from-gray-50 to-white p-4">
         <div className="text-center">
           <div className="text-red-500 text-lg font-semibold mb-2">{tPage('errorTitle')}</div>
           <div className="text-gray-600 mb-4">{error.message || tPage('unexpectedError')}</div>
@@ -138,7 +138,7 @@ export default function BuyerDetailsPage() {
 
   if (!buyer || ('error' in buyer && buyer.error === 'Buyer not found')) {
     return (
-      <div className="p-4 w-full min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
+      <div className="flex min-h-full w-full min-w-0 flex-col items-center justify-center bg-gradient-to-b from-gray-50 to-white p-4">
         <div className="text-center">
           <div className="text-gray-500 text-lg font-semibold mb-2">{tPage('deletedRedirect')}</div>
           <div className="text-gray-600">{tPage('redirecting')}</div>
@@ -149,7 +149,7 @@ export default function BuyerDetailsPage() {
 
   if ('error' in buyer) {
     return (
-      <div className="p-4 w-full min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
+      <div className="flex min-h-full w-full min-w-0 flex-col items-center justify-center bg-gradient-to-b from-gray-50 to-white p-4">
         <div className="text-center">
           <div className="text-red-500 text-lg font-semibold mb-2">{tPage('error')}</div>
           <div className="text-gray-600">{buyer.error}</div>
@@ -159,7 +159,7 @@ export default function BuyerDetailsPage() {
   }
 
   return (
-    <div className="p-4 w-full min-h-screen flex items-start justify-center bg-gradient-to-b from-gray-50 to-white">
+    <div className="flex min-h-full w-full min-w-0 flex-col items-stretch justify-start bg-gradient-to-b from-gray-50 to-white p-4">
       <BuyerProfile buyer={buyer} onUpdate={mutate} />
     </div>
   );

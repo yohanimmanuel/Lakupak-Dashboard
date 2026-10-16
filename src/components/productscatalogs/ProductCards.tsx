@@ -72,12 +72,12 @@ export default function ProductCards({ products = [] }: ProductCardsProps) {
   ];
 
   return (
-    <div className="w-full mx-auto space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"> 
+    <div className="mx-auto w-full min-w-0 space-y-4">
+      <div className="grid grid-cols-1 gap-3 @3xl/main:grid-cols-2 @5xl/main:grid-cols-3">
         {stats.map((stat) => (
           <div
             key={stat.label}
-            className="flex items-center gap-4 p-4 rounded-lg bg-white border border-[#e6e6e6]"
+            className="flex min-w-0 items-center gap-4 rounded-lg border border-[#e6e6e6] bg-white p-4"
           >
             <div className={`flex items-center justify-center w-12 h-12 rounded-lg ${stat.color}`}>
               {stat.icon}

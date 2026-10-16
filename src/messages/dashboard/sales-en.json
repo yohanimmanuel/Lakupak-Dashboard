@@ -599,6 +599,8 @@
     "create": "Create new prospect",
     "createTitle": "Create new prospect",
     "editTitle": "Edit prospect",
+    "askAi": "Ask AI",
+    "aiDockEmpty": "Ask about retailer prospects.",
     "save": "Save",
     "saving": "Saving...",
     "back": "Back",

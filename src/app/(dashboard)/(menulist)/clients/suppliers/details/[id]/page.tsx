@@ -93,7 +93,7 @@ export default function SupplierDetailsPage() {
 
   if (!id) {
     return (
-      <div className="p-4 w-full min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
+      <div className="flex min-h-full w-full min-w-0 flex-col items-center justify-center bg-gradient-to-b from-gray-50 to-white p-4">
         <div className="text-center">
           <div className="text-gray-500 text-lg font-semibold mb-2">{tPage('notFound')}</div>
           <div className="text-gray-600">{tPage('notFoundDescription')}</div>
@@ -104,7 +104,7 @@ export default function SupplierDetailsPage() {
 
   if (!user?.id) {
     return (
-      <div className="p-4 w-full min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
+      <div className="flex min-h-full w-full min-w-0 flex-col items-center justify-center bg-gradient-to-b from-gray-50 to-white p-4">
         <div className="text-center">
           <div className="text-red-500 text-lg font-semibold mb-2">{tPage('authRequired')}</div>
           <div className="text-gray-600">{tPage('loginRequired')}</div>
@@ -115,7 +115,7 @@ export default function SupplierDetailsPage() {
 
   if (error) {
     return (
-      <div className="p-4 w-full min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
+      <div className="flex min-h-full w-full min-w-0 flex-col items-center justify-center bg-gradient-to-b from-gray-50 to-white p-4">
         <div className="text-center">
           <div className="text-red-500 text-lg font-semibold mb-2">{tPage('errorTitle')}</div>
           <div className="text-gray-600 mb-4">{error.message || tPage('unexpectedError')}</div>
@@ -132,7 +132,7 @@ export default function SupplierDetailsPage() {
 
   if (!supplier) {
     return (
-      <div className="p-4 w-full min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
+      <div className="flex min-h-full w-full min-w-0 flex-col items-center justify-center bg-gradient-to-b from-gray-50 to-white p-4">
         <div className="text-center">
           <div className="text-gray-500 text-lg font-semibold mb-2">{tPage('notFound')}</div>
           <div className="text-gray-600">{tPage('notFoundDescription')}</div>
@@ -143,7 +143,7 @@ export default function SupplierDetailsPage() {
 
   if ('error' in supplier) {
     return (
-      <div className="p-4 w-full min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
+      <div className="flex min-h-full w-full min-w-0 flex-col items-center justify-center bg-gradient-to-b from-gray-50 to-white p-4">
         <div className="text-center">
           <div className="text-red-500 text-lg font-semibold mb-2">{tPage('error')}</div>
           <div className="text-gray-600">{supplier.error}</div>
@@ -153,7 +153,7 @@ export default function SupplierDetailsPage() {
   }
 
   return (
-    <div className="w-full min-h-screen flex items-start justify-center bg-gradient-to-b from-gray-50 to-white p-4">
+    <div className="flex min-h-full w-full min-w-0 flex-col items-stretch justify-start bg-gradient-to-b from-gray-50 to-white p-4">
       <SupplierProfile supplier={supplier} onUpdate={mutate} />
     </div>
   );

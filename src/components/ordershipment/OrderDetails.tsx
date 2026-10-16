@@ -454,17 +454,17 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
     <div className="bg-white p-4 rounded-lg border border-[#e6e6e6]">
       <div className="w-full mx-auto">
         {/* Header */}
-        <div className="flex justify-between items-start mb-4">
+        <div className="mb-4 flex min-w-0 flex-col gap-3 @5xl/main:flex-row @5xl/main:items-start @5xl/main:justify-between">
           <button
             onClick={onBack}
-            className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+            className="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800 @4xl/main:w-auto @4xl/main:justify-start"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="h-4 w-4" />
             {tDetails('backButton')}
           </button>
           
-          {/* Status Buttons - Top Right */}
-          <div className="flex flex-wrap gap-2">
+          {/* Status / action chips - full width stack when compressed */}
+          <div className="flex w-full min-w-0 flex-col gap-2 @4xl/main:flex-row @4xl/main:flex-wrap @5xl/main:w-auto @5xl/main:justify-end">
             {/* Offer Badges - Show if products were ordered with active offers */}
             {getOrderOfferBadges().map((badge, index) => {
               const details = badge.details;
@@ -494,29 +494,29 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               return (
               <div
                 key={index}
-                className={`flex items-center gap-1 py-2 px-3 rounded-lg text-xs font-semibold ${
+                className={`flex w-full items-center justify-center gap-1 rounded-lg px-3 py-2 text-xs font-semibold @4xl/main:w-auto ${
                   badge.type === 'Discount' 
-                    ? 'bg-red-50 text-red-600 border border-red-200' 
-                    : 'bg-purple-50 text-purple-600 border border-purple-200'
+                    ? 'border border-red-200 bg-red-50 text-red-600' 
+                    : 'border border-purple-200 bg-purple-50 text-purple-600'
                 }`}
               >
-                {badge.type === 'Promotion' && <Gift className="w-3 h-3" />}
+                {badge.type === 'Promotion' && <Gift className="h-3 w-3" />}
                 {label}
               </div>
               );
             })}
-            <span className={`flex items-center gap-1 py-2 px-3 rounded-lg text-xs font-semibold ${getStatusColor(orderStatus)}`}>
+            <span className={`flex w-full items-center justify-center gap-1 rounded-lg px-3 py-2 text-xs font-semibold @4xl/main:w-auto ${getStatusColor(orderStatus)}`}>
               {translateOrderStatus(orderStatus)}
             </span>
-            <span className={`flex items-center gap-1 py-2 px-3 rounded-lg text-xs font-semibold ${getPaymentStatusColor(paymentStatus)}`}>
+            <span className={`flex w-full items-center justify-center gap-1 rounded-lg px-3 py-2 text-xs font-semibold @4xl/main:w-auto ${getPaymentStatusColor(paymentStatus)}`}>
               {translatePaymentStatus(paymentStatus)}
             </span>
             <Link
               href={`/orders/edit/${order.orderId}`}
-              className="flex items-center gap-1 py-2 px-3 rounded-lg text-xs font-semibold text-black border border-gray-300 hover:bg-gray-50"
+              className="flex w-full items-center justify-center gap-1 rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold text-black hover:bg-gray-50 @4xl/main:w-auto"
               title={tDetails('editButtonTitle')}
             >
-              <Pencil className="w-3 h-3" /> {tDetails('editButton')}
+              <Pencil className="h-3 w-3" /> {tDetails('editButton')}
             </Link>
 
           </div>
@@ -576,7 +576,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
         </div>
 
         {/* Row 2: Total Order and Delivery Service side by side */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        <div className="mb-4 grid grid-cols-1 gap-4 @4xl/main:grid-cols-2">
           
           {/* Total Order Section */}
           <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
@@ -1151,10 +1151,10 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
         </div>
 
         {/* Row 3: Order Items and Order Summary side by side (3:4 ratio) */}
-        <div className="grid grid-cols-1 lg:grid-cols-7 gap-4">
+        <div className="grid grid-cols-1 gap-4 @5xl/main:grid-cols-7">
           
           {/* Order Items Section (3 columns) */}
-          <div className="lg:col-span-3 bg-white rounded-lg border border-[#e6e6e6] p-4">
+          <div className="@5xl/main:col-span-3 bg-white rounded-lg border border-[#e6e6e6] p-4">
             <h2 className="text-md font-semibold text-black mb-4">{tDetails('orderItems.title')}</h2>
             <div className="space-y-2">
               {localItems.slice(0, 4).map((item, index) => (
@@ -1283,7 +1283,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
           </div>
 
           {/* Order Summary Section (4 columns) */}
-          <div className="lg:col-span-4 bg-white rounded-lg border border-[#e6e6e6] p-4">
+          <div className="@5xl/main:col-span-4 bg-white rounded-lg border border-[#e6e6e6] p-4">
             <h2 className="text-md font-semibold text-black mb-4">{tDetails('orderSummary.title')}</h2>
 
             {/* Summary Cards */}

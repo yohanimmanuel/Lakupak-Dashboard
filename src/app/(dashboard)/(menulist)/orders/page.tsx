@@ -201,44 +201,44 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-4">
-      <div className="w-full mx-auto">
+    <div className="flex min-h-full w-full min-w-0 flex-col bg-gradient-to-b from-gray-50 to-white p-4">
+      <div className="w-full min-w-0">
         {/* Header Section */}
         <OrdersTourBanner />
 
         <div className="mb-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div data-tour="orders-page-header">
-              <h1 className="text-2xl font-bold text-gray-900">{tList('title')}</h1>
+          <div className="flex min-w-0 flex-col gap-4 @5xl/main:flex-row @5xl/main:items-center @5xl/main:justify-between">
+            <div className="min-w-0" data-tour="orders-page-header">
+              <h1 className="truncate text-2xl font-bold text-gray-900">{tList('title')}</h1>
             </div>
-            <div className="flex flex-wrap items-center gap-3" data-tour="orders-actions">
+            <div className="flex w-full min-w-0 flex-col gap-2 @4xl/main:flex-row @4xl/main:flex-wrap @4xl/main:items-center @5xl/main:w-auto" data-tour="orders-actions">
               <button
                 onClick={fetchOrders}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm"
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-gray-100 @4xl/main:w-auto"
                 disabled={loading}
               >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                 {tList('refresh')}
               </button>
               <button
                 onClick={async () => { await fetchArchived(); setShowArchivedModal(true); }}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm"
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-gray-100 @4xl/main:w-auto"
               >
-                <Archive className="w-4 h-4" />
+                <Archive className="h-4 w-4" />
                 {tList('archivedOrders')}
               </button>
               <button
                 onClick={exportOrdersXLSX}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm"
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-gray-100 @4xl/main:w-auto"
               >
-                <Download className="w-4 h-4" />
+                <Download className="h-4 w-4" />
                 {tList('exportData')}
               </button>
               <Link
                 href="/orders/new"
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#0a61d7] rounded-lg hover:bg-[#0851b8] transition-colors"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#0851b8] @4xl/main:w-auto"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="h-4 w-4" />
                 {tList('createOrder')}
               </Link>
             </div>

@@ -260,7 +260,7 @@ export default function ClientMatchingQueue() {
   ];
 
   return (
-    <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
+    <div className="flex min-h-full w-full min-w-0 flex-col bg-gradient-to-b from-gray-50 to-white p-4">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-4">
         <div>
           <h1 className="text-2xl font-bold text-black mb-2">{t('title')}</h1>
@@ -292,7 +292,7 @@ export default function ClientMatchingQueue() {
 
       {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">{error}</div>}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+      <div className="mb-4 grid grid-cols-1 gap-3 @3xl/main:grid-cols-2 @5xl/main:grid-cols-4">
         {statCards.map((card) => (
           <div key={card.key} className="flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6]">
             <div className="flex items-center gap-4 border-b border-[#e6e6e6] pb-4">

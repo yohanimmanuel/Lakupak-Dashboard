@@ -165,20 +165,20 @@ export default function ProspectsBoard() {
   if (loading) return <SkeletonTablePage statCards={0} rows={8} />;
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-gradient-to-b from-gray-50 to-white p-4">
-      <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <h2 className="text-2xl font-bold text-black">{t('title')}</h2>
-        <div className="flex flex-wrap items-center gap-2">
+    <div className="flex min-h-full w-full min-w-0 flex-col bg-gradient-to-b from-gray-50 to-white p-4">
+      <div className="mb-4 flex min-w-0 flex-col gap-4 @5xl/main:flex-row @5xl/main:items-center @5xl/main:justify-between">
+        <h2 className="min-w-0 truncate text-2xl font-bold text-black">{t('title')}</h2>
+        <div className="flex w-full min-w-0 flex-col gap-2 @4xl/main:flex-row @4xl/main:flex-wrap @4xl/main:items-center @5xl/main:w-auto">
           <button
             type="button"
-            className="flex items-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-gray-100"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-gray-100 @4xl/main:w-auto"
             onClick={exportRows}
           >
             <Download className="h-4 w-4" /> {t('exportData')}
           </button>
           <button
             type="button"
-            className="flex items-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#084ba6]"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#084ba6] @4xl/main:w-auto"
             onClick={() => router.push('/sales/prospects/new')}
           >
             <Plus className="h-4 w-4" /> {t('create')}
@@ -187,9 +187,9 @@ export default function ProspectsBoard() {
       </div>
       {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
-      <div className="mx-auto mt-3 w-full rounded-lg border border-[#e6e6e6] bg-white p-4">
-        <div className="mb-4 flex flex-col items-start gap-2 sm:flex-row sm:items-center">
-          <div className="relative w-full shrink-0 md:w-64">
+      <div className="mx-auto mt-3 w-full min-w-0 rounded-lg border border-[#e6e6e6] bg-white p-4">
+        <div className="mb-4 flex w-full min-w-0 flex-col gap-3">
+          <div className="relative w-full">
             <input
               type="text"
               placeholder={t('searchPlaceholder')}
@@ -203,17 +203,17 @@ export default function ProspectsBoard() {
             />
             <Search className="absolute left-3 top-2 h-5 w-5 text-gray-400" />
           </div>
-          <div className="relative">
+          <div className="relative w-full @4xl/main:w-auto">
             <button
               type="button"
-              className="flex items-center gap-1 whitespace-nowrap rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              className="flex w-full items-center justify-between gap-1 whitespace-nowrap rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 @4xl/main:w-auto @4xl/main:justify-start"
               onClick={() => setShowRegionDropdown((open) => !open)}
             >
-              {regionFilter === 'all' ? t('allRegions') : regionFilter}
+              <span>{regionFilter === 'all' ? t('allRegions') : regionFilter}</span>
               <ChevronDown className="ml-1 h-4 w-4 text-gray-500" />
             </button>
             {showRegionDropdown && (
-              <div className="absolute left-0 z-20 mt-2 max-h-64 w-52 overflow-y-auto rounded-lg border border-[#e6e6e6] bg-white shadow">
+              <div className="absolute left-0 right-0 z-20 mt-2 max-h-64 overflow-y-auto rounded-lg border border-[#e6e6e6] bg-white shadow @4xl/main:right-auto @4xl/main:w-52">
                   <button
                     type="button"
                     onClick={() => {
@@ -338,7 +338,9 @@ export default function ProspectsBoard() {
                       <td className="px-4 py-3 text-black">{row.phone}</td>
                       <td className="px-4 py-3 text-gray-600">{row.region || t('noRegion')}</td>
                       <td className="px-4 py-3 text-gray-600">{buyerTypeLabel(row.buyerType) || t('noBuyerType')}</td>
-                      <td className="max-w-[240px] whitespace-normal px-4 py-3 text-gray-600">{row.address}</td>
+                      <td className="max-w-[240px] truncate px-4 py-3 text-gray-600" title={row.address}>
+                        {row.address}
+                      </td>
                       <td className="px-4 py-3 text-center">
                         <div className="flex items-center justify-center gap-2">
                           <button

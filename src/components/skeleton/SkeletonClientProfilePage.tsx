@@ -31,7 +31,7 @@ function InfoCard({ rows = 4 }: { rows?: number }) {
 
 export function SkeletonClientProfilePage() {
   return (
-    <div className="p-4 w-full min-h-screen flex items-start justify-center bg-gradient-to-b from-gray-50 to-white">
+    <div className="flex min-h-full w-full min-w-0 flex-col items-start justify-center bg-gradient-to-b from-gray-50 to-white p-4">
       <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6] p-4 flex flex-col gap-4">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
@@ -58,7 +58,7 @@ export function SkeletonClientProfilePage() {
         </div>
 
         {/* Info sections */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 @4xl/main:grid-cols-2 gap-4">
           <InfoCard rows={5} />
           <InfoCard rows={4} />
         </div>

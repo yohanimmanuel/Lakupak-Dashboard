@@ -84,7 +84,7 @@ function PieChartBlock() {
 
 export function SkeletonAnalyticsPage() {
   return (
-    <div className="w-full p-4 space-y-3 bg-gradient-to-b from-gray-50 to-white min-h-screen">
+    <div className="flex min-h-full w-full min-w-0 flex-col space-y-3 bg-gradient-to-b from-gray-50 to-white p-4">
       {/* Page header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
         <div>
@@ -97,16 +97,16 @@ export function SkeletonAnalyticsPage() {
       </div>
 
       {/* Metric cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 gap-3 @3xl/main:grid-cols-2 @5xl/main:grid-cols-4">
         {[...Array(4)].map((_, i) => <MetricCard key={i} />)}
       </div>
 
       {/* Two side-by-side charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-16 gap-3">
-        <div className="lg:col-span-10">
+      <div className="grid grid-cols-1 gap-3 @5xl/main:grid-cols-16">
+        <div className="@5xl/main:col-span-10">
           <ChartBlock tall />
         </div>
-        <div className="lg:col-span-6">
+        <div className="@5xl/main:col-span-6">
           <PieChartBlock />
         </div>
       </div>

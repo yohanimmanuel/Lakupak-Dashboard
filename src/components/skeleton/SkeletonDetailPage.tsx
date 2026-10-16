@@ -31,7 +31,7 @@ function Section({ label = true, rows = 3 }: { label?: boolean; rows?: number })
 
 export function SkeletonDetailPage() {
   return (
-    <div className="w-full p-4 space-y-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
+    <div className="flex min-h-full w-full min-w-0 flex-col space-y-4 bg-gradient-to-b from-gray-50 to-white p-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -64,7 +64,7 @@ export function SkeletonDetailPage() {
       </div>
 
       {/* Detail sections in 2-column layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 @4xl/main:grid-cols-2 gap-4">
         <Section rows={4} />
         <Section rows={4} />
       </div>

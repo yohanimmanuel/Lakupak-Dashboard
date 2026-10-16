@@ -248,8 +248,8 @@ export function WorkflowBuilderShell({
         </div>
       ) : null}
 
-      <div className="absolute left-3 right-3 top-3 z-30 flex flex-col gap-3 rounded-xl border border-[#e6e6e6] bg-white p-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 items-center gap-3">
+      <div className="absolute left-3 right-3 top-3 z-30 overflow-x-auto rounded-xl border border-[#e6e6e6] bg-white p-2">
+        <div className="flex min-w-max items-center gap-2">
           <button
             type="button"
             onClick={() => router.push('/automation')}
@@ -258,7 +258,7 @@ export function WorkflowBuilderShell({
             <ArrowLeft className="h-4 w-4" />
             {tBuilder('back')}
           </button>
-          <div className="flex min-w-0 items-center gap-2">
+          <div className="flex max-w-[14rem] min-w-0 items-center gap-2">
             <h1 className="truncate text-sm font-bold text-black">
               {title || tBuilder('untitled')}
             </h1>
@@ -274,10 +274,9 @@ export function WorkflowBuilderShell({
               {translateStatus(status)}
             </span>
           </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+          <span className="mx-0.5 h-6 w-px shrink-0 bg-[#e6e6e6]" aria-hidden />
           {savedLabel && (
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500">
+            <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-gray-500">
               <RefreshCw className="h-3.5 w-3.5 text-green-600" />
               {savedLabel}
             </span>
@@ -293,13 +292,13 @@ export function WorkflowBuilderShell({
               setAiOpen(true);
             }}
           />
-          <span className="mx-0.5 hidden h-6 w-px bg-[#e6e6e6] sm:inline-block" aria-hidden />
+          <span className="mx-0.5 h-6 w-px shrink-0 bg-[#e6e6e6]" aria-hidden />
           {onUndoAction && (
             <button
               type="button"
               onClick={handleUndo}
               disabled={!canUndo || busy}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-xs font-medium text-black hover:bg-gray-50 disabled:opacity-50"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-xs font-medium text-black hover:bg-gray-50 disabled:opacity-50"
               title={undoShortcutTitle}
             >
               {toolbarBusy === 'undo' ? (
@@ -311,25 +310,25 @@ export function WorkflowBuilderShell({
             </button>
           )}
           {showTestRun && onTestRunAction && (
-              <button
-                type="button"
-                onClick={() => void handleTestRun()}
-                disabled={busy}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-xs font-medium text-black hover:bg-gray-50 disabled:opacity-50"
-              >
-                {toolbarBusy === 'test' ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Play className="h-4 w-4" />
-                )}
-                {tBuilder('testRun')}
-              </button>
+            <button
+              type="button"
+              onClick={() => void handleTestRun()}
+              disabled={busy}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-xs font-medium text-black hover:bg-gray-50 disabled:opacity-50"
+            >
+              {toolbarBusy === 'test' ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Play className="h-4 w-4" />
+              )}
+              {tBuilder('testRun')}
+            </button>
           )}
           <button
             type="button"
             onClick={() => void handleSaveDraft()}
             disabled={busy}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-xs font-medium text-black hover:bg-gray-50 disabled:opacity-50"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-xs font-medium text-black hover:bg-gray-50 disabled:opacity-50"
           >
             {toolbarBusy === 'save' ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -342,7 +341,7 @@ export function WorkflowBuilderShell({
             type="button"
             onClick={() => void handlePause()}
             disabled={busy}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-xs font-medium text-black hover:bg-gray-50 disabled:opacity-50"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-xs font-medium text-black hover:bg-gray-50 disabled:opacity-50"
           >
             {toolbarBusy === 'pause' ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -355,7 +354,7 @@ export function WorkflowBuilderShell({
             type="button"
             onClick={() => void handleActivate()}
             disabled={busy}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[#0a61d7] px-3 py-2 text-xs font-semibold text-white hover:bg-[#084ba6] disabled:opacity-50"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[#0a61d7] px-3 py-2 text-xs font-semibold text-white hover:bg-[#084ba6] disabled:opacity-50"
           >
             {toolbarBusy === 'activate' ? (
               <Loader2 className="h-4 w-4 animate-spin text-white" />

@@ -334,7 +334,7 @@ export default function CreateFleetPage() {
   };
 
   return (
-    <div className="p-4 space-y-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
+    <div className="flex min-h-full w-full min-w-0 flex-col space-y-4 bg-gradient-to-b from-gray-50 to-white p-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button

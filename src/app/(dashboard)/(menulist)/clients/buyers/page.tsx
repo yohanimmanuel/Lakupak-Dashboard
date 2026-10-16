@@ -286,36 +286,36 @@ export default function BuyersPage() {
   }
 
   return (
-    <div className="p-4 w-full min-h-screen flex flex-col items-right bg-gradient-to-b from-gray-50 to-white">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-        <div>
-          <h2 className="text-2xl font-bold text-black mb-2">{tBuyers('title')}</h2>
+    <div className="flex min-h-full w-full min-w-0 flex-col bg-gradient-to-b from-gray-50 to-white p-4">
+      <div className="mb-4 flex min-w-0 flex-col gap-4 @5xl/main:flex-row @5xl/main:items-center @5xl/main:justify-between">
+        <div className="min-w-0">
+          <h2 className="mb-2 truncate text-2xl font-bold text-black">{tBuyers('title')}</h2>
         </div>
-        <div className="flex gap-2 items-center">
+        <div className="flex w-full min-w-0 flex-col gap-2 @4xl/main:flex-row @4xl/main:flex-wrap @4xl/main:items-center @5xl/main:w-auto">
           <button
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-gray-100 @4xl/main:w-auto"
             onClick={fetchBuyers}
             disabled={loading || isSlidingIn}
           >
-            <RefreshCw className={`w-4 h-4 ${loading || isSlidingIn ? 'animate-spin' : ''}`} /> {tShared('refresh')}
+            <RefreshCw className={`h-4 w-4 ${loading || isSlidingIn ? 'animate-spin' : ''}`} /> {tShared('refresh')}
           </button>
           <button
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-gray-100 @4xl/main:w-auto"
             onClick={() => setShowImportModal(true)}
           >
-            <Upload className="w-4 h-4" /> {tShared('importData')}
+            <Upload className="h-4 w-4" /> {tShared('importData')}
           </button>
           <button
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-gray-100 @4xl/main:w-auto"
             onClick={() => document.getElementById('buyer-table-export-xlsx-trigger')?.click()}
           >
-            <Download className="w-4 h-4" /> {tShared('exportData')}
+            <Download className="h-4 w-4" /> {tShared('exportData')}
           </button>
           <Link
             href="/clients/buyers/buyer-matching"
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-gray-100 @4xl/main:w-auto"
           >
-            <GitCompare className="w-4 h-4" /> {tBuyers('matchBuyers')}
+            <GitCompare className="h-4 w-4" /> {tBuyers('matchBuyers')}
             {pendingMatches > 0 && (
               <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-[#0a61d7] px-1.5 py-0.5 text-[10px] font-bold text-white">
                 {pendingMatches > 99 ? '99+' : pendingMatches}
@@ -323,10 +323,10 @@ export default function BuyersPage() {
             )}
           </Link>
           <button
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#084ba6] @4xl/main:w-auto"
             onClick={() => setShowAddModal(true)}
           >
-            <Plus className="w-4 h-4" /> {tBuyers('addBuyer')}
+            <Plus className="h-4 w-4" /> {tBuyers('addBuyer')}
           </button>
         </div>
       </div>

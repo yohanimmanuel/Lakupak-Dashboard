@@ -39,7 +39,7 @@ function TableRow() {
 export function SkeletonTablePage({ rows = 8, statCards = 4 }: { rows?: number; statCards?: number }) {
   return (
     <div
-      className="w-full p-4 space-y-5 bg-gradient-to-b from-gray-50 to-white min-h-screen"
+      className="flex min-h-full w-full min-w-0 flex-col space-y-5 bg-gradient-to-b from-gray-50 to-white p-4"
       role="status"
       aria-live="polite"
       aria-busy="true"
@@ -58,7 +58,7 @@ export function SkeletonTablePage({ rows = 8, statCards = 4 }: { rows?: number; 
 
       {/* Stat cards */}
       {statCards > 0 && (
-        <div className={`grid gap-3 ${statCards === 4 ? 'grid-cols-2 lg:grid-cols-4' : statCards === 3 ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2'}`}>
+        <div className={`grid gap-3 ${statCards === 4 ? 'grid-cols-1 @3xl/main:grid-cols-2 @5xl/main:grid-cols-4' : statCards === 3 ? 'grid-cols-1 @3xl/main:grid-cols-3' : 'grid-cols-1 @3xl/main:grid-cols-2'}`}>
           {Array.from({ length: statCards }).map((_, i) => <StatCard key={i} />)}
         </div>
       )}

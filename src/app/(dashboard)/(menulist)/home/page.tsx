@@ -1989,26 +1989,26 @@ const supplierInsights = useMemo(() => {
                         key={product.productId}
                         className="flex flex-col gap-3 rounded-lg border border-[#e6e6e6] bg-white p-4"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="w-6 text-xs font-semibold text-gray-500">
+                        <div className="flex min-w-0 flex-wrap items-center gap-3">
+                          <div className="w-6 shrink-0 text-xs font-semibold text-gray-500">
                             {product.rank}.
                           </div>
-                          <div className="flex items-center gap-3">
+                          <div className="flex min-w-0 items-center gap-3">
                             {product.image ? (
                               <Image
                                 src={product.image}
                                 alt={product.productName}
                                 width={48}
                                 height={48}
-                                className="h-12 w-12 rounded-lg border border-[#e6e6e6] object-cover"
+                                className="h-12 w-12 shrink-0 rounded-lg border border-[#e6e6e6] object-cover"
                               />
                             ) : (
-                              <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-[#e6e6e6] bg-[#f7faff]">
+                              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-[#e6e6e6] bg-[#f7faff]">
                                 <Package className="h-5 w-5 text-[#0a61d7]" />
                               </div>
                             )}
-                            <div>
-                              <p className="text-sm font-semibold text-black">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-black">
                                 {product.productName}
                               </p>
                               <p className="text-xs text-gray-500">
@@ -2016,7 +2016,7 @@ const supplierInsights = useMemo(() => {
                               </p>
                             </div>
                           </div>
-                          <div className="ml-auto flex items-center gap-6 text-sm">
+                          <div className="ml-auto flex flex-wrap items-center gap-4 text-sm @sm:gap-6">
                             <div className="text-right">
                               <p className="text-xs text-gray-500">{widgetText('products', 'orderVolume')}</p>
                               <p className="text-sm font-semibold text-black">
@@ -2068,7 +2068,7 @@ const supplierInsights = useMemo(() => {
           ),
           content: (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 @sm:grid-cols-2 @lg:grid-cols-3">
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">{widgetText('buyers', 'totalBuyers')}</p>
                   <p className="mt-1 text-xl font-semibold text-black">
@@ -2177,7 +2177,7 @@ const supplierInsights = useMemo(() => {
           ),
           content: (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 @sm:grid-cols-2 @lg:grid-cols-3">
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">{widgetText('suppliers', 'totalSuppliers')}</p>
                   <p className="mt-1 text-xl font-semibold text-black">
@@ -2285,7 +2285,7 @@ const supplierInsights = useMemo(() => {
           ),
           content: (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-1 gap-3 @sm:grid-cols-2 @xl:grid-cols-4">
                 {countCards.map((card) => (
                   <div key={card.key} className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                     <p className="text-xs text-gray-500">{card.label}</p>
@@ -2371,7 +2371,7 @@ const supplierInsights = useMemo(() => {
           ),
           content: (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 @sm:grid-cols-2 @lg:grid-cols-3">
                 <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
                   <p className="text-xs text-gray-500">{widgetText('inventory', 'totalProducts')}</p>
                   <p className="mt-1 text-2xl font-semibold text-black">
@@ -2482,7 +2482,7 @@ const supplierInsights = useMemo(() => {
               </div>
               {hasTeams ? (
                 <>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 gap-2 @xs:grid-cols-3">
                     <div className="rounded bg-gray-50 p-2 text-center">
                       <p className="text-lg font-semibold text-black">{summary.teams.length}</p>
                       <p className="text-[10px] uppercase text-gray-500">{widgetText('sales', 'teams')}</p>
@@ -2563,7 +2563,7 @@ const supplierInsights = useMemo(() => {
   const renderedWidgets: React.ReactNode =
     activeWidgets.length === 0
       ? (
-          <div className="col-span-1 sm:col-span-2 flex min-h-[320px] flex-col items-center justify-center rounded-lg bg-white text-center">
+          <div className="col-span-1 @4xl/main:col-span-2 flex min-h-[320px] flex-col items-center justify-center rounded-lg bg-white text-center">
             <Settings2 className="mb-3 h-8 w-8 text-[#0a61d7]" />
             <p className="text-sm font-semibold text-black">
               {t('noWidgetsSelected')}
@@ -2591,34 +2591,34 @@ const supplierInsights = useMemo(() => {
               onDrop={(event) => handleDrop(event, id)}
               onDragOver={(event) => event.preventDefault()}
               aria-grabbed={draggingWidget === id}
-              className={`${UNIFORM_WIDGET_LAYOUT} rounded-lg transition-all ${
+              className={`${UNIFORM_WIDGET_LAYOUT} min-w-0 rounded-lg transition-all ${
                 hoverWidget === id ? 'ring-2 ring-[#0a61d7]/60' : ''
               } ${draggingWidget === id ? 'opacity-75' : 'opacity-100'}`}
             >
-              <article className="flex h-full flex-col rounded-lg border border-[#e6e6e6] bg-white">
-                <div className="flex items-start justify-between gap-3 border-b border-[#e6e6e6] px-4 py-4">
-                  <div className="flex items-start gap-3">
+              <article className="@container flex h-full min-w-0 flex-col overflow-hidden rounded-lg border border-[#e6e6e6] bg-white">
+                <div className="flex min-w-0 items-start justify-between gap-3 border-b border-[#e6e6e6] px-4 py-4">
+                  <div className="flex min-w-0 items-start gap-3">
                     <button
                       type="button"
-                      className="mt-0.5 text-gray-400 hover:text-[#0a61d7] focus:outline-none"
+                      className="mt-0.5 shrink-0 text-gray-400 hover:text-[#0a61d7] focus:outline-none"
                       aria-label={tCommon('dragToReorder')}
                     >
                       <GripVertical className="h-4 w-4" />
                     </button>
-                    <div className="flex items-start gap-2">
-                      <div className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-md bg-[#f7faff] text-[#0a61d7]">
+                    <div className="flex min-w-0 items-start gap-2">
+                      <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#f7faff] text-[#0a61d7]">
                         <Icon className="h-4 w-4" />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <h2 className="text-sm font-semibold text-black">
                           {widgetName(id)}
                         </h2>
                       </div>
                     </div>
                   </div>
-                  {action ? <div>{action}</div> : null}
+                  {action ? <div className="shrink-0">{action}</div> : null}
                 </div>
-                <div className="p-4">{content}</div>
+                <div className="min-w-0 overflow-hidden p-4">{content}</div>
               </article>
             </div>
           );
@@ -2630,7 +2630,7 @@ const supplierInsights = useMemo(() => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-6">
+      <div className="flex min-h-full w-full min-w-0 flex-col bg-gradient-to-b from-gray-50 to-white p-6">
         <div className="mx-auto max-w-3xl">
           <div className="rounded-lg border border-rose-200 bg-rose-50 p-6">
             <h2 className="text-lg font-semibold text-rose-700">
@@ -2731,8 +2731,8 @@ const supplierInsights = useMemo(() => {
         </div>
       )}
 
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-4">
-        <div className="mx-auto flex flex-col gap-3">
+      <div className="flex min-h-full w-full min-w-0 flex-col bg-gradient-to-b from-gray-50 to-white p-4">
+        <div className="flex min-w-0 w-full flex-col gap-3">
           <header className="flex flex-wrap items-center justify-between gap-4 mb-2">
             <div>
               <h1 className="text-2xl font-bold text-black mb-1">{t('title')}</h1>
@@ -2749,7 +2749,7 @@ const supplierInsights = useMemo(() => {
           </header>
 
           {statCards.length > 0 && (
-            <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <section className="grid grid-cols-1 gap-3 @3xl/main:grid-cols-2 @5xl/main:grid-cols-4">
               {statCards.map((card) => (
                 <AnalyticsMetricCard
                   key={card.id}
@@ -2767,7 +2767,7 @@ const supplierInsights = useMemo(() => {
           )}
 
           <section
-            className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+            className="grid grid-cols-1 gap-3 @4xl/main:grid-cols-2"
             onDragOver={(event) => event.preventDefault()}
             onDrop={handleDropToEnd}
           >

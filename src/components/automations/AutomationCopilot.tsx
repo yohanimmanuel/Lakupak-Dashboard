@@ -18,6 +18,7 @@ import type { WorkflowCanvasEdit, WorkflowFieldUpdate, WorkflowPlanStep } from '
 import { readCopilotWorkflowLink, writeCopilotWorkflowLink } from '@/lib/lakuAi/copilotWorkflowLink';
 
 const PILL_IDS = ['margins', 'orders', 'buyers', 'products', 'winback'] as const;
+const DOCK_PILL_IDS = ['margins', 'orders', 'buyers'] as const;
 
 const CARDS = [
   { id: 'margins', kind: 'ask', icon: TrendingUp },
@@ -131,15 +132,14 @@ export function AskAiNavButton({
   onPressAction,
 }: {
   pressed?: boolean;
-  onPressAction?: () => void;
+  onPressAction: () => void;
 }) {
-  const router = useRouter();
   const tPage = useTranslations('dashboard.automation.page');
   return (
     <button
       type="button"
-      onClick={() => (onPressAction ? onPressAction() : router.push('/copilot'))}
-      className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium hover:bg-gray-100 ${
+      onClick={onPressAction}
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium hover:bg-gray-100 ${
         pressed ? 'border-[#0a61d7] bg-[#f7faff] text-[#0a61d7]' : 'border-[#e6e6e6] bg-white text-black'
       }`}
     >
@@ -158,6 +158,7 @@ export default function AutomationCopilot({
   onApplyWorkflowPlanAction,
   canvasSteps = null,
   initialConversationId = null,
+  dockEmptyMessage = null,
 }: {
   active?: boolean;
   surface?: 'page' | 'dock';
@@ -170,6 +171,8 @@ export default function AutomationCopilot({
   canvasSteps?: WorkflowPlanStep[] | null;
   /** Conversation to reopen, shared with the Copilot page. */
   initialConversationId?: string | null;
+  /** Dock empty-state hint. Falls back to the automation copilot copy. */
+  dockEmptyMessage?: string | null;
 }) {
   const t = useTranslations('dashboard.automation.copilot');
   const locale = useLocale();
@@ -200,9 +203,11 @@ export default function AutomationCopilot({
   const [actionError, setActionError] = useState('');
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [inlineRename, setInlineRename] = useState(false);
   const [deletingChat, setDeletingChat] = useState<HistoryRow | null>(null);
   const renamingRef = useRef(renamingId);
   const deletingRef = useRef(deletingChat);
+  const headerRenameRef = useRef<HTMLInputElement>(null);
   renamingRef.current = renamingId;
   deletingRef.current = deletingChat;
   const hour = new Date().getHours();
@@ -274,6 +279,7 @@ export default function AutomationCopilot({
     setError('');
     setActionError('');
     setHistoryMenu(false);
+    cancelRename();
     if (surface === 'dock' && !automationId) clearPendingBuilderChat();
   };
 
@@ -333,6 +339,7 @@ export default function AutomationCopilot({
 
   const beginRename = () => {
     if (!chatAction || actionBusy) return;
+    setInlineRename(false);
     setRenamingId(chatAction.id);
     setRenameValue(chatAction.title);
     setActionError('');
@@ -340,15 +347,37 @@ export default function AutomationCopilot({
     setHistoryMenu(true);
   };
 
+  const beginHeaderRename = () => {
+    if (!conversationId || actionBusy) return;
+    const current = history.find((item) => item.id === conversationId);
+    if (!current) return;
+    setInlineRename(true);
+    setRenamingId(conversationId);
+    setRenameValue(current.title);
+    setActionError('');
+    setHistoryMenu(false);
+    window.setTimeout(() => headerRenameRef.current?.select(), 0);
+  };
+
+  const cancelRename = () => {
+    setRenamingId(null);
+    setInlineRename(false);
+    setRenameValue('');
+  };
+
   const saveRename = async () => {
     if (!renamingId || actionBusy) return;
     const next = renameValue.replace(/\s+/g, ' ').trim();
-    if (!next) return;
-    const current = history.find((item) => item.id === renamingId);
-    if (next === current?.title) {
-      setRenamingId(null);
+    if (!next) {
+      cancelRename();
       return;
     }
+    const current = history.find((item) => item.id === renamingId);
+    if (next === current?.title) {
+      cancelRename();
+      return;
+    }
+    const fromInline = inlineRename;
     setActionBusy(true);
     setActionError('');
     try {
@@ -358,8 +387,8 @@ export default function AutomationCopilot({
         body: JSON.stringify({ conversationId: renamingId, title: next }),
       });
       if (!response.ok) throw new Error('failed');
-      setRenamingId(null);
-      setHistoryMenu(true);
+      cancelRename();
+      if (!fromInline) setHistoryMenu(true);
       await refreshHistory();
     } catch {
       setActionError(t('history.actionFailed'));
@@ -699,6 +728,8 @@ export default function AutomationCopilot({
 
   const pinnedHistory = history.filter((item) => item.pinned);
   const recentHistory = history.filter((item) => !item.pinned);
+  const activeChat = conversationId ? history.find((item) => item.id === conversationId) : null;
+  const headerTitle = activeChat?.title ?? t('history.newChat');
 
   const renderHistoryRow = (item: HistoryRow) => {
     const selected = item.id === conversationId;
@@ -833,14 +864,55 @@ export default function AutomationCopilot({
         </button>
       ) : null}
       {surface === 'dock' ? (
-        <header className="flex items-center justify-between gap-2 border-b border-[#e6e6e6] px-3 py-2">
-          <p className="truncate text-xs font-semibold text-black">{t('assistantLabel')}</p>
-          <div className="flex items-center gap-1">
+        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-[#e6e6e6] px-3 py-2.5">
+          {inlineRename && renamingId === conversationId ? (
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <input
+                ref={headerRenameRef}
+                value={renameValue}
+                disabled={actionBusy}
+                onChange={(event) => setRenameValue(event.target.value)}
+                onBlur={() => void saveRename()}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    void saveRename();
+                  }
+                  if (event.key === 'Escape') {
+                    event.preventDefault();
+                    cancelRename();
+                  }
+                }}
+                className="min-w-0 flex-1 rounded-md border border-[#0a61d7] bg-white px-2 py-1 text-xs font-semibold text-black outline-none ring-2 ring-[#0a61d7]/20"
+                aria-label={t('history.renameLabel')}
+                aria-invalid={Boolean(actionError)}
+              />
+              {actionError ? (
+                <p className="max-w-[9rem] shrink-0 text-xs text-red-700">{actionError}</p>
+              ) : null}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                if (conversationId) beginHeaderRename();
+              }}
+              className={`min-w-0 flex-1 truncate text-left text-xs font-semibold ${
+                conversationId
+                  ? 'text-gray-800 hover:text-[#0a61d7]'
+                  : 'cursor-default text-gray-700'
+              }`}
+              title={conversationId ? t('history.rename') : undefined}
+            >
+              {headerTitle}
+            </button>
+          )}
+          <div className="flex shrink-0 items-center gap-1">
             <div className="relative" ref={historyMenuRef}>
               <button
                 type="button"
                 onClick={() => setHistoryMenu((open) => !open)}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#e6e6e6] bg-white text-black hover:bg-gray-100"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100"
                 aria-label={t('history.title')}
                 aria-expanded={historyMenu}
               >
@@ -852,11 +924,19 @@ export default function AutomationCopilot({
                 </div>
               ) : null}
             </div>
+            <button
+              type="button"
+              onClick={startNewChat}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100"
+              aria-label={t('history.newChat')}
+            >
+              <Plus className="h-4 w-4" />
+            </button>
             {onCloseAction ? (
               <button
                 type="button"
                 onClick={onCloseAction}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#e6e6e6] bg-white text-black hover:bg-gray-100"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100"
                 aria-label={t('history.close')}
               >
                 <X className="h-4 w-4" />
@@ -865,10 +945,62 @@ export default function AutomationCopilot({
           </div>
         </header>
       ) : null}
-      <div ref={listRef} className="flex-1 overflow-y-auto">
+      <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto">
         <div className={`mx-auto flex w-full max-w-3xl flex-col px-4 ${empty ? 'min-h-full justify-center py-6' : 'py-6'}`}>
           {surface === 'dock' && empty && (
-            <p className="mb-4 text-center text-sm text-gray-600">{t('history.dockEmpty')}</p>
+            <div className="mx-auto w-full max-w-sm">
+              <h2 className="text-center text-base font-semibold tracking-tight text-black">
+                {firstName ? `${greeting}, ${firstName}` : greeting}
+              </h2>
+              <p className="mt-1 text-center text-xs font-medium text-gray-600">
+                {dockEmptyMessage ? (
+                  dockEmptyMessage
+                ) : (
+                  <>
+                    {askBefore}
+                    {askWord && <span className="text-[#0a61d7]">{askWord}</span>}
+                    {askAfter}
+                  </>
+                )}
+              </p>
+              <div className="mt-4 flex flex-wrap justify-center gap-1.5">
+                {DOCK_PILL_IDS.map((id) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className="rounded-full border border-[#e6e6e6] bg-[#f7faff] px-2.5 py-1 text-[11px] font-medium text-black hover:bg-white"
+                    onClick={() => void submit(t(`suggestions.${id}.prompt`))}
+                  >
+                    {t(`suggestions.${id}.label`)}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-4 space-y-2">
+                {CARDS.map((card) => {
+                  const Icon = card.icon;
+                  return (
+                    <button
+                      key={card.id}
+                      type="button"
+                      className="flex w-full items-start gap-2.5 rounded-xl border border-[#e6e6e6] bg-white px-3 py-2.5 text-left transition hover:border-[#c5daff] hover:bg-[#f7faff]"
+                      onClick={() => void submit(t(`suggestions.${card.id}.prompt`))}
+                    >
+                      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#eef4fc] text-[#0a61d7]">
+                        <Icon className="h-3.5 w-3.5" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-xs font-semibold text-black">
+                          {t(`suggestions.${card.id}.title`)}
+                        </span>
+                        <span className="mt-0.5 block text-[11px] leading-4 text-gray-500">
+                          {t(`suggestions.${card.id}.summary`)}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           )}
           {surface === 'page' && empty && (
             <div className="mx-auto mb-4 w-full max-w-2xl text-center">
@@ -1017,7 +1149,7 @@ export default function AutomationCopilot({
         </div>,
         document.body,
       ) : null}
-      {renamingId && typeof document !== 'undefined'
+      {renamingId && !inlineRename && typeof document !== 'undefined'
         ? createPortal(
         <div
           data-keep-history
@@ -1028,7 +1160,7 @@ export default function AutomationCopilot({
           onMouseDown={(event) => event.stopPropagation()}
           onKeyDown={(event) => {
             if (event.key === 'Escape' && !actionBusy) {
-              setRenamingId(null);
+              cancelRename();
               setHistoryMenu(true);
             }
           }}
@@ -1044,7 +1176,7 @@ export default function AutomationCopilot({
               type="button"
               className="absolute right-4 top-4 z-10 rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
               onClick={() => {
-                setRenamingId(null);
+                cancelRename();
                 setHistoryMenu(true);
               }}
               disabled={actionBusy}

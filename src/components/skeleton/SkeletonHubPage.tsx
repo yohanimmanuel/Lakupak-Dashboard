@@ -24,7 +24,7 @@ function NavCard() {
 
 export function SkeletonHubPage({ cards = 3 }: { cards?: number }) {
   return (
-    <div className="w-full p-4 space-y-5 bg-gradient-to-b from-gray-50 to-white min-h-screen">
+    <div className="flex min-h-full w-full min-w-0 flex-col space-y-5 bg-gradient-to-b from-gray-50 to-white p-4">
       {/* Header */}
       <div>
         <Skeleton className="h-7 w-40" />
@@ -41,7 +41,7 @@ export function SkeletonHubPage({ cards = 3 }: { cards?: number }) {
       </div>
 
       {/* Navigation cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 @3xl/main:grid-cols-2 @5xl/main:grid-cols-3 gap-4">
         {Array.from({ length: cards }).map((_, i) => <NavCard key={i} />)}
       </div>
     </div>

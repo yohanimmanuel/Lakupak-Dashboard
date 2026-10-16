@@ -15,6 +15,7 @@ import { fetchGraphQL } from '@/lib/graphqlClient';
 import { DashboardSearchBar } from '@/components/dashboard/DashboardSearchBar';
 import { useTranslations } from 'next-intl';
 import { subscribeGlanceRefresh } from '@/lib/navbar/glanceRefresh';
+import { useLakuAiPanelOptional } from '@/components/lakuAi/LakuAiPanelContext';
 
 const DROPDOWN_WIDTH = 300;
 
@@ -172,7 +173,8 @@ const Navbar = () => {
   const [hasMounted, setHasMounted] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
-  const aiOpen = pathname === '/copilot' || pathname?.startsWith('/copilot/') === true;
+  const lakuAiPanel = useLakuAiPanelOptional();
+  const aiOpen = Boolean(lakuAiPanel?.open);
 
   useEffect(() => {
     setHasMounted(true);
@@ -599,8 +601,8 @@ const Navbar = () => {
           </button>
         </div>
 
-        <Link
-          href="/copilot"
+        <button
+          type="button"
           className={`w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition border ${
             aiOpen
               ? 'bg-[#0a61d7] border-[#0a61d7] text-white'
@@ -608,15 +610,17 @@ const Navbar = () => {
           }`}
           aria-label={tNavbar('aiAgentTitle')}
           title={tNavbar('aiAgentTitle')}
+          aria-pressed={aiOpen}
           onClick={() => {
             setShowReviewDropdown(false);
             setShowAppsDropdown(false);
             setShowNotifDropdown(false);
             setShowDropdown(false);
+            lakuAiPanel?.togglePanel();
           }}
         >
           <Sparkles className="h-4 w-4" />
-        </Link>
+        </button>
 
         {/* Review queue */}
         <button

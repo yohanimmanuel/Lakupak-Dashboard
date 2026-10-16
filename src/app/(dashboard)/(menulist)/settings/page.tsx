@@ -58,13 +58,13 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="w-full mx-auto bg-gradient-to-b from-gray-50 to-white min-h-screen">
+    <div className="flex min-h-full w-full min-w-0 flex-col bg-gradient-to-b from-gray-50 to-white">
       <div className="p-4 border-b border-gray-200 bg-white">
         <h1 className="text-2xl font-bold text-black mb-2">{tPage('title')}</h1>
       </div>
 
-      <div className="flex">
-        <div className="w-60 bg-white border-r border-gray-200 min-h-screen">
+      <div className="flex min-h-0 min-w-0 flex-1">
+        <div className="w-60 shrink-0 border-r border-gray-200 bg-white">
           <nav className="p-4">
             <div className="space-y-1">
               {settingsTabs.map((tab) => (
@@ -85,7 +85,7 @@ export default function SettingsPage() {
           </nav>
         </div>
 
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           {renderContent()}
         </div>
       </div>

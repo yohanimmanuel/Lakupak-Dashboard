@@ -26,7 +26,7 @@ function CardHeader() {
 
 export function SkeletonFleetDetailPage() {
   return (
-    <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
+    <div className="flex min-h-full w-full min-w-0 flex-col bg-gradient-to-b from-gray-50 to-white p-4">
       <div className="w-full mx-auto">
         <div className="bg-white p-4 rounded-lg border border-[#e6e6e6]">
           {/* Breadcrumb */}
@@ -45,9 +45,9 @@ export function SkeletonFleetDetailPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 @5xl/main:grid-cols-3 gap-4">
             {/* Left column */}
-            <div className="lg:col-span-1 flex flex-col gap-4">
+            <div className="@5xl/main:col-span-1 flex flex-col gap-4">
               {/* Trip summary */}
               <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
                 <CardHeader />
@@ -84,7 +84,7 @@ export function SkeletonFleetDetailPage() {
             </div>
 
             {/* Right column */}
-            <div className="lg:col-span-2 flex flex-col gap-4">
+            <div className="@5xl/main:col-span-2 flex flex-col gap-4">
               {/* Logistics details */}
               <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
                 <Skeleton className="h-5 w-40 mb-4" />

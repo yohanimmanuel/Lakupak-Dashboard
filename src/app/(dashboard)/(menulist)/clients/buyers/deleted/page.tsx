@@ -12,7 +12,7 @@ export default function BuyerDeletedPage() {
   }, []);
 
   return (
-    <div className="w-full mx-auto bg-gradient-to-b from-gray-50 to-white h-full flex items-center justify-center">
+    <div className="flex h-full min-h-full w-full min-w-0 flex-col items-center justify-center bg-gradient-to-b from-gray-50 to-white">
       <div className="text-center bg-white border border-[#e6e6e6] rounded-lg p-8 max-w-md">
         <h1 className="text-xl font-semibold text-gray-900 mb-2">{tBuyers('deleted.title')}</h1>
         <p className="text-sm text-gray-600 mb-6">{tBuyers('deleted.description')}</p>

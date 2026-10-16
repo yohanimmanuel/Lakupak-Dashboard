@@ -155,7 +155,7 @@ export const CustomerAcquisitionChart: React.FC<{ data: CustomerAcquisitionPoint
 
 	return (
 		<div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
-			<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
+			<div className="mb-6 flex min-w-0 flex-col gap-3 @4xl/main:flex-row @4xl/main:items-center @4xl/main:justify-between">
 				<h3 className="text-lg font-semibold text-gray-900">{tCharts('customerAcquisition')}</h3>
 				<div className="flex flex-wrap items-center gap-x-4 gap-y-2">
 					<div className="flex items-center">
@@ -374,25 +374,25 @@ export const SalesTrendChart: React.FC<{
 
 	return (
 		<div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
-			<div className="flex items-center justify-between mb-4">
+			<div className="mb-4 flex min-w-0 flex-col gap-3 @4xl/main:flex-row @4xl/main:items-center @4xl/main:justify-between">
 				<h3 className="text-lg font-semibold text-gray-900">
 					{salesForecast
 						? `${tCharts('salesTrend')}${tCharts('salesTrendForecastSuffix')}`
 						: tCharts('salesTrend')}
 				</h3>
-				<div className="flex items-center space-x-4">
-					<div className="flex items-center"><div className="w-3 h-3 rounded-full bg-[#3B82F6] mr-2"></div><span className="text-sm text-gray-600 font-medium">{tCharts('ordersLegend')}</span></div>
-					<div className="flex items-center"><div className="w-3 h-3 rounded-full bg-[#10B981] mr-2"></div><span className="text-sm text-gray-600 font-medium">{tCharts('unitsLegend')}</span></div>
+				<div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
+					<div className="flex items-center"><div className="mr-2 h-3 w-3 rounded-full bg-[#3B82F6]"></div><span className="text-sm font-medium text-gray-600">{tCharts('ordersLegend')}</span></div>
+					<div className="flex items-center"><div className="mr-2 h-3 w-3 rounded-full bg-[#10B981]"></div><span className="text-sm font-medium text-gray-600">{tCharts('unitsLegend')}</span></div>
 					{salesForecast && (
-						<div className="flex items-center"><div className="w-3 h-3 border-2 border-dashed border-[#9CA3AF] rounded-full mr-2"></div><span className="text-sm text-gray-600 font-medium">{tCharts('forecast')}</span></div>
+						<div className="flex items-center"><div className="mr-2 h-3 w-3 rounded-full border-2 border-dashed border-[#9CA3AF]"></div><span className="text-sm font-medium text-gray-600">{tCharts('forecast')}</span></div>
 					)}
 					{showSeeMore && (
 						<button 
 							onClick={() => (window.location.href = '/analytics/sales')}
-							className="flex items-center px-3 py-1.5 text-xs font-medium text-black bg-white shadow-sm hover:bg-gray-100 rounded-md transition-colors"
+							className="flex items-center rounded-md bg-white px-3 py-1.5 text-xs font-medium text-black shadow-sm transition-colors hover:bg-gray-100"
 						>
 							{tShared('seeMore')}
-							<ArrowRight className="w-4 h-4 ml-1" />
+							<ArrowRight className="ml-1 h-4 w-4" />
 						</button>
 					)}
 				</div>
@@ -845,7 +845,7 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 	return (
 		<div className="space-y-3">
 			{/* Key Metrics */}
-			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+			<div className="grid grid-cols-1 gap-3 @3xl/main:grid-cols-2 @5xl/main:grid-cols-4">
 				<AnalyticsMetricCard
 					title={tMetrics('totalOrders')}
 					value={String(metrics.totalOrders)}
@@ -900,21 +900,21 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 			</div>
 
 			{/* Charts */}
-			<div className="grid grid-cols-1 lg:grid-cols-11 gap-3">
+			<div className="grid grid-cols-1 gap-3 @5xl/main:grid-cols-11">
 				{/* Sales Trend (Orders & Units) */}
-				<div className="lg:col-span-6">
+				<div className="@5xl/main:col-span-6">
 					<SalesTrendChart data={salesTrend} showForecast={false} />
 				</div>
 
 				{/* Units by Category (Pie) */}
-				<div className="lg:col-span-5">
+				<div className="@5xl/main:col-span-5">
 					<div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
-						<div className="flex items-center justify-between mb-6">
+						<div className="mb-6 flex min-w-0 flex-col gap-3 @4xl/main:flex-row @4xl/main:items-center @4xl/main:justify-between">
 							<h3 className="text-lg font-semibold text-gray-900">{tCharts('unitsByCategory')}</h3>
-							<div className="relative" ref={categoryDropdownRef}>
+							<div className="relative w-full @4xl/main:w-auto" ref={categoryDropdownRef}>
 								<button
 									onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
-									className="flex items-center gap-2 px-4 py-2 bg-white border border-[#e6e6e6] text-black rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+									className="flex w-full items-center justify-between gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-gray-50 @4xl/main:w-auto @4xl/main:justify-start"
 								>
 									<Filter className="w-4 h-4" />
 									{currentCategoryOption?.label}
@@ -980,17 +980,17 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 
 			{/* Sales Trend Forecast */}
 			<div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
-				<div className="flex items-center justify-between mb-6">
+				<div className="mb-6 flex min-w-0 flex-col gap-3 @4xl/main:flex-row @4xl/main:items-center @4xl/main:justify-between">
 					<h3 className="text-lg font-semibold text-gray-900">{tCharts('salesTrendForecast')}</h3>
 					{salesForecast && salesForecast.forecast.length > 0 && (
-						<div className="flex items-center space-x-4">
+						<div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
 							<div className="flex items-center">
-								<div className="w-3 h-3 rounded-full bg-[#3B82F6] mr-2"></div>
-								<span className="text-sm text-gray-600 font-medium">{tCharts('historicalOrders')}</span>
+								<div className="mr-2 h-3 w-3 rounded-full bg-[#3B82F6]"></div>
+								<span className="text-sm font-medium text-gray-600">{tCharts('historicalOrders')}</span>
 							</div>
 							<div className="flex items-center">
-								<div className="w-3 h-3 border-2 border-dashed border-[#9CA3AF] rounded-full mr-2"></div>
-								<span className="text-sm text-gray-600 font-medium">{tCharts('forecast')}</span>
+								<div className="mr-2 h-3 w-3 rounded-full border-2 border-dashed border-[#9CA3AF]"></div>
+								<span className="text-sm font-medium text-gray-600">{tCharts('forecast')}</span>
 							</div>
 						</div>
 					)}

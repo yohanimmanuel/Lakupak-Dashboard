@@ -15,7 +15,7 @@ function Field({ className = '' }: { className?: string }) {
 
 export function SkeletonSalesJobForm() {
   return (
-    <div className="p-4 space-y-4 bg-gradient-to-b from-gray-50 to-white min-h-screen" aria-hidden>
+    <div className="flex min-h-full w-full min-w-0 flex-col space-y-4 bg-gradient-to-b from-gray-50 to-white p-4" aria-hidden>
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Skeleton className="h-9 w-28 rounded-lg" />
@@ -30,7 +30,7 @@ export function SkeletonSalesJobForm() {
         <Skeleton className="h-3 w-64 mt-2" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 @5xl/main:grid-cols-3 gap-4">
         {Array.from({ length: 3 }, (_, index) => (
           <section key={index} className="bg-white rounded-lg border border-[#e6e6e6] h-[36rem]">
             <div className="flex flex-col gap-3 px-4 py-3 border-b border-[#e6e6e6]">

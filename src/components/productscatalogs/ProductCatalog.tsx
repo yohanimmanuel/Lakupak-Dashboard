@@ -2286,8 +2286,8 @@ export default function ProductCatalog({
   return (
     <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6]">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-[#e6e6e6]">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-3 border-b border-[#e6e6e6] p-4 @5xl/main:flex-row @5xl/main:items-center @5xl/main:justify-between">
+        <div className="flex min-w-0 flex-col gap-3 @3xl/main:flex-row @3xl/main:items-center">
           <button
             onClick={() => {
               if (currentMode === 'edit' && hasUnsavedChanges) {
@@ -2298,42 +2298,42 @@ export default function ProductCatalog({
                 router.push('/products');
               }
             }}
-            className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+            className="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800 @3xl/main:w-auto @3xl/main:justify-start"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="h-4 w-4" />
             {tCatalog('header.back')}
           </button>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-900">
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
+            <h1 className="truncate text-2xl font-bold text-gray-900">
               {currentMode === 'add' && tCatalog('header.addNewProduct')}
               {currentMode === 'view' && tCatalog('header.productDetails')}
               {currentMode === 'edit' && tCatalog('header.editProduct')}
             </h1>
             {currentMode === 'view' && currentProductStatus === 'Published' && (
-              <span className="px-3 py-1 bg-green-100 text-green-600 text-sm font-semibold rounded-full">
+              <span className="rounded-full bg-green-100 px-3 py-1 text-sm font-semibold text-green-600">
                 {translateStatus('Published')}
               </span>
             )}
             {customOfferClientCount > 0 && (
-              <span className="px-3 py-1 text-sm font-semibold rounded-full bg-blue-100 text-blue-700">
+              <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-700">
                 {tShared.has('customOfferClients')
                   ? tShared('customOfferClients', { count: String(customOfferClientCount) })
                   : `${customOfferClientCount} clients have custom rates`}
               </span>
             )}
             {currentMode === 'edit' && hasUnsavedChanges && (
-              <span className="text-sm text-orange-600 font-medium">• {tCatalog('header.unsavedChanges')}</span>
+              <span className="text-sm font-medium text-orange-600">• {tCatalog('header.unsavedChanges')}</span>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex w-full min-w-0 flex-col gap-2 @4xl/main:flex-row @4xl/main:flex-wrap @4xl/main:items-center @5xl/main:w-auto">
           {currentMode === 'view' && currentProductStatus === 'Published' && (
             <>
               <button
                 type="button"
                 onClick={handleUnpublish}
                 disabled={saving}
-                className="flex items-center gap-2 px-4 py-2 font-semibold bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-2 font-semibold text-white transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
               >
                 {saving ? (
                   <>
@@ -2355,25 +2355,25 @@ export default function ProductCatalog({
                 type="button"
                 onClick={() => router.push('/products')}
                 disabled={saving}
-                className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-black hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-gray-300"
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-black disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
               >
-                <X className="w-4 h-4" />
+                <X className="h-4 w-4" />
                 {tCatalog('header.cancel')}
               </button>
               <button
                 type="button"
                 onClick={() => handleSubmitWithStatus('Draft')}
                 disabled={saving}
-                className="flex items-center gap-2 px-4 py-2 font-medium bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-gray-600 px-4 py-2 font-medium text-white transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
               >
                 {saving ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
                     {tCatalog('header.saving')}
                   </>
                 ) : (
                   <>
-                    <Save className="w-4 h-4" />
+                    <Save className="h-4 w-4" />
                     {tCatalog('header.saveDraft')}
                   </>
                 )}
@@ -2382,7 +2382,7 @@ export default function ProductCatalog({
                 type="submit"
                 form="product-form"
                 disabled={saving || !validation.isValid}
-                className="flex items-center gap-2 px-4 py-2 font-semibold bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 font-semibold text-white transition-colors hover:bg-[#0851b8] disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
                 title={!validation.isValid ? tCatalog('header.missingRequiredFields', { fields: validation.missingFields.join(', ') }) : ''}
               >
                 {saving ? (
@@ -2405,25 +2405,25 @@ export default function ProductCatalog({
                 type="button"
                 onClick={handleCancel}
                 disabled={!hasUnsavedChanges || saving}
-                className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-black hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-gray-300"
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-black disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
               >
-                <X className="w-4 h-4" />
+                <X className="h-4 w-4" />
                 {tCatalog('header.cancel')}
               </button>
               <button
                 type="button"
                 onClick={() => handleSubmitWithStatus('Draft')}
                 disabled={saving}
-                className="flex items-center gap-2 px-4 py-2 font-medium bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-gray-600 px-4 py-2 font-medium text-white transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
               >
                 {saving ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
                     {tCatalog('header.saving')}
                   </>
                 ) : (
                   <>
-                    <Save className="w-4 h-4" />
+                    <Save className="h-4 w-4" />
                     {tCatalog('header.saveDraft')}
                   </>
                 )}
@@ -2432,7 +2432,7 @@ export default function ProductCatalog({
                 type="submit"
                 form="product-form"
                 disabled={saving || !validation.isValid}
-                className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] font-semibold text-white rounded-lg hover:bg-[#084ba6] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 font-semibold text-white transition-colors hover:bg-[#084ba6] disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
                 title={!validation.isValid ? tCatalog('header.missingRequiredFields', { fields: validation.missingFields.join(', ') }) : ''}
               >
                 {saving ? (
@@ -2529,7 +2529,7 @@ export default function ProductCatalog({
               {tCatalog('generalInfo.title')}
             </h2>
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 gap-4 @3xl/main:grid-cols-2 @5xl/main:grid-cols-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
                     {tCatalog('generalInfo.productId')}
@@ -2797,9 +2797,9 @@ export default function ProductCatalog({
           </div>
 
           {/* Row 2: Upload Images (3/4) + Product Settings (1/4) */}
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 gap-4 @5xl/main:grid-cols-5">
             {/* Upload Images - 3/4 width */}
-            <div className="lg:col-span-3 bg-white rounded-lg border border-[#e6e6e6] p-4">
+            <div className="@5xl/main:col-span-3 bg-white rounded-lg border border-[#e6e6e6] p-4">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2">
                   <Upload className="w-5 h-5 text-gray-500" />
@@ -2945,7 +2945,7 @@ export default function ProductCatalog({
             </div>
 
             {/* Product Settings - 1/4 width */}
-            <div className="lg:col-span-2 bg-white rounded-lg border border-[#e6e6e6] p-4">
+            <div className="@5xl/main:col-span-2 bg-white rounded-lg border border-[#e6e6e6] p-4">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2">
                   <Tag className="w-5 h-5 text-gray-500" />

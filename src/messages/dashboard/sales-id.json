@@ -599,6 +599,8 @@
     "create": "Buat prospek baru",
     "createTitle": "Buat prospek baru",
     "editTitle": "Ubah prospek",
+    "askAi": "Tanya AI",
+    "aiDockEmpty": "Tanya tentang prospek pengecer.",
     "save": "Simpan",
     "saving": "Menyimpan...",
     "back": "Kembali",

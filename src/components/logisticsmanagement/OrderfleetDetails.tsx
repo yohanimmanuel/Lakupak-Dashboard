@@ -144,13 +144,13 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
       <div className="w-full mx-auto">
         {/* Breadcrumb */}
         <div className="mb-4">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
+          <div className="flex min-w-0 flex-col gap-3 @5xl/main:flex-row @5xl/main:items-center @5xl/main:justify-between">
+            <div className="flex min-w-0 flex-col gap-3 @3xl/main:flex-row @3xl/main:items-center">
               <button
                 onClick={handleBack}
-                className="flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800"
+                className="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800 @3xl/main:w-auto @3xl/main:justify-start"
               >
-                <ArrowLeft className="w-4 h-4" />
+                <ArrowLeft className="h-4 w-4" />
                 {tOrderfleetDetails('backToFleetList')}
               </button>
               <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -163,9 +163,9 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
             {onEdit && (
               <button
                 onClick={onEdit}
-                className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors text-sm font-medium"
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#0851b8] @4xl/main:w-auto"
               >
-                <Edit className="w-4 h-4" />
+                <Edit className="h-4 w-4" />
                 {tOrderfleetDetails('editDetails')}
               </button>
             )}
@@ -176,9 +176,9 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:items-stretch">
+        <div className="grid grid-cols-1 gap-4 @5xl/main:grid-cols-3 @5xl/main:items-stretch">
           {/* Left column – Trip & driver summary; fill height to match right column */}
-          <div className="lg:col-span-1 flex flex-col gap-4 min-h-0">
+          <div className="flex min-h-0 flex-col gap-4 @5xl/main:col-span-1">
             {/* Trip summary card */}
             <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 flex-shrink-0">
               <div className="flex items-center gap-2 mb-4">
@@ -244,7 +244,7 @@ export default function OrderfleetDetails({ fleet, onBack, onEdit }: OrderfleetD
           </div>
 
           {/* Right column – Order details, map, customer */}
-          <div className="lg:col-span-2 flex flex-col gap-4 min-h-0">
+          <div className="flex min-h-0 flex-col gap-4 @5xl/main:col-span-2">
             {/* Order & logistics details */}
             <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">{tOrderfleetDetails('logisticsDetails')}</h3>

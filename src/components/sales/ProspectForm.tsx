@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ChevronDown } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Sparkles } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import MapComponent from '@/components/ordershipment/MapComponent';
 import { geocodeAddress, type MapCoordinates } from '@/utils/mapboxUtils';
 import { PROSPECT_BUYER_TYPES } from '@/lib/salesJobs/prospectBuyerTypes';
+import { useLakuAiPanel } from '@/components/lakuAi/LakuAiPanelContext';
 
 const JAKARTA: MapCoordinates = { longitude: 106.8456, latitude: -6.2088 };
 const labelClass = 'mb-2 block text-xs font-medium text-gray-700';
@@ -108,6 +109,7 @@ export default function ProspectForm({ buyerId }: { buyerId?: string }) {
   const [loading, setLoading] = useState(editing);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const { open: aiOpen, openPanel, closePanel } = useLakuAiPanel();
 
   useEffect(() => {
     if (!editing || !userId || !buyerId) return;
@@ -245,7 +247,7 @@ export default function ProspectForm({ buyerId }: { buyerId?: string }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-4" aria-busy="true">
+      <div className="flex min-h-full w-full min-w-0 flex-col bg-gradient-to-b from-gray-50 to-white p-4" aria-busy="true">
         <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
           <Skeleton className="mb-6 h-8 w-48" />
           <div className="grid gap-4 sm:grid-cols-2">
@@ -261,31 +263,57 @@ export default function ProspectForm({ buyerId }: { buyerId?: string }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-4">
-      <div className="mx-auto w-full">
-        {error && <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">{error}</p>}
-        <div className="rounded-lg border border-[#e6e6e6] bg-white">
-          <div className="flex items-center justify-between gap-4 border-b border-[#e6e6e6] px-4 py-4">
-            <div className="flex min-w-0 items-center gap-4">
+    <div className="h-[calc(100dvh-4rem)] overflow-hidden bg-gradient-to-b from-gray-50 to-white">
+      <div className="flex h-full flex-col p-4">
+        {error && (
+          <p className="mb-4 shrink-0 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
+            {error}
+          </p>
+        )}
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[#e6e6e6] bg-white">
+          <div className="flex min-w-0 shrink-0 flex-col gap-3 border-b border-[#e6e6e6] px-4 py-4 @5xl/main:flex-row @5xl/main:items-center @5xl/main:justify-between">
+            <div className="flex min-w-0 flex-col gap-3 @3xl/main:flex-row @3xl/main:items-center">
               <Link
                 href="/sales/prospects"
-                className="flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800"
+                className="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800 @3xl/main:w-auto @3xl/main:justify-start"
               >
                 <ArrowLeft className="h-4 w-4" />
                 {t('back')}
               </Link>
-              <h1 className="truncate text-2xl font-bold text-gray-900">{editing ? t('editTitle') : t('createTitle')}</h1>
+              <h1 className="min-w-0 truncate text-2xl font-bold text-gray-900">
+                {editing ? t('editTitle') : t('createTitle')}
+              </h1>
             </div>
-            <button
-              type="button"
-              onClick={() => void save()}
-              disabled={saving || resolvingAddress}
-              className="rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-semibold text-white hover:bg-[#084ba6] disabled:opacity-60"
-            >
-              {saving ? t('saving') : t('save')}
-            </button>
+            <div className="flex w-full min-w-0 flex-col gap-2 @4xl/main:flex-row @4xl/main:flex-wrap @4xl/main:items-center @5xl/main:w-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  if (aiOpen) {
+                    closePanel();
+                    return;
+                  }
+                  openPanel({ dockEmptyMessage: t('aiDockEmpty') });
+                }}
+                className={`inline-flex w-full items-center justify-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-gray-100 @4xl/main:w-auto ${
+                  aiOpen
+                    ? 'border-[#0a61d7] bg-[#f7faff] text-[#0a61d7]'
+                    : 'border-[#e6e6e6] bg-white text-black'
+                }`}
+              >
+                <Sparkles className="h-4 w-4 text-[#0a61d7]" />
+                {t('askAi')}
+              </button>
+              <button
+                type="button"
+                onClick={() => void save()}
+                disabled={saving || resolvingAddress}
+                className="w-full rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-semibold text-white hover:bg-[#084ba6] disabled:opacity-60 @4xl/main:w-auto"
+              >
+                {saving ? t('saving') : t('save')}
+              </button>
+            </div>
           </div>
-          <section className="p-4">
+          <section className="min-h-0 flex-1 overflow-y-auto p-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className={labelClass} htmlFor="prospect-customer-number">

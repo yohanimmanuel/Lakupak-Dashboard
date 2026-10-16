@@ -561,7 +561,7 @@ export default function SalesAnalyticsPage() {
 
 	if (!hasData) {
 		return (
-			<div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
+			<div className="flex min-h-full w-full min-w-0 flex-col bg-gradient-to-b from-gray-50 to-white p-4">
 				<div className="mb-4">
 					<h1 className="text-2xl font-bold text-gray-900 mb-2">{tSales('title')}</h1>
 				</div>
@@ -587,30 +587,32 @@ export default function SalesAnalyticsPage() {
 	return (
 		<>
 			{!childReady && <SkeletonAnalyticsPage />}
-			<div className={!childReady ? 'h-0 overflow-hidden' : 'w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen'}>
-				<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-					<div>
-						<h1 className="text-2xl font-bold text-gray-900 mb-2">{tSales('title')}</h1>
+			<div className={!childReady ? 'h-0 overflow-hidden' : 'flex min-h-full w-full min-w-0 flex-col bg-gradient-to-b from-gray-50 to-white p-4'}>
+				<div className="mb-4 flex min-w-0 flex-col gap-4 @5xl/main:flex-row @5xl/main:items-center @5xl/main:justify-between">
+					<div className="min-w-0">
+						<h1 className="mb-2 truncate text-2xl font-bold text-gray-900">{tSales('title')}</h1>
 					</div>
-					<div className="flex items-center gap-3">
-						<div className="relative" ref={dropdownRef}>
-							<button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="flex items-center gap-2 px-4 py-2 bg-white border border-[#e6e6e6] text-black rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
-								<Calendar className="w-4 h-4" />
-								{currentRange?.label}
-								<ChevronDown className="w-4 h-4" />
+					<div className="flex w-full min-w-0 flex-col gap-2 @4xl/main:flex-row @4xl/main:flex-wrap @4xl/main:items-center @5xl/main:w-auto">
+						<div className="relative w-full @4xl/main:w-auto" ref={dropdownRef}>
+							<button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="flex w-full items-center justify-between gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-gray-50 @4xl/main:w-auto @4xl/main:justify-start">
+								<span className="inline-flex items-center gap-2">
+									<Calendar className="h-4 w-4" />
+									{currentRange?.label}
+								</span>
+								<ChevronDown className="h-4 w-4" />
 							</button>
 							{isDropdownOpen && (
-								<div className="absolute top-full left-0 mt-1 w-full bg-white border border-[#e6e6e6] rounded-lg shadow-lg z-10">
+								<div className="absolute left-0 right-0 top-full z-10 mt-1 rounded-lg border border-[#e6e6e6] bg-white shadow-lg @4xl/main:right-auto @4xl/main:w-full">
 									{timeRanges.map(range => (
-										<button key={range.value} onClick={() => { setTimeRange(range.value); setIsDropdownOpen(false); }} className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors first:rounded-t-lg last:rounded-b-lg ${timeRange === range.value ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}>
+										<button key={range.value} onClick={() => { setTimeRange(range.value); setIsDropdownOpen(false); }} className={`w-full px-4 py-2 text-left text-sm transition-colors hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg ${timeRange === range.value ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}>
 											{range.label}
 										</button>
 									))}
 								</div>
 							)}
 						</div>
-						<button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] border border-[#e6e6e6] text-white rounded-lg hover:bg-[#084ba6] transition-colors text-sm font-medium">
-							<Download className="w-4 h-4" />
+						<button onClick={handleExport} className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#e6e6e6] bg-[#0a61d7] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#084ba6] @4xl/main:w-auto">
+							<Download className="h-4 w-4" />
 							{tShared('export')}
 						</button>
 					</div>

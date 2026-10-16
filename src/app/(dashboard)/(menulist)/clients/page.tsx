@@ -82,7 +82,7 @@ export default function ClientsPage() {
   const visibleTips = highPriorityTips.filter((tip) => !dismissedTips.has(tip.id));
 
   return (
-    <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
+    <div className="flex min-h-full w-full min-w-0 flex-col bg-gradient-to-b from-gray-50 to-white p-4">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-black mb-2">{tHub('title')}</h1>
       </div>
@@ -92,7 +92,7 @@ export default function ClientsPage() {
           <div className="mb-4">
             <h2 className="text-lg font-semibold text-black">{tHub('tips')}</h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 @3xl/main:grid-cols-2 @5xl/main:grid-cols-3">
             {visibleTips.map((tip) => {
               const IconComponent = tip.icon;
               return (
@@ -137,7 +137,7 @@ export default function ClientsPage() {
 
       <section>
         <h2 className="text-lg font-semibold text-black mb-4">{tHub('tools')}</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 @4xl/main:grid-cols-2">
           {clientTools.map((tool) => {
             const IconComponent = tool.icon;
             return (

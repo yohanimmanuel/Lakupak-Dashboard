@@ -179,7 +179,15 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
   const router = useRouter();
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
-  const rowsPerPage = 8;
+  const desktopGridRef = useRef<HTMLDivElement | null>(null);
+  const mobileGridRef = useRef<HTMLDivElement | null>(null);
+  const prevRowsPerPageRef = useRef(8);
+  /** Desktop grid defaults to 4 cols (2 rows = 8). Adapts when AI panel / viewport changes width. */
+  const [gridCols, setGridCols] = useState(4);
+  const GRID_ROWS = 2;
+  const LIST_ROWS_PER_PAGE = 8;
+  const rowsPerPage =
+    viewMode === 'grid' ? Math.max(1, gridCols) * GRID_ROWS : LIST_ROWS_PER_PAGE;
 
   // Filter products based on search, status, category, and stock
   let filteredProducts = tableRows.filter((p: ProductTableRow) => String(p.name).toLowerCase().includes(search.toLowerCase()));
@@ -224,6 +232,51 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
   const pagedProducts = filteredProducts.slice((page - 1) * rowsPerPage, page * rowsPerPage);
   const fromRow = totalRows === 0 ? 0 : (page - 1) * rowsPerPage + 1;
   const toRow = Math.min(page * rowsPerPage, totalRows);
+
+  // Measure live CSS grid columns so page size can fill 2 full rows (4→8, 3→9, 2→4).
+  useLayoutEffect(() => {
+    if (viewMode !== 'grid') return;
+
+    const measure = () => {
+      const desktop = desktopGridRef.current;
+      const mobile = mobileGridRef.current;
+      const desktopVisible =
+        desktop && getComputedStyle(desktop).display !== 'none' ? desktop : null;
+      const mobileVisible =
+        mobile && getComputedStyle(mobile).display !== 'none' ? mobile : null;
+      const el = desktopVisible ?? mobileVisible;
+      if (!el) return;
+      const cols = getComputedStyle(el)
+        .gridTemplateColumns.split(/\s+/)
+        .filter(Boolean).length;
+      if (cols > 0) {
+        setGridCols((prev) => (prev === cols ? prev : cols));
+      }
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (desktopGridRef.current) ro.observe(desktopGridRef.current);
+    if (mobileGridRef.current) ro.observe(mobileGridRef.current);
+    window.addEventListener('resize', measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [viewMode, pagedProducts.length]);
+
+  // Keep the same first item roughly in view when page size changes with the panel.
+  useEffect(() => {
+    const prev = prevRowsPerPageRef.current;
+    if (prev === rowsPerPage) return;
+    setPage((current) => {
+      const firstIndex = (current - 1) * prev;
+      const nextPage = Math.floor(firstIndex / rowsPerPage) + 1;
+      const maxPage = Math.max(1, Math.ceil(totalRows / rowsPerPage));
+      return Math.min(Math.max(1, nextPage), maxPage);
+    });
+    prevRowsPerPageRef.current = rowsPerPage;
+  }, [rowsPerPage, totalRows]);
 
   // GraphQL mutation to delete product
   const DELETE_PRODUCT_MUTATION = `
@@ -614,11 +667,11 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
   };
 
   return (
-    <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6] p-4 mt-3" data-tour="products-table">
-      {/* Status Tabs - Segmented Control */}
-      <div className="mb-4">
-        <div className="relative w-full md:w-auto flex items-center">
-          <div className="flex w-full md:w-auto bg-gray-100 rounded-lg overflow-hidden relative">
+    <div className="mx-auto mt-3 w-full min-w-0 rounded-lg border border-[#e6e6e6] bg-white p-4" data-tour="products-table">
+      {/* Status Tabs - full width, scroll horizontally when AI panel compresses the card */}
+      <div className="mb-4 w-full min-w-0">
+        <div className="w-full overflow-x-auto rounded-lg">
+          <div className="relative inline-flex w-max min-w-full bg-gray-100">
             {/* Sliding Indicator */}
             <div
               className="absolute top-0 h-full transition-all duration-300"
@@ -638,7 +691,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                   setSelectedTab(tab.label);
                   setSelectedProducts([]); // Reset selection when switching tabs
                 }}
-                className={`relative z-10 flex-1 px-6 py-2 font-medium text-[14px] transition-colors duration-200 focus:outline-none ${
+                className={`relative z-10 shrink-0 whitespace-nowrap px-6 py-2 font-medium text-[14px] transition-colors duration-200 focus:outline-none ${
                   selectedTab === tab.label
                     ? 'text-white'
                     : 'text-gray-700 hover:text-[#0a61d7]'
@@ -648,8 +701,6 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                 style={{
                   background: 'transparent',
                   boxShadow: 'none',
-                  minWidth: 0,
-                  flex: 'unset',
                 }}
               >
                 {translateStatusTab(tab.label)}
@@ -659,28 +710,26 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
         </div>
       </div>
 
-      {/* Search and Filters */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-        {/* Search Bar - Left Side */}
-        <div className="relative w-full md:w-110 shrink-0">
+      {/* Search full width; filters stack below at full width when narrow */}
+      <div className="mb-4 flex w-full min-w-0 flex-col gap-3">
+        <div className="relative w-full">
           <input
             type="text"
             placeholder={tTable('searchPlaceholder')}
             aria-label={tTable('searchPlaceholder')}
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-lg border border-[#e6e6e6] text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7] bg-white"
+            className="w-full rounded-lg border border-[#e6e6e6] bg-white py-2 pl-10 pr-4 text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7]"
           />
-          <Search className="absolute left-3 top-2 text-gray-400 w-5 h-5" />
+          <Search className="absolute left-3 top-2 h-5 w-5 text-gray-400" />
         </div>
 
-        {/* Filter Buttons and View Toggle - Right Side */}
-        <div className="flex flex-wrap gap-2 w-full md:flex-1 md:min-w-0 md:flex-nowrap items-center justify-end">
+        <div className="flex w-full min-w-0 flex-col gap-2 @4xl/main:flex-row @4xl/main:flex-wrap @4xl/main:items-center">
 
           {/* Stock Filter Dropdown */}
-          <div className="relative">
+          <div className="relative w-full @4xl/main:w-auto">
             <button
-              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm whitespace-nowrap"
+              className="flex w-full items-center justify-between gap-1 whitespace-nowrap rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 @4xl/main:w-auto @4xl/main:justify-start"
               onClick={() => {
                 setShowStockDropdown(v => !v);
                 setShowCategoryDropdown(false);
@@ -694,7 +743,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showStockDropdown && (
-              <div className="absolute right-0 mt-2 w-40 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
+              <div className="absolute left-0 z-20 mt-2 w-40 rounded-lg border border-[#e6e6e6] bg-white shadow">
                 {stockFilters.map((filter) => (
                   <button
                     key={filter.value}
@@ -716,9 +765,9 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
           </div>
 
           {/* Type Filter Dropdown */}
-          <div className="relative">
+          <div className="relative w-full @4xl/main:w-auto">
             <button
-              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm whitespace-nowrap"
+              className="flex w-full items-center justify-between gap-1 whitespace-nowrap rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 @4xl/main:w-auto @4xl/main:justify-start"
               onClick={() => {
                 setShowCategoryDropdown(v => !v);
                 setShowStockDropdown(false);
@@ -732,7 +781,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showCategoryDropdown && (
-              <div className="absolute right-0 mt-2 w-40 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
+              <div className="absolute left-0 z-20 mt-2 w-40 rounded-lg border border-[#e6e6e6] bg-white shadow">
                 {categoryFilters.map((category) => (
                   <button
                     key={category}
@@ -754,9 +803,9 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
           </div>
 
           {/* Product Category Filter Dropdown */}
-          <div className="relative">
+          <div className="relative w-full @4xl/main:w-auto">
             <button
-              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm whitespace-nowrap"
+              className="flex w-full items-center justify-between gap-1 whitespace-nowrap rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 @4xl/main:w-auto @4xl/main:justify-start"
               onClick={() => {
                 setShowProdCategoryDropdown(v => !v);
                 setShowStockDropdown(false);
@@ -770,7 +819,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showProdCategoryDropdown && (
-              <div className="absolute right-0 mt-2 w-48 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
+              <div className="absolute left-0 z-20 mt-2 w-48 rounded-lg border border-[#e6e6e6] bg-white shadow">
                 {prodCategoryFilters.map((cat) => (
                   <button
                     key={cat}
@@ -792,9 +841,9 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
           </div>
 
           {/* Offer Filter Dropdown */}
-          <div className="relative">
+          <div className="relative w-full @4xl/main:w-auto">
             <button
-              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm whitespace-nowrap"
+              className="flex w-full items-center justify-between gap-1 whitespace-nowrap rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 @4xl/main:w-auto @4xl/main:justify-start"
               onClick={() => {
                 setShowOfferDropdown(v => !v);
                 setShowStockDropdown(false);
@@ -808,7 +857,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
               <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
             </button>
             {showOfferDropdown && (
-              <div className="absolute right-0 mt-2 w-40 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
+              <div className="absolute left-0 z-20 mt-2 w-40 rounded-lg border border-[#e6e6e6] bg-white shadow">
                 {offerFilters.map((filter) => (
                   <button
                     key={filter.value}
@@ -830,10 +879,10 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
           </div>
 
           {/* View Toggle - Desktop Only */}
-          <div className="hidden md:flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+          <div className="hidden items-center gap-1 rounded-lg bg-gray-100 p-1 @4xl/main:ml-auto md:flex">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-md transition-colors ${
+              className={`rounded-md p-2 transition-colors ${
                 viewMode === 'grid' 
                   ? 'bg-white text-[#0a61d7] shadow-sm' 
                   : 'text-gray-500 hover:text-gray-700'
@@ -844,7 +893,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`p-2 rounded-md transition-colors ${
+              className={`rounded-md p-2 transition-colors ${
                 viewMode === 'list' 
                   ? 'bg-white text-[#0a61d7] shadow-sm' 
                   : 'text-gray-500 hover:text-gray-700'
@@ -1399,7 +1448,10 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                  </span>
                </div>
                
-               <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+               <div
+                 ref={desktopGridRef}
+                 className="hidden gap-4 md:grid md:grid-cols-[repeat(auto-fill,minmax(max(12.5rem,calc((100%-3rem)/4)),1fr))]"
+               >
                {pagedProducts.map((product) => {
              // Get the original product data to check for missing data and offers
              const originalProduct = products.find(p => p.productId === product.productId);
@@ -1727,7 +1779,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                </span>
              </div>
              
-             <div className="grid grid-cols-2 gap-3">
+             <div ref={mobileGridRef} className="grid grid-cols-2 gap-3">
                {pagedProducts.map((product) => {
              // Get the original product data to check for missing data
              const originalProduct = products.find(p => p.productId === product.productId);

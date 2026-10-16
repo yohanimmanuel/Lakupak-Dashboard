@@ -166,7 +166,7 @@ export default function MarketplacePage() {
   const publishedCount = products.filter(p => p.marketplaceStatus === 'Published').length;
 
   return (
-    <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
+    <div className="flex min-h-full w-full min-w-0 flex-col bg-gradient-to-b from-gray-50 to-white p-4">
       {/* Header */}
       <div className="mb-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -218,7 +218,7 @@ export default function MarketplacePage() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3" data-tour="marketplace-quick-stats">
+      <div className="mb-3 grid grid-cols-1 gap-3 @3xl/main:grid-cols-2 @5xl/main:grid-cols-3" data-tour="marketplace-quick-stats">
         <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
           <p className="text-sm text-gray-600 mb-1">{tPage('publishedProducts')}</p>
           <p className="text-3xl font-bold text-gray-900">{publishedCount}</p>

@@ -102,7 +102,7 @@ export default function SalesDetailsPage() {
 
   if (!agent) {
     return (
-      <div className="w-full mx-auto p-4 bg-gray-50 min-h-screen flex items-center justify-center">
+      <div className="flex min-h-full w-full min-w-0 flex-col items-center justify-center bg-gray-50 p-4">
         <div className="text-center">
           <p className="text-gray-600 mb-4">{tSalesDetails('notFound')}</p>
           <button
@@ -117,8 +117,8 @@ export default function SalesDetailsPage() {
   }
 
   return (
-    <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
-      <div className="w-full mx-auto">
+    <div className="flex min-h-full w-full min-w-0 flex-col bg-gradient-to-b from-gray-50 to-white p-4">
+      <div className="w-full min-w-0">
         <SalesDetails
           agent={agent}
           onBack={() => router.push('/sales/team')}

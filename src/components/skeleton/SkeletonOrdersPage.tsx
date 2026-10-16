@@ -41,7 +41,7 @@ function TableRow() {
 
 export function SkeletonOrdersPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-4">
+    <div className="flex min-h-full w-full min-w-0 flex-col bg-gradient-to-b from-gray-50 to-white p-4">
       <div className="w-full mx-auto">
         {/* Page header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
@@ -56,7 +56,7 @@ export function SkeletonOrdersPage() {
         </div>
 
         {/* Stat cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+        <div className="grid grid-cols-2 @5xl/main:grid-cols-4 gap-3 mb-3">
           {[...Array(4)].map((_, i) => <StatCard key={i} />)}
         </div>
 

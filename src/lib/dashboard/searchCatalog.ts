@@ -115,14 +115,6 @@ export const DASHBOARD_SEARCH_CATALOG: DashboardSearchEntry[] = [
     keywords: ['invite', 'agent'],
   },
   {
-    id: 'copilot',
-    title: 'Copilot',
-    description: 'Ask Lakupak AI about orders, buyers, products, sales, or a workflow draft',
-    section: 'Secondary',
-    href: '/copilot',
-    keywords: ['copilot', 'kopilot', 'lakupak ai', 'assistant'],
-  },
-  {
     id: 'automation',
     title: 'Automations',
     description: 'Saved workflows. Review the canvas, then save or activate',

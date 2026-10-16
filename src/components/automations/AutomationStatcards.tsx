@@ -89,7 +89,7 @@ export default function AutomationStatcards({ workflows }: { workflows: Automati
   }, [workflows, tStats]);
 
   return (
-    <div className="w-full mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+    <div className="mx-auto grid w-full grid-cols-1 gap-3 @3xl/main:grid-cols-2 @5xl/main:grid-cols-4">
       {stats.map((stat) => (
         <AutomationStatCard
           key={stat.key}

@@ -25,7 +25,7 @@ function FormGroup({ fields = 2 }: { fields?: number }) {
 
 export function SkeletonSettingsPage() {
   return (
-    <div className="w-full p-4 space-y-5 bg-gradient-to-b from-gray-50 to-white min-h-screen">
+    <div className="flex min-h-full w-full min-w-0 flex-col space-y-5 bg-gradient-to-b from-gray-50 to-white p-4">
       {/* Header */}
       <div>
         <Skeleton className="h-7 w-36" />

@@ -164,11 +164,11 @@ export default function AutomationTable({
   const showDeleteModal = isBulkDelete || workflowToDelete != null;
 
   return (
-    <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6] p-4 mt-3">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-        {/* Status Tabs - Segmented Control */}
-        <div className="relative w-full md:w-auto flex items-center">
-          <div className="flex w-full md:w-auto bg-gray-100 rounded-lg overflow-hidden relative">
+    <div className="mx-auto mt-3 w-full min-w-0 rounded-lg border border-[#e6e6e6] bg-white p-4">
+      {/* Status Tabs - full width, scroll horizontally when compressed */}
+      <div className="mb-4 w-full min-w-0">
+        <div className="w-full overflow-x-auto rounded-lg">
+          <div className="relative inline-flex w-max min-w-full bg-gray-100">
             <div
               className="absolute top-0 h-full transition-all duration-300"
               style={{
@@ -190,54 +190,57 @@ export default function AutomationTable({
                   setPage(1);
                   setSelectedIds([]);
                 }}
-                className={`relative z-10 px-6 py-2 font-medium text-[14px] transition-colors duration-200 focus:outline-none ${
+                className={`relative z-10 shrink-0 whitespace-nowrap px-6 py-2 font-medium text-[14px] transition-colors duration-200 focus:outline-none ${
                   selectedTab === tab.label ? 'text-white' : 'text-gray-700 hover:text-[#0a61d7]'
                 } ${idx === 0 ? 'rounded-l-lg' : idx === statusTabs.length - 1 ? 'rounded-r-lg' : ''}`}
-                style={{ background: 'transparent', boxShadow: 'none', minWidth: 0 }}
+                style={{ background: 'transparent', boxShadow: 'none' }}
               >
                 {translateStatusTab(tab.label)}
               </button>
             ))}
           </div>
         </div>
+      </div>
 
-        {/* Search and Filters */}
-        <div className="flex gap-2 w-full md:w-auto items-center justify-end">
-          <div className="relative w-full md:w-64 shrink-0">
-            <input
-              type="text"
-              placeholder={tTable('searchPlaceholder')}
-              aria-label={tTable('searchPlaceholder')}
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-              className="w-full pl-10 pr-4 py-2 rounded-lg border border-[#e6e6e6] text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7] bg-white"
-            />
-            <Search className="absolute left-3 top-2 text-gray-400 w-5 h-5" />
-          </div>
+      {/* Search full width; filters stack below */}
+      <div className="mb-4 flex w-full min-w-0 flex-col gap-3">
+        <div className="relative w-full">
+          <input
+            type="text"
+            placeholder={tTable('searchPlaceholder')}
+            aria-label={tTable('searchPlaceholder')}
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            className="w-full rounded-lg border border-[#e6e6e6] bg-white py-2 pl-10 pr-4 text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7]"
+          />
+          <Search className="absolute left-3 top-2 h-5 w-5 text-gray-400" />
+        </div>
 
-          {/* Type Filter Dropdown */}
-          <div className="relative">
+        <div className="flex w-full min-w-0 flex-col gap-2 @4xl/main:flex-row @4xl/main:flex-wrap @4xl/main:items-center">
+          <div className="relative w-full @4xl/main:w-auto">
             <button
-              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
+              className="flex w-full items-center justify-between gap-1 rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 @4xl/main:w-auto @4xl/main:justify-start"
               onClick={() => setShowFilterDropdown(!showFilterDropdown)}
             >
-              <Filter className="w-4 h-4" />
-              {typeFilterLabel}
-              <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
+              <span className="inline-flex items-center gap-1">
+                <Filter className="h-4 w-4" />
+                {typeFilterLabel}
+              </span>
+              <ChevronDown className="ml-1 h-4 w-4 text-gray-500" />
             </button>
             {showFilterDropdown && (
-              <div className="absolute right-0 mt-2 w-52 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
+              <div className="absolute left-0 right-0 z-20 mt-2 rounded-lg border border-[#e6e6e6] bg-white shadow @4xl/main:left-auto @4xl/main:right-0 @4xl/main:w-52">
                 <button
                   onClick={() => {
                     setTypeFilter('all');
                     setShowFilterDropdown(false);
                     setPage(1);
                   }}
-                  className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg ${
-                    typeFilter === 'all' ? 'text-[#0a61d7] font-semibold hover:bg-gray-100' : 'text-gray-700 hover:bg-gray-100'
+                  className={`w-full px-4 py-2 text-left text-sm first:rounded-t-lg ${
+                    typeFilter === 'all' ? 'font-semibold text-[#0a61d7] hover:bg-gray-100' : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
                   {tFilters('allTypes')}
@@ -250,8 +253,8 @@ export default function AutomationTable({
                       setShowFilterDropdown(false);
                       setPage(1);
                     }}
-                    className={`w-full text-left px-4 py-2 text-sm last:rounded-b-lg ${
-                      typeFilter === type ? 'text-[#0a61d7] font-semibold hover:bg-gray-100' : 'text-gray-700 hover:bg-gray-100'
+                    className={`w-full px-4 py-2 text-left text-sm last:rounded-b-lg ${
+                      typeFilter === type ? 'font-semibold text-[#0a61d7] hover:bg-gray-100' : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
                     {translateType(type)}

@@ -234,23 +234,30 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
   }
 
   return (
-    <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6] p-4 flex flex-col gap-4">
-      <div className="items-right justify-between gap-4 mb-2 flex flex-col md:flex-row md:items-center">
-        <div className="flex items-center gap-4">
-          <Link href="/clients/buyers" className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors shrink-0">
-            <ArrowLeft className="w-4 h-4" />
+    <div className="mx-auto flex w-full min-w-0 flex-col gap-4 rounded-lg border border-[#e6e6e6] bg-white p-4">
+      <div className="mb-2 flex min-w-0 flex-col gap-3 @5xl/main:flex-row @5xl/main:items-center @5xl/main:justify-between">
+        <div className="flex min-w-0 flex-col gap-3 @3xl/main:flex-row @3xl/main:items-center">
+          <Link
+            href="/clients/buyers"
+            className="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800 @3xl/main:w-auto @3xl/main:justify-start"
+          >
+            <ArrowLeft className="h-4 w-4" />
             {tBuyersProfile('back')}
           </Link>
-          <div>
-            <h2 className="text-2xl font-bold text-black mb-1">{tBuyersProfile('title')}</h2>
-          </div>
+          <h2 className="min-w-0 truncate text-2xl font-bold text-black">{tBuyersProfile('title')}</h2>
         </div>
-        <div className="flex gap-2 items-center mt-2 md:mt-0">
-          <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm" onClick={handleCopy}>
-            <Copy className="w-4 h-4" /> {tBuyersProfile('copyData')}
+        <div className="flex w-full min-w-0 flex-col gap-2 @4xl/main:flex-row @4xl/main:flex-wrap @4xl/main:items-center @5xl/main:w-auto">
+          <button
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-gray-100 @4xl/main:w-auto"
+            onClick={handleCopy}
+          >
+            <Copy className="h-4 w-4" /> {tBuyersProfile('copyData')}
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm" onClick={() => setShowEditModal(true)}>
-            <Edit className="w-4 h-4" /> {tBuyersProfile('editDetails')}
+          <button
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#084ba6] @4xl/main:w-auto"
+            onClick={() => setShowEditModal(true)}
+          >
+            <Edit className="h-4 w-4" /> {tBuyersProfile('editDetails')}
           </button>
         </div>
       </div>
@@ -380,7 +387,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
       })()}
       
       {/* Top Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 @4xl/main:grid-cols-3">
         {/* Avatar & Owner */}
         <div className="flex flex-col items-center justify-center bg-white rounded-lg border border-[#e6e6e6] p-4 gap-2">
           <div className="w-20 h-20 rounded-full object-cover border-4 border-gray-300 bg-gray-100 flex items-center justify-center overflow-hidden">
@@ -601,7 +608,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
           <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">{tBuyersProfile('outstandingLabel')} <span className="font-bold text-[#f65911]">{formatCurrency(totalOutstanding, userCurrency)}</span></div>
         </div>
         {/* Above Order & Product Details table */}
-        <div className="overflow-x-auto rounded-lg">
+        <div className="min-w-0 overflow-x-auto rounded-lg">
           <table className="min-w-full text-xs font-medium text-left">
             <thead>
               <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
@@ -701,7 +708,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
         {offersLoading ? (
           <div className="text-sm text-gray-500 py-6 text-center">{tBuyersProfile('offersLoading')}</div>
         ) : (
-          <div className="overflow-x-auto rounded-lg">
+          <div className="min-w-0 overflow-x-auto rounded-lg">
             <table className="min-w-full text-xs font-medium text-left">
               <thead>
                 <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
@@ -784,7 +791,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
         ) : (
         <>
         {/* Analytics Cards Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div className="mb-4 grid grid-cols-1 gap-4 @4xl/main:grid-cols-2">
           
           {/* Monthly Orders Analytics */}
           <div className="p-3 bg-gray-50 rounded-lg">
@@ -851,8 +858,8 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
         </div>
         
         <p className="text-xs text-gray-500 italic mb-2">{tBuyersProfile('analyticsNote')}</p>
-        <div className="flex flex-col md:flex-row gap-6">
-          <div className="flex-1 bg-white rounded-lg border border-[#e6e6e6] p-4">
+        <div className="flex flex-col gap-6 @4xl/main:flex-row">
+          <div className="min-w-0 flex-1 rounded-lg border border-[#e6e6e6] bg-white p-4">
             <div className="text-lg font-semibold text-gray-900 mb-6">{tBuyersProfile('chartOrdersPerMonth')}</div>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={analyticsData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
@@ -904,7 +911,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div className="flex-1 bg-white rounded-lg border border-[#e6e6e6] p-4">
+          <div className="min-w-0 flex-1 rounded-lg border border-[#e6e6e6] bg-white p-4">
             <div className="text-lg font-semibold text-gray-900 mb-6">{tBuyersProfile('chartSpendingPerMonth')}</div>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={analyticsData} margin={{ top: 20, right: 50, left: 50, bottom: 20 }}>

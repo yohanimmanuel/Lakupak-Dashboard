@@ -200,33 +200,33 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
     <div className="bg-white p-4 rounded-lg border border-[#e6e6e6]">
       <div className="w-full mx-auto">
         {/* Breadcrumb Navigation */}
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="mb-4 flex min-w-0 flex-col gap-3 @5xl/main:flex-row @5xl/main:items-center @5xl/main:justify-between">
+          <div className="flex min-w-0 flex-col gap-3 @3xl/main:flex-row @3xl/main:items-center">
             <button
               onClick={handleBack}
-              className="flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800"
+              className="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800 @3xl/main:w-auto @3xl/main:justify-start"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="h-4 w-4" />
               {tSalesDetails('backToTeamList')}
             </button>
-            <h1 className="min-w-0 max-w-full truncate text-2xl font-bold text-gray-900">{agent.name}</h1>
+            <h1 className="min-w-0 truncate text-2xl font-bold text-gray-900">{agent.name}</h1>
           </div>
-          <div className="flex shrink-0 items-center">
-            {onEdit && (
+          {onEdit && (
+            <div className="flex w-full min-w-0 flex-col gap-2 @4xl/main:flex-row @5xl/main:w-auto">
               <button
                 onClick={onEdit}
-                className="flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors text-sm font-medium"
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#0851b8] @4xl/main:w-auto"
               >
-                <Edit className="w-4 h-4" />
+                <Edit className="h-4 w-4" />
                 {tSalesDetails('editDetails')}
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:items-stretch">
+        <div className="grid grid-cols-1 gap-4 @5xl/main:grid-cols-3 @5xl/main:items-stretch">
           {/* Left Column - Profile Summary; fill height to match right column */}
-          <div className="lg:col-span-1 flex flex-col gap-4 min-h-0">
+          <div className="flex min-h-0 flex-col gap-4 @5xl/main:col-span-1">
           {/* Profile Card */}
           <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 flex-shrink-0">
             {/* Profile Header */}
@@ -371,7 +371,7 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
         </div>
 
         {/* Right Column - Detailed Information */}
-        <div className="lg:col-span-2 flex flex-col gap-4 min-h-0">
+        <div className="flex min-h-0 flex-col gap-4 @5xl/main:col-span-2">
           {/* About Section */}
           <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
             <div className="flex items-center justify-between mb-4">

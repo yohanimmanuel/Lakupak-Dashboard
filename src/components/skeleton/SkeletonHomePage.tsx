@@ -50,7 +50,7 @@ function MetricCard() {
 
 export function SkeletonHomePage() {
   return (
-    <div className="w-full p-4 space-y-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
+    <div className="flex min-h-full w-full min-w-0 flex-col space-y-4 bg-gradient-to-b from-gray-50 to-white p-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="space-y-2">
@@ -61,12 +61,12 @@ export function SkeletonHomePage() {
       </div>
 
       {/* Metric cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 gap-3 @3xl/main:grid-cols-2 @5xl/main:grid-cols-4">
         {[...Array(4)].map((_, i) => <MetricCard key={i} />)}
       </div>
 
       {/* Widget grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 @4xl/main:grid-cols-2">
         <WidgetCard rows={4} />
         <WidgetCard rows={4} />
         <WidgetCard rows={3} />

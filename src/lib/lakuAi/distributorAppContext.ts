@@ -366,8 +366,8 @@ export const LAKU_APP_MODULES = [
   },
   {
     id: 'copilot',
-    path: '/copilot',
-    role: 'Lakupak AI chat for analysis, orders, buyers, products, sales reminders, and workflow drafts. Saved workflows are listed at /automation. Creating or editing a workflow opens the canvas, where a draft is reviewed before it is saved or activated.',
+    path: '/home',
+    role: 'Lakupak AI sticky chat for analysis, orders, buyers, products, sales reminders, retailer prospects, and workflow drafts. Open it from the sparkles control in the top bar. Saved workflows are listed at /automation. Creating or editing a workflow opens the canvas, where a draft is reviewed before it is saved or activated.',
   },
   {
     id: 'automation',

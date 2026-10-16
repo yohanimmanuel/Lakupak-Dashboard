@@ -223,7 +223,7 @@ export default function FleetOrderSelection({
       ) : (
         <>
           {viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 gap-4 @3xl/main:grid-cols-2 @5xl/main:grid-cols-4">
               {pagedOrders.map((order) => {
                 const selected    = isOrderSelected(order.orderId);
                 const otherFleet  = isAssignedToOtherFleet(order);

@@ -14,7 +14,7 @@ function Field() {
 
 export function SkeletonOrderForm() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-4" aria-busy="true" aria-live="polite">
+    <div className="flex min-h-full w-full min-w-0 flex-col bg-gradient-to-b from-gray-50 to-white p-4" aria-busy="true" aria-live="polite">
       <div className="mx-auto w-full">
         <div className="rounded-lg border border-[#e6e6e6] bg-white">
           <div className="flex items-center justify-between gap-4 border-b border-[#e6e6e6] px-4 py-4">

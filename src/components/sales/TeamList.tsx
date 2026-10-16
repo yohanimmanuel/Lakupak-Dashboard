@@ -476,22 +476,17 @@ export default function TeamList({
   };
 
   return (
-    <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6] p-4">
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-        {/* Title and Count */}
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">
-            {tTeamList('agentsTitle')} <span className="font-medium text-gray-400">{agents.length}</span>
-          </h2>
-        </div>
+    <div className="mx-auto w-full min-w-0 rounded-lg border border-[#e6e6e6] bg-white p-4">
+      <div className="mb-4 min-w-0">
+        <h2 className="text-xl font-bold text-gray-900">
+          {tTeamList('agentsTitle')} <span className="font-medium text-gray-400">{agents.length}</span>
+        </h2>
       </div>
 
-      {/* Tabs */}
-      <div className="mb-4">
-        <div className="relative w-full md:w-auto flex items-center">
-          <div className="flex w-full md:w-auto bg-gray-100 rounded-lg overflow-hidden relative">
-            {/* Sliding Indicator */}
+      {/* Tabs - full width, scroll horizontally when compressed */}
+      <div className="mb-4 w-full min-w-0">
+        <div className="w-full overflow-x-auto rounded-lg">
+          <div className="relative inline-flex w-max min-w-full bg-gray-100">
             <div
               className="absolute top-0 h-full transition-all duration-300"
               style={{
@@ -507,7 +502,7 @@ export default function TeamList({
                 key={tab.value}
                 ref={el => { tabRefs.current[idx] = el; }}
                 onClick={() => setSelectedTab(tab.value)}
-                className={`relative z-10 flex-1 px-6 py-2 font-medium text-[14px] transition-colors duration-200 focus:outline-none ${
+                className={`relative z-10 shrink-0 whitespace-nowrap px-6 py-2 font-medium text-[14px] transition-colors duration-200 focus:outline-none ${
                   selectedTab === tab.value
                     ? 'text-white'
                     : 'text-gray-700 hover:text-[#0a61d7]'
@@ -517,8 +512,6 @@ export default function TeamList({
                 style={{
                   background: 'transparent',
                   boxShadow: 'none',
-                  minWidth: 0,
-                  flex: 'unset',
                 }}
               >
                   {translateTeamTab(tab.value)}
@@ -528,36 +521,37 @@ export default function TeamList({
         </div>
       </div>
 
-      {/* Search and Filters - Below Tabs */}
+      {/* Search full width; filters stack below */}
       {selectedTab === 'individuals' && (
-        <div className="flex flex-col md:flex-row gap-2 mb-4 items-start md:items-center">
-          {/* Search Bar */}
-          <div className="relative w-full md:w-64 shrink-0">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+        <div className="mb-4 flex w-full min-w-0 flex-col gap-3">
+          <div className="relative w-full">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               placeholder={tTeamList('searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-lg border border-[#e6e6e6] text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7] bg-white"
+              className="w-full rounded-lg border border-[#e6e6e6] bg-white py-2 pl-10 pr-4 text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7]"
             />
           </div>
 
-          {/* Role Filter Dropdown */}
-          <div className="relative" ref={roleDropdownRef}>
+          <div className="flex w-full min-w-0 flex-col gap-2 @4xl/main:flex-row @4xl/main:flex-wrap @4xl/main:items-center">
+          <div className="relative w-full @4xl/main:w-auto" ref={roleDropdownRef}>
             <button
-              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
+              className="flex w-full items-center justify-between gap-1 rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 @4xl/main:w-auto @4xl/main:justify-start"
               onClick={() => {
                 setShowRoleDropdown(v => !v);
                 setShowStatusDropdown(false);
               }}
             >
-              <Filter className="w-4 h-4" />
-              {selectedRole === 'All Roles' ? translateRoleFilter(selectedRole) : translateAgentRole(selectedRole)}
-              <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
+              <span className="inline-flex items-center gap-1">
+                <Filter className="h-4 w-4" />
+                {selectedRole === 'All Roles' ? translateRoleFilter(selectedRole) : translateAgentRole(selectedRole)}
+              </span>
+              <ChevronDown className="ml-1 h-4 w-4 text-gray-500" />
             </button>
             {showRoleDropdown && (
-              <div className="absolute right-0 mt-2 w-40 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
+              <div className="absolute left-0 right-0 z-20 mt-2 rounded-lg border border-[#e6e6e6] bg-white shadow @4xl/main:left-auto @4xl/main:right-0 @4xl/main:w-40">
                 {roleOptions.map((role) => (
                   <button
                     key={role}
@@ -565,9 +559,9 @@ export default function TeamList({
                       setSelectedRole(role);
                       setShowRoleDropdown(false);
                     }}
-                    className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg last:rounded-b-lg ${
+                    className={`w-full px-4 py-2 text-left text-sm first:rounded-t-lg last:rounded-b-lg ${
                       selectedRole === role
-                        ? 'text-[#0a61d7] font-semibold hover:bg-gray-100'
+                        ? 'font-semibold text-[#0a61d7] hover:bg-gray-100'
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
@@ -578,21 +572,22 @@ export default function TeamList({
             )}
           </div>
 
-          {/* Status Filter Dropdown */}
-          <div className="relative" ref={statusDropdownRef}>
+          <div className="relative w-full @4xl/main:w-auto" ref={statusDropdownRef}>
             <button
-              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
+              className="flex w-full items-center justify-between gap-1 rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 @4xl/main:w-auto @4xl/main:justify-start"
               onClick={() => {
                 setShowStatusDropdown(v => !v);
                 setShowRoleDropdown(false);
               }}
             >
-              <Filter className="w-4 h-4" />
-              {translateStatusFilter(selectedStatus)}
-              <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
+              <span className="inline-flex items-center gap-1">
+                <Filter className="h-4 w-4" />
+                {translateStatusFilter(selectedStatus)}
+              </span>
+              <ChevronDown className="ml-1 h-4 w-4 text-gray-500" />
             </button>
             {showStatusDropdown && (
-              <div className="absolute right-0 mt-2 w-40 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
+              <div className="absolute left-0 right-0 z-20 mt-2 rounded-lg border border-[#e6e6e6] bg-white shadow @4xl/main:left-auto @4xl/main:right-0 @4xl/main:w-40">
                 {statusOptions.map((status) => (
                   <button
                     key={status}
@@ -600,9 +595,9 @@ export default function TeamList({
                       setSelectedStatus(status);
                       setShowStatusDropdown(false);
                     }}
-                    className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg last:rounded-b-lg ${
+                    className={`w-full px-4 py-2 text-left text-sm first:rounded-t-lg last:rounded-b-lg ${
                       selectedStatus === status
-                        ? 'text-[#0a61d7] font-semibold hover:bg-gray-100'
+                        ? 'font-semibold text-[#0a61d7] hover:bg-gray-100'
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
@@ -611,6 +606,7 @@ export default function TeamList({
                 ))}
               </div>
             )}
+          </div>
           </div>
         </div>
       )}

@@ -11,7 +11,7 @@ function InfoRow() {
 
 export function SkeletonOrderDetailPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-4">
+    <div className="flex min-h-full w-full min-w-0 flex-col bg-gradient-to-b from-gray-50 to-white p-4">
       <div className="w-full mx-auto">
         <div className="bg-white p-4 rounded-lg border border-[#e6e6e6]">
           {/* Completion progress bar */}
@@ -61,7 +61,7 @@ export function SkeletonOrderDetailPage() {
           </div>
 
           {/* Row 2: Total order + updates/status side by side */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 @4xl/main:grid-cols-2 gap-4 mb-4">
             {/* Total order */}
             <div className="rounded-lg border border-[#e6e6e6] p-4">
               <Skeleton className="h-5 w-28 mb-2" />
@@ -107,9 +107,9 @@ export function SkeletonOrderDetailPage() {
           </div>
 
           {/* Row 3: Order items (3) + order summary (4) */}
-          <div className="grid grid-cols-1 lg:grid-cols-7 gap-4">
+          <div className="grid grid-cols-1 @5xl/main:grid-cols-7 gap-4">
             {/* Order items */}
-            <div className="lg:col-span-3 rounded-lg border border-[#e6e6e6] p-4">
+            <div className="@5xl/main:col-span-3 rounded-lg border border-[#e6e6e6] p-4">
               <Skeleton className="h-5 w-32 mb-4" />
               <div className="space-y-2">
                 {Array.from({ length: 4 }).map((_, i) => (
@@ -129,7 +129,7 @@ export function SkeletonOrderDetailPage() {
             </div>
 
             {/* Order summary */}
-            <div className="lg:col-span-4 rounded-lg border border-[#e6e6e6] p-4">
+            <div className="@5xl/main:col-span-4 rounded-lg border border-[#e6e6e6] p-4">
               <Skeleton className="h-5 w-36 mb-4" />
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div className="rounded-lg border border-[#e6e6e6] bg-gray-50 p-3">

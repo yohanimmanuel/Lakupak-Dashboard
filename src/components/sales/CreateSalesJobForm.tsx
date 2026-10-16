@@ -692,7 +692,7 @@ export default function CreateSalesJobForm({
   };
 
   return (
-    <div className="p-4 space-y-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
+    <div className="flex min-h-full w-full min-w-0 flex-col space-y-4 bg-gradient-to-b from-gray-50 to-white p-4">
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <button
@@ -734,7 +734,7 @@ export default function CreateSalesJobForm({
         <p className="text-xs text-gray-500 mt-2">{t('form.repHint')}</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
+      <div className="grid grid-cols-1 items-stretch gap-4 @5xl/main:grid-cols-3">
       {jobs.map((job, index) => {
         const savedJob = Boolean(editing?.replaceIds.includes(job.key));
         const isProspect = job.jobType === 'prospect_new_outlet';

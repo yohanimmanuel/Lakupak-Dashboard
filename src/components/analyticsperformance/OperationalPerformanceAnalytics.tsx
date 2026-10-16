@@ -594,7 +594,7 @@ const OperationalPerformanceAnalytics: React.FC<OperationalPerformanceAnalyticsP
   return (
     <div className="space-y-3">
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 gap-3 @3xl/main:grid-cols-2 @5xl/main:grid-cols-4">
         <MetricCard
           title={tMetrics('orderCompletionRate')}
           value={`${calculateMetrics.completionRate.toFixed(1)}%`}
@@ -624,8 +624,8 @@ const OperationalPerformanceAnalytics: React.FC<OperationalPerformanceAnalyticsP
       {/* Charts Grid */}
       <div className="space-y-3">
         {/* First Row - Order Status Distribution + Processing Time Trend */}
-        <div className="grid grid-cols-1 lg:grid-cols-11 gap-3">
-          <div className="lg:col-span-5 h-full">
+        <div className="grid grid-cols-1 @5xl/main:grid-cols-11 gap-3">
+          <div className="@5xl/main:col-span-5 h-full">
             {/* Order Status Distribution */}
             <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 h-full flex flex-col">
               <h3 className="text-lg font-semibold text-black">{tCharts('orderStatusDistribution')}</h3>
@@ -704,19 +704,19 @@ const OperationalPerformanceAnalytics: React.FC<OperationalPerformanceAnalyticsP
             </div>
           </div>
           
-          <div className="lg:col-span-6 h-full">
+          <div className="@5xl/main:col-span-6 h-full">
             {/* Processing Time Trend */}
             <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 h-full flex flex-col">
-              <div className="flex items-center justify-between mb-6">
+              <div className="mb-6 flex min-w-0 flex-col gap-3 @4xl/main:flex-row @4xl/main:items-center @4xl/main:justify-between">
                 <h3 className="text-lg font-semibold text-gray-900">{tCharts('processingTimeTrend')}</h3>
-                <div className="flex items-center space-x-4">
+                <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
                   <div className="flex items-center">
-                    <div className="w-3 h-3 bg-gradient-to-r from-[#3b82f6] to-[#0a61d7] rounded-full mr-2"></div>
-                    <span className="text-sm text-gray-600 font-medium">{tCharts('avgHours')}</span>
+                    <div className="mr-2 h-3 w-3 rounded-full bg-gradient-to-r from-[#3b82f6] to-[#0a61d7]"></div>
+                    <span className="text-sm font-medium text-gray-600">{tCharts('avgHours')}</span>
                   </div>
                   <div className="flex items-center">
-                    <div className="w-3 h-3 bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full mr-2"></div>
-                    <span className="text-sm text-gray-600 font-medium">{tCharts('ordersCountLegend')}</span>
+                    <div className="mr-2 h-3 w-3 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600"></div>
+                    <span className="text-sm font-medium text-gray-600">{tCharts('ordersCountLegend')}</span>
                   </div>
                 </div>
               </div>
@@ -826,8 +826,8 @@ const OperationalPerformanceAnalytics: React.FC<OperationalPerformanceAnalyticsP
         </div>
 
         {/* Second Row - Inventory Health + Quality Metrics */}
-        <div className="grid grid-cols-1 lg:grid-cols-11 gap-3">
-          <div className="lg:col-span-6 h-full">
+        <div className="grid grid-cols-1 @5xl/main:grid-cols-11 gap-3">
+          <div className="@5xl/main:col-span-6 h-full">
             {/* Inventory Health by Category */}
             <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 h-full flex flex-col">
               <h3 className="text-lg font-semibold text-gray-900 mb-6">{tCharts('inventoryHealthByCategory')}</h3>
@@ -942,7 +942,7 @@ const OperationalPerformanceAnalytics: React.FC<OperationalPerformanceAnalyticsP
             </div>
           </div>
           
-          <div className="lg:col-span-5 h-full">
+          <div className="@5xl/main:col-span-5 h-full">
             {/* Quality Metrics Dashboard */}
             <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 h-full flex flex-col">
               <h3 className="text-lg font-semibold text-gray-900 mb-6">{tCharts('operationalQualityMetrics')}</h3>
@@ -998,8 +998,8 @@ const OperationalPerformanceAnalytics: React.FC<OperationalPerformanceAnalyticsP
         </div>
 
         {/* Third Row - Delivery Methods */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
-          <div className="lg:col-span-12">
+        <div className="grid grid-cols-1 @5xl/main:grid-cols-12 gap-3">
+          <div className="@5xl/main:col-span-12">
             {/* Delivery Methods Performance */}
             <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
               <h3 className="text-lg font-semibold text-gray-900 mb-6">{tCharts('deliveryMethodsDistribution')}</h3>
@@ -1112,15 +1112,15 @@ export const OrderStatusDistributionChart: React.FC<{
 
   return (
   <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 h-full flex flex-col">
-    <div className="flex items-center justify-between mb-2">
+    <div className="mb-2 flex min-w-0 flex-col gap-3 @4xl/main:flex-row @4xl/main:items-center @4xl/main:justify-between">
       <h3 className="text-lg font-semibold text-black">{tCharts('orderStatusDistribution')}</h3>
       <button 
         onClick={() => (window.location.href = '/analytics/performance')}
-        className="flex items-center px-3 py-1.5 text-xs font-medium text-black bg-white shadow-sm hover:bg-gray-100 rounded-md transition-colors"
+        className="flex w-full items-center justify-center rounded-md bg-white px-3 py-1.5 text-xs font-medium text-black shadow-sm transition-colors hover:bg-gray-100 @4xl/main:w-auto"
         aria-label={tShared('seeMoreOperationalAria')}
       >
         {tShared('seeMore')}
-        <ArrowRight className="w-4 h-4 ml-1" />
+        <ArrowRight className="ml-1 h-4 w-4" />
       </button>
     </div>
     <div className="flex-1 min-h-0 min-h-[280px]">
@@ -1199,24 +1199,24 @@ export const ProcessingTimeTrendChart: React.FC<{
 
   return (
   <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 h-full flex flex-col">
-    <div className="flex items-center justify-between mb-6">
+    <div className="mb-6 flex min-w-0 flex-col gap-3 @4xl/main:flex-row @4xl/main:items-center @4xl/main:justify-between">
       <h3 className="text-lg font-semibold text-gray-900">{tCharts('processingTimeTrend')}</h3>
-      <div className="flex items-center space-x-4">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
         <div className="flex items-center">
-          <div className="w-3 h-3 bg-gradient-to-r from-[#3b82f6] to-[#0a61d7] rounded-full mr-2"></div>
-          <span className="text-sm text-gray-600 font-medium">{tCharts('avgHours')}</span>
+          <div className="mr-2 h-3 w-3 rounded-full bg-gradient-to-r from-[#3b82f6] to-[#0a61d7]"></div>
+          <span className="text-sm font-medium text-gray-600">{tCharts('avgHours')}</span>
         </div>
         <div className="flex items-center">
-          <div className="w-3 h-3 bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full mr-2"></div>
-          <span className="text-sm text-gray-600 font-medium">{tCharts('ordersCountLegend')}</span>
+          <div className="mr-2 h-3 w-3 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600"></div>
+          <span className="text-sm font-medium text-gray-600">{tCharts('ordersCountLegend')}</span>
         </div>
         <button 
           onClick={() => (window.location.href = '/analytics/performance')}
-          className="flex items-center px-3 py-1.5 text-xs font-medium text-black bg-white shadow-sm hover:bg-gray-100 rounded-md transition-colors"
+          className="flex items-center rounded-md bg-white px-3 py-1.5 text-xs font-medium text-black shadow-sm transition-colors hover:bg-gray-100"
           aria-label={tShared('seeMoreOperationalAria')}
         >
           {tShared('seeMore')}
-          <ArrowRight className="w-4 h-4 ml-1" />
+          <ArrowRight className="ml-1 h-4 w-4" />
         </button>
       </div>
     </div>

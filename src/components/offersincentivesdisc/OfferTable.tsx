@@ -621,13 +621,13 @@ export default function OfferTable({
 
   return (
     <div
-      className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6] p-4 mt-3"
+      className="mx-auto mt-3 w-full min-w-0 rounded-lg border border-[#e6e6e6] bg-white p-4"
       data-tour="offers-table"
     >
-      {/* Status Tabs */}
-      <div className="mb-4">
-        <div className="relative w-full md:w-auto flex items-center">
-          <div className="flex w-full md:w-auto bg-gray-100 rounded-lg overflow-hidden relative">
+      {/* Status Tabs - full width, scroll horizontally when compressed */}
+      <div className="mb-4 w-full min-w-0">
+        <div className="w-full overflow-x-auto rounded-lg">
+          <div className="relative inline-flex w-max min-w-full bg-gray-100">
             <div
               className="absolute top-0 h-full transition-all duration-300"
               style={{
@@ -646,7 +646,7 @@ export default function OfferTable({
                 }}
                 type="button"
                 onClick={() => setStatusBoth(tab)}
-                className={`relative z-10 flex-1 px-6 py-2 font-medium text-[14px] transition-colors duration-200 focus:outline-none ${
+                className={`relative z-10 shrink-0 whitespace-nowrap px-6 py-2 font-medium text-[14px] transition-colors duration-200 focus:outline-none ${
                   selectedTab === tab
                     ? 'text-white'
                     : 'text-gray-700 hover:text-[#0a61d7]'
@@ -660,48 +660,49 @@ export default function OfferTable({
                 style={{
                   background: 'transparent',
                   boxShadow: 'none',
-                  minWidth: 0,
-                  flex: 'unset',
                 }}
               >
                 {translateStatusTab(tab)}
               </button>
             ))}
           </div>
-          </div>
         </div>
+      </div>
 
-        {/* Search and Filters */}
-      <div className="flex flex-wrap gap-2 w-full items-center justify-start mb-4">
-          <div className="relative w-full md:w-64 shrink-0">
-            <input
-              type="text"
-              placeholder={tTable('searchPlaceholder')}
-              value={search}
+      {/* Search full width; filters stack below */}
+      <div className="mb-4 flex w-full min-w-0 flex-col gap-3">
+        <div className="relative w-full">
+          <input
+            type="text"
+            placeholder={tTable('searchPlaceholder')}
+            value={search}
             onChange={(e) => {
               setSearch(e.target.value);
               setPage(1);
             }}
-              className="w-full pl-10 pr-4 py-2 rounded-lg border border-[#e6e6e6] text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7] bg-white"
+            className="w-full rounded-lg border border-[#e6e6e6] bg-white py-2 pl-10 pr-4 text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7]"
             maxLength={100}
-            />
-            <Search className="absolute left-3 top-2 text-gray-400 w-5 h-5" />
-          </div>
+          />
+          <Search className="absolute left-3 top-2 h-5 w-5 text-gray-400" />
+        </div>
 
+        <div className="flex w-full min-w-0 flex-col gap-2 @4xl/main:flex-row @4xl/main:flex-wrap @4xl/main:items-center">
         {/* Client filter with searchable list */}
-        <div className="relative" ref={clientDropdownRef}>
+        <div className="relative w-full @4xl/main:w-auto" ref={clientDropdownRef}>
           <button
             type="button"
-            className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm whitespace-nowrap max-w-[220px]"
+            className="flex w-full max-w-none items-center justify-between gap-1 whitespace-nowrap rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 @4xl/main:w-auto @4xl/main:max-w-[220px] @4xl/main:justify-start"
             onClick={() => {
               setShowClientDropdown((v) => !v);
               setShowStatusDropdown(false);
               setShowDateDropdown(false);
             }}
           >
-            <Users className="w-4 h-4 shrink-0" />
-            <span className="truncate">{selectedClientLabel}</span>
-            <ChevronDown className="w-4 h-4 ml-1 text-gray-500 shrink-0" />
+            <span className="inline-flex min-w-0 items-center gap-1">
+              <Users className="h-4 w-4 shrink-0" />
+              <span className="truncate">{selectedClientLabel}</span>
+            </span>
+            <ChevronDown className="ml-1 h-4 w-4 shrink-0 text-gray-500" />
           </button>
           {showClientDropdown && (
             <div className="absolute left-0 mt-2 w-72 bg-white border border-[#e6e6e6] rounded-lg shadow-lg z-30 overflow-hidden">
@@ -788,60 +789,64 @@ export default function OfferTable({
       </div>
 
         {/* Status filter dropdown */}
-        <div className="relative" ref={statusDropdownRef}>
-              <button
+        <div className="relative w-full @4xl/main:w-auto" ref={statusDropdownRef}>
+          <button
             type="button"
-            className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm whitespace-nowrap"
+            className="flex w-full items-center justify-between gap-1 whitespace-nowrap rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 @4xl/main:w-auto @4xl/main:justify-start"
             onClick={() => {
               setShowStatusDropdown((v) => !v);
               setShowClientDropdown(false);
               setShowDateDropdown(false);
             }}
           >
-            <Filter className="w-4 h-4" />
-            {tTable('filterStatus')}: {translateStatusTab(statusFilter)}
-            <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
-              </button>
+            <span className="inline-flex items-center gap-1">
+              <Filter className="h-4 w-4" />
+              {tTable('filterStatus')}: {translateStatusTab(statusFilter)}
+            </span>
+            <ChevronDown className="ml-1 h-4 w-4 text-gray-500" />
+          </button>
           {showStatusDropdown && (
-            <div className="absolute left-0 mt-2 w-44 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
+            <div className="absolute left-0 right-0 z-20 mt-2 rounded-lg border border-[#e6e6e6] bg-white shadow @4xl/main:right-auto @4xl/main:w-44">
               {STATUS_FILTERS.map((opt) => (
-              <button
+                <button
                   key={opt}
                   type="button"
                   onClick={() => {
                     setStatusBoth(opt);
                     setShowStatusDropdown(false);
                   }}
-                  className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${
+                  className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 ${
                     statusFilter === opt
                       ? 'font-bold text-[#0a61d7]'
                       : 'text-gray-700'
                   }`}
                 >
                   {translateStatusTab(opt)}
-              </button>
+                </button>
               ))}
             </div>
           )}
         </div>
 
         {/* Date filter */}
-        <div className="relative" ref={dateDropdownRef}>
-              <button
+        <div className="relative w-full @4xl/main:w-auto" ref={dateDropdownRef}>
+          <button
             type="button"
-            className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm whitespace-nowrap"
+            className="flex w-full items-center justify-between gap-1 whitespace-nowrap rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 @4xl/main:w-auto @4xl/main:justify-start"
             onClick={() => {
               setShowDateDropdown((v) => !v);
               setShowClientDropdown(false);
               setShowStatusDropdown(false);
             }}
           >
-            <Filter className="w-4 h-4" />
-            {translateDateFilter(dateFilter)}
-            <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
-              </button>
+            <span className="inline-flex items-center gap-1">
+              <Filter className="h-4 w-4" />
+              {translateDateFilter(dateFilter)}
+            </span>
+            <ChevronDown className="ml-1 h-4 w-4 text-gray-500" />
+          </button>
           {showDateDropdown && (
-            <div className="absolute right-0 mt-2 w-44 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
+            <div className="absolute left-0 right-0 z-20 mt-2 rounded-lg border border-[#e6e6e6] bg-white shadow @4xl/main:left-auto @4xl/main:right-0 @4xl/main:w-44">
               {DATE_FILTERS.map((opt) => (
                 <button
                   key={opt}
@@ -852,7 +857,7 @@ export default function OfferTable({
                     setPage(1);
                     setSelectedKeys([]);
                   }}
-                  className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${
+                  className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 ${
                     dateFilter === opt
                       ? 'font-bold text-[#0a61d7]'
                       : 'text-gray-700'
@@ -863,8 +868,9 @@ export default function OfferTable({
               ))}
             </div>
           )}
-            </div>
-          </div>
+        </div>
+        </div>
+      </div>
           
       {bulkError && (
         <div className="mb-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">

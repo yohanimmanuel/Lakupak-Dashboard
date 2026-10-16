@@ -798,7 +798,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
     <div className="space-y-3">
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 gap-3 @3xl/main:grid-cols-2 @5xl/main:grid-cols-4">
         <MetricCard
           title={tMetrics('orderVolume')}
           value={utilsFormatCurrency(calculateMetrics.totalRevenue, userCurrency)}
@@ -852,8 +852,8 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
       {/* Charts Grid */}
        <div className="space-y-3">
          {/* Second Row - Revenue Trend (smaller) + Revenue by Category (larger) */}
-         <div className="grid grid-cols-1 lg:grid-cols-16 gap-3">
-           <div className="lg:col-span-10">
+         <div className="grid grid-cols-1 gap-3 @5xl/main:grid-cols-16">
+           <div className="@5xl/main:col-span-10">
                  {/* Revenue Trend */}
          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
            <div className="flex items-center justify-between mb-6">
@@ -976,7 +976,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
            )}
          </div>
            </div>
-           <div className="lg:col-span-6">
+           <div className="@5xl/main:col-span-6">
          {/* Revenue by Category */}
          <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
            <div className="flex items-center justify-between mb-6">
@@ -1528,8 +1528,8 @@ export const AnalyticsMetricCard: React.FC<{
   const resolvedNaLabel = naLabel ?? tShared('na');
 
   return (
-  <div className="flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6]">
-    <div className="flex items-center gap-4 border-b border-[#e6e6e6] pb-4">
+  <div className="flex min-w-0 flex-col justify-between rounded-lg border border-[#e6e6e6] bg-white p-4">
+    <div className="flex min-w-0 items-center gap-4 border-b border-[#e6e6e6] pb-4">
       <div className={`flex items-center justify-center w-12 h-12 rounded-lg ${color}`}>
         {icon}
       </div>
@@ -1560,23 +1560,23 @@ export const AnalyticsRevenueTrendChart: React.FC<{
 
   return (
   <div className="bg-white rounded-lg border border-[#e6e6e6] p-4">
-    <div className="flex items-center justify-between mb-4">
+    <div className="mb-4 flex min-w-0 flex-col gap-3 @4xl/main:flex-row @4xl/main:items-center @4xl/main:justify-between">
       <h3 className="text-lg font-semibold text-gray-900">{tCharts('revenueTrend')}</h3>
-      <div className="flex items-center space-x-4">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
         <div className="flex items-center">
-          <div className="w-3 h-3 bg-gradient-to-r from-[#3b82f6] to-[#0a61d7] rounded-full mr-2"></div>
-          <span className="text-sm text-gray-600 font-medium">{tCharts('orderVolumeLegend')}</span>
+          <div className="mr-2 h-3 w-3 rounded-full bg-gradient-to-r from-[#3b82f6] to-[#0a61d7]"></div>
+          <span className="text-sm font-medium text-gray-600">{tCharts('orderVolumeLegend')}</span>
         </div>
         <div className="flex items-center">
-          <div className="w-3 h-3 bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full mr-2"></div>
-          <span className="text-sm text-gray-600 font-medium">{tCharts('profitLegend')}</span>
+          <div className="mr-2 h-3 w-3 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600"></div>
+          <span className="text-sm font-medium text-gray-600">{tCharts('profitLegend')}</span>
         </div>
         <button 
           onClick={() => window.location.href = '/analytics/financial'}
-          className="flex items-center px-3 py-1.5 text-xs font-medium text-black bg-white shadow-sm hover:bg-gray-100 rounded-md transition-colors"
+          className="flex items-center rounded-md bg-white px-3 py-1.5 text-xs font-medium text-black shadow-sm transition-colors hover:bg-gray-100"
         >
           {tShared('seeMore')}
-          <ArrowRight className="w-4 h-4 ml-1" />
+          <ArrowRight className="ml-1 h-4 w-4" />
         </button>
       </div>
     </div>

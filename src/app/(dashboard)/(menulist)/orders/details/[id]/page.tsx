@@ -72,8 +72,8 @@ export default function OrderDetailsPage() {
 
   if (!order) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-4">
-        <div className="w-full mx-auto">
+      <div className="flex min-h-full w-full min-w-0 flex-col bg-gradient-to-b from-gray-50 to-white p-4">
+        <div className="w-full min-w-0">
           <div className="text-center py-12">
             <h2 className="text-2xl font-semibold text-gray-900 mb-2">{tDetailsPage('notFoundTitle')}</h2>
             <p className="text-gray-600 mb-4">{tDetailsPage('notFoundDescription')}</p>
@@ -90,8 +90,8 @@ export default function OrderDetailsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-4">
-      <div className="w-full mx-auto">
+    <div className="flex min-h-full w-full min-w-0 flex-col bg-gradient-to-b from-gray-50 to-white p-4">
+      <div className="w-full min-w-0">
         <OrderDetails order={order} onBack={handleBack} />
       </div>
     </div>

@@ -570,24 +570,24 @@ export function OfferFormPage({ mode }: { mode: 'create' | 'edit' }) {
   }
 
   return (
-    <div className="p-4 space-y-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+    <div className="flex min-h-full w-full min-w-0 flex-col space-y-4 bg-gradient-to-b from-gray-50 to-white p-4">
+      <div className="flex min-w-0 flex-col gap-3 @5xl/main:flex-row @5xl/main:items-start @5xl/main:justify-between">
+        <div className="flex min-w-0 flex-col gap-3 @3xl/main:flex-row @3xl/main:items-start">
           <button
             type="button"
             onClick={() => router.push('/offers')}
-            className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+            className="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800 @3xl/main:w-auto @3xl/main:justify-start"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="h-4 w-4" />
             {tCreatePage('backToList')}
           </button>
-          <div>
-            <h1 className="text-2xl font-bold text-black">{title}</h1>
-            <div className="flex items-center gap-4 mt-2 flex-wrap">
+          <div className="min-w-0">
+            <h1 className="truncate text-2xl font-bold text-black">{title}</h1>
+            <div className="mt-2 flex flex-wrap items-center gap-4">
               {tabs.map((t) => (
                 <div key={t.id} className="flex items-center gap-2">
                   <div
-                    className={`w-2 h-2 rounded-full ${
+                    className={`h-2 w-2 rounded-full ${
                       tabCompletion[t.id] ? 'bg-green-500' : 'bg-gray-300'
                     }`}
                   />
@@ -596,26 +596,26 @@ export function OfferFormPage({ mode }: { mode: 'create' | 'edit' }) {
               ))}
               {!isReadyToSave && (
                 <div className="flex items-center gap-1 text-amber-600">
-                  <AlertCircle className="w-3 h-3" />
+                  <AlertCircle className="h-3 w-3" />
                   <span className="text-xs">{tCreatePage('completeRequired')}</span>
                 </div>
               )}
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full min-w-0 flex-col gap-2 @4xl/main:flex-row @4xl/main:flex-wrap @4xl/main:items-center @5xl/main:w-auto">
           <button
             type="button"
             onClick={handleSaveDraft}
             disabled={!canSaveDraft || saving || savingAsDraft || !user?.id}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition text-sm border ${
+            className={`flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition @4xl/main:w-auto ${
               canSaveDraft && !saving && !savingAsDraft && user?.id
-                ? 'bg-white text-[#0a61d7] border-[#0a61d7] hover:bg-[#f7faff]'
-                : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                ? 'border-[#0a61d7] bg-white text-[#0a61d7] hover:bg-[#f7faff]'
+                : 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400'
             }`}
           >
             {savingAsDraft ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : null}
             {savingAsDraft ? tCreatePage('saving') : tCreatePage('saveDraft')}
           </button>
@@ -623,16 +623,16 @@ export function OfferFormPage({ mode }: { mode: 'create' | 'edit' }) {
             type="button"
             onClick={handleSubmit}
             disabled={!isReadyToSave || saving || savingAsDraft || !user?.id}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition text-sm ${
+            className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition @4xl/main:w-auto ${
               isReadyToSave && !saving && !savingAsDraft && user?.id
                 ? 'bg-[#0a61d7] text-white hover:bg-[#084ba6]'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'cursor-not-allowed bg-gray-300 text-gray-500'
             }`}
           >
             {saving ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <CheckCircle className="w-4 h-4" />
+              <CheckCircle className="h-4 w-4" />
             )}
             {saving ? tCreatePage('saving') : submitLabel}
           </button>
@@ -645,17 +645,17 @@ export function OfferFormPage({ mode }: { mode: 'create' | 'edit' }) {
         </div>
       )}
 
-      <div className="bg-white rounded-lg border border-[#e6e6e6] p-1">
-        <div className="flex flex-col lg:flex-row gap-1">
+      <div className="rounded-lg border border-[#e6e6e6] bg-white p-1">
+        <div className="flex flex-col gap-1 @5xl/main:flex-row">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-3 px-4 py-3 rounded-md text-sm font-medium transition-colors flex-1 justify-center ${
+              className={`flex flex-1 items-center justify-center gap-3 rounded-md px-4 py-3 text-sm font-medium transition-colors ${
                 activeTab === tab.id
                   ? 'bg-[#0a61d7] text-white'
-                  : 'text-gray-600 hover:text-black hover:bg-gray-100'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-black'
               }`}
             >
               {tab.icon}

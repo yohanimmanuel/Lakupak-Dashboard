@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 
 export function SkeletonProductDetailPage() {
   return (
-    <div className="w-full mx-auto p-4 bg-gradient-to-b from-gray-50 to-white min-h-screen">
+    <div className="flex min-h-full w-full min-w-0 flex-col bg-gradient-to-b from-gray-50 to-white p-4">
       <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6]">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-[#e6e6e6]">
@@ -44,7 +44,7 @@ export function SkeletonProductDetailPage() {
               <Skeleton className="h-5 w-5 rounded" />
               <Skeleton className="h-5 w-40" />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 @3xl/main:grid-cols-2 @5xl/main:grid-cols-4 gap-4">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="flex flex-col gap-1.5">
                   <Skeleton className="h-3 w-20" />
@@ -64,9 +64,9 @@ export function SkeletonProductDetailPage() {
               <Skeleton className="h-5 w-5 rounded" />
               <Skeleton className="h-5 w-36" />
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 @5xl/main:grid-cols-5 gap-4">
               {/* Gallery */}
-              <div className="lg:col-span-3 space-y-3">
+              <div className="@5xl/main:col-span-3 space-y-3">
                 <Skeleton className="w-full h-64 rounded-lg" />
                 <div className="flex gap-2">
                   {Array.from({ length: 4 }).map((_, i) => (
@@ -75,7 +75,7 @@ export function SkeletonProductDetailPage() {
                 </div>
               </div>
               {/* Details */}
-              <div className="lg:col-span-2 space-y-4">
+              <div className="@5xl/main:col-span-2 space-y-4">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <div key={i} className="flex flex-col gap-1.5">
                     <Skeleton className="h-3 w-24" />

@@ -757,28 +757,30 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-4">
+    <div className="flex min-h-full w-full min-w-0 flex-col bg-gradient-to-b from-gray-50 to-white p-4">
       <div className="mx-auto w-full">
         {(error || loadError) && (
           <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">{error || loadError}</p>
         )}
         <div className="bg-white rounded-lg border border-[#e6e6e6]">
-          <div className="flex items-center justify-between gap-4 border-b border-[#e6e6e6] px-4 py-4">
-            <div className="flex min-w-0 items-center gap-4">
+          <div className="flex min-w-0 flex-col gap-3 border-b border-[#e6e6e6] px-4 py-4 @5xl/main:flex-row @5xl/main:items-center @5xl/main:justify-between">
+            <div className="flex min-w-0 flex-col gap-3 @3xl/main:flex-row @3xl/main:items-center">
               <Link
                 href={editing && orderId ? `/orders/details/${orderId}` : '/orders'}
-                className="flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800"
+                className="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800 @3xl/main:w-auto @3xl/main:justify-start"
               >
                 <ArrowLeft className="h-4 w-4" />
                 {tDetails('backButton')}
               </Link>
-              <h1 className="truncate text-2xl font-bold text-gray-900">{editing ? tCreate('editTitle') : tCreate('title')}</h1>
+              <h1 className="min-w-0 truncate text-2xl font-bold text-gray-900">
+                {editing ? tCreate('editTitle') : tCreate('title')}
+              </h1>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <div className="w-40">
+            <div className="flex w-full min-w-0 flex-col gap-2 @4xl/main:flex-row @4xl/main:flex-wrap @4xl/main:items-center @5xl/main:w-auto">
+              <div className="w-full @4xl/main:w-40">
                 <LakupakSelect value={orderStatus} placeholder={tCreate('orderStatus')} options={statusOptions} allowEmpty={false} onChange={setOrderStatus} />
               </div>
-              <div className="w-32">
+              <div className="w-full @4xl/main:w-32">
                 <LakupakSelect
                   value={paymentStatus}
                   placeholder={tCreate('paymentStatus')}
@@ -791,7 +793,7 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
                 type="button"
                 onClick={() => void save()}
                 disabled={saving || loading || orderLoading}
-                className="rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-semibold text-white hover:bg-[#084ba6] disabled:opacity-60"
+                className="w-full rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-semibold text-white hover:bg-[#084ba6] disabled:opacity-60 @4xl/main:w-auto"
               >
                 {saving ? tCreate('saving') : editing ? tCreate('saveChanges') : tCreate('save')}
               </button>

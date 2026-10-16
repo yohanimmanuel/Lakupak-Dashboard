@@ -43,7 +43,7 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
   const displayCurrency = user?.currency || getDefaultCurrency();
 
   return (
-    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 @3xl/main:grid-cols-2 @5xl/main:grid-cols-4">
       <AnalyticsMetricCard
         title={tCards('totalOrders')}
         value={totalOrders.toLocaleString()}
