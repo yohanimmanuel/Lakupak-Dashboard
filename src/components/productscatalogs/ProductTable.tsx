@@ -668,10 +668,10 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
 
   return (
     <div className="mx-auto mt-3 w-full min-w-0 rounded-lg border border-[#e6e6e6] bg-white p-4" data-tour="products-table">
-      {/* Status Tabs - full width, scroll horizontally when AI panel compresses the card */}
+      {/* Status Tabs - compact to label width; scroll horizontally when AI panel narrows the card */}
       <div className="mb-4 w-full min-w-0">
-        <div className="w-full overflow-x-auto rounded-lg">
-          <div className="relative inline-flex w-max min-w-full bg-gray-100">
+        <div className="w-full overflow-x-auto">
+          <div className="relative inline-flex w-max overflow-hidden rounded-lg bg-gray-100">
             {/* Sliding Indicator */}
             <div
               className="absolute top-0 h-full transition-all duration-300"
@@ -691,12 +691,10 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                   setSelectedTab(tab.label);
                   setSelectedProducts([]); // Reset selection when switching tabs
                 }}
-                className={`relative z-10 shrink-0 whitespace-nowrap px-6 py-2 font-medium text-[14px] transition-colors duration-200 focus:outline-none ${
+                className={`relative z-10 shrink-0 whitespace-nowrap px-4 py-2 text-[14px] font-medium transition-colors duration-200 focus:outline-none ${
                   selectedTab === tab.label
                     ? 'text-white'
                     : 'text-gray-700 hover:text-[#0a61d7]'
-                } ${
-                  idx === 0 ? 'rounded-l-lg' : idx === statusTabs.length - 1 ? 'rounded-r-lg' : ''
                 }`}
                 style={{
                   background: 'transparent',
