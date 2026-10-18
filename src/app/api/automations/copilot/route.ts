@@ -62,6 +62,8 @@ export async function POST(request: NextRequest) {
     name: result.name,
     description: result.description,
     updates: result.updates,
+    prospectFill: result.prospectFill,
+    prospectFills: result.prospectFills,
     model: result.model,
     source: 'model',
   });

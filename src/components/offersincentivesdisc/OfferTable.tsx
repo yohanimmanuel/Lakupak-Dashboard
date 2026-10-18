@@ -660,16 +660,16 @@ export default function OfferTable({
               </button>
             ))}
           </div>
+          </div>
         </div>
-      </div>
 
       {/* Search full width; filters stack below */}
       <div className="mb-4 flex w-full min-w-0 flex-col gap-3">
         <div className="relative w-full">
-          <input
-            type="text"
-            placeholder={tTable('searchPlaceholder')}
-            value={search}
+            <input
+              type="text"
+              placeholder={tTable('searchPlaceholder')}
+              value={search}
             onChange={(e) => {
               setSearch(e.target.value);
               setPage(1);
@@ -678,7 +678,7 @@ export default function OfferTable({
             maxLength={100}
           />
           <Search className="absolute left-3 top-2 h-5 w-5 text-gray-400" />
-        </div>
+          </div>
 
         <div className="flex w-full min-w-0 flex-col gap-2 @4xl/main:flex-row @4xl/main:flex-wrap @4xl/main:items-center">
         {/* Client filter with searchable list */}
@@ -796,13 +796,13 @@ export default function OfferTable({
             <span className="inline-flex items-center gap-1">
               <Filter className="h-4 w-4" />
               {tTable('filterStatus')}: {translateStatusTab(statusFilter)}
-            </span>
+              </span>
             <ChevronDown className="ml-1 h-4 w-4 text-gray-500" />
           </button>
           {showStatusDropdown && (
             <div className="absolute left-0 right-0 z-20 mt-2 rounded-lg border border-[#e6e6e6] bg-white shadow @4xl/main:right-auto @4xl/main:w-44">
               {STATUS_FILTERS.map((opt) => (
-                <button
+              <button
                   key={opt}
                   type="button"
                   onClick={() => {
@@ -816,7 +816,7 @@ export default function OfferTable({
                   }`}
                 >
                   {translateStatusTab(opt)}
-                </button>
+              </button>
               ))}
             </div>
           )}
@@ -824,7 +824,7 @@ export default function OfferTable({
 
         {/* Date filter */}
         <div className="relative w-full @4xl/main:w-auto" ref={dateDropdownRef}>
-          <button
+              <button
             type="button"
             className="flex w-full items-center justify-between gap-1 whitespace-nowrap rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 @4xl/main:w-auto @4xl/main:justify-start"
             onClick={() => {
@@ -838,11 +838,11 @@ export default function OfferTable({
               {translateDateFilter(dateFilter)}
             </span>
             <ChevronDown className="ml-1 h-4 w-4 text-gray-500" />
-          </button>
+              </button>
           {showDateDropdown && (
             <div className="absolute left-0 right-0 z-20 mt-2 rounded-lg border border-[#e6e6e6] bg-white shadow @4xl/main:left-auto @4xl/main:right-0 @4xl/main:w-44">
               {DATE_FILTERS.map((opt) => (
-                <button
+              <button
                   key={opt}
                   type="button"
                   onClick={() => {
@@ -858,13 +858,13 @@ export default function OfferTable({
                   }`}
                 >
                   {translateDateFilter(opt)}
-                </button>
+              </button>
               ))}
             </div>
           )}
         </div>
-        </div>
-      </div>
+            </div>
+          </div>
           
       {bulkError && (
         <div className="mb-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">

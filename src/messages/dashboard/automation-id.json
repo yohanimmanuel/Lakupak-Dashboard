@@ -29,6 +29,8 @@
     "emptyTitle": "Apa yang harus dilakukan alur kerja ini?",
     "applied": "Struktur alur kerja sudah ada di kanvas. Simpan saat siap.",
     "reviewCanvas": "Tinjau di kanvas",
+    "viewProspect": "Lihat prospek",
+    "applyProspectFields": "Isi kolom formulir",
     "history": {
       "title": "Riwayat",
       "newChat": "Chat baru",

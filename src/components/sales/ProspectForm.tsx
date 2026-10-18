@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ChevronDown, Sparkles } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Loader2, Sparkles } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
@@ -11,6 +11,8 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import MapComponent from '@/components/ordershipment/MapComponent';
 import { geocodeAddress, type MapCoordinates } from '@/utils/mapboxUtils';
 import { PROSPECT_BUYER_TYPES } from '@/lib/salesJobs/prospectBuyerTypes';
+import type { ProspectFormFill } from '@/lib/salesJobs/prospectFormFill';
+import { takePendingProspectFill } from '@/lib/lakuAi/pendingProspectFill';
 import { useLakuAiPanel } from '@/components/lakuAi/LakuAiPanelContext';
 
 const JAKARTA: MapCoordinates = { longitude: 106.8456, latitude: -6.2088 };
@@ -108,8 +110,76 @@ export default function ProspectForm({ buyerId }: { buyerId?: string }) {
   const geocodeRequest = useRef(0);
   const [loading, setLoading] = useState(editing);
   const [saving, setSaving] = useState(false);
+  const [aiApplying, setAiApplying] = useState(false);
   const [error, setError] = useState('');
-  const { open: aiOpen, openPanel, closePanel } = useLakuAiPanel();
+  const applySeqRef = useRef(0);
+  const {
+    open: aiOpen,
+    openPanel,
+    closePanel,
+    registerProspectAi,
+    unregisterProspectAi,
+  } = useLakuAiPanel();
+
+  const applyFill = useCallback(
+    (fill: ProspectFormFill) => {
+      const seq = ++applySeqRef.current;
+      setAiApplying(true);
+      void (async () => {
+        await new Promise((resolve) => window.setTimeout(resolve, 700));
+        if (seq !== applySeqRef.current) return;
+
+        setCustomerNumber(fill.customerNumber);
+        setName(fill.name);
+        setStoreName(fill.storeName);
+        setPhone(fill.phone);
+        setAddress(fill.address);
+        setRegion(fill.region);
+        setBuyerType(fill.buyerType);
+        setNotes(fill.notes);
+        setError('');
+        setAddressSearchError('');
+        setAiApplying(false);
+
+        const typed = fill.address.trim();
+        if (!typed) {
+          setPin(null);
+          return;
+        }
+
+        const regionText = fill.region.trim();
+        const query =
+          regionText && !typed.toLowerCase().includes(regionText.toLowerCase())
+            ? `${typed}, ${regionText}`
+            : typed;
+        const requestId = geocodeRequest.current + 1;
+        geocodeRequest.current = requestId;
+        setResolvingAddress(true);
+        try {
+          const found = await geocodeAddress(query);
+          if (geocodeRequest.current !== requestId) return;
+          if (found.coordinates) setPin(found.coordinates);
+          else setAddressSearchError(t('addressNotFound'));
+        } catch {
+          if (geocodeRequest.current === requestId) setAddressSearchError(t('addressNotFound'));
+        } finally {
+          if (geocodeRequest.current === requestId) setResolvingAddress(false);
+        }
+      })();
+    },
+    [t],
+  );
+
+  useEffect(() => {
+    registerProspectAi({ applyFill });
+    return () => unregisterProspectAi();
+  }, [applyFill, registerProspectAi, unregisterProspectAi]);
+
+  useEffect(() => {
+    if (loading) return;
+    const pending = takePendingProspectFill();
+    if (pending) applyFill(pending);
+  }, [loading, applyFill]);
 
   useEffect(() => {
     if (!editing || !userId || !buyerId) return;
@@ -263,7 +333,19 @@ export default function ProspectForm({ buyerId }: { buyerId?: string }) {
   }
 
   return (
-    <div className="h-[calc(100dvh-4rem)] overflow-hidden bg-gradient-to-b from-gray-50 to-white">
+    <div className="relative h-[calc(100dvh-4rem)] overflow-hidden bg-gradient-to-b from-gray-50 to-white">
+      {aiApplying ? (
+        <div
+          className="absolute inset-0 z-[35] flex items-center justify-center bg-white/50"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="flex items-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-3">
+            <Loader2 className="h-4 w-4 animate-spin text-[#0a61d7]" />
+            <span className="text-sm font-medium text-black">{t('applyingProspect')}</span>
+          </div>
+        </div>
+      ) : null}
       <div className="flex h-full flex-col p-4">
         {error && (
           <p className="mb-4 shrink-0 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
@@ -294,7 +376,8 @@ export default function ProspectForm({ buyerId }: { buyerId?: string }) {
                   }
                   openPanel({ dockEmptyMessage: t('aiDockEmpty') });
                 }}
-                className={`inline-flex w-full items-center justify-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-gray-100 @4xl/main:w-auto ${
+                disabled={aiApplying}
+                className={`inline-flex w-full items-center justify-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-gray-100 disabled:opacity-60 @4xl/main:w-auto ${
                   aiOpen
                     ? 'border-[#0a61d7] bg-[#f7faff] text-[#0a61d7]'
                     : 'border-[#e6e6e6] bg-white text-black'
@@ -306,14 +389,14 @@ export default function ProspectForm({ buyerId }: { buyerId?: string }) {
               <button
                 type="button"
                 onClick={() => void save()}
-                disabled={saving || resolvingAddress}
+                disabled={saving || resolvingAddress || aiApplying}
                 className="w-full rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-semibold text-white hover:bg-[#084ba6] disabled:opacity-60 @4xl/main:w-auto"
               >
                 {saving ? t('saving') : t('save')}
               </button>
             </div>
           </div>
-          <section className="min-h-0 flex-1 overflow-y-auto p-4">
+          <section className="min-h-0 flex-1 overflow-y-auto p-4" aria-busy={aiApplying}>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className={labelClass} htmlFor="prospect-customer-number">

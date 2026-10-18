@@ -3,8 +3,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ChevronRight, Loader2, Pause, Play, RefreshCw, Save, Undo2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
-import AutomationCopilot, { AskAiNavButton } from '@/components/automations/AutomationCopilot';
+import { AskAiNavButton } from '@/components/automations/AutomationCopilot';
+import { useLakuAiPanel } from '@/components/lakuAi/LakuAiPanelContext';
 import type { WorkflowCanvasEdit, WorkflowPlanStep } from '@/lib/lakuAi/workflowPlan';
 import type { WorkflowStatus } from '../automationTypes';
 
@@ -84,16 +86,47 @@ export function WorkflowBuilderShell({
 }) {
   const router = useRouter();
   const { tBuilder, translateStatus } = useAutomationTranslations();
+  const tCopilot = useTranslations('dashboard.automation.copilot');
+  const {
+    open: aiOpen,
+    openPanel,
+    closePanel,
+    registerWorkflowAi,
+    unregisterWorkflowAi,
+  } = useLakuAiPanel();
   const [leftOpen, setLeftOpen] = useState(true);
-  const [aiOpen, setAiOpen] = useState(false);
+
+  useEffect(() => {
+    if (!onApplyWorkflowPlanAction) {
+      unregisterWorkflowAi();
+      return;
+    }
+    registerWorkflowAi({
+      automationId: aiAutomationId,
+      canvasSteps: canvasSteps ?? null,
+      initialConversationId,
+      onApplyWorkflowPlanAction,
+      onApplyWorkflowRecipeAction,
+    });
+  }, [
+    aiAutomationId,
+    canvasSteps,
+    initialConversationId,
+    onApplyWorkflowPlanAction,
+    onApplyWorkflowRecipeAction,
+    registerWorkflowAi,
+    unregisterWorkflowAi,
+  ]);
+
+  useEffect(() => () => unregisterWorkflowAi(), [unregisterWorkflowAi]);
 
   useEffect(() => {
     if (!closeAskAiRef) return;
-    closeAskAiRef.current = () => setAiOpen(false);
+    closeAskAiRef.current = () => closePanel();
     return () => {
       closeAskAiRef.current = null;
     };
-  }, [closeAskAiRef]);
+  }, [closeAskAiRef, closePanel]);
   const [returnFocusToLeftToggle, setReturnFocusToLeftToggle] = useState(false);
   const leftToggleRef = useRef<HTMLButtonElement>(null);
   const [toolbarBusy, setToolbarBusy] = useState<ToolbarBusy>(null);
@@ -235,9 +268,7 @@ export function WorkflowBuilderShell({
 
       {aiApplying ? (
         <div
-          className={`absolute inset-0 z-[35] flex items-center justify-center bg-white/50 ${
-            aiOpen ? 'pr-[min(100%,26rem)]' : ''
-          }`}
+          className="absolute inset-0 z-[35] flex items-center justify-center bg-white/50"
           role="status"
           aria-live="polite"
         >
@@ -285,11 +316,11 @@ export function WorkflowBuilderShell({
             pressed={aiOpen}
             onPressAction={() => {
               if (aiOpen) {
-                setAiOpen(false);
+                closePanel();
                 return;
               }
               onDismissStepDetailsAction?.();
-              setAiOpen(true);
+              openPanel({ dockEmptyMessage: tCopilot('history.dockEmpty') });
             }}
           />
           <span className="mx-0.5 h-6 w-px shrink-0 bg-[#e6e6e6]" aria-hidden />
@@ -398,29 +429,6 @@ export function WorkflowBuilderShell({
           </div>
         </aside>
       </div>
-
-      <aside
-        className={`absolute bottom-16 right-3 top-18 z-40 flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${
-          aiOpen
-            ? 'pointer-events-auto w-[min(100vw-1.5rem,24rem)] translate-x-0 opacity-100'
-            : 'pointer-events-none w-0 translate-x-3 opacity-0'
-        }`}
-        aria-hidden={!aiOpen}
-        inert={!aiOpen}
-      >
-        <div className="flex h-full min-h-0 w-[min(100vw-1.5rem,24rem)] flex-col overflow-hidden rounded-xl border border-[#e6e6e6] bg-white">
-          <AutomationCopilot
-            surface="dock"
-            automationId={aiAutomationId}
-            active={aiOpen}
-            onCloseAction={() => setAiOpen(false)}
-            onApplyWorkflowRecipeAction={onApplyWorkflowRecipeAction}
-            onApplyWorkflowPlanAction={onApplyWorkflowPlanAction}
-            canvasSteps={canvasSteps}
-            initialConversationId={initialConversationId}
-          />
-        </div>
-      </aside>
 
       {/* Right: step details — slides in when a canvas node is selected or created */}
       <div className="pointer-events-none absolute bottom-16 right-3 top-18 z-30 flex max-h-full min-h-0 items-stretch">

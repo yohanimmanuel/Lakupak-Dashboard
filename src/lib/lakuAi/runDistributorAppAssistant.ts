@@ -21,6 +21,13 @@ import { buildDistributorAppAssistantContext } from '@/lib/lakuAi/distributorApp
 import { searchDocsLocal } from '@/lib/docs/search';
 import { docUrl, getDocsNav } from '@/lib/docs/load';
 import type { DocLocale } from '@/lib/docs/types';
+import {
+  formatPlacesProspectingReply,
+  parsePlacesSearchFromAssistant,
+  runPlacesProspecting,
+  stripPlacesSearchJson,
+  type ProspectFormFill,
+} from '@/lib/salesJobs/placesProspecting';
 
 export type DistributorAppChatMessage = {
   role: 'user' | 'assistant';
@@ -38,6 +45,8 @@ export type DistributorAppAssistantResult =
       name: string | null;
       description: string | null;
       updates: WorkflowFieldUpdate[];
+      prospectFill: ProspectFormFill | null;
+      prospectFills: ProspectFormFill[];
     }
   | { ok: false; error: string; code?: 'unauthorized' | 'not_configured' | 'bad_request' | 'upstream' };
 
@@ -58,6 +67,52 @@ function normalizeLocale(locale: string | null | undefined): 'en' | 'id' {
     .toLowerCase();
   if (raw === 'id' || raw.startsWith('id-')) return 'id';
   return 'en';
+}
+
+/** Score the text as Indonesian or English. Null when too mixed/short to tell. */
+function scoreMessageLocale(text: string): 'en' | 'id' | null {
+  const lower = String(text ?? '')
+    .toLowerCase()
+    .replace(/\u2014|\u2013/g, '-');
+  if (!lower.trim()) return null;
+
+  const idHits = (
+    lower.match(
+      /\b(yang|dan|atau|saya|aku|kamu|tolong|mohon|daftar|cari|tampilkan|sebutkan|untuk|dengan|apakah|bagaimana|kenapa|mengapa|prospek|toko|warung|kios|dekat|wilayah|simpan|buka|lihat|beri|sudah|belum|ada|ini|itu|juga|dari|kalau|jika|bisa|mau|ingin|alur|pembeli|pesan|deskripsi|otomatisasi|penawaran|stok|pesanan)\b/g,
+    ) || []
+  ).length;
+  const enHits = (
+    lower.match(
+      /\b(the|and|or|please|list|find|show|how|what|where|which|why|near|save|open|view|get|give|me|my|this|that|with|from|for|about|could|would|can|should|retailers?|prospects?|buyers?|orders?|workflow|automation|description|stock|offers?)\b/g,
+    ) || []
+  ).length;
+
+  if (idHits === 0 && enHits === 0) return null;
+  if (idHits === enHits) return null;
+  return idHits > enHits ? 'id' : 'en';
+}
+
+/**
+ * Reply language follows the latest user message so they can switch EN/ID in one chat.
+ * Falls back to prior user turns, then the UI locale.
+ */
+function detectReplyLocale(
+  message: string,
+  history: DistributorAppChatMessage[] | undefined,
+  uiLocale: 'en' | 'id',
+): 'en' | 'id' {
+  const fromLatest = scoreMessageLocale(message);
+  if (fromLatest) return fromLatest;
+
+  const turns = history ?? [];
+  for (let index = turns.length - 1; index >= 0; index -= 1) {
+    const turn = turns[index];
+    if (turn?.role !== 'user') continue;
+    const scored = scoreMessageLocale(turn.content);
+    if (scored) return scored;
+  }
+
+  return uiLocale;
 }
 
 function buildDocsGuide(locale: DocLocale) {
@@ -111,12 +166,23 @@ export async function runDistributorAppAssistant(input: {
     };
   }
 
-  const locale = normalizeLocale(input.locale);
+  const uiLocale = normalizeLocale(input.locale);
+  const locale = detectReplyLocale(message, input.history, uiLocale);
   const docLocale = locale as DocLocale;
   const languageRule =
     locale === 'id'
-      ? 'Reply entirely in Indonesian (Bahasa Indonesia). Keep product names, order IDs, path names, and doc URLs as-is when useful.'
-      : 'Reply entirely in English. Keep product names, order IDs, path names, and doc URLs as-is when useful.';
+      ? [
+          'Reply entirely in Indonesian (Bahasa Indonesia) for this turn.',
+          'Match the language of the user\'s latest message. They may switch between Indonesian and English in the same chat; when they switch, switch with them on the next reply.',
+          'Do not stay in English just because earlier turns or the UI were English.',
+          'Keep product names, order IDs, path names, and doc URLs as-is when useful.',
+        ].join(' ')
+      : [
+          'Reply entirely in English for this turn.',
+          'Match the language of the user\'s latest message. They may switch between English and Indonesian in the same chat; when they switch, switch with them on the next reply.',
+          'Do not stay in Indonesian just because earlier turns or the UI were Indonesian.',
+          'Keep product names, order IDs, path names, and doc URLs as-is when useful.',
+        ].join(' ');
 
   let accountContext = '';
   try {
@@ -210,6 +276,13 @@ export async function runDistributorAppAssistant(input: {
     'Allowed inputs:',
     workflowInputGuide(),
     'If they are not asking to build, rename, describe, or fill a workflow, end with {"plan":null}. A greeting, an analysis question, order help, buyer help, or product help is not a workflow edit.',
+    'RETAILER PROSPECTING (Google Places):',
+    'When the user asks to find, search, list, or prospect retailers/outlets/warung/minimarket/restaurants near a place or matching a buyer persona, end with BOTH {"plan":null} AND a placesSearch object in one JSON blob, for example:',
+    '{"plan":null,"placesSearch":{"buyerType":"minimarket","region":"Bandung","notes":"dekat sekolah","create":false,"pageSize":15}}',
+    'buyerType must be one of: warung, kiosk, minimarket, restaurant, hotel, canteen, other.',
+    'Use region and notes from their criteria. Always set create false for list/search/find requests. Never auto-save Prospect rows. The user saves from the form with Fill form fields then Save.',
+    'Only emit placesSearch when they clearly want a Places search now, not for general questions about prospects.',
+    'Do not invent place names yourself. The server runs Google Places and returns proposals. Say the results are suggestions, not saved yet.',
     'The JSON is removed before they see the reply. Do not mention it, tool calls, function calls, safety labels, or recipe ids.',
     'Name every step you keep, in order, in the reply: the trigger, then each app, Lakupak AI, action, condition, or end.',
     'When a current canvas is included, return the full plan after the edit. Keep every current step the user did not ask to remove.',
@@ -236,7 +309,8 @@ export async function runDistributorAppAssistant(input: {
   const recordHints = wantsRecords ? await workflowRecordHints(input.userId) : '';
 
   const userContent = [
-    `Reply language: ${locale === 'id' ? 'Indonesian' : 'English'}`,
+    `Reply language for THIS turn: ${locale === 'id' ? 'Indonesian' : 'English'} (detected from the latest user message; UI locale is ${uiLocale === 'id' ? 'Indonesian' : 'English'}).`,
+    'If the user switches language mid-chat, answer in the new language on this turn.',
     '',
     'Distributor account + app context (JSON):',
     accountContext,
@@ -353,7 +427,7 @@ export async function runDistributorAppAssistant(input: {
       locale === 'id'
         ? 'Kanvas tidak berubah. Sebutkan langkah yang ada di pembangun alur kerja.'
         : 'The canvas did not change. Name a step the workflow builder already has.';
-    const reply =
+    let reply =
       settled.plan || hasEdit
         ? describeWorkflowEdit({
             locale,
@@ -376,8 +450,32 @@ export async function runDistributorAppAssistant(input: {
           : parsed.unavailable
             ? unavailableCopy
             : parsed.reply || (leaked ? readableFallback : '');
+
+    const placesCriteria = parsePlacesSearchFromAssistant(raw);
+    let prospectFill: ProspectFormFill | null = null;
+    let prospectFills: ProspectFormFill[] = [];
+    // Places prospecting runs in the sticky sidebar (and any non-canvas chat). Skip on the workflow canvas.
+    if (placesCriteria && !input.onCanvas) {
+      const placesResult = await runPlacesProspecting(input.userId, {
+        ...placesCriteria,
+        // Listing/search never auto-saves. User saves from the prospect form.
+        create: false,
+        languageCode: locale,
+      });
+      prospectFill = placesResult.prospectFill;
+      prospectFills = placesResult.prospectFills;
+      const placesReply = formatPlacesProspectingReply(locale, placesResult);
+      const cleaned = stripPlacesSearchJson(reply);
+      reply = cleaned ? `${cleaned}\n\n${placesReply}` : placesReply;
+    } else {
+      reply = stripPlacesSearchJson(reply);
+    }
+
     if (!reply) {
-      return { ok: false, code: 'upstream', error: 'Empty reply from model.' };
+      reply =
+        locale === 'id'
+          ? 'Saya tidak mendapat jawaban yang bisa ditampilkan. Coba ulangi permintaan Anda.'
+          : 'I could not produce a visible reply. Please try your request again.';
     }
     return {
       ok: true,
@@ -389,6 +487,8 @@ export async function runDistributorAppAssistant(input: {
       name,
       description,
       updates,
+      prospectFill,
+      prospectFills,
     };
   } catch (e) {
     const raw = e instanceof Error ? e.message : 'Upstream error';

@@ -59,5 +59,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: result.error, code: result.code }, { status });
   }
 
-  return NextResponse.json({ reply: result.reply, model: result.model, recipeId: result.recipeId });
+  return NextResponse.json({
+    reply: result.reply,
+    model: result.model,
+    recipeId: result.recipeId,
+    prospectFill: result.prospectFill,
+    prospectFills: result.prospectFills,
+  });
 }

@@ -243,9 +243,22 @@ function planMarker(raw: string): {
   updates: WorkflowFieldUpdate[];
 } | null {
   try {
-    const parsed = JSON.parse(raw) as { plan?: unknown; name?: unknown; description?: unknown; updates?: unknown };
+    const parsed = JSON.parse(raw) as {
+      plan?: unknown;
+      name?: unknown;
+      description?: unknown;
+      updates?: unknown;
+      placesSearch?: unknown;
+    };
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
-    const hasEdit = 'plan' in parsed || 'name' in parsed || 'description' in parsed || 'updates' in parsed;
+    const hasPlacesSearch =
+      parsed.placesSearch != null && typeof parsed.placesSearch === 'object' && !Array.isArray(parsed.placesSearch);
+    const hasEdit =
+      'plan' in parsed ||
+      'name' in parsed ||
+      'description' in parsed ||
+      'updates' in parsed ||
+      hasPlacesSearch;
     if (!hasEdit) return null;
     const name = textField(parsed.name, 80);
     const description = textField(parsed.description, 400);
@@ -319,7 +332,7 @@ export function readAssistantWorkflow(content: string): {
     const end = jsonObjectEnd(text, index);
     if (end < 0) continue;
     const raw = text.slice(index, end);
-    if (!/"plan"|"recipeId"|"name"|"description"|"updates"/.test(raw)) continue;
+    if (!/"plan"|"recipeId"|"name"|"description"|"updates"|"placesSearch"/.test(raw)) continue;
     consider(raw, index, end);
     index = end - 1;
   }

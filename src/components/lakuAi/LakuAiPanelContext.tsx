@@ -11,6 +11,8 @@ import React, {
 } from 'react';
 import { GripVertical } from 'lucide-react';
 import AutomationCopilot from '@/components/automations/AutomationCopilot';
+import type { WorkflowCanvasEdit, WorkflowPlanStep } from '@/lib/lakuAi/workflowPlan';
+import type { ProspectFormFill } from '@/lib/salesJobs/prospectFormFill';
 
 const WIDTH_KEY = 'laku-ai-panel-width';
 const DEFAULT_WIDTH = 384;
@@ -21,13 +23,31 @@ const MIN_CONTENT_WIDTH = 360;
 /** Below this parent width, dock as an overlay so dashboard content is not crushed. */
 const OVERLAY_PARENT_MIN = MIN_WIDTH + MIN_CONTENT_WIDTH;
 
+export type WorkflowAiBridge = {
+  automationId: string | null;
+  canvasSteps: WorkflowPlanStep[] | null;
+  initialConversationId?: string | null;
+  onApplyWorkflowPlanAction: (edit: WorkflowCanvasEdit) => void;
+  onApplyWorkflowRecipeAction?: (recipeId: string) => void;
+};
+
+export type ProspectAiBridge = {
+  applyFill: (fill: ProspectFormFill) => void;
+};
+
 type LakuAiPanelContextValue = {
   open: boolean;
   dockEmptyMessage: string | null;
+  workflowBridge: WorkflowAiBridge | null;
+  prospectBridge: ProspectAiBridge | null;
   setOpen: (open: boolean) => void;
   openPanel: (options?: { dockEmptyMessage?: string | null }) => void;
   closePanel: () => void;
   togglePanel: () => void;
+  registerWorkflowAi: (bridge: WorkflowAiBridge) => void;
+  unregisterWorkflowAi: () => void;
+  registerProspectAi: (bridge: ProspectAiBridge) => void;
+  unregisterProspectAi: () => void;
 };
 
 const LakuAiPanelContext = createContext<LakuAiPanelContextValue | null>(null);
@@ -50,7 +70,6 @@ function clampWidth(value: number, availableWidth?: number) {
   }
   const available = availableWidth ?? window.innerWidth;
   const overlay = available < OVERLAY_PARENT_MIN;
-  // Overlay: cap against viewport. Docked: leave MIN_CONTENT_WIDTH for the dashboard column.
   const max = overlay
     ? Math.min(MAX_WIDTH, Math.floor(window.innerWidth * 0.92))
     : Math.min(MAX_WIDTH, Math.max(0, Math.floor(available - MIN_CONTENT_WIDTH)));
@@ -69,6 +88,8 @@ function readStoredWidth(availableWidth?: number) {
 export function LakuAiPanelProvider({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [dockEmptyMessage, setDockEmptyMessage] = useState<string | null>(null);
+  const [workflowBridge, setWorkflowBridge] = useState<WorkflowAiBridge | null>(null);
+  const [prospectBridge, setProspectBridge] = useState<ProspectAiBridge | null>(null);
 
   const openPanel = useCallback((options?: { dockEmptyMessage?: string | null }) => {
     setDockEmptyMessage(options?.dockEmptyMessage ?? null);
@@ -87,16 +108,50 @@ export function LakuAiPanelProvider({ children }: { children: React.ReactNode })
     });
   }, []);
 
+  const registerWorkflowAi = useCallback((bridge: WorkflowAiBridge) => {
+    setWorkflowBridge(bridge);
+  }, []);
+
+  const unregisterWorkflowAi = useCallback(() => {
+    setWorkflowBridge(null);
+  }, []);
+
+  const registerProspectAi = useCallback((bridge: ProspectAiBridge) => {
+    setProspectBridge(bridge);
+  }, []);
+
+  const unregisterProspectAi = useCallback(() => {
+    setProspectBridge(null);
+  }, []);
+
   const value = useMemo(
     () => ({
       open,
       dockEmptyMessage,
+      workflowBridge,
+      prospectBridge,
       setOpen,
       openPanel,
       closePanel,
       togglePanel,
+      registerWorkflowAi,
+      unregisterWorkflowAi,
+      registerProspectAi,
+      unregisterProspectAi,
     }),
-    [open, dockEmptyMessage, openPanel, closePanel, togglePanel],
+    [
+      open,
+      dockEmptyMessage,
+      workflowBridge,
+      prospectBridge,
+      openPanel,
+      closePanel,
+      togglePanel,
+      registerWorkflowAi,
+      unregisterWorkflowAi,
+      registerProspectAi,
+      unregisterProspectAi,
+    ],
   );
 
   return <LakuAiPanelContext.Provider value={value}>{children}</LakuAiPanelContext.Provider>;
@@ -104,7 +159,13 @@ export function LakuAiPanelProvider({ children }: { children: React.ReactNode })
 
 /** Sticky right rail for Laku AI. Place as a sibling of the main scroll area. */
 export function LakuAiStickyPanel() {
-  const { open, dockEmptyMessage, closePanel } = useLakuAiPanel();
+  const {
+    open,
+    dockEmptyMessage,
+    closePanel,
+    workflowBridge,
+    prospectBridge,
+  } = useLakuAiPanel();
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [availableWidth, setAvailableWidth] = useState<number | undefined>(undefined);
   const [dragging, setDragging] = useState(false);
@@ -114,6 +175,7 @@ export function LakuAiStickyPanel() {
   availableRef.current = availableWidth;
 
   const overlay = availableWidth != null && availableWidth < OVERLAY_PARENT_MIN;
+  const onCanvas = Boolean(workflowBridge);
 
   useEffect(() => {
     const parent = asideRef.current?.parentElement;
@@ -220,6 +282,13 @@ export function LakuAiStickyPanel() {
             active={open}
             dockEmptyMessage={dockEmptyMessage}
             onCloseAction={closePanel}
+            onCanvas={onCanvas}
+            automationId={workflowBridge?.automationId ?? null}
+            canvasSteps={workflowBridge?.canvasSteps ?? null}
+            initialConversationId={workflowBridge?.initialConversationId ?? null}
+            onApplyWorkflowPlanAction={workflowBridge?.onApplyWorkflowPlanAction}
+            onApplyWorkflowRecipeAction={workflowBridge?.onApplyWorkflowRecipeAction}
+            onApplyProspectFillAction={prospectBridge?.applyFill}
           />
         </div>
       </aside>

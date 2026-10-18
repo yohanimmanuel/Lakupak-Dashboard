@@ -4,9 +4,14 @@ import {
   type WorkflowFieldUpdate,
   type WorkflowPlanStep,
 } from '@/lib/lakuAi/workflowPlan';
+import {
+  extractProspectFillsFromReply,
+  type ProspectFormFill,
+} from '@/lib/salesJobs/prospectFormFill';
 
 const STORAGE_KEY = 'laku-ai-review-plan';
-const CANVAS_MARK = '<!--laku-canvas:';
+const AI_MARK = '<!--laku-ai:';
+const MARKER_STRIP = /\n*<!--laku-(?:ai|canvas):[\s\S]*-->\s*$/;
 
 function parseStoredEdit(value: unknown): WorkflowCanvasEdit | null {
   if (Array.isArray(value)) {
@@ -23,23 +28,88 @@ function parseStoredEdit(value: unknown): WorkflowCanvasEdit | null {
   return { steps, name, description, updates };
 }
 
-/** Keeps a canvas draft on the saved reply so Review on the canvas survives history. */
-export function packCanvasReply(text: string, edit: WorkflowCanvasEdit | null): string {
-  const visible = text.replace(/\n*<!--laku-canvas:[\s\S]*-->\s*$/, '').trim();
-  if (!edit) return visible;
-  return `${visible}\n\n${CANVAS_MARK}${JSON.stringify(edit)}-->`;
+function parseStoredFill(value: unknown): ProspectFormFill | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  const customerNumber = typeof row.customerNumber === 'string' ? row.customerNumber.trim() : '';
+  const name = typeof row.name === 'string' ? row.name.trim() : '';
+  const storeName = typeof row.storeName === 'string' ? row.storeName.trim() : '';
+  if (!customerNumber && !name && !storeName) return null;
+  return {
+    buyerId: typeof row.buyerId === 'string' && row.buyerId.trim() ? row.buyerId.trim() : null,
+    customerNumber,
+    name,
+    storeName,
+    phone: typeof row.phone === 'string' ? row.phone : '',
+    address: typeof row.address === 'string' ? row.address : '',
+    region: typeof row.region === 'string' ? row.region : '',
+    buyerType: typeof row.buyerType === 'string' ? row.buyerType : '',
+    notes: typeof row.notes === 'string' ? row.notes : '',
+  };
+}
+
+function parseStoredFills(value: unknown): ProspectFormFill[] {
+  if (!Array.isArray(value)) return [];
+  const fills: ProspectFormFill[] = [];
+  for (const item of value) {
+    const fill = parseStoredFill(item);
+    if (fill) fills.push(fill);
+    if (fills.length >= 12) break;
+  }
+  return fills;
+}
+
+/** Keeps canvas + prospect actions on the saved reply so buttons survive history reload. */
+export function packCanvasReply(
+  text: string,
+  edit: WorkflowCanvasEdit | null,
+  prospectFills?: ProspectFormFill[] | null,
+): string {
+  const visible = text.replace(MARKER_STRIP, '').trim();
+  const fills = parseStoredFills(prospectFills ?? []);
+  if (!edit && fills.length === 0) return visible;
+  return `${visible}\n\n${AI_MARK}${JSON.stringify({ edit: edit ?? null, prospectFills: fills.length ? fills : null })}-->`;
 }
 
 /** Reads a saved reply. Older workflow replies recover their steps from the numbered list. */
-export function readCanvasReply(content: string): { text: string; edit: WorkflowCanvasEdit | null } {
-  const text = content.replace(/\n*<!--laku-canvas:[\s\S]*-->\s*$/, '').trim();
-  const match = content.match(/<!--laku-canvas:([\s\S]*?)-->\s*$/);
-  if (!match) return { text, edit: editFromWorkflowReply(text) };
-  try {
-    return { text, edit: parseStoredEdit(JSON.parse(match[1])) ?? editFromWorkflowReply(text) };
-  } catch {
-    return { text, edit: editFromWorkflowReply(text) };
+export function readCanvasReply(content: string): {
+  text: string;
+  edit: WorkflowCanvasEdit | null;
+  prospectFills: ProspectFormFill[];
+} {
+  const withoutAiMarker = content.replace(MARKER_STRIP, '').trim();
+  let edit: WorkflowCanvasEdit | null = null;
+  let packedFills: ProspectFormFill[] = [];
+
+  const aiMatch = content.match(/<!--laku-ai:([\s\S]*?)-->\s*$/);
+  if (aiMatch) {
+    try {
+      const parsed = JSON.parse(aiMatch[1]) as { edit?: unknown; prospectFills?: unknown };
+      edit = parseStoredEdit(parsed.edit);
+      packedFills = parseStoredFills(parsed.prospectFills);
+    } catch {
+      edit = null;
+      packedFills = [];
+    }
+  } else {
+    const canvasMatch = content.match(/<!--laku-canvas:([\s\S]*?)-->\s*$/);
+    if (canvasMatch) {
+      try {
+        edit = parseStoredEdit(JSON.parse(canvasMatch[1]));
+      } catch {
+        edit = null;
+      }
+    }
   }
+
+  const fromBody = extractProspectFillsFromReply(withoutAiMarker);
+  const prospectFills = packedFills.length ? packedFills : fromBody.prospectFills;
+  const text = fromBody.text;
+  return {
+    text,
+    edit: edit ?? editFromWorkflowReply(text),
+    prospectFills,
+  };
 }
 
 const STEP_LABEL_TO_KEY: Record<string, string> = {

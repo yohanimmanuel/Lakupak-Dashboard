@@ -14,8 +14,14 @@ import { useUserStore } from '@/store/userStore';
 import { AiChatMarkdown } from '@/components/AiChatMarkdown';
 import { packCanvasReply, readCanvasReply, writeCopilotReviewPlan } from '@/lib/lakuAi/copilotReviewPlan';
 import { clearPendingBuilderChat } from '@/lib/lakuAi/pendingBuilderChat';
+import { writePendingProspectFill } from '@/lib/lakuAi/pendingProspectFill';
 import type { WorkflowCanvasEdit, WorkflowFieldUpdate, WorkflowPlanStep } from '@/lib/lakuAi/workflowPlan';
 import { readCopilotWorkflowLink, writeCopilotWorkflowLink } from '@/lib/lakuAi/copilotWorkflowLink';
+import {
+  extractProspectFillsFromReply,
+  type ProspectFormFill,
+} from '@/lib/salesJobs/prospectFormFill';
+import Link from 'next/link';
 
 const PILL_IDS = ['margins', 'orders', 'buyers', 'products', 'winback'] as const;
 const DOCK_PILL_IDS = ['margins', 'orders', 'buyers'] as const;
@@ -33,6 +39,8 @@ type ChatLine = {
   recipeId?: string;
   plan?: WorkflowPlanStep[];
   edit?: WorkflowCanvasEdit;
+  prospectFill?: ProspectFormFill | null;
+  prospectFills?: ProspectFormFill[];
   instant?: boolean;
 };
 
@@ -156,23 +164,29 @@ export default function AutomationCopilot({
   onCloseAction,
   onApplyWorkflowRecipeAction,
   onApplyWorkflowPlanAction,
+  onApplyProspectFillAction,
   canvasSteps = null,
   initialConversationId = null,
   dockEmptyMessage = null,
+  onCanvas = false,
 }: {
   active?: boolean;
   surface?: 'page' | 'dock';
   automationId?: string | null;
   onCloseAction?: () => void;
-  /** Dock only. Puts a workflow draft on the open canvas. Does not save it. */
+  /** When set with onCanvas, puts a workflow draft on the open canvas. Does not save it. */
   onApplyWorkflowRecipeAction?: (recipeId: string) => void;
   onApplyWorkflowPlanAction?: (edit: WorkflowCanvasEdit) => void;
+  /** Fills the open prospect create/edit form from a Places result. */
+  onApplyProspectFillAction?: (fill: ProspectFormFill) => void;
   /** Steps already on the open canvas, so an edit keeps them. */
   canvasSteps?: WorkflowPlanStep[] | null;
   /** Conversation to reopen, shared with the Copilot page. */
   initialConversationId?: string | null;
   /** Dock empty-state hint. Falls back to the automation copilot copy. */
   dockEmptyMessage?: string | null;
+  /** True only when the sticky AI is driving the workflow canvas. */
+  onCanvas?: boolean;
 }) {
   const t = useTranslations('dashboard.automation.copilot');
   const locale = useLocale();
@@ -221,14 +235,19 @@ export default function AutomationCopilot({
     messages
       .filter((message) => message.role === 'user' || message.role === 'assistant')
       .map((message) => {
-        const saved = message.role === 'assistant' ? readCanvasReply(message.content) : { text: message.content, edit: null };
+        const saved =
+          message.role === 'assistant'
+            ? readCanvasReply(message.content)
+            : { text: message.content, edit: null as WorkflowCanvasEdit | null, prospectFills: [] as ProspectFormFill[] };
         return {
           id: lineId(),
-          role: message.role === 'assistant' ? 'assistant' as const : 'user' as const,
+          role: message.role === 'assistant' ? ('assistant' as const) : ('user' as const),
           text: saved.text,
           recipeId: message.recipeId || undefined,
           plan: saved.edit?.steps ?? undefined,
           edit: saved.edit ?? undefined,
+          prospectFill: saved.prospectFills[0] ?? null,
+          prospectFills: saved.prospectFills,
           instant,
         };
       });
@@ -499,14 +518,15 @@ export default function AutomationCopilot({
   }, [lines, sending, reduceMotion]);
 
   const askModel = async (text: string, history: ChatLine[]) => {
+    const workflowMode = onCanvas && Boolean(onApplyWorkflowPlanAction || onApplyWorkflowRecipeAction);
     const response = await fetch('/api/automations/copilot', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      body: JSON.stringify({
         message: text,
         locale,
-        onCanvas: surface === 'dock',
-        canvas: surface === 'dock' ? canvasSteps ?? null : null,
+        onCanvas: workflowMode,
+        canvas: workflowMode ? canvasSteps ?? null : null,
         history: history.slice(-8).map((line) => ({ role: line.role, content: line.text })),
       }),
     });
@@ -522,6 +542,8 @@ export default function AutomationCopilot({
       name?: string | null;
       description?: string | null;
       updates?: WorkflowFieldUpdate[] | null;
+      prospectFill?: ProspectFormFill | null;
+      prospectFills?: ProspectFormFill[] | null;
     };
   };
 
@@ -553,10 +575,19 @@ export default function AutomationCopilot({
       const payload = await askModel(trimmed, history);
       const edit = editFromPayload(payload) ?? readCanvasReply(String(payload.reply ?? '')).edit;
       const recipe = payload.recipeId ? copilotRecipeById(payload.recipeId) : null;
-      const reply = payload.unavailable
+      const rawReply = payload.unavailable
         ? t('featureUnavailable')
         : payload.reply?.trim() ||
           (recipe ? `${t(recipeKey(recipe.id, 'summary'))}\n\n${t(recipeKey(recipe.id, 'logic'))}` : t('unknown'));
+      const fromReply = extractProspectFillsFromReply(rawReply);
+      const prospectFills =
+        payload.prospectFills?.length
+          ? payload.prospectFills
+          : payload.prospectFill
+            ? [payload.prospectFill]
+            : fromReply.prospectFills;
+      const prospectFill = prospectFills[0] ?? payload.prospectFill ?? null;
+      const reply = fromReply.text;
       const assistantLine: ChatLine = {
         id: lineId(),
         role: 'assistant',
@@ -564,15 +595,17 @@ export default function AutomationCopilot({
         recipeId: recipe?.id,
         plan: edit?.steps ?? undefined,
         edit: edit ?? undefined,
+        prospectFill,
+        prospectFills,
       };
       setLines((current) => [...current, assistantLine]);
-      if (surface === 'dock' && !payload.unavailable && edit) {
+      if (onCanvas && !payload.unavailable && edit) {
         onApplyWorkflowPlanAction?.(edit);
-      } else if (surface === 'dock' && !payload.unavailable && recipe?.kind === 'workflow') {
+      } else if (onCanvas && !payload.unavailable && recipe?.kind === 'workflow') {
         onApplyWorkflowRecipeAction?.(recipe.id);
       }
       const existingId = conversationIdRef.current;
-      const storedReply = packCanvasReply(reply, edit);
+      const storedReply = packCanvasReply(reply, edit, prospectFills);
       const response = await fetch('/api/laku-ai/conversations', {
         method: existingId ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -620,6 +653,20 @@ export default function AutomationCopilot({
       return;
     }
     router.push(`/automation/new?plan=1${chat}`);
+  };
+
+  /** Apply on the open prospect form, or open create/edit from any other page. */
+  const applyProspectFill = (fill: ProspectFormFill) => {
+    if (onApplyProspectFillAction) {
+      onApplyProspectFillAction(fill);
+      return;
+    }
+    writePendingProspectFill(fill);
+    if (fill.buyerId) {
+      router.push(`/sales/prospects/edit/${encodeURIComponent(fill.buyerId)}`);
+      return;
+    }
+    router.push('/sales/prospects/new');
   };
 
   const apply = (recipe: CopilotWorkflowRecipe) => {
@@ -1065,31 +1112,81 @@ export default function AutomationCopilot({
                     </div>
                   );
                 }
+                const prospectActions =
+                  line.prospectFills?.length
+                    ? line.prospectFills
+                    : line.prospectFill
+                      ? [line.prospectFill]
+                      : extractProspectFillsFromReply(line.text).prospectFills;
+                const showWorkflowAction = Boolean(line.edit || line.plan?.length || workflow);
+                const showProspectActions = prospectActions.length > 0;
                 return (
                   <div key={line.id} className="flex justify-start">
                     <div className="max-w-[85%] rounded-2xl border border-[#e6e6e6] bg-white px-4 py-3">
                       <p className="mb-1 text-[11px] font-semibold text-[#0a61d7]">{t('assistantLabel')}</p>
-                      <TypingReply text={line.text} reduceMotion={reduceMotion} instant={line.instant} onProgress={scrollToEnd}>
-                        {line.edit || line.plan?.length || workflow ? (
-                          <div className="mt-3 flex flex-wrap items-center gap-2">
-                            <button
-                              type="button"
-                              className="rounded-lg bg-[#0a61d7] px-3 py-2 text-xs font-semibold text-white hover:bg-[#084ba6]"
-                              onClick={() => {
-                                const edit = line.edit ?? (line.plan?.length ? { steps: line.plan, name: null, description: null, updates: [] } : null);
-                                if (surface === 'dock' && edit && onApplyWorkflowPlanAction) {
-                                  onApplyWorkflowPlanAction(edit);
-                                  return;
-                                }
-                                if (edit) reviewPlan(edit);
-                                else if (workflow) apply(workflow);
-                              }}
+                      <TypingReply
+                        text={extractProspectFillsFromReply(line.text).text}
+                        reduceMotion={reduceMotion}
+                        instant={line.instant || showProspectActions}
+                        onProgress={scrollToEnd}
+                      />
+                      {showWorkflowAction || showProspectActions ? (
+                        <div className="mt-3 space-y-3">
+                          {showWorkflowAction ? (
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                className="rounded-lg bg-[#0a61d7] px-3 py-2 text-xs font-semibold text-white hover:bg-[#084ba6]"
+                                onClick={() => {
+                                  const nextEdit =
+                                    line.edit ??
+                                    (line.plan?.length
+                                      ? { steps: line.plan, name: null, description: null, updates: [] }
+                                      : null);
+                                  if (onCanvas && nextEdit && onApplyWorkflowPlanAction) {
+                                    onApplyWorkflowPlanAction(nextEdit);
+                                    return;
+                                  }
+                                  if (nextEdit) reviewPlan(nextEdit);
+                                  else if (workflow) apply(workflow);
+                                }}
+                              >
+                                {t('reviewCanvas')}
+                              </button>
+                            </div>
+                          ) : null}
+                          {prospectActions.map((fill, index) => (
+                            <div
+                              key={`${line.id}-prospect-${fill.buyerId || fill.customerNumber || index}`}
+                              className="rounded-lg border border-[#e6e6e6] bg-[#fafafa] px-3 py-2"
                             >
-                              {t('reviewCanvas')}
-                            </button>
-                          </div>
-                        ) : null}
-                      </TypingReply>
+                              <p className="text-xs font-semibold text-black">{fill.storeName || fill.name}</p>
+                              {fill.address ? (
+                                <p className="mt-0.5 text-[11px] leading-4 text-gray-500">{fill.address}</p>
+                              ) : null}
+                              <div className="mt-2 flex flex-wrap items-center gap-2">
+                                <Link
+                                  href={
+                                    fill.buyerId
+                                      ? `/sales/prospects/edit/${encodeURIComponent(fill.buyerId)}`
+                                      : '/sales/prospects'
+                                  }
+                                  className="rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-xs font-semibold text-black hover:bg-gray-50"
+                                >
+                                  {t('viewProspect')}
+                                </Link>
+                                <button
+                                  type="button"
+                                  className="rounded-lg border border-[#0a61d7] bg-[#f7faff] px-3 py-2 text-xs font-semibold text-[#0a61d7] hover:bg-[#eef5ff]"
+                                  onClick={() => applyProspectFill(fill)}
+                                >
+                                  {t('applyProspectFields')}
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 );

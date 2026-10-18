@@ -13,11 +13,11 @@ const CONTENT_LIMIT = 20000;
 function clipStoredContent(content: string): string {
   const trimmed = content.trim();
   if (trimmed.length <= CONTENT_LIMIT) return trimmed;
-  const { text, edit } = readCanvasReply(trimmed);
-  if (!edit) return text.slice(0, CONTENT_LIMIT);
-  const markerLength = packCanvasReply('', edit).length;
+  const { text, edit, prospectFills } = readCanvasReply(trimmed);
+  if (!edit && prospectFills.length === 0) return text.slice(0, CONTENT_LIMIT);
+  const markerLength = packCanvasReply('', edit, prospectFills).length;
   if (markerLength > CONTENT_LIMIT) return text.slice(0, CONTENT_LIMIT);
-  return packCanvasReply(text.slice(0, CONTENT_LIMIT - markerLength), edit);
+  return packCanvasReply(text.slice(0, CONTENT_LIMIT - markerLength), edit, prospectFills);
 }
 
 function cleanTurns(turns: StoredTurn[]): StoredTurn[] {

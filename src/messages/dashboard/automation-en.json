@@ -29,6 +29,8 @@
     "emptyTitle": "What should this workflow do?",
     "applied": "The workflow structure is on the canvas. Save it when you are ready.",
     "reviewCanvas": "Review on the canvas",
+    "viewProspect": "View prospect",
+    "applyProspectFields": "Fill form fields",
     "history": {
       "title": "History",
       "newChat": "New chat",
