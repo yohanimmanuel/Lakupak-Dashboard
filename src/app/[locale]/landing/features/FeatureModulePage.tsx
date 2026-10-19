@@ -242,7 +242,11 @@ const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaCo
       overlap: 'back',
       frontWidthClass: 'w-[92%] sm:w-[86%]',
     },
-    3: { type: 'placeholder' },
+    3: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardsales4.png', width: 1551, height: 777 },
+    },
     4: {
       type: 'single',
       placement: 'center',
