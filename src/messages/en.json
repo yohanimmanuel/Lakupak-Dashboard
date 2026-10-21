@@ -239,8 +239,8 @@
       },
       "points": {
         "1": {
-          "title": "Add a sales manager",
-          "desc": "Add the manager who runs the field team. They create the jobs and keep track of what each sales rep still has open."
+          "title": "Add sales team",
+          "desc": "Add your sales team and assign the people who manage and carry out field work. Jobs stay tied to each rep, with open work visible to the team."
         },
         "2": {
           "title": "Create, assign, and complete the jobs",
@@ -251,8 +251,8 @@
           "desc": "The AI sends each rep their job list on WhatsApp. The rep replies in chat with what they finished, and the job records the promotion, stock, payment, return, or competitor."
         },
         "4": {
-          "title": "Buyer questions",
-          "desc": "Set a customer persona, the requirements, and the criteria for who you want to reach. The AI layer finds suitable retailers that match."
+          "title": "Buyer prospecting",
+          "desc": "Describe the buyer you want to reach, including area, outlet type, and criteria. Lakupak AI suggests matching retailers, then you fill out and save only the prospects you choose."
         }
       }
     },
@@ -417,6 +417,10 @@
         "4": {
           "title": "Draft the automation",
           "desc": "Describe the routine in chat. Laku AI drafts the trigger and the actions, and you review them on the canvas before the workflow goes live."
+        },
+        "5": {
+          "title": "Buyer questions and answers",
+          "desc": "Buyers can ask about products, prices, stock, or orders in chat. Laku AI answers from your business information and hands the conversation to your team when a person is needed."
         }
       }
     }

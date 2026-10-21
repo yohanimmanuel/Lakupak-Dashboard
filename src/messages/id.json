@@ -239,8 +239,8 @@
       },
       "points": {
         "1": {
-          "title": "Tambah sales manager",
-          "desc": "Tambahkan manager yang mengatur tim lapangan. Mereka membuat pekerjaan dan memantau apa yang masih terbuka pada tiap sales."
+          "title": "Tambah tim penjualan",
+          "desc": "Tambahkan tim penjualan Anda dan tetapkan orang yang mengelola serta menjalankan pekerjaan lapangan. Pekerjaan tetap terhubung ke tiap sales, dengan pekerjaan terbuka terlihat oleh tim."
         },
         "2": {
           "title": "Buat, tetapkan, dan selesaikan pekerjaan",
@@ -251,8 +251,8 @@
           "desc": "AI mengirim daftar pekerjaan tiap sales lewat WhatsApp. Sales membalas di chat dengan apa yang sudah selesai, dan pekerjaan mencatat promosi, stok, pembayaran, retur, atau pesaing."
         },
         "4": {
-          "title": "Pertanyaan pembeli",
-          "desc": "Tetapkan persona pelanggan, persyaratan, dan kriteria siapa yang ingin dihubungi. Lapisan AI menemukan retailer yang cocok."
+          "title": "Pencarian prospek pembeli",
+          "desc": "Jelaskan pembeli yang ingin Anda jangkau, termasuk wilayah, jenis outlet, dan kriterianya. Lakupak AI mengusulkan retailer yang cocok, lalu Anda mengisi dan menyimpan hanya prospek yang Anda pilih."
         }
       }
     },
@@ -417,6 +417,10 @@
         "4": {
           "title": "Susun automasinya",
           "desc": "Jelaskan rutinitas di chat. Laku AI menyusun trigger dan aksinya, lalu Anda meninjau di kanvas sebelum workflow dijalankan."
+        },
+        "5": {
+          "title": "Pertanyaan dan jawaban pembeli",
+          "desc": "Pembeli dapat bertanya tentang produk, harga, stok, atau pesanan melalui chat. Laku AI menjawab dari informasi bisnis Anda dan menyerahkan percakapan ke tim Anda saat dibutuhkan bantuan langsung."
         }
       }
     }

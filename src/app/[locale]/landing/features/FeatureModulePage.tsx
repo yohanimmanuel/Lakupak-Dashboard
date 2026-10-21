@@ -148,8 +148,16 @@ const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaCo
       placement: 'center',
       image: { src: '/Dashboardsales3.png', width: 1511, height: 452 },
     },
-    3: { type: 'placeholder' },
-    4: { type: 'placeholder' },
+    3: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardsales1.png', width: 1533, height: 727 },
+    },
+    4: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardsales5.png', width: 1558, height: 797 },
+    },
   },
   analytics: {
     1: {
@@ -251,6 +259,15 @@ const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaCo
       type: 'single',
       placement: 'center',
       image: { src: '/DashboardAI4.png', width: 940, height: 638 },
+    },
+    5: {
+      type: 'diagonal',
+      back: { src: '/Dashboardsales6.png', width: 1000, height: 2048 },
+      front: { src: '/Dashboardautomations8.png', width: 1557, height: 783 },
+      orientation: 'tr-bl',
+      scale: 'sm',
+      overlap: 'back',
+      frontWidthClass: 'w-[92%] sm:w-[86%]',
     },
   },
 };
