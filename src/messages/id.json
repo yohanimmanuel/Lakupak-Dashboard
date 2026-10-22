@@ -415,8 +415,8 @@
           "desc": "Laku AI adalah layanan berbasis AI. Beri prompt untuk membuat produk, penawaran, klien, dan pesanan. Ia membuatnya untuk Anda, sehingga operasional terotomasi seketika."
         },
         "4": {
-          "title": "Susun automasinya",
-          "desc": "Jelaskan rutinitas di chat. Laku AI menyusun trigger dan aksinya, lalu Anda meninjau di kanvas sebelum workflow dijalankan."
+          "title": "Mesin Konversi Penjualan",
+          "desc": "Laku AI menganalisis Penjualan, Pesanan, dan Klien untuk menandai peluang terbuka, pesan ulang yang terlambat, pesanan belum dibayar untuk ditindaklanjuti, dan pesanan yang teratribusi ke penawaran. Setiap tugas diperingkat berdasarkan urgensi, sehingga tim Anda melihat siapa yang dihubungi lebih dulu di beranda dan antrean lengkapnya di Penjualan."
         },
         "5": {
           "title": "Pertanyaan dan jawaban pembeli",

@@ -53,6 +53,46 @@
         ]
       }
     },
+    "conversion": {
+      "title": "Konversi Penjualan",
+      "subtitle": "Semua pekerjaan dan peluang terbuka dari Penjualan, Pesanan, dan Klien, diurutkan berdasarkan prioritas.",
+      "loading": "Memuat peluang konversi...",
+      "loadError": "Gagal memuat peluang konversi.",
+      "timingDays": "{days} hari",
+      "searchPlaceholder": "Cari pembeli, produk, atau sales...",
+      "timingFilterLabel": "Waktu",
+      "valueFilterLabel": "Nilai",
+      "timingFilters": {
+        "all": "Semua waktu",
+        "days30": "30+ hari",
+        "days14": "14 sampai 29 hari",
+        "days7": "7 sampai 13 hari",
+        "under7": "Di bawah 7 hari",
+        "none": "Tanpa waktu"
+      },
+      "valueFilters": {
+        "all": "Semua nilai",
+        "high": "Di atas {amount}",
+        "medium": "{low} sampai {high}",
+        "low": "Di bawah {amount}",
+        "none": "Tanpa nilai"
+      },
+      "pagination": {
+        "showing": "Menampilkan {from} sampai {to} dari {total}",
+        "previous": "Halaman sebelumnya",
+        "next": "Halaman berikutnya"
+      },
+      "columns": {
+        "rank": "Peringkat",
+        "buyer": "Pembeli",
+        "type": "Jenis",
+        "reason": "Alasan penting",
+        "rep": "Sales",
+        "timing": "Waktu",
+        "value": "Nilai",
+        "action": "Tindakan"
+      }
+    },
     "tools": {
       "teams": {
         "name": "Tim",

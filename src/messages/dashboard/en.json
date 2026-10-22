@@ -294,6 +294,49 @@
         "members": "members",
         "moreTeams": "+{count} more team",
         "moreTeamsPlural": "+{count} more teams"
+      },
+      "conversion": {
+        "name": "Sales Conversion Engine",
+        "description": "AI analysis across Sales, Orders, and Clients. It flags who to follow up, why they matter, and the next action to turn demand into orders.",
+        "action": "View sales",
+        "aiAnalysis": "AI analysis",
+        "openOpportunities": "Open opportunities",
+        "openOpportunitiesHint": "Require follow-up",
+        "overdueBuyers": "Overdue buyers",
+        "overdueBuyersHint": "Potential reorders",
+        "quotesFollowUp": "Quotes follow-up",
+        "quotesFollowUpHint": "Unpaid orders to chase",
+        "ordersAttributed": "Orders attributed",
+        "ordersAttributedHint": "Orders with an offer applied",
+        "recommendedActions": "Recommended actions",
+        "filters": {
+          "all": "All",
+          "reorder": "Reorder",
+          "quotation": "Quotation",
+          "buyer_interest": "Buyer interest",
+          "sales_task": "Sales task"
+        },
+        "kinds": {
+          "reorder": "Reorder",
+          "quotation": "Quotation",
+          "buyer_interest": "Buyer interest",
+          "sales_task": "Sales task"
+        },
+        "actions": {
+          "reorder": "Review buyer",
+          "quotation": "Follow up order",
+          "buyer_interest": "Share product details",
+          "sales_task": "Open sales jobs"
+        },
+        "reorderReason": "Reorder overdue by {days} days based on this buyer's usual order rhythm.",
+        "quotationReason": "Unpaid order has been waiting {days} days. Follow up before the buyer goes cold.",
+        "salesTaskReason": "Sales task is {status} with {agent}. Review it so the visit does not stall.",
+        "buyerInterestReason": "Active buyer with no recent order in the dashboard snapshot. A product share can restart the conversation.",
+        "salesTaskDetail": "Open sales task",
+        "openStatus": "open",
+        "unassigned": "no rep yet",
+        "emptyTitle": "No open opportunities yet",
+        "emptyHint": "When buyer rhythm, unpaid orders, or open sales tasks need attention, they will appear here."
       }
     },
     "orderStatus": {

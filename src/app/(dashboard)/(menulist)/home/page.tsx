@@ -22,6 +22,7 @@ import {
   Briefcase,
   Megaphone,
   Activity,
+  Target,
   Loader2,
   MapPin,
 } from 'lucide-react';
@@ -53,8 +54,10 @@ import {
 import { useTranslations } from 'next-intl';
 import { salesJobStatusKey } from '@/components/sales/salesJobTypes';
 import { useHomeTranslations } from './useHomeTranslations';
+import SalesConversionEngineWidget from '@/components/dashboard/SalesConversionEngineWidget';
 
 type WidgetId =
+  | 'conversion'
   | 'analytics'
   | 'orders'
   | 'products'
@@ -71,6 +74,11 @@ interface WidgetDefinition {
 }
 
 const WIDGET_LIBRARY: WidgetDefinition[] = [
+  {
+    id: 'conversion',
+    defaultActive: true,
+    icon: Target,
+  },
   {
     id: 'analytics',
     defaultActive: true,
@@ -123,6 +131,7 @@ const WIDGET_ID_SET = new Set<WidgetId>(
 
 type WidgetLayoutStorage = {
   order: WidgetId[];
+  conversionWidgetIntroduced?: boolean;
 };
 
 /** Uniform size for all widgets in the 2-column dashboard layout */
@@ -984,6 +993,11 @@ export default function HomePage() {
         WIDGET_ID_SET.has(id as WidgetId),
       );
       const deduped = Array.from(new Set<WidgetId>(sanitized));
+      const storedRecord = Array.isArray(parsed) ? null : parsed;
+      const conversionIntroduced = storedRecord?.conversionWidgetIntroduced === true;
+      if (!deduped.includes('conversion') && !conversionIntroduced) {
+        deduped.unshift('conversion');
+      }
       setWidgetOrder(deduped.length > 0 ? deduped : DEFAULT_WIDGET_ORDER);
     } catch {
       setWidgetOrder(DEFAULT_WIDGET_ORDER);
@@ -999,7 +1013,10 @@ export default function HomePage() {
     if (!storageKey) {
       return;
     }
-    const payload: WidgetLayoutStorage = { order: widgetOrder };
+    const payload: WidgetLayoutStorage = {
+      order: widgetOrder,
+      conversionWidgetIntroduced: true,
+    };
     window.localStorage.setItem(storageKey, JSON.stringify(payload));
   }, [widgetOrder, hasHydratedLayout, user?.id]);
 
@@ -1828,6 +1845,27 @@ const supplierInsights = useMemo(() => {
 
   const renderWidget = (id: WidgetId): WidgetRenderResult => {
     switch (id) {
+      case 'conversion':
+        return {
+          action: (
+            <Link
+              href="/sales"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6]"
+            >
+              {widgetText('conversion', 'action')}
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          ),
+          content: (
+            <SalesConversionEngineWidget
+              orders={orders}
+              buyers={buyers}
+              salesJobs={salesJobs}
+              currency={userCurrency}
+              embedded
+            />
+          ),
+        };
       case 'analytics':
         return {
           action: (
@@ -2583,6 +2621,7 @@ const supplierInsights = useMemo(() => {
           return (
             <div
               key={id}
+              data-widget-id={id}
               draggable
               onDragStart={(event) => handleDragStart(event, id)}
               onDragEnter={() => handleDragEnter(id)}
@@ -2592,6 +2631,8 @@ const supplierInsights = useMemo(() => {
               onDragOver={(event) => event.preventDefault()}
               aria-grabbed={draggingWidget === id}
               className={`${UNIFORM_WIDGET_LAYOUT} min-w-0 rounded-lg transition-all ${
+                id === 'conversion' ? '@4xl/main:col-span-2 min-h-[420px]' : ''
+              } ${
                 hoverWidget === id ? 'ring-2 ring-[#0a61d7]/60' : ''
               } ${draggingWidget === id ? 'opacity-75' : 'opacity-100'}`}
             >

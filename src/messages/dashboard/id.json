@@ -294,6 +294,49 @@
         "members": "anggota",
         "moreTeams": "+{count} tim lagi",
         "moreTeamsPlural": "+{count} tim lagi"
+      },
+      "conversion": {
+        "name": "Mesin Konversi Penjualan",
+        "description": "Analisis AI dari Penjualan, Pesanan, dan Klien. Ini menandai siapa yang perlu ditindaklanjuti, kenapa penting, dan langkah berikutnya untuk mengubah permintaan menjadi pesanan.",
+        "action": "Lihat penjualan",
+        "aiAnalysis": "Analisis AI",
+        "openOpportunities": "Peluang terbuka",
+        "openOpportunitiesHint": "Perlu tindak lanjut",
+        "overdueBuyers": "Pembeli terlambat",
+        "overdueBuyersHint": "Potensi pesan ulang",
+        "quotesFollowUp": "Tindak lanjut penawaran",
+        "quotesFollowUpHint": "Pesanan belum dibayar",
+        "ordersAttributed": "Pesanan teratribusi",
+        "ordersAttributedHint": "Pesanan dengan penawaran",
+        "recommendedActions": "Tindakan disarankan",
+        "filters": {
+          "all": "Semua",
+          "reorder": "Pesan ulang",
+          "quotation": "Penawaran",
+          "buyer_interest": "Minat pembeli",
+          "sales_task": "Tugas penjualan"
+        },
+        "kinds": {
+          "reorder": "Pesan ulang",
+          "quotation": "Penawaran",
+          "buyer_interest": "Minat pembeli",
+          "sales_task": "Tugas penjualan"
+        },
+        "actions": {
+          "reorder": "Tinjau pembeli",
+          "quotation": "Tindaklanjuti pesanan",
+          "buyer_interest": "Bagikan detail produk",
+          "sales_task": "Buka pekerjaan penjualan"
+        },
+        "reorderReason": "Pesan ulang terlambat {days} hari berdasarkan ritme pesanan biasa pembeli ini.",
+        "quotationReason": "Pesanan belum dibayar sudah menunggu {days} hari. Tindaklanjuti sebelum pembeli kehilangan minat.",
+        "salesTaskReason": "Tugas penjualan berstatus {status} dengan {agent}. Tinjau agar kunjungan tidak tertahan.",
+        "buyerInterestReason": "Pembeli aktif tanpa pesanan terbaru di snapshot dashboard. Bagikan produk untuk memulai lagi percakapan.",
+        "salesTaskDetail": "Tugas penjualan terbuka",
+        "openStatus": "terbuka",
+        "unassigned": "belum ada sales",
+        "emptyTitle": "Belum ada peluang terbuka",
+        "emptyHint": "Saat ritme pembeli, pesanan belum dibayar, atau tugas penjualan terbuka perlu perhatian, semuanya muncul di sini."
       }
     },
     "orderStatus": {

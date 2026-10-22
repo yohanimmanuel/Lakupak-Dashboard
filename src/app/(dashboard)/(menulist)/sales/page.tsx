@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useSalesTranslations } from '@/hooks/useSalesTranslations';
+import SalesConversionTable from '@/components/dashboard/SalesConversionTable';
 
 const TIP_CONFIG = [
   { id: 'new-customers', icon: UserPlus, actionLink: '/clients' },
@@ -134,6 +135,8 @@ export default function SalesPage() {
           </div>
         </section>
       )}
+
+      <SalesConversionTable />
 
       <section>
         <h2 className="text-lg font-semibold text-black mb-4">{tHub('toolsSection')}</h2>

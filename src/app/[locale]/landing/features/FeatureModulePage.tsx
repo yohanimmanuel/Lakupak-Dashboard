@@ -258,7 +258,7 @@ const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaCo
     4: {
       type: 'single',
       placement: 'center',
-      image: { src: '/DashboardAI4.png', width: 940, height: 638 },
+      image: { src: '/Dashboardsales7.png', width: 1535, height: 527 },
     },
     5: {
       type: 'diagonal',

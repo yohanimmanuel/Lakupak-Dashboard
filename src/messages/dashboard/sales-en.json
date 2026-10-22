@@ -53,6 +53,46 @@
         ]
       }
     },
+    "conversion": {
+      "title": "Sales Conversion",
+      "subtitle": "All open jobs and opportunities across Sales, Orders, and Clients, sorted by priority.",
+      "loading": "Loading conversion opportunities...",
+      "loadError": "Could not load conversion opportunities.",
+      "timingDays": "{days} days",
+      "searchPlaceholder": "Search buyer, product, or sales rep...",
+      "timingFilterLabel": "Timing",
+      "valueFilterLabel": "Value",
+      "timingFilters": {
+        "all": "All timing",
+        "days30": "30+ days",
+        "days14": "14 to 29 days",
+        "days7": "7 to 13 days",
+        "under7": "Under 7 days",
+        "none": "No timing"
+      },
+      "valueFilters": {
+        "all": "All values",
+        "high": "Above {amount}",
+        "medium": "{low} to {high}",
+        "low": "Below {amount}",
+        "none": "No value"
+      },
+      "pagination": {
+        "showing": "Showing {from} to {to} of {total}",
+        "previous": "Previous page",
+        "next": "Next page"
+      },
+      "columns": {
+        "rank": "Rank",
+        "buyer": "Buyer",
+        "type": "Type",
+        "reason": "Why it matters",
+        "rep": "Sales rep",
+        "timing": "Timing",
+        "value": "Value",
+        "action": "Action"
+      }
+    },
     "tools": {
       "teams": {
         "name": "Team",

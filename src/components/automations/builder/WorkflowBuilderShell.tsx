@@ -280,7 +280,7 @@ export function WorkflowBuilderShell({
       ) : null}
 
       <div className="absolute left-3 right-3 top-3 z-30 overflow-x-auto rounded-xl border border-[#e6e6e6] bg-white p-2">
-        <div className="flex min-w-max items-center gap-2">
+        <div className="flex w-full min-w-max items-center gap-2">
           <button
             type="button"
             onClick={() => router.push('/automation')}
@@ -305,13 +305,13 @@ export function WorkflowBuilderShell({
               {translateStatus(status)}
             </span>
           </div>
-          <span className="mx-0.5 h-6 w-px shrink-0 bg-[#e6e6e6]" aria-hidden />
           {savedLabel && (
             <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-gray-500">
               <RefreshCw className="h-3.5 w-3.5 text-green-600" />
               {savedLabel}
             </span>
           )}
+          <span className="min-w-6 flex-1" aria-hidden />
           <AskAiNavButton
             pressed={aiOpen}
             onPressAction={() => {

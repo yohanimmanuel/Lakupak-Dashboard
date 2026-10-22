@@ -3,6 +3,7 @@
 import { useLocale, useTranslations } from 'next-intl';
 
 export type HomeWidgetId =
+  | 'conversion'
   | 'analytics'
   | 'orders'
   | 'products'

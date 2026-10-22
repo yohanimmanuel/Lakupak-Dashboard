@@ -415,8 +415,8 @@
           "desc": "Laku AI is an AI-native service. Prompt it to create products, offers, clients, and orders. It makes them for you, so you automate the operation instantly."
         },
         "4": {
-          "title": "Draft the automation",
-          "desc": "Describe the routine in chat. Laku AI drafts the trigger and the actions, and you review them on the canvas before the workflow goes live."
+          "title": "Sales Conversion Engine",
+          "desc": "Laku AI analyses Sales, Orders, and Clients to flag open opportunities, overdue reorders, unpaid orders to follow up, and orders attributed to offers. Every task is ranked by urgency, so your team sees who to reach first on the homepage and the full queue in Sales."
         },
         "5": {
           "title": "Buyer questions and answers",
