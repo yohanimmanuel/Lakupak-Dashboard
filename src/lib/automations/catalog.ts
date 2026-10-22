@@ -45,6 +45,7 @@ export type CatalogField = {
     | 'fleet'
     | 'product'
     | 'offer'
+    | 'salesReps'
     | 'datetime';
   options?: string[];
 };
@@ -264,6 +265,7 @@ const ACTIONS_BY_WORKFLOW: Record<WorkflowType, ActionDefinition[]> = {
     {
       type: 'assign_sales_job',
       fields: [
+        { key: 'salesRepIds', kind: 'salesReps' },
         {
           key: 'escalateOutOfScope',
           kind: 'select',
@@ -456,6 +458,8 @@ export function defaultConfigForFields(fields: CatalogField[]): Record<string, u
       config.offerLabel = '';
       config.offerStatus = '';
       config.selectedOffers = [];
+    } else if (field.kind === 'salesReps') {
+      config[field.key] = [];
     } else config[field.key] = '';
   }
   return config;

@@ -25,6 +25,7 @@ export type StockCount = {
   product_id: string;
   checked: boolean;
   counted: number | null;
+  client_id?: string;
 };
 
 export const OPEN_JOB_STATUSES = ['pending', 'approved', 'suggested', 'dispatched', 'in_progress'] as const;
@@ -42,6 +43,7 @@ export type CompletionData = {
   returned?: boolean;
   product_given?: boolean;
   stock_counts?: StockCount[];
+  client_checks?: { client_id: string; checked: boolean }[];
   items_returned?: ReturnedItem[];
   replacement_issued?: boolean;
   replacement_value?: number | null;
@@ -54,7 +56,7 @@ export type CompletionData = {
   product_ids?: string[];
   display_setup_completed?: boolean;
   samples_given?: number | null;
-  given_counts?: { product_id: string; quantity: number }[];
+  given_counts?: { product_id: string; quantity: number; client_id?: string }[];
   retailer_briefed?: boolean;
   scheme_reference?: string;
   execution_confirmed?: boolean;
@@ -97,13 +99,27 @@ function parseStockCounts(value: unknown): StockCount[] {
     const productId = optionalText(row.product_id);
     if (!productId) continue;
     const counted = row.counted == null || row.counted === '' ? null : finiteAmount(row.counted);
+    const clientId = optionalText(row.client_id);
     lines.push({
       product_id: productId,
       checked: row.checked !== false,
       counted: counted == null ? null : Math.max(0, Math.floor(counted)),
+      ...(clientId ? { client_id: clientId } : {}),
     });
   }
   return lines;
+}
+
+function parseClientChecks(value: unknown): { client_id: string; checked: boolean }[] {
+  if (!Array.isArray(value)) return [];
+  const byClient = new Map<string, boolean>();
+  for (const entry of value) {
+    const row = asRecord(entry);
+    const clientId = optionalText(row?.client_id);
+    if (!clientId) continue;
+    byClient.set(clientId, row?.checked === true);
+  }
+  return Array.from(byClient, ([client_id, checked]) => ({ client_id, checked }));
 }
 
 function parseReturnedItems(value: unknown): ReturnedItem[] {
@@ -137,6 +153,10 @@ export function readCompletion(value: unknown): CompletionData {
     notes: typeof row.notes === 'string' ? row.notes : '',
   };
   if (Array.isArray(row.stock_counts)) data.stock_counts = parseStockCounts(row.stock_counts);
+  if (Array.isArray(row.client_checks)) {
+    const checks = parseClientChecks(row.client_checks);
+    if (checks.length > 0) data.client_checks = checks;
+  }
   if (typeof row.delivered === 'boolean') data.delivered = row.delivered;
   if (typeof row.promoted === 'boolean') data.promoted = row.promoted;
   if (typeof row.returned === 'boolean') data.returned = row.returned;
@@ -156,13 +176,14 @@ export function readCompletion(value: unknown): CompletionData {
   if (typeof row.display_setup_completed === 'boolean') data.display_setup_completed = row.display_setup_completed;
   if (row.samples_given != null && row.samples_given !== '') data.samples_given = finiteAmount(row.samples_given);
   if (Array.isArray(row.given_counts)) {
-    const given: { product_id: string; quantity: number }[] = [];
+    const given: { product_id: string; quantity: number; client_id?: string }[] = [];
     for (const entry of row.given_counts) {
       const line = asRecord(entry);
       const productId = optionalText(line?.product_id);
       const quantity = finiteAmount(line?.quantity);
       if (!productId || quantity == null || !Number.isInteger(quantity) || quantity < 0) continue;
-      given.push({ product_id: productId, quantity });
+      const clientId = optionalText(line?.client_id);
+      given.push({ product_id: productId, quantity, ...(clientId ? { client_id: clientId } : {}) });
     }
     if (given.length > 0) data.given_counts = given;
   }
@@ -177,18 +198,23 @@ function rejectNegative(value: number | null, label: string) {
   if (value != null && value < 0) throw new Error(`${label} cannot be negative`);
 }
 
-function strictGivenCounts(value: unknown): { product_id: string; quantity: number }[] {
+function strictGivenCounts(value: unknown): { product_id: string; quantity: number; client_id?: string }[] {
   if (!Array.isArray(value)) return [];
-  const byProduct = new Map<string, number>();
+  const byClientProduct = new Map<string, { product_id: string; quantity: number; client_id?: string }>();
   for (const entry of value) {
     const line = asRecord(entry);
     const productId = optionalText(line?.product_id);
     if (!productId) throw new Error('Each given line needs a product');
     const quantity = finiteAmount(line?.quantity);
     if (quantity == null || !Number.isInteger(quantity) || quantity < 0) throw new Error('Product given cannot be negative');
-    byProduct.set(productId, quantity);
+    const clientId = optionalText(line?.client_id);
+    byClientProduct.set(`${clientId}:${productId}`, {
+      product_id: productId,
+      quantity,
+      ...(clientId ? { client_id: clientId } : {}),
+    });
   }
-  return Array.from(byProduct, ([product_id, quantity]) => ({ product_id, quantity }));
+  return Array.from(byClientProduct.values());
 }
 
 function strictStockCounts(value: unknown): StockCount[] {
@@ -199,7 +225,13 @@ function strictStockCounts(value: unknown): StockCount[] {
     if (!productId) throw new Error('Each stock line needs a product');
     const counted = row?.counted == null || row?.counted === '' ? null : finiteAmount(row?.counted);
     if (counted != null && (!Number.isInteger(counted) || counted < 0)) throw new Error('Counted stock cannot be negative');
-    return { product_id: productId, checked: row?.checked !== false, counted: counted == null ? null : Math.floor(counted) };
+    const clientId = optionalText(row?.client_id);
+    return {
+      product_id: productId,
+      checked: row?.checked !== false,
+      counted: counted == null ? null : Math.floor(counted),
+      ...(clientId ? { client_id: clientId } : {}),
+    };
   });
 }
 
@@ -241,6 +273,9 @@ export function buildStoredCompletion(jobType: string, value: unknown): Completi
       promoted: row?.promoted === true,
       samples_given: samplesGiven == null ? null : Math.floor(samplesGiven),
       ...(given.length > 0 ? { given_counts: given } : {}),
+      ...(parseClientChecks(row?.client_checks).length > 0
+        ? { client_checks: parseClientChecks(row?.client_checks) }
+        : {}),
     };
   }
 
@@ -249,6 +284,9 @@ export function buildStoredCompletion(jobType: string, value: unknown): Completi
       ...cleared(notes),
       stock_checked: row?.stock_checked === true,
       stock_counts: strictStockCounts(row?.stock_counts),
+      ...(parseClientChecks(row?.client_checks).length > 0
+        ? { client_checks: parseClientChecks(row?.client_checks) }
+        : {}),
     };
   }
 
@@ -282,6 +320,9 @@ export function buildStoredCompletion(jobType: string, value: unknown): Completi
       product_given: row?.product_given === true,
       samples_given: samplesGiven == null ? null : Math.floor(samplesGiven),
       ...(given.length > 0 ? { given_counts: given } : {}),
+      ...(parseClientChecks(row?.client_checks).length > 0
+        ? { client_checks: parseClientChecks(row?.client_checks) }
+        : {}),
       retailer_briefed: false,
     };
   }

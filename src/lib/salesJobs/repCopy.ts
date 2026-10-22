@@ -5,11 +5,47 @@ export type SalesReplyLocale = 'en' | 'id';
 
 export type RepJobLine = {
   clientName: string;
+  /** Shops on this line, when known. Lets grouped lines list every shop once. */
+  shops?: string[];
   jobType: string;
   productNames: string[];
   reason?: string | null;
   done?: boolean;
 };
+
+const SHARED_PRODUCT_JOB_TYPES = new Set(['promote_product', 'stock_check', 'new_product_activation']);
+
+/**
+ * Stock checks are stored one row per buyer. Buyers that share a job type and
+ * the same products are one task for the rep, so they become one line listing
+ * every shop. A different product set stays its own line.
+ */
+export function groupJobLines(locale: SalesReplyLocale, jobs: RepJobLine[]): RepJobLine[] {
+  const grouped: { key: string | null; line: RepJobLine; shops: string[]; allDone: boolean }[] = [];
+  for (const job of jobs) {
+    const shops = (job.shops?.length ? job.shops : [job.clientName]).map((shop) => shop.trim()).filter(Boolean);
+    const key = SHARED_PRODUCT_JOB_TYPES.has(job.jobType)
+      ? [
+          job.jobType,
+          job.productNames.map((name) => name.trim().toLowerCase()).sort().join('|'),
+          job.reason?.trim() ?? '',
+          job.done ? 'done' : 'open',
+        ].join('::')
+      : null;
+    const existing = key ? grouped.find((row) => row.key === key) : undefined;
+    if (!existing) {
+      grouped.push({ key, line: job, shops, allDone: Boolean(job.done) });
+      continue;
+    }
+    for (const shop of shops) {
+      if (!existing.shops.some((row) => row.toLowerCase() === shop.toLowerCase())) existing.shops.push(shop);
+    }
+    existing.allDone = existing.allDone && Boolean(job.done);
+  }
+  return grouped.map(({ key, line, shops, allDone }) =>
+    key ? { ...line, shops, clientName: joinShopNames(locale, shops), done: allDone } : line,
+  );
+}
 
 export function asSalesReplyLocale(value: unknown): SalesReplyLocale | null {
   const raw = String(value ?? '').trim().toLowerCase();
@@ -55,14 +91,9 @@ export function jobTypeLabel(locale: SalesReplyLocale, jobType: string): string 
 }
 
 export function jobListBody(locale: SalesReplyLocale, jobs: RepJobLine[]): string {
-  return jobs
+  return groupJobLines(locale, jobs)
     .map((job, index) => {
-      const store =
-        job.jobType === 'stock_check' && !job.clientName.trim()
-          ? locale === 'id'
-            ? 'Gudang'
-            : 'Warehouse'
-          : job.clientName.trim() || (locale === 'id' ? 'Toko' : 'Shop');
+      const store = job.clientName.trim() || (locale === 'id' ? 'Toko' : 'Shop');
       const type = jobTypeLabel(locale, job.jobType);
       const products = job.productNames.map((item) => item.trim()).filter(Boolean);
       const parts = [`${index + 1}. ${store}`, type];

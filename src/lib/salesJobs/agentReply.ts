@@ -524,8 +524,8 @@ async function resolveRequiredInput(
         focus.length === 0
           ? salesCopy(
               locale,
-              `For ${shop}, list each product and how many are in the warehouse.`,
-              `Untuk ${shop}, sebut setiap produk dan berapa stoknya di gudang.`,
+              `For ${shop}, list each product and how many are on the shop's shelves.`,
+              `Untuk ${shop}, sebut setiap produk dan berapa stok yang ada di rak tokonya.`,
             )
           : stockCountAsk(locale, shop, missing.map((product) => product.name), noted);
       return { ready: false, question, pending: { stock_counts: lines } };
@@ -1055,8 +1055,8 @@ function coachingReply(
   if (topic === 'stock_check' || /\b(stok|stock)\b/i.test(text)) {
     return salesCopy(
       locale,
-      'Count each product in the warehouse, then send me the numbers.',
-      'Hitung tiap produk di gudang, lalu kirim jumlahnya ke saya.',
+      `At ${place}, count each product on the buyer's shelves, then send me the numbers.`,
+      `Di ${place}, hitung tiap produk di rak pembeli, lalu kirim jumlahnya ke saya.`,
     );
   }
   if (isSampleJob(topic)) {
@@ -1611,7 +1611,7 @@ async function shopNamesByJob(
       const name = storeByOrder.get(orderId);
       if (name && !shops.some((shop) => sameShop(shop, name))) shops.push(name);
     }
-    if (shops.length === 0 && job.jobType !== 'stock_check') {
+    if (shops.length === 0) {
       const fallback = shopLabel(job.client?.storeName, job.client?.owner);
       if (fallback !== 'Open job') shops.push(fallback);
     }
@@ -1646,6 +1646,7 @@ async function remainingJobsReply(
     const shops = shopByJob.get(row.id) ?? [];
     return {
       clientName: shops.length ? joinShopNames(locale, shops) : '',
+      shops,
       jobType: row.jobType,
       productNames: row.suggestedProducts.map((id) => nameOf.get(id) || id),
       reason: row.priorityReason,
@@ -1691,7 +1692,6 @@ async function savedTodayNotes(
 }
 
 function shopTitle(locale: SalesReplyLocale, job: ReportedJob): string {
-  if (job.jobType === 'stock_check' && shopsOf(job).length === 0) return locale === 'id' ? 'Gudang' : 'Warehouse';
   return joinShopNames(locale, shopsOf(job));
 }
 

@@ -25,6 +25,10 @@ import {
   type SalesConversionOpportunityKind,
 } from '@/lib/salesConversion/buildSalesConversionInsights';
 import { OPPORTUNITY_KIND_BADGE_STYLES } from '@/lib/salesConversion/opportunityKindStyles';
+import {
+  getOpportunityUrgencyLevel,
+  OPPORTUNITY_URGENCY_BADGE_STYLES,
+} from '@/lib/salesConversion/opportunityUrgency';
 
 type Filter = 'all' | SalesConversionOpportunityKind;
 
@@ -548,6 +552,7 @@ export default function SalesConversionTable() {
                   <th className="py-3 px-4 font-medium uppercase">{tHub('columns.rank')}</th>
                   <th className="py-3 px-4 font-medium uppercase">{tHub('columns.buyer')}</th>
                   <th className="py-3 px-4 font-medium uppercase">{tHub('columns.type')}</th>
+                  <th className="py-3 px-4 font-medium uppercase">{tHub('columns.urgency')}</th>
                   <th className="py-3 px-4 font-medium uppercase">{tHub('columns.reason')}</th>
                   <th className="py-3 px-4 font-medium uppercase">{tHub('columns.rep')}</th>
                   <th className="py-3 px-4 font-medium uppercase">{tHub('columns.timing')}</th>
@@ -576,6 +581,13 @@ export default function SalesConversionTable() {
                         className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${OPPORTUNITY_KIND_BADGE_STYLES[opportunity.kind]}`}
                       >
                         {t(`kinds.${opportunity.kind}`)}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4">
+                      <span
+                        className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${OPPORTUNITY_URGENCY_BADGE_STYLES[getOpportunityUrgencyLevel(opportunity.score)]}`}
+                      >
+                        {t(`urgency.${getOpportunityUrgencyLevel(opportunity.score)}`)}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-gray-600 whitespace-normal max-w-xs">
@@ -615,10 +627,17 @@ export default function SalesConversionTable() {
                       </span>
                       {opportunity.title || t('salesTaskDetail')}
                     </div>
-                    <span
-                      className={`inline-block px-2 py-1 rounded-full text-xs font-bold shrink-0 ${OPPORTUNITY_KIND_BADGE_STYLES[opportunity.kind]}`}
-                    >
-                      {t(`kinds.${opportunity.kind}`)}
+                    <span className="flex shrink-0 flex-col items-end gap-1">
+                      <span
+                        className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${OPPORTUNITY_KIND_BADGE_STYLES[opportunity.kind]}`}
+                      >
+                        {t(`kinds.${opportunity.kind}`)}
+                      </span>
+                      <span
+                        className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${OPPORTUNITY_URGENCY_BADGE_STYLES[getOpportunityUrgencyLevel(opportunity.score)]}`}
+                      >
+                        {t(`urgency.${getOpportunityUrgencyLevel(opportunity.score)}`)}
+                      </span>
                     </span>
                   </div>
                   <p className="text-sm text-gray-600">{reasonFor(opportunity)}</p>

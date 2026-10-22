@@ -322,6 +322,12 @@
           "buyer_interest": "Minat pembeli",
           "sales_task": "Tugas penjualan"
         },
+        "urgency": {
+          "critical": "Kritis",
+          "high": "Tinggi",
+          "medium": "Sedang",
+          "low": "Rendah"
+        },
         "actions": {
           "reorder": "Tinjau pembeli",
           "quotation": "Tindaklanjuti pesanan",

@@ -244,7 +244,7 @@
         },
         "2": {
           "title": "Buat, tetapkan, dan selesaikan pekerjaan",
-          "desc": "Tambahkan kunjungan, pasang pada sales yang akan menjalankannya, dan tandai selesai dengan detail yang diminta pekerjaan itu. Produk yang sama bisa mencakup beberapa klien. Cek stok tetap di gudang. Pekerjaan yang sudah selesai bisa dikoreksi nanti."
+          "desc": "Tambahkan kunjungan, pasang pada sales yang akan menjalankannya, dan tandai selesai dengan detail yang diminta pekerjaan itu. Produk yang sama bisa mencakup beberapa klien. Cek stok menghitung stok di toko pembeli. Pekerjaan yang sudah selesai bisa dikoreksi nanti."
         },
         "3": {
           "title": "Delegasikan hari itu lewat WhatsApp",

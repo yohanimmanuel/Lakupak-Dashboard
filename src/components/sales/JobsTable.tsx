@@ -3,6 +3,7 @@
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Briefcase, ChevronDown, ChevronLeft, ChevronRight, Edit, Filter, Search, Trash, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { combineSalesJobCards } from './salesJobCards';
 import { SALES_JOB_TYPES, SalesJobRow, salesJobStatusKey } from './salesJobTypes';
 
 const STATUS_TABS = ['all', 'pending', 'complete'] as const;
@@ -23,6 +24,8 @@ const TYPE_BADGE: Record<string, string> = {
 type JobGroup = {
   id: string;
   jobs: SalesJobRow[];
+  /** The cards the user sees on the edit page. Status counts use these, not the raw rows. */
+  cards: SalesJobRow[];
   jobIds: string[];
   clientName: string;
   clientStatus: string;
@@ -73,6 +76,7 @@ function groupJobs(jobs: SalesJobRow[]): JobGroup[] {
     return {
       id,
       jobs: rows,
+      cards: combineSalesJobCards(rows),
       jobIds: rows.map((row) => row.id),
       clientName: clients.map((client) => client.name).join(', ') || first.clientName,
       clientStatus: first.clientStatus,
@@ -124,11 +128,11 @@ export default function JobsTable({
     let filtered = groupJobs(jobs);
     if (selectedTab === 'complete') {
       filtered = filtered.filter(
-        (group) => group.jobs.length > 0 && group.jobs.every((job) => salesJobStatusKey(job.status) === 'completed'),
+        (group) => group.cards.length > 0 && group.cards.every((job) => salesJobStatusKey(job.status) === 'completed'),
       );
     } else if (selectedTab === 'pending') {
       filtered = filtered.filter(
-        (group) => group.jobs.some((job) => salesJobStatusKey(job.status) !== 'completed'),
+        (group) => group.cards.some((job) => salesJobStatusKey(job.status) !== 'completed'),
       );
     }
     if (typeFilter !== 'all') filtered = filtered.filter((group) => group.jobTypes.includes(typeFilter));
@@ -443,8 +447,8 @@ export default function JobsTable({
               </tr>
             ) : (
               pagedRows.map((row) => {
-                const completedCount = row.jobs.filter((job) => salesJobStatusKey(job.status) === 'completed').length;
-                const totalJobs = row.jobs.length;
+                const completedCount = row.cards.filter((job) => salesJobStatusKey(job.status) === 'completed').length;
+                const totalJobs = row.cards.length;
                 const allComplete = totalJobs > 0 && completedCount === totalJobs;
                 const clients = row.clients.length ? row.clients : [{ name: row.clientName, status: row.clientStatus }];
                 const visibleClients = clients.slice(0, 2);

@@ -14,6 +14,10 @@ import {
   type SalesConversionOpportunityKind,
 } from '@/lib/salesConversion/buildSalesConversionInsights';
 import { OPPORTUNITY_KIND_BADGE_STYLES } from '@/lib/salesConversion/opportunityKindStyles';
+import {
+  getOpportunityUrgencyLevel,
+  OPPORTUNITY_URGENCY_BADGE_STYLES,
+} from '@/lib/salesConversion/opportunityUrgency';
 
 type Filter = 'all' | SalesConversionOpportunityKind;
 
@@ -169,16 +173,21 @@ export default function SalesConversionEngineWidget({
             {visibleOpportunities.map((opportunity) => (
               <article
                 key={opportunity.id}
-                className="flex min-h-40 w-[19rem] shrink-0 snap-start flex-col rounded-lg border border-[#e6e6e6] bg-white p-3"
+                className="flex min-h-52 w-[19rem] shrink-0 snap-start flex-col rounded-lg border border-[#e6e6e6] bg-white p-3"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <h4 className="min-w-0 truncate text-sm font-semibold text-black">
-                    {opportunity.title || t('salesTaskDetail')}
-                  </h4>
+                <h4 className="min-w-0 truncate text-sm font-semibold text-black">
+                  {opportunity.title || t('salesTaskDetail')}
+                </h4>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                   <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${OPPORTUNITY_KIND_BADGE_STYLES[opportunity.kind]}`}
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${OPPORTUNITY_KIND_BADGE_STYLES[opportunity.kind]}`}
                   >
                     {t(`kinds.${opportunity.kind}`)}
+                  </span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${OPPORTUNITY_URGENCY_BADGE_STYLES[getOpportunityUrgencyLevel(opportunity.score)]}`}
+                  >
+                    {t(`urgency.${getOpportunityUrgencyLevel(opportunity.score)}`)}
                   </span>
                 </div>
                 <p className="mt-2 text-xs leading-5 text-gray-600">{reasonFor(opportunity)}</p>

@@ -155,11 +155,50 @@ export default function CompleteSalesJobModal({
     };
   }, [userId, assignedTo]);
 
+  const clientGroups = (() => {
+    const seen = new Map<string, string>();
+    for (const job of jobs) {
+      if (job.clientGroups?.length) {
+        for (const group of job.clientGroups) {
+          if (group.id && !seen.has(group.id)) seen.set(group.id, group.name || group.id);
+        }
+        continue;
+      }
+      const ids = job.clientIds?.length ? job.clientIds : job.clientId ? [job.clientId] : [];
+      ids.forEach((id, index) => {
+        if (!seen.has(id)) seen.set(id, job.linkedClients?.[index]?.name || (index === 0 ? job.clientName : '') || id);
+      });
+    }
+    return Array.from(seen, ([id, name]) => ({ id, name }));
+  })();
+
   const save = async () => {
     if (!userId || saving) return;
     if (jobs.length > 1 && jobs.some((job) => completionIsPerVisit(job.jobType))) {
       setError(t('completeSeparately'));
       return;
+    }
+    // Stock check and promote jobs finish per client: every client group's
+    // master checkbox must be ticked before the job can be marked complete.
+    const masterChecks: { global: boolean }[] = [];
+    if (jobs.some((job) => job.jobType === 'stock_check')) masterChecks.push({ global: completion.stock_checked });
+    if (jobs.some((job) => job.jobType === 'promote_product')) masterChecks.push({ global: completion.promoted === true });
+    if (jobs.some((job) => job.jobType === 'new_product_activation')) masterChecks.push({ global: completion.product_given === true });
+    if (masterChecks.length > 0) {
+      const savedChecks = completion.client_checks ?? [];
+      const allMasterChecked = masterChecks.every(({ global }) =>
+        clientGroups.length > 0
+          ? clientGroups.every((group) => {
+              const scoped = savedChecks.find((entry) => entry.client_id === group.id);
+              if (scoped) return scoped.checked;
+              return savedChecks.length === 0 ? global : false;
+            })
+          : global,
+      );
+      if (!allMasterChecked) {
+        setError(t('completeClientChecksFirst'));
+        return;
+      }
     }
     setSaving(true);
     setError('');
@@ -233,6 +272,7 @@ export default function CompleteSalesJobModal({
             completion={completion}
             stockProducts={stockProducts}
             activationProducts={activationProducts}
+            clientGroups={clientGroups}
             onChangeAction={setCompletion}
           />
         </div>

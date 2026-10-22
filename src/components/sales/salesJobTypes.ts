@@ -8,6 +8,8 @@ export type SalesJobStockCount = {
   product_id: string;
   checked: boolean;
   counted: number | null;
+  /** Buyer this count was taken at, when the job covers more than one client. */
+  client_id?: string;
 };
 
 export type SalesJobCompletion = {
@@ -23,6 +25,8 @@ export type SalesJobCompletion = {
   returned?: boolean;
   product_given?: boolean;
   stock_counts?: SalesJobStockCount[];
+  /** Master checkbox per client group, for stock check and promote completions. */
+  client_checks?: { client_id: string; checked: boolean }[];
   items_returned?: SalesJobReturnedItem[];
   replacement_issued?: boolean;
   replacement_value?: number | null;
@@ -35,7 +39,7 @@ export type SalesJobCompletion = {
   product_ids?: string[];
   display_setup_completed?: boolean;
   samples_given?: number | null;
-  given_counts?: { product_id: string; quantity: number }[];
+  given_counts?: { product_id: string; quantity: number; client_id?: string }[];
   retailer_briefed?: boolean;
   scheme_reference?: string;
   execution_confirmed?: boolean;
@@ -59,6 +63,7 @@ export type SalesJobRow = {
   clientAddress?: string;
   clientStatus: string;
   linkedClients?: { name: string; status: string }[];
+  clientGroups?: { id: string; name: string }[];
   jobType: string;
   priorityReason: string | null;
   suggestedProducts?: string[];

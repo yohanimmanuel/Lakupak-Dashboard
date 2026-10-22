@@ -322,6 +322,12 @@
           "buyer_interest": "Buyer interest",
           "sales_task": "Sales task"
         },
+        "urgency": {
+          "critical": "Critical",
+          "high": "High",
+          "medium": "Medium",
+          "low": "Low"
+        },
         "actions": {
           "reorder": "Review buyer",
           "quotation": "Follow up order",

@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db';
 import { dispatchSalesJobCreatedAutomations, noteSalesWorkflowOutbound } from '@/lib/automations/engine';
-import { salesRepReplyLocale, upcomingJobsMessage, type RepJobLine } from '@/lib/salesJobs/repCopy';
+import { groupJobLines, salesRepReplyLocale, upcomingJobsMessage, type RepJobLine } from '@/lib/salesJobs/repCopy';
 import { suggestSalesJobsForDistributor } from '@/lib/salesJobs/suggest';
 import { DEFAULT_JOB_TIMEZONE, zonedDayRange, zonedParts } from '@/lib/salesJobs/time';
 import { dispatchJobToWhatsApp } from '@/lib/salesJobs/whatsapp';
@@ -160,7 +160,7 @@ async function sendAgentDigest(args: {
   const storeByOrder = new Map(
     orderRows.map((order) => [order.orderId, (order.buyer?.storeName || order.buyer?.owner || order.storeName).trim()]),
   );
-  const clientNames = (job: { jobType: string; clientIds: string[]; orderIds: string[]; client: { storeName: string; owner: string } | null }) => {
+  const shopNames = (job: { jobType: string; clientIds: string[]; orderIds: string[]; client: { storeName: string; owner: string } | null }) => {
     const shops: string[] = [];
     for (const clientId of job.clientIds) {
       const name = storeByClient.get(clientId);
@@ -170,14 +170,15 @@ async function sendAgentDigest(args: {
       const name = storeByOrder.get(orderId);
       if (name && !shops.includes(name)) shops.push(name);
     }
-    if (job.jobType === 'stock_check' && shops.length === 0) return '';
-    return shops.join(', ') || clientLabel(job.client);
+    return shops;
   };
 
   const listed = new Map<string, RepJobLine>();
   for (const job of listedJobs) {
+    const shops = shopNames(job);
     listed.set(job.id, {
-      clientName: clientNames(job),
+      clientName: shops.join(', ') || clientLabel(job.client),
+      shops,
       jobType: job.jobType,
       productNames: names(job.suggestedProducts),
       reason: job.priorityReason,
@@ -195,6 +196,12 @@ async function sendAgentDigest(args: {
       clientName: due[0].clientName,
       suggestedProductNames: names(due[0].suggestedProducts),
       agentPhone: args.bucket.agent.phone,
+      agentName: args.bucket.agent.name,
+      jobSummary: (() => {
+        const taskCount = groupJobLines(locale, lines).length;
+        if (taskCount <= 1) return undefined;
+        return locale === 'id' ? `${taskCount} tugas penjualan untuk hari ini` : `${taskCount} sales jobs for today`;
+      })(),
       locale,
       withButtons: false,
       body: upcomingJobsMessage(locale, args.bucket.agent.name, lines),

@@ -244,7 +244,7 @@
         },
         "2": {
           "title": "Create, assign, and complete the jobs",
-          "desc": "Add the visit, put it on the rep who will do it, and mark it complete with the details that job asked for. The same products can cover several clients. A stock check stays with the warehouse. A finished job can be corrected later."
+          "desc": "Add the visit, put it on the rep who will do it, and mark it complete with the details that job asked for. The same products can cover several clients. A stock check counts stock at the buyer's shop. A finished job can be corrected later."
         },
         "3": {
           "title": "Delegate the day on WhatsApp",

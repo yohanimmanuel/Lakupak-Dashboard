@@ -143,6 +143,7 @@ export async function chatWithOpenRouter(args: {
   }
 
   let lastError = 'OpenRouter request failed';
+  let emptyResponses = 0;
 
   for (let attempt = 0; attempt < OPENROUTER_MAX_ATTEMPTS; attempt++) {
     let response: Response;
@@ -187,8 +188,12 @@ export async function chatWithOpenRouter(args: {
     const content = choice?.message?.content?.trim();
     if (!content) {
       lastError = 'OpenRouter returned an empty response.';
-      if (attempt < OPENROUTER_MAX_ATTEMPTS - 1) {
-        await sleep(retryDelayMs(attempt, null));
+      // Providers occasionally return an empty completion back to back. Give
+      // empties more chances than other failures before giving up.
+      if (emptyResponses < OPENROUTER_MAX_ATTEMPTS) {
+        emptyResponses += 1;
+        attempt -= 1;
+        await sleep(retryDelayMs(emptyResponses, null));
         continue;
       }
       throw new Error(lastError);

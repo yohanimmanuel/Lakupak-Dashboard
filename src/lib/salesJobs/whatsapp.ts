@@ -3,8 +3,10 @@ import { readCompletion } from '@/lib/salesJobs/completion';
 import { addDaysToDateKey, DEFAULT_JOB_TIMEZONE, zonedDayRange, zonedParts } from '@/lib/salesJobs/time';
 import {
   isWhatsAppCloudConfigured,
+  isWhatsAppTemplateError,
   resolveWhatsAppCloudCredentials,
   sendReplyButtons,
+  sendTemplateMessage,
   sendTextMessage,
   toWhatsAppCloudRecipient,
 } from '@/lib/whatsapp/cloudApi';
@@ -33,6 +35,15 @@ export type DispatchJobInput = {
   clientName: string;
   suggestedProductNames: string[];
   agentPhone: string;
+  /** Rep display name, used as the greeting parameter in the assignment template. */
+  agentName?: string;
+  /** One-line job summary, used as the detail parameter in the assignment template. */
+  jobSummary?: string;
+  /**
+   * The same job goes to several reps. A delivery failure for one of them must
+   * not reset the job, so the status webhook only records it.
+   */
+  sharedSend?: boolean;
   /** Replaces the default assignment text. Reply buttons stay on the message. */
   body?: string;
   /** Reply language. One language only. */
@@ -135,13 +146,41 @@ export async function dispatchJobToWhatsApp(job: DispatchJobInput): Promise<{ me
     throw new Error('WhatsApp is not configured');
   }
   const body = job.body?.trim() || messageBody(job);
+  const callbackData = job.sharedSend ? `sj:${job.id}:shared` : `sj:${job.id}`;
   if (!job.withButtons) {
+    // Business-initiated sends: Meta only delivers free-form text inside the
+    // 24 hour window after the rep last messaged us. An approved template is
+    // delivered any time, so assignments try the template first and fall back
+    // to text only when the template does not exist or is not approved yet.
+    const repName = job.agentName?.trim();
+    if (repName) {
+      try {
+        const sent = await sendTemplateMessage({
+          accessToken: creds.accessToken,
+          phoneNumberId: creds.phoneNumberId,
+          to: job.agentPhone,
+          templateName: process.env.WHATSAPP_SALES_JOB_TEMPLATE?.trim() || 'sales_job_assignment',
+          languageCode: job.locale === 'id' ? 'id' : 'en_US',
+          bodyParams: [
+            repName,
+            job.jobSummary?.trim() ||
+              [job.clientName, job.locale === 'id' ? salesJobTypeLabelId(job.jobType) : salesJobTypeLabel(job.jobType)]
+                .filter(Boolean)
+                .join(' - '),
+          ],
+          bizOpaqueCallbackData: callbackData,
+        });
+        return { messageId: sent.messageId };
+      } catch (err) {
+        if (!isWhatsAppTemplateError(err)) throw err;
+      }
+    }
     const sent = await sendTextMessage({
       accessToken: creds.accessToken,
       phoneNumberId: creds.phoneNumberId,
       to: job.agentPhone,
       body,
-      bizOpaqueCallbackData: `sj:${job.id}`,
+      bizOpaqueCallbackData: callbackData,
     });
     return { messageId: sent.messageId };
   }
@@ -163,7 +202,7 @@ export async function dispatchJobToWhatsApp(job: DispatchJobInput): Promise<{ me
       phoneNumberId: creds.phoneNumberId,
       to: job.agentPhone,
       body: `${body}\n${fallbackChoices}`,
-      bizOpaqueCallbackData: `sj:${job.id}`,
+      bizOpaqueCallbackData: callbackData,
     });
     return { messageId: sent.messageId };
   }

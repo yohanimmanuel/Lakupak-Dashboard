@@ -8,6 +8,7 @@ import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import CompleteSalesJobModal from './CompleteSalesJobModal';
+import { clientIdsOf, combineSalesJobCards, jobSkipsClient } from './salesJobCards';
 import { OPEN_SALES_JOB_STATUSES, SALES_JOB_TYPES, type SalesJobCompletion, type SalesJobRow } from './salesJobTypes';
 
 type AgentOption = { id: string; name: string; role: string; status: string };
@@ -413,101 +414,8 @@ function ProductPicker({
   );
 }
 
-const ORDER_JOB_TYPES = new Set(['take_order', 'collect_payment', 'returns_pickup']);
-
-function scheduleSignature(job: SalesJobRow): string {
-  const rows = job.schedules?.length ? job.schedules : [{ date: job.scheduledDate, reminderTime: '07:00' }];
-  return rows
-    .map((row) => `${row.date}|${row.reminderTime || '07:00'}`)
-    .sort()
-    .join(',');
-}
-
-function splitKey(job: SalesJobRow): string {
-  return `${job.jobType}|${job.priorityReason || ''}|${scheduleSignature(job)}`;
-}
-
-/** The old save created one row per client from a single order job. Only those rows fold back together. */
-function isOldClientSplit(existing: SalesJobRow, job: SalesJobRow): boolean {
-  const left = existing.clientId?.trim() || '';
-  const right = job.clientId?.trim() || '';
-  if (!left || !right || left === right) return false;
-  if (existing.status !== job.status) return false;
-  if (existing.status === 'completed' || job.status === 'completed') return false;
-  return true;
-}
-
-function combineSplitOrderJobs(rows: SalesJobRow[]): SalesJobRow[] {
-  const combined: SalesJobRow[] = [];
-  for (const job of rows) {
-    if (!ORDER_JOB_TYPES.has(job.jobType)) {
-      combined.push(job);
-      continue;
-    }
-    const key = splitKey(job);
-    const existingIndex = combined.findIndex(
-      (existing) => ORDER_JOB_TYPES.has(existing.jobType) && splitKey(existing) === key && isOldClientSplit(existing, job),
-    );
-    if (existingIndex === -1) {
-      combined.push({ ...job, orderIds: [...(job.orderIds ?? [])] });
-      continue;
-    }
-    const existing = combined[existingIndex];
-    const orderIds = Array.from(
-      new Set([...(existing.orderIds ?? []), ...(job.orderIds ?? []), existing.orderId || '', job.orderId || ''].filter(Boolean)),
-    );
-    combined[existingIndex] = { ...existing, orderIds, orderId: orderIds[0] ?? existing.orderId };
-  }
-  return combined;
-}
-
-const SHARED_PRODUCT_JOB_TYPES = new Set(['promote_product', 'stock_check', 'new_product_activation']);
-
-function productSignature(job: SalesJobRow): string {
-  return [...(job.suggestedProducts ?? [])].slice().sort().join(',');
-}
-
-function jobSkipsClient(jobType: string) {
-  return jobType === 'stock_check' || jobType === 'competitor_intel';
-}
-
-function clientIdsOf(job: SalesJobRow): string[] {
-  if (jobSkipsClient(job.jobType)) return [];
-  const ids = [...(job.clientIds ?? []), job.clientId || ''].map((id) => id.trim()).filter(Boolean);
-  return Array.from(new Set(ids));
-}
-
-/** Older saves stored one row per client. Same products fold back into one job. */
-function combineSharedProductJobs(rows: SalesJobRow[]): SalesJobRow[] {
-  const combined: SalesJobRow[] = [];
-  for (const job of rows) {
-    if (!SHARED_PRODUCT_JOB_TYPES.has(job.jobType)) {
-      combined.push(job);
-      continue;
-    }
-    const key = `${splitKey(job)}|${productSignature(job)}`;
-    const existingIndex = combined.findIndex(
-      (existing) =>
-        SHARED_PRODUCT_JOB_TYPES.has(existing.jobType) &&
-        `${splitKey(existing)}|${productSignature(existing)}` === key &&
-        existing.status === job.status &&
-        existing.status !== 'completed' &&
-        job.status !== 'completed',
-    );
-    if (existingIndex === -1) {
-      const clientIds = clientIdsOf(job);
-      combined.push({ ...job, clientIds, clientId: clientIds[0] || job.clientId });
-      continue;
-    }
-    const existing = combined[existingIndex];
-    const clientIds = jobSkipsClient(job.jobType) ? [] : Array.from(new Set([...clientIdsOf(existing), ...clientIdsOf(job)]));
-    combined[existingIndex] = { ...existing, clientIds, clientId: clientIds[0] || '' };
-  }
-  return combined;
-}
-
 function draftsFromRows(rows: SalesJobRow[]): JobDraft[] {
-  return combineSharedProductJobs(combineSplitOrderJobs(rows)).map((job) => ({
+  return combineSalesJobCards(rows).map((job) => ({
     key: job.id,
     jobType: job.jobType === 'new_product_activation' ? 'promote_product' : job.jobType,
     clientIds: jobSkipsClient(job.jobType) ? [] : clientIdsOf(job),
@@ -586,7 +494,8 @@ export default function CreateSalesJobForm({
       if (job.jobType === 'take_order' || job.jobType === 'collect_payment' || job.jobType === 'returns_pickup') {
         if (job.orderIds.length === 0) next[job.key] = t('form.needOrder');
       } else if (job.jobType === 'stock_check') {
-        if (job.productIds.length === 0) next[job.key] = t('form.needProduct');
+        if (job.clientIds.length === 0) next[job.key] = t('form.needClient');
+        else if (job.productIds.length === 0) next[job.key] = t('form.needProduct');
       } else if (job.jobType === 'promote_product' || job.jobType === 'new_product_activation') {
         if (job.clientIds.length === 0) next[job.key] = t('form.needClient');
         else if (job.productIds.length === 0) next[job.key] = t('form.needProduct');
@@ -668,6 +577,11 @@ export default function CreateSalesJobForm({
       assignedTo,
       agentName: agent?.name || saved?.agentName || '',
       clientId,
+      clientIds: draft.clientIds,
+      clientGroups: draft.clientIds.map((id) => ({
+        id,
+        name: clients.find((row) => row.buyerId === id)?.storeName || (id === clientId ? saved?.clientName || '' : '') || id,
+      })),
       clientCustomerNumber: saved?.clientCustomerNumber || '',
       clientName: client?.storeName || saved?.clientName || '',
       clientOwner: client?.owner || saved?.clientOwner || '',
@@ -855,6 +769,7 @@ export default function CreateSalesJobForm({
             )}
 
             {(job.jobType === 'promote_product' ||
+              job.jobType === 'stock_check' ||
               job.jobType === 'new_product_activation' ||
               job.jobType === 'scheme_reconciliation') && (
               <div>

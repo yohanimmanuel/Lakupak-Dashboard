@@ -380,6 +380,66 @@ export async function markSalesJobsPending(args: { distributorId: number; ids: s
   return result.count;
 }
 
+/**
+ * A stock check card is stored one row per buyer, but the card is completed
+ * through its first row only. Complete the other rows of the same card too, or
+ * the card reads as pending again after reload. Rows match the card the same
+ * way the edit page folds them: same list, type, products, reason and schedule.
+ * Each sibling keeps only its own buyer's counts.
+ */
+async function completeCardSiblings(
+  db: Prisma.TransactionClient,
+  distributorId: number,
+  card: { id: string; listGroupId: string | null; jobType: string; suggestedProducts: string[]; priorityReason: string | null },
+  completion: ReturnType<typeof buildStoredCompletion>,
+  revise: boolean,
+) {
+  if (card.jobType !== 'stock_check' || !card.listGroupId) return;
+  const open = ['pending', 'approved', 'suggested', 'dispatched', 'in_progress'];
+  const signature = (schedules: { scheduledDate: Date; reminderHour: number; reminderMinute: number }[]) =>
+    schedules
+      .map((row) => `${row.scheduledDate.getTime()}|${row.reminderHour}|${row.reminderMinute}`)
+      .sort()
+      .join(',');
+  const products = [...card.suggestedProducts].sort().join(',');
+  const cardSchedules = await db.salesJobSchedule.findMany({ where: { jobId: card.id } });
+  const cardSignature = signature(cardSchedules);
+  const candidates = await db.salesJob.findMany({
+    where: {
+      distributorId,
+      listGroupId: card.listGroupId,
+      jobType: card.jobType,
+      id: { not: card.id },
+      status: { in: revise ? [...open, 'completed'] : open },
+    },
+    include: { schedules: true },
+  });
+  const siblings = candidates.filter(
+    (row) =>
+      [...row.suggestedProducts].sort().join(',') === products &&
+      (row.priorityReason ?? '') === (card.priorityReason ?? '') &&
+      signature(row.schedules) === cardSignature,
+  );
+  for (const row of siblings) {
+    const ownClient = (clientId: string | undefined) => !clientId || clientId === row.clientId;
+    const rowCompletion = {
+      ...completion,
+      ...(completion.stock_counts ? { stock_counts: completion.stock_counts.filter((line) => ownClient(line.client_id)) } : {}),
+      ...(completion.client_checks
+        ? { client_checks: completion.client_checks.filter((line) => line.client_id === row.clientId) }
+        : {}),
+    };
+    await db.salesJob.update({
+      where: { id: row.id },
+      data: {
+        status: 'completed',
+        completionData: rowCompletion,
+        ...(row.status === 'completed' ? {} : { completedAt: new Date() }),
+      },
+    });
+  }
+}
+
 export async function completeSalesJob(args: {
   distributorId: number;
   id: string;
@@ -419,15 +479,19 @@ export async function completeSalesJob(args: {
     });
     if (offer?.buyerId && offer.buyerId !== existing.clientId) throw new Error('That offer belongs to another client');
   }
-  const updated = await prisma.salesJob.update({
-    where: { id: existing.id },
-    data: {
-      status: 'completed',
-      completionData: completion,
-      completionNotes: args.notes?.trim() || completion.notes || existing.completionNotes,
-      ...(existing.status === 'completed' ? {} : { completedAt: new Date() }),
-    },
-    include: JOB_INCLUDE,
+  const updated = await prisma.$transaction(async (tx) => {
+    const row = await tx.salesJob.update({
+      where: { id: existing.id },
+      data: {
+        status: 'completed',
+        completionData: completion,
+        completionNotes: args.notes?.trim() || completion.notes || existing.completionNotes,
+        ...(existing.status === 'completed' ? {} : { completedAt: new Date() }),
+      },
+      include: JOB_INCLUDE,
+    });
+    await completeCardSiblings(tx, args.distributorId, existing, completion, Boolean(args.revise));
+    return row;
   });
   const settings = await prisma.salesJobSettings.findUnique({ where: { distributorId: args.distributorId } });
   const timeZone = settings?.timezone || DEFAULT_JOB_TIMEZONE;
@@ -647,6 +711,23 @@ export async function createSalesJobs(args: {
         .filter((id) => id && replaceIds.includes(id)),
     );
     const droppedIds = replaceIds.filter((id) => !keptIds.has(id));
+    // A shared card is stored as one row per buyer. Saving keeps one row and
+    // recreates the rest, so remember each dropped buyer's stage (dispatched,
+    // completed, counts) and hand it back to the recreated row below. Without
+    // this the recreated buyers restart as pending while the kept buyer keeps
+    // its stage, and the card splits apart on the next load.
+    const droppedRows = droppedIds.length
+      ? await tx.salesJob.findMany({
+          where: { id: { in: droppedIds }, distributorId: args.distributorId },
+          include: { schedules: true },
+        })
+      : [];
+    const previousByBuyer = new Map<string, (typeof droppedRows)[number]>();
+    const buyerKey = (jobType: string, clientId: string, productIds: string[]) =>
+      `${jobType}:${clientId}:${Array.from(new Set(productIds.map((id) => id.trim()).filter(Boolean))).sort().join(',')}`;
+    for (const row of droppedRows) {
+      if (row.clientId) previousByBuyer.set(buyerKey(row.jobType, row.clientId, row.suggestedProducts), row);
+    }
     if (droppedIds.length > 0) {
       await tx.salesJob.deleteMany({
         where: { id: { in: droppedIds }, distributorId: args.distributorId },
@@ -670,13 +751,15 @@ export async function createSalesJobs(args: {
         new Set([...(item.clientIds ?? []), item.clientId ?? ''].map((id) => id.trim()).filter(Boolean)),
       );
       let storedClientId: string | null = null;
+      let storedProductIds: string[] | null = null;
       if (keptIds.has(existingId)) {
         const owned = await tx.salesJob.findFirst({
           where: { id: existingId, distributorId: args.distributorId },
-          select: { id: true, clientId: true },
+          select: { id: true, clientId: true, suggestedProducts: true },
         });
         if (!owned) throw new Error('Job not found');
         storedClientId = owned.clientId;
+        storedProductIds = owned.suggestedProducts;
       }
 
       const slices: { clientId: string | null; clientIds: string[]; orderId: string | null; linkedOrderIds: string[]; productIds: string[] }[] = [];
@@ -710,7 +793,7 @@ export async function createSalesJobs(args: {
         jobType === 'competitor_intel' ||
         jobType === 'scheme_reconciliation'
       ) {
-        const noClient = jobType === 'stock_check' || jobType === 'competitor_intel';
+        const noClient = jobType === 'competitor_intel';
         const sharedClients = jobType === 'promote_product' || jobType === 'new_product_activation';
         if (!noClient && requestedClientIds.length === 0) throw new Error('Select a client');
         if (!noClient) {
@@ -803,9 +886,19 @@ export async function createSalesJobs(args: {
       const idSlice = slices.find((slice) => slice.clientId && slice.clientId === storedClientId) ?? slices[0];
       for (const slice of slices) {
         const reuseId = keptIds.has(existingId) && slice === idSlice;
+        // A product edit changes the key, so also try the card's products from
+        // before this save. Each dropped row is handed back once at most.
+        const previousKey = !reuseId && slice.clientId
+          ? [slice.productIds, storedProductIds]
+              .filter((ids): ids is string[] => Boolean(ids))
+              .map((ids) => buyerKey(jobType, slice.clientId as string, ids))
+              .find((key) => previousByBuyer.has(key))
+          : undefined;
+        const previous = previousKey ? previousByBuyer.get(previousKey) : undefined;
+        if (previousKey) previousByBuyer.delete(previousKey);
         const previousSchedules = reuseId
           ? await tx.salesJobSchedule.findMany({ where: { jobId: existingId } })
-          : [];
+          : (previous?.schedules ?? []);
         const sentAtBySlot = new Map<string, Date>();
         const rememberSent = (schedule: {
           scheduledDate: Date;
@@ -853,7 +946,16 @@ export async function createSalesJobs(args: {
                 ...jobFields,
                 distributorId: args.distributorId,
                 createdBy: 'manager',
-                status: 'pending',
+                status: previous?.status ?? 'pending',
+                ...(previous
+                  ? {
+                      dispatchedAt: previous.dispatchedAt,
+                      whatsappMessageId: previous.whatsappMessageId,
+                      completedAt: previous.completedAt,
+                      completionData: previous.completionData ?? undefined,
+                      completionNotes: previous.completionNotes,
+                    }
+                  : {}),
                 schedules: { create: nextSchedules },
               },
               include: JOB_INCLUDE,

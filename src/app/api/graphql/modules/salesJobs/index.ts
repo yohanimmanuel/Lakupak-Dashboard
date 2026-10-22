@@ -34,11 +34,18 @@ export const salesJobsTypeDefs = /* GraphQL */ `
     product_id: String!
     checked: Boolean!
     counted: Int
+    client_id: String
   }
 
   type SalesJobGivenCount {
     product_id: String!
     quantity: Int!
+    client_id: String
+  }
+
+  type SalesJobClientCheck {
+    client_id: String!
+    checked: Boolean!
   }
 
   type SalesJobCompletion {
@@ -54,6 +61,7 @@ export const salesJobsTypeDefs = /* GraphQL */ `
     returned: Boolean
     product_given: Boolean
     stock_counts: [SalesJobStockCount!]
+    client_checks: [SalesJobClientCheck!]
     items_returned: [SalesJobReturnedItem!]
     replacement_issued: Boolean
     replacement_value: Float
@@ -149,6 +157,7 @@ export const salesJobsTypeDefs = /* GraphQL */ `
     name: String!
     role: String!
     status: String!
+    phone: String!
   }
 
   type SalesJobOptionClient {
@@ -204,12 +213,19 @@ export const salesJobsTypeDefs = /* GraphQL */ `
   input SalesJobGivenCountInput {
     product_id: String!
     quantity: Int!
+    client_id: String
   }
 
   input SalesJobStockCountInput {
     product_id: String!
     checked: Boolean!
     counted: Int
+    client_id: String
+  }
+
+  input SalesJobClientCheckInput {
+    client_id: String!
+    checked: Boolean!
   }
 
   input SalesJobCompletionInput {
@@ -225,6 +241,7 @@ export const salesJobsTypeDefs = /* GraphQL */ `
     returned: Boolean
     product_given: Boolean
     stock_counts: [SalesJobStockCountInput!]
+    client_checks: [SalesJobClientCheckInput!]
     items_returned: [SalesJobReturnedItemInput!]
     replacement_issued: Boolean
     replacement_value: Float
@@ -336,7 +353,7 @@ async function formOptions(userId: number) {
   const [agents, clients] = await Promise.all([
     prisma.salesAgent.findMany({
       where: { userId, status: 'active' },
-      select: { id: true, name: true, role: true, status: true },
+      select: { id: true, name: true, role: true, status: true, phone: true },
       orderBy: { name: 'asc' },
     }),
     prisma.buyer.findMany({

@@ -112,6 +112,9 @@ export function buildSalesConversionInsights(input: {
 
   const opportunities: SalesConversionOpportunity[] = [];
 
+  // Level 1 reorder timing: expected reorder date = last order date + median
+  // interval between orders. Days overdue = today - expected reorder date.
+  // This reads the purchasing pattern only. It does not measure buyer stock.
   for (const [buyerId, buyerOrders] of ordersByBuyer.entries()) {
     const sorted = [...buyerOrders].sort((a, b) => orderTime(a) - orderTime(b));
     if (sorted.length < 2) continue;

@@ -16,8 +16,8 @@ const JOB_FIELDS = `
   schedules { date reminderTime }
   suggestedProductNames createdBy status dispatchNote
   completionData { order_placed order_amount payment_collected payment_amount stock_checked products_demoed notes
-    delivered promoted returned product_given samples_given given_counts { product_id quantity }
-    stock_counts { product_id checked counted }
+    delivered promoted returned product_given samples_given given_counts { product_id quantity client_id }
+    stock_counts { product_id checked counted client_id } client_checks { client_id checked }
     competitor_name competitor_product observed_price observed_promo shelf_share_observation }
 `;
 

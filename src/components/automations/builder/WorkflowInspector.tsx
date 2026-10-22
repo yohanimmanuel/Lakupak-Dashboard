@@ -25,6 +25,7 @@ import { WorkflowRunsPanel } from './WorkflowRunsPanel';
 import { WhatsAppCsInboxPanel } from './WhatsAppCsInboxPanel';
 import { useBuilderPanelControls } from './WorkflowBuilderShell';
 import { BuyerPickerField, normalizePickedBuyers, toPickedBuyer } from './BuyerPickerField';
+import { SalesRepPickerField, normalizeSalesRepIds } from './SalesRepPickerField';
 import { OfferPickerField, normalizePickedOffers } from './OfferPickerField';
 import { FleetPickerField, normalizePickedFleets } from './FleetPickerField';
 import { ProductPickerField, normalizePickedProducts } from './ProductPickerField';
@@ -579,7 +580,21 @@ export function StepDetailsPanel({
                   isActionFieldVisible(field, fields, selected.data.config),
                 )
                 .map((field) =>
-                  field.kind === 'buyer' ? (
+                  field.kind === 'salesReps' ? (
+                    <SalesRepPickerField
+                      key={field.key}
+                      label={tFields.has(field.key) ? tFields(field.key) : field.key}
+                      selectedIds={normalizeSalesRepIds(selected.data.config)}
+                      onChangeAction={(ids) =>
+                        onUpdateNodeAction(selected.id, {
+                          config: {
+                            ...selected.data.config,
+                            salesRepIds: ids,
+                          },
+                        })
+                      }
+                    />
+                  ) : field.kind === 'buyer' ? (
                     <BuyerPickerField
                       key={field.key}
                       label={

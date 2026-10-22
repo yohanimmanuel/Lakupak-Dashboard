@@ -9,6 +9,7 @@ import {
   STAT_ICON_BLUE,
   STAT_ICON_GREEN,
 } from '@/utils/statCardStyles';
+import { combineSalesJobCardsByListGroup } from './salesJobCards';
 import { OPEN_SALES_JOB_STATUSES, PENDING_SALES_JOB_STATUSES, SalesJobRow } from './salesJobTypes';
 
 type StatCardConfig = {
@@ -45,10 +46,12 @@ export default function JobsStatcards({ jobs }: { jobs: SalesJobRow[] }) {
   const t = useTranslations('dashboard.sales.salesJobs');
 
   const stats = useMemo((): StatCardConfig[] => {
-    const total = jobs.length;
-    const pending = jobs.filter((job) => (PENDING_SALES_JOB_STATUSES as readonly string[]).includes(job.status)).length;
-    const open = jobs.filter((job) => (OPEN_SALES_JOB_STATUSES as readonly string[]).includes(job.status)).length;
-    const completed = jobs.filter((job) => job.status === 'completed').length;
+    // Count the cards the user sees, not the per-client database rows behind them.
+    const cards = combineSalesJobCardsByListGroup(jobs);
+    const total = cards.length;
+    const pending = cards.filter((job) => (PENDING_SALES_JOB_STATUSES as readonly string[]).includes(job.status)).length;
+    const open = cards.filter((job) => (OPEN_SALES_JOB_STATUSES as readonly string[]).includes(job.status)).length;
+    const completed = cards.filter((job) => job.status === 'completed').length;
     const share = (count: number) => (total > 0 ? Math.round((count / total) * 100) : 0);
     const hint = (count: number) => (total > 0 ? t('stats.shareOfTotal', { percent: share(count) }) : t('stats.noJobs'));
 

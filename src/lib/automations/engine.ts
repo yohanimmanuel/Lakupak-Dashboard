@@ -727,10 +727,14 @@ async function runWorkflowActions(
           continue;
         }
         const replyLanguage = action.config.csReplyLanguage;
+        const salesRepIds = Array.isArray(action.config.salesRepIds)
+          ? action.config.salesRepIds.map((id) => String(id ?? '').trim()).filter(Boolean)
+          : [];
         parts.push(
           await executeAssignSalesJob({
             userId: workflow.userId,
             jobId: ctx.event.jobId,
+            recipientAgentIds: salesRepIds.length ? salesRepIds : undefined,
             messageTemplate: String(action.config.messageTemplate ?? ''),
             csReplyLanguage: typeof replyLanguage === 'string' && replyLanguage.trim() ? replyLanguage : undefined,
             reminderDateKey: ctx.event.reminderDateKey,

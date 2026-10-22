@@ -226,6 +226,77 @@ export async function sendTextMessage(args: {
   return { messageId, contacts };
 }
 
+/**
+ * Sends an approved template message. This is the only format Meta delivers
+ * when the recipient has not messaged us in the last 24 hours, so
+ * business-initiated notifications must use it.
+ */
+export async function sendTemplateMessage(args: {
+  accessToken: string;
+  phoneNumberId: string;
+  to: string;
+  templateName: string;
+  languageCode: string;
+  bodyParams?: string[];
+  bizOpaqueCallbackData?: string;
+}): Promise<SendTextMessageResult> {
+  const to = toWhatsAppCloudRecipient(args.to);
+  const templateName = args.templateName.trim();
+  if (!to) throw new WhatsAppCloudApiError('Recipient phone is required.', 400);
+  if (!templateName) throw new WhatsAppCloudApiError('Template name is required.', 400);
+
+  const params = (args.bodyParams ?? []).map((value) => value.replace(/[\r\n\t]+/g, ' ').trim());
+  if (params.some((value) => !value)) {
+    throw new WhatsAppCloudApiError('Template parameters cannot be empty.', 400);
+  }
+
+  const payload: JsonRecord = {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to,
+    type: 'template',
+    template: {
+      name: templateName,
+      language: { code: args.languageCode.trim() || 'en_US' },
+      ...(params.length
+        ? {
+            components: [
+              {
+                type: 'body',
+                parameters: params.map((text) => ({ type: 'text', text })),
+              },
+            ],
+          }
+        : {}),
+    },
+  };
+  const callbackData = trimStr(args.bizOpaqueCallbackData).slice(0, 200);
+  if (callbackData) {
+    payload.biz_opaque_callback_data = callbackData;
+  }
+
+  const data = await graphRequest(`/${encodeURIComponent(args.phoneNumberId)}/messages`, args.accessToken, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+  const messages = Array.isArray(data.messages) ? data.messages : [];
+  const first = asRecord(messages[0]);
+  const messageId = trimStr(first?.id);
+  if (!messageId) {
+    throw new WhatsAppCloudApiError('WhatsApp API returned no message id.', 502);
+  }
+  return { messageId };
+}
+
+/** True for Meta template errors (missing, paused, or unapproved template). Safe to fall back to a text send. */
+export function isWhatsAppTemplateError(err: unknown): boolean {
+  if (err instanceof WhatsAppCloudApiError && typeof err.code === 'number') {
+    return err.code >= 132000 && err.code < 133000;
+  }
+  return err instanceof Error && /template/i.test(err.message);
+}
+
 export type ReplyButton = { id: string; title: string };
 
 /** Up to 3 quick-reply buttons. Titles are trimmed to WhatsApp's 20 character limit. */
@@ -282,6 +353,8 @@ export async function createMessageTemplate(args: {
   language: string;
   category: 'UTILITY' | 'MARKETING' | 'AUTHENTICATION';
   bodyText: string;
+  /** Example values for {{1}}, {{2}}... Meta requires them when the body has parameters. */
+  bodyExamples?: string[];
 }): Promise<CreateMessageTemplateResult> {
   const wabaId = args.wabaId.trim();
   const name = args.name.trim().toLowerCase();
@@ -314,6 +387,9 @@ export async function createMessageTemplate(args: {
           {
             type: 'BODY',
             text: bodyText,
+            ...(args.bodyExamples?.length
+              ? { example: { body_text: [args.bodyExamples] } }
+              : {}),
           },
         ],
       }),
@@ -331,6 +407,37 @@ export async function createMessageTemplate(args: {
     status,
     category: trimStr(data.category) || args.category,
   };
+}
+
+export type MessageTemplateInfo = { name: string; status: string; language: string; category?: string };
+
+/** Lists templates on the WABA, optionally filtered to one name. Used to check approval status. */
+export async function listMessageTemplates(args: {
+  accessToken: string;
+  wabaId: string;
+  name?: string;
+}): Promise<MessageTemplateInfo[]> {
+  const wabaId = args.wabaId.trim();
+  if (!wabaId) {
+    throw new WhatsAppCloudApiError('WhatsApp Business Account ID (WABA ID) is required.', 400);
+  }
+  const query = new URLSearchParams({ fields: 'name,status,language,category', limit: '100' });
+  if (args.name?.trim()) query.set('name', args.name.trim().toLowerCase());
+  const data = await graphRequest(
+    `/${encodeURIComponent(wabaId)}/message_templates?${query.toString()}`,
+    args.accessToken,
+    { method: 'GET' },
+  );
+  const rows = Array.isArray(data.data) ? data.data : [];
+  return rows
+    .map((row) => asRecord(row))
+    .filter((row): row is JsonRecord => row != null)
+    .map((row) => ({
+      name: trimStr(row.name),
+      status: trimStr(row.status),
+      language: trimStr(row.language),
+      category: trimStr(row.category) || undefined,
+    }));
 }
 
 /** Cloud API credentials come from server env (WHATSAPP_CLOUD_*), not the workflow UI. */
