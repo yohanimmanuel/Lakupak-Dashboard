@@ -16,6 +16,8 @@ function makeVerifyOtpRequest(body: unknown, ip = '127.0.0.1.20') {
   return new NextRequest(req);
 }
 
+const REFERRAL_CODE = 'TESTCO1';
+
 const dummySignupBody = {
   phone: '+0000000000',
   countryCode: 'ID',
@@ -26,8 +28,21 @@ const dummySignupBody = {
     email: 'dummy-phone@example.com',
     username: 'dummy_phone_user',
     password: 'secret12',
+    referralCode: REFERRAL_CODE,
   },
 };
+
+async function seedReferralDistributor() {
+  return prisma.user.create({
+    data: {
+      email: 'otp-referral-dist@example.com',
+      password: 'x',
+      accountStatus: 'active',
+      marketplaceReferralCode: REFERRAL_CODE,
+    },
+    select: { id: true },
+  });
+}
 
 describe('POST /api/mobile/auth/verify-otp dummy phone bypass', () => {
   beforeEach(async () => {
@@ -35,6 +50,7 @@ describe('POST /api/mobile/auth/verify-otp dummy phone bypass', () => {
     vi.stubEnv('NODE_ENV', 'test');
     vi.stubEnv('MOBILE_OTP_ALLOW_DUMMY_PHONES', '1');
     await resetDb();
+    await seedReferralDistributor();
   });
 
   afterEach(() => {

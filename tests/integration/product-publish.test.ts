@@ -44,7 +44,12 @@ describe('products.publishMarketplaceProduct (integration)', () => {
     expect(row?.marketplaceStatus).toBe('Published');
     expect(row?.publishedAt).not.toBeNull();
 
-    const afterListing = await fetchMarketplaceProducts({ search: 'Publish Test Product', limit: 20 });
+    // Scope to this distributor so the listing uses Prisma (skips Meili, which is empty in test DBs).
+    const afterListing = await fetchMarketplaceProducts({
+      search: 'Publish Test Product',
+      limit: 20,
+      distributorIds: [distributor.id],
+    });
     expect(afterListing.nodes.some((n) => (n as { id?: string }).id === productId)).toBe(true);
   });
 

@@ -51,6 +51,31 @@ export function makeAuthenticatedMarketplacePutRequest(
   return new NextRequest(req);
 }
 
+/** Marketplace POST with a closed-storefront JWT (membership distributor claim). */
+export function makeAuthenticatedMarketplacePostRequest(
+  url: string,
+  body: unknown,
+  marketplaceUserId: number,
+  distributorId: number,
+): NextRequest {
+  ensureIntegrationAuthEnv();
+  const token = signAccessToken({
+    sub: marketplaceUserId,
+    type: 'marketplace',
+    distributorId,
+  });
+  const req = new Request(url, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${token}`,
+      'x-forwarded-for': '127.0.0.1',
+    },
+    body: JSON.stringify(body),
+  });
+  return new NextRequest(req);
+}
+
 export function makeAuthenticatedLegacyPutRequest(
   url: string,
   body: unknown,

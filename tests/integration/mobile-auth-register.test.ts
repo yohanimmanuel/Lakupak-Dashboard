@@ -16,6 +16,8 @@ function makeRegisterRequest(body: unknown, ip = '127.0.0.1.10') {
   return new NextRequest(req);
 }
 
+const REFERRAL_CODE = 'TESTCO1';
+
 const validPayload = {
   name: 'Integration Test User',
   email: 'integration-register@example.com',
@@ -28,12 +30,26 @@ const validPayload = {
   addressFullName: 'Integration Test User',
   addressLabel: 'home',
   addressIsDefault: true,
+  referralCode: REFERRAL_CODE,
 };
+
+async function seedReferralDistributor() {
+  return prisma.user.create({
+    data: {
+      email: 'integration-referral-dist@example.com',
+      password: 'x',
+      accountStatus: 'active',
+      marketplaceReferralCode: REFERRAL_CODE,
+    },
+    select: { id: true },
+  });
+}
 
 describe('POST /api/mobile/auth/register', () => {
   beforeEach(async () => {
     ensureIntegrationAuthEnv();
     await resetDb();
+    await seedReferralDistributor();
   });
 
   it('creates a marketplace user with a default address', async () => {

@@ -43,7 +43,7 @@ describe('GraphQL legacy JWT namespace (integration)', () => {
       phone: '+620000000099',
     });
 
-    expect(user).toEqual({ id: sharedId, type: 'marketplace' });
+    expect(user).toEqual({ id: sharedId, type: 'marketplace', distributorId: null });
   });
 
   it('resolves sub-only legacy token as dashboard', async () => {
@@ -63,7 +63,7 @@ describe('GraphQL legacy JWT namespace (integration)', () => {
     });
 
     const user = await resolveGraphQLUserFromAccessToken({ sub: marketplaceUser.id });
-    expect(user).toEqual({ id: marketplaceUser.id, type: 'marketplace' });
+    expect(user).toEqual({ id: marketplaceUser.id, type: 'marketplace', distributorId: null });
   });
 
   it('returns null for ambiguous shared id without phone', async () => {

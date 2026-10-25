@@ -1,17 +1,8 @@
 import { describe, beforeEach, expect, it } from 'vitest';
 import { prisma } from '@/lib/db';
+import { ensureMarketplaceMembership } from '@/lib/marketplace/access';
 import { createMobileMarketplaceOrders } from '@/services/mobileOrders/mobileOrdersService';
-import { NextRequest } from 'next/server';
-import { resetDb } from './helpers';
-
-function makeNextRequest(url: string, body: unknown) {
-  const req = new Request(url, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-forwarded-for': '127.0.0.1' },
-    body: JSON.stringify(body),
-  });
-  return new NextRequest(req);
-}
+import { makeAuthenticatedMarketplacePostRequest, resetDb } from './helpers';
 
 describe('mobile orders - fail fast without partial writes', () => {
   beforeEach(async () => {
@@ -73,46 +64,54 @@ describe('mobile orders - fail fast without partial writes', () => {
       select: { id: true },
     });
 
+    const membership = await ensureMarketplaceMembership(buyer.id, distributor.id);
+    expect(membership).toEqual({ ok: true });
+
     const res = await createMobileMarketplaceOrders(
-      makeNextRequest('http://localhost/api/mobile/orders', {
-        orderId: 'O-LOW-1',
-        orderDate: new Date().toISOString(),
-        orderItems: [
-          {
-            productId: product.productId,
-            quantity: 1,
-            priceAtPurchase: '2000',
-            subtotal: '2000',
-            packageQuantity: 2, // need 2 pieces, only 1 in stock
-            piecesPerPackage: 1,
-            productName: product.name,
-            productSku: 'SKU-LOW-1',
-            variantId: variant.id,
-            category: 'TestType',
-          },
-        ],
-        discounts: 0,
-        shippingFee: 0,
-        contactPerson: 'Buyer',
-        storeName: 'Buyer Store',
-        contactPhone: '+620000000002',
-        customerEmail: 'buyer2@example.com',
-        deliveryAddress: 'Address',
-        deliveryMethod: 'Seller/Distributor Delivery',
-        deliveryOption: null,
-        orderStatus: 'Pending',
-        paymentStatus: 'Unpaid',
-        paymentTerms: 'Cash on Delivery',
-        preferredDeliveryDate: null,
-        preferredDeliveryTime: null,
-        preferredPickupDate: null,
-        preferredPickupTime: null,
-        shippingMethodLabel: null,
-        shippingMethod: null,
-        estimatedDeliveryMinDays: null,
-        estimatedDeliveryMaxDays: null,
-        userId: buyer.id,
-      }),
+      makeAuthenticatedMarketplacePostRequest(
+        'http://localhost/api/mobile/orders',
+        {
+          orderId: 'O-LOW-1',
+          orderDate: new Date().toISOString(),
+          orderItems: [
+            {
+              productId: product.productId,
+              quantity: 1,
+              priceAtPurchase: '2000',
+              subtotal: '2000',
+              packageQuantity: 2, // need 2 pieces, only 1 in stock
+              piecesPerPackage: 1,
+              productName: product.name,
+              productSku: 'SKU-LOW-1',
+              variantId: variant.id,
+              category: 'TestType',
+            },
+          ],
+          discounts: 0,
+          shippingFee: 0,
+          contactPerson: 'Buyer',
+          storeName: 'Buyer Store',
+          contactPhone: '+620000000002',
+          customerEmail: 'buyer2@example.com',
+          deliveryAddress: 'Address',
+          deliveryMethod: 'Seller/Distributor Delivery',
+          deliveryOption: null,
+          orderStatus: 'Pending',
+          paymentStatus: 'Unpaid',
+          paymentTerms: 'Cash on Delivery',
+          preferredDeliveryDate: null,
+          preferredDeliveryTime: null,
+          preferredPickupDate: null,
+          preferredPickupTime: null,
+          shippingMethodLabel: null,
+          shippingMethod: null,
+          estimatedDeliveryMinDays: null,
+          estimatedDeliveryMaxDays: null,
+          userId: buyer.id,
+        },
+        buyer.id,
+        distributor.id,
+      ),
       buyer.id,
     );
 
@@ -211,46 +210,54 @@ describe('mobile orders - fail fast without partial writes', () => {
     });
     expect(offer.id).toBeTruthy();
 
+    const membership = await ensureMarketplaceMembership(buyer.id, distributor.id);
+    expect(membership).toEqual({ ok: true });
+
     const res = await createMobileMarketplaceOrders(
-      makeNextRequest('http://localhost/api/mobile/orders', {
-        orderId: 'O-PROMO-1',
-        orderDate: new Date().toISOString(),
-        orderItems: [
-          {
-            productId: product.productId,
-            quantity: 1,
-            priceAtPurchase: '2000',
-            subtotal: '2000',
-            packageQuantity: 3, // 3 ordered pieces
-            piecesPerPackage: 1,
-            productName: product.name,
-            productSku: 'SKU-PROMO-1',
-            variantId: variant.id,
-            category: 'TestType',
-          },
-        ],
-        discounts: 0,
-        shippingFee: 0,
-        contactPerson: 'Buyer',
-        storeName: 'Buyer Store',
-        contactPhone: '+620000000099',
-        customerEmail: 'buyerPromo@example.com',
-        deliveryAddress: 'Address',
-        deliveryMethod: 'Seller/Distributor Delivery',
-        deliveryOption: null,
-        orderStatus: 'Pending',
-        paymentStatus: 'Unpaid',
-        paymentTerms: 'Cash on Delivery',
-        preferredDeliveryDate: null,
-        preferredDeliveryTime: null,
-        preferredPickupDate: null,
-        preferredPickupTime: null,
-        shippingMethodLabel: null,
-        shippingMethod: null,
-        estimatedDeliveryMinDays: null,
-        estimatedDeliveryMaxDays: null,
-        userId: buyer.id,
-      }),
+      makeAuthenticatedMarketplacePostRequest(
+        'http://localhost/api/mobile/orders',
+        {
+          orderId: 'O-PROMO-1',
+          orderDate: new Date().toISOString(),
+          orderItems: [
+            {
+              productId: product.productId,
+              quantity: 1,
+              priceAtPurchase: '2000',
+              subtotal: '2000',
+              packageQuantity: 3, // 3 ordered pieces
+              piecesPerPackage: 1,
+              productName: product.name,
+              productSku: 'SKU-PROMO-1',
+              variantId: variant.id,
+              category: 'TestType',
+            },
+          ],
+          discounts: 0,
+          shippingFee: 0,
+          contactPerson: 'Buyer',
+          storeName: 'Buyer Store',
+          contactPhone: '+620000000099',
+          customerEmail: 'buyerPromo@example.com',
+          deliveryAddress: 'Address',
+          deliveryMethod: 'Seller/Distributor Delivery',
+          deliveryOption: null,
+          orderStatus: 'Pending',
+          paymentStatus: 'Unpaid',
+          paymentTerms: 'Cash on Delivery',
+          preferredDeliveryDate: null,
+          preferredDeliveryTime: null,
+          preferredPickupDate: null,
+          preferredPickupTime: null,
+          shippingMethodLabel: null,
+          shippingMethod: null,
+          estimatedDeliveryMinDays: null,
+          estimatedDeliveryMaxDays: null,
+          userId: buyer.id,
+        },
+        buyer.id,
+        distributor.id,
+      ),
       buyer.id,
     );
 

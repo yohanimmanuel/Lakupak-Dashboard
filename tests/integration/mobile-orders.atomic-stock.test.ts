@@ -1,18 +1,14 @@
 import { describe, beforeEach, expect, it } from 'vitest';
 import { prisma } from '@/lib/db';
+import { ensureMarketplaceMembership } from '@/lib/marketplace/access';
 import { createMobileMarketplaceOrders } from '@/services/mobileOrders/mobileOrdersService';
 import { updateOrderHandler } from '@/services/orders/updateOrder';
-import { NextRequest } from 'next/server';
-import { ensureIntegrationAuthEnv, makeAuthenticatedDashboardPutRequest, resetDb } from './helpers';
-
-function makeNextRequest(url: string, body: unknown) {
-  const req = new Request(url, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  return new NextRequest(req);
-}
+import {
+  ensureIntegrationAuthEnv,
+  makeAuthenticatedDashboardPutRequest,
+  makeAuthenticatedMarketplacePostRequest,
+  resetDb,
+} from './helpers';
 
 describe('mobile orders - checkout and confirm stock', () => {
   beforeEach(async () => {
@@ -80,6 +76,9 @@ describe('mobile orders - checkout and confirm stock', () => {
       select: { id: true },
     });
 
+    const membership = await ensureMarketplaceMembership(buyer.id, distributor.id);
+    expect(membership).toEqual({ ok: true });
+
     const commonBody = {
       orderDate: new Date().toISOString(),
       orderItems: [
@@ -119,8 +118,18 @@ describe('mobile orders - checkout and confirm stock', () => {
       userId: buyer.id,
     };
 
-    const req1 = makeNextRequest('http://localhost/api/mobile/orders', { ...commonBody, orderId: 'O-1' });
-    const req2 = makeNextRequest('http://localhost/api/mobile/orders', { ...commonBody, orderId: 'O-2' });
+    const req1 = makeAuthenticatedMarketplacePostRequest(
+      'http://localhost/api/mobile/orders',
+      { ...commonBody, orderId: 'O-1' },
+      buyer.id,
+      distributor.id,
+    );
+    const req2 = makeAuthenticatedMarketplacePostRequest(
+      'http://localhost/api/mobile/orders',
+      { ...commonBody, orderId: 'O-2' },
+      buyer.id,
+      distributor.id,
+    );
 
     const [r1, r2] = await Promise.allSettled([
       createMobileMarketplaceOrders(req1, buyer.id),
@@ -233,9 +242,17 @@ describe('mobile orders - checkout and confirm stock', () => {
       userId: buyer.id,
     };
 
+    const membership = await ensureMarketplaceMembership(buyer.id, distributor.id);
+    expect(membership).toEqual({ ok: true });
+
     for (const orderId of ['LKO-90001', 'LKO-90002']) {
       const res = await createMobileMarketplaceOrders(
-        makeNextRequest('http://localhost/api/mobile/orders', { ...checkoutBody, orderId }),
+        makeAuthenticatedMarketplacePostRequest(
+          'http://localhost/api/mobile/orders',
+          { ...checkoutBody, orderId },
+          buyer.id,
+          distributor.id,
+        ),
         buyer.id,
       );
       expect(res.status).toBe(201);
