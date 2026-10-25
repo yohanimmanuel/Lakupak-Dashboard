@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ChevronDown, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Plus, Search, Trash2 } from 'lucide-react';
 import MapComponent from '@/components/ordershipment/MapComponent';
 import { useOrdersTranslations } from '@/hooks/useOrdersTranslations';
 import { useUserStore } from '@/store/userStore';
@@ -821,7 +821,15 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <label className={labelClass}>{tCreate('client')}</label>
-                <input className={inputClass + ' mb-2'} value={clientQuery} onChange={(event) => setClientQuery(event.target.value)} placeholder={tCreate('clientPlaceholder')} />
+                <div className="relative mb-2">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <input
+                    className="w-full pl-9 pr-3 py-2 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent bg-white"
+                    value={clientQuery}
+                    onChange={(event) => setClientQuery(event.target.value)}
+                    placeholder={tCreate('clientPlaceholder')}
+                  />
+                </div>
                 <LakupakSelect
                   value={buyerId}
                   placeholder={tCreate('clientPlaceholder')}

@@ -46,55 +46,57 @@ type PointMediaConfig =
 /** Real screenshots for specific detail steps; the rest fall back to placeholders. */
 const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaConfig>>> = {
   clients: {
-    1: {
+    1: { type: 'placeholder' },
+    2: {
       type: 'single',
       placement: 'corner',
       image: { src: '/Dashboardclientbuyer2.png', width: 740, height: 345 },
     },
-    2: {
+    3: {
       type: 'diagonal',
       back: { src: '/Dashboardclientbuyer3.png', width: 488, height: 295 },
       front: { src: '/Dashboardclientbuyer4.png', width: 736, height: 287 },
       orientation: 'tr-bl',
     },
-    3: {
+    4: {
       type: 'single',
       placement: 'center',
       image: { src: '/Dashboardclientbuyer5.png', width: 486, height: 297 },
     },
-    4: {
+    5: {
       type: 'single',
       placement: 'center',
       image: { src: '/Dashboardclientbuyer7.png', width: 1488, height: 378 },
     },
-    5: {
+    6: {
       type: 'single',
       placement: 'center',
       image: { src: '/Dashboardclientbuyer8.png', width: 1488, height: 761 },
     },
   },
   products: {
-    1: {
+    1: { type: 'placeholder' },
+    2: {
       type: 'single',
       placement: 'corner',
       image: { src: '/Dashboardproducts6.png', width: 1517, height: 761 },
     },
-    2: {
+    3: {
       type: 'single',
       placement: 'center',
       image: { src: '/Dashboardproducts7.png', width: 1477, height: 721 },
     },
-    3: {
+    4: {
       type: 'single',
       placement: 'center',
       image: { src: '/Dashboardproducts8.png', width: 1080, height: 924 },
     },
-    4: {
+    5: {
       type: 'single',
       placement: 'center',
       image: { src: '/Dashboardproducts3.png', width: 735, height: 602 },
     },
-    5: {
+    6: {
       type: 'single',
       placement: 'center',
       image: { src: '/Dashboardproducts9.png', width: 1457, height: 203 },
@@ -117,21 +119,26 @@ const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaCo
     1: {
       type: 'single',
       placement: 'center',
-      image: { src: '/Dashboardoffers2.png', width: 737, height: 781 },
+      image: { src: '/Dashboardoffers5.png', width: 1530, height: 602 },
     },
     2: {
+      type: 'single',
+      placement: 'center',
+      image: { src: '/Dashboardoffers2.png', width: 737, height: 781 },
+    },
+    3: {
       type: 'straight',
       back: { src: '/Dashboardproducts.png', width: 362, height: 577 },
       front: { src: '/Dashboardoffers.png', width: 648, height: 307 },
       backWidthClass: 'w-[52%] sm:w-[48%]',
       frontWidthClass: 'w-[72%] sm:w-[68%]',
     },
-    3: {
+    4: {
       type: 'single',
       placement: 'center',
       image: { src: '/Dashboardproducts11.png', width: 1236, height: 792 },
     },
-    4: {
+    5: {
       type: 'single',
       placement: 'center',
       image: { src: '/Dashboardoffers4.png', width: 1515, height: 521 },

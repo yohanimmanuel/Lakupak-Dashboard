@@ -25,9 +25,9 @@
       }
     },
     "hub": {
-      "title": "Setiap modul untuk perdagangan dan penjualan di Lakupak",
-      "subtitle": "Klien, katalog, tarif penawaran per retailer, pesanan, dan tim penjualan, dalam satu Dashboard.",
-      "subtitlePausedMarketplace": "Klien, katalog, tarif penawaran per retailer, pesanan, dan tim penjualan, di Dashboard dan Marketplace.",
+      "title": "Modul untuk memanfaatkan portofolio dan fokuskan penjualan",
+      "subtitle": "Hubungkan klien, katalog, penawaran, pesanan, dan penjualan agar Anda dapat melihat penetrasi asortimen yang rendah, memprioritaskan peluang produk–retailer, dan mengonversi lewat etalase privat.",
+      "subtitlePausedMarketplace": "Hubungkan klien, katalog, penawaran, pesanan, dan penjualan di Dashboard dan Marketplace agar Anda dapat melihat penetrasi asortimen yang rendah dan bertindak pada peluang produk–retailer yang tepat.",
       "exploreMore": "Jelajahi modul lainnya"
     },
     "overview": {
@@ -44,11 +44,11 @@
     },
     "clients": {
       "menuLabel": "Manajemen klien",
-      "title": "Manajemen klien untuk pembeli dan pemasok",
-      "subtitle": "Jaga retailer dan mitra pasokan dalam satu CRM, dengan kontak, status, dan data pesanan yang tetap sinkron di Dashboard dan Marketplace.",
+      "title": "Catatan retailer dan pemasok untuk pencocokan",
+      "subtitle": "Jaga jaringan retailer dan riwayat pembelian yang Anda butuhkan untuk menilai toko mana yang cocok untuk produk mana.",
       "placeholder": "Pratinjau modul klien. Ganti gambar",
       "overview": {
-        "summary": "Manajemen klien adalah CRM pembeli dan pemasok di Lakupak. Setiap pesanan Marketplace dapat membuat atau memperbarui data pembeli secara otomatis, sehingga kontak, status jaringan, profil, dan riwayat pesanan tetap selaras di seluruh platform tanpa kejar-kejaran spreadsheet.",
+        "summary": "Manajemen klien adalah fondasi retailer dan pemasok untuk intelijen portofolio. Profil, status, dan riwayat pesanan tetap terhubung agar kesesuaian produk–retailer dievaluasi terhadap hubungan nyata, bukan daftar toko kosong.",
         "highlights": {
           "1": {
             "title": "Pesanan membangun jaringan pembeli",
@@ -66,22 +66,26 @@
       },
       "points": {
         "1": {
+          "title": "Pencocokan next-best produk ke retailer",
+          "desc": "Ranking retailer untuk sebuah produk memakai riwayat pembelian, kesesuaian, dan sinyal hubungan agar tim tahu toko mana yang paling kuat untuk dihubungi berikutnya."
+        },
+        "2": {
           "title": "Setiap pesanan memperkuat jaringan",
           "desc": "Pesanan pembeli atau retailer dicatat otomatis agar kontak, status jaringan, profil, dan data pesanan tetap selaras di Dashboard dan Marketplace tanpa entri ulang manual."
         },
-        "2": {
+        "3": {
           "title": "Pembeli dan pemasok dalam satu CRM",
           "desc": "Kelola akun ritel dan mitra hulu dari modul Klien yang sama, dengan status Aktif, Tidak Aktif, dan Diblokir untuk follow-up harian."
         },
-        "3": {
+        "4": {
           "title": "Profil lengkap siap operasional",
           "desc": "Catat detail toko atau perusahaan, pemilik, telepon, email, alamat, jenis usaha, dan catatan, dengan bilah kelengkapan yang menandai field yang belum diisi."
         },
-        "4": {
+        "5": {
           "title": "Riwayat pesanan di setiap pembeli",
           "desc": "Setiap profil pembeli menampilkan baris pesanan tersinkron, total belanja, outstanding, serta grafik pesanan dan belanja bulanan dari Pesanan live."
         },
-        "5": {
+        "6": {
           "title": "Baris pemasok dan analitik pembelian",
           "desc": "Catat SKU, volume, dan nilai pembelian per pemasok, lalu tinjau grafik pasokan dan pembelian bulanan di daftar."
         }
@@ -89,11 +93,11 @@
     },
     "products": {
       "menuLabel": "Produk",
-      "title": "Katalog grosir yang terbit ke Marketplace",
-      "subtitle": "Bangun varian dengan harga, MOQ, dan stok di Dashboard, lalu publikasikan produk siap jual agar retailer melihat katalog yang sama di aplikasi pembeli.",
+      "title": "Kontrol katalog untuk seluruh portofolio",
+      "subtitle": "Kelola varian, harga, MOQ, dan stok agar SKU yang kurang termanfaatkan tetap terlihat, tersedia, dan siap diperkenalkan ke retailer yang cocok.",
       "placeholder": "Pratinjau modul produk. Ganti gambar",
       "overview": {
-        "summary": "Produk adalah ruang kendali katalog grosir Anda. Simpan sebagai draf sampai varian, harga, stok, dan gambar siap, lalu publikasikan ke Marketplace agar retailer membeli dari SKU yang sama yang dikelola tim di Dashboard.",
+        "summary": "Produk adalah ruang kontrol katalog grosir Anda. Draf sampai varian, harga, stok, dan gambar siap, lalu publikasikan ke Marketplace privat. Katalog yang jelas adalah dasar untuk melihat SKU mana yang kurang menembus retailer yang layak.",
         "highlights": {
           "1": {
             "title": "Publikasikan ke Marketplace pembeli",
@@ -111,22 +115,26 @@
       },
       "points": {
         "1": {
+          "title": "Deteksi celah asortimen dengan heatmap",
+          "desc": "Visualisasikan produk mana yang kurang menembus retailer yang layak pada heatmap agar cakupan asortimen yang rendah terlihat sebelum Anda merencanakan pengenalan produk."
+        },
+        "2": {
           "title": "Draf sampai katalog siap",
           "desc": "Produk belum lengkap tetap draf. Publikasikan hanya jika nama, varian, harga, stok lebih dari nol, dan gambar lolos gerbang kesiapan Marketplace."
         },
-        "2": {
+        "3": {
           "title": "Ekonomi grosir per varian",
           "desc": "Atur harga jual, harga beli, MOQ, dan ambang stok rendah pada setiap kombinasi variasi, bukan satu SKU datar."
         },
-        "3": {
+        "4": {
           "title": "Sinyal kepercayaan yang dikenal pembeli",
           "desc": "Tampilkan Halal, BPOM, jaminan produk original, dan hari kebijakan retur di detail produk agar retailer lebih yakin memesan."
         },
-        "4": {
+        "5": {
           "title": "Harga dasar di etalase",
           "desc": "Produk yang terbit menampilkan harga dasar katalog. Tarif retailer berlaku di pesanan pembelian mereka, bukan sebagai perubahan harga publik."
         },
-        "5": {
+        "6": {
           "title": "Stok yang mengikuti pesanan",
           "desc": "Inventori bergerak mengikuti pemenuhan pesanan dan tetap terlihat sebagai Tersedia, Stok rendah, atau Habis untuk tim Anda dan pembeli Marketplace."
         }
@@ -134,13 +142,13 @@
     },
     "orders": {
       "menuLabel": "Pesanan",
-      "title": "Pesanan yang bisa dijalankan tim",
+      "title": "Pesanan yang mengungkap pola pembelian",
       "titlePausedMarketplace": "Pesanan dari marketplace ke penjualan",
-      "subtitle": "Catat pesanan, simpan pembayaran dan status di pesanan itu, lalu ikuti pemenuhannya di Dashboard.",
-      "subtitlePausedMarketplace": "Checkout retailer masuk ke satu pipeline Dashboard, dengan bukti pembayaran, status, dan harga yang tersimpan di pesanan itu.",
+      "subtitle": "Catat dan penuhi pesanan grosir, lalu gunakan riwayat pembelian untuk melihat produk mana yang menjangkau retailer mana.",
+      "subtitlePausedMarketplace": "Checkout retailer masuk ke satu pipeline Dashboard, dengan pembayaran, status, dan bukti yang Anda butuhkan untuk penetrasi asortimen.",
       "placeholder": "Pratinjau modul pesanan. Ganti gambar",
       "overview": {
-        "summary": "Pesanan adalah tempat distributor mencatat pesanan grosir. Penjualan dan operasional berbagi satu jalur status, dan stok serta data pembeli bergerak mengikuti pesanan.",
+        "summary": "Pesanan adalah tempat distributor mencatat pesanan grosir. Penjualan dan operasional berbagi satu jalur status, stok dan data pembeli bergerak bersama pesanan, dan baris pembelian menjadi bukti penetrasi portofolio.",
         "summaryPausedMarketplace": "Pesanan adalah tulang punggung perdagangan Lakupak. Checkout Marketplace masuk ke Dashboard segera, penjualan dan operasional berbagi satu jalur status, dan stok serta data pembeli bergerak mengikuti pesanan.",
         "highlights": {
           "1": {
@@ -169,15 +177,15 @@
           "desc": "Lampirkan bukti transfer atau tandai bayar di tempat, lalu set pesanan lunas setelah tim memeriksanya."
         },
         "3": {
-          "title": "Tindak lanjut tetap di penjualan",
-          "desc": "Pesanan yang sama adalah yang dikerjakan tim penjualan, di samping retailer dan katalog."
+          "title": "Riwayat untuk wawasan produk–retailer",
+          "desc": "Baris pesanan yang sama menunjukkan produk mana yang sudah terjual di mana, dan toko mana yang masih menyisakan celah di portofolio."
         }
       }
     },
     "offers": {
       "menuLabel": "Penawaran",
-      "title": "Tarif untuk setiap retailer",
-      "subtitle": "Atur tarif persen, nominal tetap, atau Buy X Get Y untuk setiap retailer. Katalog tetap pada harga dasar. Tarif toko itu berlaku di pesanan pembelian mereka.",
+      "title": "Syarat per retailer yang membuka pengenalan produk",
+      "subtitle": "Atur tarif persen, nominal tetap, atau Beli X Gratis Y untuk retailer tertentu agar produk yang kurang termanfaatkan bisa diperkenalkan dengan syarat yang cocok untuk toko itu.",
       "placeholder": "Pratinjau modul penawaran. Ganti gambar",
       "overview": {
         "summary": "Penawaran bersifat per retailer, bukan perubahan harga publik. Beri tarif ke pembeli dan produk atau kategori. Kartu Marketplace tetap menampilkan harga dasar katalog. Saat retailer itu memesan, tarif mereka yang masuk ke pesanan pembelian.",
@@ -198,18 +206,22 @@
       },
       "points": {
         "1": {
+          "title": "Tarif penawaran produk per retailer",
+          "desc": "Atur dan kelola tarif tingkat produk untuk setiap retailer dalam satu daftar, agar setiap toko punya syarat komersial yang cocok dengan cara Anda memperkenalkan dan menjual ke mereka."
+        },
+        "2": {
           "title": "Tiga cara mengatur tarif",
           "desc": "Pakai persen, nominal tetap, atau Buy X Get Y, terikat ke retailer itu dan produk yang mereka beli."
         },
-        "2": {
+        "3": {
           "title": "Harga katalog tetap acuan",
           "desc": "Retailer melihat harga dasar. Tarif mereka sendiri tidak mengubah apa yang dilihat toko lain."
         },
-        "3": {
+        "4": {
           "title": "Tarif masuk ke pesanan pembelian",
           "desc": "Saat retailer itu memesan, pesanan pembelian memakai tarif mereka. Anda mengirim harga saat ingin mengonfirmasinya."
         },
-        "4": {
+        "5": {
           "title": "Lihat tarif mana yang terpakai",
           "desc": "Lacak penggunaan dan diskon yang diberikan pada setiap penawaran agar Anda tahu tarif retailer mana yang menggerakkan volume."
         }
@@ -217,11 +229,11 @@
     },
     "sales": {
       "menuLabel": "Penjualan",
-      "title": "Pekerjaan lapangan dari manager sampai selesai",
-      "subtitle": "Tambah sales manager, jalankan pekerjaan hari itu, delegasikan lewat WhatsApp, dan tanyakan pembeli mana yang dihubungi.",
+      "title": "Kerja penjualan yang memakai waktu terbatas dengan baik",
+      "subtitle": "Ubah peluang produk–retailer menjadi pekerjaan, tugaskan sales, dan catat apa yang dipresentasikan agar kunjungan tidak hanya mengulang produk laris yang sama.",
       "placeholder": "Pratinjau modul penjualan. Ganti gambar",
       "overview": {
-        "summary": "Penjualan adalah cara distributor menjalankan pekerjaan lapangan dari Dashboard. Manager membuat pekerjaan, menugaskan, dan mencatat penyelesaian. AI mengirim pekerjaan itu ke tiap sales lewat WhatsApp, dan pertanyaan pembeli menemukan retailer yang sesuai siapa yang ingin dihubungi.",
+        "summary": "Penjualan adalah cara distributor menjalankan kerja lapangan dari Dashboard. Manajer membuat pekerjaan dari peluang portofolio, menugaskannya, dan mencatat penyelesaian. WhatsApp membawa daftar hari itu ke tiap sales agar waktu kunjungan yang terbatas mencakup produk yang cocok, bukan hanya produk laris yang familiar.",
         "highlights": {
           "1": {
             "title": "Manager untuk tim",
@@ -258,11 +270,11 @@
     },
     "marketplace": {
       "menuLabel": "Marketplace",
-      "title": "Storefront terkendali dan aplikasi pembeli Anda",
-      "subtitle": "Publikasikan katalog grosir terisolasi yang dibeli retailer di mobile, dan baca performa storefront dari views ke cart hingga purchases di Dashboard.",
+      "title": "Etalase privat untuk retailer yang diotorisasi",
+      "subtitle": "Biarkan retailer yang diotorisasi menemukan dan memesan dari katalog Anda, agar peluang portofolio berkonversi tanpa perang harga terbuka.",
       "placeholder": "Pratinjau performa Marketplace dan aplikasi. Ganti gambar",
       "overview": {
-        "summary": "Marketplace adalah storefront B2B terkendali Lakupak, bukan perang harga terbuka. Setiap distributor menjalankan katalog terisolasi dengan harga dan penawaran sendiri. Retailer browse, penuhi MOQ, dan order di aplikasi pembeli, sementara Dashboard menampilkan funnel dan traksi produk yang mengalir ke Pesanan dan pemenuhan.",
+        "summary": "Marketplace adalah etalase B2B privat Lakupak, bukan perang harga terbuka. Setiap distributor menjalankan katalog terisolasi dengan harga dan penawaran sendiri. Retailer yang diotorisasi menjelajah, memenuhi MOQ, dan memesan sementara Dashboard menunjukkan funnel dan traksi produk yang mengisi Pesanan dan pembelajaran portofolio.",
         "highlights": {
           "1": {
             "title": "Storefront terkendali, bukan perang harga",
@@ -299,19 +311,19 @@
     },
     "analytics": {
       "menuLabel": "Analitik",
-      "title": "Analitik untuk keuangan, penjualan, dan ops",
-      "subtitle": "Baca penjualan, laba terbayar, permintaan, pembeli, pemenuhan, dan kesehatan stok dalam rentang bulan, kuartal, enam bulan, dan tahun yang sama.",
+      "title": "Lihat penetrasi, kinerja, dan hasil",
+      "subtitle": "Baca produk mana yang terjual luas, mana yang kurang menembus retailer yang layak, dan bagaimana pola pembelian berubah seiring waktu.",
       "placeholder": "Pratinjau modul Analitik. Ganti gambar",
       "overview": {
-        "summary": "Analitik mengubah pesanan dan katalog Lakupak menjadi tiga permukaan laporan: Keuangan, Pelanggan dan Penjualan, serta Performa Operasional. Bandingkan KPI dengan periode sebelumnya, potong per kategori, dan forecast setelah riwayat cukup.",
+        "summary": "Analytics mengubah data pesanan dan katalog menjadi tampilan Finansial, Pelanggan dan Penjualan, serta Operasional. Gunakan untuk menelaah kinerja produk, pola pembelian retailer, dan apakah tindakan portofolio terkait hasil yang berarti. Penetrasi rendah adalah sinyal untuk diselidiki, bukan bukti permintaan.",
         "highlights": {
           "1": {
             "title": "Kejelasan keuangan",
             "desc": "Lacak total penjualan, laba terbayar, margin, nilai rata-rata pesanan, arus kas, dan forecast pendapatan untuk periode yang dipilih."
           },
           "2": {
-            "title": "Permintaan dan pelanggan",
-            "desc": "Lihat tren pesanan dan unit, bauran kategori, pembeli teratas, serta pertumbuhan atau churn relasi klien."
+            "title": "Sinyal permintaan dan asortimen",
+            "desc": "Lihat tren pesanan dan unit, bauran kategori, pembeli teratas, dan di mana produk mungkin menyisakan celah di jaringan retailer."
           },
           "3": {
             "title": "Pemenuhan dan kesehatan stok",
@@ -340,8 +352,8 @@
     },
     "automations": {
       "menuLabel": "Automasi",
-      "title": "Automasi workflow yang ter-scope ke Lakupak",
-      "subtitle": "Bangun workflow berbasis trigger untuk perdagangan dan penjualan: katalog dan penawaran, klien, pesanan, dan tim penjualan.",
+      "title": "Workflow yang membawa sinyal peluang",
+      "subtitle": "Bangun workflow berbasis trigger untuk katalog, penawaran, klien, pesanan, dan penjualan agar follow-up peluang portofolio tidak bergantung pada ingatan.",
       "placeholder": "Pratinjau modul Automasi. Ganti gambar",
       "overview": {
         "summary": "Automasi adalah workflow engine Lakupak untuk perdagangan dan penjualan. Rancang alur trigger-ke-aksi untuk penawaran, follow-up klien, pesanan, dan penjualan, lalu jalankan sebagai workflow aktif, dijeda, atau draf yang dikontrol tim Anda.",
@@ -381,15 +393,15 @@
     },
     "laku-ai": {
       "menuLabel": "Laku AI",
-      "title": "Layanan berbasis AI untuk bisnis Anda",
-      "subtitle": "Beri prompt ke Laku AI dan ia membuat produk, penawaran, klien, dan pesanan. Ia juga menganalisis bisnis, mendelegasikan pekerjaan penjualan, dan menanyakan pembeli mana yang dihubungi.",
+      "title": "Bantuan AI untuk keputusan produk–retailer",
+      "subtitle": "Gunakan Laku AI untuk menganalisis data komersial, memprioritaskan retailer dan produk mana yang harus ditindaklanjuti berikutnya, dan membantu membuat pekerjaan follow-up.",
       "placeholder": "Pratinjau Laku AI. Ganti gambar",
       "overview": {
-        "summary": "Laku AI adalah layanan berbasis AI di dalam Dashboard. Beri prompt dan ia membangun operasional untuk Anda: produk, penawaran, klien, dan pesanan. Ia juga mengubah pesanan dan penjualan menjadi analisis dan wawasan, lalu menyerahkan pekerjaan penjualan dan pembeli yang perlu dihubungi.",
+        "summary": "Laku AI adalah layanan AI-native di Dashboard. Ia membantu menelaah sinyal portofolio dan penjualan, memprioritaskan peluang produk–retailer, serta membuat produk, penawaran, klien, pesanan, dan pekerjaan penjualan. Rekomendasi tetap berdasar data yang tersedia dan merupakan estimasi, bukan permintaan yang dijamin.",
         "highlights": {
           "1": {
             "title": "Analisis dan wawasan",
-            "desc": "Baca apa yang bergerak di klien, pesanan, dan penjualan, agar langkah berikutnya mulai dari angkanya."
+            "desc": "Baca apa yang bergerak di klien, pesanan, dan penjualan, termasuk di mana portofolio mungkin kurang menembus retailer yang layak."
           },
           "2": {
             "title": "Pekerjaan penjualan dan pembelinya",
@@ -404,7 +416,7 @@
       "points": {
         "1": {
           "title": "Analisis dan wawasan",
-          "desc": "Laku AI meninjau klien, pesanan, dan penjualan, lalu mengembalikan wawasan di balik keputusan berikutnya."
+          "desc": "Laku AI meninjau klien, pesanan, dan penjualan lalu mengembalikan wawasan di balik keputusan portofolio atau penjualan berikutnya."
         },
         "2": {
           "title": "Delegasikan pekerjaan penjualan dan pembelinya",
@@ -427,38 +439,38 @@
   },
   "landing": {
     "hero": {
-      "badge": "Platform Perdagangan B2B E-commerce FMCG",
-      "titleBefore": "Berhenti Menjual Buta. Tutup Lebih Banyak. ",
-      "titleAccent": "Tumbuh Lebih Cepat.",
-      "subtitle": "Platform perdagangan dan penjualan berbasis AI yang membantu Anda tahu persis retailer mana yang siap membeli, apa yang ditawarkan, dan kapan. Dibangun di atas katalog, harga per retailer, dan riwayat pesanan Anda sendiri. Satu dashboard untuk operasional dan tim penjualan.",
-      "subtitlePausedMarketplace": "Platform perdagangan dan penjualan berbasis AI yang membantu Anda tahu persis retailer mana yang siap membeli, apa yang ditawarkan, dan kapan. Dibangun di atas katalog, harga per retailer, dan riwayat pesanan Anda sendiri. Satu dashboard untuk operasional dan tim penjualan, satu marketplace untuk retailer Anda.",
+      "badge": "Perdagangan B2B berbasis AI untuk FMCG Indonesia",
+      "titleBefore": "Maksimalkan portofolio produk. ",
+      "titleAccent": "Jangkau retailer yang tepat.",
+      "subtitle": "Bantu bisnis distribusi Anda mengidentifikasi peluang produk, memprioritaskan aktivitas penjualan, dan menghubungkan produk yang tepat dengan retailer yang tepat.",
+      "subtitlePausedMarketplace": "Bantu bisnis distribusi Anda mengidentifikasi peluang produk, memprioritaskan aktivitas penjualan, dan menghubungkan produk yang tepat dengan retailer yang tepat.",
       "cta": "Coba gratis",
       "learnmore": "Jelajahi marketplace",
       "productPlaceholder": "Pratinjau dashboard. Ganti dengan gambar produk"
     },
     "trust": {
-      "title": "Dipercaya distributor di seluruh Indonesia",
+      "title": "Dibangun untuk distributor FMCG independen di Indonesia",
       "logoPlaceholder": "Logo mitra"
     },
     "platformMessage": {
-      "title": "Satu platform untuk perdagangan dan penjualan",
-      "subtitle": "Lakupak menyatukan manajemen klien, katalog, tarif penawaran per retailer, pesanan, penjualan, dan analitik agar distributor dan retailer bekerja dari sistem yang sama. Bangun workflow yang mengikuti penjualan, dari siapa yang dihubungi sampai tarif di pesanan pembelian mereka."
+      "title": "Satukan operasional. Temukan peluang. Konversi dengan fokus.",
+      "subtitle": "Lakupak menghubungkan hubungan retailer, katalog, inventori, pesanan, penawaran, dan aktivitas penjualan agar Anda dapat menelaah penetrasi produk, meranking kombinasi produk–retailer yang kredibel, dan mengaktifkan tim penjualan, lalu mengonversi lewat etalase B2B privat. Penetrasi rendah adalah sinyal untuk diselidiki, bukan bukti permintaan."
     },
     "features": {
       "selling": {
-        "title": "Jual lebih cerdas di seluruh jaringan ritel",
-        "subtitle": "Kelola klien, produk, dan pesanan dalam satu loop penjualan.",
+        "title": "Fondasi operasional untuk seluruh portofolio",
+        "subtitle": "Jaga klien, produk, penawaran, dan pesanan tetap terhubung agar peluang portofolio dievaluasi terhadap data komersial nyata.",
         "clients": {
           "title": "Manajemen klien",
-          "desc": "Organisir retailer, pantau hubungan, dan jaga jaringan siap memesan."
+          "desc": "Organisir hubungan dan riwayat retailer agar pencocokan dimulai dari siapa yang sudah membeli dari Anda."
         },
         "products": {
           "title": "Produk dan penawaran",
-          "desc": "Terbitkan harga dasar katalog, lalu atur tarif penawaran untuk setiap retailer."
+          "desc": "Kelola katalog dan syarat per retailer yang menentukan produk mana yang realistis menjangkau tiap toko."
         },
         "orders": {
           "title": "Pesanan",
-          "desc": "Proses pesanan grosir dari permintaan hingga pemenuhan tanpa kekacauan spreadsheet."
+          "desc": "Lacak pola pembelian yang mengungkap celah penetrasi dan pasangan produk–retailer yang sudah berjalan."
         },
         "placeholders": {
           "clients": "Pratinjau klien. Ganti gambar",
@@ -468,80 +480,80 @@
       },
       "sales": {
         "1": {
-          "title": "Tambah sales manager",
-          "desc": "Tambahkan manager yang membuat pekerjaan dan memantau tim."
+          "title": "Prioritaskan peluang",
+          "desc": "Fokuskan manajer pada kombinasi produk–retailer yang layak diselidiki, bukan setiap SKU untuk setiap toko."
         },
         "2": {
-          "title": "Buat pekerjaan",
-          "desc": "Tambahkan kunjungan: pesanan, promosi beserta jumlah yang diberikan, stok, pembayaran, retur, pesaing, atau outlet baru."
+          "title": "Buat pekerjaan terarah",
+          "desc": "Ubah peluang berperingkat menjadi kunjungan: perkenalkan produk, promosikan penawaran, cek stok, atau follow-up."
         },
         "3": {
           "title": "Tetapkan tiap sales",
-          "desc": "Pasang tiap pekerjaan pada sales yang akan menjalankannya."
+          "desc": "Alokasikan waktu penjualan yang terbatas ke retailer dan produk yang paling mungkin berkonversi."
         },
         "4": {
-          "title": "Catat penyelesaian",
-          "desc": "Tandai pekerjaan selesai dan simpan detail yang diminta pekerjaan itu."
+          "title": "Catat hasil",
+          "desc": "Rekam apa yang dipresentasikan dan dipesan agar rekomendasi berikutnya semakin berdasar bukti."
         },
-        "title": "Pekerjaan lapangan dari manager sampai selesai",
-        "subtitle": "Tambah sales manager, buat pekerjaan, tetapkan masing-masing ke sales, dan catat penyelesaian di Dashboard.",
+        "title": "Konversi penjualan yang memanfaatkan seluruh portofolio",
+        "subtitle": "Bantu tim menyajikan produk yang cocok dalam interaksi retailer yang terbatas, bukan hanya mengulang produk laris yang sama setiap kunjungan.",
         "placeholder": "Pratinjau penjualan. Ganti gambar"
       },
       "moat": {
-        "title": "Dibangun untuk distributor yang tidak dijangkau alat enterprise",
-        "subtitle": "Platform penjualan enterprise hanya menjangkau distributor setelah principal CPG menggelarnya. Lakupak adalah lapisan operasi penjualan yang bisa diadopsi distributor FMCG independen sendiri.",
         "1": {
-          "title": "Adopsi tanpa principal",
-          "desc": "Platform itu berawal sebagai vendor SFA dan IT. Merek yang membeli sistem, lalu menggelarnya. Jika principal tidak memasukkan distributor, distributor itu tidak pernah mendapat alatnya."
+          "title": "Penetrasi asortimen, bukan jangkauan semu",
+          "desc": "Produk laris mendominasi pesanan berulang sementara SKU berharga lainnya tetap terjebak di sebagian kecil retailer yang layak, sering tanpa ada yang tahu di mana permintaan tambahan mungkin ada."
         },
         "2": {
-          "title": "Mencari retailer masih manual",
-          "desc": "Etalase satu merek tidak membantu distributor menemukan retailer baru. Tim masih mencari di Google, Google Maps, WhatsApp, media sosial, dan lewat teman serta kerabat."
+          "title": "Pencocokan produk–retailer",
+          "desc": "Tim penjualan tidak bisa mengevaluasi setiap produk terhadap setiap retailer secara manual. Produk familiar terus dipromosikan sementara kombinasi yang cocok tidak pernah dieksplorasi."
         },
         "3": {
-          "title": "Tidak perlu tumpukan enterprise",
-          "desc": "Audit rak, puluhan integrasi API, dan penyelesaian klaim dagang mengasumsikan ERP. Sekitar 65% distributor UKM Indonesia tidak punya ERP atau CRM."
+          "title": "Data komersial yang terhubung",
+          "desc": "Katalog, hubungan, riwayat pembelian, penawaran, dan aktivitas penjualan biasanya terfragmentasi. Pola yang bisa menyingkap peluang nyata tetap tak terlihat."
         },
         "4": {
-          "title": "Untuk distributor UKM Indonesia",
-          "desc": "Aplikasi pembeli dan distributor itu dibangun untuk India. Kedua sisi harus mengadopsi sebelum ada yang mendapat nilai, dan itu meleset dari segmen ini."
+          "title": "Perhatian penjualan yang terbatas",
+          "desc": "Sales punya waktu terbatas per retailer. Interaksi singkat, produk relevan tidak tersampaikan, dan potensi portofolio tetap terkunci di gudang."
         },
         "5": {
-          "title": "Operasi penjualan harian",
-          "desc": "Klien, produk, pesanan, dan pekerjaan penjualan ada di satu tempat. Manager menugaskan pekerjaan hari itu ke tiap sales, supaya daftar 15 sampai 20 produk tidak menyusut jadi 3 yang diingat."
+          "title": "Selidiki, jangan dorong semuanya",
+          "desc": "Penetrasi rendah bukan otomatis permintaan yang belum terpenuhi. Produk bisa tidak cocok, salah harga, kosong, atau memang tidak laku. Lakupak membantu membedakan peluang kredibel dari noise."
         },
         "6": {
-          "title": "Prospek retailer dengan AI",
-          "desc": "Distributor menetapkan persona pelanggan, persyaratan, dan kriteria siapa yang ingin dihubungi. Lapisan AI menemukan retailer yang cocok. Jika tim menghubungi retailer itu dan mengonversinya, pencarian pembeli adalah nyeri yang pantas dibangun lebih jauh."
-        }
+          "title": "Perdagangan privat di bawah kendali distributor",
+          "desc": "Retailer yang diotorisasi memesan dari etalase privat Anda dengan harga dan syarat Anda. Intelijen komersial menciptakan nilai tanpa menyerahkan hubungan atau data."
+        },
+        "title": "Dibangun untuk masalah portofolio yang dilewatkan alat enterprise",
+        "subtitle": "Distributor FMCG independen di Indonesia tidak kekurangan produk. Mereka kekurangan cara sistematis untuk melihat produk mana yang kurang menembus retailer yang layak, toko mana yang cocok, dan bagaimana memakai waktu penjualan yang terbatas. Lakupak dibangun untuk itu."
       },
       "analytics": {
-        "title": "Analytics di setiap sinyal",
-        "subtitle": "Pantau data finansial, penjualan, dan operasional agar keputusan tetap berdasar kondisi terkini.",
+        "title": "Lihat penetrasi, pola, dan hasil",
+        "subtitle": "Ubah data operasional menjadi wawasan tentang produk mana yang kurang menjangkau, retailer mana yang mengadopsi apa, dan apakah rekomendasi berujung pada pesanan.",
         "placeholder": "Pratinjau analytics. Ganti gambar",
         "financial": {
           "title": "Finansial",
-          "desc": "Pantau margin, pendapatan, dan kesehatan pembayaran di seluruh jaringan."
+          "desc": "Pantau margin dan pendapatan saat Anda memperluas pemanfaatan portofolio yang sudah ada."
         },
         "sales": {
           "title": "Penjualan",
-          "desc": "Lihat apa yang bergerak, retailer mana yang reorder, dan di mana permintaan tumbuh."
+          "desc": "Lihat kinerja produk, pola pembelian retailer, dan progres peluang."
         },
         "operational": {
           "title": "Operasional",
-          "desc": "Monitor alur pesanan, cakupan, dan kesehatan penjualan harian."
+          "desc": "Monitor ketersediaan stok, alur pesanan, dan cakupan yang membatasi peluang nyata."
         }
       },
       "automations": {
         "title": "Otomasi Lakupak Agent untuk operasional harian",
-        "subtitle": "Bangun alur kerja berbasis AI yang mengotomatiskan katalog, klien, pesanan, dan penjualan di dalam Lakupak.",
+        "subtitle": "Bangun alur kerja berbasis AI yang mengotomatiskan katalog, klien, pesanan, dan penjualan di dalam Lakupak, agar sinyal peluang sampai ke tim tepat waktu.",
         "workflows": {
           "title": "Bangun workflow sendiri",
-          "desc": "Desain alur trigger-ke-aksi seperti tool otomasi SaaS modern, dengan scope distribusi."
+          "desc": "Desain alur trigger-ke-aksi dengan scope operasional distribusi dan follow-up penjualan."
         },
         "triggers": {
           "title": "Agen yang bereaksi ke event",
-          "desc": "Serahkan pekerjaan berulang ke trigger di penawaran, klien, pesanan, dan penjualan."
+          "desc": "Serahkan pekerjaan berulang di penawaran, klien, pesanan, dan aktivasi penjualan."
         },
         "control": {
           "title": "Aktifkan, jeda, dan lacak",
@@ -564,105 +576,105 @@
       "1": {
         "name": "Ahmad Rahman",
         "role": "CEO, PT Sukses Makmur",
-        "text": "Lakupak mengubah bisnis distribusi kami. Sekarang kami kelola 3x lebih banyak produk dengan setengah usaha."
+        "text": "Akhirnya kami melihat produk mana yang hampir tidak menjangkau jaringan retailer, dan toko mana yang layak diperkenalkan. Kunjungan sales jadi lebih fokus."
       },
       "2": {
         "name": "Siti Nurhaliza",
         "role": "Pemilik, Warung Makmur",
-        "text": "Order lebih mudah, harga katalog jelas, dan tarif saya yang masuk ke pesanan pembelian."
+        "text": "Saya memesan dari katalog privat distributor dengan tarif saya. Produk yang cocok untuk toko saya tampil jelas, tanpa berburu di banyak chat."
       },
       "title": "Apa kata mereka"
     },
     "howitworks": {
       "1": {
-        "title": "Daftar dan verifikasi",
-        "desc": "Buat akun dan selesaikan verifikasi bisnis dalam hitungan menit."
+        "title": "Satukan data komersial",
+        "desc": "Bawa klien, katalog, penawaran, pesanan, dan aktivitas penjualan ke satu lingkungan operasional."
       },
       "2": {
-        "title": "Siapkan katalog, klien, dan tim",
-        "desc": "Tambah produk, klien, dan sales manager di Dashboard.",
+        "title": "Identifikasi dan prioritaskan peluang",
+        "desc": "Telaah penetrasi asortimen dan ranking kombinasi produk–retailer memakai riwayat, kesesuaian, harga, dan stok.",
         "titlePausedMarketplace": "Listing atau cari produk",
-        "descPausedMarketplace": "Distributor mempublikasikan katalog; retailer membandingkan opsi grosir."
+        "descPausedMarketplace": "Distributor mempublikasikan katalog; retailer yang diotorisasi melihat produk distributornya."
       },
       "3": {
-        "title": "Tugaskan pekerjaan hari itu",
-        "desc": "Tiap sales mendapat pekerjaannya. Untuk jangkauan baru, tetapkan persona pelanggan, persyaratan, dan kriteria. Lapisan AI menemukan retailer yang cocok.",
+        "title": "Aktifkan penjualan dan konversi",
+        "desc": "Kirim rekomendasi terarah ke lapangan, follow-up, dan konversi lewat marketplace retailer privat Anda.",
         "titlePausedMarketplace": "Pesan dengan tarif mereka",
-        "descPausedMarketplace": "Retailer memesan dari harga dasar katalog. Tarif penawaran mereka yang masuk ke pesanan pembelian."
+        "descPausedMarketplace": "Retailer memesan dari distributor yang mengotorisasi mereka. Penawaran yang berlaku masuk ke pesanan pembelian."
       },
-      "title": "Mulai dalam tiga langkah",
-      "subtitle": "Dari daftar akun hingga order aktif tanpa onboarding yang berbelit."
+      "title": "Dari celah portofolio ke penjualan yang produktif",
+      "subtitle": "Jalur yang jelas dari SKU yang kurang termanfaatkan ke engagement retailer yang terfokus dan pesanan."
     },
     "finalcta": {
-      "title": "Kelola jaringan distribusi Anda di Lakupak",
-      "subtitle": "Coba gratis 30 hari dengan akses platform penuh. Tanpa kartu kredit.",
+      "title": "Manfaatkan seluruh portofolio produk Anda",
+      "subtitle": "Coba gratis 30 hari. Temukan di mana produk kurang menembus jaringan Anda, dan bertindak dengan bukti. Tanpa kartu kredit.",
       "cta": "Coba gratis"
     }
   },
   "features": {
     "header": {
       "title": "Fitur Lakupak",
-      "subtitle": "Temukan alat yang memberdayakan distributor dan retailer untuk tumbuh, otomatisasi, dan berkembang di pasar FMCG Indonesia.",
+      "subtitle": "Alat untuk mengidentifikasi penetrasi asortimen yang rendah, memprioritaskan peluang produk–retailer, dan mengonversi lewat perdagangan B2B privat.",
       "cta1": "Konsultasi Sekarang",
       "cta2": "Daftar Sekarang",
       "socialproof": "4.9 bintang • 2.000+ ulasan",
       "video": "Video Produk Lakupak"
     },
     "painpoints": {
-      "title": "Transformasi Bisnis Distribusi Anda",
-      "subtitle": "Lihat bagaimana Lakupak menyelesaikan tantangan terbesar di distribusi FMCG",
+      "title": "Dibangun di sekitar masalah pemanfaatan portofolio",
+      "subtitle": "Lihat bagaimana Lakupak menjawab penetrasi asortimen yang rendah di distribusi FMCG Indonesia",
       "without": {
-        "1": "Proses order manual dengan spreadsheet dan WhatsApp",
-        "2": "Tidak ada visibilitas stok & performa penjualan",
-        "3": "Perang harga & margin menipis karena persaingan terbuka",
-        "4": "Penjualan hilang akibat siklus restock yang tidak efisien",
+        "1": "Produk laris mendominasi pesanan berulang sementara SKU lain tersendat",
+        "2": "Tidak ada gambaran jelas produk mana yang kurang menembus retailer yang layak",
+        "3": "Kunjungan penjualan kembali ke produk familiar karena tekanan waktu",
+        "4": "Katalog, riwayat pembelian, dan aktivitas penjualan tetap terfragmentasi",
         "title": "Tanpa Lakupak"
       },
       "with": {
-        "1": "Order digital otomatis dengan sinkronisasi stok real-time",
-        "2": "Analitik & insight performa menyeluruh",
-        "3": "Harga terlindungi & akses marketplace terkontrol",
-        "4": "Restock cerdas dengan prediksi kebutuhan",
+        "1": "Data komersial terhubung untuk menelaah penetrasi asortimen",
+        "2": "Peluang produk–retailer yang diprioritaskan berdasar bukti",
+        "3": "Aktivasi penjualan terfokus untuk interaksi retailer yang terbatas",
+        "4": "Konversi marketplace privat di bawah kendali distributor",
         "title": "Dengan Lakupak"
       }
     },
     "platforms": {
-      "title": "Dua Platform Kuat, Satu Pengalaman Mulus",
-      "subtitle": "Dibangun khusus untuk distribusi FMCG di Indonesia",
+      "title": "Operasional, intelijen, dan perdagangan privat",
+      "subtitle": "Dibangun khusus untuk distributor FMCG independen di Indonesia",
       "distributor": {
-        "1": "Katalog Digital & Kontrol Harga",
-        "2": "Analitik & Laporan Penjualan",
-        "3": "Tim penjualan dan pekerjaan",
-        "4": "Prediksi Penjualan & Manajemen AI",
-        "5": "Manajemen Produk Terpusat",
+        "1": "Katalog, klien, penawaran, dan pesanan di satu tempat",
+        "2": "Analytics kinerja produk dan pola pembelian",
+        "3": "Pekerjaan penjualan terkait peluang portofolio",
+        "4": "Prioritas produk–retailer dibantu AI",
+        "5": "Etalase privat untuk retailer yang diotorisasi",
         "title": "Dashboard Distributor",
-        "desc": "Manajemen Bisnis Lengkap",
+        "desc": "Operasional komersial dan intelijen penjualan",
         "screenshot": "Screenshot Dashboard"
       },
       "retailer": {
-        "1": "Pesan Grosir Sekali Klik",
-        "2": "Saran Restock Otomatis",
-        "3": "Tarif penawaran Anda sendiri",
-        "4": "Pengalaman Mobile-First",
-        "5": "Pengalaman Belanja Cerdas",
+        "1": "Temukan produk dari distributor yang mengotorisasi Anda",
+        "2": "Lihat penawaran yang berlaku untuk toko Anda",
+        "3": "Pesanan karton dan grosir",
+        "4": "Saluran pemesanan mobile-first",
+        "5": "Visibilitas pesanan dengan distributor Anda",
         "title": "Marketplace Retailer",
-        "desc": "Pengalaman Belanja Cerdas",
+        "desc": "Pemesanan privat untuk retailer yang diotorisasi",
         "screenshot": "Screenshot Marketplace"
       }
     },
     "sticky": {
       "distributor": {
         "title": "Untuk Distributor",
-        "subtitle": "Tingkatkan bisnismu dengan AI, otomatisasi, dan kontrol terpusat."
+        "subtitle": "Manfaatkan portofolio produk Anda dan fokuskan waktu penjualan yang terbatas pada peluang yang kredibel."
       },
       "retailer": {
         "title": "Untuk Retailer",
-        "subtitle": "Belanja lebih cerdas, restock lebih cepat, dan kelola tokomu dari mana saja."
+        "subtitle": "Pesan dari distributor yang sudah dipercaya, dengan syarat yang berlaku untuk toko Anda."
       }
     },
     "cta": {
-      "title": "Siap tingkatkan distribusi Anda?",
-      "subtitle": "Gabung revolusi digital distribusi FMCG. Transformasi bisnismu hari ini.",
+      "title": "Siap memanfaatkan lebih banyak portofolio produk Anda?",
+      "subtitle": "Identifikasi peluang, prioritaskan aktivitas penjualan, dan hubungkan produk yang tepat dengan retailer yang tepat.",
       "button": "Coba Gratis",
       "dashboard": "[Screenshot Dashboard]",
       "mobile": "[Screenshot Aplikasi Mobile]",
@@ -670,45 +682,45 @@
     },
     "distributorFeatures": [
       {
-        "badge": "AI Canggih",
-        "title": "Prediksi Penjualan AI",
-        "subtitle": "Optimalkan bisnismu dengan analitik prediktif.",
+        "badge": "Intelijen",
+        "title": "Wawasan asortimen dan peluang",
+        "subtitle": "Selidiki di mana portofolio kurang menembus retailer yang layak.",
         "points": [
-          "Dapatkan prediksi permintaan untuk setiap SKU.",
-          "Rencanakan produksi dan pengadaan dengan percaya diri.",
-          "Kurangi overstock dan kehilangan penjualan."
+          "Lihat produk mana yang hanya menjangkau sebagian kecil jaringan.",
+          "Prioritaskan kombinasi produk–retailer dengan bukti komersial.",
+          "Perlakukan penetrasi rendah sebagai sinyal untuk diselidiki, bukan permintaan yang dijamin."
         ]
       },
       {
-        "badge": "Keuangan",
-        "title": "Manajemen Pembayaran & Kredit",
-        "subtitle": "Pembayaran fleksibel, aman, dan terintegrasi.",
+        "badge": "Penjualan",
+        "title": "Aktivasi penjualan terfokus",
+        "subtitle": "Ubah peluang berperingkat menjadi kerja lapangan yang bisa dijalankan tim.",
         "points": [
-          "Tawarkan kredit ke retailer terpercaya.",
-          "Pantau invoice dan status pembayaran secara real time.",
-          "Terima pembayaran aman langsung di platform."
+          "Buat pekerjaan seputar pengenalan produk dan follow-up.",
+          "Alokasikan waktu kunjungan terbatas ke retailer dan produk yang cocok.",
+          "Catat hasil agar rekomendasi membaik dengan bukti."
         ]
       },
       {
         "badge": "Dashboard",
-        "title": "Dashboard Produk Terpusat",
-        "subtitle": "Semua SKU, harga, dan stok di satu tempat.",
+        "title": "Katalog dan operasional terhubung",
+        "subtitle": "Semua SKU, harga, stok, dan syarat retailer di satu tempat.",
         "points": [
-          "Upload & edit produk massal dalam hitungan detik.",
-          "Kelola harga dan stok dari satu interface.",
-          "Sinkronisasi perubahan ke semua retailer terhubung."
+          "Jaga katalog yang tetap dibutuhkan produk yang kurang termanfaatkan untuk dijual.",
+          "Kelola harga dan stok dari satu antarmuka.",
+          "Jaga penawaran per retailer selaras dengan cara Anda memperkenalkan produk."
         ]
       }
     ],
     "retailerFeatures": [
       {
-        "badge": "Order Cerdas",
-        "title": "Order Grosir Cerdas",
-        "subtitle": "Order lebih pintar, restock lebih cepat.",
+        "badge": "Penemuan",
+        "title": "Katalog khusus distributor",
+        "subtitle": "Jelajahi produk yang tersedia lewat distributor yang mengotorisasi Anda.",
         "points": [
-          "Dapatkan harga terbaik dengan optimasi minimum order.",
-          "Order ulang satu klik untuk produk terlaris.",
-          "Lihat promo yang tersedia secara instan."
+          "Lihat produk dan stok dari distributor yang memasok Anda.",
+          "Pesan dalam jumlah karton dan grosir yang dibutuhkan ritel FMCG.",
+          "Temukan produk yang cocok tanpa hanya mengandalkan kunjungan sales."
         ]
       },
       {
@@ -728,7 +740,7 @@
         "points": [
           "Pengalaman mulus di semua perangkat.",
           "Pesan dari katalog kapan saja, di mana saja.",
-          "Dapatkan dukungan & insight langsung dari ponsel."
+          "Tetap terhubung dengan hubungan distributor yang sudah Anda miliki."
         ]
       }
     ]
@@ -865,182 +877,182 @@
   },
   "solutions": {
     "hero": {
-      "title": "Solusi untuk Distributor & Retailer",
-      "subtitle": "Lakupak menghubungkan grosir dengan retailer kecil di seluruh Indonesia, membuat belanja grosir jadi mudah, efisien, dan menguntungkan.",
+      "title": "Solusi untuk pemanfaatan portofolio dan penjualan yang produktif",
+      "subtitle": "Lakupak membantu distributor FMCG independen di Indonesia membuka produk yang kurang termanfaatkan di retailer yang sudah dilayani, lalu mengonversi peluang lewat kerja penjualan terfokus dan marketplace B2B privat.",
       "cta": "Mulai Sekarang"
     },
     "badges": {
       "left": {
-        "main": "Akses Retailer Nasional",
+        "main": "Wawasan penetrasi asortimen",
         "sub": [
-          "Jual ke ",
-          "10.000+",
-          " toko"
+          "Temukan ",
+          "celah portofolio",
+          " di jaringan Anda"
         ]
       },
       "right": {
-        "main": "Tarif untuk setiap retailer",
+        "main": "Kendali etalase privat",
         "sub": [
           "",
-          "Tarif Anda",
-          " di pesanan pembelian"
+          "Syarat Anda",
+          " untuk retailer yang diotorisasi"
         ]
       }
     },
     "twocol": {
-      "title": "Solusi untuk Setiap Bisnis",
-      "subtitle": "Baik Anda distributor maupun retailer, Lakupak membantu Anda tumbuh, hemat, dan sukses di pasar grosir Indonesia.",
+      "title": "Dibangun mengikuti cara perdagangan FMCG Indonesia bekerja",
+      "subtitle": "Distributor perlu tahu produk mana yang kurang menembus retailer yang layak. Retailer perlu saluran andal untuk memesan dari distributor yang sudah dipercaya.",
       "distributor": {
         "1": {
-          "label": "Akses ke Ribuan Retailer",
-          "desc": "Produk Anda tampil di jaringan retail nasional terverifikasi."
+          "label": "Intelijen produk–retailer",
+          "desc": "Telaah penetrasi asortimen dan tandai produk yang hanya menjangkau sebagian kecil toko yang layak."
         },
         "2": {
-          "label": "Dashboard Terpusat",
-          "desc": "Kelola stok, harga, dan order di satu tempat."
+          "label": "Prioritas peluang",
+          "desc": "Ranking kombinasi memakai riwayat pembelian, kesesuaian, harga, dan stok, bukan setiap SKU untuk setiap retailer."
         },
         "3": {
-          "label": "Pembayaran & Penagihan Otomatis",
-          "desc": "Dibayar lebih cepat tanpa repot administrasi."
+          "label": "Aktivasi penjualan",
+          "desc": "Ubah peluang berperingkat menjadi follow-up, promo, dan pekerjaan lapangan yang bisa dijalankan tim."
         },
         "4": {
-          "label": "Analitik Kinerja",
-          "desc": "Lihat produk terlaris dan optimalkan penawaran."
+          "label": "Operasional terhubung",
+          "desc": "Klien, katalog, penawaran, pesanan, dan aktivitas penjualan dalam satu lingkungan agar insight tetap berdasar data."
         },
         "5": {
-          "label": "Tarif penawaran per retailer",
-          "desc": "Atur tarif untuk setiap retailer tanpa mengubah harga katalog yang dilihat toko lain."
+          "label": "Penawaran per retailer dan perdagangan privat",
+          "desc": "Jaga harga dan hubungan di bawah kendali Anda sementara retailer yang diotorisasi memesan secara digital."
         },
-        "title": "Jual Lebih Cerdas, Tumbuh Lebih Cepat (Untuk Distributor)"
+        "title": "Untuk distributor: manfaatkan portofolio yang sudah Anda miliki"
       },
       "retailer": {
         "1": {
-          "label": "Belanja Grosir Satu Pintu",
-          "desc": "Banyak supplier, satu keranjang, satu pembayaran."
+          "label": "Penemuan khusus distributor",
+          "desc": "Jelajahi produk dari distributor yang mengotorisasi Anda, bukan perang harga terbuka."
         },
         "2": {
-          "label": "Tarif penawaran Anda sendiri",
-          "desc": "Lihat harga dasar katalog. Tarif Anda yang masuk ke pesanan pembelian."
+          "label": "Penawaran yang berlaku untuk Anda",
+          "desc": "Lihat syarat yang berlaku untuk toko Anda. Retailer lain tidak melihat pengaturan komersial Anda."
         },
         "3": {
-          "label": "Update Stok Real-Time",
-          "desc": "Lihat ketersediaan sebelum order."
+          "label": "Pesanan karton dan grosir",
+          "desc": "Pesan dalam jumlah yang dibutuhkan ritel FMCG, tanpa harus menunggu kunjungan."
         },
         "4": {
-          "label": "Pembayaran Fleksibel",
-          "desc": "Bayar langsung atau ajukan kredit usaha."
+          "label": "Pemesanan digital langsung",
+          "desc": "Kirim pesanan lewat marketplace privat, bukan hanya mengandalkan chat dan ingatan."
         },
         "5": {
-          "label": "Pesan dari katalog",
-          "desc": "Pasang pesanan dengan tarif Anda. Toko lain tidak melihat syarat Anda."
+          "label": "Visibilitas pesanan",
+          "desc": "Lacak detail dan status pesanan bersama distributor yang memasok Anda."
         },
-        "title": "Belanja Lebih Baik, Hemat Lebih Banyak (Untuk Retailer)"
+        "title": "Untuk retailer: pesan dari distributor yang sudah dipercaya"
       }
     },
     "testimonials": {
       "1": {
         "name": "Andi",
         "role": "Distributor dari Surabaya",
-        "text": "Lakupak membantu kami 3x lipat jangkauan tanpa tambah staf sales. Order diproses setengah waktu."
+        "text": "Kami berhenti memperlakukan setiap SKU yang kurang laku sama. Lakupak membantu melihat produk mana yang benar-benar punya ruang di retailer yang tepat."
       },
       "2": {
         "name": "Rina",
         "role": "Pemilik Mini-Mart di Jakarta",
-        "text": "Dulu harus hubungi 5 supplier untuk cek harga. Sekarang cukup satu aplikasi, hemat hingga 20% tiap bulan."
+        "text": "Saya memesan dari katalog distributor dengan tarif saya. Produk yang cocok untuk toko lebih mudah ditemukan daripada di utas WhatsApp yang berserakan."
       },
       "3": {
         "name": "Ahmad Rahman",
         "role": "CEO, PT Sukses Makmur",
-        "text": "Lakupak mengubah bisnis distribusi kami. Sekarang kelola 3x produk dengan setengah usaha."
+        "text": "Produk laris tetap penting, tapi sekarang kami juga mengerjakan sisa portofolio dengan bukti, bukan tebak-tebakan."
       },
       "4": {
         "name": "Siti Nurhaliza",
         "role": "Pemilik, Warung Makmur",
-        "text": "Order sekarang lebih mudah. Saya melihat harga katalog, dan tarif saya yang masuk ke pesanan."
+        "text": "Pemesanan lebih jelas. Saya melihat apa yang ditawarkan distributor, dan syarat saya tetap di pesanan."
       },
       "5": {
         "name": "Budi Santoso",
         "role": "Retailer, Bandung",
-        "text": "Aplikasinya sangat mudah digunakan dan tim support sangat responsif."
+        "text": "Marketplace melengkapi hubungan saya dengan distributor, bukan menggantikannya."
       },
       "6": {
         "name": "Maya Dewi",
         "role": "Distributor, Medan",
-        "text": "Promo grosir & analitik bantu bisnis saya tumbuh lebih cepat."
+        "text": "Waktu penjualan terbatas. Memprioritaskan peluang produk–retailer membuat kunjungan lebih produktif."
       },
-      "title": "Client Testimonials"
+      "title": "Apa kata pengguna"
     },
     "steps": {
       "1": {
-        "title": "Daftar & verifikasi",
-        "desc": "Buat akun dan verifikasi bisnis Anda dalam hitungan menit"
+        "title": "Satukan operasional komersial",
+        "desc": "Hubungkan klien, produk, penawaran, pesanan, dan aktivitas penjualan di dashboard."
       },
       "2": {
-        "title": "List atau cari produk grosir",
-        "desc": "Distributor listing produk, retailer membandingkan & memilih"
+        "title": "Identifikasi peluang portofolio",
+        "desc": "Telaah celah penetrasi dan prioritaskan kombinasi produk–retailer yang cocok."
       },
       "3": {
-        "title": "Pesan dengan tarif mereka",
-        "desc": "Retailer memesan dari harga dasar katalog. Tarif penawaran mereka masuk ke pesanan pembelian."
+        "title": "Aktifkan dan konversi",
+        "desc": "Jalankan follow-up penjualan terfokus dan biarkan retailer yang diotorisasi memesan lewat etalase privat Anda."
       },
-      "title": "Mulai dalam 3 Langkah Mudah",
-      "subtitle": "Bergabunglah dengan ribuan distributor & retailer yang sudah pakai Lakupak"
+      "title": "Dari SKU yang kurang termanfaatkan ke pesanan",
+      "subtitle": "Jalur praktis untuk distributor FMCG Indonesia dan jaringan retail mereka"
     },
     "cta": {
-      "title": "Siap Naik Level Bisnis Grosir Anda?",
-      "subtitle": "Bergabunglah dengan ribuan retailer & distributor yang berkembang bersama Lakupak.",
+      "title": "Siap memanfaatkan lebih banyak portofolio produk Anda?",
+      "subtitle": "Bantu tim membedakan peluang nyata dari permintaan terbatas, lalu konversi dengan fokus.",
       "button": "Mulai Sekarang"
     }
   },
   "about": {
     "hero": {
-      "title": "Kisah Kami: Mengapa Kami Membangun Lakupak",
-      "subtitle": "Agar tim penjualan distributor tahu retailer mana yang harus dihubungi, apa yang ditawarkan, dan kapan."
+      "title": "Mengapa kami membangun Lakupak",
+      "subtitle": "Untuk membantu distributor FMCG independen di Indonesia membuka produk yang kurang termanfaatkan di retailer yang sudah mereka layani."
     },
     "story": {
-      "1": "Sejak saya ingat, <b>perdagangan adalah nadi komunitas lokal</b>. Di Indonesia, distributor, warung, dan toko independen menjaga kebutuhan sehari-hari tetap dalam jangkauan. Dari luar, semuanya terlihat ramai. Dari dalam, penjualan FMCG masih berjalan dengan kaki, ingatan, dan keberuntungan.",
-      "2": "Coba berdiri di luar toko, polanya langsung kelihatan. Sales mengantre, merek demi merek, menunggu beberapa menit dengan pemilik toko. Setiap orang membawa 10 sampai 20 produk yang ditugaskan distributor. Sebagian besar daftar itu tidak pernah sampai ke percakapan. Terlupa di perjalanan, lalu diabaikan. Pemilik toko mendengar penawaran demi penawaran dan tetap tidak tahu mana yang cocok untuk tokonya. Banyak sales pulang sebelum sempat presentasi. <b>Produk yang bagus terlewat</b>, bukan karena retailer tidak menginginkannya, tetapi karena tidak ada yang menaruh tawaran yang tepat di depan toko yang tepat, pada saat yang tepat.",
-      "3": "Bahkan jika tidak ada antrean, jumlah produk yang ditawarkan itu tetap di luar kemampuan mereka untuk menghafalnya. Di bawah setiap kunjungan ada tumpukan alat yang tidak membantu kunjungan berikutnya. Daftar produk ada di spreadsheet. Order masuk lewat utas WhatsApp. Pembayaran dikonfirmasi lewat telepon. Stok tercatat di kertas. Tidak ada yang menjawab pertanyaan yang benar-benar menentukan putaran penjualan: siapa yang harus dihubungi hari ini, siapa yang sudah telat reorder, dan harga apa yang berhak diterima retailer ini. Setiap toko punya syaratnya sendiri, dan tidak ada spreadsheet yang dibuat untuk menyimpannya. Jadi tim tidak menjual lebih cerdas. Mereka menjual secara buta, toko demi toko, berharap yang ini lebih baik dari yang tadi.",
-      "4": "Retailer juga menanggung kebutaan itu. Warung atau kios hidup dari distributor yang memasoknya. Terlalu sering mereka tidak tahu kapan order datang, atau apakah order itu datang. Mereka juga tidak tahu siapa yang akan datang menjual, atau kapan. Pada margin yang tipis, hubungan penjualan yang tidak bisa diandalkan sama menyakitkannya dengan pengiriman yang tidak bisa diandalkan.",
-      "5": "Di situlah masalah yang sebenarnya jadi jelas. Ini bukan soal distribusi secara abstrak. Tidak ada yang membantu tim penjualan memutuskan siapa yang harus dijangkau, dan bagaimana. Stok yang berantakan dan pengiriman yang ditebak hanyalah gejala. <b>Akarnya adalah eksekusi penjualan dan perdagangan tanpa kecerdasan di belakangnya.</b>",
-      "6": "Saya membangun Lakupak mulai dari penjualan itu sendiri. Perdagangan dan tim penjualan yang tahu langkah berikutnya: retailer mana yang harus dijangkau, tarif apa yang ditawarkan, dan kapan. Bacaan itu berdiri di atas hubungan, katalog, dan riwayat order milik distributor itu sendiri, dan harga serta syarat setiap retailer tetap utuh. Ketika jangkauan perlu bertambah, distributor menetapkan persona pelanggan, persyaratan, dan kriteria siapa yang ingin dihubungi. Lapisan AI menemukan retailer yang cocok, menggantikan pencarian manual di Google, Google Maps, WhatsApp, media sosial, dan kenalan. Tarif retailer yang masuk ke pesanan pembelian. Bisnis yang digerakkan hubungan tetap hidup karena setiap kunjungan punya alasan. Lakupak bersifat AI-native karena ini masalah prioritas dan waktu. Itulah jenis masalah yang memang bisa ditutup AI.",
-      "pausedMarketplace": "Marketplace menampilkan harga dasar katalog.",
-      "7": "Namanya membawa ide yang sama. Dalam bahasa Indonesia, <b>laku</b> berarti penjualan sekaligus pergerakan. Perdagangan hanya bergerak ketika penjualan yang tepat sampai ke retailer yang tepat pada waktu yang tepat. Lakupak ada agar pergerakan itu disengaja, bukan kebetulan.",
-      "8": "Tim penjualan tidak harus bekerja lebih keras untuk tumbuh. Mereka harus tahu di mana permintaan sudah ada. Lakupak mengembalikan itu: keyakinan untuk tahu kepada siapa harus menjual berikutnya.",
+      "1": "Sejak saya ingat, <b>perdagangan adalah nadi komunitas lokal</b>. Di Indonesia, distributor independen, warung, dan toko tetangga menjaga kebutuhan sehari-hari tetap dalam jangkauan. Dari luar, semuanya terlihat ramai. Dari dalam, banyak distributor mengelola ratusan produk di ratusan retailer, namun sekelompok kecil produk laris masih mendominasi pesanan berulang.",
+      "2": "Sisa portofolio sering terhenti. Sebuah produk mungkin hanya menjangkau sebagian kecil toko yang layak, tanpa gambaran jelas di mana permintaan tambahan mungkin ada. Tim penjualan tidak bisa mengevaluasi setiap produk terhadap setiap retailer secara menyeluruh. Mereka terus mempromosikan yang familiar. Peluang produk–retailer yang cocok tetap tidak dieksplorasi. <b>Produk yang bagus terlewat</b>, bukan selalu karena retailer menolak, melainkan karena tidak ada yang secara sistematis mencocokkan produk yang tepat ke toko yang tepat.",
+      "3": "Data komersial membuat masalah semakin sulit dilihat. Katalog di satu tempat, hubungan di tempat lain, riwayat pembelian di chat dan spreadsheet, penawaran dan aktivitas penjualan di tempat lain lagi. Pola yang akan menyingkap celah asortimen tetap terfragmentasi. Sementara itu sales punya waktu terbatas per kunjungan. Interaksi singkat. Produk relevan tidak tersampaikan. Potensi penjualan tetap terkunci di portofolio.",
+      "4": "Masalahnya bukan bahwa setiap produk harus lebih laku. Beberapa SKU memang tidak cocok, salah harga, kosong, atau benar-benar tidak diminati. Yang kurang dimiliki distributor adalah cara sistematis membedakan peluang pertumbuhan nyata dari permintaan terbatas, mengidentifikasi retailer yang cocok, dan membuat interaksi penjualan yang terbatas lebih produktif.",
+      "5": "Di situlah masalah yang sebenarnya jadi jelas. Ini bukan “digitalisasi distribusi” secara abstrak. <b>Ini adalah underutilisation portofolio produk dan rendahnya penetrasi asortimen</b>, tantangan spesifik distribusi FMCG Indonesia, ditambah data yang terfragmentasi dan eksekusi lapangan yang tidak efisien.",
+      "6": "Saya membangun Lakupak untuk menghubungkan operasional distributor, intelijen penjualan berbasis AI, dan perdagangan B2B privat. Satukan catatan komersial. Identifikasi celah penetrasi dan kombinasi produk–retailer yang layak diselidiki. Prioritaskan dengan bukti. Aktifkan tim penjualan dengan rekomendasi terfokus. Konversi lewat marketplace privat di mana retailer yang diotorisasi memesan di bawah kendali distributor. Belajar dari eksposur, respons, dan pesanan, tanpa memperlakukan rekomendasi sebagai permintaan yang dijamin.",
+      "7": "Namanya membawa ide yang sama. Dalam bahasa Indonesia, <b>laku</b> berarti penjualan sekaligus pergerakan. Perdagangan bergerak ketika produk yang tepat sampai ke retailer yang tepat, dan ketika waktu penjualan dipakai pada peluang yang didukung bukti. Lakupak ada agar pergerakan itu disengaja, bukan kebetulan.",
+      "8": "Distributor tidak harus mendorong setiap SKU ke setiap toko. Mereka harus tahu di mana portofolio kurang termanfaatkan, di mana ada kendala, dan di mana harus bertindak berikutnya. Itulah yang ingin dikembalikan Lakupak.",
+      "pausedMarketplace": "Retailer yang diotorisasi menemukan produk lewat etalase privat distributor.",
       "vision": "Dari situlah Lakupak dimulai.",
-      "mission": "Kami baru di awal. Misinya tetap sederhana. Perbaiki penjualan lebih dulu. Katalog, pesanan, dan pertumbuhan bergantung pada hal itu dilakukan dengan benar.",
+      "mission": "Kami baru di awal. Misinya tetap jelas: membantu distributor FMCG independen memanfaatkan portofolio produk di retailer yang sudah ada, memperbaiki eksekusi penjualan, dan menjaga kepercayaan atas data komersial.",
       "end": "Dan ini baru permulaan."
     },
     "carousel": {
       "1": {
         "title": "Misi Kami",
-        "content": "Memberi tahu tim penjualan distributor retailer mana yang harus dijangkau, apa yang ditawarkan, dan kapan. Jangkauan yang lebih luas, ke lebih banyak wilayah, itulah yang menjadi lebih banyak penjualan."
+        "content": "Membantu distributor menghubungkan produk yang tepat dengan retailer yang tepat, membuat interaksi penjualan lebih produktif, dan mengubah data komersial menjadi peluang yang bisa ditindaklanjuti, tanpa mengorbankan kendali atau kepercayaan."
       },
       "2": {
         "title": "Visi Kami",
-        "content": "Memberdayakan perdagangan Indonesia, mulai dari penjualan itu sendiri. Penjualan yang lebih tajam membuat katalog, pesanan, dan hubungan di sekitarnya bergerak dengan tujuan."
+        "content": "Platform perdagangan dan penjualan B2B berbasis AI untuk distribusi FMCG Indonesia: intelijen portofolio, aktivasi penjualan terfokus, dan perdagangan privat di bawah kendali distributor."
       },
       "3": {
-        "1": "Tim penjualan harus bekerja lebih cerdas, bukan lebih keras.",
-        "2": "Setiap retailer punya syaratnya sendiri, dan syarat itu tetap unik.",
-        "3": "Penjualan yang tepat, pada waktu yang tepat, itulah yang menggerakkan perdagangan.",
+        "1": "Penetrasi rendah adalah sinyal untuk diselidiki, bukan bukti permintaan.",
+        "2": "Setiap retailer punya syaratnya sendiri, dan syarat itu tetap di bawah kendali distributor.",
+        "3": "Pencocokan produk–retailer yang tepat membuat waktu penjualan yang terbatas berarti.",
         "title": "Yang Kami Percaya"
       },
       "4": {
         "title": "Kenapa 'Lakupak'?",
-        "content": "Dalam bahasa Indonesia, laku berarti penjualan sekaligus pergerakan. Lakupak ada agar pergerakan itu disengaja: penjualan yang tepat sampai ke retailer yang tepat pada waktu yang tepat."
+        "content": "Dalam bahasa Indonesia, laku berarti penjualan sekaligus pergerakan. Lakupak ada agar pergerakan itu disengaja: produk yang cocok sampai ke retailer yang cocok, dan usaha penjualan mengikuti bukti."
       }
     },
     "cta": {
-      "title": "Perbaiki masalah penjualan lebih dulu.",
-      "subtitle": "Katalog, pesanan, dan pertumbuhan bergantung pada tim penjualan yang tahu kepada siapa harus menjual berikutnya.",
+      "title": "Mulai dari masalah portofolio.",
+      "subtitle": "Temukan di mana produk kurang menembus jaringan Anda, lalu aktifkan penjualan dan konversi dengan fokus.",
       "button": "Lihat Solusi Kami"
     }
   },
   "footer": {
     "company": {
-      "description1": "Platform B2B lengkap untuk distributor dan retailer FMCG di Indonesia.",
-      "description2": "Permudah operasional, lindungi harga, dan kembangkan bisnismu dengan aman."
+      "description1": "Perdagangan dan penjualan B2B berbasis AI untuk distributor FMCG independen di Indonesia.",
+      "description2": "Buka peluang portofolio, fokuskan aktivitas penjualan, dan jaga kendali komersial tetap privat."
     },
     "quicklinks": {
       "title": "Tautan Cepat",

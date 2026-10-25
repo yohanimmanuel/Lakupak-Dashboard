@@ -45,7 +45,7 @@ export const FEATURE_MODULES: FeatureModuleDef[] = [
     group: 'sell',
     icon: Users,
     surfaces: ['dashboard', 'marketplace'],
-    pointsCount: 5,
+    pointsCount: 6,
     highlightsCount: 3,
   },
   {
@@ -53,11 +53,11 @@ export const FEATURE_MODULES: FeatureModuleDef[] = [
     group: 'sell',
     icon: Package,
     surfaces: ['dashboard', 'marketplace'],
-    pointsCount: 5,
+    pointsCount: 6,
     highlightsCount: 3,
   },
   { slug: 'orders', group: 'sell', icon: ShoppingCart, surfaces: ['dashboard', 'marketplace'], pointsCount: 3, highlightsCount: 3 },
-  { slug: 'offers', group: 'sell', icon: Tag, surfaces: ['dashboard', 'marketplace'], pointsCount: 4, highlightsCount: 3 },
+  { slug: 'offers', group: 'sell', icon: Tag, surfaces: ['dashboard', 'marketplace'], pointsCount: 5, highlightsCount: 3 },
   { slug: 'sales', group: 'grow', icon: BadgeDollarSign, featured: true, surfaces: ['dashboard'], pointsCount: 4, highlightsCount: 3 },
   // Marketplace module page stays in the list for later validation. It is not featured and is hidden from navigation.
   { slug: 'marketplace', group: 'grow', icon: Store, surfaces: ['dashboard', 'marketplace'], pointsCount: 4, highlightsCount: 3 },
