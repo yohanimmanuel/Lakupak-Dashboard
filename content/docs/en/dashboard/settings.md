@@ -13,8 +13,8 @@ order: 20
 | Tab | Purpose |
 |-----|---------|
 | **General Info** | Personal profile |
-| **Distributor Operations** | Company, shipping, marketplace-facing data |
-| **Features & Tours** | Replay guided walkthroughs |
+| **Distributor Operations** | Company, shipping, storefront-facing data, referral code when configured |
+| **Features & Tours** | Replay guided walkthroughs for active modules |
 | **Team & Sales** | Sales teams and territories |
 | **Language & Region** | Language, region, currency |
 | **Billing & Payment** | Bank and billing address |
@@ -39,7 +39,9 @@ Contact: **Business Address**, **Business Phone**, **Business Email**.
 - **Preferred Delivery Time Slots** and **Preferred Delivery Days**
 - Default delivery lead time
 
-These values appear on the **Marketplace Dashboard** and buyer checkout where applicable.
+These values appear on storefront and checkout surfaces when private marketplace ordering is enabled for your account.
+
+**Marketplace referral code:** set a unique code buyers use at Marketplace login or register to join your storefront. The code must be unique across distributors; validation runs when you save.
 
 **Show discounted price when buyers submit a PO**
 
@@ -49,9 +51,9 @@ See [Offers](/en/docs/dashboard/offers) and [Orders](/en/docs/dashboard/orders).
 
 ## Features and Tours
 
-Replay product tours:
+Replay product tours for active modules, for example:
 
-- Dashboard overview, Products, Orders, Offers, Marketplace, Logistics
+- Dashboard overview, Products, Orders, Offers
 
 Statuses: **Completed**, **Skipped / closed**, **Not started**.
 
@@ -94,6 +96,6 @@ Keep billing and company data current to avoid payout or compliance issues.
 
 | Goal | Go to |
 |------|--------|
-| Storefront preview | [Marketplace (admin)](/en/docs/dashboard/marketplace-admin) |
+| Buyer Marketplace | [Marketplace overview](/en/docs/marketplace/overview) |
 | Publish products | [Products](/en/docs/dashboard/products) |
-| Sales agents | [Sales](/en/docs/dashboard/sales) |
+| Per-retailer rates | [Offers](/en/docs/dashboard/offers) |

@@ -20,9 +20,9 @@ Tap **Search for products…** to open full search.
 
 | Section | Behavior |
 |---------|----------|
-| **Special Offers** | Carousel; **See All** → offers list; tap banner → offer detail |
-| **Categories** | Category chips → search with category filter |
-| **Featured Products** | Product grid → `/product?productId=…` |
+| **Special Offers** | Carousel; **See All** ? offers list; tap banner ? offer detail |
+| **Categories** | Category chips ? search with category filter |
+| **Featured Products** | Product grid ? `/product?productId=…` |
 
 Empty catalog: **No products available**. End of list: **Products displays reached the end.**
 
@@ -31,7 +31,7 @@ Empty catalog: **No products available**. End of list: **Products displays reach
 Path: `/(tabs)/categories`.
 
 - **Explore by Category**
-- **New This Week** with **See all** → search
+- **New This Week** with **See all** ? search
 - Product grid same as Home
 
 Requires login like Home.

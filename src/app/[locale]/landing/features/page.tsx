@@ -36,6 +36,7 @@ export default function FeaturesHubPage() {
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 space-y-14">
           {FEATURE_MENU_GROUPS.map((group) => {
             const items = FEATURE_MODULES.filter((m) => m.group === group);
+            if (items.length === 0) return null;
             return (
               <div key={group}>
                 <Reveal>

@@ -1058,13 +1058,14 @@ export default function LandingPage() {
     router.push('/register');
   };
 
-  const handleLearnMoreClick = () => {
-    trackConversion('cta_click', 'explore_marketplace_button');
-    const marketplaceUrl = (
-      process.env.NEXT_PUBLIC_MARKETPLACE_URL || 'https://lakupak-marketplace-web.onrender.com'
-    ).replace(/\/$/, '');
-    window.open(marketplaceUrl, '_blank', 'noopener,noreferrer');
-  };
+  // MVP pause: marketplace CTA
+  // const handleLearnMoreClick = () => {
+  //   trackConversion('cta_click', 'explore_marketplace_button');
+  //   const marketplaceUrl = (
+  //     process.env.NEXT_PUBLIC_MARKETPLACE_URL || 'https://lakupak-marketplace-web.onrender.com'
+  //   ).replace(/\/$/, '');
+  //   window.open(marketplaceUrl, '_blank', 'noopener,noreferrer');
+  // };
 
   return (
     <ErrorBoundary>
@@ -1105,6 +1106,7 @@ export default function LandingPage() {
                  >
                   {t('hero.cta')}
                  </button>
+                 {/* MVP pause: marketplace CTA
                  <button 
                   type="button"
                    onClick={handleLearnMoreClick}
@@ -1113,6 +1115,7 @@ export default function LandingPage() {
                  >
                   {t('hero.learnmore')}
                  </button>
+                 */}
                  </div>
             </HeroStagger>
              </div>
@@ -1204,6 +1207,7 @@ export default function LandingPage() {
 
         <SellingSection />
 
+        {/* MVP pause: analytics + sales feature sections
         <SplitFeatureSection
           id="analytics"
           titleKey="features.analytics.title"
@@ -1258,6 +1262,7 @@ export default function LandingPage() {
             { titleKey: 'features.sales.4.title', descKey: 'features.sales.4.desc' },
           ]}
         />
+        */}
 
         <section id="moat" className="py-16 sm:py-20 bg-[#f7f9fc] border-t border-gray-200">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
@@ -1287,7 +1292,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <AutomationsSection />
+        {/* MVP pause: <AutomationsSection /> */}
 
         <section id="how-it-works" className="py-16 sm:py-20 bg-white">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">

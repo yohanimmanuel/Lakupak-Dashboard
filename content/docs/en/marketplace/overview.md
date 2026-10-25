@@ -6,7 +6,11 @@ module: marketplace
 order: 30
 ---
 
-**Lakupak Marketplace** is the buyer-facing mobile app (Expo/React Native) for discovering distributor catalogs, placing B2B orders, and tracking fulfillment. It connects to the same Lakupak API environment as the distributor Dashboard.
+**Lakupak Marketplace** is the buyer-facing mobile app (Expo/React Native) for discovering a distributor's private catalog, placing B2B orders, and tracking fulfillment. It connects to the same Lakupak API environment as the distributor Dashboard.
+
+Access is **authorised and closed**: buyers sign in with a valid distributor **referral / membership code** (or an existing membership). Guests do not browse an open multi-distributor catalog. Each session is scoped to that distributor's storefront.
+
+Distributors set or update their referral code under **Dashboard → Settings → Distributor Operations**.
 
 ## Main navigation
 
@@ -33,8 +37,8 @@ From several tabs you can open:
 ## Getting started
 
 1. Open the app → **Welcome** carousel (**Connect with Distributors**, **Fast & Reliable Delivery**, **Trusted Marketplace**)
-2. **Login** or **Register**
-3. After sign-in, land on **Home** with your store name and delivery address
+2. **Login** or **Register**, and enter the distributor **referral code** when prompted (required to join or open that storefront)
+3. After sign-in, land on **Home** with your store name and delivery address for that distributor
 
 Suspended accounts see **Account suspended** with a countdown and **Go to login**.
 
@@ -44,7 +48,6 @@ Suspended accounts see **Account suspended** with a countdown and **Go to login*
 |------|-----|
 | Distributor | Lakupak Dashboard (web) |
 | Buyer / retailer | Lakupak Marketplace (mobile) |
-| Driver | Lakupak Driver (mobile) |
 
 Orders you place in Marketplace appear in the distributor **Orders** module. Published products come from distributor **Products**.
 

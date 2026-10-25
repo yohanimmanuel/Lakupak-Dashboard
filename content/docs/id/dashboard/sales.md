@@ -1,79 +1,157 @@
 ---
 title: Penjualan
-description: Hub penjualan, tim penjualan, agen, dan pekerjaan.
+description: Hub penjualan, peluang konversi, tim, pekerjaan, dan prospek pembeli.
 section: Dashboard
 module: dashboard
 order: 16
 ---
 
-Hub **Penjualan** dipakai untuk mengelola tim penjualan dan pekerjaan penjualan, dengan pintasan ke klien serta penawaran.
+Area **Penjualan (Sales)** mengubah peluang produk–retailer menjadi pekerjaan lapangan: prioritaskan follow-up, kelola agen dan tim, tugaskan pekerjaan, dan catat prospek outlet baru.
 
-Jalur: **Penjualan** (`/sales`).
+Jalur: **Sales** (`/sales`).
 
-## Hub penjualan
+Framing produk: pakai Sales agar kunjungan tidak hanya mengulang produk laris yang sama, dan agar riwayat pembelian, quotation, serta minat pembeli menjadi pekerjaan yang bisa ditindaklanjuti.
 
-Kartu **Tips** (bisa ditutup):
+## Hub penjualan (`/sales`)
 
-| Tip | Tindakan | Tujuan |
-|-----|----------|--------|
-| **Undang pelanggan baru** | **Undang pelanggan** | Klien |
-| **Buat promosi** | **Buat promosi** | Penawaran |
-| **Pekerjaan penjualan** | **Lihat pekerjaan** | Pekerjaan |
+### Tips
 
-Pintasan **Alat:**
+Kartu tip yang bisa ditutup dengan modal detail:
 
-| Alat | Deskripsi |
-|------|-----------|
-| **Tim** | Kelola anggota tim penjualan dan peran |
-| **Pekerjaan** | Kelola pekerjaan penjualan untuk tim |
+| Tip | Aksi utama | Menuju |
+|-----|----------------|---------|
+| **Invite New Customers** | **Invite customers** | Clients |
+| **Create Promotions** | **Create promotion** | Offers |
+| **Sales jobs** | **View jobs** | Jobs |
 
-Sidebar menampilkan **Tim** dan **Pekerjaan**.
+### Tools
 
-## Tim
+| Tool | Rute | Tujuan |
+|------|-------|---------|
+| **Team** | `/sales/team` | Agen, peran, dan tim |
+| **Jobs** | `/sales/jobs` | Pekerjaan lapangan untuk tim penjualan |
+| **Prospect** | `/sales/prospects` | Prospek pembeli / outlet baru |
 
-Jalur: `/sales/team`.
+### Tabel Sales Conversion
 
-### Tindakan daftar tim
+Di bawah Tips, **Sales Conversion** menampilkan pekerjaan dan peluang terbuka yang dianalisis dari Sales, Orders, dan Clients, diurutkan berdasarkan prioritas.
 
-| Tindakan | Fungsi |
-|----------|--------|
+**Chip ringkasan:** Open opportunities, Overdue buyers, Quotes follow-up, Orders attributed.
+
+**Tab tipe:** All | Reorder | Quotation | Buyer interest | Sales task
+
+**Filter:**
+
+- Pencarian: **Search buyer, product, or sales rep…**
+- **Timing:** All timing | 30+ days | 14 to 29 days | 7 to 13 days | Under 7 days | No timing
+- **Value:** All values | Ambang mata uang di atas/bawah | No value
+
+**Kolom:** Rank | Buyer | Type | Urgency | Why it matters | Sales rep | Timing | Value | Action
+
+**Aksi** menaut ke detail pembeli, detail pesanan, atau **Jobs**. Paginasi: **8 baris per halaman**.
+
+Keluarga insight yang sama mendukung widget opsional **Sales Conversion Engine** di [Beranda](/id/docs/dashboard/home).
+
+## Tim (`/sales/team`)
+
+### Aksi daftar
+
+| Aksi | Tujuan |
+|--------|---------|
 | **Refresh** | Muat ulang agen dan tim |
-| **Export Data** | XLSX agen |
+| **Export Data** | Ekspor XLSX agen |
 | **Add Agent** | Buat agen penjualan |
 
-### Agen dan filter
+### Tab Individuals dan Teams
 
-**Tab:** **Individuals**, **Teams**.
+**Tab:** **Individuals** | **Teams**
 
-**Pencarian:** **Search agents...**
+**Pencarian:** **Search agents…**
 
-**Filter:** **All Roles**, **All Status**, **Active**, **Inactive**.
+**Filter:** **All Roles** (Sales Manager, Sales Rep, Sales Support, Lead Gen, Account Manager, dan lainnya) | **All Status** | Active | Inactive
 
-**Peran:** Sales Manager, Sales Rep, Sales Support, Lead Gen, Account Manager.
+**Kolom Individuals:** NAME | PHONE | EMAIL | ROLE | STATUS | ACTIONS
 
-**Massal:** **Remove Agent** / **Remove Selected**.
+**Massal:** pilih baris, lalu **Remove Selected**.
 
-Modal: **Create New Team**, **Edit Team**.
+**Teams:** wilayah yang bisa diperluas; **Create New Team** / **Edit Team** (nama tim atau wilayah, multi-pilih anggota).
 
-### Profil agen
+### Buat, ubah, dan detail agen
 
-Jalur: `/sales/team/create`, `details`, `edit`.
+Rute: `/sales/team/create`, `/sales/team/details?id=…`, `/sales/team/edit?id=…`.
 
-Tab buat/ubah: **Basic Profile**, **Favourite Products**, **Sales Reporting**, **Sales Target**.
+Tab buat/ubah:
 
-Konfirmasi **Delete Agent** / **Delete Agents**.
+| Tab | Isi |
+|-----|----------|
+| **Basic Profile** | Identitas dan kontak |
+| **Favourite Products** | Produk yang diprioritaskan agen |
+| **Daily Field Reports** | Pengaturan laporan lapangan |
+| **Sales Target** | Target dan progres |
 
-## Pekerjaan
+Detail menampilkan target, produk favorit, laporan lapangan, dan biografi. Konfirmasi sebelum **Delete Agent**.
 
-Jalur: `/sales/jobs`.
+## Pekerjaan (`/sales/jobs`)
 
-Halaman ini untuk mengelola pekerjaan penjualan tim, seperti kunjungan, tindak lanjut, dan target.
+**Aksi:** **Export Data**, **Create new job** (`/sales/jobs/new`), edit (`/sales/jobs/edit`), hapus (tunggal atau massal).
+
+**Kartu statistik:** Total jobs | Pending | Open | Completed
+
+**Tab status:** All | Pending | Complete
+
+**Pencarian:** **Search client or rep**
+
+**Filter:** **All types** | **All reps**
+
+**Sorotan tabel:** klien, badge tipe pekerjaan, rep, status, tanggal, alasan, **Created by** (**AI** atau **Manager**), produk yang disarankan. Paginasi mengelompokkan pekerjaan (5 grup per halaman).
+
+### Tipe pekerjaan (form buat)
+
+| Tipe | Tujuan |
+|------|---------|
+| **Take order** | Ambil pesanan di outlet |
+| **Collect payment** | Tagih pembayaran dari pembeli |
+| **Promote product** | Presentasikan produk tertentu |
+| **Stock check** | Hitung stok **di rak toko pembeli** (bukan stok gudang) |
+| **Pick up return** | Ambil retur |
+| **Competitor check** | Catat intel kompetitor |
+
+Label tipe tambahan bisa muncul dari pekerjaan yang sudah ada. Outlet baru ditambahkan dari **Prospect**, bukan sebagai pengganti board Prospect.
+
+### Status pekerjaan
+
+Pending, Suggested, Approved, Dispatched, In progress, Completed, Skipped. Nilai lama **approved** / **suggested** ditampilkan di bawah Pending jika UI menggabungkannya.
+
+### Buat atau ubah pekerjaan
+
+Form (**Create new job** / **Edit job**):
+
+- Satu atau lebih baris pekerjaan di halaman
+- Penugasan sales rep
+- Jadwal dan **Dates and WhatsApp reminders**
+- Klien dan produk (bergantung tipe)
+
+**Stock check:** pilih klien dan produk yang dihitung di toko pembeli. Saat selesai, tandai **Checked** dan isi **Counted stock** per produk (`stock_counts`). Pekerjaan stok multi-pembeli selesai jika setiap baris pembeli selesai. Sinyal overdue atau hitungan rendah adalah alasan untuk diselidiki, bukan bukti permintaan otomatis.
+
+## Prospek pembeli (`/sales/prospects`)
+
+**Aksi:** **Export Data**, **Create new prospect**, **Edit**, **Delete**, hapus massal.
+
+**Pencarian:** **Search prospects**
+
+**Filter:** **All regions** plus daftar wilayah
+
+**Kolom:** Customer number | Name | Store name | Phone | Address | Region | Buyer type | Notes
+
+**Tipe pembeli:** Warung, Kiosk, Minimarket, Restaurant, Hotel, Canteen, Other.
+
+**Buat / ubah** (`/sales/prospects/new`, `/sales/prospects/edit/[id]`): field wajib prospek, plus **Ask AI** untuk membuka Lakupak AI membantu pengisian.
 
 ## Tautan terkait
 
 | Tujuan | Ke |
-|--------|-----|
-| Pembeli | [Klien](/id/docs/dashboard/clients) |
+|------|--------|
+| Catatan pembeli | [Klien](/id/docs/dashboard/clients) |
 | Promosi produk | [Penawaran](/id/docs/dashboard/offers) |
 | Pesanan | [Pesanan](/id/docs/dashboard/orders) |
-| Widget penjualan | [Beranda](/id/docs/dashboard/home) |
+| Widget Beranda | [Beranda](/id/docs/dashboard/home) |

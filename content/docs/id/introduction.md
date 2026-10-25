@@ -1,45 +1,64 @@
 ---
 title: Apa itu Lakupak?
-description: Platform operasi perdagangan B2B yang memodernisasi grosir antara distributor dan ritel kecil di Indonesia.
+description: Platform perdagangan dan penjualan B2B berbasis AI yang membantu distributor FMCG Indonesia memanfaatkan portofolio produk di retailer yang tepat.
 section: Ringkasan
 module: overview
 order: 1
 ---
 
-**Lakupak** adalah platform digital yang dirancang untuk memodernisasi perdagangan grosir di Indonesia dengan menghubungkan distributor dan ritel kecil dalam satu ekosistem tepercaya. Dalam bahasa Indonesia, *"laku"* berarti barang yang laris, cepat bergerak, dan sukses di pasar. Makna itu mencerminkan misi platform: membantu barang bergerak lebih cepat, transaksi berjalan lebih lancar, dan bisnis tumbuh berkelanjutan melalui teknologi.
+**Lakupak** adalah platform perdagangan dan penjualan B2B berbasis AI untuk distributor FMCG independen di Indonesia. Dalam bahasa Indonesia, *"laku"* berarti sesuatu yang laris, bergerak cepat, dan berhasil di pasar. Makna itu mencerminkan misi platform: membantu distributor menghubungkan produk yang tepat dengan retailer yang tepat, membuat interaksi penjualan lebih produktif, dan mengubah data komersial menjadi peluang yang bisa ditindaklanjuti.
 
-Intinya, Lakupak memberi distributor platform operasi privat untuk produk, inventaris, pesanan, pelanggan, dan tim penjualan. Banyak distributor masih mengandalkan WhatsApp, spreadsheet, dan pemesanan informal. Lakupak menggantikan alur yang terpisah itu dengan dashboard untuk kerja harian, supaya manager dapat menugaskan pekerjaan hari itu ke tiap sales dan tim mencatat apa yang ditawarkan, disample, dicek, atau ditagih.
+## Masalah yang difokuskan Lakupak
 
-Ketika jangkauan perlu bertambah, distributor menetapkan persona pelanggan, persyaratan, dan kriteria siapa yang ingin dihubungi. Lapisan AI menemukan retailer yang cocok. Distributor sudah melakukan ini secara manual di Google, Google Maps, WhatsApp, media sosial, dan lewat teman serta kerabat.
+Distributor independen sering mengelola ratusan produk di ratusan retailer. Produk laris mendominasi pesanan berulang, sementara produk berharga lainnya hanya menjangkau sebagian kecil toko yang layak.
 
-<!--
-Kedua, Lakupak berfungsi sebagai marketplace B2B bagi warung, kios, toko kecil, dan ritel mandiri. Pembeli dapat menemukan produk dan memesan grosir tanpa menghubungi banyak pemasok secara manual. Tujuannya bukan mengganggu hubungan distributor, melainkan memperkuatnya melalui pengadaan yang lebih sederhana, cepat, dan andal.
+Itu menciptakan empat tantangan yang saling terkait:
 
-Berbeda dari marketplace terbuka yang sering memicu perang harga, Lakupak adalah **marketplace terkendali**. Distributor tetap menguasai harga, hubungan pelanggan, dan kontrol operasional. Platform memfasilitasi transaksi dan alur digital tanpa mengekspos informasi kompetitif sensitif atau memaksa persaingan tidak sehat.
--->
+- **Penetrasi produk terbatas** di jaringan retailer
+- **Visibilitas peluang terbatas** bagi tim penjualan
+- **Data komersial terfragmentasi** di chat, spreadsheet, dan alat terpisah
+- **Waktu penjualan tidak efisien**, sehingga produk yang cocok tidak tersampaikan
 
-Lakupak juga menghubungkan pengiriman. Distributor menugaskan pesanan ke pengemudi, memantau progres, dan memperbarui status dalam satu sistem, dari pekerjaan sampai pengiriman akhir. Data terstruktur ini menjadi fondasi analitik dan otomatisasi yang lebih cerdas seiring waktu.
+Penetrasi rendah adalah sinyal untuk diselidiki, bukan bukti permintaan. Produk bisa tidak cocok, salah harga, kosong, atau memang tidak laku. Lakupak membantu membedakan peluang nyata dari noise.
 
-Pada dasarnya, Lakupak adalah **platform perdagangan dan penjualan B2B** untuk distributor FMCG independen di Indonesia. Platform ini dibangun agar tim penjualan tahu siapa yang dihubungi, apa yang ditawarkan, kapan bertindak, dan bagaimana mengirim.
+## Bagaimana Lakupak membantu
 
-## Produk Lakupak
+Lakupak menghubungkan operasional distributor, intelijen penjualan, dan perdagangan B2B privat:
 
-- **Lakupak Dashboard**: aplikasi web bagi distributor untuk mengelola katalog, pesanan, klien, pekerjaan penjualan, logistik, dan analitik.
-<!-- - **Lakupak Marketplace**: aplikasi mobile bagi pembeli untuk menelusuri, memesan grosir, dan melacak pengiriman. -->
-- **Lakupak Driver**: aplikasi mobile bagi pengemudi armada untuk menjalankan pengiriman dan memperbarui status.
+1. **Satukan** hubungan retailer, katalog, inventori, pesanan, penawaran, dan aktivitas penjualan
+2. **Identifikasi** celah asortimen dan kombinasi produk–retailer yang layak diselidiki
+3. **Prioritaskan** peluang memakai riwayat pembelian, kesesuaian, harga, dan stok
+4. **Aktifkan** follow-up dan pengenalan produk yang terfokus
+5. **Konversi** lewat Marketplace pembeli yang privat dan terotorisasi
+6. **Belajar** dari eksposur, respons, pesanan, dan pembelian berulang
+
+Rekomendasi tetap berdasar data yang tersedia. Itu estimasi, bukan permintaan yang dijamin.
+
+## Lingkup dokumentasi ini
+
+Panduan di bilah navigasi berfokus pada modul yang diaktifkan di UI produk hari ini:
+
+- **Dashboard**: Klien, Produk, Pesanan, Penawaran, Beranda, Pengaturan
+- **Marketplace**: aplikasi pembeli privat untuk retailer terotorisasi
+- **Platform**: ekosistem, alur pesanan, kepercayaan, dan bantuan
+
+Panduan Dashboard tambahan (Penjualan, Analitik, Otomasi, Marketplace admin, Logistik) menjelaskan **perilaku yang sudah dibangun** untuk modul tersebut. Panduan itu tidak muncul di bilah samping sampai entri menu produk diaktifkan lagi; saat diaktifkan, dokumentasinya sudah mutakhir.
+
+## Apa yang termasuk Lakupak hari ini
+
+- **Lakupak Dashboard**: aplikasi web untuk distributor mengelola klien, katalog, pesanan, penawaran per retailer, dan pengaturan, dengan Lakupak AI untuk analisis bisnis di chat
+- **Lakupak Marketplace**: aplikasi pembeli privat agar retailer terotorisasi dapat menjelajah, memesan, dan melacak pembelian dari distributor yang sudah dipercaya
 
 ## Pelajari lebih lanjut tentang Lakupak
 
 - [Misi dan cerita](/id/docs/about/mission-and-story)
 - [Siapa yang kami layani](/id/docs/about/who-we-serve)
-<!-- - [Marketplace terkendali](/id/docs/about/controlled-marketplace) -->
 - [FAQ](/id/docs/about/faq)
 
-## Siapa yang harus membaca dokumentasi ini
+## Siapa yang perlu membaca dokumentasi ini
 
 | Peran | Mulai di sini |
-|------|----------------|
+|------|------------|
 | Staf distributor | [Ringkasan Dashboard](/id/docs/dashboard/overview) |
-<!-- | Pembeli ritel | [Ringkasan Marketplace](/id/docs/marketplace/overview) | -->
-| Pengemudi | [Ringkasan Driver](/id/docs/driver/overview) |
-| Cara aplikasi terhubung | [Ekosistem Lakupak](/id/docs/platform/ecosystem) |
+| Pembeli ritel | [Ringkasan Marketplace](/id/docs/marketplace/overview) |
+| Bagaimana aplikasi terhubung | [Ekosistem Lakupak](/id/docs/platform/ecosystem) |

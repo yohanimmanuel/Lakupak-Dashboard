@@ -13,7 +13,6 @@ Use this page when you need help using Lakupak in day-to-day business operations
 | Your role | First contact |
 |-----------|----------------|
 | Buyer | The **distributor** you ordered from (**Contact Seller** in order details or WhatsApp from product pages) |
-| Driver | Your **distributor** logistics or operations contact |
 | Distributor | **Lakupak support** for platform issues; handle buyer questions on your side |
 
 ## In-app help
@@ -21,7 +20,6 @@ Use this page when you need help using Lakupak in day-to-day business operations
 | App | Where to find help |
 |-----|-------------------|
 | Marketplace | **Settings → Help Center**, **Community Rules**, **Policies** |
-| Driver | **Account → Help & Support** (FAQ) |
 | Dashboard | **Settings → Features & Tours** to replay guided tours |
 
 Login and signup screens also link to **Help Center** and **Security & Privacy**.
@@ -37,13 +35,12 @@ Login and signup screens also link to **Help Center** and **Security & Privacy**
 | Missing items | Buyer: open **Return/Refund** or contact seller |
 | Cannot cancel | Check order status; cancellation rules depend on fulfillment stage |
 
-### Delivery
+### Fulfillment and tracking
 
 | Issue | What to do |
 |-------|------------|
-| Tracking not updating | Driver should update status in Driver app; buyer refreshes Orders |
-| Failed delivery | Driver submits **Report failure**; distributor reschedules or refunds per policy |
-| Driver cannot log in | Confirm credentials with distributor (**Request access** if new) |
+| Tracking not updating | Distributor updates order status in Dashboard; buyer refreshes **Orders** |
+| Delivery issues | Distributor contacts the buyer and updates status or refunds per policy |
 
 ### Catalog and marketplace
 
@@ -59,7 +56,7 @@ Login and signup screens also link to **Help Center** and **Security & Privacy**
 |-------|------------|
 | App slow or empty lists | Check internet; pull to refresh; log out and in |
 | Notifications missing | Enable notifications in app Settings and device settings |
-| Wrong language | **Language Settings** in Marketplace or Driver |
+| Wrong language | **Language Settings** in Marketplace or Dashboard |
 
 For persistent technical problems, contact **support@laku.com** with your role, app name, and a short description (no need to share internal passwords).
 
@@ -69,5 +66,5 @@ Check the **System Status** link on the Lakupak website footer for planned maint
 
 ## Related documentation
 
-- [Driver troubleshooting](/en/docs/driver/troubleshooting) for delivery-specific fixes
 - [Getting started](/en/docs/getting-started) for first-time setup by role
+- [Marketplace overview](/en/docs/marketplace/overview)

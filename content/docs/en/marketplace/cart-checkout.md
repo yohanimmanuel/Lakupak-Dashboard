@@ -58,7 +58,7 @@ Also: **Business Information**, **Products from {distributor name}**.
 
 ### Place order
 
-**Order Confirmation** → **Place Order** / **Placing…**
+**Order Confirmation** ? **Place Order** / **Placing…**
 
 Supports single-product buy now and multi-distributor cart checkout.
 

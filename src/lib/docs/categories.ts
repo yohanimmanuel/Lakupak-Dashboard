@@ -18,8 +18,8 @@ export function getDocsCategories(locale: DocLocale): DocsCategory[] {
       title: locale === 'id' ? 'Tentang Lakupak' : 'About Lakupak',
       description:
         locale === 'id'
-          ? 'Misi, siapa yang dilayani, lapisan penjualan, dan FAQ.'
-          : 'Mission, who we serve, the sales layer, and FAQ.',
+          ? 'Misi, siapa yang dilayani, pemanfaatan portofolio, dan FAQ.'
+          : 'Mission, who we serve, portfolio utilisation, and FAQ.',
       href: `${base}/about/mission-and-story`,
       icon: 'about',
     },
@@ -28,8 +28,8 @@ export function getDocsCategories(locale: DocLocale): DocsCategory[] {
       title: 'Dashboard',
       description:
         locale === 'id'
-          ? 'Kelola produk, pesanan, klien, logistik, dan pengaturan distributor.'
-          : 'Manage products, orders, clients, logistics, and distributor settings.',
+          ? 'Kelola klien, produk, pesanan, penawaran, dan pengaturan distributor.'
+          : 'Manage clients, products, orders, offers, and distributor settings.',
       href: `${base}/dashboard/overview`,
       icon: 'dashboard',
     },
@@ -42,16 +42,6 @@ export function getDocsCategories(locale: DocLocale): DocsCategory[] {
           : 'Buyer app: browse, order, and track B2B purchases.',
       href: `${base}/marketplace/overview`,
       icon: 'marketplace',
-    },
-    {
-      id: 'driver',
-      title: 'Driver',
-      description:
-        locale === 'id'
-          ? 'Aplikasi pengemudi: armada, pengiriman, dan bukti serah.'
-          : 'Driver app: fleets, deliveries, and proof of delivery.',
-      href: `${base}/driver/overview`,
-      icon: 'driver',
     },
     {
       id: 'platform',

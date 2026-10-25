@@ -1,82 +1,77 @@
 ---
 title: Logistik
-description: Armada, driver, rute, dan pelacakan pengiriman.
+description: Armada, pengemudi, rute, dan pelacakan pengiriman di peta.
 section: Dashboard
 module: dashboard
 order: 19
 ---
 
-**Logistics Management** mengelola armada, menugaskan driver, menghubungkan pesanan ke trip, dan melacak pengiriman di peta.
+**Logistics Management** membantu menjalankan armada, menugaskan pengemudi, memasang pesanan ke trip, dan melacak pengiriman di peta.
 
 Jalur: `/logistics`, `/logistics/create`, `/logistics/details?id={fleetId}`, `/logistics/details/edit?id={fleetId}`.
 
-## Ringkasan logistik
+## Ringkasan logistik (`/logistics`)
 
-**Subtitle:** Pantau armada, pengiriman, dan kinerja logistik di jaringan distribusi.
+**Judul:** Logistics Management
 
-| Tindakan | Fungsi |
-|----------|--------|
-| **Refresh** | Muat ulang data armada dan driver |
-| **Export Data** | XLSX armada |
-| **Add Fleet & Driver** | Buat armada baru |
+| Aksi | Tujuan |
+|--------|---------|
+| **Refresh** | Muat ulang data armada dan pengemudi |
+| **Export Data** | XLSX armada (Fleet ID, Fleet Code, Route, Status, Delivery Type, ETA, dan field terkait) |
+| **Add Fleet & Driver** | Buat armada di `/logistics/create` |
 
-Layout: **daftar armada** (kiri) dan panel **fleet details** (kanan).
+Tata letak: **daftar armada / pengemudi** di kiri, panel **detail** di kanan (termasuk peta rute).
 
-## Daftar armada
+## Tab Active Fleets dan Drivers
 
-### Filter tab armada
+**Tab:** **Active Fleets** | **Drivers**
 
-**Tab:** **Active Fleets**, **Drivers**.
+### Active Fleets
 
 **Pencarian:** **Search for shipments**
 
-**Status:** All statuses, Available, Unavailable, In Transit, Checking
+**Filter status:** All statuses | Available | Unavailable | In Transit | Checking
 
-**Tipe:** All types + opsi pengiriman dari pengaturan distributor.
+**Filter tipe:** All types, plus tipe pengiriman dari preferensi shipping distributor (misalnya Standard Shipping, Express Shipping, Same-day Delivery, Next-day Delivery, Scheduled Delivery, Pickup Available).
 
-**Massal:** pilih semua, **Remove**, **Delete fleet** per baris.
+**Massal:** pilih armada, **Remove**; hapus per baris.
 
-### Tab driver
+### Drivers
 
 **Pencarian:** **Search drivers by name, username or phone**
 
-**Massal:** **Remove** driver terpilih.
+**Massal:** pilih pengemudi, **Remove**.
 
 ## Panel detail armada
 
-Pilih armada untuk melihat:
+Pilih armada untuk pratinjau:
 
 - **Open Details** → `/logistics/details?id=…`
-- Tab: **Order details**, **Vehicle**, **Driver information**, **Customer information**
-- Peta **Delivery route · {fleet code}**, **Full screen map**
+- Ringkasan trip, kendaraan, pengemudi, dan pelanggan
+- **Peta rute logistik** (Mapbox) dengan stop dari alamat pesanan dan posisi pengemudi live saat app driver menyinkronkan GPS
+
+Halaman detail penuh mencakup detail pesanan, kendaraan, informasi pengemudi, dan pelanggan. **Full screen map** memperluas tampilan rute.
 
 ## Buat dan ubah armada
 
 Tab wizard:
 
-1. **Basic Info**
-2. **Vehicle**
-3. **Driver**
-4. **Order Selection**
+1. **Basic Info** — rute, status, ETA
+2. **Vehicle** — tipe kendaraan dan muatan
+3. **Driver** — pengemudi yang ditugaskan
+4. **Order Selection** — pasang pesanan ke trip
 
-**Back to Fleet List**, **Create Fleet** / **Save Changes** lewat modal **Trip Summary**.
+**Back to Fleet List**, lalu **Create Fleet** / **Save Changes** lewat modal **Trip Summary**. Validasi meminta **Complete required fields** jika data kurang.
 
-Validasi: **Complete required fields**.
+Ubah lewat `/logistics/details/edit?id=…` atau **Edit details** di halaman detail penuh.
 
-## Halaman detail penuh
+## Akses pengemudi
 
-**Trip Summary**, **Driver**, **Vehicle**, **Logistics Details**, peta rute, pelanggan.
-
-**Back to fleet list**, **Edit details**.
-
-## Aplikasi driver
-
-Driver dibuat oleh distributor. Mereka masuk ke aplikasi **Lakupak Driver** dengan kredensial yang Anda berikan.
+Pengemudi dibuat oleh distributor (bukan self-signup produksi). Mereka masuk ke aplikasi mobile **Lakupak Driver** dengan kredensial yang Anda terbitkan. Pembaruan armada dan stop dari app driver muncul di peta logistik saat sync lokasi aktif.
 
 ## Tautan terkait
 
 | Tujuan | Ke |
-|--------|-----|
+|------|--------|
 | Alamat dan status pesanan | [Pesanan](/id/docs/dashboard/orders) |
 | Opsi pengiriman | [Pengaturan](/id/docs/dashboard/settings) |
-| Widget logistik | [Beranda](/id/docs/dashboard/home) |

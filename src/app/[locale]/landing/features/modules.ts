@@ -4,10 +4,10 @@ import {
   Package,
   ShoppingCart,
   Tag,
-  BadgeDollarSign,
-  Store,
-  BarChart3,
-  Zap,
+  // BadgeDollarSign,
+  // Store,
+  // BarChart3,
+  // Zap,
   Sparkles,
 } from 'lucide-react';
 
@@ -52,21 +52,22 @@ export const FEATURE_MODULES: FeatureModuleDef[] = [
     slug: 'products',
     group: 'sell',
     icon: Package,
+    featured: true,
     surfaces: ['dashboard', 'marketplace'],
     pointsCount: 6,
     highlightsCount: 3,
   },
   { slug: 'orders', group: 'sell', icon: ShoppingCart, surfaces: ['dashboard', 'marketplace'], pointsCount: 3, highlightsCount: 3 },
   { slug: 'offers', group: 'sell', icon: Tag, surfaces: ['dashboard', 'marketplace'], pointsCount: 5, highlightsCount: 3 },
-  { slug: 'sales', group: 'grow', icon: BadgeDollarSign, featured: true, surfaces: ['dashboard'], pointsCount: 4, highlightsCount: 3 },
-  // Marketplace module page stays in the list for later validation. It is not featured and is hidden from navigation.
-  { slug: 'marketplace', group: 'grow', icon: Store, surfaces: ['dashboard', 'marketplace'], pointsCount: 4, highlightsCount: 3 },
-  { slug: 'analytics', group: 'grow', icon: BarChart3, surfaces: ['dashboard'], pointsCount: 4, highlightsCount: 3 },
-  { slug: 'automations', group: 'grow', icon: Zap, surfaces: ['dashboard'], pointsCount: 4, highlightsCount: 3 },
+  // MVP pause: restore when sales / marketplace / analytics / automations re-enter scope
+  // { slug: 'sales', group: 'grow', icon: BadgeDollarSign, featured: true, surfaces: ['dashboard'], pointsCount: 4, highlightsCount: 3 },
+  // { slug: 'marketplace', group: 'grow', icon: Store, surfaces: ['dashboard', 'marketplace'], pointsCount: 4, highlightsCount: 3 },
+  // { slug: 'analytics', group: 'grow', icon: BarChart3, surfaces: ['dashboard'], pointsCount: 4, highlightsCount: 3 },
+  // { slug: 'automations', group: 'grow', icon: Zap, surfaces: ['dashboard'], pointsCount: 4, highlightsCount: 3 },
   { slug: 'laku-ai', group: 'intelligence', icon: Sparkles, surfaces: ['dashboard'], pointsCount: 5, highlightsCount: 3 },
 ];
 
-export const FEATURE_MENU_GROUPS: FeatureMenuGroup[] = ['sell', 'grow', 'intelligence'];
+export const FEATURE_MENU_GROUPS: FeatureMenuGroup[] = ['sell', /* 'grow', */ 'intelligence'];
 
 export function getFeatureModule(slug: string): FeatureModuleDef | undefined {
   return FEATURE_MODULES.find((m) => m.slug === slug);

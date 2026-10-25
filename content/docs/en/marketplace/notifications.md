@@ -20,7 +20,7 @@ Non-order notifications with types such as **discount**, **promotion**, and **up
 
 ### Order updates block
 
-**Order updates** shows up to five recent order events with **View all** → **Order updates** full list (`/order-notifications`).
+**Order updates** shows up to five recent order events with **View all** ? **Order updates** full list (`/order-notifications`).
 
 Empty: **No orders available yet**.
 
@@ -36,13 +36,13 @@ Platform announcements from Lakupak.
 
 **Read all** marks items read. Swipe to **Remove from list**.
 
-Tap an item → announcement detail screen.
+Tap an item ? announcement detail screen.
 
 Realtime refresh uses platform announcement channels so new posts appear without restarting the app.
 
 ## Push notification settings
 
-Path: **Settings → Notification Settings** (`/settings/notifications`).
+Path: **Settings ? Notification Settings** (`/settings/notifications`).
 
 | Toggle | Controls |
 |--------|----------|

@@ -45,9 +45,8 @@ A controlled model matches how trade actually works:
 
 Lakupak combines:
 
-1. **Private operations** (Dashboard): stock, CRM, logistics, analytics
-2. **Buyer-facing storefront** (Marketplace): modern ordering experience
-3. **Execution** (Driver): proof and tracking on the last mile
+1. **Private operations** (Dashboard): stock, CRM, catalog, orders, offers
+2. **Buyer-facing storefront** (Marketplace): modern ordering for authorised retailers
 
 Distributors can use the operations side even as they grow marketplace adoption with their existing buyer base.
 
@@ -55,4 +54,4 @@ Distributors can use the operations side even as they grow marketplace adoption 
 
 - [Mission and story](/en/docs/about/mission-and-story)
 - [Trust, privacy, and data](/en/docs/platform/trust-and-data)
-- [Marketplace (admin)](/en/docs/dashboard/marketplace-admin) for storefront performance
+- [Marketplace overview](/en/docs/marketplace/overview)

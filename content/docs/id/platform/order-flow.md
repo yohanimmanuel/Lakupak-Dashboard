@@ -1,12 +1,12 @@
 ---
 title: Alur pesanan
-description: Perjalanan pesanan B2B dari listing hingga pengiriman.
+description: Perjalanan pesanan B2B dari listing hingga pemenuhan.
 section: Platform
 module: platform
 order: 51
 ---
 
-Halaman ini menjelaskan **alur bisnis** pesanan tipikal di Lakupak, sama di Dashboard, Marketplace, atau Driver.
+Halaman ini menjelaskan **alur bisnis** pesanan tipikal di Lakupak di Dashboard dan Marketplace.
 
 ## 1. Katalog dan publikasi
 
@@ -38,38 +38,29 @@ Di **Dashboard → Orders**:
 - Status **Packed**, **Shipped**, **Delivered**
 - Peta untuk pengiriman aktif
 
-Pembeli mendapat notifikasi saat status berubah.
+Pembeli menerima notifikasi saat status berubah.
 
-## 4. Logistik dan pengiriman
+## 4. Pembayaran dan penyelesaian
 
-Dengan logistik Lakupak:
+Aturan pembayaran mengikuti cara kerja distributor dengan tiap pembeli:
 
-- Buat **fleet** di **Dashboard → Logistics**
-- Tugaskan pesanan dan **driver**
-- Driver melihat rute di **Tasks** dan peta
-- **Start Delivery**, **Complete Delivery** dengan POD, atau **Report failure**
+- **Transfer bank** setelah pesanan
+- **COD** saat diterima
+- Pembeli bisa **Pay Order** di Marketplace selama belum dibayar
 
-## 5. Pembayaran dan selesai
+Saat pesanan mencapai **Delivered** (atau **Received**), riwayat hubungan diperbarui di **Clients**.
 
-Aturan pembayaran sesuai kesepakatan distributor-pembeli:
+## 5. Pengecualian
 
-- **Bank transfer** setelah pesanan
-- **COD** saat terima
-- **Pay Order** di Marketplace jika belum lunas
-
-Status **Delivered** / **Received** membuka ulasan; riwayat terupdate di **Clients** dan **Analytics**.
-
-## 6. Pengecualian
-
-| Situasi | Penanganan umum |
-|---------|-----------------|
-| Pembatalan pembeli | Sesuai kebijakan; stok bisa dikembalikan |
-| Pengiriman gagal | Driver laporkan; distributor hubungi pembeli |
-| Retur/refund | Permintaan pembeli; distributor selesaikan |
-| Pembeli ditangguhkan | Tidak bisa pesan baru hingga akses dipulihkan |
+| Situasi | Penanganan tipikal |
+|-----------|------------------|
+| Pembeli batalkan | Diizinkan selama kebijakan mengizinkan; stok bisa dikembalikan |
+| Masalah pengiriman | Distributor hubungi pembeli dan perbarui status |
+| Retur atau refund | Pembeli ajukan; distributor selesaikan per kebijakan |
+| Pembeli ditangguhkan | Tidak bisa pesan baru sampai akses dipulihkan |
 
 ## Dokumentasi terkait
 
 - [Pesanan Dashboard](/id/docs/dashboard/orders)
-- [Keranjang dan checkout](/id/docs/marketplace/cart-checkout)
-- [Pengiriman Driver](/id/docs/driver/deliveries)
+- [Keranjang dan checkout Marketplace](/id/docs/marketplace/cart-checkout)
+- [Pesanan Marketplace](/id/docs/marketplace/orders)

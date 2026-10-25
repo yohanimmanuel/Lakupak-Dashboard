@@ -31,13 +31,11 @@ Click **Drag widgets to rearrange** to open the **Widget Library**. From there y
 
 Your layout is saved per user in the browser, so the Home page remembers your choices on the next visit.
 
-Default widgets: Analytics Overview, Orders Pipeline, Product Performance, Inventory Alerts, Buyer Engagement, and Supplier Network. **Logistics Tracking** and **Sales Performance** are available in the library but off by default.
+Default widgets in the library today: Orders Pipeline, Product Performance, Inventory Alerts, Buyer Engagement, and Supplier Network.
+
+The **Sales Conversion Engine** widget (full-width opportunity cards) and analytics-oriented widgets are implemented in the product; they reappear in the Widget Library when those modules are enabled in the product menu. The full conversion table also lives on [Sales](/en/docs/dashboard/sales).
 
 ## Widget reference
-
-### Analytics Overview
-
-Revenue performance over time for the current year, including a trend chart and total revenue for the period. Use **Open analytics hub** to open full financial, sales, and operational reports.
 
 ### Orders Pipeline
 
@@ -77,25 +75,13 @@ Supplier health and purchasing:
 
 **Priority suppliers** lists up to three suppliers by fulfillment value. Use **Manage suppliers** under Clients.
 
-### Logistics Tracking (optional)
+### Sales Conversion Engine
 
-Delivery operations at a glance:
+Full-width widget (spans two columns on large screens) showing the **top urgent opportunities** as cards, drawn from the same Sales Conversion insights as the table on [Sales](/en/docs/dashboard/sales).
 
-- **Total shipments** (seller or distributor delivery method)
-- **Delivered** shipment count
-- **On-time delivery** percentage (when estimated dates are set)
-- **Average delivery time** in days
+Cards summarise buyer, opportunity type, urgency, why it matters, and a recommended action. Use it for a daily priority queue; open **Sales** for the full searchable table with timing and value filters.
 
-An **Active shipments map** plots in-progress orders (Pending, Confirmed, Packed, Shipped) by delivery address. Click a marker to open order details. Use **View logistics** or the Orders area for full fulfillment workflows.
-
-### Sales (optional)
-
-**Teams and people**
-
-- Team count, total agents, and active agents
-- Member count per team (top teams listed)
-
-Use **View sales** to manage the team.
+When this widget is enabled in the Widget Library, it can be added, removed, and reordered like other Home modules.
 
 ## When data looks empty
 
@@ -107,5 +93,4 @@ Widgets show friendly empty states until you have orders, products, or buyers. A
 |------|--------|
 | Full order list and fulfillment | [Orders](/en/docs/dashboard/orders) |
 | Catalog and stock | [Products](/en/docs/dashboard/products) |
-| Deep reports | [Analytics](/en/docs/dashboard/analytics) |
-| Fleets and drivers | [Logistics](/en/docs/dashboard/logistics) |
+| Buyer Marketplace | [Marketplace overview](/en/docs/marketplace/overview) |

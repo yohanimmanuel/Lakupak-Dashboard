@@ -6,7 +6,9 @@ module: dashboard
 order: 15
 ---
 
-**Client Rates & Offers** menetapkan tarif privat untuk satu retailer. Kartu produk di Marketplace selalu menampilkan harga dasar katalog. Tarif itu berlaku di pesanan pembelian retailer tersebut.
+**Client Rates & Offers** menetapkan tarif produk privat untuk satu retailer. Pakai ini saat memperkenalkan SKU yang kurang termanfaatkan atau melindungi syarat yang dinegosiasikan: setiap toko bisa punya persen, nominal tetap, atau Buy X Get Y sendiri tanpa mengubah harga dasar katalog yang dilihat toko lain.
+
+Tarif berlaku di pesanan pembelian retailer tersebut. Tarif penawaran produk per retailer dikelola dalam satu tabel: klien, produk atau varian, diskon, status, dan durasi.
 
 Jalur: `/offers`, `/offers/new`, `/offers/details?id={offerId}`.
 
@@ -111,4 +113,4 @@ Dua kontrol yang membuka harga itu:
 | Produk | [Produk](/id/docs/dashboard/products) |
 | Harga di pesanan pembelian | [Pesanan](/id/docs/dashboard/orders) |
 | Sakelar harga pembeli | [Pengaturan](/id/docs/dashboard/settings) |
-| Penjualan | [Penjualan](/id/docs/dashboard/sales) |
+| Marketplace pembeli | [Ringkasan Marketplace](/id/docs/marketplace/overview) |

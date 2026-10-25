@@ -6,9 +6,11 @@ module: dashboard
 order: 14
 ---
 
-**Orders Management** melacak pesanan marketplace B2B dan manual dari konfirmasi hingga pengiriman dan pembayaran.
+**Orders Management** melacak pesanan B2B dan manual dari konfirmasi hingga pengiriman dan pembayaran. Baris pesanan juga menjadi bukti penetrasi asortimen: produk mana yang sudah menjangkau retailer mana, dan di mana masih ada celah.
 
 Jalur: **Orders** (`/orders`). Detail: `/orders/details/{orderId}`.
+
+Saat membuat atau mengedit, **Customer Information** menyertakan pencarian klien (cari toko atau pemilik) agar retailer yang tepat bisa dilampirkan dengan cepat.
 
 ## Kartu ringkasan
 
@@ -99,5 +101,4 @@ Tidak ada impor pesanan dari layar ini.
 | Profil pembeli | [Klien](/id/docs/dashboard/clients) |
 | Tarif klien | [Penawaran](/id/docs/dashboard/offers) |
 | Sakelar harga pembeli | [Pengaturan](/id/docs/dashboard/settings) |
-| Armada | [Logistik](/id/docs/dashboard/logistics) |
-| Laporan pendapatan | [Analitik](/id/docs/dashboard/analytics) |
+| Marketplace pembeli | [Ringkasan Marketplace](/id/docs/marketplace/overview) |

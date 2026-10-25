@@ -6,7 +6,17 @@ module: dashboard
 order: 12
 ---
 
-The **Clients** area is your distributor CRM for retail buyers and upstream suppliers. It has a hub page plus two tools: **Buyers** and **Suppliers**.
+The **Clients** area is your distributor CRM for retail buyers and upstream suppliers. It is also the relationship foundation for portfolio intelligence: purchase history and retailer profiles help you judge which shops are suitable for which products.
+
+It has a hub page plus two tools: **Buyers** and **Suppliers**.
+
+## Why Clients matter for portfolio utilisation
+
+- Retailer records and order history show who already buys what
+- Status (Active, Inactive, Blocked) keeps matching focused on eligible shops
+- Product lines and spend patterns support next-best product–retailer matching as that intelligence ships
+
+Low penetration for a product across eligible buyers is a signal to investigate, not automatic demand.
 
 ## Clients hub
 
@@ -15,7 +25,7 @@ Open **Clients** in the sidebar to see:
 - **Tips** cards (dismissible) for adding buyers and managing suppliers, with optional detail modals.
 - **Tools** shortcuts to **Buyers** and **Suppliers**.
 
-Buyers who order from you on **Lakupak Marketplace** can be recorded automatically in the buyer list when they purchase from your storefront. You can also add buyers manually or import them in bulk.
+Add buyers manually or import them in bulk. When private marketplace ordering is enabled for your account, authorised retailer orders can also create or update buyer records automatically.
 
 ## Buyers
 

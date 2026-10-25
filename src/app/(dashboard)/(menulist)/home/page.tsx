@@ -20,9 +20,9 @@ import {
   X,
   Layers,
   Briefcase,
-  Megaphone,
-  Activity,
-  Target,
+  // Megaphone,
+  // Activity,
+  // Target,
   Loader2,
   MapPin,
 } from 'lucide-react';
@@ -74,16 +74,17 @@ interface WidgetDefinition {
 }
 
 const WIDGET_LIBRARY: WidgetDefinition[] = [
-  {
-    id: 'conversion',
-    defaultActive: true,
-    icon: Target,
-  },
-  {
-    id: 'analytics',
-    defaultActive: true,
-    icon: Activity,
-  },
+  // MVP pause: sales / analytics entry widgets
+  // {
+  //   id: 'conversion',
+  //   defaultActive: true,
+  //   icon: Target,
+  // },
+  // {
+  //   id: 'analytics',
+  //   defaultActive: true,
+  //   icon: Activity,
+  // },
   {
     id: 'orders',
     defaultActive: true,
@@ -109,16 +110,16 @@ const WIDGET_LIBRARY: WidgetDefinition[] = [
     defaultActive: true,
     icon: Building2,
   },
-  {
-    id: 'salesJobs',
-    defaultActive: false,
-    icon: Briefcase,
-  },
-  {
-    id: 'sales',
-    defaultActive: false,
-    icon: Megaphone,
-  },
+  // {
+  //   id: 'salesJobs',
+  //   defaultActive: false,
+  //   icon: Briefcase,
+  // },
+  // {
+  //   id: 'sales',
+  //   defaultActive: false,
+  //   icon: Megaphone,
+  // },
 ];
 
 const DEFAULT_WIDGET_ORDER: WidgetId[] = WIDGET_LIBRARY.filter(

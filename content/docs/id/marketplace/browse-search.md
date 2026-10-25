@@ -20,9 +20,9 @@ Ketuk **Search for products…** untuk pencarian penuh.
 
 | Bagian | Perilaku |
 |--------|----------|
-| **Special Offers** | Carousel; **See All**; ketuk banner → detail penawaran |
-| **Categories** | Chip kategori → search dengan filter |
-| **Featured Products** | Grid produk → `/product?productId=…` |
+| **Special Offers** | Carousel; **See All**; ketuk banner ? detail penawaran |
+| **Categories** | Chip kategori ? search dengan filter |
+| **Featured Products** | Grid produk ? `/product?productId=…` |
 
 Kosong: **No products available**. Akhir daftar: **Products displays reached the end.**
 

@@ -14,10 +14,7 @@ Lakupak dibangun untuk perdagangan grosir yang terpercaya. Halaman ini menjelask
 |------|-------------|----------------|
 | Distributor (Dashboard) | Registrasi di situs Lakupak | Profil perusahaan, katalog, pemenuhan, dukungan pembeli |
 | Pembeli (Marketplace) | Registrasi mandiri atau undangan distributor | Profil toko, pembayaran tepat waktu, retur wajar |
-| Driver (Driver) | Distributor di Logistik | Pengiriman aman, status jujur, bukti jika diminta |
 | Operasi platform | Staf Lakupak saja | Kesehatan jaringan, kebijakan, eskalasi dukungan |
-
-Driver **tidak** membuat kredensial produksi sendiri; distributor menerbitkan akses setelah verifikasi.
 
 ## Kepemilikan data
 
@@ -30,19 +27,18 @@ Intelijen kompetitif antar distributor **tidak** diekspos lewat aplikasi pembeli
 ## Fitur kepercayaan dan keamanan
 
 - Produk **Published vs Draft**
-- Jejak **status pesanan**
-- Foto **proof of delivery**
-- **Report failure** dan **return/refund** dengan alasan dan bukti
-- **Report distributor** untuk konten tidak pantas
+- Jejak **status pesanan** dari pemesanan hingga pemenuhan
+- Alur **return/refund** dengan alasan dan bukti
+- **Report distributor** untuk konten storefront yang tidak pantas
 - **Penangguhan akun** jika melanggar kebijakan
 
 ## Privasi dan legal
 
-Pengguna menerima **Security & Privacy** dan kebijakan terkait di setiap aplikasi.
+Pengguna menerima **Security & Privacy** dan kebijakan terkait di setiap aplikasi (Marketplace, registrasi Dashboard).
 
 Tautan in-app: **Help Center**, **Community Rules**, **Policies**.
 
-Jangan bagikan kata sandi atau OTP. Cabut akses driver saat personel keluar.
+Jangan bagikan kata sandi atau OTP.
 
 ## Dokumentasi terkait
 

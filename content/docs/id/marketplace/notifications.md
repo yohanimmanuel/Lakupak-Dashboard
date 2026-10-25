@@ -20,7 +20,7 @@ Notifikasi non-pesanan: tipe **discount**, **promotion**, **update**.
 
 ### Blok pembaruan pesanan
 
-**Order updates** menampilkan hingga lima event terbaru; **View all** → daftar lengkap `/order-notifications`.
+**Order updates** menampilkan hingga lima event terbaru; **View all** ? daftar lengkap `/order-notifications`.
 
 Kosong: **No orders available yet**.
 
@@ -40,7 +40,7 @@ Pembaruan realtime tanpa restart aplikasi.
 
 ## Pengaturan push
 
-Jalur: **Settings → Notification Settings** (`/settings/notifications`).
+Jalur: **Settings ? Notification Settings** (`/settings/notifications`).
 
 | Toggle | Mengatur |
 |--------|----------|

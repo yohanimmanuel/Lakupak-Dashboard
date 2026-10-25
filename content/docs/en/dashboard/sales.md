@@ -1,78 +1,151 @@
 ---
 title: Sales
-description: Sales hub, sales teams, agents, and jobs.
+description: Sales hub, conversion opportunities, teams, jobs, and buyer prospects.
 section: Dashboard
 module: dashboard
 order: 16
 ---
 
-The **Sales** hub is where you manage your sales team and sales jobs, with shortcuts to clients and offers.
+The **Sales** area turns product–retailer opportunities into field work: prioritise follow-ups, manage agents and teams, assign jobs, and capture new outlet prospects.
 
 Path: **Sales** (`/sales`).
 
-## Sales hub
+Product framing: use Sales so visits go beyond the same bestsellers, and so purchase history, quotations, and buyer interest become actionable jobs.
 
-**Tips** cards (dismissible) with detail modals:
+## Sales hub (`/sales`)
 
-| Tip | Action | Link |
-|-----|--------|------|
+### Tips
+
+Dismissible tip cards with detail modals:
+
+| Tip | Primary action | Goes to |
+|-----|----------------|---------|
 | **Invite New Customers** | **Invite customers** | Clients |
 | **Create Promotions** | **Create promotion** | Offers |
 | **Sales jobs** | **View jobs** | Jobs |
 
-**Tools** shortcuts:
+### Tools
 
-| Tool | Description |
-|------|-------------|
-| **Teams** | Manage sales team members and roles |
-| **Jobs** | Manage sales jobs for your team |
+| Tool | Route | Purpose |
+|------|-------|---------|
+| **Team** | `/sales/team` | Agents, roles, and teams |
+| **Jobs** | `/sales/jobs` | Field jobs for the sales team |
+| **Prospect** | `/sales/prospects` | Buyer prospects / new outlets |
 
-Sidebar shows **Team** and **Jobs**.
+### Sales Conversion table
 
-## Teams
+Below Tips, **Sales Conversion** lists open jobs and opportunities analysed across Sales, Orders, and Clients, sorted by priority.
 
-Path: `/sales/team`.
+**Summary chips:** Open opportunities, Overdue buyers, Quotes follow-up, Orders attributed.
 
-### Team list actions
+**Type tabs:** All | Reorder | Quotation | Buyer interest | Sales task
+
+**Filters:**
+
+- Search: **Search buyer, product, or sales rep…**
+- **Timing:** All timing | 30+ days | 14 to 29 days | 7 to 13 days | Under 7 days | No timing
+- **Value:** All values | Above / below currency thresholds | No value
+
+**Columns:** Rank | Buyer | Type | Urgency | Why it matters | Sales rep | Timing | Value | Action
+
+**Actions** deep-link to buyer detail, order detail, or **Jobs**. Pagination: **8 rows per page**.
+
+The same conversion insight family powers the optional **Sales Conversion Engine** widget on [Home](/en/docs/dashboard/home).
+
+## Teams (`/sales/team`)
+
+### List actions
 
 | Action | Purpose |
 |--------|---------|
 | **Refresh** | Reload agents and teams |
-| **Export Data** | XLSX: Name, Email, Phone, Role, Status, Territory, Team |
+| **Export Data** | XLSX export of agents |
 | **Add Agent** | Create a sales agent |
 
-### Agents and filters
+### Individuals and Teams tabs
 
-**Tabs:** **Individuals**, **Teams**.
+**Tabs:** **Individuals** | **Teams**
 
-**Search:** **Search agents...**
+**Search:** **Search agents…**
 
-**Filters:** **All Roles** plus dynamic roles; **All Status**, **Active**, **Inactive**.
+**Filters:** **All Roles** (Sales Manager, Sales Rep, Sales Support, Lead Gen, Account Manager, and others) | **All Status** | Active | Inactive
 
-**Roles** include Sales Manager, Sales Rep, Sales Support, Lead Gen, Account Manager.
+**Individuals columns:** NAME | PHONE | EMAIL | ROLE | STATUS | ACTIONS
 
-**Bulk:** **Remove Agent** / **Remove Selected** when rows are checked.
+**Bulk:** select rows, then **Remove Selected**.
 
-**Team modals:** **Create New Team**, **Edit Team** with **Create Team** / **Update Team**.
+**Teams:** expandable regions; **Create New Team** / **Edit Team** (team or region name, member multi-select).
 
-### Agent profile
+### Agent create, edit, and details
 
 Routes: `/sales/team/create`, `/sales/team/details?id=…`, `/sales/team/edit?id=…`.
 
 Create/edit tabs:
 
-- **Basic Profile**
-- **Favourite Products**
-- **Sales Reporting**
-- **Sales Target**
+| Tab | Contents |
+|-----|----------|
+| **Basic Profile** | Identity and contact |
+| **Favourite Products** | Products the agent prioritises |
+| **Daily Field Reports** | Field reporting setup |
+| **Sales Target** | Targets and progress |
 
-**Delete Agent** / **Delete Agents** confirmation modals.
+Details show targets, favourite products, field reports, and biography. Confirm before **Delete Agent**.
 
-## Jobs
+## Jobs (`/sales/jobs`)
 
-Path: `/sales/jobs`.
+**Actions:** **Export Data**, **Create new job** (`/sales/jobs/new`), edit (`/sales/jobs/edit`), delete (single or bulk).
 
-Use this page to manage sales jobs for your team, such as visits, follow-ups, and targets.
+**Stat cards:** Total jobs | Pending | Open | Completed
+
+**Status tabs:** All | Pending | Complete
+
+**Search:** **Search client or rep**
+
+**Filters:** **All types** | **All reps**
+
+**Table highlights:** clients, job type badges, rep, status, dates, reasons, **Created by** (**AI** or **Manager**), suggested products. Pagination groups jobs (5 groups per page).
+
+### Job types (create form)
+
+| Type | Purpose |
+|------|---------|
+| **Take order** | Capture an order at the outlet |
+| **Collect payment** | Collect payment from the buyer |
+| **Promote product** | Present specific products |
+| **Stock check** | Count stock **at the buyer's shop shelves** (not warehouse stock) |
+| **Pick up return** | Collect returns |
+| **Competitor check** | Record competitor intel |
+
+Additional type labels may appear from existing jobs (for example prospecting or activation). New outlets are added from **Prospect**, not as a substitute for the Prospect board.
+
+### Job statuses
+
+Pending, Suggested, Approved, Dispatched, In progress, Completed, Skipped. Older **approved** / **suggested** values display under Pending where the UI rolls them up.
+
+### Create or edit a job
+
+Form (`Create new job` / **Edit job**):
+
+- One or more job rows on the page
+- Sales rep assignment
+- Schedules and **Dates and WhatsApp reminders**
+- Clients and products (depending on type)
+
+**Stock check:** choose clients and the products to count at each buyer's shop. On completion, mark **Checked** and enter **Counted stock** per product (`stock_counts`). Multi-buyer stock jobs complete when every buyer row is done. An overdue or low-count signal is a reason to investigate, not automatic proof of demand.
+
+## Buyer Prospect (`/sales/prospects`)
+
+**Actions:** **Export Data**, **Create new prospect**, **Edit**, **Delete**, bulk delete.
+
+**Search:** **Search prospects**
+
+**Filter:** **All regions** plus region list
+
+**Columns:** Customer number | Name | Store name | Phone | Address | Region | Buyer type | Notes
+
+**Buyer types:** Warung, Kiosk, Minimarket, Restaurant, Hotel, Canteen, Other.
+
+**Create / edit** (`/sales/prospects/new`, `/sales/prospects/edit/[id]`): required prospect fields, plus **Ask AI** to open Lakupak AI for assisted fill (including map-oriented suggestions when available).
 
 ## Related areas
 
@@ -81,4 +154,4 @@ Use this page to manage sales jobs for your team, such as visits, follow-ups, an
 | Buyer records | [Clients](/en/docs/dashboard/clients) |
 | Product promotions | [Offers](/en/docs/dashboard/offers) |
 | Orders | [Orders](/en/docs/dashboard/orders) |
-| Home sales widget | [Home](/en/docs/dashboard/home) |
+| Home widgets | [Home](/en/docs/dashboard/home) |

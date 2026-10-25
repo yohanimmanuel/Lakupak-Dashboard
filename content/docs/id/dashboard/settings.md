@@ -13,8 +13,8 @@ order: 20
 | Tab | Fungsi |
 |-----|--------|
 | **General Info** | Profil pribadi |
-| **Distributor Operations** | Perusahaan, pengiriman, data marketplace |
-| **Features & Tours** | Ulang panduan interaktif |
+| **Distributor Operations** | Perusahaan, pengiriman, data storefront, kode referral bila dikonfigurasi |
+| **Features & Tours** | Ulang panduan interaktif untuk modul aktif |
 | **Team & Sales** | Tim penjualan dan wilayah |
 | **Language & Region** | Bahasa, wilayah, mata uang |
 | **Billing & Payment** | Rekening dan alamat penagihan |
@@ -39,7 +39,9 @@ Kontak: **Business Address**, **Business Phone**, **Business Email**.
 - **Preferred Delivery Time Slots**, **Preferred Delivery Days**
 - Lead time pengiriman default
 
-Nilai ini tampil di **Marketplace Dashboard** dan checkout pembeli.
+Nilai ini tampil di permukaan storefront dan checkout saat pemesanan marketplace privat diaktifkan untuk akun Anda.
+
+**Kode referral marketplace:** tetapkan kode unik yang dipakai pembeli saat login atau daftar Marketplace untuk bergabung ke storefront Anda. Kode harus unik antar distributor; validasi berjalan saat Anda menyimpan.
 
 **Show discounted price when buyers submit a PO**
 
@@ -49,11 +51,13 @@ Lihat [Penawaran](/id/docs/dashboard/offers) dan [Pesanan](/id/docs/dashboard/or
 
 ## Features & Tours
 
-Tur ulang: Dashboard overview, Products, Orders, Offers, Marketplace, Logistics.
+Ulang tur produk untuk modul MVP aktif, misalnya:
+
+- Dashboard overview, Products, Orders, Offers
 
 Status: **Completed**, **Skipped / closed**, **Not started**.
 
-**Start tour**, **Reset**.
+**Start tour**, **Reset** per modul.
 
 ## Team & Sales
 
@@ -65,7 +69,7 @@ Status: **Completed**, **Skipped / closed**, **Not started**.
 
 Modal **Add Sales Team Member** / **Edit Sales Team Member**.
 
-Terkait **Sales → Teams** untuk konfigurasi penjualan di tingkat akun.
+Terkait konfigurasi penjualan di tingkat akun.
 
 ## Language & Region
 
@@ -89,6 +93,6 @@ Jaga data perusahaan dan penagihan tetap mutakhir.
 
 | Tujuan | Ke |
 |--------|-----|
-| Lihat storefront | [Marketplace (admin)](/id/docs/dashboard/marketplace-admin) |
+| Marketplace pembeli | [Ringkasan Marketplace](/id/docs/marketplace/overview) |
 | Publikasi produk | [Produk](/id/docs/dashboard/products) |
-| Agen penjualan | [Penjualan](/id/docs/dashboard/sales) |
+| Tarif per retailer | [Penawaran](/id/docs/dashboard/offers) |

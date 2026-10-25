@@ -43,12 +43,11 @@ Model terkendali selaras dengan praktik lapangan:
 
 ## Platform operasi plus marketplace
 
-1. **Operasi privat** (Dashboard): stok, CRM, logistik, analitik
-2. **Storefront pembeli** (Marketplace): pengalaman pesan modern
-3. **Eksekusi** (Driver): bukti dan pelacakan last mile
+1. **Operasi privat** (Dashboard): stok, CRM, katalog, pesanan, penawaran
+2. **Storefront pembeli** (Marketplace): pengalaman pesan modern untuk retailer terotorisasi
 
 ## Dokumentasi terkait
 
 - [Misi dan cerita](/id/docs/about/mission-and-story)
 - [Kepercayaan dan data](/id/docs/platform/trust-and-data)
-- [Marketplace (admin)](/id/docs/dashboard/marketplace-admin)
+- [Ringkasan Marketplace](/id/docs/marketplace/overview)

@@ -31,10 +31,6 @@
           "title": "Siapa yang kami layani"
         },
         {
-          "slug": "about/controlled-marketplace",
-          "title": "Marketplace terkendali"
-        },
-        {
           "slug": "about/benefits-by-role",
           "title": "Manfaat per peran"
         },
@@ -73,22 +69,6 @@
           "title": "Penawaran"
         },
         {
-          "slug": "dashboard/sales",
-          "title": "Penjualan"
-        },
-        {
-          "slug": "dashboard/analytics",
-          "title": "Analitik"
-        },
-        {
-          "slug": "dashboard/marketplace-admin",
-          "title": "Marketplace (admin)"
-        },
-        {
-          "slug": "dashboard/logistics",
-          "title": "Logistik"
-        },
-        {
           "slug": "dashboard/settings",
           "title": "Pengaturan"
         }
@@ -103,12 +83,8 @@
           "title": "Ringkasan Marketplace"
         },
         {
-          "slug": "marketplace/account",
-          "title": "Akun"
-        },
-        {
           "slug": "marketplace/browse-search",
-          "title": "Jelajah dan cari"
+          "title": "Jelajah dan pencarian"
         },
         {
           "slug": "marketplace/cart-checkout",
@@ -120,45 +96,19 @@
         },
         {
           "slug": "marketplace/offers-following",
-          "title": "Penawaran dan following"
+          "title": "Penawaran dan mengikuti"
         },
         {
           "slug": "marketplace/notifications",
           "title": "Notifikasi"
         },
         {
+          "slug": "marketplace/account",
+          "title": "Akun"
+        },
+        {
           "slug": "marketplace/account-settings",
           "title": "Pengaturan akun"
-        }
-      ]
-    },
-    {
-      "id": "driver",
-      "title": "Driver",
-      "items": [
-        {
-          "slug": "driver/overview",
-          "title": "Ringkasan Driver"
-        },
-        {
-          "slug": "driver/login-access",
-          "title": "Login dan akses"
-        },
-        {
-          "slug": "driver/tasks",
-          "title": "Tugas"
-        },
-        {
-          "slug": "driver/deliveries",
-          "title": "Pengiriman"
-        },
-        {
-          "slug": "driver/location-realtime",
-          "title": "Lokasi dan realtime"
-        },
-        {
-          "slug": "driver/troubleshooting",
-          "title": "Pemecahan masalah"
         }
       ]
     },

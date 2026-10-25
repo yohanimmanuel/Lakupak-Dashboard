@@ -6,7 +6,17 @@ module: dashboard
 order: 12
 ---
 
-Area **Klien** adalah CRM distributor untuk pembeli ritel dan pemasok hulu. Ada halaman hub plus dua alat: **Pembeli (Buyers)** dan **Pemasok (Suppliers)**.
+Area **Klien** adalah CRM distributor untuk pembeli ritel dan pemasok hulu. Ini juga fondasi hubungan untuk intelijen portofolio: riwayat pembelian dan profil retailer membantu menilai toko mana yang cocok untuk produk mana.
+
+Ada halaman hub plus dua alat: **Pembeli (Buyers)** dan **Pemasok (Suppliers)**.
+
+## Mengapa Klien penting untuk pemanfaatan portofolio
+
+- Catatan retailer dan riwayat pesanan menunjukkan siapa yang sudah membeli apa
+- Status (Aktif, Tidak Aktif, Diblokir) menjaga pencocokan fokus pada toko yang layak
+- Pola produk dan belanja mendukung pencocokan next-best produk–retailer seiring intelijen itu diluncurkan
+
+Penetrasi rendah untuk sebuah produk di pembeli yang layak adalah sinyal untuk diselidiki, bukan permintaan otomatis.
 
 ## Hub Klien
 

@@ -1,59 +1,53 @@
 ---
 title: Misi dan cerita
-description: Mengapa Lakupak ada dan makna nama untuk grosir Indonesia.
+description: Mengapa Lakupak ada dan apa arti underutilisation portofolio bagi distribusi FMCG Indonesia.
 section: Tentang Lakupak
 module: about
 order: 1
 ---
 
-Lakupak hadir agar **barang bergerak lebih cepat** antara distributor dan ritel kecil di Indonesia, dengan gesekan lebih rendah dan kepercayaan lebih tinggi daripada saluran informal saja.
+Lakupak ada untuk membantu distributor FMCG independen di Indonesia **memanfaatkan lebih banyak portofolio produk** di retailer yang sudah mereka layani, dengan kepercayaan dan kendali komersial tetap utuh.
 
-## Arti "Lakupak"
+## Apa arti "Lakupak"
 
-Dalam bahasa Indonesia, *laku* menggambarkan produk yang laris, cepat berputar, dan sukses di pasar. Itu hasil yang diinginkan distributor dan retailer: stok bergerak, pesanan berulang, hubungan tumbuh.
+Dalam bahasa Indonesia, *laku* menggambarkan produk yang laris, berputar cepat, dan berhasil di pasar. Perdagangan bergerak ketika produk yang tepat sampai ke retailer yang tepat, dan ketika waktu penjualan yang terbatas dipakai pada peluang yang didukung bukti.
 
-Nama platform mengacu pada bahasa bisnis sehari-hari itu, bukan jargon teknologi.
+## Masalah yang kami jawab
 
-## Masalah yang kami tangani
+Distribusi grosir FMCG masih menghadapi masalah portofolio:
 
-Perdagangan grosir masih mengandalkan kebiasaan yang sulit diskalakan:
+- Ratusan SKU di ratusan retailer
+- Produk laris mendominasi pesanan berulang
+- Produk lain kurang menembus toko yang layak
+- Tim penjualan tidak bisa mengevaluasi setiap produk terhadap setiap retailer secara manual
+- Katalog, riwayat pembelian, penawaran, dan aktivitas penjualan tetap terfragmentasi
+- Kunjungan singkat, sehingga produk yang cocok tidak tersampaikan
 
-- Pesanan tersebar di **WhatsApp** dan catatan suara
-- Stok dan harga di **spreadsheet** yang mudah tidak sinkron
-- Sedikit visibilitas bersama dari **pesanan dibuat** hingga **terkirim**
-- Sales diminta mempromosikan 15 sampai 20 produk, dan hanya sedikit yang terjual
-- Retailer baru masih dicari di **Google**, **Google Maps**, **WhatsApp**, media sosial, dan lewat teman serta kerabat
-<!-- - Retailer menelepon banyak pemasok hanya untuk cek ketersediaan -->
-<!-- - Marketplace digital terbuka yang memicu **perang harga** dan melemahkan margin distributor -->
-
-Lakupak tidak menggantikan hubungan manusia antara distributor dan warung. Platform memberi tim penjualan **lapisan operasi bersama**: klien, produk, pesanan, dan pekerjaan hari itu. Ketika distributor menetapkan persona pelanggan, persyaratan, dan kriteria siapa yang ingin dihubungi, lapisan AI menemukan retailer yang cocok.
+Masalahnya bukan bahwa setiap produk harus lebih laku. Distributor kekurangan cara sistematis untuk membedakan peluang pertumbuhan nyata dari permintaan terbatas, mengidentifikasi retailer yang cocok, dan membuat interaksi penjualan terbatas lebih produktif.
 
 ## Misi kami
 
-Membantu tim penjualan distributor memutuskan siapa yang dihubungi, apa yang ditawarkan, kapan bertindak, dan bagaimana mengirim.
+Membantu distributor menghubungkan produk yang tepat dengan retailer yang tepat, membuat interaksi penjualan lebih produktif, dan mengubah data komersial menjadi peluang yang bisa ditindaklanjuti, tanpa mengorbankan kendali atau kepercayaan.
 
-Keberhasilan berarti:
+Keberhasilan terlihat seperti:
 
-- Lebih sedikit pesanan salah atau terlewat
-- Tiap sales tahu pekerjaan hari itu, bukan menjual dari ingatan
-- Prospek retailer yang sesuai kriteria distributor
-- Keputusan berbasis data, bukan tebakan
+- Gambaran lebih jelas tentang celah penetrasi asortimen
+- Peluang produk–retailer yang diprioritaskan berdasar bukti
+- Penggunaan waktu penjualan yang terbatas lebih produktif
+- Syarat komersial per retailer yang tetap privat
+- Pesanan dan hasil yang memperbaiki prioritas di masa depan
 
-## Apa itu Lakupak (dan bukan)
+## Apa itu Lakupak (dan apa yang bukan)
 
 | Lakupak adalah | Lakupak bukan |
-|-------------|------------|
-| **Platform perdagangan dan penjualan B2B** | Aplikasi belanja konsumen |
-| Operasi penjualan yang bisa diadopsi distributor sendiri | Alat yang hanya datang jika principal CPG menggelarnya |
-| Operasi, pekerjaan penjualan, dan pengiriman dalam satu cerita | Aplikasi chat dengan katalog tambahan |
-| Dibangun untuk kebiasaan grosir **Indonesia** | Template global generik |
+|---------|-------------|
+| **Platform perdagangan dan penjualan B2B berbasis AI** | Aplikasi belanja konsumen |
+| Dibangun untuk **distributor FMCG independen Indonesia** | Alat yang hanya datang jika principal CPG menggelarnya |
+| Intelijen portofolio plus fondasi operasional | Dorongan sembarangan setiap SKU ke setiap toko |
+| Data komersial di bawah kendali distributor | Marketplace perang harga terbuka |
 
-<!--
-| **Marketplace terkendali** per distributor | Pasar perbandingan harga terbuka |
--->
-
-## Dokumentasi terkait
+## Halaman terkait
 
 - [Siapa yang kami layani](/id/docs/about/who-we-serve)
-<!-- - [Marketplace terkendali](/id/docs/about/controlled-marketplace) -->
-- [Apa itu Lakupak?](/id/docs/introduction)
+- [Manfaat per peran](/id/docs/about/benefits-by-role)
+- [FAQ](/id/docs/about/faq)

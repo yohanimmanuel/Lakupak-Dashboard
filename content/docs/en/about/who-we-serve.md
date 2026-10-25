@@ -1,12 +1,12 @@
 ---
 title: Who we serve
-description: Distributors, retail buyers, and drivers in the Indonesian supply chain.
+description: Distributors and retail buyers in the Indonesian supply chain.
 section: About Lakupak
 module: about
 order: 2
 ---
 
-Lakupak sits in the **middle of the FMCG and general wholesale supply chain**, connecting the party that stocks and delivers with the small shops that sell to end consumers.
+Lakupak sits in the **middle of the FMCG and general wholesale supply chain**, connecting the party that stocks and supplies with the small shops that sell to end consumers.
 
 ## Distributors (FMCG and wholesalers)
 
@@ -28,19 +28,13 @@ They may be:
 ### What Lakupak helps with
 
 - Central **catalog** with variants, stock, and publish control
-- **Orders** pipeline from placement to delivery
+- **Orders** pipeline from placement to fulfillment
 - **Clients** (buyers and suppliers) with history in one place
 - **Offers** without manual price lists
-- **Logistics** and driver coordination
-- **Analytics** on sales, fulfillment, and inventory health
+- Thin outcome metrics in Clients, Products, Orders, and Lakupak AI
 
 Start: [Dashboard overview](/en/docs/dashboard/overview).
 
-## Sales teams
-
-Managers create jobs and assign each one to a sales rep. Reps record completion. For new coverage, the distributor sets a customer persona, the requirements, and the criteria for who they want to reach. The AI layer finds suitable retailers that match.
-
-<!--
 ## Retail buyers (warungs, kiosks, small shops)
 
 Typical users run **Lakupak Marketplace** on mobile.
@@ -60,44 +54,16 @@ They need:
 - **Follow** favorite distributors and see **offers**
 
 Start: [Marketplace overview](/en/docs/marketplace/overview).
--->
 
-## Fleet drivers
-
-Typical users run **Lakupak Driver** on mobile.
-
-They work for a **single distributor** (or contracted fleet) and execute assigned routes.
-
-### What Lakupak helps with
-
-- Daily **tasks** and route map
-- **Start Delivery** and **Complete Delivery** with proof photos
-- **Report failure** with reasons when a stop cannot be completed
-- Live location so buyers and ops see progress
-
-Start: [Driver overview](/en/docs/driver/overview).
-
-## How the three sides connect
+## How the sides connect
 
 ```text
-Distributor (Dashboard)  →  catalog, orders, sales jobs, prospecting
+Distributor (Dashboard)  →  clients, catalog, offers, orders, publish
         ↓
-Sales rep                →  the day's jobs and retailer visits
-        ↓
-Driver (Driver app)      →  delivers, confirms, reports issues
+Buyer (Marketplace)      →  discover, order, pay, track
 ```
 
-<!--
-```text
-Distributor (Dashboard)  →  publishes catalog, fulfills orders
-        ↓
-Buyer (Marketplace)    →  discovers, orders, pays, tracks
-        ↓
-Driver (Driver app)    →  delivers, confirms, reports issues
-```
--->
-
-All three see the **same order** at different stages. See [How orders flow](/en/docs/platform/order-flow).
+Both sides see the **same order** at different stages. See [How orders flow](/en/docs/platform/order-flow).
 
 ## Related documentation
 

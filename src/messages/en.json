@@ -1073,7 +1073,7 @@
   "docs": {
     "landing": {
       "title": "Documentation",
-      "subtitle": "Everything you need to use and maintain the Lakupak platform.",
+      "subtitle": "Guides for Lakupak Dashboard, Marketplace, and platform trust. Clients, products, orders, offers, and the private buyer storefront.",
       "searchPlaceholder": "Search the docs..."
     },
     "search": {

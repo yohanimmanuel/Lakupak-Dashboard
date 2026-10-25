@@ -4,7 +4,24 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { BadgePercentIcon, ChartBarIcon, ChevronDown, FileTextIcon, GiftIcon, HandshakeIcon, HomeIcon, ListIcon, PackageIcon, SettingsIcon, UsersIcon, X, DollarSign, TrendingUp, Activity, GlobeIcon, StoreIcon, BadgeDollarSign, ChartAreaIcon, CircleHelp, PanelLeftClose, PanelLeft, NetworkIcon } from 'lucide-react';
+import {
+  ChevronDown,
+  FileTextIcon,
+  GiftIcon,
+  HandshakeIcon,
+  HomeIcon,
+  ListIcon,
+  PackageIcon,
+  SettingsIcon,
+  X,
+  // StoreIcon,
+  // BadgeDollarSign,
+  // ChartAreaIcon,
+  // NetworkIcon,
+  CircleHelp,
+  PanelLeftClose,
+  PanelLeft,
+} from 'lucide-react';
 import { useMenuContext } from '@/app/(dashboard)/(menulist)/DashboardClientLayout';
 import { DashboardHelpModal } from '@/components/dashboard/DashboardHelpModal';
 import { PromoSidePanel } from '@/components/dashboard/PromoSidePanel';
@@ -62,39 +79,41 @@ const mainMenuItems = [
   { label: 'Products', href: '/products', icon: <PackageIcon className="w-5 h-5" /> },
   { label: 'Orders', href: '/orders', icon: <FileTextIcon className="w-5 h-5" /> },
   { label: 'Offers', href: '/offers', icon: <GiftIcon className="w-5 h-5" /> },
-  {
-    label: 'Sales',
-    href: '/sales',
-    icon: <BadgeDollarSign className="w-5 h-5" />,
-    submenu: [
-      { icon: <ListIcon className="w-5 h-5" />, label: 'Team', href: '/sales/team' },
-      { icon: <ListIcon className="w-5 h-5" />, label: 'Jobs', href: '/sales/jobs' },
-      { icon: <ListIcon className="w-5 h-5" />, label: 'Prospect', href: '/sales/prospects' },
-    ],
-  },
-  {
-    label: 'Analytics',
-    href: '/analytics',
-    icon: <ChartAreaIcon className="w-5 h-5" />,
-    submenu: [
-      { icon: <ListIcon className="w-5 h-5" />, label: 'Financial', href: '/analytics/financial' },
-      { icon: <ListIcon className="w-5 h-5" />, label: 'Sales', href: '/analytics/sales' },
-      { icon: <ListIcon className="w-5 h-5" />, label: 'Operational', href: '/analytics/performance' },
-    ],
-  },
+  // MVP pause: sales + analytics nav
+  // {
+  //   label: 'Sales',
+  //   href: '/sales',
+  //   icon: <BadgeDollarSign className="w-5 h-5" />,
+  //   submenu: [
+  //     { icon: <ListIcon className="w-5 h-5" />, label: 'Team', href: '/sales/team' },
+  //     { icon: <ListIcon className="w-5 h-5" />, label: 'Jobs', href: '/sales/jobs' },
+  //     { icon: <ListIcon className="w-5 h-5" />, label: 'Prospect', href: '/sales/prospects' },
+  //   ],
+  // },
+  // {
+  //   label: 'Analytics',
+  //   href: '/analytics',
+  //   icon: <ChartAreaIcon className="w-5 h-5" />,
+  //   submenu: [
+  //     { icon: <ListIcon className="w-5 h-5" />, label: 'Financial', href: '/analytics/financial' },
+  //     { icon: <ListIcon className="w-5 h-5" />, label: 'Sales', href: '/analytics/sales' },
+  //     { icon: <ListIcon className="w-5 h-5" />, label: 'Operational', href: '/analytics/performance' },
+  //   ],
+  // },
 ];
 
 const secondaryMenuItems = [
-  {
-    label: 'Automation',
-    icon: <NetworkIcon className="w-5 h-5" />,
-    href: '/automation',
-  },
-  {
-    label: 'Marketplace',
-    icon: <StoreIcon className="w-5 h-5" />,
-    href: '/marketplace',
-  },
+  // MVP pause: automation + marketplace nav
+  // {
+  //   label: 'Automation',
+  //   icon: <NetworkIcon className="w-5 h-5" />,
+  //   href: '/automation',
+  // },
+  // {
+  //   label: 'Marketplace',
+  //   icon: <StoreIcon className="w-5 h-5" />,
+  //   href: '/marketplace',
+  // },
   { label: 'Settings', href: '/settings', icon: <SettingsIcon className="w-5 h-5" /> },
 ];
 

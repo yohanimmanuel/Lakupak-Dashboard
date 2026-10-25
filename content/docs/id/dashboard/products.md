@@ -6,7 +6,9 @@ module: dashboard
 order: 13
 ---
 
-Area **Products** adalah katalog B2B Anda. Buat SKU dengan varian dan gambar, lacak stok per varian, dan publikasikan ke **Lakupak Marketplace** pembeli saat siap.
+Area **Products** adalah ruang kontrol katalog B2B. Buat SKU dengan varian dan gambar, lacak stok per varian, dan jaga produk yang kurang termanfaatkan tetap terlihat, berharga, dan berstok agar bisa diperkenalkan ke retailer yang cocok.
+
+Deteksi celah asortimen (misalnya heatmap under-penetration di retailer yang layak) berdiri di atas fondasi katalog ini. Penetrasi rendah adalah sinyal untuk diselidiki, bukan bukti permintaan yang belum terpenuhi.
 
 Jalur: **Products** (`/products`).
 
@@ -134,5 +136,5 @@ Tautan produk yang dihapus menampilkan **Product has been deleted** dengan **Go 
 |--------|-----|
 | Diskon katalog | [Penawaran](/id/docs/dashboard/offers) |
 | Pesanan | [Pesanan](/id/docs/dashboard/orders) |
-| Performa storefront | [Marketplace (admin)](/id/docs/dashboard/marketplace-admin) |
+| Marketplace pembeli | [Ringkasan Marketplace](/id/docs/marketplace/overview) |
 | Widget stok rendah | [Beranda](/id/docs/dashboard/home) |

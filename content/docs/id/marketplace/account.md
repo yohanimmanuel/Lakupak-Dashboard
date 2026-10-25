@@ -12,13 +12,9 @@ Tab **Account** dan alur autentikasi mengelola identitas pembeli, pintasan pembe
 
 Jalur: `/useraccounts/welcome`.
 
-**Login** membuka **Welcome Back** dengan **Your Email**, **Password**, **Forgot password?**, **Create Account**.
+**Login** membuka **Welcome Back** dengan **Your Email**, **Password**, **kode referral** distributor (saat diperlukan untuk membuka storefront), **Forgot password?**, dan **Create Account**.
 
-**Register** membuka wizard **Create Account** tiga langkah:
-
-1. **Full Name**, **Email Address** → **Continue**
-2. **Store Name**, **Bio (Optional)** → **Continue**
-3. **Username**, **Password**, **Confirm Password** → **Create Account**
+**Register** membuka wizard **Create Account** yang mengumpulkan field profil (nama, email, nama toko, username, kata sandi) dan **kode referral** distributor yang valid. Pendaftaran membutuhkan kode valid agar pembeli baru bergabung ke storefront privat distributor itu.
 
 Footer: persetujuan **Security and Privacy**.
 
@@ -38,7 +34,7 @@ Menu overflow: **Security & Privacy**, **Help Center**, **Close**.
 
 ### Lupa kata sandi
 
-**Forgot Password** → email → **Create new password** dengan **Verification Code**, **New Password**, **Confirm Password**, **Reset password**.
+**Forgot Password** ? email ? **Create new password** dengan **Verification Code**, **New Password**, **Confirm Password**, **Reset password**.
 
 ## Tab Account
 
@@ -46,7 +42,7 @@ Jalur: `/(tabs)/account`.
 
 **Belum login:** **Create an account to win first-order benefits!** dengan **Login** / **Sign Up**.
 
-**Sudah login:** baris profil → **Profile** dengan username dan alamat.
+**Sudah login:** baris profil ? **Profile** dengan username dan alamat.
 
 Badge **Start Distributing!** ke onboarding distributor.
 
@@ -59,7 +55,7 @@ Badge **Start Distributing!** ke onboarding distributor.
 | **To Receive** | Dalam pengiriman |
 | **To Rate** | Menunggu ulasan |
 
-**View Purchases History** → **My Purchases** lengkap.
+**View Purchases History** ? **My Purchases** lengkap.
 
 ### My Networks
 

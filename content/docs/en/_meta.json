@@ -31,10 +31,6 @@
           "title": "Who we serve"
         },
         {
-          "slug": "about/controlled-marketplace",
-          "title": "Controlled marketplace"
-        },
-        {
           "slug": "about/benefits-by-role",
           "title": "Benefits by role"
         },
@@ -73,22 +69,6 @@
           "title": "Offers"
         },
         {
-          "slug": "dashboard/sales",
-          "title": "Sales"
-        },
-        {
-          "slug": "dashboard/analytics",
-          "title": "Analytics"
-        },
-        {
-          "slug": "dashboard/marketplace-admin",
-          "title": "Marketplace (admin)"
-        },
-        {
-          "slug": "dashboard/logistics",
-          "title": "Logistics"
-        },
-        {
           "slug": "dashboard/settings",
           "title": "Settings"
         }
@@ -101,10 +81,6 @@
         {
           "slug": "marketplace/overview",
           "title": "Marketplace overview"
-        },
-        {
-          "slug": "marketplace/account",
-          "title": "Account"
         },
         {
           "slug": "marketplace/browse-search",
@@ -127,38 +103,12 @@
           "title": "Notifications"
         },
         {
+          "slug": "marketplace/account",
+          "title": "Account"
+        },
+        {
           "slug": "marketplace/account-settings",
           "title": "Account settings"
-        }
-      ]
-    },
-    {
-      "id": "driver",
-      "title": "Driver",
-      "items": [
-        {
-          "slug": "driver/overview",
-          "title": "Driver overview"
-        },
-        {
-          "slug": "driver/login-access",
-          "title": "Login and access"
-        },
-        {
-          "slug": "driver/tasks",
-          "title": "Tasks"
-        },
-        {
-          "slug": "driver/deliveries",
-          "title": "Deliveries"
-        },
-        {
-          "slug": "driver/location-realtime",
-          "title": "Location and realtime"
-        },
-        {
-          "slug": "driver/troubleshooting",
-          "title": "Troubleshooting"
         }
       ]
     },

@@ -6,9 +6,11 @@ module: dashboard
 order: 14
 ---
 
-**Orders Management** is where you track B2B marketplace and manual orders from confirmation through delivery and payment.
+**Orders Management** is where you track B2B and manual orders from confirmation through delivery and payment. Order lines are also the evidence base for assortment penetration: which products already reach which retailers, and where gaps remain.
 
 Path: **Orders** (`/orders`). Detail pages: `/orders/details/{orderId}`.
+
+On create or edit, **Customer Information** includes a client search (search by store or owner) so you can attach the correct retailer quickly.
 
 ## Summary cards
 
@@ -107,5 +109,4 @@ There is no order import from this screen.
 | Buyer profiles | [Clients](/en/docs/dashboard/clients) |
 | Client rates | [Offers](/en/docs/dashboard/offers) |
 | Buyer price toggle | [Settings](/en/docs/dashboard/settings) |
-| Fleet assignment | [Logistics](/en/docs/dashboard/logistics) |
-| Revenue reports | [Analytics](/en/docs/dashboard/analytics) |
+| Buyer Marketplace | [Marketplace overview](/en/docs/marketplace/overview) |

@@ -1,101 +1,93 @@
 ---
 title: Analitik
-description: Analitik keuangan, penjualan, dan operasional dengan ekspor.
+description: Analitik keuangan, pelanggan dan penjualan, serta operasional dengan rentang waktu dan ekspor.
 section: Dashboard
 module: dashboard
 order: 17
 ---
 
-**Analytics** menampilkan kinerja keuangan, pelanggan/penjualan, dan operasional distributor. Gunakan rentang waktu yang sama saat membandingkan grafik.
+**Analytics** menampilkan pandangan keuangan, pelanggan/penjualan, dan operasional bisnis distributor. Gunakan rentang waktu yang sama saat membandingkan grafik. Perlakukan pola sebagai sinyal untuk diselidiki (penetrasi, pembelian, pemenuhan), bukan bukti penyebab otomatis.
 
 Jalur:
 
-| Route | Halaman |
-|-------|---------|
+| Rute | Halaman |
+|-------|------|
 | `/analytics` | Analytics Dashboard (ringkasan) |
 | `/analytics/financial` | Financial Analytics |
 | `/analytics/sales` | Customer & Sales Analytics |
 | `/analytics/performance` | Operational Performance |
 
-Sidebar: **Analytics** → Financial, Sales, Operational.
+Struktur sidebar saat diaktifkan: **Analytics** → Financial, Sales, Operational.
 
-## Dashboard ringkasan
+## Kontrol bersama
 
-**Rentang waktu:** Last Month, Last 3 Months, Last 6 Months, Last Year.
+**Rentang waktu** (ringkasan dan semua subhalaman): **Per Month** | **Per Quarter** | **Per 6 Months** | **Per Year**
 
-**Metrik:** Total Sales, Revenue Collected, Pieces Sold, Order Completion Rate.
+Status kosong mengarahkan ke **Add Products** atau **Manage Orders** jika data katalog atau pesanan belum cukup.
 
-**Grafik:** Revenue Trend, Sales Trend (**See More**), Order Status Distribution, Processing Time Trend, Top Performing Products.
+Metrik dan grafik dihitung dari pesanan dan produk akun Anda (kueri dibatasi; katalog sangat besar mungkin tidak memuat setiap baris historis dalam satu muat).
 
-Katalog kosong: **Add Products** ke Produk.
+## Ringkasan (`/analytics`)
 
-## Analitik keuangan
+**Judul:** Analytics Dashboard
 
-### Metrik keuangan utama
+**Kartu metrik:** Order Volume | Pieces Sold | Order Completion Rate | Average Order Value (dengan perbandingan antarreiode).
 
-| Metrik | Arti |
-|--------|------|
-| **Total Sales** | Pendapatan periode |
-| **Total Profit** | Laba pesanan lunas |
-| **Profit Margin** | Margin |
-| **Average Order Value** | Nilai rata-rata pesanan |
+**Grafik:**
 
-Perbandingan vs bulan lalu.
+- **Revenue Trend** — volume pesanan dan profit
+- **Sales Trend** — pesanan dan unit (**See More** → Customer & Sales Analytics)
+- **Order Status Distribution** — pie status
+- **Processing Time Trend** — waktu proses rata-rata dan jumlah pesanan
 
-### Grafik keuangan
+**Tabel Top Performing Products** (lima teratas; **See More** → Financial Analytics).
+
+## Financial Analytics (`/analytics/financial`)
+
+**Aksi:** rentang waktu; **Export** (laporan HTML yang bisa dibuka di Word sebagai `.doc`).
+
+**Kartu metrik:** Order Volume | Total Profit | Profit Margin | Average Order Value
+
+**Bagian:**
 
 - **Revenue Trend**
 - **Revenue by Category**
-- **Cash Flow Trend**
-- **Revenue Forecast**
-- **Top Performing Products**
+- **Revenue Forecast** (butuh riwayat bulanan cukup, biasanya dua bulan atau lebih)
+- **Cash Flow Trend** — inflow, outflow, net flow
+- **Top Performing Products** — peringkat, produk, kategori, pieces, item gratis, volume, margin, profit; buka produk untuk detail varian
 
-**Export** laporan Word (`.doc`).
+## Customer & Sales Analytics (`/analytics/sales`)
 
-## Analitik pelanggan dan penjualan
+**Aksi:** rentang waktu; **Export** (laporan penjualan `.doc`).
 
-### Metrik penjualan utama
+**Kartu metrik:** Total Orders | Pieces Sold | Avg Pieces / Order | Avg Order Value
 
-| Metrik | Arti |
-|--------|------|
-| **Total Orders** | Jumlah pesanan |
-| **Pieces Sold** | Unit terjual |
-| **Avg Pieces / Order** | Unit per pesanan |
-| **Avg Order Value** | Nilai rata-rata |
+**Bagian:**
 
-### Grafik dan pelanggan teratas
+- **Sales Trend** — pesanan dan unit
+- **Units by Product Category** — filter **Product Category** atau **Product Type**
+- **Sales Trend Forecast** — bar historis plus forecast jika riwayat cukup
+- **Customer Acquisition** — relasi baru, churn, pertumbuhan bersih
+- **Top Customers** — avatar, Buyer ID (tautan), Name, Business Type, Orders, Order Volume
 
-- **Sales Trend** dan forecast
-- **Units by Product Category**
-- **Top Customers** (tautan ke detail pembeli)
+## Operational Performance (`/analytics/performance`)
 
-**Export** tersedia.
+**Aksi:** rentang waktu (tanpa tombol ekspor di halaman ini).
 
-## Kinerja operasional
+**Kartu metrik:** Order Completion Rate | Avg Processing Time | Tracking Coverage | Stock Health
 
-### Metrik operasional utama
-
-| Metrik | Arti |
-|--------|------|
-| **Order Completion Rate** | Pesanan Delivered |
-| **Avg Processing Time** | Hari pemenuhan |
-| **Tracking Coverage** | Pesanan berresi |
-| **Stock Health** | Kualitas stok katalog |
-
-### Grafik operasional
+**Bagian:**
 
 - **Order Status Distribution**
 - **Processing Time Trend**
 - **Inventory Health by Category**
-- **Operational Quality Metrics**, **Overall Quality Score**
+- **Operational Quality Metrics** — Order Acceptance Rate, Tracking Coverage, Data Completeness, Stock Health (dibanding target)
 - **Delivery Methods Distribution**
-
-Pesanan kosong: **Manage Orders**.
 
 ## Tautan terkait
 
 | Tujuan | Ke |
-|--------|-----|
-| Data sumber | [Pesanan](/id/docs/dashboard/orders), [Produk](/id/docs/dashboard/products) |
-| Widget beranda | [Beranda](/id/docs/dashboard/home) |
-| Metrik marketplace | [Marketplace (admin)](/id/docs/dashboard/marketplace-admin) |
+|------|--------|
+| Sumber pesanan dan katalog | [Pesanan](/id/docs/dashboard/orders), [Produk](/id/docs/dashboard/products) |
+| KPI dan widget Beranda | [Beranda](/id/docs/dashboard/home) |
+| Performa storefront | [Marketplace (admin)](/id/docs/dashboard/marketplace-admin) |

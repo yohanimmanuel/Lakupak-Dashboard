@@ -6,7 +6,9 @@ module: dashboard
 order: 13
 ---
 
-The **Products** area is your B2B catalog. You create SKUs with variants and images, track stock per variant, and publish items to the buyer **Lakupak Marketplace** when they are ready.
+The **Products** area is your B2B catalog control room. You create SKUs with variants and images, track stock per variant, and keep underused products visible, priced, and stocked so they can be introduced to suitable retailers.
+
+Assortment gap detection (for example heatmap views of under-penetration across eligible retailers) builds on this catalog foundation. Low penetration is a signal to investigate, not proof of unmet demand.
 
 Path: **Products** (`/products`).
 
@@ -109,14 +111,13 @@ Variants and prices may be **locked** when the product has an active offer. Rena
 
 Leaving edit with unsaved changes triggers a browser confirmation.
 
-## Marketplace publishing
+## Publishing readiness
 
 From the list (**Publish**) or form (**Save and Publish**):
 
-1. Open **Marketplace Preview** (single) or **Bulk Publish (N products)**
+1. Open **Marketplace Preview** (single) or **Bulk Publish (N products)** when storefront publishing is available on your plan
 2. Review readiness: SKU, name, description, type, brand, supplier, variant pricing, stock &gt; 0, at least one image
-3. Preview shows how the listing appears in the **Lakupak Marketplace App**
-4. Confirm **Publish**
+3. Confirm **Publish** only when readiness checks pass
 
 Incomplete products are listed under **Cannot Publish** with missing fields called out.
 
@@ -136,5 +137,4 @@ Opening a link to a removed product shows **Product has been deleted** with **Go
 |------|--------|
 | Discounts on catalog items | [Offers](/en/docs/dashboard/offers) |
 | Orders using SKUs | [Orders](/en/docs/dashboard/orders) |
-| Storefront performance | [Marketplace (admin)](/en/docs/dashboard/marketplace-admin) |
 | Low-stock widgets | [Home](/en/docs/dashboard/home) |

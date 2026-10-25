@@ -1,12 +1,12 @@
 ---
 title: Analytics
-description: Financial, sales, and operational analytics with export.
+description: Financial, customer and sales, and operational analytics with time ranges and export.
 section: Dashboard
 module: dashboard
 order: 17
 ---
 
-**Analytics** gives financial, customer/sales, and operational views of your distributor business. Use the same time range when comparing charts.
+**Analytics** gives financial, customer/sales, and operational views of your distributor business. Use the same time range when comparing charts. Treat patterns as signals to investigate (penetration, purchasing, fulfillment), not automatic proof of causation.
 
 Paths:
 
@@ -17,86 +17,77 @@ Paths:
 | `/analytics/sales` | Customer & Sales Analytics |
 | `/analytics/performance` | Operational Performance |
 
-Sidebar: **Analytics** → Financial, Sales, Operational.
+Sidebar structure when enabled: **Analytics** → Financial, Sales, Operational.
 
-## Overview dashboard
+## Shared controls
 
-**Time range:** Last Month, Last 3 Months, Last 6 Months, Last Year.
+**Time range** (overview and all subpages): **Per Month** | **Per Quarter** | **Per 6 Months** | **Per Year**
 
-**Metric row:** Total Sales, Revenue Collected, Pieces Sold, Order Completion Rate.
+Empty states guide you to **Add Products** or **Manage Orders** when there is not enough catalog or order data.
 
-**Charts:** Revenue Trend, Sales Trend (**See More** → sales page), Order Status Distribution, Processing Time Trend, Top Performing Products (**See More** → financial page).
+Metrics and charts are computed from your account orders and products (queries are capped; very large catalogs may not include every historical row in one load).
 
-Empty catalog: **Add Products** links to Products.
+## Overview (`/analytics`)
 
-## Financial analytics
+**Title:** Analytics Dashboard
 
-### Financial key metrics
+**Metric cards:** Order Volume | Pieces Sold | Order Completion Rate | Average Order Value (with period-over-period comparison).
 
-| Metric | Meaning |
-|--------|---------|
-| **Total Sales** | Revenue in period |
-| **Total Profit** | Profit on paid orders |
-| **Profit Margin** | Margin percentage |
-| **Average Order Value** | Mean order value |
+**Charts:**
 
-Each shows comparison vs last month.
+- **Revenue Trend** — order volume and profit over time
+- **Sales Trend** — orders and units (**See More** → Customer & Sales Analytics)
+- **Order Status Distribution** — pie of statuses
+- **Processing Time Trend** — average processing time and order counts
 
-### Financial charts
+**Top Performing Products** table (top five; **See More** → Financial Analytics).
 
-- **Revenue Trend** — Revenue (paid), Profit (paid)
-- **Revenue by Category** — filter Product Category or Product Type
-- **Cash Flow Trend** — Cash In, Cash Out, Net Flow
-- **Revenue Forecast**
-- **Top Performing Products**
+## Financial Analytics (`/analytics/financial`)
 
-**Export** generates a Word (`.doc`) financial report.
+**Actions:** time range; **Export** (HTML report you can open in Word as `.doc`).
 
-## Customer and sales analytics
+**Metric cards:** Order Volume | Total Profit | Profit Margin | Average Order Value
 
-### Sales key metrics
+**Sections:**
 
-| Metric | Meaning |
-|--------|---------|
-| **Total Orders** | Order count |
-| **Pieces Sold** | Units sold |
-| **Avg Pieces / Order** | Units per order |
-| **Avg Order Value** | Mean order value |
+- **Revenue Trend**
+- **Revenue by Category**
+- **Revenue Forecast** (needs enough monthly history, typically two or more months)
+- **Cash Flow Trend** — inflows, outflows, net flow
+- **Top Performing Products** — rank, product, category, pieces, free items, order volume, margin, profit; open a product for variant-level detail
 
-### Sales charts and customers
+## Customer & Sales Analytics (`/analytics/sales`)
 
-- **Sales Trend** and **Sales Trend & Forecast**
-- **Units by Product Category** (category or type filter)
-- Forecast: **Historical Orders**, **Forecast**
-- **Top Customers** table: Buyer, Name, Business Type, Orders, Total Value (links to buyer details)
+**Actions:** time range; **Export** (sales report `.doc`).
 
-**Export** available on this page.
+**Metric cards:** Total Orders | Pieces Sold | Avg Pieces / Order | Avg Order Value
 
-## Operational performance
+**Sections:**
 
-### Operational key metrics
+- **Sales Trend** — orders and units
+- **Units by Product Category** — filter **Product Category** or **Product Type**
+- **Sales Trend Forecast** — historical bars plus forecast when history is sufficient
+- **Customer Acquisition** — new relations, churned, net growth
+- **Top Customers** — avatar, Buyer ID (link), Name, Business Type, Orders, Order Volume
 
-| Metric | Meaning |
-|--------|---------|
-| **Order Completion Rate** | Delivered share |
-| **Avg Processing Time** | Days to fulfill |
-| **Tracking Coverage** | Orders with tracking |
-| **Stock Health** | Catalog stock quality |
+## Operational Performance (`/analytics/performance`)
 
-### Operational charts
+**Actions:** time range (no export button on this page).
+
+**Metric cards:** Order Completion Rate | Avg Processing Time | Tracking Coverage | Stock Health
+
+**Sections:**
 
 - **Order Status Distribution**
 - **Processing Time Trend**
-- **Inventory Health by Category** — In-stock, Low Stock, Out of Stock
-- **Operational Quality Metrics** and **Overall Quality Score**
+- **Inventory Health by Category**
+- **Operational Quality Metrics** — Order Acceptance Rate, Tracking Coverage, Data Completeness, Stock Health (shown against targets)
 - **Delivery Methods Distribution**
-
-Empty orders: **Manage Orders** → Orders.
 
 ## Related areas
 
 | Goal | Go to |
 |------|--------|
-| Source data | [Orders](/en/docs/dashboard/orders), [Products](/en/docs/dashboard/products) |
-| Home widget | [Home](/en/docs/dashboard/home) |
-| Marketplace metrics | [Marketplace (admin)](/en/docs/dashboard/marketplace-admin) |
+| Source orders and catalog | [Orders](/en/docs/dashboard/orders), [Products](/en/docs/dashboard/products) |
+| Home KPIs and widgets | [Home](/en/docs/dashboard/home) |
+| Storefront performance | [Marketplace (admin)](/en/docs/dashboard/marketplace-admin) |

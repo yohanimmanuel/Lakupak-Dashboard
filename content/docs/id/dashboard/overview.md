@@ -1,104 +1,70 @@
 ---
 title: Ringkasan Dashboard
-description: Masuk, navigasi, tata letak, tur, dan peta modul Dashboard distributor.
+description: Masuk, navigasi, tata letak, dan peta modul Dashboard distributor.
 section: Dashboard
 module: dashboard
 order: 10
 ---
 
-**Lakupak Dashboard** adalah pusat kendali web untuk distributor. Kelola katalog, klien B2B, pesanan, promosi, analitik, storefront marketplace, logistik, dan pengaturan akun dalam satu workspace setelah masuk.
-
-Jalur: route di bawah `/home`, `/clients`, `/products`, dan modul lain di sidebar.
+**Lakupak Dashboard** adalah pusat kontrol web untuk distributor. Fokusnya adalah fondasi operasional untuk pemanfaatan portofolio: klien, katalog, pesanan, penawaran per retailer, dan pengaturan, plus Lakupak AI untuk analisis di chat.
 
 ## Masuk dan registrasi
 
 | Langkah | Tindakan |
-|---------|----------|
+|------|--------|
 | Distributor baru | Daftar di situs Lakupak lewat **Get Started**, lalu masuk |
-| Pengguna lama | **Login** dengan email dan kata sandi |
-| Setelah masuk | Diarahkan ke **Beranda** jika sesi valid |
+| Pengguna kembali | **Login** dengan email dan kata sandi |
+| Setelah login | Anda masuk ke **Beranda** jika sesi valid |
 
-Jika sesi habis, Anda diarahkan ke halaman login. Jaga **Pengaturan → Security & Password** untuk tim Anda.
+Jika sesi berakhir, Anda diarahkan ke halaman login. Jaga **Settings → Security & Password** tetap mutakhir untuk tim.
 
 ## Tata letak dan navigasi
 
-Dashboard memakai **sidebar** persisten (bisa dilipat di desktop, drawer di mobile) dan **navbar** atas dengan pencarian dan akun.
+Dashboard memakai **sidebar** persisten (bisa dilipat di desktop, drawer di mobile) dan **navbar** atas dengan pencarian dan Lakupak AI.
 
 ### Menu utama
 
-| Item | Route | Fungsi |
-|------|-------|--------|
-| **Home** | `/home` | KPI, widget kustom, ringkasan bisnis |
-| **Clients** | `/clients` | Hub **Buyers** dan **Suppliers** |
-| **Products** | `/products` | Katalog, stok, publish ke Marketplace |
-| **Orders** | `/orders` | Daftar pesanan B2B, peta, pemenuhan |
-| **Offers** | `/offers` | Diskon dan promosi |
-| **Penjualan** | `/sales` | Hub **Tim** dan **Pekerjaan** |
-| **Analytics** | `/analytics` | Hub **Financial**, **Sales**, **Operational** |
+| Item | Rute | Yang Anda lakukan |
+|------|-------|-------------------|
+| **Home** | `/home` | KPI dan widget yang bisa disesuaikan |
+| **Clients** | `/clients` | Hub CRM **Buyers** dan **Suppliers** |
+| **Products** | `/products` | Katalog, stok, varian, kesiapan |
+| **Orders** | `/orders` | Daftar pesanan, peta, pemenuhan |
+| **Offers** | `/offers` | Tarif produk dan promosi per retailer |
 
 ### Menu sekunder
 
-| Item | Route | Fungsi |
-|------|-------|--------|
-<!-- | **Marketplace** | `/marketplace` | Performa storefront (bukan aplikasi pembeli) | -->
-| **Logistics** | `/logistics` | Armada, driver, pelacakan |
+| Item | Rute | Yang Anda lakukan |
+|------|-------|-------------------|
 | **Settings** | `/settings` | Profil, perusahaan, penagihan, keamanan, tur |
 
-Submenu di **Clients**, **Penjualan**, dan **Analytics** untuk halaman di atas.
+## Setup minggu pertama yang disarankan
 
-## Setup minggu pertama (disarankan)
-
-### Perusahaan dan storefront
-
-1. **Settings → Distributor Operations** — nama, logo, alamat, opsi pengiriman (terlihat pembeli di Marketplace).
-2. **Settings → General Info** — profil pengguna.
-
-### Katalog dan pembeli
-
-3. **Products** — tambah SKU, varian, gambar; **Publish** saat siap.
-4. **Clients → Buyers** — tinjau pembeli marketplace atau impor data.
-5. **Marketplace** — cek jumlah published dan metrik storefront.
-
-### Pemenuhan
-
-6. **Orders** — proses pesanan masuk; perbarui status hingga terkirim.
-7. **Logistics** — buat akun driver dan **Add Fleet & Driver**.
-8. Bagikan kredensial **Lakupak Driver** (driver tidak daftar sendiri).
-
-### Pertumbuhan (opsional)
-
-9. **Offers**: atur tarif privat untuk tiap retailer. Katalog tetap pada harga dasar.
-10. **Penjualan → Tim** — kelola agen, peran, dan pekerjaan.
-11. **Analytics** — laporan setelah ada riwayat pesanan.
+1. **Settings → Distributor Operations** — nama perusahaan, logo, alamat, opsi pengiriman, lead time, dan pengaturan referral marketplace bila dikonfigurasi.
+2. **Clients → Buyers** — muat atau buat catatan retailer.
+3. **Products** — tambah SKU, varian, gambar, harga, dan stok; publikasikan saat siap untuk Marketplace.
+4. **Offers** — tetapkan tarif privat untuk retailer dan produk tertentu.
+5. **Orders** — proses pesanan Marketplace masuk dan pesanan manual hingga pemenuhan.
 
 ## Tur produk dan onboarding
 
-**Settings → Features & Tours** memutar ulang panduan untuk: Dashboard overview, Products, Orders, Offers, Marketplace, Logistics.
+**Settings → Features & Tours** mengulang panduan interaktif untuk modul aktif seperti Dashboard overview, Products, Orders, dan Offers.
 
-Prompt tur selamat datang bisa muncul saat login pertama. Pakai tur saat onboarding staf baru.
+## Lakupak AI
 
-## Hubungan dengan aplikasi lain
-
-| Tindakan Dashboard | Pembeli (Marketplace) | Driver (Driver) |
-|--------------------|------------------------|-----------------|
-| Publish produk | Listing di toko Anda | — |
-| Konfirmasi / kirim pesanan | Status dan notifikasi | Tugas di peta rute |
-| Tugaskan armada | Pelacakan jika dikonfigurasi | **Tasks** harian |
-| Ubah pengiriman perusahaan | Opsi checkout | — |
-
-Lihat [Alur pesanan](/id/docs/platform/order-flow).
+Buka Lakupak AI dari kontrol sparkles di bilah atas. AI menganalisis konteks akun Anda (pesanan, pembeli, produk, penawaran) di chat. Jawaban tetap di percakapan; AI tidak mengarahkan Anda ke halaman dashboard lain.
 
 ## Dokumentasi modul
 
 | Topik | Panduan |
-|-------|---------|
-| Widget beranda | [Beranda](/id/docs/dashboard/home) |
+|-------|--------|
+| Widget Beranda | [Beranda](/id/docs/dashboard/home) |
 | Pembeli dan pemasok | [Klien](/id/docs/dashboard/clients) |
 | Katalog | [Produk](/id/docs/dashboard/products) |
-| Pemenuhan | [Pesanan](/id/docs/dashboard/orders), [Logistik](/id/docs/dashboard/logistics) |
-| Promosi | [Penawaran](/id/docs/dashboard/offers) |
-| Metrik storefront | [Marketplace (admin)](/id/docs/dashboard/marketplace-admin) |
+| Pemenuhan | [Pesanan](/id/docs/dashboard/orders) |
+| Tarif per retailer | [Penawaran](/id/docs/dashboard/offers) |
 | Akun | [Pengaturan](/id/docs/dashboard/settings) |
+| Aplikasi pembeli | [Ringkasan Marketplace](/id/docs/marketplace/overview) |
 
 ## Dokumentasi terkait
 

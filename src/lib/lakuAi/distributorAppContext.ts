@@ -354,31 +354,32 @@ export const LAKU_APP_MODULES = [
     path: '/offers',
     role: 'Create and manage product offers / discounts for buyers.',
   },
-  {
-    id: 'sales',
-    path: '/sales',
-    role: 'Sales team, jobs, field reports, and sales targets.',
-  },
-  {
-    id: 'analytics',
-    path: '/analytics',
-    role: 'Sales, financial, and operational performance reports.',
-  },
+  // MVP pause: do not expose these as navigable module paths to the assistant
+  // {
+  //   id: 'sales',
+  //   path: '/sales',
+  //   role: 'Sales team, jobs, field reports, and sales targets.',
+  // },
+  // {
+  //   id: 'analytics',
+  //   path: '/analytics',
+  //   role: 'Sales, financial, and operational performance reports.',
+  // },
   {
     id: 'copilot',
     path: '/home',
-    role: 'Lakupak AI sticky chat for analysis, orders, buyers, products, sales reminders, retailer prospects, and workflow drafts. Open it from the sparkles control in the top bar. Saved workflows are listed at /automation. Creating or editing a workflow opens the canvas, where a draft is reviewed before it is saved or activated.',
+    role: 'Lakupak AI sticky chat for analysis, orders, buyers, products, and catalog/offer guidance. Open it from the sparkles control in the top bar.',
   },
-  {
-    id: 'automation',
-    path: '/automation',
-    role: 'Saved workflow list. Open a workflow to review the canvas. WhatsApp and Gmail only. Sales agent replies on the distributor WhatsApp number are filed onto the open sales job when the facts are clear. Missing facts are asked back to the agent, not the admin.',
-  },
-  {
-    id: 'marketplace',
-    path: '/marketplace',
-    role: 'Storefront listings and marketplace visibility / performance.',
-  },
+  // {
+  //   id: 'automation',
+  //   path: '/automation',
+  //   role: 'Saved workflow list. Open a workflow to review the canvas.',
+  // },
+  // {
+  //   id: 'marketplace',
+  //   path: '/marketplace',
+  //   role: 'Storefront listings and marketplace visibility / performance.',
+  // },
   {
     id: 'logistics',
     path: '/logistics',
@@ -958,7 +959,7 @@ export async function buildDistributorAppAssistantContext(userId: number): Promi
     purpose: 'distributor_dashboard_assistant',
     audience: 'logged_in_distributor',
     analysisCapability:
-      'Use analyticsWindows, marketplace, topProducts30d, catalogInsights, and offers to answer financial/trend/catalog/discount questions with concrete numbers. Do not only redirect to /analytics or /offers.',
+      'Use analyticsWindows, marketplace, topProducts30d, catalogInsights, and offers to answer financial/trend/catalog/discount questions with concrete numbers. Give the full assessment in-chat. Never redirect the user to another page or path.',
     pricingSemantics: [
       'Judge margins by product type using marginAssessment / marginBenchmark (FMCG F&B typical ~5-10%; beauty/fashion/technology often 15%+; general merchandise 10%+).',
       'pricingMode=discount_already_in_current_price means the current unit price already includes the discount - do not apply the offer percentage/fixed amount again.',
@@ -969,8 +970,10 @@ export async function buildDistributorAppAssistantContext(userId: number): Promi
       'Speak in business language only: product names, prices, margins, offer names, categories.',
       'Never mention database field names, JSON keys, schema, pricingMode flags, or internal implementation rules in the reply.',
       'Never explain how Lakupak stores discounts; just give the assessment and recommendations.',
+      'Never mention dashboard paths, routes, URLs, or tell the user to open another screen.',
     ],
-    modules: LAKU_APP_MODULES,
+    // Capability overview only. Paths intentionally omitted so the model does not suggest navigation.
+    modules: LAKU_APP_MODULES.map(({ id, role }) => ({ id, role })),
     account: {
       userId: user?.id,
       name: [user?.firstName, user?.lastName].filter(Boolean).join(' ') || null,
@@ -1004,12 +1007,13 @@ export async function buildDistributorAppAssistantContext(userId: number): Promi
       publishedListings: publishedProductCount,
       unpublishedOrNotListed: notPublishedCount,
       publishRatePct: pct(publishedProductCount, productCount),
-      path: '/marketplace',
-      analyticsPath: '/analytics',
+      // MVP pause: do not hand the model storefront/analytics paths to suggest
+      // path: '/marketplace',
+      // analyticsPath: '/analytics',
     },
     topProducts30d,
     offers: {
-      path: '/offers',
+      // path omitted so the model is less likely to suggest /offers navigation
       sampleSize: offers.length,
       sampleNote:
         offerCount > offers.length

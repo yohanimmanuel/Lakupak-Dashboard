@@ -1,51 +1,46 @@
 ---
 title: Ekosistem Lakupak
-description: Cara Dashboard, Marketplace, dan Driver bekerja sama untuk distribusi B2B.
+description: Bagaimana Dashboard dan Marketplace bekerja bersama untuk distribusi B2B.
 section: Platform
 module: platform
 order: 50
 ---
 
-Lakupak adalah satu **platform operasi perdagangan B2B** dengan tiga pengalaman untuk peran berbeda. Data bisnis (katalog, pesanan, pelanggan, pengiriman) terhubung sehingga semua pihak melihat gambaran yang sama.
+Lakupak adalah **platform perdagangan dan penjualan B2B berbasis AI** dengan pengalaman untuk peran berbeda. Mereka berbagi data komersial (katalog, pesanan, pelanggan) agar tim melihat gambaran yang konsisten tanpa entri ganda.
 
-## Tiga pengalaman
+## Pengalaman
 
-| Pengalaman | Pengguna | Tugas utama |
-|------------|----------|-------------|
-| **Lakupak Dashboard** (web) | Tim distributor | Menjalankan bisnis: katalog, klien, pesanan, penawaran, analitik, logistik |
-| **Lakupak Marketplace** (mobile) | Pembeli ritel (warung, kios, toko kecil) | Temukan produk, pesan grosir, bayar, lacak pengiriman |
-| **Lakupak Driver** (mobile) | Driver armada | Jalankan rute, perbarui status, bukti serah |
+| Pengalaman | Siapa yang memakai | Tugas utama |
+|------------|-------------|-------------|
+| **Lakupak Dashboard** (web) | Tim distributor | Menjalankan klien, katalog, pesanan, penawaran, dan pengaturan; menganalisis bisnis dengan Lakupak AI |
+| **Lakupak Marketplace** (seluler) | Pembeli ritel terotorisasi | Menemukan produk, memesan grosir, melacak pengiriman |
 
-## Model marketplace terkendali
+## Model pemanfaatan portofolio
 
-Lakupak bukan marketplace terbuka yang hanya bersaing harga.
+Lakupak dibangun di sekitar underutilisasi portofolio produk dan penetrasi asortimen rendah bagi distributor FMCG independen Indonesia:
 
-- Setiap distributor mengelola **storefront** dan hubungan pelanggan sendiri
-- Pembeli hanya melihat produk yang **dipublikasikan**
-- Harga, promosi, dan daftar pembeli tetap di bawah kendali distributor
-- Operator platform fokus pada kepercayaan, keamanan, dan kualitas jaringan
+- Jaga operasi komersial tetap terhubung agar celah penetrasi bisa diselidiki
+- Prioritaskan peluang produk–retailer yang cocok dengan bukti
+- Lindungi harga dan hubungan per retailer
+- Perlakukan penetrasi rendah sebagai sinyal untuk diselidiki, bukan permintaan yang dijamin
 
 ## Apa yang menghubungkan aplikasi
 
-Alur bisnis yang sama:
+1. Distributor mengelola katalog, klien, dan penawaran di Dashboard
+2. Distributor mempublikasikan produk untuk etalase privat
+3. Pembeli terotorisasi menemukan dan memesan di Marketplace
+4. Pesanan masuk ke Dashboard untuk pemenuhan dan pembaruan status
+5. Pembeli melacak progres di Marketplace
 
-1. Distributor **mempublikasikan** produk di Dashboard
-2. Pembeli **memesan** di Marketplace
-3. Pesanan muncul di Dashboard untuk pemenuhan
-4. Distributor menugaskan **armada dan driver**
-5. Driver **mengirim** dan mengonfirmasi di aplikasi Driver
-6. Pembeli **melacak** di Marketplace; distributor memantau di Dashboard
-
-## Siapa membaca dokumentasi mana
+## Siapa membaca dokumen mana
 
 | Peran | Mulai di sini |
-|-------|----------------|
+|------|------------|
 | Staf distributor | [Ringkasan Dashboard](/id/docs/dashboard/overview) |
 | Pembeli ritel | [Ringkasan Marketplace](/id/docs/marketplace/overview) |
-| Pengemudi | [Ringkasan Driver](/id/docs/driver/overview) |
-| Baru mengenal Lakupak | [Apa itu Lakupak?](/id/docs/introduction) |
+| Siapa pun yang baru ke Lakupak | [Apa itu Lakupak?](/id/docs/introduction) |
 
 ## Dokumentasi terkait
 
 - [Alur pesanan](/id/docs/platform/order-flow)
-- [Kepercayaan dan data](/id/docs/platform/trust-and-data)
+- [Kepercayaan, privasi, dan data](/id/docs/platform/trust-and-data)

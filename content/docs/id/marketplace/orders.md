@@ -31,7 +31,7 @@ Kosong: **No Orders Yet**.
 
 Tamu: **Create an account to win first-order benefits!**
 
-Ketuk baris → **Order Details**.
+Ketuk baris ? **Order Details**.
 
 ## My Purchases
 
@@ -72,15 +72,15 @@ Headline status misalnya **Your Order is Shipped**, **Your Order is Delivered**.
 
 ### Batal dan retur
 
-**Cancel Order:** alasan (**Changed my mind**, dll.) → **Cancel order**.
+**Cancel Order:** alasan (**Changed my mind**, dll.) ? **Cancel order**.
 
-**Return / Refund:** alasan (**Wrong item received**, dll.); foto bukti opsional → **Submit request**.
+**Return / Refund:** alasan (**Wrong item received**, dll.); foto bukti opsional ? **Submit request**.
 
 **Return & Refund Info** menjelaskan kebijakan.
 
 ### Invoice dan pengiriman
 
-**Invoice** → **View & download**.
+**Invoice** ? **View & download**.
 
 **Delivery Information:** **Delivery Progress**, **Delivery Timeline**, peta **Distributor Location**.
 

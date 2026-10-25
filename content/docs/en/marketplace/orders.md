@@ -31,7 +31,7 @@ Empty: **No Orders Yet** with tips to browse products.
 
 Guests: **Create an account to win first-order benefits!**
 
-Tap a row → **Order Details** (`/components/ordersshipment/OrderDetails?orderId=…`).
+Tap a row ? **Order Details** (`/components/ordersshipment/OrderDetails?orderId=…`).
 
 ## My Purchases
 
@@ -72,15 +72,15 @@ Status headlines include **Your Order is Shipped**, **Your Order is Delivered**,
 
 ### Cancel and return
 
-**Cancel Order:** pick a reason (**Changed my mind**, **Found a better price**, **Other reason**, and more) → **Cancel order**.
+**Cancel Order:** pick a reason (**Changed my mind**, **Found a better price**, **Other reason**, and more) ? **Cancel order**.
 
-**Return / Refund:** reasons such as **Wrong item received**, **Defective or damaged**; optional evidence photos → **Submit request**.
+**Return / Refund:** reasons such as **Wrong item received**, **Defective or damaged**; optional evidence photos ? **Submit request**.
 
 **Return & Refund Info** explains policy before submitting.
 
 ### Invoice and delivery
 
-**Order ID Information:** **Invoice** → **View & download** (PDF modal).
+**Order ID Information:** **Invoice** ? **View & download** (PDF modal).
 
 **Delivery Information:** **Delivery Progress**, **Delivery Timeline**, map **Distributor Location**.
 

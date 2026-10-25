@@ -13,7 +13,6 @@ Gunakan halaman ini saat membutuhkan bantuan operasional harian di Lakupak.
 | Peran | Kontak pertama |
 |-------|----------------|
 | Pembeli | **Distributor** yang dipesan (**Contact Seller** atau WhatsApp dari produk) |
-| Driver | Kontak **logistik/operasi distributor** |
 | Distributor | **Dukungan Lakupak** untuk masalah platform; tangani pertanyaan pembeli di pihak Anda |
 
 ## Bantuan in-app
@@ -21,7 +20,6 @@ Gunakan halaman ini saat membutuhkan bantuan operasional harian di Lakupak.
 | Aplikasi | Lokasi |
 |----------|--------|
 | Marketplace | **Settings → Help Center**, **Community Rules**, **Policies** |
-| Driver | **Account → Help & Support** |
 | Dashboard | **Settings → Features & Tours** |
 
 Layar login juga menaut ke **Help Center** dan **Security & Privacy**.
@@ -30,44 +28,43 @@ Layar login juga menaut ke **Help Center** dan **Security & Privacy**.
 
 ### Pesanan dan pembayaran
 
-| Masalah | Langkah |
-|---------|---------|
+| Masalah | Apa yang dilakukan |
+|-------|------------|
 | Pesanan belum dibayar | Pembeli: **Pay Order** atau konfirmasi transfer ke distributor |
-| Alamat salah | Edit sebelum kirim jika diizinkan; atau hubungi distributor |
-| Barang kurang | **Return/Refund** atau hubungi penjual |
-| Tidak bisa batalkan | Cek status; aturan tergantung tahap pemenuhan |
+| Alamat kirim salah | Pembeli: edit sebelum kirim jika diizinkan; jika tidak, hubungi distributor |
+| Barang kurang | Pembeli: **Return/Refund** atau hubungi seller |
+| Tidak bisa batalkan | Cek status; aturan pembatalan bergantung tahap pemenuhan |
 
-### Pengiriman
+### Pemenuhan dan pelacakan
 
-| Masalah | Langkah |
-|---------|---------|
-| Pelacakan tidak berubah | Driver perbarui status; pembeli refresh Orders |
-| Gagal kirim | **Report failure**; distributor jadwalkan ulang/refund |
-| Driver tidak bisa login | Konfirmasi kredensial distributor (**Request access** jika baru) |
+| Masalah | Apa yang dilakukan |
+|-------|------------|
+| Pelacakan tidak berubah | Distributor perbarui status di Dashboard; pembeli refresh **Orders** |
+| Masalah pengiriman | Distributor hubungi pembeli dan perbarui status atau refund per kebijakan |
 
 ### Katalog dan marketplace
 
-| Masalah | Langkah |
-|---------|---------|
-| Produk tidak tampil | Distributor: publish dan lengkapi field wajib |
-| Penawaran tidak muncul | Cek **Active**, tanggal, produk terhubung |
-| Pembeli ditangguhkan | Distributor atau dukungan Lakupak |
+| Masalah | Apa yang dilakukan |
+|-------|------------|
+| Produk tidak terlihat | Distributor: publish produk dan lengkapi field wajib |
+| Offer tidak muncul | Pastikan **Active**, tanggal valid, produk terhubung |
+| Pembeli ditangguhkan | Distributor atau dukungan Lakupak selesaikan status akun |
 
-### Masalah aplikasi
+### Masalah app
 
-| Masalah | Langkah |
-|---------|---------|
-| Lambat atau daftar kosong | Cek internet; tarik refresh; logout/login |
-| Notifikasi hilang | Aktifkan di Settings aplikasi dan perangkat |
-| Bahasa salah | **Language Settings** |
+| Masalah | Apa yang dilakukan |
+|-------|------------|
+| App lambat atau daftar kosong | Cek internet; tarik refresh; logout lalu login |
+| Notifikasi hilang | Aktifkan notifikasi di Settings app dan perangkat |
+| Bahasa salah | **Language Settings** di Marketplace atau Dashboard |
 
-Masalah teknis berkelanjutan: **support@laku.com** dengan peran, nama aplikasi, deskripsi singkat (tanpa kata sandi).
+Untuk masalah teknis yang berlanjut, hubungi **support@laku.com** dengan peran, nama app, dan deskripsi singkat (jangan bagikan kata sandi).
 
 ## Status sistem
 
-Tautan **System Status** di footer situs Lakupak untuk pemeliharaan atau gangguan.
+Cek tautan **System Status** di footer situs Lakupak untuk pemeliharaan atau gangguan.
 
 ## Dokumentasi terkait
 
-- [Pemecahan masalah Driver](/id/docs/driver/troubleshooting)
 - [Memulai](/id/docs/getting-started)
+- [Ringkasan Marketplace](/id/docs/marketplace/overview)

@@ -12,18 +12,16 @@ Halaman **Beranda** adalah pusat kendali setelah Anda masuk. Halaman ini memuat 
 
 Empat kartu ringkasan berada di atas grid widget (nilai dihitung dari seluruh riwayat pesanan, bukan hanya data yang terlihat di satu widget):
 
-| Kartu | Isi |
-|------|-----|
-| **Total Penjualan** | Total pendapatan dari semua pesanan |
-| **Pendapatan Tertagih** | Pendapatan dari pesanan yang sudah dibayar |
-| **Total Pesanan** | Jumlah pesanan di sistem |
-| **Pieces Terjual** | Total unit terjual dari pesanan |
+| Kartu | Yang ditampilkan |
+|------|----------------|
+| **Total Sales** | Total pendapatan dari semua pesanan |
+| **Revenue Collected** | Pendapatan dari pesanan berbayar (total sales dikurangi pending) |
+| **Active Orders** | Pesanan yang belum selesai |
+| **Total Clients** | Jumlah pembeli |
 
-Gunakan kartu ini untuk membaca volume penjualan dan penagihan sebelum membuka widget detail.
+## Widget Library
 
-## Sesuaikan tata letak
-
-Klik **Drag widgets to rearrange** (atau kontrol serupa di antarmuka) untuk membuka **Widget Library**. Dari sana Anda dapat:
+Buka **Widget Library** untuk:
 
 - **Menyeret** widget di dashboard untuk mengubah urutan (grid dua kolom di layar lebar).
 - **Menambah** atau **Menghapus** widget lewat tombol di setiap kartu perpustakaan.
@@ -31,13 +29,11 @@ Klik **Drag widgets to rearrange** (atau kontrol serupa di antarmuka) untuk memb
 
 Tata letak disimpan per pengguna di browser, sehingga pilihan Anda tetap ada saat login berikutnya.
 
-Widget bawaan: Analytics Overview, Orders Pipeline, Product Performance, Inventory Alerts, Buyer Engagement, dan Supplier Network. **Logistics Tracking** dan **Sales Performance** tersedia di perpustakaan tetapi tidak aktif secara default.
+Widget bawaan di perpustakaan hari ini: Orders Pipeline, Product Performance, Inventory Alerts, Buyer Engagement, dan Supplier Network.
+
+Widget **Sales Conversion Engine** (kartu peluang lebar penuh) dan widget berorientasi analitik sudah diimplementasikan di produk; mereka muncul lagi di Widget Library saat modul terkait diaktifkan di menu produk. Tabel konversi penuh juga ada di [Penjualan](/id/docs/dashboard/sales).
 
 ## Referensi widget
-
-### Analytics Overview (Ringkasan analitik)
-
-Kinerja pendapatan dari waktu ke waktu untuk tahun berjalan, termasuk grafik tren dan total pendapatan. Gunakan **Open analytics hub** untuk laporan keuangan, penjualan, dan operasional lengkap.
 
 ### Orders Pipeline (Alur pesanan)
 
@@ -77,25 +73,13 @@ Kesehatan pemasok dan pengadaan:
 
 **Priority suppliers** menampilkan hingga tiga pemasok berdasarkan nilai pemenuhan. Gunakan **Manage suppliers** di menu Klien.
 
-### Logistics Tracking (opsional)
+### Sales Conversion Engine
 
-Operasional pengiriman:
+Widget lebar penuh (dua kolom di layar lebar) menampilkan **peluang paling mendesak** sebagai kartu, dari insight Sales Conversion yang sama dengan tabel di [Penjualan](/id/docs/dashboard/sales).
 
-- **Total shipments** (metode seller atau distributor delivery)
-- Jumlah yang **Delivered**
-- Persentase **on-time delivery** (jika tanggal estimasi diisi)
-- **Rata-rata waktu pengiriman** dalam hari
+Kartu merangkum pembeli, tipe peluang, urgensi, mengapa penting, dan aksi yang disarankan. Pakai sebagai antrean prioritas harian; buka **Sales** untuk tabel penuh dengan filter timing dan value.
 
-**Active shipments map** menampilkan pesanan berjalan (Pending, Confirmed, Packed, Shipped) berdasarkan alamat kirim. Klik penanda untuk membuka detail pesanan. Gunakan **View logistics** atau area Pesanan untuk alur pemenuhan lengkap.
-
-### Penjualan (opsional)
-
-**Tim dan orang**
-
-- Jumlah tim, total agen, dan agen aktif
-- Jumlah anggota per tim (tim teratas ditampilkan)
-
-Gunakan **Lihat penjualan** untuk mengelola tim.
+Saat widget ini diaktifkan di Widget Library, Anda bisa menambah, menghapus, dan mengurutkannya seperti modul Beranda lain.
 
 ## Jika data masih kosong
 
@@ -107,5 +91,4 @@ Widget menampilkan status kosong hingga ada pesanan, produk, atau pembeli. Setel
 |--------|------|
 | Daftar pesanan dan pemenuhan | [Pesanan](/id/docs/dashboard/orders) |
 | Katalog dan stok | [Produk](/id/docs/dashboard/products) |
-| Laporan mendalam | [Analitik](/id/docs/dashboard/analytics) |
-| Armada dan pengemudi | [Logistik](/id/docs/dashboard/logistics) |
+| Marketplace pembeli | [Ringkasan Marketplace](/id/docs/marketplace/overview) |

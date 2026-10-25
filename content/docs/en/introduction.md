@@ -1,45 +1,64 @@
 ---
 title: What is Lakupak?
-description: A B2B commerce operating platform that modernizes wholesale trade between distributors and small retailers in Indonesia.
+description: An AI-native B2B commerce and sales platform that helps Indonesian FMCG distributors utilise their product portfolios across the right retailers.
 section: Overview
 module: overview
 order: 1
 ---
 
-**Lakupak** is a digital platform designed to modernize wholesale trade in Indonesia by connecting distributors and small retailers within one trusted ecosystem. In Indonesian, *"laku"* means something that sells well, moves quickly, and succeeds in the market. That meaning reflects the platform's mission: helping goods move faster, transactions happen more smoothly, and businesses grow sustainably through technology.
+**Lakupak** is an AI-native B2B commerce and sales platform for independent FMCG distributors in Indonesia. In Indonesian, *"laku"* means something that sells well, moves quickly, and succeeds in the market. That meaning reflects the platform's mission: help distributors connect the right products with the right retailers, make sales interactions more productive, and turn commercial data into actionable opportunities.
 
-At its core, Lakupak gives distributors a private operating platform for products, inventory, orders, customers, and the sales team. Many still depend on WhatsApp, spreadsheets, and informal ordering. Lakupak replaces those fragmented workflows with a dashboard for daily work, so a manager can assign each rep the day's jobs and the team can record what was pitched, sampled, checked, or collected.
+## The problem Lakupak focuses on
 
-When coverage has to grow, the distributor sets a customer persona, the requirements, and the criteria for who they want to reach. The AI layer finds suitable retailers that match. Distributors already do this by hand on Google, Google Maps, WhatsApp, social media, and through friends and relatives.
+Independent distributors often manage hundreds of products across hundreds of retailers. Bestsellers dominate repeat orders, while other potentially valuable products reach only a small share of eligible shops.
 
-<!--
-Second, Lakupak works as a B2B marketplace for warungs, kiosks, small shops, and independent retailers. Buyers can discover products and place wholesale orders without manually contacting many suppliers. The goal is not to disrupt distributor relationships but to strengthen them through simpler, faster, and more reliable procurement.
+That creates four linked challenges:
 
-Unlike open marketplaces that often fuel price wars, Lakupak is a **controlled marketplace**. Distributors keep ownership of pricing, customer relationships, and operational control. The platform facilitates transactions and digital workflows without exposing sensitive competitive information or forcing unhealthy competition.
--->
+- **Limited product penetration** across the retailer network
+- **Limited opportunity visibility** for sales teams
+- **Fragmented commercial data** across chats, spreadsheets, and separate tools
+- **Inefficient sales time**, so suitable products go unpresented
 
-Lakupak also connects delivery. Distributors assign orders to drivers, monitor progress, and update statuses in one system, from the job through final delivery. This structured data becomes the foundation for smarter analytics and automation over time.
+Low penetration is a signal to investigate, not proof of demand. A product may be unsuitable, mispriced, out of stock, or unpopular. Lakupak helps distinguish genuine opportunities from noise.
 
-In essence, Lakupak is a **B2B commerce and sales platform** for independent FMCG distributors in Indonesia. It is built so a sales team knows who to reach, what to offer, when to act, and how to deliver.
+## How Lakupak helps
 
-## What Lakupak includes
+Lakupak connects distributor operations, sales intelligence, and private B2B commerce:
 
-- **Lakupak Dashboard**: web app for distributors to manage catalog, orders, clients, sales jobs, logistics, and analytics.
-<!-- - **Lakupak Marketplace**: mobile app for buyers to browse, order in bulk, and track deliveries. -->
-- **Lakupak Driver**: mobile app for fleet drivers to execute deliveries and update status.
+1. **Unify** retailer relationships, catalog, inventory, orders, offers, and sales activity
+2. **Identify** assortment gaps and product–retailer combinations worth investigating
+3. **Prioritise** opportunities using purchase history, suitability, pricing, and stock
+4. **Activate** focused follow-ups and product introductions
+5. **Convert** through a private, authorised buyer Marketplace
+6. **Learn** from exposure, responses, orders, and repeat purchases
+
+Recommendations stay grounded in available data. They are estimates, not guaranteed demand.
+
+## Scope in this documentation
+
+The guides in the sidebar cover the modules enabled in the product UI today:
+
+- **Dashboard**: Clients, Products, Orders, Offers, Home, Settings
+- **Marketplace**: private buyer app for authorised retailers
+- **Platform**: ecosystem, order flow, trust, and support
+
+Additional Dashboard guides (Sales, Analytics, Automations, Marketplace admin, Logistics) describe the **current built behaviour** of those modules. They stay out of the sidebar until the matching product menu entries are enabled again; when they are, the docs are already up to date.
+
+## What Lakupak includes today
+
+- **Lakupak Dashboard**: web app for distributors to manage clients, catalog, orders, per-retailer offers, and settings, with Lakupak AI for in-chat business analysis
+- **Lakupak Marketplace**: private buyer app for authorised retailers to browse, order, and track purchases from distributors they already trust
 
 ## Learn more about Lakupak
 
-- [Mission and story](/en/docs/about/mission-and-story) — why we built Lakupak and what the name means
-- [Who we serve](/en/docs/about/who-we-serve) — distributors, warungs, and drivers
-<!-- - [Controlled marketplace](/en/docs/about/controlled-marketplace) — how Lakupak protects distributor relationships -->
-- [FAQ](/en/docs/about/faq) — common business questions
+- [Mission and story](/en/docs/about/mission-and-story)
+- [Who we serve](/en/docs/about/who-we-serve)
+- [FAQ](/en/docs/about/faq)
 
 ## Who should read this documentation
 
 | Role | Start here |
 |------|------------|
 | Distributor staff | [Dashboard overview](/en/docs/dashboard/overview) |
-<!-- | Retail buyer | [Marketplace overview](/en/docs/marketplace/overview) | -->
-| Driver | [Driver overview](/en/docs/driver/overview) |
+| Retail buyer | [Marketplace overview](/en/docs/marketplace/overview) |
 | How the apps connect | [Lakupak ecosystem](/en/docs/platform/ecosystem) |

@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { ArrowUp, AlertCircle, Boxes, EllipsisVertical, History, Loader2, PanelLeftClose, Pencil, Pin, Plus, ShoppingBag, Sparkles, Trash2, TrendingUp, X } from 'lucide-react';
+import { ArrowUp, AlertCircle, /* Boxes, */ EllipsisVertical, History, Loader2, PanelLeftClose, Pencil, Pin, Plus, ShoppingBag, Sparkles, Trash2, TrendingUp, Users, X } from 'lucide-react';
 import {
   copilotRecipeById,
   type CopilotRecipe,
@@ -23,13 +23,16 @@ import {
 } from '@/lib/salesJobs/prospectFormFill';
 import Link from 'next/link';
 
-const PILL_IDS = ['margins', 'orders', 'buyers', 'products', 'winback'] as const;
+// MVP pause: omit automate pills (e.g. winback) from empty-state shortcuts
+const PILL_IDS = ['margins', 'orders', 'buyers', 'products' /* , 'winback' */] as const;
 const DOCK_PILL_IDS = ['margins', 'orders', 'buyers'] as const;
 
 const CARDS = [
   { id: 'margins', kind: 'ask', icon: TrendingUp },
   { id: 'orders', kind: 'ask', icon: ShoppingBag },
-  { id: 'restock', kind: 'automate', icon: Boxes },
+  // MVP pause: automation starter card
+  // { id: 'restock', kind: 'automate', icon: Boxes },
+  { id: 'buyers', kind: 'ask', icon: Users },
 ] as const;
 
 type ChatLine = {
@@ -1118,8 +1121,9 @@ export default function AutomationCopilot({
                     : line.prospectFill
                       ? [line.prospectFill]
                       : extractProspectFillsFromReply(line.text).prospectFills;
-                const showWorkflowAction = Boolean(line.edit || line.plan?.length || workflow);
-                const showProspectActions = prospectActions.length > 0;
+                // MVP pause: hide automation canvas + sales prospect action buttons (logic still runs)
+                const showWorkflowAction = false; // Boolean(line.edit || line.plan?.length || workflow);
+                const showProspectActions = false; // prospectActions.length > 0;
                 return (
                   <div key={line.id} className="flex justify-start">
                     <div className="max-w-[85%] rounded-2xl border border-[#e6e6e6] bg-white px-4 py-3">

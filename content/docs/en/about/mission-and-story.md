@@ -1,59 +1,53 @@
 ---
 title: Mission and story
-description: Why Lakupak exists and what the name represents for Indonesian wholesale.
+description: Why Lakupak exists and what portfolio underutilisation means for Indonesian FMCG distribution.
 section: About Lakupak
 module: about
 order: 1
 ---
 
-Lakupak exists to help **goods move faster** between distributors and small retailers in Indonesia, with less friction and more trust than informal channels alone can provide.
+Lakupak exists to help independent FMCG distributors in Indonesia **utilise more of their product portfolios** across the retailers they already serve, with trust and commercial control intact.
 
 ## What "Lakupak" means
 
-In Indonesian, *laku* describes products that sell well, turn over quickly, and succeed in the market. That is the outcome distributors and retailers both want: inventory that moves, orders that repeat, and relationships that grow.
-
-The platform is named after that everyday business language, not after abstract technology jargon.
+In Indonesian, *laku* describes products that sell well, turn over quickly, and succeed in the market. Trade moves when the right products reach the right retailers, and when scarce sales time is spent on opportunities supported by evidence.
 
 ## The problem we address
 
-Wholesale trade still runs on habits that do not scale:
+Wholesale FMCG distribution still runs into a portfolio problem:
 
-- Orders scattered across **WhatsApp** chats and voice notes
-- Stock and pricing tracked in **spreadsheets** with version drift
-- Little shared visibility from **order placed** to **delivered**
-- Sales reps are told to promote 15 to 20 products, and only a few of them get sold
-- New retailers are still found on **Google**, **Google Maps**, **WhatsApp**, social media, and through friends and relatives
-<!-- - Retailers calling many suppliers just to compare availability -->
-<!-- - Open digital marketplaces that push **price wars** and weaken distributor margins -->
+- Hundreds of SKUs across hundreds of retailers
+- Bestsellers dominate repeat orders
+- Other products under-penetrate eligible shops
+- Sales teams cannot evaluate every product against every retailer by hand
+- Catalog, purchase history, offers, and sales activity stay fragmented
+- Visits stay brief, so suitable products go unpresented
 
-Lakupak does not try to replace the human relationship between distributor and warung. It gives the sales team a **shared operating layer**: clients, products, orders, and the day's jobs. When the distributor sets a customer persona, the requirements, and the criteria for who they want to reach, the AI layer finds suitable retailers that match.
+The problem is not that every product must sell more. Distributors lack a systematic way to distinguish genuine growth opportunities from limited demand, identify suitable retailers, and make limited sales interactions more productive.
 
 ## Our mission
 
-Help a distributor's sales team decide who to reach, what to offer, when to act, and how to deliver.
+Help distributors connect the right products with the right retailers, make sales interactions more productive, and turn commercial data into actionable opportunities, without compromising control or trust.
 
 Success looks like:
 
-- Fewer missed or wrong orders
-- Each rep knows the day's jobs, instead of pitching from memory
-- Prospect retailers that match the distributor's criteria
-- Data-backed decisions instead of guesswork on bestsellers and credit risk
+- Clearer view of assortment penetration gaps
+- Prioritised product–retailer opportunities grounded in evidence
+- More productive use of limited sales time
+- Per-retailer commercial terms that stay private
+- Orders and outcomes that improve future prioritisation
 
 ## What Lakupak is (and is not)
 
 | Lakupak is | Lakupak is not |
 |---------|-------------|
-| A **B2B commerce and sales platform** | A consumer shopping app |
-| Sales operations a distributor can adopt directly | A tool that only arrives if a CPG principal deploys it |
-| Operations, sales jobs, and delivery in one story | A chat app with a catalog bolted on |
-| Built for **Indonesia** wholesale habits | A generic global template |
+| An **AI-native B2B commerce and sales platform** | A consumer shopping app |
+| Built for **independent Indonesian FMCG distributors** | A tool that only arrives if a CPG principal deploys it |
+| Portfolio intelligence plus operational foundation | Indiscriminate push of every SKU to every shop |
+| Distributor-controlled commercial data | An open price-war marketplace |
 
-<!--
-| A **controlled marketplace** per distributor | An open price-comparison bazaar |
--->
-
-## Related documentation
+## Related pages
 
 - [Who we serve](/en/docs/about/who-we-serve)
-<!-- - [Controlled marketplace](/en/docs/about/controlled-marketplace) -->
-- [What is Lakupak?](/en/docs/introduction) (short overview)
+- [Benefits by role](/en/docs/about/benefits-by-role)
+- [FAQ](/en/docs/about/faq)

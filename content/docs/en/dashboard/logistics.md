@@ -1,6 +1,6 @@
 ---
 title: Logistics
-description: Fleets, drivers, routes, and delivery tracking.
+description: Fleets, drivers, routes, and delivery tracking on the map.
 section: Dashboard
 module: dashboard
 order: 19
@@ -10,70 +10,64 @@ order: 19
 
 Paths: `/logistics`, `/logistics/create`, `/logistics/details?id={fleetId}`, `/logistics/details/edit?id={fleetId}`.
 
-## Logistics overview
+## Logistics overview (`/logistics`)
 
-**Subtitle:** Monitor fleets, deliveries, and logistics performance across your distribution network.
+**Title:** Logistics Management
 
 | Action | Purpose |
 |--------|---------|
 | **Refresh** | Reload fleet and driver data |
-| **Export Data** | XLSX: Fleet ID, Fleet Code, Route, Status, Delivery Type, ETA, and related fields |
-| **Add Fleet & Driver** | Create a new fleet (`/logistics/create`) |
+| **Export Data** | XLSX of fleets (Fleet ID, Fleet Code, Route, Status, Delivery Type, ETA, and related fields) |
+| **Add Fleet & Driver** | Create a fleet at `/logistics/create` |
 
-The page splits into a **fleet list** (left) and **fleet details** panel (right).
+Layout: **fleet / driver list** on the left, **details** panel on the right (including a route map).
 
-## Fleet list
+## Active Fleets and Drivers tabs
 
-### Fleet tab filters
+**Tabs:** **Active Fleets** | **Drivers**
 
-**Tabs:** **Active Fleets**, **Drivers** (with count).
+### Active Fleets
 
 **Search:** **Search for shipments**
 
-**Status:** All statuses, Available, Unavailable, In Transit, Checking
+**Status filter:** All statuses | Available | Unavailable | In Transit | Checking
 
-**Type:** All types plus delivery types from your distributor settings (Standard Shipping, Express Shipping, Same-day Delivery, Next-day Delivery, Scheduled Delivery, Pickup Available, and others).
+**Type filter:** All types, plus delivery types from your distributor shipping preferences (for example Standard Shipping, Express Shipping, Same-day Delivery, Next-day Delivery, Scheduled Delivery, Pickup Available).
 
-**Bulk:** select all, **Remove** fleets, per-row **Delete fleet**.
+**Bulk:** select fleets, **Remove**; per-row delete.
 
-### Drivers tab
+### Drivers
 
 **Search:** **Search drivers by name, username or phone**
 
-**Bulk:** select all, **Remove** drivers.
+**Bulk:** select drivers, **Remove**.
 
 ## Fleet details panel
 
-Select a fleet to see:
+Select a fleet to preview:
 
-- **Open Details** → full page `/logistics/details?id=…`
-- Tabs: **Order details**, **Vehicle**, **Driver information**, **Customer information**
-- **Delivery route · {fleet code}** map with **Full screen map**
+- **Open Details** → `/logistics/details?id=…`
+- Summary of trip, vehicle, driver, and customers
+- **Logistics route map** (Mapbox) with stops from order addresses and live driver position when the driver app syncs GPS
 
-Order details include assigned date, estimated completion, deliveries completed, total orders, and assigned logistics.
+Full detail page tabs include order details, vehicle, driver information, and customer information. **Full screen map** expands the route view.
 
 ## Create and edit fleet
 
-Wizard tabs on create/edit:
+Wizard tabs:
 
 1. **Basic Info** — route, status, ETA
-2. **Vehicle** — truck type and load
+2. **Vehicle** — vehicle type and load
 3. **Driver** — assigned driver
 4. **Order Selection** — attach orders to the trip
 
-**Back to Fleet List**, **Create Fleet** or **Save Changes** via **Trip Summary** modal.
+**Back to Fleet List**, then **Create Fleet** / **Save Changes** through the **Trip Summary** modal. Validation prompts you to **Complete required fields** when data is missing.
 
-Validation: **Complete required fields** when data is missing.
+Edit via `/logistics/details/edit?id=…` or **Edit details** on the full detail page.
 
-## Full fleet detail page
+## Driver access
 
-**Trip Summary**, **Driver**, **Vehicle**, **Logistics Details**, route map, and customers.
-
-**Back to fleet list**, **Edit details** for changes.
-
-## Driver mobile app
-
-Drivers are created by the distributor (not self-signup). They sign in to the **Lakupak Driver** app with credentials you provide.
+Drivers are created by the distributor (not self-signup for production). They sign in to the **Lakupak Driver** mobile app with credentials you issue. Fleet and stop updates from the driver app appear on the logistics map when location sync is active.
 
 ## Related areas
 
@@ -81,4 +75,3 @@ Drivers are created by the distributor (not self-signup). They sign in to the **
 |------|--------|
 | Order addresses and status | [Orders](/en/docs/dashboard/orders) |
 | Shipping options | [Settings](/en/docs/dashboard/settings) |
-| Home logistics widget | [Home](/en/docs/dashboard/home) |

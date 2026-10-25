@@ -1,14 +1,12 @@
 ---
 title: Dashboard overview
-description: Sign in, navigation, layout, tours, and module map for the distributor Dashboard.
+description: Sign in, navigation, layout, and module map for the distributor Dashboard.
 section: Dashboard
 module: dashboard
 order: 10
 ---
 
-The **Lakupak Dashboard** is the web control center for distributors. You manage catalog, B2B clients, orders, promotions, analytics, your marketplace storefront, logistics, and account settings from one signed-in workspace.
-
-Path: routes under `/home`, `/clients`, `/products`, and the other modules in the sidebar.
+The **Lakupak Dashboard** is the web control center for distributors. It focuses on the operational foundation for portfolio utilisation: clients, catalog, orders, per-retailer offers, and settings, plus Lakupak AI for in-chat analysis.
 
 ## Sign in and registration
 
@@ -22,78 +20,39 @@ If the session expires, you are redirected to the login page. Keep **Settings �
 
 ## Layout and navigation
 
-The Dashboard uses a persistent **sidebar** (collapsible on desktop, drawer on mobile) and a top **navbar** with search and account actions.
+The Dashboard uses a persistent **sidebar** (collapsible on desktop, drawer on mobile) and a top **navbar** with search and Lakupak AI.
 
 ### Main menu
 
 | Item | Route | What you do there |
 |------|-------|-------------------|
-| **Home** | `/home` | KPIs, customizable widgets, business snapshot |
+| **Home** | `/home` | KPIs and customizable widgets |
 | **Clients** | `/clients` | Hub for **Buyers** and **Suppliers** CRM |
-| **Products** | `/products` | Catalog, stock, publish to Marketplace |
-| **Orders** | `/orders` | B2B order list, map, fulfillment |
-| **Offers** | `/offers` | Discounts and promotions |
-| **Sales** | `/sales` | Hub for **Team** and **Jobs** |
-| **Analytics** | `/analytics` | Hub for **Financial**, **Sales**, **Operational** reports |
+| **Products** | `/products` | Catalog, stock, variants, readiness |
+| **Orders** | `/orders` | Order list, map, fulfillment |
+| **Offers** | `/offers` | Per-retailer product rates and promotions |
 
 ### Secondary menu
 
 | Item | Route | What you do there |
 |------|-------|-------------------|
-<!-- | **Marketplace** | `/marketplace` | Storefront performance (not the buyer app) | -->
-| **Logistics** | `/logistics` | Fleets, drivers, delivery tracking |
 | **Settings** | `/settings` | Profile, company, billing, security, tours |
-
-Submenus open under **Clients**, **Sales**, and **Analytics** for the pages listed above.
 
 ## Recommended first-week setup
 
-### Company and storefront
-
-1. **Settings → Distributor Operations** — company name, logo, address, shipping options, lead times (visible to buyers on Marketplace).
-2. **Settings → General Info** — your user profile and contact details.
-
-### Catalog and buyers
-
-3. **Products** — add SKUs, variants, images; **Publish** when ready.
-4. **Clients → Buyers** — review marketplace buyers or import buyer records.
-5. **Marketplace** — confirm published count and storefront metrics.
-
-### Fulfillment
-
-6. **Orders** — process incoming marketplace and manual orders; update status through delivery.
-7. **Logistics** — create driver accounts and **Add Fleet & Driver** for delivery runs.
-8. Share **Lakupak Driver** credentials with drivers (they do not self-register).
-
-### Growth (optional)
-
-9. **Offers**: set a private rate for each retailer. The catalog keeps the base price.
-10. **Sales → Team** — manage agents, roles, and jobs.
-11. **Analytics** — review financial and operational reports after you have order history.
+1. **Settings → Distributor Operations** — company name, logo, address, shipping options, lead times, and marketplace referral settings when configured.
+2. **Clients → Buyers** — load or create retailer records.
+3. **Products** — add SKUs, variants, images, pricing, and stock; publish when ready for Marketplace.
+4. **Offers** — set private rates for specific retailers and products.
+5. **Orders** — process inbound Marketplace and manual orders through fulfillment.
 
 ## Product tours and onboarding
 
-**Settings → Features & Tours** replays guided walkthroughs for:
+**Settings → Features & Tours** replays guided walkthroughs for active modules such as Dashboard overview, Products, Orders, and Offers.
 
-- Dashboard overview
-- Products
-- Orders
-- Offers
-- Marketplace
-- Logistics
+## Lakupak AI
 
-A welcome tour prompt may appear on first login. Use tours when onboarding new staff.
-
-## How Dashboard connects to other apps
-
-| Dashboard action | Buyer sees (Marketplace) | Driver sees (Driver) |
-|------------------|--------------------------|----------------------|
-| Publish product | Listing in your store | — |
-| Confirm / ship order | Status and notifications | Task on route map |
-| Assign fleet | Tracking when configured | **Tasks** for the day |
-| Update company shipping | Checkout options | — |
-
-See [How orders flow](/en/docs/platform/order-flow) for the full chain.
+Open Lakupak AI from the top bar sparkles control. It analyses your account context (orders, buyers, products, offers) in chat. It does not send you to other dashboard pages for a deeper dive; answers stay in the conversation.
 
 ## Module documentation
 
@@ -102,12 +61,12 @@ See [How orders flow](/en/docs/platform/order-flow) for the full chain.
 | Home widgets | [Home](/en/docs/dashboard/home) |
 | Buyers and suppliers | [Clients](/en/docs/dashboard/clients) |
 | Catalog | [Products](/en/docs/dashboard/products) |
-| Fulfillment | [Orders](/en/docs/dashboard/orders), [Logistics](/en/docs/dashboard/logistics) |
-| Promotions | [Offers](/en/docs/dashboard/offers) |
-| Storefront metrics | [Marketplace (admin)](/en/docs/dashboard/marketplace-admin) |
+| Fulfillment | [Orders](/en/docs/dashboard/orders) |
+| Per-retailer rates | [Offers](/en/docs/dashboard/offers) |
 | Account | [Settings](/en/docs/dashboard/settings) |
+| Buyer app | [Marketplace overview](/en/docs/marketplace/overview) |
 
 ## Related documentation
 
-- [Getting started](/en/docs/getting-started) if you are new to Lakupak
-- [Lakupak ecosystem](/en/docs/platform/ecosystem) for all three apps
+- [Getting started](/en/docs/getting-started)
+- [Lakupak ecosystem](/en/docs/platform/ecosystem)

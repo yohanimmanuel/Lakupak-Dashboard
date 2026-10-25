@@ -58,7 +58,7 @@ Catatan: **Shipping cost is agreed between buyer and distributor — not charged
 
 ### Buat pesanan
 
-**Order Confirmation** → **Place Order** / **Placing…**
+**Order Confirmation** ? **Place Order** / **Placing…**
 
 Mendukung buy now satu produk dan checkout multi-distributor.
 

@@ -6,7 +6,9 @@ module: dashboard
 order: 15
 ---
 
-**Client Rates & Offers** sets a private rate for one retailer. Marketplace product cards always show the catalog base price. The rate applies on that retailer's purchase order.
+**Client Rates & Offers** sets a private product rate for one retailer. Use this when introducing underused SKUs or protecting negotiated terms: each shop can have its own percentage, fixed amount, or Buy X Get Y terms without rewriting the catalog base price other shops see.
+
+The rate applies on that retailer's purchase order. Product offer rates per retailer are listed in one table so you can manage client, product or variant, discount, status, and duration together.
 
 Paths: `/offers`, `/offers/new`, `/offers/details?id={offerId}`.
 
@@ -113,4 +115,4 @@ Two controls release that price:
 | Attach products | [Products](/en/docs/dashboard/products) |
 | Price on the purchase order | [Orders](/en/docs/dashboard/orders) |
 | Buyer price toggle | [Settings](/en/docs/dashboard/settings) |
-| Campaigns hub | [Sales](/en/docs/dashboard/sales) |
+| Buyer Marketplace | [Marketplace overview](/en/docs/marketplace/overview) |

@@ -1,44 +1,36 @@
 ---
 title: Memulai
-description: Pilih modul yang sesuai peran Anda dan langkah pertama yang perlu dilakukan.
+description: Pilih peran Anda dan selesaikan langkah setup pertama.
 section: Ringkasan
 module: overview
 order: 3
 ---
 
-Gunakan halaman ini untuk memilih aplikasi yang tepat dan menyelesaikan setup awal. Untuk latar belakang Lakupak sebagai platform bisnis, lihat [Tentang Lakupak](/id/docs/about/mission-and-story).
+Gunakan halaman ini untuk memilih pengalaman yang tepat dan menyelesaikan setup awal. Untuk framing produk, lihat [Misi dan cerita](/id/docs/about/mission-and-story).
 
 ## Distributor (Dashboard)
 
-1. Daftar di situs Lakupak, lalu masuk ke Dashboard.
-2. Lengkapi **Settings → Distributor Operations** (profil perusahaan, preferensi pengiriman).
-3. Tambahkan produk di **Products**, lalu **Publish** ke marketplace.
-4. Undang pembeli atau bagikan storefront; kelola pesanan masuk di **Orders**.
-5. Atur armada dan akun pengemudi di **Logistics**.
+1. Daftar di situs Lakupak dan masuk ke Dashboard.
+2. Lengkapi **Settings → Distributor Operations** (profil perusahaan, preferensi pengiriman, dan pengaturan storefront yang tersedia).
+3. Tambah retailer di **Clients → Buyers** (dan pemasok jika perlu).
+4. Bangun katalog di **Products** (varian, harga, stok, gambar).
+5. Atur **Offers** untuk tarif produk per retailer jika diperlukan.
+6. Catat dan penuhi **Orders**, serta publikasikan produk agar pembeli terotorisasi bisa memesan di Marketplace.
 
-Panduan: [Ringkasan Dashboard](/id/docs/dashboard/overview).
+Pusat dokumen: [Ringkasan Dashboard](/id/docs/dashboard/overview).
 
 ## Pembeli ritel (Marketplace)
 
-1. Instal **Lakupak Marketplace** dari app store (atau distribusi internal).
-2. Buat akun dan selesaikan registrasi.
-3. Telusuri atau cari produk, tambahkan ke keranjang, lalu checkout.
-4. Lacak pesanan di tab **Orders**.
+1. Bergabung dengan kode referral atau keanggotaan distributor yang valid.
+2. Jelajahi katalog distributor yang diotorisasi dan penawaran yang berlaku.
+3. Buat pesanan karton atau grosir dan lacak status.
 
-Panduan: [Ringkasan Marketplace](/id/docs/marketplace/overview).
+Pusat dokumen: [Ringkasan Marketplace](/id/docs/marketplace/overview).
 
-## Pengemudi (aplikasi Driver)
-
-1. Distributor membuat akun pengemudi di **Dashboard → Logistics**.
-2. Instal **Lakupak Driver** dan masuk dengan kredensial yang diberikan.
-3. Buka **Tasks**, pilih armada, perbarui status pengiriman di setiap titik.
-
-Panduan: [Ringkasan Driver](/id/docs/driver/overview).
-
-## Langkah berikutnya
+## Ke mana selanjutnya
 
 | Tujuan | Dokumentasi |
-|--------|-------------|
+|------|----------------|
 | Memahami platform | [Ekosistem Lakupak](/id/docs/platform/ecosystem) |
-| Alur pesanan menyeluruh | [Alur pesanan](/id/docs/platform/order-flow) |
-| Bantuan | [Bantuan dan dukungan](/id/docs/platform/help-and-support) |
+| Perjalanan pesanan ujung ke ujung | [Alur pesanan](/id/docs/platform/order-flow) |
+| Bantuan dan dukungan | [Bantuan dan dukungan](/id/docs/platform/help-and-support) |
