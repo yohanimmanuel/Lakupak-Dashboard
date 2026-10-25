@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import DashboardClientLayout from './DashboardClientLayout';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,7 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  // Dynamically require the client layout to avoid client/server boundary issues
-  const DashboardClientLayout = require('./DashboardClientLayout').default;
   return <DashboardClientLayout>{children}</DashboardClientLayout>;
 }

@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
+import { requireDistributorMember } from '@/lib/marketplace/routeGuard';
 
 /**
  * GET /api/mobile/distributor/[id]
- * Public distributor/seller profile (Distributor Operations data for display).
+ * Distributor/seller profile (Distributor Operations data for display), for retailers
+ * who joined this distributor's storefront with its referral code.
  * Returns company info: name, logo, banner, businessRegistrationNumber, etc.
  */
 export async function GET(
@@ -19,6 +21,9 @@ export async function GET(
     if (!Number.isFinite(distributorId) || distributorId < 1) {
       return NextResponse.json({ error: 'Invalid distributor id' }, { status: 400, headers });
     }
+
+    const guard = await requireDistributorMember(request, distributorId, headers);
+    if (!guard.ok) return guard.response;
 
     const user = await prisma.user.findUnique({
       where: { id: distributorId },

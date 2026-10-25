@@ -14,6 +14,11 @@ import { attachGeocodeToAddress, normalizeAddressKey } from '@/utils/addressGeoc
 import { enqueueSideEffect } from '@/lib/sideEffectQueue';
 import { Prisma } from '@/lib/prisma-generated';
 import { notifyPlatformAdminsOfRegistration } from '@/lib/notifyPlatformAdmins';
+import {
+  ensureMarketplaceMembership,
+  findDistributorByReferralCode,
+  normalizeReferralCode,
+} from '@/lib/marketplace/access';
 
 type RegisterUserWithAddressParams = {
   username: string;
@@ -82,7 +87,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { name, email, storeName, bio, username, password, phone, countryCode, countryDialCode, address, addressFullName, addressLabel, addressIsDefault } = body;
+    const { name, email, storeName, bio, username, password, phone, countryCode, countryDialCode, address, addressFullName, addressLabel, addressIsDefault, referralCode } = body;
+
+    if (!normalizeReferralCode(referralCode)) {
+      return NextResponse.json(
+        { error: 'Enter the referral code from your distributor', code: 'REFERRAL_CODE_REQUIRED' },
+        { status: 400, headers },
+      );
+    }
+    const invitingDistributor = await findDistributorByReferralCode(referralCode);
+    if (!invitingDistributor) {
+      return NextResponse.json(
+        { error: 'This referral code is not valid. Check it with your distributor.', code: 'REFERRAL_CODE_INVALID' },
+        { status: 400, headers },
+      );
+    }
 
     if (!name || typeof name !== 'string' || !name.trim()) {
       return NextResponse.json({ error: 'Name is required', code: 'NAME_REQUIRED' }, { status: 400, headers });
@@ -198,6 +217,8 @@ export async function POST(req: NextRequest) {
       throw error;
     });
 
+    await ensureMarketplaceMembership(user.id, invitingDistributor.id);
+
     try {
       await syncMarketplaceUserToBuyerProfiles(user.id);
     } catch (syncError) {
@@ -241,6 +262,7 @@ export async function POST(req: NextRequest) {
       sub: user.id,
       phone: user.phone || undefined,
       type: 'marketplace',
+      distributorId: invitingDistributor.id,
     }, '30d');
 
     return NextResponse.json({

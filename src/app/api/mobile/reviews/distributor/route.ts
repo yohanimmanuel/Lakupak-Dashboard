@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
-import { getAuthenticatedMarketplaceUserId } from '@/utils/auth-helpers';
 import { marketplaceMutationRateLimiter } from '@/utils/rateLimiter';
+import { requireDistributorMember } from '@/lib/marketplace/routeGuard';
 
 const WOULD_ORDER_AGAIN_VALUES = ['yes', 'no', 'maybe'] as const;
 const DEFAULT_PAGE = 1;
@@ -11,7 +11,7 @@ const MAX_LIMIT = 50;
 
 /**
  * GET /api/mobile/reviews/distributor?distributorId=xxx&page=1&limit=10
- * Public: paginated distributor reviews + aggregate rating/breakdown.
+ * Retailers in this distributor's storefront: paginated distributor reviews + aggregate rating/breakdown.
  * Aggregates cover all reviews; `reviews` is the current page.
  */
 export async function GET(request: NextRequest) {
@@ -27,6 +27,8 @@ export async function GET(request: NextRequest) {
     if (!Number.isFinite(distributorId) || distributorId < 1) {
       return NextResponse.json({ error: 'Invalid distributorId' }, { status: 400, headers });
     }
+    const guard = await requireDistributorMember(request, distributorId, headers);
+    if (!guard.ok) return guard.response;
 
     const page = Math.max(
       1,
@@ -120,23 +122,6 @@ export async function POST(request: NextRequest) {
   const headers = getSecurityHeaders();
 
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Authorization token required' }, { status: 401, headers });
-    }
-
-    const auth = await getAuthenticatedMarketplaceUserId(request);
-    if (!auth.ok) {
-      if (auth.reason === 'suspended') {
-        return NextResponse.json({ error: 'Account suspended' }, { status: 403, headers });
-      }
-      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers });
-    }
-    const userId = auth.userId;
-
-    const rateLimitResponse = await marketplaceMutationRateLimiter(request, userId, 'review-distributor');
-    if (rateLimitResponse) return rateLimitResponse;
-
     let body: {
       id?: string | number;
       orderId?: string;
@@ -166,6 +151,13 @@ export async function POST(request: NextRequest) {
     if (!Number.isFinite(distributorId) || distributorId < 1) {
       return NextResponse.json({ error: 'Invalid distributor id' }, { status: 400, headers });
     }
+
+    const guard = await requireDistributorMember(request, distributorId, headers);
+    if (!guard.ok) return guard.response;
+    const userId = guard.marketplaceUserId;
+
+    const rateLimitResponse = await marketplaceMutationRateLimiter(request, userId, 'review-distributor');
+    if (rateLimitResponse) return rateLimitResponse;
 
     const overallRating = Number(body.overallRating);
     if (!Number.isFinite(overallRating) || overallRating < 1 || overallRating > 5) {

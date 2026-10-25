@@ -23,6 +23,8 @@ export type AppJwtPayload = {
   phone?: string
   /** Omitted on legacy tokens; callers must fall back to a DB existence check. */
   type?: JwtPrincipalType
+  /** Distributor storefront opened by the referral code used at sign-in. */
+  distributorId?: number
   /** Standard JWT iss claim when present (legacy tokens may omit). */
   iss?: string
   aud?: string | string[]
@@ -63,11 +65,17 @@ export function verifyAccessToken(token: string): AppJwtPayload {
 
   const iss = typeof decoded.iss === 'string' ? decoded.iss : undefined
   const aud = decoded.aud as string | string[] | undefined
+  const rawDistributorId = (decoded as { distributorId?: unknown }).distributorId
+  const distributorId =
+    typeof rawDistributorId === 'number' && Number.isInteger(rawDistributorId) && rawDistributorId > 0
+      ? rawDistributorId
+      : undefined
 
   return {
     sub: subValue,
     phone: (decoded as { phone?: string }).phone,
     type,
+    distributorId,
     iss,
     aud,
   }

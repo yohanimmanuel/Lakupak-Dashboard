@@ -672,10 +672,7 @@ export function FeatureModulePage({
                 {t('overview.loopLabel')}
               </p>
               <div className="flex flex-wrap gap-2">
-                {/* Marketplace surface pill paused until buyer demand is validated.
                 {(['dashboard', 'marketplace'] as const).map((surface) => {
-                */}
-                {(['dashboard'] as const).map((surface) => {
                   const active = moduleDef.surfaces.includes(surface);
                   return (
                     <span
@@ -878,7 +875,7 @@ export function FeatureModulePage({
           <Reveal>
             <p className="text-sm font-medium text-gray-500 mb-6">{t('hub.exploreMore')}</p>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {FEATURE_MODULES.filter((m) => m.slug !== slug && m.slug !== 'marketplace').map((m) => {
+              {FEATURE_MODULES.filter((m) => m.slug !== slug).map((m) => {
                 const ModIcon = m.icon;
                 return (
                   <button

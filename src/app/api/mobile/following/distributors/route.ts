@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
 import { getAuthenticatedMarketplaceUserId } from '@/utils/auth-helpers';
 import { marketplaceMutationRateLimiter } from '@/utils/rateLimiter';
+import { isMarketplaceMember } from '@/lib/marketplace/access';
 
 /**
  * GET /api/mobile/following/distributors
@@ -113,6 +114,12 @@ export async function POST(request: NextRequest) {
     const seller = await prisma.user.findUnique({ where: { id: distributorId }, select: { id: true } });
     if (!seller) {
       return NextResponse.json({ error: 'Distributor not found' }, { status: 404, headers });
+    }
+    if (!(await isMarketplaceMember(marketplaceUserId, distributorId))) {
+      return NextResponse.json(
+        { error: 'This storefront is only open to retailers invited by the distributor', code: 'NOT_A_MEMBER' },
+        { status: 403, headers },
+      );
     }
 
     await p.distributorFollowing.upsert({

@@ -54,7 +54,7 @@ describe('marketplace cart CRUD (integration)', () => {
     expect(updated.success).toBe(true);
     expect((updated.cartItem.metadata as { quantity?: number }).quantity).toBe(4);
 
-    const cart = await fetchMobileCart(buyer.id);
+    const cart = await fetchMobileCart(buyer.id, distributor.id);
     expect(cart.items).toHaveLength(1);
     expect(cart.items[0].productId).toBe(productId);
     expect((cart.items[0].metadata as { variant?: string }).variant).toBe('Color: Black | Size: M');
@@ -83,7 +83,7 @@ describe('marketplace cart CRUD (integration)', () => {
       data: { marketplaceStatus: 'Unpublished', status: 'Draft' },
     });
 
-    const cart = await fetchMobileCart(buyer.id);
+    const cart = await fetchMobileCart(buyer.id, distributor.id);
     expect(cart.items).toHaveLength(0);
 
     const stillInDb = await prisma.userActivity.count({
@@ -138,7 +138,7 @@ describe('marketplace cart CRUD (integration)', () => {
 
     await clearCart(buyer.id, { trackAbandonment: false });
 
-    const cart = await fetchMobileCart(buyer.id);
+    const cart = await fetchMobileCart(buyer.id, distributor.id);
     expect(cart.items).toHaveLength(0);
 
     const abandonedCount = await prisma.userActivity.count({

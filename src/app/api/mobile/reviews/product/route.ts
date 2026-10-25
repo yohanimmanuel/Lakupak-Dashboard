@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
+import { requireDistributorMember } from '@/lib/marketplace/routeGuard';
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
@@ -10,7 +11,7 @@ const MAX_LIMIT = 50;
  * GET /api/mobile/reviews/product?productId=xxx&page=1&limit=10
  * Returns paginated product reviews and aggregate stats (totalReviews, overallRating, breakdown).
  * Aggregates are computed over all reviews for the product; reviews array is paginated.
- * Public endpoint; no auth required.
+ * Only for retailers in the product's distributor storefront.
  */
 export async function GET(request: NextRequest) {
   const headers = getSecurityHeaders();
@@ -29,6 +30,13 @@ export async function GET(request: NextRequest) {
     }
 
     const trimmedId = productId.trim();
+    const owner = await prisma.product.findUnique({ where: { productId: trimmedId }, select: { userId: true } });
+    if (!owner?.userId) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404, headers });
+    }
+    const guard = await requireDistributorMember(request, owner.userId, headers);
+    if (!guard.ok) return guard.response;
+
     const page = Math.max(1, parseInt(pageParam ?? String(DEFAULT_PAGE), 10) || DEFAULT_PAGE);
     const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(limitParam ?? String(DEFAULT_LIMIT), 10) || DEFAULT_LIMIT));
     const skip = (page - 1) * limit;

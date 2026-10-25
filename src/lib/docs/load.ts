@@ -77,37 +77,19 @@ export function getDocBySlug(locale: DocLocale, slug: string[]): DocPage | null 
   return readMarkdownFile(filePath, locale, slug);
 }
 
-/** Marketplace pages stay on disk. They are omitted from the docs sidebar until demand is validated. */
-export function isPausedMarketplaceDoc(slugPath: string, module?: string): boolean {
-  if (module === 'marketplace') return true;
-  if (slugPath.startsWith('marketplace/')) return true;
-  if (slugPath.includes('marketplace')) return true;
-  return false;
-}
-
 export function getDocsNav(locale: DocLocale): DocsNavSection[] {
   const metaPath = path.join(localeDir(locale), '_meta.json');
   if (fs.existsSync(metaPath)) {
     try {
       const raw = fs.readFileSync(metaPath, 'utf8');
       const parsed = JSON.parse(raw) as { sections?: DocsNavSection[] };
-      if (parsed.sections?.length) {
-        return parsed.sections
-          .filter((section) => section.id !== 'marketplace')
-          .map((section) => ({
-            ...section,
-            items: section.items.filter((item) => !isPausedMarketplaceDoc(item.slug)),
-          }))
-          .filter((section) => section.items.length > 0);
-      }
+      if (parsed.sections?.length) return parsed.sections;
     } catch {
       /* fall through */
     }
   }
 
-  const pages = getAllDocs(locale).filter(
-    (page) => !isPausedMarketplaceDoc(page.slugPath, page.frontmatter.module),
-  );
+  const pages = getAllDocs(locale);
   const bySection = new Map<string, DocPage[]>();
   for (const page of pages) {
     const key = page.frontmatter.section;

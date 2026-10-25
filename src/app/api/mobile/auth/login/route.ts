@@ -7,6 +7,7 @@ import {
 } from '../../../../../utils/auth-security';
 import { loginRateLimiter } from '../../../../../utils/rateLimiter';
 import { auditAuth } from '@/lib/audit';
+import { joinOrRequireMembership } from '@/lib/marketplace/access';
 
 export async function POST(req: NextRequest) {
   // Apply rate limiting: 5 attempts per 15 minutes
@@ -116,12 +117,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const membership = await joinOrRequireMembership(user.id, body.referralCode);
+    if ('error' in membership) {
+      auditAuth(req, {
+        action: 'login',
+        actorType: 'marketplace',
+        actorId: user.id,
+        success: false,
+        metadata: { scope: 'marketplace', reason: membership.code },
+      });
+      return NextResponse.json(membership, { status: membership.status, headers });
+    }
+
     auditAuth(req, {
       action: 'login',
       actorType: 'marketplace',
       actorId: user.id,
       success: true,
-      metadata: { scope: 'marketplace' },
+      metadata: { scope: 'marketplace', distributorId: membership.distributorId },
     });
     
     // Generate JWT token
@@ -130,6 +143,7 @@ export async function POST(req: NextRequest) {
       sub: user.id,
       phone: user.phone || undefined,
       type: 'marketplace',
+      distributorId: membership.distributorId,
     }, '30d');
     
     return NextResponse.json({

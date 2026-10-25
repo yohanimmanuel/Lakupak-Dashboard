@@ -1058,14 +1058,13 @@ export default function LandingPage() {
     router.push('/register');
   };
 
-  // Marketplace buyer app stays built. The public CTA is paused until discovery demand is validated.
-  // const handleLearnMoreClick = () => {
-  //   trackConversion('cta_click', 'explore_marketplace_button');
-  //   const marketplaceUrl = (
-  //     process.env.NEXT_PUBLIC_MARKETPLACE_URL || 'https://lakupak-marketplace-web.onrender.com'
-  //   ).replace(/\/$/, '');
-  //   window.open(marketplaceUrl, '_blank', 'noopener,noreferrer');
-  // };
+  const handleLearnMoreClick = () => {
+    trackConversion('cta_click', 'explore_marketplace_button');
+    const marketplaceUrl = (
+      process.env.NEXT_PUBLIC_MARKETPLACE_URL || 'https://lakupak-marketplace-web.onrender.com'
+    ).replace(/\/$/, '');
+    window.open(marketplaceUrl, '_blank', 'noopener,noreferrer');
+  };
 
   return (
     <ErrorBoundary>
@@ -1106,7 +1105,6 @@ export default function LandingPage() {
                  >
                   {t('hero.cta')}
                  </button>
-                 {/* Marketplace explore CTA paused until buyer demand is validated.
                  <button 
                   type="button"
                    onClick={handleLearnMoreClick}
@@ -1115,7 +1113,6 @@ export default function LandingPage() {
                  >
                   {t('hero.learnmore')}
                  </button>
-                 */}
                  </div>
             </HeroStagger>
              </div>

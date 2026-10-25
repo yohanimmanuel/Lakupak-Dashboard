@@ -8,6 +8,13 @@ import {
 import { otpVerifyRateLimiter } from '@/utils/rateLimiter';
 import { auditAuth } from '@/lib/audit';
 import { verifyMobileOtp } from '@/lib/mobileOtp';
+import {
+  ensureMarketplaceMembership,
+  findDistributorByReferralCode,
+  joinOrRequireMembership,
+  normalizeReferralCode,
+  validateJoinOrRequireMembership,
+} from '@/lib/marketplace/access';
 
 const DUMMY_PHONE_ALLOWLIST = new Set(['+0000000000', '+1234567890']);
 
@@ -70,6 +77,46 @@ export async function POST(req: NextRequest) {
     if (rateLimitResponse) return rateLimitResponse;
 
     const phoneWithPlus = phone.startsWith('+') ? phone : `+${phone.replace(/\D/g, '')}`;
+    const cleanPhone = phone.replace(/\D/g, '');
+
+    // Referral checks must run before verifyMobileOtp (it consumes the OTP on success).
+    let signupInvitingDistributor: { id: number } | null = null;
+    if (mode === 'signup' && profile) {
+      const referralCode = profile.referralCode ?? body.referralCode;
+      const invitingDistributor = normalizeReferralCode(referralCode)
+        ? await findDistributorByReferralCode(referralCode)
+        : null;
+      if (!invitingDistributor) {
+        return NextResponse.json(
+          normalizeReferralCode(referralCode)
+            ? { error: 'This referral code is not valid. Check it with your distributor.', code: 'REFERRAL_CODE_INVALID' }
+            : { error: 'Enter the referral code from your distributor', code: 'REFERRAL_CODE_REQUIRED' },
+          { status: 400, headers },
+        );
+      }
+      signupInvitingDistributor = invitingDistributor;
+    } else {
+      let existingUserForReferral = await prisma.marketplaceUser.findUnique({
+        where: { phone: phoneWithPlus },
+      });
+      if (!existingUserForReferral) {
+        existingUserForReferral = await prisma.marketplaceUser.findUnique({
+          where: { phone: cleanPhone },
+        });
+      }
+      if (existingUserForReferral) {
+        const referralPrecheck = await validateJoinOrRequireMembership(
+          existingUserForReferral.id,
+          body.referralCode,
+        );
+        if ('error' in referralPrecheck) {
+          return NextResponse.json(referralPrecheck, {
+            status: referralPrecheck.status,
+            headers,
+          });
+        }
+      }
+    }
 
     if (!isDummyPhoneBypassAllowed(phoneWithPlus)) {
       const otpResult = await verifyMobileOtp(phoneWithPlus, code);
@@ -91,6 +138,7 @@ export async function POST(req: NextRequest) {
     // Handle signup mode with complete profile
     if (mode === 'signup' && profile) {
       const { name, email, storeName, bio, username, password } = profile;
+      const invitingDistributor = signupInvitingDistributor!;
       
       // Validate profile data
       if (!name || typeof name !== 'string' || !name.trim()) {
@@ -193,6 +241,7 @@ export async function POST(req: NextRequest) {
           country: finalCountry
         }
       });
+      await ensureMarketplaceMembership(user.id, invitingDistributor.id);
       
       auditAuth(req, {
         action: 'register',
@@ -210,6 +259,7 @@ export async function POST(req: NextRequest) {
         sub: user.id,
         phone: user.phone || undefined,
         type: 'marketplace',
+        distributorId: invitingDistributor.id,
       }, '30d');
       
       return NextResponse.json({
@@ -230,9 +280,6 @@ export async function POST(req: NextRequest) {
     }
     
     // Handle login mode (existing user verification)
-    const cleanPhone = phone.replace(/\D/g, '');
-    
-    // Try to find user with either format
     let existingUser = await prisma.marketplaceUser.findUnique({
       where: { phone: phoneWithPlus }
     });
@@ -250,12 +297,16 @@ export async function POST(req: NextRequest) {
           { status: 403, headers }
         );
       }
+      const membership = await joinOrRequireMembership(existingUser.id, body.referralCode);
+      if ('error' in membership) {
+        return NextResponse.json(membership, { status: membership.status, headers });
+      }
       auditAuth(req, {
         action: 'login',
         actorType: 'marketplace',
         actorId: existingUser.id,
         success: true,
-        metadata: { scope: 'marketplace', via: 'otp' },
+        metadata: { scope: 'marketplace', via: 'otp', distributorId: membership.distributorId },
       });
 
       // Generate JWT token
@@ -264,6 +315,7 @@ export async function POST(req: NextRequest) {
         sub: existingUser.id,
         phone: existingUser.phone || undefined,
         type: 'marketplace',
+        distributorId: membership.distributorId,
       }, '30d');
       
       return NextResponse.json({

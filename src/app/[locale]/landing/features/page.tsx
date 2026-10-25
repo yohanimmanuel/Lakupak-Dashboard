@@ -35,8 +35,7 @@ export default function FeaturesHubPage() {
       <section className="pb-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 space-y-14">
           {FEATURE_MENU_GROUPS.map((group) => {
-            // Marketplace stays defined in FEATURE_MODULES. Hide it from the hub until demand is validated.
-            const items = FEATURE_MODULES.filter((m) => m.group === group && m.slug !== 'marketplace');
+            const items = FEATURE_MODULES.filter((m) => m.group === group);
             return (
               <div key={group}>
                 <Reveal>

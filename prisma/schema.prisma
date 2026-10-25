@@ -38,6 +38,8 @@ model User {
   autoClientMatch Boolean @default(false)
   /// Dashboard account lifecycle: "active" | "pending". New registrations start pending until KYC is approved.
   accountStatus String     @default("active")
+  /// Code retailers enter to join this distributor's closed marketplace storefront. Stored uppercase.
+  marketplaceReferralCode String? @unique
   accounts      Account[]
   buyers        Buyer[]
   orders        Order[]

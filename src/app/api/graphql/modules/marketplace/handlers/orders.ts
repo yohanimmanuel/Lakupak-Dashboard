@@ -7,6 +7,7 @@ export const fetchMobileOrders = async (args: {
   userId: number;
   page?: number;
   limit?: number;
+  distributorId?: number | null;
 }) => {
   // This will be implemented by calling the orders module
   // For now, return empty result - will be implemented in next step
@@ -20,16 +21,24 @@ export const fetchMobileOrders = async (args: {
     throw new Error('User not found');
   }
   
-  const baseBuyerId = buildMobileBuyerId(marketplaceUser.id);
+  const storefrontBuyerId =
+    args.distributorId && args.distributorId > 0
+      ? buildMobileBuyerId(marketplaceUser.id, args.distributorId)
+      : null;
   const { page: safePage, limit: safeLimit } = sanitizePagination(page, limit);
   const skip = (safePage - 1) * safeLimit;
   const take = safeLimit;
+
+  if (!storefrontBuyerId) {
+    return {
+      nodes: [],
+      pagination: buildPaginationInfo(safePage, safeLimit, 0),
+    };
+  }
   
   const orders = await prisma.order.findMany({
     where: {
-      buyerId: {
-        startsWith: baseBuyerId
-      }
+      buyerId: storefrontBuyerId
     },
     skip,
     take,
@@ -58,11 +67,7 @@ export const fetchMobileOrders = async (args: {
   });
   
   const total = await prisma.order.count({
-    where: {
-      buyerId: {
-        startsWith: baseBuyerId
-      }
-    }
+    where: { buyerId: storefrontBuyerId },
   });
   
   const ordersWithItems = orders.map(order => {

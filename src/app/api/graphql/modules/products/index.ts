@@ -17,11 +17,7 @@ import {
   parseMoney,
 } from '../common/utils';
 import { getTodayBoundaries } from '@/lib/dateUtils';
-import {
-  getCachedMarketplaceSearch,
-  setCachedMarketplaceSearch,
-  invalidateSearchCache,
-} from '@/utils/searchCache';
+import { invalidateSearchCache } from '@/utils/searchCache';
 import { auditCatalog } from '@/lib/audit';
 import { requireDashboardUser, withDashboardAuth } from '@/app/api/graphql/modules/common/auth';
 
@@ -612,24 +608,17 @@ export const fetchMarketplaceProductsConnection = async (args: {
   limit?: number;
   category?: string | null;
   search?: string | null;
+  /** Closed marketplace: a distributor only reads its own published listings. */
+  ownerUserId: number;
 }) => {
   const { page = 1, limit = 20, category, search } = args;
-  
-  // Check cache first
-  const cachedResult = await getCachedMarketplaceSearch<{
-    nodes: unknown[];
-    pagination: ReturnType<typeof buildPaginationInfo>;
-  }>({ search, category, page, limit });
-  
-  if (cachedResult) {
-    return cachedResult;
-  }
 
   const { page: safePage, limit: safeLimit } = sanitizePagination(page, limit, MAX_MARKETPLACE_LIMIT);
 
   const whereClause: Prisma.ProductWhereInput = {
     status: 'Published',
     marketplaceStatus: 'Published',
+    userId: args.ownerUserId,
   };
 
   if (category && category !== 'All') {
@@ -673,9 +662,6 @@ export const fetchMarketplaceProductsConnection = async (args: {
     nodes,
     pagination: buildPaginationInfo(safePage, safeLimit, totalCount),
   };
-
-  // Cache the result
-  await setCachedMarketplaceSearch({ search, category, page, limit }, result);
 
   return result;
 };
@@ -2031,8 +2017,9 @@ export const productsResolvers = {
     },
     marketplaceProducts: (
       _: unknown,
-      args: Parameters<typeof fetchMarketplaceProductsConnection>[0],
-    ) => fetchMarketplaceProductsConnection(args),
+      args: Omit<Parameters<typeof fetchMarketplaceProductsConnection>[0], 'ownerUserId'>,
+      ctx: unknown,
+    ) => fetchMarketplaceProductsConnection({ ...args, ownerUserId: requireDashboardUser(ctx) }),
   },
   Mutation: {
     createProduct: async (_: unknown, args: Parameters<typeof createProduct>[0], ctx: unknown) => {

@@ -226,8 +226,32 @@ export const fetchMarketplaceProducts = async (args: {
   productId?: string;
   productIds?: string[];
   marketplaceUserId?: number;
+  /**
+   * Closed storefront scope: only these distributors' products. Set server-side from the
+   * retailer's memberships, never from client input. Scoped reads skip the shared search
+   * cache and Meilisearch (the index cannot filter by distributor yet).
+   */
+  distributorIds?: number[];
 }) => {
   const { page = 1, limit = 20, category, search, productId } = args;
+  const scopedDistributorIds = args.distributorIds;
+  const isDistributorScoped = Array.isArray(scopedDistributorIds);
+  if (isDistributorScoped && scopedDistributorIds.length === 0) {
+    return {
+      nodes: [],
+      pagination: buildPaginationInfo(page, limit, 0),
+      facets: { productTypes: [], productCategories: [] },
+      didYouMean: null,
+      engine: 'prisma' as const,
+      engineRequested: getMarketplaceSearchEngineMode(),
+      degraded: false,
+      timestamp: new Date().toISOString(),
+    };
+  }
+  const distributorScopeSql = isDistributorScoped ? scopedDistributorIds : [];
+  const distributorWhere: Prisma.ProductWhereInput = isDistributorScoped
+    ? { userId: { in: scopedDistributorIds } }
+    : {};
   const scopedProductIds =
     productId && productId.trim()
       ? [productId.trim()]
@@ -253,7 +277,7 @@ export const fetchMarketplaceProducts = async (args: {
   // ONLY use cache for unscoped search queries. ID-scoped reads must not reuse a
   // cache key that omits productId(s), or they can return products outside the set.
   let cachedResult = null;
-  if (search && search.trim() && !isIdScoped) {
+  if (search && search.trim() && !isIdScoped && !isDistributorScoped) {
     cachedResult = await getCachedMarketplaceSearch<{
     nodes: unknown[];
     pagination: ReturnType<typeof buildPaginationInfo>;
@@ -287,7 +311,7 @@ export const fetchMarketplaceProducts = async (args: {
   const queryExpansions =
     search && search.trim() ? await getMarketplaceSearchExpansions(prisma, search, 4).catch(() => []) : [];
   const searchTerms = search && search.trim() ? [search.trim(), ...queryExpansions] : [];
-  if (search && search.trim() && !isIdScoped) {
+  if (search && search.trim() && !isIdScoped && !isDistributorScoped) {
     const client = getMeiliClient();
     if (client) {
       try {
@@ -427,6 +451,7 @@ export const fetchMarketplaceProducts = async (args: {
   const whereClause: Prisma.ProductWhereInput = {
     marketplaceStatus: 'Published',
     status: 'Published',
+    ...distributorWhere,
   };
 
   if (isIdScoped) {
@@ -501,6 +526,10 @@ export const fetchMarketplaceProducts = async (args: {
             cardinality(${cats}::text[]) = 0
             OR p."productType" = ANY(${cats}::text[])
           )
+          AND (
+            ${isDistributorScoped}::boolean = false
+            OR p."userId" = ANY(${distributorScopeSql}::int[])
+          )
         GROUP BY p."productId", p."lastSyncAt", p."publishedAt"
         HAVING MAX(
           GREATEST(
@@ -524,6 +553,10 @@ export const fetchMarketplaceProducts = async (args: {
             cardinality(${cats}::text[]) = 0
             OR p."productType" = ANY(${cats}::text[])
           )
+          AND (
+            ${isDistributorScoped}::boolean = false
+            OR p."userId" = ANY(${distributorScopeSql}::int[])
+          )
           AND GREATEST(
             similarity(lower(p."name"), t."term"),
             similarity(lower(COALESCE(p."brand", '')), t."term"),
@@ -538,7 +571,10 @@ export const fetchMarketplaceProducts = async (args: {
         engineUsed = 'pg_trgm';
         const total = countRows?.[0]?.total;
         meiliTotalCount = typeof total === 'bigint' ? Number(total) : Number(total ?? ids.length);
-        trgmFacetProductTypeCounts = await trgmFacetCountsByProductType(prisma, q, queryExpansions, fallbackTrigramMinScore);
+        // Unscoped helper: scoped catalogs take facet counts from the scoped Prisma groupBy instead.
+        if (!isDistributorScoped) {
+          trgmFacetProductTypeCounts = await trgmFacetCountsByProductType(prisma, q, queryExpansions, fallbackTrigramMinScore);
+        }
       }
     } catch {
       // ignore; extension might not be enabled
@@ -629,7 +665,7 @@ export const fetchMarketplaceProducts = async (args: {
 
     const allTypes = await prisma.product
       .findMany({
-        where: { marketplaceStatus: 'Published', status: 'Published' },
+        where: { marketplaceStatus: 'Published', status: 'Published', ...distributorWhere },
         distinct: ['productType'],
         select: { productType: true },
       })
@@ -678,6 +714,7 @@ export const fetchMarketplaceProducts = async (args: {
               productId: { in: ids },
               marketplaceStatus: 'Published',
               status: 'Published',
+              ...distributorWhere,
             },
             include: marketplaceProductInclude,
           })
@@ -900,7 +937,8 @@ export const fetchMarketplaceProducts = async (args: {
       // If top hit isn't from the intended distributor (common when query matches product fields),
       // try suggesting a distributor/company name directly from the DB (pg_trgm over Company.name).
       // This catches cases like "tanjung peson jaay" -> "cv. tanjung pesona jaya".
-      if (!didYouMean) {
+      // Skipped for closed storefronts: it would suggest other distributors' names.
+      if (!didYouMean && !isDistributorScoped) {
         try {
           const rows = await prisma.$queryRaw<Array<{ name: string; score: number }>>`
             SELECT
@@ -985,6 +1023,10 @@ export const fetchMarketplaceProducts = async (args: {
             FROM "public"."Product" p
             WHERE p."marketplaceStatus" = 'Published'
               AND p."status" = 'Published'
+              AND (
+                ${isDistributorScoped}::boolean = false
+                OR p."userId" = ANY(${distributorScopeSql}::int[])
+              )
               AND length(trim(p."name")) >= 3
             ORDER BY "score" DESC, p."lastSyncAt" DESC NULLS LAST, p."publishedAt" DESC NULLS LAST
             LIMIT 25
@@ -1011,7 +1053,8 @@ export const fetchMarketplaceProducts = async (args: {
         }
 
         // 2) Try pg_trgm suggestion from past search logs (best-effort; may not exist on some DBs).
-        if (!didYouMean) try {
+        // Skipped for closed storefronts: the log holds every retailer's searches.
+        if (!didYouMean && !isDistributorScoped) try {
           const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
           const rows = await prisma.$queryRaw<
             Array<{ query: string; score: number; searches: bigint; zero: bigint; avgResults: number }>
@@ -1117,7 +1160,7 @@ export const fetchMarketplaceProducts = async (args: {
   
   // ONLY cache search queries (when search parameter is provided)
   // Regular marketplace listings should always be fresh to show real-time offer/price updates
-  if (search && search.trim() && !isIdScoped) {
+  if (search && search.trim() && !isIdScoped && !isDistributorScoped) {
   await setCachedMarketplaceSearch({ search: search || null, category: category || null, page, limit }, result);
   }
   

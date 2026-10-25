@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { verifyAccessToken } from '../lib/jwt';
 import { prisma } from '@/lib/db';
+import { activeStorefrontDistributorId } from '@/lib/marketplace/access';
 
 async function resolveDashboardUserId(userId: number): Promise<number | null> {
   if (!Number.isInteger(userId) || userId <= 0) return null;
@@ -57,7 +58,7 @@ export async function getAuthenticatedUserId(req: NextRequest): Promise<number |
 }
 
 type MarketplaceAuthResult =
-  | { ok: true; userId: number }
+  | { ok: true; userId: number; distributorId: number | null }
   | { ok: false; reason: 'missing_token' | 'invalid_token' | 'suspended' };
 
 /**
@@ -70,12 +71,14 @@ export async function getAuthenticatedMarketplaceUserId(req: NextRequest): Promi
   if (!authHeader?.startsWith('Bearer ')) return { ok: false, reason: 'missing_token' };
 
   let userId: number;
+  let claimedDistributorId: number | undefined;
   try {
     const payload = verifyAccessToken(authHeader.replace('Bearer ', ''));
     if (payload.type === 'dashboard' || payload.type === 'driver') {
       return { ok: false, reason: 'invalid_token' };
     }
     userId = payload.sub;
+    claimedDistributorId = payload.distributorId;
   } catch {
     return { ok: false, reason: 'invalid_token' };
   }
@@ -91,6 +94,10 @@ export async function getAuthenticatedMarketplaceUserId(req: NextRequest): Promi
     return { ok: false, reason: 'invalid_token' };
   }
 
-  return { ok: true, userId };
+  return {
+    ok: true,
+    userId,
+    distributorId: await activeStorefrontDistributorId(userId, claimedDistributorId),
+  };
 }
 

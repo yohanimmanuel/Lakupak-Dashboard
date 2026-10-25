@@ -15,7 +15,9 @@ import {
   removeSearchHistory,
   clearSearchHistory,
 } from './handlers/searchHistory';
+import { GraphQLError } from 'graphql';
 import { prisma } from '../common/prisma';
+import { isMarketplaceMember } from '@/lib/marketplace/access';
 import {
   getContextUser,
   requireMarketplaceUser,
@@ -35,11 +37,36 @@ export const marketplaceResolvers = {
         addresses: await fetchMarketplaceAddresses(args.userId),
       };
     },
-    mobileMarketplaceProducts: (_: unknown, args: Parameters<typeof fetchMarketplaceProducts>[0]) =>
-      fetchMarketplaceProducts(args),
-    mobileCart: withMarketplaceAuth((args: { userId: number }) => fetchMobileCart(args.userId)),
+    mobileMarketplaceProducts: async (
+      _: unknown,
+      args: Parameters<typeof fetchMarketplaceProducts>[0],
+      ctx: unknown,
+    ) => {
+      // Closed storefront: the referral code used at sign-in selects this session's distributor.
+      const user = getContextUser(ctx);
+      if (!user || user.type !== 'marketplace') {
+        throw new GraphQLError('Sign in with your distributor referral code to view products', {
+          extensions: { code: 'UNAUTHENTICATED' },
+        });
+      }
+      return fetchMarketplaceProducts({
+        ...args,
+        marketplaceUserId: user.id,
+        distributorIds: user.distributorId ? [user.distributorId] : [],
+      });
+    },
+    mobileCart: async (_: unknown, args: { userId: number }, ctx: unknown) => {
+      requireMarketplaceUser(ctx, args.userId);
+      return fetchMobileCart(args.userId, getContextUser(ctx)?.distributorId ?? null);
+    },
     mobileUserActivity: withMarketplaceAuth(fetchMobileUserActivity),
-    mobileOrders: withMarketplaceAuth(fetchMobileOrders),
+    mobileOrders: async (_: unknown, args: { userId: number; page?: number; limit?: number }, ctx: unknown) => {
+      requireMarketplaceUser(ctx, args.userId);
+      return fetchMobileOrders({
+        ...args,
+        distributorId: getContextUser(ctx)?.distributorId ?? null,
+      });
+    },
     mobileSearchHistory: withMarketplaceAuth(fetchMobileSearchHistory),
   },
   Mutation: {
@@ -70,6 +97,20 @@ export const marketplaceResolvers = {
     },
     addToCart: async (_: unknown, args: { input: Parameters<typeof addToCart>[0] }, ctx: unknown) => {
       const authedUserId = requireMarketplaceUser(ctx, args.input.userId);
+      const product = await prisma.product.findUnique({
+        where: { productId: args.input.productId },
+        select: { userId: true, status: true, marketplaceStatus: true },
+      });
+      if (
+        !product ||
+        product.status !== 'Published' ||
+        product.marketplaceStatus !== 'Published' ||
+        product.userId == null ||
+        product.userId !== getContextUser(ctx)?.distributorId ||
+        !(await isMarketplaceMember(authedUserId, product.userId))
+      ) {
+        return { success: false, cartItem: null, message: 'This product is not in your distributor storefront' };
+      }
       return addToCart({ ...args.input, userId: authedUserId });
     },
     updateCartItem: async (_: unknown, args: { input: Parameters<typeof updateCartItem>[0] }, ctx: unknown) => {

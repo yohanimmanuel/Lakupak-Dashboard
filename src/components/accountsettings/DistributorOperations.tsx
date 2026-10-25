@@ -6,6 +6,7 @@ import { useUserStore } from '@/store/userStore';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { generateSlug } from '@/utils/slugUtils';
 import { useSettingsTranslations } from '@/hooks/useSettingsTranslations';
+import MarketplaceReferralCodeField from './MarketplaceReferralCodeField';
 
 interface CompanyProfileData {
   // Company Information
@@ -42,6 +43,7 @@ interface CompanyProfileData {
   defaultDeliveryLeadTimeMinDays: number | '';
   defaultDeliveryLeadTimeMaxDays: number | '';
   autoApplyBasePriceForFirstBuyers: boolean;
+  marketplaceReferralCode: string;
 }
 
 const industryTypes = [
@@ -131,7 +133,10 @@ export default function DistributorOperations() {
     defaultDeliveryLeadTimeMinDays: '',
     defaultDeliveryLeadTimeMaxDays: '',
     autoApplyBasePriceForFirstBuyers: false,
+    marketplaceReferralCode: '',
   });
+
+  const referralCodeRef = useRef('');
 
   const [originalData, setOriginalData] = useState<CompanyProfileData>({
     companyName: '',
@@ -159,6 +164,7 @@ export default function DistributorOperations() {
     defaultDeliveryLeadTimeMinDays: '',
     defaultDeliveryLeadTimeMaxDays: '',
     autoApplyBasePriceForFirstBuyers: false,
+    marketplaceReferralCode: '',
   });
   
   // Dropdown states
@@ -199,6 +205,7 @@ export default function DistributorOperations() {
         autoApplyBasePriceForFirstBuyers: Boolean(
           (company as { autoApplyBasePriceForFirstBuyers?: boolean | null })?.autoApplyBasePriceForFirstBuyers,
         ),
+        marketplaceReferralCode: referralCodeRef.current,
       });
       setOriginalData({
         companyName: company?.name || '',
@@ -228,9 +235,30 @@ export default function DistributorOperations() {
         autoApplyBasePriceForFirstBuyers: Boolean(
           (company as { autoApplyBasePriceForFirstBuyers?: boolean | null })?.autoApplyBasePriceForFirstBuyers,
         ),
+        marketplaceReferralCode: referralCodeRef.current,
       });
     }
   }, [user]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/user/marketplace-referral-code', { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { referralCode?: string | null } | null) => {
+        if (cancelled) return;
+        const code = data?.referralCode ?? '';
+        const previous = referralCodeRef.current;
+        referralCodeRef.current = code;
+        setFormData((prev) =>
+          prev.marketplaceReferralCode === previous ? { ...prev, marketplaceReferralCode: code } : prev,
+        );
+        setOriginalData((prev) => ({ ...prev, marketplaceReferralCode: code }));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -437,6 +465,11 @@ export default function DistributorOperations() {
       };
       validateDaysPair(formData.defaultDeliveryLeadTimeMinDays, formData.defaultDeliveryLeadTimeMaxDays);
 
+      const referralCode = formData.marketplaceReferralCode.trim();
+      if (referralCode && !/^[A-Z0-9][A-Z0-9-]{2,22}[A-Z0-9]$/.test(referralCode)) {
+        validationErrors.push(tDistributor('referralCodeFormatError'));
+      }
+
       if (validationErrors.length > 0) {
         setError(validationErrors.join('. '));
         setIsLoading(false);
@@ -476,6 +509,27 @@ export default function DistributorOperations() {
           companyId: newCompany.id,
         };
         updateUser(updatedUser);
+      }
+
+      if (formData.marketplaceReferralCode !== originalData.marketplaceReferralCode) {
+        const referralResponse = await fetch('/api/user/marketplace-referral-code', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ referralCode }),
+        });
+        if (!referralResponse.ok) {
+          const referralError = (await referralResponse.json().catch(() => null)) as { code?: string } | null;
+          setError(
+            referralError?.code === 'REFERRAL_CODE_TAKEN'
+              ? tDistributor('referralCodeTakenError')
+              : referralError?.code === 'REFERRAL_CODE_FORMAT'
+                ? tDistributor('referralCodeFormatError')
+                : tDistributor('referralCodeSaveError'),
+          );
+          return;
+        }
+        referralCodeRef.current = referralCode;
+        setOriginalData((prev) => ({ ...prev, marketplaceReferralCode: referralCode }));
       }
 
       // Save company data to database
@@ -778,6 +832,12 @@ export default function DistributorOperations() {
                 {tDistributor('storeUrlPrefix')}{generateSlug(formData.companyName || tDistributor('storeUrlFallbackName')) || tDistributor('storeUrlFallbackSlug')}
               </div>
             </div>
+
+            <MarketplaceReferralCodeField
+              isEditing={isEditing}
+              value={formData.marketplaceReferralCode}
+              onChange={(value) => handleInputChange('marketplaceReferralCode', value)}
+            />
 
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-2">

@@ -1,4 +1,4 @@
-import { docUrl, getAllDocs, getDocsNav, isPausedMarketplaceDoc, stripMarkdownToPlainText } from './load';
+import { docUrl, getAllDocs, getDocsNav, stripMarkdownToPlainText } from './load';
 import type { DocLocale } from './types';
 
 export type DocsSearchHit = {
@@ -97,7 +97,6 @@ export function searchDocsLocal(
   const ranked: { score: number; hit: DocsSearchHit }[] = [];
 
   for (const page of pages) {
-    if (isPausedMarketplaceDoc(page.slugPath, page.frontmatter.module)) continue;
     const title = page.frontmatter.title;
     const navTitle = navTitles.get(page.slugPath) ?? title;
     const slug = page.slugPath;

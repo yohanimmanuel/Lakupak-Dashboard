@@ -137,11 +137,15 @@ export default function DashboardClientLayout({ children }: { children: React.Re
           </div>
 
           {/* Main content scrolls in a flex column; sticky AI panel sits to the right.
-              @container/main lets pages use @3xl/@5xl/… so layouts stack when the AI panel shrinks this column. */}
+              @container/main lets pages use @3xl/@5xl/… so layouts stack when the AI panel shrinks this column.
+              Spacer is a flex sibling inside min-h-full (not after it): pages fill the viewport with
+              min-h-full, so a gap below the page stays under the fold; a sibling reserves bottom space. */}
           <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-white">
             <div className="@container/main flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
-              {/* Grow with page content (not flex-1) so tall profiles can scroll fully when AI panel is open */}
-              <div className="flex w-full min-h-full min-w-0 flex-col">{children}</div>
+              <div className="flex min-h-full w-full min-w-0 flex-col">
+                <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+                <div className="shrink-0" aria-hidden="true" />
+              </div>
             </div>
             <LakuAiStickyPanel />
           </div>

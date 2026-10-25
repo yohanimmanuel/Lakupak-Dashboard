@@ -33,9 +33,7 @@ export default function LandingNavbar() {
   const currentLang = langOptions.find((l) => l.code === locale);
   const featured = getFeaturedModule();
   const FeaturedIcon = featured.icon;
-  const menuFeatures = FEATURE_MODULES.filter(
-    (m) => m.slug !== 'marketplace' && m.group !== 'intelligence',
-  );
+  const menuFeatures = FEATURE_MODULES.filter((m) => m.group !== 'intelligence');
   const intelligenceFeatures = FEATURE_MODULES.filter((m) => m.group === 'intelligence');
 
   const navItems = [
@@ -473,16 +471,6 @@ export default function LandingNavbar() {
                         </button>
                       );
                     })}
-                    {/* Marketplace nav paused until buyer demand is validated.
-                    <button
-                      type="button"
-                      onClick={() => goToFeature('marketplace')}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                      <FeaturedIcon className="w-4 h-4 text-gray-500" strokeWidth={1.75} />
-                      {tf('marketplace.menuLabel')}
-                    </button>
-                    */}
                     <button
                       type="button"
                       onClick={() => goToFeature()}

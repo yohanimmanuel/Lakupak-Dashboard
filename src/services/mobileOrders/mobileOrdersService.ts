@@ -20,6 +20,7 @@ import { orderCreationRateLimiter, orderQueryRateLimiter } from '@/utils/rateLim
 import { computeTotalQtyNeededWithBuyXGetY, selectVariantOption } from '@/domain/marketplace/orderItemRules';
 import { enqueueSideEffect } from '@/lib/sideEffectQueue';
 import { applyBuyerPriceVisibility } from '@/services/mobileOrders/maskBuyerFacingPrices';
+import { getAuthenticatedMarketplaceUserId } from '@/utils/auth-helpers';
 
 export interface OrderItemInput {
   productId: string;
@@ -252,10 +253,20 @@ export async function getMobileMarketplaceOrders(request: NextRequest, tokenUser
     return NextResponse.json({ error: 'User not found' }, { status: 404, headers });
   }
 
-  const baseBuyerId = buildMobileBuyerId(marketplaceUser.id);
+  const session = await getAuthenticatedMarketplaceUserId(request);
+  const storefrontBuyerId =
+    session.ok && session.distributorId
+      ? buildMobileBuyerId(marketplaceUser.id, session.distributorId)
+      : null;
+  if (!storefrontBuyerId) {
+    return NextResponse.json(
+      { orders: [], pagination: { page, limit, total: 0, pages: 0 } },
+      { headers },
+    );
+  }
 
   const orders = await prisma.order.findMany({
-    where: { buyerId: { startsWith: baseBuyerId } },
+    where: { buyerId: storefrontBuyerId },
     skip,
     take: limit,
     orderBy: { orderDate: 'desc' },
@@ -274,7 +285,7 @@ export async function getMobileMarketplaceOrders(request: NextRequest, tokenUser
   });
 
   const total = await prisma.order.count({
-    where: { buyerId: { startsWith: baseBuyerId } },
+    where: { buyerId: storefrontBuyerId },
   });
 
   const ordersWithItems = orders.map((order) => {
@@ -400,6 +411,15 @@ export async function createMobileMarketplaceOrders(
     return NextResponse.json({ error: 'User not found' }, { status: 404, headers });
   }
 
+  const session = await getAuthenticatedMarketplaceUserId(request);
+  const storefrontId = session.ok ? session.distributorId : null;
+  if (!storefrontId) {
+    return NextResponse.json(
+      { error: 'Sign in with your distributor referral code to open their storefront', code: 'REFERRAL_CODE_REQUIRED' },
+      { status: 403, headers },
+    );
+  }
+
   const normalizeDeliveryOption = (value: unknown) => {
     if (!value) return null;
     const trimmed = String(value).trim().toLowerCase();
@@ -466,6 +486,12 @@ export async function createMobileMarketplaceOrders(
       return NextResponse.json(
         { error: `Product ${mismatched.productId} does not belong to distributor ${distributorUserIdFromClient}` },
         { status: 400, headers },
+      );
+    }
+    if (distributorUserIdFromClient !== storefrontId) {
+      return NextResponse.json(
+        { error: 'You can only order from the distributor storefront you signed into', code: 'NOT_A_MEMBER' },
+        { status: 403, headers },
       );
     }
 
@@ -838,6 +864,13 @@ export async function createMobileMarketplaceOrders(
 
   if (distributorToItems.size === 0) {
     return NextResponse.json({ error: 'Unable to determine distributors for products' }, { status: 400, headers });
+  }
+
+  if (distributorToItems.size !== 1 || !distributorToItems.has(storefrontId)) {
+    return NextResponse.json(
+      { error: 'You can only order from the distributor storefront you signed into', code: 'NOT_A_MEMBER' },
+      { status: 403, headers },
+    );
   }
 
   // Validate items (variants + promo free qty + stock precheck) BEFORE creating any orders to avoid partial writes.

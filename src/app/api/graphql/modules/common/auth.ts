@@ -6,11 +6,12 @@ import {
   type AppJwtPayload,
 } from '@/lib/jwt';
 import { normalizeMarketplacePhone } from '@/utils/marketplacePhone';
+import { activeStorefrontDistributorId } from '@/lib/marketplace/access';
 
 export type GraphQLPrincipalType = 'dashboard' | 'marketplace';
 
 export type GraphQLAuthContext = {
-  user: { id: number; type: GraphQLPrincipalType } | null;
+  user: { id: number; type: GraphQLPrincipalType; distributorId?: number | null } | null;
 };
 
 export function getContextUser(ctx: unknown): GraphQLAuthContext['user'] {
@@ -167,5 +168,10 @@ export async function resolveGraphQLUserFromAccessToken(
   }
 
   const id = await resolveMarketplaceGraphQLUser(payload.sub);
-  return id ? { id, type: 'marketplace' } : null;
+  if (!id) return null;
+  return {
+    id,
+    type: 'marketplace',
+    distributorId: await activeStorefrontDistributorId(id, payload.distributorId),
+  };
 }

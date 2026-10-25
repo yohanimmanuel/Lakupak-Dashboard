@@ -33,8 +33,6 @@ export function getDocsCategories(locale: DocLocale): DocsCategory[] {
       href: `${base}/dashboard/overview`,
       icon: 'dashboard',
     },
-    /*
-    Marketplace docs stay in content/docs. Hidden from the docs home until demand is validated.
     {
       id: 'marketplace',
       title: 'Marketplace',
@@ -45,7 +43,6 @@ export function getDocsCategories(locale: DocLocale): DocsCategory[] {
       href: `${base}/marketplace/overview`,
       icon: 'marketplace',
     },
-    */
     {
       id: 'driver',
       title: 'Driver',

@@ -1,7 +1,7 @@
 import type { Prisma } from '@/lib/db';
 import { prisma } from '../../common/prisma';
 
-export const fetchMobileCart = async (userId: number) => {
+export const fetchMobileCart = async (userId: number, distributorId: number | null) => {
   // Fetch all cart items from database (keeping unpublished products in DB for history)
   const cartItems = await prisma.userActivity.findMany({
     where: { 
@@ -14,17 +14,20 @@ export const fetchMobileCart = async (userId: number) => {
   // Get productIds from cart items
   const productIds = cartItems.map(item => item.productId);
 
-  // Check which products are currently published
-  const publishedProducts = await prisma.product.findMany({
-    where: {
-      productId: { in: productIds },
-      status: 'Published',
-      marketplaceStatus: 'Published'
-    },
-    select: {
-      productId: true
-    }
-  });
+  const publishedProducts =
+    distributorId && productIds.length > 0
+      ? await prisma.product.findMany({
+        where: {
+          productId: { in: productIds },
+          status: 'Published',
+          marketplaceStatus: 'Published',
+          userId: distributorId,
+        },
+        select: {
+          productId: true
+        }
+      })
+    : [];
 
   const publishedProductIds = new Set(publishedProducts.map(p => p.productId));
 
