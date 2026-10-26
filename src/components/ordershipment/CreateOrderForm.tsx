@@ -884,7 +884,7 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
             <p className="mb-3 text-xs text-gray-500">{tCreate('offerNote')}</p>
             {!loading && products.length === 0 && (
               <p className="mb-3 text-xs text-gray-600">
-                {tCreate('productsEmpty')} <Link href="/products" className="font-medium text-[#0a61d7]">{tCreate('createProduct')}</Link>
+                {tCreate('productsEmpty')} <Link href="/products/list" className="font-medium text-[#0a61d7]">{tCreate('createProduct')}</Link>
               </p>
             )}
             <div className="divide-y divide-[#e6e6e6] rounded-lg border border-[#e6e6e6]">

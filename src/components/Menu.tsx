@@ -35,6 +35,9 @@ const NAV_LABEL_KEYS: Record<string, string> = {
   Buyers: 'buyers',
   Suppliers: 'suppliers',
   Products: 'products',
+  List: 'list',
+  Heatmap: 'heatmap',
+  Opportunities: 'opportunities',
   Orders: 'orders',
   Offers: 'offers',
   Team: 'team',
@@ -76,7 +79,16 @@ const mainMenuItems = [
       { icon: <ListIcon className="w-5 h-5" />, label: 'Suppliers', href: '/clients/suppliers' },
     ],
   },
-  { label: 'Products', href: '/products', icon: <PackageIcon className="w-5 h-5" /> },
+  {
+    label: 'Products',
+    href: '/products',
+    icon: <PackageIcon className="w-5 h-5" />,
+    submenu: [
+      { icon: <ListIcon className="w-5 h-5" />, label: 'List', href: '/products/list' },
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Heatmap', href: '/products/heatmap' },
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Opportunities', href: '/products/opportunities' },
+    ],
+  },
   { label: 'Orders', href: '/orders', icon: <FileTextIcon className="w-5 h-5" /> },
   { label: 'Offers', href: '/offers', icon: <GiftIcon className="w-5 h-5" /> },
   // MVP pause: sales + analytics nav

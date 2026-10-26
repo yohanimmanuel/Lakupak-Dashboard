@@ -85,7 +85,7 @@ export default function ViewProductPage() {
         if (data.product) {
           setProduct(data.product);
         } else {
-          window.location.href = `/products/deleted?id=${params?.id}`;
+          window.location.href = `/products/list/deleted?id=${params?.id}`;
           return;
         }
       } catch (error) {

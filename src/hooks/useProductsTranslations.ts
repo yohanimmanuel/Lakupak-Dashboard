@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import { canonicalizeCategory } from '@/utils/categoryUtils';
 
 export function useProductsTranslations() {
+  const tHub = useTranslations('dashboard.products.hub');
   const tList = useTranslations('dashboard.products.list');
   const tShared = useTranslations('dashboard.products.shared');
   const tTable = useTranslations('dashboard.products.table');
@@ -45,6 +46,7 @@ export function useProductsTranslations() {
     tCatalog.has(`fields.${key}`) ? tCatalog(`fields.${key}`) : key;
 
   return {
+    tHub,
     tList,
     tShared,
     tTable,

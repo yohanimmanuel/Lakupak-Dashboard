@@ -61,7 +61,7 @@ export default function ProductsList({ products }: ProductsListProps) {
             {tProductsList('emptyBody')}
           </p>
           <Link
-            href="/products"
+            href="/products/list"
             className="inline-flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors text-sm font-medium"
           >
             {tProductsList('goToProducts')}
@@ -86,7 +86,7 @@ export default function ProductsList({ products }: ProductsListProps) {
           </p>
         </div>
         <Link
-          href="/products"
+          href="/products/list"
           className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-[#0a61d7] hover:text-[#084ba6] transition-colors"
         >
           {tProductsList('manageProducts')}
@@ -172,7 +172,7 @@ export default function ProductsList({ products }: ProductsListProps) {
                 </div>
 
                 <Link
-                  href={`/products/catalog/${product.productId}`}
+                  href={`/products/list/catalog/${product.productId}`}
                   className="block text-center text-xs font-medium text-[#0a61d7] hover:text-[#084ba6] transition-colors"
                 >
                   {tProductsList('viewDetails')}

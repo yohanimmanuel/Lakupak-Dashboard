@@ -119,24 +119,20 @@
           "desc": "Visualisasikan produk mana yang kurang menembus retailer yang layak pada heatmap agar cakupan asortimen yang rendah terlihat sebelum Anda merencanakan pengenalan produk."
         },
         "2": {
-          "title": "Draf sampai katalog siap",
-          "desc": "Produk belum lengkap tetap draf. Publikasikan hanya jika nama, varian, harga, stok lebih dari nol, dan gambar lolos gerbang kesiapan Marketplace."
-        },
-        "3": {
           "title": "Ekonomi grosir per varian",
           "desc": "Atur harga jual, harga beli, MOQ, dan ambang stok rendah pada setiap kombinasi variasi, bukan satu SKU datar."
         },
-        "4": {
+        "3": {
           "title": "Sinyal kepercayaan yang dikenal pembeli",
           "desc": "Tampilkan Halal, BPOM, jaminan produk original, dan hari kebijakan retur di detail produk agar retailer lebih yakin memesan."
         },
-        "5": {
+        "4": {
           "title": "Harga dasar di etalase",
           "desc": "Produk yang terbit menampilkan harga dasar katalog. Tarif retailer berlaku di pesanan pembelian mereka, bukan sebagai perubahan harga publik."
         },
-        "6": {
-          "title": "Stok yang mengikuti pesanan",
-          "desc": "Inventori bergerak mengikuti pemenuhan pesanan dan tetap terlihat sebagai Tersedia, Stok rendah, atau Habis untuk tim Anda dan pembeli Marketplace."
+        "5": {
+          "title": "Riwayat untuk wawasan produk–retailer",
+          "desc": "Baris pesanan yang sama menunjukkan produk mana yang sudah terjual di mana, dan toko mana yang masih menyisakan celah di portofolio."
         }
       }
     },
@@ -169,16 +165,16 @@
       },
       "points": {
         "1": {
+          "title": "Catat dan buat pesanan",
+          "desc": "Buat pesanan grosir secara manual di Dashboard dengan pencarian klien, detail kontak, baris item, status, dan pembayaran, atau catat pesanan yang masuk dari checkout Marketplace ke pipeline yang sama. Kedua jalur berbagi satu riwayat dengan total, badge status, dan bonus penawaran jika diterapkan."
+        },
+        "2": {
           "title": "Status yang dibagikan semua orang",
           "desc": "Satu pipeline dari pending hingga selesai, agar penjualan dan operasional melihat status pesanan yang sama."
         },
-        "2": {
+        "3": {
           "title": "Pembayaran tercatat di pesanan",
           "desc": "Lampirkan bukti transfer atau tandai bayar di tempat, lalu set pesanan lunas setelah tim memeriksanya."
-        },
-        "3": {
-          "title": "Riwayat untuk wawasan produk–retailer",
-          "desc": "Baris pesanan yang sama menunjukkan produk mana yang sudah terjual di mana, dan toko mana yang masih menyisakan celah di portofolio."
         }
       }
     },

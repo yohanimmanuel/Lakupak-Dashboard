@@ -40,6 +40,8 @@ type PointMediaConfig =
       images: PointMedia[];
       /** Auto-advance interval in ms. */
       intervalMs?: number;
+      /** Larger lapse frames for wide dashboard screenshots. */
+      size?: 'md' | 'lg';
     }
   | { type: 'placeholder' };
 
@@ -78,42 +80,40 @@ const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaCo
     1: { type: 'placeholder' },
     2: {
       type: 'single',
-      placement: 'corner',
-      image: { src: '/Dashboardproducts6.png', width: 1517, height: 761 },
+      placement: 'center',
+      image: { src: '/Dashboardproducts7.png', width: 1477, height: 721 },
     },
     3: {
       type: 'single',
       placement: 'center',
-      image: { src: '/Dashboardproducts7.png', width: 1477, height: 721 },
+      image: { src: '/Dashboardproducts8.png', width: 1080, height: 924 },
     },
     4: {
       type: 'single',
       placement: 'center',
-      image: { src: '/Dashboardproducts8.png', width: 1080, height: 924 },
-    },
-    5: {
-      type: 'single',
-      placement: 'center',
       image: { src: '/Dashboardproducts3.png', width: 735, height: 602 },
     },
-    6: {
-      type: 'single',
-      placement: 'center',
-      image: { src: '/Dashboardproducts9.png', width: 1457, height: 203 },
-    },
+    5: { type: 'placeholder' },
   },
   orders: {
     1: {
-      type: 'single',
-      placement: 'center',
-      image: { src: '/Dashboardorders3.png', width: 1505, height: 675 },
+      type: 'carousel',
+      intervalMs: 3500,
+      images: [
+        { src: '/Dashboardorders8.png', width: 902, height: 637, label: 'Create order' },
+        { src: '/Dashboardorders9.png', width: 1533, height: 750, label: 'Order history' },
+      ],
     },
     2: {
       type: 'single',
       placement: 'center',
+      image: { src: '/Dashboardorders3.png', width: 1505, height: 675 },
+    },
+    3: {
+      type: 'single',
+      placement: 'center',
       image: { src: '/Dashboardorders4.png', width: 947, height: 762 },
     },
-    3: { type: 'placeholder' },
   },
   offers: {
     1: {
@@ -535,12 +535,15 @@ function PointAutoCarousel({
   images,
   intervalMs = 3500,
   alt,
+  size = 'md',
 }: {
   images: PointMedia[];
   intervalMs?: number;
   alt: string;
+  size?: 'md' | 'lg';
 }) {
   const [active, setActive] = useState(0);
+  const large = size === 'lg';
 
   useEffect(() => {
     if (images.length <= 1) return;
@@ -572,8 +575,12 @@ function PointAutoCarousel({
               width={image.width}
               height={image.height}
               quality={90}
-              className="block h-auto w-auto max-h-[224px] max-w-full sm:max-h-[296px]"
-              sizes="(min-width: 1024px) 560px, 92vw"
+              className={
+                large
+                  ? 'block h-auto w-auto max-h-[300px] max-w-full sm:max-h-[420px]'
+                  : 'block h-auto w-auto max-h-[224px] max-w-full sm:max-h-[296px]'
+              }
+              sizes={large ? '(min-width: 1024px) 720px, 94vw' : '(min-width: 1024px) 560px, 92vw'}
               priority={index === 0}
             />
           </span>
@@ -756,7 +763,10 @@ export function FeatureModulePage({
               const pointMedia = POINT_MEDIA[slug]?.[n];
               const imageLeft = Boolean(pointMedia) && i % 2 === 1;
               /** Fixed stage size so screenshot steps match placeholder steps. */
-              const stageHeightClass = 'h-[240px] sm:h-[320px]';
+              const stageHeightClass =
+                pointMedia?.type === 'carousel' && pointMedia.size === 'lg'
+                  ? 'h-[320px] sm:h-[440px]'
+                  : 'h-[240px] sm:h-[320px]';
               const media = pointMedia ? (
                 pointMedia.type === 'single' ? (
                   <FeatureMediaFrame framed={false} minHeightClass={stageHeightClass}>
@@ -809,6 +819,7 @@ export function FeatureModulePage({
                     <PointAutoCarousel
                       images={pointMedia.images}
                       intervalMs={pointMedia.intervalMs}
+                      size={pointMedia.size}
                       alt={title}
                     />
                   </FeatureMediaFrame>

@@ -1423,7 +1423,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
                          <div className="flex items-center gap-2 min-w-0">
                            <ProductImageThumb src={product.image} alt={product.name} size="sm" />
                            <Link
-                             href={`/products/catalog/${product.productId}`}
+                             href={`/products/list/catalog/${product.productId}`}
                              className="truncate font-semibold text-[#0a61d7] transition-all duration-200 hover:text-blue-800"
                              title={tShared('viewProduct', { name: product.name })}
                              onClick={(e) => e.stopPropagation()}
@@ -2147,7 +2147,7 @@ export const AnalyticsTopProductsTable: React.FC<{
                 <div className="flex items-center gap-2 min-w-0">
                   <ProductImageThumb src={product.image} alt={product.name} size="sm" />
                   <Link
-                    href={`/products/catalog/${product.productId}`}
+                    href={`/products/list/catalog/${product.productId}`}
                     className="truncate font-semibold text-[#0a61d7] transition-all duration-200 hover:text-blue-800"
                     title={tShared('viewProduct', { name: product.name })}
                     onClick={(e) => e.stopPropagation()}

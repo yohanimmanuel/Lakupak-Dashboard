@@ -808,7 +808,7 @@ export default function FinancialAnalyticsPage() {
         </div>
         <div className="flex flex-col sm:flex-row mt-6 justify-center">
           <button 
-            onClick={() => window.location.href = '/products'}
+            onClick={() => window.location.href = '/products/list'}
             className="px-6 py-3 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors"
           >
             {tShared('addProducts')}

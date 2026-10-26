@@ -1194,7 +1194,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-xs font-semibold transition-colors">
                         <Link
-                          href={item.productId ? `/products/catalog/${item.productId}` : `/products/deleted?id=${item.productSkuSnapshot || ''}`}
+                          href={item.productId ? `/products/list/catalog/${item.productId}` : `/products/list/deleted?id=${item.productSkuSnapshot || ''}`}
                           className="text-[#0a61d7] hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:ring-offset-1 rounded"
                           title={tDetails('orderItems.viewProductTitle')}
                         >
@@ -1342,7 +1342,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                     <tr key={index} className="border-b border-[#e6e6e6]">
                       <td className="py-2">
                         <Link
-                          href={item.productId ? `/products/catalog/${item.productId}` : `/products/deleted?id=${item.productSkuSnapshot || ''}`}
+                          href={item.productId ? `/products/list/catalog/${item.productId}` : `/products/list/deleted?id=${item.productSkuSnapshot || ''}`}
                           className="font-semibold text-[#0a61d7] hover:text-blue-800 transition-colors focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:ring-offset-1 rounded"
                           title={tDetails('orderItems.viewProductTitle')}
                         >
@@ -1486,7 +1486,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                     <div className="flex-1">
                       <h3 className="text-base font-medium transition-colors">
                         <Link
-                          href={`/products/catalog/${item.productId}`}
+                          href={`/products/list/catalog/${item.productId}`}
                           className="text-blue-600 hover:text-blue-800 hover:underline focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:ring-offset-1 rounded"
                           title={tDetails('orderItems.viewProductTitle')}
                         >

@@ -1,6 +1,58 @@
 {
-  "list": {
+  "hub": {
     "title": "Produk",
+    "tips": "Tips",
+    "tools": "Alat",
+    "dismissTip": "Tutup tip",
+    "closeModal": "Tutup modal",
+    "mainPurpose": "Tujuan utama",
+    "details": "Detail",
+    "tipsList": {
+      "review-catalog": {
+        "title": "Tinjau katalog Anda",
+        "description": "Jaga SKU, varian, harga, dan stok tetap mutakhir agar produk yang kurang termanfaatkan siap diperkenalkan ke retailer yang cocok.",
+        "actionLabel": "Buka daftar",
+        "mainPurpose": "Pertahankan daftar produk lengkap dengan varian, stok, dan kesiapan publish agar peluang portofolio bisa dievaluasi terhadap data katalog nyata.",
+        "details": {
+          "0": "Tambah atau impor produk, lalu lengkapi draf sebelum mempublikasikan",
+          "1": "Lacak stok dan peringatan stok rendah dari tampilan daftar",
+          "2": "Publikasikan hanya jika gambar, varian, dan harga siap untuk pembeli"
+        }
+      },
+      "explore-heatmap": {
+        "title": "Cek penetrasi asortimen",
+        "description": "Gunakan Heatmap untuk melihat di mana produk kurang menjangkau retailer yang layak. Penetrasi rendah adalah sinyal untuk diselidiki, bukan bukti permintaan.",
+        "actionLabel": "Buka heatmap",
+        "mainPurpose": "Visualisasikan produk mana yang menjangkau bagian mana dari jaringan retailer agar Anda bisa memprioritaskan investigasi berikutnya.",
+        "details": {
+          "0": "Bandingkan jangkauan produk di pembeli yang layak",
+          "1": "Temukan celah yang mungkin perlu follow-up penjualan atau syarat penawaran",
+          "2": "Perlakukan sel kosong atau rendah sebagai petunjuk investigasi, bukan permintaan otomatis"
+        }
+      }
+    },
+    "toolsList": {
+      "list": {
+        "name": "List",
+        "description": "Kelola katalog produk, stok, varian, dan status publikasi."
+      },
+      "heatmap": {
+        "name": "Heatmap",
+        "description": "Lihat penetrasi asortimen di produk dan retailer."
+      },
+      "opportunities": {
+        "name": "Opportunities",
+        "description": "Cocokkan produk dengan retailer dan tinjau peluang berperingkat."
+      }
+    },
+    "placeholders": {
+      "comingSoon": "Tampilan ini segera hadir. Tata letak dan data akan muncul di sini pada pembaruan berikutnya.",
+      "heatmap": "Penetrasi asortimen di portofolio produk dan retailer yang layak.",
+      "opportunities": "Pencocokan produk–retailer dan daftar peluang berperingkat untuk ditindaklanjuti."
+    }
+  },
+  "list": {
+    "title": "List",
     "refresh": "Segarkan",
     "exportData": "Ekspor Data",
     "addProduct": "+ Tambah Produk",

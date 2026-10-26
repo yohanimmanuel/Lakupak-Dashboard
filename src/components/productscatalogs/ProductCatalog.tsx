@@ -2252,7 +2252,7 @@ export default function ProductCatalog({
           onSave(savedProduct);
         } else {
           // Navigate back to products page for add mode
-          router.push('/products');
+          router.push('/products/list');
         }
       }
     } catch (error) {
@@ -2292,10 +2292,10 @@ export default function ProductCatalog({
             onClick={() => {
               if (currentMode === 'edit' && hasUnsavedChanges) {
                 if (confirm(tCatalog('header.confirmLeave'))) {
-                  router.push('/products');
+                  router.push('/products/list');
                 }
               } else {
-                router.push('/products');
+                router.push('/products/list');
               }
             }}
             className="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800 @3xl/main:w-auto @3xl/main:justify-start"
@@ -2353,7 +2353,7 @@ export default function ProductCatalog({
             <>
               <button
                 type="button"
-                onClick={() => router.push('/products')}
+                onClick={() => router.push('/products/list')}
                 disabled={saving}
                 className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-black disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
               >

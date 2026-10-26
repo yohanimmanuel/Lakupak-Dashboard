@@ -54,7 +54,7 @@ export const FEATURE_MODULES: FeatureModuleDef[] = [
     icon: Package,
     featured: true,
     surfaces: ['dashboard', 'marketplace'],
-    pointsCount: 6,
+    pointsCount: 5,
     highlightsCount: 3,
   },
   { slug: 'orders', group: 'sell', icon: ShoppingCart, surfaces: ['dashboard', 'marketplace'], pointsCount: 3, highlightsCount: 3 },

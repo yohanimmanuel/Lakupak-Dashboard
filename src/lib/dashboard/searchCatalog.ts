@@ -47,7 +47,7 @@ export const DASHBOARD_SEARCH_CATALOG: DashboardSearchEntry[] = [
     title: 'Products',
     description: 'Catalog, stock, publish to marketplace',
     section: 'Main',
-    href: '/products',
+    href: '/products/list',
     keywords: ['catalog', 'sku', 'inventory', 'produk', 'stok'],
   },
   {
@@ -55,7 +55,7 @@ export const DASHBOARD_SEARCH_CATALOG: DashboardSearchEntry[] = [
     title: 'Add product',
     description: 'Create a new product SKU',
     section: 'Products',
-    href: '/products/add',
+    href: '/products/list/add',
     keywords: ['new', 'create', 'tambah'],
   },
   {

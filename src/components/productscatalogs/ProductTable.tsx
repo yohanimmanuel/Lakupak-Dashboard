@@ -644,11 +644,11 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
   }, [selectedTab]);
 
   const handleView = (product: ProductTableRow) => {
-    router.push(`/products/catalog/${product.productId}`);
+    router.push(`/products/list/catalog/${product.productId}`);
   };
 
   const handleEdit = (product: ProductTableRow) => {
-    router.push(`/products/edit/${product.productId}`);
+    router.push(`/products/list/edit/${product.productId}`);
   };
 
   const handleDelete = async (product: ProductTableRow) => {

@@ -119,24 +119,20 @@
           "desc": "Visualise which products under-penetrate eligible retailers on a heatmap so low assortment coverage stands out before you plan introductions."
         },
         "2": {
-          "title": "Draft until the catalog is ready",
-          "desc": "Incomplete products stay in draft. Publish only when name, variants, pricing, stock greater than zero, and images pass Marketplace readiness gates."
-        },
-        "3": {
           "title": "Per-variant wholesale economics",
           "desc": "Set selling price, purchase price, MOQ, and low-stock thresholds on every variation combination, not a single flat SKU."
         },
-        "4": {
+        "3": {
           "title": "Trust signals buyers recognize",
           "desc": "Show Halal, BPOM, original-product assurance, and return-policy days on product detail so retailers order with more confidence."
         },
-        "5": {
+        "4": {
           "title": "Base price on the shelf",
           "desc": "Published products show the catalog base price. A retailer's rate applies on their purchase order, not as a public price change."
         },
-        "6": {
-          "title": "Stock that follows orders",
-          "desc": "Inventory moves with order fulfillment and stays visible as In, Low, or Out of stock, so opportunities are not pushed when stock cannot support them."
+        "5": {
+          "title": "History for product–retailer insight",
+          "desc": "The same order lines show which products already sell where, and which shops still leave gaps in the portfolio."
         }
       }
     },
@@ -169,16 +165,16 @@
       },
       "points": {
         "1": {
+          "title": "Record and create orders",
+          "desc": "Create a wholesale order manually in Dashboard with client search, contact details, line items, status, and payment, or record orders that arrive from Marketplace checkout into the same pipeline. Both paths share one history with totals, status badges, and offer freebies when applied."
+        },
+        "2": {
           "title": "Status everyone shares",
           "desc": "One pipeline from pending through completed, so sales and operations see the same order state."
         },
-        "2": {
+        "3": {
           "title": "Payment recorded on the order",
           "desc": "Attach transfer proof or mark cash on delivery, then set the order paid after your team checks it."
-        },
-        "3": {
-          "title": "History for product–retailer insight",
-          "desc": "The same order lines show which products already sell where, and which shops still leave gaps in the portfolio."
         }
       }
     },

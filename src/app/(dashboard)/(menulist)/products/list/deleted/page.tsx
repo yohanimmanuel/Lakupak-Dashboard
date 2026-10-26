@@ -29,7 +29,7 @@ export default function ProductDeletedPage() {
             {tDeleted('goBack')}
           </button>
           <button
-            onClick={() => { window.location.href = '/products'; }}
+            onClick={() => { window.location.href = '/products/list'; }}
             className="px-4 py-2 bg-gray-200 text-gray-800 text-sm rounded-lg hover:bg-gray-300 transition-colors"
           >
             {tDeleted('addProducts')}

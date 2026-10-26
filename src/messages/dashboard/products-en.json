@@ -1,6 +1,58 @@
 {
-  "list": {
+  "hub": {
     "title": "Products",
+    "tips": "Tips",
+    "tools": "Tools",
+    "dismissTip": "Dismiss tip",
+    "closeModal": "Close modal",
+    "mainPurpose": "Main Purpose",
+    "details": "Details",
+    "tipsList": {
+      "review-catalog": {
+        "title": "Review your catalog",
+        "description": "Keep SKUs, variants, pricing, and stock current so underused products stay ready to introduce to suitable retailers.",
+        "actionLabel": "Open list",
+        "mainPurpose": "Maintain a complete product list with variants, stock, and publish readiness so portfolio opportunities can be evaluated against real catalog data.",
+        "details": {
+          "0": "Add or import products, then complete drafts before publishing",
+          "1": "Track stock and low-stock alerts from the list view",
+          "2": "Publish only when images, variants, and pricing are ready for buyers"
+        }
+      },
+      "explore-heatmap": {
+        "title": "Check assortment penetration",
+        "description": "Use Heatmap to see where products under-penetrate eligible retailers. Low penetration is a signal to investigate, not proof of demand.",
+        "actionLabel": "Open heatmap",
+        "mainPurpose": "Visualise which products reach which parts of your retailer network so you can prioritise where to look next.",
+        "details": {
+          "0": "Compare product reach across eligible buyers",
+          "1": "Spot gaps that may deserve sales follow-up or offer terms",
+          "2": "Treat blank or low cells as investigation cues, not automatic demand"
+        }
+      }
+    },
+    "toolsList": {
+      "list": {
+        "name": "List",
+        "description": "Manage your product catalog, stock, variants, and publish status."
+      },
+      "heatmap": {
+        "name": "Heatmap",
+        "description": "See assortment penetration across products and retailers."
+      },
+      "opportunities": {
+        "name": "Opportunities",
+        "description": "Match products to retailers and review ranked opportunities."
+      }
+    },
+    "placeholders": {
+      "comingSoon": "This view is coming soon. Layout and data will appear here in a later update.",
+      "heatmap": "Assortment penetration across your product portfolio and eligible retailers.",
+      "opportunities": "Product–retailer matching and a ranked list of opportunities to act on."
+    }
+  },
+  "list": {
+    "title": "List",
     "refresh": "Refresh",
     "exportData": "Export Data",
     "addProduct": "+ Add Product",

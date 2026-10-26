@@ -392,7 +392,7 @@ export const NotificationService = {
           title: 'Out of Stock Alert',
           message: `${productName}${variantInfo} is now out of stock!`,
           metadata: { productId, productName, stockQuantity, variantName },
-          actionUrl: `/products/catalog/${productId}`,
+          actionUrl: `/products/list/catalog/${productId}`,
         },
       });
       emitDashboardNewNotification(userId);
@@ -405,7 +405,7 @@ export const NotificationService = {
           title: isCritical ? 'Critical Stock Alert' : 'Low Stock Alert',
           message: `${productName}${variantInfo} has only ${stockQuantity} units remaining${isCritical ? ' (critical level)' : ''}.`,
           metadata: { productId, productName, stockQuantity, lowStockThreshold, variantName, isCritical },
-          actionUrl: `/products/catalog/${productId}`,
+          actionUrl: `/products/list/catalog/${productId}`,
         },
       });
       emitDashboardNewNotification(userId);
@@ -456,7 +456,7 @@ export const NotificationService = {
           title: 'Stock Restored',
           message: `${productName}${variantInfo} stock has been restored to healthy levels (${newStock} units).`,
           metadata: { productId, productName, stockQuantity: newStock, lowStockThreshold, variantName, restored: true },
-          actionUrl: `/products/catalog/${productId}`,
+          actionUrl: `/products/list/catalog/${productId}`,
         },
       });
       emitDashboardNewNotification(userId);
@@ -579,7 +579,7 @@ export const NotificationService = {
         title: 'Product Published',
         message: `Your product "${productName}" has been published to the marketplace.`,
         metadata: { productId, productName, status: 'published' },
-        actionUrl: `/products/catalog/${productId}`,
+        actionUrl: `/products/list/catalog/${productId}`,
       },
     });
     emitDashboardNewNotification(userId);
@@ -600,7 +600,7 @@ export const NotificationService = {
         title: 'Product Published',
         message: `Your product "${name}" has been published to the marketplace.`,
         metadata: { productId, productName: name, status: 'published' },
-        actionUrl: `/products/catalog/${productId}`,
+        actionUrl: `/products/list/catalog/${productId}`,
       })),
     });
     emitDashboardNewNotification(userId);
@@ -673,7 +673,7 @@ export const NotificationService = {
         title,
         message,
         metadata: { productId, productName, action },
-        actionUrl: `/products/catalog/${productId}`,
+        actionUrl: `/products/list/catalog/${productId}`,
       },
     });
     emitDashboardNewNotification(userId);

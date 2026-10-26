@@ -1997,7 +1997,7 @@ const supplierInsights = useMemo(() => {
         return {
           action: (
             <Link
-              href="/products"
+              href="/products/list"
               className="inline-flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6]"
             >
               {widgetText('products', 'action')}
@@ -2401,7 +2401,7 @@ const supplierInsights = useMemo(() => {
         return {
           action: (
             <Link
-              href="/products"
+              href="/products/list"
               className="inline-flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6]"
             >
               {widgetText('inventory', 'manageProducts')}
@@ -2464,7 +2464,7 @@ const supplierInsights = useMemo(() => {
                             {lowStockProduct.name}
                           </span>
                           <Link
-                            href={`/products/catalog/${lowStockProduct.productId}`}
+                            href={`/products/list/catalog/${lowStockProduct.productId}`}
                             className="text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6]"
                           >
                             {widgetText('inventory', 'viewProduct')}

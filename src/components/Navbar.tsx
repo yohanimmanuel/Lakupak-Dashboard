@@ -144,7 +144,7 @@ function resolveNotificationHref(
   const queryId = new URLSearchParams(actionUrl.split('?')[1] ?? '').get('id')?.trim();
   const metaId = typeof metadata?.productId === 'string' ? metadata.productId.trim() : '';
   const productId = queryId || metaId;
-  return productId ? `/products/catalog/${encodeURIComponent(productId)}` : '/products';
+  return productId ? `/products/list/catalog/${encodeURIComponent(productId)}` : '/products/list';
 }
 
 const Navbar = () => {
