@@ -92,7 +92,7 @@ export default function BuyersPage() {
 
   useEffect(() => {
     if (redirectedAddRef.current) return;
-    if (searchParams.get('addBuyer') !== '1') return;
+    if (searchParams?.get('addBuyer') !== '1') return;
     redirectedAddRef.current = true;
     router.replace('/clients/buyers/add');
   }, [searchParams, router]);
