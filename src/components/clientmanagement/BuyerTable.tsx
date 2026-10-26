@@ -1074,7 +1074,20 @@ export default function BuyerTable({
                 </td>
                 <td className="max-w-30 py-3 px-4 font-medium text-black truncate">
                   {String(buyer.name).trim() ? (
-                    String(buyer.name)
+                    pickerMode ? (
+                      <span className="truncate font-semibold text-black">{String(buyer.name)}</span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="truncate text-[#0a61d7] font-semibold hover:text-blue-800"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleView(buyer);
+                        }}
+                      >
+                        {String(buyer.name)}
+                      </button>
+                    )
                   ) : (
                     <span className="text-red-600 font-bold">{tShared('missing.name')}</span>
                   )}
@@ -1109,8 +1122,11 @@ export default function BuyerTable({
                       <>
                     <button
                       className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 transition-colors focus:outline-none"
-                      onClick={() => handleView(buyer)}
-                      aria-label={getAriaLabel(tShared('edit'), buyer)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleView(buyer);
+                      }}
+                      aria-label={getAriaLabel(tShared('view'), buyer)}
                     >
                       <Edit className="w-4 h-4 text-gray-500" />
                     </button>
@@ -1310,8 +1326,11 @@ export default function BuyerTable({
                   <>
                 <button
                   className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 transition-colors focus:outline-none"
-                  onClick={() => handleView(buyer)}
-                  aria-label={getAriaLabel('Edit', buyer)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleView(buyer);
+                  }}
+                  aria-label={getAriaLabel(tShared('view'), buyer)}
                 >
                   <Edit className="w-4 h-4 text-gray-500" />
                 </button>

@@ -631,7 +631,7 @@
       "needClient": "Pilih klien.",
       "needProduct": "Pilih minimal satu produk.",
       "needOutlet": "Isi data outlet baru.",
-      "prospectMoved": "Outlet baru ditambahkan dari Prospek.",
+      "prospectMoved": "Outlet baru ditambahkan di Clients → Buyers (status Prospek).",
       "customerExists": "Nomor pelanggan sudah dipakai.",
       "selectRep": "Pilih sales",
       "loadingOrders": "Memuat order"

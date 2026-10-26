@@ -56,7 +56,7 @@
           },
           "2": {
             "title": "Buyers and suppliers together",
-            "desc": "Manage retail accounts and upstream suppliers under one Clients hub with Active, Inactive, and Blocked statuses."
+            "desc": "Manage retail accounts and upstream suppliers under one Clients hub with Active, Prospect, Inactive, and Blocked statuses."
           },
           "3": {
             "title": "Live order history on buyers",
@@ -75,11 +75,11 @@
         },
         "3": {
           "title": "Buyers and suppliers in one CRM",
-          "desc": "Run retail accounts and upstream partners from the same Clients module, with shared Active, Inactive, and Blocked statuses."
+          "desc": "Run retail accounts and upstream partners from the same Clients module, with shared Active, Prospect, Inactive, and Blocked statuses."
         },
         "4": {
-          "title": "Complete profiles ready for ops",
-          "desc": "Capture store details, owners, phones, emails, addresses, business type, and notes, with a completion bar that flags missing fields."
+          "title": "Buyer prospecting",
+          "desc": "Describe the buyer you want to reach, including area, outlet type, and criteria. Lakupak AI suggests matching retailers, then you fill out and save only the prospects you choose as Clients buyers."
         },
         "5": {
           "title": "Order history on every buyer",
@@ -257,10 +257,6 @@
         "3": {
           "title": "Delegate the day on WhatsApp",
           "desc": "The AI sends each rep their job list on WhatsApp. The rep replies in chat with what they finished, and the job records the promotion, stock, payment, return, or competitor."
-        },
-        "4": {
-          "title": "Buyer prospecting",
-          "desc": "Describe the buyer you want to reach, including area, outlet type, and criteria. Lakupak AI suggests matching retailers, then you fill out and save only the prospects you choose."
         }
       }
     },

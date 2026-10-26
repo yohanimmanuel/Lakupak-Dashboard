@@ -3,7 +3,6 @@ import React from "react";
 import { Phone, MapPin, Store, Tag, Truck, Info, FileText, Calendar, BarChart2, ArrowLeft, Edit, Copy, Mail, ChevronLeft, ChevronRight, User, Upload, Download } from "lucide-react";
 import Link from "next/link";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts';
-import SupplierModal from './SupplierModal';
 import { useState } from 'react';
 import * as XLSX from 'xlsx';
 import ImportSuppliesModal from './ImportSuppliesModal';
@@ -70,7 +69,6 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
   
   // Get user currency for display
   const userCurrency = user?.currency || getDefaultCurrency();
-  const [showEditModal, setShowEditModal] = useState(false);
   const [showImportSupplies, setShowImportSupplies] = useState(false);
   
   // SupplierProfile - Raw supplier data
@@ -179,12 +177,12 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
           >
             <Copy className="h-4 w-4" /> {tSuppliersProfile('copyData')}
           </button>
-          <button
+          <Link
+            href={`/clients/suppliers/edit/${encodeURIComponent(supplier.supplierId)}`}
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#084ba6] @4xl/main:w-auto"
-            onClick={() => setShowEditModal(true)}
           >
             <Edit className="h-4 w-4" /> {tSuppliersProfile('editDetails')}
-          </button>
+          </Link>
         </div>
       </div>
       
@@ -710,21 +708,6 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
         </>
         )}
       </div>
-      <SupplierModal
-        open={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        onSave={async () => {
-          setShowEditModal(false);
-          // Trigger SWR refresh if available, otherwise reload page
-          if (onUpdate) {
-            await onUpdate();
-          } else {
-            window.location.reload();
-          }
-        }}
-        initialData={supplier}
-        mode="edit"
-      />
     </div>
   );
 }

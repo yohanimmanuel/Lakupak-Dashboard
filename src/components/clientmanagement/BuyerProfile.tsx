@@ -1,10 +1,9 @@
 'use client';
 
 import React from "react";
-import { Phone, MapPin, Store, Tag, Truck, Info, FileText, Calendar, DollarSign, BarChart2, ArrowLeft, Edit, Copy, Mail, ChevronLeft, ChevronRight, User, Upload, Download, CheckCircle2, AlertTriangle, Plus } from "lucide-react";
+import { Phone, MapPin, Tag, Truck, Info, Calendar, BarChart2, ArrowLeft, Edit, Copy, Mail, ChevronLeft, ChevronRight, User, Upload, Download, CheckCircle2, AlertTriangle, Plus } from "lucide-react";
 import Link from "next/link";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts';
-import BuyerModal from './BuyerModal';
 import { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import ImportOrdersModal from './ImportOrdersModal';
@@ -19,6 +18,10 @@ import { useOffersTranslations } from '@/hooks/useOffersTranslations';
 import { useRouter } from 'next/navigation';
 import type { Offer } from '@/types/offer';
 import { formatDiscount } from '@/components/offersincentivesdisc/OfferTable';
+import MapFullscreenModal from '@/components/MapFullscreenModal';
+import MapComponent from '@/components/ordershipment/MapComponent';
+import { useMapboxToken } from '@/hooks/useMapboxToken';
+import { geocodeAddress, type GeocodeResult } from '@/utils/mapboxUtils';
 
 type ProfileFieldKey =
   | 'storeName'
@@ -106,12 +109,39 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
   const { tBuyersProfile, tBuyersModal, tShared, translateStatus } = useClientsTranslations();
   const { translateOfferStatus, tTable: tOffersTable } = useOffersTranslations();
   const dateLocale = user?.language === 'id' ? 'id-ID' : 'en-US';
+  const { token: mapboxToken } = useMapboxToken();
+  const [showAddressMap, setShowAddressMap] = useState(false);
+  const [addressGeocode, setAddressGeocode] = useState<GeocodeResult | null>(null);
+  const [isGeocodingAddress, setIsGeocodingAddress] = useState(false);
+
+  const addressText = buyer.address?.trim() || '';
+  const hasAddress = Boolean(addressText);
+
+  useEffect(() => {
+    if (!hasAddress) {
+      setAddressGeocode(null);
+      return;
+    }
+    let cancelled = false;
+    const run = async () => {
+      setIsGeocodingAddress(true);
+      try {
+        const result = await geocodeAddress(addressText);
+        if (!cancelled) setAddressGeocode(result);
+      } finally {
+        if (!cancelled) setIsGeocodingAddress(false);
+      }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [addressText, hasAddress]);
 
   // Get user currency for display - safe to use on both server and client
   const userCurrency = user?.currency || getDefaultCurrency();
   const getFieldLabel = (key: ProfileFieldKey) =>
     tBuyersProfile(`fields.${key}` as Parameters<typeof tBuyersProfile>[0]);
-  const [showEditModal, setShowEditModal] = useState(false);
   const [showImportOrders, setShowImportOrders] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateError, setUpdateError] = useState('');
@@ -131,14 +161,16 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
     }
   })() : [];
   
-  const notes = buyer.notes ? (() => {
+  const notes: string[] = (() => {
+    if (!buyer.notes) return [];
     try {
-      const parsed = JSON.parse(buyer.notes);
-      return parsed;
-    } catch (error) {
+      const parsed: unknown = JSON.parse(buyer.notes);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter((item): item is string => typeof item === 'string');
+    } catch {
       return [];
     }
-  })() : [];
+  })();
 
   useEffect(() => {
     if (!user?.id || !buyer.buyerId) return;
@@ -253,12 +285,12 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
           >
             <Copy className="h-4 w-4" /> {tBuyersProfile('copyData')}
           </button>
-          <button
+          <Link
+            href={`/clients/buyers/edit/${encodeURIComponent(buyer.buyerId)}`}
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#084ba6] @4xl/main:w-auto"
-            onClick={() => setShowEditModal(true)}
           >
             <Edit className="h-4 w-4" /> {tBuyersProfile('editDetails')}
-          </button>
+          </Link>
         </div>
       </div>
       
@@ -270,7 +302,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
           { key: 'owner', value: !!(buyer.owner && buyer.owner.trim()) },
           { key: 'address', value: !!(buyer.address && buyer.address.trim()) },
           { key: 'businessType', value: !!(buyer.businessType && buyer.businessType.trim()) },
-          { key: 'email', value: !!(buyer.email && buyer.email.trim()) },
+          // Email is optional on the buyer form — do not count it against completion.
           { key: 'phone', value: !!(buyer.phone && buyer.phone.trim()) }
         ];
         
@@ -386,128 +418,216 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
         );
       })()}
       
-      {/* Top Row */}
-      <div className="grid grid-cols-1 gap-4 @4xl/main:grid-cols-3">
-        {/* Avatar & Owner */}
-        <div className="flex flex-col items-center justify-center bg-white rounded-lg border border-[#e6e6e6] p-4 gap-2">
-          <div className="w-20 h-20 rounded-full object-cover border-4 border-gray-300 bg-gray-100 flex items-center justify-center overflow-hidden">
-            {buyer.avatar ? (
-              <img src={buyer.avatar} alt={buyer.owner} className="w-full h-full object-cover" />
-            ) : (
-              <User className="w-10 h-10 text-gray-400" />
-            )}
-          </div>
-          <div className="text-lg font-bold text-black mt-2">
-            {buyer.owner && buyer.owner.trim() ? buyer.owner : <span className="text-red-600 font-bold">{tShared('missing.ownerName')}</span>}
-          </div>
-          <div className="flex items-center gap-2 text-gray-500 text-sm">
-            <Mail className="w-4 h-4" />
-            <span>{buyer.email && buyer.email.trim() ? buyer.email : <span className="text-red-600 font-bold">{tShared('missing.email')}</span>}</span>
-          </div>
-          <div className="flex items-center gap-2 text-gray-500 text-xs">
-            <Phone className="w-3 h-3" />
-            <span>{buyer.phone && buyer.phone.trim() ? buyer.phone : <span className="text-red-600 font-bold">{tShared('missing.phone')}</span>}</span>
-          </div>
-          <div className="flex items-center gap-2 text-gray-500 text-xs">
-            <span className="font-medium text-gray-500">{tShared('mobileLabels.id')} {buyer.buyerId}</span>
-          </div>
-        </div>
-        {/* General Info */}
-        <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 flex flex-col justify-center relative">
-          <div className="absolute left-4 top-4 text-md font-bold text-black">{tBuyersProfile('generalInfo')}</div>
-            <div className="flex flex-col gap-4 mt-4">
-              <div className="flex items-center gap-2 text-gray-500 text-xs">
-                <Store className="w-4 h-5" />
-                <span className="font-semibold text-black text-sm">
-                  {buyer.storeName && buyer.storeName.trim() ? buyer.storeName : <span className="text-red-600 font-bold">{tShared('missing.storeName')}</span>}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 text-gray-500 text-xs">
-                <Tag className="w-4 h-4" />
-                <span className="font-medium text-black">
-                  {buyer.businessType && buyer.businessType.trim() ? buyer.businessType : <span className="text-red-600 font-bold">{tShared('missing.businessType')}</span>}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 text-gray-500 text-xs">
-                <MapPin className="w-4 h-4" />
-                <span className="font-medium text-black">
-                  {buyer.address && buyer.address.trim() ? buyer.address : <span className="text-red-600 font-bold">{tShared('missing.address')}</span>}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 text-gray-500 text-xs">
-                <Calendar className="w-4 h-4" />
-                                 <span className="font-medium text-black">{formatDate(buyer.createdAt)}</span>
-              </div>
-            </div>  
-        </div>
-        {/* Logistics & Notes */}
-        <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 flex flex-col gap-2 justify-center relative">
-          <div className="absolute left-4 top-4 text-md font-bold text-black">{tBuyersProfile('logisticsNotes')}</div>
-          <div className="flex flex-col gap-2 pt-10">
-            <div className="flex items-center gap-2 text-xs">
-              <Truck className="w-4 h-4 text-gray-500" />
-              <span className="text-gray-500">{tBuyersProfile('preferredDays')}</span>
-              <span className="font-semibold text-black">
-                {logistics?.preferredDays && logistics.preferredDays.trim() ? logistics.preferredDays : <span className="text-red-600 font-bold">{tShared('missing.preferredDays')}</span>}
-              </span>
+      {/* Compact identity + logistics strip */}
+      <div className="rounded-lg border border-[#e6e6e6] bg-white p-4">
+        <div className="flex min-w-0 flex-col gap-4 @3xl/main:flex-row @3xl/main:items-stretch">
+          <div className="flex min-w-0 flex-1 gap-3">
+            <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full border-2 border-gray-200 bg-gray-100 flex items-center justify-center">
+              {buyer.avatar ? (
+                <img src={buyer.avatar} alt={buyer.owner || buyer.storeName || ''} className="h-full w-full object-cover" />
+              ) : (
+                <User className="h-7 w-7 text-gray-400" />
+              )}
             </div>
-            <div className="flex items-center gap-2 text-xs">
-              <Info className="w-4 h-4 text-gray-500" />
-              <span className="text-gray-500">{tBuyersProfile('lastOrderDate')}</span>
-              <span className="font-semibold text-black">
-                {(() => {
-                  // Calculate the most recent order date from order details
-                  if (orderDetails && orderDetails.length > 0) {
-                    const validDates = orderDetails
-                      .map((order: OrderDetail) => order.lastOrderDate)
-                      .filter((date: string) => date && String(date).trim())
-                      .map((date: string) => new Date(date))
-                      .filter((date: Date) => !isNaN(date.getTime()));
-                    
-                    if (validDates.length > 0) {
-                      const mostRecentDate = new Date(Math.max(...validDates.map((d: Date) => d.getTime())));
-                      return mostRecentDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="flex min-w-0 flex-col gap-2 @2xl/main:flex-row @2xl/main:items-start @2xl/main:justify-between">
+                <div className="min-w-0 flex-1">
+                  <h3
+                    className="text-base font-bold leading-snug text-black line-clamp-2 @2xl/main:text-lg"
+                    title={buyer.storeName?.trim() || undefined}
+                  >
+                    {buyer.storeName?.trim() ? (
+                      buyer.storeName
+                    ) : (
+                      <span className="text-red-600">{tShared('missing.storeName')}</span>
+                    )}
+                  </h3>
+                  <p
+                    className="mt-0.5 truncate text-sm text-gray-600"
+                    title={buyer.owner?.trim() || undefined}
+                  >
+                    {buyer.owner?.trim() ? (
+                      buyer.owner
+                    ) : (
+                      <span className="font-medium text-red-600">{tShared('missing.ownerName')}</span>
+                    )}
+                  </p>
+                </div>
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  {buyer.status === 'Active' && (
+                    <span className="inline-block rounded-full bg-green-100 px-2 py-0.5 text-xs font-bold text-green-600">
+                      {translateStatus('Active')}
+                    </span>
+                  )}
+                  {buyer.status === 'Prospect' && (
+                    <span className="inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-600">
+                      {translateStatus('Prospect')}
+                    </span>
+                  )}
+                  {buyer.status === 'Inactive' && (
+                    <span className="inline-block rounded-full bg-gray-200 px-2 py-0.5 text-xs font-bold text-gray-500">
+                      {translateStatus('Inactive')}
+                    </span>
+                  )}
+                  {buyer.status === 'Blocked' && (
+                    <span className="inline-block rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-500">
+                      {translateStatus('Blocked')}
+                    </span>
+                  )}
+                  {buyer.status === 'Prospect' && (
+                    <Link
+                      href={`/clients/buyers/buyer-matching?buyerId=${encodeURIComponent(buyer.buyerId)}`}
+                      className="text-xs font-medium text-[#0a61d7] hover:underline"
+                    >
+                      {tBuyersProfile('matchWithOrder')}
+                    </Link>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+                {buyer.businessType?.trim() ? (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-1.5 py-0.5 font-medium text-gray-700">
+                    <Tag className="h-3 w-3" />
+                    {buyer.businessType}
+                  </span>
+                ) : (
+                  <span className="font-medium text-red-600">{tShared('missing.businessType')}</span>
+                )}
+                <span className="font-medium text-gray-500">
+                  {tShared('mobileLabels.id')} {buyer.buyerId}
+                </span>
+                <span className="inline-flex min-w-0 items-center gap-1">
+                  <Phone className="h-3 w-3 shrink-0" />
+                  <span className="truncate">
+                    {buyer.phone?.trim() ? (
+                      buyer.phone
+                    ) : (
+                      <span className="font-medium text-red-600">{tShared('missing.phone')}</span>
+                    )}
+                  </span>
+                </span>
+                {buyer.email?.trim() ? (
+                  <span className="inline-flex min-w-0 max-w-full items-center gap-1">
+                    <Mail className="h-3 w-3 shrink-0" />
+                    <span className="truncate" title={buyer.email}>
+                      {buyer.email}
+                    </span>
+                  </span>
+                ) : null}
+                <span className="inline-flex items-center gap-1">
+                  <Calendar className="h-3 w-3 shrink-0" />
+                  {formatDate(buyer.createdAt)}
+                </span>
+              </div>
+
+              <div className="flex min-w-0 items-start gap-1.5 text-xs text-gray-500">
+                <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  {hasAddress ? (
+                    <>
+                      <p className="line-clamp-2 font-medium text-black" title={addressText}>
+                        {addressText}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddressMap(true)}
+                        className="mt-0.5 text-xs font-semibold text-[#0a61d7] hover:underline"
+                      >
+                        {tBuyersProfile('viewInMaps')}
+                      </button>
+                    </>
+                  ) : (
+                    <span className="font-medium text-red-600">{tShared('missing.address')}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex w-full shrink-0 flex-col justify-center gap-2 border-t border-gray-100 pt-3 @3xl/main:w-52 @3xl/main:border-l @3xl/main:border-t-0 @3xl/main:pl-4 @3xl/main:pt-0">
+            <div className="text-xs font-semibold text-black">{tBuyersProfile('logisticsNotes')}</div>
+            <div className="flex items-start gap-1.5 text-xs">
+              <Truck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" />
+              <div className="min-w-0">
+                <div className="text-gray-500">{tBuyersProfile('preferredDays')}</div>
+                <div className="truncate font-medium text-black" title={logistics?.preferredDays || undefined}>
+                  {logistics?.preferredDays?.trim() ? (
+                    logistics.preferredDays
+                  ) : (
+                    <span className="font-normal text-gray-400">—</span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-start gap-1.5 text-xs">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" />
+              <div className="min-w-0">
+                <div className="text-gray-500">{tBuyersProfile('lastOrderDate')}</div>
+                <div className="font-medium text-black">
+                  {(() => {
+                    if (orderDetails && orderDetails.length > 0) {
+                      const validDates = orderDetails
+                        .map((order: OrderDetail) => order.lastOrderDate)
+                        .filter((date: string) => date && String(date).trim())
+                        .map((date: string) => new Date(date))
+                        .filter((date: Date) => !isNaN(date.getTime()));
+                      if (validDates.length > 0) {
+                        const mostRecentDate = new Date(Math.max(...validDates.map((d: Date) => d.getTime())));
+                        return mostRecentDate.toISOString().split('T')[0];
+                      }
                     }
-                  }
-                  return <span className="text-red-600 font-bold">{tShared('missing.lastOrderDate')}</span>;
-                })()}
-              </span>
+                    return <span className="font-normal text-gray-400">—</span>;
+                  })()}
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-xs">
-              <BarChart2 className="w-4 h-4 text-gray-500" />
-              <span className="text-gray-500">{tBuyersProfile('shipmentSuccess')}</span>
-              <span className="font-semibold text-black">
-                {logistics?.shipmentSuccess && logistics.shipmentSuccess.trim() ? logistics.shipmentSuccess : <span className="text-red-600 font-bold">{tShared('missing.shipmentSuccess')}</span>}
-              </span>
-            </div>
-            <div className="border-t border-gray-200 pt-2 flex items-center gap-2 text-xs mt-2">
-              <span className="text-gray-500">{tShared('columns.status')}:</span>
-              {buyer.status === 'Active' && (
-                <span className="inline-block px-2 py-1 rounded-full font-bold bg-green-100 text-green-500 text-xs">{translateStatus('Active')}</span>
-              )}
-              {buyer.status === 'Prospect' && (
-                <span className="inline-block px-2 py-1 rounded-full font-bold bg-amber-100 text-amber-600 text-xs">{translateStatus('Prospect')}</span>
-              )}
-              {buyer.status === 'Prospect' && (
-                <Link href={`/clients/buyers/buyer-matching?buyerId=${encodeURIComponent(buyer.buyerId)}`} className="text-xs font-medium text-[#0a61d7]">
-                  {tBuyersProfile('matchWithOrder')}
-                </Link>
-              )}
-              {buyer.status === 'Inactive' && (
-                <span className="inline-block px-2 py-1 rounded-full font-bold bg-gray-200 text-gray-500 text-xs">{translateStatus('Inactive')}</span>
-              )}
-              {buyer.status === 'Blocked' && (
-                <span className="inline-block px-2 py-1 rounded-full font-bold bg-red-100 text-red-500 text-xs">{translateStatus('Blocked')}</span>
-              )}
-            </div>
-            <div className="text-xs gap-2 mt-2">
-              <span className="text-gray-500 mr-2.5">{tBuyersProfile('notes')}</span>
-              {notes.map((note: string, i: number) => (
-                <span key={i} className="inline-block bg-gray-200 text-gray-600 px-2 py-1 rounded-full mr-1">{note}</span>
-              ))}
+            <div className="flex items-start gap-1.5 text-xs">
+              <BarChart2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" />
+              <div className="min-w-0">
+                <div className="text-gray-500">{tBuyersProfile('shipmentSuccess')}</div>
+                <div className="font-medium text-black">
+                  {logistics?.shipmentSuccess?.trim() ? (
+                    logistics.shipmentSuccess
+                  ) : (
+                    <span className="font-normal text-gray-400">—</span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
+      </div>
+      {/* Business description (from notes) — between profile row and orders */}
+      <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 relative">
+        <div className="mb-3 font-semibold text-md text-black">{tBuyersProfile('businessDescription')}</div>
+        {notes.length === 0 ? (
+          <p className="text-sm text-gray-500">{tBuyersProfile('noBusinessDescription')}</p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {notes
+              .filter((note) => !/^Region:\s*/i.test(note.trim()))
+              .map((note, i) => (
+                <p key={`desc-${i}`} className="text-sm leading-relaxed text-gray-700 whitespace-pre-wrap">
+                  {note}
+                </p>
+              ))}
+            {notes.some((note) => /^Region:\s*/i.test(note.trim())) ? (
+              <div className="flex flex-wrap gap-1.5">
+                {notes
+                  .filter((note) => /^Region:\s*/i.test(note.trim()))
+                  .map((note, i) => (
+                    <span
+                      key={`region-${i}`}
+                      className="inline-block rounded-full bg-gray-200 px-2 py-1 text-xs text-gray-600"
+                    >
+                      {note}
+                    </span>
+                  ))}
+              </div>
+            ) : null}
+          </div>
+        )}
       </div>
       {/* Second Row: Order/Product Details */}
       <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 relative">
@@ -983,21 +1103,42 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
         </>
         )}
       </div>
-      <BuyerModal
-        open={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        onSave={async () => {
-          setShowEditModal(false);
-          // Trigger SWR refresh if available, otherwise reload page
-          if (onUpdate) {
-            await onUpdate();
-          } else {
-            window.location.reload();
-          }
-        }}
-        initialData={buyer}
-        mode="edit"
-      />
+      <MapFullscreenModal
+        open={showAddressMap}
+        onClose={() => setShowAddressMap(false)}
+        title={tBuyersProfile('addressMapTitle')}
+      >
+        <div className="flex h-full min-h-0 flex-col gap-3">
+          <p className="shrink-0 text-sm text-gray-700 whitespace-pre-wrap">{addressText}</p>
+          {addressGeocode?.coordinates ? (
+            <div className="min-h-0 flex-1">
+              <MapComponent
+                key={`buyer-address-map-${buyer.buyerId}`}
+                accessToken={mapboxToken}
+                markers={[
+                  {
+                    id: buyer.buyerId,
+                    coordinates: addressGeocode.coordinates,
+                    label: buyer.storeName || buyer.owner || addressText,
+                    color: '#0a61d7',
+                  },
+                ]}
+                center={addressGeocode.coordinates}
+                zoom={15}
+                height="100%"
+                className="h-full min-h-0 rounded-none border-0"
+                showControls={true}
+              />
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">
+              {isGeocodingAddress
+                ? tBuyersProfile('addressMapLoading')
+                : tBuyersProfile('addressMapUnavailable')}
+            </p>
+          )}
+        </div>
+      </MapFullscreenModal>
     </div>
   );
 }

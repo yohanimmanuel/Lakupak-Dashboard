@@ -3,12 +3,12 @@ import { SkeletonTablePage } from '@/components/skeleton/SkeletonTablePage';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Statcards from '@/components/clientmanagement/Statcards';
 import SupplierTable from "@/components/clientmanagement/SupplierTable";
-import SupplierModal from '@/components/clientmanagement/SupplierModal';
+import Link from 'next/link';
 import { Plus, Upload, Download, Check } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import ImportData from '@/components/clientmanagement/ImportData';
 import { useUserStore } from '@/store/userStore';
-import { Supplier, SupplierTableRow, SupplyDetail, SupplierFormData } from '@/types/client';
+import { Supplier, SupplierTableRow, SupplyDetail } from '@/types/client';
 import { formatNumber } from '@/utils/dateUtils';
 import { generateUniqueSupplierId } from '@/utils/supplier-security';
 import { fetchGraphQL } from '@/lib/graphqlClient';
@@ -65,7 +65,6 @@ function profileToTableRow(supplier: Supplier): SupplierTableRow {
 
 export default function SuppliersPage() {
   const { tSuppliers, tShared } = useClientsTranslations();
-  const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
@@ -279,26 +278,16 @@ export default function SuppliersPage() {
           >
             <Download className="h-4 w-4" /> {tShared('exportData')}
           </button>
-          <button
+          <Link
+            href="/clients/suppliers/add"
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#084ba6] @4xl/main:w-auto"
-            onClick={() => setShowAddModal(true)}
           >
             <Plus className="h-4 w-4" /> {tSuppliers('addSupplier')}
-          </button>
+          </Link>
         </div>
       </div>
           <Statcards type="supplier" data={suppliers} />
           <SupplierTable suppliers={suppliers} setSuppliers={setSuppliers} onExportXLSX={downloadXLSX} profileToTableRow={profileToTableRow} onRefresh={fetchSuppliers} />
-      <SupplierModal
-        open={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        onSave={async (data) => {
-          setShowAddModal(false);
-          await fetchSuppliers();
-          // Force a page refresh to ensure all data is up to date
-          window.location.reload();
-        }}
-      />
       <ImportData
         open={showImportModal}
         onClose={() => setShowImportModal(false)}

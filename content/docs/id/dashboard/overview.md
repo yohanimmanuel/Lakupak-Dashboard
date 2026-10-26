@@ -52,7 +52,7 @@ Dashboard memakai **sidebar** persisten (bisa dilipat di desktop, drawer di mobi
 
 ## Lakupak AI
 
-Buka Lakupak AI dari kontrol sparkles di bilah atas. AI menganalisis konteks akun Anda (pesanan, pembeli, produk, penawaran) di chat. Jawaban tetap di percakapan; AI tidak mengarahkan Anda ke halaman dashboard lain.
+Buka Lakupak AI dari kontrol sparkles di bilah atas. AI menganalisis konteks akun Anda (pesanan, pembeli, produk, penawaran) di chat. Untuk **prospek pembeli**, minta AI mencari retailer menurut wilayah dan tipe outlet; usulan membuka **Clients → Buyers** agar Anda bisa mengisi dan menyimpan dengan status **Prospect**.
 
 ## Dokumentasi modul
 

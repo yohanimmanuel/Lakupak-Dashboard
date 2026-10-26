@@ -6,14 +6,14 @@ module: dashboard
 order: 12
 ---
 
-The **Clients** area is your distributor CRM for retail buyers and upstream suppliers. It is also the relationship foundation for portfolio intelligence: purchase history and retailer profiles help you judge which shops are suitable for which products.
+The **Clients** area is your distributor CRM for retail buyers and upstream suppliers. It is also the relationship foundation for portfolio intelligence: purchase history and retailer profiles help you judge which shops are suitable for which products. Use the same Buyers list for **buyer prospecting** (status **Prospect**) — there is no separate Sales Prospect module.
 
 It has a hub page plus two tools: **Buyers** and **Suppliers**.
 
 ## Why Clients matter for portfolio utilisation
 
 - Retailer records and order history show who already buys what
-- Status (Active, Inactive, Blocked) keeps matching focused on eligible shops
+- Status (Active, Prospect, Inactive, Blocked) keeps matching and outreach focused on the right shops
 - Product lines and spend patterns support next-best product–retailer matching as that intelligence ships
 
 Low penetration for a product across eligible buyers is a signal to investigate, not automatic demand.
@@ -51,7 +51,7 @@ Values use your account currency from Settings.
 | **Refresh** | Reload buyer data from the server |
 | **Import Data** | Bulk create buyers from spreadsheet (XLSX) |
 | **Export Data** | Download the filtered table to XLSX |
-| **Add Buyer** | Open the create-buyer form |
+| **Add Buyer** | Open `/clients/buyers/add` |
 
 After refresh, a short status toast shows how many buyers loaded.
 
@@ -60,7 +60,7 @@ After refresh, a short status toast shows how many buyers loaded.
 The buyer table supports:
 
 - **Search** by store name
-- **Status tabs**: All, Active, Inactive, Blocked
+- **Status tabs**: All, Active, Prospect, Inactive, Blocked
 - **Business type** filter (dynamic from your data)
 - **Period** filter: All Months, This Month, Last Month (by record created date)
 - **Pagination** through results
@@ -69,16 +69,22 @@ The buyer table supports:
 
 **Columns (desktop):** ID, Name, Address, Business Type, Total Orders, Total Spend, Outstanding, Status, Actions.
 
-**Row actions:** open **Buyer details**, **Edit** (inline modal on list where supported).
+**Row actions:** **Edit** opens the buyer details page (`/clients/buyers/details/{buyerId}`). From there, **Edit Details** opens `/clients/buyers/edit/{buyerId}`.
 
-Click a row or use **Details** to open `/clients/buyers/details/{buyerId}`.
+### Buyer prospecting
+
+Use **Clients → Buyers** to capture outlets you have not sold to yet:
+
+- Set status to **Prospect** when adding a buyer (or keep them Prospect until they place an order / become Active).
+- Ask **Lakupak AI** to find retailers by area and outlet type (Google Places). Chat returns suggestions with **Fill form fields** / **View buyer**; nothing is saved until you confirm in the buyer form.
+- Filter the buyer table by the **Prospect** tab to work only those leads.
 
 ### Add or edit buyer
 
 The buyer form includes:
 
 - Store name, owner, phone, email, address, business type
-- Status: Active, Inactive, or Blocked
+- Status: Active, Prospect, Inactive, or Blocked
 - Created date
 - Logistics: preferred delivery days, last shipment, shipment success rate
 - Notes
@@ -92,9 +98,10 @@ New buyers get an ID such as `LKB-########` if you do not supply one. Input is v
 The profile page shows:
 
 - **Copy Data** (full profile and order lines to clipboard)
-- **Edit Details** (same fields as the modal)
+- **Edit Details** (opens `/clients/buyers/edit/{buyerId}`)
 - **Data completion** progress bar (missing profile, logistics, or order fields)
 - Contact and business summary (store, owner, email, phone, address, status)
+- Truncated address in General Information with **View in Maps** (full address + map modal)
 - **Analytics charts**: monthly orders and spending trends from order history
 - **Order and product details** table with pagination
 - **Import orders** and **export orders** (XLSX) for that buyer’s order lines
@@ -127,7 +134,7 @@ Path: **Clients → Suppliers** (`/clients/suppliers`).
 
 Same pattern as buyers:
 
-- **Refresh**, **Import Data**, **Export Data**, **Add Supplier**
+- **Refresh**, **Import Data**, **Export Data**, **Add Supplier** (`/clients/suppliers/add`)
 
 ### Supplier table and filters
 
@@ -140,9 +147,11 @@ Same pattern as buyers:
 
 **Columns:** ID, Name, Business Type, Location, Total Supplies (SKU count), Total Purchases, Created At, Status, Actions.
 
-Open **Supplier details** at `/clients/suppliers/details/{supplierId}`.
+**Edit** opens the supplier details page (`/clients/suppliers/details/{supplierId}`). From there, **Edit Details** opens `/clients/suppliers/edit/{supplierId}`.
 
 ### Add or edit supplier
+
+Pages: `/clients/suppliers/add`, `/clients/suppliers/edit/{supplierId}`.
 
 Fields include:
 
@@ -157,7 +166,7 @@ Fields include:
 
 Similar to buyers:
 
-- **Copy Data**, **Edit Details**
+- **Copy Data**, **Edit Details** (opens the edit page)
 - **Data completion** for profile, logistics, and supply lines
 - Monthly **analytics** (units supplied and purchase value)
 - **Supplies and product data** table with pagination

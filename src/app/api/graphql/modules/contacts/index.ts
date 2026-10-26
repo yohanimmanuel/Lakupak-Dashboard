@@ -664,6 +664,19 @@ const deleteBuyer = async (args: { userId: number; id: string }) => {
       data: { buyerId: null, status: 'draft' },
     });
 
+    // Detach sales jobs so CRM delete is not blocked by SalesJob_clientId_fkey.
+    await tx.salesJob.updateMany({
+      where: { distributorId: distributorUserId, clientId: buyerBusinessId },
+      data: { clientId: null },
+    });
+    // One parameterized update — avoids N round-trips for multi-client jobs.
+    await tx.$executeRaw`
+      UPDATE "SalesJob"
+      SET "clientIds" = array_remove("clientIds", ${buyerBusinessId})
+      WHERE "distributorId" = ${distributorUserId}
+        AND ${buyerBusinessId} = ANY ("clientIds")
+    `;
+
     // Pending unpaid POs for this relationship should look like a new buyer again
     // (no priced lines until the distributor re-sends pricing).
     const pendingOrderWhere = {

@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Trash, User, X, Loader2, AlertCircle, CheckCircle, ChevronDown } from 'lucide-react';
+import { Trash, AlertCircle, CheckCircle, ChevronDown, ArrowLeft, Save } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/store/userStore';
 import { Supplier, SupplyDetail, SupplierFormData } from '@/types/client';
@@ -26,18 +27,17 @@ function generateSupplierId() {
 }
 
 interface SupplierModalProps {
-  open: boolean;
-  onClose: () => void;
-  onSave: (data: SupplierFormData) => void;
   initialData?: Supplier;
-  mode?: 'edit';
+  mode?: 'edit' | 'add';
+  onSave?: (data: SupplierFormData) => void;
 }
 
-export default function SupplierModal({ open, onClose, onSave, initialData, mode }: SupplierModalProps) {
+export default function SupplierModal({ initialData, mode = 'add', onSave }: SupplierModalProps) {
   const router = useRouter();
   const user = useUserStore(state => state.user);
   const { tSuppliersModal, tShared, translateStatus } = useClientsTranslations();
-  
+  const isEditMode = mode === 'edit';
+
   // Get currency for display - safe to use on both server and client
   const userCurrency = user?.currency || getDefaultCurrency();
   const currencySymbol = getCurrencySymbol(userCurrency);
@@ -109,6 +109,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   
   const statusDropdownRef = useRef<HTMLDivElement>(null);
@@ -196,68 +197,62 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
     }
   }, [supplyRows.length]);
 
-  // Reset validation state when modal opens
+  // Hydrate form when initialData is provided (edit)
   useEffect(() => {
-    if (open) {
-      setSubmitAttempted(false);
-      setValidationErrors({});
-    }
-  }, [open]);
+    if (!initialData || !isEditMode) return;
 
-  // Handle edit mode initialization
-  useEffect(() => {
-    if (open && mode === 'edit' && initialData) {
-      // Parse JSON strings from database
-      const parsedNotes = safeParseJSON(initialData.notes || '', []);
-      const parsedLogistics = safeParseJSON(initialData.logistics || '', {});
-      
-      // Get supplies first to calculate latest date
-      const supplies = initialData?.supplies ? (() => {
-        try {
-          const parsed = JSON.parse(initialData.supplies);
-          return Array.isArray(parsed) ? parsed : [];
-        } catch {
-          return [];
-        }
-      })() : [];
-      
-      const latestDeliveryDate = getLatestDeliveryDate(supplies);
-      
-      setForm({
-        supplierName: initialData.name || '',
-        contact: initialData.contact || '',
-        phone: initialData.phone || '',
-        email: initialData.email || '',
-        businessType: initialData.businessType || '',
-        address: initialData.address || '',
-        status: initialData.status || statusOptions[0],
-        createdAt: initialData.createdAt ? new Date(initialData.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        preferredDays: parsedLogistics.preferredDays || '',
-        lastDelivery: latestDeliveryDate || parsedLogistics.lastDelivery || '',
-        deliverySuccess: parsedLogistics.deliverySuccess || '',
-        notes: Array.isArray(parsedNotes) ? parsedNotes.join(', ') : '',
-      });
-      
-      setId(initialData.supplierId || generateSupplierId());
-      setSupplyRows(
-        supplies.length > 0 ? supplies.map((row: SupplyDetail) => ({
-          suppliesno: row.suppliesno || '',
-          sku: row.sku || '',
-          product: row.product || '',
-          totalSupplied: row.totalSupplied || '',
-          totalValue: row.totalValue || '',
-          lastDelivery: row.lastDelivery || '',
-          status: row.status || statusOptions[0]
-        })) : [{ suppliesno: '', sku: '', product: '', totalSupplied: '', totalValue: '', lastDelivery: '', status: statusOptions[0] }]
-      );
-    }
-  }, [open, mode, initialData, safeParseJSON, getLatestDeliveryDate]);
+    const parsedNotes = safeParseJSON(initialData.notes || '', []);
+    const parsedLogistics = safeParseJSON(initialData.logistics || '', {});
+
+    const supplies = initialData?.supplies ? (() => {
+      try {
+        const parsed = JSON.parse(initialData.supplies);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    })() : [];
+
+    const latestDeliveryDate = getLatestDeliveryDate(supplies);
+
+    setForm({
+      supplierName: initialData.name || '',
+      contact: initialData.contact || '',
+      phone: initialData.phone || '',
+      email: initialData.email || '',
+      businessType: initialData.businessType || '',
+      address: initialData.address || '',
+      status: initialData.status || statusOptions[0],
+      createdAt: initialData.createdAt ? new Date(initialData.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      preferredDays: parsedLogistics.preferredDays || '',
+      lastDelivery: latestDeliveryDate || parsedLogistics.lastDelivery || '',
+      deliverySuccess: parsedLogistics.deliverySuccess || '',
+      notes: Array.isArray(parsedNotes) ? parsedNotes.join(', ') : '',
+    });
+
+    setId(initialData.supplierId || generateSupplierId());
+    setSupplyRows(
+      supplies.length > 0 ? supplies.map((row: SupplyDetail) => ({
+        suppliesno: row.suppliesno || '',
+        sku: row.sku || '',
+        product: row.product || '',
+        totalSupplied: row.totalSupplied || '',
+        totalValue: row.totalValue || '',
+        lastDelivery: row.lastDelivery || '',
+        status: row.status || statusOptions[0]
+      })) : [{ suppliesno: '', sku: '', product: '', totalSupplied: '', totalValue: '', lastDelivery: '', status: statusOptions[0] }]
+    );
+    setValidationErrors({});
+    setError('');
+    setSuccess('');
+    setSubmitAttempted(false);
+  }, [initialData, isEditMode, safeParseJSON, getLatestDeliveryDate]);
 
   // Enhanced form submission
   const handleSubmit = useCallback(async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     
-    if (isSubmitting) return;
+    if (isSubmitting || isNavigating) return;
 
     setError('');
     setSuccess('');
@@ -268,7 +263,6 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
     setSaving(true);
     
     try {
-      const isEdit = mode === 'edit';
       const payload: Record<string, unknown> = {
         ...form,
         supplierId: id,
@@ -276,7 +270,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
 
         supplies: JSON.stringify(supplyRows),
         notes: JSON.stringify(form.notes.split(',').map((n: string) => n.trim())),
-        createdAt: isEdit ? (form.createdAt ? new Date(form.createdAt).toISOString() : new Date().toISOString()) : new Date().toISOString(),
+        createdAt: isEditMode ? (form.createdAt ? new Date(form.createdAt).toISOString() : new Date().toISOString()) : new Date().toISOString(),
         logistics: JSON.stringify({
           preferredDays: form.preferredDays || '',
           lastDelivery: computedLastDelivery || '',
@@ -284,7 +278,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
         }),
         userId: user?.id,
       };
-      if (isEdit && initialData && typeof initialData.id === 'number') {
+      if (isEditMode && initialData && typeof initialData.id === 'number') {
         payload.id = initialData.id;
       }
       delete payload.supplierName;
@@ -297,7 +291,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
       
       let savedSupplier: Supplier | null = null;
       
-      if (isEdit) {
+      if (isEditMode) {
         const UPDATE_SUPPLIER_MUTATION = `
           mutation UpdateSupplier(
             $userId: Int!
@@ -369,7 +363,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
       });
         
         savedSupplier = data.updateSupplier;
-        onSave(savedSupplier as unknown as SupplierFormData);
+        onSave?.(savedSupplier as unknown as SupplierFormData);
       } else {
         const CREATE_SUPPLIER_MUTATION = `
           mutation CreateSupplier(
@@ -439,44 +433,20 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
         });
       
         savedSupplier = data.createSupplier;
-        onSave(savedSupplier as unknown as SupplierFormData);
+        onSave?.(savedSupplier as unknown as SupplierFormData);
       }
-      
-      if (isEdit && savedSupplier) {
-        // Close modal first
-        onClose();
-        // Show success modal after modal closes
-        setTimeout(() => {
-          setShowSuccessModal(true);
-          // If we're on the details page, the onSave callback will handle the refresh
-          // Otherwise, redirect to profile page
-          const currentPath = window.location.pathname;
-          if (currentPath.includes('/clients/suppliers/details/')) {
-            // Already on details page, onSave will trigger refresh via onUpdate
-            setTimeout(() => {
-              setShowSuccessModal(false);
-            }, 2000);
-          } else {
-            // Not on details page, redirect
-            const routeId = savedSupplier.supplierId || payload.supplierId as string;
-            setTimeout(() => {
-              setShowSuccessModal(false);
-        router.push(`/clients/suppliers/details/${routeId}`);
-        setTimeout(() => window.location.reload(), 100);
-            }, 2000);
-          }
-        }, 100);
-      } else {
-        // Close modal first
-        onClose();
-        // Show success modal after modal closes
-        setTimeout(() => {
-          setShowSuccessModal(true);
-          setTimeout(() => {
-            setShowSuccessModal(false);
-          }, 2000);
-        }, 100);
-      }
+
+      const routeId = savedSupplier?.supplierId || String(payload.supplierId || '');
+      setIsNavigating(true);
+      setShowSuccessModal(true);
+      setTimeout(() => {
+        setShowSuccessModal(false);
+        if (routeId) {
+          router.push(`/clients/suppliers/details/${encodeURIComponent(routeId)}`);
+        } else {
+          router.push('/clients/suppliers');
+        }
+      }, 1200);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : tSuppliersModal('saveFailed');
       const field = mapSupplierFieldError(errorMessage);
@@ -490,36 +460,47 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
       setSaving(false);
       setIsSubmitting(false);
     }
-  }, [form, id, supplyRows, mode, initialData, user?.id, onSave, onClose, router, validateForm, handleError, handleSuccess, isSubmitting, tSuppliersModal, computedLastDelivery]);
+  }, [form, id, supplyRows, isEditMode, initialData, user?.id, onSave, router, validateForm, handleError, isSubmitting, isNavigating, tSuppliersModal, computedLastDelivery]);
 
   return (
     <>
-      {open && (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 w-full max-w-5xl relative max-h-[90vh] overflow-hidden">
-        <button
-          type="button"
-          className="absolute top-5 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-          onClick={onClose}
-          aria-label={tShared('closeModal')}
-        >
-          <X className="w-5 h-5" />
-        </button>
-        
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 bg-[#0a61d7] rounded-lg flex items-center justify-center">
-            <User className="w-5 h-5 text-white" />
+      <div className="flex w-full min-w-0 flex-col overflow-hidden rounded-lg border border-[#e6e6e6] bg-white p-4">
+        <div className="mb-4 flex flex-col gap-3 border-b border-[#e6e6e6] pb-4 @5xl/main:flex-row @5xl/main:items-center @5xl/main:justify-between">
+          <div className="flex min-w-0 flex-col gap-3 @3xl/main:flex-row @3xl/main:items-center">
+            <Link
+              href={isEditMode && initialData?.supplierId ? `/clients/suppliers/details/${encodeURIComponent(initialData.supplierId)}` : '/clients/suppliers'}
+              className="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800 @3xl/main:w-auto @3xl/main:justify-start"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              {tSuppliersModal('back')}
+            </Link>
+            <h1 className="truncate text-2xl font-bold text-gray-900">
+              {isEditMode ? tSuppliersModal('editTitle') : tSuppliersModal('addTitle')}
+            </h1>
           </div>
-          <div>
-            <h2 className="text-xl font-bold text-black">
-              {mode === 'edit' ? tSuppliersModal('editTitle') : tSuppliersModal('addTitle')}
-            </h2>
+          <div className="flex w-full min-w-0 flex-col gap-2 @4xl/main:flex-row @4xl/main:flex-wrap @4xl/main:items-center @5xl/main:w-auto">
+            <button
+              type="button"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 font-semibold text-white transition-colors hover:bg-[#084ba6] disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
+              onClick={handleSubmit}
+              disabled={saving || isSubmitting || isNavigating}
+            >
+              {saving ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  {tSuppliersModal('saving')}
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  {tSuppliersModal('save')}
+                </>
+              )}
+            </button>
           </div>
         </div>
-        <div className="border-b border-gray-200 -mx-6"></div>
-        <form className="flex flex-col gap-2 overflow-y-auto max-h-[60vh]">
-          <div className="mt-4">
+        <form className="flex flex-col gap-2">
+          <div className="mt-0">
             <ClientField
               label={tShared('columns.id')}
               value={id || ''}
@@ -785,40 +766,8 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
             </div>
           )}
         </form>
-        {/* Footer Border */}
-        <div className="border-t border-gray-200 -mx-6"></div>
-        
-        {/* Action Buttons */}
-        <div className="flex justify-end gap-2 mt-4 text-sm">
-              <button 
-                type="button" 
-                className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors disabled:opacity-50" 
-                onClick={onClose} 
-                disabled={saving || isSubmitting}
-              >
-                {tShared('cancel')}
-              </button>
-              <button 
-                type="button" 
-                className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center justify-center transition-colors disabled:opacity-50" 
-                onClick={handleSubmit} 
-                disabled={saving || isSubmitting}
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    {tSuppliersModal('saving')}
-                  </>
-                ) : (
-                  tSuppliersModal('save')
-                )}
-            </button>
-        </div>
       </div>
-    </div>
-      )}
 
-      {/* Success Modal - Rendered outside main modal so it persists after modal closes */}
       {showSuccessModal && (
         <div className="fixed inset-0 flex items-center justify-center z-[60] pointer-events-none">
           <div className="bg-green-600 text-white rounded-lg shadow-2xl p-4 flex items-center gap-4 animate-fade-in pointer-events-auto">
@@ -828,7 +777,7 @@ export default function SupplierModal({ open, onClose, onSave, initialData, mode
             <div>
               <h3 className="text-md font-semibold">{tSuppliersModal('saveSuccessTitle')}</h3>
               <p className="text-xs text-white/90">
-                {mode === 'edit' ? tSuppliersModal('saveSuccessEdit') : tSuppliersModal('saveSuccessCreate')}
+                {isEditMode ? tSuppliersModal('saveSuccessEdit') : tSuppliersModal('saveSuccessCreate')}
               </p>
             </div>
           </div>

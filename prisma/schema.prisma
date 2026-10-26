@@ -1419,7 +1419,7 @@ model SalesJob {
 
   distributor User              @relation(fields: [distributorId], references: [id], onDelete: Cascade)
   agent       SalesAgent        @relation(fields: [assignedTo], references: [id], onDelete: Restrict)
-  client      Buyer?            @relation(fields: [clientId], references: [buyerId], onDelete: Restrict)
+  client      Buyer?            @relation(fields: [clientId], references: [buyerId], onDelete: SetNull)
   order       Order?            @relation(fields: [orderId], references: [orderId], onDelete: SetNull)
   schedules   SalesJobSchedule[]
 

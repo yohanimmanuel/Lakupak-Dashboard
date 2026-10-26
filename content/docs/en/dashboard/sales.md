@@ -1,12 +1,12 @@
 ---
 title: Sales
-description: Sales hub, conversion opportunities, teams, jobs, and buyer prospects.
+description: Sales hub, conversion opportunities, teams, and field jobs.
 section: Dashboard
 module: dashboard
 order: 16
 ---
 
-The **Sales** area turns product–retailer opportunities into field work: prioritise follow-ups, manage agents and teams, assign jobs, and capture new outlet prospects.
+The **Sales** area turns product–retailer opportunities into field work: prioritise follow-ups, manage agents and teams, and assign jobs. New outlet / buyer prospecting lives in **Clients → Buyers** (status **Prospect**), not as a separate Sales tool.
 
 Path: **Sales** (`/sales`).
 
@@ -30,7 +30,6 @@ Dismissible tip cards with detail modals:
 |------|-------|---------|
 | **Team** | `/sales/team` | Agents, roles, and teams |
 | **Jobs** | `/sales/jobs` | Field jobs for the sales team |
-| **Prospect** | `/sales/prospects` | Buyer prospects / new outlets |
 
 ### Sales Conversion table
 
@@ -116,7 +115,7 @@ Details show targets, favourite products, field reports, and biography. Confirm 
 | **Pick up return** | Collect returns |
 | **Competitor check** | Record competitor intel |
 
-Additional type labels may appear from existing jobs (for example prospecting or activation). New outlets are added from **Prospect**, not as a substitute for the Prospect board.
+Additional type labels may appear from existing jobs (for example prospecting or activation). New outlets are added under **Clients → Buyers** with status **Prospect**.
 
 ### Job statuses
 
@@ -133,25 +132,11 @@ Form (`Create new job` / **Edit job**):
 
 **Stock check:** choose clients and the products to count at each buyer's shop. On completion, mark **Checked** and enter **Counted stock** per product (`stock_counts`). Multi-buyer stock jobs complete when every buyer row is done. An overdue or low-count signal is a reason to investigate, not automatic proof of demand.
 
-## Buyer Prospect (`/sales/prospects`)
-
-**Actions:** **Export Data**, **Create new prospect**, **Edit**, **Delete**, bulk delete.
-
-**Search:** **Search prospects**
-
-**Filter:** **All regions** plus region list
-
-**Columns:** Customer number | Name | Store name | Phone | Address | Region | Buyer type | Notes
-
-**Buyer types:** Warung, Kiosk, Minimarket, Restaurant, Hotel, Canteen, Other.
-
-**Create / edit** (`/sales/prospects/new`, `/sales/prospects/edit/[id]`): required prospect fields, plus **Ask AI** to open Lakupak AI for assisted fill (including map-oriented suggestions when available).
-
 ## Related areas
 
 | Goal | Go to |
 |------|--------|
-| Buyer records | [Clients](/en/docs/dashboard/clients) |
+| Buyer records and prospecting | [Clients](/en/docs/dashboard/clients) |
 | Product promotions | [Offers](/en/docs/dashboard/offers) |
 | Orders | [Orders](/en/docs/dashboard/orders) |
 | Home widgets | [Home](/en/docs/dashboard/home) |

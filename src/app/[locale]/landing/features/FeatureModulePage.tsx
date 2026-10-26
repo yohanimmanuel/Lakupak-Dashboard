@@ -63,7 +63,7 @@ const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaCo
     4: {
       type: 'single',
       placement: 'center',
-      image: { src: '/Dashboardclientbuyer5.png', width: 486, height: 297 },
+      image: { src: '/Dashboardclientbuyer9.png', width: 1517, height: 362 },
     },
     5: {
       type: 'single',
@@ -159,11 +159,6 @@ const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaCo
       type: 'single',
       placement: 'center',
       image: { src: '/Dashboardsales1.png', width: 1533, height: 727 },
-    },
-    4: {
-      type: 'single',
-      placement: 'center',
-      image: { src: '/Dashboardsales5.png', width: 1558, height: 797 },
     },
   },
   analytics: {

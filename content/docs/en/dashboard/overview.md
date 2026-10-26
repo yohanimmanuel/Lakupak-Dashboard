@@ -52,7 +52,7 @@ The Dashboard uses a persistent **sidebar** (collapsible on desktop, drawer on m
 
 ## Lakupak AI
 
-Open Lakupak AI from the top bar sparkles control. It analyses your account context (orders, buyers, products, offers) in chat. It does not send you to other dashboard pages for a deeper dive; answers stay in the conversation.
+Open Lakupak AI from the top bar sparkles control. It analyses your account context (orders, buyers, products, offers) in chat. For **buyer prospecting**, ask it to find retailers by area and outlet type; suggestions open **Clients → Buyers** so you can fill and save them with status **Prospect**.
 
 ## Module documentation
 

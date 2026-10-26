@@ -99,7 +99,6 @@ const mainMenuItems = [
   //   submenu: [
   //     { icon: <ListIcon className="w-5 h-5" />, label: 'Team', href: '/sales/team' },
   //     { icon: <ListIcon className="w-5 h-5" />, label: 'Jobs', href: '/sales/jobs' },
-  //     { icon: <ListIcon className="w-5 h-5" />, label: 'Prospect', href: '/sales/prospects' },
   //   ],
   // },
   // {

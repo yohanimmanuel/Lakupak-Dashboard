@@ -607,12 +607,12 @@ export function formatPlacesProspectingReply(
   if (locale === 'id') {
     lines.push(`Pencarian: "${result.query}"`);
     if (created.length) {
-      lines.push(`Disimpan ${result.createdCount} prospek baru, dilewati ${result.skippedCount}.`);
-      lines.push('Gunakan tombol di bawah untuk membuka atau mengisi formulir.');
+      lines.push(`Disimpan ${result.createdCount} pembeli prospek baru di Klien, dilewati ${result.skippedCount}.`);
+      lines.push('Gunakan tombol di bawah untuk membuka atau mengisi formulir pembeli.');
       lines.push('Baru ditambahkan:');
     } else if (listed.length) {
       lines.push(`Ditemukan ${listed.length} outlet. Belum ada yang disimpan.`);
-      lines.push('Pilih Isi kolom formulir, lalu tekan Simpan di formulir jika ingin menyimpan prospek.');
+      lines.push('Pilih Isi kolom formulir, lalu Simpan di Klien → Pembeli (status Prospek) jika ingin menyimpan.');
       lines.push('Usulan:');
     } else {
       lines.push('Tidak ada hasil di Google Places untuk kriteria ini. Coba ubah wilayah atau tipe pembeli.');
@@ -620,12 +620,12 @@ export function formatPlacesProspectingReply(
   } else {
     lines.push(`Search: "${result.query}"`);
     if (created.length) {
-      lines.push(`Saved ${result.createdCount} new prospects, skipped ${result.skippedCount}.`);
-      lines.push('Use the buttons below to open or fill the form.');
+      lines.push(`Saved ${result.createdCount} new prospect buyers in Clients, skipped ${result.skippedCount}.`);
+      lines.push('Use the buttons below to open or fill the buyer form.');
       lines.push('Newly added:');
     } else if (listed.length) {
       lines.push(`Found ${listed.length} outlets. Nothing was saved.`);
-      lines.push('Use Fill form fields, then Save on the form if you want to keep a prospect.');
+      lines.push('Use Fill form fields, then Save in Clients → Buyers (status Prospect) if you want to keep them.');
       lines.push('Suggested:');
     } else {
       lines.push('No Google Places results for this criteria. Try a different region or buyer type.');

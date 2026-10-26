@@ -56,7 +56,7 @@
           },
           "2": {
             "title": "Pembeli dan pemasok bersama",
-            "desc": "Kelola akun ritel dan pemasok hulu dalam satu hub Klien dengan status Aktif, Tidak Aktif, dan Diblokir."
+            "desc": "Kelola akun ritel dan pemasok hulu dalam satu hub Klien dengan status Aktif, Prospek, Tidak Aktif, dan Diblokir."
           },
           "3": {
             "title": "Riwayat pesanan live di pembeli",
@@ -75,11 +75,11 @@
         },
         "3": {
           "title": "Pembeli dan pemasok dalam satu CRM",
-          "desc": "Kelola akun ritel dan mitra hulu dari modul Klien yang sama, dengan status Aktif, Tidak Aktif, dan Diblokir untuk follow-up harian."
+          "desc": "Kelola akun ritel dan mitra hulu dari modul Klien yang sama, dengan status Aktif, Prospek, Tidak Aktif, dan Diblokir untuk follow-up harian."
         },
         "4": {
-          "title": "Profil lengkap siap operasional",
-          "desc": "Catat detail toko atau perusahaan, pemilik, telepon, email, alamat, jenis usaha, dan catatan, dengan bilah kelengkapan yang menandai field yang belum diisi."
+          "title": "Pencarian prospek pembeli",
+          "desc": "Jelaskan pembeli yang ingin Anda jangkau, termasuk wilayah, jenis outlet, dan kriterianya. Lakupak AI mengusulkan retailer yang cocok, lalu Anda mengisi dan menyimpan hanya prospek yang Anda pilih sebagai pembeli di Klien."
         },
         "5": {
           "title": "Riwayat pesanan di setiap pembeli",
@@ -257,10 +257,6 @@
         "3": {
           "title": "Delegasikan hari itu lewat WhatsApp",
           "desc": "AI mengirim daftar pekerjaan tiap sales lewat WhatsApp. Sales membalas di chat dengan apa yang sudah selesai, dan pekerjaan mencatat promosi, stok, pembayaran, retur, atau pesaing."
-        },
-        "4": {
-          "title": "Pencarian prospek pembeli",
-          "desc": "Jelaskan pembeli yang ingin Anda jangkau, termasuk wilayah, jenis outlet, dan kriterianya. Lakupak AI mengusulkan retailer yang cocok, lalu Anda mengisi dan menyimpan hanya prospek yang Anda pilih."
         }
       }
     },

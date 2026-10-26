@@ -1,12 +1,12 @@
 ---
 title: Penjualan
-description: Hub penjualan, peluang konversi, tim, pekerjaan, dan prospek pembeli.
+description: Hub penjualan, peluang konversi, tim, dan pekerjaan lapangan.
 section: Dashboard
 module: dashboard
 order: 16
 ---
 
-Area **Penjualan (Sales)** mengubah peluang produk–retailer menjadi pekerjaan lapangan: prioritaskan follow-up, kelola agen dan tim, tugaskan pekerjaan, dan catat prospek outlet baru.
+Area **Penjualan (Sales)** mengubah peluang produk–retailer menjadi pekerjaan lapangan: prioritaskan follow-up, kelola agen dan tim, serta tugaskan pekerjaan. Prospek outlet / pembeli baru ada di **Clients → Buyers** (status **Prospect**), bukan sebagai alat terpisah di Sales.
 
 Jalur: **Sales** (`/sales`).
 
@@ -30,7 +30,6 @@ Kartu tip yang bisa ditutup dengan modal detail:
 |------|-------|---------|
 | **Team** | `/sales/team` | Agen, peran, dan tim |
 | **Jobs** | `/sales/jobs` | Pekerjaan lapangan untuk tim penjualan |
-| **Prospect** | `/sales/prospects` | Prospek pembeli / outlet baru |
 
 ### Tabel Sales Conversion
 
@@ -116,7 +115,7 @@ Detail menampilkan target, produk favorit, laporan lapangan, dan biografi. Konfi
 | **Pick up return** | Ambil retur |
 | **Competitor check** | Catat intel kompetitor |
 
-Label tipe tambahan bisa muncul dari pekerjaan yang sudah ada. Outlet baru ditambahkan dari **Prospect**, bukan sebagai pengganti board Prospect.
+Label tipe tambahan bisa muncul dari pekerjaan yang sudah ada. Outlet baru ditambahkan di **Clients → Buyers** dengan status **Prospect**.
 
 ### Status pekerjaan
 
@@ -133,25 +132,11 @@ Form (**Create new job** / **Edit job**):
 
 **Stock check:** pilih klien dan produk yang dihitung di toko pembeli. Saat selesai, tandai **Checked** dan isi **Counted stock** per produk (`stock_counts`). Pekerjaan stok multi-pembeli selesai jika setiap baris pembeli selesai. Sinyal overdue atau hitungan rendah adalah alasan untuk diselidiki, bukan bukti permintaan otomatis.
 
-## Prospek pembeli (`/sales/prospects`)
-
-**Aksi:** **Export Data**, **Create new prospect**, **Edit**, **Delete**, hapus massal.
-
-**Pencarian:** **Search prospects**
-
-**Filter:** **All regions** plus daftar wilayah
-
-**Kolom:** Customer number | Name | Store name | Phone | Address | Region | Buyer type | Notes
-
-**Tipe pembeli:** Warung, Kiosk, Minimarket, Restaurant, Hotel, Canteen, Other.
-
-**Buat / ubah** (`/sales/prospects/new`, `/sales/prospects/edit/[id]`): field wajib prospek, plus **Ask AI** untuk membuka Lakupak AI membantu pengisian.
-
 ## Tautan terkait
 
 | Tujuan | Ke |
 |------|--------|
-| Catatan pembeli | [Klien](/id/docs/dashboard/clients) |
+| Catatan pembeli dan prospek | [Klien](/id/docs/dashboard/clients) |
 | Promosi produk | [Penawaran](/id/docs/dashboard/offers) |
 | Pesanan | [Pesanan](/id/docs/dashboard/orders) |
 | Widget Beranda | [Beranda](/id/docs/dashboard/home) |

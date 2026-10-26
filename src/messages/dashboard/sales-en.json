@@ -631,7 +631,7 @@
       "needClient": "Select a client.",
       "needProduct": "Select at least one product.",
       "needOutlet": "Fill in the new outlet.",
-      "prospectMoved": "New outlets are added from Prospect.",
+      "prospectMoved": "New outlets are added under Clients → Buyers (status Prospect).",
       "customerExists": "That customer number is already used.",
       "selectRep": "Select a sales rep",
       "loadingOrders": "Loading orders"

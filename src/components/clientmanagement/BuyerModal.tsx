@@ -1,12 +1,13 @@
 'use client';
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Trash, User, Upload, X, AlertCircle, CheckCircle, Loader2, ChevronDown } from 'lucide-react';
+import { Trash, User, Upload, AlertCircle, CheckCircle, ChevronDown, ArrowLeft, Save } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/store/userStore';
 import { Buyer, BuyerFormData, OrderDetail } from '@/types/client';
 import { generateSecureBuyerId } from '@/utils/buyer-security';
 import {
-  validateRequiredEmail,
+  validateOptionalEmail,
   validateRequiredPhone,
   validateRequiredField,
   mapBuyerFieldError,
@@ -15,26 +16,104 @@ import {
 import { ClientField, ClientInput } from '@/components/clientmanagement/ClientField';
 import { ClientValidatedField } from '@/components/clientmanagement/ClientValidatedField';
 import { CLIENT_SELECT_BUTTON_CLASS } from '@/components/clientmanagement/client-field-styles';
+import MapComponent from '@/components/ordershipment/MapComponent';
 import { getDefaultCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
+import { geocodeAddress, type MapCoordinates } from '@/utils/mapboxUtils';
+
+const JAKARTA: MapCoordinates = { longitude: 106.8456, latitude: -6.2088 };
 
 const statusOptions = ["Active", "Prospect", "Inactive", "Blocked"];
 
-interface BuyerModalProps {
-  open: boolean;
-  onClose: () => void;
-  onSave: (data: BuyerFormData) => void;
-  initialData?: Buyer;
-  mode?: 'edit';
+const BUYER_BUSINESS_TYPES = [
+  'Warung',
+  'Kiosk',
+  'Minimarket',
+  'Wholesaler',
+  'Restaurant',
+  'Hotel',
+  'Canteen',
+  'Other',
+] as const;
+
+const WEEKDAYS = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+] as const;
+
+type Weekday = (typeof WEEKDAYS)[number];
+
+const WEEKDAY_ALIASES: Record<string, Weekday> = {
+  mon: 'Monday',
+  monday: 'Monday',
+  sen: 'Monday',
+  senin: 'Monday',
+  tue: 'Tuesday',
+  tues: 'Tuesday',
+  tuesday: 'Tuesday',
+  sel: 'Tuesday',
+  selasa: 'Tuesday',
+  wed: 'Wednesday',
+  weds: 'Wednesday',
+  wednesday: 'Wednesday',
+  rab: 'Wednesday',
+  rabu: 'Wednesday',
+  thu: 'Thursday',
+  thur: 'Thursday',
+  thurs: 'Thursday',
+  thursday: 'Thursday',
+  kam: 'Thursday',
+  kamis: 'Thursday',
+  fri: 'Friday',
+  friday: 'Friday',
+  jum: 'Friday',
+  jumat: 'Friday',
+  "jum'at": 'Friday',
+  sat: 'Saturday',
+  saturday: 'Saturday',
+  sab: 'Saturday',
+  sabtu: 'Saturday',
+  sun: 'Sunday',
+  sunday: 'Sunday',
+  min: 'Sunday',
+  minggu: 'Sunday',
+};
+
+function parsePreferredDays(value: string): Weekday[] {
+  if (!value.trim()) return [];
+  const selected = new Set<Weekday>();
+  for (const part of value.split(/[,;/|]+/)) {
+    const key = part.trim().toLowerCase();
+    if (!key) continue;
+    const mapped = WEEKDAY_ALIASES[key];
+    if (mapped) selected.add(mapped);
+  }
+  return WEEKDAYS.filter((day) => selected.has(day));
 }
 
-export default function BuyerModal({ open, onClose, onSave, initialData, mode }: BuyerModalProps) {
+function formatPreferredDays(days: readonly string[]): string {
+  return WEEKDAYS.filter((day) => days.includes(day)).join(', ');
+}
+
+interface BuyerModalProps {
+  initialData?: Buyer;
+  mode?: 'edit' | 'add';
+  onSave?: (data: BuyerFormData) => void;
+}
+
+export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerModalProps) {
   const router = useRouter();
   const user = useUserStore(state => state.user);
   const { tBuyersModal, tShared, translateStatus } = useClientsTranslations();
-  
+  const isEditMode = mode === 'edit';
+
   // Get currency for display - safe to use on both server and client
   const userCurrency = user?.currency || getDefaultCurrency();
   const currencySymbol = getCurrencySymbol(userCurrency);
@@ -118,10 +197,43 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [showBusinessTypeDropdown, setShowBusinessTypeDropdown] = useState(false);
+  const [showPreferredDaysDropdown, setShowPreferredDaysDropdown] = useState(false);
+  const [addressPin, setAddressPin] = useState<MapCoordinates | null>(null);
+  const [locatingAddress, setLocatingAddress] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
+  const businessTypeDropdownRef = useRef<HTMLDivElement>(null);
+  const preferredDaysDropdownRef = useRef<HTMLDivElement>(null);
+
+  const selectedPreferredDays = useMemo(
+    () => parsePreferredDays(form.preferredDays || ''),
+    [form.preferredDays],
+  );
+
+  const businessTypeOptions = useMemo(() => {
+    const current = (form.businessType || '').trim();
+    if (current && !(BUYER_BUSINESS_TYPES as readonly string[]).includes(current)) {
+      return [current, ...BUYER_BUSINESS_TYPES];
+    }
+    return [...BUYER_BUSINESS_TYPES];
+  }, [form.businessType]);
+
+  const translateBusinessType = useCallback(
+    (type: string) => {
+      const key = `businessTypes.${type}`;
+      if (typeof tBuyersModal.has === 'function') {
+        return tBuyersModal.has(key) ? tBuyersModal(key) : type;
+      }
+      // Fallback when .has is unavailable: only translate known catalog types.
+      return (BUYER_BUSINESS_TYPES as readonly string[]).includes(type)
+        ? tBuyersModal(key)
+        : type;
+    },
+    [tBuyersModal],
+  );
 
   // Function to get the latest order date
   const getLatestOrderDate = useCallback((rows: OrderDetail[]) => {
@@ -139,11 +251,71 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
     return getLatestOrderDate(orderRows);
   }, [orderRows, getLatestOrderDate]);
 
-  // Close dropdown when clicking outside
+  const placeAddressOnMap = useCallback(async (address: string) => {
+    const trimmed = address.trim();
+    if (!trimmed) return;
+    setLocatingAddress(true);
+    try {
+      const found = await geocodeAddress(trimmed);
+      if (found.coordinates) setAddressPin(found.coordinates);
+    } finally {
+      setLocatingAddress(false);
+    }
+  }, []);
+
+  const onAddressMapClick = useCallback((coordinates: MapCoordinates) => {
+    setAddressPin(coordinates);
+    void (async () => {
+      try {
+        const response = await fetch('/api/mobile/geocode/reverse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ latitude: coordinates.latitude, longitude: coordinates.longitude }),
+        });
+        const data = (await response.json()) as { address?: string };
+        if (typeof data.address === 'string' && data.address.trim()) {
+          setForm((f) => ({ ...f, address: data.address!.trim() }));
+          setValidationErrors((prev) => clearValidationField(prev, 'address'));
+        }
+      } catch {
+        // Pin still marks the chosen point even if reverse geocode fails.
+      }
+    })();
+  }, []);
+
+  const translateWeekday = useCallback(
+    (day: Weekday) => {
+      const key = `days.${day}`;
+      if (typeof tBuyersModal.has === 'function') {
+        return tBuyersModal.has(key) ? tBuyersModal(key) : day;
+      }
+      return tBuyersModal(key);
+    },
+    [tBuyersModal],
+  );
+
+  const togglePreferredDay = useCallback((day: Weekday) => {
+    setForm((current) => {
+      const selected = parsePreferredDays(current.preferredDays || '');
+      const next = selected.includes(day)
+        ? selected.filter((row) => row !== day)
+        : [...selected, day];
+      return { ...current, preferredDays: formatPreferredDays(next) };
+    });
+  }, []);
+
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(target)) {
         setShowStatusDropdown(false);
+      }
+      if (businessTypeDropdownRef.current && !businessTypeDropdownRef.current.contains(target)) {
+        setShowBusinessTypeDropdown(false);
+      }
+      if (preferredDaysDropdownRef.current && !preferredDaysDropdownRef.current.contains(target)) {
+        setShowPreferredDaysDropdown(false);
       }
     };
 
@@ -159,7 +331,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
     const storeNameResult = validateRequiredField(form.storeName, tBuyersModal('storeName'));
     const ownerResult = validateRequiredField(form.owner, tBuyersModal('ownerName'));
     const phoneResult = validateRequiredPhone(form.phone);
-    const emailResult = validateRequiredEmail(form.email);
+    const emailResult = validateOptionalEmail(form.email);
     const addressResult = validateRequiredField(form.address, tBuyersModal('address'));
 
     if (!storeNameResult.valid && storeNameResult.error) errors.storeName = storeNameResult.error;
@@ -207,8 +379,8 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
   // Enhanced form submission
   const handleSubmit = useCallback(async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    
-    if (isSubmitting) return;
+
+    if (isSubmitting || showSuccessModal) return;
 
     setError('');
     setSuccess('');
@@ -219,14 +391,13 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
     setSaving(true);
     
     try {
-      const isEdit = mode === 'edit';
       const payload: Record<string, unknown> = {
         ...form,
         avatar,
         buyerId: id,
         orderDetails: JSON.stringify(orderRows),
         notes: JSON.stringify((form.notes || '').split(',').map((n: string) => n.trim()).filter(Boolean)),
-        createdAt: isEdit ? (form.createdAt ? new Date(form.createdAt).toISOString() : new Date().toISOString()) : new Date().toISOString(),
+        createdAt: isEditMode ? (form.createdAt ? new Date(form.createdAt).toISOString() : new Date().toISOString()) : new Date().toISOString(),
         logistics: JSON.stringify({
           preferredDays: form.preferredDays || '',
           lastShipment: computedLastShipment || '',
@@ -235,7 +406,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
         userId: user?.id,
       };
       
-      if (isEdit && initialData && typeof initialData.id === 'number') {
+      if (isEditMode && initialData && typeof initialData.id === 'number') {
         payload.id = initialData.id;
       }
       
@@ -246,7 +417,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
       
       let savedBuyer: Buyer | null = null;
       
-      if (isEdit) {
+      if (isEditMode) {
         const UPDATE_BUYER_MUTATION = `
           mutation UpdateBuyer(
             $userId: Int!
@@ -320,7 +491,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
       });
       
         savedBuyer = data.updateBuyer;
-        onSave(savedBuyer as unknown as BuyerFormData);
+        onSave?.(savedBuyer as unknown as BuyerFormData);
       } else {
         const CREATE_BUYER_MUTATION = `
           mutation CreateBuyer(
@@ -392,44 +563,19 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
         });
         
         savedBuyer = data.createBuyer;
-      onSave(savedBuyer as unknown as BuyerFormData);
+        onSave?.(savedBuyer as unknown as BuyerFormData);
       }
-      
-      if (isEdit && savedBuyer) {
-        // Close modal first
-        onClose();
-        // Show success modal after modal closes
-        setTimeout(() => {
-          setShowSuccessModal(true);
-          // If we're on the details page, the onSave callback will handle the refresh
-          // Otherwise, redirect to profile page
-          const currentPath = window.location.pathname;
-          if (currentPath.includes('/clients/buyers/details/')) {
-            // Already on details page, onSave will trigger refresh via onUpdate
-            setTimeout(() => {
-              setShowSuccessModal(false);
-            }, 2000);
-          } else {
-            // Not on details page, redirect
-            const routeId = savedBuyer.buyerId || payload.buyerId as string;
-            setTimeout(() => {
-              setShowSuccessModal(false);
-        router.push(`/clients/buyers/details/${routeId}`);
-        setTimeout(() => window.location.reload(), 100);
-            }, 2000);
-          }
-        }, 100);
-      } else {
-        // Close modal first
-        onClose();
-        // Show success modal after modal closes
-        setTimeout(() => {
-          setShowSuccessModal(true);
-          setTimeout(() => {
-            setShowSuccessModal(false);
-          }, 2000);
-        }, 100);
-      }
+
+      const routeId = savedBuyer?.buyerId || String(payload.buyerId || '');
+      setShowSuccessModal(true);
+      setTimeout(() => {
+        setShowSuccessModal(false);
+        if (routeId) {
+          router.push(`/clients/buyers/details/${encodeURIComponent(routeId)}`);
+        } else {
+          router.push('/clients/buyers');
+        }
+      }, 1200);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : tBuyersModal('saveFailed');
       const field = mapBuyerFieldError(errorMessage);
@@ -443,7 +589,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
       setSaving(false);
       setIsSubmitting(false);
     }
-  }, [form, avatar, id, orderRows, mode, initialData, user?.id, onSave, onClose, router, validateForm, handleError, handleSuccess]);
+  }, [form, avatar, id, orderRows, isEditMode, initialData, user?.id, onSave, router, validateForm, handleError, isSubmitting, showSuccessModal, tBuyersModal]);
 
   // Enhanced file handling
   const handleFileUpload = useCallback(async (file: File) => {
@@ -471,105 +617,102 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
     }
   }, [handleError]);
 
-  // Enhanced accessibility
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      onClose();
-    }
-  }, [onClose]);
-
-  // Reset validation state when modal opens
+  // Hydrate form when initialData is provided (edit or AI prefill on add)
   useEffect(() => {
-    if (open) {
-      setSubmitAttempted(false);
-      setValidationErrors({});
-    }
-  }, [open]);
+    if (!initialData) return;
 
-  // Reset form when modal opens/closes
-  useEffect(() => {
-    if (open && mode === 'edit' && initialData) {
-      // Parse JSON strings from database
-      const parsedNotes = safeParseJSON(initialData.notes || '', []);
-      const parsedLogistics = safeParseJSON(initialData.logistics || '', {});
-      
-      // Get order details first to calculate latest date
-      const orderDetails = initialData?.orderDetails ? (() => {
-        try {
-          const parsed = JSON.parse(initialData.orderDetails);
-          return Array.isArray(parsed) ? parsed : [];
-        } catch {
-          return [];
-        }
-      })() : [];
-      
-      const latestOrderDate = getLatestOrderDate(orderDetails);
-      
-              setForm({
-          storeName: initialData.storeName && !initialData.storeName.includes('Missing') ? initialData.storeName : '',
-          owner: initialData.owner && !initialData.owner.includes('Missing') ? initialData.owner : '',
-          phone: initialData.phone && !initialData.phone.includes('Missing') ? initialData.phone : '',
-          email: initialData.email && !initialData.email.includes('Missing') ? initialData.email : '',
-          address: initialData.address && !initialData.address.includes('Missing') ? initialData.address : '',
-          businessType: initialData.businessType && !initialData.businessType.includes('Missing') ? initialData.businessType : '',
-        status: initialData.status || statusOptions[0],
-        createdAt: initialData.createdAt ? new Date(initialData.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-                  preferredDays: parsedLogistics.preferredDays && !parsedLogistics.preferredDays.includes('Missing') ? parsedLogistics.preferredDays : '',
-          lastShipment: latestOrderDate || (parsedLogistics.lastShipment && !parsedLogistics.lastShipment.includes('Missing') ? parsedLogistics.lastShipment : ''),
-          shipmentSuccess: parsedLogistics.shipmentSuccess && !parsedLogistics.shipmentSuccess.includes('Missing') ? parsedLogistics.shipmentSuccess : '',
-        notes: Array.isArray(parsedNotes) ? parsedNotes.join(', ') : '',
-      });
-      setId(initialData.buyerId || generateSecureBuyerId());
-      setOrderRows(
-        orderDetails.length > 0 ? orderDetails.map((row: OrderDetail) => ({
-          orderNo: row.orderNo || '',
-          product: row.product || '',
-          totalOrders: row.totalOrders || '',
-          totalSpend: row.totalSpend || '',
-          shippingFee: row.shippingFee || '',
-          lastOrderDate: row.lastOrderDate || '',
-          outstanding: row.outstanding || '',
-        })) : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }]
-      );
-      setAvatar(initialData.avatar || '');
-      setValidationErrors({});
-      setError('');
-      setSuccess('');
+    const parsedNotes = safeParseJSON(initialData.notes || '', []);
+    const parsedLogistics = safeParseJSON(initialData.logistics || '', {});
+
+    const orderDetails = initialData?.orderDetails ? (() => {
+      try {
+        const parsed = JSON.parse(initialData.orderDetails);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    })() : [];
+
+    const latestOrderDate = getLatestOrderDate(orderDetails);
+
+    setForm({
+      storeName: initialData.storeName && !initialData.storeName.includes('Missing') ? initialData.storeName : '',
+      owner: initialData.owner && !initialData.owner.includes('Missing') ? initialData.owner : '',
+      phone: initialData.phone && !initialData.phone.includes('Missing') ? initialData.phone : '',
+      email: initialData.email && !initialData.email.includes('Missing') ? initialData.email : '',
+      address: initialData.address && !initialData.address.includes('Missing') ? initialData.address : '',
+      businessType: initialData.businessType && !initialData.businessType.includes('Missing') ? initialData.businessType : '',
+      status: initialData.status || (isEditMode ? statusOptions[0] : 'Prospect'),
+      createdAt: initialData.createdAt ? new Date(initialData.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      preferredDays: parsedLogistics.preferredDays && !parsedLogistics.preferredDays.includes('Missing') ? parsedLogistics.preferredDays : '',
+      lastShipment: latestOrderDate || (parsedLogistics.lastShipment && !parsedLogistics.lastShipment.includes('Missing') ? parsedLogistics.lastShipment : ''),
+      shipmentSuccess: parsedLogistics.shipmentSuccess && !parsedLogistics.shipmentSuccess.includes('Missing') ? parsedLogistics.shipmentSuccess : '',
+      notes: Array.isArray(parsedNotes) ? parsedNotes.join(', ') : '',
+    });
+    setId(isEditMode ? (initialData.buyerId || generateSecureBuyerId()) : generateSecureBuyerId());
+    setOrderRows(
+      orderDetails.length > 0 ? orderDetails.map((row: OrderDetail) => ({
+        orderNo: row.orderNo || '',
+        product: row.product || '',
+        totalOrders: row.totalOrders || '',
+        totalSpend: row.totalSpend || '',
+        shippingFee: row.shippingFee || '',
+        lastOrderDate: row.lastOrderDate || '',
+        outstanding: row.outstanding || '',
+      })) : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }]
+    );
+    setAvatar(initialData.avatar || '');
+    setValidationErrors({});
+    setError('');
+    setSuccess('');
+    setSubmitAttempted(false);
+
+    const nextAddress =
+      initialData.address && !initialData.address.includes('Missing') ? initialData.address.trim() : '';
+    if (nextAddress) {
+      void placeAddressOnMap(nextAddress);
+    } else {
+      setAddressPin(null);
     }
-  }, [open, mode, initialData, safeParseJSON, getLatestOrderDate]);
+  }, [initialData, isEditMode, safeParseJSON, getLatestOrderDate, placeAddressOnMap]);
 
   return (
     <>
-      {open && (
-    <div 
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onKeyDown={handleKeyDown}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="buyer-modal-title"
-    >
-      <div className="bg-white rounded-lg border border-[#e6e6e6] w-full max-w-5xl relative max-h-[90vh] overflow-hidden flex flex-col">
-        <button
-          type="button"
-          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors z-10"
-          onClick={onClose}
-          aria-label={tShared('closeModal')}
-        >
-          <X className="w-5 h-5" />
-        </button>
-        
-        {/* Header */}
-        <div className="flex items-center gap-3 px-4 pt-4 pb-4 pr-14">
-          <div className="w-10 h-10 bg-[#0a61d7] rounded-lg flex items-center justify-center">
-            <User className="w-5 h-5 text-white" />
+      <div className="flex w-full min-w-0 flex-col overflow-visible rounded-lg border border-[#e6e6e6] bg-white">
+        <div className="flex flex-col gap-3 border-b border-[#e6e6e6] p-4 @5xl/main:flex-row @5xl/main:items-center @5xl/main:justify-between">
+          <div className="flex min-w-0 flex-col gap-3 @3xl/main:flex-row @3xl/main:items-center">
+            <Link
+              href={isEditMode && initialData?.buyerId ? `/clients/buyers/details/${encodeURIComponent(initialData.buyerId)}` : '/clients/buyers'}
+              className="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800 @3xl/main:w-auto @3xl/main:justify-start"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              {tBuyersModal('back')}
+            </Link>
+            <h1 id="buyer-form-title" className="truncate text-2xl font-bold text-gray-900">
+              {isEditMode ? tBuyersModal('editTitle') : tBuyersModal('addTitle')}
+            </h1>
           </div>
-          <div>
-            <h2 id="buyer-modal-title" className="text-xl font-bold text-black">
-              {mode === 'edit' ? tBuyersModal('editTitle') : tBuyersModal('addTitle')}
-            </h2>
+          <div className="flex w-full min-w-0 flex-col gap-2 @4xl/main:flex-row @4xl/main:flex-wrap @4xl/main:items-center @5xl/main:w-auto">
+            <button
+              type="button"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 font-semibold text-white transition-colors hover:bg-[#084ba6] disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
+              onClick={handleSubmit}
+              disabled={saving || isSubmitting || showSuccessModal}
+            >
+              {saving ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  {tBuyersModal('saving')}
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  {tBuyersModal('save')}
+                </>
+              )}
+            </button>
           </div>
         </div>
-        <div className="border-b border-gray-200"></div>
         
         {/* Enhanced Error/Success Messages */}
         {error && (
@@ -588,7 +731,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
         
         <form 
           ref={formRef}
-          className="flex flex-col gap-2 overflow-y-auto flex-1 min-h-0 px-4 py-4"
+          className="flex flex-col gap-2 px-4 py-4"
           onSubmit={handleSubmit}
         >
           {/* Avatar Section */}
@@ -688,8 +831,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
                 setForm((f) => ({ ...f, email }));
                 setValidationErrors((prev) => clearValidationField(prev, 'email'));
               }}
-              validator={validateRequiredEmail}
-              required
+              validator={validateOptionalEmail}
               submitAttempted={submitAttempted}
               externalError={validationErrors.email}
             />
@@ -697,18 +839,56 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
           
           {/* Business Type and Status */}
           <div className="flex gap-2">
-            <ClientField
-              className="flex-1"
-              label={tBuyersModal('businessType')}
-              value={form.businessType || ''}
-              onChange={(businessType) => setForm((f) => ({ ...f, businessType }))}
-            />
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-gray-700 mb-1">{tBuyersModal('businessType')}</label>
+              <div className="relative" ref={businessTypeDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowBusinessTypeDropdown((open) => !open);
+                    setShowStatusDropdown(false);
+                  }}
+                  className={CLIENT_SELECT_BUTTON_CLASS}
+                >
+                  <span className={form.businessType ? 'text-black' : 'text-gray-500'}>
+                    {form.businessType
+                      ? translateBusinessType(form.businessType)
+                      : tBuyersModal('selectBusinessType')}
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-gray-400" />
+                </button>
+                {showBusinessTypeDropdown && (
+                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {businessTypeOptions.map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => {
+                          setForm((f) => ({ ...f, businessType: type }));
+                          setShowBusinessTypeDropdown(false);
+                        }}
+                        className={`w-full px-3 py-2 text-xs text-left hover:bg-gray-100 ${
+                          form.businessType === type
+                            ? 'text-[#0a61d7] font-semibold bg-gray-50'
+                            : 'text-gray-700'
+                        }`}
+                      >
+                        {translateBusinessType(type)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">{tBuyersModal('status')}</label>
               <div className="relative" ref={statusDropdownRef}>
                 <button
                   type="button"
-                  onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                  onClick={() => {
+                    setShowStatusDropdown((open) => !open);
+                    setShowBusinessTypeDropdown(false);
+                  }}
                   className={CLIENT_SELECT_BUTTON_CLASS}
                 >
                   <span className={form.status ? 'text-black' : 'text-gray-500'}>
@@ -739,20 +919,46 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
             </div>
           </div>
           
-          {/* Address */}
-          <ClientField
-            label={tBuyersModal('address')}
-            value={form.address || ''}
-            onChange={(address) => {
-              setForm((f) => ({ ...f, address }));
-              setValidationErrors((prev) => clearValidationField(prev, 'address'));
-            }}
-            validator={(value) => validateRequiredField(value, tBuyersModal('address'))}
-            submitAttempted={submitAttempted}
-            externalError={validationErrors.address}
-            required
-            rows={3}
-          />
+          {/* Address + map */}
+          <div>
+            <ClientField
+              label={tBuyersModal('address')}
+              value={form.address || ''}
+              onChange={(address) => {
+                setForm((f) => ({ ...f, address }));
+                setValidationErrors((prev) => clearValidationField(prev, 'address'));
+              }}
+              validator={(value) => validateRequiredField(value, tBuyersModal('address'))}
+              submitAttempted={submitAttempted}
+              externalError={validationErrors.address}
+              required
+              rows={3}
+            />
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void placeAddressOnMap(form.address || '')}
+                disabled={locatingAddress || !(form.address || '').trim()}
+                className="rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-xs font-medium text-black hover:bg-gray-100 disabled:opacity-60"
+              >
+                {tBuyersModal('findOnMap')}
+              </button>
+              <p className="text-xs text-gray-500">{tBuyersModal('mapHint')}</p>
+            </div>
+            <div className="mt-3 overflow-hidden rounded-lg border border-[#e6e6e6]">
+              <MapComponent
+                height="280px"
+                zoom={addressPin ? 15 : 11}
+                center={addressPin ?? JAKARTA}
+                markers={
+                  addressPin
+                    ? [{ id: 'buyer-address', coordinates: addressPin, color: '#0a61d7' }]
+                    : []
+                }
+                onMapClick={onAddressMapClick}
+              />
+            </div>
+          </div>
           
           {/* Order & Product Details Table */}
           <div className="my-2 border-t border-gray-200 pt-2">
@@ -861,13 +1067,70 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
               hint={tBuyersModal('createdAtHint')}
               id="buyer-created-at"
             />
-            <ClientField
-              className="flex-1"
-              label={tBuyersModal('preferredDeliveryDays')}
-              value={form.preferredDays || ''}
-              onChange={(preferredDays) => setForm((f) => ({ ...f, preferredDays }))}
-              placeholder={tBuyersModal('preferredDaysPlaceholder')}
-            />
+            <div className="flex-1">
+              <label className="mb-1 block text-xs font-medium text-gray-700">
+                {tBuyersModal('preferredDeliveryDays')}
+              </label>
+              <div className="relative" ref={preferredDaysDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPreferredDaysDropdown((open) => !open);
+                    setShowStatusDropdown(false);
+                    setShowBusinessTypeDropdown(false);
+                  }}
+                  className={CLIENT_SELECT_BUTTON_CLASS}
+                >
+                  <span
+                    className={`min-w-0 truncate ${
+                      selectedPreferredDays.length ? 'text-black' : 'text-gray-500'
+                    }`}
+                  >
+                    {selectedPreferredDays.length
+                      ? selectedPreferredDays.map(translateWeekday).join(', ')
+                      : tBuyersModal('selectPreferredDays')}
+                  </span>
+                  <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
+                </button>
+                {showPreferredDaysDropdown && (
+                  <div className="absolute bottom-full left-0 right-0 z-50 mb-1 overflow-visible rounded-lg border border-gray-300 bg-white py-1 shadow-lg">
+                    {WEEKDAYS.map((day) => {
+                      const selected = selectedPreferredDays.includes(day);
+                      return (
+                        <button
+                          key={day}
+                          type="button"
+                          onClick={() => togglePreferredDay(day)}
+                          className={`flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-gray-100 ${
+                            selected ? 'bg-gray-50 font-semibold text-[#0a61d7]' : 'text-gray-700'
+                          }`}
+                        >
+                          <span
+                            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border-2 transition-all duration-200 ${
+                              selected
+                                ? 'border-green-500 bg-green-500'
+                                : 'border-gray-300 bg-white hover:border-green-400'
+                            }`}
+                            aria-hidden
+                          >
+                            {selected ? (
+                              <svg className="h-3 w-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path
+                                  fillRule="evenodd"
+                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            ) : null}
+                          </span>
+                          {translateWeekday(day)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
           
           {/* Last Shipment and Success Rate */}
@@ -914,41 +1177,8 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
             placeholder={tBuyersModal('notesPlaceholder')}
           />
         </form>
-        
-        {/* Footer Border */}
-        <div className="border-t border-gray-200"></div>
-        
-        {/* Enhanced Action Buttons */}
-        <div className="flex justify-end gap-2 px-4 py-4 text-sm">
-          <button 
-            type="button" 
-            className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50" 
-            onClick={onClose} 
-            disabled={saving}
-          >
-            {tShared('cancel')}
-          </button>
-          <button 
-            type="button" 
-            className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center justify-center transition-colors disabled:opacity-50" 
-            onClick={handleSubmit} 
-            disabled={saving || isSubmitting}
-          >
-            {saving ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                {tBuyersModal('saving')}
-              </>
-            ) : (
-              tBuyersModal('save')
-            )}
-          </button>
-        </div>
       </div>
-    </div>
-      )}
 
-      {/* Success Modal - Rendered outside main modal so it persists after modal closes */}
       {showSuccessModal && (
         <div className="fixed inset-0 flex items-center justify-center z-[60] pointer-events-none">
           <div className="bg-green-600 text-white rounded-lg shadow-2xl p-4 flex items-center gap-4 animate-fade-in pointer-events-auto">
@@ -958,7 +1188,7 @@ export default function BuyerModal({ open, onClose, onSave, initialData, mode }:
             <div>
               <h3 className="text-md font-semibold">{tBuyersModal('saveSuccessTitle')}</h3>
               <p className="text-xs text-white/90">
-                {mode === 'edit' ? tBuyersModal('saveSuccessEdit') : tBuyersModal('saveSuccessCreate')}
+                {isEditMode ? tBuyersModal('saveSuccessEdit') : tBuyersModal('saveSuccessCreate')}
               </p>
             </div>
           </div>

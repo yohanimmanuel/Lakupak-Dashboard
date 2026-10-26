@@ -658,7 +658,7 @@ export default function AutomationCopilot({
     router.push(`/automation/new?plan=1${chat}`);
   };
 
-  /** Apply on the open prospect form, or open create/edit from any other page. */
+  /** Apply on an open Clients buyer form, or open Add Buyer from any other page. */
   const applyProspectFill = (fill: ProspectFormFill) => {
     if (onApplyProspectFillAction) {
       onApplyProspectFillAction(fill);
@@ -666,10 +666,10 @@ export default function AutomationCopilot({
     }
     writePendingProspectFill(fill);
     if (fill.buyerId) {
-      router.push(`/sales/prospects/edit/${encodeURIComponent(fill.buyerId)}`);
+      router.push(`/clients/buyers/edit/${encodeURIComponent(fill.buyerId)}`);
       return;
     }
-    router.push('/sales/prospects/new');
+    router.push('/clients/buyers/add');
   };
 
   const apply = (recipe: CopilotWorkflowRecipe) => {
@@ -1121,9 +1121,9 @@ export default function AutomationCopilot({
                     : line.prospectFill
                       ? [line.prospectFill]
                       : extractProspectFillsFromReply(line.text).prospectFills;
-                // MVP pause: hide automation canvas + sales prospect action buttons (logic still runs)
+                // MVP pause: hide automation canvas action buttons (logic still runs)
                 const showWorkflowAction = false; // Boolean(line.edit || line.plan?.length || workflow);
-                const showProspectActions = false; // prospectActions.length > 0;
+                const showProspectActions = prospectActions.length > 0;
                 return (
                   <div key={line.id} className="flex justify-start">
                     <div className="max-w-[85%] rounded-2xl border border-[#e6e6e6] bg-white px-4 py-3">
@@ -1172,8 +1172,8 @@ export default function AutomationCopilot({
                                 <Link
                                   href={
                                     fill.buyerId
-                                      ? `/sales/prospects/edit/${encodeURIComponent(fill.buyerId)}`
-                                      : '/sales/prospects'
+                                      ? `/clients/buyers/details/${encodeURIComponent(fill.buyerId)}`
+                                      : '/clients/buyers'
                                   }
                                   className="rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-xs font-semibold text-black hover:bg-gray-50"
                                 >

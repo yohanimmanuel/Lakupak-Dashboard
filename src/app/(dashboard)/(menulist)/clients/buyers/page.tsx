@@ -3,16 +3,16 @@ import { SkeletonTablePage } from '@/components/skeleton/SkeletonTablePage';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Statcards from '@/components/clientmanagement/Statcards';
 import BuyerTable from "@/components/clientmanagement/BuyerTable";
-import BuyerModal from '@/components/clientmanagement/BuyerModal';
 import Link from 'next/link';
 import { Plus, Upload, Download, RefreshCw, Check, AlertTriangle, GitCompare } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import ImportData from '@/components/clientmanagement/ImportData';
 import { useUserStore } from '@/store/userStore';
-import { Buyer, BuyerTableRow, BuyerFormData, OrderDetail } from '@/types/client';
+import { Buyer, BuyerTableRow, OrderDetail } from '@/types/client';
 import { formatDate, formatNumber } from '@/utils/dateUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -73,7 +73,8 @@ function generateBuyerId() {
 
 export default function BuyersPage() {
   const { tBuyers, tShared } = useClientsTranslations();
-  const [showAddModal, setShowAddModal] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [showImportModal, setShowImportModal] = useState(false);
   const [buyers, setBuyers] = useState<Buyer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,8 +86,16 @@ export default function BuyersPage() {
   const [updateError, setUpdateError] = useState('');
   const overlayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hasLoadedBuyersRef = useRef(false);
+  const redirectedAddRef = useRef(false);
   const user = useUserStore(state => state.user);
   const [pendingMatches, setPendingMatches] = useState(0);
+
+  useEffect(() => {
+    if (redirectedAddRef.current) return;
+    if (searchParams.get('addBuyer') !== '1') return;
+    redirectedAddRef.current = true;
+    router.replace('/clients/buyers/add');
+  }, [searchParams, router]);
 
   // Utility function to calculate monthly averages (same logic as BuyerProfile)
   const calculateMonthlyAverages = (orderDetails: OrderDetail[]) => {
@@ -322,12 +331,12 @@ export default function BuyersPage() {
               </span>
             )}
           </Link>
-          <button
+          <Link
+            href="/clients/buyers/add"
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#084ba6] @4xl/main:w-auto"
-            onClick={() => setShowAddModal(true)}
           >
             <Plus className="h-4 w-4" /> {tBuyers('addBuyer')}
-          </button>
+          </Link>
         </div>
       </div>
       {/* Success and Error Messages */}
@@ -372,16 +381,6 @@ export default function BuyersPage() {
       
           <Statcards type="buyer" data={buyers} />
           <BuyerTable buyers={buyers} setBuyers={setBuyers} onExportXLSX={downloadXLSX} profileToTableRow={profileToTableRow} onRefresh={fetchBuyers} />
-      <BuyerModal
-        open={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        onSave={async (data) => {
-          setShowAddModal(false);
-          await fetchBuyers();
-          // Force a page refresh to ensure all data is up to date
-          window.location.reload();
-        }}
-      />
       <ImportData
         open={showImportModal}
         onClose={() => setShowImportModal(false)}

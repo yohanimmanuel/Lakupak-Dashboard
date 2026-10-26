@@ -6,14 +6,14 @@ module: dashboard
 order: 12
 ---
 
-Area **Klien** adalah CRM distributor untuk pembeli ritel dan pemasok hulu. Ini juga fondasi hubungan untuk intelijen portofolio: riwayat pembelian dan profil retailer membantu menilai toko mana yang cocok untuk produk mana.
+Area **Klien** adalah CRM distributor untuk pembeli ritel dan pemasok hulu. Ini juga fondasi hubungan untuk intelijen portofolio: riwayat pembelian dan profil retailer membantu menilai toko mana yang cocok untuk produk mana. Gunakan daftar **Pembeli** yang sama untuk **prospek pembeli** (status **Prospect**) — tidak ada modul Prospek terpisah di Sales.
 
 Ada halaman hub plus dua alat: **Pembeli (Buyers)** dan **Pemasok (Suppliers)**.
 
 ## Mengapa Klien penting untuk pemanfaatan portofolio
 
 - Catatan retailer dan riwayat pesanan menunjukkan siapa yang sudah membeli apa
-- Status (Aktif, Tidak Aktif, Diblokir) menjaga pencocokan fokus pada toko yang layak
+- Status (Aktif, Prospek, Tidak Aktif, Diblokir) menjaga pencocokan dan outreach fokus pada toko yang tepat
 - Pola produk dan belanja mendukung pencocokan next-best produk–retailer seiring intelijen itu diluncurkan
 
 Penetrasi rendah untuk sebuah produk di pembeli yang layak adalah sinyal untuk diselidiki, bukan permintaan otomatis.
@@ -51,7 +51,7 @@ Nilai memakai mata uang akun dari Pengaturan.
 | **Refresh** | Muat ulang data pembeli dari server |
 | **Import Data** | Buat pembeli massal dari spreadsheet (XLSX) |
 | **Export Data** | Unduh tabel terfilter ke XLSX |
-| **Add Buyer** | Form tambah pembeli baru |
+| **Add Buyer** | Buka `/clients/buyers/add` |
 
 Setelah refresh, toast singkat menampilkan jumlah pembeli yang dimuat.
 
@@ -60,7 +60,7 @@ Setelah refresh, toast singkat menampilkan jumlah pembeli yang dimuat.
 Tabel pembeli mendukung:
 
 - **Pencarian** menurut nama toko
-- **Tab status**: All, Active, Inactive, Blocked
+- **Tab status**: All, Active, Prospect, Inactive, Blocked
 - **Filter tipe bisnis** (dinamis dari data Anda)
 - **Filter periode**: All Months, This Month, Last Month (tanggal pembuatan record)
 - **Paginasi**
@@ -69,16 +69,22 @@ Tabel pembeli mendukung:
 
 **Kolom (desktop):** ID, Name, Address, Business Type, Total Orders, Total Spend, Outstanding, Status, Actions.
 
-**Aksi baris:** buka **Buyer details**, **Edit**.
+**Aksi baris:** **Edit** membuka halaman detail pembeli (`/clients/buyers/details/{buyerId}`). Dari sana, **Edit Details** membuka `/clients/buyers/edit/{buyerId}`.
 
-Klik baris atau **Details** menuju `/clients/buyers/details/{buyerId}`.
+### Prospek pembeli
+
+Gunakan **Clients → Buyers** untuk mencatat outlet yang belum Anda jual:
+
+- Setel status **Prospect** saat menambah pembeli (atau biarkan Prospek sampai mereka memesan / menjadi Active).
+- Minta **Lakupak AI** mencari retailer menurut wilayah dan tipe outlet (Google Places). Chat mengembalikan usulan dengan **Isi kolom formulir** / **Lihat pembeli**; belum ada yang disimpan sampai Anda konfirmasi di form pembeli.
+- Filter tabel pembeli dengan tab **Prospect** untuk fokus pada lead tersebut.
 
 ### Tambah atau ubah pembeli
 
 Form mencakup:
 
 - Nama toko, pemilik, telepon, email, alamat, tipe bisnis
-- Status: Active, Inactive, atau Blocked
+- Status: Active, Prospect, Inactive, atau Blocked
 - Tanggal dibuat
 - Logistik: hari pengiriman pilihan, pengiriman terakhir, tingkat keberhasilan pengiriman
 - Catatan
@@ -92,9 +98,10 @@ Pembeli baru mendapat ID seperti `LKB-########` jika tidak diisi. Input divalida
 Halaman profil menampilkan:
 
 - **Copy Data** (salin profil dan baris pesanan)
-- **Edit Details**
+- **Edit Details** (membuka `/clients/buyers/edit/{buyerId}`)
 - **Progress kelengkapan data** (field profil, logistik, atau pesanan yang kosong)
 - Ringkasan kontak dan bisnis
+- Alamat terpotong di Informasi Umum dengan **Lihat di Peta** (alamat lengkap + modal peta)
 - **Grafik analitik**: tren pesanan dan belanja bulanan
 - Tabel **Order and product details** dengan paginasi
 - **Import orders** dan **export orders** (XLSX) untuk baris pesanan pembeli itu

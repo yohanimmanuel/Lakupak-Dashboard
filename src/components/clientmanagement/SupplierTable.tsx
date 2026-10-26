@@ -813,7 +813,16 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                 <td className="max-w-30 py-3 px-4 font-medium text-black truncate">{String(supplier.supplierId)}</td>
                                     <td className="max-w-30 py-3 px-4 font-medium text-black truncate">
                       {String(supplier.name).trim() ? (
-                        String(supplier.name)
+                        <button
+                          type="button"
+                          className="truncate text-[#0a61d7] font-semibold hover:text-blue-800"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleView(supplier);
+                          }}
+                        >
+                          {String(supplier.name)}
+                        </button>
                       ) : (
                         <span className="text-red-600 font-bold">{tShared('missing.name')}</span>
                       )}
@@ -842,7 +851,10 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                   <div className="flex items-center justify-center gap-2">
                     <button
                       className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 transition-colors focus:outline-none"
-                      onClick={() => handleView(supplier)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleView(supplier);
+                      }}
                     >
                       <Edit className="w-4 h-4 text-gray-500" />
                     </button>
@@ -999,7 +1011,10 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
               <div className="flex items-center gap-2">
                 <button
                   className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 transition-colors focus:outline-none"
-                  onClick={() => handleView(supplier)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleView(supplier);
+                  }}
                 >
                   <Edit className="w-4 h-4 text-gray-500" />
                 </button>

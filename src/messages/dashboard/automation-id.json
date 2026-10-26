@@ -29,7 +29,7 @@
     "emptyTitle": "Apa yang harus dilakukan alur kerja ini?",
     "applied": "Struktur alur kerja sudah ada di kanvas. Simpan saat siap.",
     "reviewCanvas": "Tinjau di kanvas",
-    "viewProspect": "Lihat prospek",
+    "viewProspect": "Lihat pembeli",
     "applyProspectFields": "Isi kolom formulir",
     "history": {
       "title": "Riwayat",
@@ -38,7 +38,7 @@
       "collapse": "Tutup riwayat",
       "expand": "Buka riwayat",
       "close": "Tutup",
-      "dockEmpty": "Tanya tentang alur kerja ini, atau tentang prospek pengecer.",
+      "dockEmpty": "Tanya tentang alur kerja ini, atau tentang mencari pembeli untuk Klien.",
       "saveFailed": "Balasan ini tampil, tetapi percakapan belum tersimpan.",
       "justNow": "Baru saja",
       "minutes": "{count} mnt lalu",
