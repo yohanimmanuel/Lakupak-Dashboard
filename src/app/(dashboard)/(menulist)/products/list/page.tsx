@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import ProductCards from "@/components/productscatalogs/ProductCards";
 import ProductTable from "@/components/productscatalogs/ProductTable";
 import ProductImport from "@/components/productscatalogs/ProductImport";
-import { Upload, Download, Check, RefreshCcw } from "lucide-react";
+import { Upload, Download, Check, RefreshCcw, LayoutGrid } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useUserStore } from "@/store/userStore";
 import * as XLSX from 'xlsx';
@@ -529,6 +529,13 @@ export default function ProductsListPage() {
           >
             <Upload className="h-4 w-4" />
             {tList('importDraftProducts')}
+          </button>
+          <button
+            onClick={() => router.push('/products/heatmap')}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-gray-50 @4xl/main:w-auto"
+          >
+            <LayoutGrid className="h-4 w-4" />
+            {tList('openHeatmap')}
           </button>
           <button
             onClick={() => handleExport()}

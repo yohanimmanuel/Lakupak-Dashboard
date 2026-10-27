@@ -19,7 +19,8 @@
     "itemsCount": "{count} items",
     "view": "View",
     "unarchive": "Unarchive",
-    "createOrder": "Create order"
+    "createOrder": "Create order",
+    "openHeatmap": "Heatmap"
   },
   "cards": {
     "totalOrders": "Total Orders",

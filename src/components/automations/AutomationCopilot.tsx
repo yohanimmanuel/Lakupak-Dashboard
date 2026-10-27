@@ -59,6 +59,32 @@ function recipeKey(id: string, field: string) {
   return `recipes.${id}.${field}`;
 }
 
+/** Compact outlet list for model follow-ups; never shown in ChatLine.text. */
+function summarizeProspectFillsForHistory(fills: ProspectFormFill[]): string {
+  const lines = fills
+    .slice(0, 12)
+    .map((fill) => {
+      const name = (fill.storeName || fill.name || '').trim();
+      if (!name) return null;
+      const parts = [name];
+      const address = fill.address?.trim();
+      const phone = fill.phone?.trim();
+      if (address) parts.push(address.slice(0, 120));
+      if (phone && phone !== '-') parts.push(phone.slice(0, 20));
+      return `- ${parts.join(' · ')}`;
+    })
+    .filter((line): line is string => Boolean(line));
+  if (!lines.length) return '';
+  return `Previously suggested outlets:\n${lines.join('\n')}`;
+}
+
+function historyContentForModel(line: ChatLine): string {
+  const text = line.text.trim();
+  if (line.role !== 'assistant' || !line.prospectFills?.length) return text;
+  const summary = summarizeProspectFillsForHistory(line.prospectFills);
+  return summary ? `${text}\n\n${summary}` : text;
+}
+
 function lineId() {
   return `m_${Math.random().toString(36).slice(2, 10)}`;
 }
@@ -530,7 +556,10 @@ export default function AutomationCopilot({
         locale,
         onCanvas: workflowMode,
         canvas: workflowMode ? canvasSteps ?? null : null,
-        history: history.slice(-8).map((line) => ({ role: line.role, content: line.text })),
+        history: history.slice(-8).map((line) => ({
+          role: line.role,
+          content: historyContentForModel(line),
+        })),
       }),
     });
     if (!response.ok) {
@@ -590,6 +619,7 @@ export default function AutomationCopilot({
             ? [payload.prospectFill]
             : fromReply.prospectFills;
       const prospectFill = prospectFills[0] ?? payload.prospectFill ?? null;
+      // Visible reply stays plain; askModel history adds a safe fill summary via historyContentForModel.
       const reply = fromReply.text;
       const assistantLine: ChatLine = {
         id: lineId(),
@@ -608,7 +638,7 @@ export default function AutomationCopilot({
         onApplyWorkflowRecipeAction?.(recipe.id);
       }
       const existingId = conversationIdRef.current;
-      const storedReply = packCanvasReply(reply, edit, prospectFills);
+      const storedReply = packCanvasReply(fromReply.text, edit, prospectFills);
       const response = await fetch('/api/laku-ai/conversations', {
         method: existingId ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },

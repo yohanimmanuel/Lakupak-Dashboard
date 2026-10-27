@@ -20,6 +20,7 @@ import { getTodayBoundaries } from '@/lib/dateUtils';
 import { invalidateSearchCache } from '@/utils/searchCache';
 import { auditCatalog } from '@/lib/audit';
 import { requireDashboardUser, withDashboardAuth } from '@/app/api/graphql/modules/common/auth';
+import { computeAssortmentGap, computeAssortmentGapVariants } from '@/lib/products/assortmentGap';
 
 /** Best-effort extraction of a product business identifier from a resolver result. */
 function extractProductId(result: unknown): string | undefined {
@@ -185,6 +186,56 @@ export const productsTypeDefs = /* GraphQL */ `
     orderIds: [String!]!
   }
 
+  type AssortmentGapCell {
+    segment: String!
+    purchased: Int!
+    eligible: Int!
+    penetration: Float
+    kind: String!
+  }
+
+  type AssortmentGapRow {
+    productId: String!
+    name: String!
+    sku: String!
+    categorySlug: String
+    categoryLabel: String
+    cells: [AssortmentGapCell!]!
+  }
+
+  type AssortmentGapCategory {
+    slug: String!
+    label: String!
+  }
+
+  type AssortmentGapHeatmap {
+    segments: [String!]!
+    period: String!
+    from: String
+    rows: [AssortmentGapRow!]!
+    categories: [AssortmentGapCategory!]!
+    totalProducts: Int!
+    page: Int!
+    limit: Int!
+  }
+
+  type AssortmentGapVariantRow {
+    variantOptionId: Int!
+    variantName: String!
+    sku: String
+    cells: [AssortmentGapCell!]!
+  }
+
+  type AssortmentGapVariantHeatmap {
+    productId: String!
+    name: String!
+    sku: String!
+    segments: [String!]!
+    period: String!
+    from: String
+    rows: [AssortmentGapVariantRow!]!
+  }
+
   extend type Query {
     products(
       userId: Int!
@@ -203,6 +254,23 @@ export const productsTypeDefs = /* GraphQL */ `
       variantNames: [String!]
       variantOptionIds: [Int!]
     ): [VariantOptionUsage!]!
+
+    assortmentGapHeatmap(
+      userId: Int!
+      category: String
+      segment: String
+      period: String
+      search: String
+      page: Int
+      limit: Int
+    ): AssortmentGapHeatmap!
+
+    assortmentGapVariants(
+      userId: Int!
+      productId: String!
+      segment: String
+      period: String
+    ): AssortmentGapVariantHeatmap!
 
     marketplaceProducts(
       page: Int = 1
@@ -1958,6 +2026,8 @@ export const productsResolvers = {
   Query: {
     products: withDashboardAuth(fetchProductsConnection),
     product: withDashboardAuth(fetchSingleProduct),
+    assortmentGapHeatmap: withDashboardAuth(computeAssortmentGap),
+    assortmentGapVariants: withDashboardAuth(computeAssortmentGapVariants),
     variantOptionUsage: async (
       _: unknown,
       args: { userId: number; productId: string; variantNames?: string[] | null; variantOptionIds?: number[] | null },

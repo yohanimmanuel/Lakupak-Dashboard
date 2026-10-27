@@ -10,6 +10,7 @@ import {
   MarketplaceHomeOfferRowPreview as OfferRowPreview,
   normalizeHex,
 } from '@/components/adminstuffs/MarketplaceHomeOfferRowPreview';
+import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
 
 type OfferRow = {
   id: number;
@@ -31,7 +32,7 @@ type OfferRow = {
   updatedAt: string;
 };
 
-const rowsPerPage = 8;
+const rowsPerPage = TABLE_PAGE_SIZE;
 
 /** Must match API max `limit` in `src/app/api/platform-admin/offers/route.ts`. */
 const OFFERS_API_PAGE_SIZE = 100;
@@ -674,68 +675,20 @@ export default function PlatformAdminOffersPage() {
                     <ChevronLeft className="w-4 h-4" />
                   </button>
                   <div className="flex items-center gap-1 flex-wrap">
-                    {(() => {
-                      let start = Math.max(1, listPage - 2);
-                      let end = Math.min(totalPages, start + 4);
-                      start = Math.max(1, end - 4);
-
-                      const windowPages = Array.from({ length: Math.max(0, end - start + 1) }, (_, i) => start + i);
-                      const showFirst = start > 1;
-                      const showLeadingDots = start > 2;
-                      const showLast = end < totalPages;
-                      const showTrailingDots = end < totalPages - 1;
-
-                      return (
-                        <>
-                          {showFirst ? (
-                            <button
-                              key={1}
-                              type="button"
-                              onClick={() => setListPage(1)}
-                              className={`px-3 py-2 text-sm rounded-lg ${
-                                listPage === 1
-                                  ? 'bg-[#0a61d7] text-white'
-                                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                              }`}
-                            >
-                              1
-                            </button>
-                          ) : null}
-                          {showLeadingDots ? <span className="px-2 text-gray-500">...</span> : null}
-
-                          {windowPages.map((pageNum) => (
-                            <button
-                              key={pageNum}
-                              type="button"
-                              onClick={() => setListPage(pageNum)}
-                              className={`px-3 py-2 text-sm rounded-lg ${
-                                listPage === pageNum
-                                  ? 'bg-[#0a61d7] text-white'
-                                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                              }`}
-                            >
-                              {pageNum}
-                            </button>
-                          ))}
-
-                          {showTrailingDots ? <span className="px-2 text-gray-500">...</span> : null}
-                          {showLast ? (
-                            <button
-                              key={totalPages}
-                              type="button"
-                              onClick={() => setListPage(totalPages)}
-                              className={`px-3 py-2 text-sm rounded-lg ${
-                                listPage === totalPages
-                                  ? 'bg-[#0a61d7] text-white'
-                                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                              }`}
-                            >
-                              {totalPages}
-                            </button>
-                          ) : null}
-                        </>
-                      );
-                    })()}
+                    {getVisiblePageNumbers(listPage, totalPages).map((pageNum) => (
+                      <button
+                        key={pageNum}
+                        type="button"
+                        onClick={() => setListPage(pageNum)}
+                        className={`px-3 py-2 text-sm rounded-lg ${
+                          listPage === pageNum
+                            ? 'bg-[#0a61d7] text-white'
+                            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    ))}
                   </div>
                   <button
                     type="button"

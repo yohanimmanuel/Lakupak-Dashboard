@@ -7,6 +7,7 @@ import { useUserStore } from '@/store/userStore';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useSalesTranslations } from '@/hooks/useSalesTranslations';
+import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
 
 export interface FavoriteProduct {
   productId: string;
@@ -119,7 +120,7 @@ export default function TeamList({
   const [expandedTeams, setExpandedTeams] = useState<Set<string>>(new Set());
   const [selectedAgents, setSelectedAgents] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
-  const agentsPerPage = 8;
+  const agentsPerPage = TABLE_PAGE_SIZE;
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
   const [selectedRole, setSelectedRole] = useState<string>('All Roles');
@@ -802,46 +803,20 @@ export default function TeamList({
                 >
                   <ChevronLeft className="w-4 h-4 text-gray-500" />
                 </button>
-                {totalPages > 0 && Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
-                  let pageNum;
-                  if (totalPages <= 7) {
-                    pageNum = i + 1;
-                  } else if (page <= 4) {
-                    pageNum = i + 1;
-                  } else if (page >= totalPages - 3) {
-                    pageNum = totalPages - 6 + i;
-                  } else {
-                    pageNum = page - 3 + i;
-                  }
-                  return (
+                {totalPages > 0 &&
+                  getVisiblePageNumbers(page, totalPages).map((pageNum) => (
                     <button
                       key={pageNum}
                       className={`px-3 py-2 rounded-lg font-semibold text-sm transition ${
-                        pageNum === page 
-                          ? 'bg-[#0a61d7] text-white' 
+                        pageNum === page
+                          ? 'bg-[#0a61d7] text-white'
                           : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
                       }`}
                       onClick={() => setPage(pageNum)}
                     >
                       {pageNum}
                     </button>
-                  );
-                })}
-                {totalPages > 7 && page < totalPages - 3 && (
-                  <span className="px-2 text-gray-500">...</span>
-                )}
-                {totalPages > 7 && page < totalPages - 3 && (
-                  <button
-                    className={`px-3 py-2 rounded-lg font-semibold text-sm transition ${
-                      page === totalPages
-                        ? 'bg-[#0a61d7] text-white'
-                        : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
-                    }`}
-                    onClick={() => setPage(totalPages)}
-                  >
-                    {totalPages}
-                  </button>
-                )}
+                  ))}
                 <button
                   className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}

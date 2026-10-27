@@ -18,6 +18,7 @@ import { useOffersTranslations } from '@/hooks/useOffersTranslations';
 import { useRouter } from 'next/navigation';
 import type { Offer } from '@/types/offer';
 import { formatDiscount } from '@/components/offersincentivesdisc/OfferTable';
+import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
 import MapFullscreenModal from '@/components/MapFullscreenModal';
 import MapComponent from '@/components/ordershipment/MapComponent';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
@@ -245,7 +246,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
   });
   const totalOutstanding = orderDetails.reduce((sum: number, o: OrderDetail) => sum + (parseInt((o.outstanding || '').toString().replace(/[^\d]/g, '')) || 0), 0) || 0;
   const [orderPage, setOrderPage] = useState(1);
-  const orderRowsPerPage = 5;
+  const orderRowsPerPage = TABLE_PAGE_SIZE;
   const totalOrderRows = orderDetails.length;
   const totalOrderPages = Math.max(1, Math.ceil(totalOrderRows / orderRowsPerPage));
   const pagedOrderDetails = orderDetails.slice((orderPage - 1) * orderRowsPerPage, orderPage * orderRowsPerPage);
@@ -789,7 +790,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
               >
                 <ChevronLeft className="w-4 h-4 text-gray-500" />
               </button>
-              {Array.from({ length: totalOrderPages }, (_, i) => i + 1).map(p => (
+              {getVisiblePageNumbers(orderPage, totalOrderPages).map(p => (
                 <button
                   key={p}
                   className={`px-3 py-2 rounded-lg font-semibold text-sm transition ${

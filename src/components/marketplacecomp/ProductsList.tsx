@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { Eye, Heart, ShoppingCart, ExternalLink, Package, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatCurrency, parsePrice } from '@/utils/currencyUtils';
 import { useMarketplaceTranslations } from '@/hooks/useMarketplaceTranslations';
+import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
 
 interface Product {
   id: number;
@@ -30,7 +31,7 @@ interface ProductsListProps {
 export default function ProductsList({ products }: ProductsListProps) {
   const { tProductsList, tShared } = useMarketplaceTranslations();
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 4;
+  const itemsPerPage = TABLE_PAGE_SIZE;
 
   const publishedProducts = products.filter(
     (p) => p.marketplaceStatus === 'Published'
@@ -202,73 +203,19 @@ export default function ProductsList({ products }: ProductsListProps) {
           </button>
           
           <div className="flex items-center gap-1">
-            {(() => {
-              const windowSize = 5;
-              const startPage = Math.max(1, currentPage - 2);
-              const endPage = Math.min(totalPages, startPage + windowSize - 1);
-              const adjustedStartPage = Math.max(1, Math.min(startPage, totalPages - windowSize + 1));
-              const pages = [];
-              
-              if (adjustedStartPage > 1) {
-                pages.push(
-                  <button
-                    key={1}
-                    onClick={() => setCurrentPage(1)}
-                    className="px-3 py-2 text-sm rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-                  >
-                    1
-                  </button>
-                );
-                if (adjustedStartPage > 2) {
-                  pages.push(
-                    <span key="leading-ellipsis" className="px-2 text-gray-500">
-                      ...
-                    </span>
-                  );
-                }
-              }
-              
-              for (let i = adjustedStartPage; i <= endPage; i++) {
-                pages.push(
-                  <button
-                    key={i}
-                    onClick={() => setCurrentPage(i)}
-                    className={`px-3 py-2 text-sm rounded-lg ${
-                      currentPage === i
-                        ? 'bg-[#0a61d7] text-white'
-                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    {i}
-                  </button>
-                );
-              }
-              
-              if (endPage < totalPages) {
-                if (endPage < totalPages - 1) {
-                  pages.push(
-                    <span key="trailing-ellipsis" className="px-2 text-gray-500">
-                      ...
-                    </span>
-                  );
-                }
-                pages.push(
-                  <button
-                    key={totalPages}
-                    onClick={() => setCurrentPage(totalPages)}
-                    className={`px-3 py-2 text-sm rounded-lg ${
-                      currentPage === totalPages
-                        ? 'bg-[#0a61d7] text-white'
-                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    {totalPages}
-                  </button>
-                );
-              }
-              
-              return pages;
-            })()}
+            {getVisiblePageNumbers(currentPage, totalPages).map((pageNum) => (
+              <button
+                key={pageNum}
+                onClick={() => setCurrentPage(pageNum)}
+                className={`px-3 py-2 text-sm rounded-lg ${
+                  currentPage === pageNum
+                    ? 'bg-[#0a61d7] text-white'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                {pageNum}
+              </button>
+            ))}
           </div>
           
           <button

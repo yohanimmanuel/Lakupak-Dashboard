@@ -13,6 +13,7 @@ import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
+import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
 
 function getSupplierAnalytics(suppliesStr: string, language?: string | null) {
   const monthLocale = language === 'id' ? 'id-ID' : 'en-US';
@@ -136,7 +137,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
   });
   
   const [supplyPage, setSupplyPage] = useState(1);
-  const supplyRowsPerPage = 5;
+  const supplyRowsPerPage = TABLE_PAGE_SIZE;
   const totalSupplyRows = supplies.length;
   const totalSupplyPages = Math.max(1, Math.ceil(totalSupplyRows / supplyRowsPerPage));
   const pagedSupplies = supplies.slice((supplyPage - 1) * supplyRowsPerPage, supplyPage * supplyRowsPerPage);
@@ -485,7 +486,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
               >
                 <ChevronLeft className="w-4 h-4 text-gray-500" />
               </button>
-              {Array.from({ length: totalSupplyPages }, (_, i) => i + 1).map(p => (
+              {getVisiblePageNumbers(supplyPage, totalSupplyPages).map(p => (
                 <button
                   key={p}
                   className={`px-3 py-2 rounded-lg font-semibold text-sm transition ${

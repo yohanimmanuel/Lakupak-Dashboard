@@ -94,7 +94,7 @@ export default function ProductsHubPage() {
         <section className="mb-8">
           <div className="mb-4">
             <h2 className="text-lg font-semibold text-black">{tHub('tips')}</h2>
-          </div>
+        </div>
           <div className="grid grid-cols-1 gap-4 @3xl/main:grid-cols-2 @5xl/main:grid-cols-3">
             {visibleTips.map((tip) => {
               const IconComponent = tip.icon;
@@ -103,24 +103,24 @@ export default function ProductsHubPage() {
                   key={tip.id}
                   className="relative rounded-lg border border-[#e6e6e6] bg-blue-50 p-4"
                 >
-                  <button
+          <button
                     onClick={() => handleDismissTip(tip.id)}
                     className="absolute top-3 right-3 p-1 hover:bg-blue-100 rounded-full transition-colors"
                     aria-label={tHub('dismissTip')}
-                  >
+          >
                     <X className="w-4 h-4 text-gray-400" />
-                  </button>
+          </button>
                   <div className="flex items-start gap-3 pr-6">
                     <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-[#0a61d7]">
                       <IconComponent className="w-5 h-5" />
                     </div>
                     <div className="flex-1">
-                      <button
+          <button
                         onClick={() => setSelectedTip(tip)}
                         className="text-sm font-semibold text-black mb-1 hover:text-[#0a61d7] transition-colors text-left"
-                      >
+          >
                         {tip.title}
-                      </button>
+          </button>
                       <p className="text-xs text-gray-600 mb-3">{tip.description}</p>
                       <Link
                         href={tip.actionLink}
@@ -130,8 +130,8 @@ export default function ProductsHubPage() {
                         <ArrowRight className="w-3 h-3" />
                       </Link>
                     </div>
-                  </div>
-                </div>
+        </div>
+      </div>
               );
             })}
           </div>
@@ -159,7 +159,7 @@ export default function ProductsHubPage() {
               </Link>
             );
           })}
-        </div>
+      </div>
       </section>
 
       {selectedTip && (
@@ -173,7 +173,7 @@ export default function ProductsHubPage() {
         >
           <div className="bg-white rounded-lg border border-[#e6e6e6] w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
             <div className="bg-white border-b border-[#e6e6e6] p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-[#0a61d7]">
                   {(() => {
                     const IconComponent = selectedTip.icon;
@@ -197,11 +197,11 @@ export default function ProductsHubPage() {
                   <div>
                     <h3 className="text-base font-semibold text-black mb-2">{tHub('mainPurpose')}</h3>
                     <p className="text-sm text-gray-600 leading-relaxed">{selectedTip.mainPurpose}</p>
-                  </div>
-                )}
+              </div>
+            )}
 
                 {selectedTip.fullDetails && selectedTip.fullDetails.length > 0 && (
-                  <div>
+            <div>
                     <h3 className="text-base font-semibold text-black mb-3">{tHub('details')}</h3>
                     <ul className="space-y-2">
                       {selectedTip.fullDetails.map((detail, index) => (

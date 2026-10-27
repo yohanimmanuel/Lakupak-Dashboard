@@ -19,7 +19,8 @@
     "itemsCount": "{count} item",
     "view": "Lihat",
     "unarchive": "Batalkan arsip",
-    "createOrder": "Buat pesanan"
+    "createOrder": "Buat pesanan",
+    "openHeatmap": "Heatmap"
   },
   "cards": {
     "totalOrders": "Total Pesanan",

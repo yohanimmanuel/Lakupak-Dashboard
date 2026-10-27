@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
+import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
 
 type Side = { name: string; owner?: string | null; phone?: string | null; address?: string | null; status?: string | null };
 
@@ -26,7 +27,7 @@ type Candidate = {
 type QueueCounts = { pending: number; needsMoreInfo: number; notAMatch: number; recentlyMerged: number };
 
 const TABS = ['all', 'pending', 'needs_more_info', 'not_a_match', 'auto'] as const;
-const PAGE_SIZE = 5;
+const PAGE_SIZE = TABLE_PAGE_SIZE;
 const EMPTY_COUNTS: QueueCounts = { pending: 0, needsMoreInfo: 0, notAMatch: 0, recentlyMerged: 0 };
 
 function confidenceScoreClass(score: number): string {
@@ -499,7 +500,7 @@ export default function ClientMatchingQueue() {
               >
                 <ChevronLeft className="w-4 h-4 text-gray-500" />
               </button>
-              {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNum) => (
+              {getVisiblePageNumbers(safePage, totalPages).map((pageNum) => (
                 <button
                   key={pageNum}
                   type="button"

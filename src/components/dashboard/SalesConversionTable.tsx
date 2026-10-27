@@ -29,11 +29,11 @@ import {
   getOpportunityUrgencyLevel,
   OPPORTUNITY_URGENCY_BADGE_STYLES,
 } from '@/lib/salesConversion/opportunityUrgency';
+import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
 
 type Filter = 'all' | SalesConversionOpportunityKind;
 
 const FILTERS: Filter[] = ['all', 'reorder', 'quotation', 'buyer_interest', 'sales_task'];
-const ROWS_PER_PAGE = 8;
 
 type TimingFilter = 'all' | 'days30' | 'days14' | 'days7' | 'under7' | 'none';
 const TIMING_FILTERS: TimingFilter[] = ['all', 'days30', 'days14', 'days7', 'under7', 'none'];
@@ -316,14 +316,14 @@ export default function SalesConversionTable() {
     });
   }, [filter, insights.opportunities, search, timingFilter, valueFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(visibleOpportunities.length / ROWS_PER_PAGE));
+  const totalPages = Math.max(1, Math.ceil(visibleOpportunities.length / TABLE_PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const pagedOpportunities = visibleOpportunities.slice(
-    (safePage - 1) * ROWS_PER_PAGE,
-    safePage * ROWS_PER_PAGE,
+    (safePage - 1) * TABLE_PAGE_SIZE,
+    safePage * TABLE_PAGE_SIZE,
   );
-  const fromRow = visibleOpportunities.length === 0 ? 0 : (safePage - 1) * ROWS_PER_PAGE + 1;
-  const toRow = Math.min(safePage * ROWS_PER_PAGE, visibleOpportunities.length);
+  const fromRow = visibleOpportunities.length === 0 ? 0 : (safePage - 1) * TABLE_PAGE_SIZE + 1;
+  const toRow = Math.min(safePage * TABLE_PAGE_SIZE, visibleOpportunities.length);
 
   const reasonFor = (opportunity: SalesConversionOpportunity) => {
     if (opportunity.kind === 'reorder') {
@@ -568,7 +568,7 @@ export default function SalesConversionTable() {
                   >
                     <td className="py-3 px-4">
                       <span className="font-bold text-[#0a61d7]">
-                        #{(safePage - 1) * ROWS_PER_PAGE + index + 1}
+                        #{(safePage - 1) * TABLE_PAGE_SIZE + index + 1}
                       </span>
                     </td>
                     <td className="py-3 px-4">
@@ -623,7 +623,7 @@ export default function SalesConversionTable() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="font-medium text-black min-w-0">
                       <span className="mr-1.5 font-bold text-[#0a61d7]">
-                        #{(safePage - 1) * ROWS_PER_PAGE + index + 1}
+                        #{(safePage - 1) * TABLE_PAGE_SIZE + index + 1}
                       </span>
                       {opportunity.title || t('salesTaskDetail')}
                     </div>
@@ -683,7 +683,7 @@ export default function SalesConversionTable() {
               >
                 <ChevronLeft className="w-4 h-4 text-gray-500" />
               </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+              {getVisiblePageNumbers(safePage, totalPages).map((p) => (
                 <button
                   key={p}
                   type="button"

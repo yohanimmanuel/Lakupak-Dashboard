@@ -200,6 +200,7 @@
     "loading": "Memuat pembeli...",
     "addBuyer": "Tambah Pembeli",
     "matchBuyers": "Cocokkan Pembeli",
+    "openHeatmap": "Heatmap",
     "refreshing": "Menyegarkan data pembeli",
     "loadingData": "Memuat data pembeli...",
     "loaded": "{count} pembeli dimuat",

@@ -5,6 +5,7 @@ import { Search, Filter, ChevronDown, ChevronLeft, ChevronRight, Edit, Trash2, T
 import { format } from 'date-fns';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
 import { AutomationWorkflowRow, WorkflowStatus, WorkflowType, WORKFLOW_TYPES } from './automationTypes';
+import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
 
 const statusTabs: { label: string; status: WorkflowStatus | 'all' }[] = [
   { label: 'All', status: 'all' },
@@ -25,8 +26,6 @@ const STATUS_BADGE: Record<WorkflowStatus, string> = {
   paused: 'bg-yellow-100 text-yellow-800',
   draft: 'bg-gray-100 text-gray-700',
 };
-
-const ROWS_PER_PAGE = 5;
 
 export default function AutomationTable({
   workflows,
@@ -91,11 +90,11 @@ export default function AutomationTable({
   }, [workflows, selectedTab, typeFilter, search]);
 
   const totalRows = filteredRows.length;
-  const totalPages = Math.max(1, Math.ceil(totalRows / ROWS_PER_PAGE));
+  const totalPages = Math.max(1, Math.ceil(totalRows / TABLE_PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
-  const pagedRows = filteredRows.slice((safePage - 1) * ROWS_PER_PAGE, safePage * ROWS_PER_PAGE);
-  const fromRow = totalRows === 0 ? 0 : (safePage - 1) * ROWS_PER_PAGE + 1;
-  const toRow = Math.min(safePage * ROWS_PER_PAGE, totalRows);
+  const pagedRows = filteredRows.slice((safePage - 1) * TABLE_PAGE_SIZE, safePage * TABLE_PAGE_SIZE);
+  const fromRow = totalRows === 0 ? 0 : (safePage - 1) * TABLE_PAGE_SIZE + 1;
+  const toRow = Math.min(safePage * TABLE_PAGE_SIZE, totalRows);
 
   const allFilteredIds = useMemo(() => filteredRows.map((r) => r.id), [filteredRows]);
   const allFilteredSelected =
@@ -438,7 +437,7 @@ export default function AutomationTable({
             <ChevronLeft className="w-4 h-4" />
           </button>
           <div className="flex items-center gap-1">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+            {getVisiblePageNumbers(safePage, totalPages).map((pageNum) => (
               <button
                 key={pageNum}
                 onClick={() => setPage(pageNum)}

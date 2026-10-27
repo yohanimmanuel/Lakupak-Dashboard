@@ -33,6 +33,7 @@ import {
   Edit,
   FileText,
 } from 'lucide-react';
+import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
 
 function formatDt(v: string | Date | null | undefined) {
   if (v == null) return '—';
@@ -255,7 +256,7 @@ function CommissionInvoicesSection({ companyId }: { companyId: number }) {
   const [activeInvoice, setActiveInvoice] = useState<CommissionInvoiceRow | null>(null);
   const [busy, setBusy] = useState(false);
   const [page, setPage] = useState(1);
-  const rowsPerPage = 5;
+  const rowsPerPage = TABLE_PAGE_SIZE;
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [statusBusyIds, setStatusBusyIds] = useState<Set<string>>(() => new Set());
   const [confirmAction, setConfirmAction] = useState<
@@ -750,41 +751,21 @@ function CommissionInvoicesSection({ companyId }: { companyId: number }) {
             </button>
 
             <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                const pageNum = i + 1;
-                return (
-                  <button
-                    key={pageNum}
-                    type="button"
-                    onClick={() => setPage(pageNum)}
-                    className={`px-3 py-2 text-sm rounded-lg ${
-                      page === pageNum
-                        ? 'bg-[#0a61d7] text-white'
-                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                    }`}
-                    aria-label={`Go to page ${pageNum}`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-              {totalPages > 5 && (
-                <>
-                  {totalPages > 6 ? <span className="px-2 text-gray-500">...</span> : null}
-                  <button
-                    type="button"
-                    onClick={() => setPage(totalPages)}
-                    className={`px-3 py-1 text-sm rounded ${
-                      page === totalPages
-                        ? 'bg-[#0a61d7] text-white'
-                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                    }`}
-                    aria-label={`Go to page ${totalPages}`}
-                  >
-                    {totalPages}
-                  </button>
-                </>
-              )}
+              {getVisiblePageNumbers(page, totalPages).map((pageNum) => (
+                <button
+                  key={pageNum}
+                  type="button"
+                  onClick={() => setPage(pageNum)}
+                  className={`px-3 py-2 text-sm rounded-lg ${
+                    page === pageNum
+                      ? 'bg-[#0a61d7] text-white'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                  }`}
+                  aria-label={`Go to page ${pageNum}`}
+                >
+                  {pageNum}
+                </button>
+              ))}
             </div>
 
             <button

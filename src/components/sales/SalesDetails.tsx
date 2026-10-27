@@ -9,6 +9,7 @@ import { fetchGraphQL } from '@/lib/graphqlClient';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { formatDateLong } from '@/utils/dateUtils';
 import { useSalesTranslations } from '@/hooks/useSalesTranslations';
+import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
 
 interface SalesDetailsProps {
   agent: SalesAgent;
@@ -88,9 +89,9 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
   const [selectedReport, setSelectedReport] = useState<FieldReport | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportPage, setReportPage] = useState(1);
-  const reportsPerPage = 5;
+  const reportsPerPage = TABLE_PAGE_SIZE;
   const [targetPage, setTargetPage] = useState(1);
-  const targetsPerPage = 4;
+  const targetsPerPage = TABLE_PAGE_SIZE;
   const [jobDays, setJobDays] = useState<Record<string, JobDay>>({});
 
   useEffect(() => {
@@ -441,46 +442,20 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                         >
                           <ChevronLeft className="w-4 h-4 text-gray-500" />
                         </button>
-                        {totalReportPages > 0 && Array.from({ length: Math.min(7, totalReportPages) }, (_, i) => {
-                          let pageNum;
-                          if (totalReportPages <= 7) {
-                            pageNum = i + 1;
-                          } else if (reportPage <= 4) {
-                            pageNum = i + 1;
-                          } else if (reportPage >= totalReportPages - 3) {
-                            pageNum = totalReportPages - 6 + i;
-                          } else {
-                            pageNum = reportPage - 3 + i;
-                          }
-                          return (
+                        {totalReportPages > 0 &&
+                          getVisiblePageNumbers(reportPage, totalReportPages).map((pageNum) => (
                             <button
                               key={pageNum}
                               className={`px-3 py-2 rounded-lg font-semibold text-sm transition ${
-                                pageNum === reportPage 
-                                  ? 'bg-[#0a61d7] text-white' 
+                                pageNum === reportPage
+                                  ? 'bg-[#0a61d7] text-white'
                                   : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
                               }`}
                               onClick={() => setReportPage(pageNum)}
                             >
                               {pageNum}
                             </button>
-                          );
-                        })}
-                        {totalReportPages > 7 && reportPage < totalReportPages - 3 && (
-                          <span className="px-2 text-gray-500">...</span>
-                        )}
-                        {totalReportPages > 7 && reportPage < totalReportPages - 3 && (
-                          <button
-                            className={`px-3 py-2 rounded-lg font-semibold text-sm transition ${
-                              reportPage === totalReportPages
-                                ? 'bg-[#0a61d7] text-white'
-                                : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
-                            }`}
-                            onClick={() => setReportPage(totalReportPages)}
-                          >
-                            {totalReportPages}
-                          </button>
-                        )}
+                          ))}
                         <button
                           className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                           onClick={() => setReportPage(p => Math.min(totalReportPages, p + 1))}
@@ -558,46 +533,20 @@ export default function SalesDetails({ agent, onEdit, onBack }: SalesDetailsProp
                         >
                           <ChevronLeft className="w-4 h-4 text-gray-500" />
                         </button>
-                        {totalTargetPages > 0 && Array.from({ length: Math.min(7, totalTargetPages) }, (_, i) => {
-                          let pageNum;
-                          if (totalTargetPages <= 7) {
-                            pageNum = i + 1;
-                          } else if (targetPage <= 4) {
-                            pageNum = i + 1;
-                          } else if (targetPage >= totalTargetPages - 3) {
-                            pageNum = totalTargetPages - 6 + i;
-                          } else {
-                            pageNum = targetPage - 3 + i;
-                          }
-                          return (
+                        {totalTargetPages > 0 &&
+                          getVisiblePageNumbers(targetPage, totalTargetPages).map((pageNum) => (
                             <button
                               key={pageNum}
                               className={`px-3 py-2 rounded-lg font-semibold text-sm transition ${
-                                pageNum === targetPage 
-                                  ? 'bg-[#0a61d7] text-white' 
+                                pageNum === targetPage
+                                  ? 'bg-[#0a61d7] text-white'
                                   : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
                               }`}
                               onClick={() => setTargetPage(pageNum)}
                             >
                               {pageNum}
                             </button>
-                          );
-                        })}
-                        {totalTargetPages > 7 && targetPage < totalTargetPages - 3 && (
-                          <span className="px-2 text-gray-500">...</span>
-                        )}
-                        {totalTargetPages > 7 && targetPage < totalTargetPages - 3 && (
-                          <button
-                            className={`px-3 py-2 rounded-lg font-semibold text-sm transition ${
-                              targetPage === totalTargetPages
-                                ? 'bg-[#0a61d7] text-white'
-                                : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
-                            }`}
-                            onClick={() => setTargetPage(totalTargetPages)}
-                          >
-                            {totalTargetPages}
-                          </button>
-                        )}
+                          ))}
                         <button
                           className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                           onClick={() => setTargetPage(p => Math.min(totalTargetPages, p + 1))}

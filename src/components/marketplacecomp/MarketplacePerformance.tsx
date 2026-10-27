@@ -4,6 +4,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { TrendingUp, Eye, ShoppingCart, Heart, X, ChevronDown, DollarSign, ChevronLeft, ChevronRight, Star } from 'lucide-react';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { useMarketplaceTranslations } from '@/hooks/useMarketplaceTranslations';
+import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
 
 interface Product {
   id: number;
@@ -79,7 +80,7 @@ export default function MarketplacePerformance({
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const itemsPerPage = TABLE_PAGE_SIZE;
 
   const sortOptions = [
     { value: 'views' as const, label: translateSortOption('views') },
@@ -419,37 +420,19 @@ export default function MarketplacePerformance({
             </button>
             
             <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                const pageNum = i + 1;
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => setCurrentPage(pageNum)}
-                    className={`px-3 py-2 text-sm rounded-lg ${
-                      currentPage === pageNum
-                        ? 'bg-[#0a61d7] text-white'
-                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-              {totalPages > 5 && (
-                <>
-                  {totalPages > 6 && <span className="px-2 text-gray-500">...</span>}
-                  <button
-                    onClick={() => setCurrentPage(totalPages)}
-                    className={`px-3 py-1 text-sm rounded ${
-                      currentPage === totalPages
-                        ? 'bg-[#0a61d7] text-white'
-                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    {totalPages}
-                  </button>
-                </>
-              )}
+              {getVisiblePageNumbers(currentPage, totalPages).map((pageNum) => (
+                <button
+                  key={pageNum}
+                  onClick={() => setCurrentPage(pageNum)}
+                  className={`px-3 py-2 text-sm rounded-lg ${
+                    currentPage === pageNum
+                      ? 'bg-[#0a61d7] text-white'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              ))}
             </div>
             
             <button

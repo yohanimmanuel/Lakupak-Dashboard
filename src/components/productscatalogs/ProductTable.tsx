@@ -13,6 +13,7 @@ import { getProductTotalStock } from '../../utils/stockUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useProductsTranslations } from '@/hooks/useProductsTranslations';
 import { CATALOG_COMPLETION_OPTIONS, getProductCompletion, isProductMarketplacePublishable } from '@/utils/productCompletion';
+import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
 
 const statusTabs = [
   { label: "All" },
@@ -182,10 +183,10 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
   const desktopGridRef = useRef<HTMLDivElement | null>(null);
   const mobileGridRef = useRef<HTMLDivElement | null>(null);
   const prevRowsPerPageRef = useRef(8);
-  /** Desktop grid defaults to 4 cols (2 rows = 8). Adapts when AI panel / viewport changes width. */
+  /** Desktop grid defaults to 4 cols (2 rows). Adapts when AI panel / viewport changes width. */
   const [gridCols, setGridCols] = useState(4);
   const GRID_ROWS = 2;
-  const LIST_ROWS_PER_PAGE = 8;
+  const LIST_ROWS_PER_PAGE = TABLE_PAGE_SIZE;
   const rowsPerPage =
     viewMode === 'grid' ? Math.max(1, gridCols) * GRID_ROWS : LIST_ROWS_PER_PAGE;
 
@@ -2087,37 +2088,19 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
           </button>
           
           <div className="flex items-center gap-1">
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              const pageNum = i + 1;
-              return (
-                <button
-                  key={pageNum}
-                  onClick={() => setPage(pageNum)}
-                  className={`px-3 py-2 text-sm rounded-lg ${
-                    page === pageNum
-                      ? 'bg-[#0a61d7] text-white'
-                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  {pageNum}
-                </button>
-              );
-            })}
-            {totalPages > 5 && (
-              <>
-                {totalPages > 6 && <span className="px-2 text-gray-500">...</span>}
-                <button
-                  onClick={() => setPage(totalPages)}
-                  className={`px-3 py-1 text-sm rounded ${
-                    page === totalPages
-                      ? 'bg-[#0a61d7] text-white'
-                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  {totalPages}
-                </button>
-              </>
-            )}
+            {getVisiblePageNumbers(page, totalPages).map((pageNum) => (
+              <button
+                key={pageNum}
+                onClick={() => setPage(pageNum)}
+                className={`px-3 py-2 text-sm rounded-lg ${
+                  page === pageNum
+                    ? 'bg-[#0a61d7] text-white'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                {pageNum}
+              </button>
+            ))}
           </div>
           
           <button

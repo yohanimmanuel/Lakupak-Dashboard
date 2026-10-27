@@ -5,9 +5,9 @@ import { Briefcase, ChevronDown, ChevronLeft, ChevronRight, Edit, Filter, Search
 import { useTranslations } from 'next-intl';
 import { combineSalesJobCards } from './salesJobCards';
 import { SALES_JOB_TYPES, SalesJobRow, salesJobStatusKey } from './salesJobTypes';
+import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
 
 const STATUS_TABS = ['all', 'pending', 'complete'] as const;
-const ROWS_PER_PAGE = 5;
 
 const TYPE_BADGE: Record<string, string> = {
   take_order: 'bg-blue-100 text-blue-800',
@@ -150,11 +150,11 @@ export default function JobsTable({
   }, [jobs, selectedTab, typeFilter, repFilter, search]);
 
   const totalRows = filteredRows.length;
-  const totalPages = Math.max(1, Math.ceil(totalRows / ROWS_PER_PAGE));
+  const totalPages = Math.max(1, Math.ceil(totalRows / TABLE_PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
-  const pagedRows = filteredRows.slice((safePage - 1) * ROWS_PER_PAGE, safePage * ROWS_PER_PAGE);
-  const fromRow = totalRows === 0 ? 0 : (safePage - 1) * ROWS_PER_PAGE + 1;
-  const toRow = Math.min(safePage * ROWS_PER_PAGE, totalRows);
+  const pagedRows = filteredRows.slice((safePage - 1) * TABLE_PAGE_SIZE, safePage * TABLE_PAGE_SIZE);
+  const fromRow = totalRows === 0 ? 0 : (safePage - 1) * TABLE_PAGE_SIZE + 1;
+  const toRow = Math.min(safePage * TABLE_PAGE_SIZE, totalRows);
   const allFilteredIds = useMemo(() => filteredRows.map((row) => row.id), [filteredRows]);
   const allFilteredSelected = allFilteredIds.length > 0 && allFilteredIds.every((id) => selectedIds.includes(id));
 
@@ -588,7 +588,7 @@ export default function JobsTable({
             <ChevronLeft className="w-4 h-4" />
           </button>
           <div className="flex items-center gap-1">
-            {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNum) => (
+            {getVisiblePageNumbers(safePage, totalPages).map((pageNum) => (
               <button
                 key={pageNum}
                 onClick={() => setPage(pageNum)}

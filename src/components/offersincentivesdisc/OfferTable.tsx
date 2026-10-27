@@ -32,6 +32,7 @@ import { format, subDays, startOfYear, isAfter } from 'date-fns';
 import { Offer } from '@/types/offer';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useOffersTranslations } from '@/hooks/useOffersTranslations';
+import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
 
 const STATUS_TABS = ['All', 'Active', 'Draft', 'Expired'] as const;
 const STATUS_FILTERS = ['All', 'Active', 'Draft', 'Expired'] as const;
@@ -275,7 +276,7 @@ export default function OfferTable({
   const [isBulkWorking, setIsBulkWorking] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [bulkError, setBulkError] = useState('');
-  const rowsPerPage = 8;
+  const rowsPerPage = TABLE_PAGE_SIZE;
 
   useEffect(() => {
     if (!bulkError) return;
@@ -1216,7 +1217,7 @@ export default function OfferTable({
           >
             <ChevronLeft className="w-4 h-4 text-gray-500" />
           </button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+          {getVisiblePageNumbers(safePage, totalPages).map((p) => (
             <button
               key={p}
               type="button"

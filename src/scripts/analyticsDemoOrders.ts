@@ -10,6 +10,18 @@ import { syncOrderToBuyerProfile } from '@/utils/buyerSync';
 const DEMO_ORDER_PREFIX = ANALYTICS_DEMO_ORDER_PREFIX;
 const DEMO_BUYER_PREFIX = ANALYTICS_DEMO_BUYER_PREFIX;
 
+/** Match buyer form types so the heatmap gets a column for every segment. */
+const DEMO_BUSINESS_TYPES = [
+  'Warung',
+  'Kiosk',
+  'Minimarket',
+  'Wholesaler',
+  'Restaurant',
+  'Hotel',
+  'Canteen',
+  'Other',
+] as const;
+
 const ORDER_STATUSES = ['Delivered', 'Delivered', 'Delivered', 'Shipped', 'Confirmed', 'Pending', 'Cancelled'] as const;
 
 type ProductWithVariant = Prisma.ProductGetPayload<{
@@ -88,7 +100,7 @@ async function loadProducts(userId: number): Promise<ProductWithVariant[]> {
       },
     },
     orderBy: { createdAt: 'asc' },
-    take: 8,
+    take: 20,
   });
 
   if (products.length === 0) {
@@ -107,6 +119,8 @@ async function createDemoBuyer(
   const buyerId = `${DEMO_BUYER_PREFIX}${String(seq).padStart(3, '0')}`;
   const status = options?.status ?? 'Active';
 
+  const businessType = DEMO_BUSINESS_TYPES[(seq - 1) % DEMO_BUSINESS_TYPES.length];
+
   const buyer = await prisma.buyer.upsert({
     where: { buyerId },
     update: {
@@ -115,7 +129,7 @@ async function createDemoBuyer(
       email: `analytics-demo-buyer-${seq}@laku.local`,
       phone: `+6281200000${String(seq).padStart(3, '0')}`,
       storeName: `Demo Store ${seq}`,
-      businessType: seq % 2 === 0 ? 'Wholesale' : 'Retail',
+      businessType,
       address: `Demo Address ${seq}, Jakarta`,
       status,
       createdAt,
@@ -126,7 +140,7 @@ async function createDemoBuyer(
       email: `analytics-demo-buyer-${seq}@laku.local`,
       phone: `+6281200000${String(seq).padStart(3, '0')}`,
       storeName: `Demo Store ${seq}`,
-      businessType: seq % 2 === 0 ? 'Wholesale' : 'Retail',
+      businessType,
       address: `Demo Address ${seq}, Jakarta`,
       status,
       userId,
@@ -150,6 +164,84 @@ function decimal(value: number): Prisma.Decimal {
 
 function pickStatus(index: number): string {
   return ORDER_STATUSES[index % ORDER_STATUSES.length];
+}
+
+type DemoBuyer = Awaited<ReturnType<typeof createDemoBuyer>>;
+
+async function createDemoOrder(args: {
+  userId: number;
+  orderId: string;
+  buyer: DemoBuyer;
+  product: ProductWithVariant;
+  orderDate: Date;
+  status: string;
+  packageQuantity: number;
+  shippingFee: number;
+  discounts?: number;
+  now: Date;
+}) {
+  const variant = args.product.variantOptions[0];
+  const sellingPrice = Number(variant.sellingPrice);
+  const packageQuantity = args.packageQuantity;
+  const pricePerPackage = sellingPrice;
+  const itemSubtotal = packageQuantity * pricePerPackage;
+  const discounts = args.discounts ?? 0;
+  const totalAmount = Math.max(0, itemSubtotal + args.shippingFee - discounts);
+  const isPaid = args.status !== 'Cancelled' && args.status !== 'Pending';
+
+  await prisma.order.create({
+    data: {
+      orderId: args.orderId,
+      buyerId: args.buyer.buyerId,
+      buyerIdSnapshot: args.buyer.buyerId,
+      userId: args.userId,
+      orderDate: args.orderDate,
+      orderDateSnapshot: args.orderDate,
+      orderStatus: args.status,
+      paymentStatus: isPaid ? 'Paid' : args.status === 'Cancelled' ? 'Cancelled' : 'Unpaid',
+      deliveryMethod: 'Seller/Distributor Delivery',
+      deliveryOption: 'Standard',
+      subtotal: decimal(itemSubtotal),
+      discounts: decimal(discounts),
+      shippingFee: decimal(args.shippingFee),
+      totalAmount: decimal(totalAmount),
+      paymentTerms: 'Immediate',
+      totalOrders: packageQuantity,
+      contactPerson: args.buyer.owner,
+      contactPersonSnapshot: args.buyer.owner,
+      storeName: args.buyer.storeName,
+      storeNameSnapshot: args.buyer.storeName,
+      contactPhone: args.buyer.phone,
+      contactPhoneSnapshot: args.buyer.phone,
+      customerEmail: args.buyer.email,
+      customerEmailSnapshot: args.buyer.email,
+      deliveryAddress: args.buyer.address,
+      deliveryAddressSnapshot: args.buyer.address,
+      deliveryConfirmation: args.status === 'Delivered' ? 'confirmed' : 'pending',
+      paidAt: isPaid ? clampToPast(new Date(args.orderDate.getTime() + 20 * 60 * 60 * 1000), args.now) : null,
+      deliveredAt:
+        args.status === 'Delivered'
+          ? clampToPast(new Date(args.orderDate.getTime() + 2 * 24 * 60 * 60 * 1000), args.now)
+          : null,
+      orderItemsRel: {
+        create: {
+          productId: args.product.productId,
+          variantOptionId: variant.id,
+          subtotal: decimal(itemSubtotal),
+          packageQuantity,
+          piecesPerPackage: 1,
+          pricePerPackage: decimal(pricePerPackage),
+          unitPriceSnapshot: decimal(sellingPrice),
+          productNameSnapshot: args.product.name,
+          productSkuSnapshot: args.product.sku,
+          productTypeSnapshot: args.product.productType,
+          productImageSnapshot: args.product.images[0] ?? null,
+          variantNameSnapshot: variant.variantName,
+          currencySnapshot: 'IDR',
+        },
+      },
+    },
+  });
 }
 
 /**
@@ -186,7 +278,11 @@ async function seedDemoOrders() {
 
   const userId = await resolveUserId();
   const products = await loadProducts(userId);
-  const buyers: Awaited<ReturnType<typeof createDemoBuyer>>[] = [];
+  const buyers: DemoBuyer[] = [];
+  const TARGET_ORDERS = 500;
+  /** Fixed share reserved for mixed recent fill orders after historical + green passes. */
+  const FILL_RESERVE = Math.max(40, Math.floor(TARGET_ORDERS * 0.1));
+  const earlierCap = TARGET_ORDERS - FILL_RESERVE;
 
   const now = new Date();
   let orderSeq = 0;
@@ -194,128 +290,135 @@ async function seedDemoOrders() {
   let created = 0;
 
   // Last 12 completed calendar months (exclude the current partial month)
-  for (let monthOffset = 12; monthOffset >= 1; monthOffset -= 1) {
+  monthLoop: for (let monthOffset = 12; monthOffset >= 1; monthOffset -= 1) {
+    if (created >= earlierCap) break;
+
     const baseDate = new Date(now);
     baseDate.setDate(1);
     baseDate.setHours(12, 0, 0, 0);
     baseDate.setMonth(baseDate.getMonth() - monthOffset);
 
     const monthIndex = 12 - monthOffset;
-    const growthFactor = 0.55 + monthIndex * 0.04; // ramp volume over time
-    const ordersThisMonth = 2 + (monthIndex % 3); // 2–4 orders per month
-    const buyersThisMonth = 1 + (monthIndex % 3); // 1–3 new buyers per month
+    const growthFactor = 0.55 + monthIndex * 0.04;
+    const ordersThisMonth = 18 + (monthIndex % 5); // 18–22 / month ≈ 240 historical
+    const buyersThisMonth = 10 + (monthIndex % 3); // 10–12 / month ≈ 128 buyers across all segments
 
     for (let b = 0; b < buyersThisMonth; b += 1) {
       buyerSeq += 1;
       const createdAt = new Date(baseDate);
-      createdAt.setDate(Math.min(lastDayOfMonth(baseDate), 2 + b * 8 + (buyerSeq % 3)));
+      createdAt.setDate(Math.min(lastDayOfMonth(baseDate), 1 + b * 3 + (buyerSeq % 3)));
       createdAt.setHours(10, 0, 0, 0);
 
-      const shouldChurn = buyerSeq % 7 === 0;
+      const shouldChurn = buyerSeq % 11 === 0;
+      const isProspect = !shouldChurn && buyerSeq % 6 === 0;
       const churnedAt = shouldChurn
         ? clampToPast(new Date(createdAt.getTime() + 45 * 24 * 60 * 60 * 1000), now)
         : undefined;
 
       const buyer = await createDemoBuyer(userId, buyerSeq, createdAt, {
-        status: shouldChurn && churnedAt ? 'Inactive' : 'Active',
+        status: shouldChurn && churnedAt ? 'Inactive' : isProspect ? 'Prospect' : 'Active',
         updatedAt: shouldChurn ? churnedAt : undefined,
       });
       buyers.push(buyer);
     }
 
+    let monthOrders = 0;
     for (let n = 0; n < ordersThisMonth; n += 1) {
+      if (created >= earlierCap) break monthLoop;
       orderSeq += 1;
       const orderDate = new Date(baseDate);
-      orderDate.setDate(Math.min(lastDayOfMonth(baseDate), 3 + n * 7 + (orderSeq % 4)));
+      const daysInMonth = lastDayOfMonth(baseDate);
+      // Spread orders evenly across the month (avoids clamping many late indexes onto the last day).
+      const dayOfMonth =
+        ordersThisMonth <= 1
+          ? Math.min(15, daysInMonth)
+          : 1 + Math.round((n * (daysInMonth - 1)) / (ordersThisMonth - 1));
+      orderDate.setDate(dayOfMonth);
       orderDate.setHours(12, 0, 0, 0);
 
       const eligibleBuyers = buyers.filter((b) => b.createdAt <= orderDate);
       const buyerPool = eligibleBuyers.length > 0 ? eligibleBuyers : buyers;
       const buyer = buyerPool[(orderSeq + monthIndex) % buyerPool.length];
       const product = products[(orderSeq + n) % products.length];
-      const variant = product.variantOptions[0];
 
-      const sellingPrice = Number(variant.sellingPrice);
-      const piecesPerPackage = 1;
-      const packageQuantity = Math.max(5, Math.round(8 + growthFactor * 12 + (orderSeq % 6) * 3));
-      const pricePerPackage = sellingPrice * piecesPerPackage;
-      const itemSubtotal = packageQuantity * pricePerPackage;
-      const shippingFee = 15000 + (orderSeq % 5) * 5000;
-      const discounts = orderSeq % 7 === 0 ? Math.round(itemSubtotal * 0.05) : 0;
-      const subtotal = itemSubtotal;
-      const totalAmount = Math.max(0, subtotal + shippingFee - discounts);
-      const totalPieces = packageQuantity * piecesPerPackage;
-
-      const status = pickStatus(orderSeq);
-      const isPaid = status !== 'Cancelled' && status !== 'Pending';
-      const paymentStatus = isPaid ? 'Paid' : status === 'Cancelled' ? 'Cancelled' : 'Unpaid';
-      const paidAt = isPaid
-        ? clampToPast(new Date(orderDate.getTime() + 24 * 60 * 60 * 1000), now)
-        : null;
-
-      const orderId = `${DEMO_ORDER_PREFIX}${monthKey(orderDate).replace('-', '')}-${String(orderSeq).padStart(3, '0')}`;
-
-      const deliveredAt =
-        status === 'Delivered'
-          ? clampToPast(new Date(orderDate.getTime() + 3 * 24 * 60 * 60 * 1000), now)
-          : null;
-
-      await prisma.order.create({
-        data: {
-          orderId,
-          buyerId: buyer.buyerId,
-          buyerIdSnapshot: buyer.buyerId,
-          userId,
-          orderDate,
-          orderDateSnapshot: orderDate,
-          orderStatus: status,
-          paymentStatus,
-          deliveryMethod: 'Seller/Distributor Delivery',
-          deliveryOption: 'Standard',
-          subtotal: decimal(subtotal),
-          discounts: decimal(discounts),
-          shippingFee: decimal(shippingFee),
-          totalAmount: decimal(totalAmount),
-          paymentTerms: 'Immediate',
-          totalOrders: totalPieces,
-          contactPerson: buyer.owner,
-          contactPersonSnapshot: buyer.owner,
-          storeName: buyer.storeName,
-          storeNameSnapshot: buyer.storeName,
-          contactPhone: buyer.phone,
-          contactPhoneSnapshot: buyer.phone,
-          customerEmail: buyer.email,
-          customerEmailSnapshot: buyer.email,
-          deliveryAddress: buyer.address,
-          deliveryAddressSnapshot: buyer.address,
-          deliveryConfirmation: status === 'Delivered' ? 'confirmed' : 'pending',
-          paidAt,
-          deliveredAt,
-          orderItemsRel: {
-            create: {
-              productId: product.productId,
-              variantOptionId: variant.id,
-              subtotal: decimal(itemSubtotal),
-              packageQuantity,
-              piecesPerPackage,
-              pricePerPackage: decimal(pricePerPackage),
-              unitPriceSnapshot: decimal(sellingPrice),
-              productNameSnapshot: product.name,
-              productSkuSnapshot: product.sku,
-              productTypeSnapshot: product.productType,
-              productImageSnapshot: product.images[0] ?? null,
-              variantNameSnapshot: variant.variantName,
-              currencySnapshot: 'IDR',
-            },
-          },
-        },
+      await createDemoOrder({
+        userId,
+        orderId: `${DEMO_ORDER_PREFIX}${monthKey(orderDate).replace('-', '')}-${String(orderSeq).padStart(3, '0')}`,
+        buyer,
+        product,
+        orderDate,
+        status: pickStatus(orderSeq),
+        packageQuantity: Math.max(5, Math.round(8 + growthFactor * 12 + (orderSeq % 6) * 3)),
+        shippingFee: 15000 + (orderSeq % 5) * 5000,
+        discounts: orderSeq % 7 === 0 ? Math.round(Number(product.variantOptions[0].sellingPrice) * 0.05 * 10) : 0,
+        now,
       });
-
       created += 1;
+      monthOrders += 1;
     }
 
-    console.log(`  ${monthLabel(baseDate)}: ${ordersThisMonth} orders, ${buyersThisMonth} new buyers`);
+    console.log(`  ${monthLabel(baseDate)}: ${monthOrders} orders, ${buyersThisMonth} new buyers`);
   }
+
+  const eligibleBuyers = buyers.filter((buyer) => {
+    const status = String(buyer.status).toLowerCase();
+    return status === 'active' || status === 'prospect';
+  });
+  const recentPool = eligibleBuyers.length > 0 ? eligibleBuyers : buyers;
+
+  // Push a few products into "high" (green) penetration across every segment in the last 90 days.
+  const heroProducts = products.slice(0, Math.min(3, products.length));
+  let greenCreated = 0;
+  greenLoop: for (const product of heroProducts) {
+    for (let i = 0; i < recentPool.length; i += 1) {
+      if (created >= earlierCap) break greenLoop;
+      // ~80% of eligible buyers buy each hero product → green cells (≥67%).
+      if (i % 5 === 0) continue;
+      orderSeq += 1;
+      const daysAgo = 3 + ((i + greenCreated) % 60);
+      const orderDate = clampToPast(new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000), now);
+      orderDate.setHours(10 + (i % 6), 20, 0, 0);
+      await createDemoOrder({
+        userId,
+        orderId: `${DEMO_ORDER_PREFIX}GREEN-${String(orderSeq).padStart(3, '0')}`,
+        buyer: recentPool[i],
+        product,
+        orderDate,
+        status: 'Delivered',
+        packageQuantity: 8 + (i % 5),
+        shippingFee: 10000 + (i % 3) * 2500,
+        now,
+      });
+      created += 1;
+      greenCreated += 1;
+    }
+  }
+  console.log(`  Heatmap green boost: ${greenCreated} orders across ${heroProducts.length} products`);
+
+  // Always use the reserved share (and any unused earlier budget) without exceeding TARGET_ORDERS.
+  const fillQuota = Math.max(0, TARGET_ORDERS - created);
+  let fillCreated = 0;
+  while (fillCreated < fillQuota) {
+    orderSeq += 1;
+    const n = fillCreated;
+    const daysAgo = 2 + (n % 85);
+    const orderDate = clampToPast(new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000), now);
+    orderDate.setHours(11 + (n % 5), 10, 0, 0);
+    await createDemoOrder({
+      userId,
+      orderId: `${DEMO_ORDER_PREFIX}FILL-${String(orderSeq).padStart(3, '0')}`,
+      buyer: recentPool[n % recentPool.length],
+      product: products[n % products.length],
+      orderDate,
+      status: pickStatus(n),
+      packageQuantity: 6 + (n % 8) * 2,
+      shippingFee: 12000 + (n % 4) * 3000,
+      now,
+    });
+    created += 1;
+    fillCreated += 1;
+  }
+  console.log(`  Volume fill: ${fillCreated} orders (reserve ${FILL_RESERVE}, total target ${TARGET_ORDERS})`);
 
   const synced = await syncDemoBuyerProfiles(userId);
   console.log(`Aligned ${synced} demo buyer profiles with their live demo orders.`);

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Statcards from '@/components/clientmanagement/Statcards';
 import BuyerTable from "@/components/clientmanagement/BuyerTable";
 import Link from 'next/link';
-import { Plus, Upload, Download, RefreshCw, Check, AlertTriangle, GitCompare } from 'lucide-react';
+import { Plus, Upload, Download, RefreshCw, Check, AlertTriangle, GitCompare, LayoutGrid } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import ImportData from '@/components/clientmanagement/ImportData';
 import { useUserStore } from '@/store/userStore';
@@ -320,6 +320,12 @@ export default function BuyersPage() {
           >
             <Download className="h-4 w-4" /> {tShared('exportData')}
           </button>
+          <Link
+            href="/products/heatmap"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-gray-100 @4xl/main:w-auto"
+          >
+            <LayoutGrid className="h-4 w-4" /> {tBuyers('openHeatmap')}
+          </Link>
           <Link
             href="/clients/buyers/buyer-matching"
             className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-gray-100 @4xl/main:w-auto"

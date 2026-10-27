@@ -7,6 +7,7 @@ import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useLogisticsTranslations } from '@/hooks/useLogisticsTranslations';
 import { useOrdersTranslations } from '@/hooks/useOrdersTranslations';
 import FleetDeliveryStepsList from './FleetDeliveryStepsList';
+import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
 
 export interface AssignedOrder {
   orderId: string;
@@ -64,7 +65,7 @@ export default function FleetOrderSelection({
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [page, setPage] = useState(1);
-  const rowsPerPage = 8;
+  const rowsPerPage = TABLE_PAGE_SIZE;
   const parsedFleetId = currentFleetId != null ? parseInt(currentFleetId, 10) : NaN;
   const currentFleetIdNum = Number.isFinite(parsedFleetId) ? parsedFleetId : null;
 
@@ -351,7 +352,7 @@ export default function FleetOrderSelection({
               >
                 <ChevronLeft className="w-4 h-4 text-gray-500" />
               </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+              {getVisiblePageNumbers(page, totalPages).map((p) => (
                 <button
                   key={p}
                   type="button"

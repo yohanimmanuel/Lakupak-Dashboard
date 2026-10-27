@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, Plus, RefreshCw, Search as SearchIcon, Trash2, X } from 'lucide-react';
 import SlidingSegmentedControl from '@/components/SlidingSegmentedControl';
+import { getVisiblePageNumbers } from '@/utils/tablePagination';
 
 type SearchQueryRow = {
   query: string;
@@ -774,8 +775,7 @@ export default function AdminSearchLogsPage() {
                     {(() => {
                       const totalPages = Math.max(1, Math.ceil(termTotalCount / termRowsPerPage));
                       const safePage = Math.min(Math.max(1, termPage), totalPages);
-                      const maxButtons = 5;
-                      const pages = Array.from({ length: Math.min(maxButtons, totalPages) }, (_, i) => i + 1);
+                      const pages = getVisiblePageNumbers(safePage, totalPages);
                       return (
                         <>
                           <button
@@ -802,22 +802,6 @@ export default function AdminSearchLogsPage() {
                                 {p}
                               </button>
                             ))}
-                            {totalPages > maxButtons ? (
-                              <>
-                                {totalPages > maxButtons + 1 ? <span className="px-2 text-gray-500">...</span> : null}
-                                <button
-                                  type="button"
-                                  onClick={() => setTermPage(totalPages)}
-                                  className={`px-3 py-2 text-sm rounded-lg ${
-                                    safePage === totalPages
-                                      ? 'bg-[#0a61d7] text-white'
-                                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                                  }`}
-                                >
-                                  {totalPages}
-                                </button>
-                              </>
-                            ) : null}
                           </div>
                           <button
                             type="button"

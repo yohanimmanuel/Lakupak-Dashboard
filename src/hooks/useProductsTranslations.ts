@@ -5,6 +5,7 @@ import { canonicalizeCategory } from '@/utils/categoryUtils';
 
 export function useProductsTranslations() {
   const tHub = useTranslations('dashboard.products.hub');
+  const tHeatmap = useTranslations('dashboard.products.heatmap');
   const tList = useTranslations('dashboard.products.list');
   const tShared = useTranslations('dashboard.products.shared');
   const tTable = useTranslations('dashboard.products.table');
@@ -47,6 +48,7 @@ export function useProductsTranslations() {
 
   return {
     tHub,
+    tHeatmap,
     tList,
     tShared,
     tTable,

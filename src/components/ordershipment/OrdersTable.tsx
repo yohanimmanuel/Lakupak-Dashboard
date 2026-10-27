@@ -9,6 +9,7 @@ import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { Order, OrderTableRow } from '@/types/order';
 import { useOrdersTranslations } from '@/hooks/useOrdersTranslations';
+import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
 
 const statusTabs = [
   { label: "All" },
@@ -88,7 +89,7 @@ export default function OrdersTable({
   const router = useRouter();
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
-  const rowsPerPage = 8;
+  const rowsPerPage = TABLE_PAGE_SIZE;
   
   let filteredOrders = tableRows;
   
@@ -885,7 +886,7 @@ export default function OrdersTable({
           >
             <ChevronLeft className="w-4 h-4 text-gray-500" />
           </button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+          {getVisiblePageNumbers(page, totalPages).map(p => (
             <button
               key={p}
               className={`px-3 py-2 rounded-lg font-semibold text-sm transition ${

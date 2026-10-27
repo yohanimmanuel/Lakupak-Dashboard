@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { useSettingsTranslations } from '@/hooks/useSettingsTranslations';
+import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
 import {
   SUBSCRIPTION_PLANS,
   formatPlanPrice,
@@ -281,7 +282,7 @@ export default function BillingPayment() {
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [invoicePage, setInvoicePage] = useState(1);
-  const invoicesPerPage = 3;
+  const invoicesPerPage = TABLE_PAGE_SIZE;
 
   const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
   const [showEditAddressModal, setShowEditAddressModal] = useState(false);
@@ -1490,41 +1491,21 @@ export default function BillingPayment() {
                     <ChevronLeft className="w-4 h-4" />
                   </button>
                   <div className="flex items-center gap-1">
-                    {Array.from({ length: Math.min(5, filteredInvoiceTotalPages) }, (_, i) => {
-                      const pageNum = i + 1;
-                      return (
-                        <button
-                          key={pageNum}
-                          type="button"
-                          onClick={() => setInvoicePage(pageNum)}
-                          className={`px-3 py-2 text-sm rounded-lg ${
-                            invoicePage === pageNum
-                              ? 'bg-[#0a61d7] text-white'
-                              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                          }`}
-                          aria-label={tBilling('invoices.goToPage', { page: pageNum })}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    })}
-                    {filteredInvoiceTotalPages > 5 && (
-                      <>
-                        {filteredInvoiceTotalPages > 6 ? <span className="px-2 text-gray-500">...</span> : null}
-                        <button
-                          type="button"
-                          onClick={() => setInvoicePage(filteredInvoiceTotalPages)}
-                          className={`px-3 py-1 text-sm rounded ${
-                            invoicePage === filteredInvoiceTotalPages
-                              ? 'bg-[#0a61d7] text-white'
-                              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                          }`}
-                          aria-label={tBilling('invoices.goToPage', { page: filteredInvoiceTotalPages })}
-                        >
-                          {filteredInvoiceTotalPages}
-                        </button>
-                      </>
-                    )}
+                    {getVisiblePageNumbers(invoicePage, filteredInvoiceTotalPages).map((pageNum) => (
+                      <button
+                        key={pageNum}
+                        type="button"
+                        onClick={() => setInvoicePage(pageNum)}
+                        className={`px-3 py-2 text-sm rounded-lg ${
+                          invoicePage === pageNum
+                            ? 'bg-[#0a61d7] text-white'
+                            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                        }`}
+                        aria-label={tBilling('invoices.goToPage', { page: pageNum })}
+                      >
+                        {pageNum}
+                      </button>
+                    ))}
                   </div>
                   <button
                     type="button"

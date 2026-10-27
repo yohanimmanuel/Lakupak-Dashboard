@@ -10,6 +10,7 @@ import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
+import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
 
 const statusTabs = [
   { label: "All" },
@@ -172,7 +173,7 @@ export default function BuyerTable({
   }, [tableRows, search, selectedTab, filter, period, today, buyers]);
   
   // Enhanced pagination
-  const rowsPerPage = 8;
+  const rowsPerPage = TABLE_PAGE_SIZE;
   const totalRows = filteredBuyers.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
   const pagedBuyers = useMemo(() => 
@@ -1385,7 +1386,7 @@ export default function BuyerTable({
           >
             <ChevronLeft className="w-4 h-4 text-gray-500" />
           </button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+          {getVisiblePageNumbers(page, totalPages).map(p => (
             <button
               key={p}
               className={`px-3 py-2 rounded-lg font-semibold text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${

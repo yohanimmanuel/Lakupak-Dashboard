@@ -9,6 +9,7 @@ import { fetchGraphQL } from '@/lib/graphqlClient';
 import { formatCurrency, getDefaultCurrency, parsePrice } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { useSalesTranslations } from '@/hooks/useSalesTranslations';
+import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
 
 interface FavouriteProductsProps {
   formData: Partial<SalesAgent>;
@@ -40,7 +41,7 @@ export default function FavouriteProducts({
   const [page, setPage] = useState(1);
   const [showTypeDropdown, setShowTypeDropdown] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
-  const rowsPerPage = 8;
+  const rowsPerPage = TABLE_PAGE_SIZE;
   
   const typeDropdownRef = useRef<HTMLDivElement>(null);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
@@ -569,46 +570,20 @@ export default function FavouriteProducts({
                 >
                   <ChevronLeft className="w-4 h-4 text-gray-500" />
                 </button>
-                {totalPages > 0 && Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
-                  let pageNum;
-                  if (totalPages <= 7) {
-                    pageNum = i + 1;
-                  } else if (page <= 4) {
-                    pageNum = i + 1;
-                  } else if (page >= totalPages - 3) {
-                    pageNum = totalPages - 6 + i;
-                  } else {
-                    pageNum = page - 3 + i;
-                  }
-                  return (
+                {totalPages > 0 &&
+                  getVisiblePageNumbers(page, totalPages).map((pageNum) => (
                     <button
                       key={pageNum}
                       className={`px-3 py-2 rounded-lg font-semibold text-sm transition ${
-                        pageNum === page 
-                          ? 'bg-[#0a61d7] text-white' 
+                        pageNum === page
+                          ? 'bg-[#0a61d7] text-white'
                           : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
                       }`}
                       onClick={() => setPage(pageNum)}
                     >
                       {pageNum}
                     </button>
-                  );
-                })}
-                {totalPages > 7 && page < totalPages - 3 && (
-                  <span className="px-2 text-gray-500">...</span>
-                )}
-                {totalPages > 7 && page < totalPages - 3 && (
-                  <button
-                    className={`px-3 py-2 rounded-lg font-semibold text-sm transition ${
-                      page === totalPages
-                        ? 'bg-[#0a61d7] text-white'
-                        : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
-                    }`}
-                    onClick={() => setPage(totalPages)}
-                  >
-                    {totalPages}
-                  </button>
-                )}
+                  ))}
                 <button
                   className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}

@@ -10,6 +10,7 @@ import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
+import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
 
 // Use suppliers prop or state, not suppliersMock
 // Add explicit types for all map/filter parameters
@@ -57,7 +58,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
   const router = useRouter();
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
-  const rowsPerPage = 8;
+  const rowsPerPage = TABLE_PAGE_SIZE;
   
   // Sort suppliers by most recent first (newest created/updated at top)
   const sortedSuppliers = [...tableRows].sort((a, b) => {
@@ -1072,7 +1073,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
           >
             <ChevronLeft className="w-4 h-4 text-gray-500" />
           </button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+          {getVisiblePageNumbers(page, totalPages).map(p => (
             <button
               key={p}
               className={`px-3 py-2 rounded-lg font-semibold text-sm transition ${

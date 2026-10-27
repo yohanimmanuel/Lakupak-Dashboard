@@ -2,6 +2,10 @@
 
 import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  TABLE_PAGE_SIZE,
+  getVisiblePageNumbers,
+} from '@/utils/tablePagination';
 
 type Props = {
   page: number;
@@ -9,10 +13,13 @@ type Props = {
   total: number;
   showingLabel: string;
   onPageChange: (page: number) => void;
+  previousLabel?: string;
+  nextLabel?: string;
 };
 
 /**
- * Lakupak standard table pagination (Orders / Offers / Products).
+ * Lakupak standard table pagination (Orders / Offers / Products / Clients).
+ * Shows at most 10 page numbers; Next/Previous move to the next page (and next number block).
  */
 export default function OfferPickerPagination({
   page,
@@ -20,23 +27,27 @@ export default function OfferPickerPagination({
   total,
   showingLabel,
   onPageChange,
+  previousLabel = 'Previous page',
+  nextLabel = 'Next page',
 }: Props) {
   if (total === 0) return null;
+
+  const visiblePages = getVisiblePageNumbers(page, totalPages);
 
   return (
     <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-6 gap-2">
       <div className="text-sm text-gray-500">{showingLabel}</div>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
           className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
           onClick={() => onPageChange(Math.max(1, page - 1))}
           disabled={page === 1}
-          aria-label="Previous page"
+          aria-label={previousLabel}
         >
           <ChevronLeft className="w-4 h-4 text-gray-500" />
         </button>
-        {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+        {visiblePages.map((p) => (
           <button
             key={p}
             type="button"
@@ -46,6 +57,7 @@ export default function OfferPickerPagination({
                 : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
             }`}
             onClick={() => onPageChange(p)}
+            aria-current={p === page ? 'page' : undefined}
           >
             {p}
           </button>
@@ -55,7 +67,7 @@ export default function OfferPickerPagination({
           className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
           onClick={() => onPageChange(Math.min(totalPages, page + 1))}
           disabled={page === totalPages}
-          aria-label="Next page"
+          aria-label={nextLabel}
         >
           <ChevronRight className="w-4 h-4 text-gray-500" />
         </button>
@@ -64,7 +76,7 @@ export default function OfferPickerPagination({
   );
 }
 
-export const OFFER_PICKER_PAGE_SIZE = 8;
+export const OFFER_PICKER_PAGE_SIZE = TABLE_PAGE_SIZE;
 
 export function usePagedSlice<T>(items: T[], page: number, pageSize = OFFER_PICKER_PAGE_SIZE) {
   const total = items.length;

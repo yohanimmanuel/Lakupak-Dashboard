@@ -3,7 +3,7 @@ import { SkeletonOrdersPage } from '@/components/skeleton/SkeletonOrdersPage';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Download, Archive, Eye, Check, RefreshCw, Plus } from 'lucide-react';
+import { Download, Archive, Eye, Check, RefreshCw, Plus, LayoutGrid } from 'lucide-react';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import OrdersCards from '@/components/ordershipment/OrdersCards';
@@ -227,6 +227,13 @@ export default function OrdersPage() {
                 <Archive className="h-4 w-4" />
                 {tList('archivedOrders')}
               </button>
+              <Link
+                href="/products/heatmap"
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-gray-100 @4xl/main:w-auto"
+              >
+                <LayoutGrid className="h-4 w-4" />
+                {tList('openHeatmap')}
+              </Link>
               <button
                 onClick={exportOrdersXLSX}
                 className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-gray-100 @4xl/main:w-auto"

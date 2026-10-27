@@ -200,6 +200,7 @@
     "loading": "Loading buyers...",
     "addBuyer": "Add Buyer",
     "matchBuyers": "Match Buyers",
+    "openHeatmap": "Heatmap",
     "refreshing": "Refreshing buyer data",
     "loadingData": "Loading buyer data...",
     "loaded": "{count} buyer(s) loaded",
