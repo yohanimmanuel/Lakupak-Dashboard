@@ -99,6 +99,8 @@
     "penetration": "Penetration",
     "purchased": "Bought",
     "eligible": "Eligible",
+    "hoverPresence": "{value}% buyer presence",
+    "hoverFraction": "{purchased} of {eligible} eligible retailers",
     "missingExplain": "No eligible retailers in this segment.",
     "zeroExplain": "Eligible retailers exist, and none purchased this SKU in the period.",
     "showing": "Showing {from}–{to} of {total}",

@@ -99,6 +99,8 @@
     "penetration": "Penetrasi",
     "purchased": "Membeli",
     "eligible": "Layak",
+    "hoverPresence": "{value}% kehadiran pembeli",
+    "hoverFraction": "{purchased} dari {eligible} retailer yang layak",
     "missingExplain": "Tidak ada retailer yang layak di segmen ini.",
     "zeroExplain": "Ada retailer yang layak, dan tidak satu pun membeli SKU ini pada periode tersebut.",
     "showing": "Menampilkan {from}–{to} dari {total}",

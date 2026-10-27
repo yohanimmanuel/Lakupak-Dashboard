@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, ChevronLeft, ChevronRight, Filter, Search, X } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
@@ -50,13 +51,37 @@ const PERIODS = ['30d', '90d', '180d', '365d', 'all'] as const;
 const PAGE_SIZE = 6;
 const VARIANT_PAGE_SIZE = 5;
 
-const TILE: Record<AssortmentCellKind, string> = {
+/** Static styles for empty / zero cells (unchanged). */
+const TILE_STATIC: Record<'missing' | 'zero', string> = {
   missing: 'bg-gray-100 text-gray-400',
   zero: 'bg-red-50 text-red-700',
-  low: 'bg-red-500 text-white',
-  medium: 'bg-amber-300 text-amber-950',
-  high: 'bg-emerald-500 text-white',
 };
+
+const ZERO_PRESENCE_COLOR = '#b91c1c';
+
+/** Continuous red → yellow → green for penetration &gt; 0. */
+function penetrationHue(penetration: number): number {
+  const t = Math.min(100, Math.max(0, penetration)) / 100;
+  return t * 120; // 0° red → 60° yellow → 120° green
+}
+
+function penetrationFill(penetration: number): string {
+  return `hsl(${penetrationHue(penetration)} 82% 46%)`;
+}
+
+function penetrationOnFill(penetration: number): string {
+  const hue = penetrationHue(penetration);
+  // Yellow through green (incl. 100%) is bright; use dark text. Keep white on reds.
+  return hue > 38 ? '#111827' : '#ffffff';
+}
+
+/** Darker ink for tooltip text on white (same hue family as the fill). */
+function penetrationInk(penetration: number): string {
+  return `hsl(${penetrationHue(penetration)} 72% 32%)`;
+}
+
+const SCALE_GRADIENT =
+  'linear-gradient(to right, hsl(0 82% 46%), hsl(60 82% 46%), hsl(120 72% 42%))';
 
 const QUERY = `
   query AssortmentGap(
@@ -316,11 +341,17 @@ export default function AssortmentGapHeatmap() {
             }))}
           />
           <div className="ml-auto flex flex-wrap items-center gap-2 text-[11px] text-gray-600">
-            <Legend swatch={TILE.missing} label={tHeatmap('legendMissing')} />
-            <Legend swatch={TILE.zero} label={tHeatmap('legendZero')} />
-            <Legend swatch={TILE.low} label={tHeatmap('legendLow')} />
-            <Legend swatch={TILE.medium} label={tHeatmap('legendMedium')} />
-            <Legend swatch={TILE.high} label={tHeatmap('legendHigh')} />
+            <Legend swatch={TILE_STATIC.missing} label={tHeatmap('legendMissing')} />
+            <Legend swatch={TILE_STATIC.zero} label={tHeatmap('legendZero')} />
+            <span className="inline-flex items-center gap-1.5">
+              <span>{tHeatmap('legendLow')}</span>
+              <span
+                className="h-3 w-20 rounded-sm border border-[#e6e6e6]"
+                style={{ background: SCALE_GRADIENT }}
+                aria-hidden
+              />
+              <span>{tHeatmap('legendHigh')}</span>
+            </span>
           </div>
         </div>
 
@@ -597,6 +628,13 @@ export default function AssortmentGapHeatmap() {
   );
 }
 
+type HeatTipPos = {
+  top: number;
+  left: number;
+  place: 'above' | 'below';
+  ready: boolean;
+};
+
 function HeatTile({
   cell,
   label,
@@ -604,6 +642,53 @@ function HeatTile({
   cell?: Cell;
   label: string;
 }) {
+  const { tHeatmap } = useProductsTranslations();
+  const tileRef = useRef<HTMLSpanElement>(null);
+  const tipRef = useRef<HTMLDivElement>(null);
+  const [tip, setTip] = useState<HeatTipPos | null>(null);
+
+  const showTip = () => {
+    const rect = tileRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const gap = 8;
+    const estimatedHeight = 96;
+    const place: 'above' | 'below' =
+      rect.top < estimatedHeight + gap ? 'below' : 'above';
+    setTip({
+      top: place === 'above' ? rect.top - gap : rect.bottom + gap,
+      left: rect.left + rect.width / 2,
+      place,
+      ready: false,
+    });
+  };
+
+  useLayoutEffect(() => {
+    if (!tip || tip.ready) return;
+    const tipEl = tipRef.current;
+    const tileEl = tileRef.current;
+    if (!tipEl || !tileEl) return;
+
+    const tipRect = tipEl.getBoundingClientRect();
+    const tileRect = tileEl.getBoundingClientRect();
+    const gap = 8;
+    const margin = 8;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    let place = tip.place;
+    if (place === 'above' && tipRect.top < margin) place = 'below';
+    else if (place === 'below' && tipRect.bottom > vh - margin) place = 'above';
+
+    const top = place === 'above' ? tileRect.top - gap : tileRect.bottom + gap;
+    const half = tipRect.width / 2;
+    const left = Math.min(
+      vw - margin - half,
+      Math.max(margin + half, tileRect.left + tileRect.width / 2),
+    );
+
+    setTip({ top, left, place, ready: true });
+  }, [tip]);
+
   if (!cell) {
     return (
       <span className="inline-flex h-20 w-full min-w-[3.75rem] items-center justify-center rounded-lg bg-gray-100 text-xs font-semibold text-gray-400">
@@ -611,18 +696,87 @@ function HeatTile({
       </span>
     );
   }
+
   const value = cell.kind === 'missing' ? '—' : `${cell.penetration ?? 0}%`;
+  const isScaled = cell.kind !== 'missing' && cell.kind !== 'zero';
+  const fill = isScaled ? penetrationFill(cell.penetration ?? 0) : undefined;
+  const onFill = isScaled ? penetrationOnFill(cell.penetration ?? 0) : undefined;
+  const presenceColor =
+    cell.kind === 'zero'
+      ? ZERO_PRESENCE_COLOR
+      : isScaled
+        ? penetrationInk(cell.penetration ?? 0)
+        : undefined;
+
+  const tipBody =
+    cell.kind === 'missing' ? (
+      <p className="text-xs text-gray-600">{tHeatmap('missingExplain')}</p>
+    ) : (
+      <>
+        <p
+          className="text-sm font-semibold tabular-nums"
+          style={presenceColor ? { color: presenceColor } : undefined}
+        >
+          {tHeatmap('hoverPresence', { value: cell.penetration ?? 0 })}
+        </p>
+        <p className="mt-0.5 text-xs tabular-nums text-gray-700">
+          {cell.purchased}/{cell.eligible}
+        </p>
+        <p className="mt-0.5 text-[11px] text-gray-500">
+          {tHeatmap('hoverFraction', {
+            purchased: cell.purchased,
+            eligible: cell.eligible,
+          })}
+        </p>
+      </>
+    );
+
   return (
-    <span
-      title={
-        cell.kind === 'missing'
-          ? label
-          : `${label}: ${cell.purchased}/${cell.eligible} (${cell.penetration ?? 0}%)`
-      }
-      className={`inline-flex h-20 w-full min-w-[3.75rem] items-center justify-center rounded-lg text-xs font-semibold tabular-nums ${TILE[cell.kind]}`}
-    >
-      {value}
-    </span>
+    <>
+      <span
+        ref={tileRef}
+        onMouseEnter={showTip}
+        onFocus={showTip}
+        onMouseLeave={() => setTip(null)}
+        onBlur={() => setTip(null)}
+        onClick={() => setTip(null)}
+        tabIndex={0}
+        aria-label={
+          cell.kind === 'missing'
+            ? `${label}. ${tHeatmap('missingExplain')}`
+            : `${label}. ${tHeatmap('hoverPresence', { value: cell.penetration ?? 0 })}. ${tHeatmap(
+                'hoverFraction',
+                { purchased: cell.purchased, eligible: cell.eligible },
+              )}`
+        }
+        style={
+          fill && onFill
+            ? { backgroundColor: fill, color: onFill }
+            : undefined
+        }
+        className={`inline-flex h-20 w-full min-w-[3.75rem] cursor-help items-center justify-center rounded-lg text-xs font-semibold tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-[#0a61d7] ${
+          cell.kind === 'missing' || cell.kind === 'zero' ? TILE_STATIC[cell.kind] : ''
+        }`}
+      >
+        {value}
+      </span>
+      {tip && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              ref={tipRef}
+              role="tooltip"
+              className={`pointer-events-none fixed z-[200] w-max max-w-[16rem] -translate-x-1/2 rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 shadow-lg ${
+                tip.place === 'above' ? '-translate-y-full' : ''
+              }`}
+              style={{ top: tip.top, left: tip.left }}
+            >
+              <p className="truncate text-xs font-medium text-black">{label}</p>
+              <div className="mt-1">{tipBody}</div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }
 
