@@ -10,6 +10,7 @@ import {
   type AssortmentCellKind,
   type AssortmentSegment,
 } from '@/lib/products/assortmentGapShared';
+import { getVisiblePageNumbers } from '@/utils/tablePagination';
 
 const KNOWN_SEGMENT_LABELS = new Set<string>(PREFERRED_ASSORTMENT_SEGMENTS);
 
@@ -120,7 +121,7 @@ const VARIANTS_QUERY = `
 `;
 
 export default function AssortmentGapHeatmap() {
-  const { tHeatmap } = useProductsTranslations();
+  const { tHeatmap, tShared } = useProductsTranslations();
   const user = useUserStore((state) => state.user);
   const [category, setCategory] = useState('all');
   const [segment, setSegment] = useState('all');
@@ -236,6 +237,7 @@ export default function AssortmentGapHeatmap() {
   const limit = data?.limit ?? PAGE_SIZE;
   const from = total === 0 ? 0 : (page - 1) * limit + 1;
   const to = Math.min(page * limit, total);
+  const totalPages = Math.max(1, Math.ceil(total / limit) || 1);
   const segments = data?.segments?.length
     ? data.segments
     : segment === 'all'
@@ -245,6 +247,7 @@ export default function AssortmentGapHeatmap() {
   const variantTotal = variantRows?.length ?? 0;
   const variantFrom = variantTotal === 0 ? 0 : (variantPage - 1) * VARIANT_PAGE_SIZE + 1;
   const variantTo = Math.min(variantPage * VARIANT_PAGE_SIZE, variantTotal);
+  const variantTotalPages = Math.max(1, Math.ceil(variantTotal / VARIANT_PAGE_SIZE) || 1);
   const pagedVariantRows = variantRows?.slice(
     (variantPage - 1) * VARIANT_PAGE_SIZE,
     variantPage * VARIANT_PAGE_SIZE,
@@ -322,7 +325,10 @@ export default function AssortmentGapHeatmap() {
         </div>
 
         {loading ? (
-          <p className="py-16 text-center text-sm text-gray-500">{tHeatmap('loading')}</p>
+          <div className="flex flex-col items-center justify-center py-16">
+            <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-[#0a61d7] border-t-transparent" />
+            <p className="text-sm text-gray-600">{tHeatmap('loading')}</p>
+          </div>
         ) : error ? (
           <div className="flex flex-col items-center gap-3 py-16">
             <p className="text-sm text-red-600">{error}</p>
@@ -338,12 +344,20 @@ export default function AssortmentGapHeatmap() {
           <p className="py-16 text-center text-sm text-gray-500">{tHeatmap('empty')}</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full table-fixed border-separate border-spacing-x-1.5 border-spacing-y-1 text-xs">
+            <table
+              className="w-full border-separate border-spacing-x-1.5 border-spacing-y-1 text-xs"
+              style={{ minWidth: `${10 + segments.length * 4.75}rem` }}
+            >
               <thead>
                 <tr className="text-gray-500">
-                  <th className="w-[22%] px-2 py-1 text-left text-[11px] font-medium uppercase">{tHeatmap('product')}</th>
+                  <th className="min-w-[10rem] w-[22%] px-2 py-1 text-left text-[11px] font-medium uppercase">
+                    {tHeatmap('product')}
+                  </th>
                   {segments.map((name) => (
-                    <th key={name} className="px-0.5 py-1 text-center text-[11px] font-medium">
+                    <th
+                      key={name}
+                      className="min-w-[4.75rem] whitespace-nowrap px-0.5 py-1 text-center text-[11px] font-medium"
+                    >
                       {segmentLabel(name)}
                     </th>
                   ))}
@@ -356,7 +370,7 @@ export default function AssortmentGapHeatmap() {
                     className="cursor-pointer rounded-lg hover:bg-gray-50"
                     onClick={() => void openVariants(row)}
                   >
-                    <td className="rounded-l-lg px-2 py-1 align-middle">
+                    <td className="min-w-[10rem] rounded-l-lg px-2 py-1 align-middle">
                       <button
                         type="button"
                         className="block w-full min-w-0 truncate text-left text-xs font-semibold text-black hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0a61d7]"
@@ -376,7 +390,10 @@ export default function AssortmentGapHeatmap() {
                     {segments.map((name) => {
                       const cell = row.cells.find((item) => item.segment === name);
                       return (
-                        <td key={name} className="px-0 py-0.5 text-center align-middle last:rounded-r-lg">
+                        <td
+                          key={name}
+                          className="min-w-[4.75rem] px-0 py-0.5 text-center align-middle last:rounded-r-lg"
+                        >
                           <HeatTile
                             cell={cell}
                             label={`${row.name} · ${segmentLabel(name)}`}
@@ -392,26 +409,45 @@ export default function AssortmentGapHeatmap() {
         )}
 
         {total > 0 ? (
-          <div className="mt-4 flex items-center justify-between gap-3 text-xs text-gray-600">
-            <span>{tHeatmap('showing', { from, to, total })}</span>
-            <div className="flex gap-2">
+          <div className="mt-4 flex min-w-0 flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0 shrink text-sm text-gray-500">
+              {tShared('pagination.showing', { from, to, total })}
+            </div>
+            <div className="flex max-w-full min-w-0 items-center gap-2 overflow-x-auto">
               <button
                 type="button"
-                disabled={page <= 1 || loading}
-                onClick={() => setPage((current) => Math.max(1, current - 1))}
-                className="inline-flex items-center gap-1 rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 font-medium text-black disabled:opacity-50"
+                onClick={() => setPage(Math.max(1, page - 1))}
+                disabled={page === 1 || loading}
+                aria-label={tShared('previousPage')}
+                className="shrink-0 px-3 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <ChevronLeft className="h-3.5 w-3.5" />
-                {tHeatmap('previous')}
+                <ChevronLeft className="w-4 h-4" />
               </button>
+              <div className="flex items-center gap-1">
+                {getVisiblePageNumbers(page, totalPages).map((pageNum) => (
+                  <button
+                    key={pageNum}
+                    type="button"
+                    onClick={() => setPage(pageNum)}
+                    disabled={loading}
+                    className={`shrink-0 px-3 py-2 text-sm rounded-lg ${
+                      page === pageNum
+                        ? 'bg-[#0a61d7] text-white'
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                ))}
+              </div>
               <button
                 type="button"
-                disabled={page * limit >= total || loading}
-                onClick={() => setPage((current) => current + 1)}
-                className="inline-flex items-center gap-1 rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 font-medium text-black disabled:opacity-50"
+                onClick={() => setPage(Math.min(totalPages, page + 1))}
+                disabled={page === totalPages || loading}
+                aria-label={tShared('nextPage')}
+                className="shrink-0 px-3 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {tHeatmap('next')}
-                <ChevronRight className="h-3.5 w-3.5" />
+                <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -439,69 +475,114 @@ export default function AssortmentGapHeatmap() {
             </div>
             <div className="min-h-0 flex-1 overflow-auto p-4">
               {variantLoading ? (
-                <p className="py-10 text-center text-sm text-gray-500">{tHeatmap('variantLoading')}</p>
+                <div className="flex flex-col items-center justify-center py-10">
+                  <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-[#0a61d7] border-t-transparent" />
+                  <p className="text-sm text-gray-600">{tHeatmap('variantLoading')}</p>
+                </div>
               ) : variantError ? (
                 <p className="py-10 text-center text-sm text-red-600">{variantError}</p>
               ) : !variantRows || variantRows.length === 0 ? (
                 <p className="py-10 text-center text-sm text-gray-500">{tHeatmap('variantEmpty')}</p>
               ) : (
                 <>
-                  <table className="w-full table-fixed border-separate border-spacing-x-1.5 border-spacing-y-1 text-xs">
-                    <thead>
-                      <tr className="text-gray-500">
-                        <th className="w-[22%] px-2 py-1 text-left text-[11px] font-medium uppercase">{tHeatmap('variant')}</th>
-                        {segments.map((name) => (
-                          <th key={name} className="px-0.5 py-1 text-center text-[11px] font-medium">
-                            {segmentLabel(name)}
+                  <div className="overflow-x-auto">
+                    <table
+                      className="w-full border-separate border-spacing-x-1.5 border-spacing-y-1 text-xs"
+                      style={{ minWidth: `${10 + segments.length * 4.75}rem` }}
+                    >
+                      <thead>
+                        <tr className="text-gray-500">
+                          <th className="min-w-[10rem] w-[22%] px-2 py-1 text-left text-[11px] font-medium uppercase">
+                            {tHeatmap('variant')}
                           </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(pagedVariantRows ?? []).map((row) => (
-                        <tr key={`${row.variantOptionId}-${row.variantName}`}>
-                          <td className="px-2 py-1 align-middle">
-                            <div className="truncate text-xs font-semibold text-black" title={row.variantName}>
-                              {row.variantName}
-                            </div>
-                            {row.sku ? <div className="truncate text-[10px] text-gray-400">{row.sku}</div> : null}
-                          </td>
-                          {segments.map((name) => {
-                            const cell = row.cells.find((item) => item.segment === name);
-                            return (
-                              <td key={name} className="px-0 py-0.5 text-center align-middle">
-                                <HeatTile
-                                  cell={cell}
-                                  label={`${row.variantName} · ${segmentLabel(name)}`}
-                                />
-                              </td>
-                            );
-                          })}
+                          {segments.map((name) => (
+                            <th
+                              key={name}
+                              className="min-w-[4.75rem] whitespace-nowrap px-0.5 py-1 text-center text-[11px] font-medium"
+                            >
+                              {segmentLabel(name)}
+                            </th>
+                          ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {(pagedVariantRows ?? []).map((row) => (
+                          <tr key={`${row.variantOptionId}-${row.variantName}`}>
+                            <td className="min-w-[10rem] px-2 py-1 align-middle">
+                              <div
+                                className="truncate text-xs font-semibold text-black"
+                                title={row.variantName}
+                              >
+                                {row.variantName}
+                              </div>
+                              {row.sku ? (
+                                <div className="truncate text-[10px] text-gray-400">{row.sku}</div>
+                              ) : null}
+                            </td>
+                            {segments.map((name) => {
+                              const cell = row.cells.find((item) => item.segment === name);
+                              return (
+                                <td
+                                  key={name}
+                                  className="min-w-[4.75rem] px-0 py-0.5 text-center align-middle"
+                                >
+                                  <HeatTile
+                                    cell={cell}
+                                    label={`${row.variantName} · ${segmentLabel(name)}`}
+                                  />
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                   {variantTotal > VARIANT_PAGE_SIZE ? (
-                    <div className="mt-4 flex items-center justify-between gap-3 text-xs text-gray-600">
-                      <span>{tHeatmap('showing', { from: variantFrom, to: variantTo, total: variantTotal })}</span>
-                      <div className="flex gap-2">
+                    <div className="mt-4 flex min-w-0 flex-wrap items-center justify-between gap-3">
+                      <div className="min-w-0 shrink text-sm text-gray-500">
+                        {tShared('pagination.showing', {
+                          from: variantFrom,
+                          to: variantTo,
+                          total: variantTotal,
+                        })}
+                      </div>
+                      <div className="flex max-w-full min-w-0 items-center gap-2 overflow-x-auto">
                         <button
                           type="button"
-                          disabled={variantPage <= 1}
-                          onClick={() => setVariantPage((current) => Math.max(1, current - 1))}
-                          className="inline-flex items-center gap-1 rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 font-medium text-black disabled:opacity-50"
+                          onClick={() => setVariantPage(Math.max(1, variantPage - 1))}
+                          disabled={variantPage === 1}
+                          aria-label={tShared('previousPage')}
+                          className="shrink-0 px-3 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <ChevronLeft className="h-3.5 w-3.5" />
-                          {tHeatmap('previous')}
+                          <ChevronLeft className="w-4 h-4" />
                         </button>
+                        <div className="flex items-center gap-1">
+                          {getVisiblePageNumbers(variantPage, variantTotalPages).map((pageNum) => (
+                            <button
+                              key={pageNum}
+                              type="button"
+                              onClick={() => setVariantPage(pageNum)}
+                              className={`shrink-0 px-3 py-2 text-sm rounded-lg ${
+                                variantPage === pageNum
+                                  ? 'bg-[#0a61d7] text-white'
+                                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          ))}
+                        </div>
                         <button
                           type="button"
-                          disabled={variantPage * VARIANT_PAGE_SIZE >= variantTotal}
-                          onClick={() => setVariantPage((current) => current + 1)}
-                          className="inline-flex items-center gap-1 rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 font-medium text-black disabled:opacity-50"
+                          onClick={() =>
+                            setVariantPage(Math.min(variantTotalPages, variantPage + 1))
+                          }
+                          disabled={variantPage === variantTotalPages}
+                          aria-label={tShared('nextPage')}
+                          className="shrink-0 px-3 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {tHeatmap('next')}
-                          <ChevronRight className="h-3.5 w-3.5" />
+                          <ChevronRight className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
@@ -525,7 +606,7 @@ function HeatTile({
 }) {
   if (!cell) {
     return (
-      <span className="inline-flex h-20 w-full min-w-0 items-center justify-center rounded-lg bg-gray-100 text-xs font-semibold text-gray-400">
+      <span className="inline-flex h-20 w-full min-w-[3.75rem] items-center justify-center rounded-lg bg-gray-100 text-xs font-semibold text-gray-400">
         —
       </span>
     );
@@ -538,7 +619,7 @@ function HeatTile({
           ? label
           : `${label}: ${cell.purchased}/${cell.eligible} (${cell.penetration ?? 0}%)`
       }
-      className={`inline-flex h-20 w-full min-w-0 items-center justify-center rounded-lg text-xs font-semibold tabular-nums ${TILE[cell.kind]}`}
+      className={`inline-flex h-20 w-full min-w-[3.75rem] items-center justify-center rounded-lg text-xs font-semibold tabular-nums ${TILE[cell.kind]}`}
     >
       {value}
     </span>

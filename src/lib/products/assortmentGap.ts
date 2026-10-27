@@ -111,7 +111,8 @@ function sortSegments(labels: string[]): AssortmentSegment[] {
     if (!unique.has(key)) unique.set(key, cleaned);
   }
 
-  const preferred = PREFERRED_ASSORTMENT_SEGMENTS.filter((segment) => unique.has(segment.toLowerCase()));
+  // Always keep the full buyer-form column set, even with zero eligible retailers.
+  const preferred = [...PREFERRED_ASSORTMENT_SEGMENTS];
   const preferredKeys = new Set(preferred.map((segment) => segment.toLowerCase()));
   const rest = [...unique.values()]
     .filter((segment) => !preferredKeys.has(segment.toLowerCase()))
@@ -134,8 +135,7 @@ async function loadSegmentsForUser(userId: number, requestedSegment?: string | n
     GROUP BY 1
   `;
 
-  const discovered = sortSegments(rows.map((row) => row.segment).filter(Boolean));
-  return discovered.length > 0 ? discovered : [...PREFERRED_ASSORTMENT_SEGMENTS];
+  return sortSegments(rows.map((row) => row.segment).filter(Boolean));
 }
 
 function buildCells(
@@ -242,7 +242,7 @@ export async function computeAssortmentGap(args: {
         AND o."isDeleted" = false
         AND o."buyerId" IS NOT NULL
         AND oi."productId" IS NOT NULL
-        AND LOWER(TRIM(o."orderStatus")) NOT IN ('cancelled', 'canceled')
+        AND LOWER(TRIM(o."orderStatus")) NOT IN ('cancelled', 'canceled', 'failed', 'returned')
         AND LOWER(TRIM(b."status")) IN (${Prisma.join([...ELIGIBLE_STATUSES])})
         AND LOWER(TRIM(b."businessType")) IN (${Prisma.join(segmentKeys)})
         AND oi."productId" IN (${Prisma.join(productIds)})
@@ -341,7 +341,7 @@ export async function computeAssortmentGapVariants(args: {
           AND o."isDeleted" = false
           AND o."buyerId" IS NOT NULL
           AND oi."productId" = ${product.productId}
-          AND LOWER(TRIM(o."orderStatus")) NOT IN ('cancelled', 'canceled')
+          AND LOWER(TRIM(o."orderStatus")) NOT IN ('cancelled', 'canceled', 'failed', 'returned')
           AND LOWER(TRIM(b."status")) IN (${Prisma.join([...ELIGIBLE_STATUSES])})
           AND LOWER(TRIM(b."businessType")) IN (${Prisma.join(segmentKeys)})
           ${periodSql}

@@ -71,7 +71,11 @@
       "Warung": "Warung",
       "Kiosk": "Kios",
       "Minimarket": "Minimarket",
-      "Wholesaler": "Grosir"
+      "Wholesaler": "Grosir",
+      "Restaurant": "Restoran",
+      "Hotel": "Hotel",
+      "Canteen": "Kantin",
+      "Other": "Lainnya"
     },
     "product": "Produk",
     "variant": "Varian",
@@ -85,7 +89,7 @@
     "legendLow": "Rendah",
     "legendMedium": "Sedang",
     "legendHigh": "Tinggi",
-    "eligibleHint": "Retailer yang layak adalah pembeli Active dan Prospect di segmen itu. Pesanan yang dibatalkan tidak dihitung. Setiap retailer dihitung sekali.",
+    "eligibleHint": "Retailer yang layak adalah pembeli Active dan Prospect di segmen itu. Pesanan yang dibatalkan, gagal, dan dikembalikan tidak dihitung. Setiap retailer dihitung sekali.",
     "openVariants": "Buka heatmap varian",
     "variantTitle": "Penetrasi varian",
     "variantSubtitle": "Persentase retailer yang layak yang membeli setiap varian {name}.",

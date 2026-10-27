@@ -71,7 +71,11 @@
       "Warung": "Warung",
       "Kiosk": "Kiosk",
       "Minimarket": "Minimarket",
-      "Wholesaler": "Wholesaler"
+      "Wholesaler": "Wholesaler",
+      "Restaurant": "Restaurant",
+      "Hotel": "Hotel",
+      "Canteen": "Canteen",
+      "Other": "Other"
     },
     "product": "Product",
     "variant": "Variant",
@@ -85,7 +89,7 @@
     "legendLow": "Low",
     "legendMedium": "Medium",
     "legendHigh": "High",
-    "eligibleHint": "Eligible retailers are Active and Prospect buyers in that segment. Cancelled orders are excluded. Each retailer is counted once.",
+    "eligibleHint": "Eligible retailers are Active and Prospect buyers in that segment. Cancelled, failed, and returned orders are excluded. Each retailer is counted once.",
     "openVariants": "Open variant heatmap",
     "variantTitle": "Variant penetration",
     "variantSubtitle": "Share of eligible retailers who bought each variant of {name}.",
