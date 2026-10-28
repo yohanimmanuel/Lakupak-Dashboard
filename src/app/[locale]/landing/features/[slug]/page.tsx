@@ -8,9 +8,9 @@ export function generateStaticParams() {
     { slug: 'products' },
     { slug: 'orders' },
     { slug: 'offers' },
+    { slug: 'marketplace' },
     // MVP pause
     // { slug: 'sales' },
-    // { slug: 'marketplace' },
     // { slug: 'analytics' },
     // { slug: 'automations' },
     { slug: 'laku-ai' },

@@ -21,6 +21,7 @@
       "groups": {
         "sell": "Sell",
         "grow": "Grow",
+        "discovery": "Discovery",
         "intelligence": "Intelligence"
       }
     },
