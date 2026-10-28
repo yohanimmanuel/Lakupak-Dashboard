@@ -120,20 +120,20 @@
           "desc": "Visualise which products under-penetrate eligible retailers on a heatmap so low assortment coverage stands out before you plan introductions."
         },
         "2": {
+          "title": "Product–retailer insight",
+          "desc": "Match products to the retailers they fit, then review the ranked opportunities worth an introduction."
+        },
+        "3": {
           "title": "Per-variant wholesale economics",
           "desc": "Set selling price, purchase price, MOQ, and low-stock thresholds on every variation combination, not a single flat SKU."
         },
-        "3": {
+        "4": {
           "title": "Trust signals buyers recognize",
           "desc": "Show Halal, BPOM, original-product assurance, and return-policy days on product detail so retailers order with more confidence."
         },
-        "4": {
+        "5": {
           "title": "Base price on the shelf",
           "desc": "Published products show the catalog base price. A retailer's rate applies on their purchase order, not as a public price change."
-        },
-        "5": {
-          "title": "History for product–retailer insight",
-          "desc": "The same order lines show which products already sell where, and which shops still leave gaps in the portfolio."
         }
       }
     },

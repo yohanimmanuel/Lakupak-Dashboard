@@ -82,22 +82,22 @@ const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaCo
       placement: 'center',
       image: { src: '/Dashboardproducts12.png', width: 1540, height: 757 },
     },
-    2: {
+    2: { type: 'placeholder' },
+    3: {
       type: 'single',
       placement: 'center',
       image: { src: '/Dashboardproducts7.png', width: 1477, height: 721 },
     },
-    3: {
+    4: {
       type: 'single',
       placement: 'center',
       image: { src: '/Dashboardproducts8.png', width: 1080, height: 924 },
     },
-    4: {
+    5: {
       type: 'single',
       placement: 'center',
       image: { src: '/Dashboardproducts3.png', width: 735, height: 602 },
     },
-    5: { type: 'placeholder' },
   },
   orders: {
     1: {
