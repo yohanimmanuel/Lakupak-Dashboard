@@ -643,11 +643,11 @@ const Navbar = () => {
           aria-expanded={showReviewDropdown}
         >
           <ClipboardCheck className="w-5 h-5" />
-          {(glance?.salesJobs ?? 0) + (glance?.clientMatches ?? 0) + (glance?.draftAutomations ?? 0) > 0 && (
+          {(glance?.clientMatches ?? 0) > 0 && (
             <span className="absolute -top-0.5 -right-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#f97316] px-0.5 text-[9px] font-semibold text-white">
               {(() => {
-                const total =
-                  (glance?.salesJobs ?? 0) + (glance?.clientMatches ?? 0) + (glance?.draftAutomations ?? 0);
+                // AI sales jobs and draft automations are paused from this queue.
+                const total = glance?.clientMatches ?? 0;
                 return total > 99 ? '99+' : total;
               })()}
             </span>
@@ -660,13 +660,13 @@ const Navbar = () => {
           </div>
           {(
             [
-              {
-                key: 'jobs',
-                href: '/sales/jobs',
-                label: tNavbar('reviewSalesJobs'),
-                hint: tNavbar('reviewSalesJobsHint'),
-                count: glance?.salesJobs ?? 0,
-              },
+              // {
+              //   key: 'jobs',
+              //   href: '/sales/jobs',
+              //   label: tNavbar('reviewSalesJobs'),
+              //   hint: tNavbar('reviewSalesJobsHint'),
+              //   count: glance?.salesJobs ?? 0,
+              // },
               {
                 key: 'matches',
                 href: '/clients/buyers/buyer-matching',
@@ -674,13 +674,13 @@ const Navbar = () => {
                 hint: tNavbar('reviewMatchesHint'),
                 count: glance?.clientMatches ?? 0,
               },
-              {
-                key: 'drafts',
-                href: '/automation',
-                label: tNavbar('reviewDrafts'),
-                hint: tNavbar('reviewDraftsHint'),
-                count: glance?.draftAutomations ?? 0,
-              },
+              // {
+              //   key: 'drafts',
+              //   href: '/automation',
+              //   label: tNavbar('reviewDrafts'),
+              //   hint: tNavbar('reviewDraftsHint'),
+              //   count: glance?.draftAutomations ?? 0,
+              // },
             ] as const
           ).map((row) => (
             <Link
