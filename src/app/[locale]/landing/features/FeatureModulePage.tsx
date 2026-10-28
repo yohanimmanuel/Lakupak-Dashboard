@@ -80,7 +80,7 @@ const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaCo
     1: {
       type: 'single',
       placement: 'center',
-      image: { src: '/Dashboardproducts12.png', width: 1542, height: 750 },
+      image: { src: '/Dashboardproducts12.png', width: 1540, height: 757 },
     },
     2: {
       type: 'single',

@@ -37,6 +37,56 @@ const AUTOMATIONS_MEDIA: Partial<
   },
 };
 
+const HOW_IT_WORKS_2_LAPSE = [
+  { src: '/Dashboardproducts12.png', width: 1540, height: 757 },
+  { src: '/Dashboardproducts13.png', width: 1101, height: 490 },
+  { src: '/Dashboardproducts14.png', width: 1105, height: 390 },
+] as const;
+
+function HowItWorksOpportunityLapse({ alt }: { alt: string }) {
+  const [active, setActive] = useState(0);
+
+  useEffect(() => {
+    if (HOW_IT_WORKS_2_LAPSE.length <= 1) return;
+    const reduce =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) return;
+
+    const id = window.setInterval(() => {
+      setActive((prev) => (prev + 1) % HOW_IT_WORKS_2_LAPSE.length);
+    }, 3500);
+    return () => window.clearInterval(id);
+  }, []);
+
+  return (
+    <div className="relative h-full min-h-[240px] w-full sm:min-h-[320px]">
+      {HOW_IT_WORKS_2_LAPSE.map((image, index) => (
+        <div
+          key={image.src}
+          className={`absolute inset-0 flex items-center justify-center p-2 sm:p-3 transition-opacity duration-700 ease-out ${
+            index === active ? 'opacity-100' : 'pointer-events-none opacity-0'
+          }`}
+          aria-hidden={index !== active}
+        >
+          <span className="inline-flex max-w-full overflow-hidden rounded-xl border border-gray-200/90 bg-white shadow-[0_14px_36px_-16px_rgba(15,23,42,0.28)]">
+            <Image
+              src={image.src}
+              alt={index === active ? alt : ''}
+              width={image.width}
+              height={image.height}
+              quality={90}
+              className="h-auto max-h-[240px] w-auto max-w-full object-contain sm:max-h-[320px]"
+              sizes="(min-width: 1024px) 560px, 92vw"
+              priority={index === 0}
+            />
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const usePerformanceTracking = () => {
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -379,21 +429,20 @@ function SellingSection() {
         </Reveal>
 
         <Reveal>
-          <div className="grid md:grid-cols-3 gap-6 md:gap-8">
+          <div className="grid items-start md:grid-cols-3 gap-6 md:gap-8">
             {SELLING_TABS.map((tab) => {
               const isActive = active === tab;
               return (
-                 <button 
+                <button
                   key={tab}
                   type="button"
                   onClick={() => setActive(tab)}
-                  className="text-left group"
+                  className={`group w-full appearance-none bg-transparent p-0 text-left border-x-0 border-b-0 border-t-2 pt-4 transition-colors ${
+                    isActive
+                      ? 'border-gray-900'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
                 >
-                  <div
-                    className={`h-0.5 w-full mb-4 transition-colors ${
-                      isActive ? 'bg-gray-900' : 'bg-gray-200 group-hover:bg-gray-300'
-                    }`}
-                  />
                   <h3
                     className={`text-base sm:text-lg font-bold leading-snug transition-colors ${
                       isActive ? 'text-gray-900' : 'text-gray-500'
@@ -408,10 +457,10 @@ function SellingSection() {
                   >
                     {t(`features.selling.${tab}.desc`)}
                   </p>
-                 </button>
+                </button>
               );
             })}
-               </div>
+          </div>
         </Reveal>
       </div>
     </section>
@@ -1296,30 +1345,45 @@ export default function LandingPage() {
 
         <section id="how-it-works" className="py-16 sm:py-20 bg-white">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <Reveal className="text-center mb-12 max-w-2xl mx-auto">
+            <Reveal className="mb-10 max-w-3xl">
               <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">
                 {t('howitworks.title')}
               </h2>
-              <p className="mt-3 text-base sm:text-lg text-gray-600">{t('howitworks.subtitle')}</p>
+              <p className="mt-3 text-base sm:text-lg text-gray-600">
+                {t('howitworks.subtitle')}
+              </p>
             </Reveal>
 
-            <div className="grid md:grid-cols-3 gap-8 md:gap-10">
-              {[1, 2, 3].map((i) => (
-                <Reveal key={i} delayMs={i * 80}>
-                  <div className="border-t border-gray-200 pt-6">
-                    <p className="text-xs font-semibold tracking-widest text-[#0a61d7] mb-3">
-                      {String(i).padStart(2, '0')}
-                    </p>
-                    <h3 className="text-lg font-bold text-gray-900 mb-2">
-                      {t(`howitworks.${i}.title`)}
-                    </h3>
-                    <p className="text-sm text-gray-600 leading-relaxed">{t(`howitworks.${i}.desc`)}</p>
-                  </div>
-                </Reveal>
-            ))}
-                </div>
-                </div>
-      </section>
+            <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-14">
+              <Reveal>
+                <FeatureMediaFrame
+                  framed={false}
+                  minHeightClass="min-h-[280px] sm:min-h-[380px]"
+                >
+                  <HowItWorksOpportunityLapse alt={t('howitworks.2.title')} />
+                </FeatureMediaFrame>
+              </Reveal>
+
+              <div className="space-y-6">
+                {[1, 2, 3].map((i) => (
+                  <Reveal key={i} delayMs={i * 80}>
+                    <div className={i > 1 ? 'border-t border-gray-200 pt-5' : undefined}>
+                      <p className="text-xs font-semibold tracking-widest text-[#0a61d7] mb-2">
+                        {String(i).padStart(2, '0')}
+                      </p>
+                      <h3 className="text-lg font-bold text-gray-900 mb-1.5">
+                        {t(`howitworks.${i}.title`)}
+                      </h3>
+                      <p className="text-sm text-gray-600 leading-relaxed">
+                        {t(`howitworks.${i}.desc`)}
+                      </p>
+                    </div>
+                  </Reveal>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
 
         <section className="py-16 sm:py-20 bg-[#f7f9fc]">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
