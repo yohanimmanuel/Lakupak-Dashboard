@@ -487,7 +487,7 @@ export default function AssortmentGapHeatmap() {
 
       {openRow ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal>
-          <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-[#e6e6e6] bg-white shadow-xl">
+          <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-[#e6e6e6] bg-white shadow-xl">
             <div className="flex items-start justify-between gap-3 border-b border-[#e6e6e6] p-4">
               <div className="min-w-0">
                 <h2 className="truncate text-lg font-bold text-black">{tHeatmap('variantTitle')}</h2>
