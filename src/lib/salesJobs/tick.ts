@@ -1,7 +1,6 @@
 import { prisma } from '@/lib/db';
 import { dispatchSalesJobCreatedAutomations, noteSalesWorkflowOutbound } from '@/lib/automations/engine';
 import { groupJobLines, salesRepReplyLocale, upcomingJobsMessage, type RepJobLine } from '@/lib/salesJobs/repCopy';
-import { suggestSalesJobsForDistributor } from '@/lib/salesJobs/suggest';
 import { DEFAULT_JOB_TIMEZONE, zonedDayRange, zonedParts } from '@/lib/salesJobs/time';
 import { dispatchJobToWhatsApp } from '@/lib/salesJobs/whatsapp';
 
@@ -267,13 +266,6 @@ async function markDigestHandled(due: DigestJob[]) {
   }
 }
 
-/**
- * Every minute: send a WhatsApp reminder only when its visit date and clock time match now.
- * A 07:00 reminder is not sent at 17:52. Each clock time is its own message.
- * After the distributor morning time, once per local day: create AI suggestions.
- * After that morning time: send pending jobs that have no explicit reminder.
- * Suggestions are created as pending and can be sent the same morning.
- */
 export async function tickSalesJobs(now = new Date()): Promise<{ suggested: number; dispatched: number; failed: number }> {
   const distributors = await prisma.user.findMany({
     where: { salesAgents: { some: { status: 'active' } } },
@@ -292,15 +284,7 @@ export async function tickSalesJobs(now = new Date()): Promise<{ suggested: numb
     const parts = zonedParts(now, timeZone);
     const isMorning = parts.hour > hour || (parts.hour === hour && parts.minute >= minute);
     const range = zonedDayRange(parts.dateKey, timeZone);
-
-    if (isMorning && settings?.lastSuggestedDateKey !== parts.dateKey) {
-      try {
-        const result = await suggestSalesJobsForDistributor(distributor.id, parts.dateKey);
-        suggested += result.created;
-      } catch (error) {
-        console.error('[sales-jobs] suggest failed', distributor.id, error);
-      }
-    }
+    // AI job creation stays off. suggestSalesJobsForDistributor used to run here once each morning and then the unscheduled sweep below sent those jobs on WhatsApp.
 
     const dueSchedules = await prisma.salesJobSchedule.findMany({
       where: {
@@ -310,6 +294,7 @@ export async function tickSalesJobs(now = new Date()): Promise<{ suggested: numb
         reminderMinute: parts.minute,
         job: {
           distributorId: distributor.id,
+          createdBy: { not: 'ai' },
           status: { in: ['pending', 'approved', 'suggested', 'dispatched', 'in_progress'] },
         },
       },
@@ -366,6 +351,7 @@ export async function tickSalesJobs(now = new Date()): Promise<{ suggested: numb
         where: {
           distributorId: distributor.id,
           status: { in: ['pending', 'approved', 'suggested'] },
+          createdBy: { not: 'ai' },
           dispatchedAt: null,
           scheduledDate: { gte: range.start, lt: range.end },
           schedules: { none: {} },
