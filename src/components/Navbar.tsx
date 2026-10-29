@@ -169,7 +169,7 @@ const Navbar = () => {
   const notifRef = useRef<HTMLButtonElement>(null);
   const appsRef = useRef<HTMLButtonElement>(null);
   const reviewRef = useRef<HTMLButtonElement>(null);
-  const { toggleMenu } = useMenuContext();
+  const { toggleMenu, isCollapsed } = useMenuContext();
   const [hasMounted, setHasMounted] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
@@ -539,12 +539,12 @@ const Navbar = () => {
             <img
               src="/Lakupak!.svg"
               alt="Lakupak"
-              className="h-9 hidden sm:block w-auto"
+              className={`h-9 w-auto ${isCollapsed ? 'hidden' : 'hidden sm:block'}`}
             />
             <img
-              src="/Lakupak!.svg"
+              src="/LakuIcon.svg"
               alt="Lakupak"
-              className="h-9 w-9 sm:hidden"
+              className={`h-9 w-9 object-contain ${isCollapsed ? 'block' : 'sm:hidden'}`}
             />
           </Link>
         </div>
