@@ -252,6 +252,8 @@ model Supplier {
   updatedAt    DateTime @updatedAt @db.Timestamptz(3)
   userId       Int?
   user         User?    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }
 
 model Product {
@@ -641,6 +643,7 @@ model OrderItem {
   // Indexes for performance - added to fix slow queries
   @@index([orderId])
   @@index([productId])
+  @@index([variantOptionId])
   @@index([orderId, productId])
   @@index([orderId, createdAt])
   @@index([productId, createdAt])
@@ -1429,6 +1432,7 @@ model SalesJob {
   @@index([listGroupId])
   @@index([distributorId, scheduledDate])
   @@index([orderId])
+  @@index([whatsappMessageId])
 }
 
 /// One visit date and the WhatsApp reminder clock time for that date.
