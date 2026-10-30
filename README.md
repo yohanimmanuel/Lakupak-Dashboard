@@ -4,6 +4,13 @@
 
 Lakupak is an **AI-native B2B Commerce and Sales platform** built to help independent FMCG distributors in Indonesia unlock the potential of their product portfolios and grow their retailer networks.
 
+**Unique Value Proposition**
+For independent FMCG distributors in Indonesia managing diverse product portfolios and large networks of traditional retailers, that experience limited visibility into which products are suitable for which retailers, causing potentially valuable SKUs to remain underpenetrated while sales teams rely heavily on familiar products, fragmented purchasing data and manual sales activities.
+
+Lakupak aims to unify distributor and retailer data, identify assortment gaps, match relevant products to suitable retailers, and activate these opportunities through a distributor-controlled B2B storefront, targeted promotions and product trial bundles.
+
+Ultimately, helping distributors expand relevant product adoption, improve sales productivity and generate more value from their existing product portfolios.
+
 ### Problem Scope
 
 **Product Portfolio Underutilisation and Low Assortment Penetration**
