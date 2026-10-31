@@ -820,7 +820,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
           <button
             type="button"
             className="flex items-center gap-1 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-medium hover:bg-[#084fb3] transition text-sm"
-            onClick={() => router.push(`/offers/new?buyerId=${encodeURIComponent(buyer.buyerId)}`)}
+            onClick={() => router.push(`/offers/rates/new?buyerId=${encodeURIComponent(buyer.buyerId)}`)}
           >
             <Plus className="w-4 h-4" />
             {tBuyersProfile('addRate')}
@@ -885,7 +885,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
                           type="button"
                           className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-xs"
                           onClick={() =>
-                            router.push(`/offers/details?id=${encodeURIComponent(offer.id)}`)
+                            router.push(`/offers/rates/details?id=${encodeURIComponent(offer.id)}`)
                           }
                           title={tBuyersProfile('editRate')}
                         >

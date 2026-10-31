@@ -38,6 +38,8 @@ interface ClientConnection {
   isAlive: boolean;
   /** Namespace of `userId` (from the JWT `type` claim / platform-admin token). */
   principalType: WsPrincipalType;
+  /** Storefront opened by a marketplace buyer. Dashboard sockets leave this unset. */
+  distributorId: number | null;
   /** True when JWT is a platform admin session (distinct from dashboard User.id). */
   isPlatformAdmin?: boolean;
 }
@@ -67,6 +69,7 @@ interface WebSocketMessage {
     | 'pong';
   data?: unknown;
   productIds?: string[];
+  distributorId?: number;
   action?: 'publish' | 'unpublish' | 'update';
   offerIds?: string[];
   orderIds?: string[];
@@ -129,7 +132,7 @@ class MarketplaceWebSocketServer {
           } else if (data.type === 'prices_updated') {
             this.broadcastPriceUpdate(data.productIds || []);
           } else if (data.type === 'product_updated') {
-            this.broadcastProductUpdate(data.productIds || [], data.action);
+            this.broadcastProductUpdate(data.productIds || [], data.action, data.distributorId);
           } else if (data.type === 'order_updated') {
             this.broadcastOrderUpdate(data.orderIds || []);
           } else if (data.type === 'notification') {
@@ -148,7 +151,7 @@ class MarketplaceWebSocketServer {
           } else if (data.type === 'platform_admin_inbox') {
             this.broadcastPlatformAdminInbox();
           } else if (data.type === 'home_offers_updated') {
-            this.broadcastHomeOffersUpdated();
+            this.broadcastHomeOffersUpdated(data.distributorId);
           }
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ success: true }));
@@ -246,6 +249,7 @@ class MarketplaceWebSocketServer {
       // Extract token from query string
       let token: string | null = null;
       let userId: number | null = null;
+      let distributorId: number | null = null;
       let isPlatformAdmin = false;
       let principalType: WsPrincipalType = 'unknown';
 
@@ -284,6 +288,7 @@ class MarketplaceWebSocketServer {
           }
           const payload = verifyAccessToken(cleanToken);
           userId = payload.sub;
+          distributorId = payload.distributorId ?? null;
           // Legacy tokens omit `type`; such clients simply won't receive
           // namespace-targeted notifications until they re-authenticate.
           principalType = payload.type ?? 'unknown';
@@ -305,6 +310,7 @@ class MarketplaceWebSocketServer {
         userId,
         isAlive: true,
         principalType,
+        distributorId,
         isPlatformAdmin,
       };
 
@@ -409,14 +415,23 @@ class MarketplaceWebSocketServer {
     this.broadcast(message);
   }
 
-  // Broadcast product update to all connected clients
-  broadcastProductUpdate(productIds: string[], action?: 'publish' | 'unpublish' | 'update'): void {
+  // Broadcast product update. A distributor id limits delivery to that storefront's buyers.
+  broadcastProductUpdate(
+    productIds: string[],
+    action?: 'publish' | 'unpublish' | 'update',
+    distributorId?: number,
+  ): void {
     const message: WebSocketMessage = {
       type: 'product_updated',
       productIds,
       ...(action ? { action } : {}),
+      ...(typeof distributorId === 'number' ? { distributorId } : {}),
     };
 
+    if (typeof distributorId === 'number' && distributorId > 0) {
+      this.broadcastToStorefront(message, distributorId);
+      return;
+    }
     this.broadcast(message);
   }
 
@@ -456,9 +471,31 @@ class MarketplaceWebSocketServer {
     this.broadcast(message);
   }
 
-  broadcastHomeOffersUpdated(): void {
-    const message: WebSocketMessage = { type: 'home_offers_updated' };
+  broadcastHomeOffersUpdated(distributorId?: number): void {
+    const message: WebSocketMessage = {
+      type: 'home_offers_updated',
+      ...(typeof distributorId === 'number' ? { distributorId } : {}),
+    };
+    if (typeof distributorId === 'number' && distributorId > 0) {
+      this.broadcastToStorefront(message, distributorId);
+      return;
+    }
     this.broadcast(message);
+  }
+
+  /** Marketplace buyers signed into one distributor storefront. */
+  private broadcastToStorefront(message: WebSocketMessage, distributorId: number): void {
+    const messageStr = JSON.stringify(message);
+    this.clients.forEach((client) => {
+      if (client.distributorId !== distributorId) return;
+      if (client.principalType !== 'marketplace' && client.principalType !== 'unknown') return;
+      if (client.ws.readyState !== WebSocket.OPEN) return;
+      try {
+        client.ws.send(messageStr);
+      } catch {
+        this.clients.delete(client);
+      }
+    });
   }
 
   /** Notify platform admin dashboard clients to refetch inbox (e.g. new buyer report). */

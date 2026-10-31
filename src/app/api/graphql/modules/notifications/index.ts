@@ -494,7 +494,7 @@ export const NotificationService = {
         title: 'Offer Activated',
         message: `Your offer "${offerName}" is now active and available to customers.`,
         metadata: { offerId, offerName, status: 'active' },
-        actionUrl: `/offers/details?id=${offerId}`,
+        actionUrl: `/offers/rates/details?id=${offerId}`,
       },
     });
     emitDashboardNewNotification(userId);
@@ -513,7 +513,7 @@ export const NotificationService = {
         title: 'Offer Expired',
         message: `Your offer "${offerName}" has expired and is no longer active.`,
         metadata: { offerId, offerName, status: 'expired' },
-        actionUrl: `/offers/details?id=${offerId}`,
+        actionUrl: `/offers/rates/details?id=${offerId}`,
       },
     });
     emitDashboardNewNotification(userId);
@@ -559,7 +559,7 @@ export const NotificationService = {
             daysUntilExpiry,
             expiryThreshold: expiryThreshold || daysUntilExpiry // Track threshold for deduplication
           },
-          actionUrl: `/offers/details?id=${offerId}`,
+          actionUrl: `/offers/rates/details?id=${offerId}`,
         },
       });
       emitDashboardNewNotification(userId);

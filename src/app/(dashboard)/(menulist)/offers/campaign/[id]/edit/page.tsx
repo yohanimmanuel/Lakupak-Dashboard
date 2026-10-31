@@ -3,7 +3,7 @@
 import React, { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import OfferEditorForm, { type OfferFormValues } from '@/components/adminstuffs/OfferEditorForm';
+import OfferEditorForm, { type OfferFormValues } from '@/components/offersincentivesdisc/OfferEditorForm';
 
 function mapApiOfferToForm(o: Record<string, unknown>): Partial<OfferFormValues> {
   return {
@@ -41,7 +41,7 @@ export default function EditOfferPage({ params }: { params: Promise<{ id: string
     let cancelled = false;
     (async () => {
       try {
-        const r = await fetch(`/api/platform-admin/offers/${offerId}`);
+        const r = await fetch(`/api/offers/campaigns/${offerId}`);
         const j = r.ok ? await r.json().catch(() => null) : null;
         if (cancelled) return;
         if (!r.ok || !j?.offer) {
@@ -63,39 +63,44 @@ export default function EditOfferPage({ params }: { params: Promise<{ id: string
 
   if (loading && valid) {
     return (
-      <div className="w-full mx-auto max-w-8xl bg-white rounded-lg border border-[#e6e6e6]">
-        <div className="flex items-center gap-4 p-4 border-b border-[#e6e6e6]">
-          <Link
-            href="/admin/offers"
-            className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors text-sm"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to offers
-          </Link>
-          <h1 className="text-2xl font-bold text-gray-900">Edit offer</h1>
+      <div className="flex min-h-full w-full min-w-0 flex-col bg-gradient-to-b from-gray-50 to-white p-4">
+        <div className="w-full rounded-lg border border-[#e6e6e6] bg-white">
+          <div className="flex flex-col gap-3 border-b border-[#e6e6e6] p-4 @5xl/main:flex-row @5xl/main:items-center @5xl/main:justify-between">
+            <div className="flex min-w-0 flex-col gap-3 @3xl/main:flex-row @3xl/main:items-center">
+              <Link
+                href="/offers/campaign"
+                className="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800 @3xl/main:w-auto @3xl/main:justify-start"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to campaign
+              </Link>
+              <h1 className="truncate text-2xl font-bold text-gray-900">Edit campaign</h1>
+            </div>
+          </div>
+          <div className="p-8 text-center text-sm text-gray-600">Loading…</div>
         </div>
-        <div className="px-4 py-3 bg-gray-50 border-b border-[#e6e6e6]">
-          <p className="text-sm text-gray-600">Update banner copy, visuals, and publishing.</p>
-        </div>
-        <div className="p-8 text-sm text-gray-600 text-center">Loading…</div>
       </div>
     );
   }
 
   if (loadError || !initial) {
     return (
-      <div className="w-full mx-auto max-w-8xl bg-white rounded-lg border border-[#e6e6e6]">
-        <div className="flex items-center gap-4 p-4 border-b border-[#e6e6e6]">
-          <Link
-            href="/admin/offers"
-            className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors text-sm"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to offers
-          </Link>
-          <h1 className="text-2xl font-bold text-gray-900">Edit offer</h1>
+      <div className="flex min-h-full w-full min-w-0 flex-col bg-gradient-to-b from-gray-50 to-white p-4">
+        <div className="w-full rounded-lg border border-[#e6e6e6] bg-white">
+          <div className="flex flex-col gap-3 border-b border-[#e6e6e6] p-4 @5xl/main:flex-row @5xl/main:items-center @5xl/main:justify-between">
+            <div className="flex min-w-0 flex-col gap-3 @3xl/main:flex-row @3xl/main:items-center">
+              <Link
+                href="/offers/campaign"
+                className="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800 @3xl/main:w-auto @3xl/main:justify-start"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to campaign
+              </Link>
+              <h1 className="truncate text-2xl font-bold text-gray-900">Edit campaign</h1>
+            </div>
+          </div>
+          <div className="p-8 text-center text-sm text-red-600">{loadError ?? 'Offer not found.'}</div>
         </div>
-        <div className="p-8 text-sm text-red-600 text-center">{loadError ?? 'Offer not found.'}</div>
       </div>
     );
   }
@@ -105,7 +110,7 @@ export default function EditOfferPage({ params }: { params: Promise<{ id: string
       mode="edit"
       offerId={offerId}
       initial={initial}
-      pageTitle="Edit offer"
+      pageTitle="Edit campaign"
       pageDescription="Update banner copy, visuals, and publishing."
     />
   );

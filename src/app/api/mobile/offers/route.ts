@@ -34,8 +34,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers });
     }
 
+    if (!auth.distributorId) {
+      return NextResponse.json({ ok: true, offers: [] }, { status: 200, headers });
+    }
+
     const offers = await prisma.marketplaceHomeOffer.findMany({
-      where: { isPublished: true },
+      where: { isPublished: true, userId: auth.distributorId },
       orderBy: [{ sortOrder: 'asc' }, { publishedAt: 'desc' }],
       take: 50,
       select,

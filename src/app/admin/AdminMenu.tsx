@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutGrid,
   Megaphone,
-  Tag,
   Users,
   UserRound,
   ChartArea,
@@ -26,7 +25,6 @@ const items = [
   { href: '/admin/users', label: 'Manage users', icon: <UserRound className="w-5 h-5" /> },
   { href: '/admin/admins', label: 'Admins', icon: <Users className="w-5 h-5" /> },
   { href: '/admin/announcements', label: 'Latest updates', icon: <Megaphone className="w-5 h-5" /> },
-  { href: '/admin/offers', label: 'Offers', icon: <Tag className="w-5 h-5" /> },
   { href: '/admin/search-logs', label: 'Search logs', icon: <Search className="w-5 h-5" /> },
   { href: '/admin/analytics', label: 'Analytics', icon: <ChartArea className="w-5 h-5" /> },
 ];

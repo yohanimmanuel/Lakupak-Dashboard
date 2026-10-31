@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 
 export function useOffersTranslations() {
+  const tHub = useTranslations('dashboard.offers.hub');
   const tList = useTranslations('dashboard.offers.list');
   const tShared = useTranslations('dashboard.offers.shared');
   const tTable = useTranslations('dashboard.offers.table');
@@ -64,6 +65,7 @@ export function useOffersTranslations() {
     tShared.has(`wizardTabDescriptions.${tab}`) ? tShared(`wizardTabDescriptions.${tab}`) : tab;
 
   return {
+    tHub,
     tList,
     tShared,
     tTable,

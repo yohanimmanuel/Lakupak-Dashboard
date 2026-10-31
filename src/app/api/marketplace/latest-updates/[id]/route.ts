@@ -16,7 +16,7 @@ function parseId(raw: string | undefined): number | null {
  * - Positive id: published `PlatformAnnouncement`
  * - Negative id: published `MarketplaceHomeOffer` (see `mapHomeOfferToLatestUpdatePublic`)
  */
-export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const headers = getSecurityHeaders();
   try {
     const params = await ctx.params;
@@ -25,10 +25,17 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
       return NextResponse.json({ error: 'Invalid id' }, { status: 400, headers });
     }
 
+    const distributorRaw = new URL(req.url).searchParams.get('distributorId');
+    const distributorId = distributorRaw ? Number(distributorRaw) : NaN;
+    const storefrontId = Number.isInteger(distributorId) && distributorId > 0 ? distributorId : null;
+
     const offerId = latestUpdateIdToHomeOfferId(id);
     if (offerId !== null) {
+      if (!storefrontId) {
+        return NextResponse.json({ error: 'Not found' }, { status: 404, headers });
+      }
       const row = await prisma.marketplaceHomeOffer.findFirst({
-        where: { id: offerId, isPublished: true },
+        where: { id: offerId, isPublished: true, userId: storefrontId },
         select: {
           id: true,
           title: true,

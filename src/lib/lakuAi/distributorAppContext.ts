@@ -351,7 +351,7 @@ export const LAKU_APP_MODULES = [
   },
   {
     id: 'offers',
-    path: '/offers',
+    path: '/offers/rates',
     role: 'Create and manage product offers / discounts for buyers.',
   },
   // MVP pause: do not expose these as navigable module paths to the assistant

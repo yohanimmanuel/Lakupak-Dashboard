@@ -1,4 +1,47 @@
 {
+  "hub": {
+    "title": "Penawaran",
+    "tips": "Tips",
+    "tools": "Alat",
+    "dismissTip": "Tutup tip",
+    "closeModal": "Tutup modal",
+    "mainPurpose": "Tujuan utama",
+    "details": "Detail",
+    "tipsList": {
+      "review-rates": {
+        "title": "Atur tarif klien",
+        "description": "Berikan harga, paket, atau diskon khusus untuk pembeli tertentu, lalu pantau tarif yang masih aktif.",
+        "actionLabel": "Buka tarif",
+        "mainPurpose": "Tarif klien adalah syarat yang benar-benar dibayar pembeli. Tarif ini terpisah dari banner yang terlihat di storefront Anda.",
+        "details": {
+          "0": "Buat tarif untuk pembeli dan produk yang dicakup",
+          "1": "Atur diskon, tanggal, dan status aktif",
+          "2": "Tinjau tarif kedaluwarsa sebelum berhenti berlaku saat checkout"
+        }
+      },
+      "publish-campaign": {
+        "title": "Terbitkan banner storefront",
+        "description": "Rancang banner promo beranda yang dilihat pembeli di storefront Marketplace Anda. Distributor lain punya banner sendiri.",
+        "actionLabel": "Buka kampanye",
+        "mainPurpose": "Kampanye adalah banner di beranda Marketplace Anda. Banner terbit dengan urutan terendah adalah yang dilihat pembeli.",
+        "details": {
+          "0": "Tulis judul, label promo, dan teks detail",
+          "1": "Unggah grafis khusus atau gunakan template banner bawaan",
+          "2": "Terbitkan saat banner harus tayang hanya di storefront Anda"
+        }
+      }
+    },
+    "toolsList": {
+      "rates": {
+        "name": "Tarif",
+        "description": "Kelola diskon khusus klien, paket, dan masa berlaku setiap tarif."
+      },
+      "campaign": {
+        "name": "Kampanye",
+        "description": "Kelola banner promo yang tampil di storefront Marketplace Anda."
+      }
+    }
+  },
   "list": {
     "title": "Tarif & Penawaran Klien",
     "loading": "Memuat penawaran...",

@@ -1,4 +1,47 @@
 {
+  "hub": {
+    "title": "Offers",
+    "tips": "Tips",
+    "tools": "Tools",
+    "dismissTip": "Dismiss tip",
+    "closeModal": "Close modal",
+    "mainPurpose": "Main Purpose",
+    "details": "Details",
+    "tipsList": {
+      "review-rates": {
+        "title": "Set client rates",
+        "description": "Give specific buyers a price, bundle, or discount, then keep an eye on which rates are still active.",
+        "actionLabel": "Open rates",
+        "mainPurpose": "Client rates are the terms a buyer actually pays. They stay separate from the banner shoppers see on your storefront.",
+        "details": {
+          "0": "Create a rate for a buyer and the products it covers",
+          "1": "Set the discount, dates, and whether it is active",
+          "2": "Review expired rates before they stop applying at checkout"
+        }
+      },
+      "publish-campaign": {
+        "title": "Publish a storefront banner",
+        "description": "Design the homepage sale banner buyers see on your Marketplace storefront. Other distributors keep their own banners.",
+        "actionLabel": "Open campaign",
+        "mainPurpose": "A campaign is the banner on your Marketplace home. The published banner with the lowest sort order is the one buyers see.",
+        "details": {
+          "0": "Write the headline, promo label, and detail text",
+          "1": "Upload a custom graphic or use the built-in banner template",
+          "2": "Publish when it should go live on your storefront only"
+        }
+      }
+    },
+    "toolsList": {
+      "rates": {
+        "name": "Rates",
+        "description": "Manage client-specific discounts, bundles, and how long each rate stays active."
+      },
+      "campaign": {
+        "name": "Campaign",
+        "description": "Manage the sale banners shown on your Marketplace storefront."
+      }
+    }
+  },
   "list": {
     "title": "Client Rates & Offers",
     "loading": "Loading offers...",

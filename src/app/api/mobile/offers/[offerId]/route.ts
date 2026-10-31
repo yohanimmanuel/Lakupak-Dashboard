@@ -32,8 +32,12 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid offer id' }, { status: 400, headers });
     }
 
+    if (!auth.distributorId) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404, headers });
+    }
+
     const offer = await prisma.marketplaceHomeOffer.findFirst({
-      where: { id, isPublished: true },
+      where: { id, isPublished: true, userId: auth.distributorId },
       select: {
         id: true,
         title: true,

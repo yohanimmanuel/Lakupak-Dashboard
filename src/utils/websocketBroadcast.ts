@@ -105,6 +105,7 @@ export async function broadcastOfferUpdate(
 export async function broadcastProductUpdate(
   productIds: string[],
   action?: 'publish' | 'unpublish' | 'update',
+  distributorId?: number,
 ): Promise<void> {
   try {
     await dispatchBroadcast(
@@ -112,8 +113,9 @@ export async function broadcastProductUpdate(
         type: 'product_updated',
         productIds,
         ...(action ? { action } : {}),
+        ...(typeof distributorId === 'number' ? { distributorId } : {}),
       },
-      (srv) => srv.broadcastProductUpdate(productIds, action),
+      (srv) => srv.broadcastProductUpdate(productIds, action, distributorId),
     );
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
@@ -193,11 +195,14 @@ export async function broadcastPlatformAnnouncementPublished(
   }
 }
 
-export async function broadcastMarketplaceHomeOffersRefresh(): Promise<void> {
+export async function broadcastMarketplaceHomeOffersRefresh(distributorId?: number): Promise<void> {
   try {
     await dispatchBroadcast(
-      { type: 'home_offers_updated' },
-      (srv) => srv.broadcastHomeOffersUpdated(),
+      {
+        type: 'home_offers_updated',
+        ...(typeof distributorId === 'number' ? { distributorId } : {}),
+      },
+      (srv) => srv.broadcastHomeOffersUpdated(distributorId),
     );
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {

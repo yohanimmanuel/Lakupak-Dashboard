@@ -1780,7 +1780,7 @@ const applyMarketplaceStatusSideEffects = async (
   const action = published ? 'publish' : 'unpublish';
 
   try {
-    await broadcastProductUpdate(productIds, action);
+    await broadcastProductUpdate(productIds, action, userId);
   } catch {
     // ignore broadcast failures
   }

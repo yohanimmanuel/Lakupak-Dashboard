@@ -16,7 +16,7 @@ export type DashboardModuleTourId = Exclude<DashboardTourId, 'shell'>;
 export const MODULE_TOUR_HOME_PATH: Record<DashboardModuleTourId, string> = {
   orders: '/orders',
   products: '/products/list',
-  offers: '/offers',
+  offers: '/offers/rates',
   marketplace: '/marketplace',
   automation: '/automation',
 };

@@ -69,18 +69,34 @@ export const DASHBOARD_SEARCH_CATALOG: DashboardSearchEntry[] = [
   {
     id: 'offers',
     title: 'Offers',
-    description: 'Discounts and promotions',
+    description: 'Rates and storefront campaigns',
     section: 'Main',
     href: '/offers',
-    keywords: ['promotion', 'discount', 'penawaran'],
+    keywords: ['promotion', 'discount', 'penawaran', 'overview'],
+  },
+  {
+    id: 'offers-rates',
+    title: 'Client rates',
+    description: 'Discounts and promotions for buyers',
+    section: 'Offers',
+    href: '/offers/rates',
+    keywords: ['rate', 'tarif', 'discount', 'promotion'],
   },
   {
     id: 'offers-new',
     title: 'Create offer',
     description: 'New discount or promotion',
     section: 'Offers',
-    href: '/offers/new',
+    href: '/offers/rates/new',
     keywords: ['add', 'promo'],
+  },
+  {
+    id: 'offers-campaign',
+    title: 'Offer campaigns',
+    description: 'Storefront sale banners',
+    section: 'Offers',
+    href: '/offers/campaign',
+    keywords: ['banner', 'campaign', 'homepage', 'kampanye'],
   },
   // MVP pause: sales / analytics / automation / marketplace search entries
   // {

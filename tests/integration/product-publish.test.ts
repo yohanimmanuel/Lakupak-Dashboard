@@ -184,7 +184,7 @@ describe('products.publishMarketplaceProduct (integration)', () => {
 
     await publishMarketplaceProduct({ userId: distributor.id, productId, action: 'publish' });
 
-    expect(productUpdateSpy).toHaveBeenCalledWith([productId], 'publish');
+    expect(productUpdateSpy).toHaveBeenCalledWith([productId], 'publish', distributor.id);
     // A status change leaves prices untouched, and a second broadcast would make clients
     // run the same refetch twice.
     expect(priceUpdateSpy).not.toHaveBeenCalled();

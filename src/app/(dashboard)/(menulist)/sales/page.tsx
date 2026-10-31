@@ -16,7 +16,7 @@ import SalesConversionTable from '@/components/dashboard/SalesConversionTable';
 
 const TIP_CONFIG = [
   { id: 'new-customers', icon: UserPlus, actionLink: '/clients' },
-  { id: 'promotions', icon: Gift, actionLink: '/offers' },
+  { id: 'promotions', icon: Gift, actionLink: '/offers/rates' },
   { id: 'sales-jobs', icon: Briefcase, actionLink: '/sales/jobs' },
 ] as const;
 

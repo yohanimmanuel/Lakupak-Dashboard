@@ -1,142 +1,219 @@
 'use client';
 
-import { SkeletonTablePage } from '@/components/skeleton/SkeletonTablePage';
-import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, RefreshCcw } from 'lucide-react';
-import OfferStatCards from '@/components/offersincentivesdisc/OfferStatCards';
-import OfferTable from '@/components/offersincentivesdisc/OfferTable';
-import { useRouter } from 'next/navigation';
-import { Offer } from '@/types/offer';
-import { useUserStore } from '@/store/userStore';
-import { fetchGraphQL } from '@/lib/graphqlClient';
-import { usePendingDashboardTourStart } from '@/hooks/usePendingDashboardTourStart';
+import React, { useMemo, useState } from 'react';
+import Link from 'next/link';
+import { ArrowRight, Gift, Megaphone, X } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useOffersTranslations } from '@/hooks/useOffersTranslations';
 
-const OFFERS_QUERY = `
-  query GetOffers($userId: Int!, $page: Int, $limit: Int, $status: String) {
-    offers(userId: $userId, page: $page, limit: $limit, status: $status) {
-      nodes {
-        id
-        offerId
-        groupId
-        buyerId
-        buyerStoreName
-        buyerOwner
-        productId
-        productName
-        categoryId
-        categoryLabel
-        variantOptionId
-        variantName
-        discountType
-        discountValue
-        buyQuantity
-        freeQuantity
-        startDate
-        endDate
-        status
-        notes
-        description
-        totalUsage
-        totalDiscountGiven
-        createdAt
-        updatedAt
-      }
-      pagination {
-        totalCount
-        totalPages
-        page
-        limit
-      }
-    }
-  }
-`;
+const TIP_CONFIG = [
+  { id: 'review-rates', icon: Gift, actionLink: '/offers/rates' },
+  { id: 'publish-campaign', icon: Megaphone, actionLink: '/offers/campaign' },
+] as const;
 
-export default function OffersPage() {
-  const router = useRouter();
-  const { user } = useUserStore();
-  const { tList } = useOffersTranslations();
-  const [offers, setOffers] = useState<Offer[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [hasLoaded, setHasLoaded] = useState(false);
+type TipId = (typeof TIP_CONFIG)[number]['id'];
 
-  usePendingDashboardTourStart('offers', { ready: hasLoaded && !!user?.id });
+interface OfferTip {
+  id: TipId;
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  actionLabel: string;
+  actionLink: string;
+  mainPurpose?: string;
+  fullDetails?: string[];
+}
 
-  const fetchOffers = useCallback(async () => {
-    try {
-      setLoading(true);
-      if (!user?.id) {
-        setOffers([]);
-        return;
-      }
+const TOOL_CONFIG = [
+  { id: 'rates' as const, icon: Gift, link: '/offers/rates' },
+  { id: 'campaign' as const, icon: Megaphone, link: '/offers/campaign' },
+];
 
-      const pageSize = 100;
-      let page = 1;
-      let totalPages = 1;
-      const all: Offer[] = [];
+export default function OffersHubPage() {
+  const { tHub } = useOffersTranslations();
+  const [dismissedTips, setDismissedTips] = useState<Set<string>>(new Set());
+  const [selectedTip, setSelectedTip] = useState<OfferTip | null>(null);
 
-      do {
-        const data = await fetchGraphQL<{
-          offers: {
-            nodes: Offer[];
-            pagination: { totalPages?: number };
-          };
-        }>(OFFERS_QUERY, { userId: user.id, page, limit: pageSize });
+  const highPriorityTips: OfferTip[] = useMemo(
+    () =>
+      TIP_CONFIG.map(({ id, icon, actionLink }) => {
+        const details: string[] = [];
+        for (let i = 0; i < 10; i++) {
+          const key = `tipsList.${id}.details.${i}` as const;
+          if (!tHub.has(key)) break;
+          details.push(tHub(key));
+        }
+        return {
+          id,
+          icon,
+          actionLink,
+          title: tHub(`tipsList.${id}.title`),
+          description: tHub(`tipsList.${id}.description`),
+          actionLabel: tHub(`tipsList.${id}.actionLabel`),
+          mainPurpose: tHub(`tipsList.${id}.mainPurpose`),
+          fullDetails: details.length > 0 ? details : undefined,
+        };
+      }),
+    [tHub],
+  );
 
-        all.push(...(data.offers?.nodes ?? []));
-        totalPages = Math.max(1, data.offers?.pagination?.totalPages ?? 1);
-        page += 1;
-      } while (page <= totalPages);
+  const offerTools = useMemo(
+    () =>
+      TOOL_CONFIG.map(({ id, icon, link }) => ({
+        id,
+        icon,
+        link,
+        name: tHub(`toolsList.${id}.name`),
+        description: tHub(`toolsList.${id}.description`),
+      })),
+    [tHub],
+  );
 
-      setOffers(all);
-    } catch (error) {
-      console.error('Failed to fetch offers:', error);
-      setOffers([]);
-    } finally {
-      setLoading(false);
-      setHasLoaded(true);
-    }
-  }, [user?.id]);
-
-  useEffect(() => {
-    fetchOffers();
-  }, [fetchOffers]);
-
-  if (loading && !hasLoaded) {
-    return <SkeletonTablePage />;
-  }
+  const visibleTips = highPriorityTips.filter((tip) => !dismissedTips.has(tip.id));
 
   return (
     <div className="flex min-h-full w-full min-w-0 flex-col bg-gradient-to-b from-gray-50 to-white p-4">
-      <div className="mb-4 flex min-w-0 flex-col gap-4 @5xl/main:flex-row @5xl/main:items-center @5xl/main:justify-between">
-        <h1 className="min-w-0 truncate text-2xl font-bold text-gray-900">{tList('title')}</h1>
-        <div className="flex w-full min-w-0 flex-col gap-2 @4xl/main:flex-row @4xl/main:flex-wrap @4xl/main:items-center @5xl/main:w-auto">
-          <button
-            type="button"
-            onClick={() => fetchOffers()}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-gray-50 @4xl/main:w-auto"
-          >
-            <RefreshCcw className="h-4 w-4" />
-            {tList('refresh')}
-          </button>
-          <button
-            type="button"
-            onClick={() => router.push('/offers/new')}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-6 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#0851b8] @4xl/main:w-auto"
-          >
-            <Plus className="h-4 w-4" />
-            {tList('createOffer')}
-          </button>
-        </div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-black mb-2">{tHub('title')}</h1>
       </div>
 
-      <OfferStatCards offers={offers} />
+      {visibleTips.length > 0 && (
+        <section className="mb-8">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-black">{tHub('tips')}</h2>
+          </div>
+          <div className="grid grid-cols-1 gap-4 @3xl/main:grid-cols-2 @5xl/main:grid-cols-3">
+            {visibleTips.map((tip) => {
+              const IconComponent = tip.icon;
+              return (
+                <div key={tip.id} className="relative rounded-lg border border-[#e6e6e6] bg-blue-50 p-4">
+                  <button
+                    type="button"
+                    onClick={() => setDismissedTips((prev) => new Set(prev).add(tip.id))}
+                    className="absolute top-3 right-3 p-1 hover:bg-blue-100 rounded-full transition-colors"
+                    aria-label={tHub('dismissTip')}
+                  >
+                    <X className="w-4 h-4 text-gray-400" />
+                  </button>
+                  <div className="flex items-start gap-3 pr-6">
+                    <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-[#0a61d7]">
+                      <IconComponent className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedTip(tip)}
+                        className="text-sm font-semibold text-black mb-1 hover:text-[#0a61d7] transition-colors text-left"
+                      >
+                        {tip.title}
+                      </button>
+                      <p className="text-xs text-gray-600 mb-3">{tip.description}</p>
+                      <Link
+                        href={tip.actionLink}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6] transition-colors"
+                      >
+                        {tip.actionLabel}
+                        <ArrowRight className="w-3 h-3" />
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
-      <OfferTable
-        offers={offers}
-        setOffersAction={setOffers}
-        onRefreshAction={fetchOffers}
-      />
+      <section>
+        <h2 className="text-lg font-semibold text-black mb-4">{tHub('tools')}</h2>
+        <div className="grid grid-cols-1 gap-4 @3xl/main:grid-cols-2 @5xl/main:grid-cols-3">
+          {offerTools.map((tool) => {
+            const IconComponent = tool.icon;
+            return (
+              <Link
+                key={tool.id}
+                href={tool.link}
+                className="group rounded-lg border border-[#e6e6e6] bg-white p-6 transition-all hover:border-[#0a61d7]"
+              >
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-12 h-12 rounded-lg bg-[#f7faff] flex items-center justify-center text-[#0a61d7] mb-4 group-hover:bg-[#0a61d7] group-hover:text-white transition-colors">
+                    <IconComponent className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-base font-semibold text-black mb-2">{tool.name}</h3>
+                  <p className="text-sm text-gray-600">{tool.description}</p>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
+      {selectedTip && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSelectedTip(null);
+          }}
+        >
+          <div className="bg-white rounded-lg border border-[#e6e6e6] w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-white border-b border-[#e6e6e6] p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-[#0a61d7]">
+                  {(() => {
+                    const IconComponent = selectedTip.icon;
+                    return <IconComponent className="w-5 h-5" />;
+                  })()}
+                </div>
+                <h2 className="text-xl font-bold text-black">{selectedTip.title}</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedTip(null)}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                aria-label={tHub('closeModal')}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="space-y-6">
+                {selectedTip.mainPurpose && (
+                  <div>
+                    <h3 className="text-base font-semibold text-black mb-2">{tHub('mainPurpose')}</h3>
+                    <p className="text-sm text-gray-600 leading-relaxed">{selectedTip.mainPurpose}</p>
+                  </div>
+                )}
+
+                {selectedTip.fullDetails && selectedTip.fullDetails.length > 0 && (
+                  <div>
+                    <h3 className="text-base font-semibold text-black mb-3">{tHub('details')}</h3>
+                    <ul className="space-y-2">
+                      {selectedTip.fullDetails.map((detail, index) => (
+                        <li key={index} className="flex items-start gap-3">
+                          <span className="text-[#0a61d7] flex-shrink-0 mt-0.5">•</span>
+                          <span className="text-sm text-gray-600 leading-relaxed flex-1">{detail}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="pt-4 border-t border-[#e6e6e6]">
+                  <Link
+                    href={selectedTip.actionLink}
+                    onClick={() => setSelectedTip(null)}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-[#0a61d7] text-white rounded-lg hover:bg-[#084ba6] transition-colors text-sm font-semibold"
+                  >
+                    {selectedTip.actionLabel}
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

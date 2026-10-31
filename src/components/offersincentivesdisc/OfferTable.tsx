@@ -1067,7 +1067,7 @@ export default function OfferTable({
                           title={tTable('editOffer')}
                       onClick={(e) => {
                         e.stopPropagation();
-                            router.push(`/offers/details?id=${offer.id}`);
+                            router.push(`/offers/rates/details?id=${offer.id}`);
                       }}
                     >
                       <Edit className="w-4 h-4 text-gray-500" />
@@ -1173,7 +1173,7 @@ export default function OfferTable({
                       className="inline-flex items-center justify-center rounded-lg p-2 hover:bg-gray-100"
                       onClick={(e) => {
                         e.stopPropagation();
-                        router.push(`/offers/details?id=${offer.id}`);
+                        router.push(`/offers/rates/details?id=${offer.id}`);
                       }}
                     >
                       <Edit className="w-4 h-4 text-gray-500" />

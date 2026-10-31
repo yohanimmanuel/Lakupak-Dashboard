@@ -1,9 +1,8 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Check, ChevronDown, ImagePlus, Upload } from 'lucide-react';
+import { ArrowLeft, Check, CheckCircle, ChevronDown, ImagePlus, Save, Trash2, Upload, X } from 'lucide-react';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { OFFER_ICON_OPTIONS } from '@/utils/marketplaceHomeOfferIcons';
 import { OfferPreviewIcon } from '@/utils/offerPreviewIcons';
@@ -62,8 +61,10 @@ type Props = {
   initial?: Partial<OfferFormValues> | null;
   pageTitle: string;
   pageDescription?: string;
-  /** Defaults to `/admin/offers`. */
+  /** Defaults to `/offers/campaign`. */
   backHref?: string;
+  /** Defaults to `/api/offers/campaigns`. */
+  apiBase?: string;
 };
 
 export default function OfferEditorForm({
@@ -72,7 +73,8 @@ export default function OfferEditorForm({
   initial,
   pageTitle,
   pageDescription,
-  backHref = '/admin/offers',
+  backHref = '/offers/campaign',
+  apiBase = '/api/offers/campaigns',
 }: Props) {
   const router = useRouter();
   const [values, setValues] = useState<OfferFormValues>(() => ({
@@ -80,6 +82,7 @@ export default function OfferEditorForm({
     ...(initial ?? {}),
   }));
   const [saving, setSaving] = useState(false);
+  const [saveMode, setSaveMode] = useState<null | 'draft' | 'publish'>(null);
   const [deleting, setDeleting] = useState(false);
   const [openMenu, setOpenMenu] = useState<null | 'right' | 'discount'>(null);
   const rightMenuRef = useRef<HTMLDivElement>(null);
@@ -125,16 +128,17 @@ export default function OfferEditorForm({
     isPublished: values.isPublished,
   });
 
-  const save = async () => {
+  const save = async (publish: boolean) => {
     if (values.title.trim().length < 2) {
       alert('Title is required (at least 2 characters).');
       return;
     }
     setSaving(true);
+    setSaveMode(publish ? 'publish' : 'draft');
     try {
-      const body = payload();
+      const body = { ...payload(), isPublished: publish };
       if (mode === 'create') {
-        const r = await fetch('/api/platform-admin/offers', {
+        const r = await fetch(apiBase, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
@@ -145,7 +149,7 @@ export default function OfferEditorForm({
           return;
         }
       } else if (offerId != null) {
-        const r = await fetch(`/api/platform-admin/offers/${offerId}`, {
+        const r = await fetch(`${apiBase}/${offerId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
@@ -156,24 +160,25 @@ export default function OfferEditorForm({
           return;
         }
       }
-      router.push('/admin/offers');
+      router.push(backHref);
       router.refresh();
     } finally {
       setSaving(false);
+      setSaveMode(null);
     }
   };
 
   const remove = async () => {
     if (mode !== 'edit' || offerId == null) return;
-    if (!confirm('Delete this offer? The home banner will update for all users.')) return;
+    if (!confirm('Delete this banner? It will leave your Marketplace storefront.')) return;
     setDeleting(true);
     try {
-      const r = await fetch(`/api/platform-admin/offers/${offerId}`, { method: 'DELETE' });
+      const r = await fetch(`${apiBase}/${offerId}`, { method: 'DELETE' });
       if (!r.ok) {
         alert('Failed to delete');
         return;
       }
-      router.push('/admin/offers');
+      router.push(backHref);
       router.refresh();
     } finally {
       setDeleting(false);
@@ -252,26 +257,96 @@ export default function OfferEditorForm({
   };
 
   return (
-    <div className="w-full mx-auto max-w-8xl bg-white rounded-lg border border-[#e6e6e6]">
-      {/* Header — back + title only; actions are in the footer */}
-      <div className="flex items-center gap-4 min-w-0 flex-wrap p-4 border-b border-[#e6e6e6]">
-        <Link
-          href={backHref}
-          className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors shrink-0 text-sm"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to offers
-        </Link>
-        <h1 className="text-2xl font-bold text-gray-900 truncate">{pageTitle}</h1>
+    <div className="flex min-h-full w-full min-w-0 flex-col bg-gradient-to-b from-gray-50 to-white p-4">
+      <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6]">
+      <div className="flex flex-col gap-3 border-b border-[#e6e6e6] p-4 @5xl/main:flex-row @5xl/main:items-center @5xl/main:justify-between">
+        <div className="flex min-w-0 flex-col gap-3 @3xl/main:flex-row @3xl/main:items-center">
+          <button
+            type="button"
+            onClick={() => router.push(backHref)}
+            className="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800 @3xl/main:w-auto @3xl/main:justify-start"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to campaign
+          </button>
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
+            <h1 className="truncate text-2xl font-bold text-gray-900">{pageTitle}</h1>
+          </div>
+        </div>
+        <div className="flex w-full min-w-0 flex-col gap-2 @4xl/main:flex-row @4xl/main:flex-wrap @4xl/main:items-center @5xl/main:w-auto">
+          <button
+            type="button"
+            onClick={() => router.push(backHref)}
+            disabled={saving || deleting}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-black disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
+          >
+            <X className="h-4 w-4" />
+            Cancel
+          </button>
+          {mode === 'edit' && offerId != null ? (
+            <button
+              type="button"
+              onClick={() => void remove()}
+              disabled={deleting || saving}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
+            >
+              {deleting ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                  Deleting…
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4" />
+                  Delete offer
+                </>
+              )}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => void save(false)}
+            disabled={saving || deleting}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-gray-600 px-4 py-2 font-medium text-white transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
+          >
+            {saveMode === 'draft' ? (
+              <>
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                Saving…
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4" />
+                Save draft
+              </>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => void save(true)}
+            disabled={saving || deleting}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 font-semibold text-white transition-colors hover:bg-[#084ba6] disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
+          >
+            {saveMode === 'publish' ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Saving…
+              </>
+            ) : (
+              <>
+                <CheckCircle className="w-4 h-4" />
+                Save and publish
+              </>
+            )}
+          </button>
+        </div>
       </div>
-
       {pageDescription ? (
         <div className="px-4 py-3 bg-gray-50 border-b border-[#e6e6e6]">
           <p className="text-sm text-gray-600">{pageDescription}</p>
         </div>
       ) : null}
-
-      <div className="p-4 space-y-8">
+      <div className="space-y-8 p-4">
       <section className="space-y-4">
         <div>
           <h2 className="text-sm font-semibold text-gray-900">Banner copy</h2>
@@ -359,10 +434,10 @@ export default function OfferEditorForm({
                 type="button"
                 onClick={() => customBannerFileRef.current?.click()}
                 disabled={uploadingCustomBanner}
-                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#0a61d7] text-white text-xs font-medium hover:bg-[#084ba6] disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-lg bg-[#0a61d7] px-3 py-2 text-xs font-medium text-white hover:bg-[#084ba6] disabled:opacity-50"
               >
-                <Upload className="w-4 h-4" />
-                {uploadingCustomBanner ? 'Uploading…' : 'Upload'}
+                <Upload className="h-4 w-4" />
+                {uploadingCustomBanner ? 'Uploading…' : 'Upload image'}
               </button>
               <input
                 ref={customBannerFileRef}
@@ -511,7 +586,7 @@ export default function OfferEditorForm({
       </section>
 
       <section className="space-y-4 border-t border-[#e6e6e6] pt-8">
-        <h2 className="text-sm font-semibold text-gray-900">Publishing &amp; detail page</h2>
+        <h2 className="text-sm font-semibold text-gray-900">Detail page</h2>
 
         <label className="block space-y-1">
           <span className="text-xs font-medium text-gray-700">Sort order (lower = chosen first)</span>
@@ -534,56 +609,8 @@ export default function OfferEditorForm({
           />
         </label>
 
-        <button
-          type="button"
-          onClick={() => set('isPublished')(!values.isPublished)}
-          className="w-full flex items-center justify-between gap-3 border border-gray-200 rounded-lg px-4 py-3 hover:bg-gray-50 text-left"
-        >
-          <div>
-            <p className="text-sm font-semibold text-gray-900">Published</p>
-            <p className="text-xs text-gray-600 mt-0.5">
-              When on, this offer can appear on Marketplace home (first by sort order wins).
-            </p>
-          </div>
-          <div
-            className={`w-5 h-5 border-2 rounded flex items-center justify-center shrink-0 transition-all ${
-              values.isPublished ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300'
-            }`}
-            aria-hidden="true"
-          >
-            {values.isPublished ? <Check className="w-4 h-4 text-white" /> : null}
-          </div>
-        </button>
       </section>
       </div>
-
-      <div className="flex flex-wrap items-center justify-end gap-2 p-4 bg-white">
-        <button
-          type="button"
-          disabled={saving}
-          onClick={() => router.push(backHref)}
-          className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-black hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 border border-gray-300 text-sm font-medium bg-white"
-        >
-          Cancel
-        </button>
-        {mode === 'edit' && offerId != null ? (
-          <button
-            type="button"
-            disabled={deleting || saving}
-            onClick={() => void remove()}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-200 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 bg-white"
-          >
-            {deleting ? 'Deleting…' : 'Delete offer'}
-          </button>
-        ) : null}
-        <button
-          type="button"
-          disabled={saving || deleting}
-          onClick={() => void save()}
-          className="flex items-center gap-2 px-4 py-2 font-semibold bg-[#0a61d7] text-white rounded-lg hover:bg-[#0851b8] transition-colors disabled:opacity-50 text-sm"
-        >
-          {saving ? 'Saving…' : mode === 'create' ? 'Create offer' : 'Save changes'}
-        </button>
       </div>
     </div>
   );

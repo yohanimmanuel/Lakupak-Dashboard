@@ -40,6 +40,8 @@ const NAV_LABEL_KEYS: Record<string, string> = {
   Opportunities: 'opportunities',
   Orders: 'orders',
   Offers: 'offers',
+  Rates: 'rates',
+  Campaign: 'campaign',
   Team: 'team',
   Jobs: 'jobs',
   Prospect: 'prospects',
@@ -90,7 +92,15 @@ const mainMenuItems = [
     ],
   },
   { label: 'Orders', href: '/orders', icon: <FileTextIcon className="w-5 h-5" /> },
-  { label: 'Offers', href: '/offers', icon: <GiftIcon className="w-5 h-5" /> },
+  {
+    label: 'Offers',
+    href: '/offers',
+    icon: <GiftIcon className="w-5 h-5" />,
+    submenu: [
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Rates', href: '/offers/rates' },
+      { icon: <ListIcon className="w-5 h-5" />, label: 'Campaign', href: '/offers/campaign' },
+    ],
+  },
   // MVP pause: sales + analytics nav
   // {
   //   label: 'Sales',

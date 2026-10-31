@@ -63,6 +63,7 @@ model User {
   salesJobSettings SalesJobSettings?
   clientMatchCandidates ClientMatchCandidate[]
   aiConversations AiConversation[]
+  marketplaceHomeOffers MarketplaceHomeOffer[]
 
   @@index([companyId])
   @@index([accountStatus])
@@ -1274,7 +1275,7 @@ model PlatformAnnouncement {
   @@index([category])
 }
 
-/// Homepage “Special Offers” sale banner (platform admin → Marketplace home).
+/// Homepage sale banner for one distributor storefront.
 model MarketplaceHomeOffer {
   id              Int       @id @default(autoincrement())
   title           String
@@ -1302,8 +1303,12 @@ model MarketplaceHomeOffer {
 
   createdByAdminId Int?
   createdByAdmin   PlatformAdmin? @relation(fields: [createdByAdminId], references: [id], onDelete: SetNull)
+  /// Distributor who owns this banner. Null rows are leftover platform-wide banners and are not shown.
+  userId           Int?
+  user             User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([isPublished, sortOrder, publishedAt])
+  @@index([userId, isPublished, sortOrder])
 }
 
 /// Distributor automation workflow (trigger → Laku Agent → action). Execution engine is Phase 2.

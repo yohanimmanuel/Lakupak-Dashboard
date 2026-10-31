@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, ChartArea, Search, Tag, UserRound, Users } from 'lucide-react';
+import { ArrowRight, ChartArea, Search, UserRound, Users } from 'lucide-react';
 import {
   CartesianGrid,
   Line,
@@ -13,8 +13,6 @@ import {
   YAxis,
 } from 'recharts';
 import AdminLatestUpdatesCard from '@/components/adminstuffs/AdminLatestUpdatesCard';
-import { MarketplaceHomeOfferRowPreview } from '@/components/adminstuffs/MarketplaceHomeOfferRowPreview';
-
 export type PlatformAdminHomeMetrics = {
   totalAdmins: number;
   activeAdmins: number;
@@ -69,20 +67,6 @@ function sourceBadgeClass(source: PlatformUserSource) {
 }
 
 type AdminRow = { id: number; email: string; name: string | null; isActive: boolean };
-type OfferRow = {
-  id: number;
-  title: string;
-  subtitle: string;
-  discountText: string;
-  backgroundColor: string;
-  textColor: string;
-  bannerImageUrl: string | null;
-  customBannerImageUrl: string | null;
-  rightIconKey: string;
-  discountIconKey: string;
-  isPublished: boolean;
-  sortOrder: number;
-};
 type SearchQueryRow = { query: string; searches: number; zeroRate: number; avgResults: number };
 
 type AnalyticsOverviewPayload = {
@@ -385,70 +369,6 @@ function AdminsPreviewCard({ metrics }: { metrics: PlatformAdminHomeMetrics | nu
   );
 }
 
-function OffersPreviewCard({ metrics }: { metrics: PlatformAdminHomeMetrics | null }) {
-  const [items, setItems] = useState<OfferRow[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch('/api/platform-admin/offers?limit=5&offset=0')
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((d) => setItems((d?.offers ?? []) as OfferRow[]))
-      .catch(() => setItems([]))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const subtitle = metrics
-    ? `${fmt(metrics.publishedHomeOffers)} live · ${fmt(metrics.draftHomeOffers)} draft`
-    : 'Home banners and special-offer cards buyers see on the marketplace.';
-
-  return (
-    <SectionShell
-      href="/admin/offers"
-      title="Offers"
-      subtitle={subtitle}
-      icon={<Tag className="w-5 h-5 text-[#0a61d7]" />}
-      contentClassName="overflow-hidden"
-    >
-      {loading ? (
-        <div className="p-4 py-8 text-sm text-gray-600 text-center">Loading…</div>
-      ) : items.length === 0 ? (
-        <div className="p-4 py-8 text-sm text-gray-600 text-center">No offers yet.</div>
-      ) : (
-        <div className="space-y-2 bg-white">
-          {items.map((o) => (
-            <div
-              key={o.id}
-              className="rounded-lg border border-gray-200 px-3 py-3 hover:bg-gray-50/70 flex items-center gap-3"
-            >
-              <MarketplaceHomeOfferRowPreview row={o} />
-
-              <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{o.title}</p>
-                    {o.subtitle?.trim() ? <p className="text-xs text-gray-500 truncate">{o.subtitle}</p> : null}
-                  </div>
-
-                  <div className="shrink-0 flex items-center gap-2">
-                    <span
-                      className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${
-                        o.isPublished ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600'
-                      }`}
-                    >
-                      {o.isPublished ? 'Live' : 'Draft'}
-                    </span>
-                    <span className="text-[11px] font-semibold text-gray-600 whitespace-nowrap">#{o.sortOrder}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </SectionShell>
-  );
-}
-
 function SearchLogsPreviewCard({ metrics }: { metrics: PlatformAdminHomeMetrics | null }) {
   const [items, setItems] = useState<SearchQueryRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -515,7 +435,7 @@ export default function PlatformAdminHomeDashboard({ metrics }: { metrics: Platf
         <p className="text-sm text-gray-600 mt-1">Quick snapshots + simple previews. Use Manage to open full tools.</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
         <div className="bg-white border border-[#e6e6e6] rounded-xl p-4">
           <p className="text-xs text-gray-600">Active admins</p>
           <p className="text-2xl font-bold text-gray-900 mt-0.5">{m ? fmt(m.activeAdmins) : '—'}</p>
@@ -531,11 +451,6 @@ export default function PlatformAdminHomeDashboard({ metrics }: { metrics: Platf
           <p className="text-2xl font-bold text-gray-900 mt-0.5">{m ? fmt(m.publishedAnnouncements) : '—'}</p>
           <p className="text-xs text-gray-500 mt-1">{m ? `${fmt(m.draftAnnouncements)} draft` : 'Published in app'}</p>
         </div>
-        <div className="bg-white border border-[#e6e6e6] rounded-xl p-4">
-          <p className="text-xs text-gray-600">Home offers</p>
-          <p className="text-2xl font-bold text-gray-900 mt-0.5">{m ? fmt(m.publishedHomeOffers) : '—'}</p>
-          <p className="text-xs text-gray-500 mt-1">{m ? `${fmt(m.draftHomeOffers)} draft` : 'Published on home'}</p>
-        </div>
       </div>
 
       <div>
@@ -544,7 +459,6 @@ export default function PlatformAdminHomeDashboard({ metrics }: { metrics: Platf
           <UsersPreviewCard metrics={m} />
           <AdminsPreviewCard metrics={m} />
           <AdminLatestUpdatesCard />
-          <OffersPreviewCard metrics={m} />
           <SearchLogsPreviewCard metrics={m} />
           <AnalyticsPreviewCard />
         </div>

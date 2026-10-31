@@ -21,6 +21,9 @@ export async function GET(req: NextRequest) {
   try {
     const limit = parseLimit(req);
     const { searchParams } = new URL(req.url);
+    const distributorRaw = searchParams.get('distributorId');
+    const distributorId = distributorRaw ? Number(distributorRaw) : NaN;
+    const storefrontId = Number.isInteger(distributorId) && distributorId > 0 ? distributorId : null;
     const categoryRaw = searchParams.get('category');
     const category =
       typeof categoryRaw === 'string' && categoryRaw.trim().length > 0 ? categoryRaw.trim() : null;
@@ -65,7 +68,7 @@ export async function GET(req: NextRequest) {
       }),
       includeHomeOffers
         ? prisma.marketplaceHomeOffer.findMany({
-            where: { isPublished: true },
+            where: storefrontId ? { isPublished: true, userId: storefrontId } : { id: -1 },
             orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
             take: limit,
             select: offerSelect,

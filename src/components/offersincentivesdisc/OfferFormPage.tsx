@@ -524,7 +524,7 @@ export function OfferFormPage({ mode }: { mode: 'create' | 'edit' }) {
         status: formData.status === 'active' ? 'active' : 'draft',
         allowIncomplete: false,
       });
-      router.push('/offers');
+      router.push('/offers/rates');
     } catch (err) {
       setError(err instanceof Error ? err.message : tCreatePage('saveFailed'));
     } finally {
@@ -538,7 +538,7 @@ export function OfferFormPage({ mode }: { mode: 'create' | 'edit' }) {
     setError('');
     try {
       await persistOffers({ status: 'draft', allowIncomplete: true });
-      router.push('/offers');
+      router.push('/offers/rates');
     } catch (err) {
       setError(err instanceof Error ? err.message : tCreatePage('saveFailed'));
     } finally {
@@ -575,7 +575,7 @@ export function OfferFormPage({ mode }: { mode: 'create' | 'edit' }) {
         <div className="flex min-w-0 flex-col gap-3 @3xl/main:flex-row @3xl/main:items-start">
           <button
             type="button"
-            onClick={() => router.push('/offers')}
+            onClick={() => router.push('/offers/rates')}
             className="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800 @3xl/main:w-auto @3xl/main:justify-start"
           >
             <ArrowLeft className="h-4 w-4" />
