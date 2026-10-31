@@ -82,6 +82,7 @@ export default function OfferEditorForm({
     ...(initial ?? {}),
   }));
   const [saving, setSaving] = useState(false);
+  const [titleError, setTitleError] = useState<string | null>(null);
   const [saveMode, setSaveMode] = useState<null | 'draft' | 'publish'>(null);
   const [deleting, setDeleting] = useState(false);
   const [openMenu, setOpenMenu] = useState<null | 'right' | 'discount'>(null);
@@ -129,10 +130,12 @@ export default function OfferEditorForm({
   });
 
   const save = async (publish: boolean) => {
-    if (values.title.trim().length < 2) {
-      alert('Title is required (at least 2 characters).');
+    const title = values.title.trim();
+    if (title.length < 2) {
+      setTitleError(title.length === 0 ? 'Title is required' : 'Title must be at least 2 characters');
       return;
     }
+    setTitleError(null);
     setSaving(true);
     setSaveMode(publish ? 'publish' : 'draft');
     try {
@@ -357,13 +360,24 @@ export default function OfferEditorForm({
         </div>
 
         <label className="block space-y-1">
-          <span className="text-xs font-medium text-gray-700">Title *</span>
+          <span className="text-xs font-medium text-gray-700">
+            Title<span className="text-red-500 ml-1">*</span>
+          </span>
           <input
-            className={inputClass}
+            className={
+              titleError
+                ? 'w-full border border-red-300 rounded-lg px-3 py-2 text-xs text-black outline-none focus:ring-2 focus:ring-red-500 bg-red-50'
+                : inputClass
+            }
             value={values.title}
-            onChange={(e) => set('title')(e.target.value)}
+            onChange={(e) => {
+              set('title')(e.target.value);
+              if (titleError) setTitleError(null);
+            }}
             placeholder="e.g. Weekend stock-up sale"
+            aria-invalid={titleError ? true : undefined}
           />
+          {titleError ? <p className="text-red-500 text-xs mt-1">{titleError}</p> : null}
         </label>
 
         <label className="block space-y-1">
