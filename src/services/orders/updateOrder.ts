@@ -855,8 +855,17 @@ export async function updateOrderHandler(request: NextRequest) {
             });
 
             if (deductResult.count === 0) {
+              const currentStock = await tx.variantOption.findUnique({
+                where: { id: (variantToDeduct as { id: number }).id },
+                select: { stockQuantity: true },
+              });
+              const available = currentStock?.stockQuantity ?? previousStock;
+              const variantName = (variantToDeduct as { variantName?: string }).variantName;
+              const productLabel = variantName
+                ? `${productForDeduct.name} (${variantName})`
+                : productForDeduct.name;
               throw new Error(
-                `Insufficient stock for product ${orderItem.productId}. Required: ${totalQtyToDeduct} pieces.`,
+                `Insufficient stock for ${productLabel}. Required: ${totalQtyToDeduct} pieces, available: ${available}.`,
               );
             }
 

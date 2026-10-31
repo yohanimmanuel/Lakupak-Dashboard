@@ -4,7 +4,7 @@ import type { Prisma } from '@/lib/db';
 import { getOrderSecurityHeaders } from '@/utils/order-security';
 import { orderQueryRateLimiter } from '@/utils/rateLimiter';
 import { decimalToNumber, isPricingNotifyAllowed } from './utils';
-import { syncOrderItemPricingFromCatalog } from './resolvePendingOrderItemPricing';
+import { loadPendingOrderPricePreviews, syncOrderItemPricingFromCatalog } from './resolvePendingOrderItemPricing';
 
 export async function getOrdersHandler(request: NextRequest) {
   const headers = getOrderSecurityHeaders();
@@ -219,34 +219,7 @@ export async function getOrdersHandler(request: NextRequest) {
 
     // Same live preview as order details: activating or deactivating a rate
     // updates this list response only. Send pricing is still the only write.
-    const previewByOrderId = new Map<
-      string,
-      NonNullable<Awaited<ReturnType<typeof syncOrderItemPricingFromCatalog>>>
-    >();
-    const pendingForPreview = orders.filter(
-      (order) => order.orderStatus === 'Pending' && order.userId != null,
-    );
-    const previewConcurrency = 8;
-    for (let i = 0; i < pendingForPreview.length; i += previewConcurrency) {
-      const chunk = pendingForPreview.slice(i, i + previewConcurrency);
-      await Promise.all(
-        chunk.map(async (order) => {
-          const userId = order.userId;
-          if (userId == null) return;
-          try {
-            const preview = await syncOrderItemPricingFromCatalog({
-              orderId: order.orderId,
-              userId,
-              buyerId: order.buyerId,
-              persist: false,
-            });
-            if (preview) previewByOrderId.set(order.orderId, preview);
-          } catch (err) {
-            console.error('[getOrders] list price preview failed', order.orderId, err);
-          }
-        }),
-      );
-    }
+    const previewByOrderId = await loadPendingOrderPricePreviews(orders);
 
     const ordersWithParsedItems = orders.map((order: OrderListRow) => {
       const pricePreview = previewByOrderId.get(order.orderId) ?? null;

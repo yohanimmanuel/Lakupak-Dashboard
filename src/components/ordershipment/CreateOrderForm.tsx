@@ -343,6 +343,12 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const currency = user?.currency;
+
+  useEffect(() => {
+    if (!error) return;
+    const timer = window.setTimeout(() => setError(''), 10000);
+    return () => window.clearTimeout(timer);
+  }, [error]);
   const leadTimeTouched = useRef(false);
   const defaultLeadMin = leadTimeDays(user?.company?.defaultDeliveryLeadTimeMinDays);
   const defaultLeadMax = leadTimeDays(user?.company?.defaultDeliveryLeadTimeMaxDays);
@@ -635,6 +641,16 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
     }
   }
 
+  function messageFromOrderResponse(data: { code?: string; error?: string; detail?: string }): string {
+    const detail = typeof data.detail === 'string' ? data.detail.trim() : '';
+    if (detail) return detail;
+    if (data.code === 'insufficient_stock') {
+      const server = typeof data.error === 'string' ? data.error.trim() : '';
+      if (server) return server;
+    }
+    return errorText(data.code);
+  }
+
   async function uploadPod(file: File) {
     setPodFileName(file.name);
     try {
@@ -700,9 +716,9 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editing ? { ...payload, orderId, distributorEdit: true } : { ...payload, orderStatus, paymentStatus }),
       });
-      const data = (await response.json()) as { orderId?: string; code?: string };
+      const data = (await response.json()) as { orderId?: string; code?: string; error?: string; detail?: string };
       if (!response.ok || !data.orderId) {
-        setError(errorText(data.code));
+        setError(messageFromOrderResponse(data));
         return;
       }
       if (editing && orderStatus !== savedStatus) {
@@ -712,7 +728,12 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
           body: JSON.stringify({ orderId, orderStatus }),
         });
         if (!statusResponse.ok) {
-          setError(tCreate('errors.invalid'));
+          const statusData = (await statusResponse.json().catch(() => ({}))) as {
+            code?: string;
+            error?: string;
+            detail?: string;
+          };
+          setError(messageFromOrderResponse(statusData));
           return;
         }
       }
@@ -723,7 +744,12 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
           body: JSON.stringify({ orderId, paymentStatus }),
         });
         if (!paymentResponse.ok) {
-          setError(tCreate('errors.invalid'));
+          const paymentData = (await paymentResponse.json().catch(() => ({}))) as {
+            code?: string;
+            error?: string;
+            detail?: string;
+          };
+          setError(messageFromOrderResponse(paymentData));
           return;
         }
       }

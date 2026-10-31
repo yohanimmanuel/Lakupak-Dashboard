@@ -40,6 +40,7 @@ import { calculateSalesMetrics } from '@/components/analyticsperformance/Custome
 import { getProductTotalStock } from '@/utils/stockUtils';
 import { getDefaultCurrency, formatCompactCurrency } from '@/utils/currencyUtils';
 import { computeOrdersListGrowth } from '@/utils/monthOverMonthGrowth';
+import { sumOrderVolume } from '@/utils/orderCalculations';
 import type { Order, OrderItem } from '@/types/order';
 import type { Product } from '@/types/product';
 import type { Buyer, Supplier, SupplyDetail } from '@/types/client';
@@ -1621,6 +1622,7 @@ const supplierInsights = useMemo(() => {
   };
 
   const orderGrowth = useMemo(() => computeOrdersListGrowth(orders), [orders]);
+  const listedOrderVolume = useMemo(() => sumOrderVolume(orders), [orders]);
 
   const statCards = useMemo(() => {
     // Don't calculate if still loading to avoid showing 0 values
@@ -1628,14 +1630,17 @@ const supplierInsights = useMemo(() => {
       return [];
     }
     const totalOrderCount = aggregates?.totalOrders ?? orders.length;
-    const averageOrderVolume =
-      aggregates?.avgOrderValue ??
-      (totalOrderCount > 0 ? totalRevenue / totalOrderCount : 0);
+    const listCoversEveryOrder =
+      aggregates != null && orders.length === aggregates.totalOrders;
+    const orderVolume = listCoversEveryOrder
+      ? listedOrderVolume
+      : (aggregates?.totalRevenue ?? listedOrderVolume);
+    const averageOrderVolume = totalOrderCount > 0 ? orderVolume / totalOrderCount : 0;
     return [
       {
         id: 'orderVolume',
         title: t('stats.orderVolume'),
-        value: formatCurrency(totalRevenue, userCurrency),
+        value: formatCurrency(orderVolume, userCurrency),
         change: orderGrowth.orderVolumeGrowth,
         previousValue:
           orderGrowth.orderVolumePrevious != null
@@ -1683,10 +1688,9 @@ const supplierInsights = useMemo(() => {
     ];
   }, [
     loading,
-    aggregates?.totalOrders,
-    aggregates?.avgOrderValue,
+    aggregates,
     safeSalesMetrics.totalUnitsSold,
-    totalRevenue,
+    listedOrderVolume,
     userCurrency,
     orders.length,
     orderGrowth,

@@ -279,7 +279,12 @@ export default function OrdersTable({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ orderId, userId: user.id, [field]: value }),
               });
-              if (!res.ok) throw new Error(String(res.status));
+              if (!res.ok) {
+                const data = (await res.json().catch(() => ({}))) as { error?: string; detail?: string };
+                const detail = typeof data.detail === 'string' ? data.detail.trim() : '';
+                const reason = detail || (typeof data.error === 'string' ? data.error.trim() : '') || String(res.status);
+                throw new Error(`${orderId}: ${reason}`);
+              }
               return orderId;
             }),
           )),
@@ -311,7 +316,11 @@ export default function OrdersTable({
                 failed: failedCount,
               })
             : tTable('bulkActions.updateFailed', { count: failedCount });
-        alert(message);
+        const reasons = results
+          .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+          .map((result) => (result.reason instanceof Error ? result.reason.message.trim() : ''))
+          .filter((reason) => reason.length > 0 && !/^\d{3}$/.test(reason));
+        alert(reasons.length > 0 ? `${message}\n${reasons.join('\n')}` : message);
       }
     } catch {
       alert(tTable('bulkActions.updateFailed', { count: batchOrderIds.length }));

@@ -3,7 +3,7 @@ import React, { useMemo } from 'react';
 import { Package, DollarSign, CheckCircle } from 'lucide-react';
 import { Order } from '@/types/order';
 import { formatCurrency, formatCompactCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
-import { calculateOrderTotalAmount } from '@/utils/orderCalculations';
+import { sumOrderVolume } from '@/utils/orderCalculations';
 import { useUserStore } from '@/store/userStore';
 import { AnalyticsMetricCard } from '@/components/analyticsperformance/FinancialAnalytics';
 import { OperationalMetricCard } from '@/components/analyticsperformance/OperationalPerformanceAnalytics';
@@ -35,7 +35,7 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
   const completedOrders = validOrders.filter((o) => isCompletedOrder(o.orderStatus)).length;
   const completionRate = totalOrders > 0 ? (completedOrders / totalOrders) * 100 : 0;
 
-  const orderVolume = validOrders.reduce((sum, order) => sum + calculateOrderTotalAmount(order), 0);
+  const orderVolume = sumOrderVolume(validOrders);
   const averageOrderVolume = totalOrders > 0 ? orderVolume / totalOrders : 0;
 
   const growth = useMemo(() => computeOrdersListGrowth(validOrders), [validOrders]);

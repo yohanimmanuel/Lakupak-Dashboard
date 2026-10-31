@@ -3,6 +3,13 @@ import { fetchProductsConnection } from '../products';
 import { fetchBuyersConnection, fetchSuppliersConnection } from '../contacts';
 import { sanitizePagination } from '../common/utils';
 import { prisma } from '../common/prisma';
+import { calculateOrderTotalAmount } from '@/utils/orderCalculations';
+import type { Order } from '@/types/order';
+import { decimalToNumber } from '@/services/orders/utils';
+import {
+  loadPendingOrderPricePreviews,
+  type PendingOrderPricePreview,
+} from '@/services/orders/resolvePendingOrderItemPricing';
 
 export const dashboardTypeDefs = /* GraphQL */ `
   type DashboardTotals {
@@ -97,20 +104,96 @@ interface DashboardSnapshot {
 /**
  * Calculate accurate aggregates from ALL orders (not just paginated subset)
  */
-const calculateDashboardAggregates = async (userId: number) => {
-  // Get ALL orders for accurate aggregates (not paginated)
-  const allOrders = await prisma.order.findMany({
+type PreviewableOrderItem = {
+  id: number | null;
+  subtotal: number;
+  pricePerPackage?: number | null;
+  offerApplied?: boolean;
+  offerBadgeSnapshot?: string | null;
+  offerNameSnapshot?: string | null;
+  originalPriceSnapshot?: number | null;
+  discountPercentage?: number | null;
+  discountAmount?: number | null;
+  promotionDetailsSnapshot?: string | null;
+};
+
+type PreviewableOrder = {
+  orderId: string;
+  orderStatus: string;
+  subtotal: number;
+  discounts: number;
+  shippingFee: number;
+  totalAmount: number;
+  orderItems: PreviewableOrderItem[];
+};
+
+/** Overlay the same pending rate preview the orders list uses, then total via calculateOrderTotalAmount. */
+function orderVolumeFromPreview(
+  order: {
+    shippingFee: unknown;
+    discounts: unknown;
+    orderItemsRel: Array<{ id: number; subtotal: unknown }>;
+  },
+  preview: PendingOrderPricePreview | undefined,
+): number {
+  const updateById = new Map((preview?.updates ?? []).map((update) => [update.id, update.subtotal]));
+  return calculateOrderTotalAmount({
+    shippingFee: decimalToNumber(order.shippingFee),
+    discounts: decimalToNumber(order.discounts),
+    orderItems: order.orderItemsRel.map((item) => ({
+      subtotal: updateById.get(item.id) ?? decimalToNumber(item.subtotal),
+    })),
+  } as Order);
+}
+
+function applyPendingPreview<T extends PreviewableOrder>(
+  order: T,
+  preview: PendingOrderPricePreview | undefined,
+): T {
+  if (!preview || order.orderStatus !== 'Pending') return order;
+  const updateById = new Map(preview.updates.map((update) => [update.id, update]));
+  return {
+    ...order,
+    subtotal: preview.subtotal,
+    totalAmount: preview.totalAmount,
+    orderItems: order.orderItems.map((item) => {
+      const update = item.id != null ? updateById.get(item.id) : undefined;
+      if (!update) return item;
+      return {
+        ...item,
+        subtotal: update.subtotal,
+        pricePerPackage: update.pricePerPackage,
+        offerApplied: update.offerApplied,
+        offerBadgeSnapshot: update.offerBadgeSnapshot,
+        offerNameSnapshot: update.offerNameSnapshot,
+        originalPriceSnapshot:
+          update.originalPriceSnapshot != null ? Number(update.originalPriceSnapshot) : null,
+        discountPercentage: update.discountPercentage,
+        discountAmount: update.discountAmount,
+        promotionDetailsSnapshot: update.promotionDetailsSnapshot,
+      };
+    }),
+  };
+}
+
+const loadDashboardOrders = (userId: number) =>
+  prisma.order.findMany({
     where: {
       userId,
       isDeleted: false,
       archivedAt: null,
     },
     select: {
-      totalAmount: true,
-      paymentStatus: true,
+      orderId: true,
+      orderStatus: true,
       buyerId: true,
+      paymentStatus: true,
+      shippingFee: true,
+      discounts: true,
       orderItemsRel: {
         select: {
+          id: true,
+          subtotal: true,
           packageQuantity: true,
           piecesPerPackage: true,
         },
@@ -118,9 +201,12 @@ const calculateDashboardAggregates = async (userId: number) => {
     },
   });
 
-  // Calculate aggregates from ALL orders
-  // IMPORTANT: totalRevenue = ALL orders (matches FinancialAnalytics behavior)
-  // pendingRevenue = Unpaid orders only (what's still owed)
+const summarizeDashboardAggregates = (
+  allOrders: Awaited<ReturnType<typeof loadDashboardOrders>>,
+  previews: Map<string, PendingOrderPricePreview>,
+) => {
+  // Line subtotals + shipping − discounts. Live preview applies only to the
+  // bounded snapshot set passed in; older orders keep their stored line totals.
   let totalRevenue = 0;
   let pendingRevenue = 0;
   let paidOrders = 0;
@@ -128,13 +214,9 @@ const calculateDashboardAggregates = async (userId: number) => {
   const uniqueBuyers = new Set<string>();
 
   for (const order of allOrders) {
-    const amount = typeof order.totalAmount === 'number'
-      ? order.totalAmount
-      : (typeof (order.totalAmount as { toNumber?: () => number })?.toNumber === 'function'
-          ? (order.totalAmount as { toNumber: () => number }).toNumber()
-          : parseFloat(String(order.totalAmount))) || 0;
+    const preview = order.orderStatus === 'Pending' ? previews.get(order.orderId) : undefined;
+    const amount = orderVolumeFromPreview(order, preview);
 
-    // Add to total revenue regardless of payment status (matches FinancialAnalytics)
     totalRevenue += amount;
 
     // Count paid vs unpaid orders
@@ -193,7 +275,7 @@ const buildDashboardSnapshot = async (args: {
     productsConnection,
     buyersConnection,
     suppliersConnection,
-    aggregates,
+    allOrders,
     teamsRows,
     totalAgentsCount,
     activeAgentsCount,
@@ -202,7 +284,7 @@ const buildDashboardSnapshot = async (args: {
     fetchProductsConnection({ userId, page: 1, limit: productsLimit }),
     fetchBuyersConnection({ userId, page: 1, limit: contactsLimit }),
     fetchSuppliersConnection({ userId, page: 1, limit: contactsLimit }),
-    calculateDashboardAggregates(userId),
+    loadDashboardOrders(userId),
     prisma.salesTeam.findMany({
       where: { userId },
       take: 50,
@@ -227,8 +309,20 @@ const buildDashboardSnapshot = async (args: {
     activeAgents: activeAgentsCount ?? 0,
   };
 
+  const snapshotOrders = ordersConnection.nodes as Array<
+    PreviewableOrder & { userId: number | null; buyerId: string | null }
+  >;
+  const previews = await loadPendingOrderPricePreviews(snapshotOrders);
+  const aggregates = summarizeDashboardAggregates(allOrders, previews);
+  const orders = snapshotOrders.map((order) =>
+    applyPendingPreview(
+      order,
+      order.orderStatus === 'Pending' ? previews.get(order.orderId) : undefined,
+    ),
+  );
+
   const result: DashboardSnapshot = {
-    orders: ordersConnection.nodes,
+    orders,
     products: productsConnection.nodes,
     buyers: buyersConnection.nodes,
     suppliers: suppliersConnection.nodes,

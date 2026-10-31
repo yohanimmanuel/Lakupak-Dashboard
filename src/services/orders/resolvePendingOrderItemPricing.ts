@@ -5,6 +5,8 @@ import {
   type ResolvedOffer,
 } from '@/lib/offers/getOfferForClientAndProduct';
 import { parsePrice } from '@/utils/currencyUtils';
+import { calculateOrderTotalAmount } from '@/utils/orderCalculations';
+import type { Order } from '@/types/order';
 import { decimalToNumber } from './utils';
 
 function pickVariantOption<
@@ -109,6 +111,41 @@ export type PendingOrderPricePreview = {
   anyPending: boolean;
   pendingCount: number;
 };
+
+/** Live rate preview for Pending orders. Does not write. Shared by the orders list and home totals. */
+export async function loadPendingOrderPricePreviews(
+  orders: Array<{
+    orderId: string;
+    userId: number | null;
+    orderStatus: string;
+    buyerId?: string | null;
+  }>,
+): Promise<Map<string, PendingOrderPricePreview>> {
+  const previewByOrderId = new Map<string, PendingOrderPricePreview>();
+  const pending = orders.filter((order) => order.orderStatus === 'Pending' && order.userId != null);
+  const previewConcurrency = 8;
+  for (let i = 0; i < pending.length; i += previewConcurrency) {
+    const chunk = pending.slice(i, i + previewConcurrency);
+    await Promise.all(
+      chunk.map(async (order) => {
+        const userId = order.userId;
+        if (userId == null) return;
+        try {
+          const preview = await syncOrderItemPricingFromCatalog({
+            orderId: order.orderId,
+            userId,
+            buyerId: order.buyerId,
+            persist: false,
+          });
+          if (preview) previewByOrderId.set(order.orderId, preview);
+        } catch (err) {
+          console.error('[orders] pending price preview failed', order.orderId, err);
+        }
+      }),
+    );
+  }
+  return previewByOrderId;
+}
 
 /**
  * Live Pending PO prices from Offers + catalog.
@@ -262,7 +299,11 @@ export async function syncOrderItemPricingFromCatalog(params: {
     totalAmount:
       resolvedSubtotal <= 0 && anyPending
         ? 0
-        : Math.max(0, resolvedSubtotal + shippingFee - discounts),
+        : calculateOrderTotalAmount({
+            shippingFee,
+            discounts,
+            orderItems: [{ subtotal: resolvedSubtotal }],
+          } as Order),
     anyPending,
     pendingCount,
   };

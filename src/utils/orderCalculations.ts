@@ -10,11 +10,15 @@ export const calculateOrderSubtotal = (order: Order): number => {
   }, 0);
 };
 
-// Calculate total order amount (subtotal + shipping - discounts)
+// Calculate total order amount (subtotal + shipping - discounts). A discount larger than the lines cannot make the total negative.
 export const calculateOrderTotalAmount = (order: Order): number => {
   const subtotal = calculateOrderSubtotal(order);
-  return subtotal + order.shippingFee - order.discounts;
+  return Math.max(0, subtotal + order.shippingFee - order.discounts);
 };
+
+/** Same order-volume total the orders page cards use. */
+export const sumOrderVolume = (orders: Order[]): number =>
+  orders.reduce((sum, order) => sum + calculateOrderTotalAmount(order), 0);
 
 // Calculate total quantity from order items (total pieces)
 export const calculateOrderTotalQuantity = (order: Order): number => {
