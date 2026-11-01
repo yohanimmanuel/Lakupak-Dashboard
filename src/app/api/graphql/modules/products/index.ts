@@ -1,4 +1,10 @@
+import { GraphQLError } from 'graphql';
 import { type Prisma } from '@/lib/db';
+import {
+  productImagesError,
+  productReturnDaysError,
+  productTextFieldsError,
+} from '@/utils/product-security';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import {
   normalizeMerchandisingCategorySlug,
@@ -21,6 +27,66 @@ import { invalidateSearchCache } from '@/utils/searchCache';
 import { auditCatalog } from '@/lib/audit';
 import { requireDashboardUser, withDashboardAuth } from '@/app/api/graphql/modules/common/auth';
 import { computeAssortmentGap, computeAssortmentGapVariants } from '@/lib/products/assortmentGap';
+
+function rejectProductInput(message: string): never {
+  throw new GraphQLError(message, { extensions: { code: 'BAD_USER_INPUT' } });
+}
+
+function assertProductPayload(input: {
+  sku?: unknown;
+  name?: unknown;
+  description?: unknown;
+  productType?: unknown;
+  brand?: unknown;
+  supplier?: unknown;
+  images?: unknown;
+  returnPolicyDays?: unknown;
+  status?: string | null;
+  variantOptions?: Array<{
+    stockQuantity?: number | null;
+    purchasePrice?: unknown;
+    sellingPrice?: unknown;
+  }> | null;
+  currency?: string | null;
+  textMode: 'required' | 'present';
+  publishing: boolean;
+}) {
+  const textError = productTextFieldsError(
+    {
+      sku: input.sku,
+      name: input.name,
+      description: input.description,
+      productType: input.productType,
+      brand: input.brand,
+      supplier: input.supplier,
+    },
+    input.textMode,
+  );
+  if (textError) rejectProductInput(textError);
+  const imageError = productImagesError(input.images);
+  if (imageError) rejectProductInput(imageError);
+  const daysError = productReturnDaysError(input.returnPolicyDays);
+  if (daysError) rejectProductInput(daysError);
+  const options = input.variantOptions ?? [];
+  if (options.length === 0) rejectProductInput('Variation list is required.');
+  const pricesReady = options.every((option) => {
+    if (option.purchasePrice === undefined && option.sellingPrice === undefined) return !input.publishing;
+    const purchase = persistedVariantPrice(option.purchasePrice, input.currency);
+    const selling = persistedVariantPrice(option.sellingPrice, input.currency);
+    return purchase > 0 && selling > 0;
+  });
+  if (!pricesReady) rejectProductInput('Each variant needs a price and package size.');
+  if (!input.publishing) return;
+  const images = Array.isArray(input.images) ? input.images : [];
+  if (images.length === 0) rejectProductInput('At least one product image is required.');
+  let stock = 0;
+  for (const option of options) {
+    const parsed = Number(option.stockQuantity);
+    if (Number.isFinite(parsed) && parsed < 0) rejectProductInput('Product stock is required.');
+    stock += clampVariantInt(option.stockQuantity, 0);
+  }
+  if (stock <= 0) rejectProductInput('Product stock is required.');
+}
 
 /** Best-effort extraction of a product business identifier from a resolver result. */
 function extractProductId(result: unknown): string | undefined {
@@ -849,6 +915,10 @@ const clampVariantDecimal = (value: number): number => {
   return Math.min(Math.max(rounded, 0), VARIANT_DECIMAL_MAX);
 };
 
+/** Same parse and 2-decimal round createVariantOptionsPayload stores, so 0.0001 cannot pass as a positive price. */
+const persistedVariantPrice = (value: unknown, currency?: string | null): number =>
+  clampVariantDecimal(parseNumberByCurrency(value == null ? '' : String(value), currency ?? undefined));
+
 const clampVariantInt = (value: number | null | undefined, fallback = 0): number => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return fallback;
@@ -983,6 +1053,22 @@ export const createProduct = async (args: {
     variantDefinitions,
     variantOptions,
   } = args;
+
+  assertProductPayload({
+    sku,
+    name,
+    description,
+    productType,
+    brand,
+    supplier,
+    images,
+    returnPolicyDays,
+    status,
+    variantOptions,
+    currency,
+    textMode: 'required',
+    publishing: (status || 'Draft') === 'Published',
+  });
 
   let finalProductId = productId || generateUniqueProductId();
   const existingProduct = await prisma.product.findFirst({
@@ -1186,6 +1272,8 @@ export const updateProduct = async (args: {
         select: {
           id: true,
           variantName: true,
+          purchasePrice: true,
+          sellingPrice: true,
           stockQuantity: true,
           lowStockThreshold: true,
         },
@@ -1196,6 +1284,30 @@ export const updateProduct = async (args: {
   if (!productBeforeUpdate) {
     throw new Error('Product not found or you do not have permission to update it');
   }
+
+  const nextStatus = status !== undefined ? String(status) : productBeforeUpdate.status;
+  assertProductPayload({
+    sku: sku !== undefined ? sku : productBeforeUpdate.sku,
+    name: name !== undefined ? name : productBeforeUpdate.name,
+    description: description !== undefined ? description : productBeforeUpdate.description,
+    productType: productType !== undefined ? productType : productBeforeUpdate.productType,
+    brand: brand !== undefined ? brand : productBeforeUpdate.brand,
+    supplier: supplier !== undefined ? supplier : productBeforeUpdate.supplier,
+    images: images !== undefined ? images : productBeforeUpdate.images,
+    returnPolicyDays: returnPolicyDays !== undefined ? returnPolicyDays : productBeforeUpdate.returnPolicyDays,
+    status: nextStatus,
+    variantOptions:
+      variantOptions !== undefined && variantOptions !== null
+        ? variantOptions
+        : nextStatus === 'Published'
+          ? productBeforeUpdate.variantOptions
+          : productBeforeUpdate.variantOptions.map((option) => ({
+              stockQuantity: option.stockQuantity,
+            })),
+    currency,
+    textMode: nextStatus === 'Published' ? 'required' : 'present',
+    publishing: nextStatus === 'Published',
+  });
 
   // Use the actual product ID for the update (to match unique constraint)
   const updateWhere = isNumericId(id || '')

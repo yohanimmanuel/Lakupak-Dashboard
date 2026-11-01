@@ -2,11 +2,19 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Check, CheckCircle, ChevronDown, ImagePlus, Save, Trash2, Upload, X } from 'lucide-react';
+import { ArrowLeft, Check, CheckCircle, ChevronDown, ImagePlus, Loader2, Upload, X } from 'lucide-react';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { OFFER_ICON_OPTIONS } from '@/utils/marketplaceHomeOfferIcons';
 import { OfferPreviewIcon } from '@/utils/offerPreviewIcons';
 import { cssSafeUrl } from '@/utils/cssSafeUrl';
+import {
+  CAMPAIGN_DETAILS_MAX,
+  CAMPAIGN_DISCOUNT_MAX,
+  CAMPAIGN_END_LINE_MAX,
+  CAMPAIGN_SUBTITLE_MAX,
+  CAMPAIGN_TITLE_MAX,
+  CAMPAIGN_TITLE_MIN,
+} from '@/lib/offers/campaignFieldValidation';
 
 export type OfferFormValues = {
   title: string;
@@ -54,6 +62,9 @@ const inputClass =
   'w-full border border-gray-200 rounded-lg px-3 py-2 text-xs text-black outline-none focus:ring-1 focus:ring-[#0a61d7] focus:border-[#0a61d7] bg-white';
 const textareaClass =
   'w-full border border-gray-200 rounded-lg px-3 py-2 text-xs text-black outline-none focus:ring-1 focus:ring-[#0a61d7] focus:border-[#0a61d7] resize-y bg-white';
+const invalidInputClass =
+  'w-full border border-red-300 rounded-lg px-3 py-2 text-xs text-black outline-none focus:ring-2 focus:ring-red-500 bg-red-50';
+const invalidTextareaClass = `${invalidInputClass} resize-y`;
 
 type Props = {
   mode: 'create' | 'edit';
@@ -82,9 +93,8 @@ export default function OfferEditorForm({
     ...(initial ?? {}),
   }));
   const [saving, setSaving] = useState(false);
-  const [titleError, setTitleError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saveMode, setSaveMode] = useState<null | 'draft' | 'publish'>(null);
-  const [deleting, setDeleting] = useState(false);
   const [openMenu, setOpenMenu] = useState<null | 'right' | 'discount'>(null);
   const rightMenuRef = useRef<HTMLDivElement>(null);
   const discountMenuRef = useRef<HTMLDivElement>(null);
@@ -110,8 +120,15 @@ export default function OfferEditorForm({
 
   const set =
     <K extends keyof OfferFormValues>(key: K) =>
-    (x: OfferFormValues[K]) =>
+    (x: OfferFormValues[K]) => {
       setValues((prev) => ({ ...prev, [key]: x }));
+      setFieldErrors((prev) => {
+        if (!prev[key]) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    };
 
   const payload = () => ({
     title: values.title.trim(),
@@ -129,62 +146,67 @@ export default function OfferEditorForm({
     isPublished: values.isPublished,
   });
 
-  const save = async (publish: boolean) => {
+  const collectCampaignErrors = () => {
+    const errors: Record<string, string> = {};
     const title = values.title.trim();
-    if (title.length < 2) {
-      setTitleError(title.length === 0 ? 'Title is required' : 'Title must be at least 2 characters');
+    if (title.length === 0) errors.title = 'Title is required';
+    else if (title.length < CAMPAIGN_TITLE_MIN) errors.title = 'Title must be at least 2 characters';
+    else if (title.length > CAMPAIGN_TITLE_MAX) errors.title = 'Title is too long';
+    if (values.subtitle.trim().length > CAMPAIGN_SUBTITLE_MAX) errors.subtitle = 'Subtitle is too long';
+    if (values.discountText.trim().length > CAMPAIGN_DISCOUNT_MAX) errors.discountText = 'Discount label is too long';
+    if (values.endDateText.trim().length > CAMPAIGN_END_LINE_MAX) errors.endDateText = 'Urgency line is too long';
+    if (values.detailsBody.trim().length > CAMPAIGN_DETAILS_MAX) errors.detailsBody = 'Detail text is too long';
+    return errors;
+  };
+
+  const applyServerFieldError = (message: string) => {
+    const known: Array<[string, string]> = [
+      ['Title is required', 'title'],
+      ['Title must be at least 2 characters', 'title'],
+      ['Title is too long.', 'title'],
+      ['Subtitle is too long.', 'subtitle'],
+      ['Discount label is too long.', 'discountText'],
+      ['Urgency line is too long.', 'endDateText'],
+      ['Detail text is too long.', 'detailsBody'],
+      ['Details are too long.', 'detailsBody'],
+    ];
+    const match = known.find(([text]) => message.includes(text));
+    if (!match) return false;
+    setFieldErrors({ [match[1]]: message });
+    return true;
+  };
+
+  const save = async (publish: boolean) => {
+    const errors = collectCampaignErrors();
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
-    setTitleError(null);
+    setFieldErrors({});
+    if (mode === 'edit' && offerId == null) {
+      alert('Failed to save');
+      return;
+    }
     setSaving(true);
     setSaveMode(publish ? 'publish' : 'draft');
     try {
       const body = { ...payload(), isPublished: publish };
-      if (mode === 'create') {
-        const r = await fetch(apiBase, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
-        if (!r.ok) {
-          const j = await r.json().catch(() => ({}));
-          alert((j as { error?: string }).error || 'Failed to create');
-          return;
-        }
-      } else if (offerId != null) {
-        const r = await fetch(`${apiBase}/${offerId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
-        if (!r.ok) {
-          const j = await r.json().catch(() => ({}));
-          alert((j as { error?: string }).error || 'Failed to save');
-          return;
-        }
+      const r = await fetch(mode === 'create' ? apiBase : `${apiBase}/${offerId}`, {
+        method: mode === 'create' ? 'POST' : 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        const message = (j as { error?: string }).error || (mode === 'create' ? 'Failed to create' : 'Failed to save');
+        if (!applyServerFieldError(message)) alert(message);
+        return;
       }
       router.push(backHref);
       router.refresh();
     } finally {
       setSaving(false);
       setSaveMode(null);
-    }
-  };
-
-  const remove = async () => {
-    if (mode !== 'edit' || offerId == null) return;
-    if (!confirm('Delete this banner? It will leave your Marketplace storefront.')) return;
-    setDeleting(true);
-    try {
-      const r = await fetch(`${apiBase}/${offerId}`, { method: 'DELETE' });
-      if (!r.ok) {
-        alert('Failed to delete');
-        return;
-      }
-      router.push(backHref);
-      router.refresh();
-    } finally {
-      setDeleting(false);
     }
   };
 
@@ -280,54 +302,25 @@ export default function OfferEditorForm({
           <button
             type="button"
             onClick={() => router.push(backHref)}
-            disabled={saving || deleting}
+            disabled={saving}
             className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-black disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
           >
             <X className="h-4 w-4" />
             Cancel
           </button>
-          {mode === 'edit' && offerId != null ? (
-            <button
-              type="button"
-              onClick={() => void remove()}
-              disabled={deleting || saving}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
-            >
-              {deleting ? (
-                <>
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                  Deleting…
-                </>
-              ) : (
-                <>
-                  <Trash2 className="h-4 w-4" />
-                  Delete offer
-                </>
-              )}
-            </button>
-          ) : null}
           <button
             type="button"
             onClick={() => void save(false)}
-            disabled={saving || deleting}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-gray-600 px-4 py-2 font-medium text-white transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
+            disabled={saving}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#0a61d7] bg-white px-4 py-2 text-sm font-semibold text-[#0a61d7] transition hover:bg-[#f7faff] disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400 disabled:hover:bg-gray-100 @4xl/main:w-auto"
           >
-            {saveMode === 'draft' ? (
-              <>
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                Saving…
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4" />
-                Save draft
-              </>
-            )}
+            {saveMode === 'draft' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {saveMode === 'draft' ? 'Saving…' : 'Save draft'}
           </button>
           <button
             type="button"
             onClick={() => void save(true)}
-            disabled={saving || deleting}
+            disabled={saving}
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 font-semibold text-white transition-colors hover:bg-[#084ba6] disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
           >
             {saveMode === 'publish' ? (
@@ -364,50 +357,53 @@ export default function OfferEditorForm({
             Title<span className="text-red-500 ml-1">*</span>
           </span>
           <input
-            className={
-              titleError
-                ? 'w-full border border-red-300 rounded-lg px-3 py-2 text-xs text-black outline-none focus:ring-2 focus:ring-red-500 bg-red-50'
-                : inputClass
-            }
+            className={fieldErrors.title ? invalidInputClass : inputClass}
             value={values.title}
-            onChange={(e) => {
-              set('title')(e.target.value);
-              if (titleError) setTitleError(null);
-            }}
+            maxLength={CAMPAIGN_TITLE_MAX}
+            onChange={(e) => set('title')(e.target.value)}
             placeholder="e.g. Weekend stock-up sale"
-            aria-invalid={titleError ? true : undefined}
+            aria-invalid={fieldErrors.title ? true : undefined}
           />
-          {titleError ? <p className="text-red-500 text-xs mt-1">{titleError}</p> : null}
+          {fieldErrors.title ? <p className="text-red-500 text-xs mt-1">{fieldErrors.title}</p> : null}
         </label>
 
         <label className="block space-y-1">
           <span className="text-xs font-medium text-gray-700">Subtitle</span>
           <input
-            className={inputClass}
+            className={fieldErrors.subtitle ? invalidInputClass : inputClass}
             value={values.subtitle}
+            maxLength={CAMPAIGN_SUBTITLE_MAX}
             onChange={(e) => set('subtitle')(e.target.value)}
             placeholder="Short supporting line under the title"
+            aria-invalid={fieldErrors.subtitle ? true : undefined}
           />
+          {fieldErrors.subtitle ? <p className="text-red-500 text-xs mt-1">{fieldErrors.subtitle}</p> : null}
         </label>
 
         <label className="block space-y-1">
           <span className="text-xs font-medium text-gray-700">Discount / promo label</span>
           <input
-            className={inputClass}
+            className={fieldErrors.discountText ? invalidInputClass : inputClass}
             value={values.discountText}
+            maxLength={CAMPAIGN_DISCOUNT_MAX}
             onChange={(e) => set('discountText')(e.target.value)}
             placeholder="Shown in the white pill (e.g. Up to 30% off)"
+            aria-invalid={fieldErrors.discountText ? true : undefined}
           />
+          {fieldErrors.discountText ? <p className="text-red-500 text-xs mt-1">{fieldErrors.discountText}</p> : null}
         </label>
 
         <label className="block space-y-1">
           <span className="text-xs font-medium text-gray-700">Urgency / end line</span>
           <input
-            className={inputClass}
+            className={fieldErrors.endDateText ? invalidInputClass : inputClass}
             value={values.endDateText}
+            maxLength={CAMPAIGN_END_LINE_MAX}
             onChange={(e) => set('endDateText')(e.target.value)}
             placeholder="e.g. Ends 12 Apr · Free shipping over Rp500k"
+            aria-invalid={fieldErrors.endDateText ? true : undefined}
           />
+          {fieldErrors.endDateText ? <p className="text-red-500 text-xs mt-1">{fieldErrors.endDateText}</p> : null}
         </label>
       </section>
 
@@ -615,12 +611,15 @@ export default function OfferEditorForm({
         <label className="block space-y-1">
           <span className="text-xs font-medium text-gray-700">Full detail text (after tap)</span>
           <textarea
-            className={textareaClass}
+            className={fieldErrors.detailsBody ? invalidTextareaClass : textareaClass}
             rows={6}
+            maxLength={CAMPAIGN_DETAILS_MAX}
             value={values.detailsBody}
             onChange={(e) => set('detailsBody')(e.target.value)}
             placeholder="Terms, categories on sale, how to redeem, etc."
+            aria-invalid={fieldErrors.detailsBody ? true : undefined}
           />
+          {fieldErrors.detailsBody ? <p className="text-red-500 text-xs mt-1">{fieldErrors.detailsBody}</p> : null}
         </label>
 
       </section>

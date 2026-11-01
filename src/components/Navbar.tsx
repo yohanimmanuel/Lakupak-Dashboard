@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { Bell, User, LogOut, Plus, Package, AlertTriangle, Tag, Users, ShoppingBag, Settings, Check, Trash2, X, Truck, Info, Receipt, ClipboardCheck, Plug, Sparkles } from 'lucide-react';
+import { Bell, User, LogOut, Plus, Package, AlertTriangle, Tag, Users, ShoppingBag, Settings, Check, Trash2, X, Truck, Info, Receipt, ClipboardCheck, /* Plug, */ Sparkles } from 'lucide-react';
 import { Menu as MenuIcon } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useUserStore } from '@/store/userStore';
@@ -704,7 +704,7 @@ const Navbar = () => {
           ))}
         </DropdownPortal>
 
-        {/* Connected apps */}
+        {/* Connected apps hidden
         <button
           type="button"
           className={`p-2 w-9 h-9 rounded-full flex items-center justify-center cursor-pointer relative transition border ${
@@ -788,6 +788,7 @@ const Navbar = () => {
             </Link>
           </div>
         </DropdownPortal>
+        */}
 
         {/* Notifications */}
         <button

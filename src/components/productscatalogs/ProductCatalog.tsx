@@ -6,7 +6,7 @@ import {
   Upload, 
   Plus, 
   X, 
-  Save,
+  Loader2,
   CheckCircle,
   Eye,
   Edit,
@@ -36,6 +36,11 @@ import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { useProductsTranslations } from '@/hooks/useProductsTranslations';
 import { getProductStockStatus, getVariantStockStatus } from '@/utils/stockUtils';
 import { CATALOG_COMPLETION_OPTIONS, getProductCompletion } from '@/utils/productCompletion';
+import {
+  PRODUCT_REQUIRED_TEXT,
+  productRequiredTextError,
+  type ProductRequiredTextField,
+} from '@/utils/product-security';
 
 const MARKETPLACE_STATUS_MUTATION = `
   mutation PublishMarketplaceProduct($userId: Int!, $productId: String!, $action: String!) {
@@ -645,6 +650,7 @@ export default function ProductCatalog({
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [originalFormData, setOriginalFormData] = useState<ProductFormData | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [variantGuardModal, setVariantGuardModal] = useState<{
@@ -888,6 +894,12 @@ export default function ProductCatalog({
       ...prev,
       [field]: value
     }));
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
   };
 
   // Variant management functions
@@ -1667,6 +1679,12 @@ export default function ProductCatalog({
         ...prev,
         images: [...prev.images, ...uploadedImages]
       }));
+      setFieldErrors((prev) => {
+        if (!prev.images) return prev;
+        const next = { ...prev };
+        delete next.images;
+        return next;
+      });
     }
     
     setUploadingImages(false);
@@ -1806,38 +1824,66 @@ export default function ProductCatalog({
 
   const validation = validateRequiredFields();
 
+  const productFieldMessage = (field: ProductRequiredTextField, code: NonNullable<ReturnType<typeof productRequiredTextError>>) => {
+    const label = translateFieldName(field);
+    if (code === 'tooLong') return tCatalog('validation.tooLong', { field: label });
+    if (code === 'tooShort') return tCatalog('validation.nameMin');
+    return tCatalog('validation.required', { field: label });
+  };
+
+  const buildVariationMatrixForSave = () => {
+    const validVariants = variants.filter((v) => v.variantType && v.options.some((opt) => opt.name));
+    return validVariants.length > 0
+      ? rebuildCombinationsFromVariants(validVariants, combinations)
+      : [];
+  };
+
+  const collectProductErrors = (status: 'Draft' | 'Published') => {
+    const errors: Record<string, string> = {};
+    for (const field of Object.keys(PRODUCT_REQUIRED_TEXT) as ProductRequiredTextField[]) {
+      const code = productRequiredTextError(field, String(formData[field] ?? ''));
+      if (code) errors[field] = productFieldMessage(field, code);
+    }
+    const priceCurrency = user?.currency || userCurrency;
+    const variationMatrix = buildVariationMatrixForSave();
+    if (variationMatrix.length === 0) {
+      errors.variants = tCatalog('validation.variationListRequired');
+    } else if (!variationMatrix.every((combo) => isCompleteCombination(combo, priceCurrency))) {
+      errors.variants = tCatalog('validation.variantsRequired');
+    }
+    if (status === 'Published') {
+      if (!formData.images?.length) errors.images = tCatalog('validation.imageRequired');
+      const totalStock = variationMatrix.reduce((sum, combo) => sum + combo.stockQuantity, 0);
+      const stockReady =
+        variationMatrix.every(
+          (combo) =>
+            isFiniteNonNegativeNumber(combo.stockQuantity) &&
+            isFiniteNonNegativeNumber(combo.lowStockThreshold),
+        ) && totalStock > 0;
+      if (!stockReady) errors.stock = tCatalog('validation.stockRequired');
+    }
+    return errors;
+  };
+
+  const productControlClass = (field: string) =>
+    `w-full px-3 py-2 text-xs border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent disabled:bg-gray-50 text-black ${
+      fieldErrors[field]
+        ? 'border-red-300 bg-red-50 focus:ring-red-500'
+        : 'border-gray-300 focus:ring-[#0a61d7]'
+    }`;
+
   const handleSubmitWithStatus = async (status: 'Draft' | 'Published') => {
     if (!user?.id) {
       alert(tCatalog('alerts.userNotAuthenticated'));
       return;
     }
 
-    if (status === 'Published') {
-      const publishValidation = validateRequiredFields();
-      if (!publishValidation.isValid) {
-        alert(
-          tCatalog('header.missingRequiredFields', {
-            fields: publishValidation.missingFields.join(', '),
-          }),
-        );
-        return;
-      }
-
-      const invalidNumericCombo = combinations.some(
-        (combo) => !isCompleteCombination(combo, user?.currency || userCurrency),
-      );
-      if (invalidNumericCombo) {
-        alert(
-          tCatalog('header.missingRequiredFields', {
-            fields: [
-              translateFieldName('variants'),
-              translateFieldName('stock'),
-            ].join(', '),
-          }),
-        );
-        return;
-      }
+    const errors = collectProductErrors(status);
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
     }
+    setFieldErrors({});
 
     setSaving(true);
     
@@ -1864,10 +1910,7 @@ export default function ProductCatalog({
       // never sends a partial list that would cause the backend to delete missing rows.
       // When no valid variant types remain, send an empty matrix so deleted rows are cleared in DB.
       const validVariants = variants.filter((v) => v.variantType && v.options.some((opt) => opt.name));
-      const combinationsForSave =
-        validVariants.length > 0
-          ? rebuildCombinationsFromVariants(validVariants, combinations)
-          : [];
+      const combinationsForSave = buildVariationMatrixForSave();
 
       const priceCurrency = user.currency || userCurrency;
 
@@ -1880,14 +1923,7 @@ export default function ProductCatalog({
         status === 'Published' &&
         combinationsForPayload.some((combo) => !isCompleteCombination(combo, priceCurrency))
       ) {
-        alert(
-          tCatalog('header.missingRequiredFields', {
-            fields: [
-              translateFieldName('variants'),
-              translateFieldName('stock'),
-            ].join(', '),
-          }),
-        );
+        setFieldErrors({ variants: tCatalog('validation.variantsRequired') });
         setSaving(false);
         return;
       }
@@ -2364,26 +2400,16 @@ export default function ProductCatalog({
                 type="button"
                 onClick={() => handleSubmitWithStatus('Draft')}
                 disabled={saving}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-gray-600 px-4 py-2 font-medium text-white transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#0a61d7] bg-white px-4 py-2 text-sm font-semibold text-[#0a61d7] transition hover:bg-[#f7faff] disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400 disabled:hover:bg-gray-100 @4xl/main:w-auto"
               >
-                {saving ? (
-                  <>
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                    {tCatalog('header.saving')}
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4" />
-                    {tCatalog('header.saveDraft')}
-                  </>
-                )}
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {saving ? tCatalog('header.saving') : tCatalog('header.saveDraft')}
               </button>
               <button
                 type="submit"
                 form="product-form"
-                disabled={saving || !validation.isValid}
+                disabled={saving}
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 font-semibold text-white transition-colors hover:bg-[#0851b8] disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
-                title={!validation.isValid ? tCatalog('header.missingRequiredFields', { fields: validation.missingFields.join(', ') }) : ''}
               >
                 {saving ? (
                   <>
@@ -2414,26 +2440,16 @@ export default function ProductCatalog({
                 type="button"
                 onClick={() => handleSubmitWithStatus('Draft')}
                 disabled={saving}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-gray-600 px-4 py-2 font-medium text-white transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#0a61d7] bg-white px-4 py-2 text-sm font-semibold text-[#0a61d7] transition hover:bg-[#f7faff] disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400 disabled:hover:bg-gray-100 @4xl/main:w-auto"
               >
-                {saving ? (
-                  <>
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                    {tCatalog('header.saving')}
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4" />
-                    {tCatalog('header.saveDraft')}
-                  </>
-                )}
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {saving ? tCatalog('header.saving') : tCatalog('header.saveDraft')}
               </button>
               <button
                 type="submit"
                 form="product-form"
-                disabled={saving || !validation.isValid}
+                disabled={saving}
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 font-semibold text-white transition-colors hover:bg-[#084ba6] disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
-                title={!validation.isValid ? tCatalog('header.missingRequiredFields', { fields: validation.missingFields.join(', ') }) : ''}
               >
                 {saving ? (
                   <>
@@ -2547,33 +2563,39 @@ export default function ProductCatalog({
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
-                    {tCatalog('generalInfo.sku')}
+                    {tCatalog('generalInfo.sku')}<span className="text-red-500 ml-1">*</span>
                   </label>
                   <input
                     type="text"
                     value={formData.sku}
                     onChange={(e) => handleInputChange('sku', e.target.value)}
                     disabled={isViewMode}
-                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                    maxLength={PRODUCT_REQUIRED_TEXT.sku.max}
+                    aria-invalid={fieldErrors.sku ? true : undefined}
+                    className={productControlClass('sku')}
                     placeholder={tCatalog('generalInfo.skuPlaceholder')}
                   />
+                  {fieldErrors.sku ? <p className="text-red-500 text-xs mt-1">{fieldErrors.sku}</p> : null}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
-                    {tCatalog('generalInfo.brand')}
+                    {tCatalog('generalInfo.brand')}<span className="text-red-500 ml-1">*</span>
                   </label>
                   <input
                     type="text"
                     value={formData.brand}
                     onChange={(e) => handleInputChange('brand', e.target.value)}
                     disabled={isViewMode}
-                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                    maxLength={PRODUCT_REQUIRED_TEXT.brand.max}
+                    aria-invalid={fieldErrors.brand ? true : undefined}
+                    className={productControlClass('brand')}
                     placeholder={tCatalog('generalInfo.brandPlaceholder')}
                   />
+                  {fieldErrors.brand ? <p className="text-red-500 text-xs mt-1">{fieldErrors.brand}</p> : null}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
-                    {tCatalog('generalInfo.type')}
+                    {tCatalog('generalInfo.type')}<span className="text-red-500 ml-1">*</span>
                   </label>
                   <div className="relative" ref={generalCategoryRef}>
                     <button
@@ -2583,7 +2605,8 @@ export default function ProductCatalog({
                         setShowCatalogCategoryDropdown(false);
                       }}
                       disabled={isViewMode}
-                      className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black text-left flex items-center justify-between"
+                      aria-invalid={fieldErrors.productType ? true : undefined}
+                      className={`${productControlClass('productType')} text-left flex items-center justify-between`}
                     >
                       <span className="flex items-center gap-2">
                         {formData.productType ? (
@@ -2624,50 +2647,60 @@ export default function ProductCatalog({
                       </div>
                     )}
                   </div>
+                  {fieldErrors.productType ? <p className="text-red-500 text-xs mt-1">{fieldErrors.productType}</p> : null}
                 </div>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
-                    {tCatalog('generalInfo.productName')}
+                    {tCatalog('generalInfo.productName')}<span className="text-red-500 ml-1">*</span>
                   </label>
                   <input
                     type="text"
                     value={formData.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
                     disabled={isViewMode}
-                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                    maxLength={PRODUCT_REQUIRED_TEXT.name.max}
+                    aria-invalid={fieldErrors.name ? true : undefined}
+                    className={productControlClass('name')}
                     placeholder={tCatalog('generalInfo.productNamePlaceholder')}
                   />
+                  {fieldErrors.name ? <p className="text-red-500 text-xs mt-1">{fieldErrors.name}</p> : null}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
-                    {tCatalog('generalInfo.supplier')}
+                    {tCatalog('generalInfo.supplier')}<span className="text-red-500 ml-1">*</span>
                   </label>
                   <input
                     type="text"
                     value={formData.supplier}
                     onChange={(e) => handleInputChange('supplier', e.target.value)}
                     disabled={isViewMode}
-                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                    maxLength={PRODUCT_REQUIRED_TEXT.supplier.max}
+                    aria-invalid={fieldErrors.supplier ? true : undefined}
+                    className={productControlClass('supplier')}
                     placeholder={tCatalog('generalInfo.supplierPlaceholder')}
                   />
+                  {fieldErrors.supplier ? <p className="text-red-500 text-xs mt-1">{fieldErrors.supplier}</p> : null}
                 </div>
               </div>
               
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-2">
-                  {tCatalog('generalInfo.productDescription')}
+                  {tCatalog('generalInfo.productDescription')}<span className="text-red-500 ml-1">*</span>
                 </label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => handleInputChange('description', e.target.value)}
                   disabled={isViewMode}
+                  maxLength={PRODUCT_REQUIRED_TEXT.description.max}
+                  aria-invalid={fieldErrors.description ? true : undefined}
                   rows={3}
-                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                  className={productControlClass('description')}
                   placeholder={tCatalog('generalInfo.productDescriptionPlaceholder')}
                 />
+                {fieldErrors.description ? <p className="text-red-500 text-xs mt-1">{fieldErrors.description}</p> : null}
               </div>
 
               {/* Product Assurance */}
@@ -2804,6 +2837,7 @@ export default function ProductCatalog({
                 <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2">
                   <Upload className="w-5 h-5 text-gray-500" />
                   {tCatalog('images.title')}
+                  <span className="text-red-500">*</span>
                 </h2>
                 {!isViewMode && formData.images.length > 0 && (
                   <button
@@ -2815,6 +2849,7 @@ export default function ProductCatalog({
                   </button>
                 )}
               </div>
+              {fieldErrors.images ? <p className="text-red-500 text-xs mb-3">{fieldErrors.images}</p> : null}
               
               <div className="flex gap-4">
                 {/* Main Image - Right side */}
@@ -3314,6 +3349,7 @@ export default function ProductCatalog({
                   <h2 className="text-md font-semibold text-gray-900 flex items-center gap-2">
                     <Package className="w-5 h-5 text-gray-500" />
                     {tCatalog('variants.variationLists')}
+                    <span className="text-red-500">*</span>
                     <span className="relative group inline-flex items-center">
                       <Info
                         tabIndex={0}
@@ -3376,6 +3412,8 @@ export default function ProductCatalog({
                     </div>
                   )}
                 </div>
+                {fieldErrors.variants ? <p className="text-red-500 text-xs mt-2">{fieldErrors.variants}</p> : null}
+                {fieldErrors.stock ? <p className="text-red-500 text-xs mt-1">{fieldErrors.stock}</p> : null}
               </div>
 
               {/* Apply To All Section */}

@@ -1,5 +1,72 @@
 import { ProductFormData } from '@/types/product';
 
+/** Text a product must have before it can be saved. */
+export const PRODUCT_REQUIRED_TEXT = {
+  sku: { min: 1, max: 64 },
+  name: { min: 2, max: 200 },
+  description: { min: 1, max: 4000 },
+  productType: { min: 1, max: 80 },
+  brand: { min: 1, max: 120 },
+  supplier: { min: 1, max: 200 },
+} as const;
+
+export type ProductRequiredTextField = keyof typeof PRODUCT_REQUIRED_TEXT;
+
+export function productRequiredTextError(
+  field: ProductRequiredTextField,
+  value: unknown,
+): 'required' | 'tooShort' | 'tooLong' | 'invalid' | null {
+  if (typeof value !== 'string') return 'invalid';
+  const trimmed = value.trim();
+  const { min, max } = PRODUCT_REQUIRED_TEXT[field];
+  if (trimmed.length === 0) return 'required';
+  if (trimmed.length < min) return 'tooShort';
+  if (trimmed.length > max) return 'tooLong';
+  return null;
+}
+
+export function productImagesError(images: unknown): string | null {
+  if (images == null) return null;
+  if (!Array.isArray(images) || images.length > 12) return 'Product images are invalid.';
+  if (images.some((img) => typeof img !== 'string' || img.trim().length === 0 || img.length > 2048)) {
+    return 'Product images are invalid.';
+  }
+  return null;
+}
+
+const PRODUCT_TEXT_LABEL: Record<ProductRequiredTextField, string> = {
+  sku: 'SKU',
+  name: 'Product name',
+  description: 'Product description',
+  productType: 'Product type',
+  brand: 'Brand',
+  supplier: 'Supplier',
+};
+
+/** `required` checks every field. `present` checks only fields included in the payload. */
+export function productTextFieldsError(
+  input: Partial<Record<ProductRequiredTextField, unknown>>,
+  mode: 'required' | 'present',
+): string | null {
+  for (const field of Object.keys(PRODUCT_REQUIRED_TEXT) as ProductRequiredTextField[]) {
+    if (mode === 'present' && input[field] === undefined) continue;
+    const code = productRequiredTextError(field, input[field] ?? '');
+    if (!code) continue;
+    const label = PRODUCT_TEXT_LABEL[field];
+    if (code === 'tooLong') return `${label} is too long.`;
+    if (code === 'tooShort') return `${label} must be at least ${PRODUCT_REQUIRED_TEXT[field].min} characters.`;
+    return `${label} is required.`;
+  }
+  return null;
+}
+
+export function productReturnDaysError(value: unknown): string | null {
+  if (value === undefined || value === null) return null;
+  const days = Number(value);
+  if (!Number.isInteger(days) || days < 0 || days > 3650) return 'Return policy days are invalid.';
+  return null;
+}
+
 // Security headers for product API responses
 export function getProductSecurityHeaders() {
   return {

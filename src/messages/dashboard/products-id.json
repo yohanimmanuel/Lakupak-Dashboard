@@ -389,6 +389,15 @@
       "fieldsCompleted": "{completed} dari {total} kolom terisi",
       "missing": "Belum diisi: {fields}"
     },
+    "validation": {
+      "required": "{field} wajib diisi",
+      "tooLong": "{field} terlalu panjang",
+      "nameMin": "Nama produk minimal 2 karakter",
+      "imageRequired": "Minimal satu gambar produk",
+      "variationListRequired": "Daftar variasi wajib diisi",
+      "variantsRequired": "Lengkapi harga setiap varian",
+      "stockRequired": "Tambahkan stok sebelum menerbitkan"
+    },
     "fields": {
       "sku": "Nomor SKU",
       "name": "Nama Produk",

@@ -5,6 +5,8 @@ const HEX_COLOR = /^#([0-9a-fA-F]{6})$/;
 export const CAMPAIGN_TITLE_MIN = 2;
 export const CAMPAIGN_TITLE_MAX = 120;
 export const CAMPAIGN_SUBTITLE_MAX = 200;
+export const CAMPAIGN_DISCOUNT_MAX = 120;
+export const CAMPAIGN_END_LINE_MAX = 200;
 export const CAMPAIGN_DETAILS_MAX = 4000;
 
 const DEFAULT_BACKGROUND = '#0a61d7';
@@ -92,6 +94,14 @@ export function validateCampaignCreateFields(body: Record<string, unknown>): Ok<
   const subtitle = boundedText(subtitleRaw, CAMPAIGN_SUBTITLE_MAX, 'Subtitle is too long.');
   if (!subtitle.ok) return subtitle;
 
+  const discountRaw = typeof body.discountText === 'string' ? body.discountText : '';
+  const discount = boundedText(discountRaw, CAMPAIGN_DISCOUNT_MAX, 'Discount label is too long.');
+  if (!discount.ok) return discount;
+
+  const endLineRaw = typeof body.endDateText === 'string' ? body.endDateText : '';
+  const endLine = boundedText(endLineRaw, CAMPAIGN_END_LINE_MAX, 'Urgency line is too long.');
+  if (!endLine.ok) return endLine;
+
   const detailsRaw = typeof body.detailsBody === 'string' ? body.detailsBody : '';
   const detailsBody = boundedText(detailsRaw, CAMPAIGN_DETAILS_MAX, 'Detail text is too long.');
   if (!detailsBody.ok) return detailsBody;
@@ -142,6 +152,16 @@ export function validateCampaignPatchFields(body: Record<string, unknown>): Ok<C
     const subtitle = boundedText(body.subtitle, CAMPAIGN_SUBTITLE_MAX, 'Subtitle is too long.');
     if (!subtitle.ok) return subtitle;
     fields.subtitle = subtitle.value;
+  }
+
+  if (typeof body.discountText === 'string') {
+    const discount = boundedText(body.discountText, CAMPAIGN_DISCOUNT_MAX, 'Discount label is too long.');
+    if (!discount.ok) return discount;
+  }
+
+  if (typeof body.endDateText === 'string') {
+    const endLine = boundedText(body.endDateText, CAMPAIGN_END_LINE_MAX, 'Urgency line is too long.');
+    if (!endLine.ok) return endLine;
   }
 
   if (typeof body.detailsBody === 'string') {

@@ -389,6 +389,15 @@
       "fieldsCompleted": "{completed} of {total} fields completed",
       "missing": "Missing: {fields}"
     },
+    "validation": {
+      "required": "{field} is required",
+      "tooLong": "{field} is too long",
+      "nameMin": "Product name must be at least 2 characters",
+      "imageRequired": "At least one product image is required",
+      "variationListRequired": "Variation list is required",
+      "variantsRequired": "Each variant needs a price and package size",
+      "stockRequired": "Add stock before publishing"
+    },
     "fields": {
       "sku": "SKU Number",
       "name": "Product Name",

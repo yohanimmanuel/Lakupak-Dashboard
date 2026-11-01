@@ -58,6 +58,17 @@ describe('campaign field validation', () => {
     const title = validateCampaignPatchFields({ title: 'z'.repeat(CAMPAIGN_TITLE_MAX + 1) });
     expect(title).toEqual({ ok: false, error: 'Title is too long.' });
 
+    const discount = validateCampaignPatchFields({
+      discountText: 'd'.repeat(121),
+    });
+    expect(discount).toEqual({ ok: false, error: 'Discount label is too long.' });
+
+    const endLine = validateCampaignCreateFields({
+      title: 'Sale',
+      endDateText: 'e'.repeat(201),
+    });
+    expect(endLine).toEqual({ ok: false, error: 'Urgency line is too long.' });
+
     const partial = validateCampaignPatchFields({ textColor: '#112233' });
     expect(partial).toEqual({ ok: true, fields: { textColor: '#112233' } });
   });
