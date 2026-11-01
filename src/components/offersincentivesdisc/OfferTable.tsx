@@ -35,8 +35,6 @@ import { useOffersTranslations } from '@/hooks/useOffersTranslations';
 import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
 
 const STATUS_TABS = ['All', 'Active', 'Draft', 'Expired'] as const;
-const STATUS_FILTERS = ['All', 'Active', 'Draft', 'Expired'] as const;
-const NO_CLIENT_FILTER = '__none__';
 
 const DATE_FILTERS = [
   'All Time',
@@ -260,13 +258,11 @@ export default function OfferTable({
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [selectedTab, setSelectedTab] = useState<(typeof STATUS_TABS)[number]>('All');
-  const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>('All');
   const [dateFilter, setDateFilter] = useState<(typeof DATE_FILTERS)[number]>('All Time');
   const [clientFilter, setClientFilter] = useState<string>('all');
   const [clientSearch, setClientSearch] = useState('');
   const [buyers, setBuyers] = useState<BuyerOption[]>([]);
   const [showDateDropdown, setShowDateDropdown] = useState(false);
-  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showClientDropdown, setShowClientDropdown] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -287,7 +283,6 @@ export default function OfferTable({
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
   const clientDropdownRef = useRef<HTMLDivElement>(null);
-  const statusDropdownRef = useRef<HTMLDivElement>(null);
   const dateDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -325,9 +320,6 @@ export default function OfferTable({
       if (clientDropdownRef.current && !clientDropdownRef.current.contains(target)) {
         setShowClientDropdown(false);
       }
-      if (statusDropdownRef.current && !statusDropdownRef.current.contains(target)) {
-        setShowStatusDropdown(false);
-      }
       if (dateDropdownRef.current && !dateDropdownRef.current.contains(target)) {
         setShowDateDropdown(false);
       }
@@ -350,9 +342,8 @@ export default function OfferTable({
     }
   }, [selectedTab]);
 
-  const setStatusBoth = (value: (typeof STATUS_TABS)[number]) => {
+  const selectStatusTab = (value: (typeof STATUS_TABS)[number]) => {
     setSelectedTab(value);
-    setStatusFilter(value);
     setPage(1);
     setSelectedKeys([]);
   };
@@ -387,24 +378,19 @@ export default function OfferTable({
 
   const selectedClientLabel = useMemo(() => {
     if (clientFilter === 'all') return tTable('allClients');
-    if (clientFilter === NO_CLIENT_FILTER) return tTable('noClientAssigned');
     const found = clientOptions.find((b) => b.buyerId === clientFilter);
     return found?.storeName || clientFilter;
   }, [clientFilter, clientOptions, tTable]);
 
   const filteredOffers = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const status = statusFilter !== 'All' ? statusFilter : selectedTab;
+    const status = selectedTab;
     return offers.filter((offer) => {
       if (status !== 'All' && offer.status.toLowerCase() !== status.toLowerCase()) {
         return false;
       }
       if (!matchesDateFilter(offer, dateFilter)) return false;
-      if (clientFilter === NO_CLIENT_FILTER) {
-        if (offer.buyerId) return false;
-      } else if (clientFilter !== 'all') {
-        if (offer.buyerId !== clientFilter) return false;
-      }
+      if (clientFilter !== 'all' && offer.buyerId !== clientFilter) return false;
       if (!q) return true;
       const hay = [
         offer.offerId,
@@ -423,7 +409,7 @@ export default function OfferTable({
         .toLowerCase();
       return hay.includes(q);
     });
-  }, [offers, search, selectedTab, statusFilter, dateFilter, clientFilter]);
+  }, [offers, search, selectedTab, dateFilter, clientFilter]);
 
   const filteredGroups = useMemo(
     () => groupOffers(filteredOffers),
@@ -646,7 +632,7 @@ export default function OfferTable({
                   tabRefs.current[idx] = el;
                 }}
                 type="button"
-                onClick={() => setStatusBoth(tab)}
+                onClick={() => selectStatusTab(tab)}
                 className={`relative z-10 shrink-0 whitespace-nowrap px-4 py-2 text-[14px] font-medium transition-colors duration-200 focus:outline-none ${
                   selectedTab === tab
                     ? 'text-white'
@@ -689,7 +675,6 @@ export default function OfferTable({
             className="flex w-full max-w-none items-center justify-between gap-1 whitespace-nowrap rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 @4xl/main:w-auto @4xl/main:max-w-[220px] @4xl/main:justify-start"
             onClick={() => {
               setShowClientDropdown((v) => !v);
-              setShowStatusDropdown(false);
               setShowDateDropdown(false);
             }}
           >
@@ -730,32 +715,14 @@ export default function OfferTable({
                 >
                   {tTable('allClients')}
              </button>
-                   <button
-                  type="button"
-                     onClick={() => {
-                    setClientFilter(NO_CLIENT_FILTER);
-                    setShowClientDropdown(false);
-                    setClientSearch('');
-                    setPage(1);
-                    setSelectedKeys([]);
-                  }}
-                  className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${
-                    clientFilter === NO_CLIENT_FILTER
-                      ? 'font-bold text-[#0a61d7]'
-                      : 'text-gray-700'
-                  }`}
-                >
-                  {tTable('noClientAssigned')}
-                </button>
-                {filteredClientOptions.length === 0
-                  ? clientSearch.trim()
-                    ? (
-                        <p className="px-4 py-3 text-xs text-gray-500">
-                          {tTable('noClientsFound')}
-                        </p>
-                      )
-                    : null
-                  : filteredClientOptions.map((b) => (
+                {filteredClientOptions.length === 0 ? (
+                  <p className="px-4 py-3 text-xs text-gray-500">
+                    {!clientSearch.trim() && clientOptions.length === 0
+                      ? tTable('noClientAssigned')
+                      : tTable('noClientsFound')}
+                  </p>
+                ) : (
+                  filteredClientOptions.map((b) => (
                       <button
                         key={b.buyerId}
                         type="button"
@@ -777,51 +744,12 @@ export default function OfferTable({
                           <div className="text-xs text-gray-500 truncate">{b.owner}</div>
                         )}
                    </button>
-                 ))}
+                  ))
+                )}
               </div>
                </div>
              )}
       </div>
-
-        {/* Status filter dropdown */}
-        <div className="relative w-full @4xl/main:w-auto" ref={statusDropdownRef}>
-          <button
-            type="button"
-            className="flex w-full items-center justify-between gap-1 whitespace-nowrap rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 @4xl/main:w-auto @4xl/main:justify-start"
-            onClick={() => {
-              setShowStatusDropdown((v) => !v);
-              setShowClientDropdown(false);
-              setShowDateDropdown(false);
-            }}
-          >
-            <span className="inline-flex items-center gap-1">
-              <Filter className="h-4 w-4" />
-              {tTable('filterStatus')}: {translateStatusTab(statusFilter)}
-              </span>
-            <ChevronDown className="ml-1 h-4 w-4 text-gray-500" />
-          </button>
-          {showStatusDropdown && (
-            <div className="absolute left-0 right-0 z-20 mt-2 rounded-lg border border-[#e6e6e6] bg-white shadow @4xl/main:right-auto @4xl/main:w-44">
-              {STATUS_FILTERS.map((opt) => (
-              <button
-                  key={opt}
-                  type="button"
-                  onClick={() => {
-                    setStatusBoth(opt);
-                    setShowStatusDropdown(false);
-                  }}
-                  className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 ${
-                    statusFilter === opt
-                      ? 'font-bold text-[#0a61d7]'
-                      : 'text-gray-700'
-                  }`}
-                >
-                  {translateStatusTab(opt)}
-              </button>
-              ))}
-            </div>
-          )}
-        </div>
 
         {/* Date filter */}
         <div className="relative w-full @4xl/main:w-auto" ref={dateDropdownRef}>
@@ -831,7 +759,6 @@ export default function OfferTable({
             onClick={() => {
               setShowDateDropdown((v) => !v);
               setShowClientDropdown(false);
-              setShowStatusDropdown(false);
             }}
           >
             <span className="inline-flex items-center gap-1">
