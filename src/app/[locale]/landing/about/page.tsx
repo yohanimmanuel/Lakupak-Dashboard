@@ -16,6 +16,7 @@ const ErrorBoundary = createErrorBoundary('About');
 /** Whitelisted rich tags for static about story copy (next-intl). */
 const STORY_RICH = {
   b: (chunks: ReactNode) => <b>{chunks}</b>,
+  i: (chunks: ReactNode) => <i>{chunks}</i>,
 };
 
 export default function AboutPage() {
@@ -31,7 +32,7 @@ export default function AboutPage() {
     router.push('/landing/solutions');
   };
 
-  const storyBefore = [1, 2, 3, 4, 5] as const;
+  const storyBefore = [1, 2, 3, 4] as const;
   const storyAfter = [6, 7, 8] as const;
 
   const pillars = [
@@ -109,7 +110,7 @@ export default function AboutPage() {
               </Reveal>
 
               <Reveal>
-                <p className="text-gray-500">{t('story.end')}</p>
+                <p className="text-gray-900 font-semibold">{t('story.end')}</p>
               </Reveal>
             </div>
           </div>

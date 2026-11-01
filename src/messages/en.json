@@ -999,46 +999,44 @@
   },
   "about": {
     "hero": {
-      "title": "Why we built Lakupak",
-      "subtitle": "To help independent FMCG distributors in Indonesia unlock underused products across the retailers they already serve."
+      "title": "Why We Built Lakupak",
+      "subtitle": "Helping independent FMCG distributors in Indonesia unlock the potential of their existing product portfolios and retailer networks."
     },
     "story": {
-      "1": "For as long as I can remember, <b>trade has been the lifeblood of local communities</b>. In Indonesia, independent distributors, warungs, and neighbourhood shops keep daily essentials within reach. From the outside it looks busy. From the inside, many distributors manage hundreds of products across hundreds of retailers, yet a narrow set of bestsellers still dominates repeat orders.",
-      "2": "The rest of the portfolio often stalls. A product may reach only a small share of eligible shops, with no clear view of where additional demand might exist. Sales teams cannot thoroughly evaluate every product against every retailer. They keep promoting what is familiar. Suitable product–retailer opportunities stay unexplored. <b>Good products get missed</b>, not always because retailers refuse them, but because nothing systematically matches the right product to the right shop.",
-      "3": "Commercial data makes the problem harder to see. Catalogs live in one place, relationships in another, purchase history in chats and spreadsheets, offers and sales activity somewhere else. Patterns that would reveal assortment gaps stay fragmented. Meanwhile reps have limited time per visit. Interactions stay brief. Relevant products go unpresented. Potential sales remain locked in the portfolio.",
-      "4": "The problem is not that every product must sell more. Some SKUs are unsuitable, mispriced, unavailable, or genuinely unpopular. What distributors lack is a systematic way to distinguish genuine growth opportunities from limited demand, identify suitable retailers, and make scarce sales interactions more productive.",
-      "5": "That is when the real problem came into focus. This was not “digitise distribution” in the abstract. <b>It was product portfolio underutilisation and low assortment penetration</b>, the specific challenge facing Indonesian FMCG distribution, paired with fragmented data and inefficient field execution.",
-      "6": "I built Lakupak to connect distributor operations, AI-powered sales intelligence, and private B2B commerce. Unify the commercial record. Identify penetration gaps and product–retailer combinations worth investigating. Prioritise with evidence. Activate sales teams with focused recommendations. Convert through a private marketplace where authorised retailers order under the distributor’s control. Learn from exposure, responses, and orders, without treating recommendations as guaranteed demand.",
-      "pausedMarketplace": "Authorised retailers discover products through the distributor’s private storefront.",
-      "7": "The name carries the same idea. In Indonesian, <b>laku</b> means both a sale and movement. Trade moves when the right products reach the right retailers, and when sales time is spent on opportunities supported by evidence. Lakupak exists to make that movement deliberate, not accidental.",
-      "8": "A distributor should not have to push every SKU to every shop. They should know where the portfolio is underused, where it is constrained, and where to act next. That is what Lakupak is built to give back.",
+      "1": "For as long as I can remember, trade has been the lifeblood of local communities. Across Indonesia, independent distributors, warungs, and neighbourhood shops keep everyday essentials within reach. From the outside, the industry looks busy. Behind the scenes, however, many distributors manage hundreds of products across hundreds of retailers, yet a narrow selection of bestsellers continues to dominate repeat orders and sales.",
+      "2": "The rest of the portfolio often remains overlooked. Some products reach only a fraction of the retailers they could potentially serve, with little visibility into where additional demand might exist. Sales teams have limited time to evaluate every product against every retailer, so familiar products naturally receive more attention. Meanwhile, retailers often have little visibility into the wider product range beyond what is introduced to them. Suitable product–retailer opportunities remain unexplored, not necessarily because retailers have rejected those products, but because discovery is limited and no systematic connection exists between what distributors offer and what retailers might need.",
+      "3": "Commercial data makes this challenge even harder to address. Product catalogues sit in one place, retailer relationships in another, while purchase histories are scattered across chats, spreadsheets, and disconnected systems. The information needed to recognise assortment gaps and understand retailer purchasing behaviour remains fragmented. Without a consolidated view, distributors struggle to distinguish genuine growth opportunities from products that are simply unsuitable, mispriced, unavailable, or lacking demand.",
+      "4": "The problem is not that every product must sell more. It is that distributors lack a systematic way to understand where their portfolios are underutilised, which products may suit which retailers, and how to make those opportunities accessible. This is more than a matter of digitising distribution. It is a challenge of product portfolio underutilisation and low assortment penetration across Indonesia's independent FMCG distribution networks.",
+      "6": "I built Lakupak to connect distributor operations, commercial intelligence, and private B2B commerce. By bringing commercial information together, Lakupak helps distributors identify assortment gaps, uncover product–retailer opportunities, and make decisions supported by evidence. Through a private marketplace, authorised retailers gain greater visibility into the distributor's product portfolio, allowing them to discover and purchase products beyond what is traditionally presented during sales visits. Every interaction, from product discovery to actual orders, creates opportunities to understand purchasing behaviour and improve future decisions.",
+      "7": "The name carries the same idea. In Indonesian, <i>laku</i> means both a sale and movement. Trade moves when the right products reach the right retailers, when opportunities are visible, and when decisions are guided by more than familiarity or habit, which is intentional. Lakupak exists to make that movement deliberate, not accidental.",
+      "8": "We believe distributors should not have to push every product to every shop, nor should retailers have to depend entirely on sales visits to discover what is available. They should have the visibility, intelligence, and access to make better commercial decisions while preserving control over their relationships and data.",
       "vision": "That is where Lakupak began.",
-      "mission": "We are only at the start. The mission is still clear: help independent FMCG distributors utilise their product portfolios across existing retailers, improve sales execution, and preserve trust over commercial data.",
-      "end": "And this is just the start."
+      "mission": "Our mission is to help independent FMCG distributors unlock more value from their existing product portfolios, strengthen their retailer networks, and make Indonesia's fragmented distribution landscape more connected, transparent, and intelligent.",
+      "end": "This is Lakupak. And this is where the journey begins."
     },
     "carousel": {
       "1": {
         "title": "Our Mission",
-        "content": "Help distributors connect the right products with the right retailers, make sales interactions more productive, and turn commercial data into actionable opportunities, without compromising control or trust."
+        "content": "Help independent FMCG distributors unlock more value from the product portfolios and retailer networks they already have, and make distribution more connected, clear, and intelligent."
       },
       "2": {
         "title": "Our Vision",
-        "content": "An AI-native B2B commerce and sales platform for Indonesian FMCG distribution: portfolio intelligence, focused sales activation, and private commerce under distributor control."
+        "content": "Distributors and retailers can see the wider portfolio, find suitable product–retailer opportunities, and decide with evidence while keeping control of their relationships and data."
       },
       "3": {
-        "1": "Low penetration is a signal to investigate, not proof of demand.",
-        "2": "Every retailer has their own terms, and those terms stay under the distributor’s control.",
-        "3": "The right product–retailer match is what makes limited sales time pay off.",
+        "1": "Not every product needs to be pushed to every shop.",
+        "2": "Retailers should be able to see more than what a sales visit presents.",
+        "3": "Better decisions need visibility and access, with relationships and data still in the distributor's control.",
         "title": "What We Believe"
       },
       "4": {
         "title": "Why 'Lakupak'?",
-        "content": "In Indonesian, laku means both sale and movement. Lakupak exists so that movement is deliberate: suitable products reach suitable retailers, and sales effort follows evidence."
+        "content": "In Indonesian, laku means both a sale and movement. Lakupak exists so that movement is deliberate: the right products reach the right retailers, and decisions follow more than habit."
       }
     },
     "cta": {
-      "title": "Start with the portfolio problem.",
-      "subtitle": "Identify where products under-penetrate your network, then activate sales and convert with focus.",
+      "title": "This is where the journey begins.",
+      "subtitle": "See where an existing portfolio can reach more of the retailers a distributor already serves.",
       "button": "See Our Solutions"
     }
   },

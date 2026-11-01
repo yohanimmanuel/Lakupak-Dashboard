@@ -999,46 +999,44 @@
   },
   "about": {
     "hero": {
-      "title": "Mengapa kami membangun Lakupak",
-      "subtitle": "Untuk membantu distributor FMCG independen di Indonesia membuka produk yang kurang termanfaatkan di retailer yang sudah mereka layani."
+      "title": "Mengapa Kami Membangun Lakupak",
+      "subtitle": "Membantu distributor FMCG independen di Indonesia membuka potensi portofolio produk dan jaringan toko yang sudah mereka miliki."
     },
     "story": {
-      "1": "Sejak saya ingat, <b>perdagangan adalah nadi komunitas lokal</b>. Di Indonesia, distributor independen, warung, dan toko tetangga menjaga kebutuhan sehari-hari tetap dalam jangkauan. Dari luar, semuanya terlihat ramai. Dari dalam, banyak distributor mengelola ratusan produk di ratusan retailer, namun sekelompok kecil produk laris masih mendominasi pesanan berulang.",
-      "2": "Sisa portofolio sering terhenti. Sebuah produk mungkin hanya menjangkau sebagian kecil toko yang layak, tanpa gambaran jelas di mana permintaan tambahan mungkin ada. Tim penjualan tidak bisa mengevaluasi setiap produk terhadap setiap retailer secara menyeluruh. Mereka terus mempromosikan yang familiar. Peluang produk–retailer yang cocok tetap tidak dieksplorasi. <b>Produk yang bagus terlewat</b>, bukan selalu karena retailer menolak, melainkan karena tidak ada yang secara sistematis mencocokkan produk yang tepat ke toko yang tepat.",
-      "3": "Data komersial membuat masalah semakin sulit dilihat. Katalog di satu tempat, hubungan di tempat lain, riwayat pembelian di chat dan spreadsheet, penawaran dan aktivitas penjualan di tempat lain lagi. Pola yang akan menyingkap celah asortimen tetap terfragmentasi. Sementara itu sales punya waktu terbatas per kunjungan. Interaksi singkat. Produk relevan tidak tersampaikan. Potensi penjualan tetap terkunci di portofolio.",
-      "4": "Masalahnya bukan bahwa setiap produk harus lebih laku. Beberapa SKU memang tidak cocok, salah harga, kosong, atau benar-benar tidak diminati. Yang kurang dimiliki distributor adalah cara sistematis membedakan peluang pertumbuhan nyata dari permintaan terbatas, mengidentifikasi retailer yang cocok, dan membuat interaksi penjualan yang terbatas lebih produktif.",
-      "5": "Di situlah masalah yang sebenarnya jadi jelas. Ini bukan “digitalisasi distribusi” secara abstrak. <b>Ini adalah underutilisation portofolio produk dan rendahnya penetrasi asortimen</b>, tantangan spesifik distribusi FMCG Indonesia, ditambah data yang terfragmentasi dan eksekusi lapangan yang tidak efisien.",
-      "6": "Saya membangun Lakupak untuk menghubungkan operasional distributor, intelijen penjualan berbasis AI, dan perdagangan B2B privat. Satukan catatan komersial. Identifikasi celah penetrasi dan kombinasi produk–retailer yang layak diselidiki. Prioritaskan dengan bukti. Aktifkan tim penjualan dengan rekomendasi terfokus. Konversi lewat marketplace privat di mana retailer yang diotorisasi memesan di bawah kendali distributor. Belajar dari eksposur, respons, dan pesanan, tanpa memperlakukan rekomendasi sebagai permintaan yang dijamin.",
-      "7": "Namanya membawa ide yang sama. Dalam bahasa Indonesia, <b>laku</b> berarti penjualan sekaligus pergerakan. Perdagangan bergerak ketika produk yang tepat sampai ke retailer yang tepat, dan ketika waktu penjualan dipakai pada peluang yang didukung bukti. Lakupak ada agar pergerakan itu disengaja, bukan kebetulan.",
-      "8": "Distributor tidak harus mendorong setiap SKU ke setiap toko. Mereka harus tahu di mana portofolio kurang termanfaatkan, di mana ada kendala, dan di mana harus bertindak berikutnya. Itulah yang ingin dikembalikan Lakupak.",
-      "pausedMarketplace": "Retailer yang diotorisasi menemukan produk lewat etalase privat distributor.",
+      "1": "Sejak saya ingat, perdagangan adalah napas komunitas lokal. Di seluruh Indonesia, distributor independen, warung, dan toko tetangga menjaga kebutuhan sehari-hari tetap dekat. Dari luar, industri ini terlihat sibuk. Di balik layar, banyak distributor mengelola ratusan produk untuk ratusan toko, tetapi hanya sedikit produk laris yang terus mendominasi pesanan ulang dan penjualan.",
+      "2": "Sisa portofolio sering terabaikan. Beberapa produk hanya sampai ke sebagian kecil toko yang sebenarnya bisa dilayani, tanpa gambaran jelas di mana permintaan tambahan mungkin ada. Tim sales punya waktu terbatas untuk menilai setiap produk di setiap toko, jadi produk yang sudah dikenal mendapat lebih banyak perhatian. Sementara itu, toko sering tidak melihat rangkaian produk yang lebih luas di luar yang diperkenalkan kepada mereka. Peluang produk dan toko yang cocok tetap belum dijelajahi, bukan karena toko menolak produk itu, tetapi karena penemuan masih terbatas dan belum ada hubungan yang teratur antara apa yang dijual distributor dan apa yang mungkin dibutuhkan toko.",
+      "3": "Data dagang membuat tantangan ini lebih sulit diatasi. Katalog produk ada di satu tempat, hubungan dengan toko di tempat lain, sementara riwayat pembelian tersebar di chat, spreadsheet, dan sistem yang tidak saling terhubung. Informasi untuk melihat celah pilihan produk dan memahami cara toko membeli masih terpecah. Tanpa satu pandangan yang utuh, distributor sulit membedakan peluang tumbuh yang nyata dari produk yang memang tidak cocok, salah harga, tidak tersedia, atau kurang diminati.",
+      "4": "Masalahnya bukan setiap produk harus lebih laku. Distributor belum punya cara yang teratur untuk melihat di mana portofolio mereka kurang terpakai, produk mana yang cocok untuk toko mana, dan bagaimana peluang itu bisa dijangkau. Ini lebih dari sekadar mengubah distribusi menjadi digital. Ini adalah tantangan portofolio produk yang kurang terpakai dan pilihan barang yang masih sedikit menjangkau jaringan distribusi FMCG independen di Indonesia.",
+      "6": "Saya membangun Lakupak untuk menghubungkan operasional distributor, pemahaman dagang, dan perdagangan B2B yang privat. Dengan menyatukan informasi dagang, Lakupak membantu distributor melihat celah pilihan produk, menemukan peluang produk dan toko, serta mengambil keputusan berdasarkan bukti. Lewat pasar privat, toko yang diizinkan bisa melihat portofolio produk distributor dengan lebih jelas, lalu menemukan dan membeli produk di luar yang biasa ditawarkan saat kunjungan sales. Setiap interaksi, dari menemukan produk sampai pesanan nyata, memberi kesempatan untuk memahami cara membeli dan memperbaiki keputusan berikutnya.",
+      "7": "Namanya membawa makna yang sama. Dalam bahasa Indonesia, <i>laku</i> berarti penjualan sekaligus gerakan. Dagang bergerak ketika produk yang tepat sampai ke toko yang tepat, ketika peluang terlihat, dan ketika keputusan tidak hanya mengikuti kebiasa tetapi niat. Lakupak ada agar gerakan itu disengaja, bukan kebetulan.",
+      "8": "Kami percaya distributor tidak harus mendorong setiap produk ke setiap toko, dan toko tidak harus bergantung penuh pada kunjungan sales untuk melihat apa yang tersedia. Mereka perlu melihat dengan jelas, punya pemahaman, dan punya akses untuk mengambil keputusan dagang yang lebih baik, sambil tetap memegang hubungan dan data mereka.",
       "vision": "Dari situlah Lakupak dimulai.",
-      "mission": "Kami baru di awal. Misinya tetap jelas: membantu distributor FMCG independen memanfaatkan portofolio produk di retailer yang sudah ada, memperbaiki eksekusi penjualan, dan menjaga kepercayaan atas data komersial.",
-      "end": "Dan ini baru permulaan."
+      "mission": "Misi kami adalah membantu distributor FMCG independen mengambil lebih banyak nilai dari portofolio produk yang sudah ada, memperkuat jaringan toko, dan membuat distribusi Indonesia yang tersebar menjadi lebih terhubung, jelas, dan cerdas.",
+      "end": "Ini Lakupak. Dan dari sinilah perjalanan dimulai."
     },
     "carousel": {
       "1": {
         "title": "Misi Kami",
-        "content": "Membantu distributor menghubungkan produk yang tepat dengan retailer yang tepat, membuat interaksi penjualan lebih produktif, dan mengubah data komersial menjadi peluang yang bisa ditindaklanjuti, tanpa mengorbankan kendali atau kepercayaan."
+        "content": "Membantu distributor FMCG independen mengambil lebih banyak nilai dari portofolio produk dan jaringan toko yang sudah ada, serta membuat distribusi lebih terhubung, jelas, dan cerdas."
       },
       "2": {
         "title": "Visi Kami",
-        "content": "Platform perdagangan dan penjualan B2B berbasis AI untuk distribusi FMCG Indonesia: intelijen portofolio, aktivasi penjualan terfokus, dan perdagangan privat di bawah kendali distributor."
+        "content": "Distributor dan toko bisa melihat portofolio yang lebih luas, menemukan peluang produk dan toko yang cocok, lalu memutuskan berdasarkan bukti sambil tetap memegang hubungan dan data mereka."
       },
       "3": {
-        "1": "Penetrasi rendah adalah sinyal untuk diselidiki, bukan bukti permintaan.",
-        "2": "Setiap retailer punya syaratnya sendiri, dan syarat itu tetap di bawah kendali distributor.",
-        "3": "Pencocokan produk–retailer yang tepat membuat waktu penjualan yang terbatas berarti.",
+        "1": "Tidak setiap produk harus didorong ke setiap toko.",
+        "2": "Toko harus bisa melihat lebih dari yang ditawarkan saat kunjungan sales.",
+        "3": "Keputusan yang lebih baik butuh pandangan dan akses, dengan hubungan dan data tetap di tangan distributor.",
         "title": "Yang Kami Percaya"
       },
       "4": {
         "title": "Kenapa 'Lakupak'?",
-        "content": "Dalam bahasa Indonesia, laku berarti penjualan sekaligus pergerakan. Lakupak ada agar pergerakan itu disengaja: produk yang cocok sampai ke retailer yang cocok, dan usaha penjualan mengikuti bukti."
+        "content": "Dalam bahasa Indonesia, laku berarti penjualan sekaligus gerakan. Lakupak ada agar gerakan itu disengaja: produk yang tepat sampai ke toko yang tepat, dan keputusan tidak hanya mengikuti kebiasaan."
       }
     },
     "cta": {
-      "title": "Mulai dari masalah portofolio.",
-      "subtitle": "Temukan di mana produk kurang menembus jaringan Anda, lalu aktifkan penjualan dan konversi dengan fokus.",
+      "title": "Dari sinilah perjalanan dimulai.",
+      "subtitle": "Lihat di mana portofolio yang sudah ada bisa menjangkau lebih banyak toko yang sudah dilayani.",
       "button": "Lihat Solusi Kami"
     }
   },
