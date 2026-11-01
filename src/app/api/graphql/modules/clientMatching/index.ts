@@ -108,26 +108,23 @@ function mapCandidate(row: {
     address: row.incomingOrder.deliveryAddress,
     status: savedProspect ? row.existingClient.status : null,
   };
-  const openForReview = row.status === 'pending' || row.status === 'needs_more_info';
-  const scored = openForReview
-    ? classifyClientSignals({
-        incomingPhone: incoming.phone,
-        incomingAddress: incoming.address,
-        incomingStoreName: incoming.name,
-        incomingOwnerName: incoming.owner,
-        existingPhone: existing.phone,
-        existingAddress: existing.address,
-        existingStoreName: existing.name,
-        existingOwnerName: existing.owner,
-      })
-    : null;
+  const scored = classifyClientSignals({
+    incomingPhone: incoming.phone,
+    incomingAddress: incoming.address,
+    incomingStoreName: incoming.name,
+    incomingOwnerName: incoming.owner,
+    existingPhone: existing.phone,
+    existingAddress: existing.address,
+    existingStoreName: existing.name,
+    existingOwnerName: existing.owner,
+  });
   return {
     id: row.id,
     existingClientId: row.existingClientId,
     incomingOrderId: row.incomingOrderId,
     provisionalClientId: row.provisionalClientId,
-    confidenceScore: scored ? scored.score : row.confidenceScore,
-    matchedSignals: scored ? scored.signals : row.matchedSignals,
+    confidenceScore: scored.score,
+    matchedSignals: scored.signals,
     status: row.status,
     autoMerged: row.autoMerged,
     undoneAt: row.undoneAt?.toISOString() ?? null,

@@ -1171,14 +1171,24 @@ export async function manualMergeOrder(distributorId: number, existingClientId: 
       if (nullOriginOrderIds.length > 0) undo = { ...undo, nullOriginOrderIds };
     }
     await completeActiveProspectJobs(distributorId, tx, true, [survivingId]);
+    const signals = classifyClientSignals({
+      incomingPhone: order.contactPhone,
+      incomingAddress: order.deliveryAddress,
+      incomingStoreName: order.storeName,
+      incomingOwnerName: order.contactPerson,
+      existingPhone: existing.phone,
+      existingAddress: existing.address,
+      existingStoreName: existing.storeName,
+      existingOwnerName: existing.owner,
+    });
     await tx.clientMatchCandidate.create({
       data: {
         distributorId,
         existingClientId: survivingId,
         incomingOrderId,
         provisionalClientId: marketplaceBuyerId,
-        confidenceScore: 0,
-        matchedSignals: [],
+        confidenceScore: signals.score,
+        matchedSignals: signals.signals,
         status: 'merged',
         autoMerged: false,
         undoSnapshot: (undo ?? { priorStatus: existing.status }) as Prisma.InputJsonValue,

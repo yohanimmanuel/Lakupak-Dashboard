@@ -64,6 +64,27 @@ function textSimilar(a: string | null | undefined, b: string | null | undefined)
   return tokenOverlap(na, nb) >= 0.5;
 }
 
+const ADDRESS_STOP = new Set([
+  'jl',
+  'jln',
+  'jalan',
+  'gg',
+  'gang',
+  'no',
+  'nomor',
+  'rt',
+  'rw',
+  'blok',
+]);
+
+/** Street line only. District, city, and province are shared by different stores. */
+function streetTokens(value: string | null | undefined): string[] {
+  const head = String(value ?? '')
+    .toLowerCase()
+    .split(/\b(?:desa|kec|kecamatan|kel|kelurahan|kota|kab|kabupaten)\b/)[0] ?? '';
+  return tokens(head).filter((token) => !ADDRESS_STOP.has(token) && !/^\d+$/.test(token));
+}
+
 function addressRelation(
   incoming: string | null | undefined,
   existing: string | null | undefined,
@@ -73,8 +94,15 @@ function addressRelation(
   if (na.length < 6 || nb.length < 6) return 'none';
   if (na === nb) return 'exact';
   if (na.includes(nb) || nb.includes(na)) return 'near';
-  if (tokenOverlap(na, nb) >= 0.45) return 'near';
-  return 'none';
+  const ta = new Set(streetTokens(incoming));
+  const tb = new Set(streetTokens(existing));
+  if (ta.size === 0 || tb.size === 0) return 'none';
+  let shared = 0;
+  ta.forEach((token) => {
+    if (tb.has(token)) shared += 1;
+  });
+  const overlap = shared / (ta.size + tb.size - shared);
+  return overlap >= 0.45 ? 'near' : 'none';
 }
 
 const FIELD_EXACT = 25;
