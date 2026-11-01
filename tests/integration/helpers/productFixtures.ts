@@ -111,7 +111,7 @@ export async function createPublishedProductWithColorVariants(userId: number, pr
     status: 'Published',
     productCategory: 'Retail',
     catalogName: 'Default',
-    images: [],
+    images: ['https://example.com/product.jpg'],
     variantDefinitions: [
       { variantType: 'Color', options: ['Black', 'White', 'Yellow'], position: 0 },
       { variantType: 'Size', options: ['M'], position: 1 },
