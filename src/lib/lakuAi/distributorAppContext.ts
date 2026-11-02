@@ -375,11 +375,11 @@ export const LAKU_APP_MODULES = [
   //   path: '/automation',
   //   role: 'Saved workflow list. Open a workflow to review the canvas.',
   // },
-  // {
-  //   id: 'marketplace',
-  //   path: '/marketplace',
-  //   role: 'Storefront listings and marketplace visibility / performance.',
-  // },
+  {
+    id: 'marketplace',
+    path: '/marketplace',
+    role: 'Storefront listings and marketplace visibility / performance.',
+  },
   {
     id: 'logistics',
     path: '/logistics',
@@ -1007,9 +1007,8 @@ export async function buildDistributorAppAssistantContext(userId: number): Promi
       publishedListings: publishedProductCount,
       unpublishedOrNotListed: notPublishedCount,
       publishRatePct: pct(publishedProductCount, productCount),
-      // MVP pause: do not hand the model storefront/analytics paths to suggest
-      // path: '/marketplace',
-      // analyticsPath: '/analytics',
+      path: '/marketplace',
+      // MVP pause: analyticsPath: '/analytics',
     },
     topProducts30d,
     offers: {

@@ -4,7 +4,6 @@ import {
   X,
   Heart,
   Share2,
-  Star,
   ShoppingCart,
   ArrowLeft,
   Zap,
@@ -376,13 +375,7 @@ export default function ProductMarketplacePubs({
                  <h3 className="text-lg font-semibold text-gray-900">{tMarketplace('sampleProductName')}</h3>
                  <div className="px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-lg">{tMarketplace('bestSeller')}</div>
                </div>
-               <div className="flex items-center gap-2 mb-2">
-                 <div className="flex items-center gap-1">
-                   <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                   <span className="text-sm font-medium text-gray-700">4.8</span>
-                 </div>
-                 <span className="text-sm text-gray-500">{tMarketplace('reviews', { count: 127 })}</span>
-                 <span className="text-xs text-gray-400">•</span>
+               <div className="mb-2">
                  <span className="text-sm text-gray-500">{tMarketplace('soldCount')}</span>
                </div>
              </div>
@@ -466,69 +459,6 @@ export default function ProductMarketplacePubs({
             </div>
           </div>
 
-          {/* 5. CUSTOMER REVIEWS */}
-          <div className="p-4 border-b border-[#e6e6e6]">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="font-semibold text-gray-900">{tMarketplace('customerReviews')}</h4>
-              <button className="text-sm text-[#0a61d7]">{tMarketplace('viewAllReviews', { count: 127 })}</button>
-            </div>
-            
-            {/* Rating Breakdown */}
-            <div className="flex items-center gap-4 mb-3">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-gray-900">4.8</div>
-                <div className="flex items-center gap-1 mb-1">
-                  {[1,2,3,4,5].map((star) => (
-                    <Star key={star} className="w-4 h-4 text-yellow-400 fill-current" />
-                  ))}
-                </div>
-                <div className="text-xs text-gray-500">{tMarketplace('reviewsCount', { count: 127 })}</div>
-              </div>
-              <div className="flex-1 space-y-1">
-                {[5,4,3,2,1].map((rating) => (
-                  <div key={rating} className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500 w-4 inline-flex items-center gap-0.5">
-                      {rating}
-                      <Star className="w-3 h-3 text-yellow-400 fill-current" />
-                    </span>
-                    <div className="flex-1 bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-yellow-400 h-2 rounded-full" 
-                        style={{ width: `${rating === 5 ? 80 : rating === 4 ? 15 : rating === 3 ? 3 : rating === 2 ? 1 : 1}%` }}
-                      ></div>
-                    </div>
-                    <span className="text-xs text-gray-500 w-8">
-                      {rating === 5 ? '102' : rating === 4 ? '19' : rating === 3 ? '4' : rating === 2 ? '1' : '1'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Sample Review */}
-            <div className="border-t border-[#e6e6e6] pt-3">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                  <span className="text-gray-600 text-xs font-medium">JD</span>
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="flex items-center gap-1">
-                      {[1,2,3,4,5].map((star) => (
-                        <Star key={star} className="w-3 h-3 text-yellow-400 fill-current" />
-                      ))}
-                    </div>
-                    <span className="text-xs text-gray-500">John Doe</span>
-                    <span className="text-xs text-gray-400">2 days ago</span>
-                  </div>
-                  <p className="text-sm text-gray-700">
-                    {tMarketplace('sampleReview')}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* 6. SELLER INFORMATION */}
           <div className="p-4 border-b border-[#e6e6e6] bg-gray-50">
             <h4 className="font-semibold text-gray-900 mb-3">{tMarketplace('sellerInformation')}</h4>
@@ -537,13 +467,9 @@ export default function ProductMarketplacePubs({
                  <span className="text-blue-600 font-bold text-sm">L</span>
                </div>
                <div>
-                 <div className="flex items-center gap-2 mb-1">
+                 <div className="flex items-center gap-2">
                    <p className="font-medium text-gray-900">{tMarketplace('officialStore')}</p>
                    <div className="px-2 py-1 bg-blue-500 text-white text-xs font-bold rounded-lg">{tMarketplace('officialStoreBadge')}</div>
-                 </div>
-                 <div className="flex items-center gap-2">
-                   <Star className="w-3 h-3 text-yellow-400 fill-current" />
-                   <span className="text-xs text-gray-600">{tMarketplace('storeRatings')}</span>
                  </div>
                </div>
              </div>

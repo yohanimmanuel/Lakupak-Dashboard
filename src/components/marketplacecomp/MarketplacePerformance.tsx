@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { TrendingUp, Eye, ShoppingCart, Heart, X, ChevronDown, DollarSign, ChevronLeft, ChevronRight, Star } from 'lucide-react';
+import { TrendingUp, Eye, ShoppingCart, Heart, X, ChevronDown, DollarSign, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatCurrency } from '@/utils/currencyUtils';
 import { useMarketplaceTranslations } from '@/hooks/useMarketplaceTranslations';
 import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
@@ -21,7 +21,6 @@ interface Product {
   addedToCart: number;
   cartAbandoned: number;
   sales: number;
-  reviews?: number;
   revenue: number;
 }
 
@@ -32,7 +31,6 @@ interface OverallMetrics {
   totalFavorites?: number;
   totalAddedToCart?: number;
   cartAbandonedCount?: number;
-  totalReviews?: number;
 }
 
 interface MarketplacePerformanceProps {
@@ -48,34 +46,6 @@ export default function MarketplacePerformance({
 }: MarketplacePerformanceProps) {
   const { tShared, tPerformance, translateSortOption } = useMarketplaceTranslations();
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [modalTab, setModalTab] = useState<'analytics' | 'reviews'>('analytics');
-  type ProductReview = {
-    id: number;
-    rating: number;
-    title?: string;
-    comment?: string;
-    imageUrls: string[];
-    createdAt: string;
-    reviewerDisplayName: string;
-    purchasedVariantName?: string;
-    purchasedPackage?: string;
-  };
-
-  const [productReviews, setProductReviews] = useState<ProductReview[] | null>(null);
-
-  const isProductReview = (v: unknown): v is ProductReview => {
-    if (typeof v !== 'object' || v === null || Array.isArray(v)) return false;
-    const r = v as Record<string, unknown>;
-    return (
-      typeof r.id === 'number' &&
-      typeof r.rating === 'number' &&
-      typeof r.createdAt === 'string' &&
-      typeof r.reviewerDisplayName === 'string' &&
-      Array.isArray(r.imageUrls) &&
-      r.imageUrls.every((x) => typeof x === 'string')
-    );
-  };
-  const [reviewsLoading, setReviewsLoading] = useState(false);
   const [sortBy, setSortBy] = useState<'views' | 'sales' | 'revenue'>('views');
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
@@ -166,30 +136,6 @@ export default function MarketplacePerformance({
       return 0;
     });
   }, [publishedProducts, sortBy]);
-
-  // Load reviews when the modal switches to Reviews tab
-  useEffect(() => {
-    if (!selectedProduct || modalTab !== 'reviews') return;
-    let cancelled = false;
-    setReviewsLoading(true);
-    setProductReviews(null);
-    fetch(`/api/mobile/reviews/product?productId=${encodeURIComponent(selectedProduct.productId)}&page=1&limit=50`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Failed to load reviews'))))
-      .then((json: { reviews?: unknown[] }) => {
-        if (cancelled) return;
-        const reviews = Array.isArray(json.reviews) ? json.reviews.filter(isProductReview) : [];
-        setProductReviews(reviews);
-      })
-      .catch(() => {
-        if (!cancelled) setProductReviews([]);
-      })
-      .finally(() => {
-        if (!cancelled) setReviewsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedProduct, modalTab]);
 
   // Reset to first page when sort changes or products change
   useEffect(() => {
@@ -355,7 +301,6 @@ export default function MarketplacePerformance({
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{tPerformance('tableCart')}</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{tPerformance('tableFavorites')}</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{tPerformance('tableSold')}</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{tPerformance('tableReviews')}</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{tPerformance('tableSales')}</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{tPerformance('tableConv')}</th>
               </tr>
@@ -384,7 +329,6 @@ export default function MarketplacePerformance({
                     <td className="px-4 py-3 text-right text-xs text-gray-900">{product.addedToCart.toLocaleString()}</td>
                     <td className="px-4 py-3 text-right text-xs text-gray-900">{product.favorites.toLocaleString()}</td>
                     <td className="px-4 py-3 text-right text-xs font-semibold text-gray-900">{product.sales.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right text-xs text-gray-900">{(product.reviews ?? 0).toLocaleString()}</td>
                     <td className="px-4 py-3 text-right text-xs font-semibold text-[#0a61d7]">
                       {formatCurrency(product.revenue, userCurrency)}
                     </td>
@@ -451,10 +395,7 @@ export default function MarketplacePerformance({
       {selectedProduct && (
         <div 
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={() => {
-            setSelectedProduct(null);
-            setModalTab('analytics');
-          }}
+          onClick={() => setSelectedProduct(null)}
         >
           <div 
             className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto overflow-x-hidden min-w-0"
@@ -472,10 +413,7 @@ export default function MarketplacePerformance({
                 </div>
               </div>
               <button
-                onClick={() => {
-                  setSelectedProduct(null);
-                  setModalTab('analytics');
-                }}
+                onClick={() => setSelectedProduct(null)}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5 text-gray-600" />
@@ -484,85 +422,8 @@ export default function MarketplacePerformance({
 
             {/* Modal Content */}
             <div className="p-4 space-y-4 min-w-0">
-              {modalTab === 'reviews' ? (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <button
-                      type="button"
-                      onClick={() => setModalTab('analytics')}
-                      className="text-sm font-semibold text-[#0a61d7] hover:underline"
-                    >
-                      {tPerformance('back')}
-                    </button>
-                    <div className="text-sm text-gray-600">
-                      {tShared('reviewsCount', { count: selectedProduct.reviews ?? 0 })}
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-lg border border-gray-200">
-                    {reviewsLoading ? (
-                      <div className="p-4 text-sm text-gray-600">{tPerformance('loadingReviews')}</div>
-                    ) : (productReviews?.length ?? 0) === 0 ? (
-                      <div className="p-4 text-sm text-gray-600">{tPerformance('noReviews')}</div>
-                    ) : (
-                      <div className="max-h-[60vh] overflow-y-auto divide-y divide-gray-200">
-                        {productReviews!.map((r) => (
-                          <div key={r.id} className="p-4">
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="min-w-0">
-                                <p className="text-sm font-semibold text-gray-900 truncate">
-                                  {r.reviewerDisplayName || tShared('customerFallback')}
-                                </p>
-                                <div className="flex items-center gap-1 text-yellow-500">
-                                  {Array.from({ length: 5 }, (_, i) => (
-                                    <Star key={i} className="w-4 h-4" fill={i < (r.rating ?? 0) ? 'currentColor' : 'none'} />
-                                  ))}
-                                </div>
-                                {(r.purchasedVariantName || r.purchasedPackage) && (
-                                  <div className="mt-1 text-xs text-gray-600 space-y-0.5">
-                                    {r.purchasedVariantName ? (
-                                      <p className="line-clamp-2">{r.purchasedVariantName}</p>
-                                    ) : null}
-                                    {r.purchasedPackage ? (
-                                      <p className="line-clamp-1">{r.purchasedPackage}</p>
-                                    ) : null}
-                                  </div>
-                                )}
-                              </div>
-                              <p className="text-xs text-gray-500 whitespace-nowrap">
-                                {r.createdAt ? new Date(r.createdAt).toLocaleDateString() : ''}
-                              </p>
-                            </div>
-
-                            {r.title ? <p className="mt-2 text-sm font-semibold text-gray-900">{r.title}</p> : null}
-                            {r.comment ? <p className="mt-1 text-sm text-gray-700 whitespace-pre-line">{r.comment}</p> : null}
-
-                            {Array.isArray(r.imageUrls) && r.imageUrls.length > 0 ? (
-                              <div className="mt-3 flex flex-wrap gap-2">
-                                {r.imageUrls.slice(0, 5).map((url: string, idx: number) => (
-                                  <a
-                                    key={`${r.id}-${idx}`}
-                                    href={url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="block w-16 h-16 rounded-md overflow-hidden border border-gray-200"
-                                  >
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src={url} alt="" className="w-full h-full object-cover" />
-                                  </a>
-                                ))}
-                              </div>
-                            ) : null}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <>
                 {/* Key Metrics Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-blue-50 rounded-lg p-4">
                   <Eye className="w-5 h-5 text-blue-600 mb-2" />
                   <p className="text-2xl font-bold text-gray-900">{selectedProduct.views.toLocaleString()}</p>
@@ -577,20 +438,6 @@ export default function MarketplacePerformance({
                   <ShoppingCart className="w-5 h-5 text-green-600 mb-2" />
                   <p className="text-2xl font-bold text-gray-900">{selectedProduct.sales.toLocaleString()}</p>
                   <p className="text-sm text-gray-600">{tPerformance('sales')}</p>
-                </div>
-                <div className="bg-yellow-50 rounded-lg p-4 flex flex-col justify-between">
-                  <div>
-                    <Star className="w-5 h-5 text-yellow-600 mb-2" />
-                    <p className="text-2xl font-bold text-gray-900">{(selectedProduct.reviews ?? 0).toLocaleString()}</p>
-                    <p className="text-sm text-gray-600">{tPerformance('reviews')}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setModalTab('reviews')}
-                    className="mt-3 inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-xs font-semibold text-gray-900 border border-gray-200 hover:bg-gray-50"
-                  >
-                    {tPerformance('viewReviews')}
-                  </button>
                 </div>
               </div>
 
@@ -673,8 +520,6 @@ export default function MarketplacePerformance({
                   </p>
                 </div>
               </div>
-              </>
-              )}
             </div>
           </div>
         </div>

@@ -98,7 +98,7 @@ export const DASHBOARD_SEARCH_CATALOG: DashboardSearchEntry[] = [
     href: '/offers/campaign',
     keywords: ['banner', 'campaign', 'homepage', 'kampanye'],
   },
-  // MVP pause: sales / analytics / automation / marketplace search entries
+  // MVP pause: sales / analytics / automation search entries
   // {
   //   id: 'sales',
   //   title: 'Sales',
@@ -171,14 +171,14 @@ export const DASHBOARD_SEARCH_CATALOG: DashboardSearchEntry[] = [
   //   href: '/analytics/performance',
   //   keywords: ['operations', 'operasional', 'delivery'],
   // },
-  // {
-  //   id: 'marketplace',
-  //   title: 'Marketplace',
-  //   description: 'Storefront performance and published products',
-  //   section: 'Secondary',
-  //   href: '/marketplace',
-  //   keywords: ['storefront', 'published', 'buyer app'],
-  // },
+  {
+    id: 'marketplace',
+    title: 'Marketplace',
+    description: 'Storefront performance and published products',
+    section: 'Secondary',
+    href: '/marketplace',
+    keywords: ['storefront', 'published', 'buyer app'],
+  },
   {
     id: 'logistics',
     title: 'Logistics',

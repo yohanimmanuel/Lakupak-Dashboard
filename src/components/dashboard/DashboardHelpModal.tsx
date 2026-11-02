@@ -16,7 +16,8 @@ const HELP_FEATURE_KEYS = [
   'products',
   'orders',
   'clients',
-  // MVP pause: 'sales', 'analytics', 'marketplace',
+  'marketplace',
+  // MVP pause: 'sales', 'analytics',
   'logistics',
 ] as const;
 const HELP_TIP_KEYS = ['search', 'sidebar', 'tours'] as const;

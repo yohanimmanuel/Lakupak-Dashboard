@@ -14,7 +14,7 @@ import {
   PackageIcon,
   SettingsIcon,
   X,
-  // StoreIcon,
+  StoreIcon,
   // BadgeDollarSign,
   // ChartAreaIcon,
   // NetworkIcon,
@@ -124,17 +124,17 @@ const mainMenuItems = [
 ];
 
 const secondaryMenuItems = [
-  // MVP pause: automation + marketplace nav
+  // MVP pause: automation nav
   // {
   //   label: 'Automation',
   //   icon: <NetworkIcon className="w-5 h-5" />,
   //   href: '/automation',
   // },
-  // {
-  //   label: 'Marketplace',
-  //   icon: <StoreIcon className="w-5 h-5" />,
-  //   href: '/marketplace',
-  // },
+  {
+     label: 'Marketplace',
+     icon: <StoreIcon className="w-5 h-5" />,
+     href: '/marketplace',
+  },
   { label: 'Settings', href: '/settings', icon: <SettingsIcon className="w-5 h-5" /> },
 ];
 
