@@ -723,10 +723,10 @@ export default function OfferTable({
                   </p>
                 ) : (
                   filteredClientOptions.map((b) => (
-                      <button
+                   <button
                         key={b.buyerId}
                         type="button"
-                        onClick={() => {
+                     onClick={() => {
                           setClientFilter(b.buyerId);
                           setShowClientDropdown(false);
                           setClientSearch('');
@@ -745,9 +745,9 @@ export default function OfferTable({
                         )}
                    </button>
                   ))
-                )}
-              </div>
-               </div>
+             )}
+           </div>
+        </div>
              )}
       </div>
 

@@ -64,6 +64,8 @@ model User {
   clientMatchCandidates ClientMatchCandidate[]
   aiConversations AiConversation[]
   marketplaceHomeOffers MarketplaceHomeOffer[]
+  assortmentOpportunities AssortmentOpportunity[]
+  assortmentOpportunitySettings AssortmentOpportunitySettings?
 
   @@index([companyId])
   @@index([accountStatus])
@@ -232,6 +234,7 @@ model Buyer {
   offers       Offer[]
   salesJobs    SalesJob[]
   matchCandidates ClientMatchCandidate[] @relation("MatchExistingClient")
+  assortmentOpportunities AssortmentOpportunity[]
 
   @@unique([userId, customerNumber])
 }
@@ -672,6 +675,7 @@ model VariantOption {
   product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   orderItems OrderItem[]
   offers     Offer[]
+  assortmentOpportunities AssortmentOpportunity[]
 
   @@unique([productId, variantName])
   @@index([productId, isActive])
@@ -1438,7 +1442,7 @@ model SalesJob {
   @@index([distributorId, scheduledDate])
   @@index([orderId])
   @@index([whatsappMessageId])
-}
+  }
 
 /// One visit date and the WhatsApp reminder clock time for that date.
 model SalesJobSchedule {
@@ -1494,5 +1498,81 @@ model ClientMatchCandidate {
   @@index([distributorId, autoMerged, createdAt])
   @@index([incomingOrderId])
   @@index([existingClientId])
+}
+
+/// Per-distributor thresholds for SKU–retailer matching. Missing rows use code defaults.
+model AssortmentOpportunitySettings {
+  distributorId      Int      @id
+  lookbackDays       Int      @default(365)
+  defaultReorderDays Int      @default(45)
+  minConfidence      Decimal  @default(0.350) @db.Decimal(4, 3)
+  minMatchScore      Int      @default(40)
+  minEvidenceSignals Int      @default(2)
+  matchWeights       Json
+  priorityWeights    Json
+  lastRefreshedAt    DateTime? @db.Timestamptz(3)
+  updatedAt          DateTime @updatedAt @db.Timestamptz(3)
+
+  distributor User @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+}
+
+/// One open recommendation per distributor, retailer, and SKU (VariantOption).
+model AssortmentOpportunity {
+  id                  String    @id @default(cuid())
+  distributorId       Int
+  buyerId             String
+  variantOptionId     Int
+  productId           String
+  /// new_assortment | reactivation
+  opportunityType     String
+  /// open | reviewed | dismissed | expired
+  status              String    @default("open")
+  matchScore          Int
+  priorityScore       Int
+  confidence          Decimal   @db.Decimal(4, 3)
+  penetration         Decimal   @db.Decimal(5, 2)
+  skuLabel            String
+  variantName         String
+  productName         String
+  brand               String
+  categorySlug        String?
+  retailerName        String
+  segment             String
+  reasons             String[]  @default([])
+  breakdown           Json
+  /// introduce | reorder
+  recommendedAction   String
+  lastPurchasedAt     DateTime? @db.Timestamptz(3)
+  reorderIntervalDays Int?
+  reviewedAt          DateTime? @db.Timestamptz(3)
+  generatedAt         DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime  @updatedAt @db.Timestamptz(3)
+
+  distributor   User          @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+  buyer         Buyer         @relation(fields: [buyerId], references: [buyerId], onDelete: Cascade)
+  variantOption VariantOption @relation(fields: [variantOptionId], references: [id], onDelete: Cascade)
+  events        AssortmentOpportunityEvent[]
+
+  @@unique([distributorId, buyerId, variantOptionId])
+  @@index([distributorId, status, priorityScore])
+  @@index([distributorId, opportunityType])
+  @@index([distributorId, brand])
+  @@index([distributorId, segment])
+  @@index([buyerId])
+  @@index([variantOptionId])
+}
+
+model AssortmentOpportunityEvent {
+  id            String   @id @default(cuid())
+  opportunityId String
+  distributorId Int
+  action        String
+  note          String?
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+
+  opportunity AssortmentOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  @@index([opportunityId, createdAt])
+  @@index([distributorId, createdAt])
 }
 
