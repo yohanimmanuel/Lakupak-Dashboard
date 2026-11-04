@@ -233,7 +233,12 @@
       "paymentAuth": {
         "proofUnpaid": "Buyer submitted payment proof. Verify the transfer and mark as Paid when received.",
         "paid": "Payment processed successfully. This transaction has been authorized for future reference.",
-        "unpaid": "Awaiting payment from the buyer."
+        "unpaid": "Awaiting payment from the buyer.",
+        "paidAmount": "Paid",
+        "unpaidAmount": "Unpaid",
+        "nettHint": "Enter the amount received. The rest stays unpaid until the order is paid in full.",
+        "nettSaving": "Saving payment…",
+        "nettFailed": "Could not save the payment amount."
       },
       "orderDetailsTitle": "Order Details",
       "orderId": "Order ID:",

@@ -163,6 +163,7 @@ export async function getOrdersHandler(request: NextRequest) {
         discounts: decimalToNumber(detailOrder.discounts),
         shippingFee: decimalToNumber(detailOrder.shippingFee),
         totalAmount: pricePreview?.totalAmount ?? decimalToNumber(detailOrder.totalAmount),
+        amountPaid: detailOrder.amountPaid == null ? null : decimalToNumber(detailOrder.amountPaid),
         orderItems: enrichedOrderItems,
         shippingOptionMinDays: shippingOptionMinDays ?? null,
         shippingOptionMaxDays: shippingOptionMaxDays ?? null,
@@ -287,6 +288,7 @@ export async function getOrdersHandler(request: NextRequest) {
         discounts: decimalToNumber(order.discounts),
         shippingFee: decimalToNumber(order.shippingFee),
         totalAmount: pricePreview?.totalAmount ?? decimalToNumber(order.totalAmount),
+        amountPaid: order.amountPaid == null ? null : decimalToNumber(order.amountPaid),
         orderItems: enrichedOrderItems,
       };
     });

@@ -233,7 +233,12 @@
       "paymentAuth": {
         "proofUnpaid": "Pembeli mengirim bukti pembayaran. Verifikasi transfer dan tandai Lunas setelah diterima.",
         "paid": "Pembayaran berhasil diproses. Transaksi ini telah diotorisasi untuk referensi di masa depan.",
-        "unpaid": "Menunggu pembayaran dari pembeli."
+        "unpaid": "Menunggu pembayaran dari pembeli.",
+        "paidAmount": "Dibayar",
+        "unpaidAmount": "Belum dibayar",
+        "nettHint": "Masukkan jumlah yang diterima. Sisanya tetap belum dibayar sampai pesanan lunas.",
+        "nettSaving": "Menyimpan pembayaran…",
+        "nettFailed": "Jumlah pembayaran gagal disimpan."
       },
       "orderDetailsTitle": "Detail Pesanan",
       "orderId": "ID Pesanan:",

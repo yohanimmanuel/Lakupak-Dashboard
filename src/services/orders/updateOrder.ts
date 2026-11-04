@@ -585,7 +585,6 @@ export async function updateOrderHandler(request: NextRequest) {
       recalculatedData = {
         ...sanitizedData,
         subtotal: subtotalCalc,
-        totalAmount: subtotalCalc + Number(sanitizedData.shippingFee || 0) - Number(sanitizedData.discounts || 0),
         totalOrders: totalQtyCalc,
       };
     }
@@ -624,6 +623,11 @@ export async function updateOrderHandler(request: NextRequest) {
 
     let previousPaymentStatus: string | null = null;
     let previousOrderStatus: string | null = null;
+    const totalsChanged =
+      sanitizedData.subtotal !== undefined ||
+      sanitizedData.shippingFee !== undefined ||
+      sanitizedData.discounts !== undefined ||
+      Array.isArray(parsedOrderItems);
 
     // Enforce ownership before mutating: non-admins may only update their own orders.
     if (ownerScopeUserId != null && typeof sanitizedData.orderId === 'string') {
@@ -643,13 +647,25 @@ export async function updateOrderHandler(request: NextRequest) {
     const order = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Capture previous payment status for dedicated buyer notifications on payment transitions,
       // even when orderStatus isn't being updated in this request.
+      let paymentBaseTotal = 0;
+      let recordedAmountPaid: number | null = null;
       if (
         typeof sanitizedData.orderId === 'string' &&
-        (sanitizedData.orderStatus !== undefined || sanitizedData.paymentStatus !== undefined)
+        (sanitizedData.orderStatus !== undefined ||
+          sanitizedData.paymentStatus !== undefined ||
+          sanitizedData.amountPaid !== undefined ||
+          totalsChanged)
       ) {
         const existingForPayment = await tx.order.findUnique({
           where: { orderId: String(sanitizedData.orderId) },
-          select: { paymentStatus: true, orderStatus: true },
+          select: {
+            paymentStatus: true,
+            orderStatus: true,
+            subtotal: true,
+            shippingFee: true,
+            discounts: true,
+            amountPaid: true,
+          },
         });
         if (existingForPayment) {
           previousPaymentStatus =
@@ -660,11 +676,48 @@ export async function updateOrderHandler(request: NextRequest) {
             typeof existingForPayment.orderStatus === 'string'
               ? existingForPayment.orderStatus
               : String(existingForPayment.orderStatus || '');
+          const nextSubtotal = updateData.subtotal !== undefined ? Number(updateData.subtotal) : decimalToNumber(existingForPayment.subtotal);
+          const nextShipping = updateData.shippingFee !== undefined ? Number(updateData.shippingFee) : decimalToNumber(existingForPayment.shippingFee);
+          const nextDiscounts = updateData.discounts !== undefined ? Number(updateData.discounts) : decimalToNumber(existingForPayment.discounts);
+          paymentBaseTotal = Math.max(0, nextSubtotal + nextShipping - nextDiscounts);
+          if (totalsChanged) {
+            updateData.totalAmount = paymentBaseTotal;
+          }
+          recordedAmountPaid = existingForPayment.amountPaid == null ? null : decimalToNumber(existingForPayment.amountPaid);
+        }
+      }
+
+      if (typeof sanitizedData.amountPaid === 'number') {
+        const paid = Math.round(Math.min(paymentBaseTotal, Math.max(0, sanitizedData.amountPaid)) * 100) / 100;
+        const fullyPaid = paymentBaseTotal > 0 && paid >= paymentBaseTotal - 0.001;
+        const nextPaymentStatus = fullyPaid ? 'Paid' : 'Unpaid';
+        updateData.amountPaid = paid;
+        updateData.paymentStatus = nextPaymentStatus;
+        sanitizedData.paymentStatus = nextPaymentStatus;
+      } else if (sanitizedData.paymentStatus === 'Paid' && previousPaymentStatus !== 'Paid') {
+        updateData.amountPaid = Math.round(paymentBaseTotal * 100) / 100;
+      } else if (sanitizedData.paymentStatus === 'Unpaid' && previousPaymentStatus === 'Paid') {
+        updateData.amountPaid = 0;
+      } else if (
+        totalsChanged &&
+        (sanitizedData.paymentStatus === undefined || sanitizedData.paymentStatus === previousPaymentStatus) &&
+        sanitizedData.amountPaid === undefined &&
+        recordedAmountPaid != null
+      ) {
+        const paid = Math.round(Math.min(paymentBaseTotal, Math.max(0, recordedAmountPaid)) * 100) / 100;
+        const fullyPaid = paymentBaseTotal > 0 && paid >= paymentBaseTotal - 0.001;
+        const nextPaymentStatus = fullyPaid ? 'Paid' : 'Unpaid';
+        if (paid !== Math.round(recordedAmountPaid * 100) / 100) {
+          updateData.amountPaid = paid;
+        }
+        if (nextPaymentStatus !== previousPaymentStatus) {
+          updateData.paymentStatus = nextPaymentStatus;
+          sanitizedData.paymentStatus = nextPaymentStatus;
         }
       }
 
       if (sanitizedData.paymentStatus !== undefined) {
-        const nextPaymentStatus = String(sanitizedData.paymentStatus);
+        const nextPaymentStatus = String(updateData.paymentStatus ?? sanitizedData.paymentStatus);
         if (nextPaymentStatus === 'Paid' && previousPaymentStatus !== 'Paid') {
           updateData.paidAt = new Date();
         } else if (nextPaymentStatus === 'Unpaid' && previousPaymentStatus === 'Paid') {
@@ -963,6 +1016,9 @@ export async function updateOrderHandler(request: NextRequest) {
       discounts: decimalToNumber((order as { discounts?: unknown }).discounts),
       shippingFee: decimalToNumber((order as { shippingFee?: unknown }).shippingFee),
       totalAmount: decimalToNumber((order as { totalAmount?: unknown }).totalAmount),
+      amountPaid: (order as { amountPaid?: unknown }).amountPaid == null
+        ? null
+        : decimalToNumber((order as { amountPaid?: unknown }).amountPaid),
       orderItems: enrichedOrderItemsUpdate
     };
     

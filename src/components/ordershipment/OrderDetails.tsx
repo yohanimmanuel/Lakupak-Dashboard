@@ -8,7 +8,7 @@ import {
   paymentProofDownloadFilename,
   paymentProofDownloadHref,
 } from '@/utils/paymentProof';
-import { isBankTransferPaymentTerms } from '@/utils/orderPayment';
+import { isBankTransferPaymentTerms, isCodPaymentTerms } from '@/utils/orderPayment';
 import { Order, OrderWithSnapshots } from '@/types/order';
 import { useUserStore } from '@/store/userStore';
 import { calculateOrderTotalQuantity } from '@/utils/orderCalculations';
@@ -369,6 +369,14 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   );
   const showPaymentProof =
     isBankTransferPaymentTerms(order.paymentTerms) && paymentProofUrls.length > 0;
+  const orderTotal = calculateTotalAmount();
+  const recordedPaid =
+    order.amountPaid != null && Number.isFinite(Number(order.amountPaid))
+      ? Math.min(orderTotal, Math.max(0, Math.round(Number(order.amountPaid) * 100) / 100))
+      : paymentStatus === 'Paid'
+        ? orderTotal
+        : 0;
+  const recordedUnpaid = Math.max(0, Math.round((orderTotal - recordedPaid) * 100) / 100);
 
   const formatDeliveryOption = (value: string) => {
     if (!value) return '';
@@ -620,6 +628,18 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                     ? tDetails('totalOrder.paymentAuth.paid')
                     : tDetails('totalOrder.paymentAuth.unpaid')}
               </div>
+              {(isCodPaymentTerms(order.paymentTerms) || isBankTransferPaymentTerms(order.paymentTerms)) && (
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div className="min-w-0">
+                    <div className="text-xs font-semibold text-green-600">{tDetails('totalOrder.paymentAuth.paidAmount')}</div>
+                    <div className="mt-1 text-sm font-medium text-black">{formatMoney(recordedPaid)}</div>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-semibold text-red-600">{tDetails('totalOrder.paymentAuth.unpaidAmount')}</div>
+                    <div className="mt-1 text-sm font-medium text-black">{formatMoney(recordedUnpaid)}</div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Order Details List */}

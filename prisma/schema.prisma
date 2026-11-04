@@ -507,6 +507,7 @@ model Order {
   deliveredAt             DateTime?   @db.Timestamptz(3)
   receivedAt              DateTime?   @db.Timestamptz(3) // When buyer marks order as received (marketplace)
   paidAt                  DateTime?   @db.Timestamptz(3) // When paymentStatus transitions to Paid
+  amountPaid              Decimal?    @db.Decimal(12, 2) // Amount received. Null means payment status covers the whole order.
   /** First time distributor notified buyer of PO pricing; subsequent sends are pricing updates. */
   pricingSentAt           DateTime?   @db.Timestamptz(3)
   paymentProofUrls        String[]    @default([]) // Cloudinary or receipt URLs from buyer pay flow

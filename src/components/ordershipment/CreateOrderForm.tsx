@@ -9,7 +9,8 @@ import { useOrdersTranslations } from '@/hooks/useOrdersTranslations';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { formatCurrency } from '@/utils/currencyUtils';
-import { parseNumberByCurrency } from '@/config/currencyConfig';
+import { formatNumberByCurrency, parseNumberByCurrency } from '@/config/currencyConfig';
+import { isBankTransferPaymentTerms, isCodPaymentTerms } from '@/utils/orderPayment';
 import { geocodeAddress, type MapCoordinates } from '@/utils/mapboxUtils';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { SkeletonOrderForm } from '@/components/skeleton/SkeletonOrderForm';
@@ -87,9 +88,11 @@ type LoadedOrder = {
   orderDate?: string;
   orderStatus?: string;
   paymentStatus?: string;
+  amountPaid?: number | null;
   deliveryMethod?: string;
   paymentTerms?: string;
   shippingFee?: number;
+  discounts?: number | null;
   contactPerson?: string;
   storeName?: string;
   contactPhone?: string;
@@ -114,6 +117,16 @@ type LoadedOrder = {
     variantNameSnapshot?: string | null;
   }>;
 };
+
+function orderLineKey(
+  buyer: string,
+  rows: Array<{ productId?: string | null; variantOptionId?: string | number | null; packageQuantity?: number | null; quantity?: string | number | null }>,
+): string {
+  const parts = rows
+    .map((row) => `${row.productId || ''}:${row.variantOptionId || ''}:${row.packageQuantity ?? row.quantity ?? 1}`)
+    .sort();
+  return `${buyer}|${parts.join('|')}`;
+}
 
 function todayInput(): string {
   const date = new Date();
@@ -326,6 +339,12 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
   const [paymentStatus, setPaymentStatus] = useState('Unpaid');
   const [savedStatus, setSavedStatus] = useState('Pending');
   const [savedPayment, setSavedPayment] = useState('Unpaid');
+  const [paidInput, setPaidInput] = useState('0');
+  const [loadedDiscount, setLoadedDiscount] = useState(0);
+  const [loadedLineKey, setLoadedLineKey] = useState<string | null>(null);
+  const [unpaidDraft, setUnpaidDraft] = useState<string | null>(null);
+  const loadedAmountPaid = useRef<number | null>(null);
+  const fillPaidFromTotal = useRef(false);
   const [shippingFee, setShippingFee] = useState('0');
   const [preferredDate, setPreferredDate] = useState('');
   const [preferredTime, setPreferredTime] = useState('');
@@ -445,6 +464,20 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
         setPaymentStatus(order.paymentStatus || 'Unpaid');
         setSavedStatus(order.orderStatus || 'Pending');
         setSavedPayment(order.paymentStatus || 'Unpaid');
+        if (order.amountPaid != null && Number.isFinite(Number(order.amountPaid))) {
+          loadedAmountPaid.current = Number(order.amountPaid);
+          fillPaidFromTotal.current = false;
+          setPaidInput(formatNumberByCurrency(Number(order.amountPaid), user.currency));
+        } else if (order.paymentStatus === 'Paid') {
+          loadedAmountPaid.current = null;
+          fillPaidFromTotal.current = true;
+        } else {
+          loadedAmountPaid.current = null;
+          fillPaidFromTotal.current = false;
+          setPaidInput(formatNumberByCurrency(0, user.currency));
+        }
+        setUnpaidDraft(null);
+        setLoadedDiscount(Math.max(0, Number(order.discounts) || 0));
         setShippingFee(String(order.shippingFee ?? 0));
         setPreferredDate(dateInput(order.preferredDeliveryDate));
         setPreferredTime(order.preferredDeliveryTime || '');
@@ -458,6 +491,7 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
         setDeliveryNote(order.deliveryNote || '');
         setPod(order.pod || '');
         const loaded = (order.orderItems || []).filter((item) => item.productId && item.variantOptionId);
+        setLoadedLineKey(orderLineKey(nextBuyer, loaded));
         if (loaded.length > 0) {
           setLines(
             loaded.map((item, index) => ({
@@ -595,7 +629,22 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
 
   const subtotal = pricedLines.reduce((sum, row) => sum + row.subtotal, 0);
   const shipping = parseNumberByCurrency(shippingFee || '0', currency) || 0;
-  const total = subtotal + (Number.isFinite(shipping) ? shipping : 0);
+  const currentLineKey = orderLineKey(
+    buyerId,
+    pricedLines
+      .filter((row) => row.product && row.variant && row.qty > 0)
+      .map((row) => ({ productId: row.product!.productId, variantOptionId: row.variant!.id, packageQuantity: row.qty })),
+  );
+  const appliedDiscounts = loadedLineKey != null && currentLineKey === loadedLineKey ? loadedDiscount : 0;
+  const total = Math.max(0, subtotal + (Number.isFinite(shipping) ? shipping : 0) - appliedDiscounts);
+  const recordNett = isCodPaymentTerms(paymentTerms) || isBankTransferPaymentTerms(paymentTerms);
+  const paidAmount = Math.min(total, Math.max(0, Math.round((parseNumberByCurrency(paidInput || '0', currency) || 0) * 100) / 100));
+  const unpaidAmount = Math.max(0, Math.round((total - paidAmount) * 100) / 100);
+
+  useEffect(() => {
+    if (!fillPaidFromTotal.current) return;
+    setPaidInput(formatNumberByCurrency(total, currency));
+  }, [total, currency]);
   const completed = [
     { name: 'contactPerson', value: contactPerson.trim() },
     { name: 'contactPhone', value: contactPhone.trim() },
@@ -737,11 +786,29 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
           return;
         }
       }
-      if (editing && paymentStatus !== savedPayment) {
+      const amountToSave = !recordNett
+        ? null
+        : unpaidDraft != null
+          ? Math.max(0, Math.round((total - Math.min(total, Math.max(0, parseNumberByCurrency(unpaidDraft, currency) || 0))) * 100) / 100)
+          : paidAmount;
+      const statusToSave = amountToSave != null
+        ? (total > 0 && amountToSave >= total - 0.001 ? 'Paid' : 'Unpaid')
+        : paymentStatus;
+      const loadedPaid = loadedAmountPaid.current;
+      const amountChanged = amountToSave != null && (
+        loadedPaid == null
+          ? amountToSave > 0 || statusToSave === 'Paid'
+          : Math.abs(loadedPaid - amountToSave) >= 0.001
+      );
+      if (editing && (statusToSave !== savedPayment || amountChanged)) {
         const paymentResponse = await fetch('/api/orders', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId, paymentStatus }),
+          body: JSON.stringify({
+            orderId,
+            paymentStatus: statusToSave,
+            ...(amountToSave != null ? { amountPaid: amountToSave } : {}),
+          }),
         });
         if (!paymentResponse.ok) {
           const paymentData = (await paymentResponse.json().catch(() => ({}))) as {
@@ -812,7 +879,14 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
                   placeholder={tCreate('paymentStatus')}
                   options={PAYMENT_STATUSES.map((status) => ({ value: status, label: translatePaymentStatus(status) }))}
                   allowEmpty={false}
-                  onChange={setPaymentStatus}
+                  onChange={(value) => {
+                    setPaymentStatus(value);
+                    if (!(isCodPaymentTerms(paymentTerms) || isBankTransferPaymentTerms(paymentTerms))) return;
+                    fillPaidFromTotal.current = false;
+                    setUnpaidDraft(null);
+                    if (value === 'Paid') setPaidInput(formatNumberByCurrency(total, currency));
+                    if (value === 'Unpaid' && paidAmount >= total - 0.001) setPaidInput(formatNumberByCurrency(0, currency));
+                  }}
                 />
               </div>
               <button
@@ -989,6 +1063,45 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
                 <label className={labelClass}>{tDetails('totalOrder.paymentTerms')}</label>
                 <LakupakSelect value={paymentTerms} placeholder={tCreate('paymentTerms')} options={termOptions} allowEmpty={false} onChange={setPaymentTerms} />
               </div>
+              {editing && recordNett && (
+                <>
+                  <div>
+                    <label className="mb-2 block text-xs font-medium text-green-600" htmlFor="order-paid-amount">{tDetails('totalOrder.paymentAuth.paidAmount')}</label>
+                    <input
+                      id="order-paid-amount"
+                      className={inputClass}
+                      inputMode="decimal"
+                      value={paidInput}
+                      onChange={(event) => {
+                        fillPaidFromTotal.current = false;
+                        setUnpaidDraft(null);
+                        setPaidInput(event.target.value);
+                        const paid = Math.min(total, Math.max(0, parseNumberByCurrency(event.target.value || '0', currency) || 0));
+                        setPaymentStatus(total > 0 && paid >= total - 0.001 ? 'Paid' : 'Unpaid');
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-xs font-medium text-red-600" htmlFor="order-unpaid-amount">{tDetails('totalOrder.paymentAuth.unpaidAmount')}</label>
+                    <input
+                      id="order-unpaid-amount"
+                      className={inputClass}
+                      inputMode="decimal"
+                      value={unpaidDraft ?? formatNumberByCurrency(unpaidAmount, currency)}
+                      onBlur={() => setUnpaidDraft(null)}
+                      onChange={(event) => {
+                        fillPaidFromTotal.current = false;
+                        setUnpaidDraft(event.target.value);
+                        const unpaid = Math.min(total, Math.max(0, parseNumberByCurrency(event.target.value || '0', currency) || 0));
+                        const paid = Math.max(0, Math.round((total - unpaid) * 100) / 100);
+                        setPaidInput(formatNumberByCurrency(paid, currency));
+                        setPaymentStatus(total > 0 && paid >= total - 0.001 ? 'Paid' : 'Unpaid');
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 sm:col-span-2">{tDetails('totalOrder.paymentAuth.nettHint')}</p>
+                </>
+              )}
               <div className="sm:col-span-2">
                 <label className={labelClass}>{tDetails('totalOrder.deliveryMethod')}</label>
                 <LakupakSelect value={deliveryMethod} placeholder={tCreate('deliveryMethod')} options={methodOptions} allowEmpty={false} onChange={setDeliveryMethod} />

@@ -227,6 +227,12 @@ export const validateOrderUpdate = (data: unknown): { valid: boolean; error?: st
       return { valid: false, error: 'Invalid payment status' };
     }
   }
+
+  if (orderData.amountPaid !== undefined && orderData.amountPaid !== null) {
+    if (typeof orderData.amountPaid !== 'number' || !Number.isFinite(orderData.amountPaid) || orderData.amountPaid < 0 || orderData.amountPaid > 9999999999.99) {
+      return { valid: false, error: 'Paid amount must be zero or greater' };
+    }
+  }
   
   if (orderData.deliveryMethod !== undefined) {
     const validDeliveryMethods = ['Self Pickup', 'Seller/Distributor Delivery', 'Buyer-arranged Courier'];
@@ -371,6 +377,14 @@ export const sanitizeOrderData = (data: unknown) => {
   
   if (orderData.paymentStatus !== undefined) {
     sanitized.paymentStatus = String(orderData.paymentStatus).trim();
+  }
+
+  if (orderData.amountPaid === null) {
+    sanitized.amountPaid = null;
+  } else if (orderData.amountPaid !== undefined) {
+    if (typeof orderData.amountPaid === 'number' && Number.isFinite(orderData.amountPaid) && orderData.amountPaid >= 0) {
+      sanitized.amountPaid = Math.round(orderData.amountPaid * 100) / 100;
+    }
   }
   
   if (orderData.deliveryMethod !== undefined) {

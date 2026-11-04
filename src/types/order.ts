@@ -51,6 +51,8 @@ export interface Order {
   estimatedArrivalMaxDays?: number | null;
   deliveredAt?: Date;
   paidAt?: Date | string | null;
+  /** Amount received. Null means payment status covers the whole order. */
+  amountPaid?: number | null;
   /** Set when distributor first notifies buyer of PO pricing; subsequent sends are updates. */
   pricingSentAt?: Date | string | null;
   /** False after notify until a line price changes (server: item.updatedAt > pricingSentAt). */

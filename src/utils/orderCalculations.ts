@@ -20,6 +20,19 @@ export const calculateOrderTotalAmount = (order: Order): number => {
 export const sumOrderVolume = (orders: Order[]): number =>
   orders.reduce((sum, order) => sum + calculateOrderTotalAmount(order), 0);
 
+/** Amount received on the order. A missing amount follows Paid or Unpaid for the whole total. */
+export const orderAmountPaid = (order: Order): number => {
+  const total = calculateOrderTotalAmount(order);
+  if (order.amountPaid != null && Number.isFinite(Number(order.amountPaid))) {
+    return Math.min(total, Math.max(0, Math.round(Number(order.amountPaid) * 100) / 100));
+  }
+  return String(order.paymentStatus ?? '').toLowerCase() === 'paid' ? total : 0;
+};
+
+/** Remainder of the order total after the amount already received. */
+export const orderAmountUnpaid = (order: Order): number =>
+  Math.max(0, Math.round((calculateOrderTotalAmount(order) - orderAmountPaid(order)) * 100) / 100);
+
 // Calculate total quantity from order items (total pieces)
 export const calculateOrderTotalQuantity = (order: Order): number => {
   return order.orderItems.reduce((sum, item) => {

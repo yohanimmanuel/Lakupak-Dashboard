@@ -47,6 +47,24 @@ function parseBuyerOrderDetails(raw: string | null | undefined): OrderDetailRow[
   }
 }
 
+type PaymentFields = {
+  paymentStatus?: string | null;
+  amountPaid?: string | number | null | { toNumber?: () => number; toString?: () => string };
+};
+
+/** Unpaid remainder. A missing amount follows Paid for the whole total and every other status for none of it. */
+function unpaidOrderAmount(orderTotal: number, order: PaymentFields): number {
+  const total = Math.max(0, orderTotal);
+  const recorded = order.amountPaid == null ? null : parseMoney(order.amountPaid);
+  const paid =
+    recorded != null
+      ? Math.min(total, Math.max(0, Math.round(recorded * 100) / 100))
+      : String(order.paymentStatus ?? '').toLowerCase() === 'paid'
+        ? total
+        : 0;
+  return Math.max(0, Math.round((total - paid) * 100) / 100);
+}
+
 /** Live marketplace/dashboard order rows vs CRM/import profile details. */
 function isLiveSyncedOrderDetail(entry: OrderDetailRow): boolean {
   if (entry?.syncedFromOrders === true) return true;
@@ -190,10 +208,7 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number): 
       totalSpend += totalOrderAmount;
       orderCount++;
 
-      // Outstanding calculation (only for pending/unpaid orders)
-      if (order.paymentStatus === 'Pending' || order.paymentStatus === 'Unpaid') {
-        totalOutstanding += totalOrderAmount;
-      }
+      totalOutstanding += unpaidOrderAmount(totalOrderAmount, order);
 
       // Monthly data
       const monthKey = order.createdAt.toISOString().substring(0, 7); // YYYY-MM
@@ -261,7 +276,7 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number): 
       const shippingFee = parseMoney((order as { shippingFee?: unknown }).shippingFee as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
       const headerTotal = parseMoney((order as { totalAmount?: unknown }).totalAmount as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
       const orderTotal = headerTotal > 0 ? headerTotal : lineSpend + shippingFee;
-      const orderOutstanding = (order.paymentStatus === 'Pending' || order.paymentStatus === 'Unpaid') ? orderTotal : 0;
+      const orderOutstanding = unpaidOrderAmount(orderTotal, order);
       
       return {
         orderNo: order.orderId,

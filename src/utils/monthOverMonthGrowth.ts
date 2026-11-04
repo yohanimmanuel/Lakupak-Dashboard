@@ -1,5 +1,5 @@
 import { Order } from '@/types/order';
-import { calculateOrderTotalAmount } from '@/utils/orderCalculations';
+import { calculateOrderTotalAmount, orderAmountPaid } from '@/utils/orderCalculations';
 import { isDeliveryStopComplete } from '@/utils/deliveryCompletion';
 import {
   AnalyticsTimeRange,
@@ -175,8 +175,10 @@ const EMPTY_ORDER_GROWTH = {
   unpaidPrevious: null as number | null,
 };
 
-function isPaidOrder(order: Order): boolean {
-  return String(order.paymentStatus ?? '').toLowerCase() === 'paid';
+function addPaymentAmounts(bucket: OrderGrowthBucket, order: Order, amount: number) {
+  const paid = orderAmountPaid(order);
+  bucket.paid += paid;
+  bucket.unpaid += Math.max(0, amount - paid);
 }
 
 function emptyOrderGrowthBucket(): OrderGrowthBucket {
@@ -204,8 +206,7 @@ function aggregateOrdersIntoBuckets(
     if (isCompletedOrderStatus(order.orderStatus)) {
       bucket.completed += 1;
     }
-    if (isPaidOrder(order)) bucket.paid += amount;
-    else bucket.unpaid += amount;
+    addPaymentAmounts(bucket, order, amount);
   });
 
   return byKey;
@@ -272,8 +273,7 @@ export function computeOrderPeriodGrowth(
       if (isCompletedOrderStatus(order.orderStatus)) {
         bucket.completed += 1;
       }
-      if (isPaidOrder(order)) bucket.paid += amount;
-      else bucket.unpaid += amount;
+      addPaymentAmounts(bucket, order, amount);
     });
     return bucket;
   };
@@ -314,8 +314,7 @@ export function computeOrdersListGrowth(orders: Order[], from: Date = new Date()
       if (isCompletedOrderStatus(order.orderStatus)) {
         bucket.completed += 1;
       }
-      if (isPaidOrder(order)) bucket.paid += amount;
-      else bucket.unpaid += amount;
+      addPaymentAmounts(bucket, order, amount);
     });
     return bucket;
   };
