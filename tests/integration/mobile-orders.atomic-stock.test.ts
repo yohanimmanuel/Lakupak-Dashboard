@@ -113,8 +113,8 @@ describe('mobile orders - checkout and confirm stock', () => {
       preferredPickupTime: null,
       shippingMethodLabel: null,
       shippingMethod: null,
-      estimatedDeliveryMinDays: null,
-      estimatedDeliveryMaxDays: null,
+      estimatedArrivalMinDays: null,
+      estimatedArrivalMaxDays: null,
       userId: buyer.id,
     };
 
@@ -237,8 +237,8 @@ describe('mobile orders - checkout and confirm stock', () => {
       preferredPickupTime: null,
       shippingMethodLabel: null,
       shippingMethod: null,
-      estimatedDeliveryMinDays: null,
-      estimatedDeliveryMaxDays: null,
+      estimatedArrivalMinDays: null,
+      estimatedArrivalMaxDays: null,
       userId: buyer.id,
     };
 

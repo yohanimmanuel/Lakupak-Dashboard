@@ -302,22 +302,22 @@ export async function createDistributorOrderHandler(request: NextRequest) {
 
   const orderDate = optionalDate(body.orderDate) ?? new Date();
   const preferredDeliveryDate = optionalDate(body.preferredDeliveryDate);
-  const estimatedDeliveryDate = optionalDate(body.estimatedDeliveryDate);
-  const estimatedDeliveryMinDays = optionalInt(body.estimatedDeliveryMinDays);
-  const estimatedDeliveryMaxDays = optionalInt(body.estimatedDeliveryMaxDays);
+  const estimatedArrivalDate = optionalDate(body.estimatedArrivalDate);
+  const estimatedArrivalMinDays = optionalInt(body.estimatedArrivalMinDays);
+  const estimatedArrivalMaxDays = optionalInt(body.estimatedArrivalMaxDays);
   if (
     orderDate === 'invalid' ||
     preferredDeliveryDate === 'invalid' ||
-    estimatedDeliveryDate === 'invalid' ||
-    estimatedDeliveryMinDays === 'invalid' ||
-    estimatedDeliveryMaxDays === 'invalid'
+    estimatedArrivalDate === 'invalid' ||
+    estimatedArrivalMinDays === 'invalid' ||
+    estimatedArrivalMaxDays === 'invalid'
   ) {
     return NextResponse.json({ error: 'Invalid date or delivery window', code: 'invalid' }, { status: 400, headers });
   }
   if (
-    estimatedDeliveryMinDays != null &&
-    estimatedDeliveryMaxDays != null &&
-    estimatedDeliveryMinDays > estimatedDeliveryMaxDays
+    estimatedArrivalMinDays != null &&
+    estimatedArrivalMaxDays != null &&
+    estimatedArrivalMinDays > estimatedArrivalMaxDays
   ) {
     return NextResponse.json({ error: 'Min days cannot be greater than max days', code: 'invalid_duration' }, { status: 400, headers });
   }
@@ -425,9 +425,9 @@ export async function createDistributorOrderHandler(request: NextRequest) {
             deliveryAddress,
             preferredDeliveryDate,
             preferredDeliveryTime: preferredDeliveryTime || null,
-            estimatedDeliveryDate,
-            estimatedDeliveryMinDays,
-            estimatedDeliveryMaxDays,
+            estimatedArrivalDate,
+            estimatedArrivalMinDays,
+            estimatedArrivalMaxDays,
             assignedLogistics: assignedLogistics || null,
             trackingNumber: trackingNumber || null,
             deliveryNote: deliveryNote || null,
@@ -506,22 +506,22 @@ export async function updateDistributorOrderHandler(userId: number, body: Record
 
   const orderDate = optionalDate(body.orderDate) ?? new Date();
   const preferredDeliveryDate = optionalDate(body.preferredDeliveryDate);
-  const estimatedDeliveryDate = optionalDate(body.estimatedDeliveryDate);
-  const estimatedDeliveryMinDays = optionalInt(body.estimatedDeliveryMinDays);
-  const estimatedDeliveryMaxDays = optionalInt(body.estimatedDeliveryMaxDays);
+  const estimatedArrivalDate = optionalDate(body.estimatedArrivalDate);
+  const estimatedArrivalMinDays = optionalInt(body.estimatedArrivalMinDays);
+  const estimatedArrivalMaxDays = optionalInt(body.estimatedArrivalMaxDays);
   if (
     orderDate === 'invalid' ||
     preferredDeliveryDate === 'invalid' ||
-    estimatedDeliveryDate === 'invalid' ||
-    estimatedDeliveryMinDays === 'invalid' ||
-    estimatedDeliveryMaxDays === 'invalid'
+    estimatedArrivalDate === 'invalid' ||
+    estimatedArrivalMinDays === 'invalid' ||
+    estimatedArrivalMaxDays === 'invalid'
   ) {
     return NextResponse.json({ error: 'Invalid date or delivery window', code: 'invalid' }, { status: 400, headers });
   }
   if (
-    estimatedDeliveryMinDays != null &&
-    estimatedDeliveryMaxDays != null &&
-    estimatedDeliveryMinDays > estimatedDeliveryMaxDays
+    estimatedArrivalMinDays != null &&
+    estimatedArrivalMaxDays != null &&
+    estimatedArrivalMinDays > estimatedArrivalMaxDays
   ) {
     return NextResponse.json({ error: 'Min days cannot be greater than max days', code: 'invalid_duration' }, { status: 400, headers });
   }
@@ -673,9 +673,9 @@ export async function updateDistributorOrderHandler(userId: number, body: Record
         deliveryAddress,
         preferredDeliveryDate,
         preferredDeliveryTime: preferredDeliveryTime || null,
-        estimatedDeliveryDate,
-        estimatedDeliveryMinDays,
-        estimatedDeliveryMaxDays,
+        estimatedArrivalDate,
+        estimatedArrivalMinDays,
+        estimatedArrivalMaxDays,
         assignedLogistics: assignedLogistics || null,
         trackingNumber: trackingNumber || null,
         deliveryNote: deliveryNote || null,

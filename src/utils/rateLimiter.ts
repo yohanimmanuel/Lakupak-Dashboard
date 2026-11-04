@@ -1376,11 +1376,11 @@ export async function mapboxGeocodeRateLimiter(
 
   return rateLimit(req, {
     windowMs: 60 * 1000, // 1 minute
-    maxRequests: 60,
+    maxRequests: 300,
     message: 'Too many geocoding requests. Please slow down.',
     keyGenerator: () => key,
     progressivePenalty: true,
-    burstLimit: 3,
+    burstLimit: 30,
     burstWindowMs: 1000,
   });
 }

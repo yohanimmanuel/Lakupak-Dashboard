@@ -26,7 +26,9 @@
     "totalOrders": "Total Pesanan",
     "orderVolume": "Volume Pesanan",
     "completionRate": "Penyelesaian Pesanan",
-    "averageOrderVolume": "Rata-rata Volume Pesanan"
+    "averageOrderVolume": "Rata-rata Volume Pesanan",
+    "paid": "Lunas",
+    "unpaid": "Belum Lunas"
   },
   "gps": {
     "title": "Pelacakan Pengiriman Langsung",
@@ -68,6 +70,10 @@
     "searchPlaceholder": "Cari pesanan...",
     "searchAriaLabel": "Cari pesanan berdasarkan ID pesanan, nama pembeli, atau nomor pelacakan",
     "empty": "Belum ada pesanan",
+    "emptyOnDate": "Tidak ada pesanan pada tanggal ini",
+    "noMatchingResults": "Tidak ada pesanan yang cocok",
+    "dateFilter": "Tanggal",
+    "dateFilterAria": "Tampilkan pesanan untuk tanggal ini",
     "editOrder": "Edit pesanan {orderId}",
     "deleteOrder": "Hapus pesanan {orderId}",
     "columns": {
@@ -181,7 +187,7 @@
       "contactPhone": "Telepon",
       "deliveryAddress": "Alamat pengiriman",
       "deliveryMethod": "Metode pengiriman",
-      "estimatedDelivery": "Estimasi pengiriman"
+      "estimatedArrival": "Estimasi kedatangan"
     },
     "offerBadges": {
       "Discount": "Diskon",
@@ -268,7 +274,7 @@
       "noneAssigned": "Belum ada layanan pengiriman",
       "internalFleet": "Armada internal",
       "thirdPartyLogistics": "3PL",
-      "estimatedDelivery": "Estimasi pengiriman:",
+      "estimatedArrival": "Estimasi kedatangan:",
       "notSet": "Belum diatur",
       "daysRange": "({min}–{max} hari)",
       "preferredTime": "Waktu Preferensi:",
@@ -358,8 +364,8 @@
         "contactPhone": "Telepon",
         "deliveryAddress": "Alamat Pengiriman",
         "preferredDeliveryTime": "Waktu Pengiriman Preferensi",
-        "estimatedDeliveryDate": "Estimasi tanggal pengiriman",
-        "estimatedDeliveryDuration": "Estimasi durasi pengiriman (hari)",
+        "estimatedArrivalDate": "Estimasi tanggal kedatangan",
+        "estimatedArrivalDuration": "Estimasi durasi kedatangan (hari)",
         "deliveryMethod": "Metode Pengiriman",
         "assignedLogistics": "Logistik yang Ditugaskan",
         "trackingNumber": "Nomor Pelacakan",
@@ -447,7 +453,7 @@
     "mapHint": "Klik peta untuk memasang pin pengiriman. Alamat terisi dari titik itu.",
     "preferredDate": "Tanggal kirim yang diinginkan",
     "preferredTime": "Waktu kirim yang diinginkan",
-    "estimatedDate": "Perkiraan tanggal kirim",
+    "estimatedArrivalDate": "Perkiraan tanggal kedatangan",
     "minDays": "Hari min",
     "maxDays": "Hari maks",
     "assignedLogistics": "Logistik yang ditugaskan",

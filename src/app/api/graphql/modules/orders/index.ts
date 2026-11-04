@@ -114,9 +114,9 @@ export const ordersTypeDefs = /* GraphQL */ `
     updatedAt: String
     acceptedBy: String
     acceptedAt: String
-    estimatedDeliveryDate: String
-    estimatedDeliveryMinDays: Int
-    estimatedDeliveryMaxDays: Int
+    estimatedArrivalDate: String
+    estimatedArrivalMinDays: Int
+    estimatedArrivalMaxDays: Int
     deliveredAt: String
     paidAt: String
     returnedAt: String
@@ -231,9 +231,9 @@ const mapOrder = (
   updatedAt: order?.updatedAt?.toISOString() ?? null,
   acceptedBy: order?.acceptedBy ?? null,
   acceptedAt: order?.acceptedAt?.toISOString() ?? null,
-  estimatedDeliveryDate: order?.estimatedDeliveryDate?.toISOString() ?? null,
-  estimatedDeliveryMinDays: order?.estimatedDeliveryMinDays ?? null,
-  estimatedDeliveryMaxDays: order?.estimatedDeliveryMaxDays ?? null,
+  estimatedArrivalDate: order?.estimatedArrivalDate?.toISOString() ?? null,
+  estimatedArrivalMinDays: order?.estimatedArrivalMinDays ?? null,
+  estimatedArrivalMaxDays: order?.estimatedArrivalMaxDays ?? null,
   deliveredAt: order?.deliveredAt?.toISOString() ?? null,
   paidAt: order?.paidAt?.toISOString() ?? null,
   returnedAt: order?.returnedAt?.toISOString() ?? null,

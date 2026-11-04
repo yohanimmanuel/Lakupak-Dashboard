@@ -686,11 +686,11 @@
     "subtitle": "Setiap baris adalah satu SKU untuk satu toko aktif. Skor kecocokan memakai riwayat pembelian. Prioritas dibaca Mendesak, Tinggi, Sedang, Rendah, atau Tidak ada.",
     "analysisTitle": "Pencocokan produk-pengecer",
     "analysisBadge": "Pencocokan produk-pengecer",
-    "analysisDescription": "Lima kartu, satu untuk setiap bobot kecocokan, dihitung untuk seluruh katalog.",
+    "analysisDescription": "Lima kartu, satu untuk setiap sinyal kecocokan. Angkanya adalah berapa kecocokan yang memakai sinyal itu, dan toko serta produk yang tercakup.",
     "analysisPoints": "Yang terlihat dari kecocokan",
     "analysisLoading": "Membaca kecocokan…",
     "analysisEmpty": "Belum ada analisis. Tekan muat ulang setelah ada pesanan toko.",
-    "analysisRules": "Poin ini memakai angka yang terhitung. Tulisan AI muncul saat koneksi tersedia.",
+    "analysisRules": "Bobot tetap di lencana. Baris di bawah angka adalah toko dan produk yang tercakup kecocokan itu.",
     "analysisKinds": {
       "categoryAffinity": "Bobot 30",
       "coPurchase": "Bobot 25",

@@ -561,25 +561,26 @@ export const sanitizeOrderData = (data: unknown) => {
     sanitized.returnPod = orderData.returnPod ? String(orderData.returnPod).trim() : null;
   }
 
-  if (orderData.estimatedDeliveryDate !== undefined) {
-    const value = orderData.estimatedDeliveryDate;
-    if (value === null || String(value).trim().length === 0) {
-      sanitized.estimatedDeliveryDate = null;
+  const arrivalDate = orderData.estimatedArrivalDate;
+  if (arrivalDate !== undefined) {
+    if (arrivalDate === null || String(arrivalDate).trim().length === 0) {
+      sanitized.estimatedArrivalDate = null;
     } else {
-      sanitized.estimatedDeliveryDate = new Date(String(value));
+      sanitized.estimatedArrivalDate = new Date(String(arrivalDate));
     }
   }
-  if (orderData.estimatedDeliveryMinDays !== undefined) {
-    const n = orderData.estimatedDeliveryMinDays === null || orderData.estimatedDeliveryMinDays === '' ? null : Number(orderData.estimatedDeliveryMinDays);
-    sanitized.estimatedDeliveryMinDays = n != null && !Number.isNaN(n) && n >= 0 ? n : null;
+  const arrivalMinDays = orderData.estimatedArrivalMinDays;
+  if (arrivalMinDays !== undefined) {
+    const n = arrivalMinDays === null || arrivalMinDays === '' ? null : Number(arrivalMinDays);
+    sanitized.estimatedArrivalMinDays = n != null && !Number.isNaN(n) && n >= 0 ? n : null;
   }
-  if (orderData.estimatedDeliveryMaxDays !== undefined) {
-    const n = orderData.estimatedDeliveryMaxDays === null || orderData.estimatedDeliveryMaxDays === '' ? null : Number(orderData.estimatedDeliveryMaxDays);
-    sanitized.estimatedDeliveryMaxDays = n != null && !Number.isNaN(n) && n >= 0 ? n : null;
+  const arrivalMaxDays = orderData.estimatedArrivalMaxDays;
+  if (arrivalMaxDays !== undefined) {
+    const n = arrivalMaxDays === null || arrivalMaxDays === '' ? null : Number(arrivalMaxDays);
+    sanitized.estimatedArrivalMaxDays = n != null && !Number.isNaN(n) && n >= 0 ? n : null;
   }
-  // Ecommerce best practice: ensure min <= max when both set
-  if (sanitized.estimatedDeliveryMinDays != null && sanitized.estimatedDeliveryMaxDays != null && sanitized.estimatedDeliveryMinDays > sanitized.estimatedDeliveryMaxDays) {
-    [sanitized.estimatedDeliveryMinDays, sanitized.estimatedDeliveryMaxDays] = [sanitized.estimatedDeliveryMaxDays, sanitized.estimatedDeliveryMinDays];
+  if (sanitized.estimatedArrivalMinDays != null && sanitized.estimatedArrivalMaxDays != null && sanitized.estimatedArrivalMinDays > sanitized.estimatedArrivalMaxDays) {
+    [sanitized.estimatedArrivalMinDays, sanitized.estimatedArrivalMaxDays] = [sanitized.estimatedArrivalMaxDays, sanitized.estimatedArrivalMinDays];
   }
 
   // Order items (keep as JSON string)

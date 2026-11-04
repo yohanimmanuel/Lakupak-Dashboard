@@ -46,9 +46,9 @@ export interface Order {
   updatedAt: Date;
   acceptedBy?: string;
   acceptedAt?: Date;
-  estimatedDeliveryDate?: Date;
-  estimatedDeliveryMinDays?: number | null;
-  estimatedDeliveryMaxDays?: number | null;
+  estimatedArrivalDate?: Date;
+  estimatedArrivalMinDays?: number | null;
+  estimatedArrivalMaxDays?: number | null;
   deliveredAt?: Date;
   paidAt?: Date | string | null;
   /** Set when distributor first notifies buyer of PO pricing; subsequent sends are updates. */

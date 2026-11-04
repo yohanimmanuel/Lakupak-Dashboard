@@ -183,9 +183,9 @@ async function resolveEstimatedDeliveryForDistributor(
   clientMinDays: number | null,
   clientMaxDays: number | null,
 ): Promise<{
-  estimatedDeliveryMinDays: number | null;
-  estimatedDeliveryMaxDays: number | null;
-  estimatedDeliveryDate: Date | null;
+  estimatedArrivalMinDays: number | null;
+  estimatedArrivalMaxDays: number | null;
+  estimatedArrivalDate: Date | null;
 }> {
   let minDays = clientMinDays;
   let maxDays = clientMaxDays;
@@ -211,13 +211,13 @@ async function resolveEstimatedDeliveryForDistributor(
     [minDays, maxDays] = [maxDays, minDays];
   }
 
-  const estimatedDeliveryDate =
+  const estimatedArrivalDate =
     maxDays != null ? addCalendarDays(orderDate, maxDays) : null;
 
   return {
-    estimatedDeliveryMinDays: minDays,
-    estimatedDeliveryMaxDays: maxDays,
-    estimatedDeliveryDate,
+    estimatedArrivalMinDays: minDays,
+    estimatedArrivalMaxDays: maxDays,
+    estimatedArrivalDate,
   };
 }
 
@@ -385,8 +385,8 @@ export async function createMobileMarketplaceOrders(
     preferredPickupTime,
     shippingMethodLabel,
     shippingMethod,
-    estimatedDeliveryMinDays,
-    estimatedDeliveryMaxDays,
+    estimatedArrivalMinDays,
+    estimatedArrivalMaxDays,
     userId,
   } = body;
 
@@ -459,8 +459,8 @@ export async function createMobileMarketplaceOrders(
     return Math.floor(n);
   };
 
-  let normalizedEstimatedMinDays = normalizeDuration(estimatedDeliveryMinDays);
-  let normalizedEstimatedMaxDays = normalizeDuration(estimatedDeliveryMaxDays);
+  let normalizedEstimatedMinDays = normalizeDuration(estimatedArrivalMinDays);
+  let normalizedEstimatedMaxDays = normalizeDuration(estimatedArrivalMaxDays);
 
   if (
     normalizedEstimatedMinDays != null &&
@@ -584,9 +584,9 @@ export async function createMobileMarketplaceOrders(
       preferredPickupTime: normalizedPreferredPickupTime,
       shippingMethodLabel: normalizedShippingLabel,
       shippingMethod: normalizedShippingMethod,
-      estimatedDeliveryMinDays: estimatedDelivery.estimatedDeliveryMinDays,
-      estimatedDeliveryMaxDays: estimatedDelivery.estimatedDeliveryMaxDays,
-      estimatedDeliveryDate: estimatedDelivery.estimatedDeliveryDate,
+      estimatedArrivalMinDays: estimatedDelivery.estimatedArrivalMinDays,
+      estimatedArrivalMaxDays: estimatedDelivery.estimatedArrivalMaxDays,
+      estimatedArrivalDate: estimatedDelivery.estimatedArrivalDate,
       userId: distributorUserIdFromClient,
     };
     const order = await prisma.order.create({ data: orderData });
@@ -1123,9 +1123,9 @@ export async function createMobileMarketplaceOrders(
       preferredPickupTime: normalizedPreferredPickupTime,
       shippingMethodLabel: normalizedShippingLabel,
       shippingMethod: normalizedShippingMethod,
-      estimatedDeliveryMinDays: estimatedDelivery.estimatedDeliveryMinDays,
-      estimatedDeliveryMaxDays: estimatedDelivery.estimatedDeliveryMaxDays,
-      estimatedDeliveryDate: estimatedDelivery.estimatedDeliveryDate,
+      estimatedArrivalMinDays: estimatedDelivery.estimatedArrivalMinDays,
+      estimatedArrivalMaxDays: estimatedDelivery.estimatedArrivalMaxDays,
+      estimatedArrivalDate: estimatedDelivery.estimatedArrivalDate,
       userId: distributorUserId,
     };
 

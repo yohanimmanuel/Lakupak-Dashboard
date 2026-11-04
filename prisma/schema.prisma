@@ -501,9 +501,9 @@ model Order {
   updatedAt               DateTime    @updatedAt @db.Timestamptz(3)
   acceptedBy              String?
   acceptedAt              DateTime?   @db.Timestamptz(3)
-  estimatedDeliveryDate   DateTime?   @db.Timestamptz(3)
-  estimatedDeliveryMinDays Int?
-  estimatedDeliveryMaxDays Int?
+  estimatedArrivalDate    DateTime?   @db.Timestamptz(3)
+  estimatedArrivalMinDays  Int?
+  estimatedArrivalMaxDays  Int?
   deliveredAt             DateTime?   @db.Timestamptz(3)
   receivedAt              DateTime?   @db.Timestamptz(3) // When buyer marks order as received (marketplace)
   paidAt                  DateTime?   @db.Timestamptz(3) // When paymentStatus transitions to Paid

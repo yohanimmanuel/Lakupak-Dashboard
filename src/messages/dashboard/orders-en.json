@@ -26,7 +26,9 @@
     "totalOrders": "Total Orders",
     "orderVolume": "Order Volume",
     "completionRate": "Order Completion Rate",
-    "averageOrderVolume": "Average Order Volume"
+    "averageOrderVolume": "Average Order Volume",
+    "paid": "Paid",
+    "unpaid": "Unpaid"
   },
   "gps": {
     "title": "Live Delivery Tracking",
@@ -68,6 +70,10 @@
     "searchPlaceholder": "Search orders...",
     "searchAriaLabel": "Search orders by order ID, buyer name, or tracking number",
     "empty": "No orders recorded",
+    "emptyOnDate": "No orders on this date",
+    "noMatchingResults": "No matching orders",
+    "dateFilter": "Date",
+    "dateFilterAria": "Show orders for this date",
     "editOrder": "Edit order {orderId}",
     "deleteOrder": "Delete order {orderId}",
     "columns": {
@@ -181,7 +187,7 @@
       "contactPhone": "Contact phone",
       "deliveryAddress": "Delivery address",
       "deliveryMethod": "Delivery method",
-      "estimatedDelivery": "Estimated delivery"
+      "estimatedArrival": "Estimated arrival"
     },
     "offerBadges": {
       "Discount": "Discount",
@@ -268,7 +274,7 @@
       "noneAssigned": "No delivery service assigned",
       "internalFleet": "Internal fleet",
       "thirdPartyLogistics": "3PL",
-      "estimatedDelivery": "Estimated delivery:",
+      "estimatedArrival": "Estimated arrival:",
       "notSet": "Not set",
       "daysRange": "({min}–{max} days)",
       "preferredTime": "Preferred Time:",
@@ -358,8 +364,8 @@
         "contactPhone": "Contact Phone",
         "deliveryAddress": "Delivery Address",
         "preferredDeliveryTime": "Preferred Delivery Time",
-        "estimatedDeliveryDate": "Estimated delivery date",
-        "estimatedDeliveryDuration": "Estimated delivery duration (days)",
+        "estimatedArrivalDate": "Estimated arrival date",
+        "estimatedArrivalDuration": "Estimated arrival duration (days)",
         "deliveryMethod": "Delivery Method",
         "assignedLogistics": "Assigned Logistics",
         "trackingNumber": "Tracking Number",
@@ -447,7 +453,7 @@
     "mapHint": "Click the map to set the delivery pin. The address fills in from that point.",
     "preferredDate": "Preferred delivery date",
     "preferredTime": "Preferred delivery time",
-    "estimatedDate": "Estimated delivery date",
+    "estimatedArrivalDate": "Estimated arrival date",
     "minDays": "Min days",
     "maxDays": "Max days",
     "assignedLogistics": "Assigned logistics",

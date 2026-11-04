@@ -15,7 +15,7 @@ const DEFAULT_ASSIGNED_LOGISTICS_LABEL = 'Distributor Fleet';
 
 type TxWithOrder = Pick<Prisma.TransactionClient, 'order'>;
 
-/** Build a single Date from fleet etaCompletionDate + etaCompletionTime for Order.estimatedDeliveryDate. */
+/** Build a single Date from fleet etaCompletionDate + etaCompletionTime for Order.estimatedArrivalDate. */
 function buildEtaCompletionDate(
   etaCompletionDate: Date | null,
   etaCompletionTime: string | null,
@@ -32,7 +32,7 @@ function buildEtaCompletionDate(
   return d;
 }
 
-/** When a fleet's ETA completion is set/updated or cleared, sync Order.estimatedDeliveryDate for all orders assigned to that fleet. */
+/** When a fleet's ETA completion is set/updated or cleared, sync Order.estimatedArrivalDate for all orders assigned to that fleet. */
 async function syncFleetEtaToOrders(
   fleetId: number,
   etaCompletionDate: Date | null,
@@ -42,7 +42,7 @@ async function syncFleetEtaToOrders(
   const date = buildEtaCompletionDate(etaCompletionDate, etaCompletionTime);
   await tx.order.updateMany({
     where: { fleetId },
-    data: { estimatedDeliveryDate: date },
+    data: { estimatedArrivalDate: date },
   });
 }
 

@@ -77,17 +77,22 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
     if (!d) return '';
     const date = typeof d === 'string' ? new Date(d) : d;
     if (Number.isNaN(date.getTime())) return '';
-    return date.toISOString().slice(0, 10);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   };
-  const orderWithDuration = order as Order & { estimatedDeliveryMinDays?: number | null; estimatedDeliveryMaxDays?: number | null };
+  const calendarDateFromInput = (value: string) => {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (!match) return null;
+    return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  };
+  const orderWithDuration = order as Order & { estimatedArrivalMinDays?: number | null; estimatedArrivalMaxDays?: number | null };
   const buildEditFields = (source: typeof orderWithDuration) => ({
     deliveryAddress: source.deliveryAddress,
     contactPerson: source.contactPerson,
     contactPhone: source.contactPhone,
     preferredDeliveryTime: source.preferredDeliveryTime || '',
-    estimatedDeliveryDate: toDateInputValue(source.estimatedDeliveryDate),
-    estimatedDeliveryMinDays: source.estimatedDeliveryMinDays != null ? String(source.estimatedDeliveryMinDays) : '',
-    estimatedDeliveryMaxDays: source.estimatedDeliveryMaxDays != null ? String(source.estimatedDeliveryMaxDays) : '',
+    estimatedArrivalDate: toDateInputValue(source.estimatedArrivalDate),
+    estimatedArrivalMinDays: source.estimatedArrivalMinDays != null ? String(source.estimatedArrivalMinDays) : '',
+    estimatedArrivalMaxDays: source.estimatedArrivalMaxDays != null ? String(source.estimatedArrivalMaxDays) : '',
     deliveryNote: source.deliveryNote || '',
     assignedLogistics: source.assignedLogistics || '',
     trackingNumber: source.trackingNumber || '',
@@ -442,13 +447,11 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const highlightShipping = isPickupMethod || isScheduledMethod || isSellerDelivery || isBuyerCourier;
   const shippingAccentClass = highlightShipping ? 'text-yellow-600 font-semibold' : 'text-black font-medium';
 
-  const estimatedDeliveryDateValue = committedFields.estimatedDeliveryDate
-    ? new Date(`${committedFields.estimatedDeliveryDate}T12:00:00.000Z`)
-    : null;
-  const estimatedDeliveryMinDaysValue =
-    committedFields.estimatedDeliveryMinDays !== '' ? Number(committedFields.estimatedDeliveryMinDays) : null;
-  const estimatedDeliveryMaxDaysValue =
-    committedFields.estimatedDeliveryMaxDays !== '' ? Number(committedFields.estimatedDeliveryMaxDays) : null;
+  const estimatedArrivalDateValue = calendarDateFromInput(committedFields.estimatedArrivalDate);
+  const estimatedArrivalMinDaysValue =
+    committedFields.estimatedArrivalMinDays !== '' ? Number(committedFields.estimatedArrivalMinDays) : null;
+  const estimatedArrivalMaxDaysValue =
+    committedFields.estimatedArrivalMaxDays !== '' ? Number(committedFields.estimatedArrivalMaxDays) : null;
 
   return (
     <div className="bg-white p-4 rounded-lg border border-[#e6e6e6]">
@@ -682,19 +685,19 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               <div className="text-lg font-bold text-blue-900 mb-2">{displayAssignedLogistics(committedFields.assignedLogistics, tDetails) || tDetails('deliveryService.noneAssigned')}</div>
               <div className="text-xs space-y-2">
                 <div>
-                  <span className="text-blue-700">{tDetails('deliveryService.estimatedDelivery')}</span>
+                  <span className="text-blue-700">{tDetails('deliveryService.estimatedArrival')}</span>
                   <span className="ml-2 font-medium text-blue-900">
-                    {estimatedDeliveryDateValue
-                      ? estimatedDeliveryDateValue.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+                    {estimatedArrivalDateValue
+                      ? estimatedArrivalDateValue.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
                       : tDetails('deliveryService.notSet')}
-                    {estimatedDeliveryMinDaysValue != null &&
-                      !Number.isNaN(estimatedDeliveryMinDaysValue) &&
-                      estimatedDeliveryMaxDaysValue != null &&
-                      !Number.isNaN(estimatedDeliveryMaxDaysValue) && (
+                    {estimatedArrivalMinDaysValue != null &&
+                      !Number.isNaN(estimatedArrivalMinDaysValue) &&
+                      estimatedArrivalMaxDaysValue != null &&
+                      !Number.isNaN(estimatedArrivalMaxDaysValue) && (
                       <span className="ml-1 text-blue-600">
                         {tDetails('deliveryService.daysRange', {
-                          min: estimatedDeliveryMinDaysValue,
-                          max: estimatedDeliveryMaxDaysValue,
+                          min: estimatedArrivalMinDaysValue,
+                          max: estimatedArrivalMaxDaysValue,
                         })}
                       </span>
                     )}

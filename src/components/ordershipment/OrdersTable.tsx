@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useRef, useLayoutEffect, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from 'next/navigation';
-import { Search, Edit, Filter, ChevronDown, ChevronLeft, ChevronRight, Archive, Trash, Trash2, ShoppingCart, AlertCircle, Loader2 } from "lucide-react";
+import { Search, Edit, Filter, ChevronDown, ChevronLeft, ChevronRight, Archive, Trash, Trash2, ShoppingCart, AlertCircle, Loader2, Calendar } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
 import { formatDateLong } from '@/utils/dateUtils';
@@ -49,6 +49,21 @@ const bulkOrderStatusOptions = [
 
 const bulkPaymentStatusOptions = ['Unpaid', 'Paid'] as const;
 
+function orderTimestamp(order: Order): number | null {
+  const date = order.orderDate instanceof Date ? order.orderDate : new Date(order.orderDate);
+  const time = date.getTime();
+  return Number.isNaN(time) ? null : time;
+}
+
+function orderDay(order: Order): string | null {
+  const time = orderTimestamp(order);
+  if (time == null) return null;
+  const date = new Date(time);
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
 export default function OrdersTable({ 
   orders = [], 
   setOrdersAction, 
@@ -76,9 +91,9 @@ export default function OrdersTable({
   // Get user currency for display - safe to use on both server and client
   const userCurrency = user?.currency || getDefaultCurrency();
   
-  const tableRows = orders.map(orderToTableRowAction);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [selectedDate, setSelectedDate] = useState("");
   const [selectedStatusTab, setSelectedStatusTab] = useState("All");
   const [selectedPaymentTab, setSelectedPaymentTab] = useState("All");
   const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState("All Methods");
@@ -90,6 +105,16 @@ export default function OrdersTable({
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
   const rowsPerPage = TABLE_PAGE_SIZE;
+
+  const datedOrders = useMemo(() => {
+    const list = Array.isArray(orders) ? orders : [];
+    if (!selectedDate) return list;
+    return list
+      .filter((order) => orderDay(order) === selectedDate)
+      .sort((a, b) => (orderTimestamp(a) ?? 0) - (orderTimestamp(b) ?? 0));
+  }, [orders, selectedDate]);
+
+  const tableRows = datedOrders.map(orderToTableRowAction);
   
   let filteredOrders = tableRows;
   
@@ -118,6 +143,10 @@ export default function OrdersTable({
     );
   }
   
+  const emptyMessage = datedOrders.length === 0
+    ? (selectedDate ? tTable('emptyOnDate') : tTable('empty'))
+    : tTable('noMatchingResults');
+
   const totalRows = filteredOrders.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
   const pagedOrders = filteredOrders.slice((page - 1) * rowsPerPage, page * rowsPerPage);
@@ -488,6 +517,22 @@ export default function OrdersTable({
         </div>
 
         <div className="flex w-full min-w-0 flex-col gap-2 @4xl/main:flex-row @4xl/main:flex-wrap @4xl/main:items-center">
+          <label className="flex w-full items-center gap-2 whitespace-nowrap rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-sm text-gray-700 @4xl/main:w-auto">
+            <Calendar className="h-4 w-4 shrink-0 text-gray-500" />
+            <span className="shrink-0">{tTable('dateFilter')}</span>
+            <input
+              type="date"
+              value={selectedDate}
+              aria-label={tTable('dateFilterAria')}
+              onChange={(event) => {
+                setSelectedDate(event.target.value);
+                setSelectedOrders([]);
+                setPage(1);
+              }}
+              className="bg-transparent text-sm text-black focus:outline-none"
+            />
+          </label>
+
           {/* Payment Status Filter */}
           <div className="relative w-full @4xl/main:w-auto">
             <button
@@ -686,7 +731,7 @@ export default function OrdersTable({
                   <td colSpan={11} className="py-12 text-center text-gray-500">
                     <div className="flex flex-col items-center gap-2">
                       <ShoppingCart className="w-12 h-12 text-gray-400" />
-                      <p className="text-sm">{tTable('empty')}</p>
+                      <p className="text-sm">{emptyMessage}</p>
                     </div>
                   </td>
                 </tr>
@@ -775,7 +820,7 @@ export default function OrdersTable({
         {filteredOrders.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
             <ShoppingCart className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-            <p className="text-sm">{tTable('empty')}</p>
+            <p className="text-sm">{emptyMessage}</p>
           </div>
         ) : (
           <>

@@ -98,6 +98,10 @@ describe('monthOverMonthGrowth', () => {
         averageOrderVolumePrevious: null,
         piecesGrowth: null,
         piecesPrevious: null,
+        paidGrowth: null,
+        paidPrevious: null,
+        unpaidGrowth: null,
+        unpaidPrevious: null,
       });
     });
 

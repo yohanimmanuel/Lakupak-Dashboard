@@ -154,6 +154,8 @@ type OrderGrowthBucket = {
   orderVolume: number;
   completed: number;
   pieces: number;
+  paid: number;
+  unpaid: number;
 };
 
 const EMPTY_ORDER_GROWTH = {
@@ -167,10 +169,18 @@ const EMPTY_ORDER_GROWTH = {
   averageOrderVolumePrevious: null as number | null,
   piecesGrowth: null as number | null,
   piecesPrevious: null as number | null,
+  paidGrowth: null as number | null,
+  paidPrevious: null as number | null,
+  unpaidGrowth: null as number | null,
+  unpaidPrevious: null as number | null,
 };
 
+function isPaidOrder(order: Order): boolean {
+  return String(order.paymentStatus ?? '').toLowerCase() === 'paid';
+}
+
 function emptyOrderGrowthBucket(): OrderGrowthBucket {
-  return { orders: 0, orderVolume: 0, completed: 0, pieces: 0 };
+  return { orders: 0, orderVolume: 0, completed: 0, pieces: 0, paid: 0, unpaid: 0 };
 }
 
 function aggregateOrdersIntoBuckets(
@@ -187,12 +197,15 @@ function aggregateOrdersIntoBuckets(
       byKey[key] = emptyOrderGrowthBucket();
     }
     const bucket = byKey[key];
+    const amount = calculateOrderTotalAmount(order);
     bucket.orders += 1;
-    bucket.orderVolume += calculateOrderTotalAmount(order);
+    bucket.orderVolume += amount;
     bucket.pieces += orderPieces(order);
     if (isCompletedOrderStatus(order.orderStatus)) {
       bucket.completed += 1;
     }
+    if (isPaidOrder(order)) bucket.paid += amount;
+    else bucket.unpaid += amount;
   });
 
   return byKey;
@@ -216,6 +229,8 @@ function growthFromBucketPair(last: OrderGrowthBucket, prev: OrderGrowthBucket) 
   const averageOrderVolumeGrowth = hasPrevious ? percentChange(avgLast, avgPrev) : null;
 
   const piecesGrowth = percentChange(last.pieces, prev.pieces);
+  const paidGrowth = percentChange(last.paid, prev.paid);
+  const unpaidGrowth = percentChange(last.unpaid, prev.unpaid);
 
   return {
     ordersGrowth,
@@ -228,6 +243,10 @@ function growthFromBucketPair(last: OrderGrowthBucket, prev: OrderGrowthBucket) 
     averageOrderVolumePrevious: hasPrevious ? avgPrev : null,
     piecesGrowth,
     piecesPrevious: hasPrevious ? prev.pieces : null,
+    paidGrowth,
+    paidPrevious: hasPrevious ? prev.paid : null,
+    unpaidGrowth,
+    unpaidPrevious: hasPrevious ? prev.unpaid : null,
   };
 }
 
@@ -246,12 +265,15 @@ export function computeOrderPeriodGrowth(
   const toBucket = (list: Order[]): OrderGrowthBucket => {
     const bucket = emptyOrderGrowthBucket();
     list.forEach((order) => {
+      const amount = calculateOrderTotalAmount(order);
       bucket.orders += 1;
-      bucket.orderVolume += calculateOrderTotalAmount(order);
+      bucket.orderVolume += amount;
       bucket.pieces += orderPieces(order);
       if (isCompletedOrderStatus(order.orderStatus)) {
         bucket.completed += 1;
       }
+      if (isPaidOrder(order)) bucket.paid += amount;
+      else bucket.unpaid += amount;
     });
     return bucket;
   };
@@ -285,12 +307,15 @@ export function computeOrdersListGrowth(orders: Order[], from: Date = new Date()
   const toBucket = (list: Order[]): OrderGrowthBucket => {
     const bucket = emptyOrderGrowthBucket();
     list.forEach((order) => {
+      const amount = calculateOrderTotalAmount(order);
       bucket.orders += 1;
-      bucket.orderVolume += calculateOrderTotalAmount(order);
+      bucket.orderVolume += amount;
       bucket.pieces += orderPieces(order);
       if (isCompletedOrderStatus(order.orderStatus)) {
         bucket.completed += 1;
       }
+      if (isPaidOrder(order)) bucket.paid += amount;
+      else bucket.unpaid += amount;
     });
     return bucket;
   };

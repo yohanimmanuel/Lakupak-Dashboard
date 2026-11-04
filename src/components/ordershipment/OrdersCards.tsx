@@ -1,6 +1,6 @@
 'use client';
 import React, { useMemo } from 'react';
-import { Package, DollarSign, CheckCircle } from 'lucide-react';
+import { Package, DollarSign, CheckCircle, BadgeCheck, Clock } from 'lucide-react';
 import { Order } from '@/types/order';
 import { formatCurrency, formatCompactCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { sumOrderVolume } from '@/utils/orderCalculations';
@@ -36,6 +36,10 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
   const completionRate = totalOrders > 0 ? (completedOrders / totalOrders) * 100 : 0;
 
   const orderVolume = sumOrderVolume(validOrders);
+  const paidVolume = sumOrderVolume(
+    validOrders.filter((order) => String(order.paymentStatus ?? '').toLowerCase() === 'paid'),
+  );
+  const unpaidVolume = orderVolume - paidVolume;
   const averageOrderVolume = totalOrders > 0 ? orderVolume / totalOrders : 0;
 
   const growth = useMemo(() => computeOrdersListGrowth(validOrders), [validOrders]);
@@ -43,7 +47,7 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
   const displayCurrency = user?.currency || getDefaultCurrency();
 
   return (
-    <div className="grid grid-cols-1 gap-3 @3xl/main:grid-cols-2 @5xl/main:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 @3xl/main:grid-cols-2 @5xl/main:grid-cols-3">
       <AnalyticsMetricCard
         title={tCards('totalOrders')}
         value={totalOrders.toLocaleString()}
@@ -55,12 +59,48 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
         color={STAT_ICON_BG_BLUE}
       />
       <AnalyticsMetricCard
+        title={tCards('paid')}
+        value={formatCurrency(paidVolume, displayCurrency)}
+        change={growth.paidGrowth}
+        previousValue={
+          growth.paidPrevious != null
+            ? formatCompactCurrency(growth.paidPrevious, displayCurrency)
+            : undefined
+        }
+        icon={<BadgeCheck className={`w-6 h-6 ${STAT_ICON_GREEN}`} />}
+        color={STAT_ICON_BG_GREEN}
+      />
+      <AnalyticsMetricCard
+        title={tCards('unpaid')}
+        value={formatCurrency(unpaidVolume, displayCurrency)}
+        change={growth.unpaidGrowth}
+        previousValue={
+          growth.unpaidPrevious != null
+            ? formatCompactCurrency(growth.unpaidPrevious, displayCurrency)
+            : undefined
+        }
+        icon={<Clock className={`w-6 h-6 ${STAT_ICON_BLUE}`} />}
+        color={STAT_ICON_BG_BLUE}
+      />
+      <AnalyticsMetricCard
         title={tCards('orderVolume')}
         value={formatCurrency(orderVolume, displayCurrency)}
         change={growth.orderVolumeGrowth}
         previousValue={
           growth.orderVolumePrevious != null
             ? formatCompactCurrency(growth.orderVolumePrevious, displayCurrency)
+            : undefined
+        }
+        icon={<DollarSign className={`w-6 h-6 ${STAT_ICON_BLUE}`} />}
+        color={STAT_ICON_BG_BLUE}
+      />
+      <AnalyticsMetricCard
+        title={tCards('averageOrderVolume')}
+        value={formatCurrency(averageOrderVolume, displayCurrency)}
+        change={growth.averageOrderVolumeGrowth}
+        previousValue={
+          growth.averageOrderVolumePrevious != null
+            ? formatCompactCurrency(growth.averageOrderVolumePrevious, displayCurrency)
             : undefined
         }
         icon={<DollarSign className={`w-6 h-6 ${STAT_ICON_BLUE}`} />}
@@ -77,18 +117,6 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
         }
         icon={<CheckCircle className={`w-6 h-6 ${STAT_ICON_GREEN}`} />}
         color={STAT_ICON_BG_GREEN}
-      />
-      <AnalyticsMetricCard
-        title={tCards('averageOrderVolume')}
-        value={formatCurrency(averageOrderVolume, displayCurrency)}
-        change={growth.averageOrderVolumeGrowth}
-        previousValue={
-          growth.averageOrderVolumePrevious != null
-            ? formatCompactCurrency(growth.averageOrderVolumePrevious, displayCurrency)
-            : undefined
-        }
-        icon={<DollarSign className={`w-6 h-6 ${STAT_ICON_BLUE}`} />}
-        color={STAT_ICON_BG_BLUE}
       />
     </div>
   );

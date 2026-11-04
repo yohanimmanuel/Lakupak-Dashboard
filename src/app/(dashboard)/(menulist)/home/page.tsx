@@ -200,9 +200,9 @@ const DASHBOARD_SNAPSHOT_QUERY = `
         updatedAt
         acceptedBy
         acceptedAt
-        estimatedDeliveryDate
-        estimatedDeliveryMinDays
-        estimatedDeliveryMaxDays
+        estimatedArrivalDate
+        estimatedArrivalMinDays
+        estimatedArrivalMaxDays
         deliveredAt
         orderItems {
           productId
@@ -633,9 +633,9 @@ function normalizeOrder(raw: Record<string, unknown>): Order | null {
     updatedAt: parseDate(raw.updatedAt ?? raw.orderDate),
     acceptedBy: parseOptionalString(raw.acceptedBy),
     acceptedAt: raw.acceptedAt ? parseDate(raw.acceptedAt) : undefined,
-    estimatedDeliveryDate: raw.estimatedDeliveryDate ? parseDate(raw.estimatedDeliveryDate) : undefined,
-    estimatedDeliveryMinDays: raw.estimatedDeliveryMinDays != null ? Number(raw.estimatedDeliveryMinDays) : undefined,
-    estimatedDeliveryMaxDays: raw.estimatedDeliveryMaxDays != null ? Number(raw.estimatedDeliveryMaxDays) : undefined,
+    estimatedArrivalDate: raw.estimatedArrivalDate ? parseDate(raw.estimatedArrivalDate) : undefined,
+    estimatedArrivalMinDays: raw.estimatedArrivalMinDays != null ? Number(raw.estimatedArrivalMinDays) : undefined,
+    estimatedArrivalMaxDays: raw.estimatedArrivalMaxDays != null ? Number(raw.estimatedArrivalMaxDays) : undefined,
     deliveredAt: raw.deliveredAt ? parseDate(raw.deliveredAt) : undefined,
   };
 }

@@ -97,9 +97,9 @@ type LoadedOrder = {
   deliveryAddress?: string;
   preferredDeliveryDate?: string | null;
   preferredDeliveryTime?: string | null;
-  estimatedDeliveryDate?: string | null;
-  estimatedDeliveryMinDays?: number | null;
-  estimatedDeliveryMaxDays?: number | null;
+  estimatedArrivalDate?: string | null;
+  estimatedArrivalMinDays?: number | null;
+  estimatedArrivalMaxDays?: number | null;
   assignedLogistics?: string | null;
   trackingNumber?: string | null;
   deliveryNote?: string | null;
@@ -448,9 +448,9 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
         setShippingFee(String(order.shippingFee ?? 0));
         setPreferredDate(dateInput(order.preferredDeliveryDate));
         setPreferredTime(order.preferredDeliveryTime || '');
-        setEstimatedDate(dateInput(order.estimatedDeliveryDate));
-        setMinDays(order.estimatedDeliveryMinDays != null ? String(order.estimatedDeliveryMinDays) : '');
-        setMaxDays(order.estimatedDeliveryMaxDays != null ? String(order.estimatedDeliveryMaxDays) : '');
+        setEstimatedDate(dateInput(order.estimatedArrivalDate));
+        setMinDays(order.estimatedArrivalMinDays != null ? String(order.estimatedArrivalMinDays) : '');
+        setMaxDays(order.estimatedArrivalMaxDays != null ? String(order.estimatedArrivalMaxDays) : '');
         const logistics = splitAssignedLogistics(order.assignedLogistics || '');
         setLogisticsMode(logistics.mode);
         setLogisticsVendor(logistics.vendor);
@@ -601,7 +601,7 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
     { name: 'contactPhone', value: contactPhone.trim() },
     { name: 'deliveryAddress', value: deliveryAddress.trim() },
     { name: 'deliveryMethod', value: deliveryMethod.trim() },
-    { name: 'estimatedDelivery', value: estimatedDate.trim() || (minDays.trim() && maxDays.trim()) ? 'set' : '' },
+    { name: 'estimatedArrival', value: estimatedDate.trim() || (minDays.trim() && maxDays.trim()) ? 'set' : '' },
   ];
   const doneCount = completed.filter((field) => field.value !== '').length;
   const percent = Math.round((doneCount / completed.length) * 100);
@@ -700,9 +700,9 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
       shippingFee: Number.isFinite(shipping) ? shipping : 0,
       preferredDeliveryDate: preferredDate || null,
       preferredDeliveryTime: preferredTime.trim(),
-      estimatedDeliveryDate: estimatedDate || null,
-      estimatedDeliveryMinDays: min,
-      estimatedDeliveryMaxDays: max,
+      estimatedArrivalDate: estimatedDate || null,
+      estimatedArrivalMinDays: min,
+      estimatedArrivalMaxDays: max,
       assignedLogistics: joinAssignedLogistics(logisticsMode, logisticsVendor),
       trackingNumber: trackingNumber.trim(),
       deliveryNote: deliveryNote.trim(),
@@ -1030,11 +1030,11 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
                   <input className={inputClass} value={trackingNumber} onChange={(event) => setTrackingNumber(event.target.value)} placeholder={tDetails('editModal.placeholders.trackingNumber')} />
                 </div>
                 <div>
-                  <label className={labelClass}>{tDetails('deliveryService.estimatedDelivery')}</label>
+                  <label className={labelClass}>{tDetails('deliveryService.estimatedArrival')}</label>
                   <input className={inputClass} type="date" value={estimatedDate} onChange={(event) => { leadTimeTouched.current = true; setEstimatedDate(event.target.value); }} />
                 </div>
                 <div>
-                  <label className={labelClass}>{tDetails('editModal.labels.estimatedDeliveryDuration')}</label>
+                  <label className={labelClass}>{tDetails('editModal.labels.estimatedArrivalDuration')}</label>
                   <div className="flex items-center gap-2">
                     <input className={inputClass} inputMode="numeric" placeholder={tDetails('editModal.placeholders.minDays')} value={minDays} onChange={(event) => { leadTimeTouched.current = true; setMinDays(event.target.value.replace(/[^\d]/g, '')); }} />
                     <span className="text-xs text-gray-500">{tDetails('editModal.durationTo')}</span>

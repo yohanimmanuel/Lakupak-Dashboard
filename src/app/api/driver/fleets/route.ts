@@ -80,9 +80,9 @@ export async function GET(req: NextRequest) {
             returnItemsReceivedAt: true,
             orderDate: true,
             preferredDeliveryDate: true,
-            estimatedDeliveryDate: true,
-            estimatedDeliveryMinDays: true,
-            estimatedDeliveryMaxDays: true,
+            estimatedArrivalDate: true,
+            estimatedArrivalMinDays: true,
+            estimatedArrivalMaxDays: true,
             orderItemsRel: {
               select: {
                 productNameSnapshot: true,
@@ -150,9 +150,18 @@ export async function GET(req: NextRequest) {
           const marketplaceUserId = parseMarketplaceUserIdFromBuyerId(order.buyerId);
           const profile =
             marketplaceUserId !== null ? marketplaceProfilesById.get(marketplaceUserId) ?? null : null;
-          const { buyerId, ...rest } = order;
+          const {
+            buyerId,
+            estimatedArrivalDate,
+            estimatedArrivalMinDays,
+            estimatedArrivalMaxDays,
+            ...rest
+          } = order;
           return {
             ...rest,
+            estimatedArrivalDate: estimatedArrivalDate,
+            estimatedArrivalMinDays: estimatedArrivalMinDays,
+            estimatedArrivalMaxDays: estimatedArrivalMaxDays,
             buyerProfile: profile,
           };
         }),

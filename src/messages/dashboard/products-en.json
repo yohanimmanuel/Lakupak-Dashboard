@@ -686,11 +686,11 @@
     "subtitle": "Each row is one SKU for one active retailer. Match scores use purchase history. Priority is Urgent, High, Medium, Low, or None.",
     "analysisTitle": "Product-Retailer Matching",
     "analysisBadge": "Product-Retailer Matching",
-    "analysisDescription": "Five cards, one for each match weight, counted across the whole catalogue.",
+    "analysisDescription": "Five cards, one for each match signal. The number is how many matches include that signal, and who those matches cover.",
     "analysisPoints": "What the matches show",
     "analysisLoading": "Reading the matches…",
     "analysisEmpty": "No analysis yet. Refresh after there are retailer orders.",
-    "analysisRules": "These points use the counted figures. A written pass appears when the AI connection is available.",
+    "analysisRules": "The weight stays on the badge. The line under the number is the retailers and products those matches cover.",
     "analysisKinds": {
       "categoryAffinity": "Weight 30",
       "coPurchase": "Weight 25",
