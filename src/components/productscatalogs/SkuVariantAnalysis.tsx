@@ -103,7 +103,7 @@ export default function SkuVariantAnalysis() {
   const t = useTranslations('dashboard.products.opportunitiesPage');
   const { tShared } = useProductsTranslations();
   const searchParams = useSearchParams();
-  const productId = searchParams.get('productId') || '';
+  const productId = searchParams?.get('productId') || '';
   const router = useRouter();
   const [filters, setFilters] = useState({ q: '', type: 'all', minPriority: '', sort: 'priority' });
   const [page, setPage] = useState(1);

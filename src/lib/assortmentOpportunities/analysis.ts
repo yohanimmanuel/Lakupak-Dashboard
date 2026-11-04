@@ -163,10 +163,10 @@ function parseCards(content: string, localeId: boolean): AnalysisCard[] | null {
         if (!row || typeof row !== 'object') return null;
         const title = 'title' in row && typeof row.title === 'string' ? row.title.trim() : '';
         const rawPoints = 'points' in row && Array.isArray(row.points)
-          ? row.points.filter((point): point is string => typeof point === 'string').map((point) => humanizeCodes(point.trim(), localeId)).filter(Boolean)
+          ? row.points.filter((point: unknown): point is string => typeof point === 'string').map((point: string) => humanizeCodes(point.trim(), localeId)).filter(Boolean)
           : [];
         const body = 'body' in row && typeof row.body === 'string' ? humanizeCodes(row.body.trim(), localeId) : rawPoints.join(' ');
-        const points = rawPoints.length > 0 ? rawPoints : body.split(/(?<=\.)\s+/).map((point) => point.trim()).filter(Boolean);
+        const points = rawPoints.length > 0 ? rawPoints : body.split(/(?<=\.)\s+/).map((point: string) => point.trim()).filter(Boolean);
         const kindRaw = 'kind' in row && typeof row.kind === 'string' ? row.kind : '';
         const kind = (Object.keys(SIGNAL_COPY) as AnalysisKind[]).includes(kindRaw as AnalysisKind)
           ? (kindRaw as AnalysisKind)
