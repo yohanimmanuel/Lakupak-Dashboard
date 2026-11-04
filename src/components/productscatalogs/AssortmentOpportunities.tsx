@@ -71,7 +71,6 @@ const emptyFilters = {
   category: 'all',
   segment: 'all',
   type: 'all',
-  status: 'all',
   minMatch: '',
   minPriority: '',
   minConfidence: '',
@@ -108,7 +107,6 @@ export default function AssortmentOpportunities() {
       category: filters.category,
       segment: filters.segment,
       type: filters.type,
-      status: filters.status,
       minMatch: filters.minMatch,
       minPriority: filters.minPriority,
       minConfidence: filters.minConfidence,
@@ -139,7 +137,7 @@ export default function AssortmentOpportunities() {
     } finally {
       if (requestId === loadRequestRef.current) setLoading(false);
     }
-  }, [debouncedQuery, filters.brand, filters.category, filters.segment, filters.type, filters.status, filters.minMatch, filters.minPriority, filters.minConfidence, t]);
+  }, [debouncedQuery, filters.brand, filters.category, filters.segment, filters.type, filters.minMatch, filters.minPriority, filters.minConfidence, t]);
 
   const loadAnalysis = useCallback(async () => {
     setAnalysisLoading(true);
@@ -318,17 +316,6 @@ export default function AssortmentOpportunities() {
                 { value: 'reactivation', label: t('types.reactivation') },
               ]}
               onChange={(type) => { setFilters({ ...filters, type }); setPage(1); }}
-              allLabel={t('all')}
-            />
-            <FilterSelect
-              label={t('status')}
-              value={filters.status}
-              options={[
-                { value: 'open', label: t('statuses.open') },
-                { value: 'reviewed', label: t('statuses.reviewed') },
-                { value: 'dismissed', label: t('statuses.dismissed') },
-              ]}
-              onChange={(status) => { setFilters({ ...filters, status }); setPage(1); }}
               allLabel={t('all')}
             />
             <input value={filters.minMatch} onChange={(event) => { setFilters({ ...filters, minMatch: event.target.value }); setPage(1); }} placeholder={t('minMatch')} aria-label={t('minMatch')} className="w-full rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0a61d7] @4xl/main:w-32" />

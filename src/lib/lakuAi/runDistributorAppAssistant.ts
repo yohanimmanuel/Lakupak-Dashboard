@@ -17,7 +17,7 @@ import {
   type WorkflowPlanStep,
 } from '@/lib/lakuAi/workflowPlan';
 import { resolveWorkflowInputs, workflowRecordHints } from '@/lib/lakuAi/resolveWorkflowInputs';
-import { buildDistributorAppAssistantContext } from '@/lib/lakuAi/distributorAppContext';
+import { buildDistributorAppAssistantContext, questionNeedsAssortmentFacts } from '@/lib/lakuAi/distributorAppContext';
 import { searchDocsLocal } from '@/lib/docs/search';
 import { docUrl, getDocsNav } from '@/lib/docs/load';
 import type { DocLocale } from '@/lib/docs/types';
@@ -186,7 +186,9 @@ export async function runDistributorAppAssistant(input: {
 
   let accountContext = '';
   try {
-    accountContext = await buildDistributorAppAssistantContext(input.userId);
+    accountContext = await buildDistributorAppAssistantContext(input.userId, {
+      includeAssortment: questionNeedsAssortmentFacts(message, input.history),
+    });
   } catch (e) {
     return {
       ok: false,
@@ -221,11 +223,12 @@ export async function runDistributorAppAssistant(input: {
   const system = [
     'You are Lakupak AI, the in-dashboard business assistant for a logged-in Lakupak distributor.',
     'Help them use the whole Lakupak Dashboard, analyse THEIR business from account context, and go beyond the UI by using official Lakupak documentation.',
-    'ANALYSIS (required when asked about finance, trends, performance, marketplace, catalog):',
-    '- Use analyticsWindows (7d/30d revenue, order counts, payment/status mix), topProducts30d, marketplace, and catalogInsights.',
+    'ANALYSIS (required when asked about finance, trends, performance, marketplace, catalog, product-retailer matching, or assortment penetration):',
+    '- Use analyticsWindows (7d/30d revenue, order counts, payment/status mix), topProducts30d, marketplace, catalogInsights, and assortment.',
     '- Analyse the numbers yourself and give a direct assessment with concrete figures from context (currency from account.currency). Do not invent metrics.',
     '- Marketplace: comment on publish rate, unpublished listings, and whether bestsellers are published.',
     '- Catalog improvements: suggest margin changes, MOQ/stock actions, and better product descriptions. Be specific to named products when present.',
+    '- Product-retailer matching and assortment penetration: use assortment.matching and assortment.penetration. Quote those counts. Each signal number is how many open matches include that signal. Penetration is the share of category buyers who already buy the product, and notBuying is who has not. Do not recompute scores, do not invent coverage, and do not turn penetration into revenue or a forecast. If assortment.available is false, or averagePenetrationPct is null, say that average is unavailable. Do not present a null average as 0%.',
     '- Offers / discounts: use offers.items and marginAssessment by product type. FMCG / food & beverage margins are often healthy around 5-10%; beauty, fashion, and many non-food categories often expect 15%+. Do not call a normal FMCG margin "too low" just because it is under 15%.',
     '- Prefer actionable next steps grounded in the numbers already in context. Do not end with a redirect when metrics are already available.',
     'NAVIGATION (required):',

@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db';
 import { Prisma } from '@/lib/prisma-generated';
+import { assortmentAnalysisFacts } from '@/lib/assortmentOpportunities/service';
 
 const SAMPLE = 6;
 const TOP_N = 8;
@@ -196,6 +197,7 @@ function buildContextFallback(
   if (options.includeMarketplace) {
     fallback.marketplace = reduced.marketplace;
   }
+  if (reduced.assortment) fallback.assortment = reduced.assortment;
   return fallback;
 }
 
@@ -256,6 +258,8 @@ function truncateContext(payload: unknown): string {
     () => trimArrayAtPath(reduced, ['catalogInsights', 'weakOrMissingDescriptions'], 4),
     () => trimArrayAtPath(reduced, ['topProducts30d'], 6),
     () => trimArrayAtPath(reduced, ['samples', 'recentOrders'], 4),
+    () => trimArrayAtPath(reduced, ['assortment', 'penetration', 'lowest'], 4),
+    () => trimArrayAtPath(reduced, ['assortment', 'penetration', 'highest'], 4),
     () => trimArrayAtPath(reduced, ['offers', 'items'], 0),
     () => {
       reduced.catalogInsights = {
@@ -308,6 +312,75 @@ function truncateContext(payload: unknown): string {
     contextTruncated: true,
     note: 'Context exceeded size limit.',
   });
+}
+
+const MATCH_SIGNAL_LABELS: Record<string, string> = {
+  categoryAffinity: 'Category affinity',
+  coPurchase: 'Product association',
+  segmentFit: 'Segment fit',
+  purchasingActivity: 'Purchasing activity',
+  priceSuitability: 'Price suitability',
+};
+
+const ASSORTMENT_QUESTION =
+  /assortment|penetrat|product[-\s]retailer|retailer matching|category affinity|product association|segment fit|purchasing activity|price suitability|new assortment|reactivation|open matches|category buyers|kecocokan|asortimen|asortmen|penetrasi|reaktivasi|peluang/i;
+
+/** Assortment facts scan orders and the portfolio, so only matching questions should load them. */
+export function questionNeedsAssortmentFacts(
+  message: string,
+  history?: Array<{ role?: string; content?: string }>,
+): boolean {
+  const recent = [message];
+  const turns = history ?? [];
+  let seen = 0;
+  for (let index = turns.length - 1; index >= 0 && seen < 4; index -= 1) {
+    if (turns[index]?.role !== 'user') continue;
+    recent.push(String(turns[index]?.content ?? ''));
+    seen += 1;
+  }
+  return recent.some((text) => ASSORTMENT_QUESTION.test(text));
+}
+
+function assortmentChatContext(facts: Awaited<ReturnType<typeof assortmentAnalysisFacts>> | null) {
+  if (!facts) {
+    return {
+      available: false,
+      note: 'Product-retailer matching and penetration figures could not be loaded. Do not invent them.',
+    };
+  }
+  return {
+    available: true,
+    meaning:
+      'Counted figures, not an estimate. Prospects are excluded. Open matches are active retailers only. Each signal matches value is how many open matches include that signal, and retailers/products are who those matches cover. Penetration is the share of category buyers who already buy the product. Category buyers are active retailers with a completed order in that category during the evidence window. notBuying is category buyers who have not bought the product. Penetration is not revenue and not a forecast. Do not recompute match scores. If averagePenetrationPct is null, say the average penetration is unavailable. Do not describe it as 0%.',
+    matching: {
+      evidenceWindowDays: facts.windowDays,
+      activeRetailers: facts.activeRetailers,
+      retailersWithACompletedOrder: facts.orderingRetailers,
+      openMatches: facts.openMatches,
+      averageMatch: facts.averageMatch,
+      newAssortmentMatches: facts.newAssortment,
+      reactivationMatches: facts.reactivation,
+      signals: facts.signals.map((signal) => ({
+        signal: MATCH_SIGNAL_LABELS[signal.key] ?? signal.key,
+        weight: signal.weight,
+        matches: signal.matches,
+        retailers: signal.retailers,
+        products: signal.products,
+        ...(signal.key === 'priceSuitability'
+          ? {
+              matchesInsidePricesAlreadyPaid: signal.insideRange,
+              matchesOutsidePricesAlreadyPaid: signal.outsideRange,
+            }
+          : {}),
+      })),
+    },
+    penetration: {
+      productsWithCategoryBuyers: facts.penetration.productsWithCategoryBuyers,
+      averagePenetrationPct: facts.penetration.averagePenetrationPct,
+      lowest: facts.penetration.lowestPenetration,
+      highest: facts.penetration.highestPenetration,
+    },
+  };
 }
 
 function daysAgo(days: number): Date {
@@ -457,7 +530,11 @@ async function orderWindowStats(
  * Live snapshot of this distributor's Laku dashboard account.
  * Includes analytics windows + catalog signals so navbar Laku AI can analyse trends.
  */
-export async function buildDistributorAppAssistantContext(userId: number): Promise<string> {
+export async function buildDistributorAppAssistantContext(
+  userId: number,
+  options?: { includeAssortment?: boolean },
+): Promise<string> {
+  const includeAssortment = options?.includeAssortment === true;
   const orderWhere = { userId, isDeleted: false };
   const since7d = daysAgo(7);
   const since30d = daysAgo(30);
@@ -481,6 +558,7 @@ export async function buildDistributorAppAssistantContext(userId: number): Promi
     orderItems30d,
     catalogVariants,
     weakDescriptions,
+    assortmentFacts,
   ] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
@@ -642,6 +720,7 @@ export async function buildDistributorAppAssistantContext(userId: number): Promi
       take: 40,
       orderBy: { updatedAt: 'desc' },
     }),
+    includeAssortment ? assortmentAnalysisFacts(userId).catch(() => null) : Promise.resolve(null),
   ]);
 
   // Top products by 30d revenue
@@ -959,7 +1038,7 @@ export async function buildDistributorAppAssistantContext(userId: number): Promi
     purpose: 'distributor_dashboard_assistant',
     audience: 'logged_in_distributor',
     analysisCapability:
-      'Use analyticsWindows, marketplace, topProducts30d, catalogInsights, and offers to answer financial/trend/catalog/discount questions with concrete numbers. Give the full assessment in-chat. Never redirect the user to another page or path.',
+      'Use analyticsWindows, marketplace, topProducts30d, catalogInsights, offers, and assortment to answer financial, trend, catalog, discount, product-retailer matching, and assortment penetration questions with concrete numbers. Give the full assessment in-chat. Never redirect the user to another page or path.',
     pricingSemantics: [
       'Judge margins by product type using marginAssessment / marginBenchmark (FMCG F&B typical ~5-10%; beauty/fashion/technology often 15%+; general merchandise 10%+).',
       'pricingMode=discount_already_in_current_price means the current unit price already includes the discount - do not apply the offer percentage/fixed amount again.',
@@ -1020,6 +1099,7 @@ export async function buildDistributorAppAssistantContext(userId: number): Promi
           : 'All offers currently loaded for this account sample.',
       items: offerInsights,
     },
+    ...(includeAssortment ? { assortment: assortmentChatContext(assortmentFacts) } : {}),
     catalogInsights: {
       sampleSizeVariants: catalogVariants.length,
       averageMarginPct: avgMarginPct,

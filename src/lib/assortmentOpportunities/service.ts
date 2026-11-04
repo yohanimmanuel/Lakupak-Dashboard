@@ -930,7 +930,7 @@ function storedSignal(breakdown: unknown, key: MatchWeightKey): { score: number 
 
 export async function assortmentAnalysisFacts(distributorId: number) {
   assertOpportunityTenant(distributorId, distributorId);
-  const [portfolio, opportunities] = await Promise.all([
+  const [portfolio, opportunities, products] = await Promise.all([
     loadPortfolio(distributorId),
     prisma.assortmentOpportunity.findMany({
       where: {
@@ -941,10 +941,15 @@ export async function assortmentAnalysisFacts(distributorId: number) {
       select: {
         buyerId: true,
         productId: true,
+        opportunityType: true,
         reasons: true,
         matchScore: true,
         breakdown: true,
       },
+    }),
+    prisma.product.findMany({
+      where: { userId: distributorId },
+      select: { productId: true, name: true, brand: true },
     }),
   ]);
   const matchTotal = opportunities.reduce((sum, row) => sum + Number(row.matchScore), 0);
@@ -981,13 +986,47 @@ export async function assortmentAnalysisFacts(distributorId: number) {
       outsideRange,
     };
   });
+  const productLabels = new Map(products.map((product) => [product.productId, { name: product.name, brand: product.brand }]));
+  const penetrationRows = [...portfolio.product.entries()]
+    .map(([productId, slice]) => ({
+      productName: productLabels.get(productId)?.name ?? productId,
+      brand: productLabels.get(productId)?.brand ?? null,
+      buyersOfProduct: slice.purchased,
+      categoryBuyers: slice.regulars,
+      notBuying: slice.gap,
+      penetrationPct: slice.penetration,
+    }))
+    .filter((row) => row.categoryBuyers > 0);
+  const lowestPenetration = [...penetrationRows]
+    .sort((a, b) => a.penetrationPct - b.penetrationPct || b.notBuying - a.notBuying)
+    .slice(0, 8);
+  const highestPenetration = [...penetrationRows]
+    .sort((a, b) => b.penetrationPct - a.penetrationPct || b.buyersOfProduct - a.buyersOfProduct)
+    .slice(0, 8);
+  const averagePenetrationPct = penetrationRows.length
+    ? Math.round((penetrationRows.reduce((sum, row) => sum + row.penetrationPct, 0) / penetrationRows.length) * 10) / 10
+    : null;
+  let newAssortment = 0;
+  let reactivation = 0;
+  for (const row of opportunities) {
+    if (row.opportunityType === 'reactivation') reactivation += 1;
+    else newAssortment += 1;
+  }
   return {
     windowDays: EVIDENCE_WINDOW_DAYS,
     activeRetailers: portfolio.activeRetailers,
     orderingRetailers: portfolio.orderingRetailers,
     openMatches: opportunities.length,
     averageMatch: opportunities.length > 0 ? Math.round(matchTotal / opportunities.length) : 0,
+    newAssortment,
+    reactivation,
     signals,
+    penetration: {
+      productsWithCategoryBuyers: penetrationRows.length,
+      averagePenetrationPct,
+      lowestPenetration,
+      highestPenetration,
+    },
   };
 }
 
