@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { prisma, type Prisma } from '@/lib/db';
 import { getSecurityHeaders } from '@/utils/auth-security';
-import { buildMobileBuyerId, syncOrderToBuyerProfile } from '@/utils/buyerSync';
+import { buildMobileBuyerId, parseMarketplaceUserIdFromBuyerId, syncOrderToBuyerProfile } from '@/utils/buyerSync';
 import { finalizeMarketplaceClientMatch, planMarketplaceClientMatch } from '@/lib/clientMatching/service';
 import { NotificationService } from '@/app/api/graphql/modules/notifications';
 import {
@@ -343,6 +343,527 @@ export async function getMobileMarketplaceOrders(request: NextRequest, tokenUser
   );
 }
 
+const ORDER_NOT_EDITABLE = 'ORDER_NOT_EDITABLE';
+
+/** Same variant, promotion, and stock checks as a new order, using the merged line quantities. */
+async function assertAppendLineOrderable(
+  tx: Prisma.TransactionClient,
+  args: {
+    productId: string;
+    productName: string;
+    variantOption: {
+      id: number;
+      moq: number | null;
+      stockQuantity: number | null;
+      attributes: unknown;
+    };
+    packageQuantity: number;
+    piecesPerPackage: number;
+    buyerId: string | null;
+    distributorUserId: number;
+  },
+) {
+  const orderedPieces = args.packageQuantity * args.piecesPerPackage;
+  const variantValidation = await validateVariant(
+    args.productId,
+    args.variantOption.id,
+    orderedPieces,
+    args.packageQuantity,
+  );
+  if (!variantValidation.isValid) {
+    throw new Error(variantValidation.error || `Variant is not valid for product: ${args.productId}`);
+  }
+
+  let ordered = orderedPieces;
+  let needed = orderedPieces;
+  const productOffer = args.buyerId
+    ? await getOfferForClientAndProduct(args.buyerId, args.productId, {
+        userId: args.distributorUserId,
+        db: tx,
+        variantOptionId: args.variantOption.id,
+      })
+    : null;
+  const freeQty =
+    productOffer?.freeQuantity != null && productOffer.freeQuantity > 0
+      ? productOffer.freeQuantity
+      : productOffer?.discountType === 'buy_x_get_y'
+        ? Math.round(productOffer.discountValue)
+        : null;
+  const buyQty =
+    productOffer?.buyQuantity != null && productOffer.buyQuantity > 0
+      ? productOffer.buyQuantity
+      : null;
+  const hasBxgyPromo =
+    productOffer != null &&
+    buyQty != null &&
+    freeQty != null &&
+    freeQty > 0 &&
+    (productOffer.discountType === 'buy_x_get_y' ||
+      productOffer.discountType === 'percentage' ||
+      productOffer.discountType === 'fixed_amount');
+  if (hasBxgyPromo && buyQty != null && freeQty != null) {
+    const promotionDetails = {
+      minQuantity: buyQty,
+      freeQuantity: freeQty,
+      applyMode: productOffer?.promotionApplyMode ?? 'after_moq',
+      moq: args.variantOption.moq ?? null,
+    };
+    const qty = computeTotalQtyNeededWithBuyXGetY({
+      packageQuantity: args.packageQuantity,
+      piecesPerPackage: args.piecesPerPackage,
+      moqPieces: args.variantOption.moq,
+      promotionDetails,
+    });
+    ordered = qty.orderedPieces;
+    needed = qty.totalQtyNeeded;
+  }
+
+  const availableStock = Number(args.variantOption.stockQuantity) || 0;
+  if (availableStock < needed) {
+    const variantName =
+      args.variantOption.attributes && typeof args.variantOption.attributes === 'object'
+        ? Object.entries(args.variantOption.attributes as Record<string, string>)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join(', ')
+        : 'Default';
+    const freeItems = needed - ordered;
+    throw new Error(
+      `Insufficient stock for ${args.productName} (${variantName}). Available: ${availableStock}, Required: ${needed} pieces (${ordered} ordered + ${freeItems} free)`,
+    );
+  }
+}
+
+
+/** Holds the order row so concurrent appends and edits cannot pass a stale pending check. */
+async function lockPendingUnpaidOrder(tx: Prisma.TransactionClient, orderPk: number) {
+  const rows = await tx.$queryRaw<Array<{
+    orderStatus: string | null;
+    paymentStatus: string | null;
+    shippingFee: unknown;
+    discounts: unknown;
+  }>>`
+    SELECT "orderStatus", "paymentStatus", "shippingFee", "discounts"
+    FROM "Order"
+    WHERE id = ${orderPk}
+    FOR UPDATE
+  `;
+  const row = rows[0];
+  const status = String(row?.orderStatus || '').toLowerCase();
+  const payment = String(row?.paymentStatus || '').toLowerCase();
+  if (!row || status !== 'pending' || payment !== 'unpaid') {
+    throw new Error(ORDER_NOT_EDITABLE);
+  }
+  return {
+    orderStatus: row.orderStatus,
+    paymentStatus: row.paymentStatus,
+    shippingFee: row.shippingFee,
+    discounts: row.discounts,
+  };
+}
+
+async function appendItemsToPendingOrder(params: {
+  tokenUserId: number;
+  appendToOrderId: string;
+  orderItems: OrderItemInput[];
+  storefrontId: number;
+}): Promise<NextResponse> {
+  const headers = getSecurityHeaders();
+  const { tokenUserId, appendToOrderId, orderItems, storefrontId } = params;
+
+  if (orderItems.length === 0) {
+    return NextResponse.json({ error: 'Choose a product to add to this order' }, { status: 400, headers });
+  }
+
+  const order = await prisma.order.findUnique({
+    where: { orderId: appendToOrderId },
+  });
+  if (!order) {
+    return NextResponse.json({ error: 'Order not found' }, { status: 404, headers });
+  }
+
+  const ownerId = parseMarketplaceUserIdFromBuyerId(order.buyerId);
+  if (ownerId !== tokenUserId) {
+    return NextResponse.json({ error: 'You can only add products to your own order' }, { status: 403, headers });
+  }
+
+  const status = String(order.orderStatus || '').toLowerCase();
+  const payment = String(order.paymentStatus || '').toLowerCase();
+  if (status !== 'pending' || payment !== 'unpaid') {
+    return NextResponse.json(
+      { error: 'Products can only be added while the order is pending and unpaid' },
+      { status: 400, headers },
+    );
+  }
+
+  const distributorUserId = order.userId;
+  if (!distributorUserId) {
+    return NextResponse.json({ error: 'This order has no distributor' }, { status: 400, headers });
+  }
+  if (distributorUserId !== storefrontId) {
+    return NextResponse.json(
+      { error: 'You can only order from the distributor storefront you signed into', code: 'NOT_A_MEMBER' },
+      { status: 403, headers },
+    );
+  }
+
+  const productIds = orderItems.map((item) => String(item.productId || ''));
+  const owners = await prisma.product.findMany({
+    where: { productId: { in: productIds } },
+    select: { productId: true, userId: true },
+  });
+  const ownerByProduct = new Map(owners.map((row) => [row.productId, row.userId]));
+  for (const item of orderItems) {
+    const owner = ownerByProduct.get(String(item.productId || ''));
+    if (!owner || owner !== distributorUserId) {
+      return NextResponse.json(
+        { error: 'This product is from a different distributor and cannot be added to this order' },
+        { status: 400, headers },
+      );
+    }
+  }
+
+  const distributorCurrencySnapshot =
+    (await prisma.user.findUnique({
+      where: { id: distributorUserId },
+      select: { currency: true },
+    }))?.currency ?? 'IDR';
+
+  const usedOfferIds: string[] = [];
+  try {
+    await prisma.$transaction(async (tx) => {
+      const locked = await lockPendingUnpaidOrder(tx, order.id);
+      for (const item of orderItems) {
+        const product = await tx.product.findFirst({
+          where: { productId: String(item.productId || '') },
+          include: { variants: true, variantOptions: true },
+        });
+        if (!product) throw new Error(`Product not found: ${item.productId}`);
+
+        let variantOption = null;
+        if (item.variantId) {
+          variantOption = product.variantOptions?.find((vo) => vo.id === item.variantId);
+          if (!variantOption) {
+            throw new Error(`Variant option with ID ${item.variantId} not found for product: ${item.productId}`);
+          }
+        } else {
+          variantOption = product.variantOptions?.find((vo) => vo.isDefault) || product.variantOptions?.[0];
+        }
+        if (!variantOption) throw new Error(`No variant options found for product: ${item.productId}.`);
+
+        const existing = await tx.orderItem.findFirst({
+          where: {
+            orderId: order.orderId,
+            productId: String(item.productId || ''),
+            variantOptionId: variantOption.id,
+          },
+        });
+        const piecesPerPackage = existing
+          ? Math.max(1, decimalToNumber(existing.piecesPerPackage) || 1)
+          : Math.max(1, parseInt(String(item.piecesPerPackage || 1), 10) || 1);
+        const addedPackages = Math.max(1, parseInt(String(item.packageQuantity || 1), 10) || 1);
+        const packageQuantity = (existing ? decimalToNumber(existing.packageQuantity) : 0) + addedPackages;
+        const totalQuantity = packageQuantity * piecesPerPackage;
+        await assertAppendLineOrderable(tx, {
+          productId: product.productId,
+          productName: product.name,
+          variantOption,
+          packageQuantity,
+          piecesPerPackage,
+          buyerId: order.buyerId,
+          distributorUserId,
+        });
+        const variantForValidation = {
+          id: variantOption.id ?? null,
+          sellingPrice: parsePrice(
+            variantOption.sellingPrice as
+              | string
+              | number
+              | { toNumber?: () => number; toString?: () => string }
+              | null
+              | undefined,
+          ),
+          originalSellingPrice: variantOption.originalSellingPrice
+            ? parsePrice(
+                variantOption.originalSellingPrice as
+                  | string
+                  | number
+                  | { toNumber?: () => number; toString?: () => string }
+                  | null
+                  | undefined,
+              )
+            : null,
+          moq: variantOption.moq || null,
+        };
+        const offerValidation = await validateOfferForProduct(
+          product.productId,
+          tokenUserId,
+          decimalToNumber(order.totalAmount),
+          totalQuantity,
+          tx,
+          packageQuantity,
+          variantForValidation,
+          order.buyerId,
+        );
+
+        let variantNameSnapshot: string | null = null;
+        if (variantOption.attributes) {
+          const attributes = variantOption.attributes as Record<string, string>;
+          variantNameSnapshot = Object.entries(attributes)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join(', ');
+        } else {
+          variantNameSnapshot = item.variantName || 'Default';
+        }
+
+        const recordedOfferId = existing?.offerIdSnapshot?.trim() || '';
+        const sameLineOffer = recordedOfferId !== '' && recordedOfferId === offerValidation.offerId;
+        if (offerValidation.isValid && offerValidation.offerId && !sameLineOffer) {
+          if (!usedOfferIds.includes(offerValidation.offerId)) usedOfferIds.push(offerValidation.offerId);
+          if (offerValidation.applicableDiscountTypes && offerValidation.applicableDiscountTypes.length > 0) {
+            await trackOfferUsageForAllTypes(
+              offerValidation.offerId,
+              offerValidation.applicableDiscountTypes,
+              tokenUserId,
+              tx,
+            );
+          } else if (offerValidation.discountTypeId) {
+            await trackOfferUsageUtil(
+              offerValidation.offerId,
+              offerValidation.discountTypeId,
+              tokenUserId,
+              offerValidation.discountAmount || 0,
+              tx,
+            );
+          }
+        }
+
+        const linePricing = resolveLinePricing({
+          offerValidation,
+          baseUnitPrice: parsePrice(
+            variantOption.sellingPrice as
+              | string
+              | number
+              | { toNumber?: () => number; toString?: () => string }
+              | null
+              | undefined,
+          ),
+        });
+        const orderItemData = buildOrderItemCreateData({
+          orderId: order.orderId,
+          item,
+          product,
+          variantOption,
+          piecesPerPackage,
+          packageQuantity,
+          variantNameSnapshot,
+          currencySnapshot: distributorCurrencySnapshot,
+          offerValidation,
+          resolvedUnitPrice: linePricing.unitPrice,
+          pricingSource: linePricing.pricingSource,
+        });
+
+        if (existing) {
+          await tx.orderItem.update({
+            where: { id: existing.id },
+            data: {
+              subtotal: orderItemData.subtotal,
+              packageQuantity: orderItemData.packageQuantity,
+              piecesPerPackage: orderItemData.piecesPerPackage,
+              pricePerPackage: orderItemData.pricePerPackage,
+              unitPriceSnapshot: orderItemData.unitPriceSnapshot,
+              offerApplied: orderItemData.offerApplied,
+              offerBadgeSnapshot: orderItemData.offerBadgeSnapshot,
+              offerNameSnapshot: orderItemData.offerNameSnapshot,
+              offerIdSnapshot: orderItemData.offerIdSnapshot,
+              originalPriceSnapshot: orderItemData.originalPriceSnapshot,
+              discountPercentage: orderItemData.discountPercentage,
+              discountAmount: orderItemData.discountAmount,
+              promotionDetailsSnapshot: orderItemData.promotionDetailsSnapshot,
+              variantNameSnapshot: orderItemData.variantNameSnapshot,
+              moqSnapshot: orderItemData.moqSnapshot,
+            },
+          });
+        } else {
+          await tx.orderItem.create({ data: orderItemData });
+        }
+      }
+
+      const rows = await tx.orderItem.findMany({ where: { orderId: order.orderId } });
+      const subtotal = rows.reduce((sum, row) => sum + decimalToNumber(row.subtotal), 0);
+      const totalOrders = rows.reduce((sum, row) => sum + decimalToNumber(row.packageQuantity), 0);
+      const anyPending = rows.some((row) => !(decimalToNumber(row.subtotal) > 0));
+      const totalAmount = anyPending
+        ? 0
+        : Math.max(0, subtotal + decimalToNumber(locked.shippingFee) - decimalToNumber(locked.discounts));
+      await tx.order.update({
+        where: { id: order.id },
+        data: { subtotal, totalAmount, totalOrders },
+      });
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === ORDER_NOT_EDITABLE) {
+      return NextResponse.json(
+        { error: 'Products can only be added while the order is pending and unpaid' },
+        { status: 409, headers },
+      );
+    }
+    const message = error instanceof Error ? error.message : 'Failed to add products';
+    return NextResponse.json({ error: message }, { status: 400, headers });
+  }
+
+  if (usedOfferIds.length > 0) {
+    await updateOfferStatusesBasedOnLimits(usedOfferIds);
+  }
+
+  if (order.buyerId) {
+    try {
+      await syncOrderToBuyerProfile(order.buyerId, distributorUserId);
+    } catch (err) {
+      console.error('[mobileOrdersService] Failed to sync appended order to buyer profile:', err);
+    }
+  }
+
+  const updated = await prisma.order.findMany({
+    where: { orderId: order.orderId },
+    include: { orderItemsRel: { include: { product: true } } },
+  });
+  enqueueSideEffect(
+    'broadcastOrderUpdate(mobileOrders.append)',
+    async () => broadcastOrderUpdate([order.orderId]),
+    { retries: 2 },
+  );
+
+  return NextResponse.json(
+    { success: true, orders: updated, order: updated[0] },
+    {
+      status: 200,
+      headers: { ...headers, 'Cache-Control': 'no-store, no-cache, must-revalidate, private' },
+    },
+  );
+}
+
+const EDITABLE_DELIVERY = {
+  self_pickup: {
+    method: 'Self Pickup',
+    label: 'Self Pickup',
+  },
+  seller_delivery: {
+    method: 'Seller/Distributor Delivery',
+    label: 'Seller/Distributor Delivery',
+  },
+  buyer_courier: {
+    method: 'Buyer-arranged Courier',
+    label: 'Buyer-arranged Courier',
+  },
+} as const;
+
+const EDITABLE_PAYMENT = {
+  cod: 'Cash on Delivery',
+  bank_transfer: 'Bank Transfer',
+} as const;
+
+function trimmedText(value: unknown, max: number): string {
+  if (typeof value !== 'string') return '';
+  return value.trim().slice(0, max);
+}
+
+export async function updatePendingOrderDetails(
+  request: NextRequest,
+  tokenUserId: number,
+): Promise<NextResponse> {
+  const headers = getSecurityHeaders();
+  let bodyUnknown: unknown;
+  try {
+    bodyUnknown = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400, headers });
+  }
+  if (!bodyUnknown || typeof bodyUnknown !== 'object' || Array.isArray(bodyUnknown)) {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400, headers });
+  }
+  const body = bodyUnknown as Record<string, unknown>;
+  const orderId = trimmedText(body.orderId, 80);
+  const userIdNum = Number(body.userId);
+  if (!orderId || !Number.isFinite(userIdNum)) {
+    return NextResponse.json({ error: 'Order ID and User ID are required' }, { status: 400, headers });
+  }
+  if (tokenUserId !== userIdNum) {
+    return NextResponse.json({ error: 'Unauthorized access to user data' }, { status: 403, headers });
+  }
+
+  const deliveryKey = trimmedText(body.deliveryOption, 40) as keyof typeof EDITABLE_DELIVERY;
+  const paymentKey = trimmedText(body.paymentMethod, 40) as keyof typeof EDITABLE_PAYMENT;
+  const delivery = EDITABLE_DELIVERY[deliveryKey];
+  const paymentTerms = EDITABLE_PAYMENT[paymentKey];
+  const deliveryAddress = trimmedText(body.deliveryAddress, 500);
+  const contactPerson = trimmedText(body.contactPerson, 120);
+  const contactPhone = trimmedText(body.contactPhone, 40);
+  const storeName = trimmedText(body.storeName, 160);
+  if (!delivery || !paymentTerms || !deliveryAddress || !contactPerson || !contactPhone) {
+    return NextResponse.json({ error: 'Address, contact, delivery, and payment are required' }, { status: 400, headers });
+  }
+
+  const order = await prisma.order.findUnique({ where: { orderId } });
+  if (!order) {
+    return NextResponse.json({ error: 'Order not found' }, { status: 404, headers });
+  }
+  if (parseMarketplaceUserIdFromBuyerId(order.buyerId) !== tokenUserId) {
+    return NextResponse.json({ error: 'You can only edit your own order' }, { status: 403, headers });
+  }
+  const status = String(order.orderStatus || '').toLowerCase();
+  const payment = String(order.paymentStatus || '').toLowerCase();
+  if (status !== 'pending' || payment !== 'unpaid') {
+    return NextResponse.json(
+      { error: 'This order can only be edited while it is pending and unpaid' },
+      { status: 400, headers },
+    );
+  }
+
+  let updated;
+  try {
+    updated = await prisma.$transaction(async (tx) => {
+      await lockPendingUnpaidOrder(tx, order.id);
+      return tx.order.update({
+        where: { id: order.id },
+        data: {
+          contactPerson,
+          contactPhone,
+          storeName: storeName || contactPerson,
+          deliveryAddress,
+          deliveryMethod: delivery.method,
+          deliveryOption: deliveryKey,
+          shippingMethod: delivery.label,
+          shippingMethodLabel: delivery.label,
+          paymentTerms,
+          ...(deliveryKey === 'self_pickup'
+            ? { preferredDeliveryDate: null, preferredDeliveryTime: null }
+            : { preferredPickupDate: null, preferredPickupTime: null }),
+        },
+        include: { orderItemsRel: { include: { product: true } } },
+      });
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === ORDER_NOT_EDITABLE) {
+      return NextResponse.json(
+        { error: 'This order can only be edited while it is pending and unpaid' },
+        { status: 409, headers },
+      );
+    }
+    throw error;
+  }
+
+  enqueueSideEffect(
+    'broadcastOrderUpdate(mobileOrders.edit)',
+    async () => broadcastOrderUpdate([order.orderId]),
+    { retries: 2 },
+  );
+
+  return NextResponse.json(
+    { success: true, order: updated },
+    { headers: { ...headers, 'Cache-Control': 'no-store, no-cache, must-revalidate, private' } },
+  );
+}
+
 export async function createMobileMarketplaceOrders(
   request: NextRequest,
   tokenUserId: number,
@@ -388,6 +909,7 @@ export async function createMobileMarketplaceOrders(
     estimatedArrivalMinDays,
     estimatedArrivalMaxDays,
     userId,
+    appendToOrderId: appendToOrderIdRaw,
   } = body;
 
   if (!orderId || !userId) {
@@ -418,6 +940,17 @@ export async function createMobileMarketplaceOrders(
       { error: 'Sign in with your distributor referral code to open their storefront', code: 'REFERRAL_CODE_REQUIRED' },
       { status: 403, headers },
     );
+  }
+
+  const appendToOrderId =
+    typeof appendToOrderIdRaw === 'string' ? appendToOrderIdRaw.trim() : '';
+  if (appendToOrderId) {
+    return appendItemsToPendingOrder({
+      tokenUserId: userIdNum,
+      appendToOrderId,
+      orderItems: Array.isArray(orderItems) ? (orderItems as OrderItemInput[]) : [],
+      storefrontId,
+    });
   }
 
   const normalizeDeliveryOption = (value: unknown) => {

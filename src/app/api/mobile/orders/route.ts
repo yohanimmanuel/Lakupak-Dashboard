@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSecurityHeaders } from '../../../../utils/auth-security';
-import { createMobileMarketplaceOrders, getMobileMarketplaceOrders } from '@/services/mobileOrders/mobileOrdersService';
+import { createMobileMarketplaceOrders, getMobileMarketplaceOrders, updatePendingOrderDetails } from '@/services/mobileOrders/mobileOrdersService';
 import { orderCreationRateLimiter, orderQueryRateLimiter } from '@/utils/rateLimiter';
 import { auditOrder } from '@/lib/audit';
 
@@ -76,6 +76,44 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: 'Failed to create order', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500, headers }
+    );
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  const headers = getSecurityHeaders();
+  try {
+    const { getAuthenticatedMarketplaceUserId } = await import('@/utils/auth-helpers');
+    const auth = await getAuthenticatedMarketplaceUserId(request);
+    if (!auth.ok) {
+      if (auth.reason === 'suspended') {
+        return NextResponse.json({ error: 'Account suspended' }, { status: 403, headers });
+      }
+      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers });
+    }
+    const response = await updatePendingOrderDetails(request, auth.userId);
+    let updatedOrderId: string | undefined;
+    try {
+      const data = await response.clone().json();
+      updatedOrderId =
+        data?.order?.orderId ??
+        data?.orderId ??
+        (Array.isArray(data?.orders) ? data.orders[0]?.orderId : undefined);
+    } catch {
+      // ignore parse errors; still record the action
+    }
+    auditOrder(request, {
+      action: 'update',
+      resourceId: updatedOrderId,
+      actorId: auth.userId,
+      actorType: 'marketplace',
+      success: response.ok,
+    });
+    return response;
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Failed to update order', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500, headers },
     );
   }
 }
