@@ -295,29 +295,52 @@ export default function OrdersTable({
     setShowBulkPaymentStatusDropdown(false);
 
     try {
-      const CONCURRENCY = 10;
+      // One at a time: concurrent status changes lock the same VariantOption stock
+      // rows in different orders and Postgres can return "deadlock detected".
       const results: PromiseSettledResult<string>[] = [];
-
-      for (let i = 0; i < batchOrderIds.length; i += CONCURRENCY) {
-        const chunk = batchOrderIds.slice(i, i + CONCURRENCY);
-        results.push(
-          ...(await Promise.allSettled(
-            chunk.map(async (orderId) => {
-              const res = await fetch('/api/orders', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ orderId, userId: user.id, [field]: value }),
-              });
-              if (!res.ok) {
-                const data = (await res.json().catch(() => ({}))) as { error?: string; detail?: string };
-                const detail = typeof data.detail === 'string' ? data.detail.trim() : '';
-                const reason = detail || (typeof data.error === 'string' ? data.error.trim() : '') || String(res.status);
-                throw new Error(`${orderId}: ${reason}`);
+      for (const orderId of batchOrderIds) {
+        let lastReason: unknown = null;
+        let succeeded = false;
+        for (let attempt = 1; attempt <= 3; attempt += 1) {
+          try {
+            const res = await fetch('/api/orders', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ orderId, userId: user.id, [field]: value }),
+            });
+            if (!res.ok) {
+              const data = (await res.json().catch(() => ({}))) as { error?: string; detail?: string };
+              const detail = typeof data.detail === 'string' ? data.detail.trim() : '';
+              const reason =
+                detail || (typeof data.error === 'string' ? data.error.trim() : '') || String(res.status);
+              const isDeadlock = /deadlock detected|40P01|P2034/i.test(reason);
+              if (isDeadlock && attempt < 3) {
+                await new Promise((resolve) =>
+                  setTimeout(resolve, 120 * attempt + Math.floor(Math.random() * 100)),
+                );
+                continue;
               }
-              return orderId;
-            }),
-          )),
-        );
+              throw new Error(`${orderId}: ${reason}`);
+            }
+            results.push({ status: 'fulfilled', value: orderId });
+            succeeded = true;
+            break;
+          } catch (reason) {
+            lastReason = reason;
+            const message = reason instanceof Error ? reason.message : String(reason ?? '');
+            const isDeadlock = /deadlock detected|40P01|P2034/i.test(message);
+            if (isDeadlock && attempt < 3) {
+              await new Promise((resolve) =>
+                setTimeout(resolve, 120 * attempt + Math.floor(Math.random() * 100)),
+              );
+              continue;
+            }
+            break;
+          }
+        }
+        if (!succeeded) {
+          results.push({ status: 'rejected', reason: lastReason });
+        }
       }
 
       const successes = results

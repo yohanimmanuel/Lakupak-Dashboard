@@ -114,7 +114,15 @@ export async function restoreStockForOrderItems(
 ): Promise<StockNotificationJob[]> {
   const jobs: StockNotificationJob[] = [];
 
-  for (const orderItem of items) {
+  // Stable lock order across concurrent order updates that share SKUs.
+  const orderedItems = [...items].sort((a, b) => {
+    const aKey = a.variantOptionId ?? a.variantId ?? 0;
+    const bKey = b.variantOptionId ?? b.variantId ?? 0;
+    if (aKey !== bKey) return aKey - bKey;
+    return String(a.productId ?? '').localeCompare(String(b.productId ?? ''));
+  });
+
+  for (const orderItem of orderedItems) {
     if (!orderItem.productId) continue;
 
     // Calculate total quantity to restore (including free items from promotion)

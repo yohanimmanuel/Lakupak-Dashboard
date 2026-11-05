@@ -281,6 +281,7 @@ export async function getMobileMarketplaceOrders(request: NextRequest, tokenUser
           },
         },
       },
+      returnRequests: { orderBy: { createdAt: 'desc' } },
     },
   });
 

@@ -23,6 +23,37 @@ import {
   scheduleReturnItemsReceivedNotification,
 } from './enqueueOrderUpdateSideEffects';
 
+function isDeadlockError(error: unknown): boolean {
+  if (error && typeof error === 'object' && 'code' in error) {
+    const code = String((error as { code?: unknown }).code ?? '');
+    if (code === 'P2034' || code === '40P01') return true;
+  }
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  return /deadlock detected|40P01|P2034/i.test(message);
+}
+
+async function runOrderTransaction<T>(
+  run: (tx: Prisma.TransactionClient) => Promise<T>,
+  attempts = 5,
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await prisma.$transaction(run, {
+        maxWait: 10_000,
+        timeout: 30_000,
+      });
+    } catch (error) {
+      lastError = error;
+      if (attempt >= attempts || !isDeadlockError(error)) throw error;
+      await new Promise((resolve) =>
+        setTimeout(resolve, 50 * attempt * attempt + Math.floor(Math.random() * 80)),
+      );
+    }
+  }
+  throw lastError;
+}
+
 // Move-only extraction of PUT handler from `ordersRouteService.ts`.
 export async function updateOrderHandler(request: NextRequest) {
   const headers = getOrderSecurityHeaders();
@@ -455,7 +486,7 @@ export async function updateOrderHandler(request: NextRequest) {
       ).includes(existingOrder.orderStatus);
 
       try {
-        const { updatedOrder, stockNotificationJobs } = await prisma.$transaction(
+        const { updatedOrder, stockNotificationJobs } = await runOrderTransaction(
           async (tx: Prisma.TransactionClient) => {
             const stockJobs: StockNotificationJob[] = [];
 
@@ -628,6 +659,9 @@ export async function updateOrderHandler(request: NextRequest) {
       sanitizedData.shippingFee !== undefined ||
       sanitizedData.discounts !== undefined ||
       Array.isArray(parsedOrderItems);
+    // Snapshot before retries: the transaction callback mutates these in place.
+    const updateDataBase = { ...updateData };
+    const originalSanitizedPaymentStatus = sanitizedData.paymentStatus;
 
     // Enforce ownership before mutating: non-admins may only update their own orders.
     if (ownerScopeUserId != null && typeof sanitizedData.orderId === 'string') {
@@ -644,7 +678,17 @@ export async function updateOrderHandler(request: NextRequest) {
     }
 
     // Make status changes, stock adjustments, item replacement, and final update atomic.
-    const order = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const order = await runOrderTransaction(async (tx: Prisma.TransactionClient) => {
+      // Deadlock retries re-enter this callback; clear attempt-local side effects first.
+      stockNotificationJobs.length = 0;
+      previousPaymentStatus = null;
+      previousOrderStatus = null;
+      for (const key of Object.keys(updateData)) {
+        if (!(key in updateDataBase)) delete updateData[key];
+      }
+      Object.assign(updateData, updateDataBase);
+      sanitizedData.paymentStatus = originalSanitizedPaymentStatus;
+
       // Capture previous payment status for dedicated buyer notifications on payment transitions,
       // even when orderStatus isn't being updated in this request.
       let paymentBaseTotal = 0;
@@ -848,7 +892,13 @@ export async function updateOrderHandler(request: NextRequest) {
         
         // DEDUCT STOCK: Moving FROM Pending, Cancelled, or Returned TO any other status
         if (prevStatusNoDeduct && !nextStatusNoDeduct && orderWithItems) {
-          for (const orderItem of orderWithItems.orderItemsRel) {
+          const itemsForStockDeduct = [...orderWithItems.orderItemsRel].sort((a, b) => {
+            const aKey = a.variantOptionId ?? a.variantId ?? 0;
+            const bKey = b.variantOptionId ?? b.variantId ?? 0;
+            if (aKey !== bKey) return aKey - bKey;
+            return String(a.productId ?? '').localeCompare(String(b.productId ?? ''));
+          });
+          for (const orderItem of itemsForStockDeduct) {
             if (!orderItem.productId) continue;
             
             // Calculate total quantity to deduct (including free items from promotion)
