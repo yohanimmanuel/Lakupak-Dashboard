@@ -185,8 +185,6 @@ const DASHBOARD_SNAPSHOT_QUERY = `
         contactPhone
         customerEmail
         deliveryAddress
-        preferredDeliveryDate
-        preferredDeliveryTime
         preferredPickupDate
         preferredPickupTime
         assignedLogistics
@@ -620,8 +618,6 @@ function normalizeOrder(raw: Record<string, unknown>): Order | null {
     contactPhone: parseString(raw.contactPhone, '—'),
     customerEmail: parseOptionalString(raw.customerEmail),
     deliveryAddress: parseString(raw.deliveryAddress, '—'),
-    preferredDeliveryDate: parseOptionalDateValue(raw.preferredDeliveryDate),
-    preferredDeliveryTime: parseOptionalString(raw.preferredDeliveryTime),
     preferredPickupDate: parseOptionalDateValue(raw.preferredPickupDate),
     preferredPickupTime: parseOptionalString(raw.preferredPickupTime),
     assignedLogistics: parseOptionalString(raw.assignedLogistics),

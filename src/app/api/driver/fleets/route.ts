@@ -79,7 +79,6 @@ export async function GET(req: NextRequest) {
             returnCollectedAt: true,
             returnItemsReceivedAt: true,
             orderDate: true,
-            preferredDeliveryDate: true,
             estimatedArrivalDate: true,
             estimatedArrivalMinDays: true,
             estimatedArrivalMaxDays: true,

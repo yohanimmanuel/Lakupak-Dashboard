@@ -62,8 +62,6 @@ describe('orders update - cancel authorization', () => {
         contactPhone: '123',
         customerEmail: null,
         deliveryAddress: 'Addr',
-        preferredDeliveryDate: null,
-        preferredDeliveryTime: null,
         preferredPickupDate: null,
         preferredPickupTime: null,
         shippingMethodLabel: null,

@@ -486,8 +486,6 @@ model Order {
   contactPhone            String
   customerEmail           String?
   deliveryAddress         String
-  preferredDeliveryDate   DateTime?   @db.Timestamptz(3)
-  preferredDeliveryTime   String?
   preferredPickupDate     DateTime?   @db.Timestamptz(3)
   preferredPickupTime     String?
   assignedLogistics       String?

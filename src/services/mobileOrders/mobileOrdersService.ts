@@ -819,6 +819,15 @@ export async function updatePendingOrderDetails(
     );
   }
 
+  const pickupDate = (() => {
+    if (!body.preferredPickupDate) return null;
+    const parsed = new Date(String(body.preferredPickupDate));
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  })();
+  const pickupTime = typeof body.preferredPickupTime === 'string' && body.preferredPickupTime.trim()
+    ? body.preferredPickupTime.trim()
+    : null;
+
   let updated;
   try {
     updated = await prisma.$transaction(async (tx) => {
@@ -836,7 +845,7 @@ export async function updatePendingOrderDetails(
           shippingMethodLabel: delivery.label,
           paymentTerms,
           ...(deliveryKey === 'self_pickup'
-            ? { preferredDeliveryDate: null, preferredDeliveryTime: null }
+            ? { preferredPickupDate: pickupDate, preferredPickupTime: pickupTime }
             : { preferredPickupDate: null, preferredPickupTime: null }),
         },
         include: { orderItemsRel: { include: { product: true } } },
@@ -900,8 +909,6 @@ export async function createMobileMarketplaceOrders(
     orderStatus,
     paymentStatus,
     paymentTerms,
-    preferredDeliveryDate,
-    preferredDeliveryTime,
     preferredPickupDate,
     preferredPickupTime,
     shippingMethodLabel,
@@ -980,9 +987,7 @@ export async function createMobileMarketplaceOrders(
     typeof shippingMethod === 'string' && shippingMethod.trim().length > 0
       ? shippingMethod.trim()
       : normalizedShippingLabel;
-  const normalizedPreferredDeliveryDate = parseOptionalDate(preferredDeliveryDate);
   const normalizedPreferredPickupDate = parseOptionalDate(preferredPickupDate);
-  const normalizedPreferredDeliveryTime = normalizeTimeValue(preferredDeliveryTime);
   const normalizedPreferredPickupTime = normalizeTimeValue(preferredPickupTime);
 
   const normalizeDuration = (value: unknown) => {
@@ -1111,8 +1116,6 @@ export async function createMobileMarketplaceOrders(
       customerEmailSnapshot: customerEmail ? String(customerEmail) : marketplaceUser.email || '',
       deliveryAddress: String(deliveryAddress || marketplaceUser.chosenAddress || ''),
       deliveryAddressSnapshot: String(deliveryAddress || marketplaceUser.chosenAddress || ''),
-      preferredDeliveryDate: normalizedPreferredDeliveryDate,
-      preferredDeliveryTime: normalizedPreferredDeliveryTime,
       preferredPickupDate: normalizedPreferredPickupDate,
       preferredPickupTime: normalizedPreferredPickupTime,
       shippingMethodLabel: normalizedShippingLabel,
@@ -1650,8 +1653,6 @@ export async function createMobileMarketplaceOrders(
       customerEmailSnapshot: customerEmail ? String(customerEmail) : marketplaceUser.email || '',
       deliveryAddress: String(deliveryAddress || marketplaceUser.chosenAddress || ''),
       deliveryAddressSnapshot: String(deliveryAddress || marketplaceUser.chosenAddress || ''),
-      preferredDeliveryDate: normalizedPreferredDeliveryDate,
-      preferredDeliveryTime: normalizedPreferredDeliveryTime,
       preferredPickupDate: normalizedPreferredPickupDate,
       preferredPickupTime: normalizedPreferredPickupTime,
       shippingMethodLabel: normalizedShippingLabel,

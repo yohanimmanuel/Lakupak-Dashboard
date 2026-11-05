@@ -281,7 +281,7 @@ export async function createDistributorOrderHandler(request: NextRequest) {
   const paymentTerms = clip(body.paymentTerms, 80);
   const orderStatus = clip(body.orderStatus, 40) || 'Pending';
   const paymentStatus = clip(body.paymentStatus, 40) || 'Unpaid';
-  const preferredDeliveryTime = clip(body.preferredDeliveryTime, 80);
+  const preferredPickupTime = clip(body.preferredPickupTime, 80);
   const assignedLogistics = clip(body.assignedLogistics, 120);
   const trackingNumber = clip(body.trackingNumber, 80);
   const deliveryNote = clip(body.deliveryNote, 1000);
@@ -301,13 +301,13 @@ export async function createDistributorOrderHandler(request: NextRequest) {
   }
 
   const orderDate = optionalDate(body.orderDate) ?? new Date();
-  const preferredDeliveryDate = optionalDate(body.preferredDeliveryDate);
+  const preferredPickupDate = optionalDate(body.preferredPickupDate);
   const estimatedArrivalDate = optionalDate(body.estimatedArrivalDate);
   const estimatedArrivalMinDays = optionalInt(body.estimatedArrivalMinDays);
   const estimatedArrivalMaxDays = optionalInt(body.estimatedArrivalMaxDays);
   if (
     orderDate === 'invalid' ||
-    preferredDeliveryDate === 'invalid' ||
+    preferredPickupDate === 'invalid' ||
     estimatedArrivalDate === 'invalid' ||
     estimatedArrivalMinDays === 'invalid' ||
     estimatedArrivalMaxDays === 'invalid'
@@ -423,8 +423,8 @@ export async function createDistributorOrderHandler(request: NextRequest) {
             contactPhone,
             customerEmail: customerEmail || null,
             deliveryAddress,
-            preferredDeliveryDate,
-            preferredDeliveryTime: preferredDeliveryTime || null,
+            preferredPickupDate: preferredPickupDate === 'invalid' ? null : preferredPickupDate,
+            preferredPickupTime: preferredPickupTime || null,
             estimatedArrivalDate,
             estimatedArrivalMinDays,
             estimatedArrivalMaxDays,
@@ -491,7 +491,7 @@ export async function updateDistributorOrderHandler(userId: number, body: Record
   const deliveryAddress = clip(body.deliveryAddress, 500);
   const deliveryMethod = clip(body.deliveryMethod, 80);
   const paymentTerms = clip(body.paymentTerms, 80);
-  const preferredDeliveryTime = clip(body.preferredDeliveryTime, 80);
+  const preferredPickupTime = clip(body.preferredPickupTime, 80);
   const assignedLogistics = clip(body.assignedLogistics, 120);
   const trackingNumber = clip(body.trackingNumber, 80);
   const deliveryNote = clip(body.deliveryNote, 1000);
@@ -505,13 +505,13 @@ export async function updateDistributorOrderHandler(userId: number, body: Record
   }
 
   const orderDate = optionalDate(body.orderDate) ?? new Date();
-  const preferredDeliveryDate = optionalDate(body.preferredDeliveryDate);
+  const preferredPickupDate = optionalDate(body.preferredPickupDate);
   const estimatedArrivalDate = optionalDate(body.estimatedArrivalDate);
   const estimatedArrivalMinDays = optionalInt(body.estimatedArrivalMinDays);
   const estimatedArrivalMaxDays = optionalInt(body.estimatedArrivalMaxDays);
   if (
     orderDate === 'invalid' ||
-    preferredDeliveryDate === 'invalid' ||
+    preferredPickupDate === 'invalid' ||
     estimatedArrivalDate === 'invalid' ||
     estimatedArrivalMinDays === 'invalid' ||
     estimatedArrivalMaxDays === 'invalid'
@@ -671,8 +671,8 @@ export async function updateDistributorOrderHandler(userId: number, body: Record
         contactPhone,
         customerEmail: customerEmail || null,
         deliveryAddress,
-        preferredDeliveryDate,
-        preferredDeliveryTime: preferredDeliveryTime || null,
+        preferredPickupDate: preferredPickupDate === 'invalid' ? null : preferredPickupDate,
+        preferredPickupTime: preferredPickupTime || null,
         estimatedArrivalDate,
         estimatedArrivalMinDays,
         estimatedArrivalMaxDays,

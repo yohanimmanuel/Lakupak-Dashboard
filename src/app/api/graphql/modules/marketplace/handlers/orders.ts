@@ -110,7 +110,6 @@ export const fetchMobileOrders = async (args: {
       pricingSentAt: order.pricingSentAt?.toISOString() ?? null,
       createdAt: order.createdAt?.toISOString() ?? null,
       updatedAt: order.updatedAt?.toISOString() ?? null,
-      preferredDeliveryDate: order.preferredDeliveryDate?.toISOString() ?? null,
       preferredPickupDate: order.preferredPickupDate?.toISOString() ?? null,
       acceptedAt: order.acceptedAt?.toISOString() ?? null,
       returnedAt: order.returnedAt?.toISOString() ?? null,

@@ -163,8 +163,6 @@ export async function createMinimalOrderForVariant(opts: {
       contactPhone: '123',
       customerEmail: null,
       deliveryAddress: 'Addr',
-      preferredDeliveryDate: null,
-      preferredDeliveryTime: null,
       preferredPickupDate: null,
       preferredPickupTime: null,
       shippingMethodLabel: null,

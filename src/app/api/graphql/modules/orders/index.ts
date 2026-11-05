@@ -98,8 +98,6 @@ export const ordersTypeDefs = /* GraphQL */ `
     contactPhone: String
     customerEmail: String
     deliveryAddress: String
-    preferredDeliveryDate: String
-    preferredDeliveryTime: String
     preferredPickupDate: String
     preferredPickupTime: String
     assignedLogistics: String
@@ -215,8 +213,6 @@ const mapOrder = (
   contactPhone: order?.contactPhone ?? null,
   customerEmail: order?.customerEmail ?? null,
   deliveryAddress: order?.deliveryAddress ?? null,
-  preferredDeliveryDate: order?.preferredDeliveryDate?.toISOString() ?? null,
-  preferredDeliveryTime: order?.preferredDeliveryTime ?? null,
   preferredPickupDate: order?.preferredPickupDate?.toISOString() ?? null,
   preferredPickupTime: order?.preferredPickupTime ?? null,
   assignedLogistics: order?.assignedLogistics ?? null,

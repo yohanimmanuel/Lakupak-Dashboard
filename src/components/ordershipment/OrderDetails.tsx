@@ -89,7 +89,6 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
     deliveryAddress: source.deliveryAddress,
     contactPerson: source.contactPerson,
     contactPhone: source.contactPhone,
-    preferredDeliveryTime: source.preferredDeliveryTime || '',
     estimatedArrivalDate: toDateInputValue(source.estimatedArrivalDate),
     estimatedArrivalMinDays: source.estimatedArrivalMinDays != null ? String(source.estimatedArrivalMinDays) : '',
     estimatedArrivalMaxDays: source.estimatedArrivalMaxDays != null ? String(source.estimatedArrivalMaxDays) : '',
@@ -441,17 +440,10 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const isSellerDelivery = normalizedShippingMethod.includes('seller') || normalizedShippingMethod.includes('distributor');
   const isBuyerCourier = normalizedShippingMethod.includes('courier') || normalizedShippingMethod.includes('buyer-arranged') || normalizedShippingMethod.includes('buyer arranged');
 
-  const scheduleDateCandidate = isPickupMethod
-    ? order.preferredPickupDate || order.preferredDeliveryDate || null
-    : order.preferredDeliveryDate || order.preferredPickupDate || null;
-
-  const scheduleTimeCandidate = isPickupMethod
-    ? order.preferredPickupTime || committedFields.preferredDeliveryTime || null
-    : committedFields.preferredDeliveryTime || order.preferredPickupTime || null;
-
+  const scheduleDateCandidate = isPickupMethod ? order.preferredPickupDate || null : null;
+  const scheduleTimeCandidate = isPickupMethod ? order.preferredPickupTime || null : null;
   const formattedSchedule = formatSchedule(scheduleDateCandidate, scheduleTimeCandidate);
-  // Show notice for any method whenever a scheduled date/time exists
-  const shouldShowScheduleNotice = Boolean(formattedSchedule);
+  const shouldShowScheduleNotice = isPickupMethod && Boolean(formattedSchedule);
   const highlightShipping = isPickupMethod || isScheduledMethod || isSellerDelivery || isBuyerCourier;
   const shippingAccentClass = highlightShipping ? 'text-yellow-600 font-semibold' : 'text-black font-medium';
 
@@ -722,10 +714,6 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                       </span>
                     )}
                   </span>
-                </div>
-                <div>
-                  <span className="text-blue-700">{tDetails('deliveryService.preferredTime')}</span>
-                  <span className="ml-2 font-medium text-blue-900">{committedFields.preferredDeliveryTime || tDetails('deliveryService.noPreferredTime')}</span>
                 </div>
                 <div>
                   <span className="text-blue-700">{tDetails('deliveryService.tracking')}</span>

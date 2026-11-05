@@ -98,8 +98,8 @@ type LoadedOrder = {
   contactPhone?: string;
   customerEmail?: string | null;
   deliveryAddress?: string;
-  preferredDeliveryDate?: string | null;
-  preferredDeliveryTime?: string | null;
+  preferredPickupDate?: string | null;
+  preferredPickupTime?: string | null;
   estimatedArrivalDate?: string | null;
   estimatedArrivalMinDays?: number | null;
   estimatedArrivalMaxDays?: number | null;
@@ -346,8 +346,8 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
   const loadedAmountPaid = useRef<number | null>(null);
   const fillPaidFromTotal = useRef(false);
   const [shippingFee, setShippingFee] = useState('0');
-  const [preferredDate, setPreferredDate] = useState('');
-  const [preferredTime, setPreferredTime] = useState('');
+  const [pickupDate, setPickupDate] = useState('');
+  const [pickupTime, setPickupTime] = useState('');
   const [estimatedDate, setEstimatedDate] = useState('');
   const [minDays, setMinDays] = useState('');
   const [maxDays, setMaxDays] = useState('');
@@ -479,8 +479,8 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
         setUnpaidDraft(null);
         setLoadedDiscount(Math.max(0, Number(order.discounts) || 0));
         setShippingFee(String(order.shippingFee ?? 0));
-        setPreferredDate(dateInput(order.preferredDeliveryDate));
-        setPreferredTime(order.preferredDeliveryTime || '');
+        setPickupDate(dateInput(order.preferredPickupDate));
+        setPickupTime(order.preferredPickupTime || '');
         setEstimatedDate(dateInput(order.estimatedArrivalDate));
         setMinDays(order.estimatedArrivalMinDays != null ? String(order.estimatedArrivalMinDays) : '');
         setMaxDays(order.estimatedArrivalMaxDays != null ? String(order.estimatedArrivalMaxDays) : '');
@@ -747,13 +747,13 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
       paymentTerms,
       orderDate,
       shippingFee: Number.isFinite(shipping) ? shipping : 0,
-      preferredDeliveryDate: preferredDate || null,
-      preferredDeliveryTime: preferredTime.trim(),
-      estimatedArrivalDate: estimatedDate || null,
-      estimatedArrivalMinDays: min,
-      estimatedArrivalMaxDays: max,
-      assignedLogistics: joinAssignedLogistics(logisticsMode, logisticsVendor),
-      trackingNumber: trackingNumber.trim(),
+      preferredPickupDate: deliveryMethod === 'Self Pickup' ? pickupDate || null : null,
+      preferredPickupTime: deliveryMethod === 'Self Pickup' ? pickupTime.trim() : '',
+      estimatedArrivalDate: deliveryMethod === 'Seller/Distributor Delivery' ? estimatedDate || null : null,
+      estimatedArrivalMinDays: deliveryMethod === 'Seller/Distributor Delivery' ? min : null,
+      estimatedArrivalMaxDays: deliveryMethod === 'Seller/Distributor Delivery' ? max : null,
+      assignedLogistics: deliveryMethod === 'Seller/Distributor Delivery' ? joinAssignedLogistics(logisticsMode, logisticsVendor) : null,
+      trackingNumber: deliveryMethod === 'Seller/Distributor Delivery' ? trackingNumber.trim() : '',
       deliveryNote: deliveryNote.trim(),
       pod: pod || null,
     };
@@ -1107,6 +1107,25 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
                 <LakupakSelect value={deliveryMethod} placeholder={tCreate('deliveryMethod')} options={methodOptions} allowEmpty={false} onChange={setDeliveryMethod} />
               </div>
             </div>
+            {deliveryMethod === 'Buyer-arranged Courier' ? (
+              <p className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm font-medium text-blue-900">
+                {tCreate('buyerArrangesLogistics')}
+              </p>
+            ) : deliveryMethod === 'Self Pickup' ? (
+              <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
+                <h3 className="mb-4 text-sm font-semibold text-blue-800">{tDetails('deliveryService.title')}</h3>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className={labelClass}>{tCreate('pickupDate')}</label>
+                    <input className={inputClass} type="date" value={pickupDate} onChange={(event) => setPickupDate(event.target.value)} />
+                  </div>
+                  <div>
+                    <label className={labelClass}>{tCreate('pickupTime')}</label>
+                    <input className={inputClass} value={pickupTime} onChange={(event) => setPickupTime(event.target.value)} placeholder={tDetails('editModal.placeholders.preferredDeliveryTime')} />
+                  </div>
+                </div>
+              </div>
+            ) : (
             <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
               <h3 className="mb-4 text-sm font-semibold text-blue-800">{tDetails('deliveryService.title')}</h3>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -1155,16 +1174,9 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
                     <span className="text-xs text-gray-500">{tDetails('editModal.durationDays')}</span>
                   </div>
                 </div>
-                <div>
-                  <label className={labelClass}>{tCreate('preferredDate')}</label>
-                  <input className={inputClass} type="date" value={preferredDate} onChange={(event) => setPreferredDate(event.target.value)} />
-                </div>
-                <div>
-                  <label className={labelClass}>{tDetails('deliveryService.preferredTime')}</label>
-                  <input className={inputClass} value={preferredTime} onChange={(event) => setPreferredTime(event.target.value)} placeholder={tDetails('editModal.placeholders.preferredDeliveryTime')} />
-                </div>
               </div>
             </div>
+            )}
           </section>
 
           <section className="p-4">

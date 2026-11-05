@@ -278,7 +278,6 @@ export const validateOrderUpdate = (data: unknown): { valid: boolean; error?: st
   };
 
   try {
-    validateDateField(orderData.preferredDeliveryDate, 'preferredDeliveryDate');
     validateDateField(orderData.preferredPickupDate, 'preferredPickupDate');
   } catch (error) {
     return { valid: false, error: error instanceof Error ? error.message : 'Invalid date format' };
@@ -436,11 +435,6 @@ export const sanitizeOrderData = (data: unknown) => {
     sanitized.deliveryAddress = String(orderData.deliveryAddress).trim();
   }
   
-  if (orderData.preferredDeliveryTime !== undefined) {
-    const trimmed = orderData.preferredDeliveryTime ? String(orderData.preferredDeliveryTime).trim() : '';
-    sanitized.preferredDeliveryTime = trimmed.length > 0 ? trimmed : null;
-  }
-  
   if (orderData.assignedLogistics !== undefined) {
     sanitized.assignedLogistics = orderData.assignedLogistics ? String(orderData.assignedLogistics).trim() : null;
   }
@@ -457,15 +451,6 @@ export const sanitizeOrderData = (data: unknown) => {
     sanitized.deliveryConfirmation = orderData.deliveryConfirmation ? String(orderData.deliveryConfirmation).trim() : null;
   }
   
-  if (orderData.preferredDeliveryDate !== undefined) {
-    const value = orderData.preferredDeliveryDate;
-    if (value === null || String(value).trim().length === 0) {
-      sanitized.preferredDeliveryDate = null;
-    } else {
-      sanitized.preferredDeliveryDate = new Date(String(value));
-    }
-  }
-
   if (orderData.preferredPickupDate !== undefined) {
     const value = orderData.preferredPickupDate;
     if (value === null || String(value).trim().length === 0) {

@@ -30,8 +30,6 @@ export interface Order {
 
   // ===== SECTION 5: DELIVERY SERVICE (Bottom Right) =====
   deliveryAddress: string;
-  preferredDeliveryDate?: string | Date;
-  preferredDeliveryTime?: string;
   preferredPickupDate?: string | Date;
   preferredPickupTime?: string;
   assignedLogistics?: string;

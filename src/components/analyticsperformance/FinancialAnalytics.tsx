@@ -136,8 +136,6 @@ const FINANCIAL_ANALYTICS_QUERY = `
         contactPhone
         customerEmail
         deliveryAddress
-        preferredDeliveryDate
-        preferredDeliveryTime
         preferredPickupDate
         preferredPickupTime
         assignedLogistics
