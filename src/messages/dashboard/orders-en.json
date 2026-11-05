@@ -280,6 +280,7 @@
       "internalFleet": "Internal fleet",
       "thirdPartyLogistics": "3PL",
       "estimatedArrival": "Estimated arrival:",
+      "accordingToBuyer": "According to buyer",
       "notSet": "Not set",
       "daysRange": "({min}–{max} days)",
       "preferredTime": "Preferred Time:",

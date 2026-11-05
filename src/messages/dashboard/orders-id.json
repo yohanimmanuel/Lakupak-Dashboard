@@ -280,6 +280,7 @@
       "internalFleet": "Armada internal",
       "thirdPartyLogistics": "3PL",
       "estimatedArrival": "Estimasi kedatangan:",
+      "accordingToBuyer": "Sesuai pembeli",
       "notSet": "Belum diatur",
       "daysRange": "({min}–{max} hari)",
       "preferredTime": "Waktu Preferensi:",

@@ -691,7 +691,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               </div>
             ) : null}
 
-            {/* Service Provider Card */}
+            {isPickupMethod ? null : (
             <div className="bg-blue-50 rounded-lg p-4 border border-blue-200 mt-4">
               <div className="text-sm font-semibold text-blue-800 mb-1">{tDetails('deliveryService.title')}</div>
               <div className="text-lg font-bold text-blue-900 mb-2">{displayAssignedLogistics(committedFields.assignedLogistics, tDetails) || tDetails('deliveryService.noneAssigned')}</div>
@@ -699,10 +699,12 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 <div>
                   <span className="text-blue-700">{tDetails('deliveryService.estimatedArrival')}</span>
                   <span className="ml-2 font-medium text-blue-900">
-                    {estimatedArrivalDateValue
+                    {isBuyerCourier
+                      ? tDetails('deliveryService.accordingToBuyer')
+                      : estimatedArrivalDateValue
                       ? estimatedArrivalDateValue.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
                       : tDetails('deliveryService.notSet')}
-                    {estimatedArrivalMinDaysValue != null &&
+                    {!isBuyerCourier && estimatedArrivalMinDaysValue != null &&
                       !Number.isNaN(estimatedArrivalMinDaysValue) &&
                       estimatedArrivalMaxDaysValue != null &&
                       !Number.isNaN(estimatedArrivalMaxDaysValue) && (
@@ -715,6 +717,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                     )}
                   </span>
                 </div>
+                {isBuyerCourier ? null : (
                 <div>
                   <span className="text-blue-700">{tDetails('deliveryService.tracking')}</span>
                   {order.fleetId != null && committedFields.trackingNumber ? (
@@ -729,8 +732,10 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                     <span className="ml-2 font-semibold text-blue-900">{(committedFields.trackingNumber || '').replace(/^#/, '') || tDetails('deliveryService.noTrackingNumber')}</span>
                   )}
                 </div>
+                )}
               </div>
             </div>
+            )}
           </div>
 
           {/* Delivery Service Section */}
