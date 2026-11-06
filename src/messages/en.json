@@ -26,9 +26,9 @@
       }
     },
     "hub": {
-      "title": "Modules to utilise your portfolio and focus sales",
-      "subtitle": "Connect clients, catalog, offers, orders, and sales so you can spot low assortment penetration, prioritise product–retailer opportunities, and convert with a private storefront.",
-      "subtitlePausedMarketplace": "Connect clients, catalog, offers, orders, and sales across Dashboard and Marketplace so you can spot low assortment penetration and act on the right product–retailer opportunities.",
+      "title": "Modules to connect operations and clear the chaos",
+      "subtitle": "Connect clients, catalog, offers, orders, and sales so fragmented records become one operational view, then convert with a private storefront.",
+      "subtitlePausedMarketplace": "Connect clients, catalog, offers, orders, and sales across Dashboard and Marketplace so fragmented records become one operational view you can act on.",
       "exploreMore": "Explore more modules"
     },
     "overview": {
@@ -45,15 +45,15 @@
     },
     "clients": {
       "menuLabel": "Client management",
-      "title": "Retailer and supplier records for matching",
-      "subtitle": "Keep the retailer network and purchase history you need to judge which shops are suitable for which products.",
+      "title": "Retailer and supplier records in one place",
+      "subtitle": "Keep the retailer network, statuses, and purchase history connected so everyday decisions start from real accounts, not scattered contacts.",
       "placeholder": "Clients module preview. Replace image",
       "overview": {
-        "summary": "Client management is the retailer and supplier foundation for portfolio intelligence. Profiles, statuses, and order history stay connected so you can evaluate product–retailer fit against real relationships, not a blank list of shops.",
+        "summary": "Client management is the retailer and supplier foundation for connected operations. Profiles, statuses, and order history stay linked so your team works from real relationships, not a blank list of shops pieced together from chats.",
         "highlights": {
           "1": {
             "title": "Orders build your buyer network",
-            "desc": "When a retailer orders, Lakupak records or updates their buyer profile so contacts, status, and purchase history stay current for matching."
+            "desc": "When a retailer orders, Lakupak records or updates their buyer profile so contacts, status, and purchase history stay current across the business."
           },
           "2": {
             "title": "Buyers and suppliers together",
@@ -61,14 +61,14 @@
           },
           "3": {
             "title": "Live order history on buyers",
-            "desc": "Spend, outstanding balance, and product lines sync from Orders onto each buyer detail view so penetration gaps are visible per shop."
+            "desc": "Spend, outstanding balance, and product lines sync from Orders onto each buyer detail view so account context stays visible per shop."
           }
         }
       },
       "points": {
         "1": {
-          "title": "Next-best product to retailer matching",
-          "desc": "Rank retailers for a product using purchase history, suitability, and relationship signals so your team knows which shops are the strongest next matches to approach."
+          "title": "Account context before the next visit",
+          "desc": "Use purchase history, suitability, and relationship signals so your team knows which shops need attention next, without reconstructing the account by hand."
         },
         "2": {
           "title": "Every order strengthens the network",
@@ -94,11 +94,11 @@
     },
     "products": {
       "menuLabel": "Products",
-      "title": "Catalog control for the full portfolio",
-      "subtitle": "Maintain variants, pricing, MOQ, and stock so underused SKUs stay visible, available, and ready to introduce to suitable retailers.",
+      "title": "Catalog control for connected operations",
+      "subtitle": "Maintain variants, pricing, MOQ, and stock so the catalog stays visible, available, and ready to sell from one connected foundation.",
       "placeholder": "Products module preview. Replace image",
       "overview": {
-        "summary": "Products is your wholesale catalog control room. Draft until variants, pricing, stock, and images are ready, then publish to your private Marketplace. A clear catalog is the base for spotting which SKUs under-penetrate eligible retailers.",
+        "summary": "Products is your wholesale catalog control room. Draft until variants, pricing, stock, and images are ready, then publish to your private Marketplace. A clear catalog is the base for connected selling and clearer commercial decisions.",
         "highlights": {
           "1": {
             "title": "Publish to your private Marketplace",
@@ -139,14 +139,14 @@
     },
     "orders": {
       "menuLabel": "Orders",
-      "title": "Orders that reveal purchasing patterns",
+      "title": "Orders with continuity, not chat threads",
       "titlePausedMarketplace": "Orders from the marketplace into sales",
-      "subtitle": "Record and fulfill wholesale orders, then use purchase history to see which products reach which retailers.",
-      "subtitlePausedMarketplace": "Retailer checkout lands in one Dashboard pipeline, with payment, status, and the evidence you need for assortment penetration.",
+      "subtitle": "Record and fulfill wholesale orders in one pipeline so status, payment, and history stay continuous.",
+      "subtitlePausedMarketplace": "Retailer checkout lands in one Dashboard pipeline, with payment, status, and the history you need for follow-up.",
       "placeholder": "Orders module preview. Replace image",
       "overview": {
-        "summary": "Orders is where a distributor records wholesale orders. Sales and operations share one status path, stock and buyer records move with the order, and purchase lines become the evidence for portfolio penetration.",
-        "summaryPausedMarketplace": "Orders is the commerce spine of Lakupak. Marketplace checkout lands in Dashboard immediately, sales and ops share one status path, and order lines feed product–retailer insight.",
+        "summary": "Orders is where a distributor records wholesale orders. Sales and operations share one status path, stock and buyer records move with the order, and purchase history stays connected instead of scattered across chats and spreadsheets.",
+        "summaryPausedMarketplace": "Orders is the commerce spine of Lakupak. Marketplace checkout lands in Dashboard immediately, sales and ops share one status path, and order lines feed connected commercial visibility.",
         "highlights": {
           "1": {
             "title": "One fulfillment spine",
@@ -227,10 +227,10 @@
     "sales": {
       "menuLabel": "Sales",
       "title": "Sales work that uses limited time well",
-      "subtitle": "Turn product–retailer opportunities into jobs, assign reps, and record what was presented so visits go beyond the same bestsellers.",
+      "subtitle": "Turn connected account and order signals into jobs, assign reps, and record what was presented so visits start from evidence, not reconstruction.",
       "placeholder": "Sales module preview. Replace image",
       "overview": {
-        "summary": "Sales is how a distributor runs field work from Dashboard. Managers create jobs from portfolio opportunities, assign them, and record completion. WhatsApp carries the day's list to each rep so scarce visit time covers suitable products, not only familiar bestsellers.",
+        "summary": "Sales is how a distributor runs field work from Dashboard. Managers create jobs from connected account and order signals, assign them, and record completion. WhatsApp carries the day's list to each rep so scarce visit time is spent executing, not piecing context together.",
         "highlights": {
           "1": {
             "title": "A manager for the team",
@@ -264,10 +264,10 @@
     "marketplace": {
       "menuLabel": "Marketplace",
       "title": "Private storefront for authorised retailers",
-      "subtitle": "Let authorised retailers discover and order from your catalog, so portfolio opportunities convert without an open price war.",
+      "subtitle": "Let authorised retailers discover and order from your catalog, so connected commerce converts without an open price war.",
       "placeholder": "Marketplace performance and app preview. Replace image",
       "overview": {
-        "summary": "Marketplace is Lakupak's private B2B storefront, not an open price war. Each distributor runs an isolated catalog with their own pricing and offers. Authorised retailers browse, meet MOQ, and order while Dashboard shows funnel and product traction that feed Orders and portfolio learning.",
+        "summary": "Marketplace is Lakupak's private B2B storefront, not an open price war. Each distributor runs an isolated catalog with their own pricing and offers. Authorised retailers browse, meet MOQ, and order while Dashboard shows funnel and product traction that feed Orders and connected commercial learning.",
         "highlights": {
           "1": {
             "title": "Controlled storefront, not a price war",
@@ -304,19 +304,19 @@
     },
     "analytics": {
       "menuLabel": "Analytics",
-      "title": "See penetration, performance, and outcomes",
-      "subtitle": "Read which products sell widely, which under-penetrate eligible retailers, and how purchasing patterns change over time.",
+      "title": "See operations, performance, and outcomes",
+      "subtitle": "Read order continuity, product performance, purchasing patterns, and where commercial attention is needed.",
       "placeholder": "Analytics module preview. Replace image",
       "overview": {
-        "summary": "Analytics turns orders and catalog data into Financial, Customer and Sales, and Operational views. Use them to examine product performance, retailer purchasing patterns, and whether portfolio actions are associated with meaningful results. Low penetration is a signal to investigate, not proof of demand.",
+        "summary": "Analytics turns connected orders and catalog data into Financial, Customer and Sales, and Operational views. Use them to examine product performance, retailer purchasing patterns, and whether follow-ups are associated with meaningful results. Low assortment penetration is a symptom to investigate, not proof of demand.",
         "highlights": {
           "1": {
             "title": "Financial clarity",
             "desc": "Track total sales, paid profit, margin, average order value, cash flow, and revenue forecast for the selected period."
           },
           "2": {
-            "title": "Demand and assortment signals",
-            "desc": "See order and unit trends, category mix, top buyers, and where products may leave gaps across the retailer network."
+            "title": "Demand and operational signals",
+            "desc": "See order and unit trends, category mix, top buyers, and where follow-ups or coverage may leave gaps across the retailer network."
           },
           "3": {
             "title": "Fulfillment and stock health",
@@ -345,8 +345,8 @@
     },
     "automations": {
       "menuLabel": "Automations",
-      "title": "Workflows that carry opportunity signals",
-      "subtitle": "Build trigger-based workflows for catalog, offers, clients, orders, and sales so follow-up on portfolio opportunities does not rely on memory.",
+      "title": "Workflows that reduce operational chase",
+      "subtitle": "Build trigger-based workflows for catalog, offers, clients, orders, and sales so routine follow-up does not rely on memory.",
       "placeholder": "Automations module preview. Replace image",
       "overview": {
         "summary": "Automations is Lakupak's workflow engine for commerce and sales. Design trigger-to-action flows across offers, client follow-up, orders, and sales activation, then run them as active, paused, or draft workflows your team controls.",
@@ -386,15 +386,15 @@
     },
     "laku-ai": {
       "menuLabel": "Laku AI",
-      "title": "AI assistance for product–retailer decisions",
-      "subtitle": "Use Laku AI to analyse commercial data, prioritise which retailers and products to act on next, and help create the follow-up work.",
+      "title": "AI assistance for operational and commercial decisions",
+      "subtitle": "Use Laku AI to analyse connected commercial data, prioritise what needs attention next, and help create the follow-up work.",
       "placeholder": "Laku AI preview. Replace image",
       "overview": {
-        "summary": "Laku AI is an AI-native service inside Dashboard. It helps examine portfolio and sales signals, prioritise product–retailer opportunities, and create products, offers, clients, orders, and sales jobs. Recommendations stay grounded in available data and are estimates, not guaranteed demand.",
+        "summary": "Laku AI is an AI-native service inside Dashboard. It helps examine operational and sales signals, prioritise what needs attention next, and create products, offers, clients, orders, and sales jobs. Recommendations stay grounded in available data and are estimates, not guaranteed demand.",
         "highlights": {
           "1": {
             "title": "Analysis and insights",
-            "desc": "Read what is moving across clients, orders, and sales, including where the portfolio may under-penetrate eligible retailers."
+            "desc": "Read what is moving across clients, orders, and sales, including where follow-ups, coverage, or terms may need attention."
           },
           "2": {
             "title": "The sales job and the buyer",
@@ -409,7 +409,7 @@
       "points": {
         "1": {
           "title": "Analysis and insights",
-          "desc": "Laku AI reviews clients, orders, and sales and returns the insight behind the next portfolio or sales decision."
+          "desc": "Laku AI reviews clients, orders, and sales and returns the insight behind the next operational or sales decision."
         },
         "2": {
           "title": "Delegate the sales job and the buyer",
@@ -433,10 +433,10 @@
   "landing": {
     "hero": {
       "badge": "AI-native B2B commerce for Indonesian FMCG",
-      "titleBefore": "Unlock your product portfolio. ",
-      "titleAccent": "Reach the right retailers.",
-      "subtitle": "Help your distribution business identify product opportunities, prioritise sales activities, and connect the right products with the right retailers.",
-      "subtitlePausedMarketplace": "Help your distribution business identify product opportunities, prioritise sales activities, and connect the right products with the right retailers.",
+      "titleBefore": "One connected business.",
+      "titleAccent": "Smarter Distribution.",
+      "subtitle": "Bring your clients, products, orders, offers, and sales into one connected platform. Turn fragmented operations into clearer insights, better decisions, and more opportunities to grow.",
+      "subtitlePausedMarketplace": "Bring your clients, products, orders, offers, and sales into one connected platform. Turn fragmented operations into clearer insights, better decisions, and more opportunities to grow.",
       "cta": "Start free trial",
       "learnmore": "Explore marketplace",
       "productPlaceholder": "Dashboard preview. Replace with product image"
@@ -446,24 +446,24 @@
       "logoPlaceholder": "Partner logo"
     },
     "platformMessage": {
-      "title": "Unify operations. Identify opportunities. Convert with focus.",
-      "subtitle": "Lakupak connects retailer relationships, catalogs, inventory, orders, offers, and sales activities so you can examine product penetration, rank credible product–retailer combinations, and activate sales teams, then convert through a private B2B storefront. Low penetration is a signal to investigate, not proof of demand."
+      "title": "Unify operations. See clearly. Act with focus.",
+      "subtitle": "Lakupak connects retailer relationships, catalogs, inventory, orders, offers, and sales activities so distributors stop piecing the business together by hand. When operations are connected, commercial visibility improves, sales execution becomes more efficient, order continuity is easier to maintain, and portfolio opportunities become easier to investigate through a private B2B storefront."
     },
     "features": {
       "selling": {
-        "title": "One operational foundation for your portfolio",
-        "subtitle": "Keep clients, products, offers, and orders connected so portfolio opportunities can be evaluated against real commercial data.",
+        "title": "One operational foundation for the whole business",
+        "subtitle": "Keep clients, products, offers, and orders connected so everyday decisions start from one source of truth, not scattered files and chats.",
         "clients": {
           "title": "Client management",
-          "desc": "Organise retailer relationships and history so matching starts from who already buys from you."
+          "desc": "Keep retailer relationships, statuses, and history in one place instead of scattered contacts and notes."
         },
         "products": {
           "title": "Products and offers",
-          "desc": "Maintain the catalog and per-retailer terms that shape which products can realistically reach each shop."
+          "desc": "Maintain the catalog and per-retailer terms beside the rest of your operations, not in a separate spreadsheet."
         },
         "orders": {
           "title": "Orders",
-          "desc": "Track purchasing patterns that reveal penetration gaps and which product–retailer pairs already work."
+          "desc": "Track purchasing, payment, and status in one pipeline so follow-ups and history stay continuous."
         },
         "placeholders": {
           "clients": "Clients preview. Replace image",
@@ -473,73 +473,73 @@
       },
       "sales": {
         "1": {
-          "title": "Prioritise opportunities",
-          "desc": "Focus managers on product–retailer combinations worth investigating, not every SKU for every shop."
+          "title": "Prioritise what needs attention",
+          "desc": "Focus managers on accounts and follow-ups that matter now, instead of reconstructing the day from chats and memory."
         },
         "2": {
           "title": "Create targeted jobs",
-          "desc": "Turn ranked opportunities into visits: introduce a product, promote an offer, check stock, or follow up."
+          "desc": "Turn connected order and client signals into visits: introduce a product, promote an offer, check stock, or follow up."
         },
         "3": {
           "title": "Assign each sales rep",
-          "desc": "Give limited sales time to the retailers and products most likely to convert."
+          "desc": "Give limited sales time clearer work, so execution does not depend on who remembers what."
         },
         "4": {
           "title": "Record outcomes",
-          "desc": "Capture what was presented and ordered so future recommendations improve with evidence."
+          "desc": "Capture what was presented and ordered so the next visit starts from evidence, not a blank page."
         },
-        "title": "Sales conversion that uses the full portfolio",
-        "subtitle": "Help teams present suitable products in limited retailer interactions, instead of defaulting to the same bestsellers every visit.",
+        "title": "Sales execution without operational fog",
+        "subtitle": "Help teams act from one connected view of clients, orders, and offers, instead of reconstructing the business before every visit.",
         "placeholder": "Sales preview. Replace image"
       },
       "moat": {
-        "title": "Built for the portfolio problem enterprise tools miss",
-        "subtitle": "Independent Indonesian FMCG distributors do not lack products. They lack a systematic way to see which products under-penetrate eligible retailers, which shops are suitable, and how to use scarce sales time. Lakupak is built for that.",
         "1": {
-          "title": "Assortment penetration, not vanity reach",
-          "desc": "Bestsellers dominate repeat orders while other potentially valuable SKUs stay stuck with a small share of eligible retailers, often without anyone knowing where extra demand might exist."
+          "title": "Fragmented systems create chaos",
+          "desc": "Catalogues, customer records, pricing agreements, inventory, and sales notes live in different places. The business exists, but nobody sees it whole."
         },
         "2": {
-          "title": "Product–retailer matching",
-          "desc": "Sales teams cannot evaluate every product against every retailer by hand. Familiar bestsellers keep getting pitched while suitable combinations go unexplored."
+          "title": "Inefficient sales execution",
+          "desc": "Teams spend scarce visit time reconstructing context. Familiar bestsellers keep getting pitched because everything else is harder to see and coordinate."
         },
         "3": {
-          "title": "Connected commercial data",
-          "desc": "Catalogs, relationships, purchase history, offers, and sales activity are usually fragmented. Patterns that would surface real opportunities stay invisible."
+          "title": "Unrecorded commercial potential",
+          "desc": "Without consolidated purchase history and account context, genuine opportunities stay invisible beside products that are unsuitable, mispriced, or unavailable."
         },
         "4": {
-          "title": "Scarce sales attention",
-          "desc": "Reps have limited time per retailer. Interactions stay brief, relevant products go unpresented, and portfolio potential stays locked in the warehouse."
+          "title": "Broken order continuity",
+          "desc": "When orders, payments, and follow-ups live across chats and spreadsheets, status, history, and next actions fall through the cracks."
         },
         "5": {
-          "title": "Investigate, do not push everything",
-          "desc": "Low penetration is not automatic unmet demand. A product may be unsuitable, mispriced, out of stock, or unpopular. Lakupak helps distinguish credible opportunities from noise."
+          "title": "Low assortment penetration as a symptom",
+          "desc": "Products reach only a fraction of eligible retailers not only because demand is weak, but because disconnected operations make wider discovery and follow-up too hard to run consistently."
         },
         "6": {
           "title": "Private commerce under distributor control",
-          "desc": "Authorised retailers order from your private storefront with your pricing and terms. Commercial intelligence creates value without surrendering relationships or data."
-        }
+          "desc": "Authorised retailers order from your private storefront with your pricing and terms. Connected operations create value without surrendering relationships or data."
+        },
+        "title": "Built for the operational chaos enterprise tools miss",
+        "subtitle": "Independent Indonesian FMCG distributors do not lack effort. They lack a connected system for clients, products, orders, offers, and sales. Operational fragmentation is the bottleneck. Inefficient sales, unrecorded potential, broken order continuity, and low assortment penetration are the consequences."
       },
       "analytics": {
-        "title": "See penetration, patterns, and outcomes",
-        "subtitle": "Turn operational data into insight on which products underperform on reach, which retailers adopt what, and whether recommendations lead to orders.",
+        "title": "See operations, patterns, and outcomes",
+        "subtitle": "Turn connected operational data into insight on order flow, retailer purchasing, product performance, and whether follow-ups lead to action.",
         "placeholder": "Analytics preview. Replace image",
         "financial": {
           "title": "Financial",
-          "desc": "Watch margins and revenue as you expand utilisation of the existing portfolio."
+          "desc": "Watch margins and revenue as operations and order flow become clearer."
         },
         "sales": {
           "title": "Sales",
-          "desc": "See product performance, retailer purchasing patterns, and opportunity progression."
+          "desc": "See product performance, retailer purchasing patterns, and follow-up progression."
         },
         "operational": {
           "title": "Operational",
-          "desc": "Monitor stock availability, order flow, and coverage that constrain real opportunities."
+          "desc": "Monitor stock availability, order flow, and coverage that constrain everyday execution."
         }
       },
       "automations": {
         "title": "Lakupak Agent automations for daily ops",
-        "subtitle": "Build AI-powered workflows that automate catalog, clients, orders, and sales inside Lakupak, so opportunity signals reach the team in time.",
+        "subtitle": "Build AI-powered workflows that automate catalog, clients, orders, and sales inside Lakupak, so routine work does not depend on manual chase.",
         "workflows": {
           "title": "Build your own workflows",
           "desc": "Design trigger-to-action flows scoped to distribution operations and sales follow-up."
@@ -569,79 +569,79 @@
       "1": {
         "name": "Ahmad Rahman",
         "role": "CEO, PT Sukses Makmur",
-        "text": "We finally see which products barely reach our retailer network, and which shops are worth introducing them to. Sales visits are more focused."
+        "text": "We stopped piecing the business together from chats and spreadsheets. Clients, orders, and sales finally sit in one place, so visits are clearer."
       },
       "2": {
         "name": "Siti Nurhaliza",
         "role": "Owner, Warung Makmur",
-        "text": "I order from my distributor’s private catalog at my rate. Products that fit my shop show up clearly, without hunting across chats."
+        "text": "I order from my distributor’s private catalog at my rate. Products show up clearly, without hunting across chats."
       },
       "title": "What teams are saying"
     },
     "howitworks": {
       "1": {
-        "title": "Unify your commercial data",
+        "title": "Connect your operations",
         "desc": "Bring clients, catalog, offers, orders, and sales activity into one operational environment."
       },
       "2": {
-        "title": "Identify and prioritise opportunities",
-        "desc": "Examine assortment penetration and rank product–retailer combinations using history, suitability, pricing, and stock.",
+        "title": "See the business clearly",
+        "desc": "Replace fragmented records with commercial visibility across accounts, products, and order continuity.",
         "titlePausedMarketplace": "List or browse products",
         "descPausedMarketplace": "Distributors publish catalog; authorised retailers browse their distributor’s products."
       },
       "3": {
-        "title": "Activate sales and convert",
-        "desc": "Send targeted recommendations to the field, follow up, and convert through your private retailer marketplace.",
+        "title": "Execute and convert",
+        "desc": "Run focused sales follow-ups and let authorised retailers order through your private marketplace.",
         "titlePausedMarketplace": "Order at their rate",
         "descPausedMarketplace": "Retailers order from their authorised distributor. Applicable offers land on the purchase order."
       },
-      "title": "From portfolio gaps to productive sales",
-      "subtitle": "A clear path from underutilised SKUs to focused retailer engagement and orders."
+      "title": "From operational chaos to connected commerce",
+      "subtitle": "A clear path from fragmented systems to visibility, execution, and orders."
     },
     "finalcta": {
-      "title": "Put your full product portfolio to work",
-      "subtitle": "Start a 30-day free trial. Identify where products under-penetrate your network, and act with evidence. No credit card required.",
+      "title": "Connect the business you already run",
+      "subtitle": "Start a 30-day free trial. Replace fragmented records with one operational view, then act with clearer follow-ups. No credit card required.",
       "cta": "Start free trial"
     }
   },
   "features": {
     "header": {
       "title": "Lakupak Features",
-      "subtitle": "Tools to identify low assortment penetration, prioritise product–retailer opportunities, and convert through private B2B commerce.",
+      "subtitle": "Tools to connect distributor operations, restore commercial visibility, and convert through private B2B commerce.",
       "cta1": "Consult Us",
       "cta2": "Register Now",
       "socialproof": "4.9 stars • 2,000+ reviews",
       "video": "Lakupak Product Video"
     },
     "painpoints": {
-      "title": "Built around the portfolio utilisation problem",
-      "subtitle": "See how Lakupak addresses low assortment penetration in Indonesian FMCG distribution",
+      "title": "Built around operational fragmentation",
+      "subtitle": "See how Lakupak addresses the chaos that appears when Indonesian FMCG distribution runs on disconnected systems",
       "without": {
-        "1": "Bestsellers dominate repeat orders while other SKUs stall",
-        "2": "No clear view of which products under-penetrate eligible retailers",
-        "3": "Sales visits default to familiar products under time pressure",
-        "4": "Catalog, purchase history, and sales activity stay fragmented",
+        "1": "Catalog, clients, orders, and sales notes live in different places",
+        "2": "Teams reconstruct context before every follow-up or visit",
+        "3": "Order continuity breaks across chats, spreadsheets, and memory",
+        "4": "Portfolio potential stays unrecorded because the business is not visible as a whole",
         "title": "Without Lakupak"
       },
       "with": {
-        "1": "Connected commercial data to examine assortment penetration",
-        "2": "Prioritised product–retailer opportunities grounded in evidence",
-        "3": "Focused sales activation for limited retailer interactions",
+        "1": "Clients, catalog, offers, orders, and sales connected in one place",
+        "2": "Clearer commercial visibility for everyday decisions",
+        "3": "More efficient sales execution with continuous order history",
         "4": "Private marketplace conversion under distributor control",
         "title": "With Lakupak"
       }
     },
     "platforms": {
-      "title": "Operations, intelligence, and private commerce",
+      "title": "Operations, visibility, and private commerce",
       "subtitle": "Built specifically for independent FMCG distributors in Indonesia",
       "distributor": {
         "1": "Catalog, clients, offers, and orders in one place",
-        "2": "Analytics on product performance and purchasing patterns",
-        "3": "Sales jobs tied to portfolio opportunities",
-        "4": "AI-assisted product–retailer prioritisation",
+        "2": "Analytics on operations, product performance, and purchasing patterns",
+        "3": "Sales jobs tied to connected account and order signals",
+        "4": "AI-assisted operational and commercial prioritisation",
         "5": "Private storefront for authorised retailers",
         "title": "Distributor Dashboard",
-        "desc": "Commercial operations and sales intelligence",
+        "desc": "Connected operations and commercial visibility",
         "screenshot": "Dashboard Screenshot"
       },
       "retailer": {
@@ -658,7 +658,7 @@
     "sticky": {
       "distributor": {
         "title": "For Distributors",
-        "subtitle": "Utilise your product portfolio and focus scarce sales time on credible opportunities."
+        "subtitle": "Connect fragmented operations and focus scarce sales time with clearer commercial visibility."
       },
       "retailer": {
         "title": "For Retailers",
@@ -667,23 +667,23 @@
     },
     "distributorFeatures": [
       {
-        "badge": "Intelligence",
-        "title": "Assortment and opportunity insight",
-        "subtitle": "Investigate where the portfolio under-penetrates eligible retailers.",
+        "badge": "Visibility",
+        "title": "Commercial visibility from connected data",
+        "subtitle": "See accounts, products, and order continuity without reconstructing them from chats and spreadsheets.",
         "points": [
-          "See which products reach only a small share of the network.",
-          "Prioritise product–retailer combinations with commercial evidence.",
-          "Treat low penetration as a signal to investigate, not guaranteed demand."
+          "Replace fragmented records with one operational view.",
+          "Spot where follow-ups, terms, or order history need attention.",
+          "Treat low assortment penetration as a symptom of chaos to investigate, not guaranteed demand."
         ]
       },
       {
         "badge": "Sales",
         "title": "Focused sales activation",
-        "subtitle": "Turn ranked opportunities into field work your team can execute.",
+        "subtitle": "Turn connected account and order signals into field work your team can execute.",
         "points": [
-          "Create jobs around product introductions and follow-ups.",
-          "Assign limited visit time to suitable retailers and products.",
-          "Record outcomes so recommendations improve with evidence."
+          "Create jobs around introductions, promotions, and follow-ups.",
+          "Assign limited visit time with clearer context already in hand.",
+          "Record outcomes so the next visit starts from evidence, not a blank page."
         ]
       },
       {
@@ -691,9 +691,9 @@
         "title": "Connected catalog and operations",
         "subtitle": "All your SKUs, pricing, stock, and retailer terms in one place.",
         "points": [
-          "Maintain the catalog that underused products still need to sell from.",
+          "Keep clients, catalog, offers, and orders on one foundation.",
           "Manage pricing and stock from a single interface.",
-          "Keep per-retailer offers aligned with how you introduce products."
+          "Keep per-retailer offers aligned with the accounts you already serve."
         ]
       }
     ],
@@ -730,8 +730,8 @@
       }
     ],
     "cta": {
-      "title": "Ready to utilise more of your product portfolio?",
-      "subtitle": "Identify opportunities, prioritise sales activities, and connect the right products with the right retailers.",
+      "title": "Ready to connect the operations you already run?",
+      "subtitle": "Replace fragmented records with one view, restore commercial visibility, and convert with clearer follow-ups.",
       "button": "Get Started Free",
       "dashboard": "[Dashboard Screenshot]",
       "mobile": "[Mobile App Screenshot]",
@@ -870,17 +870,17 @@
   },
   "solutions": {
     "hero": {
-      "title": "Solutions for portfolio utilisation and productive sales",
-      "subtitle": "Lakupak helps independent FMCG distributors in Indonesia unlock underused products across existing retailers, then convert opportunities through focused sales work and a private B2B marketplace.",
+      "title": "Solutions for operational chaos and connected commerce",
+      "subtitle": "Lakupak helps independent FMCG distributors in Indonesia connect fragmented operations, restore commercial visibility, and convert through focused sales work plus a private B2B marketplace.",
       "cta": "Get Started Today"
     },
     "badges": {
       "left": {
-        "main": "Assortment penetration insight",
+        "main": "Connected operations",
         "sub": [
-          "Find ",
-          "portfolio gaps",
-          " across your network"
+          "Replace ",
+          "fragmented records",
+          " with one view"
         ]
       },
       "right": {
@@ -894,29 +894,29 @@
     },
     "twocol": {
       "title": "Built around how Indonesian FMCG trade actually works",
-      "subtitle": "Distributors need to know which products under-penetrate eligible retailers. Retailers need a reliable channel to order from distributors they already trust.",
+      "subtitle": "Distributors need connected operations and clear commercial visibility. Retailers need a reliable channel to order from distributors they already trust.",
       "distributor": {
         "1": {
-          "label": "Product–retailer intelligence",
-          "desc": "Examine assortment penetration and flag products that reach only a small share of eligible shops."
+          "label": "Connected operations",
+          "desc": "Bring clients, catalog, offers, orders, and sales activity into one environment so the business can be managed as a whole."
         },
         "2": {
-          "label": "Opportunity prioritisation",
-          "desc": "Rank combinations using purchase history, suitability, pricing, and stock, not every SKU for every retailer."
+          "label": "Commercial visibility",
+          "desc": "See purchasing history, account terms, and product context without reconstructing them from chats and spreadsheets."
         },
         "3": {
           "label": "Sales activation",
-          "desc": "Turn ranked opportunities into follow-ups, promotions, and field jobs your team can execute."
+          "desc": "Turn connected signals into follow-ups, promotions, and field jobs your team can execute."
         },
         "4": {
-          "label": "Connected operations",
-          "desc": "Clients, catalog, offers, orders, and sales activity in one environment so insights stay grounded."
+          "label": "Order continuity",
+          "desc": "Keep status, payment, and history in one pipeline so next actions do not fall through the cracks."
         },
         "5": {
           "label": "Per-retailer offers and private commerce",
           "desc": "Keep pricing and relationships under your control while authorised retailers order digitally."
         },
-        "title": "For distributors: utilise the portfolio you already have"
+        "title": "For distributors: connect the operations you already run"
       },
       "retailer": {
         "1": {
@@ -946,7 +946,7 @@
       "1": {
         "name": "Andi",
         "role": "Distributor from Surabaya",
-        "text": "We stopped treating every low-selling SKU the same. Lakupak helps us see which products have real room with the right retailers."
+        "text": "We stopped running the business from chats and spreadsheets. Lakupak helps us see clients, orders, and follow-ups in one place."
       },
       "2": {
         "name": "Rina",
@@ -956,7 +956,7 @@
       "3": {
         "name": "Ahmad Rahman",
         "role": "CEO, PT Sukses Makmur",
-        "text": "Bestsellers still matter, but now we also work the rest of the portfolio with evidence, not guesswork."
+        "text": "Bestsellers still matter, but now the rest of the operation is visible too, not buried in disconnected files."
       },
       "4": {
         "name": "Siti Nurhaliza",
@@ -971,7 +971,7 @@
       "6": {
         "name": "Maya Dewi",
         "role": "Distributor, Medan",
-        "text": "Sales time is limited. Prioritising product–retailer opportunities made our visits more productive."
+        "text": "Sales time is limited. Connected account and order context made our visits more productive."
       },
       "title": "What Our Users Say"
     },
@@ -981,69 +981,69 @@
         "desc": "Connect clients, products, offers, orders, and sales activity in the dashboard."
       },
       "2": {
-        "title": "Identify portfolio opportunities",
-        "desc": "Examine penetration gaps and prioritise suitable product–retailer combinations."
+        "title": "Restore commercial visibility",
+        "desc": "See accounts, products, and order continuity clearly enough to decide what needs attention next."
       },
       "3": {
         "title": "Activate and convert",
         "desc": "Run focused sales follow-ups and let authorised retailers order through your private storefront."
       },
-      "title": "From underutilised SKUs to orders",
+      "title": "From operational chaos to orders",
       "subtitle": "A practical path for Indonesian FMCG distributors and their retail networks"
     },
     "cta": {
-      "title": "Ready to utilise more of your product portfolio?",
-      "subtitle": "Help your team distinguish genuine opportunities from limited demand, and convert with focus.",
+      "title": "Ready to connect the operations you already run?",
+      "subtitle": "Help your team replace fragmented records with one view, then convert with clearer follow-ups.",
       "button": "Get Started Today"
     }
   },
   "about": {
     "hero": {
       "title": "Why We Built Lakupak",
-      "subtitle": "Helping independent FMCG distributors in Indonesia unlock the potential of their existing product portfolios and retailer networks."
+      "subtitle": "Helping independent FMCG distributors in Indonesia connect their operations, gain commercial visibility, and unlock the potential of their businesses."
     },
     "story": {
-      "1": "For as long as I can remember, trade has been the lifeblood of local communities. Across Indonesia, independent distributors, warungs, and neighbourhood shops keep everyday essentials within reach. From the outside, the industry looks busy. Behind the scenes, however, many distributors manage hundreds of products across hundreds of retailers, yet a narrow selection of bestsellers continues to dominate repeat orders and sales.",
-      "2": "The rest of the portfolio often remains overlooked. Some products reach only a fraction of the retailers they could potentially serve, with little visibility into where additional demand might exist. Sales teams have limited time to evaluate every product against every retailer, so familiar products naturally receive more attention. Meanwhile, retailers often have little visibility into the wider product range beyond what is introduced to them. Suitable product–retailer opportunities remain unexplored, not necessarily because retailers have rejected those products, but because discovery is limited and no systematic connection exists between what distributors offer and what retailers might need.",
-      "3": "Commercial data makes this challenge even harder to address. Product catalogues sit in one place, retailer relationships in another, while purchase histories are scattered across chats, spreadsheets, and disconnected systems. The information needed to recognise assortment gaps and understand retailer purchasing behaviour remains fragmented. Without a consolidated view, distributors struggle to distinguish genuine growth opportunities from products that are simply unsuitable, mispriced, unavailable, or lacking demand.",
-      "4": "The problem is not only that every product must sell more. It is that distributors lack a systematic way to understand where their portfolios are underutilised, which products may suit which retailers, and how to make those opportunities accessible. This is more than a matter of digitising distribution. It is a challenge of <b>underutilised product portfolio</b> and <b>low assortment penetration</b> across Indonesia's independent FMCG distribution networks.",
-      "6": "I built Lakupak to connect distributor operations, commercial intelligence, and private B2B commerce. By bringing commercial information together, Lakupak helps distributors identify assortment gaps, uncover product–retailer opportunities, and make decisions supported by evidence. Through a private marketplace, authorised retailers gain greater visibility into the distributor's product portfolio, allowing them to discover and purchase products beyond what is traditionally presented during sales visits. Every interaction, from product discovery to actual orders, creates opportunities to understand purchasing behaviour and improve future decisions.",
-      "7": "The name carries the same idea. In Indonesian, <i>laku</i> means both a sale and movement. Trade moves when the right products reach the right retailers, when opportunities are visible, and when decisions are guided by more than familiarity or habit, which is intentional. Lakupak exists to make that movement deliberate, not accidental.",
-      "8": "We believe distributors should not have to push every product to every shop, nor should retailers have to depend entirely on sales visits to discover what is available. They should have the visibility, intelligence, and access to make better commercial decisions while preserving control over their relationships and data.",
+      "1": "For as long as I can remember, trade has been the lifeblood of local communities. Across Indonesia, independent distributors, warungs, and neighbourhood shops keep everyday essentials within reach. From the outside, the industry looks busy and well connected. Behind the scenes, however, many distributors manage hundreds of products, hundreds of retailers, and countless daily transactions through fragmented operations. Product catalogues sit in one place, customer records in another, while orders, pricing agreements, inventory updates, and sales activities are scattered across spreadsheets, chats, and disconnected systems.",
+      "2": "The information is there, but it rarely comes together. Distributors often have to piece together different records to understand what their retailers purchase, which products are performing, what prices or terms apply to each account, and where attention is needed. Everyday decisions depend heavily on manual coordination, individual experience, and people remembering what needs to happen next. As businesses grow, managing these moving parts becomes increasingly difficult. What should be connected remains separated, making it harder to maintain a consistent view of the business.",
+      "3": "This fragmentation extends beyond administration. It affects how distributors manage their product portfolios and relationships with retailers. Sales teams have limited time to evaluate every product against every retailer, so familiar bestsellers naturally receive more attention. Meanwhile, retailers often have little visibility into the wider product range beyond what is introduced during sales visits. Some products reach only a fraction of the retailers they could potentially serve, while others remain slow-moving without a clear understanding of why. Without consolidated purchasing histories, product information, and retailer insights, distributors struggle to distinguish genuine growth opportunities from products that are unsuitable, mispriced, unavailable, or lacking demand.",
+      "4": "The challenge, therefore, is not simply that some products sell while others do not. It is the <b>Operational Fragmentation and Chaos</b> created when disconnected systems, fragmented information, and manual processes prevent distributors from seeing and managing their businesses as a whole. This makes it difficult to coordinate activities, understand retailer purchasing behaviour, manage account-specific arrangements, and identify where products may have greater potential. Over time, this limits operational efficiency, commercial visibility, and the ability to unlock value from existing product portfolios and retailer networks.",
+      "6": "I built Lakupak to bring distributor operations, commercial intelligence, and private B2B commerce together in one connected platform. By consolidating information across clients, products, orders, offers, and sales activities, Lakupak helps distributors gain a clearer understanding of their operations and make decisions supported by evidence. It helps identify assortment gaps, uncover product–retailer opportunities, and understand where commercial attention is needed. Through a private marketplace, authorised retailers gain greater visibility into the distributor's product portfolio, allowing them to discover and purchase products beyond what is traditionally presented during sales visits. Every interaction, from product discovery to actual orders, creates opportunities to understand purchasing behaviour and improve future decisions.",
+      "7": "The name carries the same idea. In Indonesian, <i>laku</i> means a sale, something that sells or moves. Trade moves when information is connected, opportunities become visible, and the right products reach the right retailers. It should not depend entirely on familiarity, fragmented records, or guesswork. Lakupak exists to make that movement more deliberate, connected, and intelligent.",
+      "8": "We believe distributors should not have to manage their businesses through disconnected information, nor should retailers have to depend entirely on sales visits to discover what is available. Distributors deserve better visibility and control over their operations, commercial decisions, and customer relationships. Retailers deserve easier access to the products available to them. Both should benefit from a more connected distribution network built on transparency, intelligence, and trust.",
       "vision": "That is where Lakupak began.",
-      "mission": "Our mission is to help independent FMCG distributors unlock more value from their existing product portfolios, strengthen their retailer networks, and make Indonesia's fragmented distribution landscape more connected, transparent, and intelligent.",
+      "mission": "Our mission is to help independent FMCG distributors connect their operations, strengthen their retailer networks, and unlock more value from their businesses, contributing to a more connected, transparent, and intelligent distribution landscape across Indonesia.",
       "end": "This is Lakupak. And this is where the journey begins."
     },
     "carousel": {
       "1": {
         "title": "Our Mission",
-        "content": "Help independent FMCG distributors unlock more value from the product portfolios and retailer networks they already have, and make distribution more connected, clear, and intelligent."
+        "content": "Help independent FMCG distributors connect their operations, strengthen their retailer networks, and unlock more value from their businesses across Indonesia."
       },
       "2": {
         "title": "Our Vision",
-        "content": "Distributors and retailers can see the wider portfolio, find suitable product–retailer opportunities, and decide with evidence while keeping control of their relationships and data."
+        "content": "Distributors run connected operations with clear commercial visibility, and retailers can discover and order from the portfolios available to them, with relationships and data remaining under distributor control."
       },
       "3": {
-        "1": "Not every product needs to be pushed to every shop.",
+        "1": "Operational fragmentation is the bottleneck that creates chaos, missed follow-ups, and limited commercial visibility.",
         "2": "Retailers should be able to see more than what a sales visit presents.",
-        "3": "Better decisions need visibility and access, with relationships and data still in the distributor's control.",
+        "3": "Better decisions need connected information and access, with relationships and data still in the distributor's control.",
         "title": "What We Believe"
       },
       "4": {
         "title": "Why 'Lakupak'?",
-        "content": "In Indonesian, laku means both a sale and movement. Lakupak exists so that movement is deliberate: the right products reach the right retailers, and decisions follow more than habit."
+        "content": "In Indonesian, laku means a sale, something that sells or moves. Lakupak exists so that movement is deliberate: information is connected, opportunities become visible, and the right products reach the right retailers."
       }
     },
     "cta": {
       "title": "This is where the journey begins.",
-      "subtitle": "See where an existing portfolio can reach more of the retailers a distributor already serves.",
+      "subtitle": "See how connected operations replace fragmented records, chats, and guesswork.",
       "button": "See Our Solutions"
     }
   },
   "footer": {
     "company": {
-      "description1": "AI-native B2B commerce and sales for independent FMCG distributors in Indonesia.",
-      "description2": "Unlock portfolio opportunities, focus sales activity, and keep commercial control private."
+      "description1": "AI-native B2B commerce and operations for independent FMCG distributors in Indonesia.",
+      "description2": "Connect operations, strengthen commercial visibility, and keep distributor control private."
     },
     "quicklinks": {
       "title": "Quick Links",
