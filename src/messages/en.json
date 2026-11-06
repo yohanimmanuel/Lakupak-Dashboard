@@ -1,4 +1,7 @@
 {
+  "meta": {
+    "title": "Lakupak | Your Whole Business, Sales, Distribution Made Simple And Connected."
+  },
   "navbar": {
     "home": "Home",
     "features": "Features",
@@ -433,10 +436,10 @@
   "landing": {
     "hero": {
       "badge": "AI-native B2B commerce for Indonesian FMCG",
-      "titleBefore": "One connected business.",
-      "titleAccent": "Smarter Distribution.",
-      "subtitle": "Bring your clients, products, orders, offers, and sales into one connected platform. Turn fragmented operations into clearer insights, better decisions, and more opportunities to grow.",
-      "subtitlePausedMarketplace": "Bring your clients, products, orders, offers, and sales into one connected platform. Turn fragmented operations into clearer insights, better decisions, and more opportunities to grow.",
+      "titleBefore": "A Smarter Future",
+      "titleAccent": "For Every Distributor.",
+      "subtitle": "Bring your operations, products, sales & commercial intelligence, and retailer relationships together. Discover a more connected and intelligent way to distribute, grow, and move forward.",
+      "subtitlePausedMarketplace": "Bring your operations, products, sales & commercial intelligence, and retailer relationships together. Discover a more connected and intelligent way to distribute, grow, and move forward.",
       "cta": "Start free trial",
       "learnmore": "Explore marketplace",
       "productPlaceholder": "Dashboard preview. Replace with product image"

@@ -1,4 +1,7 @@
 {
+  "meta": {
+    "title": "Lakupak | Seluruh Bisnis, Penjualan, dan Distribusi Anda — Sederhana dan Terhubung."
+  },
   "navbar": {
     "home": "Beranda",
     "features": "Fitur",
@@ -433,10 +436,10 @@
   "landing": {
     "hero": {
       "badge": "Perdagangan B2B berbasis AI untuk FMCG Indonesia",
-      "titleBefore": "Hubungkan operasional Anda. ",
-      "titleAccent": "Akhiri kekacauan.",
-      "subtitle": "Bantu bisnis distribusi Anda mengganti catatan, chat, dan spreadsheet yang terfragmentasi dengan satu platform terhubung untuk klien, produk, pesanan, penawaran, dan penjualan.",
-      "subtitlePausedMarketplace": "Bantu bisnis distribusi Anda mengganti catatan, chat, dan spreadsheet yang terfragmentasi dengan satu platform terhubung untuk klien, produk, pesanan, penawaran, dan penjualan.",
+      "titleBefore": "Masa Depan Lebih Cerdas",
+      "titleAccent": "Untuk Setiap Distributor.",
+      "subtitle": "Satukan operasional, produk, penjualan & intelijen komersial, serta hubungan retailer Anda. Temukan cara yang lebih terhubung dan cerdas untuk mendistribusikan, tumbuh, dan melangkah maju.",
+      "subtitlePausedMarketplace": "Satukan operasional, produk, penjualan & intelijen komersial, serta hubungan retailer Anda. Temukan cara yang lebih terhubung dan cerdas untuk mendistribusikan, tumbuh, dan melangkah maju.",
       "cta": "Coba gratis",
       "learnmore": "Jelajahi marketplace",
       "productPlaceholder": "Pratinjau dashboard. Ganti dengan gambar produk"
