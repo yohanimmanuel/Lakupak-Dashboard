@@ -601,6 +601,18 @@
       "title": "Dari kekacauan operasional ke perdagangan yang terhubung",
       "subtitle": "Jalur yang jelas dari sistem terfragmentasi ke visibilitas, eksekusi, dan pesanan."
     },
+    "marketplaceStorefront": {
+      "title": "Etalase B2B privat untuk retailer yang diotorisasi",
+      "subtitle": "Berikan retailer marketplace yang dikendalikan distributor di web dan mobile—jelajahi katalog Anda, lihat tarif mereka, dan pesan tanpa hanya mengandalkan chat dan kunjungan.",
+      "web": {
+        "label": "Marketplace web",
+        "desc": "Etalase browser lengkap tempat retailer yang diotorisasi menemukan produk, penawaran, dan mengirim pesanan grosir."
+      },
+      "app": {
+        "label": "Aplikasi mobile",
+        "desc": "Katalog privat yang sama di ponsel—cari, restock, dan lacak pesanan langsung dari toko."
+      }
+    },
     "finalcta": {
       "title": "Hubungkan bisnis yang sudah Anda jalankan",
       "subtitle": "Coba gratis 30 hari. Ganti catatan terfragmentasi dengan satu pandangan operasional, lalu bertindak dengan follow-up yang lebih jelas. Tanpa kartu kredit.",

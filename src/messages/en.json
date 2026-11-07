@@ -601,6 +601,18 @@
       "title": "From operational chaos to connected commerce",
       "subtitle": "A clear path from fragmented systems to visibility, execution, and orders."
     },
+    "marketplaceStorefront": {
+      "title": "Private B2B storefront for authorised retailers",
+      "subtitle": "Give retailers a distributor-controlled marketplace on web and mobile—browse your catalog, see their rates, and place orders without relying only on chats and visits.",
+      "web": {
+        "label": "Web marketplace",
+        "desc": "A full browser storefront where authorised retailers discover products, offers, and place wholesale orders."
+      },
+      "app": {
+        "label": "Mobile app",
+        "desc": "The same private catalog on phone—search, restock, and track orders from the shop floor."
+      }
+    },
     "finalcta": {
       "title": "Connect the business you already run",
       "subtitle": "Start a 30-day free trial. Replace fragmented records with one operational view, then act with clearer follow-ups. No credit card required.",

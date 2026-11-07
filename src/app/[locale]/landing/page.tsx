@@ -38,9 +38,9 @@ const AUTOMATIONS_MEDIA: Partial<
 };
 
 const HOW_IT_WORKS_2_LAPSE = [
-  { src: '/Dashboardproducts12.png', width: 1540, height: 757 },
-  { src: '/Dashboardproducts13.png', width: 1101, height: 490 },
-  { src: '/Dashboardproducts14.png', width: 1105, height: 390 },
+  { src: '/Dashboardproducts2.png', width: 1507, height: 782 },
+  { src: '/Dashboardorders1.png', width: 1490, height: 792 },
+  { src: '/Dashboardclientbuyer1.png', width: 1488, height: 692 },
 ] as const;
 
 function HowItWorksOpportunityLapse({ alt }: { alt: string }) {
@@ -1088,6 +1088,113 @@ function SplitFeatureSection({
   );
 }
 
+type MarketplaceStorefrontTab = 'web' | 'app';
+
+const MARKETPLACE_STOREFRONT_TABS: MarketplaceStorefrontTab[] = ['web', 'app'];
+
+const MARKETPLACE_STOREFRONT_MEDIA: Record<
+  MarketplaceStorefrontTab,
+  { src: string; width: number; height: number; wrapClass: string; imageClass: string }
+> = {
+  web: {
+    src: '/Dashboardmarketplace5.png',
+    width: 787,
+    height: 777,
+    wrapClass: 'w-full max-w-[480px] rounded-xl sm:max-w-[520px]',
+    imageClass: 'block h-auto max-h-[260px] w-full object-contain sm:max-h-[320px]',
+  },
+  app: {
+    src: '/Dashboardmarketplace6.png',
+    width: 1001,
+    height: 2048,
+    wrapClass: 'w-full max-w-[200px] rounded-[1.35rem] sm:max-w-[220px]',
+    imageClass: 'block h-auto max-h-[300px] w-full object-contain sm:max-h-[360px]',
+  },
+};
+
+function MarketplaceStorefrontSection() {
+  const t = useTranslations('landing');
+  const [active, setActive] = useState<MarketplaceStorefrontTab>('web');
+  const media = MARKETPLACE_STOREFRONT_MEDIA[active];
+
+  return (
+    <section id="marketplace-storefront" className="py-16 sm:py-20 bg-white border-t border-gray-200">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <Reveal className="mb-10 max-w-3xl">
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">
+            {t('marketplaceStorefront.title')}
+          </h2>
+          <p className="mt-3 text-base sm:text-lg text-gray-600 leading-relaxed">
+            {t('marketplaceStorefront.subtitle')}
+          </p>
+        </Reveal>
+
+        <Reveal>
+          <FeatureMediaFrame
+            className="mb-10"
+            framed={false}
+            minHeightClass="min-h-[320px] sm:min-h-[420px]"
+            insetClass="p-3 sm:p-4"
+          >
+            <div className="flex h-full w-full items-center justify-center">
+              <div
+                key={active}
+                className={`overflow-hidden border border-gray-200/90 bg-white shadow-[0_14px_36px_-16px_rgba(15,23,42,0.28)] animate-fade-in motion-reduce:animate-none ${media.wrapClass}`}
+                style={{ animationDuration: '0.45s' }}
+              >
+                <Image
+                  src={media.src}
+                  alt={t(`marketplaceStorefront.${active}.label`)}
+                  width={media.width}
+                  height={media.height}
+                  quality={90}
+                  className={media.imageClass}
+                  sizes="(min-width: 1024px) 520px, 80vw"
+                />
+              </div>
+            </div>
+          </FeatureMediaFrame>
+        </Reveal>
+
+        <Reveal>
+          <div className="grid items-start gap-6 md:grid-cols-2 md:gap-8">
+            {MARKETPLACE_STOREFRONT_TABS.map((tab) => {
+              const isActive = active === tab;
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActive(tab)}
+                  className={`group w-full appearance-none bg-transparent p-0 text-left border-x-0 border-b-0 border-t-2 pt-4 transition-colors ${
+                    isActive
+                      ? 'border-gray-900'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <h3
+                    className={`text-base sm:text-lg font-bold leading-snug transition-colors ${
+                      isActive ? 'text-gray-900' : 'text-gray-500'
+                    }`}
+                  >
+                    {t(`marketplaceStorefront.${tab}.label`)}
+                  </h3>
+                  <p
+                    className={`mt-2 text-sm leading-relaxed transition-colors ${
+                      isActive ? 'text-gray-600' : 'text-gray-400'
+                    }`}
+                  >
+                    {t(`marketplaceStorefront.${tab}.desc`)}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
 export default function LandingPage() {
   const router = useRouter();
   const t = useTranslations('landing');
@@ -1384,6 +1491,8 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
+
+        <MarketplaceStorefrontSection />
 
         <section className="py-16 sm:py-20 bg-[#f7f9fc]">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
