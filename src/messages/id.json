@@ -411,20 +411,12 @@
           "desc": "Laku AI meninjau klien, pesanan, dan penjualan lalu mengembalikan wawasan di balik keputusan operasional atau penjualan berikutnya."
         },
         "2": {
-          "title": "Delegasikan pekerjaan penjualan dan pembelinya",
-          "desc": "Serahkan pekerjaan penjualan hari itu ke tiap sales, dan tanyakan pembeli mana yang dihubungi. Tetapkan persona, persyaratan, dan kriteria. Laku AI menemukan retailer yang cocok, dan pekerjaan mencatat promosi, stok, pembayaran, retur, atau pesaing."
+          "title": "Analisis AI produk–retailer",
+          "desc": "Laku AI menganalisis sinyal kecocokan produk–retailer, afinitas, dan bukti agar Anda melihat SKU mana yang cocok untuk toko mana, serta apa yang perlu diperkenalkan atau dipesan ulang berikutnya."
         },
         "3": {
           "title": "Beri prompt, dan operasional terbentuk",
           "desc": "Laku AI adalah layanan berbasis AI. Beri prompt untuk membuat produk, penawaran, klien, dan pesanan. Ia membuatnya untuk Anda, sehingga operasional terotomasi seketika."
-        },
-        "4": {
-          "title": "Mesin Konversi Penjualan",
-          "desc": "Laku AI menganalisis Penjualan, Pesanan, dan Klien untuk menandai peluang terbuka, pesan ulang yang terlambat, pesanan belum dibayar untuk ditindaklanjuti, dan pesanan yang teratribusi ke penawaran. Setiap tugas diperingkat berdasarkan urgensi, sehingga tim Anda melihat siapa yang dihubungi lebih dulu di beranda dan antrean lengkapnya di Penjualan."
-        },
-        "5": {
-          "title": "Pertanyaan dan jawaban pembeli",
-          "desc": "Pembeli dapat bertanya tentang produk, harga, stok, atau pesanan melalui chat. Laku AI menjawab dari informasi bisnis Anda dan menyerahkan percakapan ke tim Anda saat dibutuhkan bantuan langsung."
         }
       }
     }

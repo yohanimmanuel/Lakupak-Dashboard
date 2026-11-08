@@ -411,20 +411,12 @@
           "desc": "Laku AI reviews clients, orders, and sales and returns the insight behind the next operational or sales decision."
         },
         "2": {
-          "title": "Delegate the sales job and the buyer",
-          "desc": "Hand the day's sales jobs to each rep, and ask which buyer to reach. Set a persona, the requirements, and the criteria. Laku AI finds suitable retailers, and the job records the promotion, stock, payment, return, or competitor."
+          "title": "Product-retailer AI analysis",
+          "desc": "Laku AI analyses product–retailer match signals, affinity, and evidence so you can see which SKUs fit which shops and what to introduce or reorder next."
         },
         "3": {
           "title": "Prompt it, and the operation is built",
           "desc": "Laku AI is an AI-native service. Prompt it to create products, offers, clients, and orders. It makes them for you, so you automate the operation instantly."
-        },
-        "4": {
-          "title": "Sales Conversion Engine",
-          "desc": "Laku AI analyses Sales, Orders, and Clients to flag open opportunities, overdue reorders, unpaid orders to follow up, and orders attributed to offers. Every task is ranked by urgency, so your team sees who to reach first on the homepage and the full queue in Sales."
-        },
-        "5": {
-          "title": "Buyer questions and answers",
-          "desc": "Buyers can ask about products, prices, stock, or orders in chat. Laku AI answers from your business information and hands the conversation to your team when a person is needed."
         }
       }
     }

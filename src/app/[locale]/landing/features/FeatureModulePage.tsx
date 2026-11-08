@@ -256,34 +256,41 @@ const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaCo
       placement: 'center',
       image: { src: '/DashboardAI.png', width: 1451, height: 785 },
     },
+    // Former step 2 (delegate sales job) moved to step 5.
+    // Former step 4 (Sales Conversion Engine) moved to step 6.
     2: {
-      type: 'diagonal',
-      back: { src: '/DashboardAI2.png', width: 945, height: 2048 },
-      front: { src: '/Dashboardsales1.png', width: 1533, height: 727 },
-      orientation: 'tr-bl',
-      scale: 'sm',
-      overlap: 'back',
-      frontWidthClass: 'w-[92%] sm:w-[86%]',
+      type: 'single',
+      placement: 'center',
+      image: { src: '/DashboardAI3.png', width: 1532, height: 755 },
     },
     3: {
       type: 'single',
       placement: 'center',
       image: { src: '/Dashboardsales4.png', width: 1551, height: 777 },
     },
-    4: {
-      type: 'single',
-      placement: 'center',
-      image: { src: '/Dashboardsales7.png', width: 1535, height: 527 },
-    },
-    5: {
-      type: 'diagonal',
-      back: { src: '/Dashboardsales6.png', width: 1000, height: 2048 },
-      front: { src: '/Dashboardautomations8.png', width: 1557, height: 783 },
-      orientation: 'tr-bl',
-      scale: 'sm',
-      overlap: 'back',
-      frontWidthClass: 'w-[92%] sm:w-[86%]',
-    },
+    // 4: {
+    //   type: 'diagonal',
+    //   back: { src: '/Dashboardsales6.png', width: 1000, height: 2048 },
+    //   front: { src: '/Dashboardautomations8.png', width: 1557, height: 783 },
+    //   orientation: 'tr-bl',
+    //   scale: 'sm',
+    //   overlap: 'back',
+    //   frontWidthClass: 'w-[92%] sm:w-[86%]',
+    // },
+    // 5: {
+    //   type: 'diagonal',
+    //   back: { src: '/DashboardAI2.png', width: 945, height: 2048 },
+    //   front: { src: '/Dashboardsales1.png', width: 1533, height: 727 },
+    //   orientation: 'tr-bl',
+    //   scale: 'sm',
+    //   overlap: 'back',
+    //   frontWidthClass: 'w-[92%] sm:w-[86%]',
+    // },
+    // 6: {
+    //   type: 'single',
+    //   placement: 'center',
+    //   image: { src: '/Dashboardsales7.png', width: 1535, height: 527 },
+    // },
   },
 };
 
