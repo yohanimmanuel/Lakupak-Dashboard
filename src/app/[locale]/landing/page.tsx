@@ -1092,30 +1092,100 @@ type MarketplaceStorefrontTab = 'web' | 'app';
 
 const MARKETPLACE_STOREFRONT_TABS: MarketplaceStorefrontTab[] = ['web', 'app'];
 
-const MARKETPLACE_STOREFRONT_MEDIA: Record<
-  MarketplaceStorefrontTab,
-  { src: string; width: number; height: number; wrapClass: string; imageClass: string }
-> = {
-  web: {
-    src: '/Dashboardmarketplace5.png',
-    width: 787,
-    height: 777,
-    wrapClass: 'w-full max-w-[480px] rounded-xl sm:max-w-[520px]',
-    imageClass: 'block h-auto max-h-[260px] w-full object-contain sm:max-h-[320px]',
-  },
-  app: {
-    src: '/Dashboardmarketplace6.png',
-    width: 1001,
-    height: 2048,
-    wrapClass: 'w-full max-w-[200px] rounded-[1.35rem] sm:max-w-[220px]',
-    imageClass: 'block h-auto max-h-[300px] w-full object-contain sm:max-h-[360px]',
-  },
-};
+const MARKETPLACE_WEB_TRIPLE = [
+  { src: '/Dashboardmarketplace5.png', width: 787, height: 777 },
+  { src: '/Dashboardmarketplace9.png', width: 1042, height: 721 },
+  { src: '/Dashboardmarketplace10.png', width: 830, height: 756 },
+] as const;
+
+const MARKETPLACE_APP_PHONES = [
+  { src: '/Dashboardmarketplace6.png', width: 1001, height: 2048 },
+  { src: '/Dashboardmarketplace7.png', width: 1000, height: 2048 },
+  { src: '/Dashboardmarketplace8.png', width: 1000, height: 2048 },
+] as const;
+
+/** Three web screens stacked diagonally left → right (same idea as client management). */
+function MarketplaceWebTripleStack({ alt }: { alt: string }) {
+  const layers = [
+    {
+      media: MARKETPLACE_WEB_TRIPLE[0],
+      wrap: 'left-[3%] top-[12%] z-0 w-[45%] sm:w-[40%] -rotate-[6deg]',
+      shadow: 'shadow-[0_16px_40px_-16px_rgba(15,23,42,0.28)]',
+      delay: '0s',
+    },
+    {
+      media: MARKETPLACE_WEB_TRIPLE[1],
+      wrap: 'left-[28%] top-[16%] z-10 w-[46%] sm:w-[42%] rotate-[1deg]',
+      shadow: 'shadow-[0_18px_44px_-14px_rgba(15,23,42,0.32)]',
+      delay: '0.08s',
+    },
+    {
+      media: MARKETPLACE_WEB_TRIPLE[2],
+      wrap: 'right-[6%] bottom-[8%] z-20 w-[44%] sm:w-[40%] rotate-[5deg]',
+      shadow: 'shadow-[0_22px_50px_-12px_rgba(10,97,215,0.36)]',
+      delay: '0.16s',
+    },
+  ] as const;
+
+  return (
+    <div key="web" className="relative mx-auto h-full w-full max-w-4xl">
+      {layers.map((layer, index) => (
+        <div
+          key={layer.media.src}
+          className={`absolute animate-fade-in motion-reduce:animate-none ${layer.wrap}`}
+          style={{ animationDuration: '0.5s', animationDelay: layer.delay, opacity: index === 0 ? 1 : 0 }}
+        >
+          <div
+            className={`overflow-hidden rounded-xl border border-gray-200/90 bg-white p-1 ${layer.shadow}`}
+          >
+            <Image
+              src={layer.media.src}
+              alt={index === layers.length - 1 ? alt : ''}
+              width={layer.media.width}
+              height={layer.media.height}
+              quality={index === layers.length - 1 ? 90 : 85}
+              className="block h-auto w-full rounded-lg"
+              sizes="(min-width: 1024px) 480px, 55vw"
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MarketplaceAppPhoneRow({ alt }: { alt: string }) {
+  return (
+    <div
+      key="app"
+      className="flex h-full w-full items-center justify-center gap-3 px-4 sm:gap-4 sm:px-8 animate-fade-in motion-reduce:animate-none"
+      style={{ animationDuration: '0.45s' }}
+    >
+      {MARKETPLACE_APP_PHONES.map((phone, index) => (
+        <div
+          key={phone.src}
+          className="w-[28%] max-w-[150px] overflow-hidden rounded-[1.1rem] border border-gray-200/90 bg-white shadow-[0_14px_36px_-16px_rgba(15,23,42,0.28)] sm:max-w-[170px] sm:rounded-[1.25rem]"
+        >
+          <Image
+            src={phone.src}
+            alt={index === 0 ? alt : ''}
+            width={phone.width}
+            height={phone.height}
+            quality={90}
+            className="block h-auto max-h-[280px] w-full object-contain object-top sm:max-h-[340px]"
+            sizes="(min-width: 1024px) 170px, 28vw"
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function MarketplaceStorefrontSection() {
   const t = useTranslations('landing');
   const [active, setActive] = useState<MarketplaceStorefrontTab>('web');
-  const media = MARKETPLACE_STOREFRONT_MEDIA[active];
+  /** Fixed stage size so tab switches don’t jump the decorative background. */
+  const marketplaceStageClass = 'h-[500px] sm:h-[600px]';
 
   return (
     <section id="marketplace-storefront" className="py-16 sm:py-20 bg-white border-t border-gray-200">
@@ -1133,26 +1203,14 @@ function MarketplaceStorefrontSection() {
           <FeatureMediaFrame
             className="mb-10"
             framed={false}
-            minHeightClass="min-h-[320px] sm:min-h-[420px]"
-            insetClass="p-3 sm:p-4"
+            minHeightClass={marketplaceStageClass}
+            insetClass="p-2 sm:p-3"
           >
-            <div className="flex h-full w-full items-center justify-center">
-              <div
-                key={active}
-                className={`overflow-hidden border border-gray-200/90 bg-white shadow-[0_14px_36px_-16px_rgba(15,23,42,0.28)] animate-fade-in motion-reduce:animate-none ${media.wrapClass}`}
-                style={{ animationDuration: '0.45s' }}
-              >
-                <Image
-                  src={media.src}
-                  alt={t(`marketplaceStorefront.${active}.label`)}
-                  width={media.width}
-                  height={media.height}
-                  quality={90}
-                  className={media.imageClass}
-                  sizes="(min-width: 1024px) 520px, 80vw"
-                />
-              </div>
-            </div>
+            {active === 'web' ? (
+              <MarketplaceWebTripleStack alt={t('marketplaceStorefront.web.label')} />
+            ) : (
+              <MarketplaceAppPhoneRow alt={t('marketplaceStorefront.app.label')} />
+            )}
           </FeatureMediaFrame>
         </Reveal>
 
