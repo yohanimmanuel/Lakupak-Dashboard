@@ -33,22 +33,25 @@ describe('monthOverMonthGrowth', () => {
       expect(growth).toBeNull();
     });
 
-    it('returns positive growth when cumulative count increased through last month', () => {
+    it('returns positive growth when this calendar month count exceeds last month', () => {
       vi.setSystemTime(new Date('2026-06-07T12:00:00Z'));
       const growth = cumulativeCountGrowth(
         [
-          { createdAt: '2026-01-15' },
-          { createdAt: '2026-01-20' },
           { createdAt: '2026-05-10' },
+          { createdAt: '2026-05-20' },
+          { createdAt: '2026-06-01' },
+          { createdAt: '2026-06-05' },
+          { createdAt: '2026-06-06' },
         ],
         (item) => item.createdAt,
       );
+      // May = 2, June = 3 → +50%
       expect(growth).toBeCloseTo(50, 5);
     });
 
     it('returns null when previous-month baseline is zero', () => {
       vi.setSystemTime(new Date('2026-06-07T12:00:00Z'));
-      const growth = cumulativeCountGrowth([{ createdAt: '2026-05-10' }], (item) => item.createdAt);
+      const growth = cumulativeCountGrowth([{ createdAt: '2026-06-10' }], (item) => item.createdAt);
       expect(growth).toBeNull();
     });
   });
@@ -78,34 +81,31 @@ describe('monthOverMonthGrowth', () => {
   });
 
   describe('computeOrderMonthOverMonthGrowth', () => {
-    it('returns null growth fields when fewer than two order months exist', () => {
+    it('returns null growth fields when the previous calendar month has no orders', () => {
+      vi.setSystemTime(new Date('2026-06-07T12:00:00Z'));
       const orders = asOrders([
         {
-          orderDate: new Date('2026-05-10'),
+          orderDate: new Date('2026-06-10'),
           orderStatus: 'Delivered',
-          orderItems: [{ packageQuantity: 1, piecesPerPackage: 2 }],
+          shippingFee: 0,
+          discounts: 0,
+          orderItems: [{ packageQuantity: 1, piecesPerPackage: 2, pricePerPackage: 0, subtotal: 0 }],
         },
       ]);
 
-      expect(computeOrderMonthOverMonthGrowth(orders)).toEqual({
-        ordersGrowth: null,
-        ordersPrevious: null,
-        orderVolumeGrowth: null,
-        orderVolumePrevious: null,
-        completionGrowth: null,
-        completionPrevious: null,
-        averageOrderVolumeGrowth: null,
-        averageOrderVolumePrevious: null,
-        piecesGrowth: null,
-        piecesPrevious: null,
-        paidGrowth: null,
-        paidPrevious: null,
-        unpaidGrowth: null,
-        unpaidPrevious: null,
-      });
+      const growth = computeOrderMonthOverMonthGrowth(orders);
+      expect(growth.ordersGrowth).toBeNull();
+      expect(growth.ordersCurrent).toBe(1);
+      expect(growth.ordersPrevious).toBe(0);
+      expect(growth.orderVolumeGrowth).toBeNull();
+      expect(growth.piecesGrowth).toBeNull();
+      expect(growth.piecesCurrent).toBe(2);
+      expect(growth.completionCurrent).toBe(100);
+      expect(growth.completionGrowth).toBeNull();
     });
 
-    it('computes order count growth across the last two active months', () => {
+    it('computes order count growth for this calendar month vs last month', () => {
+      vi.setSystemTime(new Date('2026-05-28T12:00:00Z'));
       const orders = asOrders([
         { orderDate: new Date('2026-04-05'), orderStatus: 'Delivered', totalAmount: 100, orderItems: [] },
         { orderDate: new Date('2026-04-20'), orderStatus: 'Delivered', totalAmount: 100, orderItems: [] },
@@ -115,7 +115,10 @@ describe('monthOverMonthGrowth', () => {
       ]);
 
       const growth = computeOrderMonthOverMonthGrowth(orders);
+      // April = 2, May = 3 → +50%
       expect(growth.ordersGrowth).toBeCloseTo(50, 5);
+      expect(growth.ordersCurrent).toBe(3);
+      expect(growth.ordersPrevious).toBe(2);
     });
   });
 
