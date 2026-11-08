@@ -70,26 +70,22 @@
       },
       "points": {
         "1": {
-          "title": "Account context before the next visit",
-          "desc": "Use purchase history, suitability, and relationship signals so your team knows which shops need attention next, without reconstructing the account by hand."
-        },
-        "2": {
           "title": "Every order strengthens the network",
           "desc": "Buyer orders are recorded so contacts, status, profiles, and purchase data stay aligned without manual re-entry."
         },
-        "3": {
+        "2": {
           "title": "Buyers and suppliers in one CRM",
           "desc": "Run retail accounts and upstream partners from the same Clients module, with shared Active, Prospect, Inactive, and Blocked statuses."
         },
-        "4": {
+        "3": {
           "title": "Buyer prospecting",
           "desc": "Describe the buyer you want to reach, including area, outlet type, and criteria. Lakupak AI suggests matching retailers, then you fill out and save only the prospects you choose as Clients buyers."
         },
-        "5": {
+        "4": {
           "title": "Order history on every buyer",
           "desc": "Each buyer profile shows synced order lines, total spend, outstanding balance, and monthly charts drawn from live Orders."
         },
-        "6": {
+        "5": {
           "title": "Supplier lines and purchase analytics",
           "desc": "Record SKUs, volumes, and purchase value per supplier, then review monthly supply and purchase charts on the list."
         }

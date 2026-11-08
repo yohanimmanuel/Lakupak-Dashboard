@@ -22,6 +22,8 @@ type PointMediaConfig =
       scale?: 'xs' | 'sm' | 'md';
       /** Which layer paints on top. Positions stay the same. */
       overlap?: 'front' | 'back';
+      /** Overrides the back layer width from scale. */
+      backWidthClass?: string;
       /** Overrides the front layer width from scale. */
       frontWidthClass?: string;
     }
@@ -48,29 +50,28 @@ type PointMediaConfig =
 /** Real screenshots for specific detail steps; the rest fall back to placeholders. */
 const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaConfig>>> = {
   clients: {
-    1: { type: 'placeholder' },
-    2: {
+    1: {
       type: 'single',
       placement: 'corner',
       image: { src: '/Dashboardclientbuyer2.png', width: 740, height: 345 },
     },
-    3: {
+    2: {
       type: 'diagonal',
       back: { src: '/Dashboardclientbuyer3.png', width: 488, height: 295 },
       front: { src: '/Dashboardclientbuyer4.png', width: 736, height: 287 },
       orientation: 'tr-bl',
     },
-    4: {
+    3: {
       type: 'single',
       placement: 'center',
       image: { src: '/Dashboardclientbuyer9.png', width: 1517, height: 362 },
     },
-    5: {
+    4: {
       type: 'single',
       placement: 'center',
       image: { src: '/Dashboardclientbuyer7.png', width: 1488, height: 378 },
     },
-    6: {
+    5: {
       type: 'single',
       placement: 'center',
       image: { src: '/Dashboardclientbuyer8.png', width: 1488, height: 761 },
@@ -82,7 +83,15 @@ const POINT_MEDIA: Partial<Record<FeatureModuleSlug, Record<number, PointMediaCo
       placement: 'center',
       image: { src: '/Dashboardproducts12.png', width: 1540, height: 757 },
     },
-    2: { type: 'placeholder' },
+    2: {
+      type: 'diagonal',
+      back: { src: '/Dashboardproducts16.png', width: 1555, height: 782 },
+      front: { src: '/Dashboardproducts15.png', width: 568, height: 783 },
+      orientation: 'tl-br',
+      scale: 'md',
+      backWidthClass: 'w-[94%] sm:w-[90%]',
+      frontWidthClass: 'w-[48%] sm:w-[44%]',
+    },
     3: {
       type: 'single',
       placement: 'center',
@@ -284,6 +293,7 @@ function PointDiagonalStack({
   orientation = 'tl-br',
   scale = 'md',
   overlap = 'front',
+  backWidthClass,
   frontWidthClass,
 }: {
   back: PointMedia;
@@ -291,17 +301,20 @@ function PointDiagonalStack({
   orientation?: 'tl-br' | 'tr-bl';
   scale?: 'xs' | 'sm' | 'md';
   overlap?: 'front' | 'back';
+  backWidthClass?: string;
   frontWidthClass?: string;
 }) {
   const mirrored = orientation === 'tr-bl';
   const backOnTop = overlap === 'back';
   const tiny = scale === 'xs';
   const compact = scale === 'sm' || tiny;
-  const backWidth = tiny
-    ? 'w-[26%] sm:w-[24%]'
-    : compact
-      ? 'w-[42%] sm:w-[40%]'
-      : 'w-[66%] sm:w-[62%]';
+  const backWidth =
+    backWidthClass ??
+    (tiny
+      ? 'w-[26%] sm:w-[24%]'
+      : compact
+        ? 'w-[42%] sm:w-[40%]'
+        : 'w-[66%] sm:w-[62%]');
   const frontWidth =
     frontWidthClass ??
     (tiny
@@ -840,6 +853,7 @@ export function FeatureModulePage({
                       orientation={pointMedia.orientation}
                       scale={pointMedia.scale}
                       overlap={pointMedia.overlap}
+                      backWidthClass={pointMedia.backWidthClass}
                       frontWidthClass={pointMedia.frontWidthClass}
                     />
                   </FeatureMediaFrame>

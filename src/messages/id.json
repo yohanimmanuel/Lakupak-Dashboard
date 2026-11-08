@@ -70,26 +70,22 @@
       },
       "points": {
         "1": {
-          "title": "Konteks akun sebelum kunjungan berikutnya",
-          "desc": "Gunakan riwayat pembelian, kesesuaian, dan sinyal hubungan agar tim tahu toko mana yang butuh perhatian berikutnya, tanpa merekonstruksi akun secara manual."
-        },
-        "2": {
           "title": "Setiap pesanan memperkuat jaringan",
           "desc": "Pesanan pembeli atau retailer dicatat otomatis agar kontak, status jaringan, profil, dan data pesanan tetap selaras di Dashboard dan Marketplace tanpa entri ulang manual."
         },
-        "3": {
+        "2": {
           "title": "Pembeli dan pemasok dalam satu CRM",
           "desc": "Kelola akun ritel dan mitra hulu dari modul Klien yang sama, dengan status Aktif, Prospek, Tidak Aktif, dan Diblokir untuk follow-up harian."
         },
-        "4": {
+        "3": {
           "title": "Pencarian prospek pembeli",
           "desc": "Jelaskan pembeli yang ingin Anda jangkau, termasuk wilayah, jenis outlet, dan kriterianya. Lakupak AI mengusulkan retailer yang cocok, lalu Anda mengisi dan menyimpan hanya prospek yang Anda pilih sebagai pembeli di Klien."
         },
-        "5": {
+        "4": {
           "title": "Riwayat pesanan di setiap pembeli",
           "desc": "Setiap profil pembeli menampilkan baris pesanan tersinkron, total belanja, outstanding, serta grafik pesanan dan belanja bulanan dari Pesanan live."
         },
-        "6": {
+        "5": {
           "title": "Baris pemasok dan analitik pembelian",
           "desc": "Catat SKU, volume, dan nilai pembelian per pemasok, lalu tinjau grafik pasokan dan pembelian bulanan di daftar."
         }

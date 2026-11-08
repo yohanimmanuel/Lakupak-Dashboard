@@ -45,7 +45,7 @@ export const FEATURE_MODULES: FeatureModuleDef[] = [
     group: 'sell',
     icon: Users,
     surfaces: ['dashboard', 'marketplace'],
-    pointsCount: 6,
+    pointsCount: 5,
     highlightsCount: 3,
   },
   {
