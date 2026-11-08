@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ChevronDown, ChevronLeft, ChevronRight, Edit, Filter, RefreshCw, Search, Target } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Edit, Filter, RefreshCw, Search, Sparkles, Target } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useProductsTranslations } from '@/hooks/useProductsTranslations';
 import { confidenceFilterFraction, priorityLabelFromStored, type PriorityLabel } from '@/lib/assortmentOpportunities/config';
@@ -82,7 +82,6 @@ export default function AssortmentOpportunities() {
   const { tShared } = useProductsTranslations();
   const [analysis, setAnalysis] = useState<Array<{ title: string; body: string; points?: string[]; kind: string; metricValue: string; metricLabel: string }>>([]);
   const [analysisMetrics, setAnalysisMetrics] = useState<Array<{ label: string; value: string; hint: string }>>([]);
-  const [analysisSource, setAnalysisSource] = useState<'ai' | 'rules' | ''>('');
   const [analysisLoading, setAnalysisLoading] = useState(true);
   const [filters, setFilters] = useState(emptyFilters);
   const [page, setPage] = useState(1);
@@ -151,11 +150,9 @@ export default function AssortmentOpportunities() {
       };
       setAnalysis(payload.cards ?? []);
       setAnalysisMetrics(payload.metrics ?? []);
-      setAnalysisSource(payload.source);
     } catch {
       setAnalysis([]);
       setAnalysisMetrics([]);
-      setAnalysisSource('');
     } finally {
       setAnalysisLoading(false);
     }
@@ -227,7 +224,13 @@ export default function AssortmentOpportunities() {
             <Target className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <h2 className="text-base font-bold text-black">{t('analysisTitle')}</h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-base font-bold text-black">{t('analysisTitle')}</h2>
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#f7faff] px-2 py-0.5 text-[11px] font-semibold text-[#0a61d7]">
+                <Sparkles className="h-3 w-3" />
+                {t('analysisBadge')}
+              </span>
+            </div>
             <p className="mt-1 text-xs leading-5 text-gray-500">{t('analysisDescription')}</p>
           </div>
         </div>
@@ -254,7 +257,7 @@ export default function AssortmentOpportunities() {
               {analysis.length > 0 ? (
                 <div className="mt-3 flex snap-x gap-3 overflow-x-auto pb-2">
                   {analysis.map((card) => (
-                    <article key={`${card.kind}-${card.title}`} className="flex min-h-52 w-[19rem] shrink-0 snap-start flex-col rounded-lg border border-[#e6e6e6] bg-white p-3">
+                    <article key={`${card.kind}-${card.title}`} className="flex min-h-64 w-[22rem] shrink-0 snap-start flex-col rounded-lg border border-[#e6e6e6] bg-white p-3">
                       <h4 className="min-w-0 truncate text-sm font-semibold text-black">{card.title}</h4>
                       <div className="mt-1.5">
                         <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${analysisKindClass(card.kind)}`}>
@@ -263,7 +266,7 @@ export default function AssortmentOpportunities() {
                       </div>
                       <p className="mt-3 text-2xl font-bold leading-none text-black">{card.metricValue}</p>
                       <p className="mt-1 text-[11px] text-gray-500">{card.metricLabel}</p>
-                      <ul className="mt-2 list-disc space-y-1 pl-4 text-xs leading-5 text-gray-600">
+                      <ul className="mt-2 list-disc space-y-1.5 pl-4 text-xs leading-5 text-gray-600">
                         {(card.points && card.points.length > 0 ? card.points : card.body.split(/(?<=\.)\s+/)).filter(Boolean).map((point) => (
                           <li key={point}>{point.replace(/\.$/, '')}</li>
                         ))}
@@ -276,9 +279,6 @@ export default function AssortmentOpportunities() {
                   <p className="text-sm font-semibold text-gray-600">{t('analysisEmpty')}</p>
                 </div>
               )}
-              {analysisSource === 'rules' && analysis.length > 0 ? (
-                <p className="mt-3 text-xs text-gray-500">{t('analysisRules')}</p>
-              ) : null}
             </>
           )}
         </div>

@@ -685,7 +685,7 @@
     "title": "Opportunities",
     "subtitle": "Each row is one SKU for one active retailer. Match scores use purchase history. Priority is Urgent, High, Medium, Low, or None.",
     "analysisTitle": "Product-Retailer Matching",
-    "analysisBadge": "Product-Retailer Matching",
+    "analysisBadge": "AI analysis",
     "analysisDescription": "Five cards, one for each match signal. The number is how many matches include that signal, and who those matches cover.",
     "analysisPoints": "What the matches show",
     "analysisLoading": "Reading the matches…",

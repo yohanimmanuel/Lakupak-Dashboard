@@ -685,7 +685,7 @@
     "title": "Peluang",
     "subtitle": "Setiap baris adalah satu SKU untuk satu toko aktif. Skor kecocokan memakai riwayat pembelian. Prioritas dibaca Mendesak, Tinggi, Sedang, Rendah, atau Tidak ada.",
     "analysisTitle": "Pencocokan produk-pengecer",
-    "analysisBadge": "Pencocokan produk-pengecer",
+    "analysisBadge": "Analisis AI",
     "analysisDescription": "Lima kartu, satu untuk setiap sinyal kecocokan. Angkanya adalah berapa kecocokan yang memakai sinyal itu, dan toko serta produk yang tercakup.",
     "analysisPoints": "Yang terlihat dari kecocokan",
     "analysisLoading": "Membaca kecocokan…",

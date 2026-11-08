@@ -928,6 +928,65 @@ function storedSignal(breakdown: unknown, key: MatchWeightKey): { score: number 
   };
 }
 
+type SignalExample = {
+  productName: string;
+  retailerName: string;
+  categorySlug: string | null;
+  segment: string;
+  reason: string | null;
+  score: number | null;
+  matchScore: number;
+};
+
+function exampleIdentity(example: SignalExample): string {
+  return `${example.productName.trim().toLowerCase()}::${example.retailerName.trim().toLowerCase()}`;
+}
+
+/** One example per signal; avoid reusing the same product or retailer across weights when possible. */
+function assignUniqueExamples(
+  drafts: Array<{ candidates: SignalExample[]; examples: SignalExample[] }>,
+): void {
+  const usedProducts = new Set<string>();
+  const usedRetailers = new Set<string>();
+  const usedPairs = new Set<string>();
+
+  const tryPick = (
+    ranked: SignalExample[],
+    requireFreshProduct: boolean,
+    requireFreshRetailer: boolean,
+  ): SignalExample | null => {
+    for (const example of ranked) {
+      const productKey = example.productName.trim().toLowerCase();
+      const retailerKey = example.retailerName.trim().toLowerCase();
+      const pairKey = exampleIdentity(example);
+      if (usedPairs.has(pairKey)) continue;
+      if (requireFreshProduct && usedProducts.has(productKey)) continue;
+      if (requireFreshRetailer && usedRetailers.has(retailerKey)) continue;
+      return example;
+    }
+    return null;
+  };
+
+  for (const draft of drafts) {
+    const ranked = [...draft.candidates].sort(
+      (a, b) => (b.score ?? -1) - (a.score ?? -1) || b.matchScore - a.matchScore,
+    );
+    const picked =
+      tryPick(ranked, true, true) ??
+      tryPick(ranked, true, false) ??
+      tryPick(ranked, false, true) ??
+      tryPick(ranked, false, false);
+    if (!picked) {
+      draft.examples = [];
+      continue;
+    }
+    draft.examples = [picked];
+    usedProducts.add(picked.productName.trim().toLowerCase());
+    usedRetailers.add(picked.retailerName.trim().toLowerCase());
+    usedPairs.add(exampleIdentity(picked));
+  }
+}
+
 export async function assortmentAnalysisFacts(distributorId: number) {
   assertOpportunityTenant(distributorId, distributorId);
   const [portfolio, opportunities, products] = await Promise.all([
@@ -941,6 +1000,10 @@ export async function assortmentAnalysisFacts(distributorId: number) {
       select: {
         buyerId: true,
         productId: true,
+        productName: true,
+        retailerName: true,
+        categorySlug: true,
+        segment: true,
         opportunityType: true,
         reasons: true,
         matchScore: true,
@@ -953,12 +1016,16 @@ export async function assortmentAnalysisFacts(distributorId: number) {
     }),
   ]);
   const matchTotal = opportunities.reduce((sum, row) => sum + Number(row.matchScore), 0);
-  const signals = (Object.keys(MATCH_WEIGHTS) as MatchWeightKey[]).map((key) => {
+  const signalDrafts = (Object.keys(MATCH_WEIGHTS) as MatchWeightKey[]).map((key) => {
     const buyers = new Set<string>();
-    const products = new Set<string>();
+    const productIds = new Set<string>();
+    const categoryCounts = new Map<string, number>();
+    const segmentCounts = new Map<string, number>();
+    const candidates: SignalExample[] = [];
     let matches = 0;
     let scoreTotal = 0;
     let scored = 0;
+    let strongScores = 0;
     let insideRange = 0;
     let outsideRange = 0;
     for (const row of opportunities) {
@@ -967,25 +1034,59 @@ export async function assortmentAnalysisFacts(distributorId: number) {
       if (!signal && !reason) continue;
       matches += 1;
       buyers.add(row.buyerId);
-      products.add(row.productId);
+      productIds.add(row.productId);
+      const categoryKey = row.categorySlug?.trim();
+      if (categoryKey) categoryCounts.set(categoryKey, (categoryCounts.get(categoryKey) ?? 0) + 1);
+      const segmentKey = row.segment?.trim();
+      if (segmentKey) segmentCounts.set(segmentKey, (segmentCounts.get(segmentKey) ?? 0) + 1);
       if (signal?.score != null) {
         scoreTotal += signal.score;
         scored += 1;
+        if (signal.score >= 80) strongScores += 1;
       }
       if (reason === 'price_within_range') insideRange += 1;
       if (reason === 'price_outside_range') outsideRange += 1;
+      candidates.push({
+        productName: row.productName,
+        retailerName: row.retailerName,
+        categorySlug: row.categorySlug,
+        segment: row.segment,
+        reason,
+        score: signal?.score ?? null,
+        matchScore: Number(row.matchScore),
+      });
     }
+    const topCategoryEntry = [...categoryCounts.entries()].sort(
+      (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
+    )[0];
+    const topSegmentEntry = [...segmentCounts.entries()].sort(
+      (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
+    )[0];
     return {
       key,
       weight: MATCH_WEIGHTS[key],
       matches,
       retailers: buyers.size,
-      products: products.size,
+      products: productIds.size,
       averageScore: scored > 0 ? Math.round(scoreTotal / scored) : null,
+      strongScores,
       insideRange,
       outsideRange,
+      topCategory: topCategoryEntry?.[0] ?? null,
+      topCategoryMatches: topCategoryEntry?.[1] ?? 0,
+      topSegment: topSegmentEntry?.[0] ?? null,
+      topSegmentMatches: topSegmentEntry?.[1] ?? 0,
+      candidates,
+      examples: [] as SignalExample[],
     };
   });
+
+  // Prefer signals with fewer candidate pairs first so scarce examples are not all claimed by earlier weights.
+  assignUniqueExamples(
+    [...signalDrafts].sort((a, b) => a.candidates.length - b.candidates.length || a.weight - b.weight),
+  );
+
+  const signals = signalDrafts.map(({ candidates: _candidates, ...signal }) => signal);
   const productLabels = new Map(products.map((product) => [product.productId, { name: product.name, brand: product.brand }]));
   const penetrationRows = [...portfolio.product.entries()]
     .map(([productId, slice]) => ({
