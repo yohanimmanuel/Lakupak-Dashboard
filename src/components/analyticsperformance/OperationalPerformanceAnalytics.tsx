@@ -1078,13 +1078,32 @@ export const OperationalMetricCard: React.FC<{
   icon: React.ReactNode;
   color: string;
   comparisonLabel?: string;
+  naLabel?: string;
   previousValue?: string;
-}> = ({ title, value, change, icon, color, comparisonLabel, previousValue }) => {
+  currentValue?: string;
+  thisMonthLabel?: string;
+  lastMonthLabel?: string;
+  vsLabel?: string;
+}> = ({
+  title,
+  value,
+  change,
+  icon,
+  color,
+  comparisonLabel,
+  naLabel,
+  previousValue,
+  currentValue,
+  thisMonthLabel,
+  lastMonthLabel,
+  vsLabel,
+}) => {
   const { tShared } = useAnalyticsTranslations();
   const resolvedComparisonLabel = comparisonLabel ?? tShared('vsLastMonth');
+  const resolvedNaLabel = naLabel ?? tShared('na');
 
   return (
-<div className="flex flex-col justify-between p-4 rounded-lg bg-white border border-[#e6e6e6]">
+<div className="relative flex flex-col justify-between overflow-visible rounded-lg border border-[#e6e6e6] bg-white p-4">
       <div className="flex items-center gap-4 border-b border-[#e6e6e6] pb-4">
         <div className={`flex items-center justify-center w-12 h-12 rounded-lg ${color}`}>
         {icon}
@@ -1094,11 +1113,16 @@ export const OperationalMetricCard: React.FC<{
         <div className="text-xl font-bold text-black">{value}</div>
       </div>
     </div>
-    <div className="mt-4 ml-1">
+    <div className="relative mt-4 ml-1 overflow-visible">
       <MetricChangeFooter
         change={change}
         comparisonLabel={resolvedComparisonLabel}
+        naLabel={resolvedNaLabel}
         previousValue={previousValue}
+        currentValue={currentValue}
+        thisMonthLabel={thisMonthLabel ?? tShared('thisMonth')}
+        lastMonthLabel={lastMonthLabel ?? tShared('vsLastMonth')}
+        vsLabel={vsLabel ?? tShared('monthComparisonVs')}
       />
     </div>
   </div>

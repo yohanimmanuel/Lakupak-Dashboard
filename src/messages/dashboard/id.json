@@ -3,6 +3,8 @@
     "loadingDashboard": "Memuat dashboard...",
     "retry": "Coba lagi",
     "vsLastMonth": "bulan lalu",
+    "thisMonth": "bulan ini",
+    "monthComparisonVs": "vs",
     "notAvailable": "T/A",
     "details": "Detail",
     "remove": "Hapus",

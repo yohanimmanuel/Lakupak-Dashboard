@@ -186,11 +186,11 @@
     "stats": {
       "totalBuyers": "Total Buyers",
       "activeBuyers": "Active Buyers",
-      "monthlyBuyerSpend": "Monthly Buyer Spend",
-      "avgOrderFrequency": "Avg. Order Frequency",
+      "monthlyBuyerSpend": "Avg. Monthly Spending",
+      "avgOrderFrequency": "Avg. Ordered Items",
       "totalSuppliers": "Total Suppliers",
       "activeSuppliers": "Active Suppliers",
-      "monthlyPurchaseValue": "Monthly Purchase Value",
+      "monthlyPurchaseValue": "Avg. Monthly Purchases",
       "onTimeDeliveryRate": "On-time Delivery Rate",
       "perMonth": "/mo"
     }

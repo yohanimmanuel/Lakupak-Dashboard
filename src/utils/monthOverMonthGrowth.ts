@@ -5,11 +5,20 @@ import {
   AnalyticsTimeRange,
   filterOrdersByPreviousTimeRange,
   filterOrdersByTimeRange,
-  getAnalyticsCutoffDate,
 } from '@/utils/analyticsTimeRange';
 
 export function toMonthKey(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/** Current calendar month and the previous calendar month (YYYY-MM). */
+export function getCalendarMonthPair(from: Date = new Date()): {
+  currentKey: string;
+  previousKey: string;
+} {
+  const currentKey = toMonthKey(from);
+  const previous = new Date(from.getFullYear(), from.getMonth() - 1, 15);
+  return { currentKey, previousKey: toMonthKey(previous) };
 }
 
 export function parseDate(value: Date | string | null | undefined): Date | null {
@@ -76,41 +85,75 @@ export function countByMonth<T>(
 }
 
 /**
- * Growth for list KPI cards that show all-time totals.
- * Compares current list size vs how many items existed one month ago
- * (created before the current 1M look-back cutoff).
+ * Count of items dated in this calendar month vs the previous calendar month.
  */
-export function cumulativeCountGrowthDetail<T>(
+export function calendarMonthCountGrowthDetail<T>(
   items: T[],
   getDate: (item: T) => Date | string | null | undefined,
   from: Date = new Date(),
-): { growth: number | null; previous: number | null } {
+): { growth: number | null; previous: number | null; current: number } {
   if (!Array.isArray(items) || items.length === 0) {
-    return { growth: null, previous: null };
+    return { growth: null, previous: null, current: 0 };
   }
 
-  const cutoff = getAnalyticsCutoffDate('1M', from);
-  const current = items.length;
-  const previous = items.filter((item) => {
+  const { currentKey, previousKey } = getCalendarMonthPair(from);
+  let current = 0;
+  let previous = 0;
+
+  for (const item of items) {
     const d = parseDate(getDate(item));
-    return d !== null && d < cutoff;
-  }).length;
+    if (!d) continue;
+    const key = toMonthKey(d);
+    if (key === currentKey) current += 1;
+    else if (key === previousKey) previous += 1;
+  }
 
   if (previous === 0) {
-    return { growth: null, previous: null };
+    return { growth: null, previous: 0, current };
   }
 
   return {
     growth: percentChange(current, previous),
     previous,
+    current,
   };
+}
+
+/** @deprecated Prefer calendarMonthCountGrowthDetail — kept as an alias for older call sites. */
+export function cumulativeCountGrowthDetail<T>(
+  items: T[],
+  getDate: (item: T) => Date | string | null | undefined,
+  from: Date = new Date(),
+): { growth: number | null; previous: number | null } {
+  const result = calendarMonthCountGrowthDetail(items, getDate, from);
+  return { growth: result.growth, previous: result.previous };
 }
 
 export function cumulativeCountGrowth<T>(
   items: T[],
   getDate: (item: T) => Date | string | null | undefined,
 ): number | null {
-  return cumulativeCountGrowthDetail(items, getDate).growth;
+  return calendarMonthCountGrowthDetail(items, getDate).growth;
+}
+
+/**
+ * Compare two numeric calendar-month totals (this month vs last month).
+ */
+export function calendarMonthValueGrowth(
+  current: number,
+  previous: number,
+): { growth: number | null; previous: number | null; current: number } {
+  if (!Number.isFinite(current) || !Number.isFinite(previous)) {
+    return { growth: null, previous: null, current: Number.isFinite(current) ? current : 0 };
+  }
+  if (previous === 0) {
+    return { growth: null, previous: 0, current };
+  }
+  return {
+    growth: percentChange(current, previous),
+    previous,
+    current,
+  };
 }
 
 export function formatLegacyTrend(
@@ -160,19 +203,26 @@ type OrderGrowthBucket = {
 
 const EMPTY_ORDER_GROWTH = {
   ordersGrowth: null as number | null,
-  ordersPrevious: null as number | null,
+  ordersCurrent: 0,
+  ordersPrevious: 0,
   orderVolumeGrowth: null as number | null,
-  orderVolumePrevious: null as number | null,
+  orderVolumeCurrent: 0,
+  orderVolumePrevious: 0,
   completionGrowth: null as number | null,
-  completionPrevious: null as number | null,
+  completionCurrent: 0,
+  completionPrevious: 0,
   averageOrderVolumeGrowth: null as number | null,
-  averageOrderVolumePrevious: null as number | null,
+  averageOrderVolumeCurrent: 0,
+  averageOrderVolumePrevious: 0,
   piecesGrowth: null as number | null,
-  piecesPrevious: null as number | null,
+  piecesCurrent: 0,
+  piecesPrevious: 0,
   paidGrowth: null as number | null,
-  paidPrevious: null as number | null,
+  paidCurrent: 0,
+  paidPrevious: 0,
   unpaidGrowth: null as number | null,
-  unpaidPrevious: null as number | null,
+  unpaidCurrent: 0,
+  unpaidPrevious: 0,
 };
 
 function addPaymentAmounts(bucket: OrderGrowthBucket, order: Order, amount: number) {
@@ -235,19 +285,26 @@ function growthFromBucketPair(last: OrderGrowthBucket, prev: OrderGrowthBucket) 
 
   return {
     ordersGrowth,
-    ordersPrevious: hasPrevious ? prev.orders : null,
+    ordersCurrent: last.orders,
+    ordersPrevious: prev.orders,
     orderVolumeGrowth,
-    orderVolumePrevious: hasPrevious ? prev.orderVolume : null,
+    orderVolumeCurrent: last.orderVolume,
+    orderVolumePrevious: prev.orderVolume,
     completionGrowth,
-    completionPrevious: hasPrevious ? completionPrev : null,
+    completionCurrent: completionLast,
+    completionPrevious: completionPrev,
     averageOrderVolumeGrowth,
-    averageOrderVolumePrevious: hasPrevious ? avgPrev : null,
+    averageOrderVolumeCurrent: avgLast,
+    averageOrderVolumePrevious: avgPrev,
     piecesGrowth,
-    piecesPrevious: hasPrevious ? prev.pieces : null,
+    piecesCurrent: last.pieces,
+    piecesPrevious: prev.pieces,
     paidGrowth,
-    paidPrevious: hasPrevious ? prev.paid : null,
+    paidCurrent: last.paid,
+    paidPrevious: prev.paid,
     unpaidGrowth,
-    unpaidPrevious: hasPrevious ? prev.unpaid : null,
+    unpaidCurrent: last.unpaid,
+    unpaidPrevious: prev.unpaid,
   };
 }
 
@@ -281,51 +338,22 @@ export function computeOrderPeriodGrowth(
   return growthFromBucketPair(toBucket(currentOrders), toBucket(previousOrders));
 }
 
-export function computeOrderMonthOverMonthGrowth(orders: Order[]) {
+export function computeOrderMonthOverMonthGrowth(orders: Order[], from: Date = new Date()) {
   if (!Array.isArray(orders) || orders.length === 0) return EMPTY_ORDER_GROWTH;
 
+  const { currentKey, previousKey } = getCalendarMonthPair(from);
   const byMonth = aggregateOrdersIntoBuckets(orders, toMonthKey);
-  const keys = Object.keys(byMonth).sort();
-  if (keys.length < 2) return EMPTY_ORDER_GROWTH;
-
-  const last = byMonth[keys[keys.length - 1]];
-  const prev = byMonth[keys[keys.length - 2]];
+  const last = byMonth[currentKey] ?? emptyOrderGrowthBucket();
+  const prev = byMonth[previousKey] ?? emptyOrderGrowthBucket();
 
   return growthFromBucketPair(last, prev);
 }
 
 /**
- * Growth for Orders list KPI cards (all-time totals on the page).
- * Compares current list totals vs the same metrics as of one month ago
- * (orders dated before the current 1M look-back cutoff).
+ * Growth for Orders / Home KPI cards.
+ * Compares this calendar month vs the previous calendar month
+ * (by orderDate), not cumulative all-time totals.
  */
 export function computeOrdersListGrowth(orders: Order[], from: Date = new Date()) {
-  if (!Array.isArray(orders) || orders.length === 0) return EMPTY_ORDER_GROWTH;
-
-  const cutoff = getAnalyticsCutoffDate('1M', from);
-
-  const toBucket = (list: Order[]): OrderGrowthBucket => {
-    const bucket = emptyOrderGrowthBucket();
-    list.forEach((order) => {
-      const amount = calculateOrderTotalAmount(order);
-      bucket.orders += 1;
-      bucket.orderVolume += amount;
-      bucket.pieces += orderPieces(order);
-      if (isCompletedOrderStatus(order.orderStatus)) {
-        bucket.completed += 1;
-      }
-      addPaymentAmounts(bucket, order, amount);
-    });
-    return bucket;
-  };
-
-  const current = toBucket(orders);
-  const previous = toBucket(
-    orders.filter((order) => {
-      const d = parseDate(order.orderDate);
-      return d !== null && d < cutoff;
-    }),
-  );
-
-  return growthFromBucketPair(current, previous);
+  return computeOrderMonthOverMonthGrowth(orders, from);
 }

@@ -26,7 +26,7 @@ function isCompletedOrder(status: string): boolean {
 }
 
 export default function OrdersCards({ orders }: OrdersCardsProps) {
-  const { tCards } = useOrdersTranslations();
+  const { tCards, tCommon } = useOrdersTranslations();
   const user = useUserStore((state) => state.user);
 
   const validOrders = Array.isArray(orders) ? orders : [];
@@ -43,6 +43,12 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
   const growth = useMemo(() => computeOrdersListGrowth(validOrders), [validOrders]);
 
   const displayCurrency = user?.currency || getDefaultCurrency();
+  const comparisonProps = {
+    thisMonthLabel: tCommon('thisMonth'),
+    lastMonthLabel: tCommon('vsLastMonth'),
+    vsLabel: tCommon('monthComparisonVs'),
+    naLabel: tCommon('notAvailable'),
+  };
 
   return (
     <div className="grid grid-cols-1 gap-3 @3xl/main:grid-cols-2 @5xl/main:grid-cols-3">
@@ -50,71 +56,61 @@ export default function OrdersCards({ orders }: OrdersCardsProps) {
         title={tCards('totalOrders')}
         value={totalOrders.toLocaleString()}
         change={growth.ordersGrowth}
-        previousValue={
-          growth.ordersPrevious != null ? growth.ordersPrevious.toLocaleString() : undefined
-        }
+        currentValue={growth.ordersCurrent.toLocaleString()}
+        previousValue={growth.ordersPrevious.toLocaleString()}
         icon={<Package className={`w-6 h-6 ${STAT_ICON_BLUE}`} />}
         color={STAT_ICON_BG_BLUE}
+        {...comparisonProps}
       />
       <AnalyticsMetricCard
         title={tCards('paid')}
         value={formatCurrency(paidVolume, displayCurrency)}
         change={growth.paidGrowth}
-        previousValue={
-          growth.paidPrevious != null
-            ? formatCompactCurrency(growth.paidPrevious, displayCurrency)
-            : undefined
-        }
+        currentValue={formatCompactCurrency(growth.paidCurrent, displayCurrency)}
+        previousValue={formatCompactCurrency(growth.paidPrevious, displayCurrency)}
         icon={<BadgeCheck className={`w-6 h-6 ${STAT_ICON_GREEN}`} />}
         color={STAT_ICON_BG_GREEN}
+        {...comparisonProps}
       />
       <AnalyticsMetricCard
         title={tCards('unpaid')}
         value={formatCurrency(unpaidVolume, displayCurrency)}
         change={growth.unpaidGrowth}
-        previousValue={
-          growth.unpaidPrevious != null
-            ? formatCompactCurrency(growth.unpaidPrevious, displayCurrency)
-            : undefined
-        }
+        currentValue={formatCompactCurrency(growth.unpaidCurrent, displayCurrency)}
+        previousValue={formatCompactCurrency(growth.unpaidPrevious, displayCurrency)}
         icon={<Clock className={`w-6 h-6 ${STAT_ICON_BLUE}`} />}
         color={STAT_ICON_BG_BLUE}
+        {...comparisonProps}
       />
       <AnalyticsMetricCard
         title={tCards('orderVolume')}
         value={formatCurrency(orderVolume, displayCurrency)}
         change={growth.orderVolumeGrowth}
-        previousValue={
-          growth.orderVolumePrevious != null
-            ? formatCompactCurrency(growth.orderVolumePrevious, displayCurrency)
-            : undefined
-        }
+        currentValue={formatCompactCurrency(growth.orderVolumeCurrent, displayCurrency)}
+        previousValue={formatCompactCurrency(growth.orderVolumePrevious, displayCurrency)}
         icon={<DollarSign className={`w-6 h-6 ${STAT_ICON_BLUE}`} />}
         color={STAT_ICON_BG_BLUE}
+        {...comparisonProps}
       />
       <AnalyticsMetricCard
         title={tCards('averageOrderVolume')}
         value={formatCurrency(averageOrderVolume, displayCurrency)}
         change={growth.averageOrderVolumeGrowth}
-        previousValue={
-          growth.averageOrderVolumePrevious != null
-            ? formatCompactCurrency(growth.averageOrderVolumePrevious, displayCurrency)
-            : undefined
-        }
+        currentValue={formatCompactCurrency(growth.averageOrderVolumeCurrent, displayCurrency)}
+        previousValue={formatCompactCurrency(growth.averageOrderVolumePrevious, displayCurrency)}
         icon={<DollarSign className={`w-6 h-6 ${STAT_ICON_BLUE}`} />}
         color={STAT_ICON_BG_BLUE}
+        {...comparisonProps}
       />
       <OperationalMetricCard
         title={tCards('completionRate')}
         value={`${completionRate.toFixed(1)}%`}
         change={growth.completionGrowth}
-        previousValue={
-          growth.completionPrevious != null
-            ? `${growth.completionPrevious.toFixed(1)}%`
-            : undefined
-        }
+        currentValue={`${growth.completionCurrent.toFixed(1)}%`}
+        previousValue={`${growth.completionPrevious.toFixed(1)}%`}
         icon={<CheckCircle className={`w-6 h-6 ${STAT_ICON_GREEN}`} />}
         color={STAT_ICON_BG_GREEN}
+        {...comparisonProps}
       />
     </div>
   );

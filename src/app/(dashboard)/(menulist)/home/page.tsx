@@ -1638,10 +1638,8 @@ const supplierInsights = useMemo(() => {
         title: t('stats.orderVolume'),
         value: formatCurrency(orderVolume, userCurrency),
         change: orderGrowth.orderVolumeGrowth,
-        previousValue:
-          orderGrowth.orderVolumePrevious != null
-            ? formatCompactCurrency(orderGrowth.orderVolumePrevious, userCurrency)
-            : undefined,
+        currentValue: formatCompactCurrency(orderGrowth.orderVolumeCurrent, userCurrency),
+        previousValue: formatCompactCurrency(orderGrowth.orderVolumePrevious, userCurrency),
         icon: <DollarSign className="w-6 h-6 text-[#0a61d7]" />,
         color: 'bg-[#f7faff]',
       },
@@ -1650,10 +1648,8 @@ const supplierInsights = useMemo(() => {
         title: t('stats.totalOrders'),
         value: totalOrderCount.toLocaleString(),
         change: orderGrowth.ordersGrowth,
-        previousValue:
-          orderGrowth.ordersPrevious != null
-            ? orderGrowth.ordersPrevious.toLocaleString()
-            : undefined,
+        currentValue: orderGrowth.ordersCurrent.toLocaleString(),
+        previousValue: orderGrowth.ordersPrevious.toLocaleString(),
         icon: <ShoppingCart className="w-6 h-6 text-[#0a61d7]" />,
         color: 'bg-[#f7faff]',
       },
@@ -1662,10 +1658,8 @@ const supplierInsights = useMemo(() => {
         title: t('stats.piecesSold'),
         value: safeSalesMetrics.totalUnitsSold.toLocaleString(),
         change: orderGrowth.piecesGrowth,
-        previousValue:
-          orderGrowth.piecesPrevious != null
-            ? orderGrowth.piecesPrevious.toLocaleString()
-            : undefined,
+        currentValue: orderGrowth.piecesCurrent.toLocaleString(),
+        previousValue: orderGrowth.piecesPrevious.toLocaleString(),
         icon: <Package className="w-6 h-6 text-[#0a61d7]" />,
         color: 'bg-[#f7faff]',
       },
@@ -1674,10 +1668,8 @@ const supplierInsights = useMemo(() => {
         title: t('stats.averageOrderVolume'),
         value: formatCurrency(averageOrderVolume, userCurrency),
         change: orderGrowth.averageOrderVolumeGrowth,
-        previousValue:
-          orderGrowth.averageOrderVolumePrevious != null
-            ? formatCompactCurrency(orderGrowth.averageOrderVolumePrevious, userCurrency)
-            : undefined,
+        currentValue: formatCompactCurrency(orderGrowth.averageOrderVolumeCurrent, userCurrency),
+        previousValue: formatCompactCurrency(orderGrowth.averageOrderVolumePrevious, userCurrency),
         icon: <DollarSign className="w-6 h-6 text-[#0a61d7]" />,
         color: 'bg-[#f7faff]',
       },
@@ -2798,11 +2790,15 @@ const supplierInsights = useMemo(() => {
                   title={card.title}
                   value={card.value}
                   change={card.change}
+                  currentValue={card.currentValue}
                   previousValue={card.previousValue}
                   icon={card.icon}
                   color={card.color}
                   comparisonLabel={tCommon('vsLastMonth')}
                   naLabel={tCommon('notAvailable')}
+                  thisMonthLabel={tCommon('thisMonth')}
+                  lastMonthLabel={tCommon('vsLastMonth')}
+                  vsLabel={tCommon('monthComparisonVs')}
                 />
               ))}
             </section>

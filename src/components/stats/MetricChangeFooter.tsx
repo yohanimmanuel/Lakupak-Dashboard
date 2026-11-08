@@ -7,6 +7,11 @@ type MetricChangeFooterProps = {
   comparisonLabel: string;
   naLabel?: string;
   previousValue?: string;
+  /** When set with previousValue, hover shows "X this month vs Y last month". */
+  currentValue?: string;
+  thisMonthLabel?: string;
+  lastMonthLabel?: string;
+  vsLabel?: string;
 };
 
 function TrendIcon({ tone }: { tone: 'up' | 'down' | 'neutral' }) {
@@ -33,46 +38,85 @@ function TrendIcon({ tone }: { tone: 'up' | 'down' | 'neutral' }) {
   );
 }
 
+function buildComparisonText({
+  currentValue,
+  previousValue,
+  naLabel,
+  thisMonthLabel,
+  lastMonthLabel,
+  vsLabel,
+}: {
+  currentValue?: string;
+  previousValue?: string;
+  naLabel: string;
+  thisMonthLabel: string;
+  lastMonthLabel: string;
+  vsLabel: string;
+}): string | null {
+  const currentPart = currentValue?.trim() || null;
+  const previousPart = previousValue?.trim() || null;
+  if (!currentPart && !previousPart) return null;
+  return `${currentPart ?? naLabel} ${thisMonthLabel} ${vsLabel} ${previousPart ?? naLabel} ${lastMonthLabel}`;
+}
+
 export function MetricChangeFooter({
   change,
   comparisonLabel,
   naLabel = 'N/A',
   previousValue,
+  currentValue,
+  thisMonthLabel = 'this month',
+  lastMonthLabel = 'last month',
+  vsLabel = 'vs',
 }: MetricChangeFooterProps) {
-  const previousPart = previousValue?.trim() || null;
-  const periodPart = comparisonLabel.trim() ? `(${comparisonLabel.trim()})` : '';
+  const comparisonText = buildComparisonText({
+    currentValue,
+    previousValue,
+    naLabel,
+    thisMonthLabel,
+    lastMonthLabel,
+    vsLabel,
+  });
 
-  // No baseline: show N/A + period label only (never "Rp 0 last month")
-  if (change === null || change === undefined) {
-    return (
-      <div className="inline-flex max-w-full flex-wrap items-center gap-2 text-xs">
-        <TrendIcon tone="neutral" />
-        <span className="font-semibold text-gray-500">{naLabel}</span>
-        {periodPart ? <span className="text-gray-400">{periodPart}</span> : null}
-      </div>
-    );
-  }
+  const percentLabel =
+    change === null || change === undefined
+      ? naLabel
+      : change === 0
+        ? '0.0%'
+        : `${change >= 0 ? '+' : '-'}${Math.abs(change).toFixed(1)}%`;
 
-  const comparisonText = [previousPart, periodPart].filter(Boolean).join(' ');
+  const tone: 'up' | 'down' | 'neutral' =
+    change === null || change === undefined || change === 0
+      ? 'neutral'
+      : change >= 0
+        ? 'up'
+        : 'down';
 
-  if (change === 0) {
-    return (
-      <div className="inline-flex max-w-full flex-wrap items-center gap-2 text-xs">
-        <TrendIcon tone="neutral" />
-        <span className="font-semibold text-gray-500">0.0%</span>
-        {comparisonText ? <span className="text-gray-400">{comparisonText}</span> : null}
-      </div>
-    );
-  }
-
-  const up = change >= 0;
-  const signed = `${up ? '+' : '-'}${Math.abs(change).toFixed(1)}%`;
+  const percentClass =
+    tone === 'up'
+      ? 'text-[#3ea73b]'
+      : tone === 'down'
+        ? 'text-[#f65911]'
+        : 'text-gray-500';
 
   return (
-    <div className="inline-flex max-w-full flex-wrap items-center gap-2 text-xs">
-      <TrendIcon tone={up ? 'up' : 'down'} />
-      <span className={`font-semibold ${up ? 'text-[#3ea73b]' : 'text-[#f65911]'}`}>{signed}</span>
-      {comparisonText ? <span className="text-gray-400">{comparisonText}</span> : null}
+    <div
+      className="group/metric relative inline-flex max-w-full items-center gap-2 text-xs outline-none focus-visible:ring-2 focus-visible:ring-[#0a61d7]/focus-visible:ring-offset-1"
+      tabIndex={comparisonText ? 0 : undefined}
+    >
+      <TrendIcon tone={tone} />
+      <span className={`font-semibold ${percentClass}`}>{percentLabel}</span>
+      <span className="truncate text-gray-500">
+        {vsLabel} {comparisonLabel}
+      </span>
+      {comparisonText ? (
+        <div
+          role="tooltip"
+          className="pointer-events-none absolute bottom-[calc(100%+0.5rem)] left-0 z-50 hidden min-w-[12rem] max-w-[18rem] rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-xs font-medium leading-snug text-gray-700 shadow-[0_12px_28px_-12px_rgba(15,23,42,0.35)] group-hover/metric:block group-focus-within/metric:block"
+        >
+          {comparisonText}
+        </div>
+      ) : null}
     </div>
   );
 }

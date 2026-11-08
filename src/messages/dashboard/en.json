@@ -3,6 +3,8 @@
     "loadingDashboard": "Loading dashboard...",
     "retry": "Retry",
     "vsLastMonth": "last month",
+    "thisMonth": "this month",
+    "monthComparisonVs": "vs",
     "notAvailable": "N/A",
     "details": "Details",
     "remove": "Remove",

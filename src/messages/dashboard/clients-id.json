@@ -186,11 +186,11 @@
     "stats": {
       "totalBuyers": "Total Pembeli",
       "activeBuyers": "Pembeli Aktif",
-      "monthlyBuyerSpend": "Belanja Pembeli Bulanan",
-      "avgOrderFrequency": "Frekuensi Pesanan",
+      "monthlyBuyerSpend": "Rata-rata Belanja Bulanan",
+      "avgOrderFrequency": "Rata-rata Item Dipesan",
       "totalSuppliers": "Total Pemasok",
       "activeSuppliers": "Pemasok Aktif",
-      "monthlyPurchaseValue": "Nilai Pembelian Bulanan",
+      "monthlyPurchaseValue": "Rata-rata Pembelian Bulanan",
       "onTimeDeliveryRate": "Pengiriman Tepat Waktu",
       "perMonth": "/bln"
     }
