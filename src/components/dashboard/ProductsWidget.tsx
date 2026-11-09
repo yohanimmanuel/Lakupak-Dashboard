@@ -10,7 +10,7 @@ export type TopProductRow = {
   rank: number;
   image: string | null;
   productName: string;
-  productCategory: string;
+  productType: string;
   orderVolume: number;
   unitsSold: number;
   margin: number;
@@ -71,7 +71,7 @@ export default function ProductsWidget({
                   )}
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-black">{product.productName}</p>
-                    <p className="text-xs text-gray-500">{product.productCategory}</p>
+                    <p className="text-xs text-gray-500">{product.productType}</p>
                   </div>
                 </div>
                 <div className="ml-auto flex flex-wrap items-center gap-4 text-sm @sm:gap-6">

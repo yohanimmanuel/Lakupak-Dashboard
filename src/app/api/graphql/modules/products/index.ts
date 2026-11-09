@@ -2,14 +2,12 @@ import { GraphQLError } from 'graphql';
 import { type Prisma } from '@/lib/db';
 import {
   productImagesError,
+  productMarketSegmentError,
   productReturnDaysError,
   productTextFieldsError,
 } from '@/utils/product-security';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
-import {
-  normalizeMerchandisingCategorySlug,
-  normalizeSalesChannel,
-} from '@/constants/merchandisingTaxonomy';
+import { normalizeMerchandisingCategorySlug } from '@/constants/merchandisingTaxonomy';
 import { broadcastPriceUpdate, broadcastProductUpdate } from '@/utils/websocketBroadcast';
 import { calculateSoldCounts, restoreCatalogPricesFromOriginals } from '@/utils/marketplaceMetrics';
 import { NotificationService } from '../notifications';
@@ -34,6 +32,7 @@ function rejectProductInput(message: string): never {
 
 function assertProductPayload(input: {
   sku?: unknown;
+  marketSegment?: unknown;
   name?: unknown;
   description?: unknown;
   productType?: unknown;
@@ -53,7 +52,6 @@ function assertProductPayload(input: {
 }) {
   const textError = productTextFieldsError(
     {
-      sku: input.sku,
       name: input.name,
       description: input.description,
       productType: input.productType,
@@ -63,6 +61,8 @@ function assertProductPayload(input: {
     input.textMode,
   );
   if (textError) rejectProductInput(textError);
+  const marketSegmentError = productMarketSegmentError(input.marketSegment);
+  if (marketSegmentError) rejectProductInput(marketSegmentError);
   const imageError = productImagesError(input.images);
   if (imageError) rejectProductInput(imageError);
   const daysError = productReturnDaysError(input.returnPolicyDays);
@@ -134,15 +134,16 @@ export const productsTypeDefs = /* GraphQL */ `
     id: Int!
     productId: String!
     sku: String!
+    marketSegment: String
     name: String!
     description: String!
     productType: String!
     brand: String!
     supplier: String!
     status: String!
-    productCategory: String!
     merchandisingCategorySlug: String
     catalogName: String
+    stockUnit: String
     images: [String!]!
     halalCertified: Boolean
     bpomApproved: Boolean
@@ -351,15 +352,16 @@ export const productsTypeDefs = /* GraphQL */ `
       userId: Int!
       productId: String
       sku: String
+      marketSegment: String
       name: String!
       description: String!
       productType: String!
       brand: String!
       supplier: String!
       status: String
-    productCategory: String!
     merchandisingCategorySlug: String
     catalogName: String
+    stockUnit: String
       images: [String!]
       halalCertified: Boolean
       bpomApproved: Boolean
@@ -375,15 +377,16 @@ export const productsTypeDefs = /* GraphQL */ `
       id: String
       productId: String
       sku: String
+      marketSegment: String
       name: String
       description: String
       productType: String
       brand: String
       supplier: String
       status: String
-    productCategory: String
     merchandisingCategorySlug: String
     catalogName: String
+    stockUnit: String
       images: [String!]
       halalCertified: Boolean
       bpomApproved: Boolean
@@ -551,15 +554,16 @@ export const mapProduct = (
     id: product.id,
     productId: product.productId,
     sku: product.sku,
+    marketSegment: (product as { marketSegment?: string | null }).marketSegment ?? null,
     name: product.name,
     description: product.description,
     productType: product.productType,
     brand: product.brand,
     supplier: product.supplier,
     status: product.status,
-    productCategory: product.productCategory,
     merchandisingCategorySlug: (product as { merchandisingCategorySlug?: string | null }).merchandisingCategorySlug ?? null,
     catalogName: product.catalogName ?? null,
+    stockUnit: (product as { stockUnit?: string | null }).stockUnit ?? 'Pieces',
     images: product.images ?? [],
     halalCertified: product.halalCertified ?? null,
     bpomApproved: product.bpomApproved ?? null,
@@ -806,18 +810,26 @@ export const fetchMarketplaceProductsConnection = async (args: {
 
 const generateUniqueProductId = () => `PROD-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
+const STOCK_UNITS = new Set(['Pieces', 'Boxes', 'Cartons']);
+
+const normalizeStockUnit = (raw?: string | null): string => {
+  const value = String(raw || '').trim();
+  return STOCK_UNITS.has(value) ? value : 'Pieces';
+};
+
 const buildProductData = ({
   productId,
   sku,
+  marketSegment,
   name,
   description,
   productType,
   brand,
   supplier,
   status,
-  productCategory,
   merchandisingCategorySlug,
   catalogName,
+  stockUnit,
   images,
   halalCertified,
   bpomApproved,
@@ -827,16 +839,16 @@ const buildProductData = ({
 }: {
   productId: string;
   sku?: string | null;
+  marketSegment?: string | null;
   name: string;
   description: string;
   productType: string;
   brand: string;
   supplier: string;
   status?: string | null;
-  /** Sales channel: Retail / Wholesale / Both (stored in Product.productCategory). */
-  productCategory: string;
   merchandisingCategorySlug?: string | null;
   catalogName?: string | null;
+  stockUnit?: string | null;
   images?: string[] | null;
   halalCertified?: boolean | null;
   bpomApproved?: boolean | null;
@@ -850,6 +862,7 @@ const buildProductData = ({
   return {
     productId,
     sku: sku || '',
+    marketSegment: marketSegment?.trim() || null,
     name: name.trim(),
     description: description.trim(),
     productType: productType.trim(),
@@ -857,9 +870,9 @@ const buildProductData = ({
     supplier: supplier.trim(),
     status: finalStatus,
     marketplaceStatus: finalMarketplaceStatus,
-    productCategory: normalizeSalesChannel(productCategory),
     merchandisingCategorySlug: normalizeMerchandisingCategorySlug(merchandisingCategorySlug),
     catalogName: catalogName?.trim() || '',
+    stockUnit: normalizeStockUnit(stockUnit),
     images: Array.isArray(images) ? images : [],
     halalCertified: halalCertified === true,
     bpomApproved: bpomApproved === true,
@@ -996,15 +1009,16 @@ export const createProduct = async (args: {
   userId: number;
   productId?: string | null;
   sku?: string | null;
+  marketSegment?: string | null;
   name: string;
   description: string;
   productType: string;
   brand: string;
   supplier: string;
   status?: string | null;
-  productCategory: string;
   merchandisingCategorySlug?: string | null;
   catalogName?: string | null;
+  stockUnit?: string | null;
   images?: string[] | null;
   halalCertified?: boolean | null;
   bpomApproved?: boolean | null;
@@ -1035,15 +1049,16 @@ export const createProduct = async (args: {
     userId,
     productId,
     sku,
+    marketSegment,
     name,
     description,
     productType,
     brand,
     supplier,
     status = 'Draft',
-    productCategory,
     merchandisingCategorySlug,
     catalogName,
+    stockUnit,
     images = [],
     halalCertified = false,
     bpomApproved = false,
@@ -1056,6 +1071,7 @@ export const createProduct = async (args: {
 
   assertProductPayload({
     sku,
+    marketSegment,
     name,
     description,
     productType,
@@ -1082,15 +1098,16 @@ export const createProduct = async (args: {
   const productData = buildProductData({
     productId: finalProductId,
     sku,
+    marketSegment,
     name,
     description,
     productType,
     brand,
     supplier,
     status,
-    productCategory,
     merchandisingCategorySlug,
     catalogName,
+    stockUnit,
     images,
     halalCertified,
     bpomApproved,
@@ -1193,15 +1210,16 @@ export const updateProduct = async (args: {
   id?: string | null;
   productId?: string | null;
   sku?: string | null;
+  marketSegment?: string | null;
   name?: string | null;
   description?: string | null;
   productType?: string | null;
   brand?: string | null;
   supplier?: string | null;
   status?: string | null;
-  productCategory?: string | null;
   merchandisingCategorySlug?: string | null;
   catalogName?: string | null;
+  stockUnit?: string | null;
   images?: string[] | null;
   halalCertified?: boolean | null;
   bpomApproved?: boolean | null;
@@ -1233,15 +1251,16 @@ export const updateProduct = async (args: {
     id,
     productId,
     sku,
+    marketSegment,
     name,
     description,
     productType,
     brand,
     supplier,
     status,
-    productCategory,
     merchandisingCategorySlug,
     catalogName,
+    stockUnit,
     images,
     halalCertified,
     bpomApproved,
@@ -1286,8 +1305,17 @@ export const updateProduct = async (args: {
   }
 
   const nextStatus = status !== undefined ? String(status) : productBeforeUpdate.status;
+  const publishing = nextStatus === 'Published';
+  // Draft `present` mode skips undefined fields. Do not fill omitted marketSegment/sku from
+  // stored null — that would incorrectly fail productRequiredTextError on partial draft saves.
   assertProductPayload({
-    sku: sku !== undefined ? sku : productBeforeUpdate.sku,
+    sku: sku !== undefined ? sku : publishing ? productBeforeUpdate.sku : undefined,
+    marketSegment:
+      marketSegment !== undefined
+        ? marketSegment
+        : publishing
+          ? (productBeforeUpdate as { marketSegment?: string | null }).marketSegment
+          : undefined,
     name: name !== undefined ? name : productBeforeUpdate.name,
     description: description !== undefined ? description : productBeforeUpdate.description,
     productType: productType !== undefined ? productType : productBeforeUpdate.productType,
@@ -1299,14 +1327,14 @@ export const updateProduct = async (args: {
     variantOptions:
       variantOptions !== undefined && variantOptions !== null
         ? variantOptions
-        : nextStatus === 'Published'
+        : publishing
           ? productBeforeUpdate.variantOptions
           : productBeforeUpdate.variantOptions.map((option) => ({
               stockQuantity: option.stockQuantity,
             })),
     currency,
-    textMode: nextStatus === 'Published' ? 'required' : 'present',
-    publishing: nextStatus === 'Published',
+    textMode: publishing ? 'required' : 'present',
+    publishing,
   });
 
   // Use the actual product ID for the update (to match unique constraint)
@@ -1317,6 +1345,10 @@ export const updateProduct = async (args: {
   const cleanUpdateData: Record<string, unknown> = {};
 
   if (sku !== undefined) cleanUpdateData.sku = String(sku);
+  if (marketSegment !== undefined) {
+    const trimmedMarketSegment = String(marketSegment ?? '').trim();
+    cleanUpdateData.marketSegment = trimmedMarketSegment || null;
+  }
   if (name !== undefined) cleanUpdateData.name = String(name);
   if (description !== undefined) cleanUpdateData.description = String(description);
   if (productType !== undefined) cleanUpdateData.productType = String(productType);
@@ -1336,15 +1368,13 @@ export const updateProduct = async (args: {
       cleanUpdateData.lastSyncAt = new Date(); // Update sync time when status changes
     }
   }
-  if (productCategory !== undefined) {
-    cleanUpdateData.productCategory = normalizeSalesChannel(String(productCategory));
-  }
   if (merchandisingCategorySlug !== undefined) {
     cleanUpdateData.merchandisingCategorySlug = normalizeMerchandisingCategorySlug(
       String(merchandisingCategorySlug),
     );
   }
   if (catalogName !== undefined) cleanUpdateData.catalogName = String(catalogName);
+  if (stockUnit !== undefined) cleanUpdateData.stockUnit = normalizeStockUnit(stockUnit);
   if (images !== undefined) cleanUpdateData.images = Array.isArray(images) ? images : [];
   if (halalCertified !== undefined) cleanUpdateData.halalCertified = Boolean(halalCertified);
   if (bpomApproved !== undefined) cleanUpdateData.bpomApproved = Boolean(bpomApproved);

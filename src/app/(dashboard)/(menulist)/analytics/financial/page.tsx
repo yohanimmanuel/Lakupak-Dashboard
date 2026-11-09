@@ -57,7 +57,7 @@ const FINANCIAL_ANALYTICS_PAGE_QUERY = `
         name
         description
         productType
-        productCategory
+        marketSegment
         brand
         supplier
         status
@@ -231,7 +231,7 @@ export default function FinancialAnalyticsPage() {
               productId
               name
               productType
-              productCategory
+              marketSegment
               variantOptions {
                 id
                 variantName
@@ -453,7 +453,7 @@ export default function FinancialAnalyticsPage() {
               productStats[item.productId] = {
                 orderVolume: 0,
                 unitsSold: 0,
-                category: product.productCategory || product.productType || 'Uncategorized',
+                category: product.marketSegment || product.productType || 'Uncategorized',
                 name: product.name,
                 profit: 0
               };

@@ -22,6 +22,21 @@ function isSafeCategoryFilterToken(value: string): boolean {
   return value.length > 0 && value.length <= 64 && /^[\p{L}\p{N}\s&\-_/]+$/u.test(value);
 }
 
+/**
+ * Marketplace clients filter Retail/Wholesale and treat empty salesChannel as a miss.
+ * Product.productCategory (sales channel) was removed; infer from marketSegment when possible.
+ */
+function salesChannelFromMarketSegment(marketSegment?: string | null): 'Retail' | 'Wholesale' | 'Both' {
+  const segment = String(marketSegment || '').trim().toLowerCase();
+  if (!segment) return 'Both';
+  const hasRetail = segment.includes('retail');
+  const hasWholesale = segment.includes('wholesale') || segment.includes('b2b');
+  if (hasRetail && hasWholesale) return 'Both';
+  if (hasWholesale) return 'Wholesale';
+  if (hasRetail) return 'Retail';
+  return 'Both';
+}
+
 /** Meili filter matching canonical + legacy productType aliases. */
 function buildMeiliCategoryFilter(category: string | undefined | null): string | undefined {
   if (!category || category === 'All') return undefined;
@@ -826,8 +841,10 @@ export const fetchMarketplaceProducts = async (args: {
       })),
       images: product.images || [],
       category: product.productType || 'Uncategorized',
-      productCategory: product.productCategory || '',
-      salesChannel: product.productCategory || 'Retail',
+      productCategory: (product as { marketSegment?: string | null }).marketSegment || '',
+      salesChannel: salesChannelFromMarketSegment(
+        (product as { marketSegment?: string | null }).marketSegment,
+      ),
       brand: product.brand,
       unit: 'Piece',
       sku: product.sku,

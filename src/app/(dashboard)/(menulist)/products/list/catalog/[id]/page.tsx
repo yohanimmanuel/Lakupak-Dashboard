@@ -29,14 +29,15 @@ export default function ViewProductPage() {
               id
               productId
               sku
+              marketSegment
               name
               description
               productType
               brand
               supplier
               status
-              productCategory
               catalogName
+              stockUnit
               images
               halalCertified
               bpomApproved

@@ -729,7 +729,7 @@ const supplierInsights = useMemo(() => {
         rank: index + 1,
         image: product?.images?.[0] ?? null,
         productName: product?.name ?? item.name,
-        productCategory: product?.productCategory ?? item.productCategory,
+        productType: product?.productType ?? item.productType,
       };
     });
   }, [topProducts, products]);

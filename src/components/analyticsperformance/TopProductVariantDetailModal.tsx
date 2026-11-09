@@ -10,7 +10,7 @@ const VARIANTS_PER_PAGE = 5;
 
 export type TopProductSummary = {
   name: string;
-  productCategory: string;
+  marketSegment: string;
   productId: string;
   image?: string | null;
   piecesSold: number;
@@ -119,7 +119,7 @@ export default function TopProductVariantDetailModal({
                 {product.name}
               </h3>
               <p className="mt-0.5 text-sm text-gray-500">{tTables('variantDetailSubtitle')}</p>
-              <p className="mt-1 text-xs text-gray-400">{product.productCategory}</p>
+              <p className="mt-1 text-xs text-gray-400">{product.marketSegment}</p>
             </div>
           </div>
           <button

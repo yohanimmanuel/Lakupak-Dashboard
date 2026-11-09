@@ -92,7 +92,7 @@ export const DASHBOARD_SNAPSHOT_QUERY = `
         brand
         supplier
         status
-        productCategory
+        marketSegment
         catalogName
         images
         halalCertified
@@ -525,7 +525,7 @@ export function normalizeProduct(raw: Record<string, unknown>): Product | null {
     brand: parseString(raw.brand, '—'),
     supplier: parseString(raw.supplier, '—'),
     status: normalizedStatus,
-    productCategory: parseString(raw.productCategory, 'General'),
+    marketSegment: parseString(raw.marketSegment, '') || null,
     catalogName: parseString(raw.catalogName, 'Default'),
     images: Array.isArray(raw.images)
       ? raw.images.filter((img): img is string => typeof img === 'string')

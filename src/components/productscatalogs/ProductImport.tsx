@@ -24,7 +24,6 @@ const productFields = [
   { key: 'Stock Quantity', slug: 'stockQuantity' },
   { key: 'Low Stock Threshold', slug: 'lowStockThreshold' },
   { key: 'MOQ', slug: 'moq' },
-  { key: 'Product Category', slug: 'productCategory' },
   { key: 'Catalog Name', slug: 'catalogName' },
 ];
 

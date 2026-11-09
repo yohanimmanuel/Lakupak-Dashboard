@@ -63,7 +63,7 @@ export async function buildDistributorAgentContext(userId: number): Promise<stri
         brand: true,
         description: true,
         productType: true,
-        productCategory: true,
+        marketSegment: true,
         merchandisingCategorySlug: true,
         catalogName: true,
         marketplaceStatus: true,
@@ -209,7 +209,7 @@ export async function buildDistributorAgentContext(userId: number): Promise<stri
         brand: p.brand,
         description: p.description,
         productType: p.productType,
-        productCategory: p.productCategory,
+        marketSegment: p.marketSegment,
         merchandisingCategorySlug: p.merchandisingCategorySlug,
         catalogName: p.catalogName,
         assurance: {

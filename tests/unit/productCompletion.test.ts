@@ -8,6 +8,7 @@ import {
 
 const baseProduct: ProductLike = {
   sku: 'TEST-SKU-1',
+  marketSegment: 'Retail GT',
   name: 'Test Product',
   description: 'A complete test product description',
   productType: 'Food & Beverages',
@@ -142,6 +143,54 @@ describe('productCompletion', () => {
       });
       expect(marketplaceCompletion.fields.find((f) => f.key === 'stock')?.isComplete).toBe(false);
       expect(isProductMarketplacePublishable(zeroStockProduct, 'IDR')).toBe(false);
+    });
+
+    it('ignores inactive variants when checking variant completeness', () => {
+      const product: ProductLike = {
+        ...baseProduct,
+        variantOptions: [
+          {
+            purchasePrice: 8800,
+            sellingPrice: 12000,
+            stockQuantity: 1000,
+            isActive: true,
+          },
+          {
+            purchasePrice: '',
+            sellingPrice: '',
+            stockQuantity: 0,
+            isActive: false,
+          },
+        ],
+      };
+
+      const completion = getProductCompletion(product, undefined, 'IDR', {
+        requirePositivePrice: true,
+      });
+
+      expect(completion.fields.find((f) => f.key === 'variants')?.isComplete).toBe(true);
+      expect(completion.fields.find((f) => f.key === 'stock')?.isComplete).toBe(true);
+    });
+
+    it('accepts numeric GraphQL prices for variant completeness', () => {
+      const product: ProductLike = {
+        ...baseProduct,
+        variantOptions: [
+          {
+            purchasePrice: 8800,
+            sellingPrice: 12000,
+            stockQuantity: 1000,
+            isActive: true,
+          },
+        ],
+      };
+
+      const completion = getProductCompletion(product, undefined, 'IDR', {
+        requirePositivePrice: true,
+      });
+
+      expect(completion.fields.find((f) => f.key === 'variants')?.isComplete).toBe(true);
+      expect(completion.isComplete).toBe(true);
     });
   });
 

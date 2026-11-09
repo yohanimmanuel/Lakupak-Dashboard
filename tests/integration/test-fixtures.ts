@@ -55,7 +55,6 @@ export async function createPublishedColorProduct(opts: {
     brand: 'TestBrand',
     supplier: 'TestSupplier',
     status: 'Published',
-    productCategory: 'Retail',
     catalogName: 'Default',
     images: ['https://example.com/product.jpg'],
     variantDefinitions: colorVariantDefinitions(colors),

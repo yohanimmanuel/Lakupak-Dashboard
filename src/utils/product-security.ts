@@ -2,12 +2,16 @@ import { ProductFormData } from '@/types/product';
 
 /** Text a product must have before it can be saved. */
 export const PRODUCT_REQUIRED_TEXT = {
-  sku: { min: 1, max: 64 },
   name: { min: 2, max: 200 },
   description: { min: 1, max: 4000 },
   productType: { min: 1, max: 80 },
   brand: { min: 1, max: 120 },
   supplier: { min: 1, max: 200 },
+} as const;
+
+/** Optional on create/update (GraphQL `String`, DB nullable); validate length only when set. */
+export const PRODUCT_OPTIONAL_TEXT = {
+  marketSegment: { max: 100 },
 } as const;
 
 export type ProductRequiredTextField = keyof typeof PRODUCT_REQUIRED_TEXT;
@@ -25,6 +29,18 @@ export function productRequiredTextError(
   return null;
 }
 
+/** Empty/null/undefined are allowed; non-empty values must fit the max length. */
+export function productMarketSegmentError(value: unknown): string | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'string') return 'Market segment is invalid.';
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return null;
+  if (trimmed.length > PRODUCT_OPTIONAL_TEXT.marketSegment.max) {
+    return 'Market segment is too long.';
+  }
+  return null;
+}
+
 export function productImagesError(images: unknown): string | null {
   if (images == null) return null;
   if (!Array.isArray(images) || images.length > 12) return 'Product images are invalid.';
@@ -35,7 +51,6 @@ export function productImagesError(images: unknown): string | null {
 }
 
 const PRODUCT_TEXT_LABEL: Record<ProductRequiredTextField, string> = {
-  sku: 'SKU',
   name: 'Product name',
   description: 'Product description',
   productType: 'Product type',
@@ -119,9 +134,6 @@ export function sanitizeProductData(data: Partial<ProductFormData>): Partial<Pro
   // Pricing fields removed - now handled at variant level
   if (typeof data.status === 'string') {
     sanitized.status = data.status.trim() as 'Draft' | 'Published';
-  }
-  if (typeof (data as { productCategory?: string }).productCategory === 'string') {
-    (sanitized as { productCategory?: string }).productCategory = (data as { productCategory: string }).productCategory.trim();
   }
   if (typeof data.catalogName === 'string') {
     sanitized.catalogName = data.catalogName.trim();

@@ -31,7 +31,7 @@ const PRODUCTS_QUERY = `
         brand
         supplier
         status
-        productCategory
+        marketSegment
         catalogName
         images
         halalCertified

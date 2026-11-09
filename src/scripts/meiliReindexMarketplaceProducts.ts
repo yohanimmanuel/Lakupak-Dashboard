@@ -96,7 +96,6 @@ async function main() {
       description: true,
       brand: true,
       productType: true,
-      productCategory: true, // sales channel
       publishedAt: true,
       lastSyncAt: true,
       variantOptions: {
@@ -122,7 +121,7 @@ async function main() {
     description: p.description,
     brand: p.brand ?? null,
     productType: p.productType,
-    salesChannel: p.productCategory ?? null,
+    salesChannel: null,
     companyName: p.user?.company?.name ?? null,
     sellingPrice: p.variantOptions?.[0]?.sellingPrice != null ? Number(p.variantOptions[0].sellingPrice) : null,
     publishedAt: p.publishedAt ? p.publishedAt.toISOString() : null,

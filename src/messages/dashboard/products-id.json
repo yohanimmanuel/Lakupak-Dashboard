@@ -399,6 +399,7 @@
       "stockRequired": "Tambahkan stok sebelum menerbitkan"
     },
     "fields": {
+      "marketSegment": "Segmen Pasar",
       "sku": "Nomor SKU",
       "name": "Nama Produk",
       "description": "Deskripsi Produk",
@@ -415,6 +416,9 @@
       "productId": "ID Produk",
       "productIdPlaceholder": "ID Produk otomatis",
       "productIdHint": "ID Produk dibuat otomatis dalam format LKP",
+      "marketSegment": "Segmen Pasar",
+      "selectMarketSegment": "Pilih segmen pasar",
+      "noMarketSegments": "Belum ada segmen pembeli. Tambahkan jenis usaha pada pembeli terlebih dahulu.",
       "sku": "Nomor SKU",
       "skuPlaceholder": "Masukkan SKU",
       "brand": "Merek",
@@ -510,7 +514,13 @@
       "sellingPrice": "Harga Jual",
       "purchasePrice": "Harga Beli",
       "moq": "MOQ",
-      "stockQty": "Stok (pcs/box/dll.)",
+      "stockQty": "Stok",
+      "stockUnit": "Satuan stok",
+      "stockUnits": {
+        "Pieces": "Pcs",
+        "Boxes": "Box",
+        "Cartons": "Karton"
+      },
       "lowThreshold": "Ambang Bawah",
       "applyToAll": "Terapkan ke Semua",
       "status": "Status",

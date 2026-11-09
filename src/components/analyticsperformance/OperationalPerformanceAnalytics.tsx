@@ -253,7 +253,7 @@ const OPERATIONAL_ANALYTICS_QUERY = `
         sku
         name
         productType
-        productCategory
+        marketSegment
         brand
         supplier
         status

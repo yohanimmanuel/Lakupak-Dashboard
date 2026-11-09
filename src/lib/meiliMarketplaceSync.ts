@@ -40,7 +40,6 @@ export async function upsertMarketplaceProductsToMeili(
       description: true,
       brand: true,
       productType: true,
-      productCategory: true,
       publishedAt: true,
       lastSyncAt: true,
       variantOptions: {
@@ -58,7 +57,7 @@ export async function upsertMarketplaceProductsToMeili(
     description: p.description,
     brand: p.brand ?? null,
     productType: p.productType,
-    salesChannel: p.productCategory ?? null,
+    salesChannel: null,
     companyName: p.user?.company?.name ?? null,
     sellingPrice: p.variantOptions?.[0]?.sellingPrice != null ? Number(p.variantOptions[0].sellingPrice) : null,
     publishedAt: p.publishedAt ? p.publishedAt.toISOString() : null,

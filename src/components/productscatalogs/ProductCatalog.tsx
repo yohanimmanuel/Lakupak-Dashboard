@@ -17,7 +17,8 @@ import {
   RefreshCw,
   ChevronUp,
   ChevronDown,
-  Download
+  Download,
+  Filter
 } from "lucide-react";
 import * as XLSX from 'xlsx';
 import VariationListImport, {
@@ -38,6 +39,7 @@ import { getProductStockStatus, getVariantStockStatus } from '@/utils/stockUtils
 import { CATALOG_COMPLETION_OPTIONS, getProductCompletion } from '@/utils/productCompletion';
 import {
   PRODUCT_REQUIRED_TEXT,
+  productMarketSegmentError,
   productRequiredTextError,
   type ProductRequiredTextField,
 } from '@/utils/product-security';
@@ -73,14 +75,15 @@ const isFormDataEqual = (a: ProductFormData, b: ProductFormData): boolean => {
     a.id === b.id &&
     a.productId === b.productId &&
     a.sku === b.sku &&
+    a.marketSegment === b.marketSegment &&
     a.name === b.name &&
     a.description === b.description &&
     a.productType === b.productType &&
     a.brand === b.brand &&
     a.supplier === b.supplier &&
     a.status === b.status &&
-    a.productCategory === b.productCategory &&
     a.catalogName === b.catalogName &&
+    a.stockUnit === b.stockUnit &&
     JSON.stringify(a.images) === JSON.stringify(b.images) &&
     a.halalCertified === b.halalCertified &&
     a.bpomApproved === b.bpomApproved &&
@@ -483,7 +486,7 @@ const VARIATION_COL_WEIGHTS = {
   sellingPrice: 13,
   purchasePrice: 13,
   moq: 7,
-  stock: 11,
+  stock: 15,
   lowThreshold: 9,
   status: 9,
   actions: 7,
@@ -492,6 +495,16 @@ const VARIATION_COL_WEIGHTS = {
 const VARIATION_COL_MIN = 64;
 const VARIATION_ROW_MIN = 40;
 const VARIATION_ROW_DEFAULT = 44;
+const STOCK_UNIT_OPTIONS = ['Pieces', 'Boxes', 'Cartons'] as const;
+type StockUnitValue = (typeof STOCK_UNIT_OPTIONS)[number];
+
+const normalizeStockUnitValue = (raw?: string | null): StockUnitValue => {
+  const value = String(raw || '').trim();
+  return (STOCK_UNIT_OPTIONS as readonly string[]).includes(value)
+    ? (value as StockUnitValue)
+    : 'Pieces';
+};
+
 const VARIATION_COL_WIDTHS_KEY_PREFIX = 'productCatalog.variationColWidths:';
 
 function variationColWidthsStorageKey(productKey: string) {
@@ -573,14 +586,15 @@ export default function ProductCatalog({
     id: product?.id,
     productId: product?.productId || '',
     sku: product?.sku || '',
+    marketSegment: product?.marketSegment || '',
     name: product?.name || '',
     description: product?.description || '',
     productType: product?.productType || '',
     brand: product?.brand || '',
     supplier: product?.supplier || '',
     status: product?.status || 'Draft',
-    productCategory: product?.productCategory || '',
     catalogName: product?.catalogName || '',
+    stockUnit: normalizeStockUnitValue(product?.stockUnit),
     images: product?.images || [],
     halalCertified: (product as { halalCertified?: boolean })?.halalCertified ?? false,
     bpomApproved: (product as { bpomApproved?: boolean })?.bpomApproved ?? false,
@@ -878,14 +892,15 @@ export default function ProductCatalog({
         id: product.id,
         productId: product.productId || '',
         sku: product.sku || '',
+        marketSegment: product.marketSegment || '',
         name: product.name || '',
         description: product.description || '',
         productType: product.productType || '',
         brand: product.brand || '',
         supplier: product.supplier || '',
         status: product.status || 'Draft',
-        productCategory: product.productCategory || '',
         catalogName: product.catalogName || '',
+        stockUnit: normalizeStockUnitValue(product.stockUnit),
         images: product.images || [],
         halalCertified: (product as { halalCertified?: boolean })?.halalCertified ?? false,
         bpomApproved: (product as { bpomApproved?: boolean })?.bpomApproved ?? false,
@@ -909,9 +924,14 @@ export default function ProductCatalog({
   // Category dropdown states
   const [showGeneralCategoryDropdown, setShowGeneralCategoryDropdown] = useState(false);
   const [showCatalogCategoryDropdown, setShowCatalogCategoryDropdown] = useState(false);
+  const [showMarketSegmentDropdown, setShowMarketSegmentDropdown] = useState(false);
+  const [showStockUnitDropdown, setShowStockUnitDropdown] = useState(false);
+  const [marketSegmentOptions, setMarketSegmentOptions] = useState<string[]>([]);
   
   // Refs for click outside detection
   const generalCategoryRef = useRef<HTMLDivElement>(null);
+  const marketSegmentRef = useRef<HTMLDivElement>(null);
+  const stockUnitRef = useRef<HTMLDivElement>(null);
 
   // Store original form data on mount for edit mode
   useEffect(() => {
@@ -920,14 +940,15 @@ export default function ProductCatalog({
         id: product?.id,
         productId: product?.productId || '',
         sku: product?.sku || '',
+        marketSegment: product?.marketSegment || '',
         name: product?.name || '',
         description: product?.description || '',
         productType: product?.productType || '',
         brand: product?.brand || '',
         supplier: product?.supplier || '',
         status: product?.status || 'Draft',
-        productCategory: product?.productCategory || '',
         catalogName: product?.catalogName || '',
+        stockUnit: normalizeStockUnitValue(product?.stockUnit),
         images: product?.images || [],
         halalCertified: (product as { halalCertified?: boolean })?.halalCertified ?? false,
         bpomApproved: (product as { bpomApproved?: boolean })?.bpomApproved ?? false,
@@ -937,6 +958,36 @@ export default function ProductCatalog({
       setOriginalFormData(JSON.parse(JSON.stringify(initial)));
     }
   }, [mode, product]);
+
+  // Load market segments from buyer business types (same source as assortment heatmap).
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await fetchGraphQL<{
+          assortmentGapHeatmap: { segments: string[] };
+        }>(
+          `query MarketSegments($userId: Int!) {
+            assortmentGapHeatmap(userId: $userId, period: "90d", page: 1, limit: 1) {
+              segments
+            }
+          }`,
+          { userId: user.id },
+        );
+        if (cancelled) return;
+        const segments = (result.assortmentGapHeatmap?.segments || [])
+          .map((segment) => segment.trim())
+          .filter(Boolean);
+        setMarketSegmentOptions(segments);
+      } catch {
+        if (!cancelled) setMarketSegmentOptions([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   // Warn before leaving with unsaved changes
   useEffect(() => {
@@ -983,7 +1034,12 @@ export default function ProductCatalog({
       if (catalogCategoryRef.current && !catalogCategoryRef.current.contains(event.target as Node)) {
         setShowCatalogCategoryDropdown(false);
       }
-      // no-op for catalog type (now plain input)
+      if (marketSegmentRef.current && !marketSegmentRef.current.contains(event.target as Node)) {
+        setShowMarketSegmentDropdown(false);
+      }
+      if (stockUnitRef.current && !stockUnitRef.current.contains(event.target as Node)) {
+        setShowStockUnitDropdown(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -1898,7 +1954,6 @@ export default function ProductCatalog({
 
   const validateRequiredFields = () => {
     const requiredFields = [
-      { field: 'sku', value: formData.sku, nameKey: 'sku' },
       { field: 'name', value: formData.name, nameKey: 'name' },
       { field: 'description', value: formData.description, nameKey: 'description' },
       { field: 'productType', value: formData.productType, nameKey: 'productType' },
@@ -1964,6 +2019,13 @@ export default function ProductCatalog({
     for (const field of Object.keys(PRODUCT_REQUIRED_TEXT) as ProductRequiredTextField[]) {
       const code = productRequiredTextError(field, String(formData[field] ?? ''));
       if (code) errors[field] = productFieldMessage(field, code);
+    }
+    const marketSegmentError = productMarketSegmentError(formData.marketSegment);
+    if (marketSegmentError) {
+      errors.marketSegment =
+        marketSegmentError === 'Market segment is too long.'
+          ? tCatalog('validation.tooLong', { field: translateFieldName('marketSegment') })
+          : marketSegmentError;
     }
     const priceCurrency = user?.currency || userCurrency;
     const variationMatrix = buildVariationMatrixForSave();
@@ -2060,11 +2122,20 @@ export default function ProductCatalog({
         return String(parseNumberByCurrency(text, priceCurrency));
       };
 
+      // Keep product.sku populated for legacy/search; prefer existing or first variant SKU.
+      const derivedSku =
+        String(finalData.sku || '').trim() ||
+        combinationsForPayload.map((combo) => String(combo.sku || '').trim()).find(Boolean) ||
+        String(finalData.productId || '').trim() ||
+        '';
+
       // Submit the new variant structure
       const payload: Record<string, unknown> = {
         ...finalData,
         id: formData.id,
         productId: formData.productId,
+        sku: derivedSku,
+        marketSegment: String(finalData.marketSegment || '').trim(),
         userId: user.id,
         currency: user.currency,
         totalStock,
@@ -2109,14 +2180,15 @@ export default function ProductCatalog({
           $userId: Int!
           $productId: String
           $sku: String
+          $marketSegment: String
           $name: String!
           $description: String!
           $productType: String!
           $brand: String!
           $supplier: String!
           $status: String
-          $productCategory: String!
           $catalogName: String
+          $stockUnit: String
           $images: [String!]
           $halalCertified: Boolean
           $bpomApproved: Boolean
@@ -2130,14 +2202,15 @@ export default function ProductCatalog({
             userId: $userId
             productId: $productId
             sku: $sku
+            marketSegment: $marketSegment
             name: $name
             description: $description
             productType: $productType
             brand: $brand
             supplier: $supplier
             status: $status
-            productCategory: $productCategory
             catalogName: $catalogName
+            stockUnit: $stockUnit
             images: $images
             halalCertified: $halalCertified
             bpomApproved: $bpomApproved
@@ -2150,6 +2223,7 @@ export default function ProductCatalog({
             id
             productId
             sku
+            marketSegment
             name
             status
           }
@@ -2162,14 +2236,15 @@ export default function ProductCatalog({
           $id: String
           $productId: String
           $sku: String
+          $marketSegment: String
           $name: String
           $description: String
           $productType: String
           $brand: String
           $supplier: String
           $status: String
-          $productCategory: String
           $catalogName: String
+          $stockUnit: String
           $images: [String!]
           $halalCertified: Boolean
           $bpomApproved: Boolean
@@ -2184,14 +2259,15 @@ export default function ProductCatalog({
             id: $id
             productId: $productId
             sku: $sku
+            marketSegment: $marketSegment
             name: $name
             description: $description
             productType: $productType
             brand: $brand
             supplier: $supplier
             status: $status
-            productCategory: $productCategory
             catalogName: $catalogName
+            stockUnit: $stockUnit
             images: $images
             halalCertified: $halalCertified
             bpomApproved: $bpomApproved
@@ -2204,6 +2280,7 @@ export default function ProductCatalog({
             id
             productId
             sku
+            marketSegment
             name
             status
           }
@@ -2216,13 +2293,14 @@ export default function ProductCatalog({
           userId: user.id,
           productId: payload.productId,
           sku: payload.sku,
+          marketSegment: payload.marketSegment,
           name: payload.name,
           description: payload.description,
           productType: payload.productType,
           brand: payload.brand,
           supplier: payload.supplier,
           status: payload.status,
-          productCategory: payload.productCategory,
+          stockUnit: payload.stockUnit || 'Pieces',
           images: payload.images || [],
           halalCertified: payload.halalCertified || false,
           bpomApproved: payload.bpomApproved || false,
@@ -2257,13 +2335,14 @@ export default function ProductCatalog({
         const updateVariables: Record<string, unknown> = {
           userId: user.id,
           sku: payload.sku,
+          marketSegment: payload.marketSegment,
           name: payload.name,
           description: payload.description,
           productType: payload.productType,
           brand: payload.brand,
           supplier: payload.supplier,
           status: payload.status,
-          productCategory: payload.productCategory,
+          stockUnit: payload.stockUnit || 'Pieces',
           images: payload.images || [],
           halalCertified: payload.halalCertified ?? false,
           bpomApproved: payload.bpomApproved ?? false,
@@ -2762,19 +2841,64 @@ export default function ProductCatalog({
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
-                    {tCatalog('generalInfo.sku')}<span className="text-red-500 ml-1">*</span>
+                    {tCatalog('generalInfo.marketSegment')}
                   </label>
-                  <input
-                    type="text"
-                    value={formData.sku}
-                    onChange={(e) => handleInputChange('sku', e.target.value)}
-                    disabled={isViewMode}
-                    maxLength={PRODUCT_REQUIRED_TEXT.sku.max}
-                    aria-invalid={fieldErrors.sku ? true : undefined}
-                    className={productControlClass('sku')}
-                    placeholder={tCatalog('generalInfo.skuPlaceholder')}
-                  />
-                  {fieldErrors.sku ? <p className="text-red-500 text-xs mt-1">{fieldErrors.sku}</p> : null}
+                  <div className="relative" ref={marketSegmentRef}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMarketSegmentDropdown((open) => !open);
+                        setShowGeneralCategoryDropdown(false);
+                        setShowCatalogCategoryDropdown(false);
+                      }}
+                      disabled={isViewMode}
+                      aria-invalid={fieldErrors.marketSegment ? true : undefined}
+                      className={`${productControlClass('marketSegment')} text-left flex items-center justify-between`}
+                    >
+                      <span className={formData.marketSegment ? 'text-black' : 'text-gray-500'}>
+                        {formData.marketSegment || tCatalog('generalInfo.selectMarketSegment')}
+                      </span>
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                    </button>
+                    {showMarketSegmentDropdown && !isViewMode && (
+                      <div className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-[#e6e6e6] bg-white shadow-lg">
+                        {(() => {
+                          const options = [...marketSegmentOptions];
+                          const selected = formData.marketSegment.trim();
+                          if (selected && !options.some((option) => option.toLowerCase() === selected.toLowerCase())) {
+                            options.unshift(selected);
+                          }
+                          if (options.length === 0) {
+                            return (
+                              <div className="px-3 py-2 text-xs text-gray-500">
+                                {tCatalog('generalInfo.noMarketSegments')}
+                              </div>
+                            );
+                          }
+                          return options.map((segment) => (
+                            <button
+                              key={segment}
+                              type="button"
+                              onClick={() => {
+                                handleInputChange('marketSegment', segment);
+                                setShowMarketSegmentDropdown(false);
+                              }}
+                              className={`block w-full px-3 py-2 text-left text-xs hover:bg-gray-100 ${
+                                formData.marketSegment === segment
+                                  ? 'font-semibold text-[#0a61d7]'
+                                  : 'text-gray-700'
+                              }`}
+                            >
+                              {segment}
+                            </button>
+                          ));
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                  {fieldErrors.marketSegment ? (
+                    <p className="text-red-500 text-xs mt-1">{fieldErrors.marketSegment}</p>
+                  ) : null}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
@@ -2802,6 +2926,7 @@ export default function ProductCatalog({
                       onClick={() => {
                         setShowGeneralCategoryDropdown(!showGeneralCategoryDropdown);
                         setShowCatalogCategoryDropdown(false);
+                        setShowMarketSegmentDropdown(false);
                       }}
                       disabled={isViewMode}
                       aria-invalid={fieldErrors.productType ? true : undefined}
@@ -3245,15 +3370,15 @@ export default function ProductCatalog({
                 
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
-                    {tCatalog('settings.productCategoryByChannel')}
+                    {tCatalog('generalInfo.marketSegment')}
                   </label>
                   <input
                     type="text"
-                    value={formData.productCategory}
-                    onChange={(e) => handleInputChange('productCategory', e.target.value)}
-                    disabled={isViewMode}
-                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                    placeholder={tCatalog('settings.productCategoryPlaceholder')}
+                    value={formData.marketSegment}
+                    disabled
+                    readOnly
+                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg bg-gray-50 text-black cursor-not-allowed"
+                    placeholder={tCatalog('generalInfo.selectMarketSegment')}
                   />
                 </div>
                 
@@ -3295,7 +3420,10 @@ export default function ProductCatalog({
                       {tCatalog('stockSummary.totalStock')}
                     </label>
                     <div className="px-3 py-2 text-xs border border-gray-300 rounded-lg bg-white text-gray-900 font-medium">
-                      {combinations.reduce((sum, combo) => sum + combo.stockQuantity, 0).toLocaleString()}
+                      {combinations.reduce((sum, combo) => sum + combo.stockQuantity, 0).toLocaleString()}{' '}
+                      <span className="font-normal text-gray-500">
+                        {tCatalog(`variants.stockUnits.${normalizeStockUnitValue(formData.stockUnit)}`)}
+                      </span>
                     </div>
                     <p className="text-xs text-gray-500 mt-1">{tCatalog('stockSummary.totalStockHint')}</p>
                   </div>
@@ -3796,7 +3924,78 @@ export default function ProductCatalog({
                           ['sellingPrice', VARIATION_COL_WEIGHTS.sellingPrice, tCatalog('variants.sellingPrice')] as const,
                           ['purchasePrice', VARIATION_COL_WEIGHTS.purchasePrice, tCatalog('variants.purchasePrice')] as const,
                           ['moq', VARIATION_COL_WEIGHTS.moq, tCatalog('variants.moq')] as const,
-                          ['stock', VARIATION_COL_WEIGHTS.stock, tCatalog('variants.stockQty')] as const,
+                        ]).map(([colKey, weight, label]) => (
+                          <th
+                            key={colKey}
+                            data-col-key={colKey}
+                            className="relative text-xs font-semibold text-gray-700 px-2 py-1.5 text-left border-b border-r border-gray-300"
+                            style={variationColStyle(colKey, weight)}
+                          >
+                            {label}
+                            <span
+                              role="separator"
+                              aria-orientation="vertical"
+                              aria-label={label}
+                              onPointerDown={(event) => beginVariationColResize(colKey, event)}
+                              className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize touch-none hover:bg-[#0a61d7]/35"
+                            />
+                          </th>
+                        ))}
+                          <th
+                            data-col-key="stock"
+                            className="relative text-xs font-semibold text-gray-700 px-2 py-1.5 text-left border-b border-r border-gray-300"
+                            style={variationColStyle('stock', VARIATION_COL_WEIGHTS.stock)}
+                          >
+                            <div className="flex items-center gap-1.5 pr-1">
+                              <span>{tCatalog('variants.stockQty')}</span>
+                              <div ref={stockUnitRef} className="relative">
+                                <button
+                                  type="button"
+                                  disabled={isViewMode}
+                                  aria-label={tCatalog('variants.stockUnit')}
+                                  className="flex items-center gap-0.5 whitespace-nowrap rounded-md border border-[#e6e6e6] bg-white px-1.5 py-0.5 text-[10px] font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:bg-gray-50"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    setShowStockUnitDropdown((open) => !open);
+                                  }}
+                                >
+                                  <Filter className="h-2.5 w-2.5" />
+                                  {tCatalog(`variants.stockUnits.${normalizeStockUnitValue(formData.stockUnit)}`)}
+                                  <ChevronDown className="h-2.5 w-2.5" />
+                                </button>
+                                {showStockUnitDropdown && !isViewMode ? (
+                                  <div className="absolute left-0 z-30 mt-1 w-28 overflow-hidden rounded-lg border border-[#e6e6e6] bg-white shadow">
+                                    {STOCK_UNIT_OPTIONS.map((unit) => (
+                                      <button
+                                        key={unit}
+                                        type="button"
+                                        className={`block w-full px-2.5 py-1.5 text-left text-[10px] hover:bg-gray-100 ${
+                                          normalizeStockUnitValue(formData.stockUnit) === unit
+                                            ? 'font-semibold text-[#0a61d7]'
+                                            : 'text-gray-700'
+                                        }`}
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          handleInputChange('stockUnit', unit);
+                                          setShowStockUnitDropdown(false);
+                                        }}
+                                      >
+                                        {tCatalog(`variants.stockUnits.${unit}`)}
+                                      </button>
+                                    ))}
+                                  </div>
+                                ) : null}
+                              </div>
+                            </div>
+                            <span
+                              role="separator"
+                              aria-orientation="vertical"
+                              aria-label={tCatalog('variants.stockQty')}
+                              onPointerDown={(event) => beginVariationColResize('stock', event)}
+                              className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize touch-none hover:bg-[#0a61d7]/35"
+                            />
+                          </th>
+                        {([
                           ['lowThreshold', VARIATION_COL_WEIGHTS.lowThreshold, tCatalog('variants.lowThreshold')] as const,
                           ['status', VARIATION_COL_WEIGHTS.status, tCatalog('variants.status')] as const,
                         ]).map(([colKey, weight, label]) => (

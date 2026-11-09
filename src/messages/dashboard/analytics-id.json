@@ -34,6 +34,7 @@
     "seeMoreOperationalAria": "Lihat kinerja operasional selengkapnya",
     "categoryFilters": {
       "productCategory": "Kategori Produk",
+      "marketSegment": "Segmen Pasar",
       "productType": "Tipe Produk"
     },
     "forecastTrend": {

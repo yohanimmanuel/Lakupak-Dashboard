@@ -1,7 +1,8 @@
 import { parseNumberByCurrency } from '@/config/currencyConfig';
+import { parsePrice } from '@/utils/currencyUtils';
 
 export type ProductRequiredFieldKey =
-  | 'sku'
+  | 'marketSegment'
   | 'name'
   | 'description'
   | 'category'
@@ -28,6 +29,7 @@ export interface ProductCompletionInfo {
 
 export interface ProductLike {
   sku?: string | null;
+  marketSegment?: string | null;
   name?: string | null;
   description?: string | null;
   productType?: string | null;
@@ -35,8 +37,8 @@ export interface ProductLike {
   supplier?: string | null;
   images?: string[] | null;
   variantOptions?: Array<{
-    purchasePrice?: string | null;
-    sellingPrice?: string | null;
+    purchasePrice?: string | number | null;
+    sellingPrice?: string | number | null;
     stockQuantity?: number | null;
     lowStockThreshold?: number | null;
     isActive?: boolean | null;
@@ -57,9 +59,26 @@ export interface CombinationLike {
  */
 export const CATALOG_COMPLETION_OPTIONS = { requirePositivePrice: true } as const;
 
+/** Parse a variant price from GraphQL numbers or currency-formatted strings. Empty → null. */
+function resolveVariantPrice(
+  value: string | number | null | undefined,
+  currencyCode?: string,
+): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  const raw = String(value).trim();
+  if (!raw) return null;
+  const fromCurrency = parseNumberByCurrency(raw, currencyCode);
+  if (Number.isFinite(fromCurrency)) return fromCurrency;
+  const fromPrice = parsePrice(raw, currencyCode);
+  return Number.isFinite(fromPrice) ? fromPrice : null;
+}
+
 /**
  * Calculates product catalog completion across the 9 standard fields:
- * SKU, Name, Description, Category (Product Type), Brand, Supplier, Images, Variants, Stock.
+ * Market Segment, Name, Description, Category (Product Type), Brand, Supplier, Images, Variants, Stock.
  *
  * Can accept either:
  * - A Product object with `variantOptions` (e.g. from ProductTable)
@@ -74,7 +93,7 @@ export function getProductCompletion(
   const requirePositiveStock = options?.requirePositiveStock ?? false;
   const requirePositivePrice = options?.requirePositivePrice ?? false;
 
-  const hasSku = Boolean(String(product?.sku || '').trim());
+  const hasMarketSegment = Boolean(String(product?.marketSegment || '').trim());
   const hasName = Boolean(String(product?.name || '').trim());
   const hasDescription = Boolean(String(product?.description || '').trim());
   const hasCategory = Boolean(String(product?.productType || '').trim());
@@ -93,15 +112,11 @@ export function getProductCompletion(
     hasVariants =
       hasRows &&
       combinations.every((combo) => {
-        const purchaseRaw = String(combo.purchasePrice ?? '').trim();
-        const sellingRaw = String(combo.sellingPrice ?? '').trim();
-        if (!purchaseRaw || !sellingRaw) return false;
-        const purchase = parseNumberByCurrency(purchaseRaw, currencyCode);
-        const selling = parseNumberByCurrency(sellingRaw, currencyCode);
-        const isPurchaseValid =
-          Number.isFinite(purchase) && (requirePositivePrice ? purchase > 0 : purchase >= 0);
-        const isSellingValid =
-          Number.isFinite(selling) && (requirePositivePrice ? selling > 0 : selling >= 0);
+        const purchase = resolveVariantPrice(combo.purchasePrice, currencyCode);
+        const selling = resolveVariantPrice(combo.sellingPrice, currencyCode);
+        if (purchase === null || selling === null) return false;
+        const isPurchaseValid = requirePositivePrice ? purchase > 0 : purchase >= 0;
+        const isSellingValid = requirePositivePrice ? selling > 0 : selling >= 0;
         return isPurchaseValid && isSellingValid;
       });
 
@@ -125,29 +140,25 @@ export function getProductCompletion(
       hasStock = allVariantsHaveValidStock;
     }
   } else {
-    // Evaluating from product.variantOptions (ProductTable)
-    const variantOptions = product?.variantOptions;
-    const hasRows = Boolean(variantOptions && variantOptions.length > 0);
+    // Evaluating from product.variantOptions (ProductTable).
+    // Inactive rows are ignored so leftover inactive options don't look like "missing variants".
+    const variantOptions = (product?.variantOptions || []).filter((vo) => vo.isActive !== false);
+    const hasRows = variantOptions.length > 0;
 
     hasVariants =
       hasRows &&
-      variantOptions!.every((vo) => {
-        const purchaseRaw = String(vo.purchasePrice ?? '').trim();
-        const sellingRaw = String(vo.sellingPrice ?? '').trim();
-        if (!purchaseRaw || !sellingRaw) return false;
-        if (vo.isActive === false) return false;
-        const purchase = parseNumberByCurrency(purchaseRaw, currencyCode);
-        const selling = parseNumberByCurrency(sellingRaw, currencyCode);
-        const isPurchaseValid =
-          Number.isFinite(purchase) && (requirePositivePrice ? purchase > 0 : purchase >= 0);
-        const isSellingValid =
-          Number.isFinite(selling) && (requirePositivePrice ? selling > 0 : selling >= 0);
+      variantOptions.every((vo) => {
+        const purchase = resolveVariantPrice(vo.purchasePrice, currencyCode);
+        const selling = resolveVariantPrice(vo.sellingPrice, currencyCode);
+        if (purchase === null || selling === null) return false;
+        const isPurchaseValid = requirePositivePrice ? purchase > 0 : purchase >= 0;
+        const isSellingValid = requirePositivePrice ? selling > 0 : selling >= 0;
         return isPurchaseValid && isSellingValid;
       });
 
     const allVariantsHaveValidStock =
       hasRows &&
-      variantOptions!.every((vo) => {
+      variantOptions.every((vo) => {
         if (vo.stockQuantity === undefined || vo.stockQuantity === null) {
           return false;
         }
@@ -156,12 +167,10 @@ export function getProductCompletion(
       });
 
     if (requirePositiveStock) {
-      const totalStock = variantOptions
-        ? variantOptions.reduce((sum, vo) => {
-            const qty = typeof vo.stockQuantity === 'number' ? vo.stockQuantity : Number(vo.stockQuantity || 0);
-            return sum + (Number.isFinite(qty) ? qty : 0);
-          }, 0)
-        : 0;
+      const totalStock = variantOptions.reduce((sum, vo) => {
+        const qty = typeof vo.stockQuantity === 'number' ? vo.stockQuantity : Number(vo.stockQuantity || 0);
+        return sum + (Number.isFinite(qty) ? qty : 0);
+      }, 0);
       hasStock = allVariantsHaveValidStock && totalStock > 0;
     } else {
       hasStock = allVariantsHaveValidStock;
@@ -169,7 +178,7 @@ export function getProductCompletion(
   }
 
   const fields: ProductFieldCheck[] = [
-    { key: 'sku', nameKey: 'sku', isComplete: hasSku },
+    { key: 'marketSegment', nameKey: 'marketSegment', isComplete: hasMarketSegment },
     { key: 'name', nameKey: 'name', isComplete: hasName },
     { key: 'description', nameKey: 'description', isComplete: hasDescription },
     { key: 'category', nameKey: 'category', isComplete: hasCategory },
@@ -194,6 +203,24 @@ export function getProductCompletion(
     missingFieldKeys,
     fields,
   };
+}
+
+/**
+ * True when a product has no active variants, or active variants with incomplete prices.
+ * Pass an existing completion result to avoid recomputing.
+ */
+export function productHasMissingVariants(
+  product?: ProductLike | null,
+  currencyCode?: string,
+  completion?: ProductCompletionInfo | null,
+): boolean {
+  const info =
+    completion ??
+    (product
+      ? getProductCompletion(product, undefined, currencyCode, CATALOG_COMPLETION_OPTIONS)
+      : null);
+  if (!info) return true;
+  return info.fields.find((field) => field.key === 'variants')?.isComplete !== true;
 }
 
 /**

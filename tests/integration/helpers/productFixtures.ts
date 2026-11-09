@@ -32,7 +32,6 @@ export async function createDraftProductReadyToPublish(userId: number, productId
     brand: 'TestBrand',
     supplier: 'TestSupplier',
     status: 'Draft',
-    productCategory: 'Retail',
     catalogName: 'Default',
     images: ['https://example.com/product.jpg'],
     variantOptions: [
@@ -57,7 +56,6 @@ export async function createDraftProductWithoutImages(userId: number, productId:
     brand: 'TestBrand',
     supplier: 'TestSupplier',
     status: 'Draft',
-    productCategory: 'Retail',
     catalogName: 'Default',
     images: [],
     variantOptions: [
@@ -82,7 +80,6 @@ export async function createDraftProductWithoutStock(userId: number, productId: 
     brand: 'TestBrand',
     supplier: 'TestSupplier',
     status: 'Draft',
-    productCategory: 'Retail',
     catalogName: 'Default',
     images: ['https://example.com/product.jpg'],
     variantOptions: [
@@ -109,7 +106,6 @@ export async function createPublishedProductWithColorVariants(userId: number, pr
     brand: 'TestBrand',
     supplier: 'TestSupplier',
     status: 'Published',
-    productCategory: 'Retail',
     catalogName: 'Default',
     images: ['https://example.com/product.jpg'],
     variantDefinitions: [

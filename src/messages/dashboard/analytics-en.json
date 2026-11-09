@@ -34,6 +34,7 @@
     "seeMoreOperationalAria": "See more operational performance analytics",
     "categoryFilters": {
       "productCategory": "Product Category",
+      "marketSegment": "Market Segment",
       "productType": "Product Type"
     },
     "forecastTrend": {

@@ -37,14 +37,15 @@ export default function EditProductPage() {
               id
               productId
               sku
+              marketSegment
               name
               description
               productType
               brand
               supplier
               status
-              productCategory
               catalogName
+              stockUnit
               images
               halalCertified
               bpomApproved

@@ -46,7 +46,7 @@ const SALES_ANALYTICS_PAGE_QUERY = `
         name
         description
         productType
-        productCategory
+        marketSegment
         brand
         supplier
         status
@@ -140,7 +140,7 @@ export default function SalesAnalyticsPage() {
   // ===== Types for export calculations (explicit, no any) =====
 	interface ExportOrderItem { productId: string; packageQuantity: number; pricePerPackage: number; piecesPerPackage?: number; packageType?: string; category?: string; productTypeSnapshot?: string }
 	interface ExportOrder { buyerId: string; orderDate: string; totalAmount?: number; orderItems?: ExportOrderItem[]; storeName?: string; contactPerson?: string }
-	interface ExportProduct { productId: string; name: string; category?: string; productType?: string; productCategory?: string; sellingPrice?: string; purchasePrice?: string }
+	interface ExportProduct { productId: string; name: string; category?: string; productType?: string; marketSegment?: string; sellingPrice?: string; purchasePrice?: string }
 	interface ExportBuyer { buyerId: string; storeName?: string; owner?: string; businessType?: string }
 
 	const createWordDocument = (
@@ -208,7 +208,7 @@ export default function SalesAnalyticsPage() {
 		const monthlyEntries = Object.entries(monthly).sort(([a],[b]) => a.localeCompare(b));
 		const last6 = monthlyEntries.slice(-6);
 
-	// Units by product category and product type (both rankings, independent of UI dropdown).
+	// Units by market segment and product type (both rankings, independent of UI dropdown).
     // Prefer live product catalog fields (same as sales analytics UI). Treat blank /
     // "Uncategorized" snapshots as missing so they don't hide real productType values.
     const normalizeLabel = (value?: string | null): string => {
@@ -235,9 +235,9 @@ export default function SalesAnalyticsPage() {
         .slice(0, 8);
     };
 
-    const unitsByProductCategory = buildUnitsRanking(
+    const unitsBymarketSegment = buildUnitsRanking(
       (it, prod) =>
-        normalizeLabel(prod?.productCategory) ||
+        normalizeLabel(prod?.marketSegment) ||
         normalizeLabel(prod?.category) ||
         normalizeLabel(it.category),
     );
@@ -340,11 +340,11 @@ export default function SalesAnalyticsPage() {
   </div>
 
   <div class="section">
-    <h2>Units by Product Category (Top 8)</h2>
+    <h2>Units by Market Segment (Top 8)</h2>
     <table>
-      <thead><tr><th>Rank</th><th>Product Category</th><th>Units</th><th>% of Total Units</th></tr></thead>
+      <thead><tr><th>Rank</th><th>Market Segment</th><th>Units</th><th>% of Total Units</th></tr></thead>
       <tbody>
-        ${renderUnitsTable(unitsByProductCategory)}
+        ${renderUnitsTable(unitsBymarketSegment)}
       </tbody>
     </table>
   </div>
@@ -444,7 +444,7 @@ export default function SalesAnalyticsPage() {
 							productId
 							name
 							productType
-							productCategory
+							marketSegment
 							variantOptions {
 								sellingPrice
 								purchasePrice
@@ -460,7 +460,7 @@ export default function SalesAnalyticsPage() {
 						productId: string;
 						name: string;
 						productType?: string | null;
-						productCategory?: string | null;
+						marketSegment?: string | null;
 						variantOptions?: Array<{
 							sellingPrice?: string | number | null;
 							purchasePrice?: string | number | null;
@@ -531,7 +531,7 @@ export default function SalesAnalyticsPage() {
 					productId: product.productId,
 					name: product.name,
 					productType: product.productType || undefined,
-					productCategory: product.productCategory || undefined,
+					marketSegment: product.marketSegment || undefined,
 					sellingPrice: firstVariant?.sellingPrice ? String(firstVariant.sellingPrice) : '0',
 					purchasePrice: firstVariant?.purchasePrice ? String(firstVariant.purchasePrice) : '0',
 				};

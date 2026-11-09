@@ -68,7 +68,7 @@ export default function ProductsListPage() {
           brand
           supplier
           status
-          productCategory
+          marketSegment
           catalogName
           images
           halalCertified
@@ -279,7 +279,6 @@ export default function ProductsListPage() {
       $brand: String!
       $supplier: String!
       $status: String
-      $productCategory: String!
       $catalogName: String
       $images: [String!]
       $halalCertified: Boolean
@@ -299,7 +298,6 @@ export default function ProductsListPage() {
         brand: $brand
         supplier: $supplier
         status: $status
-        productCategory: $productCategory
         catalogName: $catalogName
         images: $images
         halalCertified: $halalCertified
@@ -373,7 +371,6 @@ export default function ProductsListPage() {
           purchasePrice: String(product['Purchase Price'] || ''),
           sellingPrice: String(product['Selling Price'] || ''),
           status: 'Draft' as const,
-          productCategory: product['Product Category'] || '',
           catalogName: product['Catalog Name'] || '',
           images: [] as string[],
         };
@@ -404,7 +401,6 @@ export default function ProductsListPage() {
             brand: payload.brand,
             supplier: payload.supplier,
             status: payload.status,
-            productCategory: payload.productCategory,
             catalogName: payload.catalogName || null,
             images: payload.images,
             halalCertified: false,

@@ -264,14 +264,14 @@ model Product {
   id                Int              @id @default(autoincrement())
   productId         String           @unique
   sku               String
+  /// Target retailer market segment from Buyer.businessType values
+  marketSegment     String?
   name              String
   description       String
   productType       String
   brand             String
   supplier          String
   status            String
-  /// Sales channel: Retail / Wholesale / Both (not merchandising taxonomy)
-  productCategory   String
   /// Stable slug from MERCHANDISING_CATEGORIES (e.g. mobile-accessories)
   merchandisingCategorySlug String?
   catalogName       String
@@ -286,6 +286,8 @@ model Product {
   lastSyncAt        DateTime?
   marketplaceStatus String?          @default("Not Published")
   publishedAt       DateTime?
+  /// How variant stockQuantity is counted: Pieces | Boxes | Cartons
+  stockUnit         String?          @default("Pieces")
   // Product-level stock is computed from sum of all variant stocks
   // Use getProductTotalStock() helper function to calculate
   variants          ProductVariant[]
@@ -301,7 +303,6 @@ model Product {
   @@index([userId])
   @@index([status])
   @@index([marketplaceStatus])
-  @@index([productCategory])
   @@index([merchandisingCategorySlug])
   @@index([userId, marketplaceStatus])
   @@index([createdAt])

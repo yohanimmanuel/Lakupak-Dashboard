@@ -77,14 +77,14 @@ export interface Product {
   id?: number;
   productId: string;
   sku: string;
+  /** Target retailer segment from distributor buyer business types */
+  marketSegment?: string | null;
   name: string;
   description: string;
   productType: string;
   brand: string;
   supplier: string;
   status: 'Draft' | 'Published';
-  /** Sales channel: Retail / Wholesale / Both */
-  productCategory: string;
   merchandisingCategorySlug?: string;
   catalogName: string;
   images: string[];
@@ -93,6 +93,8 @@ export interface Product {
   bpomApproved?: boolean;
   originalProduct?: boolean;
   returnPolicyDays?: number;
+  /** How variant stockQuantity is counted: Pieces | Boxes | Cartons */
+  stockUnit?: string | null;
   // Product-level stock is computed from sum of all variant stocks
   // Use getProductTotalStock() helper function to calculate
   stockQuantity?: number; // Computed field
@@ -175,16 +177,18 @@ export interface ProductFormData {
   id?: number;
   productId?: string;
   sku: string;
+  marketSegment: string;
   name: string;
   description: string;
   productType: string;
   brand: string;
   supplier: string;
   status: 'Draft' | 'Published';
-  productCategory: string;
   merchandisingCategorySlug?: string;
   catalogName: string;
   images: string[];
+  /** How variant stockQuantity is counted: Pieces | Boxes | Cartons */
+  stockUnit: string;
   // Product assurance
   halalCertified: boolean;
   bpomApproved: boolean;

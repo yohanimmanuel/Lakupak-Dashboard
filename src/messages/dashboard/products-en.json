@@ -399,6 +399,7 @@
       "stockRequired": "Add stock before publishing"
     },
     "fields": {
+      "marketSegment": "Market Segment",
       "sku": "SKU Number",
       "name": "Product Name",
       "description": "Product Description",
@@ -415,6 +416,9 @@
       "productId": "Product ID",
       "productIdPlaceholder": "Auto-generated Product ID",
       "productIdHint": "Product ID is automatically generated in LKP format",
+      "marketSegment": "Market Segment",
+      "selectMarketSegment": "Select market segment",
+      "noMarketSegments": "No buyer segments yet. Add business types on buyers first.",
       "sku": "SKU Number",
       "skuPlaceholder": "Enter SKU",
       "brand": "Brand",
@@ -510,7 +514,13 @@
       "sellingPrice": "Selling Price",
       "purchasePrice": "Purchase Price",
       "moq": "MOQ",
-      "stockQty": "Stock (pcs/box/etc.)",
+      "stockQty": "Stock",
+      "stockUnit": "Stock unit",
+      "stockUnits": {
+        "Pieces": "Pieces",
+        "Boxes": "Boxes",
+        "Cartons": "Cartons"
+      },
       "lowThreshold": "Low Threshold",
       "applyToAll": "Apply To All",
       "status": "Status",

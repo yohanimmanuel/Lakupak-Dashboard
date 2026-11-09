@@ -12,7 +12,12 @@ import { formatNumberByCurrency } from '@/config/currencyConfig';
 import { getProductTotalStock } from '../../utils/stockUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useProductsTranslations } from '@/hooks/useProductsTranslations';
-import { CATALOG_COMPLETION_OPTIONS, getProductCompletion, isProductMarketplacePublishable } from '@/utils/productCompletion';
+import {
+  CATALOG_COMPLETION_OPTIONS,
+  getProductCompletion,
+  isProductMarketplacePublishable,
+  productHasMissingVariants,
+} from '@/utils/productCompletion';
 import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
 
 const statusTabs = [
@@ -40,9 +45,11 @@ const getTypeFilters = (products: Product[]) => {
   return ["All Types", ...Array.from(categories)];
 };
 
-const getProductCategoryFilters = (products: Product[]) => {
-  const cats = new Set(products.map(product => product.productCategory).filter(Boolean));
-  return ["All Categories", ...Array.from(cats)];
+const getMarketSegmentFilters = (products: Product[]) => {
+  const segments = new Set(
+    products.map((product) => product.marketSegment).filter((value): value is string => Boolean(value)),
+  );
+  return ["All Categories", ...Array.from(segments)];
 };
 
 export default function ProductTable({ products = [], setProductsAction, onSelectProductAction, onExportXLSXAction, profileToTableRowAction, onRefreshProductsAction, withSuppressedAutoRefreshAction, pickerMode = false, pickerConfirmLabel = 'Use selected', onConfirmPickerSelectionAction, initialSelectedProductIds, pickerSingleSelect = true }: { 
@@ -158,7 +165,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
   
   // Get dynamic filters based on current products
   const categoryFilters = getTypeFilters(products);
-  const prodCategoryFilters = getProductCategoryFilters(products);
+  const prodCategoryFilters = getMarketSegmentFilters(products);
   const [showStockDropdown, setShowStockDropdown] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showProdCategoryDropdown, setShowProdCategoryDropdown] = useState(false);
@@ -195,7 +202,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
   
   if (selectedTab !== "All") filteredProducts = filteredProducts.filter((p: ProductTableRow) => p.status === selectedTab);
   if (selectedCategory !== "All Types") filteredProducts = filteredProducts.filter((p: ProductTableRow) => p.productType === selectedCategory);
-  if (selectedProdCategory !== "All Categories") filteredProducts = filteredProducts.filter((p: ProductTableRow) => (products.find(x => x.productId === p.productId)?.productCategory) === selectedProdCategory);
+  if (selectedProdCategory !== "All Categories") filteredProducts = filteredProducts.filter((p: ProductTableRow) => (products.find(x => x.productId === p.productId)?.marketSegment) === selectedProdCategory);
   
   if (selectedStockFilter !== "all") {
     filteredProducts = filteredProducts.filter((p: ProductTableRow) => {
@@ -1164,7 +1171,11 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
               const originalProduct = products.find(p => p.productId === product.productId);
               const completion = originalProduct ? getProductCompletion(originalProduct, undefined, userCurrency, CATALOG_COMPLETION_OPTIONS) : null;
               const hasIncompleteData = completion ? !completion.isComplete : false;
-              const hasMissingVariants = completion ? !completion.fields.find(f => f.key === 'variants')?.isComplete : false;
+              const hasMissingVariants = productHasMissingVariants(
+                originalProduct,
+                userCurrency,
+                completion,
+              );
               
               return (
                 <tr 
@@ -1223,7 +1234,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                  <td className="truncate py-3 px-4 text-xs text-gray-700">
                   {(() => {
                     const originalProduct = products.find(p => p.productId === product.productId);
-                    const category = originalProduct?.productCategory;
+                    const category = originalProduct?.marketSegment;
                     return String(category || '').trim() ? (
                       category
                     ) : (
@@ -1456,7 +1467,11 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
              const originalProduct = products.find(p => p.productId === product.productId);
              const completion = originalProduct ? getProductCompletion(originalProduct, undefined, userCurrency, CATALOG_COMPLETION_OPTIONS) : null;
              const hasIncompleteData = completion ? !completion.isComplete : false;
-             const hasMissingVariants = completion ? !completion.fields.find(f => f.key === 'variants')?.isComplete : false;
+             const hasMissingVariants = productHasMissingVariants(
+               originalProduct,
+               userCurrency,
+               completion,
+             );
              
              return (
                <div 
@@ -1569,7 +1584,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                  <p className="text-xs text-gray-500">
                    {(() => {
                      const originalProduct = products.find(p => p.productId === product.productId);
-                     const category = originalProduct?.productCategory;
+                     const category = originalProduct?.marketSegment;
                      return String(category || '').trim() ? (
                        category
                      ) : (
@@ -1784,7 +1799,11 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
              const originalProduct = products.find(p => p.productId === product.productId);
              const completion = originalProduct ? getProductCompletion(originalProduct, undefined, userCurrency, CATALOG_COMPLETION_OPTIONS) : null;
              const hasIncompleteData = completion ? !completion.isComplete : false;
-             const hasMissingVariants = completion ? !completion.fields.find(f => f.key === 'variants')?.isComplete : false;
+             const hasMissingVariants = productHasMissingVariants(
+               originalProduct,
+               userCurrency,
+               completion,
+             );
              
              return (
                <div 
@@ -1896,7 +1915,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                  <p className="text-xs text-gray-500">
                    {(() => {
                      const originalProduct = products.find(p => p.productId === product.productId);
-                     const category = originalProduct?.productCategory;
+                     const category = originalProduct?.marketSegment;
                      return String(category || '').trim() ? (
                        category
                      ) : (

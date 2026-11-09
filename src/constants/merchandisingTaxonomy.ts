@@ -1,7 +1,7 @@
 /**
- * Merchandising taxonomy (predefined slugs + synonyms) vs **sales channel**.
- * `Product.productCategory` stores sales channel only (Retail / Wholesale / Both).
+ * Merchandising taxonomy (predefined slugs + synonyms).
  * `Product.merchandisingCategorySlug` stores the merchandising row below.
+ * `Product.marketSegment` stores the target retailer segment (buyer businessType).
  */
 
 export type MerchandisingCategoryDef = {
@@ -20,7 +20,7 @@ export const SALES_CHANNELS = [
 
 export type SalesChannelValue = (typeof SALES_CHANNELS)[number]['value'];
 
-/** Values that must never dominate "By Category" facets (legacy misuse of productCategory). */
+/** Values that must never dominate "By Category" facets (legacy channel strings). */
 export const LEGACY_CHANNEL_STRINGS = new Set(
   ['retail', 'wholesale', 'both', 'retail & wholesale', 'b2b', 'distributor'].map((s) => s.toLowerCase()),
 );
@@ -115,8 +115,8 @@ export function isValidMerchandisingSlug(slug: string): boolean {
   return MERCHANDISING_CATEGORIES.some((c) => c.slug === slug);
 }
 
-/** Map legacy free-text productCategory to slug when it matches a label (case-insensitive). */
-export function slugFromLegacyProductCategory(raw: string | null | undefined): string | null {
+/** Map legacy free-text category labels to slug when it matches a label (case-insensitive). */
+export function slugFromLegacyCategoryLabel(raw: string | null | undefined): string | null {
   const t = (raw || '').trim();
   if (!t) return null;
   const lower = t.toLowerCase();
@@ -165,7 +165,7 @@ export function normalizeMerchandisingCategorySlug(slug?: string | null): string
 
 const DEFAULT_SALES_CHANNEL = 'Retail';
 
-/** Normalize `productCategory` field (sales channel only). */
+/** Normalize legacy sales-channel strings (Retail / Wholesale / Both). */
 export function normalizeSalesChannel(raw: string | null | undefined): string {
   const t = (raw || '').trim();
   if (!t) return DEFAULT_SALES_CHANNEL;

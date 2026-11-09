@@ -66,7 +66,7 @@ export default function FavouriteProducts({
               brand
               supplier
               status
-              productCategory
+              marketSegment
               catalogName
               images
               variantOptions {
@@ -168,7 +168,16 @@ export default function FavouriteProducts({
 
   // Get unique product types and categories
   const productTypes = ['All Types', ...Array.from(new Set(products.map(p => p.productType).filter(Boolean)))];
-  const productCategories = ['All Categories', ...Array.from(new Set(products.map(p => p.productCategory).filter(Boolean)))];
+  const productCategories = [
+    'All Categories',
+    ...Array.from(
+      new Set(
+        products
+          .map((p) => p.marketSegment)
+          .filter((value): value is string => Boolean(value)),
+      ),
+    ),
+  ];
 
   // Filter products
   const filteredProducts = products.filter(product => {
@@ -178,7 +187,7 @@ export default function FavouriteProducts({
       product.brand?.toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesType = selectedType === 'All Types' || product.productType === selectedType;
-    const matchesCategory = selectedCategory === 'All Categories' || product.productCategory === selectedCategory;
+    const matchesCategory = selectedCategory === 'All Categories' || product.marketSegment === selectedCategory;
     const isPublished = product.status === 'Published';
 
     return matchesSearch && matchesType && matchesCategory && isPublished;
