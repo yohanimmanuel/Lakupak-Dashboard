@@ -37,6 +37,15 @@ function salesChannelFromMarketSegment(marketSegment?: string | null): 'Retail' 
   return 'Both';
 }
 
+const MARKETPLACE_STOCK_UNITS = new Set(['Pieces', 'Boxes', 'Cartons']);
+
+function marketplaceStockUnit(raw?: string | null): 'Pieces' | 'Boxes' | 'Cartons' {
+  const value = String(raw || '').trim();
+  return MARKETPLACE_STOCK_UNITS.has(value)
+    ? (value as 'Pieces' | 'Boxes' | 'Cartons')
+    : 'Pieces';
+}
+
 /** Meili filter matching canonical + legacy productType aliases. */
 function buildMeiliCategoryFilter(category: string | undefined | null): string | undefined {
   if (!category || category === 'All') return undefined;
@@ -846,13 +855,14 @@ export const fetchMarketplaceProducts = async (args: {
         (product as { marketSegment?: string | null }).marketSegment,
       ),
       brand: product.brand,
-      unit: 'Piece',
+      unit: marketplaceStockUnit((product as { stockUnit?: string | null }).stockUnit),
       sku: product.sku,
       supplier: product.supplier,
       publishedAt: product.publishedAt?.toISOString() || null,
       lastSyncAt: product.lastSyncAt?.toISOString() || null,
       piecesPerPackage: 1,
-      packageType: 'Piece',
+      packageType: marketplaceStockUnit((product as { stockUnit?: string | null }).stockUnit),
+      stockUnit: marketplaceStockUnit((product as { stockUnit?: string | null }).stockUnit),
       seller: {
         name: product.user?.company?.name || 'Unknown Company',
         avatar: '/default-avatar.png',

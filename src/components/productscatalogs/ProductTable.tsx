@@ -1606,7 +1606,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                      {tTable('stockLabel')}{' '}
                      {(() => {
                        const productStock = getProductTotalStock(product.variantOptions || []);
-                       return tTable('piecesCount', { count: productStock.totalStock });
+                       return productStock.totalStock;
                      })()}
                    </span>
                    {(() => {

@@ -242,7 +242,7 @@
     "deleteProduct": "Delete Product",
     "productImage": "Product Image",
     "productImageAlt": "Product Image",
-    "stockLabel": "Stock:",
+    "stockLabel": "Total stock:",
     "piecesCount": "{count} pieces",
     "perPackage": "Per {packageType}:",
     "piecesPerPackage": "{count} pieces per package",

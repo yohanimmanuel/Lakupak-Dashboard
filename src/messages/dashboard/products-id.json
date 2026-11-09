@@ -242,7 +242,7 @@
     "deleteProduct": "Hapus Produk",
     "productImage": "Gambar Produk",
     "productImageAlt": "Gambar Produk",
-    "stockLabel": "Stok:",
+    "stockLabel": "Total stok:",
     "piecesCount": "{count} pcs",
     "perPackage": "Per {packageType}:",
     "piecesPerPackage": "{count} pcs per kemasan",

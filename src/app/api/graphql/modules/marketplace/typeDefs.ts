@@ -77,6 +77,7 @@ export const marketplaceTypeDefs = /* GraphQL */ `
     lastSyncAt: String
     piecesPerPackage: Int!
     packageType: String!
+    stockUnit: String!
     seller: MarketplaceSeller!
     shipping: MarketplaceShipping!
     shippingInfo: MarketplaceShippingInfo!
