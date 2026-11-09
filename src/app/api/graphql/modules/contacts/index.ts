@@ -610,6 +610,22 @@ const updateBuyer = async (args: {
       throw new Error('Invalid identifier');
     }
 
+    // Keep assortment opportunity segments aligned with live buyer business type.
+    if (
+      cleanUpdateData.businessType !== undefined &&
+      String(cleanUpdateData.businessType).trim() !== String(existingBuyer.businessType || '').trim()
+    ) {
+      try {
+        const { syncAssortmentOpportunitySegments } = await import(
+          '@/lib/assortmentOpportunities/service'
+        );
+        await syncAssortmentOpportunitySegments(Number(userId), buyer.buyerId);
+      } catch (error) {
+        // Opportunities still sync on next list/refresh if this fails.
+        console.error('[Buyers] Assortment opportunity segment sync failed:', error);
+      }
+    }
+
     // Invalidate dashboard cache after buyer update
     try {
       const { invalidateDashboardCache } = await import('@/lib/queryCache');

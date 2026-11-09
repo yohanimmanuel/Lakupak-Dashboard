@@ -155,9 +155,7 @@ export default function AssortmentGapHeatmap() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [data, setData] = useState<Heatmap | null>(null);
-  const [segmentOptions, setSegmentOptions] = useState<AssortmentSegment[]>([
-    ...PREFERRED_ASSORTMENT_SEGMENTS,
-  ]);
+  const [segmentOptions, setSegmentOptions] = useState<AssortmentSegment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openRow, setOpenRow] = useState<Row | null>(null);
@@ -266,7 +264,7 @@ export default function AssortmentGapHeatmap() {
   const segments = data?.segments?.length
     ? data.segments
     : segment === 'all'
-      ? [...PREFERRED_ASSORTMENT_SEGMENTS]
+      ? segmentOptions
       : [segment as AssortmentSegment];
 
   const variantTotal = variantRows?.length ?? 0;

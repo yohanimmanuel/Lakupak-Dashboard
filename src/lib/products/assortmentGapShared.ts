@@ -1,8 +1,8 @@
 /** Client-safe heatmap constants. Do not import server modules here. */
 
 /**
- * Always-shown heatmap columns (buyer form business types, in display order).
- * Extra buyer types from the account still appear after these.
+ * Optional casing hints for common labels. Heatmap columns come only from
+ * each distributor's buyer businessType values, not this fixed list.
  */
 export const PREFERRED_ASSORTMENT_SEGMENTS = [
   'Warung',

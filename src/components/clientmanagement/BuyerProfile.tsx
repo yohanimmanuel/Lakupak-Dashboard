@@ -9,6 +9,7 @@ import * as XLSX from 'xlsx';
 import ImportOrdersModal from './ImportOrdersModal';
 import { Buyer, OrderDetail } from '@/types/client';
 import { formatDate, formatNumber } from '@/utils/dateUtils';
+import { logisticsLastVisit } from '@/utils/buyerLogistics';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { useUserStore } from '@/store/userStore';
@@ -225,6 +226,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
     text += `Created At: ${buyer.createdAt}\n`;
     text += `Preferred Delivery Days: ${logistics?.preferredDays || ''}\n`;
     text += `Last Shipment: ${logistics?.lastShipment || ''}\n`;
+    text += `Last Visit: ${logistics?.lastVisit || ''}\n`;
     text += `Shipment Success: ${logistics?.shipmentSuccess || ''}\n`;
     text += `Notes: ${notes.join(', ')}\n`;
     text += `\nOrder & Product Details:\n`;
@@ -258,7 +260,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
       o.totalOrders,
       o.totalSpend,
       o.lastOrderDate,
-      o.outstanding
+      o.outstanding,
     ]);
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     const wb = XLSX.utils.book_new();
@@ -516,10 +518,6 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
                     </span>
                   </span>
                 ) : null}
-                <span className="inline-flex items-center gap-1">
-                  <Calendar className="h-3 w-3 shrink-0" />
-                  {formatDate(buyer.createdAt)}
-                </span>
               </div>
 
               <div className="flex min-w-0 items-start gap-1.5 text-xs text-gray-500">
@@ -542,6 +540,16 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
                     <span className="font-medium text-red-600">{tShared('missing.address')}</span>
                   )}
                 </div>
+              </div>
+
+              <div className="flex min-w-0 items-center gap-1.5 text-xs text-gray-500">
+                <Calendar className="h-3.5 w-3.5 shrink-0" />
+                <span>
+                  {tBuyersProfile('lastVisit')}{' '}
+                  <span className="font-medium text-gray-700">
+                    {logisticsLastVisit(buyer) || '—'}
+                  </span>
+                </span>
               </div>
             </div>
           </div>

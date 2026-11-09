@@ -400,7 +400,7 @@ export default function BuyerTable({
   }, []);
 
   const handleExportXLSX = useCallback(() => {
-    const headers = ['ID', 'Name', 'Address', 'Business Type', 'Total Orders', 'Total Spend', 'Outstanding', 'Status'];
+    const headers = ['ID', 'Name', 'Address', 'Business Type', 'Total Orders', 'Total Spend', 'Outstanding', 'Last Visit', 'Status'];
     const rows = filteredBuyers.map((b: BuyerTableRow) => [
       b.buyerId,
       b.name,
@@ -409,6 +409,7 @@ export default function BuyerTable({
       b.totalOrders,
       b.totalSpend,
       b.outstanding,
+      b.lastVisit || '',
       b.status
     ]);
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
@@ -916,6 +917,7 @@ export default function BuyerTable({
                 <th className="py-3 px-4 font-medium uppercase">{tShared('columns.totalOrders')}</th>
                 <th className="py-3 px-4 font-medium uppercase">{tShared('columns.totalSpend')}</th>
                 <th className="py-3 px-4 font-medium uppercase">{tShared('columns.outstanding')}</th>
+                <th className="py-3 px-4 font-medium uppercase">{tShared('columns.lastVisit')}</th>
                 <th className="py-3 px-4 font-medium uppercase">{tShared('columns.status')}</th>
                 <th className="py-3 px-4 font-medium uppercase text-center">{tShared('actions')}</th>
               </tr>
@@ -923,7 +925,7 @@ export default function BuyerTable({
             <tbody className="bg-white">
               {filteredBuyers.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center text-gray-500">
+                  <td colSpan={11} className="py-12 text-center text-gray-500">
                     <div className="flex flex-col items-center gap-2">
                       <Users className="w-12 h-12 text-gray-400" />
                       <p className="text-sm">{tBuyers('empty')}</p>
@@ -1110,6 +1112,7 @@ export default function BuyerTable({
                 <td className="py-3 px-4 text-black">{String(buyer.totalOrders)}</td>
                 <td className="py-3 px-4 text-[#0a61d7] font-semibold">{formatCurrency(parseNumberByCurrency(String(buyer.totalSpend), userCurrency), userCurrency)}</td>
                 <td className="py-3 px-4 text-[#f65911] font-semibold">{formatCurrency(parseNumberByCurrency(String(buyer.outstanding), userCurrency), userCurrency)}</td>
+                <td className="py-3 px-4 text-black">{buyer.lastVisit?.trim() ? buyer.lastVisit : '—'}</td>
                 <td className="py-3 px-4">
                   <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${statusBadge(buyer.status)}`}>
                     {translateStatus(String(buyer.status))}
@@ -1354,6 +1357,7 @@ export default function BuyerTable({
             <div className="text-xs text-gray-500">{tShared('mobileLabels.totalOrders')} <span className="text-black font-medium">{buyer.totalOrders}</span></div>
             <div className="text-xs text-gray-500">{tShared('mobileLabels.totalSpend')} <span className="text-[#0a61d7] font-semibold">{formatCurrency(parseNumberByCurrency(String(buyer.totalSpend), userCurrency), userCurrency)}</span></div>
             <div className="text-xs text-gray-500">{tShared('mobileLabels.outstanding')} <span className="text-[#f65911] font-semibold">{formatCurrency(parseNumberByCurrency(String(buyer.outstanding), userCurrency), userCurrency)}</span></div>
+            <div className="text-xs text-gray-500">{tShared('mobileLabels.lastVisit')} <span className="text-black font-medium">{buyer.lastVisit?.trim() ? buyer.lastVisit : '—'}</span></div>
             <div className="text-xs text-gray-500">
               {tShared('mobileLabels.status')} <span className={`inline-block px-2 py-1 rounded-full font-bold ${statusBadge(buyer.status)}`}>{translateStatus(String(buyer.status))}</span>
             </div>

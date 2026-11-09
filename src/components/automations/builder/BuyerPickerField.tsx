@@ -7,6 +7,7 @@ import BuyerTable from '@/components/clientmanagement/BuyerTable';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
 import type { Buyer, BuyerTableRow, OrderDetail } from '@/types/client';
+import { logisticsLastVisit } from '@/utils/buyerLogistics';
 import { useAutomationTranslations } from '@/hooks/useAutomationTranslations';
 
 export type PickedBuyer = {
@@ -99,6 +100,7 @@ function profileToTableRow(buyer: Buyer): BuyerTableRow {
       : '0',
     totalSpend: totalSpend.toString(),
     outstanding: outstanding.toString(),
+    lastVisit: logisticsLastVisit(buyer),
     createdAt: formatDate(buyer.createdAt),
     lastUpdated: formatDate(buyer.updatedAt),
     userId: buyer.userId || 0,

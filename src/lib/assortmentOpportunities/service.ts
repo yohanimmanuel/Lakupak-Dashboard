@@ -110,6 +110,48 @@ export async function saveAssortmentSettings(
   return next;
 }
 
+/** Keep opportunity.segment aligned with live Buyer.businessType (heatmap already reads buyers live). */
+export async function syncAssortmentOpportunitySegments(
+  distributorId: number,
+  buyerId?: string,
+) {
+  assertOpportunityTenant(distributorId, distributorId);
+  if (buyerId) {
+    const buyer = await prisma.buyer.findFirst({
+      where: { userId: distributorId, buyerId },
+      select: { businessType: true },
+    });
+    if (!buyer) return { updated: 0 };
+    const segment = buyer.businessType?.trim() || 'Other';
+    const result = await prisma.assortmentOpportunity.updateMany({
+      where: {
+        distributorId,
+        buyerId,
+        NOT: { segment },
+      },
+      data: { segment },
+    });
+    return { updated: result.count };
+  }
+
+  const result = await prisma.$executeRaw`
+    UPDATE "AssortmentOpportunity" AS ao
+    SET segment = CASE
+      WHEN TRIM(COALESCE(b."businessType", '')) = '' THEN 'Other'
+      ELSE TRIM(b."businessType")
+    END
+    FROM "Buyer" AS b
+    WHERE ao."buyerId" = b."buyerId"
+      AND ao."distributorId" = ${distributorId}
+      AND b."userId" = ${distributorId}
+      AND ao.segment IS DISTINCT FROM CASE
+        WHEN TRIM(COALESCE(b."businessType", '')) = '' THEN 'Other'
+        ELSE TRIM(b."businessType")
+      END
+  `;
+  return { updated: Number(result) || 0 };
+}
+
 function listWhere(distributorId: number, filters: OpportunityListFilters): Prisma.AssortmentOpportunityWhereInput {
   assertOpportunityTenant(distributorId, distributorId);
   const status = filters.status?.trim().toLowerCase();
@@ -123,7 +165,10 @@ function listWhere(distributorId: number, filters: OpportunityListFilters): Pris
   if (filters.family && filters.family !== 'all') where.productName = { equals: filters.family, mode: 'insensitive' };
   if (filters.productId) where.productId = filters.productId;
   if (filters.variantOptionId != null) where.variantOptionId = filters.variantOptionId;
-  if (filters.segment && filters.segment !== 'all') where.segment = { equals: filters.segment, mode: 'insensitive' };
+  if (filters.segment && filters.segment !== 'all') {
+    // Use synced (trimmed) segment so facet values match even when buyer.businessType has padding.
+    where.segment = { equals: filters.segment, mode: 'insensitive' };
+  }
   if (filters.type && filters.type !== 'all') where.opportunityType = filters.type;
   if (filters.retailer?.trim()) where.retailerName = { contains: filters.retailer.trim(), mode: 'insensitive' };
   if (filters.q?.trim()) {
@@ -629,13 +674,31 @@ export async function listVariantGroups(distributorId: number, filters: Opportun
   };
 }
 
-async function alignSkuRows<T extends { productId: string; variantOptionId: number; penetration: unknown }>(
+async function alignSkuRows<T extends {
+  productId: string;
+  variantOptionId: number;
+  penetration: unknown;
+  buyerId?: string;
+  segment?: string;
+}>(
   distributorId: number,
   rows: T[],
 ) {
   const rates = await loadPortfolio(distributorId);
+  const buyerIds = [...new Set(rows.map((row) => row.buyerId).filter((id): id is string => Boolean(id)))];
+  const buyers =
+    buyerIds.length === 0
+      ? []
+      : await prisma.buyer.findMany({
+          where: { userId: distributorId, buyerId: { in: buyerIds } },
+          select: { buyerId: true, businessType: true },
+        });
+  const segmentByBuyer = new Map(
+    buyers.map((buyer) => [buyer.buyerId, buyer.businessType?.trim() || 'Other'] as const),
+  );
   return rows.map((row) => ({
     ...row,
+    segment: (row.buyerId && segmentByBuyer.get(row.buyerId)) || row.segment || 'Other',
     image: rates.imageByProduct.get(row.productId) ?? null,
     penetration: rates.sku.get(row.variantOptionId)?.penetration ?? 0,
   }));
@@ -733,6 +796,7 @@ function draftData(distributorId: number, draft: OpportunityDraft) {
 
 export async function refreshAssortmentOpportunities(distributorId: number) {
   assertOpportunityTenant(distributorId, distributorId);
+  await syncAssortmentOpportunitySegments(distributorId);
   const settings = await getAssortmentSettings(distributorId);
   const [catalog, offers] = await Promise.all([
     loadMatchInputs(distributorId),
@@ -872,25 +936,37 @@ export async function getAssortmentOpportunity(distributorId: number, id: string
   });
   if (!row) return null;
   assertOpportunityTenant(row.distributorId, distributorId);
-  const history = await prisma.orderItem.findMany({
-    where: {
-      OR: [{ variantOptionId: row.variantOptionId }, { productId: row.productId }],
-      order: { userId: distributorId, buyerId: row.buyerId, isDeleted: false },
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 12,
-    select: {
-      productNameSnapshot: true,
-      variantNameSnapshot: true,
-      productSkuSnapshot: true,
-      packageQuantity: true,
-      unitPriceSnapshot: true,
-      pricePerPackage: true,
-      variantOptionId: true,
-      order: { select: { orderDate: true, orderStatus: true, orderId: true } },
-    },
-  });
-  const rates = await loadPortfolio(distributorId);
+  const [history, rates, buyer] = await Promise.all([
+    prisma.orderItem.findMany({
+      where: {
+        OR: [{ variantOptionId: row.variantOptionId }, { productId: row.productId }],
+        order: { userId: distributorId, buyerId: row.buyerId, isDeleted: false },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 12,
+      select: {
+        productNameSnapshot: true,
+        variantNameSnapshot: true,
+        productSkuSnapshot: true,
+        packageQuantity: true,
+        unitPriceSnapshot: true,
+        pricePerPackage: true,
+        variantOptionId: true,
+        order: { select: { orderDate: true, orderStatus: true, orderId: true } },
+      },
+    }),
+    loadPortfolio(distributorId),
+    prisma.buyer.findFirst({
+      where: { userId: distributorId, buyerId: row.buyerId },
+      select: { businessType: true },
+    }),
+  ]);
+  const liveSegment = buyer?.businessType?.trim() || row.segment || 'Other';
+  try {
+    await syncAssortmentOpportunitySegments(distributorId, row.buyerId);
+  } catch (error) {
+    console.error('[AssortmentOpportunities] Segment sync failed on get:', error);
+  }
   const slice: PortfolioSlice | undefined = rates.sku.get(row.variantOptionId);
   const breakdown =
     row.breakdown && typeof row.breakdown === 'object' && !Array.isArray(row.breakdown)
@@ -902,6 +978,7 @@ export async function getAssortmentOpportunity(distributorId: number, id: string
   return {
     opportunity: {
       ...row,
+      segment: liveSegment,
       penetration: slice?.penetration ?? 0,
       breakdown,
       image: rates.imageByProduct.get(row.productId) ?? null,

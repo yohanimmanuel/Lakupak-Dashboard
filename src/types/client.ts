@@ -56,6 +56,7 @@ export interface BuyerTableRow {
   totalOrders?: string;
   totalSpend?: string;
   outstanding?: string;
+  lastVisit?: string;
   createdAt: string;
   lastUpdated: string;
   userId: number;
@@ -118,6 +119,7 @@ export interface BuyerFormData {
   createdAt?: string;
   preferredDays?: string;
   lastShipment?: string;
+  lastVisit?: string;
   shipmentSuccess?: string;
   notes?: string;
   orderDetails?: OrderDetail[];

@@ -476,6 +476,83 @@ interface ProductCatalogProps {
   onCancel?: () => void;
 }
 
+/** Relative weights for the compact full-width first view (not pixel sizes). */
+const VARIATION_COL_WEIGHTS = {
+  variant: 9,
+  sku: 14,
+  sellingPrice: 13,
+  purchasePrice: 13,
+  moq: 7,
+  stock: 11,
+  lowThreshold: 9,
+  status: 9,
+  actions: 7,
+} as const;
+
+const VARIATION_COL_MIN = 64;
+const VARIATION_ROW_MIN = 40;
+const VARIATION_ROW_DEFAULT = 44;
+const VARIATION_COL_WIDTHS_KEY = 'productCatalog.variationColWidths';
+
+function readVariationColWidths(): Record<string, number> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(VARIATION_COL_WIDTHS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    const next: Record<string, number> = {};
+    for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+      if (typeof value === 'number' && Number.isFinite(value) && value >= VARIATION_COL_MIN) {
+        next[key] = Math.round(value);
+      }
+    }
+    return next;
+  } catch {
+    return {};
+  }
+}
+
+function writeVariationColWidths(widths: Record<string, number>) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (Object.keys(widths).length === 0) {
+      window.localStorage.removeItem(VARIATION_COL_WIDTHS_KEY);
+      return;
+    }
+    window.localStorage.setItem(VARIATION_COL_WIDTHS_KEY, JSON.stringify(widths));
+  } catch {
+    // Ignore quota / private-mode failures.
+  }
+}
+
+function startSizeDrag(args: {
+  axis: 'x' | 'y';
+  startClient: number;
+  startSize: number;
+  min: number;
+  onSize: (next: number) => void;
+}): () => void {
+  const { axis, startClient, startSize, min, onSize } = args;
+  const onMove = (event: PointerEvent) => {
+    const delta = axis === 'x' ? event.clientX - startClient : event.clientY - startClient;
+    onSize(Math.max(min, startSize + delta));
+  };
+  const dispose = () => {
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', dispose);
+    window.removeEventListener('pointercancel', dispose);
+  };
+  document.body.style.cursor = axis === 'x' ? 'col-resize' : 'row-resize';
+  document.body.style.userSelect = 'none';
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', dispose);
+  window.addEventListener('pointercancel', dispose);
+  return dispose;
+}
+
 export default function ProductCatalog({ 
   mode = 'add', 
   product, 
@@ -528,6 +605,35 @@ export default function ProductCatalog({
   const skipBeforeUnloadRef = useRef(false);
   const [variationRefreshTick, setVariationRefreshTick] = useState(0);
   const [showVariationImport, setShowVariationImport] = useState(false);
+  const [variationColWidths, setVariationColWidths] = useState<Record<string, number>>({});
+  const [variationColWidthsReady, setVariationColWidthsReady] = useState(false);
+  const [variationRowHeights, setVariationRowHeights] = useState<Record<string, number>>({});
+  const variationTableRef = useRef<HTMLTableElement | null>(null);
+  const variationSizeDragDisposeRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    return () => {
+      variationSizeDragDisposeRef.current?.();
+      variationSizeDragDisposeRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    setVariationColWidths(readVariationColWidths());
+    setVariationColWidthsReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!variationColWidthsReady) return;
+    writeVariationColWidths(variationColWidths);
+  }, [variationColWidths, variationColWidthsReady]);
+
+  const trackVariationSizeDrag = (
+    ...args: Parameters<typeof startSizeDrag>
+  ) => {
+    variationSizeDragDisposeRef.current?.();
+    variationSizeDragDisposeRef.current = startSizeDrag(...args);
+  };
 
   // Initialize variants from product data
   useEffect(() => {
@@ -2313,6 +2419,84 @@ export default function ProductCatalog({
   const isViewMode = currentMode === 'view';
   const isEditMode = currentMode === 'edit';
 
+  const variationRowHeight = (rowId: string) =>
+    variationRowHeights[rowId] ?? VARIATION_ROW_DEFAULT;
+
+  const variationColKeys = useMemo(() => {
+    const keys: Array<{ key: string; weight: number }> = [
+      ...variants.map((variant) => ({
+        key: `v:${variant.id}`,
+        weight: VARIATION_COL_WEIGHTS.variant,
+      })),
+      { key: 'sku', weight: VARIATION_COL_WEIGHTS.sku },
+      { key: 'sellingPrice', weight: VARIATION_COL_WEIGHTS.sellingPrice },
+      { key: 'purchasePrice', weight: VARIATION_COL_WEIGHTS.purchasePrice },
+      { key: 'moq', weight: VARIATION_COL_WEIGHTS.moq },
+      { key: 'stock', weight: VARIATION_COL_WEIGHTS.stock },
+      { key: 'lowThreshold', weight: VARIATION_COL_WEIGHTS.lowThreshold },
+      { key: 'status', weight: VARIATION_COL_WEIGHTS.status },
+    ];
+    if (!isViewMode) {
+      keys.push({ key: 'actions', weight: VARIATION_COL_WEIGHTS.actions });
+    }
+    return keys;
+  }, [variants, isViewMode]);
+
+  const hasCustomVariationColWidths = variationColKeys.some(
+    (col) => typeof variationColWidths[col.key] === 'number',
+  );
+
+  const variationColWeightTotal = useMemo(
+    () => variationColKeys.reduce((sum, col) => sum + col.weight, 0),
+    [variationColKeys],
+  );
+
+  const variationTablePixelWidth = useMemo(() => {
+    if (!hasCustomVariationColWidths) return null;
+    return variationColKeys.reduce(
+      (sum, col) => sum + (variationColWidths[col.key] ?? VARIATION_COL_MIN),
+      0,
+    );
+  }, [hasCustomVariationColWidths, variationColKeys, variationColWidths]);
+
+  const variationColStyle = (key: string, weight: number): React.CSSProperties => {
+    if (hasCustomVariationColWidths) {
+      const width = variationColWidths[key] ?? VARIATION_COL_MIN;
+      return { width, minWidth: width };
+    }
+    const pct = `${(weight / Math.max(variationColWeightTotal, 1)) * 100}%`;
+    return { width: pct };
+  };
+
+  const beginVariationColResize = (colKey: string, event: React.PointerEvent<HTMLElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const table = variationTableRef.current;
+    let snapshot = variationColWidths;
+    if (!hasCustomVariationColWidths && table) {
+      const measured: Record<string, number> = {};
+      table.querySelectorAll<HTMLElement>('thead th[data-col-key]').forEach((th) => {
+        const key = th.dataset.colKey;
+        if (!key) return;
+        measured[key] = Math.max(VARIATION_COL_MIN, Math.round(th.getBoundingClientRect().width));
+      });
+      snapshot = measured;
+      setVariationColWidths(measured);
+    }
+    const startSize = snapshot[colKey] ?? VARIATION_COL_MIN;
+    trackVariationSizeDrag({
+      axis: 'x',
+      startClient: event.clientX,
+      startSize,
+      min: VARIATION_COL_MIN,
+      onSize: (next) =>
+        setVariationColWidths((prev) => {
+          const base = Object.keys(prev).length > 0 ? prev : snapshot;
+          return { ...base, [colKey]: next };
+        }),
+    });
+  };
+
   // Per-retailer offers no longer rewrite base catalog price — keep price editing unlocked
   const isOfferConnected = false;
   const customOfferClientCount = Number(
@@ -3559,69 +3743,158 @@ export default function ProductCatalog({
                     </div>
               )}
                 <div className="overflow-x-auto">
-                  <table className="w-full border-collapse border border-gray-300">
+                  <table
+                    ref={variationTableRef}
+                    className={`${variationTablePixelWidth == null ? 'w-full ' : ''}border-collapse border border-gray-300`}
+                    style={{
+                      tableLayout: 'fixed',
+                      width: variationTablePixelWidth != null ? variationTablePixelWidth : '100%',
+                      ...(variationTablePixelWidth == null ? { minWidth: '100%' } : {}),
+                    }}
+                  >
                     <thead className="bg-gray-50">
                       <tr>
-                        {variants.map((variant, index) => (
-                          <th key={variant.id} className="w-25 text-xs font-semibold text-gray-700 p-3 text-left border-b border-r border-gray-300">
-                            {variant.variantType || tCatalog('variants.varFallback', { index: index + 1 })}
+                        {variants.map((variant, index) => {
+                          const colKey = `v:${variant.id}`;
+                          const label =
+                            variant.variantType || tCatalog('variants.varFallback', { index: index + 1 });
+                          return (
+                            <th
+                              key={variant.id}
+                              data-col-key={colKey}
+                              className="relative text-xs font-semibold text-gray-700 px-2 py-1.5 text-left border-b border-r border-gray-300"
+                              style={variationColStyle(colKey, VARIATION_COL_WEIGHTS.variant)}
+                            >
+                              {label}
+                              <span
+                                role="separator"
+                                aria-orientation="vertical"
+                                aria-label={label}
+                                onPointerDown={(event) => beginVariationColResize(colKey, event)}
+                                className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize touch-none hover:bg-[#0a61d7]/35"
+                              />
+                            </th>
+                          );
+                        })}
+                        {([
+                          ['sku', VARIATION_COL_WEIGHTS.sku, tCatalog('variants.sku')] as const,
+                          ['sellingPrice', VARIATION_COL_WEIGHTS.sellingPrice, tCatalog('variants.sellingPrice')] as const,
+                          ['purchasePrice', VARIATION_COL_WEIGHTS.purchasePrice, tCatalog('variants.purchasePrice')] as const,
+                          ['moq', VARIATION_COL_WEIGHTS.moq, tCatalog('variants.moq')] as const,
+                          ['stock', VARIATION_COL_WEIGHTS.stock, tCatalog('variants.stockQty')] as const,
+                          ['lowThreshold', VARIATION_COL_WEIGHTS.lowThreshold, tCatalog('variants.lowThreshold')] as const,
+                          ['status', VARIATION_COL_WEIGHTS.status, tCatalog('variants.status')] as const,
+                        ]).map(([colKey, weight, label]) => (
+                          <th
+                            key={colKey}
+                            data-col-key={colKey}
+                            className="relative text-xs font-semibold text-gray-700 px-2 py-1.5 text-left border-b border-r border-gray-300"
+                            style={variationColStyle(colKey, weight)}
+                          >
+                            {label}
+                            <span
+                              role="separator"
+                              aria-orientation="vertical"
+                              aria-label={label}
+                              onPointerDown={(event) => beginVariationColResize(colKey, event)}
+                              className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize touch-none hover:bg-[#0a61d7]/35"
+                            />
                           </th>
                         ))}
-                        <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-r border-gray-300">
-                          {tCatalog('variants.sku')}
-                        </th>
-                        <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-r border-gray-300">
-                          {tCatalog('variants.sellingPrice')}
-                        </th>
-                        <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-r border-gray-300">
-                          {tCatalog('variants.purchasePrice')}
-                        </th>
-                        <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-r border-gray-300">
-                          {tCatalog('variants.moq')}
-                        </th>
-                        <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-r border-gray-300">
-                          {tCatalog('variants.stockQty')}
-                        </th>
-                        <th className="text-xs font-semibold text-gray-700 p-3 text-left border-b border-r border-gray-300">
-                          {tCatalog('variants.lowThreshold')}
-                        </th>
-                        <th className="w-25 text-xs font-semibold text-gray-700 p-3 text-left border-b border-r border-gray-300">
-                          {tCatalog('variants.status')}
-                        </th>
                         {!isViewMode && (
-                          <th className="text-xs font-semibold text-gray-700 p-3 text-center border-b border-gray-300">
+                          <th
+                            data-col-key="actions"
+                            className="relative text-xs font-semibold text-gray-700 px-2 py-1.5 text-center border-b border-gray-300"
+                            style={variationColStyle('actions', VARIATION_COL_WEIGHTS.actions)}
+                          >
                             {tCatalog('variants.actions')}
+                            <span
+                              role="separator"
+                              aria-orientation="vertical"
+                              aria-label={tCatalog('variants.actions')}
+                              onPointerDown={(event) => beginVariationColResize('actions', event)}
+                              className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize touch-none hover:bg-[#0a61d7]/35"
+                            />
                           </th>
                         )}
                       </tr>
                     </thead>
                     <tbody>
-                       {combinations.map((combination, index) => (
-                         <tr key={combination.id}>
-                           {variants.map((variant) => (
-                             <td 
-                               key={variant.id} 
-                               className="p-3 border-r border-b border-gray-300"
+                       {combinations.map((combination, index) => {
+                         const rowHeight = variationRowHeight(combination.id);
+                         return (
+                         <tr key={combination.id} style={{ height: rowHeight }}>
+                           {variants.map((variant, variantIndex) => (
+                             <td
+                               key={variant.id}
+                               className="relative px-2 py-1.5 border-r border-b border-gray-300 align-middle"
+                               style={{ height: rowHeight }}
                              >
                                <span className="text-xs text-black">
                                  {combination[`variant_${variant.id}` as keyof typeof combination]?.toString() || tCatalog('variants.none')}
                                </span>
+                               {variantIndex === 0 ? (
+                                 <span
+                                   role="separator"
+                                   aria-orientation="horizontal"
+                                   aria-label={tCatalog('variants.variationLists')}
+                                   onPointerDown={(event) => {
+                                     event.preventDefault();
+                                     event.stopPropagation();
+                                     trackVariationSizeDrag({
+                                       axis: 'y',
+                                       startClient: event.clientY,
+                                       startSize: rowHeight,
+                                       min: VARIATION_ROW_MIN,
+                                       onSize: (next) =>
+                                         setVariationRowHeights((prev) => ({
+                                           ...prev,
+                                           [combination.id]: next,
+                                         })),
+                                     });
+                                   }}
+                                   className="absolute bottom-0 left-0 z-10 h-1.5 w-full cursor-row-resize touch-none hover:bg-[#0a61d7]/35"
+                                 />
+                               ) : null}
                              </td>
                            ))}
-                          <td className="p-3 border-r border-b border-gray-300">
+                          <td className="relative px-2 py-1.5 border-r border-b border-gray-300 align-middle" style={{ height: rowHeight }}>
                                 <input
                               type="text"
                               value={String(combination.sku)}
                               onChange={(e) => updateCombination(combination.id, 'sku', e.target.value)}
                                   disabled={isViewMode || isOfferConnected}
-                                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                                  className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
                               placeholder={tCatalog('variants.skuPlaceholder')}
                             />
+                            {variants.length === 0 ? (
+                              <span
+                                role="separator"
+                                aria-orientation="horizontal"
+                                aria-label={tCatalog('variants.variationLists')}
+                                onPointerDown={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  trackVariationSizeDrag({
+                                    axis: 'y',
+                                    startClient: event.clientY,
+                                    startSize: rowHeight,
+                                    min: VARIATION_ROW_MIN,
+                                    onSize: (next) =>
+                                      setVariationRowHeights((prev) => ({
+                                        ...prev,
+                                        [combination.id]: next,
+                                      })),
+                                  });
+                                }}
+                                className="absolute bottom-0 left-0 z-10 h-1.5 w-full cursor-row-resize touch-none hover:bg-[#0a61d7]/35"
+                              />
+                            ) : null}
                           </td>
-                          <td className="p-3 border-r border-b border-gray-300 align-top">
+                          <td className="px-2 py-1.5 border-r border-b border-gray-300 align-middle" style={{ height: rowHeight }}>
                             <div className="flex flex-col">
                             <div className="relative">
-                              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                              <div className="absolute left-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
                                 {currencySymbol}
                               </div>
                               <input
@@ -3635,7 +3908,7 @@ export default function ProductCatalog({
                                   }
                                 }}
                                 disabled={isViewMode || isOfferConnected}
-                                className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                                className="w-full pl-7 pr-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
                                 placeholder={getPricePlaceholder(userCurrency)}
                               />
                               </div>
@@ -3657,9 +3930,9 @@ export default function ProductCatalog({
                               })()}
                             </div>
                           </td>
-                          <td className="p-3 border-r border-b border-gray-300">
+                          <td className="px-2 py-1.5 border-r border-b border-gray-300 align-middle" style={{ height: rowHeight }}>
                             <div className="relative">
-                              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                              <div className="absolute left-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
                                 {currencySymbol}
                               </div>
                               <input
@@ -3673,12 +3946,12 @@ export default function ProductCatalog({
                                   }
                                 }}
                                 disabled={isViewMode || isOfferConnected}
-                                className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                                className="w-full pl-7 pr-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
                                 placeholder={getPricePlaceholder(userCurrency)}
                               />
                             </div>
                           </td>
-                          <td className="p-3 border-r border-b border-gray-300">
+                          <td className="px-2 py-1.5 border-r border-b border-gray-300 align-middle" style={{ height: rowHeight }}>
                             <input
                               type="number"
                               value={combination.moq || ''}
@@ -3687,34 +3960,34 @@ export default function ProductCatalog({
                                 updateCombination(combination.id, 'moq', value ? parseInt(value) : undefined);
                               }}
                               disabled={isViewMode || isOfferConnected}
-                              className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                              className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
                               placeholder={tCatalog('variants.numberPlaceholder')}
                               min="0"
                             />
                           </td>
-                          <td className="p-3 border-r border-b border-gray-300">
+                          <td className="px-2 py-1.5 border-r border-b border-gray-300 align-middle" style={{ height: rowHeight }}>
                             <input
                               type="number"
                               value={combination.stockQuantity}
                               onChange={(e) => updateCombination(combination.id, 'stockQuantity', parseInt(e.target.value) || 0)}
                               disabled={isViewMode || isOfferConnected}
-                              className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                              className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
                               placeholder={tCatalog('variants.numberPlaceholder')}
                               min="0"
                             />
                           </td>
-                          <td className="p-3 border-r border-b border-gray-300">
+                          <td className="px-2 py-1.5 border-r border-b border-gray-300 align-middle" style={{ height: rowHeight }}>
                             <input
                               type="number"
                               value={combination.lowStockThreshold}
                               onChange={(e) => updateCombination(combination.id, 'lowStockThreshold', parseInt(e.target.value) || 0)}
                               disabled={isViewMode || isOfferConnected}
-                              className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                              className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
                               placeholder={tCatalog('variants.numberPlaceholder')}
                               min="0"
                             />
                           </td>
-                          <td className="p-3 border-r border-b border-gray-300">
+                          <td className="px-2 py-1.5 border-r border-b border-gray-300 align-middle" style={{ height: rowHeight }}>
                             {(() => {
                               const rowStatus = getVariantStockStatus(
                                 combination.stockQuantity,
@@ -3734,7 +4007,7 @@ export default function ProductCatalog({
                             })()}
                           </td>
                           {!isViewMode && (
-                            <td className="p-3 text-center border-b border-gray-300">
+                            <td className="px-2 py-1.5 text-center border-b border-gray-300 align-middle" style={{ height: rowHeight }}>
                               <div className="flex items-center justify-center gap-1">
                                 <button
                                   type="button"
@@ -3770,7 +4043,8 @@ export default function ProductCatalog({
                             </td>
                           )}
                         </tr>
-                      ))}
+                       );
+                       })}
                     </tbody>
                   </table>
                           </div>

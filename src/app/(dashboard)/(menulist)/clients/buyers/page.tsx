@@ -10,6 +10,7 @@ import ImportData from '@/components/clientmanagement/ImportData';
 import { useUserStore } from '@/store/userStore';
 import { Buyer, BuyerTableRow, OrderDetail } from '@/types/client';
 import { formatDate, formatNumber } from '@/utils/dateUtils';
+import { logisticsLastVisit } from '@/utils/buyerLogistics';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -61,6 +62,7 @@ function profileToTableRow(buyer: Buyer): BuyerTableRow {
     totalOrders: Array.isArray(orderDetails) ? orderDetails.reduce((sum: number, o: OrderDetail) => sum + (parseInt(o.totalOrders) || 0), 0).toString() : '0',
     totalSpend: totalSpend.toString(), // Return raw number as string, let BuyerTable format it
     outstanding: outstanding.toString(), // Return raw number as string, let BuyerTable format it
+    lastVisit: logisticsLastVisit(buyer),
           createdAt: formatDate(buyer.createdAt),
       lastUpdated: formatDate(buyer.updatedAt),
     userId: buyer.userId || 0,

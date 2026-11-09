@@ -1439,6 +1439,7 @@ model SalesJob {
   @@index([clientId])
   @@index([listGroupId])
   @@index([distributorId, scheduledDate])
+  @@index([distributorId, clientId, completedAt])
   @@index([orderId])
   @@index([whatsappMessageId])
   }

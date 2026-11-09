@@ -111,13 +111,8 @@ function sortSegments(labels: string[]): AssortmentSegment[] {
     if (!unique.has(key)) unique.set(key, cleaned);
   }
 
-  // Always keep the full buyer-form column set, even with zero eligible retailers.
-  const preferred = [...PREFERRED_ASSORTMENT_SEGMENTS];
-  const preferredKeys = new Set(preferred.map((segment) => segment.toLowerCase()));
-  const rest = [...unique.values()]
-    .filter((segment) => !preferredKeys.has(segment.toLowerCase()))
-    .sort((a, b) => a.localeCompare(b));
-  return [...preferred, ...rest];
+  // Columns follow distributor-defined buyer business types only.
+  return [...unique.values()].sort((a, b) => a.localeCompare(b));
 }
 
 async function loadSegmentsForUser(userId: number, requestedSegment?: string | null): Promise<AssortmentSegment[]> {

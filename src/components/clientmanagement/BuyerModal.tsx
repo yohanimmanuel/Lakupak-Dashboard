@@ -27,17 +27,6 @@ const JAKARTA: MapCoordinates = { longitude: 106.8456, latitude: -6.2088 };
 
 const statusOptions = ["Active", "Prospect", "Inactive", "Blocked"];
 
-const BUYER_BUSINESS_TYPES = [
-  'Warung',
-  'Kiosk',
-  'Minimarket',
-  'Wholesaler',
-  'Restaurant',
-  'Hotel',
-  'Canteen',
-  'Other',
-] as const;
-
 const WEEKDAYS = [
   'Monday',
   'Tuesday',
@@ -142,6 +131,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
         createdAt: new Date().toISOString().split('T')[0], 
         preferredDays: '', 
         lastShipment: '', 
+        lastVisit: '',
         shipmentSuccess: '', 
         notes: '',
       };
@@ -162,6 +152,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
       createdAt: initialData.createdAt ? new Date(initialData.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       preferredDays: parsedLogistics.preferredDays && !parsedLogistics.preferredDays.includes('Missing') ? parsedLogistics.preferredDays : '',
       lastShipment: parsedLogistics.lastShipment && !parsedLogistics.lastShipment.includes('Missing') ? parsedLogistics.lastShipment : '',
+      lastVisit: parsedLogistics.lastVisit && !String(parsedLogistics.lastVisit).includes('Missing') ? String(parsedLogistics.lastVisit) : '',
       shipmentSuccess: parsedLogistics.shipmentSuccess && !parsedLogistics.shipmentSuccess.includes('Missing') ? parsedLogistics.shipmentSuccess : '',
       notes: Array.isArray(parsedNotes) ? parsedNotes.join(', ') : '',
     };
@@ -197,7 +188,6 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
-  const [showBusinessTypeDropdown, setShowBusinessTypeDropdown] = useState(false);
   const [showPreferredDaysDropdown, setShowPreferredDaysDropdown] = useState(false);
   const [addressPin, setAddressPin] = useState<MapCoordinates | null>(null);
   const [locatingAddress, setLocatingAddress] = useState(false);
@@ -205,34 +195,11 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
-  const businessTypeDropdownRef = useRef<HTMLDivElement>(null);
   const preferredDaysDropdownRef = useRef<HTMLDivElement>(null);
 
   const selectedPreferredDays = useMemo(
     () => parsePreferredDays(form.preferredDays || ''),
     [form.preferredDays],
-  );
-
-  const businessTypeOptions = useMemo(() => {
-    const current = (form.businessType || '').trim();
-    if (current && !(BUYER_BUSINESS_TYPES as readonly string[]).includes(current)) {
-      return [current, ...BUYER_BUSINESS_TYPES];
-    }
-    return [...BUYER_BUSINESS_TYPES];
-  }, [form.businessType]);
-
-  const translateBusinessType = useCallback(
-    (type: string) => {
-      const key = `businessTypes.${type}`;
-      if (typeof tBuyersModal.has === 'function') {
-        return tBuyersModal.has(key) ? tBuyersModal(key) : type;
-      }
-      // Fallback when .has is unavailable: only translate known catalog types.
-      return (BUYER_BUSINESS_TYPES as readonly string[]).includes(type)
-        ? tBuyersModal(key)
-        : type;
-    },
-    [tBuyersModal],
   );
 
   // Function to get the latest order date
@@ -310,9 +277,6 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
       const target = event.target as Node;
       if (statusDropdownRef.current && !statusDropdownRef.current.contains(target)) {
         setShowStatusDropdown(false);
-      }
-      if (businessTypeDropdownRef.current && !businessTypeDropdownRef.current.contains(target)) {
-        setShowBusinessTypeDropdown(false);
       }
       if (preferredDaysDropdownRef.current && !preferredDaysDropdownRef.current.contains(target)) {
         setShowPreferredDaysDropdown(false);
@@ -401,6 +365,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
         logistics: JSON.stringify({
           preferredDays: form.preferredDays || '',
           lastShipment: computedLastShipment || '',
+          lastVisit: form.lastVisit || '',
           shipmentSuccess: form.shipmentSuccess || ''
         }),
         userId: user?.id,
@@ -413,6 +378,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
       // Remove fields that are not part of the API payload
       delete payload.preferredDays;
       delete payload.lastShipment;
+      delete payload.lastVisit;
       delete payload.shipmentSuccess;
       
       let savedBuyer: Buyer | null = null;
@@ -646,6 +612,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
       createdAt: initialData.createdAt ? new Date(initialData.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       preferredDays: parsedLogistics.preferredDays && !parsedLogistics.preferredDays.includes('Missing') ? parsedLogistics.preferredDays : '',
       lastShipment: latestOrderDate || (parsedLogistics.lastShipment && !parsedLogistics.lastShipment.includes('Missing') ? parsedLogistics.lastShipment : ''),
+      lastVisit: parsedLogistics.lastVisit && !String(parsedLogistics.lastVisit).includes('Missing') ? String(parsedLogistics.lastVisit) : '',
       shipmentSuccess: parsedLogistics.shipmentSuccess && !parsedLogistics.shipmentSuccess.includes('Missing') ? parsedLogistics.shipmentSuccess : '',
       notes: Array.isArray(parsedNotes) ? parsedNotes.join(', ') : '',
     });
@@ -839,47 +806,13 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
           
           {/* Business Type and Status */}
           <div className="flex gap-2">
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 mb-1">{tBuyersModal('businessType')}</label>
-              <div className="relative" ref={businessTypeDropdownRef}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowBusinessTypeDropdown((open) => !open);
-                    setShowStatusDropdown(false);
-                  }}
-                  className={CLIENT_SELECT_BUTTON_CLASS}
-                >
-                  <span className={form.businessType ? 'text-black' : 'text-gray-500'}>
-                    {form.businessType
-                      ? translateBusinessType(form.businessType)
-                      : tBuyersModal('selectBusinessType')}
-                  </span>
-                  <ChevronDown className="w-4 h-4 text-gray-400" />
-                </button>
-                {showBusinessTypeDropdown && (
-                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                    {businessTypeOptions.map((type) => (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => {
-                          setForm((f) => ({ ...f, businessType: type }));
-                          setShowBusinessTypeDropdown(false);
-                        }}
-                        className={`w-full px-3 py-2 text-xs text-left hover:bg-gray-100 ${
-                          form.businessType === type
-                            ? 'text-[#0a61d7] font-semibold bg-gray-50'
-                            : 'text-gray-700'
-                        }`}
-                      >
-                        {translateBusinessType(type)}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+            <ClientField
+              className="flex-1"
+              label={tBuyersModal('businessType')}
+              value={form.businessType || ''}
+              onChange={(businessType) => setForm((f) => ({ ...f, businessType }))}
+              placeholder={tBuyersModal('businessTypePlaceholder')}
+            />
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">{tBuyersModal('status')}</label>
               <div className="relative" ref={statusDropdownRef}>
@@ -887,7 +820,6 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
                   type="button"
                   onClick={() => {
                     setShowStatusDropdown((open) => !open);
-                    setShowBusinessTypeDropdown(false);
                   }}
                   className={CLIENT_SELECT_BUTTON_CLASS}
                 >
@@ -1133,8 +1065,8 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
             </div>
           </div>
           
-          {/* Last Shipment and Success Rate */}
-          <div className="flex gap-2">
+          {/* Last order / last visit / success rate */}
+          <div className="flex flex-col gap-2 @sm:flex-row">
             <ClientField
               className="flex-1"
               label={
@@ -1150,6 +1082,15 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
               disabled
               hint={tBuyersModal('lastOrderDateHint')}
               id="buyer-last-shipment"
+            />
+            <ClientField
+              className="flex-1"
+              label={tBuyersModal('lastVisitDate')}
+              type="date"
+              value={form.lastVisit || ''}
+              onChange={(lastVisit) => setForm((f) => ({ ...f, lastVisit }))}
+              hint={tBuyersModal('lastVisitDateHint')}
+              id="buyer-last-visit"
             />
             <ClientField
               className="flex-1"

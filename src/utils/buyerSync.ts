@@ -73,6 +73,73 @@ function isLiveSyncedOrderDetail(entry: OrderDetailRow): boolean {
 }
 
 /**
+ * Fill logistics.lastVisit from the latest completed sales job when empty.
+ * Returns new logistics JSON only when a visit was backfilled; otherwise null (omit write).
+ */
+async function backfillLastVisitFromSalesJobs(
+  buyer: { logistics: string | null },
+  userId: number,
+  buyerId: string,
+  orderIds: string[],
+): Promise<string | null> {
+  try {
+    const logistics =
+      buyer.logistics && buyer.logistics.trim()
+        ? (JSON.parse(buyer.logistics) as Record<string, unknown>)
+        : {};
+    const existingVisit =
+      typeof logistics.lastVisit === 'string' ? logistics.lastVisit.trim() : '';
+    if (!existingVisit) {
+      const latestJob = await prisma.salesJob.findFirst({
+        where: {
+          distributorId: userId,
+          completedAt: { not: null },
+          OR:
+            orderIds.length > 0
+              ? [{ clientId: buyerId }, { orderId: { in: orderIds } }]
+              : [{ clientId: buyerId }],
+        },
+        select: { completedAt: true },
+        orderBy: { completedAt: 'desc' },
+      });
+      if (latestJob?.completedAt) {
+        logistics.lastVisit = latestJob.completedAt.toISOString().split('T')[0];
+        return JSON.stringify(logistics);
+      }
+    }
+  } catch {
+    // Keep existing logistics on parse errors.
+  }
+  return null;
+}
+
+/** Write logistics only if it still matches the value from the earlier buyer read. */
+async function saveBackfilledLogistics(
+  buyerId: string,
+  previousLogistics: string | null,
+  nextLogistics: string,
+): Promise<number> {
+  try {
+    const result = await prisma.buyer.updateMany({
+      where: { buyerId, logistics: previousLogistics },
+      data: { logistics: nextLogistics },
+    });
+    if (result.count === 0) {
+      console.warn('[buyerSync] lastVisit logistics backfill skipped; logistics changed concurrently:', {
+        buyerId,
+      });
+    }
+    return result.count;
+  } catch (error) {
+    console.warn('[buyerSync] lastVisit logistics backfill failed:', {
+      buyerId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return 0;
+  }
+}
+
+/**
  * Sync a MarketplaceUser profile into all distributor-scoped Buyer rows.
  *
  * This keeps the Dashboard buyer list/details "live" with the latest Marketplace profile,
@@ -153,16 +220,22 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number): 
     if (orders.length === 0) {
       const existing = parseBuyerOrderDetails(buyer.orderDetails);
       const preserved = existing.filter((row) => !isLiveSyncedOrderDetail(row));
-      if (preserved.length === existing.length) {
+      const nextLogistics = await backfillLastVisitFromSalesJobs(buyer, userId, buyerId, []);
+      if (preserved.length === existing.length && nextLogistics == null) {
         return false;
       }
-      await prisma.buyer.update({
-        where: { buyerId },
-        data: {
-          orderDetails: JSON.stringify(preserved),
-          updatedAt: new Date(),
-        },
-      });
+      if (preserved.length !== existing.length) {
+        await prisma.buyer.update({
+          where: { buyerId },
+          data: {
+            orderDetails: JSON.stringify(preserved),
+            updatedAt: new Date(),
+          },
+        });
+      }
+      if (nextLogistics != null) {
+        await saveBackfilledLogistics(buyerId, buyer.logistics, nextLogistics);
+      }
       return true;
     }
 
@@ -225,6 +298,10 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number): 
       totalSpend: data.spend,
       orderCount: data.orders
     }));
+
+    // Keep CRM/import rows; replace only live-synced entries.
+    const existing = parseBuyerOrderDetails(buyer.orderDetails);
+    const preservedCrm = existing.filter((row) => !isLiveSyncedOrderDetail(row));
 
     // Process orders into orderDetails format for the buyer profile
     const orderDetails = orders.map(order => {
@@ -290,10 +367,13 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number): 
       };
     });
 
-    // Keep CRM/import rows; replace only live-synced entries.
-    const existing = parseBuyerOrderDetails(buyer.orderDetails);
-    const preservedCrm = existing.filter((row) => !isLiveSyncedOrderDetail(row));
     const mergedOrderDetails = [...preservedCrm, ...orderDetails];
+    const nextLogistics = await backfillLastVisitFromSalesJobs(
+      buyer,
+      userId,
+      buyerId,
+      orders.map((order) => order.orderId),
+    );
 
     // Update buyer with synced order details - scope to this distributor
     await prisma.buyer.update({
@@ -303,7 +383,9 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number): 
         updatedAt: new Date()
       }
     });
-
+    if (nextLogistics != null) {
+      await saveBackfilledLogistics(buyerId, buyer.logistics, nextLogistics);
+    }
     return true;
   } catch (error) {
     console.warn('[buyerSync] syncBuyerOrderDetails failed:', {
