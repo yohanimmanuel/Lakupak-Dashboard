@@ -492,12 +492,16 @@ const VARIATION_COL_WEIGHTS = {
 const VARIATION_COL_MIN = 64;
 const VARIATION_ROW_MIN = 40;
 const VARIATION_ROW_DEFAULT = 44;
-const VARIATION_COL_WIDTHS_KEY = 'productCatalog.variationColWidths';
+const VARIATION_COL_WIDTHS_KEY_PREFIX = 'productCatalog.variationColWidths:';
 
-function readVariationColWidths(): Record<string, number> {
-  if (typeof window === 'undefined') return {};
+function variationColWidthsStorageKey(productKey: string) {
+  return `${VARIATION_COL_WIDTHS_KEY_PREFIX}${productKey}`;
+}
+
+function readVariationColWidths(productKey: string): Record<string, number> {
+  if (typeof window === 'undefined' || !productKey) return {};
   try {
-    const raw = window.localStorage.getItem(VARIATION_COL_WIDTHS_KEY);
+    const raw = window.localStorage.getItem(variationColWidthsStorageKey(productKey));
     if (!raw) return {};
     const parsed = JSON.parse(raw) as unknown;
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
@@ -513,14 +517,15 @@ function readVariationColWidths(): Record<string, number> {
   }
 }
 
-function writeVariationColWidths(widths: Record<string, number>) {
-  if (typeof window === 'undefined') return;
+function writeVariationColWidths(productKey: string, widths: Record<string, number>) {
+  if (typeof window === 'undefined' || !productKey) return;
   try {
+    const storageKey = variationColWidthsStorageKey(productKey);
     if (Object.keys(widths).length === 0) {
-      window.localStorage.removeItem(VARIATION_COL_WIDTHS_KEY);
+      window.localStorage.removeItem(storageKey);
       return;
     }
-    window.localStorage.setItem(VARIATION_COL_WIDTHS_KEY, JSON.stringify(widths));
+    window.localStorage.setItem(storageKey, JSON.stringify(widths));
   } catch {
     // Ignore quota / private-mode failures.
   }
@@ -610,6 +615,11 @@ export default function ProductCatalog({
   const [variationRowHeights, setVariationRowHeights] = useState<Record<string, number>>({});
   const variationTableRef = useRef<HTMLTableElement | null>(null);
   const variationSizeDragDisposeRef = useRef<(() => void) | null>(null);
+  const variationColWidthsLoadedKeyRef = useRef<string | null>(null);
+
+  const variationLayoutProductKey =
+    String(product?.productId || formData.productId || '').trim() ||
+    (product?.id != null ? `id:${product.id}` : 'draft');
 
   useEffect(() => {
     return () => {
@@ -619,14 +629,19 @@ export default function ProductCatalog({
   }, []);
 
   useEffect(() => {
-    setVariationColWidths(readVariationColWidths());
+    setVariationColWidthsReady(false);
+    variationColWidthsLoadedKeyRef.current = null;
+    const widths = readVariationColWidths(variationLayoutProductKey);
+    setVariationColWidths(widths);
+    variationColWidthsLoadedKeyRef.current = variationLayoutProductKey;
     setVariationColWidthsReady(true);
-  }, []);
+  }, [variationLayoutProductKey]);
 
   useEffect(() => {
     if (!variationColWidthsReady) return;
-    writeVariationColWidths(variationColWidths);
-  }, [variationColWidths, variationColWidthsReady]);
+    if (variationColWidthsLoadedKeyRef.current !== variationLayoutProductKey) return;
+    writeVariationColWidths(variationLayoutProductKey, variationColWidths);
+  }, [variationColWidths, variationColWidthsReady, variationLayoutProductKey]);
 
   const trackVariationSizeDrag = (
     ...args: Parameters<typeof startSizeDrag>
