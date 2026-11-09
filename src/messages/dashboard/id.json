@@ -302,6 +302,24 @@
         "moreTeams": "+{count} tim lagi",
         "moreTeamsPlural": "+{count} tim lagi"
       },
+      "opportunities": {
+        "name": "Peluang Produk-Retailer",
+        "description": "Sinyal kecocokan AI antara produk dan retailer: SKU mana yang cocok untuk toko mana, dan apa yang perlu diperkenalkan atau dipesan ulang.",
+        "action": "Lihat peluang",
+        "aiAnalysis": "Analisis AI",
+        "summary": "Kecocokan terbuka dan sinyal berbobot di baliknya.",
+        "signalTitle": "Sinyal kecocokan",
+        "loading": "Membaca kecocokan…",
+        "emptyTitle": "Belum ada analisis kecocokan",
+        "emptyHint": "Segarkan peluang setelah pesanan retailer tercatat.",
+        "kinds": {
+          "categoryAffinity": "Bobot 30",
+          "coPurchase": "Bobot 25",
+          "segmentFit": "Bobot 20",
+          "purchasingActivity": "Bobot 15",
+          "priceSuitability": "Bobot 10"
+        }
+      },
       "conversion": {
         "name": "Mesin Konversi Penjualan",
         "description": "Analisis AI dari Penjualan, Pesanan, dan Klien. Ini menandai siapa yang perlu ditindaklanjuti, kenapa penting, dan langkah berikutnya untuk mengubah permintaan menjadi pesanan.",

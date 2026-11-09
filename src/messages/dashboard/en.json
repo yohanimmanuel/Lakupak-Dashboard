@@ -302,6 +302,24 @@
         "moreTeams": "+{count} more team",
         "moreTeamsPlural": "+{count} more teams"
       },
+      "opportunities": {
+        "name": "Product-Retailer Opportunities",
+        "description": "AI match signals across products and retailers: who fits which SKU, and where to introduce or reorder next.",
+        "action": "View opportunities",
+        "aiAnalysis": "AI analysis",
+        "summary": "Open matches and the weighted signals behind them.",
+        "signalTitle": "Match signals",
+        "loading": "Reading the matches…",
+        "emptyTitle": "No match analysis yet",
+        "emptyHint": "Refresh opportunities after retailer orders are recorded.",
+        "kinds": {
+          "categoryAffinity": "Weight 30",
+          "coPurchase": "Weight 25",
+          "segmentFit": "Weight 20",
+          "purchasingActivity": "Weight 15",
+          "priceSuitability": "Weight 10"
+        }
+      },
       "conversion": {
         "name": "Sales Conversion Engine",
         "description": "AI analysis across Sales, Orders, and Clients. It flags who to follow up, why they matter, and the next action to turn demand into orders.",
