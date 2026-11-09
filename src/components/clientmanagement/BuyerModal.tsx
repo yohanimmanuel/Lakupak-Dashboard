@@ -1009,7 +1009,6 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
                   onClick={() => {
                     setShowPreferredDaysDropdown((open) => !open);
                     setShowStatusDropdown(false);
-                    setShowBusinessTypeDropdown(false);
                   }}
                   className={CLIENT_SELECT_BUTTON_CLASS}
                 >

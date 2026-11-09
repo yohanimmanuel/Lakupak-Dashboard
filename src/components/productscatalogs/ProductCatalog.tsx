@@ -3983,8 +3983,19 @@ export default function ProductCatalog({
                           <td className="px-2 py-1.5 border-r border-b border-gray-300 align-middle" style={{ height: rowHeight }}>
                             <input
                               type="number"
-                              value={combination.stockQuantity}
-                              onChange={(e) => updateCombination(combination.id, 'stockQuantity', parseInt(e.target.value) || 0)}
+                              value={
+                                isViewMode
+                                  ? combination.stockQuantity
+                                  : combination.stockQuantity || ''
+                              }
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                updateCombination(
+                                  combination.id,
+                                  'stockQuantity',
+                                  value === '' ? 0 : parseInt(value, 10) || 0,
+                                );
+                              }}
                               disabled={isViewMode || isOfferConnected}
                               className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
                               placeholder={tCatalog('variants.numberPlaceholder')}
@@ -3994,8 +4005,19 @@ export default function ProductCatalog({
                           <td className="px-2 py-1.5 border-r border-b border-gray-300 align-middle" style={{ height: rowHeight }}>
                             <input
                               type="number"
-                              value={combination.lowStockThreshold}
-                              onChange={(e) => updateCombination(combination.id, 'lowStockThreshold', parseInt(e.target.value) || 0)}
+                              value={
+                                isViewMode
+                                  ? combination.lowStockThreshold
+                                  : combination.lowStockThreshold || ''
+                              }
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                updateCombination(
+                                  combination.id,
+                                  'lowStockThreshold',
+                                  value === '' ? 0 : parseInt(value, 10) || 0,
+                                );
+                              }}
                               disabled={isViewMode || isOfferConnected}
                               className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
                               placeholder={tCatalog('variants.numberPlaceholder')}
