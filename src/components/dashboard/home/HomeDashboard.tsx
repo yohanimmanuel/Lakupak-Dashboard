@@ -1017,10 +1017,10 @@ const supplierInsights = useMemo(() => {
   const widgetAction = (href: string, label: string) => (
     <Link
       href={href}
-      className="inline-flex items-center gap-1 text-xs font-semibold text-[#0a61d7] hover:text-[#084ba6]"
+      className="inline-flex items-center gap-1 text-xs font-semibold leading-none text-[#0a61d7] hover:text-[#084ba6]"
     >
       {label}
-      <ArrowRight className="w-4 h-4" />
+      <ArrowRight className="h-4 w-4" />
     </Link>
   );
 
@@ -1187,35 +1187,35 @@ const supplierInsights = useMemo(() => {
               } ${draggingWidget === id ? 'opacity-75' : 'opacity-100'}`}
             >
               <article className="@container flex h-full min-w-0 flex-col overflow-hidden rounded-lg border border-[#e6e6e6] bg-white">
-                <div className="flex min-w-0 items-start justify-between gap-3 border-b border-[#e6e6e6] px-4 py-4">
-                  <div className="flex min-w-0 items-start gap-3">
+                <div className="flex min-w-0 items-center justify-between gap-3 border-b border-[#e6e6e6] px-4 py-4">
+                  <div className="flex min-w-0 items-center gap-3">
                     <button
                       type="button"
-                      className="mt-0.5 shrink-0 text-gray-400 hover:text-[#0a61d7] focus:outline-none"
+                      className="inline-flex shrink-0 items-center justify-center text-gray-400 hover:text-[#0a61d7] focus:outline-none"
                       aria-label={tCommon('dragToReorder')}
                     >
                       <GripVertical className="h-4 w-4" />
                     </button>
-                    <div className="flex min-w-0 items-start gap-2">
-                      <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#f7faff] text-[#0a61d7]">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#f7faff] text-[#0a61d7]">
                         <Icon className="h-4 w-4" />
                       </div>
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h2 className="text-sm font-semibold text-black">
-                            {widgetName(id)}
-                          </h2>
-                          {id === 'opportunities' ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-[#f7faff] px-2 py-0.5 text-[11px] font-semibold text-[#0a61d7]">
-                              <Sparkles className="h-3 w-3" />
-                              {widgetText('opportunities', 'aiAnalysis')}
-                            </span>
-                          ) : null}
-                        </div>
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                        <h2 className="text-sm font-semibold leading-none text-black">
+                          {widgetName(id)}
+                        </h2>
+                        {id === 'opportunities' ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-[#f7faff] px-2 py-0.5 text-[11px] font-semibold leading-none text-[#0a61d7]">
+                            <Sparkles className="h-3 w-3" />
+                            {widgetText('opportunities', 'aiAnalysis')}
+                          </span>
+                        ) : null}
                       </div>
                     </div>
                   </div>
-                  {action ? <div className="shrink-0">{action}</div> : null}
+                  {action ? (
+                    <div className="flex shrink-0 items-center">{action}</div>
+                  ) : null}
                 </div>
                 <div className="min-w-0 overflow-hidden p-4">{content}</div>
               </article>
