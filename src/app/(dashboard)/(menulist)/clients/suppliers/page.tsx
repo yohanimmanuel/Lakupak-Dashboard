@@ -290,8 +290,8 @@ export default function SuppliersPage() {
           <SupplierTable suppliers={suppliers} setSuppliers={setSuppliers} onExportXLSX={downloadXLSX} profileToTableRow={profileToTableRow} onRefresh={fetchSuppliers} />
       <ImportData
         open={showImportModal}
-        onClose={() => setShowImportModal(false)}
-        onImport={async (data) => {
+        onCloseAction={() => setShowImportModal(false)}
+        onImportAction={async (data) => {
           try {
             if (!user?.id) return;
 

@@ -61,8 +61,8 @@ type ImportType = 'Buyers' | 'Suppliers';
 
 type ImportDataProps = {
   open: boolean;
-  onClose: () => void;
-  onImport: (data: BuyerImportRow[] | SupplierImportRow[]) => void | Promise<void>;
+  onCloseAction: () => void;
+  onImportAction: (data: BuyerImportRow[] | SupplierImportRow[]) => void | Promise<void>;
   type?: ImportType;
 };
 
@@ -196,7 +196,7 @@ function generateSupplierId() {
 }
 
 /** Drop blank Excel trailing rows (used-range padding) so preview count matches real data. */
-function isNonEmptyRow(row: Record<string, string>) {
+function isNonEmptyRow(row: ImportRow) {
   return Object.values(row).some((v) => String(v ?? '').trim() !== '');
 }
 
@@ -241,7 +241,7 @@ function ImportSelectionCheckbox({
   );
 }
 
-export default function ImportData({ open, onClose, onImport, type = 'Buyers' }: ImportDataProps) {
+export default function ImportData({ open, onCloseAction, onImportAction, type = 'Buyers' }: ImportDataProps) {
   const user = useUserStore(state => state.user);
   const userCurrency = user?.currency || getDefaultCurrency();
   const { tImport, tShared } = useClientsTranslations();
@@ -400,12 +400,12 @@ export default function ImportData({ open, onClose, onImport, type = 'Buyers' }:
     setError('');
     try {
       if (type === 'Buyers') {
-        await onImport(selectedMappedRows as BuyerImportRow[]);
+        await onImportAction(selectedMappedRows as BuyerImportRow[]);
       } else {
-        await onImport(selectedMappedRows as SupplierImportRow[]);
+        await onImportAction(selectedMappedRows as SupplierImportRow[]);
       }
       resetState();
-      onClose();
+      onCloseAction();
     } catch {
       setImporting(false);
       setError(tImport('fileProcessFailed'));
@@ -415,7 +415,7 @@ export default function ImportData({ open, onClose, onImport, type = 'Buyers' }:
   const handleClose = () => {
     if (importing) return;
     resetState();
-    onClose();
+    onCloseAction();
   };
 
   if (!open) return null;

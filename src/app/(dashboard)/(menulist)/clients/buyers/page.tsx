@@ -385,8 +385,8 @@ export default function BuyersPage() {
           <BuyerTable buyers={buyers} setBuyers={setBuyers} onExportXLSX={downloadXLSX} profileToTableRow={profileToTableRow} onRefresh={fetchBuyers} />
       <ImportData
         open={showImportModal}
-        onClose={() => setShowImportModal(false)}
-        onImport={async (data) => {
+        onCloseAction={() => setShowImportModal(false)}
+        onImportAction={async (data) => {
           try {
             if (!user?.id) return;
 
