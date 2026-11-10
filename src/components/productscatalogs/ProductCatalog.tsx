@@ -18,7 +18,8 @@ import {
   ChevronUp,
   ChevronDown,
   Download,
-  Filter
+  Filter,
+  Search,
 } from "lucide-react";
 import * as XLSX from 'xlsx';
 import VariationListImport, {
@@ -26,6 +27,7 @@ import VariationListImport, {
   type VariationImportRow,
   type VariationImportResult,
 } from '@/components/productscatalogs/VariationListImport';
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUserStore } from "@/store/userStore";
 import { Product, ProductFormData } from "@/types/product";
@@ -926,12 +928,16 @@ export default function ProductCatalog({
   const [showCatalogCategoryDropdown, setShowCatalogCategoryDropdown] = useState(false);
   const [showMarketSegmentDropdown, setShowMarketSegmentDropdown] = useState(false);
   const [showStockUnitDropdown, setShowStockUnitDropdown] = useState(false);
+  const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
+  const [supplierSearch, setSupplierSearch] = useState('');
+  const [supplierOptions, setSupplierOptions] = useState<Array<{ supplierId: string; name: string }>>([]);
   const [marketSegmentOptions, setMarketSegmentOptions] = useState<string[]>([]);
   
   // Refs for click outside detection
   const generalCategoryRef = useRef<HTMLDivElement>(null);
   const marketSegmentRef = useRef<HTMLDivElement>(null);
   const stockUnitRef = useRef<HTMLDivElement>(null);
+  const supplierDropdownRef = useRef<HTMLDivElement>(null);
 
   // Store original form data on mount for edit mode
   useEffect(() => {
@@ -989,6 +995,46 @@ export default function ProductCatalog({
     };
   }, [user?.id]);
 
+  // Load CRM suppliers for match-dropdown (import/create suppliers first, then link products).
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await fetchGraphQL<{
+          suppliers: { nodes: Array<{ supplierId: string; name: string }> };
+        }>(
+          `query ProductSupplierOptions($userId: Int!) {
+            suppliers(userId: $userId, page: 1, limit: 1000) {
+              nodes { supplierId name }
+            }
+          }`,
+          { userId: user.id },
+        );
+        if (cancelled) return;
+        const rows = (result.suppliers?.nodes || [])
+          .map((row) => ({
+            supplierId: String(row.supplierId || '').trim(),
+            name: String(row.name || '').trim(),
+          }))
+          .filter((row) => row.name);
+        rows.sort((a, b) => a.name.localeCompare(b.name));
+        setSupplierOptions(rows);
+      } catch {
+        if (!cancelled) setSupplierOptions([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  const filteredSupplierOptions = useMemo(() => {
+    const q = supplierSearch.trim().toLowerCase();
+    if (!q) return supplierOptions;
+    return supplierOptions.filter((row) => row.name.toLowerCase().includes(q));
+  }, [supplierOptions, supplierSearch]);
+
   // Warn before leaving with unsaved changes
   useEffect(() => {
     if (mode !== 'edit') return;
@@ -1039,6 +1085,9 @@ export default function ProductCatalog({
       }
       if (stockUnitRef.current && !stockUnitRef.current.contains(event.target as Node)) {
         setShowStockUnitDropdown(false);
+      }
+      if (supplierDropdownRef.current && !supplierDropdownRef.current.contains(event.target as Node)) {
+        setShowSupplierDropdown(false);
       }
     };
 
@@ -2996,17 +3045,88 @@ export default function ProductCatalog({
                   <label className="block text-xs font-medium text-gray-700 mb-2">
                     {tCatalog('generalInfo.supplier')}<span className="text-red-500 ml-1">*</span>
                   </label>
-                  <input
-                    type="text"
-                    value={formData.supplier}
-                    onChange={(e) => handleInputChange('supplier', e.target.value)}
-                    disabled={isViewMode}
-                    maxLength={PRODUCT_REQUIRED_TEXT.supplier.max}
-                    aria-invalid={fieldErrors.supplier ? true : undefined}
-                    className={productControlClass('supplier')}
-                    placeholder={tCatalog('generalInfo.supplierPlaceholder')}
-                  />
+                  <div className="relative" ref={supplierDropdownRef}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isViewMode) return;
+                        setShowSupplierDropdown((open) => !open);
+                        setShowGeneralCategoryDropdown(false);
+                        setShowCatalogCategoryDropdown(false);
+                        setShowMarketSegmentDropdown(false);
+                        setShowStockUnitDropdown(false);
+                      }}
+                      disabled={isViewMode}
+                      aria-invalid={fieldErrors.supplier ? true : undefined}
+                      className={`${productControlClass('supplier')} text-left flex items-center justify-between`}
+                    >
+                      <span className={formData.supplier ? 'text-black truncate' : 'text-gray-500'}>
+                        {formData.supplier || tCatalog('generalInfo.supplierMatchPlaceholder')}
+                      </span>
+                      <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+                    </button>
+                    {showSupplierDropdown && !isViewMode && (
+                      <div className="absolute z-50 mt-1 w-full rounded-lg border border-[#e6e6e6] bg-white shadow-lg">
+                        <div className="border-b border-[#e6e6e6] p-2">
+                          <div className="flex items-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-2 py-1.5">
+                            <Search className="h-3.5 w-3.5 text-gray-400" />
+                            <input
+                              type="text"
+                              value={supplierSearch}
+                              onChange={(e) => setSupplierSearch(e.target.value)}
+                              placeholder={tCatalog('generalInfo.supplierSearchPlaceholder')}
+                              className="w-full bg-transparent text-xs text-black outline-none placeholder:text-gray-400"
+                              autoFocus
+                            />
+                          </div>
+                        </div>
+                        <div className="max-h-56 overflow-y-auto">
+                          {filteredSupplierOptions.length === 0 ? (
+                            <div className="px-3 py-3 text-xs text-gray-500">
+                              {supplierOptions.length === 0 ? (
+                                <>
+                                  {tCatalog('generalInfo.supplierEmpty')}{' '}
+                                  <Link
+                                    href="/clients/suppliers"
+                                    className="font-semibold text-[#0a61d7] hover:underline"
+                                  >
+                                    {tCatalog('generalInfo.supplierEmptyLink')}
+                                  </Link>
+                                </>
+                              ) : (
+                                tCatalog('generalInfo.supplierNoMatch')
+                              )}
+                            </div>
+                          ) : (
+                            filteredSupplierOptions.map((row) => (
+                              <button
+                                key={row.supplierId || row.name}
+                                type="button"
+                                onClick={() => {
+                                  handleInputChange('supplier', row.name);
+                                  setShowSupplierDropdown(false);
+                                  setSupplierSearch('');
+                                }}
+                                className={`block w-full px-3 py-2 text-left text-xs hover:bg-gray-100 ${
+                                  formData.supplier === row.name
+                                    ? 'font-semibold text-[#0a61d7]'
+                                    : 'text-gray-700'
+                                }`}
+                              >
+                                {row.name}
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   {fieldErrors.supplier ? <p className="text-red-500 text-xs mt-1">{fieldErrors.supplier}</p> : null}
+                  {!fieldErrors.supplier ? (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {tCatalog('generalInfo.supplierAutoSyncNote')}
+                    </p>
+                  ) : null}
                 </div>
               </div>
               

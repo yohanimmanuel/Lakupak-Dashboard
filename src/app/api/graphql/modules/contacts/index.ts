@@ -127,6 +127,13 @@ export const contactsTypeDefs = /* GraphQL */ `
     message: String
   }
 
+  type SyncProductSuppliersResult {
+    success: Boolean!
+    productsProcessed: Int!
+    suppliersTouched: Int!
+    message: String
+  }
+
   extend type Query {
     buyers(
       userId: Int!
@@ -246,6 +253,10 @@ export const contactsTypeDefs = /* GraphQL */ `
       userId: Int!
       ids: [String!]!
     ): BulkContactDeleteResult!
+
+    syncSuppliersFromProducts(
+      userId: Int!
+    ): SyncProductSuppliersResult!
   }
 `;
 
@@ -1481,6 +1492,30 @@ const bulkDeleteBuyers = async (args: { userId: number; ids: string[] }) => {
   };
 };
 
+const syncSuppliersFromProducts = async (args: { userId: number }) => {
+  const { userId } = args;
+  if (!/^\d+$/.test(String(userId))) {
+    throw new Error('Invalid userId format');
+  }
+
+  const { syncAllProductSuppliersForUser } = await import('@/lib/suppliers/syncProductSupplies');
+  const result = await syncAllProductSuppliersForUser(Number(userId));
+
+  try {
+    const { invalidateDashboardCache } = await import('@/lib/queryCache');
+    await invalidateDashboardCache(Number(userId));
+  } catch {
+    // Ignore cache invalidation errors
+  }
+
+  return {
+    success: true,
+    productsProcessed: result.productsProcessed,
+    suppliersTouched: result.suppliersTouched,
+    message: `Synced ${result.productsProcessed} product(s) into ${result.suppliersTouched} supplier(s)`,
+  };
+};
+
 const bulkDeleteSuppliers = async (args: { userId: number; ids: string[] }) => {
   const { userId, ids } = args;
 
@@ -1553,6 +1588,7 @@ export const contactsResolvers = {
     updateSupplier: withDashboardAuth(updateSupplier),
     deleteSupplier: withDashboardAuth(deleteSupplier),
     bulkDeleteSuppliers: withDashboardAuth(bulkDeleteSuppliers),
+    syncSuppliersFromProducts: withDashboardAuth(syncSuppliersFromProducts),
   },
 };
 

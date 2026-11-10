@@ -1186,6 +1186,24 @@ export const createProduct = async (args: {
   }
 
   await broadcastProductChanges(updatedProduct.productId);
+
+  // Mirror supplier name + variant stock snapshots into CRM suppliers/supplies.
+  try {
+    const { syncSupplierFromProduct } = await import('@/lib/suppliers/syncProductSupplies');
+    await syncSupplierFromProduct({
+      productId: updatedProduct.productId,
+      name: updatedProduct.name,
+      supplier: updatedProduct.supplier,
+      userId,
+      variantOptions: updatedProduct.variantOptions || [],
+    });
+  } catch (syncError) {
+    console.warn('[Products] Supplier supply sync failed on create', {
+      userId,
+      productId: updatedProduct.productId,
+      error: syncError,
+    });
+  }
   
   // Invalidate marketplace search cache (public-facing, needs caching)
   try {
@@ -1704,6 +1722,25 @@ export const updateProduct = async (args: {
   }
 
   await broadcastProductChanges(updatedProduct.productId);
+
+  // Mirror supplier name + new variant snapshots into CRM suppliers/supplies.
+  // Existing supply totals stay fixed (do not follow live stock edits).
+  try {
+    const { syncSupplierFromProduct } = await import('@/lib/suppliers/syncProductSupplies');
+    await syncSupplierFromProduct({
+      productId: updatedProduct.productId,
+      name: updatedProduct.name,
+      supplier: updatedProduct.supplier,
+      userId,
+      variantOptions: updatedProduct.variantOptions || [],
+    });
+  } catch (syncError) {
+    console.warn('[Products] Supplier supply sync failed on update', {
+      userId,
+      productId: updatedProduct.productId,
+      error: syncError,
+    });
+  }
   
   // Invalidate marketplace search cache (public-facing, needs caching)
   await invalidateSearchCache('search-cache:marketplace:*');

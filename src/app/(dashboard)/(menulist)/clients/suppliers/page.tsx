@@ -74,6 +74,10 @@ export default function SuppliersPage() {
   const [isSlidingOut, setIsSlidingOut] = useState(false);
   const overlayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hasLoadedSuppliersRef = useRef(false);
+  const productSyncInFlightRef = useRef<Promise<void> | null>(null);
+  const suppliersRequestSeqRef = useRef(0);
+  const suppliersAppliedSeqRef = useRef(0);
+  const suppliersCountRef = useRef(0);
   const user = useUserStore(state => state.user);
 
   // Utility function to calculate monthly averages (same logic as SupplierProfile)
@@ -164,8 +168,74 @@ export default function SuppliersPage() {
       setIsSlidingIn(true);
       setOverlayMessage(tSuppliers('refreshing'));
     }
+
+    const requestSeq = ++suppliersRequestSeqRef.current;
     
     try {
+      // Backfill CRM suppliers/supplies from product catalog in the background.
+      // Do not block list load / Refresh / import on an unsettled sync.
+      // Coalesce concurrent calls (e.g. React Strict Mode) onto one in-flight sync.
+      if (!productSyncInFlightRef.current) {
+        const syncUserId = user.id;
+        productSyncInFlightRef.current = fetchGraphQL<{
+          syncSuppliersFromProducts: {
+            success: boolean;
+            productsProcessed: number;
+            suppliersTouched: number;
+          };
+        }>(
+          `
+            mutation SyncSuppliersFromProducts($userId: Int!) {
+              syncSuppliersFromProducts(userId: $userId) {
+                success
+                productsProcessed
+                suppliersTouched
+              }
+            }
+          `,
+          { userId: syncUserId },
+        )
+          .then(async (syncResult) => {
+            const touched = syncResult?.syncSuppliersFromProducts?.suppliersTouched ?? 0;
+            if (touched <= 0) return;
+
+            // Sync wrote supplier rows — refresh the list without blocking callers.
+            const refreshSeq = ++suppliersRequestSeqRef.current;
+            try {
+              const refreshData = await fetchGraphQL<{
+                suppliers: { nodes: Supplier[] };
+              }>(SUPPLIERS_QUERY, {
+                userId: syncUserId,
+                page: 1,
+                limit: 1000,
+              });
+              if (refreshSeq <= suppliersAppliedSeqRef.current) return;
+              const refreshed = refreshData.suppliers.nodes.map((supplier: Supplier) => {
+                const supplies = supplier.supplies ? JSON.parse(supplier.supplies) : [];
+                const { avgMonthlyPurchaseValue, avgMonthlySupplied } =
+                  calculateMonthlyAverages(supplies);
+                return {
+                  ...supplier,
+                  avgMonthlyPurchaseValue,
+                  avgMonthlySupplied,
+                };
+              });
+              setSuppliers(refreshed);
+              hasLoadedSuppliersRef.current = true;
+              suppliersCountRef.current = refreshed.length;
+              suppliersAppliedSeqRef.current = refreshSeq;
+            } catch (refreshError) {
+              console.warn('Supplier list refresh after sync skipped:', refreshError);
+            }
+          })
+          .catch((syncError) => {
+            console.warn('Supplier product sync skipped:', syncError);
+          })
+          .finally(() => {
+            productSyncInFlightRef.current = null;
+          });
+      }
+
       const data = await fetchGraphQL<{
         suppliers: {
           nodes: Supplier[];
@@ -181,6 +251,13 @@ export default function SuppliersPage() {
         page: 1,
         limit: 1000,
       });
+
+      if (requestSeq <= suppliersAppliedSeqRef.current) {
+        setOverlayMessage(
+          tSuppliers('showingData', { count: suppliersCountRef.current }),
+        );
+        return;
+      }
       
       const suppliersData = data.suppliers.nodes;
       
@@ -201,12 +278,17 @@ export default function SuppliersPage() {
       // Suppliers data processed with analytics
       setSuppliers(suppliersWithAnalytics);
       hasLoadedSuppliersRef.current = true;
+      suppliersCountRef.current = suppliersWithAnalytics.length;
+      suppliersAppliedSeqRef.current = requestSeq;
       setOverlayMessage(tSuppliers('showingData', { count: suppliersWithAnalytics.length }));
     } catch (error) {
-      // Error fetching suppliers
+      // Error fetching suppliers — ignore stale failures so they cannot clear newer data
+      if (requestSeq <= suppliersAppliedSeqRef.current) return;
       console.error('Error loading suppliers:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setSuppliers([]);
+      suppliersCountRef.current = 0;
+      suppliersAppliedSeqRef.current = requestSeq;
       setOverlayMessage(tSuppliers('errorLoading', { error: errorMessage }));
     } finally {
       setLoading(false);

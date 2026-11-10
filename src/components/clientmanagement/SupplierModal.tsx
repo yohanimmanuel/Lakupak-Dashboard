@@ -9,7 +9,7 @@ import { getDefaultCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 import {
-  validateRequiredEmail,
+  validateOptionalEmail,
   validateRequiredPhone,
   validateRequiredField,
   mapSupplierFieldError,
@@ -152,7 +152,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     const supplierNameResult = validateRequiredField(form.supplierName, tSuppliersModal('supplierName'));
     const contactResult = validateRequiredField(form.contact, tSuppliersModal('contactPerson'));
     const phoneResult = validateRequiredPhone(form.phone);
-    const emailResult = validateRequiredEmail(form.email);
+    const emailResult = validateOptionalEmail(form.email);
     const addressResult = validateRequiredField(form.address, tSuppliersModal('address'));
 
     if (!supplierNameResult.valid && supplierNameResult.error) errors.supplierName = supplierNameResult.error;
@@ -557,8 +557,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                 setForm((f) => ({ ...f, email }));
                 setValidationErrors((prev) => clearValidationField(prev, 'email'));
               }}
-              validator={validateRequiredEmail}
-              required
+              validator={validateOptionalEmail}
               submitAttempted={submitAttempted}
               externalError={validationErrors.email}
             />

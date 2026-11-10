@@ -398,7 +398,7 @@ function isClientOperation(query: string): {
   // Supplier operations
   const suppliersPattern = /\bsuppliers\s*\(/;
   const supplierPattern = /\bsupplier\s*\(/;
-  const createSupplierPattern = /\b(createsupplier|bulkcreatesuppliers)\s*\(/;
+  const createSupplierPattern = /\b(createsupplier|bulkcreatesuppliers|syncsuppliersfromproducts)\s*\(/;
   const updateSupplierPattern = /\bupdatesupplier\s*\(/;
   const deleteSupplierPattern = /\b(deletesupplier|bulkdeletesuppliers)\s*\(/;
   

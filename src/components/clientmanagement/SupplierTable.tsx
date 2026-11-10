@@ -22,13 +22,18 @@ const statusTabs = [
   { label: "Blocked" },
 ];
 
-/** Table-only urgency fields — detail/edit pages keep the fuller progress bar. */
+function hasRequiredSupplierText(value: unknown): boolean {
+  const text = String(value ?? '').trim();
+  return text.length > 0 && text.toLowerCase() !== 'none';
+}
+
+/** Table-only urgency fields — name, contact, phone, address (email and others optional). */
 function supplierHasIncompleteTableData(supplier: Supplier): boolean {
   return (
-    !String(supplier.name ?? '').trim() ||
-    !String(supplier.contact ?? '').trim() ||
-    !String(supplier.phone ?? '').trim() ||
-    !String(supplier.address ?? '').trim()
+    !hasRequiredSupplierText(supplier.name) ||
+    !hasRequiredSupplierText(supplier.contact) ||
+    !hasRequiredSupplierText(supplier.phone) ||
+    !hasRequiredSupplierText(supplier.address)
   );
 }
 

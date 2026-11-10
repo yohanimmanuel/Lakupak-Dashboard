@@ -1208,7 +1208,8 @@ export async function productBulkPublishRateLimiter(
 }
 
 /**
- * Clients (Buyers/Suppliers): Query operations - 100 per hour per user
+ * Clients (Buyers/Suppliers): Query operations - 200 per minute per user
+ * (page loads, refresh, supplier match dropdown, sync-driven refetches)
  */
 export async function clientQueryRateLimiter(
   req: NextRequest,
@@ -1218,15 +1219,16 @@ export async function clientQueryRateLimiter(
   const key = userId ? `client-query:${userId}:${ip}` : `client-query:${ip}`;
   
   return rateLimit(req, {
-    windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 100,
+    windowMs: 60 * 1000, // 1 minute
+    maxRequests: 200,
     message: 'Too many client queries. Please slow down.',
     keyGenerator: () => key,
   });
 }
 
 /**
- * Clients (Buyers/Suppliers): Creation - 100 per hour per user
+ * Clients (Buyers/Suppliers): Creation - 120 per minute per user
+ * (imports, bulk create, supplier↔product sync mutations)
  */
 export async function clientCreationRateLimiter(
   req: NextRequest,
@@ -1236,15 +1238,15 @@ export async function clientCreationRateLimiter(
   const key = userId ? `client-create:${userId}:${ip}` : `client-create:${ip}`;
   
   return rateLimit(req, {
-    windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 100,
+    windowMs: 60 * 1000, // 1 minute
+    maxRequests: 120,
     message: 'Too many clients created. Please try again later.',
     keyGenerator: () => key,
   });
 }
 
 /**
- * Clients (Buyers/Suppliers): Update operations - 100 per hour per user
+ * Clients (Buyers/Suppliers): Update/delete operations - 120 per minute per user
  */
 export async function clientUpdateRateLimiter(
   req: NextRequest,
@@ -1254,8 +1256,8 @@ export async function clientUpdateRateLimiter(
   const key = userId ? `client-update:${userId}:${ip}` : `client-update:${ip}`;
   
   return rateLimit(req, {
-    windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 100,
+    windowMs: 60 * 1000, // 1 minute
+    maxRequests: 120,
     message: 'Too many client updates. Please try again later.',
     keyGenerator: () => key,
   });
