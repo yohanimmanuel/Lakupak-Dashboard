@@ -391,16 +391,16 @@ function isClientOperation(query: string): {
   // Buyer operations
   const buyersPattern = /\bbuyers\s*\(/;
   const buyerPattern = /\bbuyer\s*\(/;
-  const createBuyerPattern = /\bcreatebuyer\s*\(/;
+  const createBuyerPattern = /\b(createbuyer|bulkcreatebuyers)\s*\(/;
   const updateBuyerPattern = /\bupdatebuyer\s*\(/;
-  const deleteBuyerPattern = /\bdeletebuyer\s*\(/;
+  const deleteBuyerPattern = /\b(deletebuyer|bulkdeletebuyers)\s*\(/;
   
   // Supplier operations
   const suppliersPattern = /\bsuppliers\s*\(/;
   const supplierPattern = /\bsupplier\s*\(/;
-  const createSupplierPattern = /\bcreatesupplier\s*\(/;
+  const createSupplierPattern = /\b(createsupplier|bulkcreatesuppliers)\s*\(/;
   const updateSupplierPattern = /\bupdatesupplier\s*\(/;
-  const deleteSupplierPattern = /\bdeletesupplier\s*\(/;
+  const deleteSupplierPattern = /\b(deletesupplier|bulkdeletesuppliers)\s*\(/;
   
   const isCreate = createBuyerPattern.test(normalizedQuery) ||
                    createSupplierPattern.test(normalizedQuery);

@@ -20,6 +20,16 @@ const statusTabs = [
   { label: "Blocked" },
 ];
 
+/** Table-only urgency fields — detail/edit pages keep the fuller progress bar. */
+function buyerHasIncompleteTableData(buyer: Buyer): boolean {
+  return (
+    !String(buyer.storeName ?? '').trim() ||
+    !String(buyer.owner ?? '').trim() ||
+    !String(buyer.phone ?? '').trim() ||
+    !String(buyer.address ?? '').trim()
+  );
+}
+
 interface BuyerTableProps {
   buyers?: Buyer[];
   setBuyers?: (fn: (prev: Buyer[]) => Buyer[]) => void;
@@ -176,13 +186,19 @@ export default function BuyerTable({
   const rowsPerPage = TABLE_PAGE_SIZE;
   const totalRows = filteredBuyers.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
+  const safePage = Math.min(Math.max(1, page), totalPages);
   const pagedBuyers = useMemo(() => 
-    filteredBuyers.slice((page - 1) * rowsPerPage, page * rowsPerPage), 
-    [filteredBuyers, page, rowsPerPage]
+    filteredBuyers.slice((safePage - 1) * rowsPerPage, safePage * rowsPerPage), 
+    [filteredBuyers, safePage, rowsPerPage]
   );
   
-  const fromRow = totalRows === 0 ? 0 : (page - 1) * rowsPerPage + 1;
-  const toRow = Math.min(page * rowsPerPage, totalRows);
+  const fromRow = totalRows === 0 ? 0 : (safePage - 1) * rowsPerPage + 1;
+  const toRow = Math.min(safePage * rowsPerPage, totalRows);
+
+  // Keep current page inside the valid range after deletes/filters shrink the list.
+  useEffect(() => {
+    if (page !== safePage) setPage(safePage);
+  }, [page, safePage]);
 
   // Enhanced indicator style
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
@@ -206,23 +222,34 @@ export default function BuyerTable({
         }
       }
     `;
+    const BULK_DELETE_BUYERS_MUTATION = `
+      mutation BulkDeleteBuyers($userId: Int!, $ids: [String!]!) {
+        bulkDeleteBuyers(userId: $userId, ids: $ids) {
+          success
+          successCount
+          failedCount
+          message
+        }
+      }
+    `;
+
+    let deletedBusinessIds: string[] = [];
 
     if (isBulkDelete) {
-      const deletePromises = selectedBuyers.map(async (buyerId) => {
-        const buyer = filteredBuyers.find(b => String(b.id) === buyerId);
-        if (buyer) {
-          await fetchGraphQL(DELETE_BUYER_MUTATION, {
-            userId: user.id,
-            id: buyer.buyerId,
-          });
-          return buyer.buyerId;
-        }
-      });
+      deletedBusinessIds = selectedBuyers
+        .map((id) => filteredBuyers.find((b) => String(b.id) === id)?.buyerId)
+        .filter((id): id is string => Boolean(id));
 
-      await Promise.all(deletePromises);
+      if (deletedBusinessIds.length === 0) return;
+
+      await fetchGraphQL(BULK_DELETE_BUYERS_MUTATION, {
+        userId: user.id,
+        ids: deletedBusinessIds,
+      });
       setSelectedBuyers([]);
     } else {
       if (!buyerToDelete) return;
+      deletedBusinessIds = [buyerToDelete.buyerId];
       await fetchGraphQL(DELETE_BUYER_MUTATION, {
         userId: user.id,
         id: buyerToDelete.buyerId,
@@ -230,9 +257,12 @@ export default function BuyerTable({
       setBuyerToDelete(null);
     }
 
-    if (page > 1 && pagedBuyers.length <= 1) {
-      setPage(1);
-    }
+    const deletedSet = new Set(deletedBusinessIds);
+    setBuyers?.((prev) => prev.filter((buyer) => !deletedSet.has(buyer.buyerId)));
+
+    const remainingRows = filteredBuyers.filter((buyer) => !deletedSet.has(buyer.buyerId)).length;
+    const nextTotalPages = Math.max(1, Math.ceil(remainingRows / rowsPerPage));
+    setPage((current) => Math.min(current, nextTotalPages));
 
     setShowDeleteModal(false);
     setIsBulkDelete(false);
@@ -246,7 +276,7 @@ export default function BuyerTable({
     } finally {
       setIsDeleting(false);
     }
-  }, [user?.id, isBulkDelete, selectedBuyers, filteredBuyers, buyerToDelete, page, pagedBuyers.length, onRefresh]);
+  }, [user?.id, isBulkDelete, selectedBuyers, filteredBuyers, buyerToDelete, rowsPerPage, setBuyers, onRefresh]);
 
   const handleDeleteCancel = useCallback(() => {
     setShowDeleteModal(false);
@@ -805,75 +835,7 @@ export default function BuyerTable({
           (b) => b.id && filteredBuyerIds.includes(b.id),
         );
 
-        const missingDataCount = filteredOriginalBuyers.filter((buyer) => {
-          // Check all profile fields for missing data
-          const basicFields = [
-            !String(buyer.storeName).trim(),
-            !String(buyer.owner).trim(),
-            !String(buyer.address).trim(),
-            !String(buyer.businessType).trim(),
-            !String(buyer.email).trim(),
-            !String(buyer.phone).trim()
-          ];
-          
-          // Check if any basic fields are missing
-          const hasMissingBasicFields = basicFields.some(field => field);
-          
-          // Check logistics fields (preferredDays, lastOrderDate, shipmentSuccess)
-          let hasMissingLogistics = false;
-          try {
-            if (buyer.logistics) {
-              const logistics = JSON.parse(buyer.logistics);
-              
-              // Calculate if there's a valid last order date from order details
-              let hasValidLastOrderDate = false;
-              if (buyer.orderDetails) {
-                try {
-                  const orderDetails = JSON.parse(buyer.orderDetails);
-                  if (Array.isArray(orderDetails)) {
-                    const validDates = orderDetails
-                      .map((order: OrderDetail) => order.lastOrderDate)
-                      .filter((date: string) => date && String(date).trim());
-                    hasValidLastOrderDate = validDates.length > 0;
-                  }
-                } catch {}
-              }
-              
-              // For MVP, only check if we have order details with valid dates
-              // Logistics preferences are optional
-              hasMissingLogistics = !hasValidLastOrderDate;
-            } else {
-              hasMissingLogistics = true; // No logistics data at all
-            }
-          } catch {
-            hasMissingLogistics = true; // Invalid logistics data
-          }
-          
-          // Check order details - must have actual order items with content
-          let hasMissingOrders = false;
-          try {
-            if (buyer.orderDetails) {
-              const orderDetails = JSON.parse(buyer.orderDetails);
-              if (!Array.isArray(orderDetails) || orderDetails.length === 0) {
-                hasMissingOrders = true; // No order details data
-              } else {
-                // Check if orders have meaningful content
-                const hasValidOrders = orderDetails.some((order: OrderDetail) => 
-                  order.product && String(order.product).trim() &&
-                  order.totalOrders && String(order.totalOrders).trim() &&
-                  order.totalSpend && String(order.totalSpend).trim()
-                );
-                hasMissingOrders = !hasValidOrders;
-              }
-            } else {
-              hasMissingOrders = true; // No order details data at all
-            }
-          } catch {
-            hasMissingOrders = true; // Invalid order details data
-          }
-          
-          return hasMissingBasicFields || hasMissingLogistics || hasMissingOrders;
-        }).length;
+        const missingDataCount = filteredOriginalBuyers.filter(buyerHasIncompleteTableData).length;
         
         return missingDataCount > 0 ? (
           <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
@@ -937,75 +899,9 @@ export default function BuyerTable({
               // Get the original buyer data to check for missing data
               const originalBuyer = buyers.find(b => b.id === buyer.id);
               
-              const hasIncompleteData = originalBuyer ? (() => {
-                // Check all profile fields for missing data (excluding notes and pictures)
-                const basicFields = [
-                  !String(originalBuyer.storeName).trim(),
-                  !String(originalBuyer.owner).trim(),
-                  !String(originalBuyer.address).trim(),
-                  !String(originalBuyer.businessType).trim(),
-                  !String(originalBuyer.email).trim(),
-                  !String(originalBuyer.phone).trim()
-                ];
-                
-                // Check if any basic fields are missing
-                const hasMissingBasicFields = basicFields.some(field => field);
-                
-                // Check logistics fields (preferredDays, lastOrderDate, shipmentSuccess)
-                let hasMissingLogistics = false;
-                try {
-                  if (originalBuyer.logistics) {
-                    const logistics = JSON.parse(originalBuyer.logistics);
-                    
-                    // Calculate if there's a valid last order date from order details
-                    let hasValidLastOrderDate = false;
-                    if (originalBuyer.orderDetails) {
-                      try {
-                        const orderDetails = JSON.parse(originalBuyer.orderDetails);
-                        if (Array.isArray(orderDetails)) {
-                          const validDates = orderDetails
-                            .map((order: OrderDetail) => order.lastOrderDate)
-                            .filter((date: string) => date && String(date).trim());
-                          hasValidLastOrderDate = validDates.length > 0;
-                        }
-                      } catch {}
-                    }
-                    
-                    // For MVP, only check if we have order details with valid dates
-                    // Logistics preferences are optional
-                    hasMissingLogistics = !hasValidLastOrderDate;
-                  } else {
-                    hasMissingLogistics = true; // No logistics data at all
-                  }
-                } catch {
-                  hasMissingLogistics = true; // Invalid logistics data
-                }
-                
-                // Check order details - must have actual order items with content
-                let hasMissingOrders = false;
-                try {
-                  if (originalBuyer.orderDetails) {
-                    const orderDetails = JSON.parse(originalBuyer.orderDetails);
-                    if (!Array.isArray(orderDetails) || orderDetails.length === 0) {
-                      hasMissingOrders = true; // No order details data
-                    } else {
-                      // Check if orders have meaningful content
-                      const hasValidOrders = orderDetails.some((order: OrderDetail) => 
-                        order.product && String(order.product).trim() &&
-                        order.totalOrders && String(order.totalOrders).trim() &&
-                        order.totalSpend && String(order.totalSpend).trim()
-                      );
-                      hasMissingOrders = !hasValidOrders;
-                    }
-                  } else {
-                    hasMissingOrders = true; // No order details data at all
-                  }
-                } catch {
-                  hasMissingOrders = true; // Invalid order details data
-                }
-                
-                return hasMissingBasicFields || hasMissingLogistics || hasMissingOrders;
-              })() : false;
+              const hasIncompleteData = originalBuyer
+                ? buyerHasIncompleteTableData(originalBuyer)
+                : false;
               
               return (
               <tr 
@@ -1103,11 +999,7 @@ export default function BuyerTable({
                   )}
                 </td>
                 <td className="max-w-25 py-3 px-4 text-black truncate">
-                  {String(buyer.businessType).trim() ? (
-                    String(buyer.businessType)
-                  ) : (
-                    <span className="text-red-600 font-bold">{tShared('missing.businessType')}</span>
-                  )}
+                  {String(buyer.businessType).trim() ? String(buyer.businessType) : '—'}
                 </td>
                 <td className="py-3 px-4 text-black">{String(buyer.totalOrders)}</td>
                 <td className="py-3 px-4 text-[#0a61d7] font-semibold">{formatCurrency(parseNumberByCurrency(String(buyer.totalSpend), userCurrency), userCurrency)}</td>
@@ -1192,75 +1084,9 @@ export default function BuyerTable({
             // Get the original buyer data to check for missing data
             const originalBuyer = buyers.find(b => b.id === buyer.id);
             
-            const hasIncompleteData = originalBuyer ? (() => {
-              // Check all profile fields for missing data (excluding notes and pictures)
-              const basicFields = [
-                !String(originalBuyer.storeName).trim(),
-                !String(originalBuyer.owner).trim(),
-                !String(originalBuyer.address).trim(),
-                !String(originalBuyer.businessType).trim(),
-                !String(originalBuyer.email).trim(),
-                !String(originalBuyer.phone).trim()
-              ];
-              
-              // Check if any basic fields are missing
-              const hasMissingBasicFields = basicFields.some(field => field);
-              
-              // Check logistics fields (preferredDays, lastOrderDate, shipmentSuccess)
-              let hasMissingLogistics = false;
-              try {
-                if (originalBuyer.logistics) {
-                  const logistics = JSON.parse(originalBuyer.logistics);
-                  
-                  // Calculate if there's a valid last order date from order details
-                  let hasValidLastOrderDate = false;
-                  if (originalBuyer.orderDetails) {
-                    try {
-                      const orderDetails = JSON.parse(originalBuyer.orderDetails);
-                      if (Array.isArray(orderDetails)) {
-                        const validDates = orderDetails
-                          .map((order: OrderDetail) => order.lastOrderDate)
-                          .filter((date: string) => date && String(date).trim());
-                        hasValidLastOrderDate = validDates.length > 0;
-                      }
-                    } catch {}
-                  }
-                  
-                  // For MVP, only check if we have order details with valid dates
-                  // Logistics preferences are optional
-                  hasMissingLogistics = !hasValidLastOrderDate;
-                } else {
-                  hasMissingLogistics = true; // No logistics data at all
-                }
-              } catch {
-                hasMissingLogistics = true; // Invalid logistics data
-              }
-              
-              // Check order details - must have actual order items with content
-              let hasMissingOrders = false;
-              try {
-                if (originalBuyer.orderDetails) {
-                  const orderDetails = JSON.parse(originalBuyer.orderDetails);
-                  if (!Array.isArray(orderDetails) || orderDetails.length === 0) {
-                    hasMissingOrders = true; // No order details data
-                  } else {
-                    // Check if orders have meaningful content
-                    const hasValidOrders = orderDetails.some((order: OrderDetail) => 
-                      order.product && String(order.product).trim() &&
-                      order.totalOrders && String(order.totalOrders).trim() &&
-                      order.totalSpend && String(order.totalSpend).trim()
-                    );
-                    hasMissingOrders = !hasValidOrders;
-                  }
-                } else {
-                  hasMissingOrders = true; // No order details data at all
-                }
-              } catch {
-                hasMissingOrders = true; // Invalid order details data
-              }
-              
-              return hasMissingBasicFields || hasMissingLogistics || hasMissingOrders;
-            })() : false;
+            const hasIncompleteData = originalBuyer
+              ? buyerHasIncompleteTableData(originalBuyer)
+              : false;
             
             return (
           <div 
@@ -1353,7 +1179,7 @@ export default function BuyerTable({
               </div>
               </div>
               <div className="text-xs text-gray-500">{tShared('mobileLabels.address')} <span className={`font-medium w-30 truncate ${String(buyer.address).trim() ? 'text-black' : 'text-red-600 font-bold'}`}>{String(buyer.address).trim() ? buyer.address : tShared('missing.address')}</span></div>
-              <div className="text-xs text-gray-500">{tShared('mobileLabels.businessType')} <span className={`font-medium ${String(buyer.businessType).trim() ? 'text-black' : 'text-red-600 font-bold'}`}>{String(buyer.businessType).trim() ? buyer.businessType : tShared('missing.businessType')}</span></div>
+              <div className="text-xs text-gray-500">{tShared('mobileLabels.businessType')} <span className="font-medium text-black">{String(buyer.businessType).trim() ? buyer.businessType : '—'}</span></div>
             <div className="text-xs text-gray-500">{tShared('mobileLabels.totalOrders')} <span className="text-black font-medium">{buyer.totalOrders}</span></div>
             <div className="text-xs text-gray-500">{tShared('mobileLabels.totalSpend')} <span className="text-[#0a61d7] font-semibold">{formatCurrency(parseNumberByCurrency(String(buyer.totalSpend), userCurrency), userCurrency)}</span></div>
             <div className="text-xs text-gray-500">{tShared('mobileLabels.outstanding')} <span className="text-[#f65911] font-semibold">{formatCurrency(parseNumberByCurrency(String(buyer.outstanding), userCurrency), userCurrency)}</span></div>
@@ -1384,29 +1210,29 @@ export default function BuyerTable({
         <div className="flex items-center gap-3">
           <button
             className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-            onClick={() => handlePageChange(page - 1)}
-            disabled={page === 1}
+            onClick={() => handlePageChange(safePage - 1)}
+            disabled={safePage === 1}
             aria-label={tShared('previousPage')}
           >
             <ChevronLeft className="w-4 h-4 text-gray-500" />
           </button>
-          {getVisiblePageNumbers(page, totalPages).map(p => (
+          {getVisiblePageNumbers(safePage, totalPages).map(p => (
             <button
               key={p}
               className={`px-3 py-2 rounded-lg font-semibold text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                p === page ? 'bg-[#0a61d7] text-white' : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
+                p === safePage ? 'bg-[#0a61d7] text-white' : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
               }`}
               onClick={() => handlePageChange(p)}
               aria-label={`Page ${p}`}
-              aria-current={p === page ? 'page' : undefined}
+              aria-current={p === safePage ? 'page' : undefined}
             >
               {p}
             </button>
           ))}
           <button
             className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-            onClick={() => handlePageChange(page + 1)}
-            disabled={page === totalPages}
+            onClick={() => handlePageChange(safePage + 1)}
+            disabled={safePage === totalPages}
             aria-label={tShared('nextPage')}
           >
             <ChevronRight className="w-4 h-4 text-gray-500" />

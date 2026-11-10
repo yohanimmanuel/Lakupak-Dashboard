@@ -293,185 +293,197 @@ export default function SuppliersPage() {
         onClose={() => setShowImportModal(false)}
         onImport={async (data) => {
           try {
-            setShowImportModal(false);
             if (!user?.id) return;
-            
-            // Show loading state
+
             setLoading(true);
-            
+            setIsSlidingOut(false);
+            setIsSlidingIn(true);
+            setOverlayMessage(tSuppliers('importing'));
+            setShowOverlay(true);
+
+            const suppliersPayload = data.map((supplier) => {
+              const row = supplier as Record<string, unknown>;
+              const pick = (...keys: string[]) => {
+                for (const key of keys) {
+                  const value = row[key];
+                  if (value !== undefined && value !== null && String(value).trim() !== '') {
+                    return String(value);
+                  }
+                }
+                return undefined;
+              };
+
+              const additionalFields: Record<string, string> = {};
+              Object.keys(row).forEach((key) => {
+                if (
+                  [
+                    'ID',
+                    'id',
+                    'supplierId',
+                    'Supplier Name',
+                    'name',
+                    'supplier',
+                    'Name',
+                    'Contact',
+                    'contact',
+                    'Contact Person',
+                    'Email',
+                    'email',
+                    'Phone',
+                    'phone',
+                    'telephone',
+                    'Business Type',
+                    'businessType',
+                    'type',
+                    'Address',
+                    'address',
+                    'location',
+                    'Status',
+                    'status',
+                    'Notes',
+                    'notes',
+                    'Supplies',
+                    'supplies',
+                    'products',
+                    'Products',
+                  ].includes(key)
+                ) {
+                  return;
+                }
+                const value = row[key];
+                if (value !== undefined && value !== null && String(value).trim() !== '') {
+                  additionalFields[key] = String(value);
+                }
+              });
+
+              const notesValue = pick('Notes', 'notes', 'comments', 'Comments', 'tags', 'Tags');
+              const suppliesValue = pick('Supplies', 'supplies', 'products', 'Products');
+
+              return {
+                supplierId: pick('ID', 'id', 'supplierId') || generateUniqueSupplierId(),
+                name: pick('Supplier Name', 'name', 'supplier', 'Name'),
+                contact: pick('Contact', 'contact', 'Contact Person'),
+                email: pick('Email', 'email'),
+                phone: pick('Phone', 'phone', 'telephone'),
+                businessType: pick('Business Type', 'businessType', 'type'),
+                address: pick('Address', 'address', 'location'),
+                status: pick('Status', 'status'),
+                logistics:
+                  Object.keys(additionalFields).length > 0
+                    ? JSON.stringify(additionalFields)
+                    : undefined,
+                notes: notesValue ? JSON.stringify([notesValue]) : undefined,
+                supplies: suppliesValue
+                  ? typeof suppliesValue === 'string' && suppliesValue.trim().startsWith('[')
+                    ? suppliesValue
+                    : JSON.stringify(suppliesValue)
+                  : undefined,
+              };
+            });
+
+            const BULK_IMPORT_BATCH_SIZE = 1000;
             let successCount = 0;
             let errorCount = 0;
-            
-            for (const supplier of data) {
+            let failureMessage = '';
+            for (let offset = 0; offset < suppliersPayload.length; offset += BULK_IMPORT_BATCH_SIZE) {
+              const batch = suppliersPayload.slice(offset, offset + BULK_IMPORT_BATCH_SIZE);
               try {
-                
-                // Extract all available data from the supplier object dynamically
-                const extractData = (obj: Record<string, unknown>): Record<string, string> => {
-                  const extracted: Record<string, string> = {};
-                  
-                  // Get all keys from the supplier data
-                  Object.keys(obj).forEach(key => {
-                    const value = obj[key];
-                    if (value !== undefined && value !== null && value !== '') {
-                      // Convert key to camelCase for the API
-                      const camelKey = key.replace(/\s+([a-z])/g, (_, letter) => letter.toUpperCase());
-                      extracted[camelKey] = String(value);
+                const result = await fetchGraphQL<{
+                  bulkCreateSuppliers: {
+                    success: boolean;
+                    successCount: number;
+                    failedCount: number;
+                    message?: string | null;
+                  };
+                }>(
+                  `
+                    mutation BulkCreateSuppliers($userId: Int!, $suppliers: [BulkSupplierInput!]!) {
+                      bulkCreateSuppliers(userId: $userId, suppliers: $suppliers) {
+                        success
+                        successCount
+                        failedCount
+                        message
+                      }
                     }
-                  });
-                  
-                  return extracted;
-                };
-                
-                // Extract all available data
-                const extractedData = extractData(supplier);
-                
-                // Create flexible payload - only include fields that have actual data
-                const payload: Record<string, unknown> = {
-                  userId: user.id,
-                };
+                  `,
+                  { userId: user.id, suppliers: batch },
+                );
+                const payload = result.bulkCreateSuppliers;
+                const batchSuccess = payload?.successCount ?? 0;
+                const batchFailed = payload?.failedCount ?? 0;
 
-                // Only add fields that actually have data
-                if (extractedData.ID || extractedData.id || extractedData.supplierId) {
-                  payload.supplierId = extractedData.ID || extractedData.id || extractedData.supplierId;
-                } else {
-                  // Generate ID only if none provided
-                  payload.supplierId = generateUniqueSupplierId();
+                if (payload && payload.success === false) {
+                  successCount += batchSuccess;
+                  errorCount +=
+                    batchFailed > 0 ? batchFailed : Math.max(0, batch.length - batchSuccess);
+                  if (payload.message) failureMessage = payload.message;
+                  continue;
                 }
 
-                // Only add fields that have actual values (no auto-filling)
-                if (extractedData.name || extractedData['Supplier Name'] || extractedData.supplier || extractedData['Name']) {
-                  payload.name = extractedData.name || extractedData['Supplier Name'] || extractedData.supplier || extractedData['Name'];
-                }
-
-                if (extractedData.contact || extractedData.Contact || extractedData['Contact Person']) {
-                  payload.contact = extractedData.contact || extractedData.Contact || extractedData['Contact Person'];
-                }
-
-                if (extractedData.email || extractedData.Email) {
-                  payload.email = extractedData.email || extractedData.Email;
-                }
-
-                if (extractedData.phone || extractedData.Phone || extractedData.telephone) {
-                  payload.phone = extractedData.phone || extractedData.Phone || extractedData.telephone;
-                }
-
-                if (extractedData.businessType || extractedData.type || extractedData['Business Type']) {
-                  payload.businessType = extractedData.businessType || extractedData.type || extractedData['Business Type'];
-                }
-
-                if (extractedData.address || extractedData.Address || extractedData.location) {
-                  payload.address = extractedData.address || extractedData.Address || extractedData.location;
-                }
-
-                if (extractedData.status || extractedData.Status) {
-                  payload.status = extractedData.status || extractedData.Status;
-                }
-
-                if (extractedData.createdAt || extractedData.created || extractedData.date) {
-                  payload.createdAt = extractedData.createdAt || extractedData.created || extractedData.date;
-                }
-
-                // Store any additional fields in logistics
-                const additionalFields: Record<string, string> = {};
-                Object.keys(extractedData).forEach(key => {
-                  if (!['ID', 'id', 'supplierId', 'name', 'Supplier Name', 'supplier', 'Name', 'contact', 'Contact', 'Contact Person', 'email', 'phone', 'Phone', 'telephone', 
-                        'businessType', 'type', 'Business Type', 'address', 'Address', 'location', 'status', 'Status', 'createdAt', 'created', 'date',
-                        'preferredDays', 'Preferred Delivery Days', 'lastDelivery', 'Last Delivery', 'deliverySuccess', 'Delivery Success'].includes(key)) {
-                    additionalFields[key] = extractedData[key];
-                  }
-                });
-
-                if (Object.keys(additionalFields).length > 0) {
-                  payload.logistics = JSON.stringify(additionalFields);
-                }
-
-                if (extractedData.notes || extractedData.Notes || extractedData.comments || extractedData.Comments || 
-                    extractedData.tags || extractedData.Tags) {
-                  payload.notes = JSON.stringify([
-                    extractedData.notes || extractedData.Notes || extractedData.comments || extractedData.Comments || extractedData.tags || extractedData.Tags
-                  ]);
-                }
-
-                if (extractedData.supplies || extractedData.Supplies || extractedData.products || extractedData.Products) {
-                  payload.supplies = JSON.stringify(extractedData.supplies || extractedData.Supplies || extractedData.products || extractedData.Products);
-                }
-                
-                const CREATE_SUPPLIER_MUTATION = `
-                  mutation CreateSupplier(
-                    $userId: Int!
-                    $supplierId: String
-                    $name: String
-                    $contact: String
-                    $email: String
-                    $phone: String
-                    $businessType: String
-                    $address: String
-                    $status: String
-                    $logistics: String
-                    $notes: String
-                    $supplies: String
-                  ) {
-                    createSupplier(
-                      userId: $userId
-                      supplierId: $supplierId
-                      name: $name
-                      contact: $contact
-                      email: $email
-                      phone: $phone
-                      businessType: $businessType
-                      address: $address
-                      status: $status
-                      logistics: $logistics
-                      notes: $notes
-                      supplies: $supplies
-                    ) {
-                      id
-                      supplierId
-                    }
-                  }
-                `;
-                
-                await fetchGraphQL(CREATE_SUPPLIER_MUTATION, {
-                  userId: user?.id,
-                  supplierId: payload.supplierId,
-                  name: payload.name,
-                  contact: payload.contact,
-                  email: payload.email,
-                  phone: payload.phone,
-                  businessType: payload.businessType,
-                  address: payload.address,
-                  status: payload.status,
-                  logistics: payload.logistics,
-                  notes: payload.notes,
-                  supplies: payload.supplies,
-                });
-                
-                successCount++;
+                successCount += batchSuccess;
+                errorCount += batchFailed;
               } catch (error) {
-                errorCount++;
+                // Keep counts from completed batches; only this batch is treated as failed.
+                errorCount += batch.length;
+                if (!failureMessage) {
+                  failureMessage =
+                    error instanceof Error && error.message
+                      ? error.message
+                      : tSuppliers('importFailed');
+                }
               }
             }
-            
-            // Show import results
+
+            let importResultMessage = '';
             if (successCount > 0) {
-              setOverlayMessage(tSuppliers('importSuccess', { count: successCount }));
+              const totalsMessage =
+                errorCount > 0
+                  ? `${tSuppliers('importSuccess', { count: successCount })} ${tSuppliers('importFailedCount', { count: errorCount })}`
+                  : tSuppliers('importSuccess', { count: successCount });
+              importResultMessage = failureMessage
+                ? `${totalsMessage} ${failureMessage}`
+                : totalsMessage;
+            } else if (errorCount > 0) {
+              importResultMessage = failureMessage
+                ? `${tSuppliers('importFailedCount', { count: errorCount })} ${failureMessage}`
+                : tSuppliers('importFailedCount', { count: errorCount });
+            }
+
+            await fetchSuppliers();
+
+            // Show import totals after refresh so fetchSuppliers does not overwrite them.
+            if (importResultMessage) {
+              if (overlayTimeoutRef.current) {
+                clearTimeout(overlayTimeoutRef.current);
+              }
+              setOverlayMessage(importResultMessage);
               setShowOverlay(true);
-              setIsSlidingIn(true);
-              
-              setTimeout(() => {
-                // Start slide-out animation
+              setIsSlidingIn(false);
+              setIsSlidingOut(false);
+              overlayTimeoutRef.current = setTimeout(() => {
                 setIsSlidingOut(true);
                 setShowOverlay(false);
-                
-                // Remove overlay completely after animation
                 setTimeout(() => {
                   setIsSlidingOut(false);
                 }, 500);
-              }, 2000);
+              }, 2500);
             }
-            
-            fetchSuppliers();
-          } catch (error) {
+          } catch {
+            setOverlayMessage(tSuppliers('importFailed'));
+            setShowOverlay(true);
+            setIsSlidingIn(false);
+            setIsSlidingOut(false);
+            if (overlayTimeoutRef.current) {
+              clearTimeout(overlayTimeoutRef.current);
+            }
+            overlayTimeoutRef.current = setTimeout(() => {
+              setIsSlidingOut(true);
+              setShowOverlay(false);
+              setTimeout(() => {
+                setIsSlidingOut(false);
+              }, 500);
+            }, 2500);
+          } finally {
             setLoading(false);
           }
         }}
@@ -481,9 +493,11 @@ export default function SuppliersPage() {
       {/* Data Status Overlay */}
       {(showOverlay || isSlidingIn || isSlidingOut) && (
         <div className={`fixed top-20 right-6 z-50 bg-white border border-green-300 rounded-lg shadow-lg p-4 min-w-[280px] transform transition-all duration-500 ease-out ${
-          isSlidingIn ? 'translate-x-0 opacity-100' : 
-          isSlidingOut ? 'translate-x-full opacity-0' : 
-          'translate-x-full opacity-0'
+          isSlidingOut
+            ? 'translate-x-full opacity-0'
+            : isSlidingIn || showOverlay
+              ? 'translate-x-0 opacity-100'
+              : 'translate-x-full opacity-0'
         }`}>
           <div className="flex items-center gap-3">
             {loading || isSlidingIn ? (

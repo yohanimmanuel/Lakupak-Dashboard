@@ -1,6 +1,6 @@
 import { type Buyer as BuyerModel, type Supplier as SupplierModel } from '@/lib/db';
 import { prisma } from '../common/prisma';
-import { sanitizePagination, buildPaginationInfo, isNumericId, parseMoney } from '../common/utils';
+import { sanitizePagination, buildPaginationInfo, isNumericId, parseMoney, MAX_PRODUCT_LIMIT } from '../common/utils';
 import {
   validateBuyerInput,
   sanitizeBuyerData,
@@ -8,7 +8,6 @@ import {
 } from '@/utils/buyer-security';
 import {
   validateSupplierInput,
-  sanitizeSupplierData,
   generateUniqueSupplierId,
 } from '@/utils/supplier-security';
 import type { SupplierFormData } from '@/types/client';
@@ -85,6 +84,49 @@ export const contactsTypeDefs = /* GraphQL */ `
     deleted: Supplier
   }
 
+  input BulkBuyerInput {
+    buyerId: String
+    storeName: String
+    owner: String
+    email: String
+    phone: String
+    businessType: String
+    address: String
+    status: String
+    avatar: String
+    logistics: String
+    notes: String
+    orderDetails: String
+  }
+
+  input BulkSupplierInput {
+    supplierId: String
+    name: String
+    contact: String
+    email: String
+    phone: String
+    businessType: String
+    address: String
+    status: String
+    logistics: String
+    notes: String
+    supplies: String
+  }
+
+  type BulkContactImportResult {
+    success: Boolean!
+    successCount: Int!
+    failedCount: Int!
+    message: String
+  }
+
+  type BulkContactDeleteResult {
+    success: Boolean!
+    successCount: Int!
+    failedCount: Int!
+    message: String
+  }
+
   extend type Query {
     buyers(
       userId: Int!
@@ -149,6 +191,11 @@ export const contactsTypeDefs = /* GraphQL */ `
       id: String!
     ): DeleteBuyerResult!
 
+    bulkDeleteBuyers(
+      userId: Int!
+      ids: [String!]!
+    ): BulkContactDeleteResult!
+
     createSupplier(
       userId: Int!
       supplierId: String
@@ -163,6 +210,16 @@ export const contactsTypeDefs = /* GraphQL */ `
       notes: String
       supplies: String
     ): Supplier!
+
+    bulkCreateBuyers(
+      userId: Int!
+      buyers: [BulkBuyerInput!]!
+    ): BulkContactImportResult!
+
+    bulkCreateSuppliers(
+      userId: Int!
+      suppliers: [BulkSupplierInput!]!
+    ): BulkContactImportResult!
 
     updateSupplier(
       userId: Int!
@@ -184,6 +241,11 @@ export const contactsTypeDefs = /* GraphQL */ `
       userId: Int!
       id: String!
     ): DeleteSupplierResult!
+
+    bulkDeleteSuppliers(
+      userId: Int!
+      ids: [String!]!
+    ): BulkContactDeleteResult!
   }
 `;
 
@@ -252,7 +314,7 @@ const fetchBuyersConnection = async (args: {
   storeNames?: string[] | null;
 }) => {
   const { userId, page = 1, limit = 50, search, status, businessType, storeNames } = args;
-  const { page: safePage, limit: safeLimit } = sanitizePagination(page, limit);
+  const { page: safePage, limit: safeLimit } = sanitizePagination(page, limit, MAX_PRODUCT_LIMIT);
 
   const whereClause: Record<string, unknown> = { userId };
 
@@ -302,7 +364,7 @@ const fetchSuppliersConnection = async (args: {
   businessType?: string | null;
 }) => {
   const { userId, page = 1, limit = 50, search, status, businessType } = args;
-  const { page: safePage, limit: safeLimit } = sanitizePagination(page, limit);
+  const { page: safePage, limit: safeLimit } = sanitizePagination(page, limit, MAX_PRODUCT_LIMIT);
 
   const whereClause: Record<string, unknown> = { userId };
 
@@ -757,6 +819,330 @@ const deleteBuyer = async (args: { userId: number; id: string }) => {
   };
 };
 
+const MAX_BULK_CONTACT_IMPORT = 1000;
+
+const makeBuyerId = () =>
+  'LKB-' + Math.floor(10000000 + Math.random() * 90000000).toString();
+
+const allocateUniqueId = (
+  preferred: string | null | undefined,
+  usedIds: Set<string>,
+  generate: () => string,
+): string => {
+  const candidate = String(preferred || '').trim();
+  if (candidate && !usedIds.has(candidate)) {
+    usedIds.add(candidate);
+    return candidate;
+  }
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const next = generate();
+    if (!usedIds.has(next)) {
+      usedIds.add(next);
+      return next;
+    }
+  }
+  throw new Error('Unable to generate unique ID');
+};
+
+/** Import is permissive: bad email/phone become blank instead of dropping the row. */
+const normalizeImportEmail = (value: unknown): string => {
+  const email = String(value ?? '').trim();
+  if (!email) return '';
+  if (!email.includes('@') || !email.includes('.') || email.length > 254) return '';
+  return email.toLowerCase();
+};
+
+const normalizeImportPhone = (value: unknown): string => {
+  const phone = String(value ?? '').trim();
+  if (!phone) return '';
+  return phone.length > 30 ? phone.slice(0, 30) : phone;
+};
+
+const truncateImportText = (value: unknown, max: number): string => {
+  const text = String(value ?? '').trim();
+  if (!text) return '';
+  return text.length > max ? text.slice(0, max) : text;
+};
+
+/**
+ * buyerId/supplierId are globally unique. Seed with this user's IDs plus any
+ * preferred IDs already taken by other accounts so createMany never silently skips.
+ */
+const seedUsedContactIds = async (
+  kind: 'buyer' | 'supplier',
+  userId: number,
+  preferredIds: Array<string | null | undefined>,
+): Promise<Set<string>> => {
+  const uniquePreferred = [
+    ...new Set(
+      preferredIds
+        .map((id) => String(id ?? '').trim())
+        .filter((id) => id.length > 0),
+    ),
+  ];
+
+  if (kind === 'buyer') {
+    const rows = await prisma.buyer.findMany({
+      where: {
+        OR: [
+          { userId },
+          ...(uniquePreferred.length > 0 ? [{ buyerId: { in: uniquePreferred } }] : []),
+        ],
+      },
+      select: { buyerId: true },
+    });
+    return new Set(rows.map((row) => row.buyerId));
+  }
+
+  const rows = await prisma.supplier.findMany({
+    where: {
+      OR: [
+        { userId },
+        ...(uniquePreferred.length > 0 ? [{ supplierId: { in: uniquePreferred } }] : []),
+      ],
+    },
+    select: { supplierId: true },
+  });
+  return new Set(rows.map((row) => row.supplierId));
+};
+
+const ensureContactIdsAvailable = async <T extends { buyerId?: string; supplierId?: string }>(
+  kind: 'buyer' | 'supplier',
+  rows: T[],
+  usedIds: Set<string>,
+  generate: () => string,
+): Promise<T[]> => {
+  if (rows.length === 0) return rows;
+
+  const idKey = kind === 'buyer' ? 'buyerId' : 'supplierId';
+  const ids = rows.map((row) => String(row[idKey as keyof T] ?? ''));
+  const taken =
+    kind === 'buyer'
+      ? await prisma.buyer.findMany({
+          where: { buyerId: { in: ids } },
+          select: { buyerId: true },
+        })
+      : await prisma.supplier.findMany({
+          where: { supplierId: { in: ids } },
+          select: { supplierId: true },
+        });
+  const takenSet = new Set(
+    taken.map((row) => ('buyerId' in row ? row.buyerId : row.supplierId)),
+  );
+  if (takenSet.size === 0) return rows;
+
+  return rows.map((row) => {
+    const current = String(row[idKey as keyof T] ?? '');
+    if (!takenSet.has(current)) return row;
+    const nextId = allocateUniqueId(null, usedIds, generate);
+    return { ...row, [idKey]: nextId };
+  });
+};
+
+const bulkCreateBuyers = async (args: {
+  userId: number;
+  buyers: Array<{
+    buyerId?: string | null;
+    storeName?: string | null;
+    owner?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    businessType?: string | null;
+    address?: string | null;
+    status?: string | null;
+    avatar?: string | null;
+    logistics?: string | null;
+    notes?: string | null;
+    orderDetails?: string | null;
+  }>;
+}) => {
+  const { userId, buyers } = args;
+
+  if (!/^\d+$/.test(String(userId))) {
+    throw new Error('Invalid userId format');
+  }
+  if (!Array.isArray(buyers) || buyers.length === 0) {
+    return { success: true, successCount: 0, failedCount: 0, message: 'Nothing to import' };
+  }
+  if (buyers.length > MAX_BULK_CONTACT_IMPORT) {
+    throw new Error(`Too many rows (max ${MAX_BULK_CONTACT_IMPORT})`);
+  }
+
+  const distributorUserId = Number(userId);
+  const usedIds = await seedUsedContactIds(
+    'buyer',
+    distributorUserId,
+    buyers.map((row) => row.buyerId),
+  );
+
+  const toCreate: Array<{
+    buyerId: string;
+    userId: number;
+    storeName: string;
+    owner: string;
+    email: string;
+    phone: string;
+    businessType: string;
+    address: string;
+    status: string;
+    avatar: string | null;
+    logistics: string | null;
+    notes: string | null;
+    orderDetails: string | null;
+  }> = [];
+  let failedCount = 0;
+
+  for (const row of buyers) {
+    try {
+      const buyerId = allocateUniqueId(row.buyerId, usedIds, makeBuyerId);
+      toCreate.push({
+        buyerId,
+        userId: distributorUserId,
+        storeName: truncateImportText(row.storeName, 100),
+        owner: truncateImportText(row.owner, 100),
+        email: normalizeImportEmail(row.email),
+        phone: normalizeImportPhone(row.phone),
+        businessType: truncateImportText(row.businessType, 100),
+        address: truncateImportText(row.address, 500),
+        status: truncateImportText(row.status, 50) || 'Active',
+        avatar: row.avatar ? String(row.avatar) : null,
+        logistics: row.logistics ? String(row.logistics) : null,
+        notes: row.notes ? String(row.notes) : null,
+        orderDetails: row.orderDetails ? String(row.orderDetails) : null,
+      });
+    } catch {
+      failedCount += 1;
+    }
+  }
+
+  let successCount = 0;
+  if (toCreate.length > 0) {
+    const ready = await ensureContactIdsAvailable('buyer', toCreate, usedIds, makeBuyerId);
+    const result = await prisma.buyer.createMany({ data: ready });
+    successCount = result.count;
+    failedCount += Math.max(0, buyers.length - successCount - failedCount);
+  } else {
+    failedCount = buyers.length;
+  }
+
+  try {
+    const { invalidateDashboardCache } = await import('@/lib/queryCache');
+    await invalidateDashboardCache(Number(userId));
+  } catch {
+    // Ignore cache invalidation errors
+  }
+
+  return {
+    success: true,
+    successCount,
+    failedCount,
+    message: `Imported ${successCount} buyer(s)${failedCount ? `, ${failedCount} failed` : ''}`,
+  };
+};
+
+const bulkCreateSuppliers = async (args: {
+  userId: number;
+  suppliers: Array<{
+    supplierId?: string | null;
+    name?: string | null;
+    contact?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    businessType?: string | null;
+    address?: string | null;
+    status?: string | null;
+    logistics?: string | null;
+    notes?: string | null;
+    supplies?: string | null;
+  }>;
+}) => {
+  const { userId, suppliers } = args;
+
+  if (!/^\d+$/.test(String(userId))) {
+    throw new Error('Invalid userId format');
+  }
+  if (!Array.isArray(suppliers) || suppliers.length === 0) {
+    return { success: true, successCount: 0, failedCount: 0, message: 'Nothing to import' };
+  }
+  if (suppliers.length > MAX_BULK_CONTACT_IMPORT) {
+    throw new Error(`Too many rows (max ${MAX_BULK_CONTACT_IMPORT})`);
+  }
+
+  const distributorUserId = Number(userId);
+  const usedIds = await seedUsedContactIds(
+    'supplier',
+    distributorUserId,
+    suppliers.map((row) => row.supplierId),
+  );
+
+  const toCreate: Array<{
+    supplierId: string;
+    userId: number;
+    name: string;
+    contact: string;
+    email: string;
+    phone: string;
+    businessType: string;
+    address: string;
+    status: string;
+    logistics: string | null;
+    notes: string | null;
+    supplies: string | null;
+  }> = [];
+  let failedCount = 0;
+
+  for (const row of suppliers) {
+    try {
+      const supplierId = allocateUniqueId(row.supplierId, usedIds, generateUniqueSupplierId);
+      toCreate.push({
+        supplierId,
+        userId: distributorUserId,
+        name: truncateImportText(row.name, 100),
+        contact: truncateImportText(row.contact, 100),
+        email: normalizeImportEmail(row.email),
+        phone: normalizeImportPhone(row.phone),
+        businessType: truncateImportText(row.businessType, 100),
+        address: truncateImportText(row.address, 500),
+        status: truncateImportText(row.status, 50) || 'Active',
+        logistics: row.logistics ? String(row.logistics) : null,
+        notes: row.notes ? String(row.notes) : null,
+        supplies: row.supplies ? String(row.supplies) : null,
+      });
+    } catch {
+      failedCount += 1;
+    }
+  }
+
+  let successCount = 0;
+  if (toCreate.length > 0) {
+    const ready = await ensureContactIdsAvailable(
+      'supplier',
+      toCreate,
+      usedIds,
+      generateUniqueSupplierId,
+    );
+    const result = await prisma.supplier.createMany({ data: ready });
+    successCount = result.count;
+    failedCount += Math.max(0, suppliers.length - successCount - failedCount);
+  } else {
+    failedCount = suppliers.length;
+  }
+
+  try {
+    const { invalidateDashboardCache } = await import('@/lib/queryCache');
+    await invalidateDashboardCache(Number(userId));
+  } catch {
+    // Ignore cache invalidation errors
+  }
+
+  return {
+    success: true,
+    successCount,
+    failedCount,
+    message: `Imported ${successCount} supplier(s)${failedCount ? `, ${failedCount} failed` : ''}`,
+  };
+};
+
 const createSupplier = async (args: {
   userId: number;
   supplierId?: string | null;
@@ -975,6 +1361,178 @@ const deleteSupplier = async (args: { userId: number; id: string }) => {
   };
 };
 
+const bulkDeleteBuyers = async (args: { userId: number; ids: string[] }) => {
+  const { userId, ids } = args;
+
+  if (!/^\d+$/.test(userId.toString())) {
+    throw new Error('Invalid userId format');
+  }
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return { success: true, successCount: 0, failedCount: 0, message: 'Nothing to delete' };
+  }
+  if (ids.length > MAX_BULK_CONTACT_IMPORT) {
+    throw new Error(`Too many rows (max ${MAX_BULK_CONTACT_IMPORT})`);
+  }
+
+  const uniqueIds = [...new Set(ids.map((id) => String(id).trim()).filter(Boolean))];
+  const numericIds = uniqueIds.filter(isNumericId).map(Number);
+  const businessIds = uniqueIds.filter((id) => !isNumericId(id));
+
+  const found = await prisma.buyer.findMany({
+    where: {
+      userId: Number(userId),
+      OR: [
+        ...(numericIds.length > 0 ? [{ id: { in: numericIds } }] : []),
+        ...(businessIds.length > 0 ? [{ buyerId: { in: businessIds } }] : []),
+      ],
+    },
+  });
+
+  if (found.length === 0) {
+    return {
+      success: true,
+      successCount: 0,
+      failedCount: uniqueIds.length,
+      message: 'No matching buyers',
+    };
+  }
+
+  const distributorUserId = Number(userId);
+  const buyerBusinessIds = found.map((buyer) => buyer.buyerId);
+  const dbIds = found.map((buyer) => buyer.id);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.offer.updateMany({
+      where: { userId: distributorUserId, buyerId: { in: buyerBusinessIds } },
+      data: { buyerId: null, status: 'draft' },
+    });
+
+    await tx.salesJob.updateMany({
+      where: { distributorId: distributorUserId, clientId: { in: buyerBusinessIds } },
+      data: { clientId: null },
+    });
+
+    if (buyerBusinessIds.length > 0) {
+      await tx.$executeRaw`
+        UPDATE "SalesJob"
+        SET "clientIds" = COALESCE((
+          SELECT array_agg(elem ORDER BY ord)
+          FROM unnest("clientIds") WITH ORDINALITY AS t(elem, ord)
+          WHERE NOT (elem = ANY(${buyerBusinessIds}::text[]))
+        ), ARRAY[]::text[])
+        WHERE "distributorId" = ${distributorUserId}
+          AND "clientIds" && ${buyerBusinessIds}::text[]
+      `;
+    }
+
+    const pendingOrderWhere = {
+      userId: distributorUserId,
+      buyerId: { in: buyerBusinessIds },
+      isDeleted: false,
+      orderStatus: 'Pending',
+      paymentStatus: 'Unpaid',
+    } as const;
+
+    await tx.orderItem.updateMany({
+      where: { order: pendingOrderWhere },
+      data: {
+        pricePerPackage: 0,
+        subtotal: 0,
+        unitPriceSnapshot: null,
+        offerApplied: false,
+        offerBadgeSnapshot: null,
+        offerNameSnapshot: null,
+        offerIdSnapshot: null,
+        originalPriceSnapshot: null,
+        discountPercentage: null,
+        discountAmount: null,
+        promotionDetailsSnapshot: null,
+      },
+    });
+    await tx.order.updateMany({
+      where: pendingOrderWhere,
+      data: { subtotal: 0, totalAmount: 0, discounts: 0 },
+    });
+
+    await tx.buyer.deleteMany({
+      where: { userId: distributorUserId, id: { in: dbIds } },
+    });
+  });
+
+  try {
+    const { invalidateDashboardCache } = await import('@/lib/queryCache');
+    await invalidateDashboardCache(userId);
+  } catch {
+    // Ignore cache invalidation errors
+  }
+
+  try {
+    const { syncAllWorkflowsForUser } = await import('@/lib/automations/syncWorkflowBuyers');
+    await syncAllWorkflowsForUser(distributorUserId);
+  } catch {
+    // Ignore workflow sync errors
+  }
+
+  return {
+    success: true,
+    successCount: found.length,
+    failedCount: Math.max(0, uniqueIds.length - found.length),
+    message: `Deleted ${found.length} buyer(s)`,
+  };
+};
+
+const bulkDeleteSuppliers = async (args: { userId: number; ids: string[] }) => {
+  const { userId, ids } = args;
+
+  if (!/^\d+$/.test(userId.toString())) {
+    throw new Error('Invalid userId format');
+  }
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return { success: true, successCount: 0, failedCount: 0, message: 'Nothing to delete' };
+  }
+  if (ids.length > MAX_BULK_CONTACT_IMPORT) {
+    throw new Error(`Too many rows (max ${MAX_BULK_CONTACT_IMPORT})`);
+  }
+
+  const uniqueIds = [...new Set(ids.map((id) => String(id).trim()).filter(Boolean))];
+  const numericIds = uniqueIds.filter(isNumericId).map(Number);
+  const businessIds = uniqueIds.filter((id) => !isNumericId(id));
+
+  const found = await prisma.supplier.findMany({
+    where: {
+      userId: Number(userId),
+      OR: [
+        ...(numericIds.length > 0 ? [{ id: { in: numericIds } }] : []),
+        ...(businessIds.length > 0 ? [{ supplierId: { in: businessIds } }] : []),
+      ],
+    },
+    select: { id: true },
+  });
+
+  if (found.length === 0) {
+    return {
+      success: true,
+      successCount: 0,
+      failedCount: uniqueIds.length,
+      message: 'No matching suppliers',
+    };
+  }
+
+  const result = await prisma.supplier.deleteMany({
+    where: {
+      userId: Number(userId),
+      id: { in: found.map((row) => row.id) },
+    },
+  });
+
+  return {
+    success: true,
+    successCount: result.count,
+    failedCount: Math.max(0, uniqueIds.length - result.count),
+    message: `Deleted ${result.count} supplier(s)`,
+  };
+};
+
 import { withDashboardAuth } from '../common/auth';
 
 export const contactsResolvers = {
@@ -986,11 +1544,15 @@ export const contactsResolvers = {
   },
   Mutation: {
     createBuyer: withDashboardAuth(createBuyer),
+    bulkCreateBuyers: withDashboardAuth(bulkCreateBuyers),
     updateBuyer: withDashboardAuth(updateBuyer),
     deleteBuyer: withDashboardAuth(deleteBuyer),
+    bulkDeleteBuyers: withDashboardAuth(bulkDeleteBuyers),
     createSupplier: withDashboardAuth(createSupplier),
+    bulkCreateSuppliers: withDashboardAuth(bulkCreateSuppliers),
     updateSupplier: withDashboardAuth(updateSupplier),
     deleteSupplier: withDashboardAuth(deleteSupplier),
+    bulkDeleteSuppliers: withDashboardAuth(bulkDeleteSuppliers),
   },
 };
 

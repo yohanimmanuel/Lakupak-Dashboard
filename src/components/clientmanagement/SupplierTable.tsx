@@ -22,6 +22,16 @@ const statusTabs = [
   { label: "Blocked" },
 ];
 
+/** Table-only urgency fields — detail/edit pages keep the fuller progress bar. */
+function supplierHasIncompleteTableData(supplier: Supplier): boolean {
+  return (
+    !String(supplier.name ?? '').trim() ||
+    !String(supplier.contact ?? '').trim() ||
+    !String(supplier.phone ?? '').trim() ||
+    !String(supplier.address ?? '').trim()
+  );
+}
+
 interface SupplierTableProps {
   suppliers?: Supplier[];
   setSuppliers?: (fn: (prev: Supplier[]) => Supplier[]) => void;
@@ -90,10 +100,14 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
   }
   const totalRows = filteredSuppliers.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
-  const pagedSuppliers = filteredSuppliers.slice((page - 1) * rowsPerPage, page * rowsPerPage);
-  const fromRow = totalRows === 0 ? 0 : (page - 1) * rowsPerPage + 1;
-  const toRow = Math.min(page * rowsPerPage, totalRows);
-  
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const pagedSuppliers = filteredSuppliers.slice((safePage - 1) * rowsPerPage, safePage * rowsPerPage);
+  const fromRow = totalRows === 0 ? 0 : (safePage - 1) * rowsPerPage + 1;
+  const toRow = Math.min(safePage * rowsPerPage, totalRows);
+
+  useEffect(() => {
+    if (page !== safePage) setPage(safePage);
+  }, [page, safePage]);
 
   useLayoutEffect(() => {
     const idx = statusTabs.findIndex(tab => tab.label === selectedTab);
@@ -148,23 +162,34 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
           }
         }
       `;
+      const BULK_DELETE_SUPPLIERS_MUTATION = `
+        mutation BulkDeleteSuppliers($userId: Int!, $ids: [String!]!) {
+          bulkDeleteSuppliers(userId: $userId, ids: $ids) {
+            success
+            successCount
+            failedCount
+            message
+          }
+        }
+      `;
+
+      let deletedBusinessIds: string[] = [];
 
       if (isBulkDelete) {
-        const deletePromises = selectedSuppliers.map(async (supplierId) => {
-          const supplier = filteredSuppliers.find((s) => String(s.id) === supplierId);
-          if (supplier) {
-            await fetchGraphQL(DELETE_SUPPLIER_MUTATION, {
-              userId: user.id,
-              id: supplier.supplierId,
-            });
-            return supplier.supplierId;
-          }
-        });
+        deletedBusinessIds = selectedSuppliers
+          .map((id) => filteredSuppliers.find((s) => String(s.id) === id)?.supplierId)
+          .filter((id): id is string => Boolean(id));
 
-        await Promise.all(deletePromises);
+        if (deletedBusinessIds.length === 0) return;
+
+        await fetchGraphQL(BULK_DELETE_SUPPLIERS_MUTATION, {
+          userId: user.id,
+          ids: deletedBusinessIds,
+        });
         setSelectedSuppliers([]);
       } else {
         if (!supplierToDelete) return;
+        deletedBusinessIds = [supplierToDelete.supplierId];
         await fetchGraphQL(DELETE_SUPPLIER_MUTATION, {
           userId: user.id,
           id: supplierToDelete.supplierId,
@@ -172,9 +197,12 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
         setSupplierToDelete(null);
       }
 
-      if (page > 1 && pagedSuppliers.length <= 1) {
-        setPage(1);
-      }
+      const deletedSet = new Set(deletedBusinessIds);
+      setSuppliers?.((prev) => prev.filter((supplier) => !deletedSet.has(supplier.supplierId)));
+
+      const remainingRows = filteredSuppliers.filter((supplier) => !deletedSet.has(supplier.supplierId)).length;
+      const nextTotalPages = Math.max(1, Math.ceil(remainingRows / rowsPerPage));
+      setPage((current) => Math.min(current, nextTotalPages));
 
       setShowDeleteModal(false);
       setIsBulkDelete(false);
@@ -188,7 +216,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
     } finally {
       setIsDeleting(false);
     }
-  }, [user?.id, isBulkDelete, selectedSuppliers, filteredSuppliers, supplierToDelete, page, pagedSuppliers.length, onRefresh]);
+  }, [user?.id, isBulkDelete, selectedSuppliers, filteredSuppliers, supplierToDelete, rowsPerPage, setSuppliers, onRefresh]);
 
   const handleDeleteCancel = useCallback(() => {
     setShowDeleteModal(false);
@@ -609,61 +637,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
           filteredSupplierIds.includes(s.supplierId),
         );
 
-        const missingDataCount = filteredOriginalSuppliers.filter((supplier) => {
-          // Check all profile fields for missing data
-          const basicFields = [
-            !String(supplier.name).trim(),
-            !String(supplier.address).trim(),
-            !String(supplier.businessType).trim(),
-            !String(supplier.contact).trim(),
-            !String(supplier.email).trim(),
-            !String(supplier.phone).trim()
-          ];
-          
-          // Check if any basic fields are missing
-          const hasMissingBasicFields = basicFields.some(field => field);
-          
-          // Check logistics fields (preferredDays, lastDelivery, deliverySuccess)
-          let hasMissingLogistics = false;
-          try {
-            if (supplier.logistics) {
-              const logistics = JSON.parse(supplier.logistics);
-              hasMissingLogistics = !logistics?.preferredDays?.trim() || 
-                                   !logistics?.lastDelivery?.trim() || 
-                                   !logistics?.deliverySuccess?.trim();
-            } else {
-              hasMissingLogistics = true; // No logistics data at all
-            }
-          } catch {
-            hasMissingLogistics = true; // Invalid logistics data
-          }
-          
-          // Check supplies data - must have actual supply items with content
-          let hasMissingSupplies = false;
-          try {
-            if (supplier.supplies) {
-              const supplies = JSON.parse(supplier.supplies);
-              if (!Array.isArray(supplies) || supplies.length === 0) {
-                hasMissingSupplies = true; // No supplies data
-              } else {
-                // Check if supplies have meaningful content
-                const hasValidSupplies = supplies.some((supply: SupplyDetail) => 
-                  supply.sku && String(supply.sku).trim() &&
-                  supply.product && String(supply.product).trim() &&
-                  supply.totalSupplied && String(supply.totalSupplied).trim() &&
-                  supply.totalValue && String(supply.totalValue).trim()
-                );
-                hasMissingSupplies = !hasValidSupplies;
-              }
-            } else {
-              hasMissingSupplies = true; // No supplies data at all
-            }
-          } catch {
-            hasMissingSupplies = true; // Invalid supplies data
-          }
-          
-          return hasMissingBasicFields || hasMissingLogistics || hasMissingSupplies;
-        }).length;
+        const missingDataCount = filteredOriginalSuppliers.filter(supplierHasIncompleteTableData).length;
         
         return missingDataCount > 0 ? (
           <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
@@ -724,61 +698,9 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
               // Get the original supplier data to check for missing data
               const originalSupplier = suppliers.find(s => s.supplierId === supplier.supplierId);
               
-              const hasIncompleteData = originalSupplier ? (() => {
-                // Check all profile fields for missing data (excluding notes and pictures)
-                const basicFields = [
-                  !String(originalSupplier.name).trim(),
-                  !String(originalSupplier.address).trim(),
-                  !String(originalSupplier.businessType).trim(),
-                  !String(originalSupplier.contact).trim(),
-                  !String(originalSupplier.email).trim(),
-                  !String(originalSupplier.phone).trim()
-                ];
-                
-                // Check if any basic fields are missing
-                const hasMissingBasicFields = basicFields.some(field => field);
-                
-                // Check logistics fields (preferredDays, lastDelivery, deliverySuccess)
-                let hasMissingLogistics = false;
-                try {
-                  if (originalSupplier.logistics) {
-                    const logistics = JSON.parse(originalSupplier.logistics);
-                    hasMissingLogistics = !logistics?.preferredDays?.trim() || 
-                                         !logistics?.lastDelivery?.trim() || 
-                                         !logistics?.deliverySuccess?.trim();
-                  } else {
-                    hasMissingLogistics = true; // No logistics data at all
-                  }
-                } catch {
-                  hasMissingLogistics = true; // Invalid logistics data
-                }
-                
-                // Check supplies data - must have actual supply items with content
-                let hasMissingSupplies = false;
-                try {
-                  if (originalSupplier.supplies) {
-                    const supplies = JSON.parse(originalSupplier.supplies);
-                    if (!Array.isArray(supplies) || supplies.length === 0) {
-                      hasMissingSupplies = true; // No supplies data
-                    } else {
-                      // Check if supplies have meaningful content
-                      const hasValidSupplies = supplies.some((supply: SupplyDetail) => 
-                        supply.sku && String(supply.sku).trim() &&
-                        supply.product && String(supply.product).trim() &&
-                        supply.totalSupplied && String(supply.totalSupplied).trim() &&
-                        supply.totalValue && String(supply.totalValue).trim()
-                      );
-                      hasMissingSupplies = !hasValidSupplies;
-                    }
-                  } else {
-                    hasMissingSupplies = true; // No supplies data at all
-                  }
-                } catch {
-                  hasMissingSupplies = true; // Invalid supplies data
-                }
-                
-                return hasMissingBasicFields || hasMissingLogistics || hasMissingSupplies;
-              })() : false;
+              const hasIncompleteData = originalSupplier
+                ? supplierHasIncompleteTableData(originalSupplier)
+                : false;
               
               return (
                 <tr 
@@ -829,11 +751,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                       )}
                     </td>
                     <td className="py-3 px-4 text-black">
-                      {String(supplier.businessType).trim() ? (
-                        String(supplier.businessType)
-                      ) : (
-                        <span className="text-red-600 font-bold">{tShared('missing.businessType')}</span>
-                      )}
+                      {String(supplier.businessType).trim() ? String(supplier.businessType) : '—'}
                     </td>
                     <td className="py-3 px-4 text-black max-w-40 truncate">
                       {String(supplier.address).trim() ? (
@@ -912,61 +830,9 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
             // Get the original supplier data to check for missing data
             const originalSupplier = suppliers.find(s => s.supplierId === supplier.supplierId);
             
-            const hasIncompleteData = originalSupplier ? (() => {
-              // Check all profile fields for missing data (excluding notes and pictures)
-              const basicFields = [
-                !String(originalSupplier.name).trim(),
-                !String(originalSupplier.address).trim(),
-                !String(originalSupplier.businessType).trim(),
-                !String(originalSupplier.contact).trim(),
-                !String(originalSupplier.email).trim(),
-                !String(originalSupplier.phone).trim()
-              ];
-              
-              // Check if any basic fields are missing
-              const hasMissingBasicFields = basicFields.some(field => field);
-              
-              // Check logistics fields (preferredDays, lastDelivery, deliverySuccess)
-              let hasMissingLogistics = false;
-              try {
-                if (originalSupplier.logistics) {
-                  const logistics = JSON.parse(originalSupplier.logistics);
-                  hasMissingLogistics = !logistics?.preferredDays?.trim() || 
-                                       !logistics?.lastDelivery?.trim() || 
-                                       !logistics?.deliverySuccess?.trim();
-                } else {
-                  hasMissingLogistics = true; // No logistics data at all
-                }
-              } catch {
-                hasMissingLogistics = true; // Invalid logistics data
-              }
-              
-              // Check supplies data - must have actual supply items with content
-              let hasMissingSupplies = false;
-              try {
-                if (originalSupplier.supplies) {
-                  const supplies = JSON.parse(originalSupplier.supplies);
-                  if (!Array.isArray(supplies) || supplies.length === 0) {
-                    hasMissingSupplies = true; // No supplies data
-                  } else {
-                    // Check if supplies have meaningful content
-                    const hasValidSupplies = supplies.some((supply: SupplyDetail) => 
-                      supply.sku && String(supply.sku).trim() &&
-                      supply.product && String(supply.product).trim() &&
-                      supply.totalSupplied && String(supply.totalSupplied).trim() &&
-                      supply.totalValue && String(supply.totalValue).trim()
-                    );
-                    hasMissingSupplies = !hasValidSupplies;
-                  }
-                } else {
-                  hasMissingSupplies = true; // No supplies data at all
-                }
-              } catch {
-                hasMissingSupplies = true; // Invalid supplies data
-              }
-              
-              return hasMissingBasicFields || hasMissingLogistics || hasMissingSupplies;
-            })() : false;
+            const hasIncompleteData = originalSupplier
+              ? supplierHasIncompleteTableData(originalSupplier)
+              : false;
             
             return (
               <div 
@@ -1031,11 +897,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
               </div>
             </div>
                             <div className="text-xs text-gray-500">{tShared('mobileLabels.businessType')} <span className="text-black font-medium">
-                  {String(supplier.businessType).trim() ? (
-                    supplier.businessType
-                  ) : (
-                    <span className="text-red-600 font-bold">{tShared('missing.businessType')}</span>
-                  )}
+                  {String(supplier.businessType).trim() ? supplier.businessType : '—'}
                 </span></div>
                           <div className="text-xs text-gray-500">{tShared('columns.location')}: <span className="text-black font-medium">
                 {String(supplier.address).trim() ? (
@@ -1067,17 +929,17 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
         <div className="flex items-center gap-3">
           <button
             className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
-            onClick={() => setPage(p => Math.max(1, p - 1))}
-            disabled={page === 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={safePage === 1}
             aria-label={tShared('previousPage')}
           >
             <ChevronLeft className="w-4 h-4 text-gray-500" />
           </button>
-          {getVisiblePageNumbers(page, totalPages).map(p => (
+          {getVisiblePageNumbers(safePage, totalPages).map(p => (
             <button
               key={p}
               className={`px-3 py-2 rounded-lg font-semibold text-sm transition ${
-                p === page ? 'bg-[#0a61d7] text-white' : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
+                p === safePage ? 'bg-[#0a61d7] text-white' : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
               }`}
               onClick={() => setPage(p)}
             >
@@ -1086,8 +948,8 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
           ))}
           <button
             className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
-            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={safePage === totalPages}
             aria-label={tShared('nextPage')}
           >
             <ChevronRight className="w-4 h-4 text-gray-500" />

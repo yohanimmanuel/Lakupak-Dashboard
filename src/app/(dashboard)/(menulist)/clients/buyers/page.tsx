@@ -388,181 +388,163 @@ export default function BuyersPage() {
         onClose={() => setShowImportModal(false)}
         onImport={async (data) => {
           try {
-            setShowImportModal(false);
             if (!user?.id) return;
-            
-            // Show loading state
+
             setLoading(true);
-            
+            setIsSlidingOut(false);
+            setIsSlidingIn(true);
+            setOverlayMessage(tBuyers('importing'));
+            setShowOverlay(true);
+
+            const buyers = data.map((buyer) => {
+              const row = buyer as Record<string, unknown>;
+              const pick = (...keys: string[]) => {
+                for (const key of keys) {
+                  const value = row[key];
+                  if (value !== undefined && value !== null && String(value).trim() !== '') {
+                    return String(value);
+                  }
+                }
+                return undefined;
+              };
+
+              const additionalFields: Record<string, string> = {};
+              Object.keys(row).forEach((key) => {
+                if (
+                  [
+                    'ID',
+                    'id',
+                    'buyerId',
+                    'Store Name',
+                    'storeName',
+                    'store',
+                    'name',
+                    'Owner',
+                    'owner',
+                    'contact',
+                    'Email',
+                    'email',
+                    'Phone',
+                    'phone',
+                    'telephone',
+                    'Business Type',
+                    'businessType',
+                    'type',
+                    'Address',
+                    'address',
+                    'location',
+                    'Status',
+                    'status',
+                    'Notes',
+                    'notes',
+                    'Order Details',
+                    'orderDetails',
+                    'orders',
+                  ].includes(key)
+                ) {
+                  return;
+                }
+                const value = row[key];
+                if (value !== undefined && value !== null && String(value).trim() !== '') {
+                  additionalFields[key] = String(value);
+                }
+              });
+
+              const notesValue = pick('Notes', 'notes', 'comments', 'Comments', 'tags', 'Tags');
+              const orderDetailsValue = pick('Order Details', 'orderDetails', 'orders');
+
+              return {
+                buyerId: pick('ID', 'id', 'buyerId') || generateBuyerId(),
+                storeName: pick('Store Name', 'storeName', 'store', 'name'),
+                owner: pick('Owner', 'owner', 'contact'),
+                email: pick('Email', 'email'),
+                phone: pick('Phone', 'phone', 'telephone'),
+                businessType: pick('Business Type', 'businessType', 'type'),
+                address: pick('Address', 'address', 'location'),
+                status: pick('Status', 'status'),
+                logistics:
+                  Object.keys(additionalFields).length > 0
+                    ? JSON.stringify(additionalFields)
+                    : undefined,
+                notes: notesValue ? JSON.stringify([notesValue]) : undefined,
+                orderDetails: orderDetailsValue
+                  ? typeof orderDetailsValue === 'string' && orderDetailsValue.trim().startsWith('[')
+                    ? orderDetailsValue
+                    : JSON.stringify(orderDetailsValue)
+                  : undefined,
+              };
+            });
+
+            const BULK_IMPORT_BATCH_SIZE = 1000;
             let successCount = 0;
             let errorCount = 0;
-            
-            for (const buyer of data) {
+            let failureMessage = '';
+            for (let offset = 0; offset < buyers.length; offset += BULK_IMPORT_BATCH_SIZE) {
+              const batch = buyers.slice(offset, offset + BULK_IMPORT_BATCH_SIZE);
               try {
-                
-                // Extract all available data from the buyer object dynamically
-                const extractData = (obj: Record<string, unknown>): Record<string, string> => {
-                  const extracted: Record<string, string> = {};
-                  
-                  // Get all keys from the buyer data
-                  Object.keys(obj).forEach(key => {
-                    const value = obj[key];
-                    if (value !== undefined && value !== null && value !== '') {
-                      // Convert key to camelCase for the API
-                      const camelKey = key.replace(/\s+([a-z])/g, (_, letter) => letter.toUpperCase());
-                      extracted[camelKey] = String(value);
+                const result = await fetchGraphQL<{
+                  bulkCreateBuyers: {
+                    success: boolean;
+                    successCount: number;
+                    failedCount: number;
+                    message?: string | null;
+                  };
+                }>(
+                  `
+                    mutation BulkCreateBuyers($userId: Int!, $buyers: [BulkBuyerInput!]!) {
+                      bulkCreateBuyers(userId: $userId, buyers: $buyers) {
+                        success
+                        successCount
+                        failedCount
+                        message
+                      }
                     }
-                  });
-                  
-                  return extracted;
-                };
-                
-                // Extract all available data
-                const extractedData = extractData(buyer);
-                
-                // Create flexible payload - only include fields that have actual data
-                const payload: Record<string, unknown> = {
-                  userId: user.id,
-                };
+                  `,
+                  { userId: user.id, buyers: batch },
+                );
+                const payload = result.bulkCreateBuyers;
+                const batchSuccess = payload?.successCount ?? 0;
+                const batchFailed = payload?.failedCount ?? 0;
 
-                // Only add fields that actually have data
-                if (extractedData.ID || extractedData.id || extractedData.buyerId) {
-                  payload.buyerId = extractedData.ID || extractedData.id || extractedData.buyerId;
-                } else {
-                  // Generate ID only if none provided
-                  payload.buyerId = generateBuyerId();
+                if (payload && payload.success === false) {
+                  successCount += batchSuccess;
+                  errorCount +=
+                    batchFailed > 0 ? batchFailed : Math.max(0, batch.length - batchSuccess);
+                  if (payload.message) failureMessage = payload.message;
+                  continue;
                 }
 
-                // Only add fields that have actual values (no auto-filling)
-                if (extractedData.storeName || extractedData.store || extractedData.name || extractedData['Store Name']) {
-                  payload.storeName = extractedData.storeName || extractedData.store || extractedData.name || extractedData['Store Name'];
-                }
-
-                if (extractedData.owner || extractedData.contact || extractedData['Owner']) {
-                  payload.owner = extractedData.owner || extractedData.contact || extractedData['Owner'];
-                }
-
-                if (extractedData.email || extractedData.Email) {
-                  payload.email = extractedData.email || extractedData.Email;
-                }
-
-                if (extractedData.phone || extractedData.Phone || extractedData.telephone) {
-                  payload.phone = extractedData.phone || extractedData.Phone || extractedData.telephone;
-                }
-
-                if (extractedData.businessType || extractedData.type || extractedData['Business Type']) {
-                  payload.businessType = extractedData.businessType || extractedData.type || extractedData['Business Type'];
-                }
-
-                if (extractedData.address || extractedData.Address || extractedData.location) {
-                  payload.address = extractedData.address || extractedData.Address || extractedData.location;
-                }
-
-                if (extractedData.status || extractedData.Status) {
-                  payload.status = extractedData.status || extractedData.Status;
-                }
-
-                if (extractedData.createdAt || extractedData.created || extractedData.date) {
-                  payload.createdAt = extractedData.createdAt || extractedData.created || extractedData.date;
-                }
-
-                // Store any additional fields in logistics
-                const additionalFields: Record<string, string> = {};
-                Object.keys(extractedData).forEach(key => {
-                  if (!['ID', 'id', 'buyerId', 'storeName', 'store', 'name', 'owner', 'contact', 'email', 'phone', 'telephone', 
-                        'businessType', 'type', 'address', 'location', 'status', 'createdAt', 'created', 'date',
-                        'preferredDays', 'deliveryDays', 'lastShipment', 'lastDelivery', 'shipmentSuccess', 'successRate'].includes(key)) {
-                    additionalFields[key] = extractedData[key];
-                  }
-                });
-
-                if (Object.keys(additionalFields).length > 0) {
-                  payload.logistics = JSON.stringify(additionalFields);
-                }
-
-                if (extractedData.notes || extractedData.Notes || extractedData.comments || extractedData.Comments || 
-                    extractedData.tags || extractedData.Tags) {
-                  payload.notes = JSON.stringify([
-                    extractedData.notes || extractedData.Notes || extractedData.comments || extractedData.Comments || extractedData.tags || extractedData.Tags
-                  ]);
-                }
-
-                if (extractedData.orderDetails || extractedData.orders || extractedData['Order Details']) {
-                  payload.orderDetails = JSON.stringify(extractedData.orderDetails || extractedData.orders || extractedData['Order Details']);
-                }
-                
-                const CREATE_BUYER_MUTATION = `
-                  mutation CreateBuyer(
-                    $userId: Int!
-                    $buyerId: String
-                    $storeName: String
-                    $owner: String
-                    $email: String
-                    $phone: String
-                    $businessType: String
-                    $address: String
-                    $status: String
-                    $avatar: String
-                    $logistics: String
-                    $notes: String
-                    $orderDetails: String
-                  ) {
-                    createBuyer(
-                      userId: $userId
-                      buyerId: $buyerId
-                      storeName: $storeName
-                      owner: $owner
-                      email: $email
-                      phone: $phone
-                      businessType: $businessType
-                      address: $address
-                      status: $status
-                      avatar: $avatar
-                      logistics: $logistics
-                      notes: $notes
-                      orderDetails: $orderDetails
-                    ) {
-                      id
-                      buyerId
-                    }
-                  }
-                `;
-                
-                await fetchGraphQL(CREATE_BUYER_MUTATION, {
-                  userId: user?.id,
-                  buyerId: payload.buyerId,
-                  storeName: payload.storeName,
-                  owner: payload.owner,
-                  email: payload.email,
-                  phone: payload.phone,
-                  businessType: payload.businessType,
-                  address: payload.address,
-                  status: payload.status,
-                  avatar: payload.avatar,
-                  logistics: payload.logistics,
-                  notes: payload.notes,
-                  orderDetails: payload.orderDetails,
-                });
-                
-                successCount++;
+                successCount += batchSuccess;
+                errorCount += batchFailed;
               } catch (error) {
-                errorCount++;
+                // Keep counts from completed batches; only this batch is treated as failed.
+                errorCount += batch.length;
+                if (!failureMessage) {
+                  failureMessage =
+                    error instanceof Error && error.message
+                      ? error.message
+                      : tBuyers('importFailed');
+                }
               }
             }
-            
-            // Show success/error feedback
+
             if (successCount > 0) {
               setUpdateSuccess(tBuyers('importSuccess', { count: successCount }));
             }
             if (errorCount > 0) {
-              setUpdateError(tBuyers('importFailedCount', { count: errorCount }));
+              setUpdateError(
+                failureMessage
+                  ? `${tBuyers('importFailedCount', { count: errorCount })} ${failureMessage}`
+                  : tBuyers('importFailedCount', { count: errorCount }),
+              );
             }
-            
-            // Refresh data
+
             await fetchBuyers();
-            
-          } catch (error) {
+          } catch {
             setUpdateError(tBuyers('importFailed'));
+            setIsSlidingIn(false);
+            setIsSlidingOut(false);
+            setShowOverlay(false);
           } finally {
             setLoading(false);
           }
