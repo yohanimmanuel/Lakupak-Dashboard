@@ -134,6 +134,24 @@ export const contactsTypeDefs = /* GraphQL */ `
     message: String
   }
 
+  input RecordSupplierSupplyInput {
+    sku: String
+    product: String!
+    quantity: Int!
+    totalValue: Float
+    suppliedDate: String!
+    productId: String
+    variantName: String
+    updateCurrentStock: Boolean
+  }
+
+  type RecordSupplierSupplyResult {
+    success: Boolean!
+    stockUpdated: Boolean!
+    supplier: Supplier!
+    message: String
+  }
+
   extend type Query {
     buyers(
       userId: Int!
@@ -257,10 +275,52 @@ export const contactsTypeDefs = /* GraphQL */ `
     syncSuppliersFromProducts(
       userId: Int!
     ): SyncProductSuppliersResult!
+
+    recordSupplierSupply(
+      userId: Int!
+      supplierId: String!
+      input: RecordSupplierSupplyInput!
+    ): RecordSupplierSupplyResult!
   }
 `;
 
-const mapBuyer = (buyer: BuyerModel) => ({
+type BuyerWithRecords = BuyerModel & {
+  buyerRecords?: Array<{
+    orderNo: string;
+    product: string;
+    totalOrders: string;
+    totalSpend: string;
+    shippingFee: string | null;
+    lastOrderDate: string;
+    outstanding: string;
+    freeItems: number | null;
+    discountBadge: string | null;
+    offerApplied: boolean | null;
+    syncedFromOrders: boolean;
+    sortOrder: number;
+  }>;
+};
+
+type SupplierWithRecords = SupplierModel & {
+  supplyRecords?: Array<{
+    suppliesno: string;
+    sku: string;
+    product: string;
+    totalSupplied: string;
+    totalValue: string;
+    lastDelivery: string;
+    status: string;
+    deliverySuccess: string | null;
+    recordType: string;
+    productId: string | null;
+    variantName: string | null;
+    updateCurrentStock: boolean;
+    stockApplied: boolean;
+    sortOrder: number;
+  }>;
+};
+
+const mapBuyer = (buyer: BuyerWithRecords) => ({
   id: buyer.id,
   buyerId: buyer.buyerId,
   avatar: buyer.avatar ?? null,
@@ -273,7 +333,24 @@ const mapBuyer = (buyer: BuyerModel) => ({
   status: buyer.status,
   logistics: buyer.logistics ?? null,
   notes: buyer.notes ?? null,
-  orderDetails: buyer.orderDetails ?? null,
+  orderDetails:
+    buyer.buyerRecords && buyer.buyerRecords.length > 0
+      ? JSON.stringify(
+          buyer.buyerRecords.map((row) => ({
+            orderNo: row.orderNo,
+            product: row.product,
+            totalOrders: row.totalOrders,
+            totalSpend: row.totalSpend,
+            shippingFee: row.shippingFee ?? undefined,
+            lastOrderDate: row.lastOrderDate,
+            outstanding: row.outstanding,
+            freeItems: row.freeItems ?? undefined,
+            discountBadge: row.discountBadge ?? undefined,
+            offerApplied: row.offerApplied ?? undefined,
+            syncedFromOrders: row.syncedFromOrders || undefined,
+          })),
+        )
+      : null,
   avgMonthlySpending: (buyer as { avgMonthlySpending?: unknown }).avgMonthlySpending 
     ? parseMoney((buyer as { avgMonthlySpending?: unknown }).avgMonthlySpending as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined) 
     : null, // Convert Decimal to number
@@ -285,7 +362,7 @@ const mapBuyer = (buyer: BuyerModel) => ({
   updatedAt: buyer.updatedAt.toISOString(),
 });
 
-const mapSupplier = (supplier: SupplierModel) => ({
+const mapSupplier = (supplier: SupplierWithRecords) => ({
   id: supplier.id,
   supplierId: supplier.supplierId,
   name: supplier.name,
@@ -297,7 +374,26 @@ const mapSupplier = (supplier: SupplierModel) => ({
   status: supplier.status,
   logistics: supplier.logistics ?? null,
   notes: supplier.notes ?? null,
-  supplies: supplier.supplies ?? null,
+  supplies:
+    supplier.supplyRecords && supplier.supplyRecords.length > 0
+      ? JSON.stringify(
+          supplier.supplyRecords.map((row) => ({
+            suppliesno: row.suppliesno,
+            sku: row.sku,
+            product: row.product,
+            totalSupplied: row.totalSupplied,
+            totalValue: row.totalValue,
+            lastDelivery: row.lastDelivery,
+            status: row.status,
+            deliverySuccess: row.deliverySuccess ?? undefined,
+            recordType: row.recordType === 'summary' ? 'summary' : 'history',
+            productId: row.productId ?? undefined,
+            variantName: row.variantName ?? undefined,
+            updateCurrentStock: row.updateCurrentStock === true,
+            stockApplied: row.stockApplied === true,
+          })),
+        )
+      : null,
   avgMonthlyPurchaseValue: (supplier as { avgMonthlyPurchaseValue?: unknown }).avgMonthlyPurchaseValue 
     ? parseMoney((supplier as { avgMonthlyPurchaseValue?: unknown }).avgMonthlyPurchaseValue as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined) 
     : null, // Convert Decimal to number
@@ -356,6 +452,9 @@ const fetchBuyersConnection = async (args: {
       skip: (safePage - 1) * safeLimit,
       take: safeLimit,
       orderBy: { createdAt: 'desc' },
+      include: {
+        buyerRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] },
+      },
     }),
     prisma.buyer.count({ where: whereClause }),
   ]);
@@ -403,6 +502,9 @@ const fetchSuppliersConnection = async (args: {
       skip: (safePage - 1) * safeLimit,
       take: safeLimit,
       orderBy: { createdAt: 'desc' },
+      include: {
+        supplyRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] },
+      },
     }),
     prisma.supplier.count({ where: whereClause }),
   ]);
@@ -416,14 +518,20 @@ const fetchSuppliersConnection = async (args: {
 const fetchSingleBuyer = async (args: { userId: number; id: string }) => {
   const { userId, id } = args;
 
+  const buyerInclude = {
+    buyerRecords: { orderBy: [{ sortOrder: 'asc' as const }, { id: 'asc' as const }] },
+  };
+
   let buyer;
   if (isNumericId(id)) {
     buyer = await prisma.buyer.findFirst({
       where: { id: Number(id), userId },
+      include: buyerInclude,
     });
   } else {
     buyer = await prisma.buyer.findFirst({
       where: { buyerId: id, userId },
+      include: buyerInclude,
     });
   }
 
@@ -437,8 +545,8 @@ const fetchSingleBuyer = async (args: { userId: number; id: string }) => {
     const synced = await syncOrderToBuyerProfile(buyer.buyerId, userId);
     if (synced) {
       const refreshed = isNumericId(id)
-        ? await prisma.buyer.findFirst({ where: { id: Number(id), userId } })
-        : await prisma.buyer.findFirst({ where: { buyerId: id, userId } });
+        ? await prisma.buyer.findFirst({ where: { id: Number(id), userId }, include: buyerInclude })
+        : await prisma.buyer.findFirst({ where: { buyerId: id, userId }, include: buyerInclude });
       if (refreshed) buyer = refreshed;
     }
   } catch {
@@ -451,14 +559,20 @@ const fetchSingleBuyer = async (args: { userId: number; id: string }) => {
 const fetchSingleSupplier = async (args: { userId: number; id: string }) => {
   const { userId, id } = args;
 
+  const supplierInclude = {
+    supplyRecords: { orderBy: [{ sortOrder: 'asc' as const }, { id: 'asc' as const }] },
+  };
+
   let supplier;
   if (isNumericId(id)) {
     supplier = await prisma.supplier.findFirst({
       where: { id: Number(id), userId },
+      include: supplierInclude,
     });
   } else {
     supplier = await prisma.supplier.findFirst({
       where: { supplierId: id, userId },
+      include: supplierInclude,
     });
   }
 
@@ -497,7 +611,7 @@ const createBuyer = async (args: {
   }
 
   const buyerData = sanitizeBuyerData(validationData);
-
+  const orderDetailsPayload = args.orderDetails ? String(args.orderDetails) : null;
   const finalBuyerData: {
     buyerId: string;
     userId: number;
@@ -511,7 +625,6 @@ const createBuyer = async (args: {
     avatar?: string | null;
     logistics?: string | null;
     notes?: string | null;
-    orderDetails?: string | null;
     [key: string]: unknown;
   } = {
     ...buyerData,
@@ -527,7 +640,6 @@ const createBuyer = async (args: {
     avatar: buyerData.avatar ? String(buyerData.avatar) : null,
     logistics: buyerData.logistics ? String(buyerData.logistics) : null,
     notes: buyerData.notes ? String(buyerData.notes) : null,
-    orderDetails: buyerData.orderDetails ? String(buyerData.orderDetails) : null,
   };
 
   if (finalBuyerData.buyerId) {
@@ -561,16 +673,24 @@ const createBuyer = async (args: {
   }
 
   try {
-    const buyer = await prisma.buyer.create({
-      data: finalBuyerData,
+    const { replaceBuyerOrderRecords } = await import('@/lib/clients/buyerRecords');
+    const withRecords = await prisma.$transaction(async (tx) => {
+      const buyer = await tx.buyer.create({
+        data: finalBuyerData,
+      });
+      await replaceBuyerOrderRecords(tx, buyer.id, orderDetailsPayload);
+      return tx.buyer.findUnique({
+        where: { id: buyer.id },
+        include: { buyerRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] } },
+      });
     });
 
     // Notify about new buyer registration
     try {
       await NotificationService.createNewBuyerNotification(
         userId,
-        buyer.buyerId,
-        buyer.storeName,
+        withRecords!.buyerId,
+        withRecords!.storeName,
         false // Not a first order, just registration
       );
     } catch (notifError) {
@@ -588,7 +708,7 @@ const createBuyer = async (args: {
       // Ignore cache invalidation errors
     }
 
-    return mapBuyer(buyer);
+    return mapBuyer(withRecords!);
   } catch (error: unknown) {
     if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
       throw new Error('Buyer with this ID already exists');
@@ -666,22 +786,33 @@ const updateBuyer = async (args: {
   }
 
   const cleanUpdateData = sanitizeBuyerData(validationData);
+  const orderDetailsPayload =
+    args.orderDetails !== undefined
+      ? args.orderDetails
+        ? String(args.orderDetails)
+        : null
+      : undefined;
 
   try {
-    let buyer;
-    if (id && isNumericId(id)) {
-      buyer = await prisma.buyer.update({
-        where: { id: Number(id) },
+    const { lockBuyerOrderRecords, replaceBuyerOrderRecords } = await import(
+      '@/lib/clients/buyerRecords'
+    );
+    const withRecords = await prisma.$transaction(async (tx) => {
+      // Lock before Buyer row update so order matches syncOrderToBuyerProfile
+      // (advisory lock → buyer.update) and avoids deadlocks with concurrent sync.
+      await lockBuyerOrderRecords(tx, existingBuyer.id);
+      const buyer = await tx.buyer.update({
+        where: { id: existingBuyer.id },
         data: cleanUpdateData,
       });
-    } else if (buyerId || (id && !isNumericId(id))) {
-      buyer = await prisma.buyer.update({
-        where: { buyerId: (buyerId || id) as string },
-        data: cleanUpdateData,
+      if (orderDetailsPayload !== undefined) {
+        await replaceBuyerOrderRecords(tx, buyer.id, orderDetailsPayload);
+      }
+      return tx.buyer.findUnique({
+        where: { id: buyer.id },
+        include: { buyerRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] } },
       });
-    } else {
-      throw new Error('Invalid identifier');
-    }
+    });
 
     // Keep assortment opportunity segments aligned with live buyer business type.
     if (
@@ -692,7 +823,7 @@ const updateBuyer = async (args: {
         const { syncAssortmentOpportunitySegments } = await import(
           '@/lib/assortmentOpportunities/service'
         );
-        await syncAssortmentOpportunitySegments(Number(userId), buyer.buyerId);
+        await syncAssortmentOpportunitySegments(Number(userId), withRecords!.buyerId);
       } catch (error) {
         // Opportunities still sync on next list/refresh if this fails.
         console.error('[Buyers] Assortment opportunity segment sync failed:', error);
@@ -707,7 +838,7 @@ const updateBuyer = async (args: {
       // Ignore cache invalidation errors
     }
 
-    return mapBuyer(buyer);
+    return mapBuyer(withRecords!);
   } catch (error: unknown) {
     if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
       throw new Error('Buyer with this identifier already exists');
@@ -723,10 +854,15 @@ const deleteBuyer = async (args: { userId: number; id: string }) => {
     throw new Error('Invalid userId format');
   }
 
+  const buyerRecordsInclude = {
+    buyerRecords: { orderBy: [{ sortOrder: 'asc' as const }, { id: 'asc' as const }] },
+  };
+
   let deleted;
   if (isNumericId(id)) {
     deleted = await prisma.buyer.findFirst({
       where: { id: Number(id), userId: Number(userId) },
+      include: buyerRecordsInclude,
     });
 
     if (!deleted) {
@@ -735,6 +871,7 @@ const deleteBuyer = async (args: { userId: number; id: string }) => {
   } else {
     deleted = await prisma.buyer.findFirst({
       where: { buyerId: id, userId: Number(userId) },
+      include: buyerRecordsInclude,
     });
 
     if (!deleted) {
@@ -999,8 +1136,9 @@ const bulkCreateBuyers = async (args: {
     avatar: string | null;
     logistics: string | null;
     notes: string | null;
-    orderDetails: string | null;
   }> = [];
+  // Index-aligned with toCreate / ready so ensureContactIdsAvailable ID remaps keep payloads.
+  const importOrderDetailsByIndex: Array<string | null> = [];
   let failedCount = 0;
 
   for (const row of buyers) {
@@ -1019,8 +1157,8 @@ const bulkCreateBuyers = async (args: {
         avatar: row.avatar ? String(row.avatar) : null,
         logistics: row.logistics ? String(row.logistics) : null,
         notes: row.notes ? String(row.notes) : null,
-        orderDetails: row.orderDetails ? String(row.orderDetails) : null,
       });
+      importOrderDetailsByIndex.push(row.orderDetails ? String(row.orderDetails) : null);
     } catch {
       failedCount += 1;
     }
@@ -1029,8 +1167,30 @@ const bulkCreateBuyers = async (args: {
   let successCount = 0;
   if (toCreate.length > 0) {
     const ready = await ensureContactIdsAvailable('buyer', toCreate, usedIds, makeBuyerId);
-    const result = await prisma.buyer.createMany({ data: ready });
-    successCount = result.count;
+    const { buildBuyerRecordCreateManyRows } = await import('@/lib/clients/buyerRecords');
+    // Parent buyers + child records in one txn so a child failure cannot leave orphans.
+    successCount = await prisma.$transaction(async (tx) => {
+      const result = await tx.buyer.createMany({ data: ready });
+      const created = await tx.buyer.findMany({
+        where: {
+          userId: distributorUserId,
+          buyerId: { in: ready.map((row) => row.buyerId) },
+        },
+        select: { id: true, buyerId: true },
+      });
+      const buyerRefIdByBuyerId = new Map(created.map((row) => [row.buyerId, row.id]));
+      const buyerRecordRows = ready.flatMap((row, index) => {
+        const payload = importOrderDetailsByIndex[index];
+        if (payload == null) return [];
+        const buyerRefId = buyerRefIdByBuyerId.get(row.buyerId);
+        if (buyerRefId == null) return [];
+        return buildBuyerRecordCreateManyRows(buyerRefId, payload);
+      });
+      if (buyerRecordRows.length > 0) {
+        await tx.buyerRecord.createMany({ data: buyerRecordRows });
+      }
+      return result.count;
+    });
     failedCount += Math.max(0, buyers.length - successCount - failedCount);
   } else {
     failedCount = buyers.length;
@@ -1098,8 +1258,9 @@ const bulkCreateSuppliers = async (args: {
     status: string;
     logistics: string | null;
     notes: string | null;
-    supplies: string | null;
   }> = [];
+  // Index-aligned with toCreate / ready so ensureContactIdsAvailable ID remaps keep payloads.
+  const importSuppliesByIndex: Array<string | null> = [];
   let failedCount = 0;
 
   for (const row of suppliers) {
@@ -1117,8 +1278,8 @@ const bulkCreateSuppliers = async (args: {
         status: truncateImportText(row.status, 50) || 'Active',
         logistics: row.logistics ? String(row.logistics) : null,
         notes: row.notes ? String(row.notes) : null,
-        supplies: row.supplies ? String(row.supplies) : null,
       });
+      importSuppliesByIndex.push(row.supplies ? String(row.supplies) : null);
     } catch {
       failedCount += 1;
     }
@@ -1132,8 +1293,30 @@ const bulkCreateSuppliers = async (args: {
       usedIds,
       generateUniqueSupplierId,
     );
-    const result = await prisma.supplier.createMany({ data: ready });
-    successCount = result.count;
+    const { buildSupplyRecordCreateManyRows } = await import('@/lib/suppliers/supplyRecordStore');
+    // Parent suppliers + child records in one txn so a child failure cannot leave orphans.
+    successCount = await prisma.$transaction(async (tx) => {
+      const result = await tx.supplier.createMany({ data: ready });
+      const created = await tx.supplier.findMany({
+        where: {
+          userId: distributorUserId,
+          supplierId: { in: ready.map((row) => row.supplierId) },
+        },
+        select: { id: true, supplierId: true },
+      });
+      const supplierRefIdBySupplierId = new Map(created.map((row) => [row.supplierId, row.id]));
+      const supplyRecordRows = ready.flatMap((row, index) => {
+        const payload = importSuppliesByIndex[index];
+        if (payload == null) return [];
+        const supplierRefId = supplierRefIdBySupplierId.get(row.supplierId);
+        if (supplierRefId == null) return [];
+        return buildSupplyRecordCreateManyRows(supplierRefId, payload);
+      });
+      if (supplyRecordRows.length > 0) {
+        await tx.supplyRecord.createMany({ data: supplyRecordRows });
+      }
+      return result.count;
+    });
     failedCount += Math.max(0, suppliers.length - successCount - failedCount);
   } else {
     failedCount = suppliers.length;
@@ -1180,6 +1363,7 @@ const createSupplier = async (args: {
     throw new Error(validationResult.errors.join(', ') || 'Invalid supplier data');
   }
 
+  const suppliesPayload = data.supplies || null;
   const supplierData = {
     supplierId: data.supplierId || '',
     name: data.name || '',
@@ -1191,7 +1375,6 @@ const createSupplier = async (args: {
     status: data.status || 'Active',
     logistics: data.logistics || null,
     notes: data.notes || null,
-    supplies: data.supplies || null,
     userId: Number(userId),
   };
 
@@ -1226,11 +1409,18 @@ const createSupplier = async (args: {
   }
 
   try {
-    const supplier = await prisma.supplier.create({
-      data: supplierData,
+    const { replaceSupplierSupplyRecords } = await import('@/lib/suppliers/supplyRecordStore');
+    const withRecords = await prisma.$transaction(async (tx) => {
+      const supplier = await tx.supplier.create({
+        data: supplierData,
+      });
+      await replaceSupplierSupplyRecords(tx, supplier.id, suppliesPayload);
+      return tx.supplier.findUnique({
+        where: { id: supplier.id },
+        include: { supplyRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] } },
+      });
     });
-
-    return mapSupplier(supplier);
+    return mapSupplier(withRecords!);
   } catch (error: unknown) {
     if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
       throw new Error('Supplier with this ID already exists');
@@ -1273,8 +1463,13 @@ const updateSupplier = async (args: {
     status: string;
     logistics: string | null;
     notes: string | null;
-    supplies: string | null;
   }> = {};
+  const suppliesPayload =
+    updateData.supplies !== undefined
+      ? updateData.supplies
+        ? String(updateData.supplies)
+        : null
+      : undefined;
 
   if (updateData.name !== undefined) cleanUpdateData.name = String(updateData.name);
   if (updateData.contact !== undefined) cleanUpdateData.contact = String(updateData.contact);
@@ -1285,7 +1480,6 @@ const updateSupplier = async (args: {
   if (updateData.status !== undefined) cleanUpdateData.status = String(updateData.status);
   if (updateData.logistics !== undefined) cleanUpdateData.logistics = updateData.logistics ? String(updateData.logistics) : null;
   if (updateData.notes !== undefined) cleanUpdateData.notes = updateData.notes ? String(updateData.notes) : null;
-  if (updateData.supplies !== undefined) cleanUpdateData.supplies = updateData.supplies ? String(updateData.supplies) : null;
 
   let existingSupplier;
   if (id) {
@@ -1311,22 +1505,47 @@ const updateSupplier = async (args: {
   }
 
   try {
-    let supplier;
-    if (id && isNumericId(id)) {
-      supplier = await prisma.supplier.update({
-        where: { id: Number(id) },
+    const withRecords = await prisma.$transaction(async (tx) => {
+      // Serialize concurrent supplies saves for this supplier so deltas use a fresh previous snapshot.
+      if (suppliesPayload !== undefined) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(${Number(userId)}, ${existingSupplier.id})`;
+        const { loadSupplierSuppliesJson, replaceSupplierSupplyRecords } = await import(
+          '@/lib/suppliers/supplyRecordStore'
+        );
+        const { finalizeSupplierSuppliesSave } = await import(
+          '@/lib/suppliers/applySupplierSuppliesSave'
+        );
+        const previousSuppliesRaw = await loadSupplierSuppliesJson(tx, existingSupplier.id);
+        const finalized = await finalizeSupplierSuppliesSave({
+          userId: Number(userId),
+          previousSuppliesRaw,
+          nextSuppliesRaw: suppliesPayload,
+          db: tx,
+        });
+        await replaceSupplierSupplyRecords(tx, existingSupplier.id, finalized.suppliesJson);
+      }
+
+      await tx.supplier.update({
+        where: { id: existingSupplier.id },
         data: cleanUpdateData,
       });
-    } else if (supplierId || (id && !isNumericId(id))) {
-      supplier = await prisma.supplier.update({
-        where: { supplierId: (supplierId || id) as string },
-        data: cleanUpdateData,
+      return tx.supplier.findUnique({
+        where: { id: existingSupplier.id },
+        include: { supplyRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] } },
       });
-    } else {
-      throw new Error('Invalid identifier');
+    });
+
+    try {
+      const { invalidateDashboardCache, invalidateProductCache } = await import('@/lib/queryCache');
+      await Promise.all([
+        invalidateDashboardCache(Number(userId)),
+        invalidateProductCache(Number(userId)),
+      ]);
+    } catch {
+      // ignore cache failures
     }
 
-    return mapSupplier(supplier);
+    return mapSupplier(withRecords!);
   } catch (error: unknown) {
     throw new Error('Failed to update supplier');
   }
@@ -1339,10 +1558,15 @@ const deleteSupplier = async (args: { userId: number; id: string }) => {
     throw new Error('Invalid userId format');
   }
 
+  const supplyRecordsInclude = {
+    supplyRecords: { orderBy: [{ sortOrder: 'asc' as const }, { id: 'asc' as const }] },
+  };
+
   let deleted;
   if (isNumericId(id)) {
     deleted = await prisma.supplier.findFirst({
       where: { id: Number(id), userId: Number(userId) },
+      include: supplyRecordsInclude,
     });
 
     if (!deleted) {
@@ -1355,6 +1579,7 @@ const deleteSupplier = async (args: { userId: number; id: string }) => {
   } else {
     deleted = await prisma.supplier.findFirst({
       where: { supplierId: id, userId: Number(userId) },
+      include: supplyRecordsInclude,
     });
 
     if (!deleted) {
@@ -1516,6 +1741,167 @@ const syncSuppliersFromProducts = async (args: { userId: number }) => {
   };
 };
 
+/**
+ * Record a dated supply event (history). Updates summary totals.
+ * If suppliedDate is today, also increases matched variant current stock.
+ * Past-dated supplies never change current stock.
+ */
+const recordSupplierSupply = async (args: {
+  userId: number;
+  supplierId: string;
+  input: {
+    sku?: string | null;
+    product: string;
+    quantity: number;
+    totalValue?: number | null;
+    suppliedDate: string;
+    productId?: string | null;
+    variantName?: string | null;
+    updateCurrentStock?: boolean | null;
+  };
+}) => {
+  const { userId, supplierId, input } = args;
+  if (!/^\d+$/.test(String(userId))) {
+    throw new Error('Invalid userId format');
+  }
+
+  const qty = Math.max(0, Math.floor(Number(input.quantity) || 0));
+  if (qty <= 0) {
+    throw new Error('Quantity must be greater than zero');
+  }
+  const productName = String(input.product || '').trim();
+  if (!productName) {
+    throw new Error('Product name is required');
+  }
+
+  const {
+    createHistorySupplyRow,
+    upsertSummaryFromSupplyEvent,
+    isSupplyReceivedToday,
+    todayYmdJakarta,
+    parseSupplyDateYmd,
+  } = await import('@/lib/suppliers/supplyRecords');
+  const { incrementVariantStockForSupply } = await import('@/lib/suppliers/applySupplierSuppliesSave');
+
+  const suppliedDate = parseSupplyDateYmd(input.suppliedDate);
+  if (!suppliedDate) {
+    throw new Error('Invalid supplied date');
+  }
+
+  const supplier = await prisma.supplier.findFirst({
+    where: {
+      userId: Number(userId),
+      OR: isNumericId(supplierId)
+        ? [{ id: Number(supplierId) }, { supplierId }]
+        : [{ supplierId }],
+    },
+  });
+  if (!supplier) {
+    throw new Error('Supplier not found');
+  }
+
+  const { getCurrencyConfig } = await import('@/config/currencyConfig');
+  const userCurrency = await prisma.user.findUnique({
+    where: { id: Number(userId) },
+    select: { currency: true },
+  });
+  const maxFractionDigits =
+    getCurrencyConfig(userCurrency?.currency || undefined).formatOptions.maximumFractionDigits ?? 2;
+  const moneyFactor = 10 ** Math.max(0, Number(maxFractionDigits) || 0);
+  const rawTotalValue = Number(input.totalValue) || 0;
+  // Keep currency precision (e.g. 2dp USD); do not coerce to whole units.
+  const totalValue = Math.max(
+    0,
+    Math.round((Number.isFinite(rawTotalValue) ? rawTotalValue : 0) * moneyFactor) / moneyFactor,
+  );
+  const sku = String(input.sku || '').trim();
+  const productId = String(input.productId || '').trim() || undefined;
+  const variantName = String(input.variantName || '').trim() || undefined;
+
+  // Prefer explicit checkbox; fall back to "today" for older API callers.
+  const updateStock =
+    input.updateCurrentStock === true ||
+    (input.updateCurrentStock == null && isSupplyReceivedToday(suppliedDate, todayYmdJakarta()));
+
+  const { loadSupplierSupplies, replaceSupplierSupplyRecords } = await import(
+    '@/lib/suppliers/supplyRecordStore'
+  );
+
+  const { stockUpdated, withRecords } = await prisma.$transaction(async (tx) => {
+    // Same lock key as updateSupplier so concurrent supply writes share one critical section.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(${Number(userId)}, ${supplier.id})`;
+
+    let stockUpdatedInTx = false;
+    if (updateStock) {
+      stockUpdatedInTx = await incrementVariantStockForSupply({
+        userId: Number(userId),
+        sku,
+        productId,
+        variantName,
+        quantity: qty,
+        db: tx,
+      });
+    }
+
+    // stockApplied only after a successful stock write so failed increments can retry.
+    const historyRow = createHistorySupplyRow({
+      sku,
+      product: productName,
+      quantity: qty,
+      totalValue,
+      suppliedDate,
+      productId,
+      variantName,
+      updateCurrentStock: updateStock,
+      stockApplied: stockUpdatedInTx,
+    });
+
+    let supplies = await loadSupplierSupplies(tx, supplier.id);
+    supplies = [...supplies, historyRow];
+    // Totals always update; product stock only when Update Stock is checked.
+    supplies = upsertSummaryFromSupplyEvent(supplies, {
+      sku,
+      product: productName,
+      quantity: qty,
+      totalValue,
+      productId,
+      variantName,
+    });
+
+    await replaceSupplierSupplyRecords(tx, supplier.id, supplies);
+    await tx.supplier.update({
+      where: { id: supplier.id },
+      data: { updatedAt: new Date() },
+    });
+
+    const next = await tx.supplier.findUnique({
+      where: { id: supplier.id },
+      include: { supplyRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] } },
+    });
+
+    return { stockUpdated: stockUpdatedInTx, withRecords: next };
+  });
+
+  try {
+    const { invalidateDashboardCache, invalidateProductCache } = await import('@/lib/queryCache');
+    await Promise.all([
+      invalidateDashboardCache(Number(userId)),
+      invalidateProductCache(Number(userId)),
+    ]);
+  } catch {
+    // ignore
+  }
+
+  return {
+    success: true,
+    stockUpdated,
+    supplier: mapSupplier(withRecords || supplier),
+    message: stockUpdated
+      ? 'Supply recorded and current stock increased'
+      : 'Supply recorded (current stock unchanged)',
+  };
+};
+
 const bulkDeleteSuppliers = async (args: { userId: number; ids: string[] }) => {
   const { userId, ids } = args;
 
@@ -1589,6 +1975,7 @@ export const contactsResolvers = {
     deleteSupplier: withDashboardAuth(deleteSupplier),
     bulkDeleteSuppliers: withDashboardAuth(bulkDeleteSuppliers),
     syncSuppliersFromProducts: withDashboardAuth(syncSuppliersFromProducts),
+    recordSupplierSupply: withDashboardAuth(recordSupplierSupply),
   },
 };
 

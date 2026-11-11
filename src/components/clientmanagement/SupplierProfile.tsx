@@ -1,19 +1,20 @@
 'use client';
 import React from "react";
-import { Phone, MapPin, Store, Tag, Truck, Info, FileText, Calendar, BarChart2, ArrowLeft, Edit, Copy, Mail, ChevronLeft, ChevronRight, User, Upload, Download } from "lucide-react";
+import { Phone, MapPin, Store, Tag, Truck, Info, FileText, Calendar, BarChart2, ArrowLeft, Edit, Copy, Mail, ChevronLeft, ChevronRight, User } from "lucide-react";
 import Link from "next/link";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts';
-import { useState } from 'react';
-import * as XLSX from 'xlsx';
-import ImportSuppliesModal from './ImportSuppliesModal';
+import { useMemo, useState } from 'react';
 import { Supplier, SupplyDetail } from '@/types/client';
 import { formatDate, formatNumber } from '@/utils/dateUtils';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { useUserStore } from '@/store/userStore';
-import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
+import {
+  isSupplyHistoryRow,
+  partitionSupplies,
+} from '@/lib/suppliers/supplyRecords';
 
 function getSupplierAnalytics(suppliesStr: string, language?: string | null) {
   const monthLocale = language === 'id' ? 'id-ID' : 'en-US';
@@ -26,7 +27,8 @@ function getSupplierAnalytics(suppliesStr: string, language?: string | null) {
     // Group by month using YYYY-MM format for proper sorting
     const map: { [monthKey: string]: { supplied: number; value: number; date: Date } } = {};
     supplies.forEach(function(supply: SupplyDetail) {
-      if (!supply.lastDelivery) return;
+      // Monthly charts are driven by dated history events only
+      if (!isSupplyHistoryRow(supply) || !supply.lastDelivery) return;
       const date = new Date(supply.lastDelivery);
       if (isNaN(date.getTime())) return; // Skip invalid dates
       
@@ -70,14 +72,15 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
   
   // Get user currency for display
   const userCurrency = user?.currency || getDefaultCurrency();
-  const [showImportSupplies, setShowImportSupplies] = useState(false);
+  const [suppliesTab, setSuppliesTab] = useState<'summary' | 'history'>('history');
   
   // SupplierProfile - Raw supplier data
   
   // Parse supplies and notes from strings to arrays
-  const supplies = supplier.supplies ? (() => {
+  const suppliesRaw = supplier.supplies;
+  const supplies = suppliesRaw ? (() => {
     try {
-      const parsed = JSON.parse(supplier.supplies);
+      const parsed = JSON.parse(suppliesRaw);
       return parsed;
     } catch (error) {
       return [];
@@ -126,11 +129,18 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
     navigator.clipboard.writeText(text);
   };
   
-  const analyticsData = getSupplierAnalytics(supplier.supplies || '', user?.language);
-  const totalSupplied = supplies.reduce((sum: number, s: SupplyDetail) => sum + (parseInt(s.totalSupplied) || 0), 0) || 0;
+  const analyticsData = getSupplierAnalytics(suppliesRaw || '', user?.language);
+  const { history: historySupplies, summary: summarySupplies } = useMemo(
+    () => partitionSupplies(Array.isArray(supplies) ? supplies : []),
+    [supplies],
+  );
+
+  // Header totals come from summary rows (match totals + rolled-up history), avoiding double-count.
+  const totalSupplied =
+    summarySupplies.reduce((sum, s) => sum + (parseInt(s.totalSupplied) || 0), 0) || 0;
   let totalValue = 0;
   let currency = '';
-  supplies.forEach((s: SupplyDetail) => {
+  summarySupplies.forEach((s: SupplyDetail) => {
     const match = (s.totalValue || '').toString().match(/^([^\d]*)/);
     if (match && match[1] && !currency) currency = match[1];
     totalValue += parseInt((s.totalValue || '').toString().replace(/[^\d]/g, '')) || 0;
@@ -138,24 +148,13 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
   
   const [supplyPage, setSupplyPage] = useState(1);
   const supplyRowsPerPage = TABLE_PAGE_SIZE;
-  const totalSupplyRows = supplies.length;
+  const activeSupplyRows = suppliesTab === 'history' ? historySupplies : summarySupplies;
+  const totalSupplyRows = activeSupplyRows.length;
   const totalSupplyPages = Math.max(1, Math.ceil(totalSupplyRows / supplyRowsPerPage));
-  const pagedSupplies = supplies.slice((supplyPage - 1) * supplyRowsPerPage, supplyPage * supplyRowsPerPage);
-
-  function handleExportSupplies() {
-    const headers = ['SKU', 'Product', 'Total Supplied', 'Total Value', 'Last Delivery'];
-    const rows = supplies.map((s: SupplyDetail) => [
-      s.sku,
-      s.product,
-      s.totalSupplied,
-      s.totalValue,
-      s.lastDelivery
-    ]);
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Supplies');
-    XLSX.writeFile(wb, `${supplier.name || 'supplier'}-supplies.xlsx`);
-  }
+  const pagedSupplies = activeSupplyRows.slice(
+    (supplyPage - 1) * supplyRowsPerPage,
+    supplyPage * supplyRowsPerPage,
+  );
 
   return (
     <div className="mx-auto flex w-full min-w-0 flex-col gap-4 rounded-lg border border-[#e6e6e6] bg-white p-4">
@@ -372,60 +371,11 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
           </div>
         </div>
       </div>
-      {/* Second Row: Supplies/Product Data */}
+      {/* Second Row: Supplies/Product Data (view-only; edit/import/export on edit page) */}
       <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 relative">
         <div className="flex items-center justify-between mb-4">
           <div className="font-semibold text-md text-black">{tSuppliersProfile('suppliesSection')}</div>
-          <div className="flex gap-2">
-            <button className="flex items-center gap-1 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm" onClick={() => setShowImportSupplies(true)}>
-              <Upload className="w-4 h-4" /> {tSuppliersProfile('importSupplies')}
-            </button>
-            <button className="flex items-center gap-1 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm" onClick={handleExportSupplies}>
-              <Download className="w-4 h-4" /> {tSuppliersProfile('exportSupplies')}
-            </button>
-          </div>
         </div>
-        {showImportSupplies && (
-          <ImportSuppliesModal
-            open={showImportSupplies}
-            onClose={() => setShowImportSupplies(false)}
-            onImport={async (newSupplies) => {
-              // Merge new supplies with existing ones instead of replacing
-              const mergedSupplies = [...supplies, ...newSupplies];
-              
-              // Update the supplier with merged supplies
-              const UPDATE_SUPPLIER_MUTATION = `
-                mutation UpdateSupplier(
-                  $userId: Int!
-                  $id: String
-                  $supplierId: String
-                  $supplies: String
-                ) {
-                  updateSupplier(
-                    userId: $userId
-                    id: $id
-                    supplierId: $supplierId
-                    supplies: $supplies
-                  ) {
-                    id
-                    supplierId
-                    supplies
-                  }
-                }
-              `;
-              
-              await fetchGraphQL(UPDATE_SUPPLIER_MUTATION, {
-                userId: supplier.userId,
-                supplierId: supplier.supplierId,
-                  supplies: JSON.stringify(mergedSupplies),
-              });
-              
-              // Close modal and refresh the page to show updated data
-              setShowImportSupplies(false);
-              window.location.reload();
-            }}
-          />
-        )}
         {/* Summary Statistics */}
         <div className="flex flex-wrap gap-4 mb-4">
           <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">
@@ -435,35 +385,102 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                             {tSuppliersProfile('totalPurchaseValueLabel')} <span className="font-bold text-[#0a61d7]">{formatCurrency(totalValue, userCurrency)}</span>
           </div>
         </div>
+        <div className="mb-4 inline-flex rounded-full border border-[#e6e6e6] bg-gray-50 p-1">
+          <button
+            type="button"
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+              suppliesTab === 'summary'
+                ? 'bg-white text-black shadow-sm'
+                : 'text-gray-500 hover:text-black'
+            }`}
+            onClick={() => {
+              setSuppliesTab('summary');
+              setSupplyPage(1);
+            }}
+          >
+            {tSuppliersProfile('supplySummaryTab')}
+          </button>
+          <button
+            type="button"
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+              suppliesTab === 'history'
+                ? 'bg-white text-black shadow-sm'
+                : 'text-gray-500 hover:text-black'
+            }`}
+            onClick={() => {
+              setSuppliesTab('history');
+              setSupplyPage(1);
+            }}
+          >
+            {tSuppliersProfile('supplyHistoryTab')}
+          </button>
+        </div>
         <div className="min-w-0 overflow-x-auto rounded-lg">
           <table className="min-w-full text-xs font-medium text-left">
             <thead>
               <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
-                <th className="py-2 px-4 font-medium uppercase">{tSuppliersModal('colNo')}</th>
-                <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('skuNumber')}</th>
-                <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('productName')}</th>
-                <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('totalSuppliedCol')}</th>
-                <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('totalValueCol')}</th>
-                <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('lastDeliveryCol')}</th>
+                {suppliesTab === 'history' ? (
+                  <>
+                    <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('lastSuppliedDateCol')}</th>
+                    <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('skuNumber')}</th>
+                    <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('receivedCol')}</th>
+                    <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('purchaseValueCol')}</th>
+                  </>
+                ) : (
+                  <>
+                    <th className="py-2 px-4 font-medium uppercase">{tSuppliersModal('colNo')}</th>
+                    <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('skuProductCol')}</th>
+                    <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('totalSuppliedCol')}</th>
+                    <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('totalPurchaseCol')}</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody>
               {pagedSupplies.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-10 px-4 text-center text-sm text-gray-500">
+                  <td colSpan={4} className="py-10 px-4 text-center text-sm text-gray-500">
                     {tSuppliersProfile('noSupplies')}
                   </td>
                 </tr>
+              ) : suppliesTab === 'history' ? (
+                pagedSupplies.map((supply: SupplyDetail, idx: number) => (
+                  <tr
+                    key={`hist-${supply.suppliesno || idx}-${supplyPage}`}
+                    className="border-b last:border-b-0"
+                  >
+                    <td className="py-4 px-4 text-black">{String(supply.lastDelivery || '—')}</td>
+                    <td className="py-4 px-4 font-medium text-black">{String(supply.sku || '—')}</td>
+                    <td className="py-4 px-4 text-black">{String(supply.totalSupplied)}</td>
+                    <td className="py-4 px-4 text-[#0a61d7] font-semibold">
+                      {formatCurrency(
+                        parseNumberByCurrency(String(supply.totalValue), userCurrency),
+                        userCurrency,
+                      )}
+                    </td>
+                  </tr>
+                ))
               ) : (
                 pagedSupplies.map((supply: SupplyDetail, idx: number) => (
-                <tr key={idx + (supplyPage - 1) * supplyRowsPerPage} className="border-b last:border-b-0">
-                  <td className="py-4 px-4 font-medium text-black">{(supplyPage - 1) * supplyRowsPerPage + idx + 1}</td>
-                  <td className="py-4 px-4 font-medium text-black">{String(supply.sku)}</td>
-                  <td className="py-4 px-4 text-black">{String(supply.product)}</td>
-                  <td className="py-4 px-4 text-black">{String(supply.totalSupplied)}</td>
-                  <td className="py-4 px-4 text-[#0a61d7] font-semibold">{formatCurrency(parseNumberByCurrency(String(supply.totalValue), userCurrency), userCurrency)}</td>
-                  <td className="py-4 px-4 text-black">{String(supply.lastDelivery)}</td>
-                </tr>
+                  <tr
+                    key={`sum-${supply.suppliesno || idx}-${supplyPage}`}
+                    className="border-b last:border-b-0"
+                  >
+                    <td className="py-4 px-4 font-medium text-black">
+                      {(supplyPage - 1) * supplyRowsPerPage + idx + 1}
+                    </td>
+                    <td className="py-4 px-4 text-black">
+                      <div className="font-medium">{String(supply.sku || '—')}</div>
+                      <div className="text-gray-500">{String(supply.product || '—')}</div>
+                    </td>
+                    <td className="py-4 px-4 text-black">{String(supply.totalSupplied)}</td>
+                    <td className="py-4 px-4 text-[#0a61d7] font-semibold">
+                      {formatCurrency(
+                        parseNumberByCurrency(String(supply.totalValue), userCurrency),
+                        userCurrency,
+                      )}
+                    </td>
+                  </tr>
                 ))
               )}
             </tbody>
@@ -529,7 +546,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
               <div className="border-b border-gray-300 pb-2">{tSuppliersProfile('totalMonthlyRecords')} <span className="font-medium">{(() => {
                 // Extract unique months from delivery dates
                 const uniqueMonths = new Set();
-                supplies.forEach((supply: SupplyDetail) => {
+                historySupplies.forEach((supply: SupplyDetail) => {
                   if (supply.lastDelivery) {
                     const monthKey = supply.lastDelivery.substring(0, 7); // Get YYYY-MM
                     uniqueMonths.add(monthKey);
@@ -540,7 +557,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
               <div className="pt-2">{tSuppliersProfile('avgMonthlyPurchase')} <span className="font-semibold text-green-500">{currency}{(() => {
                 // Extract unique months from delivery dates
                 const uniqueMonths = new Set();
-                supplies.forEach((supply: SupplyDetail) => {
+                historySupplies.forEach((supply: SupplyDetail) => {
                   if (supply.lastDelivery) {
                     const monthKey = supply.lastDelivery.substring(0, 7); // Get YYYY-MM
                     uniqueMonths.add(monthKey);
@@ -560,7 +577,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
               <div className="border-b border-gray-300 pb-2">{tSuppliersProfile('totalMonthlyRecords')} <span className="font-medium">{(() => {
                 // Extract unique months from delivery dates
                 const uniqueMonths = new Set();
-                supplies.forEach((supply: SupplyDetail) => {
+                historySupplies.forEach((supply: SupplyDetail) => {
                   if (supply.lastDelivery) {
                     const monthKey = supply.lastDelivery.substring(0, 7); // Get YYYY-MM
                     uniqueMonths.add(monthKey);
@@ -571,7 +588,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
               <div className="pt-2">{tSuppliersProfile('avgMonthlySupplied')} <span className="font-semibold text-blue-500">{(() => {
                 // Extract unique months from delivery dates
                 const uniqueMonths = new Set();
-                supplies.forEach((supply: SupplyDetail) => {
+                historySupplies.forEach((supply: SupplyDetail) => {
                   if (supply.lastDelivery) {
                     const monthKey = supply.lastDelivery.substring(0, 7); // Get YYYY-MM
                     uniqueMonths.add(monthKey);

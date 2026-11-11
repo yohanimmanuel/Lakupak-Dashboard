@@ -31,22 +31,6 @@ export function parseMarketplaceUserIdFromBuyerId(buyerId: string | null | undef
   return null;
 }
 
-type OrderDetailRow = {
-  orderNo?: string;
-  syncedFromOrders?: boolean;
-  [key: string]: unknown;
-};
-
-function parseBuyerOrderDetails(raw: string | null | undefined): OrderDetailRow[] {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as OrderDetailRow[]) : [];
-  } catch {
-    return [];
-  }
-}
-
 type PaymentFields = {
   paymentStatus?: string | null;
   amountPaid?: string | number | null | { toNumber?: () => number; toString?: () => string };
@@ -66,7 +50,10 @@ function unpaidOrderAmount(orderTotal: number, order: PaymentFields): number {
 }
 
 /** Live marketplace/dashboard order rows vs CRM/import profile details. */
-function isLiveSyncedOrderDetail(entry: OrderDetailRow): boolean {
+function isLiveSyncedOrderDetail(entry: {
+  orderNo?: string;
+  syncedFromOrders?: boolean;
+}): boolean {
   if (entry?.syncedFromOrders === true) return true;
   const orderNo = String(entry?.orderNo || '').trim();
   return /^LKO-\d+(?:-\d+)?$/i.test(orderNo);
@@ -216,22 +203,34 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number): 
       }
     });
 
+    const {
+      loadBuyerOrderDetails,
+      lockBuyerOrderRecords,
+      replaceBuyerOrderRecords,
+    } = await import('@/lib/clients/buyerRecords');
+
     // No live orders: drop previously synced LKO rows, keep CRM/import details.
     if (orders.length === 0) {
-      const existing = parseBuyerOrderDetails(buyer.orderDetails);
-      const preserved = existing.filter((row) => !isLiveSyncedOrderDetail(row));
       const nextLogistics = await backfillLastVisitFromSalesJobs(buyer, userId, buyerId, []);
-      if (preserved.length === existing.length && nextLogistics == null) {
+      // Lock → load → filter → replace in one txn so updateBuyer rows are not omitted.
+      const recordsChanged = await prisma.$transaction(async (tx) => {
+        await lockBuyerOrderRecords(tx, buyer.id);
+        const existing = await loadBuyerOrderDetails(tx, buyer.id);
+        const preserved = existing.filter((row) => !isLiveSyncedOrderDetail(row));
+        if (preserved.length === existing.length) {
+          return false;
+        }
+        const { changed } = await replaceBuyerOrderRecords(tx, buyer.id, preserved);
+        if (changed) {
+          await tx.buyer.update({
+            where: { id: buyer.id },
+            data: { updatedAt: new Date() },
+          });
+        }
+        return changed;
+      });
+      if (!recordsChanged && nextLogistics == null) {
         return false;
-      }
-      if (preserved.length !== existing.length) {
-        await prisma.buyer.update({
-          where: { buyerId },
-          data: {
-            orderDetails: JSON.stringify(preserved),
-            updatedAt: new Date(),
-          },
-        });
       }
       if (nextLogistics != null) {
         await saveBackfilledLogistics(buyerId, buyer.logistics, nextLogistics);
@@ -299,10 +298,6 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number): 
       orderCount: data.orders
     }));
 
-    // Keep CRM/import rows; replace only live-synced entries.
-    const existing = parseBuyerOrderDetails(buyer.orderDetails);
-    const preservedCrm = existing.filter((row) => !isLiveSyncedOrderDetail(row));
-
     // Process orders into orderDetails format for the buyer profile
     const orderDetails = orders.map(order => {
       // Combine items that share the same product (different variants) into a
@@ -367,7 +362,6 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number): 
       };
     });
 
-    const mergedOrderDetails = [...preservedCrm, ...orderDetails];
     const nextLogistics = await backfillLastVisitFromSalesJobs(
       buyer,
       userId,
@@ -375,12 +369,19 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number): 
       orders.map((order) => order.orderId),
     );
 
-    // Update buyer with synced order details - scope to this distributor
-    await prisma.buyer.update({
-      where: { buyerId },
-      data: {
-        orderDetails: JSON.stringify(mergedOrderDetails),
-        updatedAt: new Date()
+    // Lock → load CRM rows → merge live sync → replace, so concurrent updateBuyer
+    // records are included in the replacement list.
+    await prisma.$transaction(async (tx) => {
+      await lockBuyerOrderRecords(tx, buyer.id);
+      const existing = await loadBuyerOrderDetails(tx, buyer.id);
+      const preservedCrm = existing.filter((row) => !isLiveSyncedOrderDetail(row));
+      const mergedOrderDetails = [...preservedCrm, ...orderDetails];
+      const { changed } = await replaceBuyerOrderRecords(tx, buyer.id, mergedOrderDetails);
+      if (changed) {
+        await tx.buyer.update({
+          where: { id: buyer.id },
+          data: { updatedAt: new Date() },
+        });
       }
     });
     if (nextLogistics != null) {

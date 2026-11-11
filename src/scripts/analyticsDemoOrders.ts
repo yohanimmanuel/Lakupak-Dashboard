@@ -245,7 +245,7 @@ async function createDemoOrder(args: {
 }
 
 /**
- * The Buyers table reads totals from the buyer.orderDetails snapshot, which is
+ * The Buyers table reads totals from BuyerRecord rows (GraphQL orderDetails), which is
  * normally rebuilt only when a buyer details page is opened. Sync demo buyers
  * from their live orders so the table matches the injected orders right away.
  */

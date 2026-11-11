@@ -68,14 +68,26 @@ function assertProductPayload(input: {
   const daysError = productReturnDaysError(input.returnPolicyDays);
   if (daysError) rejectProductInput(daysError);
   const options = input.variantOptions ?? [];
-  if (options.length === 0) rejectProductInput('Variation list is required.');
-  const pricesReady = options.every((option) => {
-    if (option.purchasePrice === undefined && option.sellingPrice === undefined) return !input.publishing;
-    const purchase = persistedVariantPrice(option.purchasePrice, input.currency);
-    const selling = persistedVariantPrice(option.sellingPrice, input.currency);
-    return purchase > 0 && selling > 0;
-  });
-  if (!pricesReady) rejectProductInput('Each variant needs a price and package size.');
+  if (options.length === 0) {
+    if (input.publishing) rejectProductInput('Variation list is required.');
+  } else {
+    const pricesReady = options.every((option) => {
+      const purchaseMissing =
+        option.purchasePrice === undefined ||
+        option.purchasePrice === null ||
+        String(option.purchasePrice).trim() === '';
+      const sellingMissing =
+        option.sellingPrice === undefined ||
+        option.sellingPrice === null ||
+        String(option.sellingPrice).trim() === '';
+      // Draft may omit prices; publish (or partially filled rows) must be complete.
+      if (purchaseMissing && sellingMissing) return !input.publishing;
+      const purchase = persistedVariantPrice(option.purchasePrice, input.currency);
+      const selling = persistedVariantPrice(option.sellingPrice, input.currency);
+      return purchase > 0 && selling > 0;
+    });
+    if (!pricesReady) rejectProductInput('Each variant needs a price and package size.');
+  }
   if (!input.publishing) return;
   const images = Array.isArray(input.images) ? input.images : [];
   if (images.length === 0) rejectProductInput('At least one product image is required.');
@@ -1782,6 +1794,15 @@ export const deleteProduct = async (args: { userId: number; id: string }) => {
 
   await prisma.product.delete({
     where: isNumericId(id) ? { id: Number(id) } : { productId: id },
+  });
+
+  // Cleanup uses the pre-delete snapshot. A failed product delete leaves supply history intact.
+  const { removeProductSupplies } = await import('@/lib/suppliers/syncProductSupplies');
+  await removeProductSupplies({
+    userId,
+    productId: productToDelete.productId,
+    name: productToDelete.name,
+    variantOptions: productToDelete.variantOptions,
   });
 
   // Broadcast changes for marketplace (products affect public marketplace)

@@ -1,8 +1,10 @@
 'use client';
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Trash, AlertCircle, CheckCircle, ChevronDown, ArrowLeft, Save } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { Trash, Plus, AlertCircle, CheckCircle, ChevronDown, ArrowLeft, Save, Upload, Download, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
 import { Supplier, SupplyDetail, SupplierFormData } from '@/types/client';
 import { getDefaultCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
@@ -18,12 +20,333 @@ import {
 import { ClientField, ClientInput } from '@/components/clientmanagement/ClientField';
 import { ClientValidatedField } from '@/components/clientmanagement/ClientValidatedField';
 import { CLIENT_SELECT_BUTTON_CLASS } from '@/components/clientmanagement/client-field-styles';
+import ImportSuppliesModal from '@/components/clientmanagement/ImportSuppliesModal';
+import { partitionSupplies, serializeHistorySupplyForStorage } from '@/lib/suppliers/supplyRecords';
+import type { SupplyDeleteMarker } from '@/lib/suppliers/applySupplierSuppliesSave';
 
 const categories = ["Instant Noodles", "Mineral Water", "Rice", "Bread"];
 const statusOptions = ["Active", "Inactive", "Blocked"];
 
+type CatalogVariantOption = {
+  key: string;
+  sku: string;
+  product: string;
+  productId: string;
+  variantName: string;
+};
+
+type ProductCatalogNode = {
+  productId: string;
+  name: string;
+  supplier?: string | null;
+  variantOptions?: Array<{
+    variantName?: string | null;
+    sku?: string | null;
+    isActive?: boolean | null;
+  }> | null;
+};
+
+function catalogProductLabel(productName: string, variantName: string): string {
+  const name = productName.trim();
+  const variant = variantName.trim();
+  if (!variant || variant.toLowerCase() === 'default') return name;
+  return `${name} (${variant})`;
+}
+
+function buildCatalogOptions(products: ProductCatalogNode[], supplierName?: string): CatalogVariantOption[] {
+  const supplierKey = String(supplierName || '').trim().toLowerCase();
+  const matched = supplierKey
+    ? products.filter((p) => String(p.supplier || '').trim().toLowerCase() === supplierKey)
+    : products;
+  // Prefer supplier-matched products; fall back to full catalog if none match yet.
+  const source = matched.length > 0 ? matched : products;
+  const out: CatalogVariantOption[] = [];
+  const seen = new Set<string>();
+
+  for (const product of source) {
+    const productId = String(product.productId || '').trim();
+    const productName = String(product.name || '').trim();
+    if (!productId || !productName) continue;
+    for (const variant of product.variantOptions || []) {
+      if (variant?.isActive === false) continue;
+      const variantName = String(variant?.variantName || '').trim() || 'Default';
+      const sku =
+        String(variant?.sku || '').trim() || `${productId}|${variantName}`;
+      const key = `${productId}|${variantName}|${sku}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({
+        key,
+        sku,
+        product: catalogProductLabel(productName, variantName),
+        productId,
+        variantName,
+      });
+    }
+  }
+
+  return out.sort((a, b) => a.sku.localeCompare(b.sku) || a.product.localeCompare(b.product));
+}
+
+function SupplyMatchDropdown({
+  value,
+  placeholder,
+  options,
+  emptyLabel,
+  noMatchLabel,
+  searchPlaceholder,
+  onSelect,
+  renderOption,
+  className = '',
+  needsAttention = false,
+}: {
+  value: string;
+  placeholder: string;
+  options: Array<{ value: string; label: string; optionKey: string }>;
+  emptyLabel: string;
+  noMatchLabel: string;
+  searchPlaceholder: string;
+  onSelect: (value: string) => void;
+  renderOption?: (option: { value: string; label: string }) => React.ReactNode;
+  className?: string;
+  /** Highlight empty control (e.g. ambiguous product needs SKU). */
+  needsAttention?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const updateMenuPos = useCallback(() => {
+    const button = buttonRef.current;
+    if (!button) return;
+    const rect = button.getBoundingClientRect();
+    const menuWidth = Math.max(rect.width, 224);
+    const left = Math.min(rect.left, Math.max(8, window.innerWidth - menuWidth - 8));
+    setMenuPos({
+      top: rect.bottom + 4,
+      left,
+      width: menuWidth,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setMenuPos(null);
+      return;
+    }
+    updateMenuPos();
+  }, [open, updateMenuPos]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onReposition = () => updateMenuPos();
+    const close = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (buttonRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      setOpen(false);
+      setSearch('');
+    };
+    window.addEventListener('resize', onReposition);
+    // Capture scroll from nested overflow containers (table wrappers, page scroller).
+    document.addEventListener('scroll', onReposition, true);
+    document.addEventListener('mousedown', close);
+    return () => {
+      window.removeEventListener('resize', onReposition);
+      document.removeEventListener('scroll', onReposition, true);
+      document.removeEventListener('mousedown', close);
+    };
+  }, [open, updateMenuPos]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return options;
+    return options.filter(
+      (opt) =>
+        opt.value.toLowerCase().includes(q) ||
+        opt.label.toLowerCase().includes(q),
+    );
+  }, [options, search]);
+
+  const menu =
+    open && menuPos
+      ? createPortal(
+          <div
+            ref={menuRef}
+            className="fixed z-[80] rounded-lg border border-[#e6e6e6] bg-white shadow"
+            style={{ top: menuPos.top, left: menuPos.left, width: menuPos.width }}
+          >
+            <div className="border-b border-[#e6e6e6] p-2">
+              <div className="flex items-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-2 py-1.5">
+                <Search className="h-3.5 w-3.5 text-gray-400" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={searchPlaceholder}
+                  className="w-full bg-transparent text-xs text-black outline-none placeholder:text-gray-400"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="max-h-48 overflow-y-auto">
+              {filtered.length === 0 ? (
+                <div className="px-3 py-3 text-xs text-gray-500">
+                  {options.length === 0 ? emptyLabel : noMatchLabel}
+                </div>
+              ) : (
+                filtered.map((option) => (
+                  <button
+                    key={option.optionKey}
+                    type="button"
+                    className={`block w-full px-3 py-2 text-left text-xs hover:bg-gray-100 ${
+                      value === option.value ? 'font-semibold text-[#0a61d7]' : 'text-gray-700'
+                    }`}
+                    onClick={() => {
+                      onSelect(option.value);
+                      setOpen(false);
+                      setSearch('');
+                    }}
+                  >
+                    {renderOption ? renderOption(option) : option.label}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>,
+          document.body,
+        )
+      : null;
+
+  return (
+    <div className={`relative min-w-[10rem] ${className}`}>
+      <button
+        ref={buttonRef}
+        type="button"
+        className={`flex w-full items-center justify-between gap-1 rounded-lg border px-2 py-1.5 text-left text-xs text-black hover:bg-gray-100 ${
+          needsAttention
+            ? 'border-amber-400 bg-amber-50 ring-1 ring-amber-200'
+            : 'border-[#e6e6e6] bg-white'
+        }`}
+        onClick={() => setOpen((next) => !next)}
+      >
+        <span className={`truncate ${value ? 'text-black' : needsAttention ? 'font-medium text-amber-700' : 'text-gray-500'}`}>
+          {value || placeholder}
+        </span>
+        <ChevronDown className={`h-3.5 w-3.5 shrink-0 ${needsAttention ? 'text-amber-600' : 'text-gray-400'}`} />
+      </button>
+      {menu}
+    </div>
+  );
+}
+
+/** Product chosen but SKU/productId cleared (ambiguous label). */
+function isUnresolvedHistoryRow(row: SupplyDetail): boolean {
+  const product = String(row.product || '').trim();
+  const sku = String(row.sku || '').trim();
+  const productId = String(row.productId || '').trim();
+  return Boolean(product) && !sku && !productId;
+}
+
 function generateSupplierId() {
   return 'LKS-' + Math.floor(10000000 + Math.random() * 90000000).toString();
+}
+
+function emptyHistoryRow(): SupplyDetail {
+  return {
+    suppliesno: '',
+    sku: '',
+    product: '',
+    totalSupplied: '',
+    totalValue: '',
+    lastDelivery: '',
+    status: statusOptions[0],
+    recordType: 'history',
+    updateCurrentStock: true,
+  };
+}
+
+function normalizeSupplyRow(row: SupplyDetail, recordType: 'history' | 'summary'): SupplyDetail {
+  if (recordType === 'history') {
+    return serializeHistorySupplyForStorage({
+      ...row,
+      status: row.status || statusOptions[0],
+    });
+  }
+  return {
+    suppliesno: row.suppliesno || '',
+    sku: row.sku || '',
+    product: row.product || '',
+    totalSupplied: row.totalSupplied || '',
+    totalValue: row.totalValue || '',
+    lastDelivery: row.lastDelivery || '',
+    status: row.status || statusOptions[0],
+    recordType: 'summary',
+    productId: row.productId,
+    variantName: row.variantName,
+  };
+}
+
+function parseSupplyBuckets(raw?: string | null): { history: SupplyDetail[]; summary: SupplyDetail[] } {
+  if (!raw) return { history: [emptyHistoryRow()], summary: [] };
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      return { history: [emptyHistoryRow()], summary: [] };
+    }
+    const { history, summary } = partitionSupplies(parsed as SupplyDetail[]);
+    return {
+      history: history.length > 0
+        ? history.map((row, index) =>
+            ensureHistoryId(normalizeSupplyRow(row, 'history'), index),
+          )
+        : [emptyHistoryRow()],
+      summary: summary.map((row) => normalizeSupplyRow(row, 'summary')),
+    };
+  } catch {
+    return { history: [emptyHistoryRow()], summary: [] };
+  }
+}
+
+function isBlankHistoryRow(row: SupplyDetail): boolean {
+  return !(
+    String(row.sku || '').trim() ||
+    String(row.product || '').trim() ||
+    String(row.totalSupplied || '').trim() ||
+    String(row.totalValue || '').trim() ||
+    String(row.lastDelivery || '').trim()
+  );
+}
+
+function stableHistoryId(row: SupplyDetail, index: number): string {
+  const seed = [
+    String(row.sku || '').trim(),
+    String(row.productId || '').trim(),
+    String(row.variantName || '').trim(),
+    String(row.product || '').trim(),
+    String(row.lastDelivery || '').trim(),
+    String(row.totalSupplied || '').trim(),
+    String(row.totalValue || '').trim(),
+    String(index),
+  ].join('|');
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  }
+  return `HIST-S${hash.toString(36)}`;
+}
+
+function ensureHistoryId(row: SupplyDetail, index = 0): SupplyDetail {
+  if (String(row.suppliesno || '').trim()) {
+    return { ...row, recordType: 'history' };
+  }
+  return {
+    ...row,
+    // Prefer a content-stable id so blank legacy rows do not look "new" on every save.
+    suppliesno: stableHistoryId(row, index),
+    recordType: 'history',
+  };
 }
 
 interface SupplierModalProps {
@@ -35,7 +358,7 @@ interface SupplierModalProps {
 export default function SupplierModal({ initialData, mode = 'add', onSave }: SupplierModalProps) {
   const router = useRouter();
   const user = useUserStore(state => state.user);
-  const { tSuppliersModal, tShared, translateStatus } = useClientsTranslations();
+  const { tSuppliersModal, tSuppliersProfile, tShared, translateStatus } = useClientsTranslations();
   const isEditMode = mode === 'edit';
 
   // Get currency for display - safe to use on both server and client
@@ -82,24 +405,19 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   });
   
   const [id, setId] = useState(() => initialData?.supplierId || generateSupplierId());
-  const [supplyRows, setSupplyRows] = useState<SupplyDetail[]>(
-    initialData?.supplies ? (() => {
-      try {
-        const parsed = JSON.parse(initialData.supplies);
-        return Array.isArray(parsed) ? parsed.map((row: SupplyDetail) => ({
-          suppliesno: row.suppliesno || '',
-          sku: row.sku || '',
-          product: row.product || '',
-          totalSupplied: row.totalSupplied || '',
-          totalValue: row.totalValue || '',
-          lastDelivery: row.lastDelivery || '',
-          status: row.status || statusOptions[0]
-        })) : [{ suppliesno: '', sku: '', product: '', totalSupplied: '', totalValue: '', lastDelivery: '', status: statusOptions[0] }];
-      } catch {
-        return [{ suppliesno: '', sku: '', product: '', totalSupplied: '', totalValue: '', lastDelivery: '', status: statusOptions[0] }];
-      }
-    })() : [{ suppliesno: '', sku: '', product: '', totalSupplied: '', totalValue: '', lastDelivery: '', status: statusOptions[0] }]
+  const [summaryRows, setSummaryRows] = useState<SupplyDetail[]>(
+    () => parseSupplyBuckets(initialData?.supplies).summary,
   );
+  const [historyRows, setHistoryRows] = useState<SupplyDetail[]>(
+    () => parseSupplyBuckets(initialData?.supplies).history,
+  );
+  const [suppliesTab, setSuppliesTab] = useState<'summary' | 'history'>('history');
+  const [showImportSupplies, setShowImportSupplies] = useState(false);
+  const [catalogProducts, setCatalogProducts] = useState<ProductCatalogNode[]>([]);
+  const [pendingDeleteMarkers, setPendingDeleteMarkers] = useState<SupplyDeleteMarker[]>([]);
+  const [showDeleteHistoryModal, setShowDeleteHistoryModal] = useState(false);
+  const [deleteHistoryIdx, setDeleteHistoryIdx] = useState<number | null>(null);
+  const [deleteUpdateStock, setDeleteUpdateStock] = useState(false);
 
   // Enhanced state management with proper typing
   const [saving, setSaving] = useState(false);
@@ -127,8 +445,8 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   // Compute lastDelivery during render (not in useEffect) - follows React best practices
   // Use computed value directly instead of storing in state
   const computedLastDelivery = useMemo(() => {
-    return getLatestDeliveryDate(supplyRows);
-  }, [supplyRows, getLatestDeliveryDate]);
+    return getLatestDeliveryDate(historyRows);
+  }, [historyRows, getLatestDeliveryDate]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -182,20 +500,221 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     setTimeout(() => setSuccess(''), 3000);
   }, []);
 
-  // Enhanced supply row management
-  const handleSupplyChange = useCallback((idx: number, field: keyof SupplyDetail, value: string) => {
-    setSupplyRows((rows: SupplyDetail[]) => rows.map((row: SupplyDetail, i: number) => i === idx ? { ...row, [field]: value } : row));
-  }, []);
+  // Load catalog variants for SKU ↔ product match dropdowns (all pages).
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const pageSize = 1000; // server caps at MAX_PRODUCT_LIMIT
+        let page = 1;
+        let totalPages = 1;
+        const all: ProductCatalogNode[] = [];
+        do {
+          const data = await fetchGraphQL<{
+            products: {
+              nodes: ProductCatalogNode[];
+              pagination: { totalPages?: number };
+            };
+          }>(
+            `query SupplierSupplyCatalog($userId: Int!, $page: Int!, $limit: Int!) {
+              products(userId: $userId, page: $page, limit: $limit) {
+                nodes {
+                  productId
+                  name
+                  supplier
+                  variantOptions { variantName sku isActive }
+                }
+                pagination { totalPages }
+              }
+            }`,
+            { userId: user.id, page, limit: pageSize },
+          );
+          all.push(...(data.products?.nodes || []));
+          totalPages = Math.max(1, data.products?.pagination?.totalPages ?? 1);
+          page += 1;
+        } while (!cancelled && page <= totalPages);
+        if (!cancelled) setCatalogProducts(all);
+      } catch {
+        if (!cancelled) setCatalogProducts([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
-  const addSupplyRow = useCallback(() => {
-    setSupplyRows((rows: SupplyDetail[]) => [...rows, { suppliesno: '', sku: '', product: '', totalSupplied: '', totalValue: '', lastDelivery: '', status: statusOptions[0] }]);
-  }, []);
-
-  const deleteSupplyRow = useCallback((idx: number) => {
-    if (supplyRows.length > 1) {
-      setSupplyRows((rows: SupplyDetail[]) => rows.filter((_: SupplyDetail, i: number) => i !== idx));
+  const catalogOptions = useMemo(() => {
+    const base = buildCatalogOptions(catalogProducts, form.supplierName || initialData?.name);
+    const seen = new Set(base.map((opt) => opt.sku));
+    for (const row of historyRows) {
+      const sku = String(row.sku || '').trim();
+      if (!sku || seen.has(sku)) continue;
+      seen.add(sku);
+      base.push({
+        key: `legacy:${sku}`,
+        sku,
+        product: String(row.product || '').trim() || sku,
+        productId: String(row.productId || '').trim(),
+        variantName: String(row.variantName || '').trim(),
+      });
     }
-  }, [supplyRows.length]);
+    return base;
+  }, [catalogProducts, form.supplierName, initialData?.name, historyRows]);
+
+  const skuDropdownOptions = useMemo(
+    () =>
+      catalogOptions.map((opt) => ({
+        optionKey: opt.key,
+        value: opt.sku,
+        label: opt.product,
+      })),
+    [catalogOptions],
+  );
+
+  const productDropdownOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const rows: Array<{ optionKey: string; value: string; label: string }> = [];
+    for (const opt of catalogOptions) {
+      if (seen.has(opt.product)) continue;
+      seen.add(opt.product);
+      rows.push({ optionKey: `product:${opt.product}`, value: opt.product, label: opt.product });
+    }
+    return rows.sort((a, b) => a.value.localeCompare(b.value));
+  }, [catalogOptions]);
+
+  // History rows only — summary is read-only on the edit page
+  const handleHistoryChange = useCallback((idx: number, field: keyof SupplyDetail, value: string) => {
+    setHistoryRows((rows) =>
+      rows.map((row, i) => (i === idx ? { ...row, [field]: value, recordType: 'history' } : row)),
+    );
+  }, []);
+
+  const handleHistorySkuSelect = useCallback(
+    (idx: number, sku: string) => {
+      const match = catalogOptions.find((opt) => opt.sku === sku);
+      setHistoryRows((rows) =>
+        rows.map((row, i) =>
+          i === idx
+            ? {
+                ...row,
+                sku,
+                product: match?.product || row.product,
+                productId: match?.productId || row.productId,
+                variantName: match?.variantName || row.variantName,
+                recordType: 'history',
+              }
+            : row,
+        ),
+      );
+    },
+    [catalogOptions],
+  );
+
+  const handleHistoryProductSelect = useCallback(
+    (idx: number, product: string) => {
+      const matches = catalogOptions.filter((opt) => opt.product === product);
+      const only = matches.length === 1 ? matches[0] : undefined;
+      setHistoryRows((rows) =>
+        rows.map((row, i) => {
+          if (i !== idx) return row;
+          // Ambiguous labels must not inherit productId from the first match.
+          // Keep ids empty unless this row's SKU uniquely identifies a variant.
+          const skuMatch = matches.find((m) => m.sku === row.sku);
+          const identified = only || skuMatch;
+          return {
+            ...row,
+            product,
+            sku: identified?.sku || '',
+            productId: identified?.productId || '',
+            variantName: identified?.variantName || '',
+            // Ambiguous product: never keep stock updates on while identity is unresolved.
+            updateCurrentStock: identified ? row.updateCurrentStock === true : false,
+            recordType: 'history',
+          };
+        }),
+      );
+    },
+    [catalogOptions],
+  );
+
+  const addHistoryRow = useCallback(() => {
+    setHistoryRows((rows) => [...rows, emptyHistoryRow()]);
+  }, []);
+
+  const openDeleteHistoryModal = useCallback((idx: number) => {
+    const row = historyRows[idx];
+    if (!row || isBlankHistoryRow(row)) {
+      setHistoryRows((rows) => {
+        if (rows.length <= 1) return [emptyHistoryRow()];
+        return rows.filter((_, i) => i !== idx);
+      });
+      return;
+    }
+    setDeleteHistoryIdx(idx);
+    // Default unchecked so stock is preserved unless the user opts in.
+    setDeleteUpdateStock(false);
+    setShowDeleteHistoryModal(true);
+  }, [historyRows]);
+
+  const handleDeleteHistoryCancel = useCallback(() => {
+    setShowDeleteHistoryModal(false);
+    setDeleteHistoryIdx(null);
+    setDeleteUpdateStock(false);
+  }, []);
+
+  const handleDeleteHistoryConfirm = useCallback(() => {
+    if (deleteHistoryIdx == null) return;
+    const row = historyRows[deleteHistoryIdx];
+    if (row && !isBlankHistoryRow(row)) {
+      const marker: SupplyDeleteMarker = {
+        ...normalizeSupplyRow(row, 'history'),
+        __delete: true,
+        updateCurrentStock: deleteUpdateStock,
+      };
+      setPendingDeleteMarkers((prev) => [...prev, marker]);
+    }
+    setHistoryRows((rows) => {
+      if (rows.length <= 1) return [emptyHistoryRow()];
+      return rows.filter((_, i) => i !== deleteHistoryIdx);
+    });
+    setShowDeleteHistoryModal(false);
+    setDeleteHistoryIdx(null);
+    setDeleteUpdateStock(false);
+  }, [deleteHistoryIdx, deleteUpdateStock, historyRows]);
+
+  const handleExportHistory = useCallback(() => {
+    const exportRows = historyRows.filter((row) => !isBlankHistoryRow(row));
+    const headers = ['SKU', 'Product', 'Total Supplied', 'Total Value', 'Last Delivery'];
+    const rows = exportRows.map((row) => [
+      row.sku || '',
+      row.product || '',
+      row.totalSupplied || '',
+      row.totalValue || '',
+      row.lastDelivery || '',
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Supply History');
+    XLSX.writeFile(wb, `${form.supplierName || id || 'supplier'}-supply-history.xlsx`);
+  }, [historyRows, form.supplierName, id]);
+
+  const handleImportHistory = useCallback((newSupplies: SupplyDetail[]) => {
+    const imported = newSupplies.map((row) =>
+      ensureHistoryId({
+        ...normalizeSupplyRow(row, 'history'),
+        suppliesno: '',
+        // Imports are historical by default — no stock/summary side effects.
+        updateCurrentStock: false,
+      }),
+    );
+    setHistoryRows((rows) => {
+      const existing = rows.filter((row) => !isBlankHistoryRow(row));
+      return existing.length > 0 ? [...existing, ...imported] : imported.length > 0 ? imported : [emptyHistoryRow()];
+    });
+    setSuppliesTab('history');
+    setShowImportSupplies(false);
+  }, []);
 
   // Hydrate form when initialData is provided (edit)
   useEffect(() => {
@@ -204,16 +723,8 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     const parsedNotes = safeParseJSON(initialData.notes || '', []);
     const parsedLogistics = safeParseJSON(initialData.logistics || '', {});
 
-    const supplies = initialData?.supplies ? (() => {
-      try {
-        const parsed = JSON.parse(initialData.supplies);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        return [];
-      }
-    })() : [];
-
-    const latestDeliveryDate = getLatestDeliveryDate(supplies);
+    const buckets = parseSupplyBuckets(initialData.supplies);
+    const latestDeliveryDate = getLatestDeliveryDate(buckets.history);
 
     setForm({
       supplierName: initialData.name || '',
@@ -231,17 +742,13 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     });
 
     setId(initialData.supplierId || generateSupplierId());
-    setSupplyRows(
-      supplies.length > 0 ? supplies.map((row: SupplyDetail) => ({
-        suppliesno: row.suppliesno || '',
-        sku: row.sku || '',
-        product: row.product || '',
-        totalSupplied: row.totalSupplied || '',
-        totalValue: row.totalValue || '',
-        lastDelivery: row.lastDelivery || '',
-        status: row.status || statusOptions[0]
-      })) : [{ suppliesno: '', sku: '', product: '', totalSupplied: '', totalValue: '', lastDelivery: '', status: statusOptions[0] }]
-    );
+    setSummaryRows(buckets.summary);
+    setHistoryRows(buckets.history);
+    setPendingDeleteMarkers([]);
+    setShowDeleteHistoryModal(false);
+    setDeleteHistoryIdx(null);
+    setDeleteUpdateStock(false);
+    setSuppliesTab('history');
     setValidationErrors({});
     setError('');
     setSuccess('');
@@ -259,16 +766,36 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
 
     if (!validateForm()) return;
 
+    const unresolvedStockRows = historyRows.filter((row) => {
+      if (isBlankHistoryRow(row)) return false;
+      if (row.updateCurrentStock !== true) return false;
+      const qty = Number(String(row.totalSupplied || '').replace(/[^\d.-]/g, ''));
+      if (!Number.isFinite(qty) || qty <= 0) return false;
+      return !String(row.sku || '').trim() && !String(row.productId || '').trim();
+    });
+    if (unresolvedStockRows.length > 0) {
+      handleError(tSuppliersModal('selectSkuBeforeStockUpdate'));
+      setSuppliesTab('history');
+      return;
+    }
+
     setIsSubmitting(true);
     setSaving(true);
     
     try {
+      const cleanedHistory = historyRows
+        .filter((row) => !isBlankHistoryRow(row))
+        .map((row, index) => ensureHistoryId(normalizeSupplyRow(row, 'history'), index));
+      const cleanedSummary = summaryRows.map((row) => normalizeSupplyRow(row, 'summary'));
+      // Tombstones carry explicit reverse-stock intent from the delete modal.
+      const mergedSupplies = [...cleanedSummary, ...cleanedHistory, ...pendingDeleteMarkers];
+
       const payload: Record<string, unknown> = {
         ...form,
         supplierId: id,
         name: form.supplierName,
 
-        supplies: JSON.stringify(supplyRows),
+        supplies: JSON.stringify(mergedSupplies),
         notes: JSON.stringify(form.notes.split(',').map((n: string) => n.trim())),
         createdAt: isEditMode ? (form.createdAt ? new Date(form.createdAt).toISOString() : new Date().toISOString()) : new Date().toISOString(),
         logistics: JSON.stringify({
@@ -460,7 +987,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
       setSaving(false);
       setIsSubmitting(false);
     }
-  }, [form, id, supplyRows, isEditMode, initialData, user?.id, onSave, router, validateForm, handleError, isSubmitting, isNavigating, tSuppliersModal, computedLastDelivery]);
+  }, [form, id, historyRows, summaryRows, pendingDeleteMarkers, isEditMode, initialData, user?.id, onSave, router, validateForm, handleError, isSubmitting, isNavigating, tSuppliersModal, computedLastDelivery]);
 
   return (
     <>
@@ -618,73 +1145,249 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
             required
             rows={3}
           />
-          {/* Supplies & Product Data Table */}
+          {/* Supplies & Product Data — summary read-only; history editable via table + import/export */}
           <div className="my-2 border-t border-gray-200 pt-2">
-            <label className="block text-sm font-bold text-black mb-2">{tSuppliersModal('suppliesSection')}</label>
-            <div className="overflow-x-auto rounded-lg border border-gray-200">
-              <table className="min-w-full text-xs font-medium text-left bg-white">
-                <thead>
-                  <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
-                    <th className="py-2 px-3 font-medium uppercase">{tSuppliersModal('colNo')}</th>
-                    <th className="py-2 px-3 font-medium uppercase">{tSuppliersModal('colSku')}</th>
-                    <th className="py-2 px-3 font-medium uppercase">{tSuppliersModal('colProduct')}</th>
-                    <th className="py-2 px-3 font-medium uppercase">{tSuppliersModal('colTotalSupplied')}</th>
-                    <th className="py-2 px-3 font-medium uppercase">{tSuppliersModal('colTotalValue')}</th>
-                    <th className="py-2 px-3 font-medium uppercase">{tSuppliersModal('colLastDelivery')}</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {supplyRows.map((row: SupplyDetail, idx: number) => (
-                    <tr key={idx} className="whitespace-nowrap">
-                      <td className="py-2 px-3 font-medium text-black">{idx + 1}</td>
-                      <td className="py-2 px-3">
-                        <ClientInput
-                          value={row.sku || ''}
-                          onChange={(sku) => handleSupplyChange(idx, 'sku', sku)}
-                        />
-                      </td>
-                      <td className="py-2 px-3">
-                        <ClientInput
-                          value={row.product || ''}
-                          onChange={(product) => handleSupplyChange(idx, 'product', product)}
-                        />
-                      </td>
-                      <td className="py-2 px-3">
-                        <ClientInput
-                          type="number"
-                          value={row.totalSupplied || ''}
-                          onChange={(totalSupplied) => handleSupplyChange(idx, 'totalSupplied', totalSupplied)}
-                        />
-                      </td>
-                      <td className="py-2 px-3">
-                        <div className="flex items-center">
-                          <span className="mr-2 text-xs text-gray-500 font-medium">{currencySymbol}</span>
-                          <ClientInput
-                            fullWidth={false}
-                            className="flex-1 min-w-0"
-                            value={row.totalValue || ''}
-                            onChange={(totalValue) => handleSupplyChange(idx, 'totalValue', totalValue)}
-                            placeholder="0"
-                          />
-                        </div>
-                      </td>
-                      <td className="py-2 px-3">
-                        <ClientInput
-                          type="date"
-                          value={row.lastDelivery || ''}
-                          onChange={(lastDelivery) => handleSupplyChange(idx, 'lastDelivery', lastDelivery)}
-                        />
-                      </td>
-                      <td className="py-2 px-3">
-                        <button type="button" className="text-red-500 font-bold p-1 hover:bg-red-100 rounded-full" onClick={() => deleteSupplyRow(idx)} disabled={supplyRows.length === 1}><Trash className="w-4 h-4" /></button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <label className="block text-sm font-bold text-black">{tSuppliersModal('suppliesSection')}</label>
+              {suppliesTab === 'history' && (
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 text-xs font-medium text-black transition hover:bg-gray-100"
+                    onClick={() => setShowImportSupplies(true)}
+                  >
+                    <Upload className="h-3.5 w-3.5" /> {tSuppliersProfile('importSupplies')}
+                  </button>
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 text-xs font-medium text-black transition hover:bg-gray-100"
+                    onClick={handleExportHistory}
+                  >
+                    <Download className="h-3.5 w-3.5" /> {tSuppliersProfile('exportSupplies')}
+                  </button>
+                </div>
+              )}
             </div>
-            <button type="button" className="mt-2 px-3 py-1 rounded-lg bg-[#0a61d7] text-white text-xs font-semibold hover:bg-[#084ba6]" onClick={addSupplyRow}>{tSuppliersModal('addRow')}</button>
+            <div className="mb-3 inline-flex rounded-full border border-[#e6e6e6] bg-gray-50 p-1">
+              <button
+                type="button"
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                  suppliesTab === 'summary'
+                    ? 'bg-white text-black shadow-sm'
+                    : 'text-gray-500 hover:text-black'
+                }`}
+                onClick={() => setSuppliesTab('summary')}
+              >
+                {tSuppliersProfile('supplySummaryTab')}
+              </button>
+              <button
+                type="button"
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                  suppliesTab === 'history'
+                    ? 'bg-white text-black shadow-sm'
+                    : 'text-gray-500 hover:text-black'
+                }`}
+                onClick={() => setSuppliesTab('history')}
+              >
+                {tSuppliersProfile('supplyHistoryTab')}
+              </button>
+            </div>
+            {showImportSupplies && (
+              <ImportSuppliesModal
+                open={showImportSupplies}
+                onClose={() => setShowImportSupplies(false)}
+                onImport={handleImportHistory}
+              />
+            )}
+            <div className="overflow-x-auto rounded-lg border border-gray-200">
+              {suppliesTab === 'summary' ? (
+                <table className="min-w-full bg-white text-left text-xs font-medium">
+                  <thead>
+                    <tr className="whitespace-nowrap bg-gray-100 text-gray-500">
+                      <th className="px-3 py-2 font-medium uppercase">{tSuppliersModal('colNo')}</th>
+                      <th className="px-3 py-2 font-medium uppercase">{tSuppliersProfile('skuProductCol')}</th>
+                      <th className="px-3 py-2 font-medium uppercase">{tSuppliersProfile('totalSuppliedCol')}</th>
+                      <th className="px-3 py-2 font-medium uppercase">{tSuppliersProfile('totalPurchaseCol')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {summaryRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-3 py-8 text-center text-sm text-gray-500">
+                          {tSuppliersProfile('noSupplies')}
+                        </td>
+                      </tr>
+                    ) : (
+                      summaryRows.map((row, idx) => (
+                        <tr key={row.suppliesno || `sum-${idx}`} className="border-b last:border-b-0">
+                          <td className="px-3 py-3 font-medium text-black">{idx + 1}</td>
+                          <td className="px-3 py-3 text-black">
+                            <div className="font-medium">{row.sku || '—'}</div>
+                            <div className="text-gray-500">{row.product || '—'}</div>
+                          </td>
+                          <td className="px-3 py-3 text-black">{row.totalSupplied || '0'}</td>
+                          <td className="px-3 py-3 font-semibold text-[#0a61d7]">
+                            {currencySymbol}{row.totalValue || '0'}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              ) : (
+                <table className="min-w-full bg-white text-left text-xs font-medium">
+                  <thead>
+                    <tr className="whitespace-nowrap bg-gray-100 text-gray-500">
+                      <th className="px-3 py-2 font-medium uppercase">{tSuppliersModal('colNo')}</th>
+                      <th className="px-3 py-2 font-medium uppercase">{tSuppliersModal('colSku')}</th>
+                      <th className="px-3 py-2 font-medium uppercase">{tSuppliersModal('colProduct')}</th>
+                      <th className="px-3 py-2 font-medium uppercase">{tSuppliersProfile('receivedCol')}</th>
+                      <th className="px-3 py-2 font-medium uppercase">{tSuppliersProfile('purchaseValueCol')}</th>
+                      <th className="px-3 py-2 font-medium uppercase">{tSuppliersProfile('lastSuppliedDateCol')}</th>
+                      <th className="px-3 py-2 text-center font-medium uppercase">{tSuppliersModal('colUpdateStock')}</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historyRows.map((row, idx) => {
+                      const needsSku = isUnresolvedHistoryRow(row);
+                      return (
+                      <tr key={row.suppliesno || `hist-${idx}`} className="whitespace-nowrap">
+                        <td className="px-3 py-2 font-medium text-black">{idx + 1}</td>
+                        <td className="px-3 py-2">
+                          <SupplyMatchDropdown
+                            value={row.sku || ''}
+                            placeholder={tSuppliersModal('selectSku')}
+                            options={skuDropdownOptions}
+                            emptyLabel={tSuppliersModal('catalogEmpty')}
+                            noMatchLabel={tSuppliersModal('catalogNoMatch')}
+                            searchPlaceholder={tSuppliersModal('searchSku')}
+                            needsAttention={needsSku}
+                            onSelect={(sku) => handleHistorySkuSelect(idx, sku)}
+                            renderOption={(option) => (
+                              <span className="flex flex-col gap-0.5">
+                                <span className="font-medium text-black">{option.value}</span>
+                                <span className="text-[10px] text-gray-500">{option.label}</span>
+                              </span>
+                            )}
+                          />
+                          {needsSku ? (
+                            <p className="mt-1 text-[10px] font-medium text-amber-700">
+                              {tSuppliersModal('selectSku')}
+                            </p>
+                          ) : null}
+                        </td>
+                        <td className="px-3 py-2">
+                          <SupplyMatchDropdown
+                            value={row.product || ''}
+                            placeholder={tSuppliersModal('selectProduct')}
+                            options={productDropdownOptions}
+                            emptyLabel={tSuppliersModal('catalogEmpty')}
+                            noMatchLabel={tSuppliersModal('catalogNoMatch')}
+                            searchPlaceholder={tSuppliersModal('searchProduct')}
+                            onSelect={(product) => handleHistoryProductSelect(idx, product)}
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <ClientInput
+                            type="number"
+                            value={row.totalSupplied || ''}
+                            onChange={(totalSupplied) => handleHistoryChange(idx, 'totalSupplied', totalSupplied)}
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center">
+                            <span className="mr-2 text-xs font-medium text-gray-500">{currencySymbol}</span>
+                            <ClientInput
+                              fullWidth={false}
+                              className="min-w-0 flex-1"
+                              value={row.totalValue || ''}
+                              onChange={(totalValue) => handleHistoryChange(idx, 'totalValue', totalValue)}
+                              placeholder="0"
+                            />
+                          </div>
+                        </td>
+                        <td className="px-3 py-2">
+                          <ClientInput
+                            type="date"
+                            value={row.lastDelivery || ''}
+                            onChange={(lastDelivery) => handleHistoryChange(idx, 'lastDelivery', lastDelivery)}
+                          />
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          <button
+                            type="button"
+                            role="checkbox"
+                            aria-checked={row.updateCurrentStock === true}
+                            aria-label={tSuppliersModal('updateCurrentStock')}
+                            onClick={() =>
+                              setHistoryRows((rows) =>
+                                rows.map((r, i) => {
+                                  if (i !== idx) return r;
+                                  return {
+                                    ...r,
+                                    updateCurrentStock: r.updateCurrentStock !== true,
+                                    // Never invent stockApplied from the checkbox — only the server
+                                    // sets it after product stock is actually applied. Preserving a
+                                    // false flag lets untick→save→tick apply stock once later.
+                                    stockApplied: r.stockApplied === true,
+                                    recordType: 'history',
+                                  };
+                                }),
+                              )
+                            }
+                            className={`mx-auto flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-all duration-200 ${
+                              row.updateCurrentStock === true
+                                ? 'border-green-500 bg-green-500'
+                                : 'border-gray-300 bg-white hover:border-green-400'
+                            }`}
+                          >
+                            {row.updateCurrentStock === true ? (
+                              <svg className="h-3 w-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path
+                                  fillRule="evenodd"
+                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            ) : null}
+                          </button>
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              className="rounded-full p-1 font-bold text-[#0a61d7] hover:bg-blue-50"
+                              onClick={addHistoryRow}
+                              aria-label={tSuppliersModal('addRow')}
+                              title={tSuppliersModal('addRow')}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              className="rounded-full p-1 font-bold text-red-500 hover:bg-red-100"
+                              onClick={() => openDeleteHistoryModal(idx)}
+                              title={tSuppliersModal('deleteHistoryRow')}
+                              aria-label={tSuppliersModal('deleteHistoryRow')}
+                            >
+                              <Trash className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            {suppliesTab === 'history' && (
+              <p className="mt-2 text-xs text-gray-500">{tSuppliersModal('updateCurrentStockHint')}</p>
+            )}
+            {suppliesTab === 'summary' && (
+              <p className="mt-2 text-xs text-gray-500">{tSuppliersModal('summaryReadOnlyHint')}</p>
+            )}
           </div>
           <div className="flex gap-2">
             <ClientField
@@ -778,6 +1481,65 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
               <p className="text-xs text-white/90">
                 {isEditMode ? tSuppliersModal('saveSuccessEdit') : tSuppliersModal('saveSuccessCreate')}
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteHistoryModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-sm rounded-lg border border-[#e6e6e6] bg-white p-4">
+            <h2 className="mb-2 text-lg font-bold text-red-500">
+              {tSuppliersModal('deleteHistoryModalTitle')}
+            </h2>
+            <p className="mb-4 text-sm text-gray-500">
+              {tSuppliersModal('deleteHistoryModalConfirm')}
+            </p>
+            <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-lg border border-[#e6e6e6] p-3 hover:bg-gray-50">
+              <button
+                type="button"
+                role="checkbox"
+                aria-checked={deleteUpdateStock}
+                aria-label={tSuppliersModal('deleteHistoryUpdateStock')}
+                onClick={() => setDeleteUpdateStock((v) => !v)}
+                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-all duration-200 ${
+                  deleteUpdateStock
+                    ? 'border-green-500 bg-green-500'
+                    : 'border-gray-300 bg-white hover:border-green-400'
+                }`}
+              >
+                {deleteUpdateStock ? (
+                  <svg className="h-3 w-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                      fillRule="evenodd"
+                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                ) : null}
+              </button>
+              <span className="text-sm text-gray-700">
+                <span className="font-medium text-black">{tSuppliersModal('deleteHistoryUpdateStock')}</span>
+                <span className="mt-0.5 block text-xs text-gray-500">
+                  {tSuppliersModal('deleteHistoryUpdateStockHint')}
+                </span>
+              </span>
+            </label>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className="rounded-lg bg-gray-200 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                onClick={handleDeleteHistoryCancel}
+              >
+                {tShared('cancel')}
+              </button>
+              <button
+                type="button"
+                className="rounded-lg bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                onClick={handleDeleteHistoryConfirm}
+              >
+                {tShared('deleteModal.deleteButton')}
+              </button>
             </div>
           </div>
         </div>

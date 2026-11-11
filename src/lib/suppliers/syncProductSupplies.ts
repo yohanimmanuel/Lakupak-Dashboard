@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db';
 import type { SupplyDetail } from '@/types/client';
+import { isSupplySummaryRow } from '@/lib/suppliers/supplyRecords';
 
 type VariantSnapshot = {
   variantName: string;
@@ -20,7 +21,6 @@ type ProductSnapshot = {
 type SupplierRow = {
   id: number;
   name: string;
-  supplies: string | null;
 };
 
 const toMoneyNumber = (value: unknown): number => {
@@ -38,8 +38,6 @@ const toMoneyNumber = (value: unknown): number => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const todayYmd = () => new Date().toISOString().slice(0, 10);
-
 /** Variant-stable identity — never use shared catalog SKUs (often duplicated across options). */
 export function supplyIdentity(productId: string, variantName: string): string {
   return `${String(productId).trim()}|${String(variantName || '').trim()}`;
@@ -56,16 +54,6 @@ const productLabel = (productName: string, variantName: string): string => {
   return `${name} (${variant})`;
 };
 
-function parseSupplies(raw: string | null | undefined): SupplyDetail[] {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as SupplyDetail[]) : [];
-  } catch {
-    return [];
-  }
-}
-
 function findSupplyRow(
   supplies: SupplyDetail[],
   product: ProductSnapshot,
@@ -75,10 +63,17 @@ function findSupplyRow(
   const autoNo = supplyAutoNo(product.productId, variant.variantName);
   const label = productLabel(product.name, variant.variantName);
 
+  const summaryRows = supplies.filter(isSupplySummaryRow);
+  const variantName = String(variant.variantName || '').trim();
   return (
-    supplies.find((row) => String(row.suppliesno || '') === autoNo) ||
-    supplies.find((row) => String(row.sku || '').trim() === identity) ||
-    supplies.find((row) => String(row.product || '').trim() === label)
+    summaryRows.find((row) => String(row.suppliesno || '') === autoNo) ||
+    summaryRows.find(
+      (row) =>
+        String(row.productId || '').trim() === product.productId &&
+        String(row.variantName || '').trim() === variantName,
+    ) ||
+    summaryRows.find((row) => String(row.sku || '').trim() === identity) ||
+    summaryRows.find((row) => String(row.product || '').trim() === label)
   );
 }
 
@@ -96,26 +91,50 @@ function buildNewSupplyRow(
     product: productLabel(product.name, variant.variantName),
     totalSupplied: String(qty),
     totalValue: String(totalValue),
-    lastDelivery: todayYmd(),
+    // Match updates totals only — never write a dated history event.
+    lastDelivery: '',
     status: 'Active',
+    recordType: 'summary',
+    productId: product.productId,
+    variantName: variant.variantName,
   };
 }
 
 function mergeSupplyLists(primary: SupplyDetail[], incoming: SupplyDetail[]): SupplyDetail[] {
   const out = [...primary];
-  const indexByNo = new Map(out.map((row, i) => [String(row.suppliesno || '').trim(), i]));
-  const indexByProduct = new Map(out.map((row, i) => [String(row.product || '').trim(), i]));
+  const indexByNo = new Map(
+    out
+      .map((row, i) => [String(row.suppliesno || '').trim(), i] as const)
+      .filter(([no]) => no.length > 0),
+  );
+  // Summary rows only — history events with the same product label must not collapse.
+  const indexBySummaryProduct = new Map<string, number>();
+  out.forEach((row, i) => {
+    if (!isSupplySummaryRow(row)) return;
+    const product = String(row.product || '').trim();
+    if (product) indexBySummaryProduct.set(product, i);
+  });
 
   for (const row of incoming) {
     const no = String(row.suppliesno || '').trim();
     const product = String(row.product || '').trim();
+
+    if (!isSupplySummaryRow(row)) {
+      if (no && indexByNo.has(no)) continue;
+      if (no) indexByNo.set(no, out.length);
+      out.push(row);
+      continue;
+    }
+
     const existingIdx =
       (no && indexByNo.has(no) ? indexByNo.get(no) : undefined) ??
-      (product && indexByProduct.has(product) ? indexByProduct.get(product) : undefined);
+      (product && indexBySummaryProduct.has(product)
+        ? indexBySummaryProduct.get(product)
+        : undefined);
 
     if (existingIdx == null) {
-      indexByNo.set(no, out.length);
-      indexByProduct.set(product, out.length);
+      if (no) indexByNo.set(no, out.length);
+      if (product) indexBySummaryProduct.set(product, out.length);
       out.push(row);
       continue;
     }
@@ -128,23 +147,53 @@ function mergeSupplyLists(primary: SupplyDetail[], incoming: SupplyDetail[]): Su
       product: row.product || current.product,
       status: current.status || row.status,
       lastDelivery: current.lastDelivery || row.lastDelivery,
+      recordType: 'summary',
+      productId: current.productId || row.productId,
+      variantName: current.variantName || row.variantName,
     };
   }
   return out;
 }
 
-/** Only auto-linked rows (never detach manual supplies by display label alone). */
-function belongsToProduct(row: SupplyDetail, product: ProductSnapshot): boolean {
+export type ProductSupplyMatchHints = {
+  /** Catalog / display SKUs from the product's variants */
+  skus?: string[];
+  /** Display labels like "Name (variant)" */
+  labels?: string[];
+};
+
+/** Summary and history rows linked to this product (by productId / AUTO identity / sku / hints). */
+export function belongsToProduct(
+  row: SupplyDetail,
+  product: Pick<ProductSnapshot, 'productId'>,
+  hints?: ProductSupplyMatchHints,
+): boolean {
   const id = String(product.productId || '').trim();
   if (!id) return false;
   const autoPrefix = `AUTO-${id}|`;
   const identityPrefix = `${id}|`;
   const suppliesno = String(row.suppliesno || '');
   const sku = String(row.sku || '').trim();
-  return suppliesno.startsWith(autoPrefix) || sku.startsWith(identityPrefix);
+  const productId = String(row.productId || '').trim();
+  const label = String(row.product || '').trim();
+  if (
+    productId === id ||
+    suppliesno.startsWith(autoPrefix) ||
+    sku.startsWith(identityPrefix)
+  ) {
+    return true;
+  }
+  // Hints only for legacy rows with no productId — never reassign a different explicit productId.
+  if (productId) return false;
+  const hintSkus = (hints?.skus || []).map((s) => String(s || '').trim()).filter(Boolean);
+  if (sku && hintSkus.includes(sku)) return true;
+  const hintLabels = (hints?.labels || []).map((s) => String(s || '').trim()).filter(Boolean);
+  if (label && hintLabels.includes(label)) return true;
+  return false;
 }
 
-function applyProductToSupplierMaps(
+/** Pure in-memory reassignment used by sync + unit tests. */
+export function applyProductToSupplierMaps(
   product: ProductSnapshot,
   suppliesBySupplierId: Map<number, SupplyDetail[]>,
   suppliers: SupplierRow[],
@@ -207,15 +256,23 @@ function applyProductToSupplierMaps(
     const autoNo = supplyAutoNo(product.productId, variant.variantName);
     const current = findSupplyRow(supplies, product, variant);
 
-    if (current) {
+    if (current && isSupplySummaryRow(current)) {
       if (
         current.product !== label ||
         current.sku !== displaySku ||
-        current.suppliesno !== autoNo
+        current.suppliesno !== autoNo ||
+        current.recordType !== 'summary' ||
+        current.productId !== product.productId ||
+        current.variantName !== variant.variantName
       ) {
         current.product = label;
         current.sku = displaySku;
         current.suppliesno = autoNo;
+        current.recordType = 'summary';
+        current.productId = product.productId;
+        current.variantName = variant.variantName;
+        // Totals stay frozen; match must not invent history.
+        current.lastDelivery = '';
         changed = true;
       }
       continue;
@@ -231,11 +288,95 @@ function applyProductToSupplierMaps(
   }
 }
 
+/** Strip every summary + history row linked to the product from all supplier maps. */
+export function removeProductFromSupplierMaps(
+  product: Pick<ProductSnapshot, 'productId'>,
+  suppliesBySupplierId: Map<number, SupplyDetail[]>,
+  suppliers: SupplierRow[],
+  dirtySupplierIds: Set<number>,
+  hints?: ProductSupplyMatchHints,
+): void {
+  const productId = String(product.productId || '').trim();
+  if (!productId) return;
+
+  for (const supplier of suppliers) {
+    const supplies = suppliesBySupplierId.get(supplier.id) || [];
+    const kept = supplies.filter((row) => !belongsToProduct(row, product, hints));
+    if (kept.length !== supplies.length) {
+      suppliesBySupplierId.set(supplier.id, kept);
+      dirtySupplierIds.add(supplier.id);
+    }
+  }
+}
+
+/**
+ * Remove linked summary and history supplies for a deleted product across the user's suppliers.
+ */
+export async function removeProductSupplies(args: {
+  userId: number;
+  productId: string;
+  name?: string;
+  variantOptions?: VariantSnapshot[];
+}): Promise<void> {
+  const userId = args.userId;
+  const productId = String(args.productId || '').trim();
+  if (!userId || !productId) return;
+
+  const variants = (args.variantOptions || []).filter(
+    (v) => v && String(v.variantName ?? '').trim(),
+  );
+  const hints: ProductSupplyMatchHints = {
+    skus: variants
+      .map((v) => String(v.sku ?? '').trim() || supplyIdentity(productId, v.variantName))
+      .filter(Boolean),
+    labels: variants.map((v) => productLabel(String(args.name || ''), v.variantName)),
+  };
+
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(${userId}, ${879_332})`;
+
+    const suppliers = await tx.supplier.findMany({
+      where: { userId },
+      orderBy: { id: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        supplyRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] },
+      },
+    });
+
+    const { supplyDetailFromRecord, replaceSupplierSupplyRecords } = await import(
+      '@/lib/suppliers/supplyRecordStore'
+    );
+    const suppliesBySupplierId = new Map<number, SupplyDetail[]>(
+      suppliers.map((row) => [row.id, row.supplyRecords.map(supplyDetailFromRecord)]),
+    );
+    const dirtySupplierIds = new Set<number>();
+
+    removeProductFromSupplierMaps(
+      { productId },
+      suppliesBySupplierId,
+      suppliers,
+      dirtySupplierIds,
+      hints,
+    );
+
+    for (const supplierId of dirtySupplierIds) {
+      const next = suppliesBySupplierId.get(supplierId) || [];
+      await replaceSupplierSupplyRecords(tx, supplierId, next);
+      await tx.supplier.update({
+        where: { id: supplierId },
+        data: { updatedAt: new Date() },
+      });
+    }
+  });
+}
+
 /**
  * Link a product's variants into an existing CRM supplier's supplies list.
  * Does not create suppliers — users must import/create suppliers first, then match.
- * When the matched supplier changes, auto-linked rows are moved off the previous
- * supplier(s) onto the new one (frozen totals preserved when moving).
+ * When the matched supplier changes, linked summary AND history rows move off the
+ * previous supplier(s) onto the new one (frozen summary totals preserved when moving).
  */
 export async function syncSupplierFromProduct(product: ProductSnapshot): Promise<void> {
   if (!product.userId || !String(product.productId || '').trim()) return;
@@ -246,20 +387,29 @@ export async function syncSupplierFromProduct(product: ProductSnapshot): Promise
     const suppliers = await tx.supplier.findMany({
       where: { userId: product.userId },
       orderBy: { id: 'asc' },
-      select: { id: true, name: true, supplies: true },
+      select: {
+        id: true,
+        name: true,
+        supplyRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] },
+      },
     });
 
+    const { supplyDetailFromRecord, replaceSupplierSupplyRecords } = await import(
+      '@/lib/suppliers/supplyRecordStore'
+    );
     const suppliesBySupplierId = new Map<number, SupplyDetail[]>(
-      suppliers.map((row) => [row.id, parseSupplies(row.supplies)]),
+      suppliers.map((row) => [row.id, row.supplyRecords.map(supplyDetailFromRecord)]),
     );
     const dirtySupplierIds = new Set<number>();
 
     applyProductToSupplierMaps(product, suppliesBySupplierId, suppliers, dirtySupplierIds);
 
     for (const supplierId of dirtySupplierIds) {
+      const next = suppliesBySupplierId.get(supplierId) || [];
+      await replaceSupplierSupplyRecords(tx, supplierId, next);
       await tx.supplier.update({
         where: { id: supplierId },
-        data: { supplies: JSON.stringify(suppliesBySupplierId.get(supplierId) || []) },
+        data: { updatedAt: new Date() },
       });
     }
   });
@@ -305,15 +455,22 @@ export async function syncAllProductSuppliersForUser(userId: number): Promise<{
       const suppliers = await tx.supplier.findMany({
         where: { userId },
         orderBy: { id: 'asc' },
-        select: { id: true, name: true, supplies: true },
+        select: {
+          id: true,
+          name: true,
+          supplyRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] },
+        },
       });
 
       if (products.length === 0 || suppliers.length === 0) {
         return { productsProcessed: products.length, suppliersTouched: 0 };
       }
 
+      const { supplyDetailFromRecord, replaceSupplierSupplyRecords } = await import(
+        '@/lib/suppliers/supplyRecordStore'
+      );
       const suppliesBySupplierId = new Map<number, SupplyDetail[]>(
-        suppliers.map((row) => [row.id, parseSupplies(row.supplies)]),
+        suppliers.map((row) => [row.id, row.supplyRecords.map(supplyDetailFromRecord)]),
       );
       const dirtySupplierIds = new Set<number>();
 
@@ -341,9 +498,11 @@ export async function syncAllProductSuppliersForUser(userId: number): Promise<{
       }
 
       for (const supplierId of dirtySupplierIds) {
+        const next = suppliesBySupplierId.get(supplierId) || [];
+        await replaceSupplierSupplyRecords(tx, supplierId, next);
         await tx.supplier.update({
           where: { id: supplierId },
-          data: { supplies: JSON.stringify(suppliesBySupplierId.get(supplierId) || []) },
+          data: { updatedAt: new Date() },
         });
       }
 

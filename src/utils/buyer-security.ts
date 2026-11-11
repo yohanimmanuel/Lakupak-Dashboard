@@ -180,10 +180,8 @@ export const sanitizeBuyerData = (data: BuyerInput) => {
   if (data.notes !== undefined) {
     sanitized.notes = data.notes ? String(data.notes) : null;
   }
-  
-  if (data.orderDetails !== undefined) {
-    sanitized.orderDetails = data.orderDetails ? String(data.orderDetails) : null;
-  }
+
+  // orderDetails is accepted on GraphQL input but stored in BuyerRecord rows, not Buyer columns.
   
   // Numeric fields
   if (data.userId !== undefined) {

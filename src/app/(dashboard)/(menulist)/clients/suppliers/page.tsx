@@ -9,6 +9,7 @@ import * as XLSX from 'xlsx';
 import ImportData from '@/components/clientmanagement/ImportData';
 import { useUserStore } from '@/store/userStore';
 import { Supplier, SupplierTableRow, SupplyDetail } from '@/types/client';
+import { partitionSupplies } from '@/lib/suppliers/supplyRecords';
 import { formatNumber } from '@/utils/dateUtils';
 import { generateUniqueSupplierId } from '@/utils/supplier-security';
 import { fetchGraphQL } from '@/lib/graphqlClient';
@@ -29,7 +30,7 @@ function profileToTableRow(supplier: Supplier): SupplierTableRow {
   let totalPurchases = 0;
   let totalSupplied = 0;
   
-  // Parse supplies from string to array
+  // Parse supplies from string to array — totals use summary rows only (not history).
   const supplies = supplier.supplies ? (() => {
     try {
       return JSON.parse(supplier.supplies);
@@ -37,12 +38,16 @@ function profileToTableRow(supplier: Supplier): SupplierTableRow {
       return [];
     }
   })() : [];
-  
+
   if (Array.isArray(supplies) && supplies.length > 0) {
-    supplies.forEach((s: SupplyDetail) => {
+    const { summary } = partitionSupplies(supplies as SupplyDetail[]);
+    summary.forEach((s: SupplyDetail) => {
       totalPurchases += parseInt((s.totalValue || '').toString().replace(/[^-\d]/g, '')) || 0;
     });
-    totalSupplied = supplies.reduce((sum: number, s: SupplyDetail) => sum + (parseInt(s.totalSupplied) || 0), 0);
+    totalSupplied = summary.reduce(
+      (sum: number, s: SupplyDetail) => sum + (parseInt(String(s.totalSupplied), 10) || 0),
+      0,
+    );
   }
   
   return {

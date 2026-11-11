@@ -142,6 +142,18 @@ function isCompleteCombination(combo: Combination, currencyCode?: string): boole
   );
 }
 
+/** True when a default/draft row has any SKU, price, stock, or MOQ the user entered. */
+function combinationHasDraftData(combo: Combination): boolean {
+  return Boolean(
+    String(combo.sku ?? '').trim() ||
+      String(combo.purchasePrice ?? '').trim() ||
+      String(combo.sellingPrice ?? '').trim() ||
+      (Number(combo.stockQuantity) || 0) > 0 ||
+      (Number(combo.lowStockThreshold) || 0) > 0 ||
+      (combo.moq != null && String(combo.moq).trim() !== '' && Number.isFinite(Number(combo.moq))),
+  );
+}
+
 function normalizeImportMatchValue(value: unknown): string {
   return String(value ?? '')
     .trim()
@@ -267,6 +279,82 @@ function cartesianProduct(arrays: string[][]): string[][] {
   return first.flatMap((item) => restProduct.map((combination) => [item, ...combination]));
 }
 
+function draftCombinationAxisKey(
+  combo: Combination,
+  validVariants: CatalogVariant[],
+): string {
+  return validVariants
+    .map((variant) => {
+      const raw = combo[`variant_${variant.id}`];
+      const name = typeof raw === 'string' && raw.trim() !== '' ? raw.trim() : 'None';
+      return `${variant.id}:${name}`;
+    })
+    .join('|');
+}
+
+function rebuiltMatrixKeys(validVariants: CatalogVariant[]): Set<string> {
+  const optionArrays = validVariants.map((v) =>
+    v.options.filter((opt) => opt.name).map((opt) => opt.name),
+  );
+  const variantIds = validVariants.map((v) => v.id);
+  return new Set(
+    cartesianProduct(optionArrays).map((values) =>
+      variantIds.map((id, idx) => `${id}:${values[idx]}`).join('|'),
+    ),
+  );
+}
+
+/**
+ * True when rebuilding would merge distinct drafts (duplicate remaining-axis keys) or
+ * drop populated rows that cannot fit onto the rebuilt matrix (e.g. default draft → new axis).
+ */
+function shouldPreserveDraftCombinations(
+  validVariants: CatalogVariant[],
+  existingCombinations: Combination[],
+): boolean {
+  if (validVariants.length === 0) return false;
+  const seen = new Set<string>();
+  for (const combo of existingCombinations) {
+    if (!combinationHasDraftData(combo)) continue;
+    const key = draftCombinationAxisKey(combo, validVariants);
+    if (seen.has(key)) return true;
+    seen.add(key);
+  }
+
+  const matrixKeys = rebuiltMatrixKeys(validVariants);
+  let matchedKeyCount = 0;
+  let orphanDraftCount = 0;
+  const matchedKeys = new Set<string>();
+  for (const combo of existingCombinations) {
+    if (!combinationHasDraftData(combo)) continue;
+    const key = draftCombinationAxisKey(combo, validVariants);
+    if (matrixKeys.has(key)) {
+      if (!matchedKeys.has(key)) {
+        matchedKeys.add(key);
+        matchedKeyCount += 1;
+      }
+    } else {
+      orphanDraftCount += 1;
+    }
+  }
+  const freeSlots = matrixKeys.size - matchedKeyCount;
+  return orphanDraftCount > freeSlots;
+}
+
+/** True when every current option combination is present in the matrix (by axis key). */
+function variationMatrixCoversOptions(
+  validVariants: CatalogVariant[],
+  matrix: Combination[],
+): boolean {
+  const expected = rebuiltMatrixKeys(validVariants);
+  if (expected.size === 0 || matrix.length !== expected.size) return false;
+  const actual = new Set(matrix.map((combo) => draftCombinationAxisKey(combo, validVariants)));
+  for (const key of expected) {
+    if (!actual.has(key)) return false;
+  }
+  return true;
+}
+
 function rebuildCombinationsFromVariants(
   validVariants: CatalogVariant[],
   existingCombinations: Combination[],
@@ -308,8 +396,18 @@ function rebuildCombinationsFromVariants(
   };
 
   const variantIdsInOrder = validVariants.map((v) => v.id);
+  const generatedKeys = new Set(
+    combinationsGenerated.map((combinationValues) => {
+      const valsByVariantId: Record<string, string> = {};
+      validVariants.forEach((variant, idx) => {
+        valsByVariantId[variant.id] = combinationValues[idx];
+      });
+      return keyFor(valsByVariantId, variantIdsInOrder);
+    }),
+  );
 
   const existingFullKeyMap = new Map<string, Combination>();
+  const orphanDrafts: Combination[] = [];
   const skuByItemIdentity = new Map<string, string>();
 
   existingCombinations.forEach((combo) => {
@@ -320,16 +418,25 @@ function rebuildCombinationsFromVariants(
       if (name) valsByVariantId[variant.id] = name;
     });
 
-    existingFullKeyMap.set(keyFor(valsByVariantId, variantIdsInOrder), combo);
+    const fullKey = keyFor(valsByVariantId, variantIdsInOrder);
+    if (generatedKeys.has(fullKey)) {
+      existingFullKeyMap.set(fullKey, combo);
+      const sku = String(combo.sku ?? '').trim();
+      const identity = itemIdentityKey(valsByVariantId);
+      if (sku && identity && !skuByItemIdentity.has(identity)) {
+        skuByItemIdentity.set(identity, sku);
+      }
+      return;
+    }
 
-    const sku = String(combo.sku ?? '').trim();
-    const identity = itemIdentityKey(valsByVariantId);
-    if (sku && identity && !skuByItemIdentity.has(identity)) {
-      skuByItemIdentity.set(identity, sku);
+    // Default/populated rows that do not yet sit on a matrix key (e.g. no axis values yet).
+    if (combinationHasDraftData(combo)) {
+      orphanDrafts.push(combo);
     }
   });
 
   const makeStableId = (fullKey: string) => `combination-${fullKey}`;
+  let orphanIdx = 0;
 
   return combinationsGenerated.map((combinationValues) => {
     const valsByVariantId: Record<string, string> = {};
@@ -340,7 +447,12 @@ function rebuildCombinationsFromVariants(
     const fullKey = keyFor(valsByVariantId, variantIdsInOrder);
     const stableId = makeStableId(fullKey);
 
-    const combinationData = existingFullKeyMap.get(fullKey);
+    let combinationData = existingFullKeyMap.get(fullKey);
+    // Map the default draft (SKU/prices/stock) onto the newly defined axis combination(s).
+    if (!combinationData && orphanIdx < orphanDrafts.length) {
+      combinationData = orphanDrafts[orphanIdx];
+      orphanIdx += 1;
+    }
     const canCopyFromExisting = Boolean(combinationData);
     const siblingSku = skuByItemIdentity.get(itemIdentityKey(valsByVariantId)) ?? '';
     const sku = String(combinationData?.sku ?? '').trim() || siblingSku;
@@ -2056,11 +2168,20 @@ export default function ProductCatalog({
     return tCatalog('validation.required', { field: label });
   };
 
-  const buildVariationMatrixForSave = () => {
+  const buildVariationMatrixForSave = (status: 'Draft' | 'Published') => {
     const validVariants = variants.filter((v) => v.variantType && v.options.some((opt) => opt.name));
-    return validVariants.length > 0
-      ? rebuildCombinationsFromVariants(validVariants, combinations)
-      : [];
+    if (validVariants.length > 0) {
+      // Draft only: keep collapsed/unresolved populated rows. Published must rebuild (or fail
+      // validation) so cleared axes cannot ship a partial preserved matrix.
+      if (status === 'Draft' && shouldPreserveDraftCombinations(validVariants, combinations)) {
+        return combinations.filter(combinationHasDraftData);
+      }
+      return rebuildCombinationsFromVariants(validVariants, combinations);
+    }
+    // No named axes. Draft keeps populated default rows and still clears truly empty ones.
+    // Publish must not treat that default row as a valid variation matrix.
+    if (status === 'Published') return [];
+    return combinations.filter(combinationHasDraftData);
   };
 
   const collectProductErrors = (status: 'Draft' | 'Published') => {
@@ -2077,13 +2198,20 @@ export default function ProductCatalog({
           : marketSegmentError;
     }
     const priceCurrency = user?.currency || userCurrency;
-    const variationMatrix = buildVariationMatrixForSave();
-    if (variationMatrix.length === 0) {
-      errors.variants = tCatalog('validation.variationListRequired');
-    } else if (!variationMatrix.every((combo) => isCompleteCombination(combo, priceCurrency))) {
-      errors.variants = tCatalog('validation.variantsRequired');
-    }
+    const validVariants = variants.filter((v) => v.variantType && v.options.some((opt) => opt.name));
+    const variationMatrix = buildVariationMatrixForSave(status);
+    // Draft may be incomplete (empty/partial variants). Publish still requires a full matrix.
     if (status === 'Published') {
+      if (variationMatrix.length === 0) {
+        errors.variants = tCatalog('validation.variationListRequired');
+      } else if (shouldPreserveDraftCombinations(validVariants, combinations)) {
+        // Axis cleared / unresolved drafts — do not publish until the matrix is consistent.
+        errors.variants = tCatalog('validation.variantsRequired');
+      } else if (!variationMatrixCoversOptions(validVariants, variationMatrix)) {
+        errors.variants = tCatalog('validation.variantsRequired');
+      } else if (!variationMatrix.every((combo) => isCompleteCombination(combo, priceCurrency))) {
+        errors.variants = tCatalog('validation.variantsRequired');
+      }
       if (!formData.images?.length) errors.images = tCatalog('validation.imageRequired');
       const totalStock = variationMatrix.reduce((sum, combo) => sum + combo.stockQuantity, 0);
       const stockReady =
@@ -2140,9 +2268,9 @@ export default function ProductCatalog({
 
       // Rebuild the variation matrix from current variant types before save so publish/save
       // never sends a partial list that would cause the backend to delete missing rows.
-      // When no valid variant types remain, send an empty matrix so deleted rows are cleared in DB.
+      // When no valid variant types remain, preserve populated draft rows (or [] if blank).
       const validVariants = variants.filter((v) => v.variantType && v.options.some((opt) => opt.name));
-      const combinationsForSave = buildVariationMatrixForSave();
+      const combinationsForSave = buildVariationMatrixForSave(status);
 
       const priceCurrency = user.currency || userCurrency;
 

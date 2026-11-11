@@ -98,11 +98,32 @@ export interface SupplyDetail {
   suppliesno: string;
   sku: string;
   product: string;
+  /** Quantity received (history) or rolled-up total (summary). */
   totalSupplied: string;
   totalValue: string;
+  /** Last supplied date for history rows; unused on summary rows. */
   lastDelivery: string;
   status: string;
   deliverySuccess?: string;
+  /**
+   * history = dated supply event (duplicates allowed).
+   * summary = aggregate total (product↔supplier match + rolled-up history).
+   * Missing type is inferred: AUTO-* → summary, otherwise history.
+   */
+  recordType?: 'history' | 'summary';
+  productId?: string;
+  variantName?: string;
+  /**
+   * When true, saving/editing this history row adjusts variant stock + supply summary.
+   * When deleted while true, those adjustments are reversed.
+   * Uncheck before delete to remove the history row without touching products.
+   */
+  updateCurrentStock?: boolean;
+  /**
+   * Set once this history row has applied stock. Re-checking Update Stock must not
+   * apply the same row's quantity again.
+   */
+  stockApplied?: boolean;
 }
 
 export interface BuyerFormData {

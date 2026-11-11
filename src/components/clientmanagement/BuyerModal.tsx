@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Trash, User, Upload, AlertCircle, CheckCircle, ChevronDown, ArrowLeft, Save } from 'lucide-react';
+import { Trash, Plus, User, Upload, AlertCircle, CheckCircle, ChevronDown, ArrowLeft, Save } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/store/userStore';
@@ -957,28 +957,32 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
                         </div>
                       </td>
                       <td className="py-2 px-3">
-                        <button 
-                          type="button" 
-                          className="text-red-500 font-bold p-1 hover:bg-red-100 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
-                          onClick={() => deleteOrderRow(idx)} 
-                          disabled={orderRows.length === 1}
-                          aria-label={tBuyersModal('deleteOrderRow', { index: idx + 1 })}
-                        >
-                          <Trash className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            className="rounded-full p-1 font-bold text-[#0a61d7] transition-colors hover:bg-blue-50"
+                            onClick={addOrderRow}
+                            aria-label={tBuyersModal('addRow')}
+                            title={tBuyersModal('addRow')}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </button>
+                          <button 
+                            type="button" 
+                            className="rounded-full p-1 font-bold text-red-500 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50" 
+                            onClick={() => deleteOrderRow(idx)} 
+                            disabled={orderRows.length === 1}
+                            aria-label={tBuyersModal('deleteOrderRow', { index: idx + 1 })}
+                          >
+                            <Trash className="h-4 w-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <button 
-              type="button" 
-              className="mt-2 px-3 py-1 rounded-lg bg-[#0a61d7] text-white text-xs font-semibold hover:bg-[#084ba6] transition-colors" 
-              onClick={addOrderRow}
-            >
-              {tBuyersModal('addRow')}
-            </button>
           </div>
           
           {/* Created At and Preferred Days */}

@@ -226,7 +226,6 @@ model Buyer {
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
   logistics    String?
   notes        String?
-  orderDetails String?
   updatedAt    DateTime @updatedAt @db.Timestamptz(3)
   userId       Int?
   user         User?    @relation(fields: [userId], references: [id])
@@ -235,8 +234,33 @@ model Buyer {
   salesJobs    SalesJob[]
   matchCandidates ClientMatchCandidate[] @relation("MatchExistingClient")
   assortmentOpportunities AssortmentOpportunity[]
+  buyerRecords BuyerRecord[]
 
   @@unique([userId, customerNumber])
+}
+
+/// Normalized buyer order/product detail rows (formerly Buyer.orderDetails JSON).
+model BuyerRecord {
+  id               Int      @id @default(autoincrement())
+  buyerRefId       Int
+  orderNo          String   @default("")
+  product          String   @default("")
+  totalOrders      String   @default("")
+  totalSpend       String   @default("")
+  shippingFee      String?
+  lastOrderDate    String   @default("")
+  outstanding      String   @default("")
+  freeItems        Int?
+  discountBadge    String?
+  offerApplied     Boolean?
+  syncedFromOrders Boolean  @default(false)
+  sortOrder        Int      @default(0)
+  createdAt        DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @db.Timestamptz(3)
+  buyer            Buyer    @relation(fields: [buyerRefId], references: [id], onDelete: Cascade)
+
+  @@index([buyerRefId])
+  @@index([buyerRefId, sortOrder])
 }
 
 model Supplier {
@@ -252,12 +276,43 @@ model Supplier {
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
   logistics    String?
   notes        String?
-  supplies     String?
   updatedAt    DateTime @updatedAt @db.Timestamptz(3)
   userId       Int?
   user         User?    @relation(fields: [userId], references: [id])
+  supplyRecords SupplyRecord[]
 
   @@index([userId])
+}
+
+/// Normalized supplier supply/product rows (formerly Supplier.supplies JSON).
+model SupplyRecord {
+  id                 Int      @id @default(autoincrement())
+  supplierRefId      Int
+  suppliesno         String   @default("")
+  sku                String   @default("")
+  product            String   @default("")
+  totalSupplied      String   @default("")
+  totalValue         String   @default("")
+  lastDelivery       String   @default("")
+  status             String   @default("Active")
+  deliverySuccess    String?
+  /// history | summary (legacy AUTO-* inferred as summary when empty)
+  recordType         String   @default("history")
+  productId          String?
+  variantName        String?
+  updateCurrentStock Boolean  @default(false)
+  /// True after this history row has already adjusted variant stock (re-check must not re-apply).
+  stockApplied       Boolean  @default(false)
+  sortOrder          Int      @default(0)
+  createdAt          DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime @updatedAt @db.Timestamptz(3)
+  supplier           Supplier @relation(fields: [supplierRefId], references: [id], onDelete: Cascade)
+
+  @@index([supplierRefId])
+  @@index([supplierRefId, recordType])
+  @@index([supplierRefId, sortOrder])
+  @@index([productId])
+  @@index([sku])
 }
 
 model Product {
