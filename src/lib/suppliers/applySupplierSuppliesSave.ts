@@ -4,6 +4,7 @@ import type { SupplyDetail } from '@/types/client';
 import {
   applySummaryDelta,
   isSupplyHistoryRow,
+  mergeDuplicateSummaryRows,
   parseSuppliesJson,
   shouldUpdateCurrentStock,
   todayYmdJakarta,
@@ -130,31 +131,36 @@ function historyRowFingerprint(row: SupplyDetail): string {
 }
 
 type PreviousHistoryIndexes = {
+  /** First previous row per suppliesno. */
   previousById: Map<string, SupplyDetail>;
-  /** Blank-id previous rows only — never steal an id-keyed match. */
-  previousByFingerprint: Map<string, SupplyDetail>;
+  /**
+   * Previous rows that cannot be found by id: blank ids, plus later rows that reuse an
+   * id already taken (legacy imports wrote duplicate HIST-* ids). Never steals an id-keyed match.
+   */
+  previousByFingerprint: Map<string, SupplyDetail[]>;
 };
 
 function buildPreviousHistoryIndexes(previousHistory: SupplyDetail[]): PreviousHistoryIndexes {
   const previousById = new Map<string, SupplyDetail>();
-  const previousByFingerprint = new Map<string, SupplyDetail>();
+  const previousByFingerprint = new Map<string, SupplyDetail[]>();
   for (const row of previousHistory) {
     const id = String(row.suppliesno || '').trim();
-    if (id) {
+    if (id && !previousById.has(id)) {
       previousById.set(id, row);
       continue;
     }
     const fp = historyRowFingerprint(row);
-    if (fp.replace(/\|/g, '') && !previousByFingerprint.has(fp)) {
-      previousByFingerprint.set(fp, row);
-    }
+    if (!fp.replace(/\|/g, '')) continue;
+    const bucket = previousByFingerprint.get(fp);
+    if (bucket) bucket.push(row);
+    else previousByFingerprint.set(fp, [row]);
   }
   return { previousById, previousByFingerprint };
 }
 
 /**
  * Match incoming history to previous: suppliesno first, then fingerprint against
- * unmatched blank-id previous rows. Each previous row is claimed at most once.
+ * unmatched blank-id / duplicate-id previous rows. Each previous row is claimed at most once.
  */
 function matchPreviousHistoryRow(
   row: SupplyDetail,
@@ -165,16 +171,14 @@ function matchPreviousHistoryRow(
   const fp = historyRowFingerprint(row);
   let prev: SupplyDetail | undefined;
   if (id) {
-    prev = indexes.previousById.get(id);
-    if (!prev && fp.replace(/\|/g, '')) {
-      const candidate = indexes.previousByFingerprint.get(fp);
-      if (candidate && !matchedPrevious.has(candidate)) prev = candidate;
-    }
-  } else if (fp.replace(/\|/g, '')) {
-    const candidate = indexes.previousByFingerprint.get(fp);
-    if (candidate && !matchedPrevious.has(candidate)) prev = candidate;
+    const byId = indexes.previousById.get(id);
+    if (byId && !matchedPrevious.has(byId)) prev = byId;
   }
-  if (prev && matchedPrevious.has(prev)) prev = undefined;
+  if (!prev && fp.replace(/\|/g, '')) {
+    prev = indexes.previousByFingerprint
+      .get(fp)
+      ?.find((candidate) => !matchedPrevious.has(candidate));
+  }
   if (prev) matchedPrevious.add(prev);
   return prev;
 }
@@ -530,6 +534,8 @@ export async function finalizeSupplierSuppliesSave(args: {
       stockApplied,
     };
   });
+  // One total per SKU before deltas land (heals duplicates from older imports).
+  supplies = mergeDuplicateSummaryRows(supplies);
   for (const effect of effects) {
     if (effect.applySummary === false) continue;
     supplies = applySummaryDelta(supplies, {

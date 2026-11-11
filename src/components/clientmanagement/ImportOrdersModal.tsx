@@ -5,6 +5,7 @@ import { Upload, X, FileText, Eye, CheckCircle2, AlertTriangle } from 'lucide-re
 import * as XLSX from 'xlsx';
 import { OrderDetail } from '@/types/client';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
+import ImportSelectionCheckbox from '@/components/clientmanagement/ImportSelectionCheckbox';
 
 const orderFields = [
   { key: 'product', label: 'Product Name' },
@@ -51,7 +52,17 @@ function removeCurrencyIdentifier(value: string | undefined): string {
   return numericPart;
 }
 
-export default function ImportOrdersModal({ open, onClose, onImport }: { open: boolean, onClose: () => void, onImport: (orderDetails: OrderDetail[]) => void }) {
+type ImportOrdersModalProps = {
+  open: boolean;
+  onCloseAction: () => void;
+  onImportAction: (orderDetails: OrderDetail[]) => void;
+};
+
+export default function ImportOrdersModal({
+  open,
+  onCloseAction,
+  onImportAction,
+}: ImportOrdersModalProps) {
   const { tImport } = useClientsTranslations();
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -63,6 +74,7 @@ export default function ImportOrdersModal({ open, onClose, onImport }: { open: b
   const [mapping, setMapping] = useState<{ [key: string]: string }>({});
   const [isProcessing, setIsProcessing] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [selectedRowIndices, setSelectedRowIndices] = useState<Set<number>>(new Set());
 
   if (!open) return null;
 
@@ -191,6 +203,39 @@ export default function ImportOrdersModal({ open, onClose, onImport }: { open: b
     return errors;
   };
 
+  const previewRows = step === 2 ? getMappedRows() : [];
+  const allRowsSelected = rows.length > 0 && selectedRowIndices.size === rows.length;
+  const someRowsSelected = selectedRowIndices.size > 0 && !allRowsSelected;
+
+  const toggleRowSelection = (index: number) => {
+    setSelectedRowIndices((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  };
+
+  const toggleAllRowSelection = () => {
+    setSelectedRowIndices(allRowsSelected ? new Set() : new Set(rows.map((_, i) => i)));
+  };
+
+  const resetState = () => {
+    setRows([]);
+    setStep(0);
+    setFilename('');
+    setFileHeaders([]);
+    setMapping({});
+    setSelectedRowIndices(new Set());
+    setValidationErrors([]);
+    setError('');
+  };
+
+  const handleClose = () => {
+    resetState();
+    onCloseAction();
+  };
+
   const handleImport = () => {
     const mappedRows = getMappedRows();
     
@@ -200,21 +245,23 @@ export default function ImportOrdersModal({ open, onClose, onImport }: { open: b
       setValidationErrors(errors);
       return;
     }
+
+    const selectedRows = mappedRows.filter((_, index) => selectedRowIndices.has(index));
+    if (selectedRows.length === 0) {
+      setValidationErrors([]);
+      setError(tImport('importNoneSelected'));
+      return;
+    }
     
-    setValidationErrors([]);
-    onImport(mappedRows);
-    setRows([]);
-    setStep(0);
-    setFilename('');
-    setFileHeaders([]);
-    setMapping({});
-    onClose();
+    onImportAction(selectedRows);
+    resetState();
+    onCloseAction();
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-white rounded-2xl border border-[#e6e6e6] p-4 w-full max-w-3xl relative">
-        <button className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-100" onClick={onClose}><X className="w-5 h-5 text-black" /></button>
+        <button type="button" className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-100" onClick={handleClose}><X className="w-5 h-5 text-black" /></button>
         <h2 className="text-xl font-bold text-black mb-4 border-b border-[#e6e6e6] pb-2 flex items-center gap-2">
           <FileText className="w-5 h-5 text-[#0a61d7]" /> {tImport('titleOrders')}
         </h2>
@@ -273,15 +320,36 @@ export default function ImportOrdersModal({ open, onClose, onImport }: { open: b
               </table>
             </div>
             <div className="flex justify-end gap-2 mt-2 text-sm border-t border-gray-200 pt-4">
-              <button type="button" className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" onClick={() => { setStep(0); setRows([]); setFilename(''); setFileHeaders([]); setMapping({}); }}>{tImport('back')}</button>
-              <button type="button" className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center gap-2" onClick={() => setStep(2)} disabled={Object.keys(mapping).filter(k => mapping[k]).length === 0}>{tImport('preview')}</button>
+              <button type="button" className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" onClick={() => { setStep(0); setRows([]); setFilename(''); setFileHeaders([]); setMapping({}); setSelectedRowIndices(new Set()); }}>{tImport('back')}</button>
+              <button type="button" className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center gap-2" onClick={() => { setSelectedRowIndices(new Set(rows.map((_, i) => i))); setStep(2); }} disabled={Object.keys(mapping).filter(k => mapping[k]).length === 0}>{tImport('preview')}</button>
             </div>
           </div>
         )}
         {step === 2 && (
           <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-2 mb-2 text-black">
-              <Eye className="w-4 h-4 text-[#0a61d7]" /> {tImport('previewOrders', { count: getMappedRows().length })}
+            <div className="flex flex-wrap items-center justify-between gap-3 text-black">
+              <div className="flex items-center gap-2">
+                <Eye className="w-4 h-4 text-[#0a61d7]" />
+                {tImport('previewRowsSelected', {
+                  selected: selectedRowIndices.size,
+                  total: previewRows.length,
+                })}
+              </div>
+              <div className="flex items-center gap-2">
+                <ImportSelectionCheckbox
+                  checked={allRowsSelected}
+                  indeterminate={someRowsSelected}
+                  onToggle={toggleAllRowSelection}
+                  ariaLabel={allRowsSelected ? tImport('deselectAll') : tImport('selectAll')}
+                />
+                <button
+                  type="button"
+                  className="text-sm text-gray-700 font-medium hover:text-black"
+                  onClick={toggleAllRowSelection}
+                >
+                  {allRowsSelected ? tImport('deselectAll') : tImport('selectAll')}
+                </button>
+              </div>
             </div>
             
             {/* Validation Errors */}
@@ -299,21 +367,50 @@ export default function ImportOrdersModal({ open, onClose, onImport }: { open: b
               <table className="min-w-full text-xs font-medium text-left bg-white">
                 <thead>
                   <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
+                    <th className="py-2 px-3 font-medium uppercase w-12">
+                      <ImportSelectionCheckbox
+                        checked={allRowsSelected}
+                        indeterminate={someRowsSelected}
+                        onToggle={toggleAllRowSelection}
+                        ariaLabel={allRowsSelected ? tImport('deselectAll') : tImport('selectAll')}
+                      />
+                    </th>
                     {orderFields.map(f => <th key={f.key} className="py-2 px-3 font-medium uppercase">{tImport(`orderFields.${f.key}`)}</th>)}
                   </tr>
                 </thead>
                 <tbody>
-                  {getMappedRows().map((row, idx) => (
-                    <tr key={idx} className="whitespace-nowrap text-black">
-                      {orderFields.map(f => <td key={f.key} className="py-2 px-3">{row[f.key as keyof OrderDetail]}</td>)}
-                    </tr>
-                  ))}
+                  {previewRows.map((row, idx) => {
+                    const isSelected = selectedRowIndices.has(idx);
+                    return (
+                      <tr
+                        key={idx}
+                        onClick={() => toggleRowSelection(idx)}
+                        className={`whitespace-nowrap text-black cursor-pointer ${
+                          isSelected ? 'hover:bg-blue-50/40' : 'opacity-50 bg-gray-50 hover:bg-gray-100'
+                        }`}
+                      >
+                        <td className="py-2 px-3">
+                          <ImportSelectionCheckbox
+                            checked={isSelected}
+                            onToggle={() => toggleRowSelection(idx)}
+                            ariaLabel={tImport('selectRow', { index: idx + 1 })}
+                          />
+                        </td>
+                        {orderFields.map(f => <td key={f.key} className="py-2 px-3">{row[f.key as keyof OrderDetail]}</td>)}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
+            {error ? (
+              <div className="flex items-center gap-2 text-red-500 text-sm">
+                <AlertTriangle className="w-4 h-4" /> {error}
+              </div>
+            ) : null}
             <div className="flex justify-end gap-2 mt-4 text-sm border-t border-gray-200 pt-4">
-              <button type="button" className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" onClick={() => setStep(1)}>{tImport('back')}</button>
-              <button type="button" className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center gap-2" onClick={handleImport}><CheckCircle2 className="w-4 h-4" /> {tImport('importButton')}</button>
+              <button type="button" className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" onClick={() => { setStep(1); setSelectedRowIndices(new Set()); setError(''); }}>{tImport('back')}</button>
+              <button type="button" className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center gap-2 disabled:opacity-60" onClick={handleImport} disabled={selectedRowIndices.size === 0}><CheckCircle2 className="w-4 h-4" /> {tImport('importButtonSelected', { count: selectedRowIndices.size })}</button>
             </div>
           </div>
         )}

@@ -175,6 +175,34 @@ export const contactsTypeDefs = /* GraphQL */ `
     ): SupplierConnection!
 
     supplier(userId: Int!, id: String!): Supplier
+
+    supplierSupplyMoveCandidates(
+      userId: Int!
+      supplierId: String!
+    ): [SupplyMoveCandidate!]!
+  }
+
+  type SupplyMoveCandidate {
+    productId: String!
+    variantName: String!
+    sku: String!
+    productLabel: String!
+    targetSupplierName: String!
+    historyCount: Int!
+    totalSupplied: Float!
+    totalValue: Float!
+  }
+
+  input SupplyMoveVariantInput {
+    productId: String!
+    variantName: String!
+  }
+
+  type MoveSupplierSuppliesResult {
+    success: Boolean!
+    movedHistoryCount: Int!
+    supplies: String
+    message: String
   }
 
   extend type Mutation {
@@ -281,6 +309,12 @@ export const contactsTypeDefs = /* GraphQL */ `
       supplierId: String!
       input: RecordSupplierSupplyInput!
     ): RecordSupplierSupplyResult!
+
+    moveSupplierSupplies(
+      userId: Int!
+      fromSupplierId: String!
+      variants: [SupplyMoveVariantInput!]!
+    ): MoveSupplierSuppliesResult!
   }
 `;
 
@@ -1741,6 +1775,252 @@ const syncSuppliersFromProducts = async (args: { userId: number }) => {
   };
 };
 
+async function loadCatalogVariantsForUser(userId: number) {
+  const { productLabel } = await import('@/lib/suppliers/syncProductSupplies');
+  const products = await prisma.product.findMany({
+    where: { userId },
+    select: {
+      productId: true,
+      name: true,
+      supplier: true,
+      variantOptions: {
+        where: { isActive: true },
+        select: { variantName: true, sku: true },
+      },
+    },
+  });
+  return products.flatMap((product) =>
+    (product.variantOptions || [])
+      .filter((v) => String(v.variantName || '').trim())
+      .map((v) => {
+        const variantName = String(v.variantName || '').trim() || 'Default';
+        const sku =
+          String(v.sku || '').trim() ||
+          `${String(product.productId).trim()}|${variantName}`;
+        return {
+          productId: String(product.productId).trim(),
+          variantName,
+          sku,
+          productLabel: productLabel(String(product.name || ''), variantName),
+          supplierName: String(product.supplier || '').trim(),
+        };
+      }),
+  );
+}
+
+const fetchSupplierSupplyMoveCandidates = async (args: {
+  userId: number;
+  supplierId: string;
+}) => {
+  const userId = Number(args.userId);
+  if (!Number.isFinite(userId) || userId <= 0) throw new Error('Invalid userId format');
+  const supplierKey = String(args.supplierId || '').trim();
+  if (!supplierKey) return [];
+
+  const supplier = await prisma.supplier.findFirst({
+    where: {
+      userId,
+      OR: isNumericId(supplierKey)
+        ? [{ id: Number(supplierKey) }, { supplierId: supplierKey }]
+        : [{ supplierId: supplierKey }],
+    },
+    select: {
+      id: true,
+      name: true,
+      supplyRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] },
+    },
+  });
+  if (!supplier) return [];
+
+  const [variants, suppliers] = await Promise.all([
+    loadCatalogVariantsForUser(userId),
+    prisma.supplier.findMany({
+      where: { userId },
+      select: { name: true },
+    }),
+  ]);
+
+  const { supplyDetailFromRecord } = await import('@/lib/suppliers/supplyRecordStore');
+  const { findSupplyMoveCandidates } = await import('@/lib/suppliers/orphanedSupplies');
+  return findSupplyMoveCandidates({
+    supplies: supplier.supplyRecords.map(supplyDetailFromRecord),
+    currentSupplierName: supplier.name,
+    variants,
+    supplierNames: suppliers.map((s) => s.name),
+  });
+};
+
+const moveSupplierSupplies = async (args: {
+  userId: number;
+  fromSupplierId: string;
+  variants: Array<{ productId: string; variantName: string }>;
+}) => {
+  const userId = Number(args.userId);
+  if (!Number.isFinite(userId) || userId <= 0) throw new Error('Invalid userId format');
+  const fromKey = String(args.fromSupplierId || '').trim();
+  const variants = (args.variants || [])
+    .map((v) => ({
+      productId: String(v.productId || '').trim(),
+      variantName: String(v.variantName || '').trim(),
+    }))
+    .filter((v) => v.productId && v.variantName);
+  if (!fromKey || variants.length === 0) {
+    return { success: false, movedHistoryCount: 0, supplies: null, message: 'Nothing to move' };
+  }
+
+  const { supplyDetailFromRecord, replaceSupplierSupplyRecords, loadSupplierSuppliesJson } =
+    await import('@/lib/suppliers/supplyRecordStore');
+  const { pickRowsForVariants } = await import('@/lib/suppliers/orphanedSupplies');
+  const { mergeSupplyLists, belongsToProduct } = await import('@/lib/suppliers/syncProductSupplies');
+  const { isSupplyHistoryRow } = await import('@/lib/suppliers/supplyRecords');
+
+  const result = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(${userId}, ${879_332})`;
+
+    const fromSupplier = await tx.supplier.findFirst({
+      where: {
+        userId,
+        OR: isNumericId(fromKey)
+          ? [{ id: Number(fromKey) }, { supplierId: fromKey }]
+          : [{ supplierId: fromKey }],
+      },
+      select: {
+        id: true,
+        name: true,
+        supplyRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] },
+      },
+    });
+    if (!fromSupplier) throw new Error('Supplier not found');
+
+    const catalogVariants = await loadCatalogVariantsForUser(userId);
+    const selectedKeys = new Set(
+      variants.map((v) => `${v.productId.toLowerCase()}|${v.variantName.toLowerCase()}`),
+    );
+    const targetNameByKey = new Map<string, string>();
+    for (const variant of catalogVariants) {
+      const key = `${variant.productId.toLowerCase()}|${variant.variantName.toLowerCase()}`;
+      if (selectedKeys.has(key) && variant.supplierName) {
+        targetNameByKey.set(key, variant.supplierName);
+      }
+    }
+    if (targetNameByKey.size === 0) {
+      return { movedHistoryCount: 0, fromId: fromSupplier.id };
+    }
+
+    const allSuppliers = await tx.supplier.findMany({
+      where: { userId },
+      orderBy: { id: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        supplyRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] },
+      },
+    });
+    const supplierByName = new Map(
+      allSuppliers.map((s) => [String(s.name || '').trim().toLowerCase(), s] as const),
+    );
+
+    const fromSupplies = fromSupplier.supplyRecords.map(supplyDetailFromRecord);
+    const { keep, move } = pickRowsForVariants(fromSupplies, variants, catalogVariants);
+    if (move.length === 0) {
+      return { movedHistoryCount: 0, fromId: fromSupplier.id };
+    }
+
+    // Group moved rows by target supplier name.
+    const moveByTarget = new Map<number, typeof move>();
+    const unresolved: typeof move = [];
+    for (const row of move) {
+      const key = `${String(row.productId || '').trim().toLowerCase()}|${String(row.variantName || '').trim().toLowerCase()}`;
+      const targetName = targetNameByKey.get(key) || '';
+      const target = supplierByName.get(targetName.trim().toLowerCase());
+      if (!target || target.id === fromSupplier.id) {
+        unresolved.push(row);
+        continue;
+      }
+      const list = moveByTarget.get(target.id) || [];
+      list.push(row);
+      moveByTarget.set(target.id, list);
+    }
+
+    const nextFrom = [...keep, ...unresolved];
+    await replaceSupplierSupplyRecords(tx, fromSupplier.id, nextFrom);
+    await tx.supplier.update({
+      where: { id: fromSupplier.id },
+      data: { updatedAt: new Date() },
+    });
+
+    let movedHistoryCount = 0;
+    for (const [targetId, rows] of moveByTarget) {
+      movedHistoryCount += rows.filter((r) => isSupplyHistoryRow(r)).length;
+      const targetRow = allSuppliers.find((s) => s.id === targetId);
+      const existing = (targetRow?.supplyRecords || []).map(supplyDetailFromRecord);
+      // Drop the target's stock-mirror AUTO rows for these variants so moved
+      // summary/history from the old supplier become the source of truth.
+      const existingKept = existing.filter((row) => {
+        const pid = String(row.productId || '').trim();
+        const vn = String(row.variantName || '').trim();
+        if (pid && vn) {
+          return !selectedKeys.has(`${pid.toLowerCase()}|${vn.toLowerCase()}`);
+        }
+        return !variants.some((v) =>
+          belongsToProduct(row, { productId: v.productId }, {
+            skus: catalogVariants
+              .filter(
+                (c) =>
+                  c.productId.toLowerCase() === v.productId.toLowerCase() &&
+                  c.variantName.toLowerCase() === v.variantName.toLowerCase(),
+              )
+              .map((c) => c.sku),
+            labels: catalogVariants
+              .filter(
+                (c) =>
+                  c.productId.toLowerCase() === v.productId.toLowerCase() &&
+                  c.variantName.toLowerCase() === v.variantName.toLowerCase(),
+              )
+              .map((c) => c.productLabel),
+          }),
+        );
+      });
+      const merged = mergeSupplyLists(existingKept, rows);
+      for (const row of merged) {
+        const pid = String(row.productId || '').trim();
+        const vn = String(row.variantName || '').trim();
+        if (!pid || !vn) continue;
+        const catalog = catalogVariants.find(
+          (v) =>
+            v.productId.toLowerCase() === pid.toLowerCase() &&
+            v.variantName.toLowerCase() === vn.toLowerCase(),
+        );
+        if (!catalog) continue;
+        if (!row.sku) row.sku = catalog.sku;
+        if (!row.product) row.product = catalog.productLabel;
+      }
+      await replaceSupplierSupplyRecords(tx, targetId, merged);
+      await tx.supplier.update({
+        where: { id: targetId },
+        data: { updatedAt: new Date() },
+      });
+    }
+
+    return { movedHistoryCount, fromId: fromSupplier.id };
+  });
+
+  try {
+    const { invalidateDashboardCache } = await import('@/lib/queryCache');
+    await invalidateDashboardCache(userId);
+  } catch {
+    // Ignore cache invalidation errors
+  }
+
+  const supplies = await loadSupplierSuppliesJson(prisma, result.fromId);
+  return {
+    success: true,
+    movedHistoryCount: result.movedHistoryCount,
+    supplies,
+    message: `Moved ${result.movedHistoryCount} history record(s)`,
+  };
+};
+
 /**
  * Record a dated supply event (history). Updates summary totals.
  * If suppliedDate is today, also increases matched variant current stock.
@@ -1962,6 +2242,7 @@ export const contactsResolvers = {
     buyer: withDashboardAuth(fetchSingleBuyer),
     suppliers: withDashboardAuth(fetchSuppliersConnection),
     supplier: withDashboardAuth(fetchSingleSupplier),
+    supplierSupplyMoveCandidates: withDashboardAuth(fetchSupplierSupplyMoveCandidates),
   },
   Mutation: {
     createBuyer: withDashboardAuth(createBuyer),
@@ -1976,6 +2257,7 @@ export const contactsResolvers = {
     bulkDeleteSuppliers: withDashboardAuth(bulkDeleteSuppliers),
     syncSuppliersFromProducts: withDashboardAuth(syncSuppliersFromProducts),
     recordSupplierSupply: withDashboardAuth(recordSupplierSupply),
+    moveSupplierSupplies: withDashboardAuth(moveSupplierSupplies),
   },
 };
 

@@ -1,12 +1,10 @@
 'use client';
 
 import React from "react";
-import { Phone, MapPin, Tag, Truck, Info, Calendar, BarChart2, ArrowLeft, Edit, Copy, Mail, ChevronLeft, ChevronRight, User, Upload, Download, CheckCircle2, AlertTriangle, Plus } from "lucide-react";
+import { Phone, MapPin, Tag, Truck, Info, Calendar, BarChart2, ArrowLeft, Edit, Copy, Mail, ChevronLeft, ChevronRight, User, Plus } from "lucide-react";
 import Link from "next/link";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts';
 import { useState, useEffect } from 'react';
-import * as XLSX from 'xlsx';
-import ImportOrdersModal from './ImportOrdersModal';
 import { Buyer, OrderDetail } from '@/types/client';
 import { formatDate, formatNumber } from '@/utils/dateUtils';
 import { logisticsLastVisit } from '@/utils/buyerLogistics';
@@ -144,10 +142,6 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
   const userCurrency = user?.currency || getDefaultCurrency();
   const getFieldLabel = (key: ProfileFieldKey) =>
     tBuyersProfile(`fields.${key}` as Parameters<typeof tBuyersProfile>[0]);
-  const [showImportOrders, setShowImportOrders] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [updateError, setUpdateError] = useState('');
-  const [updateSuccess, setUpdateSuccess] = useState('');
   const [buyerOffers, setBuyerOffers] = useState<Offer[]>([]);
   const [offersLoading, setOffersLoading] = useState(false);
   
@@ -252,21 +246,6 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
   const totalOrderRows = orderDetails.length;
   const totalOrderPages = Math.max(1, Math.ceil(totalOrderRows / orderRowsPerPage));
   const pagedOrderDetails = orderDetails.slice((orderPage - 1) * orderRowsPerPage, orderPage * orderRowsPerPage);
-
-  function handleExportOrders() {
-    const headers = ['Product', 'Total Orders', 'Total Spend', 'Last Order Date', 'Outstanding'];
-    const rows = orderDetails.map((o: OrderDetail) => [
-      dedupeProductNames(o.product),
-      o.totalOrders,
-      o.totalSpend,
-      o.lastOrderDate,
-      o.outstanding,
-    ]);
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Orders');
-    XLSX.writeFile(wb, `${buyer.storeName || 'buyer'}-orders.xlsx`);
-  }
 
   return (
     <div className="mx-auto flex w-full min-w-0 flex-col gap-4 rounded-lg border border-[#e6e6e6] bg-white p-4">
@@ -640,97 +619,9 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
       </div>
       {/* Second Row: Order/Product Details */}
       <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 relative">
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4">
           <div className="font-semibold text-md text-black">{tBuyersProfile('orderSection')}</div>
-          <div className="flex gap-2">
-            <button 
-              className="flex items-center gap-1 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm disabled:opacity-50" 
-              onClick={() => setShowImportOrders(true)}
-              disabled={isUpdating}
-            >
-              {isUpdating ? (
-                <div className="w-4 h-4 border-2 border-[#0a61d7] border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                <Upload className="w-4 h-4" />
-              )}
-              {isUpdating ? tBuyersProfile('importing') : tBuyersProfile('importOrders')}
-            </button>
-            <button className="flex items-center gap-1 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium hover:bg-gray-100 transition text-sm" onClick={handleExportOrders}>
-              <Download className="w-4 h-4" /> {tBuyersProfile('exportOrders')}
-            </button>
-          </div>
         </div>
-        {/* Success and Error Messages */}
-        {updateSuccess && (
-          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-green-500" />
-            <span className="text-green-700 text-sm">{updateSuccess}</span>
-          </div>
-        )}
-        
-        {updateError && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-red-500" />
-            <span className="text-red-700 text-sm">{updateError}</span>
-          </div>
-        )}
-        
-        {showImportOrders && (
-          <ImportOrdersModal
-            open={showImportOrders}
-            onClose={() => setShowImportOrders(false)}
-            onImport={async (newOrderDetails) => {
-              try {
-                setIsUpdating(true);
-                setUpdateError('');
-                setUpdateSuccess('');
-                
-                // Merge new orders with existing ones instead of replacing
-                const mergedOrderDetails = [...orderDetails, ...newOrderDetails];
-                
-                // Update the buyer with merged order details
-                const UPDATE_BUYER_MUTATION = `
-                  mutation UpdateBuyer(
-                    $userId: Int!
-                    $id: String
-                    $buyerId: String
-                    $orderDetails: String
-                  ) {
-                    updateBuyer(
-                      userId: $userId
-                      id: $id
-                      buyerId: $buyerId
-                      orderDetails: $orderDetails
-                    ) {
-                      id
-                      buyerId
-                      orderDetails
-                    }
-                  }
-                `;
-                
-                await fetchGraphQL(UPDATE_BUYER_MUTATION, {
-                  userId: buyer.userId,
-                  buyerId: buyer.buyerId,
-                    orderDetails: JSON.stringify(mergedOrderDetails),
-                });
-                
-                // Close modal and show success message
-                setShowImportOrders(false);
-                setUpdateSuccess(tBuyersProfile('importSuccess', { count: newOrderDetails.length }));
-                
-                // Refresh the page to show updated data
-                setTimeout(() => {
-                  window.location.reload();
-                }, 1500);
-              } catch (error) {
-                setUpdateError(error instanceof Error ? error.message : tBuyersProfile('importFailed'));
-              } finally {
-                setIsUpdating(false);
-              }
-            }}
-          />
-        )}
         <div className="flex flex-wrap gap-4 mb-2">
           <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">{tBuyersProfile('totalOrdersLabel')} <span className="font-bold text-black">{totalOrders}</span></div>
           <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">{tBuyersProfile('totalSpendLabel')} <span className="font-bold text-[#0a61d7]">{formatCurrency(totalSpend, userCurrency)}</span></div>

@@ -3,7 +3,12 @@ import React from "react";
 import { Phone, MapPin, Store, Tag, Truck, Info, FileText, Calendar, BarChart2, ArrowLeft, Edit, Copy, Mail, ChevronLeft, ChevronRight, User } from "lucide-react";
 import Link from "next/link";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { fetchGraphQL } from '@/lib/graphqlClient';
+import SupplyMoveModal, {
+  SupplyMoveNotice,
+  type SupplyMoveCandidateRow,
+} from '@/components/clientmanagement/SupplyMoveModal';
 import { Supplier, SupplyDetail } from '@/types/client';
 import { formatDate, formatNumber } from '@/utils/dateUtils';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
@@ -13,6 +18,7 @@ import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
 import {
   isSupplyHistoryRow,
+  mergeDuplicateSummaryRows,
   partitionSupplies,
 } from '@/lib/suppliers/supplyRecords';
 
@@ -73,6 +79,10 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
   // Get user currency for display
   const userCurrency = user?.currency || getDefaultCurrency();
   const [suppliesTab, setSuppliesTab] = useState<'summary' | 'history'>('history');
+  const [moveCandidates, setMoveCandidates] = useState<SupplyMoveCandidateRow[]>([]);
+  const [showMoveModal, setShowMoveModal] = useState(false);
+  const [movingSupplies, setMovingSupplies] = useState(false);
+  const [moveMessage, setMoveMessage] = useState('');
   
   // SupplierProfile - Raw supplier data
   
@@ -130,10 +140,98 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
   };
   
   const analyticsData = getSupplierAnalytics(suppliesRaw || '', user?.language);
-  const { history: historySupplies, summary: summarySupplies } = useMemo(
-    () => partitionSupplies(Array.isArray(supplies) ? supplies : []),
-    [supplies],
-  );
+  const { history: historySupplies, summary: summarySupplies } = useMemo(() => {
+    const buckets = partitionSupplies(Array.isArray(supplies) ? supplies : []);
+    // One total per SKU, even for rows saved before imports matched by SKU.
+    return { history: buckets.history, summary: mergeDuplicateSummaryRows(buckets.summary) };
+  }, [supplies]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const userId = user?.id;
+    const supplierKey = String(supplier.supplierId || supplier.id || '').trim();
+    if (!userId || !supplierKey) {
+      setMoveCandidates([]);
+      return;
+    }
+    (async () => {
+      try {
+        const data = await fetchGraphQL<{
+          supplierSupplyMoveCandidates: SupplyMoveCandidateRow[];
+        }>(
+          `query SupplierSupplyMoveCandidates($userId: Int!, $supplierId: String!) {
+            supplierSupplyMoveCandidates(userId: $userId, supplierId: $supplierId) {
+              productId
+              variantName
+              sku
+              productLabel
+              targetSupplierName
+              historyCount
+              totalSupplied
+              totalValue
+            }
+          }`,
+          { userId, supplierId: supplierKey },
+        );
+        if (!cancelled) {
+          setMoveCandidates(data.supplierSupplyMoveCandidates || []);
+        }
+      } catch {
+        if (!cancelled) setMoveCandidates([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, supplier.supplierId, supplier.id, supplier.supplies]);
+
+  const handleConfirmSupplyMove = async (
+    variants: Array<{ productId: string; variantName: string }>,
+  ) => {
+    const userId = user?.id;
+    const supplierKey = String(supplier.supplierId || supplier.id || '').trim();
+    if (!userId || !supplierKey || variants.length === 0) return;
+    setMovingSupplies(true);
+    setMoveMessage('');
+    try {
+      const data = await fetchGraphQL<{
+        moveSupplierSupplies: {
+          success: boolean;
+          movedHistoryCount: number;
+          message?: string | null;
+        };
+      }>(
+        `mutation MoveSupplierSupplies(
+          $userId: Int!
+          $fromSupplierId: String!
+          $variants: [SupplyMoveVariantInput!]!
+        ) {
+          moveSupplierSupplies(
+            userId: $userId
+            fromSupplierId: $fromSupplierId
+            variants: $variants
+          ) {
+            success
+            movedHistoryCount
+            message
+          }
+        }`,
+        { userId, fromSupplierId: supplierKey, variants },
+      );
+      const result = data.moveSupplierSupplies;
+      setShowMoveModal(false);
+      setMoveMessage(
+        tSuppliersProfile('supplyMoveSuccess', { count: result.movedHistoryCount || 0 }),
+      );
+      onUpdate?.();
+    } catch (error) {
+      setMoveMessage(
+        error instanceof Error ? error.message : tSuppliersProfile('supplyMoveFailed'),
+      );
+    } finally {
+      setMovingSupplies(false);
+    }
+  };
 
   // Header totals come from summary rows (match totals + rolled-up history), avoiding double-count.
   const totalSupplied =
@@ -376,6 +474,25 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
         <div className="flex items-center justify-between mb-4">
           <div className="font-semibold text-md text-black">{tSuppliersProfile('suppliesSection')}</div>
         </div>
+        <SupplyMoveNotice
+          count={moveCandidates.length}
+          onReviewAction={() => setShowMoveModal(true)}
+        />
+        {moveMessage ? (
+          <div className="mb-3 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+            {moveMessage}
+          </div>
+        ) : null}
+        {showMoveModal && (
+          <SupplyMoveModal
+            open={showMoveModal}
+            candidates={moveCandidates}
+            currency={userCurrency}
+            submitting={movingSupplies}
+            onCloseAction={() => setShowMoveModal(false)}
+            onConfirmAction={handleConfirmSupplyMove}
+          />
+        )}
         {/* Summary Statistics */}
         <div className="flex flex-wrap gap-4 mb-4">
           <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">
@@ -446,7 +563,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
               ) : suppliesTab === 'history' ? (
                 pagedSupplies.map((supply: SupplyDetail, idx: number) => (
                   <tr
-                    key={`hist-${supply.suppliesno || idx}-${supplyPage}`}
+                    key={`hist-${supply.suppliesno || ''}-${idx}-${supplyPage}`}
                     className="border-b last:border-b-0"
                   >
                     <td className="py-4 px-4 text-black">{String(supply.lastDelivery || '—')}</td>

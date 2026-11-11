@@ -21,7 +21,16 @@ import { ClientField, ClientInput } from '@/components/clientmanagement/ClientFi
 import { ClientValidatedField } from '@/components/clientmanagement/ClientValidatedField';
 import { CLIENT_SELECT_BUTTON_CLASS } from '@/components/clientmanagement/client-field-styles';
 import ImportSuppliesModal from '@/components/clientmanagement/ImportSuppliesModal';
-import { partitionSupplies, serializeHistorySupplyForStorage } from '@/lib/suppliers/supplyRecords';
+import ImportSelectionCheckbox from '@/components/clientmanagement/ImportSelectionCheckbox';
+import SupplyMoveModal, {
+  SupplyMoveNotice,
+  type SupplyMoveCandidateRow,
+} from '@/components/clientmanagement/SupplyMoveModal';
+import {
+  mergeDuplicateSummaryRows,
+  partitionSupplies,
+  serializeHistorySupplyForStorage,
+} from '@/lib/suppliers/supplyRecords';
 import type { SupplyDeleteMarker } from '@/lib/suppliers/applySupplierSuppliesSave';
 
 const categories = ["Instant Noodles", "Mineral Water", "Rice", "Bread"];
@@ -53,13 +62,18 @@ function catalogProductLabel(productName: string, variantName: string): string {
   return `${name} (${variant})`;
 }
 
-function buildCatalogOptions(products: ProductCatalogNode[], supplierName?: string): CatalogVariantOption[] {
+function buildCatalogOptions(
+  products: ProductCatalogNode[],
+  supplierName?: string,
+  options?: { fallbackToAll?: boolean },
+): CatalogVariantOption[] {
   const supplierKey = String(supplierName || '').trim().toLowerCase();
   const matched = supplierKey
     ? products.filter((p) => String(p.supplier || '').trim().toLowerCase() === supplierKey)
-    : products;
-  // Prefer supplier-matched products; fall back to full catalog if none match yet.
-  const source = matched.length > 0 ? matched : products;
+    : [];
+  // Prefer supplier-matched products; optionally fall back to full catalog for dropdowns.
+  const allowFallback = options?.fallbackToAll !== false;
+  const source = matched.length > 0 ? matched : allowFallback ? products : [];
   const out: CatalogVariantOption[] = [];
   const seen = new Set<string>();
 
@@ -298,11 +312,9 @@ function parseSupplyBuckets(raw?: string | null): { history: SupplyDetail[]; sum
     const { history, summary } = partitionSupplies(parsed as SupplyDetail[]);
     return {
       history: history.length > 0
-        ? history.map((row, index) =>
-            ensureHistoryId(normalizeSupplyRow(row, 'history'), index),
-          )
+        ? ensureUniqueHistoryIds(history.map((row) => normalizeSupplyRow(row, 'history')))
         : [emptyHistoryRow()],
-      summary: summary.map((row) => normalizeSupplyRow(row, 'summary')),
+      summary: mergeDuplicateSummaryRows(summary).map((row) => normalizeSupplyRow(row, 'summary')),
     };
   } catch {
     return { history: [emptyHistoryRow()], summary: [] };
@@ -337,16 +349,44 @@ function stableHistoryId(row: SupplyDetail, index: number): string {
   return `HIST-S${hash.toString(36)}`;
 }
 
-function ensureHistoryId(row: SupplyDetail, index = 0): SupplyDetail {
-  if (String(row.suppliesno || '').trim()) {
-    return { ...row, recordType: 'history' };
-  }
-  return {
-    ...row,
-    // Prefer a content-stable id so blank legacy rows do not look "new" on every save.
-    suppliesno: stableHistoryId(row, index),
-    recordType: 'history',
-  };
+/** Fresh random history id that is not in `taken` (and is added to it). */
+function newHistoryId(taken: Set<string>): string {
+  let id = '';
+  do {
+    id = `HIST-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  } while (taken.has(id));
+  taken.add(id);
+  return id;
+}
+
+/**
+ * Give every history row its own suppliesno.
+ * - Saved ids are kept (first row wins when older imports wrote the same id twice).
+ * - Blank ids prefer a content-stable id so legacy rows do not look "new" on every save.
+ * - Anything that would collide gets a fresh random id.
+ */
+function ensureUniqueHistoryIds(rows: SupplyDetail[]): SupplyDetail[] {
+  const taken = new Set<string>();
+  // Claim saved ids first so a generated id can never displace one.
+  const savedIds = rows.map((row) => {
+    const id = String(row.suppliesno || '').trim();
+    if (!id || taken.has(id)) return '';
+    taken.add(id);
+    return id;
+  });
+  return rows.map((row, index) => {
+    let id = savedIds[index];
+    if (!id) {
+      const stable = String(row.suppliesno || '').trim() ? '' : stableHistoryId(row, index);
+      if (stable && !taken.has(stable)) {
+        taken.add(stable);
+        id = stable;
+      } else {
+        id = newHistoryId(taken);
+      }
+    }
+    return { ...row, suppliesno: id, recordType: 'history' };
+  });
 }
 
 interface SupplierModalProps {
@@ -358,7 +398,7 @@ interface SupplierModalProps {
 export default function SupplierModal({ initialData, mode = 'add', onSave }: SupplierModalProps) {
   const router = useRouter();
   const user = useUserStore(state => state.user);
-  const { tSuppliersModal, tSuppliersProfile, tShared, translateStatus } = useClientsTranslations();
+  const { tSuppliersModal, tSuppliersProfile, tShared, tImport, translateStatus } = useClientsTranslations();
   const isEditMode = mode === 'edit';
 
   // Get currency for display - safe to use on both server and client
@@ -416,8 +456,13 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   const [catalogProducts, setCatalogProducts] = useState<ProductCatalogNode[]>([]);
   const [pendingDeleteMarkers, setPendingDeleteMarkers] = useState<SupplyDeleteMarker[]>([]);
   const [showDeleteHistoryModal, setShowDeleteHistoryModal] = useState(false);
-  const [deleteHistoryIdx, setDeleteHistoryIdx] = useState<number | null>(null);
+  // Row indices awaiting delete confirmation: one for the row trash, many for bulk delete.
+  const [deleteHistoryIndices, setDeleteHistoryIndices] = useState<number[]>([]);
   const [deleteUpdateStock, setDeleteUpdateStock] = useState(false);
+  const [selectedHistoryRows, setSelectedHistoryRows] = useState<Set<number>>(new Set());
+  const [moveCandidates, setMoveCandidates] = useState<SupplyMoveCandidateRow[]>([]);
+  const [showMoveModal, setShowMoveModal] = useState(false);
+  const [movingSupplies, setMovingSupplies] = useState(false);
 
   // Enhanced state management with proper typing
   const [saving, setSaving] = useState(false);
@@ -562,6 +607,15 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     return base;
   }, [catalogProducts, form.supplierName, initialData?.name, historyRows]);
 
+  /** Strict ownership list for import validation — no full-catalog fallback. */
+  const supplierOwnedCatalog = useMemo(
+    () =>
+      buildCatalogOptions(catalogProducts, form.supplierName || initialData?.name, {
+        fallbackToAll: false,
+      }).map((opt) => ({ sku: opt.sku, product: opt.product })),
+    [catalogProducts, form.supplierName, initialData?.name],
+  );
+
   const skuDropdownOptions = useMemo(
     () =>
       catalogOptions.map((opt) => ({
@@ -642,46 +696,89 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     setHistoryRows((rows) => [...rows, emptyHistoryRow()]);
   }, []);
 
-  const openDeleteHistoryModal = useCallback((idx: number) => {
-    const row = historyRows[idx];
-    if (!row || isBlankHistoryRow(row)) {
-      setHistoryRows((rows) => {
-        if (rows.length <= 1) return [emptyHistoryRow()];
-        return rows.filter((_, i) => i !== idx);
-      });
+  const allHistoryRowsSelected = historyRows.length > 0 && selectedHistoryRows.size === historyRows.length;
+  const someHistoryRowsSelected = selectedHistoryRows.size > 0 && !allHistoryRowsSelected;
+
+  const toggleHistoryRowSelection = useCallback((idx: number) => {
+    setSelectedHistoryRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  }, []);
+
+  const toggleAllHistoryRowSelection = useCallback(() => {
+    setSelectedHistoryRows(
+      allHistoryRowsSelected ? new Set() : new Set(historyRows.map((_, i) => i)),
+    );
+  }, [allHistoryRowsSelected, historyRows]);
+
+  const handleBulkUpdateStock = useCallback(() => {
+    setHistoryRows((rows) =>
+      rows.map((r, i) =>
+        selectedHistoryRows.has(i)
+          ? {
+              ...r,
+              updateCurrentStock: true,
+              // Same rule as the row checkbox: only the server sets stockApplied.
+              stockApplied: r.stockApplied === true,
+              recordType: 'history',
+            }
+          : r,
+      ),
+    );
+    setSelectedHistoryRows(new Set());
+  }, [selectedHistoryRows]);
+
+  const removeHistoryRows = useCallback((indices: number[]) => {
+    const doomed = new Set(indices);
+    setHistoryRows((rows) => {
+      const remaining = rows.filter((_, i) => !doomed.has(i));
+      return remaining.length > 0 ? remaining : [emptyHistoryRow()];
+    });
+    // Row indices shift after a delete, so any selection is stale.
+    setSelectedHistoryRows(new Set());
+  }, []);
+
+  const openDeleteHistoryModal = useCallback((indices: number[]) => {
+    const targets = indices.filter((i) => historyRows[i]);
+    if (targets.length === 0) return;
+    // Blank rows were never saved, so there is nothing to confirm or reverse.
+    if (targets.every((i) => isBlankHistoryRow(historyRows[i]))) {
+      removeHistoryRows(targets);
       return;
     }
-    setDeleteHistoryIdx(idx);
+    setDeleteHistoryIndices(targets);
     // Default unchecked so stock is preserved unless the user opts in.
     setDeleteUpdateStock(false);
     setShowDeleteHistoryModal(true);
-  }, [historyRows]);
+  }, [historyRows, removeHistoryRows]);
 
   const handleDeleteHistoryCancel = useCallback(() => {
     setShowDeleteHistoryModal(false);
-    setDeleteHistoryIdx(null);
+    setDeleteHistoryIndices([]);
     setDeleteUpdateStock(false);
   }, []);
 
   const handleDeleteHistoryConfirm = useCallback(() => {
-    if (deleteHistoryIdx == null) return;
-    const row = historyRows[deleteHistoryIdx];
-    if (row && !isBlankHistoryRow(row)) {
-      const marker: SupplyDeleteMarker = {
+    if (deleteHistoryIndices.length === 0) return;
+    const markers = deleteHistoryIndices
+      .map((i) => historyRows[i])
+      .filter((row) => row && !isBlankHistoryRow(row))
+      .map((row): SupplyDeleteMarker => ({
         ...normalizeSupplyRow(row, 'history'),
         __delete: true,
         updateCurrentStock: deleteUpdateStock,
-      };
-      setPendingDeleteMarkers((prev) => [...prev, marker]);
+      }));
+    if (markers.length > 0) {
+      setPendingDeleteMarkers((prev) => [...prev, ...markers]);
     }
-    setHistoryRows((rows) => {
-      if (rows.length <= 1) return [emptyHistoryRow()];
-      return rows.filter((_, i) => i !== deleteHistoryIdx);
-    });
+    removeHistoryRows(deleteHistoryIndices);
     setShowDeleteHistoryModal(false);
-    setDeleteHistoryIdx(null);
+    setDeleteHistoryIndices([]);
     setDeleteUpdateStock(false);
-  }, [deleteHistoryIdx, deleteUpdateStock, historyRows]);
+  }, [deleteHistoryIndices, deleteUpdateStock, historyRows, removeHistoryRows]);
 
   const handleExportHistory = useCallback(() => {
     const exportRows = historyRows.filter((row) => !isBlankHistoryRow(row));
@@ -700,21 +797,28 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   }, [historyRows, form.supplierName, id]);
 
   const handleImportHistory = useCallback((newSupplies: SupplyDetail[]) => {
-    const imported = newSupplies.map((row) =>
-      ensureHistoryId({
-        ...normalizeSupplyRow(row, 'history'),
-        suppliesno: '',
-        // Imports are historical by default — no stock/summary side effects.
-        updateCurrentStock: false,
-      }),
+    // Every imported row is a new supply event: always a fresh id, never one already
+    // used by a row in the table or by a row deleted in this session.
+    const taken = new Set(
+      [...historyRows, ...pendingDeleteMarkers]
+        .map((row) => String(row.suppliesno || '').trim())
+        .filter(Boolean),
     );
+    const imported = newSupplies.map((row): SupplyDetail => ({
+      ...normalizeSupplyRow(row, 'history'),
+      suppliesno: newHistoryId(taken),
+      // Imports are historical by default — totals only, no product stock change.
+      updateCurrentStock: false,
+    }));
     setHistoryRows((rows) => {
       const existing = rows.filter((row) => !isBlankHistoryRow(row));
       return existing.length > 0 ? [...existing, ...imported] : imported.length > 0 ? imported : [emptyHistoryRow()];
     });
+    // Blank rows are dropped on import, which shifts indices.
+    setSelectedHistoryRows(new Set());
     setSuppliesTab('history');
     setShowImportSupplies(false);
-  }, []);
+  }, [historyRows, pendingDeleteMarkers]);
 
   // Hydrate form when initialData is provided (edit)
   useEffect(() => {
@@ -744,9 +848,10 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     setId(initialData.supplierId || generateSupplierId());
     setSummaryRows(buckets.summary);
     setHistoryRows(buckets.history);
+    setSelectedHistoryRows(new Set());
     setPendingDeleteMarkers([]);
     setShowDeleteHistoryModal(false);
-    setDeleteHistoryIdx(null);
+    setDeleteHistoryIndices([]);
     setDeleteUpdateStock(false);
     setSuppliesTab('history');
     setValidationErrors({});
@@ -754,6 +859,107 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     setSuccess('');
     setSubmitAttempted(false);
   }, [initialData, isEditMode, safeParseJSON, getLatestDeliveryDate]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const userId = user?.id;
+    const supplierKey = String(initialData?.supplierId || id || '').trim();
+    if (!isEditMode || !userId || !supplierKey) {
+      setMoveCandidates([]);
+      return;
+    }
+    (async () => {
+      try {
+        const data = await fetchGraphQL<{
+          supplierSupplyMoveCandidates: SupplyMoveCandidateRow[];
+        }>(
+          `query SupplierSupplyMoveCandidates($userId: Int!, $supplierId: String!) {
+            supplierSupplyMoveCandidates(userId: $userId, supplierId: $supplierId) {
+              productId
+              variantName
+              sku
+              productLabel
+              targetSupplierName
+              historyCount
+              totalSupplied
+              totalValue
+            }
+          }`,
+          { userId, supplierId: supplierKey },
+        );
+        if (!cancelled) setMoveCandidates(data.supplierSupplyMoveCandidates || []);
+      } catch {
+        if (!cancelled) setMoveCandidates([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isEditMode, user?.id, initialData?.supplierId, initialData?.supplies, id]);
+
+  const handleConfirmSupplyMove = useCallback(
+    async (variants: Array<{ productId: string; variantName: string }>) => {
+      const userId = user?.id;
+      const supplierKey = String(initialData?.supplierId || id || '').trim();
+      if (!userId || !supplierKey || variants.length === 0) return;
+      setMovingSupplies(true);
+      try {
+        const data = await fetchGraphQL<{
+          moveSupplierSupplies: {
+            success: boolean;
+            movedHistoryCount: number;
+            supplies?: string | null;
+            message?: string | null;
+          };
+        }>(
+          `mutation MoveSupplierSupplies(
+            $userId: Int!
+            $fromSupplierId: String!
+            $variants: [SupplyMoveVariantInput!]!
+          ) {
+            moveSupplierSupplies(
+              userId: $userId
+              fromSupplierId: $fromSupplierId
+              variants: $variants
+            ) {
+              success
+              movedHistoryCount
+              supplies
+              message
+            }
+          }`,
+          { userId, fromSupplierId: supplierKey, variants },
+        );
+        const result = data.moveSupplierSupplies;
+        const buckets = parseSupplyBuckets(result.supplies);
+        setSummaryRows(buckets.summary);
+        setHistoryRows(
+          buckets.history.length > 0 ? buckets.history : [emptyHistoryRow()],
+        );
+        setSelectedHistoryRows(new Set());
+        setPendingDeleteMarkers([]);
+        setMoveCandidates((prev) =>
+          prev.filter(
+            (row) =>
+              !variants.some(
+                (v) => v.productId === row.productId && v.variantName === row.variantName,
+              ),
+          ),
+        );
+        setShowMoveModal(false);
+        setSuccess(
+          tSuppliersProfile('supplyMoveSuccess', { count: result.movedHistoryCount || 0 }),
+        );
+      } catch (error) {
+        setError(
+          error instanceof Error ? error.message : tSuppliersProfile('supplyMoveFailed'),
+        );
+      } finally {
+        setMovingSupplies(false);
+      }
+    },
+    [user?.id, initialData?.supplierId, id, tSuppliersProfile],
+  );
 
   // Enhanced form submission
   const handleSubmit = useCallback(async (e?: React.FormEvent) => {
@@ -783,9 +989,11 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     setSaving(true);
     
     try {
-      const cleanedHistory = historyRows
-        .filter((row) => !isBlankHistoryRow(row))
-        .map((row, index) => ensureHistoryId(normalizeSupplyRow(row, 'history'), index));
+      const cleanedHistory = ensureUniqueHistoryIds(
+        historyRows
+          .filter((row) => !isBlankHistoryRow(row))
+          .map((row) => normalizeSupplyRow(row, 'history')),
+      );
       const cleanedSummary = summaryRows.map((row) => normalizeSupplyRow(row, 'summary'));
       // Tombstones carry explicit reverse-stock intent from the delete modal.
       const mergedSupplies = [...cleanedSummary, ...cleanedHistory, ...pendingDeleteMarkers];
@@ -1192,12 +1400,50 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                 {tSuppliersProfile('supplyHistoryTab')}
               </button>
             </div>
+            <SupplyMoveNotice
+              count={moveCandidates.length}
+              onReviewAction={() => setShowMoveModal(true)}
+            />
+            {showMoveModal && (
+              <SupplyMoveModal
+                open={showMoveModal}
+                candidates={moveCandidates}
+                currency={user?.currency || getDefaultCurrency()}
+                submitting={movingSupplies}
+                onCloseAction={() => setShowMoveModal(false)}
+                onConfirmAction={handleConfirmSupplyMove}
+              />
+            )}
             {showImportSupplies && (
               <ImportSuppliesModal
                 open={showImportSupplies}
                 onCloseAction={() => setShowImportSupplies(false)}
                 onImportAction={handleImportHistory}
+                supplierCatalog={supplierOwnedCatalog}
               />
+            )}
+            {suppliesTab === 'history' && selectedHistoryRows.size > 0 && (
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#e6e6e6] border-l-4 border-l-green-500 bg-white p-3 shadow-sm">
+                <span className="text-sm font-semibold text-green-700">
+                  {tSuppliersModal('historyRowsSelected', { count: selectedHistoryRows.size })}
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-gray-50"
+                    onClick={handleBulkUpdateStock}
+                  >
+                    {tSuppliersModal('bulkUpdateStock')}
+                  </button>
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700"
+                    onClick={() => openDeleteHistoryModal([...selectedHistoryRows])}
+                  >
+                    <Trash className="h-4 w-4" /> {tSuppliersModal('bulkDelete')}
+                  </button>
+                </div>
+              </div>
             )}
             <div className="overflow-x-auto rounded-lg border border-gray-200">
               {suppliesTab === 'summary' ? (
@@ -1238,6 +1484,14 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                 <table className="min-w-full bg-white text-left text-xs font-medium">
                   <thead>
                     <tr className="whitespace-nowrap bg-gray-100 text-gray-500">
+                      <th className="w-12 px-3 py-2">
+                        <ImportSelectionCheckbox
+                          checked={allHistoryRowsSelected}
+                          indeterminate={someHistoryRowsSelected}
+                          onToggle={toggleAllHistoryRowSelection}
+                          ariaLabel={allHistoryRowsSelected ? tSuppliersModal('deselectAll') : tSuppliersModal('selectAll')}
+                        />
+                      </th>
                       <th className="px-3 py-2 font-medium uppercase">{tSuppliersModal('colNo')}</th>
                       <th className="px-3 py-2 font-medium uppercase">{tSuppliersModal('colSku')}</th>
                       <th className="px-3 py-2 font-medium uppercase">{tSuppliersModal('colProduct')}</th>
@@ -1253,6 +1507,13 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                       const needsSku = isUnresolvedHistoryRow(row);
                       return (
                       <tr key={row.suppliesno || `hist-${idx}`} className="whitespace-nowrap">
+                        <td className="px-3 py-2">
+                          <ImportSelectionCheckbox
+                            checked={selectedHistoryRows.has(idx)}
+                            onToggle={() => toggleHistoryRowSelection(idx)}
+                            ariaLabel={tImport('selectRow', { index: idx + 1 })}
+                          />
+                        </td>
                         <td className="px-3 py-2 font-medium text-black">{idx + 1}</td>
                         <td className="px-3 py-2">
                           <SupplyMatchDropdown
@@ -1367,7 +1628,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                             <button
                               type="button"
                               className="rounded-full p-1 font-bold text-red-500 hover:bg-red-100"
-                              onClick={() => openDeleteHistoryModal(idx)}
+                              onClick={() => openDeleteHistoryModal([idx])}
                               title={tSuppliersModal('deleteHistoryRow')}
                               aria-label={tSuppliersModal('deleteHistoryRow')}
                             >
@@ -1490,10 +1751,14 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
           <div className="w-full max-w-sm rounded-lg border border-[#e6e6e6] bg-white p-4">
             <h2 className="mb-2 text-lg font-bold text-red-500">
-              {tSuppliersModal('deleteHistoryModalTitle')}
+              {deleteHistoryIndices.length > 1
+                ? tSuppliersModal('bulkDeleteHistoryModalTitle')
+                : tSuppliersModal('deleteHistoryModalTitle')}
             </h2>
             <p className="mb-4 text-sm text-gray-500">
-              {tSuppliersModal('deleteHistoryModalConfirm')}
+              {deleteHistoryIndices.length > 1
+                ? tSuppliersModal('bulkDeleteHistoryModalConfirm', { count: deleteHistoryIndices.length })
+                : tSuppliersModal('deleteHistoryModalConfirm')}
             </p>
             <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-lg border border-[#e6e6e6] p-3 hover:bg-gray-50">
               <button
@@ -1521,7 +1786,9 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
               <span className="text-sm text-gray-700">
                 <span className="font-medium text-black">{tSuppliersModal('deleteHistoryUpdateStock')}</span>
                 <span className="mt-0.5 block text-xs text-gray-500">
-                  {tSuppliersModal('deleteHistoryUpdateStockHint')}
+                  {deleteHistoryIndices.length > 1
+                    ? tSuppliersModal('bulkDeleteHistoryUpdateStockHint')
+                    : tSuppliersModal('deleteHistoryUpdateStockHint')}
                 </span>
               </span>
             </label>

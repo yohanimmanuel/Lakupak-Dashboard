@@ -53,6 +53,82 @@ const summaryKey = (row: Pick<SupplyDetail, 'sku' | 'product' | 'productId' | 'v
   return `sku:${sku}|${product}`;
 };
 
+type SummaryIdentity = Pick<SupplyDetail, 'sku' | 'product' | 'productId' | 'variantName'>;
+
+const normKey = (value: unknown): string => String(value ?? '').trim().toLowerCase();
+
+/** False only when both rows are linked to the catalog and point at different variants. */
+const sameCatalogVariantOrUnlinked = (a: SummaryIdentity, b: SummaryIdentity): boolean => {
+  const aId = normKey(a.productId);
+  const bId = normKey(b.productId);
+  if (!aId || !bId) return true;
+  if (aId !== bId) return false;
+  const aVariant = normKey(a.variantName);
+  const bVariant = normKey(b.variantName);
+  return !aVariant || !bVariant || aVariant === bVariant;
+};
+
+/**
+ * Find the summary row a supply event rolls into:
+ * 1. same catalog identity (productId + variantName),
+ * 2. exact SKU — so imported rows without a productId still land on the linked total.
+ *    A row linked to a different catalog variant is never reused (variants can share a SKU);
+ *    if several rows qualify, the one with the same product label wins.
+ * 3. rows without a SKU fall back to the product label.
+ * Returns -1 when nothing matches (caller creates a new total).
+ */
+function findSummaryIndex(rows: SupplyDetail[], target: SummaryIdentity): number {
+  const key = summaryKey(target);
+  const byIdentity = rows.findIndex((row) => isSupplySummaryRow(row) && summaryKey(row) === key);
+  if (byIdentity >= 0) return byIdentity;
+
+  const sku = normKey(target.sku);
+  if (!sku) return -1;
+  const bySku: number[] = [];
+  rows.forEach((row, index) => {
+    if (!isSupplySummaryRow(row)) return;
+    if (normKey(row.sku) !== sku) return;
+    if (!sameCatalogVariantOrUnlinked(row, target)) return;
+    bySku.push(index);
+  });
+  if (bySku.length <= 1) return bySku[0] ?? -1;
+  const product = normKey(target.product);
+  return bySku.find((index) => normKey(rows[index].product) === product) ?? bySku[0];
+}
+
+/**
+ * Fold summary rows that resolve to the same total (see findSummaryIndex) into one row.
+ * Heals duplicates written before SKU matching existed; a no-op when there are none.
+ */
+export function mergeDuplicateSummaryRows(supplies: SupplyDetail[]): SupplyDetail[] {
+  const out: SupplyDetail[] = [];
+  let merged = false;
+  for (const row of supplies) {
+    const idx = isSupplySummaryRow(row) ? findSummaryIndex(out, row) : -1;
+    if (idx < 0) {
+      out.push(row);
+      continue;
+    }
+    const current = out[idx];
+    // Keep the catalog-linked row as the base so its AUTO id / label survive.
+    const rowIsLinked = Boolean(normKey(row.productId)) && !normKey(current.productId);
+    const base = rowIsLinked ? row : current;
+    const other = rowIsLinked ? current : row;
+    out[idx] = {
+      ...base,
+      recordType: 'summary',
+      sku: base.sku || other.sku,
+      product: base.product || other.product,
+      productId: base.productId || other.productId,
+      variantName: base.variantName || other.variantName,
+      totalSupplied: String(toQty(current.totalSupplied) + toQty(row.totalSupplied)),
+      totalValue: String(toQty(current.totalValue) + toQty(row.totalValue)),
+    };
+    merged = true;
+  }
+  return merged ? out : supplies;
+}
+
 /** Add qty/value onto an existing summary row, or create one. */
 export function upsertSummaryFromSupplyEvent(
   supplies: SupplyDetail[],
@@ -91,21 +167,22 @@ export function applySummaryDelta(
   const value = Number.isFinite(rawValue) ? rawValue : 0;
   if (qty === 0 && value === 0) return supplies;
 
-  const key = summaryKey(event);
   const out = supplies.map((row) => ({ ...row }));
-  const idx = out.findIndex(
-    (row) => isSupplySummaryRow(row) && summaryKey(row) === key,
-  );
+  const idx = findSummaryIndex(out, event);
 
   if (idx >= 0) {
     const current = out[idx];
     const nextQty = Math.max(0, toQty(current.totalSupplied) + qty);
     const nextValue = Math.max(0, toQty(current.totalValue) + value);
+    // An unlinked event (e.g. import) matched by SKU must not relabel a catalog-linked total.
+    const keepCurrentLabels = Boolean(normKey(current.productId)) && !normKey(event.productId);
     out[idx] = {
       ...current,
       recordType: 'summary',
-      sku: event.sku || current.sku,
-      product: event.product || current.product,
+      sku: keepCurrentLabels ? current.sku || event.sku : event.sku || current.sku,
+      product: keepCurrentLabels
+        ? current.product || event.product
+        : event.product || current.product,
       productId: event.productId || current.productId,
       variantName: event.variantName || current.variantName,
       totalSupplied: String(nextQty),

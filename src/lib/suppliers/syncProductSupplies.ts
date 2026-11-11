@@ -47,7 +47,7 @@ export function supplyAutoNo(productId: string, variantName: string): string {
   return `AUTO-${supplyIdentity(productId, variantName)}`;
 }
 
-const productLabel = (productName: string, variantName: string): string => {
+export const productLabel = (productName: string, variantName: string): string => {
   const name = productName.trim();
   const variant = variantName.trim();
   if (!variant || variant.toLowerCase() === 'default') return name;
@@ -100,7 +100,7 @@ function buildNewSupplyRow(
   };
 }
 
-function mergeSupplyLists(primary: SupplyDetail[], incoming: SupplyDetail[]): SupplyDetail[] {
+export function mergeSupplyLists(primary: SupplyDetail[], incoming: SupplyDetail[]): SupplyDetail[] {
   const out = [...primary];
   const indexByNo = new Map(
     out
@@ -212,42 +212,65 @@ export function applyProductToSupplierMaps(
   // Unknown supplier name → leave existing auto rows where they are.
   if (!clearMatch && !target) return;
 
-  const movedRows: SupplyDetail[] = [];
+  // Catalog SKU/label hints — used when clearing a supplier match (and by delete).
+  // Reassignment does NOT auto-move history/summary off the old supplier; the old
+  // supplier UI shows an amber notice so the user can choose what to move.
+  const matchHints: ProductSupplyMatchHints = {
+    skus: variants
+      .map((v) => String(v.sku ?? '').trim() || supplyIdentity(product.productId, v.variantName))
+      .filter(Boolean),
+    labels: variants.map((v) => productLabel(product.name, v.variantName)),
+  };
 
+  if (clearMatch) {
+    for (const supplier of suppliers) {
+      const supplies = suppliesBySupplierId.get(supplier.id) || [];
+      const kept = supplies.filter((row) => !belongsToProduct(row, product, matchHints));
+      if (kept.length !== supplies.length) {
+        suppliesBySupplierId.set(supplier.id, kept);
+        dirtySupplierIds.add(supplier.id);
+      }
+    }
+    return;
+  }
+
+  if (!target) return;
+  if (variants.length === 0) return;
+
+  // Stamp catalog identity onto matching rows wherever they still live (no move),
+  // so the old-supplier notice can resolve imports without a productId.
   for (const supplier of suppliers) {
     const supplies = suppliesBySupplierId.get(supplier.id) || [];
-    const kept: SupplyDetail[] = [];
-    let changed = false;
-    const isTarget = target != null && supplier.id === target.id;
-
-    for (const row of supplies) {
-      if (!belongsToProduct(row, product)) {
-        kept.push(row);
-        continue;
-      }
-      if (isTarget) {
-        kept.push(row);
-        continue;
-      }
-      if (clearMatch) {
-        changed = true;
-        continue;
-      }
-      movedRows.push(row);
-      changed = true;
-    }
-
-    if (changed) {
-      suppliesBySupplierId.set(supplier.id, kept);
+    let stamped = false;
+    const next = supplies.map((row) => {
+      if (!belongsToProduct(row, product, matchHints)) return row;
+      const variantName =
+        row.variantName ||
+        variants.find(
+          (v) =>
+            (String(v.sku ?? '').trim() || supplyIdentity(product.productId, v.variantName)) ===
+              String(row.sku || '').trim() ||
+            productLabel(product.name, v.variantName) === String(row.product || '').trim(),
+        )?.variantName ||
+        row.variantName;
+      if (row.productId === product.productId && row.variantName === variantName) return row;
+      stamped = true;
+      return {
+        ...row,
+        productId: row.productId || product.productId,
+        variantName: variantName || row.variantName,
+      };
+    });
+    if (stamped) {
+      suppliesBySupplierId.set(supplier.id, next);
       dirtySupplierIds.add(supplier.id);
     }
   }
 
-  if (clearMatch || !target) return;
-  if (variants.length === 0 && movedRows.length === 0) return;
-
-  let supplies = mergeSupplyLists(suppliesBySupplierId.get(target.id) || [], movedRows);
-  let changed = movedRows.length > 0;
+  // Link product onto the new supplier with an AUTO summary only — leave prior
+  // supplier history/totals in place for the move-candidates notice.
+  let supplies = [...(suppliesBySupplierId.get(target.id) || [])];
+  let changed = false;
 
   for (const variant of variants) {
     const label = productLabel(product.name, variant.variantName);

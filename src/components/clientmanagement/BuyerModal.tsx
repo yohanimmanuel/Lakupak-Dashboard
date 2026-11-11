@@ -1,8 +1,9 @@
 'use client';
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Trash, Plus, User, Upload, AlertCircle, CheckCircle, ChevronDown, ArrowLeft, Save } from 'lucide-react';
+import { Trash, Plus, User, Upload, Download, AlertCircle, CheckCircle, ChevronDown, ArrowLeft, Save } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
 import { Buyer, BuyerFormData, OrderDetail } from '@/types/client';
 import { generateSecureBuyerId } from '@/utils/buyer-security';
@@ -16,6 +17,8 @@ import {
 import { ClientField, ClientInput } from '@/components/clientmanagement/ClientField';
 import { ClientValidatedField } from '@/components/clientmanagement/ClientValidatedField';
 import { CLIENT_SELECT_BUTTON_CLASS } from '@/components/clientmanagement/client-field-styles';
+import ImportOrdersModal from '@/components/clientmanagement/ImportOrdersModal';
+import ImportSelectionCheckbox from '@/components/clientmanagement/ImportSelectionCheckbox';
 import MapComponent from '@/components/ordershipment/MapComponent';
 import { getDefaultCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
@@ -91,6 +94,16 @@ function formatPreferredDays(days: readonly string[]): string {
   return WEEKDAYS.filter((day) => days.includes(day)).join(', ');
 }
 
+function isBlankOrderRow(row: OrderDetail): boolean {
+  return !(
+    String(row.product || '').trim() ||
+    String(row.totalOrders || '').trim() ||
+    String(row.totalSpend || '').trim() ||
+    String(row.lastOrderDate || '').trim() ||
+    String(row.outstanding || '').trim()
+  );
+}
+
 interface BuyerModalProps {
   initialData?: Buyer;
   mode?: 'edit' | 'add';
@@ -100,7 +113,7 @@ interface BuyerModalProps {
 export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerModalProps) {
   const router = useRouter();
   const user = useUserStore(state => state.user);
-  const { tBuyersModal, tShared, translateStatus } = useClientsTranslations();
+  const { tBuyersModal, tBuyersProfile, tShared, tImport, translateStatus } = useClientsTranslations();
   const isEditMode = mode === 'edit';
 
   // Get currency for display - safe to use on both server and client
@@ -189,6 +202,8 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showPreferredDaysDropdown, setShowPreferredDaysDropdown] = useState(false);
+  const [showImportOrders, setShowImportOrders] = useState(false);
+  const [selectedOrderRows, setSelectedOrderRows] = useState<Set<number>>(new Set());
   const [addressPin, setAddressPin] = useState<MapCoordinates | null>(null);
   const [locatingAddress, setLocatingAddress] = useState(false);
   
@@ -337,8 +352,78 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
   const deleteOrderRow = useCallback((idx: number) => {
     if (orderRows.length > 1) {
       setOrderRows((rows: OrderDetail[]) => rows.filter((_: OrderDetail, i: number) => i !== idx));
+      // Row indices shift after a delete, so any selection is stale.
+      setSelectedOrderRows(new Set());
     }
   }, [orderRows.length]);
+
+  const allOrderRowsSelected = orderRows.length > 0 && selectedOrderRows.size === orderRows.length;
+  const someOrderRowsSelected = selectedOrderRows.size > 0 && !allOrderRowsSelected;
+
+  const toggleOrderRowSelection = useCallback((idx: number) => {
+    setSelectedOrderRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  }, []);
+
+  const toggleAllOrderRowSelection = useCallback(() => {
+    setSelectedOrderRows(
+      allOrderRowsSelected ? new Set() : new Set(orderRows.map((_, i) => i)),
+    );
+  }, [allOrderRowsSelected, orderRows]);
+
+  const handleBulkDeleteOrders = useCallback(() => {
+    setOrderRows((rows) => {
+      const remaining = rows.filter((_, i) => !selectedOrderRows.has(i));
+      // The table always keeps at least one row to type into.
+      return remaining.length > 0
+        ? remaining
+        : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }];
+    });
+    setSelectedOrderRows(new Set());
+  }, [selectedOrderRows]);
+
+  const handleExportOrders = useCallback(() => {
+    const headers = ['Product', 'Total Orders', 'Total Spend', 'Last Order Date', 'Outstanding'];
+    const rows = orderRows
+      .filter((row) => !isBlankOrderRow(row))
+      .map((row) => [
+        row.product || '',
+        row.totalOrders || '',
+        row.totalSpend || '',
+        row.lastOrderDate || '',
+        row.outstanding || '',
+      ]);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Orders');
+    XLSX.writeFile(wb, `${form.storeName || id || 'buyer'}-orders.xlsx`);
+  }, [orderRows, form.storeName, id]);
+
+  // Imported orders are appended to the table; nothing is saved until the form is saved.
+  const handleImportOrders = useCallback((newOrders: OrderDetail[]) => {
+    const imported: OrderDetail[] = newOrders.map((row) => ({
+      orderNo: '',
+      product: String(row.product || ''),
+      totalOrders: String(row.totalOrders || ''),
+      totalSpend: String(row.totalSpend || ''),
+      shippingFee: '',
+      lastOrderDate: String(row.lastOrderDate || ''),
+      outstanding: String(row.outstanding || ''),
+    }));
+    setOrderRows((rows) => {
+      const merged = [...rows.filter((row) => !isBlankOrderRow(row)), ...imported];
+      return merged.length > 0
+        ? merged
+        : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }];
+    });
+    // Blank rows are dropped on import, which shifts indices.
+    setSelectedOrderRows(new Set());
+    setShowImportOrders(false);
+  }, []);
 
   // Enhanced form submission
   const handleSubmit = useCallback(async (e?: React.FormEvent) => {
@@ -628,6 +713,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
         outstanding: row.outstanding || '',
       })) : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }]
     );
+    setSelectedOrderRows(new Set());
     setAvatar(initialData.avatar || '');
     setValidationErrors({});
     setError('');
@@ -894,11 +980,51 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
           
           {/* Order & Product Details Table */}
           <div className="my-2 border-t border-gray-200 pt-2">
-            <label className="block text-sm font-bold text-black mb-2">{tBuyersModal('orderSection')}</label>
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <label className="block text-sm font-bold text-black">{tBuyersModal('orderSection')}</label>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="flex items-center gap-1 rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 text-xs font-medium text-black transition hover:bg-gray-100"
+                  onClick={() => setShowImportOrders(true)}
+                >
+                  <Upload className="h-3.5 w-3.5" /> {tBuyersProfile('importOrders')}
+                </button>
+                <button
+                  type="button"
+                  className="flex items-center gap-1 rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 text-xs font-medium text-black transition hover:bg-gray-100"
+                  onClick={handleExportOrders}
+                >
+                  <Download className="h-3.5 w-3.5" /> {tBuyersProfile('exportOrders')}
+                </button>
+              </div>
+            </div>
+            {selectedOrderRows.size > 0 && (
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#e6e6e6] border-l-4 border-l-green-500 bg-white p-3 shadow-sm">
+                <span className="text-sm font-semibold text-green-700">
+                  {tBuyersModal('orderRowsSelected', { count: selectedOrderRows.size })}
+                </span>
+                <button
+                  type="button"
+                  className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700"
+                  onClick={handleBulkDeleteOrders}
+                >
+                  <Trash className="h-4 w-4" /> {tBuyersModal('bulkDelete')}
+                </button>
+              </div>
+            )}
             <div className="overflow-x-auto rounded-lg border border-gray-200">
               <table className="min-w-full text-xs font-medium text-left bg-white">
                 <thead>
                   <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
+                    <th className="w-12 py-2 px-3">
+                      <ImportSelectionCheckbox
+                        checked={allOrderRowsSelected}
+                        indeterminate={someOrderRowsSelected}
+                        onToggle={toggleAllOrderRowSelection}
+                        ariaLabel={allOrderRowsSelected ? tBuyersModal('deselectAll') : tBuyersModal('selectAll')}
+                      />
+                    </th>
                     <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colNo')}</th>
                     <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colProduct')}</th>
                     <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colTotalOrders')}</th>
@@ -911,6 +1037,13 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
                 <tbody>
                   {orderRows.map((row: OrderDetail, idx: number) => (
                     <tr key={idx} className="whitespace-nowrap">
+                      <td className="py-2 px-3">
+                        <ImportSelectionCheckbox
+                          checked={selectedOrderRows.has(idx)}
+                          onToggle={() => toggleOrderRowSelection(idx)}
+                          ariaLabel={tImport('selectRow', { index: idx + 1 })}
+                        />
+                      </td>
                       <td className="py-2 px-3 font-medium text-black">{idx + 1}</td>
                       <td className="py-2 px-3">
                         <ClientInput
@@ -1122,6 +1255,15 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
           />
         </form>
       </div>
+
+      {/* Rendered outside the form so the modal's buttons can never submit it. */}
+      {showImportOrders && (
+        <ImportOrdersModal
+          open={showImportOrders}
+          onCloseAction={() => setShowImportOrders(false)}
+          onImportAction={handleImportOrders}
+        />
+      )}
 
       {showSuccessModal && (
         <div className="fixed inset-0 flex items-center justify-center z-[60] pointer-events-none">

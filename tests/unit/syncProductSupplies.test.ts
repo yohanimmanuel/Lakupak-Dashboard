@@ -70,7 +70,7 @@ describe('syncProductSupplies reassignment', () => {
     ).toBe(false);
   });
 
-  it('moves summary and history from supplier A to supplier B when product supplier changes', () => {
+  it('leaves prior supplier history in place and only links an AUTO summary on the new supplier', () => {
     const productId = 'P-MOVE-1';
     const summary = summaryRow(productId);
     const historyA = historyRow(productId, { suppliesno: 'HIST-A', lastDelivery: '2026-02-01' });
@@ -108,24 +108,28 @@ describe('syncProductSupplies reassignment', () => {
       dirty,
     );
 
-    expect(dirty.has(1)).toBe(true);
+    // Old supplier is untouched so the amber move-notice can list these rows.
+    expect(dirty.has(1)).toBe(false);
     expect(dirty.has(2)).toBe(true);
 
     const leftOnA = suppliesBySupplierId.get(1) || [];
     const onB = suppliesBySupplierId.get(2) || [];
 
-    expect(leftOnA).toHaveLength(1);
-    expect(leftOnA[0].suppliesno).toBe('HIST-OTHER');
+    expect(leftOnA.map((r) => r.suppliesno).sort()).toEqual([
+      historyA.suppliesno,
+      historyB.suppliesno,
+      'HIST-OTHER',
+      summary.suppliesno,
+    ].sort());
 
     const summaryOnB = onB.filter((r) => r.recordType === 'summary');
     const historyOnB = onB.filter((r) => r.recordType === 'history');
     expect(summaryOnB).toHaveLength(1);
     expect(summaryOnB[0].totalSupplied).toBe('100');
-    expect(summaryOnB[0].totalValue).toBe('500000');
-    expect(historyOnB.map((r) => r.suppliesno).sort()).toEqual(['HIST-A', 'HIST-B']);
+    expect(historyOnB).toHaveLength(0);
   });
 
-  it('does not collapse distinct history rows that share the same product label', () => {
+  it('does not auto-move history rows when product supplier changes', () => {
     const productId = 'P-MOVE-2';
     const suppliesBySupplierId = new Map<number, SupplyDetail[]>([
       [
@@ -155,8 +159,10 @@ describe('syncProductSupplies reassignment', () => {
       dirty,
     );
 
+    const historyOnA = (suppliesBySupplierId.get(1) || []).filter((r) => r.recordType === 'history');
     const historyOnB = (suppliesBySupplierId.get(2) || []).filter((r) => r.recordType === 'history');
-    expect(historyOnB).toHaveLength(2);
+    expect(historyOnA).toHaveLength(2);
+    expect(historyOnB).toHaveLength(0);
   });
 
   it('does not reuse another variant summary when matching by productId alone would collide', () => {
@@ -238,6 +244,55 @@ describe('syncProductSupplies reassignment', () => {
     expect(dirty.has(2)).toBe(true);
     expect(suppliesBySupplierId.get(1) || []).toEqual([]);
     expect((suppliesBySupplierId.get(2) || []).map((r) => r.suppliesno)).toEqual(['HIST-KEEP']);
+  });
+
+  it('leaves unlinked import history on the old supplier until the user confirms a move', () => {
+    const productId = 'P-IMPORT-1';
+    const orphanHistory: SupplyDetail = {
+      suppliesno: 'HIST-IMP-1',
+      sku: 'BANGO-KECAP-1',
+      product: 'Bango Kecap Manis (Ukuran: 135ml)',
+      totalSupplied: '100',
+      totalValue: '10',
+      lastDelivery: '2026-11-11',
+      status: 'Active',
+      recordType: 'history',
+    };
+    const suppliesBySupplierId = new Map<number, SupplyDetail[]>([
+      [1, [orphanHistory]],
+      [2, []],
+    ]);
+    const dirty = new Set<number>();
+
+    applyProductToSupplierMaps(
+      {
+        productId,
+        name: 'Bango Kecap Manis',
+        supplier: 'Supplier B',
+        userId: 9,
+        variantOptions: [
+          {
+            variantName: 'Ukuran: 135ml',
+            sku: 'BANGO-KECAP-1',
+            purchasePrice: '100',
+            stockQuantity: 50,
+            isActive: true,
+          },
+        ],
+      },
+      suppliesBySupplierId,
+      [
+        { id: 1, name: 'Supplier A' },
+        { id: 2, name: 'Supplier B' },
+      ],
+      dirty,
+    );
+
+    const leftOnA = suppliesBySupplierId.get(1) || [];
+    const onB = suppliesBySupplierId.get(2) || [];
+    expect(leftOnA.filter((r) => r.suppliesno === 'HIST-IMP-1')).toHaveLength(1);
+    expect(onB.filter((r) => r.suppliesno === 'HIST-IMP-1')).toHaveLength(0);
+    expect(onB.some((r) => r.recordType === 'summary')).toBe(true);
   });
 
   it('removes catalog-SKU summary rows via delete match hints even without productId on the row', () => {

@@ -7,6 +7,7 @@ import {
 import {
   applySummaryDelta,
   isSupplyReceivedToday,
+  mergeDuplicateSummaryRows,
   todayYmdJakarta,
 } from '@/lib/suppliers/supplyRecords';
 
@@ -391,5 +392,205 @@ describe('computeSupplyStockEffects (Update Current Stock checkbox)', () => {
     const summary = supplies.find((r) => r.recordType === 'summary');
     expect(summary?.totalSupplied).toBe('1');
     expect(summary?.totalValue).toBe('7000');
+  });
+});
+
+function summary(overrides: Partial<SupplyDetail> = {}): SupplyDetail {
+  return {
+    suppliesno: 'AUTO-LKP-BANGO|1',
+    sku: 'BANGO-KECAP-1',
+    product: 'Bango Kecap (1)',
+    totalSupplied: '65',
+    totalValue: '650000',
+    lastDelivery: '',
+    status: 'Active',
+    recordType: 'summary',
+    productId: 'LKP-BANGO',
+    variantName: '1',
+    ...overrides,
+  };
+}
+
+/** A row as the supplies import produces it: SKU + product text, no catalog identity. */
+function imported(overrides: Partial<SupplyDetail> = {}): SupplyDetail {
+  return history({
+    suppliesno: 'HIST-IMPORT-1',
+    sku: 'BANGO-KECAP-1',
+    product: 'Bango Kecap',
+    totalSupplied: '100',
+    totalValue: '1000000',
+    productId: undefined,
+    variantName: undefined,
+    updateCurrentStock: false,
+    ...overrides,
+  });
+}
+
+const summaries = (rows: SupplyDetail[]) => rows.filter((row) => row.recordType === 'summary');
+
+describe('supply summary matching (exact SKU)', () => {
+  it('rolls an imported row into the catalog-linked total with the same SKU', () => {
+    const next = applySummaryDelta([summary()], {
+      sku: 'BANGO-KECAP-1',
+      product: 'Bango Kecap',
+      quantity: 100,
+      totalValue: 1000000,
+    });
+    expect(summaries(next)).toHaveLength(1);
+    expect(next[0]).toMatchObject({
+      suppliesno: 'AUTO-LKP-BANGO|1',
+      sku: 'BANGO-KECAP-1',
+      // The linked total keeps its catalog label and identity.
+      product: 'Bango Kecap (1)',
+      productId: 'LKP-BANGO',
+      variantName: '1',
+      totalSupplied: '165',
+      totalValue: '1650000',
+    });
+  });
+
+  it('rolls into an unlinked total with the same SKU even when the product text differs', () => {
+    const existing = summary({
+      suppliesno: 'SUM-1',
+      product: 'Kecap Bango',
+      productId: undefined,
+      variantName: undefined,
+    });
+    const next = applySummaryDelta([existing], {
+      sku: 'BANGO-KECAP-1',
+      product: 'Bango Kecap',
+      quantity: 100,
+      totalValue: 1000000,
+    });
+    expect(summaries(next)).toHaveLength(1);
+    expect(next[0].totalSupplied).toBe('165');
+  });
+
+  it('creates a new total only when the SKU does not match exactly', () => {
+    const next = applySummaryDelta([summary()], {
+      sku: 'BANGO-KECAP-10',
+      product: 'Bango Kecap',
+      quantity: 100,
+      totalValue: 1000000,
+    });
+    expect(summaries(next)).toHaveLength(2);
+    expect(next[0].totalSupplied).toBe('65');
+    expect(next[1]).toMatchObject({ sku: 'BANGO-KECAP-10', totalSupplied: '100' });
+  });
+
+  it('never reuses a total linked to a different variant that shares the SKU', () => {
+    const next = applySummaryDelta([summary()], {
+      sku: 'BANGO-KECAP-1',
+      product: 'Bango Kecap (2)',
+      quantity: 10,
+      totalValue: 100000,
+      productId: 'LKP-BANGO',
+      variantName: '2',
+    });
+    expect(summaries(next)).toHaveLength(2);
+    expect(next[0].totalSupplied).toBe('65');
+  });
+
+  it('reverses a deleted imported row from the total it was rolled into', () => {
+    const next = applySummaryDelta([summary({ totalSupplied: '165', totalValue: '1650000' })], {
+      sku: 'BANGO-KECAP-1',
+      product: 'Bango Kecap',
+      quantity: -100,
+      totalValue: -1000000,
+    });
+    expect(summaries(next)).toHaveLength(1);
+    expect(next[0]).toMatchObject({ totalSupplied: '65', totalValue: '650000' });
+  });
+
+  it('merges duplicate totals for one SKU and keeps the catalog-linked row', () => {
+    const stray = summary({
+      suppliesno: 'SUM-STRAY',
+      product: 'Bango Kecap',
+      totalSupplied: '100',
+      totalValue: '1000000',
+      productId: undefined,
+      variantName: undefined,
+    });
+    for (const rows of [
+      [summary(), stray],
+      [stray, summary()],
+    ]) {
+      const merged = mergeDuplicateSummaryRows(rows);
+      expect(merged).toHaveLength(1);
+      expect(merged[0]).toMatchObject({
+        suppliesno: 'AUTO-LKP-BANGO|1',
+        product: 'Bango Kecap (1)',
+        productId: 'LKP-BANGO',
+        totalSupplied: '165',
+        totalValue: '1650000',
+      });
+    }
+  });
+
+  it('leaves totals for different variants or SKUs alone', () => {
+    const rows = [
+      summary(),
+      summary({ suppliesno: 'AUTO-LKP-BANGO|2', product: 'Bango Kecap (2)', variantName: '2' }),
+      summary({ suppliesno: 'AUTO-LKP-ABC|1', sku: 'ABC-1', productId: 'LKP-ABC' }),
+      imported(),
+    ];
+    expect(mergeDuplicateSummaryRows(rows)).toBe(rows);
+  });
+
+  it('saving imported rows adds to the existing total instead of creating a second one', async () => {
+    const previous = [summary()];
+    const incoming = [
+      summary(),
+      imported({ suppliesno: 'HIST-IMPORT-1' }),
+      // Same data, different id: both rows count.
+      imported({ suppliesno: 'HIST-IMPORT-2' }),
+    ];
+    const result = await finalizeSupplierSuppliesSave({
+      userId: 1,
+      previousSuppliesRaw: JSON.stringify(previous),
+      nextSuppliesRaw: JSON.stringify(incoming),
+    });
+    const rows = JSON.parse(result.suppliesJson) as SupplyDetail[];
+    expect(rows.filter((row) => row.recordType === 'history')).toHaveLength(2);
+    expect(summaries(rows)).toHaveLength(1);
+    expect(summaries(rows)[0]).toMatchObject({ totalSupplied: '265', totalValue: '2650000' });
+    // Historical import: product stock is never touched.
+    expect(result.stockUpdatedCount).toBe(0);
+  });
+});
+
+describe('history rows saved with a duplicate suppliesno', () => {
+  const duplicated = [
+    imported({ suppliesno: 'HIST-Srqfndq' }),
+    imported({ suppliesno: 'HIST-Srqfndq' }),
+  ];
+
+  it('does not count the second row again when it comes back with a new id', () => {
+    const incoming = [
+      imported({ suppliesno: 'HIST-Srqfndq' }),
+      imported({ suppliesno: 'HIST-REKEYED' }),
+    ];
+    expect(computeSupplyStockEffects(duplicated, incoming)).toEqual([]);
+  });
+
+  it('does not count the second row again when both still share the id', () => {
+    expect(computeSupplyStockEffects(duplicated, duplicated)).toEqual([]);
+  });
+
+  it('still adds a genuinely new identical row', () => {
+    const incoming = [
+      imported({ suppliesno: 'HIST-Srqfndq' }),
+      imported({ suppliesno: 'HIST-REKEYED' }),
+      imported({ suppliesno: 'HIST-BRAND-NEW' }),
+    ];
+    const effects = computeSupplyStockEffects(duplicated, incoming);
+    expect(effects).toEqual([
+      expect.objectContaining({
+        reason: 'add',
+        quantityDelta: 100,
+        applyStock: false,
+        row: expect.objectContaining({ suppliesno: 'HIST-BRAND-NEW' }),
+      }),
+    ]);
   });
 });
