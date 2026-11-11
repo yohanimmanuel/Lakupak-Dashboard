@@ -6,7 +6,15 @@ import * as XLSX from 'xlsx';
 import { SupplyDetail } from '@/types/client';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 
-const supplyFields = [
+/** Columns the import UI can map — string fields only (not booleans / recordType). */
+type ImportableSupplyField =
+  | 'sku'
+  | 'product'
+  | 'totalSupplied'
+  | 'totalValue'
+  | 'lastDelivery';
+
+const supplyFields: { key: ImportableSupplyField; label: string }[] = [
   { key: 'sku', label: 'SKU Number (Optional)' },
   { key: 'product', label: 'Product Name (Optional)' },
   { key: 'totalSupplied', label: 'Total Supplied (Optional)' },
@@ -14,7 +22,7 @@ const supplyFields = [
   { key: 'lastDelivery', label: 'Last Delivery (Optional)' },
 ];
 
-const supplyFieldSynonyms: { [key: string]: string[] } = {
+const supplyFieldSynonyms: Record<ImportableSupplyField, string[]> = {
   sku: ['sku', 'sku number', 'kode', 'kode barang'],
   product: ['product', 'product name', 'nama produk'],
   totalSupplied: ['total supplied', 'supplied', 'jumlah', 'jumlah supply'],
@@ -51,7 +59,17 @@ function removeCurrencyIdentifier(value: string | undefined): string {
   return numericPart;
 }
 
-export default function ImportSuppliesModal({ open, onClose, onImport }: { open: boolean, onClose: () => void, onImport: (supplies: SupplyDetail[]) => void }) {
+type ImportSuppliesModalProps = {
+  open: boolean;
+  onCloseAction: () => void;
+  onImportAction: (supplies: SupplyDetail[]) => void;
+};
+
+export default function ImportSuppliesModal({
+  open,
+  onCloseAction,
+  onImportAction,
+}: ImportSuppliesModalProps) {
   const { tImport } = useClientsTranslations();
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -154,21 +172,31 @@ export default function ImportSuppliesModal({ open, onClose, onImport }: { open:
     }
   };
 
-  const getMappedRows = () => {
+  const getMappedRows = (): SupplyDetail[] => {
     return rows.map((row: Record<string, string>) => {
-      const mapped: Partial<SupplyDetail> = {};
-      supplyFields.forEach(f => {
+      const mapped: Partial<Record<ImportableSupplyField, string>> = {};
+      supplyFields.forEach((f) => {
         const col = mapping[f.key];
         let value = col ? row[col] : '';
-        
+
         // Remove currency identifier for monetary fields
         if (f.key === 'totalValue') {
           value = removeCurrencyIdentifier(value);
         }
-        
-        mapped[f.key as keyof SupplyDetail] = value;
+
+        mapped[f.key] = value;
       });
-      return mapped as SupplyDetail;
+      return {
+        suppliesno: '',
+        sku: mapped.sku || '',
+        product: mapped.product || '',
+        totalSupplied: mapped.totalSupplied || '',
+        totalValue: mapped.totalValue || '',
+        lastDelivery: mapped.lastDelivery || '',
+        status: '',
+        recordType: 'history',
+        updateCurrentStock: false,
+      };
     });
   };
 
@@ -202,19 +230,19 @@ export default function ImportSuppliesModal({ open, onClose, onImport }: { open:
     }
     
     setValidationErrors([]);
-    onImport(mappedRows);
+    onImportAction(mappedRows);
     setRows([]);
     setStep(0);
     setFilename('');
     setFileHeaders([]);
     setMapping({});
-    onClose();
+    onCloseAction();
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-white rounded-2xl border border-[#e6e6e6] p-4 w-full max-w-3xl relative">
-        <button className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-100" onClick={onClose}><X className="w-5 h-5 text-black" /></button>
+        <button className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-100" onClick={onCloseAction}><X className="w-5 h-5 text-black" /></button>
         <h2 className="text-xl font-bold text-black mb-4 border-b border-[#e6e6e6] pb-2 flex items-center gap-2">
           <FileText className="w-5 h-5 text-[#0a61d7]" /> {tImport('titleSupplies')}
         </h2>
@@ -316,7 +344,9 @@ export default function ImportSuppliesModal({ open, onClose, onImport }: { open:
                 <tbody>
                   {getMappedRows().map((row, idx) => (
                     <tr key={idx} className="whitespace-nowrap text-black">
-                      {supplyFields.map(f => <td key={f.key} className="py-2 px-3">{row[f.key as keyof SupplyDetail] || ''}</td>)}
+                      {supplyFields.map((f) => (
+                        <td key={f.key} className="py-2 px-3">{row[f.key] || ''}</td>
+                      ))}
                     </tr>
                   ))}
                 </tbody>

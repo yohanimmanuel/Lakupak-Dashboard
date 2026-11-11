@@ -1195,8 +1195,8 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
             {showImportSupplies && (
               <ImportSuppliesModal
                 open={showImportSupplies}
-                onClose={() => setShowImportSupplies(false)}
-                onImport={handleImportHistory}
+                onCloseAction={() => setShowImportSupplies(false)}
+                onImportAction={handleImportHistory}
               />
             )}
             <div className="overflow-x-auto rounded-lg border border-gray-200">
