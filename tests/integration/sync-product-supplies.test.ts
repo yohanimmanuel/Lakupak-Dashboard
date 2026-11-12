@@ -18,7 +18,7 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
     await resetDb();
   });
 
-  it('moves linked summary and history supplies from supplier A to supplier B', async () => {
+  it('keeps prior supplier history in place and only links an AUTO summary on supplier B', async () => {
     const distributor = await createTestDistributor();
     const productId = 'P-SUPPLY-MOVE-1';
     const autoNo = supplyAutoNo(productId, 'Default');
@@ -108,11 +108,15 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
       loadSupplierSupplies(prisma, supplierB.id),
     ]);
 
-    expect(onA.map((r) => r.suppliesno)).toEqual(['HIST-OTHER']);
+    // History/summary stay on A for the amber move-notice; B only gets a stock-linked AUTO row.
+    expect(onA.map((r) => r.suppliesno).sort()).toEqual(
+      [autoNo, 'HIST-MOVE-1', 'HIST-OTHER'].sort(),
+    );
+    expect(onA.some((r) => r.suppliesno === 'HIST-MOVE-1')).toBe(true);
     expect(onB.some((r) => r.recordType === 'summary' && r.productId === productId)).toBe(true);
     expect(onB.find((r) => r.recordType === 'summary')?.totalSupplied).toBe('250');
     expect(onB.find((r) => r.recordType === 'summary')?.totalValue).toBe('1250000');
-    expect(onB.some((r) => r.suppliesno === 'HIST-MOVE-1' && r.recordType === 'history')).toBe(true);
+    expect(onB.some((r) => r.suppliesno === 'HIST-MOVE-1')).toBe(false);
   });
 
   it('removes linked summary and history supplies when a product is deleted', async () => {
