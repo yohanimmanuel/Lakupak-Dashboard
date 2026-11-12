@@ -180,6 +180,12 @@ export const contactsTypeDefs = /* GraphQL */ `
       userId: Int!
       supplierId: String!
     ): [SupplyMoveCandidate!]!
+
+    supplierTransferRecords(
+      userId: Int!
+      supplierId: String!
+    ): [SupplierTransferRecord!]!
+
   }
 
   type SupplyMoveCandidate {
@@ -191,6 +197,19 @@ export const contactsTypeDefs = /* GraphQL */ `
     historyCount: Int!
     totalSupplied: Float!
     totalValue: Float!
+  }
+
+  type SupplierTransferRecord {
+    id: Int!
+    sku: String!
+    product: String!
+    totalSupplied: String!
+    totalValue: String!
+    lastDelivery: String!
+    productId: String
+    variantName: String
+    targetSupplierName: String!
+    recordType: String!
   }
 
   input SupplyMoveVariantInput {
@@ -288,6 +307,7 @@ export const contactsTypeDefs = /* GraphQL */ `
       logistics: String
       notes: String
       supplies: String
+      expectedUpdatedAt: String
     ): Supplier!
 
     deleteSupplier(
@@ -314,6 +334,12 @@ export const contactsTypeDefs = /* GraphQL */ `
       userId: Int!
       fromSupplierId: String!
       variants: [SupplyMoveVariantInput!]!
+    ): MoveSupplierSuppliesResult!
+
+    moveSelectedSupplyRecords(
+      userId: Int!
+      fromSupplierId: String!
+      recordIds: [Int!]!
     ): MoveSupplierSuppliesResult!
   }
 `;
@@ -1480,8 +1506,9 @@ const updateSupplier = async (args: {
   logistics?: string | null;
   notes?: string | null;
   supplies?: string | null;
+  expectedUpdatedAt?: string | null;
 }) => {
-  const { userId, id, supplierId, ...updateData } = args;
+  const { userId, id, supplierId, expectedUpdatedAt, ...updateData } = args;
 
   if (!/^\d+$/.test(String(userId))) {
     throw new Error('Invalid userId format');
@@ -1542,13 +1569,22 @@ const updateSupplier = async (args: {
     const withRecords = await prisma.$transaction(async (tx) => {
       // Serialize concurrent supplies saves for this supplier so deltas use a fresh previous snapshot.
       if (suppliesPayload !== undefined) {
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(${Number(userId)}, ${existingSupplier.id})`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(${Number(userId)}, ${879_332})`;
         const { loadSupplierSuppliesJson, replaceSupplierSupplyRecords } = await import(
           '@/lib/suppliers/supplyRecordStore'
         );
         const { finalizeSupplierSuppliesSave } = await import(
           '@/lib/suppliers/applySupplierSuppliesSave'
         );
+        if (expectedUpdatedAt) {
+          const current = await tx.supplier.findUnique({
+            where: { id: existingSupplier.id },
+            select: { updatedAt: true },
+          });
+          if (!current || current.updatedAt.toISOString() !== expectedUpdatedAt) {
+            throw new Error('Supplier supplies have changed. Reload the supplier before saving.');
+          }
+        }
         const previousSuppliesRaw = await loadSupplierSuppliesJson(tx, existingSupplier.id);
         const finalized = await finalizeSupplierSuppliesSave({
           userId: Number(userId),
@@ -1808,6 +1844,70 @@ async function loadCatalogVariantsForUser(userId: number) {
   );
 }
 
+
+// Only show history rows whose product catalog supplier differs from the current supplier.
+// The destination is derived from Product.supplier, never chosen by the client.
+const fetchSupplierTransferRecords = async (args: { userId: number; supplierId: string }) => {
+  const userId = Number(args.userId);
+  if (!Number.isSafeInteger(userId) || userId <= 0) throw new Error('Invalid user');
+  const supplier = await prisma.supplier.findFirst({
+    where: { userId, supplierId: args.supplierId },
+    select: { id: true, name: true },
+  });
+  if (!supplier) throw new Error('Supplier not found');
+  const [records, products, suppliers] = await Promise.all([
+    prisma.supplyRecord.findMany({
+      where: { supplierRefId: supplier.id },
+      orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+    }),
+    prisma.product.findMany({ where: { userId }, select: {
+      productId: true, supplier: true,
+      variantOptions: { select: { variantName: true } },
+    } }),
+    prisma.supplier.findMany({ where: { userId }, select: { name: true } }),
+  ]);
+  const known = new Set(suppliers.map(s => s.name.trim().toLowerCase()));
+  const catalog = new Map(products.map(p => [p.productId.trim().toLowerCase(), p]));
+  const historyTotals = new Map<string, { qty: number; value: number }>();
+  const amount = (value: string) => Number(value);
+  const keyOf = (row: { productId: string | null; variantName: string | null }) =>
+    `${String(row.productId || '').trim().toLowerCase()}|${String(row.variantName || '').trim().toLowerCase()}`;
+  for (const row of records) {
+    if (row.recordType !== 'history') continue;
+    const key = keyOf(row);
+    const total = historyTotals.get(key) || { qty: 0, value: 0 };
+    total.qty += amount(row.totalSupplied);
+    total.value += amount(row.totalValue);
+    historyTotals.set(key, total);
+  }
+  return records.flatMap(row => {
+    const product = catalog.get(String(row.productId || '').trim().toLowerCase());
+    const variant = String(row.variantName || '').trim().toLowerCase();
+    if (!product || !variant || !product.variantOptions.some(v => v.variantName.trim().toLowerCase() === variant)) return [];
+    const targetSupplierName = String(product.supplier || '').trim();
+    const target = targetSupplierName.toLowerCase();
+    if (!target || target === supplier.name.trim().toLowerCase() || !known.has(target)) return [];
+    let quantity = Number(row.totalSupplied);
+    let value = Number(row.totalValue);
+    if (row.recordType === 'summary') {
+      const history = historyTotals.get(keyOf(row)) || { qty: 0, value: 0 };
+      quantity -= history.qty;
+      value -= history.value;
+      // Only the opening portion of the summary is independently transferable.
+      if (!Number.isFinite(quantity) || !Number.isFinite(value) || quantity < 0 || value < 0) return [];
+      if (quantity === 0 && value === 0) return [];
+    } else if (row.recordType !== 'history') return [];
+    return [{
+      id: row.recordType === 'summary' ? -row.id : row.id,
+      sku: row.sku, product: row.product,
+      totalSupplied: String(quantity), totalValue: String(value),
+      lastDelivery: row.recordType === 'summary' ? '' : row.lastDelivery,
+      productId: row.productId, variantName: row.variantName,
+      targetSupplierName, recordType: row.recordType,
+    }];
+  });
+};
+
 const fetchSupplierSupplyMoveCandidates = async (args: {
   userId: number;
   supplierId: string;
@@ -1955,6 +2055,29 @@ const moveSupplierSupplies = async (args: {
       const targetRow = allSuppliers.find((s) => s.id === targetId);
       const existing = (targetRow?.supplyRecords || []).map(supplyDetailFromRecord);
       // Drop the target's stock-mirror AUTO rows for these variants so moved
+
+      // Prevent overwriting existing destination supply history.
+      const movingVariantKeys = new Set(
+        rows.map((row) =>
+          `${String(row.productId || '').trim().toLowerCase()}|${String(row.variantName || '').trim().toLowerCase()}`
+        )
+      );
+
+      const hasConflict = existing.some((row) => {
+        if (!isSupplyHistoryRow(row)) return false;
+
+        const pid = String(row.productId || '').trim().toLowerCase();
+        const vn = String(row.variantName || '').trim().toLowerCase();
+
+        return Boolean(pid && vn && movingVariantKeys.has(`${pid}|${vn}`));
+      });
+
+      if (hasConflict) {
+        throw new Error(
+          'The destination supplier already has supply history for a selected variant. Transfer cancelled to prevent data loss.'
+        );
+      }
+
       // summary/history from the old supplier become the source of truth.
       const existingKept = existing.filter((row) => {
         const pid = String(row.productId || '').trim();
@@ -2020,6 +2143,254 @@ const moveSupplierSupplies = async (args: {
     message: `Moved ${result.movedHistoryCount} history record(s)`,
   };
 };
+
+
+const moveSelectedSupplyRecords = async (args: {
+  userId: number;
+  fromSupplierId: string;
+  recordIds: number[];
+}) => {
+  const userId = Number(args.userId);
+  const recordIds = args.recordIds || [];
+
+  if (!Number.isSafeInteger(userId) || userId <= 0) {
+    throw new Error('Invalid user');
+  }
+
+  if (
+    recordIds.length === 0 ||
+    recordIds.length > 500 ||
+    new Set(recordIds).size !== recordIds.length ||
+    recordIds.some((id) => !Number.isSafeInteger(id) || id === 0)
+  ) {
+    throw new Error('Invalid supply record selection');
+  }
+
+  const { loadSupplierSuppliesJson } =
+    await import('@/lib/suppliers/supplyRecordStore');
+
+  const result = await prisma.$transaction(
+    async (tx) => {
+      // Serialize manual transfers for this distributor.
+      await tx.$executeRaw`
+        SELECT pg_advisory_xact_lock(${userId}, ${879332})
+      `;
+
+      const source = await tx.supplier.findFirst({
+        where: { userId, supplierId: args.fromSupplierId },
+        select: { id: true, supplierId: true, name: true },
+      });
+      if (!source) throw new Error('Source supplier not found');
+      const historyIds = recordIds.filter(id => id > 0);
+      const openingIds = recordIds.filter(id => id < 0).map(id => -id);
+      const selected = await tx.supplyRecord.findMany({
+        where: { id: { in: [...historyIds, ...openingIds] }, supplierRefId: source.id },
+      });
+      if (selected.length !== recordIds.length || selected.some(row =>
+        row.recordType !== (openingIds.includes(row.id) ? 'summary' : 'history')
+      )) throw new Error('Records changed. Refresh and retry.');
+      const identities = selected.map(r => ({
+        productId: String(r.productId || '').trim(),
+        variantName: String(r.variantName || '').trim(),
+      }));
+      if (identities.some(i => !i.productId || !i.variantName)) {
+        throw new Error('Legacy records without catalog identity cannot be transferred automatically.');
+      }
+      const products = await tx.product.findMany({
+        where: { userId, productId: { in: [...new Set(identities.map(i => i.productId))] } },
+        select: { productId: true, supplier: true,
+          variantOptions: { select: { variantName: true } } },
+      });
+      const byProduct = new Map(products.map(p => [p.productId.toLowerCase(), p]));
+      const targetNames = new Set<string>();
+      for (const identity of identities) {
+        const product = byProduct.get(identity.productId.toLowerCase());
+        if (!product || !product.variantOptions.some(v => v.variantName.toLowerCase() === identity.variantName.toLowerCase())) {
+          throw new Error('Product variant no longer exists in the catalog.');
+        }
+        const targetName = String(product.supplier || '').trim();
+        if (!targetName || targetName.toLowerCase() === source.name.trim().toLowerCase()) {
+          throw new Error('Selected supply no longer requires a transfer. Refresh and retry.');
+        }
+        targetNames.add(targetName.toLowerCase());
+      }
+      if (targetNames.size !== 1) {
+        throw new Error('Select records going to the same catalog supplier, then transfer the other records separately.');
+      }
+      const destinations = await tx.supplier.findMany({
+        where: { userId, name: { equals: [...targetNames][0], mode: 'insensitive' } },
+        select: { id: true, supplierId: true },
+      });
+      if (destinations.length !== 1 || destinations[0].id === source.id) {
+        throw new Error('Catalog destination supplier is missing or ambiguous');
+      }
+      const destination = destinations[0];
+
+      // Lock supplier rows in consistent ID order.
+      const lockedSupplierIds = [
+        source.id,
+        destination.id,
+      ].sort((a, b) => a - b);
+
+      await tx.$queryRaw`
+        SELECT id FROM "Supplier"
+        WHERE id IN (${lockedSupplierIds[0]}, ${lockedSupplierIds[1]})
+        ORDER BY id
+        FOR UPDATE
+      `;
+
+      // Locking is coordinated by the distributor advisory lock. All reads and
+      // writes below are in this single transaction; no product stock is changed.
+      const records = await tx.supplyRecord.findMany({
+        where: { id: { in: [...historyIds, ...openingIds] }, supplierRefId: source.id },
+        orderBy: { id: 'asc' },
+      });
+      if (records.length !== recordIds.length) throw new Error('Records changed. Refresh and retry.');
+      const parseAmount = (value: string) => {
+        const n = Number(value);
+        if (!Number.isFinite(n) || n < 0) throw new Error('Invalid supply quantity or value');
+        return n;
+      };
+      const groups = new Map<string, {
+        productId: string; variantName: string; sku: string; product: string;
+        quantity: number; value: number; openingQuantity: number; openingValue: number;
+      }>();
+      for (const row of records) {
+        if (!row.productId || !row.variantName) throw new Error('Unlinked legacy record cannot be transferred');
+        const key = `${row.productId.toLowerCase()}|${row.variantName.toLowerCase()}`;
+        const group = groups.get(key) || {
+          productId: row.productId, variantName: row.variantName,
+          sku: row.sku, product: row.product, quantity: 0, value: 0,
+          openingQuantity: 0, openingValue: 0,
+        };
+        if (row.recordType === 'history') {
+          group.quantity += parseAmount(row.totalSupplied);
+          group.value += parseAmount(row.totalValue);
+        }
+        groups.set(key, group);
+      }
+      for (const group of groups.values()) {
+        const identity = { productId: group.productId, variantName: group.variantName, recordType: 'summary' };
+        const sourceSummaries = await tx.supplyRecord.findMany({ where: { supplierRefId: source.id, ...identity } });
+        const destinationSummaries = await tx.supplyRecord.findMany({ where: { supplierRefId: destination.id, ...identity } });
+        if (sourceSummaries.length !== 1 || destinationSummaries.length > 1) {
+          throw new Error('Ambiguous supply summary. Reconcile before transferring.');
+        }
+        const summary = sourceSummaries[0];
+        const sourceQty = parseAmount(summary.totalSupplied);
+        const sourceValue = parseAmount(summary.totalValue);
+        if (openingIds.includes(summary.id)) {
+          // Opening balance = frozen summary minus ALL history still at source.
+          const allHistory = await tx.supplyRecord.findMany({ where: {
+            supplierRefId: source.id, productId: group.productId,
+            variantName: group.variantName, recordType: 'history',
+          } });
+          const historyQty = allHistory.reduce((sum, row) => sum + parseAmount(row.totalSupplied), 0);
+          const historyValue = allHistory.reduce((sum, row) => sum + parseAmount(row.totalValue), 0);
+          group.openingQuantity = sourceQty - historyQty;
+          group.openingValue = sourceValue - historyValue;
+          if (group.openingQuantity < 0 || group.openingValue < 0 ||
+              (group.openingQuantity === 0 && group.openingValue === 0)) {
+            throw new Error('Opening balance changed. Refresh and retry.');
+          }
+        }
+        const moveQty = group.quantity + group.openingQuantity;
+        const moveValue = group.value + group.openingValue;
+        if (sourceQty < moveQty || sourceValue < moveValue) throw new Error('Supply summary does not match selected records');
+        const remainingQty = sourceQty - moveQty;
+        const remainingValue = sourceValue - moveValue;
+        // Preserve the opening balance's original database ID when possible.
+        // A summary also contains rolled-up history, so only move it directly
+        // after separating any history that must remain at the source.
+        const movingOpening = openingIds.includes(summary.id);
+        if (movingOpening && destinationSummaries.length === 0) {
+          if (remainingQty !== 0 || remainingValue !== 0) {
+            // Remaining source history needs its own aggregate summary.
+            // Do not fabricate a dated history event or a second opening balance.
+            await tx.supplyRecord.create({ data: {
+              supplierRefId: source.id,
+              suppliesno: `SUM-${crypto.randomUUID()}`,
+              sku: summary.sku, product: summary.product,
+              productId: group.productId, variantName: group.variantName,
+              totalSupplied: String(remainingQty),
+              totalValue: String(remainingValue),
+              recordType: 'summary', status: summary.status,
+            } });
+          }
+          // Transfer ownership of the original opening record; its ID survives.
+          await tx.supplyRecord.update({ where: { id: summary.id }, data: {
+            supplierRefId: destination.id,
+            totalSupplied: String(moveQty),
+            totalValue: String(moveValue),
+          } });
+        } else {
+          // Destination already has an aggregate summary, or only history moves.
+          // Merge quantities without duplicating an opening balance.
+          if (remainingQty === 0 && remainingValue === 0) {
+            await tx.supplyRecord.delete({ where: { id: summary.id } });
+          } else {
+            await tx.supplyRecord.update({ where: { id: summary.id }, data: {
+              totalSupplied: String(remainingQty),
+              totalValue: String(remainingValue),
+            } });
+          }
+          if (destinationSummaries.length) {
+            const target = destinationSummaries[0];
+            await tx.supplyRecord.update({ where: { id: target.id }, data: {
+              totalSupplied: String(parseAmount(target.totalSupplied) + moveQty),
+              totalValue: String(parseAmount(target.totalValue) + moveValue),
+            } });
+          } else {
+            await tx.supplyRecord.create({ data: {
+              supplierRefId: destination.id,
+              suppliesno: `SUM-${crypto.randomUUID()}`,
+              sku: group.sku, product: group.product,
+              productId: group.productId, variantName: group.variantName,
+              totalSupplied: String(moveQty), totalValue: String(moveValue),
+              recordType: 'summary', status: 'Active',
+            } });
+          }
+        }
+      }
+      const moved = await tx.supplyRecord.updateMany({
+        where: { id: { in: historyIds }, supplierRefId: source.id, recordType: 'history' },
+        data: { supplierRefId: destination.id },
+      });
+      if (moved.count !== historyIds.length) throw new Error('Transfer conflict. Refresh and retry.');
+      await tx.supplier.updateMany({
+        where: { id: { in: [source.id, destination.id] }, userId },
+        data: { updatedAt: new Date() },
+      });
+      return {
+        sourceId: source.id,
+        count: moved.count + openingIds.length,
+      };
+    },
+    {
+      isolationLevel: 'Serializable',
+      timeout: 15000,
+    }
+  );
+
+  try {
+    const { invalidateDashboardCache } = await import('@/lib/queryCache');
+    await invalidateDashboardCache(userId);
+  } catch (error) {
+    console.error('Supply transfer succeeded but cache invalidation failed', error);
+  }
+  const supplies = await loadSupplierSuppliesJson(
+    prisma,
+    result.sourceId
+  );
+
+  return {
+    success: true,
+    movedHistoryCount: result.count,
+    supplies,
+    message: `Moved ${result.count} supply record(s)`,
+  };
+};
+
 
 /**
  * Record a dated supply event (history). Updates summary totals.
@@ -2109,7 +2480,7 @@ const recordSupplierSupply = async (args: {
 
   const { stockUpdated, withRecords } = await prisma.$transaction(async (tx) => {
     // Same lock key as updateSupplier so concurrent supply writes share one critical section.
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(${Number(userId)}, ${supplier.id})`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(${Number(userId)}, ${879_332})`;
 
     let stockUpdatedInTx = false;
     if (updateStock) {
@@ -2243,6 +2614,7 @@ export const contactsResolvers = {
     suppliers: withDashboardAuth(fetchSuppliersConnection),
     supplier: withDashboardAuth(fetchSingleSupplier),
     supplierSupplyMoveCandidates: withDashboardAuth(fetchSupplierSupplyMoveCandidates),
+    supplierTransferRecords: withDashboardAuth(fetchSupplierTransferRecords),
   },
   Mutation: {
     createBuyer: withDashboardAuth(createBuyer),
@@ -2258,6 +2630,7 @@ export const contactsResolvers = {
     syncSuppliersFromProducts: withDashboardAuth(syncSuppliersFromProducts),
     recordSupplierSupply: withDashboardAuth(recordSupplierSupply),
     moveSupplierSupplies: withDashboardAuth(moveSupplierSupplies),
+    moveSelectedSupplyRecords: withDashboardAuth(moveSelectedSupplyRecords),
   },
 };
 

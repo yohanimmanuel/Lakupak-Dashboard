@@ -23,8 +23,8 @@ import { CLIENT_SELECT_BUTTON_CLASS } from '@/components/clientmanagement/client
 import ImportSuppliesModal from '@/components/clientmanagement/ImportSuppliesModal';
 import ImportSelectionCheckbox from '@/components/clientmanagement/ImportSelectionCheckbox';
 import SupplyMoveModal, {
-  SupplyMoveNotice,
   type SupplyMoveCandidateRow,
+  type ManualSupplyRecord,
 } from '@/components/clientmanagement/SupplyMoveModal';
 import {
   mergeDuplicateSummaryRows,
@@ -463,6 +463,9 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   const [moveCandidates, setMoveCandidates] = useState<SupplyMoveCandidateRow[]>([]);
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [movingSupplies, setMovingSupplies] = useState(false);
+  const [transferMode, setTransferMode] = useState<'automatic' | 'manual'>('automatic');
+  const [manualRecords, setManualRecords] = useState<ManualSupplyRecord[]>([]);
+  const [loadingTransfers, setLoadingTransfers] = useState(false);
 
   // Enhanced state management with proper typing
   const [saving, setSaving] = useState(false);
@@ -897,6 +900,86 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     };
   }, [isEditMode, user?.id, initialData?.supplierId, initialData?.supplies, id]);
 
+  const hasUnsavedSupplyChanges = useMemo(() => {
+    if (!isEditMode || !initialData) return false;
+    const original = parseSupplyBuckets(initialData.supplies);
+    const normalize = (rows: SupplyDetail[]) => rows
+      .filter((row) => !isBlankHistoryRow(row))
+      .map((row) => ({
+        suppliesno: row.suppliesno || '', sku: row.sku || '',
+        product: row.product || '', totalSupplied: row.totalSupplied || '',
+        totalValue: row.totalValue || '', lastDelivery: row.lastDelivery || '',
+        productId: row.productId || '', variantName: row.variantName || '',
+        updateCurrentStock: row.updateCurrentStock === true,
+      }));
+    return pendingDeleteMarkers.length > 0 ||
+      JSON.stringify(normalize(historyRows)) !== JSON.stringify(normalize(original.history));
+  }, [isEditMode, initialData, historyRows, pendingDeleteMarkers]);
+
+  const openManualTransfers = async () => {
+    const userId = user?.id;
+    const supplierId = String(initialData?.supplierId || id || '').trim();
+    if (!isEditMode || !userId || !supplierId || loadingTransfers || movingSupplies || saving || isSubmitting || isNavigating) return;
+
+    if (hasUnsavedSupplyChanges) {
+      setError('Save or discard unsaved supply changes before transferring records.');
+      return;
+    }
+    setLoadingTransfers(true);
+    setError('');
+    try {
+      const data = await fetchGraphQL<{
+        supplierTransferRecords: ManualSupplyRecord[];
+      }>(
+        `query ManualSupplierTransfers($userId: Int!, $supplierId: String!) {
+          supplierTransferRecords(userId: $userId, supplierId: $supplierId) {
+            id sku product totalSupplied totalValue lastDelivery productId variantName targetSupplierName recordType
+          }
+        }`,
+        { userId, supplierId },
+      );
+      setManualRecords(data.supplierTransferRecords ?? []);
+      setTransferMode('manual');
+      setShowMoveModal(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load supply transfers');
+    } finally {
+      setLoadingTransfers(false);
+    }
+  };
+
+  const handleManualSupplyMove = async (recordIds: number[]) => {
+    const userId = user?.id;
+    const fromSupplierId = String(initialData?.supplierId || id || '').trim();
+    if (!userId || !fromSupplierId || !recordIds.length ||
+        movingSupplies || hasUnsavedSupplyChanges) return;
+    setMovingSupplies(true);
+    try {
+      const data = await fetchGraphQL<{
+        moveSelectedSupplyRecords: { success: boolean; movedHistoryCount: number; supplies: string | null };
+      }>(`mutation ManualMove($userId: Int!, $fromSupplierId: String!,
+          $recordIds: [Int!]!) {
+          moveSelectedSupplyRecords(userId: $userId, fromSupplierId: $fromSupplierId,
+            recordIds: $recordIds) {
+            success movedHistoryCount supplies
+          }
+        }`, { userId, fromSupplierId, recordIds });
+      if (!data.moveSelectedSupplyRecords.success) throw new Error('Transfer failed');
+      const buckets = parseSupplyBuckets(data.moveSelectedSupplyRecords.supplies);
+      setSummaryRows(buckets.summary);
+      setHistoryRows(buckets.history);
+      setShowMoveModal(false);
+      setSuccess(`Moved ${data.moveSelectedSupplyRecords.movedHistoryCount} supply record(s). Reload before editing further.`);
+      // The loaded edit-form snapshot is now stale. Return to the supplier page.
+      router.push(`/clients/suppliers/details/${encodeURIComponent(fromSupplierId)}`);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Transfer failed');
+    } finally {
+      setMovingSupplies(false);
+    }
+  };
+
   const handleConfirmSupplyMove = useCallback(
     async (variants: Array<{ productId: string; variantName: string }>) => {
       const userId = user?.id;
@@ -1042,6 +1125,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
             $logistics: String
             $notes: String
             $supplies: String
+            $expectedUpdatedAt: String
           ) {
             updateSupplier(
               userId: $userId
@@ -1057,6 +1141,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
               logistics: $logistics
               notes: $notes
               supplies: $supplies
+              expectedUpdatedAt: $expectedUpdatedAt
             ) {
               id
               supplierId
@@ -1165,6 +1250,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
           logistics: payload.logistics,
           notes: payload.notes,
           supplies: payload.supplies,
+          expectedUpdatedAt: initialData?.updatedAt,
         });
       
         savedSupplier = data.createSupplier;
@@ -1376,34 +1462,45 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                 </div>
               )}
             </div>
-            <div className="mb-3 inline-flex rounded-full border border-[#e6e6e6] bg-gray-50 p-1">
-              <button
-                type="button"
-                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                  suppliesTab === 'summary'
-                    ? 'bg-white text-black shadow-sm'
-                    : 'text-gray-500 hover:text-black'
-                }`}
-                onClick={() => setSuppliesTab('summary')}
-              >
-                {tSuppliersProfile('supplySummaryTab')}
-              </button>
-              <button
-                type="button"
-                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                  suppliesTab === 'history'
-                    ? 'bg-white text-black shadow-sm'
-                    : 'text-gray-500 hover:text-black'
-                }`}
-                onClick={() => setSuppliesTab('history')}
-              >
-                {tSuppliersProfile('supplyHistoryTab')}
-              </button>
+
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <div className="inline-flex rounded-full border border-[#e6e6e6] bg-gray-50 p-1">
+                <button
+                  type="button"
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                    suppliesTab === 'summary'
+                      ? 'bg-white text-black shadow-sm'
+                      : 'text-gray-500 hover:text-black'
+                  }`}
+                  onClick={() => setSuppliesTab('summary')}
+                >
+                  {tSuppliersProfile('supplySummaryTab')}
+                </button>
+
+                <button
+                  type="button"
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                    suppliesTab === 'history'
+                      ? 'bg-white text-black shadow-sm'
+                      : 'text-gray-500 hover:text-black'
+                  }`}
+                  onClick={() => setSuppliesTab('history')}
+                >
+                  {tSuppliersProfile('supplyHistoryTab')}
+                </button>
+              </div>
+
+              {isEditMode && (
+                <button
+                  type="button"
+                  className="rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-gray-100 disabled:opacity-50"
+                  onClick={() => void openManualTransfers()}
+                  disabled={loadingTransfers || movingSupplies || saving || isSubmitting || isNavigating}
+                >
+                  Manage Supply Transfers
+                </button>
+              )}
             </div>
-            <SupplyMoveNotice
-              count={moveCandidates.length}
-              onReviewAction={() => setShowMoveModal(true)}
-            />
             {showMoveModal && (
               <SupplyMoveModal
                 open={showMoveModal}
@@ -1412,6 +1509,10 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                 submitting={movingSupplies}
                 onCloseAction={() => setShowMoveModal(false)}
                 onConfirmAction={handleConfirmSupplyMove}
+                mode={transferMode}
+                manualRecords={manualRecords}
+                manualEnabled={true}
+                onManualConfirmAction={handleManualSupplyMove}
               />
             )}
             {showImportSupplies && (

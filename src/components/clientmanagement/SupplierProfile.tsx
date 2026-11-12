@@ -6,8 +6,8 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, L
 import { useEffect, useMemo, useState } from 'react';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import SupplyMoveModal, {
-  SupplyMoveNotice,
   type SupplyMoveCandidateRow,
+  type ManualSupplyRecord,
 } from '@/components/clientmanagement/SupplyMoveModal';
 import { Supplier, SupplyDetail } from '@/types/client';
 import { formatDate, formatNumber } from '@/utils/dateUtils';
@@ -82,6 +82,9 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
   const [moveCandidates, setMoveCandidates] = useState<SupplyMoveCandidateRow[]>([]);
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [movingSupplies, setMovingSupplies] = useState(false);
+  const [transferMode, setTransferMode] = useState<'automatic' | 'manual'>('automatic');
+  const [manualRecords, setManualRecords] = useState<ManualSupplyRecord[]>([]);
+  const [loadingTransfers, setLoadingTransfers] = useState(false);
   const [moveMessage, setMoveMessage] = useState('');
   
   // SupplierProfile - Raw supplier data
@@ -184,6 +187,70 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
       cancelled = true;
     };
   }, [user?.id, supplier.supplierId, supplier.id, supplier.supplies]);
+
+  const openManualTransfers = async () => {
+    const userId = user?.id;
+    const supplierId = String(supplier.supplierId || supplier.id || '').trim();
+    if (!userId || !supplierId || loadingTransfers || movingSupplies) return;
+
+    setLoadingTransfers(true);
+    setMoveMessage('');
+    try {
+      const data = await fetchGraphQL<{
+        supplierTransferRecords: ManualSupplyRecord[];
+      }>(
+        `query ManualSupplierTransfers($userId: Int!, $supplierId: String!) {
+          supplierTransferRecords(userId: $userId, supplierId: $supplierId) {
+            id
+            sku
+            product
+            totalSupplied
+            totalValue
+            lastDelivery
+            productId
+            variantName
+            targetSupplierName
+            recordType
+          }
+        }`,
+        { userId, supplierId },
+      );
+      setManualRecords(data.supplierTransferRecords ?? []);
+      setTransferMode('manual');
+      setShowMoveModal(true);
+    } catch (err) {
+      setMoveMessage(err instanceof Error ? err.message : 'Failed to load supply transfers');
+    } finally {
+      setLoadingTransfers(false);
+    }
+  };
+
+  const handleManualSupplyMove = async (recordIds: number[]) => {
+    const userId = user?.id;
+    const fromSupplierId = String(supplier.supplierId || '').trim();
+    if (!userId || !fromSupplierId || !recordIds.length || movingSupplies) return;
+    setMovingSupplies(true);
+    setMoveMessage('');
+    try {
+      const data = await fetchGraphQL<{
+        moveSelectedSupplyRecords: { success: boolean; movedHistoryCount: number };
+      }>(`mutation ManualMove($userId: Int!, $fromSupplierId: String!,
+          $recordIds: [Int!]!) {
+          moveSelectedSupplyRecords(userId: $userId, fromSupplierId: $fromSupplierId,
+            recordIds: $recordIds) {
+            success movedHistoryCount
+          }
+        }`, { userId, fromSupplierId, recordIds });
+      if (!data.moveSelectedSupplyRecords.success) throw new Error('Transfer failed');
+      setShowMoveModal(false);
+      setMoveMessage(`Moved ${data.moveSelectedSupplyRecords.movedHistoryCount} supply record(s).`);
+      onUpdate?.();
+    } catch (err) {
+      setMoveMessage(err instanceof Error ? err.message : 'Transfer failed');
+    } finally {
+      setMovingSupplies(false);
+    }
+  };
 
   const handleConfirmSupplyMove = async (
     variants: Array<{ productId: string; variantName: string }>,
@@ -472,12 +539,19 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
       {/* Second Row: Supplies/Product Data (view-only; edit/import/export on edit page) */}
       <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 relative">
         <div className="flex items-center justify-between mb-4">
-          <div className="font-semibold text-md text-black">{tSuppliersProfile('suppliesSection')}</div>
+          <div className="font-semibold text-md text-black">
+            {tSuppliersProfile('suppliesSection')}
+          </div>
+
+          <button
+            type="button"
+            className="rounded-lg border border-[#e6e6e6] px-3 py-1.5 text-xs font-semibold text-black hover:bg-gray-50"
+            onClick={() => void openManualTransfers()}
+            disabled={movingSupplies || loadingTransfers}
+          >
+            Manage Supply Transfers
+          </button>
         </div>
-        <SupplyMoveNotice
-          count={moveCandidates.length}
-          onReviewAction={() => setShowMoveModal(true)}
-        />
         {moveMessage ? (
           <div className="mb-3 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
             {moveMessage}
@@ -491,6 +565,10 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
             submitting={movingSupplies}
             onCloseAction={() => setShowMoveModal(false)}
             onConfirmAction={handleConfirmSupplyMove}
+                mode={transferMode}
+                manualRecords={manualRecords}
+                manualEnabled={true}
+                onManualConfirmAction={handleManualSupplyMove}
           />
         )}
         {/* Summary Statistics */}

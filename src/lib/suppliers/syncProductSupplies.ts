@@ -301,6 +301,19 @@ export function applyProductToSupplierMaps(
       continue;
     }
 
+    // A catalog reassignment must never mint another opening balance.
+    // Look across ALL suppliers, not only the currently assigned supplier.
+    // The original opening summary remains at its supplier until explicitly moved.
+    const alreadyRecordedElsewhere = suppliers.some((supplier) =>
+      (suppliesBySupplierId.get(supplier.id) || []).some((row) =>
+        isSupplySummaryRow(row) &&
+        (String(row.productId || '').trim().toLowerCase() === product.productId.trim().toLowerCase() &&
+         String(row.variantName || '').trim().toLowerCase() === variant.variantName.trim().toLowerCase() ||
+         String(row.suppliesno || '').trim() === autoNo),
+      ),
+    );
+    if (alreadyRecordedElsewhere) continue;
+
     supplies.push(buildNewSupplyRow(product, variant));
     changed = true;
   }

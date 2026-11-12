@@ -141,13 +141,66 @@ export async function replaceSupplierSupplyRecords(
         : [];
   const list = raw.filter((row) => !isSupplyDeleteMarker(row));
 
-  await db.supplyRecord.deleteMany({ where: { supplierRefId } });
-
-  if (list.length === 0) return [];
-
-  await db.supplyRecord.createMany({
-    data: buildSupplyRecordCreateManyRows(supplierRefId, list),
-  });
+  // Preserve database IDs for unchanged/edited records. The caller must hold the
+  // distributor advisory lock in the same transaction for existing suppliers.
+  const incoming = buildSupplyRecordCreateManyRows(supplierRefId, list);
+  // Guard against duplicate opening/summary identities before persisting.
+  // Two summaries for one catalog variant would inflate Total Supplied.
+  const summaryKeys = new Set<string>();
+  for (const row of incoming) {
+    if (row.recordType !== 'summary' || !row.productId || !row.variantName) continue;
+    const key = `${row.productId.trim().toLowerCase()}|${row.variantName.trim().toLowerCase()}`;
+    if (summaryKeys.has(key)) {
+      throw new Error('Duplicate supply summary for the same product variant. Reconcile before saving.');
+    }
+    summaryKeys.add(key);
+  }
+  const existing = await db.supplyRecord.findMany({ where: { supplierRefId } });
+  const byNo = new Map<string, typeof existing>();
+  for (const row of existing) {
+    if (!row.suppliesno) continue;
+    const group = byNo.get(row.suppliesno) || [];
+    group.push(row);
+    byNo.set(row.suppliesno, group);
+  }
+  const used = new Set<number>();
+  const seen = new Set<string>();
+  for (const row of incoming) {
+    // Identical IDs in one payload would make updates ambiguous and unsafe.
+    if (row.suppliesno) {
+      if (seen.has(row.suppliesno)) {
+        throw new Error('Duplicate supply record number. Please correct the supplier history.');
+      }
+      seen.add(row.suppliesno);
+    }
+    const matches = row.suppliesno ? byNo.get(row.suppliesno) || [] : [];
+    if (matches.length > 1) {
+      throw new Error('Duplicate stored supply record number. Reconcile before saving.');
+    }
+    const match = matches[0];
+    if (match) {
+      used.add(match.id);
+      await db.supplyRecord.update({
+        where: { id: match.id },
+        data: {
+          suppliesno: row.suppliesno, sku: row.sku, product: row.product,
+          totalSupplied: row.totalSupplied, totalValue: row.totalValue,
+          lastDelivery: row.lastDelivery, status: row.status,
+          deliverySuccess: row.deliverySuccess, recordType: row.recordType,
+          productId: row.productId, variantName: row.variantName,
+          updateCurrentStock: row.updateCurrentStock,
+          stockApplied: row.stockApplied, sortOrder: row.sortOrder,
+        },
+      });
+    } else {
+      const created = await db.supplyRecord.create({ data: row });
+      used.add(created.id);
+    }
+  }
+  const removedIds = existing.filter((row) => !used.has(row.id)).map((row) => row.id);
+  if (removedIds.length) {
+    await db.supplyRecord.deleteMany({ where: { supplierRefId, id: { in: removedIds } } });
+  }
 
   return list;
 }
