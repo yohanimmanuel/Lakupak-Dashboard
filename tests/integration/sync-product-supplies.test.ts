@@ -1,3 +1,4 @@
+
 import { beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '@/lib/db';
 import {
@@ -18,7 +19,7 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
     await resetDb();
   });
 
-  it('keeps prior supplier history in place and only links an AUTO summary on supplier B', async () => {
+  it('keeps existing supplier opening balances and history in place until explicitly transferred', async () => {
     const distributor = await createTestDistributor();
     const productId = 'P-SUPPLY-MOVE-1';
     const autoNo = supplyAutoNo(productId, 'Default');
@@ -35,6 +36,7 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
       productId,
       variantName: 'Default',
     };
+
     const history: SupplyDetail = {
       suppliesno: 'HIST-MOVE-1',
       sku: 'SKU-MOVE-1',
@@ -47,6 +49,7 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
       productId,
       variantName: 'Default',
     };
+
     const unrelated: SupplyDetail = {
       suppliesno: 'HIST-OTHER',
       sku: 'SKU-OTHER',
@@ -72,6 +75,7 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
         userId: distributor.id,
       },
     });
+
     const supplierB = await prisma.supplier.create({
       data: {
         supplierId: `LKS-B-${distributor.id}`,
@@ -85,9 +89,14 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
         userId: distributor.id,
       },
     });
-    await replaceSupplierSupplyRecords(prisma, supplierA.id, [summary, history, unrelated]);
 
-    await syncSupplierFromProduct({
+    await replaceSupplierSupplyRecords(
+      prisma,
+      supplierA.id,
+      [summary, history, unrelated],
+    );
+
+    const productSnapshot = {
       productId,
       name: 'Move Test Widget',
       supplier: 'Supplier B',
@@ -101,22 +110,91 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
           isActive: true,
         },
       ],
-    });
+    };
+
+    // Changing the Product Catalog supplier must not automatically
+    // move existing opening balances or historical supply records.
+    await syncSupplierFromProduct(productSnapshot);
 
     const [onA, onB] = await Promise.all([
       loadSupplierSupplies(prisma, supplierA.id),
       loadSupplierSupplies(prisma, supplierB.id),
     ]);
 
-    // History/summary stay on A for the amber move-notice; B only gets a stock-linked AUTO row.
+    // Supplier A retains its original opening balance,
+    // historical supply, and unrelated record.
     expect(onA.map((r) => r.suppliesno).sort()).toEqual(
       [autoNo, 'HIST-MOVE-1', 'HIST-OTHER'].sort(),
     );
-    expect(onA.some((r) => r.suppliesno === 'HIST-MOVE-1')).toBe(true);
-    expect(onB.some((r) => r.recordType === 'summary' && r.productId === productId)).toBe(true);
-    expect(onB.find((r) => r.recordType === 'summary')?.totalSupplied).toBe('250');
-    expect(onB.find((r) => r.recordType === 'summary')?.totalValue).toBe('1250000');
-    expect(onB.some((r) => r.suppliesno === 'HIST-MOVE-1')).toBe(false);
+
+    expect(
+      onA.find((r) => r.suppliesno === autoNo)?.totalSupplied,
+    ).toBe('250');
+
+    expect(
+      onA.find((r) => r.suppliesno === autoNo)?.totalValue,
+    ).toBe('1250000');
+
+    expect(
+      onA.some((r) => r.suppliesno === 'HIST-MOVE-1'),
+    ).toBe(true);
+
+    expect(
+      onA.some((r) => r.suppliesno === 'HIST-OTHER'),
+    ).toBe(true);
+
+    // Supplier B must not receive a duplicate opening balance.
+    // Existing opening balances remain with Supplier A
+    // until the user explicitly transfers them.
+    expect(
+      onB.some(
+        (r) =>
+          r.recordType === 'summary' &&
+          r.productId === productId &&
+          r.variantName === 'Default',
+      ),
+    ).toBe(false);
+
+    // Historical supplies must never move automatically.
+    expect(
+      onB.some((r) => r.suppliesno === 'HIST-MOVE-1'),
+    ).toBe(false);
+
+    // Repeated synchronization must be idempotent.
+    // It must not generate duplicate opening balances.
+    await syncSupplierFromProduct(productSnapshot);
+
+    const [afterA, afterB] = await Promise.all([
+      loadSupplierSupplies(prisma, supplierA.id),
+      loadSupplierSupplies(prisma, supplierB.id),
+    ]);
+
+    expect(afterA).toHaveLength(onA.length);
+    expect(afterB).toHaveLength(onB.length);
+
+    expect(
+      afterA.map((r) => r.suppliesno).sort(),
+    ).toEqual(onA.map((r) => r.suppliesno).sort());
+
+    expect(
+      afterA.find((r) => r.suppliesno === autoNo)?.totalSupplied,
+    ).toBe('250');
+
+    expect(
+      afterA.find((r) => r.suppliesno === autoNo)?.totalValue,
+    ).toBe('1250000');
+
+    expect(
+      afterB.some(
+        (r) =>
+          r.recordType === 'summary' &&
+          r.productId === productId,
+      ),
+    ).toBe(false);
+
+    expect(
+      afterB.some((r) => r.suppliesno === 'HIST-MOVE-1'),
+    ).toBe(false);
   });
 
   it('removes linked summary and history supplies when a product is deleted', async () => {
@@ -137,6 +215,7 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
         userId: distributor.id,
       },
     });
+
     await replaceSupplierSupplyRecords(prisma, supplier.id, [
       {
         suppliesno: autoNo,
@@ -175,9 +254,13 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
       },
     ] satisfies SupplyDetail[]);
 
-    await removeProductSupplies({ userId: distributor.id, productId });
+    await removeProductSupplies({
+      userId: distributor.id,
+      productId,
+    });
 
     const rows = await loadSupplierSupplies(prisma, supplier.id);
+
     expect(rows).toHaveLength(1);
     expect(rows[0].suppliesno).toBe('HIST-KEEP');
   });
