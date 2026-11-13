@@ -186,6 +186,11 @@ export const contactsTypeDefs = /* GraphQL */ `
       supplierId: String!
     ): [SupplierTransferRecord!]!
 
+    supplierProductStockUnits(
+      userId: Int!
+      supplierId: String!
+    ): [SupplierProductStockUnit!]!
+
   }
 
   type SupplyMoveCandidate {
@@ -210,6 +215,11 @@ export const contactsTypeDefs = /* GraphQL */ `
     variantName: String
     targetSupplierName: String!
     recordType: String!
+  }
+
+  type SupplierProductStockUnit {
+    productId: String!
+    stockUnit: String!
   }
 
   input SupplyMoveVariantInput {
@@ -2607,9 +2617,41 @@ const bulkDeleteSuppliers = async (args: { userId: number; ids: string[] }) => {
 
 import { withDashboardAuth } from '../common/auth';
 
+const fetchSupplierProductStockUnits = async (args: {
+  userId: number;
+  supplierId: string;
+}) => {
+  const userId = Number(args.userId);
+  if (!Number.isSafeInteger(userId) || userId <= 0) throw new Error('Invalid user');
+
+  const supplier = await prisma.supplier.findFirst({
+    where: { userId, supplierId: args.supplierId },
+    select: { id: true },
+  });
+  if (!supplier) throw new Error('Supplier not found');
+
+  const rows = await prisma.supplyRecord.findMany({
+    where: { supplierRefId: supplier.id, productId: { not: null } },
+    select: { productId: true },
+    distinct: ['productId'],
+  });
+  const productIds = rows.map((row) => row.productId).filter((id): id is string => Boolean(id));
+  if (!productIds.length) return [];
+
+  const products = await prisma.product.findMany({
+    where: { userId, productId: { in: productIds } },
+    select: { productId: true, stockUnit: true },
+  });
+  return products.map((product) => ({
+    productId: product.productId,
+    stockUnit: product.stockUnit || 'Pieces',
+  }));
+};
+
 export const contactsResolvers = {
   Query: {
     buyers: withDashboardAuth(fetchBuyersConnection),
+    supplierProductStockUnits: withDashboardAuth(fetchSupplierProductStockUnits),
     buyer: withDashboardAuth(fetchSingleBuyer),
     suppliers: withDashboardAuth(fetchSuppliersConnection),
     supplier: withDashboardAuth(fetchSingleSupplier),
