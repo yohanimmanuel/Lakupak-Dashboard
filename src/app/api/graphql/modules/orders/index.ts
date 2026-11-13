@@ -132,6 +132,16 @@ export const ordersTypeDefs = /* GraphQL */ `
     pagination: PaginationInfo!
   }
 
+  type BuyerOrderDetail {
+    orderId: String!
+    orderStatus: String!
+    paymentStatus: String!
+    orderDate: String!
+    totalAmount: Float!
+    shippingFee: Float!
+    orderItems: [OrderItem!]!
+  }
+
   extend type Query {
     orders(
       userId: Int!
@@ -146,6 +156,12 @@ export const ordersTypeDefs = /* GraphQL */ `
       page: Int = 1
       limit: Int = 10
     ): OrderConnection!
+
+    buyerOrderDetail(
+      userId: Int!
+      buyerId: String!
+      orderId: String!
+    ): BuyerOrderDetail
   }
 `;
 
@@ -343,9 +359,38 @@ const fetchMarketplaceOrdersConnection = async (args: {
 
 import { withDashboardAuth, requireDashboardUser } from '../common/auth';
 
+const fetchBuyerOrderDetail = async (args: {
+  userId: number;
+  buyerId: string;
+  orderId: string;
+}) => {
+  const { userId, buyerId, orderId } = args;
+  const order = await prisma.order.findFirst({
+    where: {
+      userId,
+      buyerId,
+      orderId,
+      isDeleted: false,
+    },
+    include: orderInclude,
+  });
+  if (!order) return null;
+
+  return {
+    orderId: order.orderId,
+    orderStatus: order.orderStatus || '',
+    paymentStatus: order.paymentStatus || '',
+    orderDate: order.orderDate?.toISOString?.() || String(order.orderDate || ''),
+    totalAmount: parseMoney(order.totalAmount),
+    shippingFee: parseMoney(order.shippingFee),
+    orderItems: mapOrderItems(order.orderItemsRel || []),
+  };
+};
+
 export const ordersResolvers = {
   Query: {
     orders: withDashboardAuth(fetchOrdersConnection),
+    buyerOrderDetail: withDashboardAuth(fetchBuyerOrderDetail),
     marketplaceOrders: async (
       _: unknown,
       args: { marketplaceUserId: number; page?: number; limit?: number },
