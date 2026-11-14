@@ -25,6 +25,7 @@ import { invalidateSearchCache } from '@/utils/searchCache';
 import { auditCatalog } from '@/lib/audit';
 import { requireDashboardUser, withDashboardAuth } from '@/app/api/graphql/modules/common/auth';
 import { computeAssortmentGap, computeAssortmentGapVariants } from '@/lib/products/assortmentGap';
+import { normalizeStockLevels, validateStockLevels, type StockLevel } from '@/utils/stockUtils';
 
 function rejectProductInput(message: string): never {
   throw new GraphQLError(message, { extensions: { code: 'BAD_USER_INPUT' } });
@@ -40,6 +41,7 @@ function assertProductPayload(input: {
   supplier?: unknown;
   images?: unknown;
   returnPolicyDays?: unknown;
+  stockLevels?: unknown;
   status?: string | null;
   variantOptions?: Array<{
     stockQuantity?: number | null;
@@ -67,6 +69,10 @@ function assertProductPayload(input: {
   if (imageError) rejectProductInput(imageError);
   const daysError = productReturnDaysError(input.returnPolicyDays);
   if (daysError) rejectProductInput(daysError);
+  if (input.stockLevels !== undefined) {
+    const stockLevelsError = validateStockLevels(input.stockLevels);
+    if (stockLevelsError) rejectProductInput(stockLevelsError);
+  }
   const options = input.variantOptions ?? [];
   if (options.length === 0) {
     if (input.publishing) rejectProductInput('Variation list is required.');
@@ -156,6 +162,7 @@ export const productsTypeDefs = /* GraphQL */ `
     merchandisingCategorySlug: String
     catalogName: String
     stockUnit: String
+    stockLevels: [JSONObject!]
     images: [String!]!
     halalCertified: Boolean
     bpomApproved: Boolean
@@ -374,6 +381,7 @@ export const productsTypeDefs = /* GraphQL */ `
     merchandisingCategorySlug: String
     catalogName: String
     stockUnit: String
+      stockLevels: [JSONObject!]
       images: [String!]
       halalCertified: Boolean
       bpomApproved: Boolean
@@ -399,6 +407,7 @@ export const productsTypeDefs = /* GraphQL */ `
     merchandisingCategorySlug: String
     catalogName: String
     stockUnit: String
+      stockLevels: [JSONObject!]
       images: [String!]
       halalCertified: Boolean
       bpomApproved: Boolean
@@ -576,6 +585,9 @@ export const mapProduct = (
     merchandisingCategorySlug: (product as { merchandisingCategorySlug?: string | null }).merchandisingCategorySlug ?? null,
     catalogName: product.catalogName ?? null,
     stockUnit: (product as { stockUnit?: string | null }).stockUnit ?? 'Pieces',
+    // Prisma returns JsonValue here, not the domain StockLevel[] type.
+    // Normalize at the boundary so legacy/malformed JSON cannot leak to clients.
+    stockLevels: normalizeStockLevels((product as { stockLevels?: unknown }).stockLevels),
     images: product.images ?? [],
     halalCertified: product.halalCertified ?? null,
     bpomApproved: product.bpomApproved ?? null,
@@ -829,6 +841,15 @@ const normalizeStockUnit = (raw?: string | null): string => {
   return STOCK_UNITS.has(value) ? value : 'Pieces';
 };
 
+/**
+ * Prisma's JSON write input is intentionally distinct from its JSON read type.
+ * Round-trip the already-normalized domain data through JSON to produce a plain
+ * JSON value accepted by Prisma.InputJsonValue without asserting StockLevel[]
+ * to be a Prisma JSON object/array.
+ */
+const toPrismaStockLevelsJson = (levels: unknown): Prisma.InputJsonValue =>
+  JSON.parse(JSON.stringify(normalizeStockLevels(levels))) as Prisma.InputJsonValue;
+
 const buildProductData = ({
   productId,
   sku,
@@ -842,6 +863,7 @@ const buildProductData = ({
   merchandisingCategorySlug,
   catalogName,
   stockUnit,
+  stockLevels,
   images,
   halalCertified,
   bpomApproved,
@@ -861,6 +883,7 @@ const buildProductData = ({
   merchandisingCategorySlug?: string | null;
   catalogName?: string | null;
   stockUnit?: string | null;
+  stockLevels?: StockLevel[] | null;
   images?: string[] | null;
   halalCertified?: boolean | null;
   bpomApproved?: boolean | null;
@@ -884,7 +907,9 @@ const buildProductData = ({
     marketplaceStatus: finalMarketplaceStatus,
     merchandisingCategorySlug: normalizeMerchandisingCategorySlug(merchandisingCategorySlug),
     catalogName: catalogName?.trim() || '',
-    stockUnit: normalizeStockUnit(stockUnit),
+    // VariantOption.stockQuantity and lowStockThreshold are always absolute piece counts.
+    stockUnit: 'Pieces',
+    stockLevels: toPrismaStockLevelsJson(stockLevels),
     images: Array.isArray(images) ? images : [],
     halalCertified: halalCertified === true,
     bpomApproved: bpomApproved === true,
@@ -1031,6 +1056,7 @@ export const createProduct = async (args: {
   merchandisingCategorySlug?: string | null;
   catalogName?: string | null;
   stockUnit?: string | null;
+  stockLevels?: StockLevel[] | null;
   images?: string[] | null;
   halalCertified?: boolean | null;
   bpomApproved?: boolean | null;
@@ -1071,6 +1097,7 @@ export const createProduct = async (args: {
     merchandisingCategorySlug,
     catalogName,
     stockUnit,
+    stockLevels,
     images = [],
     halalCertified = false,
     bpomApproved = false,
@@ -1091,6 +1118,7 @@ export const createProduct = async (args: {
     supplier,
     images,
     returnPolicyDays,
+    stockLevels: stockLevels ?? [{ name: 'Pieces', piecesPerUnit: 1 }],
     status,
     variantOptions,
     currency,
@@ -1120,6 +1148,7 @@ export const createProduct = async (args: {
     merchandisingCategorySlug,
     catalogName,
     stockUnit,
+    stockLevels: stockLevels ?? [{ name: 'Pieces', piecesPerUnit: 1 }],
     images,
     halalCertified,
     bpomApproved,
@@ -1250,6 +1279,7 @@ export const updateProduct = async (args: {
   merchandisingCategorySlug?: string | null;
   catalogName?: string | null;
   stockUnit?: string | null;
+  stockLevels?: StockLevel[] | null;
   images?: string[] | null;
   halalCertified?: boolean | null;
   bpomApproved?: boolean | null;
@@ -1291,6 +1321,7 @@ export const updateProduct = async (args: {
     merchandisingCategorySlug,
     catalogName,
     stockUnit,
+    stockLevels,
     images,
     halalCertified,
     bpomApproved,
@@ -1336,6 +1367,13 @@ export const updateProduct = async (args: {
 
   const nextStatus = status !== undefined ? String(status) : productBeforeUpdate.status;
   const publishing = nextStatus === 'Published';
+  const storedStockLevels = productBeforeUpdate.stockLevels ??
+    (normalizeStockUnit(productBeforeUpdate.stockUnit) === 'Pieces'
+      ? [{ name: 'Pieces', piecesPerUnit: 1 }]
+      : null);
+  if (publishing && !stockLevels && !storedStockLevels) {
+    rejectProductInput('Convert this product’s legacy stock quantity to Pieces before publishing.');
+  }
   // Draft `present` mode skips undefined fields. Do not fill omitted marketSegment/sku from
   // stored null — that would incorrectly fail productRequiredTextError on partial draft saves.
   assertProductPayload({
@@ -1352,6 +1390,7 @@ export const updateProduct = async (args: {
     brand: brand !== undefined ? brand : productBeforeUpdate.brand,
     supplier: supplier !== undefined ? supplier : productBeforeUpdate.supplier,
     images: images !== undefined ? images : productBeforeUpdate.images,
+    stockLevels: stockLevels !== undefined ? stockLevels : (storedStockLevels ?? undefined),
     returnPolicyDays: returnPolicyDays !== undefined ? returnPolicyDays : productBeforeUpdate.returnPolicyDays,
     status: nextStatus,
     variantOptions:
@@ -1404,7 +1443,15 @@ export const updateProduct = async (args: {
     );
   }
   if (catalogName !== undefined) cleanUpdateData.catalogName = String(catalogName);
-  if (stockUnit !== undefined) cleanUpdateData.stockUnit = normalizeStockUnit(stockUnit);
+  if (stockLevels !== undefined) {
+    const stockLevelsError = validateStockLevels(stockLevels);
+    if (stockLevelsError) rejectProductInput(stockLevelsError);
+    cleanUpdateData.stockLevels = toPrismaStockLevelsJson(stockLevels);
+    // A successful conversion retires the old single-unit interpretation.
+    cleanUpdateData.stockUnit = 'Pieces';
+  } else if (stockUnit !== undefined && normalizeStockUnit(stockUnit) !== normalizeStockUnit(productBeforeUpdate.stockUnit)) {
+    rejectProductInput('Configure stock levels and convert existing quantities before changing the stock unit.');
+  }
   if (images !== undefined) cleanUpdateData.images = Array.isArray(images) ? images : [];
   if (halalCertified !== undefined) cleanUpdateData.halalCertified = Boolean(halalCertified);
   if (bpomApproved !== undefined) cleanUpdateData.bpomApproved = Boolean(bpomApproved);

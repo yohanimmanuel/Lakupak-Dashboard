@@ -18,7 +18,6 @@ import {
   ChevronUp,
   ChevronDown,
   Download,
-  Filter,
   Search,
 } from "lucide-react";
 import * as XLSX from 'xlsx';
@@ -30,14 +29,24 @@ import VariationListImport, {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUserStore } from "@/store/userStore";
-import { Product, ProductFormData } from "@/types/product";
+import { Product, ProductFormData, type StockLevel } from "@/types/product";
 import { getDefaultCurrency, getCurrencySymbol, formatCurrencyAmount } from '@/utils/currencyUtils';
 import { formatNumberByCurrency, parseNumberByCurrency, getPricePlaceholder } from '@/config/currencyConfig';
 import { getAvailableCategories, getCategoryByValue, getCategoryColor, getCategoryIconComponent, getCategoryImageSrc } from '@/utils/categoryUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { useProductsTranslations } from '@/hooks/useProductsTranslations';
-import { getProductStockStatus, getVariantStockStatus } from '@/utils/stockUtils';
+import {
+  getProductStockStatus,
+  getVariantStockStatus,
+  normalizeStockLevels,
+  validateStockLevels,
+  getWholeStockQuantity,
+  getStockLevelFractionLabel,
+  updateStockFromWholeQuantity,
+  getStockLevelRatio,
+  updateStockLevelRatio as applyStockLevelRatio,
+} from '@/utils/stockUtils';
 import { CATALOG_COMPLETION_OPTIONS, getProductCompletion } from '@/utils/productCompletion';
 import {
   PRODUCT_REQUIRED_TEXT,
@@ -86,6 +95,7 @@ const isFormDataEqual = (a: ProductFormData, b: ProductFormData): boolean => {
     a.status === b.status &&
     a.catalogName === b.catalogName &&
     a.stockUnit === b.stockUnit &&
+    JSON.stringify(a.stockLevels) === JSON.stringify(b.stockLevels) &&
     JSON.stringify(a.images) === JSON.stringify(b.images) &&
     a.halalCertified === b.halalCertified &&
     a.bpomApproved === b.bpomApproved &&
@@ -708,13 +718,30 @@ export default function ProductCatalog({
     supplier: product?.supplier || '',
     status: product?.status || 'Draft',
     catalogName: product?.catalogName || '',
-    stockUnit: normalizeStockUnitValue(product?.stockUnit),
+    stockUnit: 'Pieces',
+    stockLevels: normalizeStockLevels(product?.stockLevels),
     images: product?.images || [],
     halalCertified: (product as { halalCertified?: boolean })?.halalCertified ?? false,
     bpomApproved: (product as { bpomApproved?: boolean })?.bpomApproved ?? false,
     originalProduct: (product as { originalProduct?: boolean })?.originalProduct ?? true,
     returnPolicyDays: (product as { returnPolicyDays?: number })?.returnPolicyDays ?? 7
   });
+
+  // Keep ratio text in a draft state while the user is typing. Committing only on blur
+  // prevents intermediate digits (e.g. "1" while entering "100") from being rejected.
+  const [stockLevelRatioDrafts, setStockLevelRatioDrafts] = useState<Record<number, string>>({});
+
+  // Older records may still store variant stock in their legacy single stockUnit.
+  // Do not reinterpret those numbers as pieces until the distributor supplies the ratio.
+  const initialLegacyStockUnit = product && !Array.isArray(product.stockLevels) &&
+    normalizeStockUnitValue(product.stockUnit) !== 'Pieces'
+      ? normalizeStockUnitValue(product.stockUnit)
+      : null;
+  const [legacyStockUnit, setLegacyStockUnit] = useState<StockUnitValue | null>(initialLegacyStockUnit);
+  const [legacyPiecesPerUnit, setLegacyPiecesPerUnit] = useState('');
+  const [legacyConversionError, setLegacyConversionError] = useState('');
+  const legacyConversionAppliedRef = useRef(false);
+  const originalStockByCombinationIdRef = useRef<Record<string, { stockQuantity: number; lowStockThreshold: number }>>({});
 
   // Product-level stock is computed from variants (no separate state needed)
 
@@ -874,6 +901,11 @@ export default function ProductCatalog({
         return base;
       });
       
+      originalStockByCombinationIdRef.current = Object.fromEntries(loadedCombinations.map((combo) => [
+        combo.id,
+        { stockQuantity: combo.stockQuantity, lowStockThreshold: combo.lowStockThreshold },
+      ]));
+      combinationsRef.current = loadedCombinations;
       setVariants(inferredVariants.length > 0 ? inferredVariants : [{
         id: 'variant-1',
         variantType: '',
@@ -883,7 +915,8 @@ export default function ProductCatalog({
       setCombinations(loadedCombinations);
     } else {
       // Create default combination
-      setCombinations([{
+      originalStockByCombinationIdRef.current = {};
+      combinationsRef.current = [{
         id: 'combination-1',
         sku: '',
         purchasePrice: '',
@@ -892,7 +925,8 @@ export default function ProductCatalog({
         stockQuantity: 0,
         lowStockThreshold: 0,
         stockStatus: 'In Stock' as const
-      }]);
+      }];
+      setCombinations(combinationsRef.current);
     }
   }, [product]);
 
@@ -1014,7 +1048,8 @@ export default function ProductCatalog({
         supplier: product.supplier || '',
         status: product.status || 'Draft',
         catalogName: product.catalogName || '',
-        stockUnit: normalizeStockUnitValue(product.stockUnit),
+        stockUnit: 'Pieces',
+        stockLevels: normalizeStockLevels(product.stockLevels),
         images: product.images || [],
         halalCertified: (product as { halalCertified?: boolean })?.halalCertified ?? false,
         bpomApproved: (product as { bpomApproved?: boolean })?.bpomApproved ?? false,
@@ -1022,6 +1057,14 @@ export default function ProductCatalog({
         returnPolicyDays: (product as { returnPolicyDays?: number })?.returnPolicyDays ?? 7,
       };
       
+      const nextLegacyUnit = !Array.isArray(product.stockLevels) && normalizeStockUnitValue(product.stockUnit) !== 'Pieces'
+        ? normalizeStockUnitValue(product.stockUnit)
+        : null;
+      setLegacyStockUnit(nextLegacyUnit);
+      setLegacyPiecesPerUnit('');
+      setLegacyConversionError('');
+      legacyConversionAppliedRef.current = false;
+
       // Only update form data if it's actually different (using efficient comparison)
       setFormData(prev => {
         return isFormDataEqual(prev, freshFormData) ? prev : freshFormData;
@@ -1039,7 +1082,6 @@ export default function ProductCatalog({
   const [showGeneralCategoryDropdown, setShowGeneralCategoryDropdown] = useState(false);
   const [showCatalogCategoryDropdown, setShowCatalogCategoryDropdown] = useState(false);
   const [showMarketSegmentDropdown, setShowMarketSegmentDropdown] = useState(false);
-  const [showStockUnitDropdown, setShowStockUnitDropdown] = useState(false);
   const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
   const [supplierSearch, setSupplierSearch] = useState('');
   const [supplierOptions, setSupplierOptions] = useState<Array<{ supplierId: string; name: string }>>([]);
@@ -1048,7 +1090,6 @@ export default function ProductCatalog({
   // Refs for click outside detection
   const generalCategoryRef = useRef<HTMLDivElement>(null);
   const marketSegmentRef = useRef<HTMLDivElement>(null);
-  const stockUnitRef = useRef<HTMLDivElement>(null);
   const supplierDropdownRef = useRef<HTMLDivElement>(null);
 
   // Store original form data on mount for edit mode
@@ -1066,7 +1107,8 @@ export default function ProductCatalog({
         supplier: product?.supplier || '',
         status: product?.status || 'Draft',
         catalogName: product?.catalogName || '',
-        stockUnit: normalizeStockUnitValue(product?.stockUnit),
+        stockUnit: 'Pieces',
+        stockLevels: normalizeStockLevels(product?.stockLevels),
         images: product?.images || [],
         halalCertified: (product as { halalCertified?: boolean })?.halalCertified ?? false,
         bpomApproved: (product as { bpomApproved?: boolean })?.bpomApproved ?? false,
@@ -1195,9 +1237,6 @@ export default function ProductCatalog({
       if (marketSegmentRef.current && !marketSegmentRef.current.contains(event.target as Node)) {
         setShowMarketSegmentDropdown(false);
       }
-      if (stockUnitRef.current && !stockUnitRef.current.contains(event.target as Node)) {
-        setShowStockUnitDropdown(false);
-      }
       if (supplierDropdownRef.current && !supplierDropdownRef.current.contains(event.target as Node)) {
         setShowSupplierDropdown(false);
       }
@@ -1238,6 +1277,104 @@ export default function ProductCatalog({
       delete next[field];
       return next;
     });
+  };
+
+  const updateStockLevel = (index: number, patch: Partial<StockLevel>) => {
+    setFormData((prev) => ({
+      ...prev,
+      stockUnit: 'Pieces',
+      stockLevels: prev.stockLevels.map((level, levelIndex) =>
+        levelIndex === index ? { ...level, ...patch } : level,
+      ),
+    }));
+  };
+
+  const updateStockLevelRatioValue = (index: number, rawValue: string) => {
+    const ratio = rawValue.trim() === '' ? 0 : Number(rawValue);
+    setFormData((prev) => ({
+      ...prev,
+      stockUnit: 'Pieces',
+      stockLevels: applyStockLevelRatio(prev.stockLevels, index, ratio),
+    }));
+  };
+
+  const commitStockLevelRatioDraft = (index: number) => {
+    const rawValue = stockLevelRatioDrafts[index];
+    if (rawValue === undefined) return;
+
+    const normalized = rawValue.trim();
+    const ratio = normalized === '' ? 0 : Number(normalized);
+    const isValidWholeRatio = /^\d+$/.test(normalized) && Number.isSafeInteger(ratio) && ratio >= 2;
+    updateStockLevelRatioValue(index, isValidWholeRatio ? normalized : '');
+    setStockLevelRatioDrafts((prev) => {
+      const next = { ...prev };
+      delete next[index];
+      return next;
+    });
+  };
+
+  const addStockLevel = () => {
+    setFormData((prev) => ({
+      ...prev,
+      stockUnit: 'Pieces',
+      stockLevels: [...prev.stockLevels, { name: '', piecesPerUnit: 0, unitsPerPreviousLevel: 0 }],
+    }));
+  };
+
+  const removeStockLevel = (index: number) => {
+    if (index === 0) return;
+    setStockLevelRatioDrafts({});
+    setFormData((prev) => ({
+      ...prev,
+      stockLevels: prev.stockLevels.filter((_, levelIndex) => levelIndex !== index),
+    }));
+  };
+
+  const convertLegacyStockToPieces = () => {
+    if (!legacyStockUnit || legacyConversionAppliedRef.current) return;
+    const ratio = Number(legacyPiecesPerUnit);
+    if (!Number.isSafeInteger(ratio) || ratio < 2) {
+      setLegacyConversionError(tCatalog('variants.legacyRatioInvalid'));
+      return;
+    }
+
+    const source = combinationsRef.current.length ? combinationsRef.current : combinations;
+    const converted = source.map((combo) => {
+      const stockQuantity = combo.stockQuantity * ratio;
+      const lowStockThreshold = combo.lowStockThreshold * ratio;
+      if (!Number.isSafeInteger(stockQuantity) || stockQuantity > 2147483647 || !Number.isSafeInteger(lowStockThreshold) || lowStockThreshold > 2147483647) {
+        return null;
+      }
+      return {
+        ...combo,
+        stockQuantity,
+        lowStockThreshold,
+        stockStatus: getVariantStockStatus(stockQuantity, lowStockThreshold),
+      };
+    });
+    if (converted.some((row) => row === null)) {
+      setLegacyConversionError(tCatalog('variants.legacyConversionOverflow'));
+      return;
+    }
+
+    const nextCombinations = converted as Combination[];
+    const nextLevels = [
+      ...normalizeStockLevels(formData.stockLevels),
+      { name: legacyStockUnit, piecesPerUnit: ratio },
+    ];
+    const dedupedLevels = normalizeStockLevels(nextLevels);
+
+    legacyConversionAppliedRef.current = true;
+    combinationsRef.current = nextCombinations;
+    originalStockByCombinationIdRef.current = Object.fromEntries(nextCombinations.map((combo) => [
+      combo.id,
+      { stockQuantity: combo.stockQuantity, lowStockThreshold: combo.lowStockThreshold },
+    ]));
+    setCombinations(nextCombinations);
+    setFormData((prev) => ({ ...prev, stockUnit: 'Pieces', stockLevels: dedupedLevels }));
+    setLegacyStockUnit(null);
+    setLegacyPiecesPerUnit('');
+    setLegacyConversionError('');
   };
 
   // Variant management functions
@@ -1849,14 +1986,20 @@ export default function ProductCatalog({
   };
 
   const handleExportVariationList = () => {
+    // Stock is stored once, in absolute Pieces. Package columns are equivalent views
+    // of that same value and are exported as exact decimal equivalents for readability.
+    const packageStockLevels = displayStockLevels.filter(
+      (level) => String(level.name).trim().toLocaleLowerCase() !== 'pieces',
+    );
     const headers = [
       ...variationImportColumns.map((col) => col.label),
       tCatalog('variants.sku'),
       tCatalog('variants.sellingPrice'),
       tCatalog('variants.purchasePrice'),
       tCatalog('variants.moq'),
-      tCatalog('variants.stockQty'),
-      tCatalog('variants.lowThreshold'),
+      'Stock Quantity', // Canonical inventory column, always in Pieces.
+      ...packageStockLevels.map((level) => level.name),
+      'Low Stock Threshold', // Threshold is also stored in Pieces.
       tCatalog('variants.status'),
     ];
     const dataRows = combinations.map((combo) => [
@@ -1866,6 +2009,10 @@ export default function ProductCatalog({
       combo.purchasePrice,
       combo.moq ?? '',
       combo.stockQuantity,
+      ...packageStockLevels.map((level) => {
+        const ratio = Number(level.piecesPerUnit);
+        return Number.isSafeInteger(ratio) && ratio >= 1 ? combo.stockQuantity / ratio : '';
+      }),
       combo.lowStockThreshold,
       combo.stockStatus,
     ]);
@@ -1881,26 +2028,66 @@ export default function ProductCatalog({
   ): Promise<VariationImportResult> => {
     const { rows, variantLevels } = payload;
 
+    // The import dialog treats unrecognized spreadsheet columns as flexible variant
+    // columns. Recognize columns whose headers match this product's configured stock
+    // levels so carton/box columns are never turned into product variant definitions.
+    const stockLevelMappings = variantLevels.flatMap((column) => {
+      const stockLevel = displayStockLevels.find(
+        (level) => normalizeImportMatchValue(level.name) === normalizeImportMatchValue(column.typeName),
+      );
+      return stockLevel ? [{ columnId: column.columnId, stockLevel }] : [];
+    });
+    const productVariantLevels = variantLevels.filter(
+      (column) => !stockLevelMappings.some((mapping) => mapping.columnId === column.columnId),
+    );
+
+    const parseImportedQuantity = (raw: unknown): number | null => {
+      const text = String(raw ?? '').trim();
+      if (!text) return null;
+      const parsed = Number(text.replace(/,/g, ''));
+      return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+    };
+
+    const rowsWithCanonicalPieceStock = rows.map((row) => {
+      // Prefer the canonical Stock Quantity column when it exists. For package-only
+      // spreadsheets, convert the highest mapped package equivalent back into Pieces.
+      const canonicalPieces = parseImportedQuantity(row.stockQuantity);
+      if (canonicalPieces !== null) {
+        return { ...row, stockQuantity: String(Math.round(canonicalPieces)) };
+      }
+
+      for (let index = stockLevelMappings.length - 1; index >= 0; index -= 1) {
+        const mapping = stockLevelMappings[index];
+        const importedEquivalent = parseImportedQuantity(row.variantValues[mapping.columnId]);
+        if (importedEquivalent === null) continue;
+        const convertedPieces = Math.round(importedEquivalent * Number(mapping.stockLevel.piecesPerUnit));
+        if (Number.isSafeInteger(convertedPieces) && convertedPieces >= 0 && convertedPieces <= 2147483647) {
+          return { ...row, stockQuantity: String(convertedPieces) };
+        }
+      }
+      return row;
+    });
+
     const applyRowsToCombinations = (
       combos: Combination[],
       variantsList: CatalogVariant[],
     ): { combinations: Combination[]; updated: number } => {
-      const hasVariantColumns = variantLevels.length > 0;
+      const hasVariantColumns = productVariantLevels.length > 0;
       const usedRowIndices = new Set<number>();
       let updated = 0;
 
       let nextCombinations = combos.map((combo) => {
-        const rowIndex = rows.findIndex((row, idx) => {
+        const rowIndex = rowsWithCanonicalPieceStock.findIndex((row, idx) => {
           if (usedRowIndices.has(idx)) return false;
           return comboMatchesImportRow(combo, row, variantsList, hasVariantColumns);
         });
         if (rowIndex < 0) return combo;
         usedRowIndices.add(rowIndex);
         updated += 1;
-        return mergeImportRowIntoCombo(combo, rows[rowIndex]);
+        return mergeImportRowIntoCombo(combo, rowsWithCanonicalPieceStock[rowIndex]);
       });
 
-      rows.forEach((row, rowIndex) => {
+      rowsWithCanonicalPieceStock.forEach((row, rowIndex) => {
         if (usedRowIndices.has(rowIndex)) return;
 
         const hasIdentity =
@@ -1933,11 +2120,11 @@ export default function ProductCatalog({
     };
 
     const sourceCombinations = combinationsRef.current.length > 0 ? combinationsRef.current : combinations;
-    const buildingFromImport = variantLevels.length > 0 && !hasValidVariants(variants);
-    const seedVariants = buildingFromImport ? buildVariantsFromImport(variantLevels, rows) : variants;
+    const buildingFromImport = productVariantLevels.length > 0 && !hasValidVariants(variants);
+    const seedVariants = buildingFromImport ? buildVariantsFromImport(productVariantLevels, rowsWithCanonicalPieceStock) : variants;
 
     if (buildingFromImport && seedVariants.length === 0) {
-      return { updated: 0, skipped: rows.length };
+      return { updated: 0, skipped: rowsWithCanonicalPieceStock.length };
     }
 
     const seedCombinations = buildingFromImport
@@ -1945,7 +2132,7 @@ export default function ProductCatalog({
       : sourceCombinations;
 
     const { combinations: merged, updated } = applyRowsToCombinations(seedCombinations, seedVariants);
-    const syncedVariants = syncVariantDefinitionsWithCombinations(seedVariants, merged, rows);
+    const syncedVariants = syncVariantDefinitionsWithCombinations(seedVariants, merged, rowsWithCanonicalPieceStock);
     const validSynced = syncedVariants.filter((v) => v.variantType && v.options.some((opt) => opt.name));
     // Import should show the full matrix immediately (including PACK/KARTON counterparts).
     // Refresh stays for manual variant-type / option edits only.
@@ -1956,7 +2143,7 @@ export default function ProductCatalog({
     combinationsRef.current = rebuilt;
     setCombinations(rebuilt);
 
-    return { updated, skipped: rows.length - updated };
+    return { updated, skipped: rowsWithCanonicalPieceStock.length - updated };
   };
 
   // Keep ref in sync with combinations state
@@ -2161,6 +2348,25 @@ export default function ProductCatalog({
 
   const validation = validateRequiredFields();
 
+  const activeStockLevels: StockLevel[] = legacyStockUnit
+    ? [{ name: legacyStockUnit, piecesPerUnit: 1 }]
+    : (formData.stockLevels.length ? formData.stockLevels : [{ name: 'Pieces', piecesPerUnit: 1 }]);
+  // Display stock levels in ascending package size: Pieces, then each larger
+  // level in the order it is configured. Ratios are chained to the previous
+  // level, so this same order is used by the summary cards and variation table.
+  const displayStockLevels = activeStockLevels;
+
+  const stockSummary = useMemo(() => {
+    const totalUpdated = combinations.reduce((sum, combo) => sum + combo.stockQuantity, 0);
+    const originalRows = Object.values(originalStockByCombinationIdRef.current) as Array<{ stockQuantity: number; lowStockThreshold: number }>;
+    const totalExisting = originalRows.reduce((sum, original) => sum + original.stockQuantity, 0);
+    return {
+      existing: totalExisting,
+      added: totalUpdated - totalExisting,
+      updated: totalUpdated,
+    };
+  }, [combinations]);
+
   const productFieldMessage = (field: ProductRequiredTextField, code: NonNullable<ReturnType<typeof productRequiredTextError>>) => {
     const label = translateFieldName(field);
     if (code === 'tooLong') return tCatalog('validation.tooLong', { field: label });
@@ -2200,6 +2406,12 @@ export default function ProductCatalog({
     const priceCurrency = user?.currency || userCurrency;
     const validVariants = variants.filter((v) => v.variantType && v.options.some((opt) => opt.name));
     const variationMatrix = buildVariationMatrixForSave(status);
+    if (legacyStockUnit) {
+      errors.stockLevels = tCatalog('variants.legacyConversionRequired', { unit: legacyStockUnit });
+    } else {
+      const stockLevelsError = validateStockLevels(formData.stockLevels);
+      if (stockLevelsError) errors.stockLevels = stockLevelsError;
+    }
     // Draft may be incomplete (empty/partial variants). Publish still requires a full matrix.
     if (status === 'Published') {
       if (variationMatrix.length === 0) {
@@ -2309,6 +2521,8 @@ export default function ProductCatalog({
       // Submit the new variant structure
       const payload: Record<string, unknown> = {
         ...finalData,
+        stockUnit: 'Pieces',
+        stockLevels: formData.stockLevels,
         id: formData.id,
         productId: formData.productId,
         sku: derivedSku,
@@ -2366,6 +2580,7 @@ export default function ProductCatalog({
           $status: String
           $catalogName: String
           $stockUnit: String
+          $stockLevels: [JSONObject!]
           $images: [String!]
           $halalCertified: Boolean
           $bpomApproved: Boolean
@@ -2388,6 +2603,7 @@ export default function ProductCatalog({
             status: $status
             catalogName: $catalogName
             stockUnit: $stockUnit
+            stockLevels: $stockLevels
             images: $images
             halalCertified: $halalCertified
             bpomApproved: $bpomApproved
@@ -2422,6 +2638,7 @@ export default function ProductCatalog({
           $status: String
           $catalogName: String
           $stockUnit: String
+          $stockLevels: [JSONObject!]
           $images: [String!]
           $halalCertified: Boolean
           $bpomApproved: Boolean
@@ -2445,6 +2662,7 @@ export default function ProductCatalog({
             status: $status
             catalogName: $catalogName
             stockUnit: $stockUnit
+            stockLevels: $stockLevels
             images: $images
             halalCertified: $halalCertified
             bpomApproved: $bpomApproved
@@ -2477,7 +2695,8 @@ export default function ProductCatalog({
           brand: payload.brand,
           supplier: payload.supplier,
           status: payload.status,
-          stockUnit: payload.stockUnit || 'Pieces',
+          stockUnit: 'Pieces',
+        stockLevels: payload.stockLevels,
           images: payload.images || [],
           halalCertified: payload.halalCertified || false,
           bpomApproved: payload.bpomApproved || false,
@@ -2519,7 +2738,8 @@ export default function ProductCatalog({
           brand: payload.brand,
           supplier: payload.supplier,
           status: payload.status,
-          stockUnit: payload.stockUnit || 'Pieces',
+          stockUnit: 'Pieces',
+          stockLevels: payload.stockLevels,
           images: payload.images || [],
           halalCertified: payload.halalCertified ?? false,
           bpomApproved: payload.bpomApproved ?? false,
@@ -3182,7 +3402,6 @@ export default function ProductCatalog({
                         setShowGeneralCategoryDropdown(false);
                         setShowCatalogCategoryDropdown(false);
                         setShowMarketSegmentDropdown(false);
-                        setShowStockUnitDropdown(false);
                       }}
                       disabled={isViewMode}
                       aria-invalid={fieldErrors.supplier ? true : undefined}
@@ -3670,14 +3889,14 @@ export default function ProductCatalog({
                     <div className="px-3 py-2 text-xs border border-gray-300 rounded-lg bg-white text-gray-900 font-medium">
                       {combinations.reduce((sum, combo) => sum + combo.stockQuantity, 0).toLocaleString()}{' '}
                       <span className="font-normal text-gray-500">
-                        {tCatalog(`variants.stockUnits.${normalizeStockUnitValue(formData.stockUnit)}`)}
+                        {tCatalog(`variants.stockUnits.${legacyStockUnit || 'Pieces'}`)}
                       </span>
                     </div>
                     <p className="text-xs text-gray-500 mt-1">{tCatalog('stockSummary.totalStockHint')}</p>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-2">
-                      {tCatalog('stockSummary.lowStockThreshold')}
+                      {tCatalog('stockSummary.lowStockThreshold')} ({tCatalog(`variants.stockUnits.${legacyStockUnit || 'Pieces'}`)})
                     </label>
                     <div className="px-3 py-2 text-xs border border-gray-300 rounded-lg bg-white text-gray-900 font-medium">
                       {combinations.reduce((sum, combo) => sum + combo.lowStockThreshold, 0).toLocaleString()}
@@ -3991,148 +4210,131 @@ export default function ProductCatalog({
                 {fieldErrors.stock ? <p className="text-red-500 text-xs mt-1">{fieldErrors.stock}</p> : null}
               </div>
 
-              {/* Apply To All Section */}
-              {!isViewMode && combinations.length > 0 && (
-                <div className="bg-orange-50 rounded-lg p-4 mb-4">
-                  <h3 className="text-sm font-semibold text-orange-900 mb-3">{tCatalog('variants.quickAction')}</h3>
-                  <div className="flex gap-3 items-end">
-                          <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
-                        {tCatalog('variants.sku')}
-                            </label>
-                            <input
-                              type="text"
-                        id="apply-sku"
-                         disabled={isOfferConnected}
-                         className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black disabled:bg-gray-50"
-                        placeholder={tCatalog('variants.skuPlaceholder')}
-                      />
-                          </div>
-                          <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
-                        {tCatalog('variants.sellingPrice')}
-                            </label>
-                      <div className="relative">
-                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
-                          {currencySymbol}
-                        </div>
-                            <input
-                              type="text"
-                          id="apply-selling"
-                           onInput={(e) => {
-                             const input = e.target as HTMLInputElement;
-                             const value = input.value;
-                             // Only allow numeric input (allows numbers, decimals, and empty string)
-                             if (!validateNumericInput(value)) {
-                               // Remove the last character if invalid
-                               input.value = value.slice(0, -1);
-                             }
-                           }}
-                           disabled={isOfferConnected}
-                           className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black disabled:bg-gray-50"
-                          placeholder={getPricePlaceholder(userCurrency)}
-                        />
-                          </div>
-                        </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
-                        {tCatalog('variants.purchasePrice')}
-                      </label>
-                              <div className="relative">
-                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
-                          {currencySymbol}
-                        </div>
-                                <input 
-                          type="text"
-                          id="apply-purchase"
-                           onInput={(e) => {
-                             const input = e.target as HTMLInputElement;
-                             const value = input.value;
-                             // Only allow numeric input (allows numbers, decimals, and empty string)
-                             if (!validateNumericInput(value)) {
-                               // Remove the last character if invalid
-                               input.value = value.slice(0, -1);
-                             }
-                           }}
-                           disabled={isOfferConnected}
-                           className="w-full pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black disabled:bg-gray-50"
-                          placeholder={getPricePlaceholder(userCurrency)}
-                        />
-                                </div>
-                              </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
-                        {tCatalog('variants.moq')}
-                              </label>
+            {/* Stock-level ratios and conversion are part of the Variation Lists section. */}
+            <section className="mb-6 rounded-lg border border-[#e6e6e6] bg-white p-4">
+              <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900">{tCatalog('variants.stockLevelsTitle')}</h3>
+                  <p className="mt-1 text-xs text-gray-500">{tCatalog('variants.stockLevelsHint')}</p>
+                </div>
+                {!legacyStockUnit && !isViewMode && !isOfferConnected && (
+                  <button
+                    type="button"
+                    onClick={addStockLevel}
+                    className="inline-flex items-center gap-1 rounded-lg border border-dashed border-[#0a61d7] px-3 py-2 text-xs font-medium text-[#0a61d7] transition-colors hover:bg-blue-50"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    {tCatalog('variants.addStockLevel')}
+                  </button>
+                )}
+              </div>
+
+              {legacyStockUnit ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                  <div className="text-xs font-semibold text-amber-900">{tCatalog('variants.legacyStockTitle')}</div>
+                  <p className="mt-1 text-xs text-amber-800">{tCatalog('variants.legacyStockDescription', { unit: legacyStockUnit })}</p>
+                  <div className="mt-3 flex flex-wrap items-end gap-2">
+                    <label className="text-xs font-medium text-gray-700">
+                      {tCatalog('variants.legacyRatioLabel', { unit: legacyStockUnit })}
                       <input
                         type="number"
-                        id="apply-moq"
-                         disabled={isOfferConnected}
-                         className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black disabled:bg-gray-50"
-                        placeholder={tCatalog('variants.numberPlaceholder')}
-                        min="0"
+                        min="2"
+                        step="1"
+                        value={legacyPiecesPerUnit}
+                        onChange={(event) => { setLegacyPiecesPerUnit(event.target.value); setLegacyConversionError(''); }}
+                        disabled={isViewMode || isOfferConnected}
+                        className="mt-1 block w-40 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-black disabled:bg-gray-100"
+                        placeholder="e.g. 12"
                       />
-                            </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
-                        {tCatalog('variants.stockQty')}
-                      </label>
-                                <input
-                                  type="number"
-                        id="apply-stock"
-                         disabled={isOfferConnected}
-                         className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black disabled:bg-gray-50"
-                        placeholder={tCatalog('variants.numberPlaceholder')}
-                        min="0"
-                      />
-                          </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
-                        {tCatalog('variants.lowThreshold')}
-                      </label>
-                      <input
-                        type="number"
-                        id="apply-threshold"
-                         disabled={isOfferConnected}
-                         className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black disabled:bg-gray-50"
-                        placeholder={tCatalog('variants.numberPlaceholder')}
-                        min="0"
-                      />
-                        </div>
+                    </label>
                     <button
                       type="button"
-                      onClick={() => {
-                        const sku = (document.getElementById('apply-sku') as HTMLInputElement)?.value || '';
-                        const selling = (document.getElementById('apply-selling') as HTMLInputElement)?.value || '';
-                        const purchase = (document.getElementById('apply-purchase') as HTMLInputElement)?.value || '';
-                        const moq = (document.getElementById('apply-moq') as HTMLInputElement)?.value || '';
-                        const stock = (document.getElementById('apply-stock') as HTMLInputElement)?.value || '';
-                        const threshold = (document.getElementById('apply-threshold') as HTMLInputElement)?.value || '';
-                        
-                        setCombinations(prev => prev.map(combo => {
-                          const next = {
-                            ...combo,
-                            sku: sku || combo.sku,
-                            sellingPrice: selling || combo.sellingPrice,
-                            purchasePrice: purchase || combo.purchasePrice,
-                            moq: moq ? parseInt(moq) : combo.moq,
-                            stockQuantity: stock ? parseInt(stock) : combo.stockQuantity,
-                            lowStockThreshold: threshold ? parseInt(threshold) : combo.lowStockThreshold,
-                          };
-                          return {
-                            ...next,
-                            stockStatus: getVariantStockStatus(next.stockQuantity, next.lowStockThreshold),
-                          };
-                        }));
-                      }}
-                       disabled={isOfferConnected}
-                       className="bg-orange-500 text-white px-6 py-2 text-sm font-semibold rounded-lg hover:bg-orange-600 transition-colors whitespace-nowrap disabled:bg-orange-300 disabled:cursor-not-allowed"
+                      onClick={convertLegacyStockToPieces}
+                      disabled={isViewMode || isOfferConnected || !legacyPiecesPerUnit}
+                      className="rounded-lg bg-[#0a61d7] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#0851b8] disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {tCatalog('variants.applyToAll')}
+                      {tCatalog('variants.convertLegacyStock')}
                     </button>
+                  </div>
+                  {legacyConversionError && <p className="mt-2 text-xs text-red-600">{legacyConversionError}</p>}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {formData.stockLevels.map((level, index) => (
+                    <div key={`stock-level-${index}`} className="flex min-w-0 items-end gap-2 rounded-lg border border-gray-200 bg-gray-50 p-2.5">
+                      <div className="min-w-0 flex-1">
+                        <label className="mb-1 block text-[11px] font-medium text-gray-600">{index === 0 ? tCatalog('variants.baseStockLevel') : tCatalog('variants.stockLevelName')}</label>
+                        <input
+                          type="text"
+                          value={level.name}
+                          disabled={index === 0 || isViewMode || isOfferConnected}
+                          onChange={(event) => updateStockLevel(index, { name: event.target.value })}
+                          className="w-full rounded-md border border-gray-300 bg-white px-2.5 py-2 text-xs text-black disabled:bg-gray-100"
+                          placeholder={tCatalog('variants.stockLevelPlaceholder')}
+                        />
                       </div>
+                      <div className="w-28 shrink-0">
+                        <label className="mb-1 block text-[11px] font-medium text-gray-600">{index === 0 ? tCatalog('variants.piecesPerUnit') : tCatalog('variants.stockRatioLabel', { previous: formData.stockLevels[index - 1]?.name || 'previous level', current: level.name || 'new level' })}</label>
+                        <input
+                          type="number"
+                          min="2"
+                          step="1"
+                          value={index === 0 ? '1' : (stockLevelRatioDrafts[index] ?? (getStockLevelRatio(formData.stockLevels, index) || '').toString())}
+                          disabled={index === 0 || isViewMode || isOfferConnected}
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            // Keep the raw draft so integer values can be typed naturally,
+                            // while updating the conversion and summary on every keystroke.
+                            setStockLevelRatioDrafts((prev) => ({ ...prev, [index]: value }));
+                            updateStockLevelRatioValue(index, value);
+                          }}
+                          onBlur={() => commitStockLevelRatioDraft(index)}
+                          className="w-full rounded-md border border-gray-300 bg-white px-2.5 py-2 text-xs text-black disabled:bg-gray-100"
+                          placeholder={index === 0 ? '1' : 'e.g. 12'}
+                        />
+                      </div>
+                      {index > 0 && !isViewMode && !isOfferConnected && (
+                        <button type="button" onClick={() => removeStockLevel(index)} className="mb-1 rounded-md p-1.5 text-red-500 transition hover:bg-red-50 hover:text-red-700" aria-label={tCatalog('variants.removeStockLevel')}>
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
+                  ))}
+                </div>
               )}
+
+              {!legacyStockUnit && (
+                <>
+                  {validateStockLevels(formData.stockLevels) && (
+                    <p className="mt-2 text-xs text-red-600">{validateStockLevels(formData.stockLevels)}</p>
+                  )}
+                  <div className="mt-4 rounded-lg border border-gray-200 bg-white p-3">
+                    <div className="mb-2 text-xs font-semibold text-gray-900">{tCatalog('variants.stockTotalsTitle')}</div>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                      {displayStockLevels.map((level, index) => {
+                        const piecesPerUnit = level.piecesPerUnit || 1;
+                        const wholeQuantity = getWholeStockQuantity(stockSummary.updated, piecesPerUnit);
+                        const remainder = getStockLevelFractionLabel(stockSummary.updated, piecesPerUnit);
+                        return (
+                          <div key={`stock-total-${index}`} className="rounded-lg bg-gray-50 px-3 py-3 text-center">
+                            <div className="text-[11px] text-gray-500">{level.name}</div>
+                            <div className="mt-1 text-xl font-semibold tabular-nums text-gray-900">
+                              {wholeQuantity.toLocaleString('en-US')}
+                              {remainder && <span className="text-sm font-medium text-gray-500">{remainder}</span>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-3 flex items-start gap-2 rounded-md bg-blue-50 px-3 py-2.5 text-xs text-blue-900">
+                      <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                      <p>{tCatalog('variants.stockEquivalentInfo')}</p>
+                    </div>
+                  </div>
+                </>
+              )}
+            </section>
+
                 <div className="overflow-x-auto">
                   <table
                     ref={variationTableRef}
@@ -4189,62 +4391,33 @@ export default function ProductCatalog({
                             />
                           </th>
                         ))}
-                          <th
-                            data-col-key="stock"
-                            className="relative text-xs font-semibold text-gray-700 px-2 py-1.5 text-left border-b border-r border-gray-300"
-                            style={variationColStyle('stock', VARIATION_COL_WEIGHTS.stock)}
-                          >
-                            <div className="flex items-center gap-1.5 pr-1">
-                              <span>{tCatalog('variants.stockQty')}</span>
-                              <div ref={stockUnitRef} className="relative">
-                                <button
-                                  type="button"
-                                  disabled={isViewMode}
-                                  aria-label={tCatalog('variants.stockUnit')}
-                                  className="flex items-center gap-0.5 whitespace-nowrap rounded-md border border-[#e6e6e6] bg-white px-1.5 py-0.5 text-[10px] font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:bg-gray-50"
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    setShowStockUnitDropdown((open) => !open);
-                                  }}
-                                >
-                                  <Filter className="h-2.5 w-2.5" />
-                                  {tCatalog(`variants.stockUnits.${normalizeStockUnitValue(formData.stockUnit)}`)}
-                                  <ChevronDown className="h-2.5 w-2.5" />
-                                </button>
-                                {showStockUnitDropdown && !isViewMode ? (
-                                  <div className="absolute left-0 z-30 mt-1 w-28 overflow-hidden rounded-lg border border-[#e6e6e6] bg-white shadow">
-                                    {STOCK_UNIT_OPTIONS.map((unit) => (
-                                      <button
-                                        key={unit}
-                                        type="button"
-                                        className={`block w-full px-2.5 py-1.5 text-left text-[10px] hover:bg-gray-100 ${
-                                          normalizeStockUnitValue(formData.stockUnit) === unit
-                                            ? 'font-semibold text-[#0a61d7]'
-                                            : 'text-gray-700'
-                                        }`}
-                                        onClick={(event) => {
-                                          event.stopPropagation();
-                                          handleInputChange('stockUnit', unit);
-                                          setShowStockUnitDropdown(false);
-                                        }}
-                                      >
-                                        {tCatalog(`variants.stockUnits.${unit}`)}
-                                      </button>
-                                    ))}
-                                  </div>
-                                ) : null}
+                        {displayStockLevels.map((level, levelIndex) => {
+                          const colKey = `stock:${level.name.toLowerCase() || levelIndex}`;
+                          return (
+                            <th
+                              key={colKey}
+                              data-col-key={colKey}
+                              className="relative text-xs font-semibold text-gray-700 px-2 py-1.5 text-left border-b border-r border-gray-300"
+                              style={variationColStyle(colKey, VARIATION_COL_WEIGHTS.stock / Math.max(1, activeStockLevels.length))}
+                            >
+                              <div className="flex flex-col pr-1">
+                                <span>{level.name}</span>
+                                {!legacyStockUnit && level.name !== 'Pieces' && (
+                                  <span className="text-[10px] font-normal text-gray-500">{tCatalog('variants.piecesPerUnitShort', { count: level.piecesPerUnit })}</span>
+                                )}
                               </div>
-                            </div>
-                            <span
-                              role="separator"
-                              aria-orientation="vertical"
-                              aria-label={tCatalog('variants.stockQty')}
-                              onPointerDown={(event) => beginVariationColResize('stock', event)}
-                              className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize touch-none hover:bg-[#0a61d7]/35"
-                            />
-                          </th>
+                              <span
+                                role="separator"
+                                aria-orientation="vertical"
+                                aria-label={level.name}
+                                onPointerDown={(event) => beginVariationColResize(colKey, event)}
+                                className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize touch-none hover:bg-[#0a61d7]/35"
+                              />
+                            </th>
+                          );
+                        })}
                         {([
-                          ['lowThreshold', VARIATION_COL_WEIGHTS.lowThreshold, tCatalog('variants.lowThreshold')] as const,
+                          ['lowThreshold', VARIATION_COL_WEIGHTS.lowThreshold, `${tCatalog('variants.lowThreshold')} (${tCatalog(`variants.stockUnits.${legacyStockUnit || 'Pieces'}`)})`] as const,
                           ['status', VARIATION_COL_WEIGHTS.status, tCatalog('variants.status')] as const,
                         ]).map(([colKey, weight, label]) => (
                           <th
@@ -4425,37 +4598,46 @@ export default function ProductCatalog({
                               className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
                               placeholder={tCatalog('variants.numberPlaceholder')}
                               min="0"
+                              step="1"
                             />
                           </td>
-                          <td className="px-2 py-1.5 border-r border-b border-gray-300 align-middle" style={{ height: rowHeight }}>
-                            <input
-                              type="number"
-                              value={
-                                isViewMode
-                                  ? combination.stockQuantity
-                                  : combination.stockQuantity || ''
-                              }
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                updateCombination(
-                                  combination.id,
-                                  'stockQuantity',
-                                  value === '' ? 0 : parseInt(value, 10) || 0,
-                                );
-                              }}
-                              disabled={isViewMode || isOfferConnected}
-                              className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
-                              placeholder={tCatalog('variants.numberPlaceholder')}
-                              min="0"
-                            />
-                          </td>
+                          {displayStockLevels.map((level, levelIndex) => {
+                            const ratio = legacyStockUnit ? 1 : (level.piecesPerUnit || 1);
+                            const wholeQuantity = getWholeStockQuantity(combination.stockQuantity, ratio);
+                            const fractionLabel = legacyStockUnit ? '' : getStockLevelFractionLabel(combination.stockQuantity, ratio);
+                            return (
+                              <td key={`${combination.id}-${level.name}-${levelIndex}`} className="px-2 py-1.5 border-r border-b border-gray-300 align-middle" style={{ height: rowHeight }}>
+                                <div className="flex min-w-0 items-center gap-1">
+                                  <input
+                                    type="number"
+                                    value={isViewMode ? wholeQuantity : (wholeQuantity || '')}
+                                    onChange={(event) => {
+                                      const nextWhole = event.target.value === '' ? 0 : Number.parseInt(event.target.value, 10);
+                                      if (!Number.isSafeInteger(nextWhole) || nextWhole < 0) return;
+                                      updateCombination(
+                                        combination.id,
+                                        'stockQuantity',
+                                        updateStockFromWholeQuantity(combination.stockQuantity, nextWhole, ratio),
+                                      );
+                                    }}
+                                    disabled={isViewMode || isOfferConnected}
+                                    className="min-w-0 w-full px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                                    placeholder={tCatalog('variants.numberPlaceholder')}
+                                    min="0"
+                                    step="1"
+                                  />
+                                  {fractionLabel && <span className="shrink-0 text-xs text-gray-500 tabular-nums">{fractionLabel}</span>}
+                                </div>
+                              </td>
+                            );
+                          })}
                           <td className="px-2 py-1.5 border-r border-b border-gray-300 align-middle" style={{ height: rowHeight }}>
                             <input
                               type="number"
                               value={
                                 isViewMode
                                   ? combination.lowStockThreshold
-                                  : combination.lowStockThreshold || ''
+                                  : (combination.lowStockThreshold || '')
                               }
                               onChange={(e) => {
                                 const value = e.target.value;
@@ -4469,6 +4651,7 @@ export default function ProductCatalog({
                               className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
                               placeholder={tCatalog('variants.numberPlaceholder')}
                               min="0"
+                              step="1"
                             />
                           </td>
                           <td className="px-2 py-1.5 border-r border-b border-gray-300 align-middle" style={{ height: rowHeight }}>

@@ -86,6 +86,77 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
   const [manualRecords, setManualRecords] = useState<ManualSupplyRecord[]>([]);
   const [loadingTransfers, setLoadingTransfers] = useState(false);
   const [moveMessage, setMoveMessage] = useState('');
+  const [supplyUnitLookup, setSupplyUnitLookup] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const userId = user?.id;
+    if (!userId) {
+      setSupplyUnitLookup({});
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        let page = 1;
+        let totalPages = 1;
+        const lookup: Record<string, string> = {};
+
+        do {
+          const data = await fetchGraphQL<{
+            products: {
+              nodes: Array<{
+                productId: string;
+                stockUnit?: string | null;
+                variantOptions?: Array<{ sku?: string | null }> | null;
+              }>;
+              pagination: { totalPages?: number };
+            };
+          }>(
+            `query SupplierProfileStockUnits($userId: Int!, $page: Int!, $limit: Int!) {
+              products(userId: $userId, page: $page, limit: $limit) {
+                nodes {
+                  productId
+                  stockUnit
+                  variantOptions { sku }
+                }
+                pagination { totalPages }
+              }
+            }`,
+            { userId, page, limit: 1000 },
+          );
+
+          for (const product of data.products?.nodes || []) {
+            const unit = String(product.stockUnit || '').trim();
+            if (!unit) continue;
+            const productId = String(product.productId || '').trim();
+            if (productId) lookup[`product:${productId}`] = unit;
+            for (const variant of product.variantOptions || []) {
+              const sku = String(variant.sku || '').trim();
+              if (sku) lookup[`sku:${sku}`] = unit;
+            }
+          }
+
+          totalPages = Math.max(1, data.products?.pagination?.totalPages ?? 1);
+          page += 1;
+        } while (!cancelled && page <= totalPages);
+
+        if (!cancelled) setSupplyUnitLookup(lookup);
+      } catch {
+        if (!cancelled) setSupplyUnitLookup({});
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  const getSupplyUnit = (supply: SupplyDetail) => {
+    const productId = String(supply.productId || '').trim();
+    const sku = String(supply.sku || '').trim();
+    return (productId ? supplyUnitLookup[`product:${productId}`] : '')
+      || (sku ? supplyUnitLookup[`sku:${sku}`] : '')
+      || '';
+  };
   
   // SupplierProfile - Raw supplier data
   
@@ -618,14 +689,14 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                   <>
                     <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('lastSuppliedDateCol')}</th>
                     <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('skuNumber')}</th>
-                    <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('receivedCol')}</th>
+                    <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('receivedCol')} (Package Type)</th>
                     <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('purchaseValueCol')}</th>
                   </>
                 ) : (
                   <>
                     <th className="py-2 px-4 font-medium uppercase">{tSuppliersModal('colNo')}</th>
                     <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('skuProductCol')}</th>
-                    <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('totalSuppliedCol')}</th>
+                    <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('totalSuppliedCol')} (Package Type)</th>
                     <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('totalPurchaseCol')}</th>
                   </>
                 )}
@@ -646,7 +717,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                   >
                     <td className="py-4 px-4 text-black">{String(supply.lastDelivery || '—')}</td>
                     <td className="py-4 px-4 font-medium text-black">{String(supply.sku || '—')}</td>
-                    <td className="py-4 px-4 text-black">{String(supply.totalSupplied)}</td>
+                    <td className="py-4 px-4 text-black">{String(supply.totalSupplied)}{getSupplyUnit(supply) ? ` ${getSupplyUnit(supply)}` : ''}</td>
                     <td className="py-4 px-4 text-[#0a61d7] font-semibold">
                       {formatCurrency(
                         parseNumberByCurrency(String(supply.totalValue), userCurrency),
@@ -668,7 +739,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                       <div className="font-medium">{String(supply.sku || '—')}</div>
                       <div className="text-gray-500">{String(supply.product || '—')}</div>
                     </td>
-                    <td className="py-4 px-4 text-black">{String(supply.totalSupplied)}</td>
+                    <td className="py-4 px-4 text-black">{String(supply.totalSupplied)}{getSupplyUnit(supply) ? ` ${getSupplyUnit(supply)}` : ''}</td>
                     <td className="py-4 px-4 text-[#0a61d7] font-semibold">
                       {formatCurrency(
                         parseNumberByCurrency(String(supply.totalValue), userCurrency),

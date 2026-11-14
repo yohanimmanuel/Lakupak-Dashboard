@@ -9,6 +9,15 @@ export interface VariantDefinition {
   updatedAt?: Date;
 }
 
+// A product may expose any number of package levels, all converted directly to pieces.
+export interface StockLevel {
+  name: string;
+  /** Cumulative number of base Pieces represented by one unit at this level. */
+  piecesPerUnit: number;
+  /** Number of immediately preceding-level units represented by one unit here. */
+  unitsPerPreviousLevel?: number;
+}
+
 // Variant combinations (actual product variations)
 export interface VariantOption {
   id?: number;
@@ -93,7 +102,9 @@ export interface Product {
   bpomApproved?: boolean;
   originalProduct?: boolean;
   returnPolicyDays?: number;
-  /** How variant stockQuantity is counted: Pieces | Boxes | Cartons */
+  /** Flexible package equivalents. VariantOption.stockQuantity is always absolute pieces. */
+  stockLevels?: StockLevel[] | null;
+  /** Legacy field retained for reading old records during the one-time stock conversion. */
   stockUnit?: string | null;
   // Product-level stock is computed from sum of all variant stocks
   // Use getProductTotalStock() helper function to calculate
@@ -187,7 +198,9 @@ export interface ProductFormData {
   merchandisingCategorySlug?: string;
   catalogName: string;
   images: string[];
-  /** How variant stockQuantity is counted: Pieces | Boxes | Cartons */
+  /** Flexible package equivalents. Pieces is compulsory and always has ratio 1. */
+  stockLevels: StockLevel[];
+  /** Legacy compatibility field; new saves always set this to Pieces. */
   stockUnit: string;
   // Product assurance
   halalCertified: boolean;

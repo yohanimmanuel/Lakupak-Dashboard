@@ -47,6 +47,7 @@ type CatalogVariantOption = {
 type ProductCatalogNode = {
   productId: string;
   name: string;
+  stockUnit?: string | null;
   supplier?: string | null;
   variantOptions?: Array<{
     variantName?: string | null;
@@ -454,6 +455,14 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   const [suppliesTab, setSuppliesTab] = useState<'summary' | 'history'>('history');
   const [showImportSupplies, setShowImportSupplies] = useState(false);
   const [catalogProducts, setCatalogProducts] = useState<ProductCatalogNode[]>([]);
+
+  const getSupplyUnit = useCallback((row: SupplyDetail) => {
+    const productId = String(row.productId || '').trim();
+    const sku = String(row.sku || '').trim();
+    const product = catalogProducts.find((item) => productId && item.productId === productId)
+      || catalogProducts.find((item) => sku && item.variantOptions?.some((variant) => variant.sku === sku));
+    return String(product?.stockUnit || '').trim();
+  }, [catalogProducts]);
   const [pendingDeleteMarkers, setPendingDeleteMarkers] = useState<SupplyDeleteMarker[]>([]);
   const [showDeleteHistoryModal, setShowDeleteHistoryModal] = useState(false);
   // Row indices awaiting delete confirmation: one for the row trash, many for bulk delete.
@@ -570,6 +579,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                 nodes {
                   productId
                   name
+                  stockUnit
                   supplier
                   variantOptions { variantName sku isActive }
                 }
@@ -1553,7 +1563,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                     <tr className="whitespace-nowrap bg-gray-100 text-gray-500">
                       <th className="px-3 py-2 font-medium uppercase">{tSuppliersModal('colNo')}</th>
                       <th className="px-3 py-2 font-medium uppercase">{tSuppliersProfile('skuProductCol')}</th>
-                      <th className="px-3 py-2 font-medium uppercase">{tSuppliersProfile('totalSuppliedCol')}</th>
+                      <th className="px-3 py-2 font-medium uppercase">{tSuppliersProfile('totalSuppliedCol')} (Package Type)</th>
                       <th className="px-3 py-2 font-medium uppercase">{tSuppliersProfile('totalPurchaseCol')}</th>
                     </tr>
                   </thead>
@@ -1572,7 +1582,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                             <div className="font-medium">{row.sku || '—'}</div>
                             <div className="text-gray-500">{row.product || '—'}</div>
                           </td>
-                          <td className="px-3 py-3 text-black">{row.totalSupplied || '0'}</td>
+                          <td className="px-3 py-3 text-black">{row.totalSupplied || '0'}{getSupplyUnit(row) ? ` ${getSupplyUnit(row)}` : ''}</td>
                           <td className="px-3 py-3 font-semibold text-[#0a61d7]">
                             {currencySymbol}{row.totalValue || '0'}
                           </td>
@@ -1596,7 +1606,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                       <th className="px-3 py-2 font-medium uppercase">{tSuppliersModal('colNo')}</th>
                       <th className="px-3 py-2 font-medium uppercase">{tSuppliersModal('colSku')}</th>
                       <th className="px-3 py-2 font-medium uppercase">{tSuppliersModal('colProduct')}</th>
-                      <th className="px-3 py-2 font-medium uppercase">{tSuppliersProfile('receivedCol')}</th>
+                      <th className="px-3 py-2 font-medium uppercase">{tSuppliersProfile('receivedCol')} (Package Type)</th>
                       <th className="px-3 py-2 font-medium uppercase">{tSuppliersProfile('purchaseValueCol')}</th>
                       <th className="px-3 py-2 font-medium uppercase">{tSuppliersProfile('lastSuppliedDateCol')}</th>
                       <th className="px-3 py-2 text-center font-medium uppercase">{tSuppliersModal('colUpdateStock')}</th>
@@ -1651,11 +1661,14 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                           />
                         </td>
                         <td className="px-3 py-2">
-                          <ClientInput
-                            type="number"
-                            value={row.totalSupplied || ''}
-                            onChange={(totalSupplied) => handleHistoryChange(idx, 'totalSupplied', totalSupplied)}
-                          />
+                          <div className="flex items-center gap-2">
+                            <ClientInput
+                              type="number"
+                              value={row.totalSupplied || ''}
+                              onChange={(totalSupplied) => handleHistoryChange(idx, 'totalSupplied', totalSupplied)}
+                            />
+                            {getSupplyUnit(row) ? <span className="whitespace-nowrap text-xs text-gray-500">{getSupplyUnit(row)}</span> : null}
+                          </div>
                         </td>
                         <td className="px-3 py-2">
                           <div className="flex items-center">

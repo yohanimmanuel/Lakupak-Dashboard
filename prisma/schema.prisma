@@ -341,7 +341,10 @@ model Product {
   lastSyncAt        DateTime?
   marketplaceStatus String?          @default("Not Published")
   publishedAt       DateTime?
-  /// How variant stockQuantity is counted: Pieces | Boxes | Cartons
+  /// Flexible alternative stock units. Each level stores its direct piecesPerUnit ratio.
+  /// Null means this is a legacy product that still needs an explicit conversion in the catalog.
+  stockLevels       Json?
+  /// Legacy compatibility field. New stock quantities are always stored in Pieces.
   stockUnit         String?          @default("Pieces")
   // Product-level stock is computed from sum of all variant stocks
   // Use getProductTotalStock() helper function to calculate

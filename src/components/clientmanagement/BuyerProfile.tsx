@@ -1,10 +1,10 @@
 'use client';
 
 import React from "react";
-import { Phone, MapPin, Tag, Truck, Info, Calendar, BarChart2, ArrowLeft, Edit, Copy, Mail, ChevronLeft, ChevronRight, User, Plus } from "lucide-react";
+import { Phone, MapPin, Tag, Truck, Info, Calendar, BarChart2, ArrowLeft, Edit, Copy, Mail, ChevronLeft, ChevronRight, User, Plus, X, Package } from "lucide-react";
 import Link from "next/link";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Buyer, OrderDetail } from '@/types/client';
 import { formatDate, formatNumber } from '@/utils/dateUtils';
 import { logisticsLastVisit } from '@/utils/buyerLogistics';
@@ -103,6 +103,30 @@ interface BuyerProfileProps {
   onUpdate?: () => void;
 }
 
+type BuyerOrderLine = {
+  id: number;
+  productId?: string | null;
+  productName: string;
+  images: string[];
+  packageQuantity: number;
+  packageType?: string | null;
+  piecesPerPackage: number;
+  pricePerPackage?: number | null;
+  subtotal: number;
+  variantNameSnapshot?: string | null;
+  productSkuSnapshot?: string | null;
+};
+
+type BuyerOrderDetail = {
+  orderId: string;
+  orderStatus: string;
+  paymentStatus: string;
+  orderDate: string;
+  totalAmount: number;
+  shippingFee: number;
+  orderItems: BuyerOrderLine[];
+};
+
 export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileProps) {
   const user = useUserStore(state => state.user);
   const router = useRouter();
@@ -113,6 +137,11 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
   const [showAddressMap, setShowAddressMap] = useState(false);
   const [addressGeocode, setAddressGeocode] = useState<GeocodeResult | null>(null);
   const [isGeocodingAddress, setIsGeocodingAddress] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<OrderDetail | null>(null);
+  const [orderDetail, setOrderDetail] = useState<BuyerOrderDetail | null>(null);
+  const [orderDetailLoading, setOrderDetailLoading] = useState(false);
+  const [orderDetailError, setOrderDetailError] = useState('');
+  const orderDetailRequestRef = useRef(0);
 
   const addressText = buyer.address?.trim() || '';
   const hasAddress = Boolean(addressText);
@@ -246,6 +275,68 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
   const totalOrderRows = orderDetails.length;
   const totalOrderPages = Math.max(1, Math.ceil(totalOrderRows / orderRowsPerPage));
   const pagedOrderDetails = orderDetails.slice((orderPage - 1) * orderRowsPerPage, orderPage * orderRowsPerPage);
+
+  const closeOrderDetail = () => {
+    orderDetailRequestRef.current += 1;
+    setSelectedOrder(null);
+    setOrderDetail(null);
+    setOrderDetailError('');
+    setOrderDetailLoading(false);
+  };
+
+  const openOrderDetail = async (order: OrderDetail) => {
+    if (!user?.id || !buyer.buyerId || !order.orderNo) return;
+
+    const requestId = ++orderDetailRequestRef.current;
+    setSelectedOrder(order);
+    setOrderDetail(null);
+    setOrderDetailError('');
+    setOrderDetailLoading(true);
+
+    try {
+      const data = await fetchGraphQL<{ buyerOrderDetail: BuyerOrderDetail | null }>(
+        `query BuyerOrderDetail($userId: Int!, $buyerId: String!, $orderId: String!) {
+          buyerOrderDetail(userId: $userId, buyerId: $buyerId, orderId: $orderId) {
+            orderId
+            orderStatus
+            paymentStatus
+            orderDate
+            totalAmount
+            shippingFee
+            orderItems {
+              id
+              productId
+              productName
+              images
+              packageQuantity
+              packageType
+              piecesPerPackage
+              pricePerPackage
+              subtotal
+              variantNameSnapshot
+              productSkuSnapshot
+            }
+          }
+        }`,
+        { userId: user.id, buyerId: buyer.buyerId, orderId: order.orderNo },
+      );
+
+      if (requestId !== orderDetailRequestRef.current) return;
+      if (!data.buyerOrderDetail) {
+        setOrderDetailError('Order details are unavailable.');
+      } else {
+        setOrderDetail(data.buyerOrderDetail);
+      }
+    } catch (error) {
+      if (requestId === orderDetailRequestRef.current) {
+        setOrderDetailError(error instanceof Error ? error.message : 'Failed to load order details.');
+      }
+    } finally {
+      if (requestId === orderDetailRequestRef.current) {
+        setOrderDetailLoading(false);
+      }
+    }
+  };
 
   return (
     <div className="mx-auto flex w-full min-w-0 flex-col gap-4 rounded-lg border border-[#e6e6e6] bg-white p-4">
@@ -649,7 +740,20 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
                 </tr>
               ) : (
                 pagedOrderDetails.map((order: OrderDetail, idx: number) => (
-                <tr key={idx + (orderPage - 1) * orderRowsPerPage} className="border-b last:border-b-0">
+                <tr
+                  key={idx + (orderPage - 1) * orderRowsPerPage}
+                  className="border-b last:border-b-0 cursor-pointer transition-colors hover:bg-blue-50/50 focus-within:bg-blue-50/50"
+                  onClick={() => void openOrderDetail(order)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      void openOrderDetail(order);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`View order ${order.orderNo} details`}
+                >
                   <td className="py-4 px-4 font-medium text-black">{(orderPage - 1) * orderRowsPerPage + idx + 1}</td>
                   <td className="py-4 px-4 text-black">
                     <div className="text-xsfont-medium text-black">
@@ -1003,6 +1107,133 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
         </>
         )}
       </div>
+      {selectedOrder && (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !orderDetailLoading) closeOrderDetail();
+          }}
+        >
+          <div
+            className="relative max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-[#e6e6e6] bg-white p-5 shadow-xl"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={closeOrderDetail}
+              className="absolute right-4 top-4 rounded-full p-2 text-gray-600 transition hover:bg-gray-100"
+              aria-label="Close order details"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="mb-4 border-b border-[#e6e6e6] pb-3 pr-10">
+              <h3 className="text-xl font-bold text-black">Order Details</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {selectedOrder.orderNo} · {selectedOrder.lastOrderDate}
+              </p>
+            </div>
+
+            {orderDetailLoading ? (
+              <div className="flex items-center justify-center gap-3 py-16 text-sm text-gray-500">
+                <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#0a61d7] border-t-transparent" />
+                Loading order items...
+              </div>
+            ) : orderDetailError ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                {orderDetailError}
+              </div>
+            ) : orderDetail ? (
+              <>
+                <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+                  <div className="rounded-lg bg-gray-50 p-3">
+                    <div className="text-xs text-gray-500">Order status</div>
+                    <div className="mt-1 font-semibold text-black">{orderDetail.orderStatus || '—'}</div>
+                  </div>
+                  <div className="rounded-lg bg-gray-50 p-3">
+                    <div className="text-xs text-gray-500">Payment status</div>
+                    <div className="mt-1 font-semibold text-black">{orderDetail.paymentStatus || '—'}</div>
+                  </div>
+                  <div className="rounded-lg bg-gray-50 p-3">
+                    <div className="text-xs text-gray-500">Order total</div>
+                    <div className="mt-1 font-semibold text-[#0a61d7]">{formatCurrency(orderDetail.totalAmount, userCurrency)}</div>
+                  </div>
+                  <div className="rounded-lg bg-gray-50 p-3">
+                    <div className="text-xs text-gray-500">Shipping</div>
+                    <div className="mt-1 font-semibold text-black">{formatCurrency(orderDetail.shippingFee, userCurrency)}</div>
+                  </div>
+                </div>
+
+                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-black">
+                  <Package className="h-4 w-4 text-gray-500" />
+                  Ordered products ({orderDetail.orderItems.length})
+                </div>
+
+                {orderDetail.orderItems.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-gray-200 py-10 text-center text-sm text-gray-500">
+                    No product lines found for this order.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-lg border border-[#e6e6e6]">
+                    <table className="min-w-full text-left text-sm">
+                      <thead className="bg-gray-100 text-xs uppercase text-gray-500">
+                        <tr>
+                          <th className="px-3 py-3">Product</th>
+                          <th className="px-3 py-3">Package type</th>
+                          <th className="px-3 py-3">Quantity</th>
+                          <th className="px-3 py-3">Pieces / package</th>
+                          <th className="px-3 py-3">Price / package</th>
+                          <th className="px-3 py-3">Subtotal</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {orderDetail.orderItems.map((item) => (
+                          <tr key={item.id} className="border-t border-gray-100 align-middle">
+                            <td className="px-3 py-3">
+                              <div className="flex min-w-[220px] items-center gap-3">
+                                <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+                                  {item.images?.[0] ? (
+                                    <img src={item.images[0]} alt={item.productName} className="h-full w-full object-cover" />
+                                  ) : (
+                                    <div className="flex h-full w-full items-center justify-center text-gray-400">
+                                      <Package className="h-6 w-6" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="font-semibold text-black">{item.productName}</div>
+                                  {item.variantNameSnapshot ? <div className="text-xs text-gray-500">{item.variantNameSnapshot}</div> : null}
+                                  {item.productSkuSnapshot ? <div className="text-xs text-gray-500">SKU: {item.productSkuSnapshot}</div> : null}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-3 text-black">{item.packageType || '—'}</td>
+                            <td className="whitespace-nowrap px-3 py-3 text-black">{item.packageQuantity}</td>
+                            <td className="whitespace-nowrap px-3 py-3 text-black">{item.piecesPerPackage}</td>
+                            <td className="whitespace-nowrap px-3 py-3 text-black">{item.pricePerPackage != null ? formatCurrency(item.pricePerPackage, userCurrency) : '—'}</td>
+                            <td className="whitespace-nowrap px-3 py-3 font-semibold text-[#0a61d7]">{formatCurrency(item.subtotal, userCurrency)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
+            ) : null}
+
+            <div className="mt-5 flex justify-end border-t border-[#e6e6e6] pt-4">
+              <button
+                type="button"
+                onClick={closeOrderDetail}
+                className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-200"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <MapFullscreenModal
         open={showAddressMap}
         onClose={() => setShowAddressMap(false)}

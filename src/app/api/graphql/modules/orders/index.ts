@@ -146,6 +146,12 @@ export const ordersTypeDefs = /* GraphQL */ `
       page: Int = 1
       limit: Int = 10
     ): OrderConnection!
+
+    buyerOrderDetail(
+      userId: Int!
+      buyerId: String!
+      orderId: String!
+    ): Order
   }
 `;
 
@@ -159,11 +165,11 @@ const mapOrderItems = (
   items.map((item) => ({
     id: item.id,
     productId: item.productId ?? null,
-    productName: item.product?.name ?? item.productNameSnapshot ?? 'Unknown Product',
+    productName: item.productNameSnapshot ?? item.product?.name ?? 'Unknown Product',
     category: item.product?.productType ?? item.productTypeSnapshot ?? 'Uncategorized',
     brand: item.product?.brand ?? 'Unknown Brand',
     description: item.product?.description ?? '',
-    images: item.product?.images ?? [],
+    images: item.productImageSnapshot ? [item.productImageSnapshot] : item.product?.images ?? [],
     productDeleted: !item.product,
     packageQuantity: item.packageQuantity ?? 1,
     packageType: item.packageType,
@@ -343,9 +349,33 @@ const fetchMarketplaceOrdersConnection = async (args: {
 
 import { withDashboardAuth, requireDashboardUser } from '../common/auth';
 
+const fetchBuyerOrderDetail = async (
+  args: { userId: number; buyerId: string; orderId: string },
+  ctx: unknown,
+) => {
+  const authenticatedUserId = requireDashboardUser(ctx);
+  if (Number(args.userId) !== authenticatedUserId) {
+    throw new Error('Not authorized to view this buyer order');
+  }
+
+  const order = await prisma.order.findFirst({
+    where: {
+      userId: authenticatedUserId,
+      buyerId: args.buyerId,
+      orderId: args.orderId,
+      isDeleted: false,
+    },
+    include: orderInclude,
+  });
+
+  return order ? mapOrder(order as never) : null;
+};
+
 export const ordersResolvers = {
   Query: {
     orders: withDashboardAuth(fetchOrdersConnection),
+    buyerOrderDetail: (_: unknown, args: { userId: number; buyerId: string; orderId: string }, ctx: unknown) =>
+      fetchBuyerOrderDetail(args, ctx),
     marketplaceOrders: async (
       _: unknown,
       args: { marketplaceUserId: number; page?: number; limit?: number },
