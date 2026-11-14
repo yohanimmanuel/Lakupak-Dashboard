@@ -564,7 +564,12 @@
       "numberPlaceholder": "0",
       "stockRatioLabel": "{previous} per unit",
       "stockTotalsTitle": "Total inventory by stock level",
-      "stockEquivalentInfo": "These are not separate inventories. Each quantity is calculated from the same total piece inventory, showing how many pieces fit into cartons and any higher stock levels you define."
+      "stockEquivalentInfo": "These are not separate inventories. Each quantity is calculated from the same total piece inventory, showing how many pieces fit into cartons and any higher stock levels you define.",
+      "importStockRatiosTitle": "Prepare stock levels for import",
+      "importStockRatiosDescription": "Confirm the packaging ratios used to interpret stock columns in your spreadsheet. These ratios are shared with the product's Variation Lists.",
+      "importStockRatiosNote": "The spreadsheet's Cartons, Boxes, and other package columns are converted into the one piece-based inventory. They are not imported as separate stock quantities or product variants. When a spreadsheet includes Stock Quantity (Pieces), that value remains the source of truth.",
+      "continueToColumnMapping": "Continue to column mapping",
+      "cancelImport": "Cancel"
     },
     "variationImport": {
       "title": "Import Variation List",

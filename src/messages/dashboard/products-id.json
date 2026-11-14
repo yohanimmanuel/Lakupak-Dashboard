@@ -564,7 +564,12 @@
       "numberPlaceholder": "0",
       "stockRatioLabel": "{previous} per unit",
       "stockTotalsTitle": "Total inventaris berdasarkan tingkat stok",
-      "stockEquivalentInfo": "Ini bukan inventaris yang terpisah. Setiap jumlah dihitung dari total inventaris pieces yang sama, untuk menunjukkan berapa banyak pieces yang muat dalam karton dan tingkat stok lain yang Anda tentukan."
+      "stockEquivalentInfo": "Ini bukan inventaris yang terpisah. Setiap jumlah dihitung dari total inventaris pieces yang sama, untuk menunjukkan berapa banyak pieces yang muat dalam karton dan tingkat stok lain yang Anda tentukan.",
+      "importStockRatiosTitle": "Siapkan tingkat stok untuk impor",
+      "importStockRatiosDescription": "Konfirmasikan rasio kemasan yang digunakan untuk membaca kolom stok di spreadsheet. Rasio ini juga digunakan pada Daftar Variasi produk.",
+      "importStockRatiosNote": "Kolom Karton, Kotak, dan kemasan lainnya pada spreadsheet akan dikonversi ke satu inventaris berbasis pieces. Kolom tersebut tidak diimpor sebagai stok terpisah atau varian produk. Jika spreadsheet menyertakan Stock Quantity (Pieces), nilai tersebut tetap menjadi sumber utama.",
+      "continueToColumnMapping": "Lanjutkan ke pemetaan kolom",
+      "cancelImport": "Batal"
     },
     "variationImport": {
       "title": "Impor Daftar Variasi",
