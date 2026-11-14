@@ -9,10 +9,12 @@ export interface VariantDefinition {
   updatedAt?: Date;
 }
 
-// A product may expose any number of package levels, all converted directly to pieces.
 export interface StockLevel {
   name: string;
+  /** Cumulative number of individual pieces represented by one unit. */
   piecesPerUnit: number;
+  /** Number of immediately preceding-level units contained in one unit. */
+  unitsPerPreviousLevel?: number;
 }
 
 // Variant combinations (actual product variations)
