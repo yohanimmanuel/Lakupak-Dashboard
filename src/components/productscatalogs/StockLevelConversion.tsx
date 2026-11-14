@@ -14,7 +14,7 @@ type StockLevelConversionProps = {
   stockLevels: StockLevel[];
   ratioDrafts: Record<number, string>;
   totalPieces: number;
-  /** Piece stock for each variation. Packaging availability is calculated per variation, not across variants. */
+  /** Piece stock for each variation. Availability is calculated per variation. */
   stockQuantities?: number[];
   legacyStockUnit?: string | null;
   legacyPiecesPerUnit?: string;
@@ -33,10 +33,6 @@ type StockLevelConversionProps = {
   onConvertLegacyStock?(): void;
 };
 
-/**
- * Shared stock-level editor. ProductCatalog owns the data and mutations; this
- * component only renders the controls so the catalog remains the source of truth.
- */
 export default function StockLevelConversion({
   stockLevels,
   ratioDrafts,
@@ -173,25 +169,32 @@ export default function StockLevelConversion({
 
       {showSummary && !legacyStockUnit && (
         <div className="mt-4 rounded-lg border border-[#0a61d7]/20 bg-blue-50/40 p-3">
-          <div className="mb-2 text-sm font-semibold text-gray-900">Stock quantities by level</div>
+          <div className="mb-2 text-sm font-semibold text-gray-900">
+            {tCatalog('variants.stockTotalsTitle')}
+          </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {levels.map((level, index) => {
               const piecesPerUnit = Number(level.piecesPerUnit) || 1;
-              // Available stock is calculated per variation so incomplete packages
-              // from different variants are never combined.
+
+              // Count whole packages independently within each variation.
+              // Remainders from different variants must never be combined.
               const availableQuantity = stockQuantities.reduce((sum, quantity) => {
                 const pieces = Number.isFinite(quantity) ? Math.max(0, Math.trunc(quantity)) : 0;
                 return sum + getWholeStockQuantity(pieces, piecesPerUnit);
               }, 0);
-              // Equivalent stock is the mathematical view of the total piece count.
+
+              // Mathematical equivalent is calculated from the aggregate piece total.
               const equivalentWhole = getWholeStockQuantity(totalPieces, piecesPerUnit);
               const equivalentRemainder = getStockLevelFractionLabel(totalPieces, piecesPerUnit);
 
               return (
-                <div key={`stock-quantities-${index}`} className="rounded-lg bg-white px-4 py-3 text-center border border-gray-200">
+                <div
+                  key={`stock-quantities-${index}`}
+                  className="rounded-lg border border-gray-200 bg-white px-4 py-3 text-center"
+                >
                   <div className="text-xs text-gray-500">{level.name}</div>
                   <div className="mt-1 text-2xl font-bold tabular-nums text-gray-900">
-                    {availableQuantity.toLocaleString('en-US')}
+                    {availableQuantity}
                   </div>
                   <div className="mt-2 border-t border-gray-100 pt-2 text-xs text-gray-500">
                     <span className="font-medium text-gray-600">Equivalent = </span>
@@ -205,7 +208,11 @@ export default function StockLevelConversion({
           </div>
           <div className="mt-3 flex items-start gap-2 rounded-md bg-blue-50 px-3 py-2.5 text-xs text-blue-900">
             <Info className="mt-0.5 h-4 w-4 shrink-0" />
-            <p>Available quantities count only complete packages within each variation. Equivalents show the mathematical conversion of total piece inventory; both figures describe the same inventory, not separate stock.</p>
+            <p>
+              Available quantities count only complete packages within each variation. Equivalents show
+              the mathematical conversion of total piece inventory; both figures describe the same
+              inventory, not separate stock.
+            </p>
           </div>
         </div>
       )}

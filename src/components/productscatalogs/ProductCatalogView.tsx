@@ -9,6 +9,7 @@ import Link from 'next/link';
 import VariationListImport from '@/components/productscatalogs/VariationListImport';
 import ImportVariantModal from '@/components/productscatalogs/ImportVariantModal';
 import StockLevelConversion from '@/components/productscatalogs/StockLevelConversion';
+import PricingAnchorConfiguration from '@/components/productscatalogs/PricingAnchorConfiguration';
 import { getCategoryImageSrc, getCategoryIconComponent } from '@/utils/categoryUtils';
 import { getProductStockStatus, getVariantStockStatus, getWholeStockQuantity, getStockLevelFractionLabel, updateStockFromWholeQuantity, validateStockLevels } from '@/utils/stockUtils';
 import { formatCurrencyAmount } from '@/utils/currencyUtils';
@@ -133,6 +134,7 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
     updateCombination,
     updateStockLevel,
     updateStockLevelRatioValue,
+    updatePriceAnchor,
     updateVariant,
     updateVariantOption,
     uploadingImages,
@@ -1389,6 +1391,18 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
               onConvertLegacyStock={convertLegacyStockToPieces}
             />
 
+            <PricingAnchorConfiguration
+              stockLevels={activeStockLevels}
+              sellingPriceUnit={formData.sellingPriceUnit || 'Pieces'}
+              purchasePriceUnit={formData.purchasePriceUnit || 'Pieces'}
+              title={tCatalog('variants.pricingConfigurationTitle')}
+              description={tCatalog('variants.pricingConfigurationHint')}
+              sellingLabel={tCatalog('variants.sellingPriceUnit')}
+              purchaseLabel={tCatalog('variants.purchasePriceUnit')}
+              disabled={isViewMode || isOfferConnected}
+              onChange={updatePriceAnchor}
+            />
+
                 <div className="overflow-x-auto">
                   <table
                     ref={variationTableRef}
@@ -1425,8 +1439,8 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
                         })}
                         {([
                           ['sku', VARIATION_COL_WEIGHTS.sku, tCatalog('variants.sku')] as const,
-                          ['sellingPrice', VARIATION_COL_WEIGHTS.sellingPrice, tCatalog('variants.sellingPrice')] as const,
-                          ['purchasePrice', VARIATION_COL_WEIGHTS.purchasePrice, tCatalog('variants.purchasePrice')] as const,
+                          ['sellingPrice', VARIATION_COL_WEIGHTS.sellingPrice, `${tCatalog('variants.sellingPrice')} / ${formData.sellingPriceUnit || 'Pieces'}`] as const,
+                          ['purchasePrice', VARIATION_COL_WEIGHTS.purchasePrice, `${tCatalog('variants.purchasePrice')} / ${formData.purchasePriceUnit || 'Pieces'}`] as const,
                           ['moq', VARIATION_COL_WEIGHTS.moq, tCatalog('variants.moq')] as const,
                         ]).map(([colKey, weight, label]) => (
                           <th
@@ -1535,11 +1549,11 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
                                        startClient: event.clientY,
                                        startSize: rowHeight,
                                        min: VARIATION_ROW_MIN,
-                                       onSize: (next) =>
-                                         setVariationRowHeights((prev) => ({
-                                           ...prev,
-                                           [combination.id]: next,
-                                         })),
+                                       applySize: (next: number) =>
+                                        setVariationRowHeights((prev) => ({
+                                          ...prev,
+                                          [combination.id]: next,
+                                        })),
                                      });
                                    }}
                                    className="absolute bottom-0 left-0 z-10 h-1.5 w-full cursor-row-resize touch-none hover:bg-[#0a61d7]/35"
@@ -1569,7 +1583,7 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
                                     startClient: event.clientY,
                                     startSize: rowHeight,
                                     min: VARIATION_ROW_MIN,
-                                    onSize: (next) =>
+                                    applySize: (next: number) =>
                                       setVariationRowHeights((prev) => ({
                                         ...prev,
                                         [combination.id]: next,
@@ -1601,6 +1615,13 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
                                 placeholder={getPricePlaceholder(userCurrency)}
                               />
                               </div>
+                              {(formData.sellingPriceUnit || 'Pieces') !== 'Pieces' && (() => {
+                                const anchor = activeStockLevels.find((level) => level.name === formData.sellingPriceUnit);
+                                const anchorPieces = anchor?.piecesPerUnit || 1;
+                                const raw = parseNumberByCurrency(String(combination.sellingPrice || ''), userCurrency);
+                                if (!String(combination.sellingPrice || '').trim() || !Number.isFinite(raw)) return null;
+                                return <div className="mt-1 truncate text-[10px] text-gray-500" title={`Per Piece: ${currencySymbol} ${(raw / anchorPieces).toFixed(2)}`}>{tCatalog('variants.pricePerPiece')}: {currencySymbol} {formatCurrencyAmount(raw / anchorPieces, userCurrency)}</div>;
+                              })()}
                               {isOfferConnected && (() => {
                                 const dbPrice = (combination as Record<string, unknown>).dbSellingPrice;
                                 if (!dbPrice) return null;
@@ -1639,6 +1660,13 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
                                 placeholder={getPricePlaceholder(userCurrency)}
                               />
                             </div>
+                            {(formData.purchasePriceUnit || 'Pieces') !== 'Pieces' && (() => {
+                              const anchor = activeStockLevels.find((level) => level.name === formData.purchasePriceUnit);
+                              const anchorPieces = anchor?.piecesPerUnit || 1;
+                              const raw = parseNumberByCurrency(String(combination.purchasePrice || ''), userCurrency);
+                              if (!String(combination.purchasePrice || '').trim() || !Number.isFinite(raw)) return null;
+                              return <div className="mt-1 truncate text-[10px] text-gray-500" title={`Per Piece: ${currencySymbol} ${(raw / anchorPieces).toFixed(2)}`}>{tCatalog('variants.pricePerPiece')}: {currencySymbol} {formatCurrencyAmount(raw / anchorPieces, userCurrency)}</div>;
+                            })()}
                           </td>
                           <td className="px-2 py-1.5 border-r border-b border-gray-300 align-middle" style={{ height: rowHeight }}>
                             <input
@@ -1869,6 +1897,9 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
       <ImportVariantModal
         open={showImportStockSetup}
         stockLevels={formData.stockLevels}
+        sellingPriceUnit={formData.sellingPriceUnit || 'Pieces'}
+        purchasePriceUnit={formData.purchasePriceUnit || 'Pieces'}
+        onPriceAnchorChange={updatePriceAnchor}
         ratioDrafts={stockLevelRatioDrafts}
         totalPieces={combinations.reduce((sum, combo) => sum + combo.stockQuantity, 0)}
         legacyStockUnit={legacyStockUnit}

@@ -4,9 +4,10 @@ import * as XLSX from 'xlsx';
 import type { VariationImportPayload, VariationImportResult, VariationImportRow } from '@/components/productscatalogs/VariationListImport';
 import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/store/userStore';
-import type { Product, ProductFormData, StockLevel } from '@/types/product';
+import type { Product, ProductFormData, StockLevel, ProductVariantDefinition, VariantOption } from '../../types/product';
 import { getDefaultCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
+import { getPriceAnchorPieces, scaleAnchoredPrice, priceToPieceValue } from '@/utils/priceAnchorUtils';
 import { getAvailableCategories, getCategoryByValue } from '@/utils/categoryUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
@@ -94,6 +95,8 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
     catalogName: product?.catalogName || '',
     stockUnit: 'Pieces',
     stockLevels: normalizeStockLevels(product?.stockLevels),
+    sellingPriceUnit: product?.sellingPriceUnit || 'Pieces',
+    purchasePriceUnit: product?.purchasePriceUnit || 'Pieces',
     images: product?.images || [],
     halalCertified: (product as { halalCertified?: boolean })?.halalCertified ?? false,
     bpomApproved: (product as { bpomApproved?: boolean })?.bpomApproved ?? false,
@@ -172,9 +175,9 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
   useEffect(() => {
     if (product?.variants && product.variants.length > 0) {
       // New structure: load from variants (ProductVariant model) with proper ordering
-      const loadedVariants = product.variants
-        .sort((a, b) => (a.position || 0) - (b.position || 0)) // Sort by position
-        .map((def, index) => ({
+      const loadedVariants: CatalogVariant[] = [...product.variants]
+        .sort((a: ProductVariantDefinition, b: ProductVariantDefinition) => (a.position || 0) - (b.position || 0)) // Sort by position
+        .map((def: ProductVariantDefinition, index: number): CatalogVariant => ({
           id: `variant-${def.variantType}`,
           variantType: def.variantType,
           moq: undefined,
@@ -205,12 +208,12 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
   useEffect(() => {
     if (product?.variantOptions && product.variantOptions.length > 0) {
       // Use existing variants if available, otherwise infer from variantOptions
-      let inferredVariants;
+      let inferredVariants: CatalogVariant[];
       if (product.variants && product.variants.length > 0) {
         // Use the properly ordered variants from the first useEffect
-        inferredVariants = product.variants
-          .sort((a, b) => (a.position || 0) - (b.position || 0))
-          .map((def, index) => ({
+        inferredVariants = [...product.variants]
+          .sort((a: ProductVariantDefinition, b: ProductVariantDefinition) => (a.position || 0) - (b.position || 0))
+          .map((def: ProductVariantDefinition, index: number): CatalogVariant => ({
             id: `variant-${def.variantType}`,
             variantType: def.variantType,
             moq: undefined,
@@ -236,13 +239,13 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
         }));
       }
       // Load combinations — catalog sellingPrice is the source of truth (offers do not rewrite it)
-      const loadedCombinations = product.variantOptions.map(option => {
+      const loadedCombinations: Combination[] = product.variantOptions.map((option: VariantOption): Combination => {
         const base: Combination = {
           id: `combination-${option.id}`,
           variantName: option.variantName,
           sku: option.sku || '',
-          purchasePrice: option.purchasePrice || '',
-          sellingPrice: option.sellingPrice || '',
+          purchasePrice: scaleAnchoredPrice(option.purchasePrice, 1, getPriceAnchorPieces(normalizeStockLevels(product.stockLevels), product.purchasePriceUnit), userCurrency),
+          sellingPrice: scaleAnchoredPrice(option.sellingPrice, 1, getPriceAnchorPieces(normalizeStockLevels(product.stockLevels), product.sellingPriceUnit), userCurrency),
           moq: option.moq,
           stockQuantity: option.stockQuantity || 0,
           lowStockThreshold: option.lowStockThreshold || 0,
@@ -257,7 +260,7 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
         }
         return base;
       });
-      originalStockByCombinationIdRef.current = Object.fromEntries(loadedCombinations.map((combo) => [
+      originalStockByCombinationIdRef.current = Object.fromEntries(loadedCombinations.map((combo: Combination) => [
         combo.id,
         { stockQuantity: combo.stockQuantity, lowStockThreshold: combo.lowStockThreshold },
       ]));
@@ -379,6 +382,8 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
         catalogName: product.catalogName || '',
         stockUnit: 'Pieces',
         stockLevels: normalizeStockLevels(product.stockLevels),
+        sellingPriceUnit: product.sellingPriceUnit || 'Pieces',
+        purchasePriceUnit: product.purchasePriceUnit || 'Pieces',
         images: product.images || [],
         halalCertified: (product as { halalCertified?: boolean })?.halalCertified ?? false,
         bpomApproved: (product as { bpomApproved?: boolean })?.bpomApproved ?? false,
@@ -432,6 +437,8 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
         catalogName: product?.catalogName || '',
         stockUnit: 'Pieces',
         stockLevels: normalizeStockLevels(product?.stockLevels),
+        sellingPriceUnit: product?.sellingPriceUnit || 'Pieces',
+        purchasePriceUnit: product?.purchasePriceUnit || 'Pieces',
         images: product?.images || [],
         halalCertified: (product as { halalCertified?: boolean })?.halalCertified ?? false,
         bpomApproved: (product as { bpomApproved?: boolean })?.bpomApproved ?? false,
@@ -584,14 +591,32 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
       return next;
     });
   };
+  const updatePriceAnchor = (kind: 'selling' | 'purchase', nextUnitName: string) => {
+    const field = kind === 'selling' ? 'sellingPriceUnit' : 'purchasePriceUnit';
+    const priceField = kind === 'selling' ? 'sellingPrice' : 'purchasePrice';
+    const fromPieces = getPriceAnchorPieces(formData.stockLevels, formData[field]);
+    const toPieces = getPriceAnchorPieces(formData.stockLevels, nextUnitName);
+    if (formData[field] === nextUnitName) return;
+    setCombinations((current) => current.map((combo) => ({
+      ...combo,
+      [priceField]: scaleAnchoredPrice(combo[priceField], fromPieces, toPieces, userCurrency),
+    })));
+    setFormData((prev) => ({ ...prev, [field]: nextUnitName }));
+  };
   const updateStockLevel = (index: number, patch: Partial<StockLevel>) => {
-    setFormData((prev) => ({
-      ...prev,
-      stockUnit: 'Pieces',
-      stockLevels: prev.stockLevels.map((level, levelIndex) =>
-        levelIndex === index ? { ...level, ...patch } : level,
-      ),
-    }));
+    setFormData((prev) => {
+      const previousName = prev.stockLevels[index]?.name;
+      const nextName = patch.name;
+      return {
+        ...prev,
+        stockUnit: 'Pieces',
+        sellingPriceUnit: nextName !== undefined && prev.sellingPriceUnit === previousName ? nextName : prev.sellingPriceUnit,
+        purchasePriceUnit: nextName !== undefined && prev.purchasePriceUnit === previousName ? nextName : prev.purchasePriceUnit,
+        stockLevels: prev.stockLevels.map((level, levelIndex) =>
+          levelIndex === index ? { ...level, ...patch } : level,
+        ),
+      };
+    });
   };
   const updateStockLevelRatioValue = (index: number, rawValue: string) => {
     const ratio = rawValue.trim() === '' ? 0 : Number(rawValue);
@@ -624,9 +649,22 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
   const removeStockLevel = (index: number) => {
     if (index === 0) return;
     setStockLevelRatioDrafts({});
+    const removedName = formData.stockLevels[index]?.name;
+    const resetSellingAnchor = formData.sellingPriceUnit === removedName;
+    const resetPurchaseAnchor = formData.purchasePriceUnit === removedName;
+    if (resetSellingAnchor) {
+      const fromPieces = getPriceAnchorPieces(formData.stockLevels, formData.sellingPriceUnit);
+      setCombinations((current) => current.map((combo) => ({ ...combo, sellingPrice: scaleAnchoredPrice(combo.sellingPrice, fromPieces, 1, userCurrency) })));
+    }
+    if (resetPurchaseAnchor) {
+      const fromPieces = getPriceAnchorPieces(formData.stockLevels, formData.purchasePriceUnit);
+      setCombinations((current) => current.map((combo) => ({ ...combo, purchasePrice: scaleAnchoredPrice(combo.purchasePrice, fromPieces, 1, userCurrency) })));
+    }
     setFormData((prev) => ({
       ...prev,
       stockLevels: prev.stockLevels.filter((_, levelIndex) => levelIndex !== index),
+      sellingPriceUnit: resetSellingAnchor ? 'Pieces' : prev.sellingPriceUnit,
+      purchasePriceUnit: resetPurchaseAnchor ? 'Pieces' : prev.purchasePriceUnit,
     }));
   };
   const convertLegacyStockToPieces = () => {
@@ -863,6 +901,16 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
       combo.stockStatus,
     ]);
     const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
+    // Keep the standard headers so the import mapper can recognize them, while
+    // documenting the configured unit in the Excel header comments.
+    const sellingPriceHeader = XLSX.utils.encode_cell({ r: 0, c: variationImportColumns.length + 1 });
+    const purchasePriceHeader = XLSX.utils.encode_cell({ r: 0, c: variationImportColumns.length + 2 });
+    if (ws[sellingPriceHeader]) {
+      ws[sellingPriceHeader].c = [{ a: 'Lakupak', t: `Each Selling Price value is per ${formData.sellingPriceUnit || 'Pieces'}.` }];
+    }
+    if (ws[purchasePriceHeader]) {
+      ws[purchasePriceHeader].c = [{ a: 'Lakupak', t: `Each Purchase Price value is per ${formData.purchasePriceUnit || 'Pieces'}.` }];
+    }
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Variations');
     const safeName = (formData.name || formData.productId || 'product').replace(/[^\w\-]+/g, '_').slice(0, 40);
@@ -1276,10 +1324,10 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
       const totalStock = combinationsForPayload.reduce((sum, combo) => sum + combo.stockQuantity, 0);
       const lowStockThreshold = combinationsForPayload.reduce((sum, combo) => sum + combo.lowStockThreshold, 0);
       const stockStatus = getProductStockStatus(combinationsForPayload);
-      const serializeComboPrice = (raw: unknown): string => {
+      const serializeComboPrice = (raw: unknown, anchorUnit: string): string => {
         const text = String(raw ?? '').trim();
         if (!text && status !== 'Published') return '';
-        return String(parseNumberByCurrency(text, priceCurrency));
+        return priceToPieceValue(text, getPriceAnchorPieces(formData.stockLevels, anchorUnit), priceCurrency);
       };
       // Keep product.sku populated for legacy/search; prefer existing or first variant SKU.
       const derivedSku =
@@ -1322,8 +1370,8 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
             }),
           ),
           sku: combo.sku,
-          purchasePrice: serializeComboPrice(combo.purchasePrice),
-          sellingPrice: serializeComboPrice(combo.sellingPrice),
+          purchasePrice: serializeComboPrice(combo.purchasePrice, formData.purchasePriceUnit),
+          sellingPrice: serializeComboPrice(combo.sellingPrice, formData.sellingPriceUnit),
           originalSellingPrice: null,
           moq: combo.moq,
           stockQuantity: combo.stockQuantity,
@@ -1349,6 +1397,8 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
           $catalogName: String
           $stockUnit: String
           $stockLevels: [JSONObject!]
+          $sellingPriceUnit: String
+          $purchasePriceUnit: String
           $images: [String!]
           $halalCertified: Boolean
           $bpomApproved: Boolean
@@ -1372,6 +1422,8 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
             catalogName: $catalogName
             stockUnit: $stockUnit
             stockLevels: $stockLevels
+            sellingPriceUnit: $sellingPriceUnit
+            purchasePriceUnit: $purchasePriceUnit
             images: $images
             halalCertified: $halalCertified
             bpomApproved: $bpomApproved
@@ -1406,6 +1458,8 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
           $catalogName: String
           $stockUnit: String
           $stockLevels: [JSONObject!]
+          $sellingPriceUnit: String
+          $purchasePriceUnit: String
           $images: [String!]
           $halalCertified: Boolean
           $bpomApproved: Boolean
@@ -1430,6 +1484,8 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
             catalogName: $catalogName
             stockUnit: $stockUnit
             stockLevels: $stockLevels
+            sellingPriceUnit: $sellingPriceUnit
+            purchasePriceUnit: $purchasePriceUnit
             images: $images
             halalCertified: $halalCertified
             bpomApproved: $bpomApproved
@@ -1463,6 +1519,8 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
           status: payload.status,
           stockUnit: 'Pieces',
         stockLevels: payload.stockLevels,
+          sellingPriceUnit: payload.sellingPriceUnit,
+          purchasePriceUnit: payload.purchasePriceUnit,
           images: payload.images || [],
           halalCertified: payload.halalCertified || false,
           bpomApproved: payload.bpomApproved || false,
@@ -1502,6 +1560,8 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
           status: payload.status,
           stockUnit: 'Pieces',
           stockLevels: payload.stockLevels,
+          sellingPriceUnit: payload.sellingPriceUnit,
+          purchasePriceUnit: payload.purchasePriceUnit,
           images: payload.images || [],
           halalCertified: payload.halalCertified ?? false,
           bpomApproved: payload.bpomApproved ?? false,
@@ -1724,7 +1784,7 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
       startClient: event.clientX,
       startSize,
       min: VARIATION_COL_MIN,
-      onSize: (next) =>
+      applySize: (next: number) =>
         setVariationColWidths((prev) => {
           const base = Object.keys(prev).length > 0 ? prev : snapshot;
           return { ...base, [colKey]: next };
@@ -1834,6 +1894,7 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
     updateCombination,
     updateStockLevel,
     updateStockLevelRatioValue,
+    updatePriceAnchor,
     updateVariant,
     updateVariantOption,
     uploadingImages,

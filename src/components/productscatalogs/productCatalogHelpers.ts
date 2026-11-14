@@ -1,5 +1,4 @@
-
-import type { Product, ProductFormData } from '@/types/product';
+import type { Product, ProductFormData } from '../../types/product';
 import type { VariationImportRow } from '@/components/productscatalogs/VariationListImport';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { getVariantStockStatus } from '@/utils/stockUtils';
@@ -19,6 +18,8 @@ export const isFormDataEqual = (a: ProductFormData, b: ProductFormData): boolean
     a.catalogName === b.catalogName &&
     a.stockUnit === b.stockUnit &&
     JSON.stringify(a.stockLevels) === JSON.stringify(b.stockLevels) &&
+    a.sellingPriceUnit === b.sellingPriceUnit &&
+    a.purchasePriceUnit === b.purchasePriceUnit &&
     JSON.stringify(a.images) === JSON.stringify(b.images) &&
     a.halalCertified === b.halalCertified &&
     a.bpomApproved === b.bpomApproved &&
@@ -596,12 +597,12 @@ export function startSizeDrag(args: {
   startClient: number;
   startSize: number;
   min: number;
-  onSize: (next: number) => void;
+  applySize: (next: number) => void;
 }): () => void {
-  const { axis, startClient, startSize, min, onSize } = args;
+  const { axis, startClient, startSize, min, applySize } = args;
   const onMove = (event: PointerEvent) => {
     const delta = axis === 'x' ? event.clientX - startClient : event.clientY - startClient;
-    onSize(Math.max(min, startSize + delta));
+    applySize(Math.max(min, startSize + delta));
   };
   const dispose = () => {
     document.body.style.cursor = '';

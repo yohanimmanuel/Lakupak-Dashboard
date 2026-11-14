@@ -9,13 +9,6 @@ import {
 } from '@/utils/searchCache';
 import { getMeiliClient, MEILI_PRODUCTS_INDEX, getMarketplaceSearchEngineMode } from '@/lib/meili';
 import type { SearchParams } from 'meilisearch';
-import { getSecurityHeaders } from '@/utils/auth-security';
-import { verifyAccessToken } from '@/lib/jwt';
-import { validateOfferForProduct, trackOfferUsage as trackOfferUsageUtil, trackOfferUsageForAllTypes, updateOfferStatusesBasedOnLimits } from '@/utils/offerValidation';
-import { parseNumberByCurrency } from '@/config/currencyConfig';
-import { validateVariant } from '@/services/variantService';
-import { syncOrderToBuyerProfile, buildMobileBuyerId } from '@/utils/buyerSync';
-import { broadcastOrderUpdate } from '@/utils/websocketBroadcast';
 import { expandCategoryFilterValues } from '@/utils/categoryUtils';
 
 function isSafeCategoryFilterToken(value: string): boolean {

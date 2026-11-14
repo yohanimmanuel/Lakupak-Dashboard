@@ -163,6 +163,8 @@ export const productsTypeDefs = /* GraphQL */ `
     catalogName: String
     stockUnit: String
     stockLevels: [JSONObject!]
+    sellingPriceUnit: String
+    purchasePriceUnit: String
     images: [String!]!
     halalCertified: Boolean
     bpomApproved: Boolean
@@ -382,6 +384,8 @@ export const productsTypeDefs = /* GraphQL */ `
     catalogName: String
     stockUnit: String
       stockLevels: [JSONObject!]
+      sellingPriceUnit: String
+      purchasePriceUnit: String
       images: [String!]
       halalCertified: Boolean
       bpomApproved: Boolean
@@ -408,6 +412,8 @@ export const productsTypeDefs = /* GraphQL */ `
     catalogName: String
     stockUnit: String
       stockLevels: [JSONObject!]
+      sellingPriceUnit: String
+      purchasePriceUnit: String
       images: [String!]
       halalCertified: Boolean
       bpomApproved: Boolean
@@ -588,6 +594,8 @@ export const mapProduct = (
     // Prisma returns JsonValue here, not the domain StockLevel[] type.
     // Normalize at the boundary so legacy/malformed JSON cannot leak to clients.
     stockLevels: normalizeStockLevels((product as { stockLevels?: unknown }).stockLevels),
+    sellingPriceUnit: (product as { sellingPriceUnit?: string | null }).sellingPriceUnit || 'Pieces',
+    purchasePriceUnit: (product as { purchasePriceUnit?: string | null }).purchasePriceUnit || 'Pieces',
     images: product.images ?? [],
     halalCertified: product.halalCertified ?? null,
     bpomApproved: product.bpomApproved ?? null,
@@ -841,6 +849,18 @@ const normalizeStockUnit = (raw?: string | null): string => {
   return STOCK_UNITS.has(value) ? value : 'Pieces';
 };
 
+const normalizePriceAnchorUnit = (raw: string | null | undefined, levels: unknown): string => {
+  const requested = String(raw || 'Pieces').trim().toLowerCase();
+  const match = normalizeStockLevels(levels).find((level) => level.name.trim().toLowerCase() === requested);
+  return match?.name || 'Pieces';
+};
+
+const validatePriceAnchorUnit = (raw: string | null | undefined, levels: unknown, label: string) => {
+  const requested = String(raw || 'Pieces').trim();
+  const available = normalizeStockLevels(levels).some((level) => level.name.trim().toLowerCase() === requested.toLowerCase());
+  if (!available) rejectProductInput(`${label} must reference one of the product's configured stock levels.`);
+};
+
 /**
  * Prisma's JSON write input is intentionally distinct from its JSON read type.
  * Round-trip the already-normalized domain data through JSON to produce a plain
@@ -864,6 +884,8 @@ const buildProductData = ({
   catalogName,
   stockUnit,
   stockLevels,
+  sellingPriceUnit,
+  purchasePriceUnit,
   images,
   halalCertified,
   bpomApproved,
@@ -884,6 +906,8 @@ const buildProductData = ({
   catalogName?: string | null;
   stockUnit?: string | null;
   stockLevels?: StockLevel[] | null;
+  sellingPriceUnit?: string | null;
+  purchasePriceUnit?: string | null;
   images?: string[] | null;
   halalCertified?: boolean | null;
   bpomApproved?: boolean | null;
@@ -910,6 +934,8 @@ const buildProductData = ({
     // VariantOption.stockQuantity and lowStockThreshold are always absolute piece counts.
     stockUnit: 'Pieces',
     stockLevels: toPrismaStockLevelsJson(stockLevels),
+    sellingPriceUnit: normalizePriceAnchorUnit(sellingPriceUnit, stockLevels),
+    purchasePriceUnit: normalizePriceAnchorUnit(purchasePriceUnit, stockLevels),
     images: Array.isArray(images) ? images : [],
     halalCertified: halalCertified === true,
     bpomApproved: bpomApproved === true,
@@ -1057,6 +1083,8 @@ export const createProduct = async (args: {
   catalogName?: string | null;
   stockUnit?: string | null;
   stockLevels?: StockLevel[] | null;
+  sellingPriceUnit?: string | null;
+  purchasePriceUnit?: string | null;
   images?: string[] | null;
   halalCertified?: boolean | null;
   bpomApproved?: boolean | null;
@@ -1098,6 +1126,8 @@ export const createProduct = async (args: {
     catalogName,
     stockUnit,
     stockLevels,
+    sellingPriceUnit = 'Pieces',
+    purchasePriceUnit = 'Pieces',
     images = [],
     halalCertified = false,
     bpomApproved = false,
@@ -1107,6 +1137,10 @@ export const createProduct = async (args: {
     variantDefinitions,
     variantOptions,
   } = args;
+
+  const effectiveStockLevels = stockLevels ?? [{ name: 'Pieces', piecesPerUnit: 1 }];
+  validatePriceAnchorUnit(sellingPriceUnit, effectiveStockLevels, 'Selling price unit');
+  validatePriceAnchorUnit(purchasePriceUnit, effectiveStockLevels, 'Purchase price unit');
 
   assertProductPayload({
     sku,
@@ -1148,7 +1182,9 @@ export const createProduct = async (args: {
     merchandisingCategorySlug,
     catalogName,
     stockUnit,
-    stockLevels: stockLevels ?? [{ name: 'Pieces', piecesPerUnit: 1 }],
+    stockLevels: effectiveStockLevels,
+    sellingPriceUnit,
+    purchasePriceUnit,
     images,
     halalCertified,
     bpomApproved,
@@ -1280,6 +1316,8 @@ export const updateProduct = async (args: {
   catalogName?: string | null;
   stockUnit?: string | null;
   stockLevels?: StockLevel[] | null;
+  sellingPriceUnit?: string | null;
+  purchasePriceUnit?: string | null;
   images?: string[] | null;
   halalCertified?: boolean | null;
   bpomApproved?: boolean | null;
@@ -1322,6 +1360,8 @@ export const updateProduct = async (args: {
     catalogName,
     stockUnit,
     stockLevels,
+    sellingPriceUnit,
+    purchasePriceUnit,
     images,
     halalCertified,
     bpomApproved,
@@ -1371,6 +1411,9 @@ export const updateProduct = async (args: {
     (normalizeStockUnit(productBeforeUpdate.stockUnit) === 'Pieces'
       ? [{ name: 'Pieces', piecesPerUnit: 1 }]
       : null);
+  const effectiveStockLevels = stockLevels !== undefined ? stockLevels : storedStockLevels;
+  if (sellingPriceUnit !== undefined) validatePriceAnchorUnit(sellingPriceUnit, effectiveStockLevels, 'Selling price unit');
+  if (purchasePriceUnit !== undefined) validatePriceAnchorUnit(purchasePriceUnit, effectiveStockLevels, 'Purchase price unit');
   if (publishing && !stockLevels && !storedStockLevels) {
     rejectProductInput('Convert this product’s legacy stock quantity to Pieces before publishing.');
   }
@@ -1443,6 +1486,10 @@ export const updateProduct = async (args: {
     );
   }
   if (catalogName !== undefined) cleanUpdateData.catalogName = String(catalogName);
+  if (sellingPriceUnit !== undefined) cleanUpdateData.sellingPriceUnit = normalizePriceAnchorUnit(sellingPriceUnit, effectiveStockLevels);
+  else if (stockLevels !== undefined) cleanUpdateData.sellingPriceUnit = normalizePriceAnchorUnit(productBeforeUpdate.sellingPriceUnit, effectiveStockLevels);
+  if (purchasePriceUnit !== undefined) cleanUpdateData.purchasePriceUnit = normalizePriceAnchorUnit(purchasePriceUnit, effectiveStockLevels);
+  else if (stockLevels !== undefined) cleanUpdateData.purchasePriceUnit = normalizePriceAnchorUnit(productBeforeUpdate.purchasePriceUnit, effectiveStockLevels);
   if (stockLevels !== undefined) {
     const stockLevelsError = validateStockLevels(stockLevels);
     if (stockLevelsError) rejectProductInput(stockLevelsError);

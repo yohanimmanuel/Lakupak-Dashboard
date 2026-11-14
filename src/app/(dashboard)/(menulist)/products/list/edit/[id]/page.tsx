@@ -47,6 +47,8 @@ export default function EditProductPage() {
               catalogName
               stockUnit
               stockLevels
+              sellingPriceUnit
+              purchasePriceUnit
               images
               halalCertified
               bpomApproved
@@ -98,7 +100,6 @@ export default function EditProductPage() {
           setError(tDetailsPage('notFound'));
         }
       } catch (error) {
-        console.error('[Product detail] Failed to load product:', error);
         setError(tDetailsPage('loadFailed'));
       } finally {
         setLoading(false);

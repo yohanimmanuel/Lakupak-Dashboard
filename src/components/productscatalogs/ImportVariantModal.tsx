@@ -1,13 +1,15 @@
-'use client';
-
 import { ArrowRight, X } from 'lucide-react';
-import type { StockLevel } from '@/types/product';
+import type { StockLevel } from '../../types/product';
 import { useProductsTranslations } from '@/hooks/useProductsTranslations';
 import StockLevelConversion from '@/components/productscatalogs/StockLevelConversion';
+import PricingAnchorConfiguration from '@/components/productscatalogs/PricingAnchorConfiguration';
 
 type ImportVariantModalProps = {
   open: boolean;
   stockLevels: StockLevel[];
+  sellingPriceUnit: string;
+  purchasePriceUnit: string;
+  onPriceAnchorChange(kind: 'selling' | 'purchase', unitName: string): void;
   ratioDrafts: Record<number, string>;
   totalPieces: number;
   legacyStockUnit?: string | null;
@@ -32,6 +34,9 @@ type ImportVariantModalProps = {
 export default function ImportVariantModal({
   open,
   stockLevels,
+  sellingPriceUnit,
+  purchasePriceUnit,
+  onPriceAnchorChange,
   ratioDrafts,
   totalPieces,
   legacyStockUnit = null,
@@ -91,8 +96,21 @@ export default function ImportVariantModal({
           onConvertLegacyStock={onConvertLegacyStock}
         />
 
+        <PricingAnchorConfiguration
+          stockLevels={stockLevels}
+          sellingPriceUnit={sellingPriceUnit}
+          purchasePriceUnit={purchasePriceUnit}
+          title={tCatalog('variants.pricingConfigurationTitle')}
+          description={tCatalog('variants.importPriceAnchorsDescription')}
+          sellingLabel={tCatalog('variants.sellingPriceUnit')}
+          purchaseLabel={tCatalog('variants.purchasePriceUnit')}
+          disabled={isOfferConnected || Boolean(legacyStockUnit)}
+          onChange={onPriceAnchorChange}
+        />
+
         <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs leading-5 text-blue-900">
           {tCatalog('variants.importStockRatiosNote')}
+          {' '}{tCatalog('variants.importPriceAnchorsNote', { sellingUnit: sellingPriceUnit, purchaseUnit: purchasePriceUnit })}
         </div>
 
         <div className="mt-5 flex justify-end gap-2 border-t border-gray-200 pt-4">

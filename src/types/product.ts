@@ -12,10 +12,7 @@ export interface VariantDefinition {
 // A product may expose any number of package levels, all converted directly to pieces.
 export interface StockLevel {
   name: string;
-  /** Cumulative number of base Pieces represented by one unit at this level. */
   piecesPerUnit: number;
-  /** Number of immediately preceding-level units represented by one unit here. */
-  unitsPerPreviousLevel?: number;
 }
 
 // Variant combinations (actual product variations)
@@ -104,6 +101,10 @@ export interface Product {
   returnPolicyDays?: number;
   /** Flexible package equivalents. VariantOption.stockQuantity is always absolute pieces. */
   stockLevels?: StockLevel[] | null;
+  /** Unit used to enter/display VariantOption sellingPrice; stored values remain per Piece. */
+  sellingPriceUnit?: string | null;
+  /** Unit used to enter/display VariantOption purchasePrice; stored values remain per Piece. */
+  purchasePriceUnit?: string | null;
   /** Legacy field retained for reading old records during the one-time stock conversion. */
   stockUnit?: string | null;
   // Product-level stock is computed from sum of all variant stocks
@@ -200,6 +201,9 @@ export interface ProductFormData {
   images: string[];
   /** Flexible package equivalents. Pieces is compulsory and always has ratio 1. */
   stockLevels: StockLevel[];
+  /** Price entry/display anchors. VariantOption prices are persisted normalized per Piece. */
+  sellingPriceUnit: string;
+  purchasePriceUnit: string;
   /** Legacy compatibility field; new saves always set this to Pieces. */
   stockUnit: string;
   // Product assurance
