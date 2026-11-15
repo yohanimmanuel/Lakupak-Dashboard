@@ -228,6 +228,8 @@ export default function ImportSuppliesModal({
         sku: mapped.sku || '',
         product: mapped.product || '',
         totalSupplied: mapped.totalSupplied || '',
+        receivedQuantity: mapped.totalSupplied || '',
+        receivedUnit: 'Pieces',
         totalValue: mapped.totalValue || '',
         lastDelivery: mapped.lastDelivery || '',
         status: '',

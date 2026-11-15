@@ -44,6 +44,23 @@ describe('computeSupplyStockEffects (Update Current Stock checkbox)', () => {
     expect(effects[0].applyStock).toBe(true);
   });
 
+  it('applies a carton-entered supply using its normalized Piece quantity', () => {
+    const incoming = [history({ receivedQuantity: '2', receivedUnit: 'Cartons', totalSupplied: '240', updateCurrentStock: true })];
+    const effects = computeSupplyStockEffects([], incoming);
+    expect(effects).toHaveLength(1);
+    expect(effects[0].quantityDelta).toBe(240);
+    expect(effects[0].applyStock).toBe(true);
+  });
+
+  it('reverses the normalized Piece quantity when deleting a package-entered supply', () => {
+    const previous = [history({ receivedQuantity: '2', receivedUnit: 'Cartons', totalSupplied: '240', stockApplied: true })];
+    const incoming = [{ ...previous[0], __delete: true as const, updateCurrentStock: true }];
+    const effects = computeSupplyStockEffects(previous, incoming);
+    expect(effects).toHaveLength(1);
+    expect(effects[0].quantityDelta).toBe(-240);
+    expect(effects[0].applyStock).toBe(true);
+  });
+
   it('applies totals only for unchecked new history rows', () => {
     const incoming = [history({ updateCurrentStock: false })];
     const effects = computeSupplyStockEffects([], incoming);

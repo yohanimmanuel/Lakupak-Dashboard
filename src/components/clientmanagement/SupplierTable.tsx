@@ -352,13 +352,14 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
   }, [showStatusDropdown]);
 
   const handleExportXLSX = () => {
-    const headers = ['ID', 'Name', 'Contact Person', 'Business Type', 'Location', 'Total Purchases', 'No. SKU Supplied', 'Created At', 'Status'];
+    const headers = ['ID', 'Name', 'Contact Person', 'Business Type', 'Location', 'Total Supplies (Pieces)', 'Total Purchases', 'Created At', 'Status'];
     const rows = filteredSuppliers.map((s: SupplierTableRow) => [
       s.supplierId,
       s.name,
+      s.contact,
       s.businessType,
       s.address,
-      s.totalSupplies,
+      `${Number(s.totalSupplies || 0).toLocaleString('en-US')} Pieces`,
       s.totalPurchases,
       s.createdAt,
       s.status
@@ -681,7 +682,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                 <th className="py-3 px-4 font-medium uppercase">{tShared('columns.name')}</th>
                 <th className="py-3 px-4 font-medium uppercase">{tShared('columns.businessType')}</th>
                 <th className="py-3 px-4 font-medium uppercase">{tShared('columns.location')}</th>
-                <th className="py-3 px-4 font-medium uppercase">{tShared('columns.totalSupplies')}</th>
+                <th className="py-3 px-4 font-medium uppercase">{tShared('columns.totalSupplies')} (Pieces)</th>
                 <th className="py-3 px-4 font-medium uppercase">{tShared('columns.totalPurchases')}</th>
                 <th className="py-3 px-4 font-medium uppercase">{tShared('columns.createdAt')}</th>
                 <th className="py-3 px-4 font-medium uppercase">{tShared('columns.status')}</th>
@@ -765,7 +766,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                         <span className="text-red-600 font-bold">{tShared('missing.address')}</span>
                       )}
                     </td>
-                <td className="py-3 px-4 text-black font-medium">{String(supplier.totalSupplies)}</td>
+                <td className="py-3 px-4 text-black font-medium">{`${Number(supplier.totalSupplies || 0).toLocaleString('en-US')} Pieces`}</td>
                 <td className="py-3 px-4 text-[#0a61d7] font-semibold">{formatCurrency(parseNumberByCurrency(String(supplier.totalPurchases), userCurrency), userCurrency)}</td>
                 <td className="py-3 px-4 text-black">{String(supplier.createdAt).split('T')[0]}</td>
                 <td className="py-3 px-4">
@@ -911,7 +912,7 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
                   <span className="text-red-600 font-bold">{tShared('missing.address')}</span>
                 )}
               </span></div>
-            <div className="text-xs text-gray-500">{tShared('mobileLabels.totalSupplies')} <span className="text-black font-medium">{supplier.totalSupplies}</span></div>
+            <div className="text-xs text-gray-500">{tShared('mobileLabels.totalSupplies')} <span className="text-black font-medium">{`${Number(supplier.totalSupplies || 0).toLocaleString('en-US')} Pieces`}</span></div>
             <div className="text-xs text-gray-500">{tShared('mobileLabels.totalPurchases')} <span className="text-[#0a61d7] font-semibold">{formatCurrency(parseNumberByCurrency(String(supplier.totalPurchases), userCurrency), userCurrency)}</span></div>
             <div className="text-xs text-gray-500">{tShared('mobileLabels.createdAt')} <span className="text-black font-medium">{String(supplier.createdAt).split('T')[0]}</span></div>
             <div className="text-xs text-gray-500">

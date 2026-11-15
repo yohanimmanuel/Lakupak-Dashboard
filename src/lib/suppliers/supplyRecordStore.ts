@@ -9,6 +9,8 @@ export type SupplyRecordRow = {
   suppliesno: string;
   sku: string;
   product: string;
+  receivedQuantity: string;
+  receivedUnit: string;
   totalSupplied: string;
   totalValue: string;
   lastDelivery: string;
@@ -37,6 +39,8 @@ export function supplyDetailFromRecord(row: SupplyRecordRow): SupplyDetail {
     suppliesno: row.suppliesno || '',
     sku: row.sku || '',
     product: row.product || '',
+    receivedQuantity: row.recordType === 'summary' ? undefined : (row.receivedQuantity || row.totalSupplied || ''),
+    receivedUnit: row.recordType === 'summary' ? undefined : (row.receivedUnit || 'Pieces'),
     totalSupplied: row.totalSupplied || '',
     totalValue: row.totalValue || '',
     lastDelivery: row.lastDelivery || '',
@@ -86,6 +90,8 @@ export function buildSupplyRecordCreateManyRows(
   suppliesno: string;
   sku: string;
   product: string;
+  receivedQuantity: string;
+  receivedUnit: string;
   totalSupplied: string;
   totalValue: string;
   lastDelivery: string;
@@ -112,6 +118,10 @@ export function buildSupplyRecordCreateManyRows(
       suppliesno: String(row.suppliesno || ''),
       sku: String(row.sku || ''),
       product: String(row.product || ''),
+      receivedQuantity: recordType === 'history'
+        ? String(row.receivedQuantity ?? row.totalSupplied ?? '')
+        : '',
+      receivedUnit: recordType === 'history' ? String(row.receivedUnit || 'Pieces') : 'Pieces',
       totalSupplied: String(row.totalSupplied || ''),
       totalValue: String(row.totalValue || ''),
       lastDelivery: String(row.lastDelivery || ''),
@@ -184,6 +194,7 @@ export async function replaceSupplierSupplyRecords(
         where: { id: match.id },
         data: {
           suppliesno: row.suppliesno, sku: row.sku, product: row.product,
+          receivedQuantity: row.receivedQuantity, receivedUnit: row.receivedUnit,
           totalSupplied: row.totalSupplied, totalValue: row.totalValue,
           lastDelivery: row.lastDelivery, status: row.status,
           deliverySuccess: row.deliverySuccess, recordType: row.recordType,

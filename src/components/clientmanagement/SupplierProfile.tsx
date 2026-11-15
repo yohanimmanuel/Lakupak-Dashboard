@@ -10,6 +10,8 @@ import SupplyMoveModal, {
   type ManualSupplyRecord,
 } from '@/components/clientmanagement/SupplyMoveModal';
 import { Supplier, SupplyDetail } from '@/types/client';
+import type { StockLevel } from '@/types/product';
+import { getSupplySummaryQuantities, getSupplyUnitOptions } from '@/lib/suppliers/supplyPackageUnits';
 import { formatDate, formatNumber } from '@/utils/dateUtils';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
@@ -17,8 +19,8 @@ import { useUserStore } from '@/store/userStore';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
 import {
+  buildSupplySummaryFromHistory,
   isSupplyHistoryRow,
-  mergeDuplicateSummaryRows,
   partitionSupplies,
 } from '@/lib/suppliers/supplyRecords';
 
@@ -86,12 +88,12 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
   const [manualRecords, setManualRecords] = useState<ManualSupplyRecord[]>([]);
   const [loadingTransfers, setLoadingTransfers] = useState(false);
   const [moveMessage, setMoveMessage] = useState('');
-  const [supplyUnitLookup, setSupplyUnitLookup] = useState<Record<string, string>>({});
+  const [supplyStockLevelsLookup, setSupplyStockLevelsLookup] = useState<Record<string, StockLevel[]>>({});
 
   useEffect(() => {
     const userId = user?.id;
     if (!userId) {
-      setSupplyUnitLookup({});
+      setSupplyStockLevelsLookup({});
       return;
     }
 
@@ -100,14 +102,14 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
       try {
         let page = 1;
         let totalPages = 1;
-        const lookup: Record<string, string> = {};
+        const lookup: Record<string, StockLevel[]> = {};
 
         do {
           const data = await fetchGraphQL<{
             products: {
               nodes: Array<{
                 productId: string;
-                stockUnit?: string | null;
+                stockLevels?: StockLevel[] | null;
                 variantOptions?: Array<{ sku?: string | null }> | null;
               }>;
               pagination: { totalPages?: number };
@@ -117,7 +119,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
               products(userId: $userId, page: $page, limit: $limit) {
                 nodes {
                   productId
-                  stockUnit
+                  stockLevels
                   variantOptions { sku }
                 }
                 pagination { totalPages }
@@ -127,13 +129,12 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
           );
 
           for (const product of data.products?.nodes || []) {
-            const unit = String(product.stockUnit || '').trim();
-            if (!unit) continue;
+            const levels = getSupplyUnitOptions(product.stockLevels);
             const productId = String(product.productId || '').trim();
-            if (productId) lookup[`product:${productId}`] = unit;
+            if (productId) lookup[`product:${productId}`] = levels;
             for (const variant of product.variantOptions || []) {
               const sku = String(variant.sku || '').trim();
-              if (sku) lookup[`sku:${sku}`] = unit;
+              if (sku) lookup[`sku:${sku}`] = levels;
             }
           }
 
@@ -141,22 +142,25 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
           page += 1;
         } while (!cancelled && page <= totalPages);
 
-        if (!cancelled) setSupplyUnitLookup(lookup);
+        if (!cancelled) setSupplyStockLevelsLookup(lookup);
       } catch {
-        if (!cancelled) setSupplyUnitLookup({});
+        if (!cancelled) setSupplyStockLevelsLookup({});
       }
     })();
 
     return () => { cancelled = true; };
   }, [user?.id]);
 
-  const getSupplyUnit = (supply: SupplyDetail) => {
+  const getSupplyStockLevels = (supply: SupplyDetail): StockLevel[] => {
     const productId = String(supply.productId || '').trim();
     const sku = String(supply.sku || '').trim();
-    return (productId ? supplyUnitLookup[`product:${productId}`] : '')
-      || (sku ? supplyUnitLookup[`sku:${sku}`] : '')
-      || '';
+    const levels = (productId ? supplyStockLevelsLookup[`product:${productId}`] : undefined)
+      || (sku ? supplyStockLevelsLookup[`sku:${sku}`] : undefined);
+    return getSupplyUnitOptions(levels);
   };
+
+  const getSummaryPackageQuantities = (supply: SupplyDetail) =>
+    getSupplySummaryQuantities(supply.totalSupplied, getSupplyStockLevels(supply));
   
   // SupplierProfile - Raw supplier data
   
@@ -208,17 +212,27 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
     text += `Notes: ${notes.join(', ')}\n`;
     text += `\nSupplies & Product Data:\n`;
     for (const row of supplies) {
-      text += `- Supplies No: ${row.suppliesno}, SKU: ${row.sku}, Product: ${row.product}, Total Supplied: ${row.totalSupplied}, Total Value: ${row.totalValue}, Last Delivery: ${row.lastDelivery}, Status: ${row.status}\n`;
+      const isHistoryRow = row.recordType !== 'summary';
+      const receivedDescription = isHistoryRow
+        ? `${String(row.receivedQuantity || row.totalSupplied || '')} ${String(row.receivedUnit || 'Pieces')}`
+        : getSummaryPackageQuantities(row)
+            .map((level) => `${level.availableQuantity} ${level.name} (${level.equivalentQuantity})`)
+            .join(', ');
+      text += `- Supplies No: ${row.suppliesno}, SKU: ${row.sku}, Product: ${row.product}, Received: ${receivedDescription}, Total Value: ${row.totalValue}, Last Delivery: ${row.lastDelivery}, Status: ${row.status}\n`;
     }
     navigator.clipboard.writeText(text);
   };
   
   const analyticsData = getSupplierAnalytics(suppliesRaw || '', user?.language);
-  const { history: historySupplies, summary: summarySupplies } = useMemo(() => {
-    const buckets = partitionSupplies(Array.isArray(supplies) ? supplies : []);
-    // One total per SKU, even for rows saved before imports matched by SKU.
-    return { history: buckets.history, summary: mergeDuplicateSummaryRows(buckets.summary) };
-  }, [supplies]);
+  const supplyBuckets = useMemo(
+    () => partitionSupplies(Array.isArray(supplies) ? supplies : []),
+    [supplies],
+  );
+  const historySupplies = supplyBuckets.history;
+  const summarySupplies = useMemo(
+    () => buildSupplySummaryFromHistory(historySupplies, supplyBuckets.summary),
+    [historySupplies, supplyBuckets.summary],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -371,16 +385,28 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
     }
   };
 
-  // Header totals come from summary rows (match totals + rolled-up history), avoiding double-count.
-  const totalSupplied =
-    summarySupplies.reduce((sum, s) => sum + (parseInt(s.totalSupplied) || 0), 0) || 0;
-  let totalValue = 0;
-  let currency = '';
-  summarySupplies.forEach((s: SupplyDetail) => {
-    const match = (s.totalValue || '').toString().match(/^([^\d]*)/);
-    if (match && match[1] && !currency) currency = match[1];
-    totalValue += parseInt((s.totalValue || '').toString().replace(/[^\d]/g, '')) || 0;
-  });
+  // Headline totals include the supplier's opening balance plus all received supplies.
+  // summarySupplies is the canonical per-variant running total in absolute Pieces.
+  const totalSupplied = summarySupplies.reduce(
+    (sum, supply) => sum + (Number(supply.totalSupplied) || 0),
+    0,
+  );
+  const totalValue = summarySupplies.reduce(
+    (sum, supply) => sum + (parseInt(String(supply.totalValue || '').replace(/[^\d-]/g, ''), 10) || 0),
+    0,
+  );
+
+  // Monthly analytics remain based on dated supplier receipts only; opening balances
+  // are intentionally excluded from monthly activity metrics.
+  const historyTotalSupplied = historySupplies.reduce(
+    (sum, supply) => sum + (Number(supply.totalSupplied) || 0),
+    0,
+  );
+  const historyTotalValue = historySupplies.reduce(
+    (sum, supply) => sum + (parseInt(String(supply.totalValue || '').replace(/[^\d-]/g, ''), 10) || 0),
+    0,
+  );
+  const currency = userCurrency;
   
   const [supplyPage, setSupplyPage] = useState(1);
   const supplyRowsPerPage = TABLE_PAGE_SIZE;
@@ -645,7 +671,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
         {/* Summary Statistics */}
         <div className="flex flex-wrap gap-4 mb-4">
           <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">
-            {tSuppliersProfile('totalSuppliedLabel')} <span className="font-bold text-black">{totalSupplied}</span>
+            {tSuppliersProfile('totalSuppliedLabel')} <span className="font-bold text-black">{totalSupplied.toLocaleString('en-US')} Pieces</span>
           </div>
           <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">
                             {tSuppliersProfile('totalPurchaseValueLabel')} <span className="font-bold text-[#0a61d7]">{formatCurrency(totalValue, userCurrency)}</span>
@@ -717,7 +743,9 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                   >
                     <td className="py-4 px-4 text-black">{String(supply.lastDelivery || '—')}</td>
                     <td className="py-4 px-4 font-medium text-black">{String(supply.sku || '—')}</td>
-                    <td className="py-4 px-4 text-black">{String(supply.totalSupplied)}{getSupplyUnit(supply) ? ` ${getSupplyUnit(supply)}` : ''}</td>
+                    <td className="py-4 px-4 text-black">
+                      {String(supply.receivedQuantity || supply.totalSupplied)} {String(supply.receivedUnit || 'Pieces')}
+                    </td>
                     <td className="py-4 px-4 text-[#0a61d7] font-semibold">
                       {formatCurrency(
                         parseNumberByCurrency(String(supply.totalValue), userCurrency),
@@ -739,7 +767,15 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                       <div className="font-medium">{String(supply.sku || '—')}</div>
                       <div className="text-gray-500">{String(supply.product || '—')}</div>
                     </td>
-                    <td className="py-4 px-4 text-black">{String(supply.totalSupplied)}{getSupplyUnit(supply) ? ` ${getSupplyUnit(supply)}` : ''}</td>
+                    <td className="py-4 px-4 text-black">
+                      <div className="flex min-w-[9rem] flex-col gap-1">
+                        {getSummaryPackageQuantities(supply).map((level) => (
+                          <span key={`${supply.suppliesno}-${level.name}`} className="whitespace-nowrap">
+                            {level.availableQuantity} {level.name} ({level.equivalentQuantity})
+                          </span>
+                        ))}
+                      </div>
+                    </td>
                     <td className="py-4 px-4 text-[#0a61d7] font-semibold">
                       {formatCurrency(
                         parseNumberByCurrency(String(supply.totalValue), userCurrency),
@@ -808,7 +844,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
           <div className="p-3 bg-gray-50 rounded-lg">
             <div className="text-sm font-semibold text-gray-700 mb-2">{tSuppliersProfile('monthlyPurchaseAnalytics')}</div>
             <div className="text-xs text-gray-600">
-              <div>{tSuppliersProfile('totalMonthlyPurchaseValue')} <span className="font-medium">{formatCurrency(totalValue, userCurrency)}</span></div>
+              <div>{tSuppliersProfile('totalMonthlyPurchaseValue')} <span className="font-medium">{formatCurrency(historyTotalValue, userCurrency)}</span></div>
               <div className="border-b border-gray-300 pb-2">{tSuppliersProfile('totalMonthlyRecords')} <span className="font-medium">{(() => {
                 // Extract unique months from delivery dates
                 const uniqueMonths = new Set();
@@ -830,7 +866,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                   }
                 });
                 const monthCount = uniqueMonths.size;
-                return monthCount > 0 ? formatNumber(Math.round(totalValue / monthCount)) : 0;
+                return monthCount > 0 ? formatNumber(Math.round(historyTotalValue / monthCount)) : 0;
               })()}</span></div>
             </div>
           </div>
@@ -839,7 +875,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
           <div className="p-3 bg-gray-50 rounded-lg">
             <div className="text-sm font-semibold text-gray-700 mb-2">{tSuppliersProfile('monthlySuppliedAnalytics')}</div>
             <div className="text-xs text-gray-600">
-              <div>{tSuppliersProfile('totalMonthlySupplied')} <span className="font-medium">{totalSupplied}</span></div>
+              <div>{tSuppliersProfile('totalMonthlySupplied')} <span className="font-medium">{historyTotalSupplied}</span></div>
               <div className="border-b border-gray-300 pb-2">{tSuppliersProfile('totalMonthlyRecords')} <span className="font-medium">{(() => {
                 // Extract unique months from delivery dates
                 const uniqueMonths = new Set();
@@ -861,7 +897,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                   }
                 });
                 const monthCount = uniqueMonths.size;
-                return monthCount > 0 ? Math.round(totalSupplied / monthCount) : 0;
+                return monthCount > 0 ? Math.round(historyTotalSupplied / monthCount) : 0;
               })()}</span></div>
             </div>
           </div>

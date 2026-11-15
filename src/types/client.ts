@@ -98,8 +98,12 @@ export interface SupplyDetail {
   suppliesno: string;
   sku: string;
   product: string;
-  /** Quantity received (history) or rolled-up total (summary). */
+  /** Canonical absolute piece quantity used for inventory and supply summaries. */
   totalSupplied: string;
+  /** Original quantity entered by the supplier in receivedUnit. */
+  receivedQuantity?: string;
+  /** Product stock level selected when the supplier entered receivedQuantity. */
+  receivedUnit?: string;
   totalValue: string;
   /** Last supplied date for history rows; unused on summary rows. */
   lastDelivery: string;

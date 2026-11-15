@@ -291,6 +291,9 @@ model SupplyRecord {
   suppliesno         String   @default("")
   sku                String   @default("")
   product            String   @default("")
+  /// Supplier-entered quantity in receivedUnit; totalSupplied remains canonical Pieces.
+  receivedQuantity   String   @default("")
+  receivedUnit       String   @default("Pieces")
   totalSupplied      String   @default("")
   totalValue         String   @default("")
   lastDelivery       String   @default("")
