@@ -24,6 +24,14 @@ import {
   partitionSupplies,
 } from '@/lib/suppliers/supplyRecords';
 
+/** Parse a supplied date for newest-first history ordering. Invalid or empty dates sort last. */
+function getSupplyDateTimestamp(value: string | null | undefined): number | null {
+  const normalized = String(value || '').trim();
+  if (!normalized) return null;
+  const timestamp = new Date(normalized).getTime();
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
 function getSupplierAnalytics(suppliesStr: string, language?: string | null) {
   const monthLocale = language === 'id' ? 'id-ID' : 'en-US';
   if (!suppliesStr) return [];
@@ -409,8 +417,18 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
   const currency = userCurrency;
   
   const [supplyPage, setSupplyPage] = useState(1);
-  const supplyRowsPerPage = TABLE_PAGE_SIZE;
-  const activeSupplyRows = suppliesTab === 'history' ? historySupplies : summarySupplies;
+  const supplyRowsPerPage = 8;
+  // Sort only dated supply-history events. Summary rows are aggregates by variant and
+  // do not represent individual deliveries, so their existing variant order is preserved.
+  const sortedHistorySupplies = [...historySupplies].sort((a: SupplyDetail, b: SupplyDetail) => {
+    const dateA = getSupplyDateTimestamp(a.lastDelivery);
+    const dateB = getSupplyDateTimestamp(b.lastDelivery);
+    if (dateA === null && dateB === null) return 0;
+    if (dateA === null) return 1;
+    if (dateB === null) return -1;
+    return dateB - dateA;
+  });
+  const activeSupplyRows = suppliesTab === 'history' ? sortedHistorySupplies : summarySupplies;
   const totalSupplyRows = activeSupplyRows.length;
   const totalSupplyPages = Math.max(1, Math.ceil(totalSupplyRows / supplyRowsPerPage));
   const pagedSupplies = activeSupplyRows.slice(

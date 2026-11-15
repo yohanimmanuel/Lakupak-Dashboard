@@ -55,6 +55,14 @@ function dedupeProductNames(product: string | null | undefined): string {
   return unique.join(', ');
 }
 
+/** Parse an order date for newest-first history ordering. Invalid or empty dates sort last. */
+function getHistoryDateTimestamp(value: string | null | undefined): number | null {
+  const normalized = String(value || '').trim();
+  if (!normalized) return null;
+  const timestamp = new Date(normalized).getTime();
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
 function getBuyerAnalytics(orderDetailsStr: string, locale: string) {
   if (!orderDetailsStr) return [];
   
@@ -271,10 +279,23 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
   });
   const totalOutstanding = orderDetails.reduce((sum: number, o: OrderDetail) => sum + (parseInt((o.outstanding || '').toString().replace(/[^\d]/g, '')) || 0), 0) || 0;
   const [orderPage, setOrderPage] = useState(1);
-  const orderRowsPerPage = TABLE_PAGE_SIZE;
-  const totalOrderRows = orderDetails.length;
+  const orderRowsPerPage = 8;
+  // Sort a copy so the buyer's underlying orderDetails remain unchanged. Newest order first;
+  // rows without a usable order date stay at the bottom and equal dates keep their source order.
+  const sortedOrderDetails = [...orderDetails].sort((a: OrderDetail, b: OrderDetail) => {
+    const dateA = getHistoryDateTimestamp(a.lastOrderDate);
+    const dateB = getHistoryDateTimestamp(b.lastOrderDate);
+    if (dateA === null && dateB === null) return 0;
+    if (dateA === null) return 1;
+    if (dateB === null) return -1;
+    return dateB - dateA;
+  });
+  const totalOrderRows = sortedOrderDetails.length;
   const totalOrderPages = Math.max(1, Math.ceil(totalOrderRows / orderRowsPerPage));
-  const pagedOrderDetails = orderDetails.slice((orderPage - 1) * orderRowsPerPage, orderPage * orderRowsPerPage);
+  const pagedOrderDetails = sortedOrderDetails.slice(
+    (orderPage - 1) * orderRowsPerPage,
+    orderPage * orderRowsPerPage,
+  );
 
   const closeOrderDetail = () => {
     orderDetailRequestRef.current += 1;
