@@ -25,6 +25,8 @@ import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 import { geocodeAddress, type MapCoordinates } from '@/utils/mapboxUtils';
+import type { StockLevel } from '@/types/product';
+import { formatBuyerOrderTotal, normalizeBuyerOrderTotal, parseBuyerOrderTotal } from '@/utils/buyerOrderQuantity';
 
 const JAKARTA: MapCoordinates = { longitude: 106.8456, latitude: -6.2088 };
 
@@ -179,7 +181,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
         return Array.isArray(parsed) ? parsed.map((row: OrderDetail) => ({
           orderNo: row.orderNo || '',
           product: row.product || '',
-          totalOrders: row.totalOrders || '',
+          totalOrders: normalizeBuyerOrderTotal(row.totalOrders || '', 'Boxes'),
           totalSpend: row.totalSpend || '',
           shippingFee: row.shippingFee || '',
           lastOrderDate: row.lastOrderDate || '',
@@ -204,6 +206,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
   const [showPreferredDaysDropdown, setShowPreferredDaysDropdown] = useState(false);
   const [showImportOrders, setShowImportOrders] = useState(false);
   const [selectedOrderRows, setSelectedOrderRows] = useState<Set<number>>(new Set());
+  const [orderStockTypes, setOrderStockTypes] = useState<string[]>(['Pieces', 'Cartons', 'Boxes']);
   const [addressPin, setAddressPin] = useState<MapCoordinates | null>(null);
   const [locatingAddress, setLocatingAddress] = useState(false);
   
@@ -211,6 +214,42 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
   const formRef = useRef<HTMLFormElement>(null);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
   const preferredDaysDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Populate the stock-unit picker from this distributor's configured product levels.
+  useEffect(() => {
+    if (!user?.id) {
+      setOrderStockTypes(['Pieces', 'Cartons', 'Boxes']);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await fetchGraphQL<{
+          products: {
+            nodes: Array<{ stockLevels?: StockLevel[] | null }>;
+            pagination?: { totalPages?: number };
+          };
+        }>(
+          'query BuyerOrderStockTypes($userId: Int!, $page: Int!, $limit: Int!) { products(userId: $userId, page: $page, limit: $limit) { nodes { stockLevels } pagination { totalPages } } }',
+          { userId: user.id, page: 1, limit: 1000 },
+        );
+        const names = new Set<string>();
+        for (const product of data.products?.nodes || []) {
+          for (const level of product.stockLevels || []) {
+            const name = String(level?.name || '').trim();
+            if (name) names.add(name);
+          }
+        }
+        if (!cancelled) {
+          const configured = Array.from(names);
+          setOrderStockTypes(configured.length ? configured : ['Pieces', 'Cartons', 'Boxes']);
+        }
+      } catch {
+        if (!cancelled) setOrderStockTypes(['Pieces', 'Cartons', 'Boxes']);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   const selectedPreferredDays = useMemo(
     () => parsePreferredDays(form.preferredDays || ''),
@@ -349,6 +388,24 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
     setOrderRows((rows: OrderDetail[]) => [...rows, { orderNo: '', product: '', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }]);
   }, []);
 
+  const handleOrderQuantityChange = useCallback((idx: number, quantity: string) => {
+    setOrderRows((rows) => rows.map((row, i) => {
+      if (i !== idx) return row;
+      const parsed = parseBuyerOrderTotal(row.totalOrders, orderStockTypes[0] || 'Boxes');
+      if (parsed.isMixed) return row;
+      return { ...row, totalOrders: formatBuyerOrderTotal(quantity, parsed.unit) };
+    }));
+  }, [orderStockTypes]);
+
+  const handleOrderUnitChange = useCallback((idx: number, unit: string) => {
+    setOrderRows((rows) => rows.map((row, i) => {
+      if (i !== idx) return row;
+      const parsed = parseBuyerOrderTotal(row.totalOrders, orderStockTypes[0] || 'Boxes');
+      if (parsed.isMixed) return row;
+      return { ...row, totalOrders: formatBuyerOrderTotal(parsed.quantity, unit) };
+    }));
+  }, [orderStockTypes]);
+
   const deleteOrderRow = useCallback((idx: number) => {
     if (orderRows.length > 1) {
       setOrderRows((rows: OrderDetail[]) => rows.filter((_: OrderDetail, i: number) => i !== idx));
@@ -408,7 +465,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
     const imported: OrderDetail[] = newOrders.map((row) => ({
       orderNo: '',
       product: String(row.product || ''),
-      totalOrders: String(row.totalOrders || ''),
+      totalOrders: normalizeBuyerOrderTotal(String(row.totalOrders || ''), 'Boxes'),
       totalSpend: String(row.totalSpend || ''),
       shippingFee: '',
       lastOrderDate: String(row.lastOrderDate || ''),
@@ -706,7 +763,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
       orderDetails.length > 0 ? orderDetails.map((row: OrderDetail) => ({
         orderNo: row.orderNo || '',
         product: row.product || '',
-        totalOrders: row.totalOrders || '',
+        totalOrders: normalizeBuyerOrderTotal(row.totalOrders || '', 'Boxes'),
         totalSpend: row.totalSpend || '',
         shippingFee: row.shippingFee || '',
         lastOrderDate: row.lastOrderDate || '',
@@ -1052,11 +1109,33 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
                         />
                       </td>
                       <td className="py-2 px-3">
-                        <ClientInput
-                          type="number"
-                          value={row.totalOrders || ''}
-                          onChange={(totalOrders) => handleOrderChange(idx, 'totalOrders', totalOrders)}
-                        />
+                        {(() => {
+                          const parsedTotal = parseBuyerOrderTotal(row.totalOrders, orderStockTypes[0] || 'Boxes');
+                          const options = Array.from(new Set([...orderStockTypes, parsedTotal.unit]));
+                          return parsedTotal.isMixed ? (
+                            <div className="min-w-[150px] rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700">
+                              {row.totalOrders}
+                            </div>
+                          ) : (
+                            <div className="flex min-w-[190px] items-center gap-2">
+                              <ClientInput
+                                fullWidth={false}
+                                className="w-20 min-w-0"
+                                type="number"
+                                value={parsedTotal.quantity}
+                                onChange={(quantity) => handleOrderQuantityChange(idx, quantity)}
+                              />
+                              <select
+                                className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs text-black focus:border-[#0a61d7] focus:outline-none"
+                                value={parsedTotal.unit}
+                                onChange={(event) => handleOrderUnitChange(idx, event.target.value)}
+                                aria-label={tBuyersModal('colTotalOrders')}
+                              >
+                                {options.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+                              </select>
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="py-2 px-3">
                         <div className="flex items-center">
