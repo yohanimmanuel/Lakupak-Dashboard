@@ -14,6 +14,7 @@ import { logisticsLastVisit } from '@/utils/buyerLogistics';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { getBuyerOrderQuantity } from '@/utils/buyerOrderQuantity';
 
 function downloadXLSX(wb: XLSX.WorkBook, filename: string) {
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -59,7 +60,7 @@ function profileToTableRow(buyer: Buyer): BuyerTableRow {
     businessType: buyer.businessType,
     address: buyer.address,
     status: buyer.status,
-    totalOrders: Array.isArray(orderDetails) ? orderDetails.reduce((sum: number, o: OrderDetail) => sum + (parseInt(o.totalOrders) || 0), 0).toString() : '0',
+    totalOrders: Array.isArray(orderDetails) ? orderDetails.reduce((sum: number, o: OrderDetail) => sum + getBuyerOrderQuantity(o.totalOrders), 0).toString() : '0',
     totalSpend: totalSpend.toString(), // Return raw number as string, let BuyerTable format it
     outstanding: outstanding.toString(), // Return raw number as string, let BuyerTable format it
     lastVisit: logisticsLastVisit(buyer),
@@ -110,7 +111,7 @@ export default function BuyersPage() {
     let totalSpending = 0;
     
     orderDetails.forEach((order: OrderDetail) => {
-      totalOrders += parseInt(order.totalOrders) || 0;
+      totalOrders += getBuyerOrderQuantity(order.totalOrders);
       totalSpending += parseInt((order.totalSpend || '0').toString().replace(/[^\d]/g, '')) || 0;
     });
     
