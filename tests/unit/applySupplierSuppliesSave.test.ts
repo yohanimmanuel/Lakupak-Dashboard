@@ -18,7 +18,7 @@ function history(overrides: Partial<SupplyDetail> = {}): SupplyDetail {
     product: 'awdawd (a: aa)',
     totalSupplied: '120',
     totalValue: '10000000',
-    lastDelivery: '2026-11-11',
+    lastSuppliedDate: '2026-11-11',
     status: 'Active',
     recordType: 'history',
     productId: 'LKP-TEST',
@@ -36,7 +36,7 @@ describe('computeSupplyStockEffects (Update Current Stock checkbox)', () => {
   });
 
   it('applies stock and totals for a checked new history row on any date', () => {
-    const incoming = [history({ lastDelivery: '2026-10-01', updateCurrentStock: true })];
+    const incoming = [history({ lastSuppliedDate: '2026-10-01', updateCurrentStock: true })];
     const effects = computeSupplyStockEffects([], incoming);
     expect(effects).toHaveLength(1);
     expect(effects[0].reason).toBe('add');
@@ -260,7 +260,7 @@ describe('computeSupplyStockEffects (Update Current Stock checkbox)', () => {
       product: 'Peperro',
       productId: 'LKP-1',
       variantName: 'BBQ',
-      lastDelivery: '2026-11-01',
+      lastSuppliedDate: '2026-11-01',
       totalSupplied: '10',
       totalValue: '1000',
       stockApplied: true,
@@ -288,7 +288,7 @@ describe('computeSupplyStockEffects (Update Current Stock checkbox)', () => {
       product: 'Peperro',
       productId: 'LKP-1',
       variantName: 'BBQ',
-      lastDelivery: '2026-11-01',
+      lastSuppliedDate: '2026-11-01',
       totalSupplied: '10',
       totalValue: '1000',
       stockApplied: true,
@@ -327,7 +327,7 @@ describe('computeSupplyStockEffects (Update Current Stock checkbox)', () => {
         totalValue: '10000000',
         sku: 'SKU-10932857',
         product: 'Peperro snacks (Size: 40/Box | Flavor: Oreo)',
-        lastDelivery: '2026-11-03',
+        lastSuppliedDate: '2026-11-03',
       }),
     ];
     const incoming = [
@@ -339,7 +339,7 @@ describe('computeSupplyStockEffects (Update Current Stock checkbox)', () => {
         totalValue: '10000000',
         sku: 'SKU-10932857',
         product: 'Peperro snacks (Size: 40/Box | Flavor: Oreo)',
-        lastDelivery: '2026-11-03',
+        lastSuppliedDate: '2026-11-03',
       }),
     ];
     expect(computeSupplyStockEffects(previous, incoming)).toEqual([]);
@@ -391,7 +391,7 @@ describe('computeSupplyStockEffects (Update Current Stock checkbox)', () => {
         product: 'awdawd (a: aa)',
         totalSupplied: '121',
         totalValue: '10007000',
-        lastDelivery: '',
+        lastSuppliedDate: '',
         status: 'Active',
         recordType: 'summary',
         productId: 'LKP-TEST',
@@ -419,7 +419,7 @@ function summary(overrides: Partial<SupplyDetail> = {}): SupplyDetail {
     product: 'Bango Kecap (1)',
     totalSupplied: '65',
     totalValue: '650000',
-    lastDelivery: '',
+    lastSuppliedDate: '',
     status: 'Active',
     recordType: 'summary',
     productId: 'LKP-BANGO',

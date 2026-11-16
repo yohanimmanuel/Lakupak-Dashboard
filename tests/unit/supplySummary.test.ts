@@ -18,7 +18,7 @@ function history(overrides: Partial<SupplyDetail> = {}): SupplyDetail {
     receivedQuantity: '2',
     receivedUnit: 'Cartons',
     totalValue: '20000',
-    lastDelivery: '2026-11-15',
+    lastSuppliedDate: '2026-11-15',
     status: 'Active',
     recordType: 'history',
     productId: 'P-1',

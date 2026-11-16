@@ -296,7 +296,7 @@ model SupplyRecord {
   receivedUnit       String   @default("Pieces")
   totalSupplied      String   @default("")
   totalValue         String   @default("")
-  lastDelivery       String   @default("")
+  lastSuppliedDate       String   @default("")
   status             String   @default("Active")
   deliverySuccess    String?
   /// history | summary (legacy AUTO-* inferred as summary when empty)

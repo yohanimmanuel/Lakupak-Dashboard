@@ -205,7 +205,7 @@ export const contactsTypeDefs = /* GraphQL */ `
     product: String!
     totalSupplied: String!
     totalValue: String!
-    lastDelivery: String!
+    lastSuppliedDate: String!
     productId: String
     variantName: String
     targetSupplierName: String!
@@ -368,7 +368,7 @@ type SupplierWithRecords = SupplierModel & {
     product: string;
     totalSupplied: string;
     totalValue: string;
-    lastDelivery: string;
+    lastSuppliedDate: string;
     status: string;
     deliverySuccess: string | null;
     recordType: string;
@@ -443,7 +443,7 @@ const mapSupplier = (supplier: SupplierWithRecords) => ({
             product: row.product,
             totalSupplied: row.totalSupplied,
             totalValue: row.totalValue,
-            lastDelivery: row.lastDelivery,
+            lastSuppliedDate: row.lastSuppliedDate,
             status: row.status,
             deliverySuccess: row.deliverySuccess ?? undefined,
             recordType: row.recordType === 'summary' ? 'summary' : 'history',
@@ -1901,7 +1901,7 @@ const fetchSupplierTransferRecords = async (args: { userId: number; supplierId: 
       id: row.recordType === 'summary' ? -row.id : row.id,
       sku: row.sku, product: row.product,
       totalSupplied: String(quantity), totalValue: String(value),
-      lastDelivery: row.recordType === 'summary' ? '' : row.lastDelivery,
+      lastSuppliedDate: row.recordType === 'summary' ? '' : row.lastSuppliedDate,
       productId: row.productId, variantName: row.variantName,
       targetSupplierName, recordType: row.recordType,
     }];

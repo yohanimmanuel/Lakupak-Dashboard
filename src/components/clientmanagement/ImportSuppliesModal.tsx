@@ -13,14 +13,14 @@ type ImportableSupplyField =
   | 'product'
   | 'totalSupplied'
   | 'totalValue'
-  | 'lastDelivery';
+  | 'lastSuppliedDate';
 
 const supplyFields: { key: ImportableSupplyField; label: string }[] = [
   { key: 'sku', label: 'SKU Number (Optional)' },
   { key: 'product', label: 'Product Name (Optional)' },
   { key: 'totalSupplied', label: 'Total Supplied (Optional)' },
   { key: 'totalValue', label: 'Total Value (Optional)' },
-  { key: 'lastDelivery', label: 'Last Delivery (Optional)' },
+  { key: 'lastSuppliedDate', label: 'Last Supplied Date (Optional)' },
 ];
 
 const supplyFieldSynonyms: Record<ImportableSupplyField, string[]> = {
@@ -28,7 +28,7 @@ const supplyFieldSynonyms: Record<ImportableSupplyField, string[]> = {
   product: ['product', 'product name', 'nama produk'],
   totalSupplied: ['total supplied', 'supplied', 'jumlah', 'jumlah supply'],
   totalValue: ['total value', 'value', 'total harga', 'harga'],
-  lastDelivery: ['last delivery', 'delivery date', 'tanggal', 'tanggal delivery'],
+  lastSuppliedDate: ['last supplied date', 'last supplied', 'last delivery', 'delivery date', 'tanggal', 'tanggal delivery'],
 };
 
 function getAutomap(fileHeaders: string[]) {
@@ -228,10 +228,8 @@ export default function ImportSuppliesModal({
         sku: mapped.sku || '',
         product: mapped.product || '',
         totalSupplied: mapped.totalSupplied || '',
-        receivedQuantity: mapped.totalSupplied || '',
-        receivedUnit: 'Pieces',
         totalValue: mapped.totalValue || '',
-        lastDelivery: mapped.lastDelivery || '',
+        lastSuppliedDate: mapped.lastSuppliedDate || '',
         status: '',
         recordType: 'history',
         updateCurrentStock: false,

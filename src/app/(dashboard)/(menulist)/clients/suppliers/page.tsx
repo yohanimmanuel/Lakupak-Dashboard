@@ -103,8 +103,8 @@ export default function SuppliersPage() {
     // Extract unique months from delivery dates
     const uniqueMonths = new Set();
     supplies.forEach((supply: SupplyDetail) => {
-      if (supply.lastDelivery) {
-        const monthKey = supply.lastDelivery.substring(0, 7); // Get YYYY-MM
+      if (supply.lastSuppliedDate) {
+        const monthKey = supply.lastSuppliedDate.substring(0, 7); // Get YYYY-MM
         uniqueMonths.add(monthKey);
       }
     });

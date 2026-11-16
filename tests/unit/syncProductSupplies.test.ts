@@ -14,7 +14,7 @@ function summaryRow(productId: string, variantName = 'Default', overrides: Parti
     product: `Widget (${variantName})`,
     totalSupplied: '100',
     totalValue: '500000',
-    lastDelivery: '',
+    lastSuppliedDate: '',
     status: 'Active',
     recordType: 'summary',
     productId,
@@ -30,7 +30,7 @@ function historyRow(productId: string, overrides: Partial<SupplyDetail> = {}): S
     product: 'Widget (Default)',
     totalSupplied: '40',
     totalValue: '200000',
-    lastDelivery: '2026-01-15',
+    lastSuppliedDate: '2026-01-15',
     status: 'Active',
     recordType: 'history',
     productId,
@@ -53,7 +53,7 @@ describe('syncProductSupplies reassignment', () => {
           product: 'Other',
           totalSupplied: '1',
           totalValue: '1',
-          lastDelivery: '2026-01-01',
+          lastSuppliedDate: '2026-01-01',
           status: 'Active',
           recordType: 'history',
         },
@@ -73,8 +73,8 @@ describe('syncProductSupplies reassignment', () => {
   it('leaves prior supplier history in place and only links an AUTO summary on the new supplier', () => {
     const productId = 'P-MOVE-1';
     const summary = summaryRow(productId);
-    const historyA = historyRow(productId, { suppliesno: 'HIST-A', lastDelivery: '2026-02-01' });
-    const historyB = historyRow(productId, { suppliesno: 'HIST-B', lastDelivery: '2026-03-01', totalSupplied: '10' });
+    const historyA = historyRow(productId, { suppliesno: 'HIST-A', lastSuppliedDate: '2026-02-01' });
+    const historyB = historyRow(productId, { suppliesno: 'HIST-B', lastSuppliedDate: '2026-03-01', totalSupplied: '10' });
     const unrelated = historyRow('P-OTHER', { suppliesno: 'HIST-OTHER', product: 'Other product' });
 
     const suppliesBySupplierId = new Map<number, SupplyDetail[]>([
@@ -135,8 +135,8 @@ describe('syncProductSupplies reassignment', () => {
       [
         1,
         [
-          historyRow(productId, { suppliesno: 'HIST-1', lastDelivery: '2026-01-01' }),
-          historyRow(productId, { suppliesno: 'HIST-2', lastDelivery: '2026-02-01', totalSupplied: '5' }),
+          historyRow(productId, { suppliesno: 'HIST-1', lastSuppliedDate: '2026-01-01' }),
+          historyRow(productId, { suppliesno: 'HIST-2', lastSuppliedDate: '2026-02-01', totalSupplied: '5' }),
         ],
       ],
       [2, []],
@@ -254,7 +254,7 @@ describe('syncProductSupplies reassignment', () => {
       product: 'Bango Kecap Manis (Ukuran: 135ml)',
       totalSupplied: '100',
       totalValue: '10',
-      lastDelivery: '2026-11-11',
+      lastSuppliedDate: '2026-11-11',
       status: 'Active',
       recordType: 'history',
     };
@@ -303,7 +303,7 @@ describe('syncProductSupplies reassignment', () => {
       product: 'awda (awd: awd)',
       totalSupplied: '1',
       totalValue: '7000',
-      lastDelivery: '',
+      lastSuppliedDate: '',
       status: 'Active',
       recordType: 'summary',
     };

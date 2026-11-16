@@ -133,14 +133,26 @@ export default function OrdersTable({
     filteredOrders = filteredOrders.filter((o: OrderTableRow) => o.deliveryMethod === selectedDeliveryMethod);
   }
   
-  // Apply search filter with sanitization
+  // Search order identifiers, buyer details, tracking numbers, and the products in each order.
   if (search && search.trim().length > 0) {
     const sanitizedSearch = search.trim().toLowerCase();
-    filteredOrders = filteredOrders.filter((o: OrderTableRow) => 
-      String(o.orderId || '').toLowerCase().includes(sanitizedSearch) ||
-      String(o.buyerName || '').toLowerCase().includes(sanitizedSearch) ||
-      String(o.trackingNumber || '').toLowerCase().includes(sanitizedSearch)
-    );
+    const ordersById = new Map(datedOrders.map((order) => [order.orderId, order]));
+    filteredOrders = filteredOrders.filter((row: OrderTableRow) => {
+      const order = ordersById.get(row.orderId);
+      const matchesOrder =
+        String(row.orderId || '').toLowerCase().includes(sanitizedSearch) ||
+        String(row.buyerName || '').toLowerCase().includes(sanitizedSearch) ||
+        String(row.trackingNumber || '').toLowerCase().includes(sanitizedSearch);
+      const matchesProduct = (order?.orderItems ?? []).some((item) =>
+        [
+          item.productName,
+          item.productNameSnapshot,
+          item.productSkuSnapshot,
+          item.variantNameSnapshot,
+        ].some((value) => String(value || '').toLowerCase().includes(sanitizedSearch)),
+      );
+      return matchesOrder || matchesProduct;
+    });
   }
   
   const emptyMessage = datedOrders.length === 0
@@ -531,7 +543,7 @@ export default function OrdersTable({
             type="text"
             placeholder={tTable('searchPlaceholder')}
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={e => { setSearch(e.target.value); setPage(1); }}
             className="w-full rounded-lg border border-[#e6e6e6] bg-white py-2 pl-10 pr-4 text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7]"
             aria-label={tTable('searchAriaLabel')}
             maxLength={100}

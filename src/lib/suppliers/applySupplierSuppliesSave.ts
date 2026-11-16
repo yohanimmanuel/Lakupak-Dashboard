@@ -124,7 +124,7 @@ function historyRowFingerprint(row: SupplyDetail): string {
     String(row.productId || '').trim().toLowerCase(),
     String(row.variantName || '').trim().toLowerCase(),
     String(row.product || '').trim().toLowerCase(),
-    String(row.lastDelivery || '').trim(),
+    String(row.lastSuppliedDate || '').trim(),
     String(row.totalSupplied || '').trim(),
     String(row.totalValue || '').trim(),
   ].join('|');

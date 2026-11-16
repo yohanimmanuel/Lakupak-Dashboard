@@ -24,7 +24,7 @@ export type ManualSupplyRecord = {
   product: string;
   totalSupplied: string;
   totalValue: string;
-  lastDelivery: string;
+  lastSuppliedDate: string;
   productId: string | null;
   variantName: string | null;
   targetSupplierName: string;
@@ -135,8 +135,8 @@ export default function SupplyMoveModal({
       }
 
       // Historical supplies sorted by most recent date.
-      const dateCompare = (b.lastDelivery || '').localeCompare(
-        a.lastDelivery || ''
+      const dateCompare = (b.lastSuppliedDate || '').localeCompare(
+        a.lastSuppliedDate || ''
       );
 
       return dateCompare || a.id - b.id;
@@ -543,7 +543,7 @@ export default function SupplyMoveModal({
                           <td className="px-3 py-2">
                             {isOpeningBalance(row)
                               ? 'Opening balance'
-                              : (row.lastDelivery || '—')}
+                              : (row.lastSuppliedDate || '—')}
                           </td>
                           <td className="px-3 py-2 text-[#0a61d7]">
                             {row.targetSupplierName}

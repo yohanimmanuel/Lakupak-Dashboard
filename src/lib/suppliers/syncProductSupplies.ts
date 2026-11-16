@@ -92,7 +92,7 @@ function buildNewSupplyRow(
     totalSupplied: String(qty),
     totalValue: String(totalValue),
     // Match updates totals only — never write a dated history event.
-    lastDelivery: '',
+    lastSuppliedDate: '',
     status: 'Active',
     recordType: 'summary',
     productId: product.productId,
@@ -146,7 +146,7 @@ export function mergeSupplyLists(primary: SupplyDetail[], incoming: SupplyDetail
       sku: current.sku || row.sku,
       product: row.product || current.product,
       status: current.status || row.status,
-      lastDelivery: current.lastDelivery || row.lastDelivery,
+      lastSuppliedDate: current.lastSuppliedDate || row.lastSuppliedDate,
       recordType: 'summary',
       productId: current.productId || row.productId,
       variantName: current.variantName || row.variantName,
@@ -295,7 +295,7 @@ export function applyProductToSupplierMaps(
         current.productId = product.productId;
         current.variantName = variant.variantName;
         // Totals stay frozen; match must not invent history.
-        current.lastDelivery = '';
+        current.lastSuppliedDate = '';
         changed = true;
       }
       continue;

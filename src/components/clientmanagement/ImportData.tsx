@@ -51,7 +51,7 @@ type SupplierImportRow = {
   'Status': string;
   'Created At': string;
   'Preferred Delivery Days': string;
-  'Last Delivery': string;
+  'Last Supplied Date': string;
   'Delivery Success': string;
   'Notes': string;
   'Supplies': string;
@@ -149,7 +149,7 @@ const supplierFields = [
   { key: 'Status', labelKey: 'status' },
   { key: 'Created At', labelKey: 'createdAt' },
   { key: 'Preferred Delivery Days', labelKey: 'preferredDeliveryDays' },
-  { key: 'Last Delivery', labelKey: 'lastDelivery' },
+  { key: 'Last Supplied Date', labelKey: 'lastSuppliedDate' },
   { key: 'Delivery Success', labelKey: 'deliverySuccess' },
   { key: 'Notes', labelKey: 'notes' },
   { key: 'Supplies', labelKey: 'supplies' },
@@ -183,7 +183,7 @@ const supplierSynonyms: { [key: string]: string[] } = {
   'Status': ['status', 'supplier status'],
   'Created At': ['created at', 'tanggal dibuat', 'created'],
   'Preferred Delivery Days': ['preferred delivery days', 'hari pengiriman', 'delivery days'],
-  'Last Delivery': ['last delivery', 'pengiriman terakhir', 'last shipment'],
+  'Last Supplied Date': ['last delivery', 'pengiriman terakhir', 'last shipment'],
   'Delivery Success': ['delivery success', 'success rate', 'delivery rate'],
   'Notes': ['notes', 'catatan', 'tags'],
   'Supplies': ['supplies', 'supply', 'supply json'],

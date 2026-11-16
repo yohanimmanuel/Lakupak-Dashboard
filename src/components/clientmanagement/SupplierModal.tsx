@@ -7,8 +7,6 @@ import { useRouter } from 'next/navigation';
 import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
 import { Supplier, SupplyDetail, SupplierFormData } from '@/types/client';
-import type { StockLevel } from '@/types/product';
-import { convertSupplyQuantityToPieces, getSupplySummaryQuantities, getSupplyUnitOptions } from '@/lib/suppliers/supplyPackageUnits';
 import { getDefaultCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
@@ -29,7 +27,6 @@ import SupplyMoveModal, {
   type ManualSupplyRecord,
 } from '@/components/clientmanagement/SupplyMoveModal';
 import {
-  buildSupplySummaryFromHistory,
   mergeDuplicateSummaryRows,
   partitionSupplies,
   serializeHistorySupplyForStorage,
@@ -50,7 +47,7 @@ type CatalogVariantOption = {
 type ProductCatalogNode = {
   productId: string;
   name: string;
-  stockLevels?: StockLevel[] | null;
+  stockUnit?: string | null;
   supplier?: string | null;
   variantOptions?: Array<{
     variantName?: string | null;
@@ -277,10 +274,8 @@ function emptyHistoryRow(): SupplyDetail {
     sku: '',
     product: '',
     totalSupplied: '',
-    receivedQuantity: '',
-    receivedUnit: 'Pieces',
     totalValue: '',
-    lastDelivery: '',
+    lastSuppliedDate: '',
     status: statusOptions[0],
     recordType: 'history',
     updateCurrentStock: true,
@@ -300,7 +295,7 @@ function normalizeSupplyRow(row: SupplyDetail, recordType: 'history' | 'summary'
     product: row.product || '',
     totalSupplied: row.totalSupplied || '',
     totalValue: row.totalValue || '',
-    lastDelivery: row.lastDelivery || '',
+    lastSuppliedDate: row.lastSuppliedDate || '',
     status: row.status || statusOptions[0],
     recordType: 'summary',
     productId: row.productId,
@@ -315,7 +310,16 @@ function parseSupplyBuckets(raw?: string | null): { history: SupplyDetail[]; sum
     if (!Array.isArray(parsed) || parsed.length === 0) {
       return { history: [emptyHistoryRow()], summary: [] };
     }
-    const { history, summary } = partitionSupplies(parsed as SupplyDetail[]);
+    // Backward compatibility: older saved rows used `lastDelivery`.
+    // Normalize them on read, but only persist `lastSuppliedDate` going forward.
+    const normalizedRows = (parsed as Array<SupplyDetail & { lastDelivery?: string }>).map((row) => {
+      const { lastDelivery: legacyLastDelivery, ...rest } = row;
+      return {
+        ...rest,
+        lastSuppliedDate: row.lastSuppliedDate || legacyLastDelivery || '',
+      } as SupplyDetail;
+    });
+    const { history, summary } = partitionSupplies(normalizedRows);
     return {
       history: history.length > 0
         ? ensureUniqueHistoryIds(history.map((row) => normalizeSupplyRow(row, 'history')))
@@ -332,9 +336,8 @@ function isBlankHistoryRow(row: SupplyDetail): boolean {
     String(row.sku || '').trim() ||
     String(row.product || '').trim() ||
     String(row.totalSupplied || '').trim() ||
-    String(row.receivedQuantity || '').trim() ||
     String(row.totalValue || '').trim() ||
-    String(row.lastDelivery || '').trim()
+    String(row.lastSuppliedDate || '').trim()
   );
 }
 
@@ -344,7 +347,7 @@ function stableHistoryId(row: SupplyDetail, index: number): string {
     String(row.productId || '').trim(),
     String(row.variantName || '').trim(),
     String(row.product || '').trim(),
-    String(row.lastDelivery || '').trim(),
+    String(row.lastSuppliedDate || '').trim(),
     String(row.totalSupplied || '').trim(),
     String(row.totalValue || '').trim(),
     String(index),
@@ -426,7 +429,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     if (!initialData) {
       return {
         supplierName: '', contact: '', phone: '', email: '', businessType: '', address: '', 
-        status: statusOptions[0], createdAt: new Date().toISOString().split('T')[0], preferredDays: '', lastDelivery: '', 
+        status: statusOptions[0], createdAt: new Date().toISOString().split('T')[0], preferredDays: '', lastSuppliedDate: '', 
         deliverySuccess: '', notes: '',
       };
     }
@@ -445,7 +448,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
       status: initialData.status || statusOptions[0],
       createdAt: initialData.createdAt ? new Date(initialData.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       preferredDays: parsedLogistics.preferredDays && !parsedLogistics.preferredDays.includes('Missing') ? parsedLogistics.preferredDays : '',
-      lastDelivery: parsedLogistics.lastDelivery && !parsedLogistics.lastDelivery.includes('Missing') ? parsedLogistics.lastDelivery : '',
+      lastSuppliedDate: (parsedLogistics.lastSuppliedDate || parsedLogistics.lastDelivery) && !(parsedLogistics.lastSuppliedDate || parsedLogistics.lastDelivery).includes('Missing') ? (parsedLogistics.lastSuppliedDate || parsedLogistics.lastDelivery) : '',
       deliverySuccess: parsedLogistics.deliverySuccess && !parsedLogistics.deliverySuccess.includes('Missing') ? parsedLogistics.deliverySuccess : '',
       notes: Array.isArray(parsedNotes) ? parsedNotes.join(', ') : '',
     };
@@ -462,81 +465,13 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   const [showImportSupplies, setShowImportSupplies] = useState(false);
   const [catalogProducts, setCatalogProducts] = useState<ProductCatalogNode[]>([]);
 
-  const getCatalogProductForSupplyRow = useCallback((row: SupplyDetail): ProductCatalogNode | undefined => {
+  const getSupplyUnit = useCallback((row: SupplyDetail) => {
     const productId = String(row.productId || '').trim();
     const sku = String(row.sku || '').trim();
-    return catalogProducts.find((item) => productId && item.productId === productId)
+    const product = catalogProducts.find((item) => productId && item.productId === productId)
       || catalogProducts.find((item) => sku && item.variantOptions?.some((variant) => variant.sku === sku));
+    return String(product?.stockUnit || '').trim();
   }, [catalogProducts]);
-
-  const getStockLevelsForSupplyRow = useCallback((row: SupplyDetail): StockLevel[] => {
-    return getSupplyUnitOptions(getCatalogProductForSupplyRow(row)?.stockLevels);
-  }, [getCatalogProductForSupplyRow]);
-
-  // Visible supply summary is based only on supplier-entered history events.
-  // AUTO rows linked from the Product Catalog are not supplier receipts.
-  const displayedSummaryRows = useMemo(
-    () => buildSupplySummaryFromHistory(historyRows, summaryRows),
-    [historyRows, summaryRows],
-  );
-
-  const getSummaryPackageQuantities = useCallback((row: SupplyDetail) => {
-    return getSupplySummaryQuantities(row.totalSupplied, getStockLevelsForSupplyRow(row));
-  }, [getStockLevelsForSupplyRow]);
-
-  const getReceivedUnitForRow = useCallback((row: SupplyDetail): string => {
-    const selected = String(row.receivedUnit || 'Pieces').trim();
-    const levels = getStockLevelsForSupplyRow(row);
-    return levels.some((level) => level.name.toLocaleLowerCase() === selected.toLocaleLowerCase())
-      ? selected
-      : 'Pieces';
-  }, [getStockLevelsForSupplyRow]);
-
-  const getReceivedQuantityForRow = useCallback((row: SupplyDetail): string => {
-    const selected = String(row.receivedUnit || 'Pieces').trim();
-    const levels = getStockLevelsForSupplyRow(row);
-    const unitStillExists = levels.some(
-      (level) => level.name.toLocaleLowerCase() === selected.toLocaleLowerCase(),
-    );
-    // Legacy rows and rows whose package level was removed are safely interpreted as Pieces.
-    return unitStillExists && row.receivedUnit
-      ? String(row.receivedQuantity ?? row.totalSupplied ?? '')
-      : String(row.totalSupplied || row.receivedQuantity || '');
-  }, [getStockLevelsForSupplyRow]);
-
-  const handleHistoryQuantityChange = useCallback((idx: number, quantity: string) => {
-    setHistoryRows((rows) => rows.map((row, rowIndex) => {
-      if (rowIndex !== idx) return row;
-      const unit = getReceivedUnitForRow(row);
-      const pieceQuantity = quantity.trim()
-        ? convertSupplyQuantityToPieces(quantity, unit, getStockLevelsForSupplyRow(row))
-        : null;
-      return {
-        ...row,
-        receivedQuantity: quantity,
-        receivedUnit: unit,
-        totalSupplied: quantity.trim() && pieceQuantity !== null ? String(pieceQuantity) : '',
-        recordType: 'history',
-      };
-    }));
-  }, [getReceivedUnitForRow, getStockLevelsForSupplyRow]);
-
-  const handleHistoryUnitChange = useCallback((idx: number, unit: string) => {
-    setHistoryRows((rows) => rows.map((row, rowIndex) => {
-      if (rowIndex !== idx) return row;
-      const quantity = getReceivedQuantityForRow(row);
-      const pieceQuantity = quantity.trim()
-        ? convertSupplyQuantityToPieces(quantity, unit, getStockLevelsForSupplyRow(row))
-        : null;
-      return {
-        ...row,
-        receivedQuantity: quantity,
-        receivedUnit: unit,
-        totalSupplied: quantity.trim() && pieceQuantity !== null ? String(pieceQuantity) : '',
-        recordType: 'history',
-      };
-    }));
-  }, [getReceivedQuantityForRow, getStockLevelsForSupplyRow]);
   const [pendingDeleteMarkers, setPendingDeleteMarkers] = useState<SupplyDeleteMarker[]>([]);
   const [showDeleteHistoryModal, setShowDeleteHistoryModal] = useState(false);
   // Row indices awaiting delete confirmation: one for the row trash, many for bulk delete.
@@ -563,21 +498,21 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   
   const statusDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Function to get the latest delivery date
-  const getLatestDeliveryDate = useCallback((rows: SupplyDetail[]) => {
+  // Function to get the latest supplied date
+  const getLatestSuppliedDate = useCallback((rows: SupplyDetail[]) => {
     if (!rows || rows.length === 0) return '';
     const dates = rows
-      .map(row => row.lastDelivery)
+      .map(row => row.lastSuppliedDate)
       .filter(date => date && date.trim() !== '')
       .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
     return dates.length > 0 ? dates[0] : '';
   }, []);
 
-  // Compute lastDelivery during render (not in useEffect) - follows React best practices
+  // Compute lastSuppliedDate during render (not in useEffect) - follows React best practices
   // Use computed value directly instead of storing in state
-  const computedLastDelivery = useMemo(() => {
-    return getLatestDeliveryDate(historyRows);
-  }, [historyRows, getLatestDeliveryDate]);
+  const computedLastSuppliedDate = useMemo(() => {
+    return getLatestSuppliedDate(historyRows);
+  }, [historyRows, getLatestSuppliedDate]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -653,7 +588,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                 nodes {
                   productId
                   name
-                  stockLevels
+                  stockUnit
                   supplier
                   variantOptions { variantName sku isActive }
                 }
@@ -743,8 +678,6 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                 product: match?.product || row.product,
                 productId: match?.productId || row.productId,
                 variantName: match?.variantName || row.variantName,
-                receivedQuantity: String(row.totalSupplied || row.receivedQuantity || ''),
-                receivedUnit: 'Pieces',
                 recordType: 'history',
               }
             : row,
@@ -771,8 +704,6 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
             sku: identified?.sku || '',
             productId: identified?.productId || '',
             variantName: identified?.variantName || '',
-            receivedQuantity: String(row.totalSupplied || row.receivedQuantity || ''),
-            receivedUnit: 'Pieces',
             // Ambiguous product: never keep stock updates on while identity is unresolved.
             updateCurrentStock: identified ? row.updateCurrentStock === true : false,
             recordType: 'history',
@@ -873,20 +804,19 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
 
   const handleExportHistory = useCallback(() => {
     const exportRows = historyRows.filter((row) => !isBlankHistoryRow(row));
-    const headers = ['SKU', 'Product', 'Received Quantity', 'Stock Type', 'Total Value', 'Last Delivery'];
+    const headers = ['SKU', 'Product', 'Total Supplied', 'Total Value', 'Last Supplied Date'];
     const rows = exportRows.map((row) => [
       row.sku || '',
       row.product || '',
-      getReceivedQuantityForRow(row),
-      getReceivedUnitForRow(row),
+      row.totalSupplied || '',
       row.totalValue || '',
-      row.lastDelivery || '',
+      row.lastSuppliedDate || '',
     ]);
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Supply History');
     XLSX.writeFile(wb, `${form.supplierName || id || 'supplier'}-supply-history.xlsx`);
-  }, [historyRows, form.supplierName, id, getReceivedQuantityForRow, getReceivedUnitForRow]);
+  }, [historyRows, form.supplierName, id]);
 
   const handleImportHistory = useCallback((newSupplies: SupplyDetail[]) => {
     // Every imported row is a new supply event: always a fresh id, never one already
@@ -896,22 +826,12 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
         .map((row) => String(row.suppliesno || '').trim())
         .filter(Boolean),
     );
-    const imported = newSupplies.map((row): SupplyDetail => {
-      const receivedQuantity = String(row.totalSupplied || '');
-      const normalizedPieces = receivedQuantity.trim()
-        ? convertSupplyQuantityToPieces(receivedQuantity, 'Pieces', undefined)
-        : null;
-      return {
-        ...normalizeSupplyRow(row, 'history'),
-        suppliesno: newHistoryId(taken),
-        // Existing import columns represent absolute Pieces unless the user separately selects a package.
-        receivedQuantity,
-        receivedUnit: 'Pieces',
-        totalSupplied: normalizedPieces === null ? String(row.totalSupplied || '') : String(normalizedPieces),
-        // Imports are historical by default — totals only, no product stock change.
-        updateCurrentStock: false,
-      };
-    });
+    const imported = newSupplies.map((row): SupplyDetail => ({
+      ...normalizeSupplyRow(row, 'history'),
+      suppliesno: newHistoryId(taken),
+      // Imports are historical by default — totals only, no product stock change.
+      updateCurrentStock: false,
+    }));
     setHistoryRows((rows) => {
       const existing = rows.filter((row) => !isBlankHistoryRow(row));
       return existing.length > 0 ? [...existing, ...imported] : imported.length > 0 ? imported : [emptyHistoryRow()];
@@ -930,7 +850,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     const parsedLogistics = safeParseJSON(initialData.logistics || '', {});
 
     const buckets = parseSupplyBuckets(initialData.supplies);
-    const latestDeliveryDate = getLatestDeliveryDate(buckets.history);
+    const latestSuppliedDate = getLatestSuppliedDate(buckets.history);
 
     setForm({
       supplierName: initialData.name || '',
@@ -942,7 +862,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
       status: initialData.status || statusOptions[0],
       createdAt: initialData.createdAt ? new Date(initialData.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       preferredDays: parsedLogistics.preferredDays || '',
-      lastDelivery: latestDeliveryDate || parsedLogistics.lastDelivery || '',
+      lastSuppliedDate: latestSuppliedDate || parsedLogistics.lastSuppliedDate || parsedLogistics.lastDelivery || '',
       deliverySuccess: parsedLogistics.deliverySuccess || '',
       notes: Array.isArray(parsedNotes) ? parsedNotes.join(', ') : '',
     });
@@ -960,7 +880,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     setError('');
     setSuccess('');
     setSubmitAttempted(false);
-  }, [initialData, isEditMode, safeParseJSON, getLatestDeliveryDate]);
+  }, [initialData, isEditMode, safeParseJSON, getLatestSuppliedDate]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1007,7 +927,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
       .map((row) => ({
         suppliesno: row.suppliesno || '', sku: row.sku || '',
         product: row.product || '', totalSupplied: row.totalSupplied || '',
-        totalValue: row.totalValue || '', lastDelivery: row.lastDelivery || '',
+        totalValue: row.totalValue || '', lastSuppliedDate: row.lastSuppliedDate || '',
         productId: row.productId || '', variantName: row.variantName || '',
         updateCurrentStock: row.updateCurrentStock === true,
       }));
@@ -1032,7 +952,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
       }>(
         `query ManualSupplierTransfers($userId: Int!, $supplierId: String!) {
           supplierTransferRecords(userId: $userId, supplierId: $supplierId) {
-            id sku product totalSupplied totalValue lastDelivery productId variantName targetSupplierName recordType
+            id sku product totalSupplied totalValue lastSuppliedDate productId variantName targetSupplierName recordType
           }
         }`,
         { userId, supplierId },
@@ -1154,22 +1074,6 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
 
     if (!validateForm()) return;
 
-    const invalidPackageRows = historyRows.filter((row) => {
-      if (isBlankHistoryRow(row)) return false;
-      const quantity = getReceivedQuantityForRow(row);
-      if (!quantity.trim()) return false;
-      return convertSupplyQuantityToPieces(
-        quantity,
-        getReceivedUnitForRow(row),
-        getStockLevelsForSupplyRow(row),
-      ) === null;
-    });
-    if (invalidPackageRows.length > 0) {
-      handleError('Enter a whole-number quantity for the selected stock type.');
-      setSuppliesTab('history');
-      return;
-    }
-
     const unresolvedStockRows = historyRows.filter((row) => {
       if (isBlankHistoryRow(row)) return false;
       if (row.updateCurrentStock !== true) return false;
@@ -1190,13 +1094,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
       const cleanedHistory = ensureUniqueHistoryIds(
         historyRows
           .filter((row) => !isBlankHistoryRow(row))
-          .map((row) => normalizeSupplyRow({
-            ...row,
-            receivedQuantity: getReceivedQuantityForRow(row),
-            receivedUnit: getReceivedUnitForRow(row),
-            // totalSupplied is the immutable canonical Piece snapshot for this supply event.
-            // It is changed only in the live quantity/unit handlers above.
-          }, 'history')),
+          .map((row) => normalizeSupplyRow(row, 'history')),
       );
       const cleanedSummary = summaryRows.map((row) => normalizeSupplyRow(row, 'summary'));
       // Tombstones carry explicit reverse-stock intent from the delete modal.
@@ -1212,7 +1110,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
         createdAt: isEditMode ? (form.createdAt ? new Date(form.createdAt).toISOString() : new Date().toISOString()) : new Date().toISOString(),
         logistics: JSON.stringify({
           preferredDays: form.preferredDays || '',
-          lastDelivery: computedLastDelivery || '',
+          lastSuppliedDate: computedLastSuppliedDate || '',
           deliverySuccess: form.deliverySuccess || ''
         }),
         userId: user?.id,
@@ -1222,7 +1120,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
       }
       delete payload.supplierName;
       delete payload.preferredDays;
-      delete payload.lastDelivery;
+      delete payload.lastSuppliedDate;
       delete payload.deliverySuccess;
       
       // Debug: Log the payload being sent
@@ -1402,7 +1300,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
       setSaving(false);
       setIsSubmitting(false);
     }
-  }, [form, id, historyRows, summaryRows, pendingDeleteMarkers, isEditMode, initialData, user?.id, onSave, router, validateForm, handleError, isSubmitting, isNavigating, tSuppliersModal, computedLastDelivery, getReceivedQuantityForRow, getReceivedUnitForRow, getStockLevelsForSupplyRow]);
+  }, [form, id, historyRows, summaryRows, pendingDeleteMarkers, isEditMode, initialData, user?.id, onSave, router, validateForm, handleError, isSubmitting, isNavigating, tSuppliersModal, computedLastSuppliedDate]);
 
   return (
     <>
@@ -1679,29 +1577,21 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                     </tr>
                   </thead>
                   <tbody>
-                    {displayedSummaryRows.length === 0 ? (
+                    {summaryRows.length === 0 ? (
                       <tr>
                         <td colSpan={4} className="px-3 py-8 text-center text-sm text-gray-500">
                           {tSuppliersProfile('noSupplies')}
                         </td>
                       </tr>
                     ) : (
-                      displayedSummaryRows.map((row, idx) => (
+                      summaryRows.map((row, idx) => (
                         <tr key={row.suppliesno || `sum-${idx}`} className="border-b last:border-b-0">
                           <td className="px-3 py-3 font-medium text-black">{idx + 1}</td>
                           <td className="px-3 py-3 text-black">
                             <div className="font-medium">{row.sku || '—'}</div>
                             <div className="text-gray-500">{row.product || '—'}</div>
                           </td>
-                          <td className="px-3 py-3 text-black">
-                            <div className="flex min-w-[9rem] flex-col gap-1">
-                              {getSummaryPackageQuantities(row).map((level) => (
-                                <span key={`${row.suppliesno}-${level.name}`} className="whitespace-nowrap">
-                                  {level.availableQuantity} {level.name} ({level.equivalentQuantity})
-                                </span>
-                              ))}
-                            </div>
-                          </td>
+                          <td className="px-3 py-3 text-black">{row.totalSupplied || '0'}{getSupplyUnit(row) ? ` ${getSupplyUnit(row)}` : ''}</td>
                           <td className="px-3 py-3 font-semibold text-[#0a61d7]">
                             {currencySymbol}{row.totalValue || '0'}
                           </td>
@@ -1780,26 +1670,13 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                           />
                         </td>
                         <td className="px-3 py-2">
-                          <div className="flex min-w-[15rem] items-center gap-2">
+                          <div className="flex items-center gap-2">
                             <ClientInput
                               type="number"
-                              value={getReceivedQuantityForRow(row)}
-                              onChange={(quantity) => handleHistoryQuantityChange(idx, quantity)}
+                              value={row.totalSupplied || ''}
+                              onChange={(totalSupplied) => handleHistoryChange(idx, 'totalSupplied', totalSupplied)}
                             />
-                            <SupplyMatchDropdown
-                              value={getReceivedUnitForRow(row)}
-                              placeholder="Pieces"
-                              options={getStockLevelsForSupplyRow(row).map((level) => ({
-                                optionKey: `stock-unit:${level.name}`,
-                                value: level.name,
-                                label: `${level.name} (${level.piecesPerUnit.toLocaleString('en-US')} pcs)`,
-                              }))}
-                              emptyLabel="Pieces"
-                              noMatchLabel={tSuppliersModal('catalogNoMatch')}
-                              searchPlaceholder={tSuppliersModal('searchProduct')}
-                              onSelect={(unit) => handleHistoryUnitChange(idx, unit)}
-                              className="min-w-[7rem]"
-                            />
+                            {getSupplyUnit(row) ? <span className="whitespace-nowrap text-xs text-gray-500">{getSupplyUnit(row)}</span> : null}
                           </div>
                         </td>
                         <td className="px-3 py-2">
@@ -1817,8 +1694,8 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                         <td className="px-3 py-2">
                           <ClientInput
                             type="date"
-                            value={row.lastDelivery || ''}
-                            onChange={(lastDelivery) => handleHistoryChange(idx, 'lastDelivery', lastDelivery)}
+                            value={row.lastSuppliedDate || ''}
+                            onChange={(lastSuppliedDate) => handleHistoryChange(idx, 'lastSuppliedDate', lastSuppliedDate)}
                           />
                         </td>
                         <td className="px-3 py-2 text-center">
@@ -1925,14 +1802,14 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
               className="flex-1"
               label={
                 <span className="flex items-center gap-1">
-                  {tSuppliersModal('lastDeliveryDate')}
+                  {tSuppliersModal('lastSuppliedDate')}
                   <span className="text-xs text-gray-400 font-normal">{tSuppliersModal('autoFromSupplies')}</span>
                   <span className="w-3 h-3 bg-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-500">i</span>
                 </span>
               }
               type="date"
-              value={computedLastDelivery || ''}
-              onChange={(lastDelivery) => setForm((f) => ({ ...f, lastDelivery }))}
+              value={computedLastSuppliedDate || ''}
+              onChange={(lastSuppliedDate) => setForm((f) => ({ ...f, lastSuppliedDate }))}
               disabled
             />
             <ClientField

@@ -24,14 +24,6 @@ import {
   partitionSupplies,
 } from '@/lib/suppliers/supplyRecords';
 
-/** Parse a supplied date for newest-first history ordering. Invalid or empty dates sort last. */
-function getSupplyDateTimestamp(value: string | null | undefined): number | null {
-  const normalized = String(value || '').trim();
-  if (!normalized) return null;
-  const timestamp = new Date(normalized).getTime();
-  return Number.isFinite(timestamp) ? timestamp : null;
-}
-
 function getSupplierAnalytics(suppliesStr: string, language?: string | null) {
   const monthLocale = language === 'id' ? 'id-ID' : 'en-US';
   if (!suppliesStr) return [];
@@ -44,8 +36,8 @@ function getSupplierAnalytics(suppliesStr: string, language?: string | null) {
     const map: { [monthKey: string]: { supplied: number; value: number; date: Date } } = {};
     supplies.forEach(function(supply: SupplyDetail) {
       // Monthly charts are driven by dated history events only
-      if (!isSupplyHistoryRow(supply) || !supply.lastDelivery) return;
-      const date = new Date(supply.lastDelivery);
+      if (!isSupplyHistoryRow(supply) || !supply.lastSuppliedDate) return;
+      const date = new Date(supply.lastSuppliedDate);
       if (isNaN(date.getTime())) return; // Skip invalid dates
       
       // Use YYYY-MM format for proper chronological sorting
@@ -174,10 +166,38 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
   
   // Parse supplies and notes from strings to arrays
   const suppliesRaw = supplier.supplies;
-  const supplies = suppliesRaw ? (() => {
+  const supplies: SupplyDetail[] = suppliesRaw ? (() => {
     try {
-      const parsed = JSON.parse(suppliesRaw);
-      return parsed;
+      const parsed: unknown = JSON.parse(suppliesRaw);
+      if (!Array.isArray(parsed)) return [];
+      // Legacy persisted rows may still expose lastDelivery. Normalize the date
+      // while retaining the full SupplyDetail shape used by flexible stock levels.
+      return parsed.map((value: unknown): SupplyDetail => {
+        const row = value && typeof value === 'object'
+          ? value as Record<string, unknown>
+          : {};
+        const { lastDelivery: legacyLastDelivery, ...rest } = row;
+        return {
+          ...rest,
+          suppliesno: String(row.suppliesno || ''),
+          sku: String(row.sku || ''),
+          product: String(row.product || ''),
+          totalSupplied: String(row.totalSupplied || ''),
+          receivedQuantity: row.receivedQuantity == null ? undefined : String(row.receivedQuantity),
+          receivedUnit: row.receivedUnit == null ? undefined : String(row.receivedUnit),
+          totalValue: String(row.totalValue || ''),
+          lastSuppliedDate: String(row.lastSuppliedDate || legacyLastDelivery || ''),
+          status: String(row.status || 'Active'),
+          deliverySuccess: row.deliverySuccess == null ? undefined : String(row.deliverySuccess),
+          recordType: row.recordType === 'summary' || row.recordType === 'history'
+            ? row.recordType
+            : undefined,
+          productId: row.productId == null ? undefined : String(row.productId),
+          variantName: row.variantName == null ? undefined : String(row.variantName),
+          updateCurrentStock: row.updateCurrentStock === true,
+          stockApplied: row.stockApplied === true,
+        };
+      });
     } catch (error) {
       return [];
     }
@@ -215,7 +235,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
     text += `Status: ${supplier.status}\n`;
     text += `Created At: ${supplier.createdAt}\n`;
     text += `Preferred Delivery Days: ${logistics?.preferredDays || ''}\n`;
-    text += `Last Delivery: ${logistics?.lastDelivery || ''}\n`;
+    text += `Last Supplied Date: ${logistics?.lastSuppliedDate || logistics?.lastDelivery || ''}\n`;
     text += `Delivery Success: ${logistics?.deliverySuccess || ''}\n`;
     text += `Notes: ${notes.join(', ')}\n`;
     text += `\nSupplies & Product Data:\n`;
@@ -226,7 +246,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
         : getSummaryPackageQuantities(row)
             .map((level) => `${level.availableQuantity} ${level.name} (${level.equivalentQuantity})`)
             .join(', ');
-      text += `- Supplies No: ${row.suppliesno}, SKU: ${row.sku}, Product: ${row.product}, Received: ${receivedDescription}, Total Value: ${row.totalValue}, Last Delivery: ${row.lastDelivery}, Status: ${row.status}\n`;
+      text += `- Supplies No: ${row.suppliesno}, SKU: ${row.sku}, Product: ${row.product}, Received: ${receivedDescription}, Total Value: ${row.totalValue}, Last Supplied Date: ${row.lastSuppliedDate}, Status: ${row.status}\n`;
     }
     navigator.clipboard.writeText(text);
   };
@@ -299,7 +319,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
             product
             totalSupplied
             totalValue
-            lastDelivery
+            lastSuppliedDate
             productId
             variantName
             targetSupplierName
@@ -417,18 +437,8 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
   const currency = userCurrency;
   
   const [supplyPage, setSupplyPage] = useState(1);
-  const supplyRowsPerPage = 8;
-  // Sort only dated supply-history events. Summary rows are aggregates by variant and
-  // do not represent individual deliveries, so their existing variant order is preserved.
-  const sortedHistorySupplies = [...historySupplies].sort((a: SupplyDetail, b: SupplyDetail) => {
-    const dateA = getSupplyDateTimestamp(a.lastDelivery);
-    const dateB = getSupplyDateTimestamp(b.lastDelivery);
-    if (dateA === null && dateB === null) return 0;
-    if (dateA === null) return 1;
-    if (dateB === null) return -1;
-    return dateB - dateA;
-  });
-  const activeSupplyRows = suppliesTab === 'history' ? sortedHistorySupplies : summarySupplies;
+  const supplyRowsPerPage = TABLE_PAGE_SIZE;
+  const activeSupplyRows = suppliesTab === 'history' ? historySupplies : summarySupplies;
   const totalSupplyRows = activeSupplyRows.length;
   const totalSupplyPages = Math.max(1, Math.ceil(totalSupplyRows / supplyRowsPerPage));
   const pagedSupplies = activeSupplyRows.slice(
@@ -485,20 +495,20 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
             const logistics = JSON.parse(supplier.logistics);
             logisticsFields.push(
               { key: 'preferredDays', value: logistics?.preferredDays?.trim() },
-              { key: 'lastDelivery', value: logistics?.lastDelivery?.trim() },
+              { key: 'lastSuppliedDate', value: logistics?.lastSuppliedDate?.trim() },
               { key: 'deliverySuccess', value: logistics?.deliverySuccess?.trim() }
             );
           } else {
             logisticsFields.push(
               { key: 'preferredDays', value: false },
-              { key: 'lastDelivery', value: false },
+              { key: 'lastSuppliedDate', value: false },
               { key: 'deliverySuccess', value: false }
             );
           }
         } catch {
           logisticsFields.push(
             { key: 'preferredDays', value: false },
-            { key: 'lastDelivery', value: false },
+            { key: 'lastSuppliedDate', value: false },
             { key: 'deliverySuccess', value: false }
           );
         }
@@ -618,9 +628,9 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
             </div>
             <div className="flex items-center gap-2 text-xs">
               <Info className="w-4 h-4 text-gray-500" />
-              <span className="text-gray-500">{tSuppliersProfile('lastDelivery')}</span>
+              <span className="text-gray-500">{user?.language === 'id' ? 'Tanggal Terakhir Disuplai' : 'Last Supplied Date'}</span>
               <span className="font-semibold text-black">
-                {logistics?.lastDelivery && logistics.lastDelivery.trim() ? logistics.lastDelivery : <span className="text-red-600 font-bold">{tShared('missing.lastDelivery')}</span>}
+                {(logistics?.lastSuppliedDate || logistics?.lastDelivery) && (logistics.lastSuppliedDate || logistics.lastDelivery).trim() ? (logistics.lastSuppliedDate || logistics.lastDelivery) : <span className="text-red-600 font-bold">{user?.language === 'id' ? 'Belum ada data' : 'Not available'}</span>}
               </span>
             </div>
             <div className="flex items-center gap-2 text-xs">
@@ -759,7 +769,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                     key={`hist-${supply.suppliesno || ''}-${idx}-${supplyPage}`}
                     className="border-b last:border-b-0"
                   >
-                    <td className="py-4 px-4 text-black">{String(supply.lastDelivery || '—')}</td>
+                    <td className="py-4 px-4 text-black">{String(supply.lastSuppliedDate || '—')}</td>
                     <td className="py-4 px-4 font-medium text-black">{String(supply.sku || '—')}</td>
                     <td className="py-4 px-4 text-black">
                       {String(supply.receivedQuantity || supply.totalSupplied)} {String(supply.receivedUnit || 'Pieces')}
@@ -867,8 +877,8 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                 // Extract unique months from delivery dates
                 const uniqueMonths = new Set();
                 historySupplies.forEach((supply: SupplyDetail) => {
-                  if (supply.lastDelivery) {
-                    const monthKey = supply.lastDelivery.substring(0, 7); // Get YYYY-MM
+                  if (supply.lastSuppliedDate) {
+                    const monthKey = supply.lastSuppliedDate.substring(0, 7); // Get YYYY-MM
                     uniqueMonths.add(monthKey);
                   }
                 });
@@ -878,8 +888,8 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                 // Extract unique months from delivery dates
                 const uniqueMonths = new Set();
                 historySupplies.forEach((supply: SupplyDetail) => {
-                  if (supply.lastDelivery) {
-                    const monthKey = supply.lastDelivery.substring(0, 7); // Get YYYY-MM
+                  if (supply.lastSuppliedDate) {
+                    const monthKey = supply.lastSuppliedDate.substring(0, 7); // Get YYYY-MM
                     uniqueMonths.add(monthKey);
                   }
                 });
@@ -898,8 +908,8 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                 // Extract unique months from delivery dates
                 const uniqueMonths = new Set();
                 historySupplies.forEach((supply: SupplyDetail) => {
-                  if (supply.lastDelivery) {
-                    const monthKey = supply.lastDelivery.substring(0, 7); // Get YYYY-MM
+                  if (supply.lastSuppliedDate) {
+                    const monthKey = supply.lastSuppliedDate.substring(0, 7); // Get YYYY-MM
                     uniqueMonths.add(monthKey);
                   }
                 });
@@ -909,8 +919,8 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                 // Extract unique months from delivery dates
                 const uniqueMonths = new Set();
                 historySupplies.forEach((supply: SupplyDetail) => {
-                  if (supply.lastDelivery) {
-                    const monthKey = supply.lastDelivery.substring(0, 7); // Get YYYY-MM
+                  if (supply.lastSuppliedDate) {
+                    const monthKey = supply.lastSuppliedDate.substring(0, 7); // Get YYYY-MM
                     uniqueMonths.add(monthKey);
                   }
                 });

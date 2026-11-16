@@ -98,15 +98,15 @@ export interface SupplyDetail {
   suppliesno: string;
   sku: string;
   product: string;
-  /** Canonical absolute piece quantity used for inventory and supply summaries. */
+  /** Quantity received (history) or rolled-up total (summary), stored in canonical Pieces. */
   totalSupplied: string;
-  /** Original quantity entered by the supplier in receivedUnit. */
+  /** Original quantity entered by the supplier for a history row. */
   receivedQuantity?: string;
-  /** Product stock level selected when the supplier entered receivedQuantity. */
+  /** Stock unit selected when receivedQuantity was entered (e.g. Pieces, Cartons, Boxes). */
   receivedUnit?: string;
   totalValue: string;
   /** Last supplied date for history rows; unused on summary rows. */
-  lastDelivery: string;
+  lastSuppliedDate: string;
   status: string;
   deliverySuccess?: string;
   /**

@@ -116,7 +116,7 @@ function supplierAvgMonthlyPurchase(supplier: Supplier): number {
   const uniqueMonths = new Set<string>();
   for (const supply of supplies) {
     totalPurchaseValue += parseMoneyValue(supply.totalValue);
-    const monthKey = monthKeyFromValue(supply.lastDelivery);
+    const monthKey = monthKeyFromValue(supply.lastSuppliedDate);
     if (monthKey) uniqueMonths.add(monthKey);
   }
 
@@ -159,7 +159,7 @@ function supplierOverallOnTimeRate(suppliers: Supplier[]): number {
   return deliverySuccessCount > 0 ? Math.round(deliverySuccessSum / deliverySuccessCount) : 0;
 }
 
-/** Calendar-month purchase activity from supplier supplies (by lastDelivery). */
+/** Calendar-month purchase activity from supplier supplies (by lastSuppliedDate). */
 function supplierCalendarMonthActivity(suppliers: Supplier[], from: Date = new Date()) {
   const { currentKey, previousKey } = getCalendarMonthPair(from);
   const current = {
@@ -180,7 +180,7 @@ function supplierCalendarMonthActivity(suppliers: Supplier[], from: Date = new D
   for (const supplier of suppliers) {
     const supplierKey = supplier.supplierId || String(supplier.id ?? '');
     for (const detail of parseSupplierSupplies(supplier)) {
-      const key = monthKeyFromValue(detail.lastDelivery);
+      const key = monthKeyFromValue(detail.lastSuppliedDate);
       if (!key) continue;
       const bucket = key === currentKey ? current : key === previousKey ? previous : null;
       if (!bucket) continue;

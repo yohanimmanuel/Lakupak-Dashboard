@@ -51,6 +51,11 @@ type VariantNode = {
   isDefault: boolean;
   isActive: boolean;
 };
+type StockLevelNode = {
+  name: string;
+  piecesPerUnit: number;
+  unitsPerPreviousLevel?: number | null;
+};
 type ProductNode = {
   productId: string;
   name: string;
@@ -58,6 +63,7 @@ type ProductNode = {
   productType: string;
   images: string[];
   merchandisingCategorySlug: string | null;
+  stockLevels?: StockLevelNode[] | null;
   variantOptions: VariantNode[];
 };
 type OfferNode = {
@@ -78,6 +84,8 @@ type Line = {
   productId: string;
   variantOptionId: string;
   quantity: string;
+  packageType: string;
+  piecesPerPackage: number;
   savedUnit: number | null;
   savedBuyerId: string;
   savedName: string;
@@ -112,18 +120,42 @@ type LoadedOrder = {
     variantOptionId?: number | null;
     packageQuantity?: number | null;
     pricePerPackage?: number | null;
+    packageType?: string | null;
+    piecesPerPackage?: number | null;
+    productTypeSnapshot?: string | null;
     productName?: string;
     productNameSnapshot?: string | null;
     variantNameSnapshot?: string | null;
   }>;
 };
 
+function productStockLevels(product: ProductNode | undefined): StockLevelNode[] {
+  const levels: StockLevelNode[] = [{ name: 'Pieces', piecesPerUnit: 1 }];
+  const seen = new Set<string>(['pieces']);
+  for (const candidate of product?.stockLevels ?? []) {
+    const name = String(candidate?.name ?? '').trim();
+    const piecesPerUnit = Number(candidate?.piecesPerUnit);
+    const key = name.toLocaleLowerCase();
+    if (!name || seen.has(key) || !Number.isSafeInteger(piecesPerUnit) || piecesPerUnit < 2) continue;
+    levels.push({ name, piecesPerUnit });
+    seen.add(key);
+  }
+  return levels;
+}
+
 function orderLineKey(
   buyer: string,
-  rows: Array<{ productId?: string | null; variantOptionId?: string | number | null; packageQuantity?: number | null; quantity?: string | number | null }>,
+  rows: Array<{
+    productId?: string | null;
+    variantOptionId?: string | number | null;
+    packageQuantity?: number | null;
+    quantity?: string | number | null;
+    packageType?: string | null;
+    piecesPerPackage?: number | null;
+  }>,
 ): string {
   const parts = rows
-    .map((row) => `${row.productId || ''}:${row.variantOptionId || ''}:${row.packageQuantity ?? row.quantity ?? 1}`)
+    .map((row) => `${row.productId || ''}:${row.variantOptionId || ''}:${row.packageQuantity ?? row.quantity ?? 1}:${row.packageType || 'Pieces'}:${row.piecesPerPackage ?? 1}`)
     .sort();
   return `${buyer}|${parts.join('|')}`;
 }
@@ -300,7 +332,7 @@ function LakupakSelect({
 }
 
 function blankLine(key: number): Line {
-  return { key, productId: '', variantOptionId: '', quantity: '1', savedUnit: null, savedBuyerId: '', savedName: '', savedVariant: '' };
+  return { key, productId: '', variantOptionId: '', quantity: '1', packageType: '', piecesPerPackage: 1, savedUnit: null, savedBuyerId: '', savedName: '', savedVariant: '' };
 }
 
 export default function CreateOrderForm({ orderId }: { orderId?: string }) {
@@ -406,7 +438,7 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
             `query CreateOrderProducts($userId: Int!) {
               products(userId: $userId, page: 1, limit: 200) {
                 nodes {
-                  productId name sku productType images merchandisingCategorySlug
+                  productId name sku productType images merchandisingCategorySlug stockLevels
                   variantOptions { id variantName sellingPrice sku moq isDefault isActive }
                 }
               }
@@ -491,21 +523,34 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
         setDeliveryNote(order.deliveryNote || '');
         setPod(order.pod || '');
         const loaded = (order.orderItems || []).filter((item) => item.productId && item.variantOptionId);
-        setLoadedLineKey(orderLineKey(nextBuyer, loaded));
-        if (loaded.length > 0) {
+        const normalizedLoaded = loaded.map((item) => ({
+          ...item,
+          packageType:
+            item.packageType && item.packageType !== item.productTypeSnapshot
+              ? item.packageType
+              : 'Pieces',
+          piecesPerPackage:
+            item.packageType && item.packageType !== item.productTypeSnapshot
+              ? Math.max(1, Number(item.piecesPerPackage) || 1)
+              : 1,
+        }));
+        setLoadedLineKey(orderLineKey(nextBuyer, normalizedLoaded));
+        if (normalizedLoaded.length > 0) {
           setLines(
-            loaded.map((item, index) => ({
+            normalizedLoaded.map((item, index) => ({
               key: index + 1,
               productId: item.productId || '',
               variantOptionId: String(item.variantOptionId),
               quantity: String(item.packageQuantity || 1),
+              packageType: item.packageType,
+              piecesPerPackage: item.piecesPerPackage,
               savedUnit: item.pricePerPackage != null ? Number(item.pricePerPackage) : null,
               savedBuyerId: nextBuyer,
               savedName: item.productName || item.productNameSnapshot || item.productId || '',
               savedVariant: item.variantNameSnapshot || '',
             })),
           );
-          setNextKey(loaded.length + 1);
+          setNextKey(normalizedLoaded.length + 1);
         }
         if (order.deliveryAddress) void placeAddress(order.deliveryAddress);
       } catch {
@@ -558,6 +603,9 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
         productType: '',
         images: [],
         merchandisingCategorySlug: null,
+        stockLevels: line.piecesPerPackage > 1
+          ? [{ name: line.packageType, piecesPerUnit: line.piecesPerPackage }]
+          : [{ name: 'Pieces', piecesPerUnit: 1 }],
         variantOptions: Number.isInteger(variantId)
           ? [{ id: variantId, variantName: line.savedVariant || line.variantOptionId, sellingPrice: line.savedUnit || 0, sku: null, moq: null, isDefault: true, isActive: true }]
           : [],
@@ -612,7 +660,24 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
     const product = catalog.find((row) => row.productId === productId);
     const active = product?.variantOptions.filter((option) => option.isActive) ?? [];
     const preferred = active.find((option) => option.isDefault) || active[0];
-    updateLine(key, { productId, variantOptionId: preferred ? String(preferred.id) : '', savedUnit: null });
+    updateLine(key, {
+      productId,
+      variantOptionId: preferred ? String(preferred.id) : '',
+      packageType: 'Pieces',
+      piecesPerPackage: 1,
+      savedUnit: null,
+    });
+  }
+
+  function chooseStockLevel(key: number, productId: string, levelName: string) {
+    const product = catalog.find((row) => row.productId === productId);
+    const level = productStockLevels(product).find((candidate) => candidate.name === levelName);
+    if (!level) return;
+    updateLine(key, {
+      packageType: level.name,
+      piecesPerPackage: level.piecesPerUnit,
+      savedUnit: null,
+    });
   }
 
   const pricedLines = lines.map((line) => {
@@ -623,8 +688,9 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
     const preview = previewPrice(variant ? Number(variant.sellingPrice) : 0, offer);
     const qty = Number.isInteger(quantity) && quantity > 0 ? quantity : 0;
     const keepSaved = line.savedUnit != null && line.savedBuyerId === buyerId && line.savedBuyerId !== '';
-    const unit = keepSaved ? line.savedUnit! : preview.unit;
-    return { line, product, variant, qty, preview, unit, keepSaved, subtotal: unit * qty };
+    const piecesPerPackage = Math.max(1, line.piecesPerPackage || 1);
+    const unit = keepSaved ? line.savedUnit! : preview.unit * piecesPerPackage;
+    return { line, product, variant, qty, preview, unit, keepSaved, piecesPerPackage, subtotal: unit * qty };
   });
 
   const subtotal = pricedLines.reduce((sum, row) => sum + row.subtotal, 0);
@@ -633,7 +699,13 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
     buyerId,
     pricedLines
       .filter((row) => row.product && row.variant && row.qty > 0)
-      .map((row) => ({ productId: row.product!.productId, variantOptionId: row.variant!.id, packageQuantity: row.qty })),
+      .map((row) => ({
+        productId: row.product!.productId,
+        variantOptionId: row.variant!.id,
+        packageQuantity: row.qty,
+        packageType: row.line.packageType,
+        piecesPerPackage: row.piecesPerPackage,
+      })),
   );
   const appliedDiscounts = loadedLineKey != null && currentLineKey === loadedLineKey ? loadedDiscount : 0;
   const total = Math.max(0, subtotal + (Number.isFinite(shipping) ? shipping : 0) - appliedDiscounts);
@@ -685,6 +757,8 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
         return tCreate('errors.invalid_duration');
       case 'insufficient_stock':
         return tCreate('errors.insufficient_stock');
+      case 'invalid_stock_level':
+        return tCreate('errors.invalid');
       default:
         return tCreate('errors.invalid');
     }
@@ -693,6 +767,9 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
   function messageFromOrderResponse(data: { code?: string; error?: string; detail?: string }): string {
     const detail = typeof data.detail === 'string' ? data.detail.trim() : '';
     if (detail) return detail;
+    if (data.code === 'invalid_stock_level' && typeof data.error === 'string' && data.error.trim()) {
+      return data.error.trim();
+    }
     if (data.code === 'insufficient_stock') {
       const server = typeof data.error === 'string' ? data.error.trim() : '';
       if (server) return server;
@@ -723,7 +800,13 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
     }
     const items = pricedLines
       .filter((row) => row.product && row.variant && row.qty > 0)
-      .map((row) => ({ productId: row.product!.productId, variantOptionId: row.variant!.id, packageQuantity: row.qty }));
+      .map((row) => ({
+        productId: row.product!.productId,
+        variantOptionId: row.variant!.id,
+        packageQuantity: row.qty,
+        packageType: row.line.packageType,
+        piecesPerPackage: row.piecesPerPackage,
+      }));
     if (items.length === 0) {
       setError(tCreate('needProduct'));
       return;
@@ -969,17 +1052,6 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
           <section className="border-b border-[#e6e6e6] p-4">
             <div className="mb-4 flex items-center justify-between gap-3">
               <h2 className="text-sm font-semibold text-black">{tDetails('orderItems.title')}</h2>
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 text-xs font-medium text-black hover:bg-gray-100"
-                onClick={() => {
-                  setLines((current) => [...current, blankLine(nextKey)]);
-                  setNextKey((key) => key + 1);
-                }}
-              >
-                <Plus className="h-4 w-4" />
-                {tCreate('addProduct')}
-              </button>
             </div>
             <p className="mb-3 text-xs text-gray-500">{tCreate('offerNote')}</p>
             {!loading && products.length === 0 && (
@@ -990,8 +1062,14 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
             <div className="divide-y divide-[#e6e6e6] rounded-lg border border-[#e6e6e6]">
               {pricedLines.map(({ line, product, preview, unit, keepSaved }) => {
                 const variants = product?.variantOptions.filter((option) => option.isActive) ?? [];
+                const stockLevels = product ? productStockLevels(product) : [];
+                const selectedLevelExists = stockLevels.some((level) => level.name === line.packageType);
+                if (!selectedLevelExists && line.packageType && line.piecesPerPackage > 1) {
+                  stockLevels.push({ name: line.packageType, piecesPerUnit: line.piecesPerPackage });
+                }
+                const quantityValue = Number.parseInt(line.quantity, 10) || 0;
                 return (
-                  <div key={line.key} className="grid gap-3 p-3 md:grid-cols-[1.3fr_1fr_88px_auto_auto]">
+                  <div key={line.key} className="grid items-end gap-3 p-3 md:grid-cols-[1.3fr_1fr_1fr_88px_110px_minmax(150px,auto)]">
                     <div>
                       <label className={labelClass}>{tCreate('product')}</label>
                       <LakupakSelect
@@ -1011,24 +1089,54 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
                       />
                     </div>
                     <div>
+                      <label className={labelClass}>Stock type</label>
+                      <LakupakSelect
+                        value={line.packageType}
+                        placeholder={product ? 'Select stock type' : 'Select product first'}
+                        allowEmpty={false}
+                        options={stockLevels.map((level) => ({ value: level.name, label: level.name }))}
+                        onChange={(value) => chooseStockLevel(line.key, line.productId, value)}
+                      />
+                    </div>
+                    <div>
                       <label className={labelClass}>{tCreate('quantity')}</label>
                       <input className={inputClass} inputMode="numeric" value={line.quantity} onChange={(event) => updateLine(line.key, { quantity: event.target.value.replace(/[^\d]/g, ''), savedUnit: null })} />
                     </div>
-                    <div>
+                    <div className="flex h-full flex-col justify-end">
                       <div className={labelClass}>{tCreate('unitPrice')}</div>
-                      <div className="text-xs font-medium text-black">{formatCurrency(unit, currency)}</div>
+                      <div className="flex min-h-[34px] items-center text-xs font-medium text-black">{formatCurrency(unit, currency)}</div>
                       {!keepSaved && preview.kind !== 'none' && <div className="mt-1 text-xs text-[#0a61d7]">{offerLabel(preview)}</div>}
                     </div>
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className={labelClass}>{tCreate('lineTotal')}</div>
-                        <div className="text-xs font-semibold text-black">{formatCurrency(unit * (Number.parseInt(line.quantity, 10) || 0), currency)}</div>
+                    <div className="flex h-full flex-col justify-end">
+                      <div className={labelClass}>{tCreate('lineTotal')}</div>
+                      <div className="flex min-h-[34px] items-center justify-between gap-2">
+                        <div className="text-xs font-semibold text-black">{formatCurrency(unit * quantityValue, currency)}</div>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <button
+                            type="button"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#e6e6e6] text-gray-600 transition-colors hover:bg-gray-100 hover:text-[#0a61d7]"
+                            aria-label={tCreate('addProduct')}
+                            title={tCreate('addProduct')}
+                            onClick={() => {
+                              setLines((current) => [...current, blankLine(nextKey)]);
+                              setNextKey((key) => key + 1);
+                            }}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </button>
+                          {lines.length > 1 && (
+                            <button
+                              type="button"
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                              aria-label={tCreate('remove')}
+                              title={tCreate('remove')}
+                              onClick={() => setLines((current) => current.filter((row) => row.key !== line.key))}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      {lines.length > 1 && (
-                        <button type="button" className="text-gray-400 hover:text-red-600" aria-label={tCreate('remove')} onClick={() => setLines((current) => current.filter((row) => row.key !== line.key))}>
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
                     </div>
                   </div>
                 );

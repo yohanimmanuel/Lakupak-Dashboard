@@ -178,7 +178,7 @@ export function buildSupplySummaryFromHistory(
         ...row,
         totalSupplied: String(openingOrRunningQuantity),
         totalValue: String(openingOrRunningValue),
-        lastDelivery: String(row.lastDelivery || ''),
+        lastSuppliedDate: String(row.lastSuppliedDate || ''),
         recordType: 'summary',
       });
       if (openingOrRunningQuantity > 0 || openingOrRunningValue > 0) {
@@ -218,8 +218,8 @@ export function buildSupplySummaryFromHistory(
         current.totalSupplied = String(toQty(current.totalSupplied) + quantity);
         current.totalValue = String(toQty(current.totalValue) + value);
       }
-      if (String(row.lastDelivery || '') > String(current.lastDelivery || '')) {
-        current.lastDelivery = String(row.lastDelivery || '');
+      if (String(row.lastSuppliedDate || '') > String(current.lastSuppliedDate || '')) {
+        current.lastSuppliedDate = String(row.lastSuppliedDate || '');
       }
       // Fill missing legacy labels/identity without replacing catalog-linked labels.
       current.sku = current.sku || String(row.sku || '');
@@ -235,7 +235,7 @@ export function buildSupplySummaryFromHistory(
       product: String(row.product || ''),
       totalSupplied: String(quantity),
       totalValue: String(value),
-      lastDelivery: String(row.lastDelivery || ''),
+      lastSuppliedDate: String(row.lastSuppliedDate || ''),
       status: String(row.status || 'Active'),
       recordType: 'summary',
       productId: row.productId,
@@ -356,7 +356,7 @@ export function applySummaryDelta(
     product: event.product,
     totalSupplied: String(Math.max(0, qty)),
     totalValue: String(Math.max(0, value)),
-    lastDelivery: '',
+    lastSuppliedDate: '',
     status: event.status || 'Active',
     recordType: 'summary',
     productId: event.productId,
@@ -395,7 +395,7 @@ export function createHistorySupplyRow(input: {
     receivedQuantity: String(input.receivedQuantity ?? qty),
     receivedUnit: String(input.receivedUnit || 'Pieces'),
     totalValue: String(value),
-    lastDelivery: input.suppliedDate,
+    lastSuppliedDate: input.suppliedDate,
     status: input.status || 'Active',
     recordType: 'history',
     productId: input.productId,
@@ -416,7 +416,7 @@ export function serializeHistorySupplyForStorage(row: SupplyDetail): SupplyDetai
     receivedQuantity: String(row.receivedQuantity ?? row.totalSupplied ?? ''),
     receivedUnit: String(row.receivedUnit || 'Pieces'),
     totalValue: String(row.totalValue || ''),
-    lastDelivery: String(row.lastDelivery || ''),
+    lastSuppliedDate: String(row.lastSuppliedDate || ''),
     status: String(row.status || 'Active'),
     recordType: 'history',
     productId: row.productId ? String(row.productId) : undefined,

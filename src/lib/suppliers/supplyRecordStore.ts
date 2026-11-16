@@ -9,11 +9,9 @@ export type SupplyRecordRow = {
   suppliesno: string;
   sku: string;
   product: string;
-  receivedQuantity: string;
-  receivedUnit: string;
   totalSupplied: string;
   totalValue: string;
-  lastDelivery: string;
+  lastSuppliedDate: string;
   status: string;
   deliverySuccess: string | null;
   recordType: string;
@@ -28,7 +26,14 @@ export function parseSuppliesJsonCompat(raw: string | null | undefined): SupplyD
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as SupplyDetail[]) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((row: Record<string, unknown>) => {
+      const { lastDelivery: legacyLastDelivery, ...rest } = row;
+      return {
+        ...rest,
+        lastSuppliedDate: String(row.lastSuppliedDate || legacyLastDelivery || ''),
+      } as unknown as SupplyDetail;
+    });
   } catch {
     return [];
   }
@@ -39,11 +44,9 @@ export function supplyDetailFromRecord(row: SupplyRecordRow): SupplyDetail {
     suppliesno: row.suppliesno || '',
     sku: row.sku || '',
     product: row.product || '',
-    receivedQuantity: row.recordType === 'summary' ? undefined : (row.receivedQuantity || row.totalSupplied || ''),
-    receivedUnit: row.recordType === 'summary' ? undefined : (row.receivedUnit || 'Pieces'),
     totalSupplied: row.totalSupplied || '',
     totalValue: row.totalValue || '',
-    lastDelivery: row.lastDelivery || '',
+    lastSuppliedDate: row.lastSuppliedDate || '',
     status: row.status || 'Active',
     deliverySuccess: row.deliverySuccess || undefined,
     recordType: row.recordType === 'summary' ? 'summary' : 'history',
@@ -90,11 +93,9 @@ export function buildSupplyRecordCreateManyRows(
   suppliesno: string;
   sku: string;
   product: string;
-  receivedQuantity: string;
-  receivedUnit: string;
   totalSupplied: string;
   totalValue: string;
-  lastDelivery: string;
+  lastSuppliedDate: string;
   status: string;
   deliverySuccess: string | null;
   recordType: string;
@@ -118,13 +119,9 @@ export function buildSupplyRecordCreateManyRows(
       suppliesno: String(row.suppliesno || ''),
       sku: String(row.sku || ''),
       product: String(row.product || ''),
-      receivedQuantity: recordType === 'history'
-        ? String(row.receivedQuantity ?? row.totalSupplied ?? '')
-        : '',
-      receivedUnit: recordType === 'history' ? String(row.receivedUnit || 'Pieces') : 'Pieces',
       totalSupplied: String(row.totalSupplied || ''),
       totalValue: String(row.totalValue || ''),
-      lastDelivery: String(row.lastDelivery || ''),
+      lastSuppliedDate: String(row.lastSuppliedDate || (row as SupplyDetail & { lastDelivery?: string }).lastDelivery || ''),
       status: String(row.status || 'Active'),
       deliverySuccess: row.deliverySuccess != null ? String(row.deliverySuccess) : null,
       recordType,
@@ -194,9 +191,8 @@ export async function replaceSupplierSupplyRecords(
         where: { id: match.id },
         data: {
           suppliesno: row.suppliesno, sku: row.sku, product: row.product,
-          receivedQuantity: row.receivedQuantity, receivedUnit: row.receivedUnit,
           totalSupplied: row.totalSupplied, totalValue: row.totalValue,
-          lastDelivery: row.lastDelivery, status: row.status,
+          lastSuppliedDate: row.lastSuppliedDate, status: row.status,
           deliverySuccess: row.deliverySuccess, recordType: row.recordType,
           productId: row.productId, variantName: row.variantName,
           updateCurrentStock: row.updateCurrentStock,

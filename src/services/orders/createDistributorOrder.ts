@@ -10,6 +10,7 @@ import { reverseOfferUsage, trackOfferUsage } from '@/utils/offerValidation';
 import { recordManualOrderClientMatch } from '@/lib/clientMatching/service';
 import { syncOrderToBuyerProfile } from '@/utils/buyerSync';
 import { invalidateDashboardCache } from '@/lib/queryCache';
+import { normalizeStockLevels } from '@/utils/stockUtils';
 import {
   STOCK_NO_DEDUCT_STATUSES,
   calculateTotalQuantityWithPromotions,
@@ -46,6 +47,8 @@ type ItemInput = {
   productId: string;
   variantOptionId: number;
   packageQuantity: number;
+  packageType: string;
+  piecesPerPackage: number;
 };
 
 function clip(value: unknown, max: number): string {
@@ -74,6 +77,8 @@ type PricedLine = {
   productId: string;
   variantOptionId: number;
   packageQuantity: number;
+  packageType: string;
+  piecesPerPackage: number;
   productName: string;
   productSku: string | null;
   productType: string | null;
@@ -82,7 +87,8 @@ type PricedLine = {
   attributes: Prisma.InputJsonValue | undefined;
   moq: number | null;
   unitPrice: number;
-  basePrice: number;
+  unitPricePerPiece: number;
+  basePricePerPiece: number;
   subtotal: number;
   offerApplied: boolean;
   offerBadge: string | null;
@@ -105,7 +111,7 @@ async function deductStockForCreatedLines(tx: Prisma.TransactionClient, lines: P
   for (const line of lines) {
     const totalQtyToDeduct = calculateTotalQuantityWithPromotions({
       packageQuantity: line.packageQuantity,
-      piecesPerPackage: 1,
+      piecesPerPackage: line.piecesPerPackage,
       promotionDetailsSnapshot: line.promotionDetails,
       moqSnapshot: line.moq,
     });
@@ -148,8 +154,8 @@ function lineCreateData(line: PricedLine, currency: string | null) {
     productId: line.productId,
     variantOptionId: line.variantOptionId,
     packageQuantity: line.packageQuantity,
-    packageType: line.productType,
-    piecesPerPackage: 1,
+    packageType: line.packageType,
+    piecesPerPackage: line.piecesPerPackage,
     pricePerPackage: line.unitPrice,
     subtotal: line.subtotal,
     productNameSnapshot: line.productName,
@@ -158,14 +164,14 @@ function lineCreateData(line: PricedLine, currency: string | null) {
     productImageSnapshot: line.productImage,
     variantNameSnapshot: line.variantName,
     variantAttributesSnapshot: line.attributes,
-    unitPriceSnapshot: line.unitPrice,
+    unitPriceSnapshot: line.unitPricePerPiece,
     currencySnapshot: currency,
     moqSnapshot: line.moq,
     offerApplied: line.offerApplied,
     offerBadgeSnapshot: line.offerBadge,
     offerNameSnapshot: line.offerName,
     offerIdSnapshot: line.offerId,
-    originalPriceSnapshot: line.offerApplied ? line.basePrice : null,
+    originalPriceSnapshot: line.offerApplied ? line.basePricePerPiece : null,
     discountAmount: line.discountAmount,
     discountPercentage: line.discountPercentage,
     promotionDetailsSnapshot: line.promotionDetails,
@@ -176,6 +182,12 @@ async function priceDistributorLines(
   userId: number,
   buyerId: string,
   items: ItemInput[],
+  existingStockLevels: Array<{
+    productId: string | null;
+    variantOptionId: number | null;
+    packageType: string | null;
+    piecesPerPackage: number | null;
+  }> = [],
 ): Promise<{ error: string; code: string; status: number } | { priced: PricedLine[]; currency: string | null }> {
   const seller = await prisma.user.findUnique({
     where: { id: userId },
@@ -189,6 +201,7 @@ async function priceDistributorLines(
       sku: true,
       productType: true,
       images: true,
+      stockLevels: true,
       variantOptions: {
         where: { isActive: true },
         select: {
@@ -209,13 +222,39 @@ async function priceDistributorLines(
     if (!product) return { error: 'Product not found', code: 'product_not_found', status: 404 };
     const variant = product.variantOptions.find((option) => option.id === item.variantOptionId);
     if (!variant) return { error: 'Product variant not found', code: 'variant_not_found', status: 404 };
-    const basePrice = money(Number(variant.sellingPrice));
+
+    const stockLevels = normalizeStockLevels(product.stockLevels);
+    const historicalStockLevel = existingStockLevels.find(
+      (row) =>
+        row.productId === item.productId &&
+        row.variantOptionId === item.variantOptionId &&
+        row.packageType === item.packageType &&
+        row.piecesPerPackage === item.piecesPerPackage,
+    );
+    const selectedStockLevel = stockLevels.find(
+      (level) => level.name === item.packageType && level.piecesPerUnit === item.piecesPerPackage,
+    ) ?? (
+      historicalStockLevel?.packageType && historicalStockLevel.piecesPerPackage != null
+        ? {
+            name: historicalStockLevel.packageType,
+            piecesPerUnit: historicalStockLevel.piecesPerPackage,
+          }
+        : undefined
+    );
+    if (!selectedStockLevel) {
+      return { error: `Invalid stock type "${item.packageType}" for product ${product.name}.`, code: 'invalid_stock_level', status: 400 };
+    }
+
+    // Variant selling prices are stored per Piece. Convert to the selected order unit here.
+    const basePricePerPiece = money(Number(variant.sellingPrice));
     const offer = await getOfferForClientAndProduct(buyerId, product.productId, {
       userId,
       variantOptionId: variant.id,
     });
-    const applied = offer ? applyOfferToPrice(basePrice, offer) : null;
-    const unitPrice = money(applied ? applied.unitPrice : basePrice);
+    const applied = offer ? applyOfferToPrice(basePricePerPiece, offer) : null;
+    const unitPricePerPiece = money(applied ? applied.unitPrice : basePricePerPiece);
+    const piecesPerPackage = selectedStockLevel.piecesPerUnit;
+    const unitPrice = money(unitPricePerPiece * piecesPerPackage);
     const hasPromo = Boolean(applied?.promotionDetails);
     const hasDiscount = Boolean(applied && applied.discountAmount > 0);
     const offerBadge = !offer ? null : hasPromo && hasDiscount ? 'All Offers' : hasPromo ? 'Promotion' : 'Discount';
@@ -223,6 +262,8 @@ async function priceDistributorLines(
       productId: product.productId,
       variantOptionId: variant.id,
       packageQuantity: item.packageQuantity,
+      packageType: selectedStockLevel.name,
+      piecesPerPackage,
       productName: product.name,
       productSku: variant.sku || product.sku || null,
       productType: product.productType || null,
@@ -231,7 +272,8 @@ async function priceDistributorLines(
       attributes: variant.attributes == null ? undefined : (variant.attributes as Prisma.InputJsonValue),
       moq: variant.moq,
       unitPrice,
-      basePrice,
+      unitPricePerPiece,
+      basePricePerPiece,
       subtotal: money(unitPrice * item.packageQuantity),
       offerApplied: Boolean(offer),
       offerBadge,
@@ -251,7 +293,7 @@ async function priceDistributorLines(
             moq: variant.moq != null && variant.moq > 0 ? variant.moq : null,
           })
         : null,
-      lineDiscount: money(Math.max(0, basePrice - unitPrice) * item.packageQuantity),
+      lineDiscount: money(Math.max(0, basePricePerPiece - unitPricePerPiece) * piecesPerPackage * item.packageQuantity),
     });
   }
   return { priced, currency: seller?.currency || null };
@@ -342,18 +384,23 @@ export async function createDistributorOrderHandler(request: NextRequest) {
     const productId = clip(row.productId, 80);
     const variantOptionId = Number(row.variantOptionId);
     const packageQuantity = Number(row.packageQuantity);
+    const packageType = clip(row.packageType, 40) || 'Pieces';
+    const piecesPerPackage = Number(row.piecesPerPackage ?? 1);
     if (!productId || !Number.isInteger(variantOptionId) || variantOptionId <= 0) {
       return NextResponse.json({ error: 'Each line needs a product and variant', code: 'invalid' }, { status: 400, headers });
     }
     if (!Number.isInteger(packageQuantity) || packageQuantity < 1 || packageQuantity > 100000) {
       return NextResponse.json({ error: 'Quantity must be a whole number of at least 1', code: 'invalid' }, { status: 400, headers });
     }
+    if (!packageType || !Number.isSafeInteger(piecesPerPackage) || piecesPerPackage < 1) {
+      return NextResponse.json({ error: 'Select a valid stock type', code: 'invalid_stock_level' }, { status: 400, headers });
+    }
     const key = `${productId}:${variantOptionId}`;
     if (seen.has(key)) {
       return NextResponse.json({ error: 'The same product variant is listed twice', code: 'duplicate_line' }, { status: 400, headers });
     }
     seen.add(key);
-    items.push({ productId, variantOptionId, packageQuantity });
+    items.push({ productId, variantOptionId, packageQuantity, packageType, piecesPerPackage });
   }
 
   const buyer = await prisma.buyer.findFirst({
@@ -545,18 +592,23 @@ export async function updateDistributorOrderHandler(userId: number, body: Record
     const productId = clip(row.productId, 80);
     const variantOptionId = Number(row.variantOptionId);
     const packageQuantity = Number(row.packageQuantity);
+    const packageType = clip(row.packageType, 40) || 'Pieces';
+    const piecesPerPackage = Number(row.piecesPerPackage ?? 1);
     if (!productId || !Number.isInteger(variantOptionId) || variantOptionId <= 0) {
       return NextResponse.json({ error: 'Each line needs a product and variant', code: 'invalid' }, { status: 400, headers });
     }
     if (!Number.isInteger(packageQuantity) || packageQuantity < 1 || packageQuantity > 100000) {
       return NextResponse.json({ error: 'Quantity must be a whole number of at least 1', code: 'invalid' }, { status: 400, headers });
     }
+    if (!packageType || !Number.isSafeInteger(piecesPerPackage) || piecesPerPackage < 1) {
+      return NextResponse.json({ error: 'Select a valid stock type', code: 'invalid_stock_level' }, { status: 400, headers });
+    }
     const key = `${productId}:${variantOptionId}`;
     if (seen.has(key)) {
       return NextResponse.json({ error: 'The same product variant is listed twice', code: 'duplicate_line' }, { status: 400, headers });
     }
     seen.add(key);
-    items.push({ productId, variantOptionId, packageQuantity });
+    items.push({ productId, variantOptionId, packageQuantity, packageType, piecesPerPackage });
   }
 
   const existing = await prisma.order.findFirst({
@@ -565,7 +617,7 @@ export async function updateDistributorOrderHandler(userId: number, body: Record
       buyerId: true,
       subtotal: true,
       discounts: true,
-      orderItemsRel: { select: { productId: true, variantOptionId: true, packageQuantity: true } },
+      orderItemsRel: { select: { productId: true, variantOptionId: true, packageQuantity: true, packageType: true, piecesPerPackage: true } },
     },
   });
   if (!existing) {
@@ -584,11 +636,15 @@ export async function updateDistributorOrderHandler(userId: number, body: Record
         (row) =>
           row.productId === item.productId &&
           row.variantOptionId === item.variantOptionId &&
-          row.packageQuantity === item.packageQuantity,
+          row.packageQuantity === item.packageQuantity &&
+          row.packageType === item.packageType &&
+          (row.piecesPerPackage ?? 1) === item.piecesPerPackage,
       ),
     );
 
-  const pricedResult = sameLines ? null : await priceDistributorLines(userId, buyerId, items);
+  const pricedResult = sameLines
+    ? null
+    : await priceDistributorLines(userId, buyerId, items, existing.orderItemsRel);
   if (pricedResult && 'error' in pricedResult) {
     return NextResponse.json(
       { error: pricedResult.error, code: pricedResult.code },
