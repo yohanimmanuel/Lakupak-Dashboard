@@ -77,6 +77,7 @@ type PricedLine = {
   productName: string;
   productSku: string | null;
   productType: string | null;
+  packageType: string;
   productImage: string | null;
   variantName: string;
   attributes: Prisma.InputJsonValue | undefined;
@@ -148,7 +149,7 @@ function lineCreateData(line: PricedLine, currency: string | null) {
     productId: line.productId,
     variantOptionId: line.variantOptionId,
     packageQuantity: line.packageQuantity,
-    packageType: line.productType,
+    packageType: line.packageType,
     piecesPerPackage: 1,
     pricePerPackage: line.unitPrice,
     subtotal: line.subtotal,
@@ -188,6 +189,7 @@ async function priceDistributorLines(
       name: true,
       sku: true,
       productType: true,
+      stockUnit: true,
       images: true,
       variantOptions: {
         where: { isActive: true },
@@ -226,6 +228,7 @@ async function priceDistributorLines(
       productName: product.name,
       productSku: variant.sku || product.sku || null,
       productType: product.productType || null,
+      packageType: String(product.stockUnit || 'Pieces'),
       productImage: product.images[0] || null,
       variantName: variant.variantName,
       attributes: variant.attributes == null ? undefined : (variant.attributes as Prisma.InputJsonValue),
