@@ -313,18 +313,19 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number): 
         .map(item => item.productNameSnapshot || 'Unknown Product')
         .join(', ');
       
-      // Calculate total orders (packages) including free pieces from promotions
-      const totalOrders = order.orderItemsRel.reduce((sum: number, item: { 
+      // Preserve the package type attached to each order item. A single order may
+      // contain products using different stock units, so keep a combined breakdown.
+      const totalsByUnit = new Map<string, number>();
+      for (const item of order.orderItemsRel as Array<{
         packageQuantity: number | null;
+        packageType?: string | null;
         piecesPerPackage: number | null;
         promotionDetailsSnapshot: string | null;
         moqSnapshot: number | null;
-      }) => {
+      }>) {
         const paidPackages = item.packageQuantity ?? 1;
         const piecesPerPackage = item.piecesPerPackage ?? 1;
         const paidPieces = paidPackages * piecesPerPackage;
-        
-        // Calculate free pieces from buy-x-get-y promotions
         let freePieces = 0;
         if (item.promotionDetailsSnapshot) {
           try {
@@ -333,14 +334,16 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number): 
             const promotionGift = calculatePromotionGift(promotionDetails, paidPieces, moq);
             freePieces = promotionGift?.freeQty || 0;
           } catch {
-            // Invalid JSON, skip free items
+            // Invalid JSON, skip free items.
           }
         }
-        
-        // Convert free pieces to packages and add to paid packages
         const freePackages = piecesPerPackage > 0 ? freePieces / piecesPerPackage : 0;
-        return sum + paidPackages + freePackages;
-      }, 0);
+        const unit = String(item.packageType || 'Pieces').trim() || 'Pieces';
+        totalsByUnit.set(unit, (totalsByUnit.get(unit) || 0) + paidPackages + freePackages);
+      }
+      const totalOrders = Array.from(totalsByUnit.entries())
+        .map(([unit, quantity]) => String(Number(quantity.toFixed(2))) + ' ' + unit)
+        .join(' + ');
       // Convert Decimal values to numbers for calculations
       const lineSpend = order.orderItemsRel.reduce((sum: number, item: { subtotal: unknown }) => {
         return sum + parseMoney(item.subtotal as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
@@ -353,7 +356,7 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number): 
       return {
         orderNo: order.orderId,
         product: productNames,
-        totalOrders: totalOrders.toString(),
+        totalOrders,
         totalSpend: orderTotal.toString(), // Prefer priced order total after send-pricing
         shippingFee: shippingFee.toString(),
         lastOrderDate: order.createdAt.toISOString().split('T')[0],
