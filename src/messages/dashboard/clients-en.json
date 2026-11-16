@@ -334,7 +334,7 @@
       "orderSection": "Order & Product Details",
       "colNo": "No.",
       "colProduct": "Product",
-      "colTotalOrders": "Total Orders (Boxes)",
+      "colTotalOrders": "Total Orders",
       "colTotalSpend": "Total Spend",
       "colLastOrderDate": "Last Order Date",
       "colOutstanding": "Outstanding",

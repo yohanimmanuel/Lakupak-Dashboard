@@ -22,6 +22,7 @@ import MapFullscreenModal from '@/components/MapFullscreenModal';
 import MapComponent from '@/components/ordershipment/MapComponent';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
 import { geocodeAddress, type GeocodeResult } from '@/utils/mapboxUtils';
+import { getBuyerOrderQuantity } from '@/utils/buyerOrderQuantity';
 
 type ProfileFieldKey =
   | 'storeName'
@@ -79,7 +80,7 @@ function getBuyerAnalytics(orderDetailsStr: string, locale: string) {
       
       // Use YYYY-MM format for proper chronological sorting
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      const totalOrders = Number(order.totalOrders) || 0;
+      const totalOrders = getBuyerOrderQuantity(order.totalOrders);
       // Remove non-numeric from totalSpend (e.g. 'Rp 12,000,000')
       const spending = Number((order.totalSpend || '').toString().replace(/[^\d]/g, ''));
       
@@ -268,7 +269,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
   };
   
   const analyticsData = getBuyerAnalytics(buyer?.orderDetails || '', dateLocale);
-  const totalOrders = orderDetails.reduce((sum: number, o: OrderDetail) => sum + (parseInt(o.totalOrders) || 0), 0) || 0;
+  const totalOrders = orderDetails.reduce((sum: number, o: OrderDetail) => sum + getBuyerOrderQuantity(o.totalOrders), 0) || 0;
   let totalSpend = 0;
   let currency = '';
   orderDetails.forEach((o: OrderDetail) => {
