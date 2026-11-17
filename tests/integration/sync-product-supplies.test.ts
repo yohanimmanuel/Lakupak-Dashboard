@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { createProduct } from '@/app/api/graphql/modules/products';
 import {
   removeProductFromSupplierMaps,
+  removeProductSupplies,
   removeProductSuppliesInTransaction,
   removeProductVariantsSuppliesInTransaction,
   supplyAutoNo,
