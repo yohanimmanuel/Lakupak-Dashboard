@@ -71,7 +71,7 @@ async function reverseOfferUsageForOrderBatch(
       "totalUsage" = GREATEST(0, offer."totalUsage" - batch."usageCount"),
       "totalDiscountGiven" = offer."totalDiscountGiven" - batch."discountAmount",
       "updatedAt" = NOW()
-    FROM (VALUES ${Prisma.join(updates.map((update) => Prisma.sql`(${update.id}, ${update.usageCount}, ${update.discountAmount}::numeric)`))})
+    FROM (VALUES ${Prisma.join(updates.map((update) => Prisma.sql`(${update.id}::text, ${update.usageCount}::integer, ${update.discountAmount}::numeric)`))})
       AS batch("id", "usageCount", "discountAmount")
     WHERE offer."id" = batch."id"
   `;
@@ -226,7 +226,7 @@ export async function deleteOrderHandler(request: NextRequest) {
             "customers" = batch."customers",
             "updatedAt" = NOW()
           FROM (VALUES ${Prisma.join(fleetUpdates.map((update) => Prisma.sql`(
-            ${update.id},
+            ${update.id}::integer,
             ${JSON.stringify(update.assignedOrderIds)}::jsonb,
             ${JSON.stringify(update.completedOrderIds)}::jsonb,
             ${JSON.stringify(update.customers)}::jsonb

@@ -86,6 +86,7 @@ export async function createDraftProductWithoutStock(userId: number, productId: 
         ...baseVariantOption,
         variantName: 'Default',
         attributes: {},
+        sku: `SKU-${productId}`,
         stockQuantity: 0,
         stockStatus: 'Out of Stock',
         isDefault: true,

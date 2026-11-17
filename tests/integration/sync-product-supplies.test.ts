@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '@/lib/db';
 import { createProduct } from '@/app/api/graphql/modules/products';
 import {
-  removeProductSupplies,
   removeProductFromSupplierMaps,
   removeProductSuppliesInTransaction,
   removeProductVariantsSuppliesInTransaction,
@@ -221,10 +220,11 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
       supplier: supplier.name,
       status: 'Published',
       catalogName: 'Default',
-      images: [],
+      images: ['https://example.com/snapshot-widget.jpg'],
       variantOptions: [{
         variantName: 'Default',
         attributes: {},
+        sku: 'SKU-SNAPSHOT',
         purchasePrice: '1000',
         sellingPrice: '1500',
         originalSellingPrice: '1500',
@@ -362,7 +362,7 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
     await replaceSupplierSupplyRecords(prisma, supplier.id, [
       {
         suppliesno: supplyAutoNo(productId, bbqName),
-        sku: 'SKU-SHARED',
+        sku: 'SKU-BBQ',
         product: `Potato Chips (${bbqName})`,
         totalSupplied: '80',
         totalValue: '400000',
@@ -374,7 +374,7 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
       },
       {
         suppliesno: 'HIST-VARIANT-BBQ',
-        sku: 'SKU-SHARED',
+        sku: 'SKU-BBQ',
         product: `Potato Chips (${bbqName})`,
         totalSupplied: '20',
         totalValue: '100000',
@@ -386,7 +386,7 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
       },
       {
         suppliesno: supplyAutoNo(productId, spicyName),
-        sku: 'SKU-SHARED',
+        sku: 'SKU-SPICY',
         product: `Potato Chips (${spicyName})`,
         totalSupplied: '60',
         totalValue: '300000',
@@ -398,7 +398,7 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
       },
       {
         suppliesno: 'HIST-VARIANT-SPICY',
-        sku: 'SKU-SHARED',
+        sku: 'SKU-SPICY',
         product: `Potato Chips (${spicyName})`,
         totalSupplied: '10',
         totalValue: '50000',
@@ -410,7 +410,7 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
       },
       {
         suppliesno: 'HIST-OTHER-PRODUCT',
-        sku: 'SKU-SHARED',
+        sku: 'SKU-OTHER-PRODUCT',
         product: 'Other Product (Flavor: BBQ)',
         totalSupplied: '5',
         totalValue: '25000',
@@ -427,10 +427,10 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
         userId: distributor.id,
         productId,
         name: 'Potato Chips',
-        removedVariants: [{ variantName: bbqName, sku: 'SKU-SHARED' }],
+        removedVariants: [{ variantName: bbqName, sku: 'SKU-BBQ' }],
         allVariants: [
-          { variantName: bbqName, sku: 'SKU-SHARED' },
-          { variantName: spicyName, sku: 'SKU-SHARED' },
+          { variantName: bbqName, sku: 'SKU-BBQ' },
+          { variantName: spicyName, sku: 'SKU-SPICY' },
         ],
       });
     });

@@ -43,6 +43,7 @@ describe('products.updateProduct + marketplace variant sync (integration)', () =
         {
           variantName: 'Color: Black | Size: M',
           attributes: { Color: 'Black', Size: 'M' },
+          sku: `SKU-${productId}-BLACK`,
           purchasePrice: '1000',
           sellingPrice: '2000',
           originalSellingPrice: '2000',
@@ -56,6 +57,7 @@ describe('products.updateProduct + marketplace variant sync (integration)', () =
         {
           variantName: 'Color: White | Size: M',
           attributes: { Color: 'White', Size: 'M' },
+          sku: `SKU-${productId}-WHITE`,
           purchasePrice: '1000',
           sellingPrice: '2000',
           originalSellingPrice: '2000',
@@ -126,6 +128,7 @@ describe('products.updateProduct + marketplace variant sync (integration)', () =
         {
           variantName: 'Color: Black | Size: M',
           attributes: { Color: 'Black', Size: 'M' },
+          sku: `SKU-${productId}-BLACK`,
           purchasePrice: '1000',
           sellingPrice: '2000',
           originalSellingPrice: '2000',
@@ -139,6 +142,7 @@ describe('products.updateProduct + marketplace variant sync (integration)', () =
         {
           variantName: 'Color: White | Size: M',
           attributes: { Color: 'White', Size: 'M' },
+          sku: `SKU-${productId}-WHITE`,
           purchasePrice: '1000',
           sellingPrice: '2000',
           originalSellingPrice: '2000',
@@ -204,6 +208,7 @@ describe('products.updateProduct + marketplace variant sync (integration)', () =
           {
             variantName: 'Color: Yellow | Size: M',
             attributes: { Color: 'Gold', Size: 'M' },
+            sku: `SKU-${productId}-YELLOW`,
             purchasePrice: '1000',
             sellingPrice: '2000',
             originalSellingPrice: '2000',
