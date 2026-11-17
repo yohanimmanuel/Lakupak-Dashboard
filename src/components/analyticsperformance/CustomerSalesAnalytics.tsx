@@ -512,7 +512,6 @@ const CUSTOMER_ANALYTICS_QUERY = `
       nodes {
         id
         productId
-        sku
         name
         description
         productType

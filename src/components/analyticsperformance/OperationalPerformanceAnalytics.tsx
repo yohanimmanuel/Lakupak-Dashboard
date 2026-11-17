@@ -250,7 +250,6 @@ const OPERATIONAL_ANALYTICS_QUERY = `
       nodes {
         id
         productId
-        sku
         name
         productType
         marketSegment

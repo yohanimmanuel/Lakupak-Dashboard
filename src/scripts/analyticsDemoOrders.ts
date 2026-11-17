@@ -233,7 +233,7 @@ async function createDemoOrder(args: {
           pricePerPackage: decimal(pricePerPackage),
           unitPriceSnapshot: decimal(sellingPrice),
           productNameSnapshot: args.product.name,
-          productSkuSnapshot: args.product.sku,
+          productSkuSnapshot: variant.sku ?? null,
           productTypeSnapshot: args.product.productType,
           productImageSnapshot: args.product.images[0] ?? null,
           variantNameSnapshot: variant.variantName,

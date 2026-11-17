@@ -61,7 +61,6 @@ export default function ProductsListPage() {
         nodes {
           id
           productId
-          sku
           name
           description
           productType
@@ -81,8 +80,7 @@ export default function ProductsListPage() {
           variantOptions {
             id
             variantName
-            sku
-            purchasePrice
+                purchasePrice
             sellingPrice
             originalSellingPrice
             moq
@@ -245,7 +243,6 @@ export default function ProductsListPage() {
     return {
       id: product.id || 0,
       productId: product.productId,
-      sku: product.sku,
       name: product.name,
       productType: product.productType,
       brand: product.brand,
@@ -272,7 +269,6 @@ export default function ProductsListPage() {
     mutation CreateProduct(
       $userId: Int!
       $productId: String
-      $sku: String
       $name: String!
       $description: String!
       $productType: String!
@@ -291,7 +287,6 @@ export default function ProductsListPage() {
       createProduct(
         userId: $userId
         productId: $productId
-        sku: $sku
         name: $name
         description: $description
         productType: $productType
@@ -309,7 +304,6 @@ export default function ProductsListPage() {
       ) {
         id
         productId
-        sku
         name
       }
     }
@@ -359,7 +353,6 @@ export default function ProductsListPage() {
 
         const payload = {
           productId: generateLKPProductId(),
-          sku: product['SKU'] || '',
           name: product['Product Name'] || '',
           description: product['Description'] || '',
           productType: product['Product Type'] || '',
@@ -378,7 +371,7 @@ export default function ProductsListPage() {
         const variantOption = {
           variantName: 'Default',
           attributes: {},
-          sku: payload.sku || null,
+          sku: product['SKU']?.trim() || null,
           purchasePrice: payload.purchasePrice,
           sellingPrice: payload.sellingPrice,
           originalSellingPrice: null,
@@ -394,7 +387,6 @@ export default function ProductsListPage() {
           await fetchGraphQL(CREATE_PRODUCT_MUTATION, {
             userId: user.id,
             productId: payload.productId,
-            sku: payload.sku,
             name: payload.name,
             description: payload.description,
             productType: payload.productType,
@@ -443,7 +435,7 @@ export default function ProductsListPage() {
 
   const handleExport = () => {
     // Export products data to XLSX
-    const headers = ['Product ID', 'SKU', 'Product Name', 'Type', 'Brand', 'Supplier', 'Stock Quantity', 'Purchase Price', 'Selling Price', 'Status', 'Last Updated'];
+    const headers = ['Product ID', 'Product Name', 'Type', 'Brand', 'Supplier', 'Stock Quantity', 'Purchase Price', 'Selling Price', 'Status', 'Last Updated'];
     const rows = products.map(product => {
       const variantOptions = product.variantOptions || [];
       // Calculate price range for selling price
@@ -475,7 +467,6 @@ export default function ProductsListPage() {
       
       return [
         product.productId || `LKP-${String(product.id).padStart(8, '0')}`, // Fallback to LKP format if no productId
-        product.sku,
         product.name,
         product.productType,
         product.brand,

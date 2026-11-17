@@ -59,7 +59,6 @@ export async function buildDistributorAgentContext(userId: number): Promise<stri
       select: {
         productId: true,
         name: true,
-        sku: true,
         brand: true,
         description: true,
         productType: true,
@@ -74,6 +73,7 @@ export async function buildDistributorAgentContext(userId: number): Promise<stri
         returnPolicyDays: true,
         variantOptions: {
           where: { isActive: true },
+          orderBy: [{ isDefault: 'desc' }, { id: 'asc' }],
           take: 6,
           select: {
             variantName: true,
@@ -205,7 +205,7 @@ export async function buildDistributorAgentContext(userId: number): Promise<stri
       products: recentProducts.map((p) => ({
         productId: p.productId,
         name: p.name,
-        sku: p.sku,
+        sku: p.variantOptions[0]?.sku ?? null,
         brand: p.brand,
         description: p.description,
         productType: p.productType,

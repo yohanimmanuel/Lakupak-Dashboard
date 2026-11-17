@@ -4,6 +4,7 @@ import {
   applyProductToSupplierMaps,
   belongsToProduct,
   removeProductFromSupplierMaps,
+  removeProductVariantsFromSupplierMaps,
   supplyAutoNo,
 } from '@/lib/suppliers/syncProductSupplies';
 
@@ -244,6 +245,42 @@ describe('syncProductSupplies reassignment', () => {
     expect(dirty.has(2)).toBe(true);
     expect(suppliesBySupplierId.get(1) || []).toEqual([]);
     expect((suppliesBySupplierId.get(2) || []).map((r) => r.suppliesno)).toEqual(['HIST-KEEP']);
+  });
+
+  it('removes only the deleted variant supply rows and preserves sibling variants', () => {
+    const productId = 'P-VARIANT-DEL';
+    const variantA = 'Flavor: BBQ';
+    const variantB = 'Flavor: Spicy';
+    const suppliesBySupplierId = new Map<number, SupplyDetail[]>([
+      [1, [
+        summaryRow(productId, variantA, { suppliesno: `AUTO-${productId}|${variantA}`, variantName: variantA, sku: 'SKU-SHARED' }),
+        historyRow(productId, { suppliesno: 'HIST-BBQ', variantName: variantA, sku: 'SKU-SHARED' }),
+        summaryRow(productId, variantB, { suppliesno: `AUTO-${productId}|${variantB}`, variantName: variantB, sku: 'SKU-SHARED' }),
+        historyRow(productId, { suppliesno: 'HIST-SPICY', variantName: variantB, sku: 'SKU-SHARED' }),
+      ]],
+      [2, [historyRow('P-OTHER', { suppliesno: 'HIST-OTHER', variantName: variantA })]],
+    ]);
+    const dirty = new Set<number>();
+
+    removeProductVariantsFromSupplierMaps(
+      { productId, name: 'Potato Chips' },
+      [{ variantName: variantA, sku: 'SKU-SHARED' }],
+      [
+        { variantName: variantA, sku: 'SKU-SHARED' },
+        { variantName: variantB, sku: 'SKU-SHARED' },
+      ],
+      suppliesBySupplierId,
+      [{ id: 1, name: 'Supplier A' }, { id: 2, name: 'Supplier B' }],
+      dirty,
+    );
+
+    expect(dirty.has(1)).toBe(true);
+    expect(dirty.has(2)).toBe(false);
+    expect((suppliesBySupplierId.get(1) || []).map((row) => row.suppliesno)).toEqual([
+      `AUTO-${productId}|${variantB}`,
+      'HIST-SPICY',
+    ]);
+    expect((suppliesBySupplierId.get(2) || []).map((row) => row.suppliesno)).toEqual(['HIST-OTHER']);
   });
 
   it('leaves unlinked import history on the old supplier until the user confirms a move', () => {

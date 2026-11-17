@@ -25,7 +25,6 @@ export async function createDraftProductReadyToPublish(userId: number, productId
   return createProduct({
     userId,
     productId,
-    sku: `SKU-${productId}`,
     name: 'Publish Test Product',
     description: 'Ready for marketplace publish',
     productType: 'Grocery',
@@ -39,6 +38,7 @@ export async function createDraftProductReadyToPublish(userId: number, productId
         ...baseVariantOption,
         variantName: 'Default',
         attributes: {},
+        sku: `SKU-${productId}`,
         isDefault: true,
       },
     ],
@@ -49,7 +49,6 @@ export async function createDraftProductWithoutImages(userId: number, productId:
   return createProduct({
     userId,
     productId,
-    sku: `SKU-${productId}`,
     name: 'No Image Product',
     description: 'Missing images',
     productType: 'Grocery',
@@ -63,6 +62,7 @@ export async function createDraftProductWithoutImages(userId: number, productId:
         ...baseVariantOption,
         variantName: 'Default',
         attributes: {},
+        sku: `SKU-${productId}`,
         isDefault: true,
       },
     ],
@@ -73,7 +73,6 @@ export async function createDraftProductWithoutStock(userId: number, productId: 
   return createProduct({
     userId,
     productId,
-    sku: `SKU-${productId}`,
     name: 'No Stock Product',
     description: 'Zero stock',
     productType: 'Grocery',
@@ -99,7 +98,6 @@ export async function createPublishedProductWithColorVariants(userId: number, pr
   return createProduct({
     userId,
     productId,
-    sku: `SKU-${productId}`,
     name: 'Sync Test Shirt',
     description: 'Integration test product',
     productType: 'Apparel',
@@ -117,17 +115,20 @@ export async function createPublishedProductWithColorVariants(userId: number, pr
         ...baseVariantOption,
         variantName: 'Color: Black | Size: M',
         attributes: { Color: 'Black', Size: 'M' },
+        sku: `SKU-${productId}-BLACK`,
         isDefault: true,
       },
       {
         ...baseVariantOption,
         variantName: 'Color: White | Size: M',
         attributes: { Color: 'White', Size: 'M' },
+        sku: `SKU-${productId}-WHITE`,
       },
       {
         ...baseVariantOption,
         variantName: 'Color: Yellow | Size: M',
         attributes: { Color: 'Yellow', Size: 'M' },
+        sku: `SKU-${productId}-YELLOW`,
       },
     ],
   });

@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Trash, Plus, User, Upload, Download, AlertCircle, CheckCircle, ChevronDown, ArrowLeft, Save } from 'lucide-react';
+import { Trash, Plus, User, Upload, Download, AlertCircle, CheckCircle, ChevronDown, ChevronLeft, ChevronRight, ArrowLeft, Save } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import * as XLSX from 'xlsx';
@@ -29,6 +29,7 @@ import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 import { geocodeAddress, type MapCoordinates } from '@/utils/mapboxUtils';
 import type { StockLevel } from '@/types/product';
 import { formatBuyerOrderTotal, normalizeBuyerOrderTotal, parseBuyerOrderTotal } from '@/utils/buyerOrderQuantity';
+import { getVisiblePageNumbers } from '@/utils/tablePagination';
 
 const JAKARTA: MapCoordinates = { longitude: 106.8456, latitude: -6.2088 };
 
@@ -252,6 +253,18 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
       }
     })() : [{ orderNo: '', product: '', productId: '', variantOptionId: '', variantName: '', stockType: 'Pieces', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }]
   );
+
+  // Keep buyer order details manageable without changing the underlying orderRows array.
+  const orderRowsPerPage = 8;
+  const [orderPage, setOrderPage] = useState(1);
+  const totalOrderPages = Math.max(1, Math.ceil(orderRows.length / orderRowsPerPage));
+  const safeOrderPage = Math.min(orderPage, totalOrderPages);
+  const orderPageStart = (safeOrderPage - 1) * orderRowsPerPage;
+  const orderPageEnd = Math.min(orderPageStart + orderRowsPerPage, orderRows.length);
+
+  useEffect(() => {
+    if (orderPage !== safeOrderPage) setOrderPage(safeOrderPage);
+  }, [orderPage, safeOrderPage]);
 
   // Enhanced state for production features
   const [saving, setSaving] = useState(false);
@@ -634,7 +647,8 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
   const addOrderRow = useCallback(() => {
     orderRowsEditedRef.current = true;
     setOrderRows((rows: OrderDetail[]) => [...rows, { orderNo: '', product: '', productId: '', variantOptionId: '', variantName: '', stockType: 'Pieces', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }]);
-  }, []);
+    setOrderPage(Math.max(1, Math.ceil((orderRows.length + 1) / orderRowsPerPage)));
+  }, [orderRows.length]);
 
   const handleOrderProductSelect = useCallback((idx: number, productId: string) => {
     orderRowsEditedRef.current = true;
@@ -810,10 +824,14 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
         ? merged
         : [{ orderNo: '', product: '', productId: '', variantOptionId: '', variantName: '', stockType: 'Pieces', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }];
     });
+    const existingCount = orderRows.filter((row) => !isBlankOrderRow(row)).length;
+    if (imported.length > 0) {
+      setOrderPage(Math.max(1, Math.ceil((existingCount + imported.length) / orderRowsPerPage)));
+    }
     // Blank rows are dropped on import, which shifts indices.
     setSelectedOrderRows(new Set());
     setShowImportOrders(false);
-  }, [getBuyerCalculatedSpend]);
+  }, [getBuyerCalculatedSpend, orderRows]);
 
   // Enhanced form submission
   const handleSubmit = useCallback(async (e?: React.FormEvent) => {
@@ -1440,7 +1458,9 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
                   </tr>
                 </thead>
                 <tbody>
-                  {orderRows.map((row: OrderDetail, idx: number) => (
+                  {orderRows.slice(orderPageStart, orderPageEnd).map((row: OrderDetail, visibleIndex: number) => {
+                    const idx = orderPageStart + visibleIndex;
+                    return (
                     <tr key={idx} className="whitespace-nowrap">
                       <td className="py-2 px-3">
                         <ImportSelectionCheckbox
@@ -1582,9 +1602,52 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
+            </div>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-xs text-gray-500">
+                {tShared('pagination.showing', {
+                  from: orderRows.length === 0 ? 0 : orderPageStart + 1,
+                  to: orderPageEnd,
+                  total: orderRows.length,
+                })}
+              </div>
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  className="rounded-lg p-2 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                  onClick={() => setOrderPage((page) => Math.max(1, page - 1))}
+                  disabled={safeOrderPage === 1}
+                  aria-label={tShared('previousPage')}
+                >
+                  <ChevronLeft className="h-4 w-4 text-gray-500" />
+                </button>
+                {getVisiblePageNumbers(safeOrderPage, totalOrderPages).map((pageNumber) => (
+                  <button
+                    key={pageNumber}
+                    type="button"
+                    className={`rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                      pageNumber === safeOrderPage ? 'bg-[#0a61d7] text-white' : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
+                    }`}
+                    onClick={() => setOrderPage(pageNumber)}
+                    aria-current={pageNumber === safeOrderPage ? 'page' : undefined}
+                  >
+                    {pageNumber}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className="rounded-lg p-2 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                  onClick={() => setOrderPage((page) => Math.min(totalOrderPages, page + 1))}
+                  disabled={safeOrderPage === totalOrderPages}
+                  aria-label={tShared('nextPage')}
+                >
+                  <ChevronRight className="h-4 w-4 text-gray-500" />
+                </button>
+              </div>
             </div>
           </div>
           

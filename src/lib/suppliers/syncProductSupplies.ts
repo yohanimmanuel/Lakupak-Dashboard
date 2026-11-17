@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/db';
+import { prisma, type Prisma } from '@/lib/db';
 import type { SupplyDetail } from '@/types/client';
 import { isSupplySummaryRow } from '@/lib/suppliers/supplyRecords';
 
@@ -58,19 +58,24 @@ function findSupplyRow(
   supplies: SupplyDetail[],
   product: ProductSnapshot,
   variant: VariantSnapshot,
+  displaySku?: string,
+  summaryVariantName?: string,
 ): SupplyDetail | undefined {
-  const identity = supplyIdentity(product.productId, variant.variantName);
-  const autoNo = supplyAutoNo(product.productId, variant.variantName);
-  const label = productLabel(product.name, variant.variantName);
-
+  const effectiveVariantName = summaryVariantName || String(variant.variantName || '').trim();
+  const identity = supplyIdentity(product.productId, effectiveVariantName);
+  const autoNo = supplyAutoNo(product.productId, effectiveVariantName);
+  const label = productLabel(product.name, effectiveVariantName);
+  const sku = String(displaySku || variant.sku || identity).trim();
   const summaryRows = supplies.filter(isSupplySummaryRow);
-  const variantName = String(variant.variantName || '').trim();
   return (
     summaryRows.find((row) => String(row.suppliesno || '') === autoNo) ||
-    summaryRows.find(
-      (row) =>
-        String(row.productId || '').trim() === product.productId &&
-        String(row.variantName || '').trim() === variantName,
+    summaryRows.find((row) =>
+      String(row.productId || '').trim() === product.productId &&
+      String(row.sku || '').trim().toLowerCase() === sku.toLowerCase(),
+    ) ||
+    summaryRows.find((row) =>
+      String(row.productId || '').trim() === product.productId &&
+      String(row.variantName || '').trim().toLowerCase() === effectiveVariantName.toLowerCase(),
     ) ||
     summaryRows.find((row) => String(row.sku || '').trim() === identity) ||
     summaryRows.find((row) => String(row.product || '').trim() === label)
@@ -272,12 +277,31 @@ export function applyProductToSupplierMaps(
   let supplies = [...(suppliesBySupplierId.get(target.id) || [])];
   let changed = false;
 
+  // Product ID + SKU is the supplier-summary identity. If a catalog accidentally
+  // contains more than one active variant with the same SKU, their stock snapshots
+  // are consolidated once instead of creating multiple AUTO rows.
+  const variantGroups = new Map<string, VariantSnapshot[]>();
   for (const variant of variants) {
-    const label = productLabel(product.name, variant.variantName);
-    const displaySku =
-      String(variant.sku ?? '').trim() || supplyIdentity(product.productId, variant.variantName);
-    const autoNo = supplyAutoNo(product.productId, variant.variantName);
-    const current = findSupplyRow(supplies, product, variant);
+    const displaySku = String(variant.sku ?? '').trim() || supplyIdentity(product.productId, variant.variantName);
+    const groupKey = `${product.productId}|${displaySku.toLowerCase()}`;
+    const group = variantGroups.get(groupKey) || [];
+    group.push(variant);
+    variantGroups.set(groupKey, group);
+  }
+
+  for (const group of variantGroups.values()) {
+    const variant = group[0];
+    const displaySku = String(variant.sku ?? '').trim() || supplyIdentity(product.productId, variant.variantName);
+    const memberNames = group.map((item) => String(item.variantName || '').trim()).filter(Boolean);
+    const summaryVariantName = memberNames.length > 1 ? memberNames.join(' + ') : memberNames[0] || 'Default';
+    const label = productLabel(product.name, summaryVariantName);
+    const autoNo = supplyAutoNo(product.productId, summaryVariantName);
+    const qty = group.reduce((sum, item) => sum + Math.max(0, Math.floor(Number(item.stockQuantity) || 0)), 0);
+    const totalValue = Math.round(group.reduce((sum, item) => {
+      const itemQty = Math.max(0, Math.floor(Number(item.stockQuantity) || 0));
+      return sum + toMoneyNumber(item.purchasePrice) * itemQty;
+    }, 0));
+    const current = findSupplyRow(supplies, product, variant, displaySku, summaryVariantName);
 
     if (current && isSupplySummaryRow(current)) {
       if (
@@ -286,35 +310,61 @@ export function applyProductToSupplierMaps(
         current.suppliesno !== autoNo ||
         current.recordType !== 'summary' ||
         current.productId !== product.productId ||
-        current.variantName !== variant.variantName
+        current.variantName !== summaryVariantName ||
+        Number(current.totalSupplied || 0) !== qty ||
+        Number(current.totalValue || 0) !== totalValue
       ) {
         current.product = label;
         current.sku = displaySku;
         current.suppliesno = autoNo;
         current.recordType = 'summary';
         current.productId = product.productId;
-        current.variantName = variant.variantName;
-        // Totals stay frozen; match must not invent history.
+        current.variantName = summaryVariantName;
+        // Always overwrite from current catalog stock. Never add to the previous
+        // snapshot, so a supplier-list refresh cannot increase totals by itself.
+        current.totalSupplied = String(qty);
+        current.totalValue = String(totalValue);
         current.lastSuppliedDate = '';
         changed = true;
       }
+
+      const beforeCount = supplies.length;
+      supplies = supplies.filter((row) => {
+        if (row === current || !isSupplySummaryRow(row)) return true;
+        const sameProduct = String(row.productId || '').trim() === product.productId;
+        const sameSku = String(row.sku || '').trim().toLowerCase() === displaySku.toLowerCase();
+        const sameVariant = memberNames.some((name) =>
+          String(row.variantName || '').trim().toLowerCase() === name.toLowerCase(),
+        );
+        const sameAutoNo = String(row.suppliesno || '').trim() === autoNo;
+        return !(sameProduct && (sameSku || sameVariant) || sameAutoNo);
+      });
+      if (supplies.length !== beforeCount) changed = true;
       continue;
     }
 
-    // A catalog reassignment must never mint another opening balance.
-    // Look across ALL suppliers, not only the currently assigned supplier.
-    // The original opening summary remains at its supplier until explicitly moved.
+    // A catalog reassignment must never mint another opening balance when this
+    // product/SKU is still represented by a summary under another supplier.
     const alreadyRecordedElsewhere = suppliers.some((supplier) =>
-      (suppliesBySupplierId.get(supplier.id) || []).some((row) =>
-        isSupplySummaryRow(row) &&
-        (String(row.productId || '').trim().toLowerCase() === product.productId.trim().toLowerCase() &&
-         String(row.variantName || '').trim().toLowerCase() === variant.variantName.trim().toLowerCase() ||
-         String(row.suppliesno || '').trim() === autoNo),
-      ),
+      (suppliesBySupplierId.get(supplier.id) || []).some((row) => {
+        if (!isSupplySummaryRow(row)) return false;
+        const rowProductId = String(row.productId || '').trim().toLowerCase();
+        const rowSku = String(row.sku || '').trim().toLowerCase();
+        const rowVariant = String(row.variantName || '').trim().toLowerCase();
+        return rowProductId === product.productId.trim().toLowerCase() &&
+          (rowSku === displaySku.toLowerCase() || memberNames.some((name) => rowVariant === name.toLowerCase()));
+      }),
     );
     if (alreadyRecordedElsewhere) continue;
 
-    supplies.push(buildNewSupplyRow(product, variant));
+    const newRow = buildNewSupplyRow(product, variant);
+    newRow.suppliesno = autoNo;
+    newRow.sku = displaySku;
+    newRow.product = label;
+    newRow.variantName = summaryVariantName;
+    newRow.totalSupplied = String(qty);
+    newRow.totalValue = String(totalValue);
+    supplies.push(newRow);
     changed = true;
   }
 
@@ -345,66 +395,187 @@ export function removeProductFromSupplierMaps(
   }
 }
 
+export type ProductVariantSupplyIdentity = {
+  variantName: string;
+  sku?: string | null;
+};
+
+const normalizeSupplyIdentity = (value: unknown): string => String(value ?? '').trim().toLocaleLowerCase();
+
 /**
- * Remove linked summary and history supplies for a deleted product across the user's suppliers.
+ * Remove only the specified variant's supplier summary/history rows.
+ * Explicit Product IDs always take precedence over legacy SKU/label matching.
  */
+export function removeProductVariantsFromSupplierMaps(
+  product: { productId: string; name?: string },
+  removedVariants: ProductVariantSupplyIdentity[],
+  allVariants: ProductVariantSupplyIdentity[],
+  suppliesBySupplierId: Map<number, SupplyDetail[]>,
+  suppliers: SupplierRow[],
+  dirtySupplierIds: Set<number>,
+): void {
+  const productId = String(product.productId || '').trim();
+  if (!productId || removedVariants.length === 0) return;
+
+  const allSkuCounts = new Map<string, number>();
+  for (const variant of allVariants) {
+    const sku = normalizeSupplyIdentity(variant.sku);
+    if (sku) allSkuCounts.set(sku, (allSkuCounts.get(sku) || 0) + 1);
+  }
+
+  const removed = removedVariants.map((variant) => {
+    const variantName = String(variant.variantName || '').trim();
+    const sku = String(variant.sku || '').trim();
+    return {
+      variantName,
+      sku,
+      nameKey: normalizeSupplyIdentity(variantName),
+      skuKey: normalizeSupplyIdentity(sku),
+      autoNo: `AUTO-${productId}|${variantName}`,
+      compositeSku: `${productId}|${variantName}`,
+      labelKey: normalizeSupplyIdentity(productLabel(String(product.name || ''), variantName)),
+    };
+  }).filter((variant) => variant.nameKey);
+
+  if (removed.length === 0) return;
+
+  for (const supplier of suppliers) {
+    const supplies = suppliesBySupplierId.get(supplier.id) || [];
+    const kept = supplies.filter((row) => {
+      const rowProductId = String(row.productId || '').trim();
+      const rowVariantName = normalizeSupplyIdentity(row.variantName);
+      const rowSupplyNo = String(row.suppliesno || '').trim();
+      const rowSku = String(row.sku || '').trim();
+      const rowSkuKey = normalizeSupplyIdentity(rowSku);
+      const rowLabelKey = normalizeSupplyIdentity(row.product);
+
+      // Never remove a row explicitly linked to another catalog product.
+      if (rowProductId && rowProductId !== productId) return true;
+
+      const matchesRemovedVariant = removed.some((variant) => {
+        if (rowVariantName) return rowProductId === productId && rowVariantName === variant.nameKey;
+        if (rowSupplyNo === variant.autoNo || rowSku === variant.compositeSku) return true;
+        if (rowLabelKey && rowLabelKey === variant.labelKey) return true;
+
+        // A plain legacy SKU is safe only when it identifies exactly one variant
+        // across this product. Shared parent SKUs must not delete sibling variants.
+        const skuIsUnique = variant.skuKey && allSkuCounts.get(variant.skuKey) === 1;
+        if (skuIsUnique && rowSkuKey === variant.skuKey) return true;
+
+        // Rows with this Product ID but no variant metadata can be attributed only
+        // when the product has a single known variant; otherwise leave them intact.
+        if (rowProductId === productId && allVariants.length === 1) return true;
+        return false;
+      });
+
+      return !matchesRemovedVariant;
+    });
+
+    if (kept.length !== supplies.length) {
+      suppliesBySupplierId.set(supplier.id, kept);
+      dirtySupplierIds.add(supplier.id);
+    }
+  }
+}
+
+async function rewriteSupplierSupplyMaps(
+  tx: Prisma.TransactionClient,
+  userId: number,
+  mutate: (
+    suppliesBySupplierId: Map<number, SupplyDetail[]>,
+    suppliers: SupplierRow[],
+    dirtySupplierIds: Set<number>,
+  ) => void,
+): Promise<number> {
+  if (!userId) return 0;
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(${userId}, ${879_332})`;
+  const suppliers = await tx.supplier.findMany({
+    where: { userId },
+    orderBy: { id: 'asc' },
+    select: {
+      id: true,
+      name: true,
+      supplyRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] },
+    },
+  });
+
+  const { supplyDetailFromRecord, replaceSupplierSupplyRecords } = await import(
+    '@/lib/suppliers/supplyRecordStore'
+  );
+  const suppliesBySupplierId = new Map<number, SupplyDetail[]>(
+    suppliers.map((row) => [row.id, row.supplyRecords.map(supplyDetailFromRecord)]),
+  );
+  const dirtySupplierIds = new Set<number>();
+  mutate(suppliesBySupplierId, suppliers, dirtySupplierIds);
+
+  for (const supplierId of dirtySupplierIds) {
+    const next = suppliesBySupplierId.get(supplierId) || [];
+    await replaceSupplierSupplyRecords(tx, supplierId, next);
+    await tx.supplier.update({
+      where: { id: supplierId },
+      data: { updatedAt: new Date() },
+    });
+  }
+  return dirtySupplierIds.size;
+}
+
+/**
+ * Remove variant-linked summary and history rows from every supplier using the
+ * caller's transaction. Used by Product Catalog variant deletion/deactivation.
+ */
+export async function removeProductVariantsSuppliesInTransaction(
+  tx: Prisma.TransactionClient,
+  args: {
+    userId: number;
+    productId: string;
+    name?: string;
+    removedVariants: ProductVariantSupplyIdentity[];
+    allVariants: ProductVariantSupplyIdentity[];
+  },
+): Promise<number> {
+  return rewriteSupplierSupplyMaps(tx, args.userId, (maps, suppliers, dirty) => {
+    removeProductVariantsFromSupplierMaps(
+      { productId: args.productId, name: args.name },
+      args.removedVariants,
+      args.allVariants,
+      maps,
+      suppliers,
+      dirty,
+    );
+  });
+}
+
+/** Remove all linked summary and history supplies for a deleted product in the caller's transaction. */
+export async function removeProductSuppliesInTransaction(
+  tx: Prisma.TransactionClient,
+  args: {
+    userId: number;
+    productId: string;
+    name?: string;
+    variantOptions?: VariantSnapshot[];
+  },
+): Promise<number> {
+  const variants = (args.variantOptions || []).filter((variant) => String(variant.variantName || '').trim());
+  const hints: ProductSupplyMatchHints = {
+    skus: variants.map((variant) => String(variant.sku || '').trim()).filter(Boolean),
+    labels: variants.map((variant) => productLabel(String(args.name || ''), variant.variantName)),
+  };
+  return rewriteSupplierSupplyMaps(tx, args.userId, (maps, suppliers, dirty) => {
+    removeProductFromSupplierMaps({ productId: args.productId }, maps, suppliers, dirty, hints);
+  });
+}
+
+/** Backward-compatible transaction wrapper for callers outside a transaction. */
 export async function removeProductSupplies(args: {
   userId: number;
   productId: string;
   name?: string;
   variantOptions?: VariantSnapshot[];
 }): Promise<void> {
-  const userId = args.userId;
   const productId = String(args.productId || '').trim();
-  if (!userId || !productId) return;
-
-  const variants = (args.variantOptions || []).filter(
-    (v) => v && String(v.variantName ?? '').trim(),
-  );
-  const hints: ProductSupplyMatchHints = {
-    skus: variants
-      .map((v) => String(v.sku ?? '').trim() || supplyIdentity(productId, v.variantName))
-      .filter(Boolean),
-    labels: variants.map((v) => productLabel(String(args.name || ''), v.variantName)),
-  };
-
+  if (!args.userId || !productId) return;
   await prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(${userId}, ${879_332})`;
-
-    const suppliers = await tx.supplier.findMany({
-      where: { userId },
-      orderBy: { id: 'asc' },
-      select: {
-        id: true,
-        name: true,
-        supplyRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] },
-      },
-    });
-
-    const { supplyDetailFromRecord, replaceSupplierSupplyRecords } = await import(
-      '@/lib/suppliers/supplyRecordStore'
-    );
-    const suppliesBySupplierId = new Map<number, SupplyDetail[]>(
-      suppliers.map((row) => [row.id, row.supplyRecords.map(supplyDetailFromRecord)]),
-    );
-    const dirtySupplierIds = new Set<number>();
-
-    removeProductFromSupplierMaps(
-      { productId },
-      suppliesBySupplierId,
-      suppliers,
-      dirtySupplierIds,
-      hints,
-    );
-
-    for (const supplierId of dirtySupplierIds) {
-      const next = suppliesBySupplierId.get(supplierId) || [];
-      await replaceSupplierSupplyRecords(tx, supplierId, next);
-      await tx.supplier.update({
-        where: { id: supplierId },
-        data: { updatedAt: new Date() },
-      });
-    }
+    await removeProductSuppliesInTransaction(tx, { ...args, productId });
   });
 }
 

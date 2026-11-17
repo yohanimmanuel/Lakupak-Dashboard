@@ -849,7 +849,6 @@ export const fetchMarketplaceProducts = async (args: {
       ),
       brand: product.brand,
       unit: marketplaceStockUnit((product as { stockUnit?: string | null }).stockUnit),
-      sku: product.sku,
       supplier: product.supplier,
       publishedAt: product.publishedAt?.toISOString() || null,
       lastSyncAt: product.lastSyncAt?.toISOString() || null,

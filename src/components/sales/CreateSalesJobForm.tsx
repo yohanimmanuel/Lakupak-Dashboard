@@ -13,7 +13,7 @@ import { OPEN_SALES_JOB_STATUSES, SALES_JOB_TYPES, type SalesJobCompletion, type
 
 type AgentOption = { id: string; name: string; role: string; status: string };
 type ClientOption = { buyerId: string; storeName: string; owner: string; phone: string; status: string };
-type ProductOption = { productId: string; name: string; sku: string; images: string[]; productType: string };
+type ProductOption = { productId: string; name: string; primaryVariantSku: string; images: string[]; productType: string };
 type OrderOption = {
   orderId: string;
   storeName: string;
@@ -344,7 +344,7 @@ function ProductPicker({
     return products.filter(
       (product) =>
         product.name.toLowerCase().includes(query) ||
-        product.sku.toLowerCase().includes(query) ||
+        product.primaryVariantSku.toLowerCase().includes(query) ||
         product.productId.toLowerCase().includes(query),
     );
   }, [products, search]);
@@ -402,7 +402,7 @@ function ProductPicker({
                   </div>
                   <div className="p-3">
                     <div className="text-xs font-semibold text-gray-900 line-clamp-2">{product.name}</div>
-                    <div className="text-xs text-gray-500 mt-1">{product.sku || product.productType}</div>
+                    <div className="text-xs text-gray-500 mt-1">{product.primaryVariantSku || product.productType}</div>
                   </div>
                 </button>
               );
@@ -456,7 +456,7 @@ export default function CreateSalesJobForm({
     if (!user?.id) return;
     fetchGraphQL<{
       salesJobFormOptions: { agents: AgentOption[]; clients: ClientOption[] };
-      products: { nodes: ProductOption[] };
+      products: { nodes: Array<{ productId: string; name: string; images: string[]; productType: string; variantOptions: Array<{ sku?: string | null; isDefault: boolean }> }> };
     }>(
       `query CreateJobOptions($userId: Int!) {
         salesJobFormOptions(userId: $userId) {
@@ -464,7 +464,7 @@ export default function CreateSalesJobForm({
           clients { buyerId storeName owner phone status }
         }
         products(userId: $userId, page: 1, limit: 500) {
-          nodes { productId name sku images productType }
+          nodes { productId name images productType variantOptions { sku isDefault } }
         }
       }`,
       { userId: user.id },
@@ -472,7 +472,13 @@ export default function CreateSalesJobForm({
       .then((result) => {
         setAgents(result.salesJobFormOptions.agents);
         setClients(result.salesJobFormOptions.clients);
-        setProducts(result.products.nodes);
+        setProducts(result.products.nodes.map((product) => ({
+          productId: product.productId,
+          name: product.name,
+          images: product.images,
+          productType: product.productType,
+          primaryVariantSku: product.variantOptions.find((variant) => variant.isDefault)?.sku || product.variantOptions[0]?.sku || '',
+        })));
       })
       .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Failed to load'));
   }, [user?.id]);

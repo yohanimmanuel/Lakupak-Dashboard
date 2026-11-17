@@ -122,6 +122,146 @@ export function calculateTotalQuantityWithPromotions(orderItem: {
 }
 
 /**
+ * Reconcile stock for a group of orders with set-based SQL writes. Quantities are
+ * aggregated by VariantOption ID, so each affected SKU is written once regardless
+ * of how many selected orders contain it. Restores run before deductions.
+ */
+export async function reconcileBulkOrderStock(
+  tx: Prisma.TransactionClient,
+  restoreItems: RestorableOrderItem[],
+  deductItems: RestorableOrderItem[],
+): Promise<StockNotificationJob[]> {
+  type VariantSnapshot = {
+    id: number;
+    productId: number;
+    stockQuantity: number;
+    lowStockThreshold: number;
+    variantName: string;
+    product: { productId: string; name: string; userId: number | null };
+  };
+  type QuantityGroup = { id: number; quantity: number; expectedProductId: string };
+
+  const aggregate = (items: RestorableOrderItem[]): QuantityGroup[] => {
+    const grouped = new Map<number, QuantityGroup>();
+    for (const item of items) {
+      if (!item.productId) continue;
+      const variantId = item.variantOptionId ?? item.variantId;
+      if (!variantId) continue;
+      const current = grouped.get(variantId);
+      const quantity = calculateTotalQuantityWithPromotions(item);
+      if (current) {
+        // A variant ID belongs to exactly one catalog product. Ignore malformed
+        // order-line references that pair that ID with another product.
+        if (current.expectedProductId !== item.productId) continue;
+        current.quantity += quantity;
+      } else {
+        grouped.set(variantId, { id: variantId, quantity, expectedProductId: item.productId });
+      }
+    }
+    return Array.from(grouped.values());
+  };
+
+  const allGroups = [...aggregate(restoreItems), ...aggregate(deductItems)];
+  if (allGroups.length === 0) return [];
+  const variantIds = Array.from(new Set(allGroups.map((group) => group.id)));
+
+  const loadSnapshots = async (): Promise<Map<number, VariantSnapshot>> => {
+    const variants = await tx.variantOption.findMany({
+      where: { id: { in: variantIds } },
+      select: {
+        id: true,
+        productId: true,
+        stockQuantity: true,
+        lowStockThreshold: true,
+        variantName: true,
+        product: { select: { productId: true, name: true, userId: true } },
+      },
+    });
+    return new Map(variants.map((variant) => [variant.id, variant as VariantSnapshot]));
+  };
+
+  const snapshots = await loadSnapshots();
+  const jobsByVariant = new Map<number, StockNotificationJob>();
+
+  const apply = async (groups: QuantityGroup[], direction: 'restore' | 'deduct') => {
+    if (groups.length === 0) return;
+    // Reload just before each operation. In particular, deductions observe stock
+    // restored by another selected order in this same transaction.
+    const currentSnapshots = direction === 'deduct' && restoreItems.length > 0 ? await loadSnapshots() : snapshots;
+    const validGroups = groups.filter((group) => {
+      const variant = currentSnapshots.get(group.id);
+      return variant && variant.product.productId === group.expectedProductId;
+    });
+    if (validGroups.length === 0) return;
+
+    const beforeById = new Map(validGroups.map((group) => [group.id, currentSnapshots.get(group.id)!]));
+    // VariantOption.id and stockQuantity are PostgreSQL INTEGER columns. Explicitly cast
+    // VALUES parameters so PostgreSQL never infers them as TEXT (which would make
+    // variant.id = batch.id fail with the integer = text operator error).
+    const values = validGroups.map((group) =>
+      Prisma.sql`(${group.id}::integer, ${group.quantity}::integer)`,
+    );
+    const sign = direction === 'restore' ? '+' : '-';
+    const updated = await tx.$queryRaw<Array<{ id: number; stockQuantity: number; stockStatus: string }>>`
+      UPDATE "VariantOption" AS variant
+      SET
+        "stockQuantity" = variant."stockQuantity" ${Prisma.raw(sign)} batch."quantity",
+        "stockStatus" = CASE
+          WHEN variant."stockQuantity" ${Prisma.raw(sign)} batch."quantity" <= 0 THEN 'Out of Stock'
+          WHEN variant."lowStockThreshold" > 0
+            AND variant."stockQuantity" ${Prisma.raw(sign)} batch."quantity" <= variant."lowStockThreshold" THEN 'Low Stock'
+          ELSE 'In Stock'
+        END,
+        "updatedAt" = NOW()
+      FROM (VALUES ${Prisma.join(values)}) AS batch("id", "quantity")
+      WHERE variant."id" = batch."id"
+        ${direction === 'deduct' ? Prisma.sql`AND variant."stockQuantity" >= batch."quantity"` : Prisma.empty}
+      RETURNING variant."id", variant."stockQuantity", variant."stockStatus"
+    `;
+
+    if (direction === 'deduct' && updated.length !== validGroups.length) {
+      const updatedIds = new Set(updated.map((row) => row.id));
+      const failedGroup = validGroups.find((group) => !updatedIds.has(group.id));
+      if (failedGroup) {
+        const variant = beforeById.get(failedGroup.id)!;
+        const fresh = await tx.variantOption.findUnique({ where: { id: failedGroup.id }, select: { stockQuantity: true } });
+        throw new InsufficientOrderStockError(
+          variant.variantName ? `${variant.product.name} (${variant.variantName})` : variant.product.name,
+          variant.product.productId,
+          failedGroup.quantity,
+          fresh?.stockQuantity ?? variant.stockQuantity,
+        );
+      }
+    }
+
+    for (const row of updated) {
+      const before = beforeById.get(row.id);
+      if (!before?.product.userId) continue;
+      const existingJob = jobsByVariant.get(row.id);
+      if (existingJob) {
+        // Keep the first observed stock level and the final committed quantity.
+        existingJob.newStock = row.stockQuantity;
+      } else {
+        jobsByVariant.set(row.id, {
+          userId: before.product.userId,
+          productId: before.product.productId,
+          productName: before.product.name,
+          previousStock: before.stockQuantity,
+          newStock: row.stockQuantity,
+          lowStockThreshold: before.lowStockThreshold,
+          variantName: before.variantName || undefined,
+          variantOptionId: before.id,
+        });
+      }
+    }
+  };
+
+  await apply(aggregate(restoreItems), 'restore');
+  await apply(aggregate(deductItems), 'deduct');
+  return Array.from(jobsByVariant.values());
+}
+
+/**
  * Return reserved stock to the correct variant SKU for each order item, inside the caller's
  * transaction. Used when an order leaves a stock-deducted status (e.g. Confirmed → Cancelled).
  * Mirrors the deduct guard: it only touches the exact variant recorded on the order item and

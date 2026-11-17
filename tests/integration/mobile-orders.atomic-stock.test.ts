@@ -42,7 +42,6 @@ describe('mobile orders - checkout and confirm stock', () => {
     const product = await prisma.product.create({
       data: {
         productId: 'P-1',
-        sku: 'SKU-1',
         name: 'Test Product',
         description: 'Test',
         productType: 'TestType',
@@ -62,6 +61,7 @@ describe('mobile orders - checkout and confirm stock', () => {
         productId: product.id,
         variantName: 'Default',
         attributes: {},
+        sku: 'SKU-1',
         purchasePrice: 1000,
         sellingPrice: 2000,
         originalSellingPrice: 2000,
@@ -166,7 +166,6 @@ describe('mobile orders - checkout and confirm stock', () => {
     const product = await prisma.product.create({
       data: {
         productId: 'P-CONFIRM-1',
-        sku: 'SKU-CONFIRM-1',
         name: 'Confirm Product',
         description: 'Test',
         productType: 'TestType',
@@ -186,6 +185,7 @@ describe('mobile orders - checkout and confirm stock', () => {
         productId: product.id,
         variantName: 'Default',
         attributes: {},
+        sku: 'SKU-CONFIRM-1',
         purchasePrice: 1000,
         sellingPrice: 2000,
         originalSellingPrice: 2000,

@@ -326,7 +326,6 @@ model SupplyRecord {
 model Product {
   id                Int              @id @default(autoincrement())
   productId         String           @unique
-  sku               String
   /// Target retailer market segment from Buyer.businessType values
   marketSegment     String?
   name              String

@@ -2,7 +2,6 @@ import { prisma } from '@/lib/db';
 import type { Prisma, PrismaClient } from '@/lib/prisma-generated';
 import type { SupplyDetail } from '@/types/client';
 import {
-  applySummaryDelta,
   isSupplyHistoryRow,
   mergeDuplicateSummaryRows,
   parseSuppliesJson,
@@ -534,20 +533,12 @@ export async function finalizeSupplierSuppliesSave(args: {
       stockApplied,
     };
   });
-  // One total per SKU before deltas land (heals duplicates from older imports).
-  supplies = mergeDuplicateSummaryRows(supplies);
-  for (const effect of effects) {
-    if (effect.applySummary === false) continue;
-    supplies = applySummaryDelta(supplies, {
-      sku: String(effect.row.sku || '').trim(),
-      product: String(effect.row.product || '').trim(),
-      quantity: effect.quantityDelta,
-      totalValue: effect.valueDelta,
-      productId: String(effect.row.productId || '').trim() || undefined,
-      variantName: String(effect.row.variantName || '').trim() || undefined,
-      status: effect.row.status,
-    });
-  }
+  // Keep the AUTO rows as product-stock snapshots. They are deliberately not
+  // incremented when a HIST receipt is saved: buildSupplySummaryFromHistory()
+  // derives the visible total from the current Product stock + non-applied HIST
+  // rows. This prevents save/reload cycles from accumulating the same receipt.
+  const previousSummaryRows = previous.filter((row) => !isSupplyHistoryRow(row));
+  supplies = mergeDuplicateSummaryRows([...previousSummaryRows, ...supplies.filter(isSupplyHistoryRow)]);
 
   return {
     suppliesJson: JSON.stringify(supplies),

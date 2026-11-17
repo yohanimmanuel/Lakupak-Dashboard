@@ -36,7 +36,6 @@ export default function EditProductPage() {
             product(userId: $userId, id: $id) {
               id
               productId
-              sku
               marketSegment
               name
               description

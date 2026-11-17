@@ -30,7 +30,6 @@ describe('mobile orders - fail fast without partial writes', () => {
     const product = await prisma.product.create({
       data: {
         productId: 'P-LOW-1',
-        sku: 'SKU-LOW-1',
         name: 'Low Stock Product',
         description: 'Test',
         productType: 'TestType',
@@ -50,6 +49,7 @@ describe('mobile orders - fail fast without partial writes', () => {
         productId: product.id,
         variantName: 'Default',
         attributes: {},
+        sku: 'SKU-LOW-1',
         purchasePrice: 1000,
         sellingPrice: 2000,
         originalSellingPrice: 2000,
@@ -140,7 +140,6 @@ describe('mobile orders - fail fast without partial writes', () => {
     const product = await prisma.product.create({
       data: {
         productId: 'P-PROMO-1',
-        sku: 'SKU-PROMO-1',
         name: 'Promo Product',
         description: 'Test',
         productType: 'TestType',
@@ -160,6 +159,7 @@ describe('mobile orders - fail fast without partial writes', () => {
         productId: product.id,
         variantName: 'Default',
         attributes: {},
+        sku: 'SKU-PROMO-1',
         purchasePrice: 1000,
         sellingPrice: 2000,
         originalSellingPrice: 2000,

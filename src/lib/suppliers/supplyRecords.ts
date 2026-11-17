@@ -10,11 +10,13 @@ export function parseSuppliesJson(raw: string | null | undefined): SupplyDetail[
   }
 }
 
-export function getSupplyRecordType(row: SupplyDetail): 'history' | 'summary' {
-  if (row.recordType === 'history' || row.recordType === 'summary') return row.recordType;
-  const no = String(row.suppliesno || '');
-  // Legacy product↔supplier sync rows
+export function getSupplyRecordType(row: Pick<SupplyDetail, 'suppliesno' | 'recordType'>): 'history' | 'summary' {
+  const no = String(row.suppliesno || '').trim().toUpperCase();
+  // AUTO/HIST identifiers are the stable legacy discriminator. In older rows,
+  // SupplyRecord.recordType could inherit its DB default ('history') even for AUTO.
   if (no.startsWith('AUTO-')) return 'summary';
+  if (no.startsWith('HIST-')) return 'history';
+  if (row.recordType === 'history' || row.recordType === 'summary') return row.recordType;
   return 'history';
 }
 
@@ -24,6 +26,29 @@ export function isSupplyHistoryRow(row: SupplyDetail): boolean {
 
 export function isSupplySummaryRow(row: SupplyDetail): boolean {
   return getSupplyRecordType(row) === 'summary';
+}
+
+/**
+ * Return the supplier-entered receipt quantity/unit for display and storage.
+ * Older SupplyRecord rows may have an empty-string receivedQuantity (the DB
+ * default) even though totalSupplied contains the canonical Pieces quantity.
+ * In that legacy case, expose the canonical amount as Pieces; never pair a
+ * piece-total with a stale Carton/Box unit because that would multiply it again.
+ */
+export function getSupplyReceivedInput(
+  row: Pick<SupplyDetail, 'receivedQuantity' | 'receivedUnit' | 'totalSupplied'>,
+): { receivedQuantity: string; receivedUnit: string } {
+  const enteredQuantity = String(row.receivedQuantity ?? '').trim();
+  if (enteredQuantity) {
+    return {
+      receivedQuantity: enteredQuantity,
+      receivedUnit: String(row.receivedUnit || 'Pieces').trim() || 'Pieces',
+    };
+  }
+  return {
+    receivedQuantity: String(row.totalSupplied ?? '').trim(),
+    receivedUnit: 'Pieces',
+  };
 }
 
 export function partitionSupplies(rows: SupplyDetail[]): {
@@ -44,37 +69,40 @@ const toQty = (value: unknown): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
+const normKey = (value: unknown): string => String(value ?? '').trim().toLowerCase();
+
+/**
+ * A supplier summary represents one catalog product + its SKU/variant.
+ * Distributor-facing product labels can differ, so the label must not split a
+ * catalog-linked row when both productId and SKU are identical. Different SKUs
+ * under the same productId remain separate variants.
+ */
 const summaryKey = (row: Pick<SupplyDetail, 'sku' | 'product' | 'productId' | 'variantName'>): string => {
-  const productId = String(row.productId || '').trim();
-  const variantName = String(row.variantName || '').trim();
-  if (productId) return `id:${productId}|${variantName}`.toLowerCase();
-  const sku = String(row.sku || '').trim().toLowerCase();
-  const product = String(row.product || '').trim().toLowerCase();
-  return `sku:${sku}|${product}`;
+  const productId = normKey(row.productId);
+  const sku = normKey(row.sku);
+  const variantName = normKey(row.variantName);
+  const product = normKey(row.product);
+  if (productId && sku) return `id:${productId}|sku:${sku}`;
+  if (productId) return `id:${productId}|variant:${variantName || product}`;
+  // Without a catalog ID, retain the label as a safety discriminator because
+  // legacy suppliers may reuse a generic SKU across unrelated products.
+  return `sku:${sku}|product:${product}`;
 };
 
 type SummaryIdentity = Pick<SupplyDetail, 'sku' | 'product' | 'productId' | 'variantName'>;
 
-const normKey = (value: unknown): string => String(value ?? '').trim().toLowerCase();
-
-/** False only when both rows are linked to the catalog and point at different variants. */
-const sameCatalogVariantOrUnlinked = (a: SummaryIdentity, b: SummaryIdentity): boolean => {
+/** Never combine the same distributor SKU across two different catalog products. */
+const sameCatalogProductOrUnlinked = (a: SummaryIdentity, b: SummaryIdentity): boolean => {
   const aId = normKey(a.productId);
   const bId = normKey(b.productId);
-  if (!aId || !bId) return true;
-  if (aId !== bId) return false;
-  const aVariant = normKey(a.variantName);
-  const bVariant = normKey(b.variantName);
-  return !aVariant || !bVariant || aVariant === bVariant;
+  return !aId || !bId || aId === bId;
 };
 
 /**
  * Find the summary row a supply event rolls into:
- * 1. same catalog identity (productId + variantName),
- * 2. exact SKU — so imported rows without a productId still land on the linked total.
- *    A row linked to a different catalog variant is never reused (variants can share a SKU);
- *    if several rows qualify, the one with the same product label wins.
- * 3. rows without a SKU fall back to the product label.
+ * 1. same catalog product + SKU identity,
+ * 2. exact SKU for imported rows when it identifies one unambiguous catalog product,
+ * 3. product label as a fallback for rows without a usable SKU.
  * Returns -1 when nothing matches (caller creates a new total).
  */
 function findSummaryIndex(rows: SupplyDetail[], target: SummaryIdentity): number {
@@ -88,17 +116,26 @@ function findSummaryIndex(rows: SupplyDetail[], target: SummaryIdentity): number
   rows.forEach((row, index) => {
     if (!isSupplySummaryRow(row)) return;
     if (normKey(row.sku) !== sku) return;
-    if (!sameCatalogVariantOrUnlinked(row, target)) return;
+    if (!sameCatalogProductOrUnlinked(row, target)) return;
     bySku.push(index);
   });
-  if (bySku.length <= 1) return bySku[0] ?? -1;
   const product = normKey(target.product);
-  return bySku.find((index) => normKey(rows[index].product) === product) ?? bySku[0];
+  const exactProductLabel = bySku.find((index) => normKey(rows[index].product) === product);
+  if (exactProductLabel != null) return exactProductLabel;
+  if (bySku.length === 1) {
+    const candidate = rows[bySku[0]];
+    // Without either catalog ID, matching on SKU alone is unsafe when the labels
+    // disagree: legacy supplier workbooks can reuse a generic SKU for variants.
+    if (!normKey(target.productId) && !normKey(candidate.productId)) return -1;
+    return bySku[0];
+  }
+  return -1;
 }
 
 /**
- * Fold summary rows that resolve to the same total (see findSummaryIndex) into one row.
- * Heals duplicates written before SKU matching existed; a no-op when there are none.
+ * Fold duplicate product-stock snapshots into one row. Duplicate AUTO rows represent
+ * the same current variant stock, so they are not additive; HIST receipts are projected
+ * separately and summed exactly once by buildSupplySummaryFromHistory().
  */
 export function mergeDuplicateSummaryRows(supplies: SupplyDetail[]): SupplyDetail[] {
   const out: SupplyDetail[] = [];
@@ -112,17 +149,21 @@ export function mergeDuplicateSummaryRows(supplies: SupplyDetail[]): SupplyDetai
     const current = out[idx];
     // Keep the catalog-linked row as the base so its AUTO id / label survive.
     const rowIsLinked = Boolean(normKey(row.productId)) && !normKey(current.productId);
-    const base = rowIsLinked ? row : current;
     const other = rowIsLinked ? current : row;
+    // Duplicate AUTO rows are repeated snapshots of the same product variant,
+    // not separate receipts. Adding their quantities on every reconciliation
+    // inflates supplier totals. Keep one deterministic snapshot; dated HIST rows
+    // are aggregated separately by buildSupplySummaryFromHistory().
+    const preferred = rowIsLinked ? row : current;
     out[idx] = {
-      ...base,
+      ...preferred,
       recordType: 'summary',
-      sku: base.sku || other.sku,
-      product: base.product || other.product,
-      productId: base.productId || other.productId,
-      variantName: base.variantName || other.variantName,
-      totalSupplied: String(toQty(current.totalSupplied) + toQty(row.totalSupplied)),
-      totalValue: String(toQty(current.totalValue) + toQty(row.totalValue)),
+      sku: preferred.sku || other.sku,
+      product: preferred.product || other.product,
+      productId: preferred.productId || other.productId,
+      variantName: preferred.variantName || other.variantName,
+      totalSupplied: String(Math.max(toQty(current.totalSupplied), toQty(row.totalSupplied))),
+      totalValue: String(Math.max(toQty(current.totalValue), toQty(row.totalValue))),
     };
     merged = true;
   }
@@ -223,18 +264,18 @@ export function buildSupplySummaryFromHistory(
   linkedSummaryRows: readonly SupplyDetail[] = [],
 ): SupplyDetail[] {
   const grouped = new Map<string, SupplyDetail>();
-  const summaryBackedIdentities = new Set<string>();
   const aliasToIdentity = new Map<string, string>();
   const ambiguousAliases = new Set<string>();
 
   const primaryIdentity = (row: SupplyDetail): string => {
     const productId = normKey(row.productId);
-    const variantName = normKey(row.variantName);
     const sku = normKey(row.sku);
+    const variantName = normKey(row.variantName);
     const product = normKey(row.product);
-    if (productId && variantName) return `id:${productId}|${variantName}`;
+    if (productId && sku) return `id:${productId}|sku:${sku}`;
+    if (productId && variantName) return `id:${productId}|variant:${variantName}`;
+    if (productId && product) return `id:${productId}|variant:${product}`;
     if (sku && product) return `sku:${sku}|product:${product}`;
-    if (productId && product) return `id:${productId}|product:${product}`;
     if (product) return `product:${product}`;
     if (sku) return `sku:${sku}`;
     return '';
@@ -246,9 +287,10 @@ export function buildSupplySummaryFromHistory(
     const product = normKey(row.product);
     const productId = normKey(row.productId);
     const variantName = normKey(row.variantName);
+    if (productId && sku) aliases.push(`id:${productId}|sku:${sku}`);
+    if (productId && variantName) aliases.push(`id:${productId}|variant:${variantName}`);
     if (sku && product) aliases.push(`sku-product:${sku}|${product}`);
     if (product) aliases.push(`product:${product}`);
-    if (productId && variantName) aliases.push(`id:${productId}|${variantName}`);
     if (sku) aliases.push(`sku-only:${sku}`);
     return aliases;
   };
@@ -264,28 +306,19 @@ export function buildSupplySummaryFromHistory(
     aliasToIdentity.set(alias, identity);
   };
 
-  // Preserve linked opening/running balances. A positive stored summary already includes
-  // receipt deltas and must not have the same dated history added a second time.
-  for (const row of linkedSummaryRows) {
+  // AUTO summary rows are a deterministic snapshot of current Product variant
+  // stock, not a running total. Receipt history is added below exactly once.
+  for (const row of mergeDuplicateSummaryRows([...linkedSummaryRows])) {
     if (!isSupplySummaryRow(row)) continue;
     const identity = primaryIdentity(row);
-    if (!identity) continue;
-
-    const existing = grouped.get(identity);
-    if (!existing) {
-      const openingOrRunningQuantity = Math.max(0, Math.trunc(toQty(row.totalSupplied)));
-      const openingOrRunningValue = Math.max(0, Math.round(toQty(row.totalValue)));
-      grouped.set(identity, {
-        ...row,
-        totalSupplied: String(openingOrRunningQuantity),
-        totalValue: String(openingOrRunningValue),
-        lastSuppliedDate: String(row.lastSuppliedDate || ''),
-        recordType: 'summary',
-      });
-      if (openingOrRunningQuantity > 0 || openingOrRunningValue > 0) {
-        summaryBackedIdentities.add(identity);
-      }
-    }
+    if (!identity || grouped.has(identity)) continue;
+    grouped.set(identity, {
+      ...row,
+      totalSupplied: String(Math.max(0, Math.trunc(toQty(row.totalSupplied)))),
+      totalValue: String(Math.max(0, Math.round(toQty(row.totalValue)))),
+      lastSuppliedDate: String(row.lastSuppliedDate || ''),
+      recordType: 'summary',
+    });
     for (const alias of aliasesFor(row)) registerAlias(alias, identity);
   }
 
@@ -293,30 +326,31 @@ export function buildSupplySummaryFromHistory(
     if (!isSupplyHistoryRow(row)) continue;
 
     const directIdentity = primaryIdentity(row);
-    const matchedIdentity = directIdentity && grouped.has(directIdentity)
-      ? directIdentity
-      : aliasesFor(row)
-          .filter((alias) => !alias.startsWith('sku-only:'))
-          .map((alias) => aliasToIdentity.get(alias))
-          .find((identity): identity is string => Boolean(identity))
-        || (!normKey(row.product) && normKey(row.sku)
-          ? aliasToIdentity.get(`sku-only:${normKey(row.sku)}`)
-          : undefined)
-        || directIdentity;
+    const matchedIdentity = (directIdentity && grouped.has(directIdentity) ? directIdentity : undefined)
+      || aliasesFor(row)
+        .map((alias) => aliasToIdentity.get(alias))
+        .find((identity): identity is string => Boolean(identity))
+      || (!normKey(row.product) && normKey(row.sku)
+        ? aliasToIdentity.get(`sku-only:${normKey(row.sku)}`)
+        : undefined)
+      || directIdentity;
 
     if (!matchedIdentity) continue;
-    const quantity = Math.max(0, Math.trunc(toQty(row.totalSupplied)));
-    const value = Math.max(0, Math.round(toQty(row.totalValue)));
-    if (quantity === 0 && value === 0) continue;
+    const historyWasAppliedToProductStock = row.stockApplied === true ||
+      (row.stockApplied == null && row.updateCurrentStock === true);
+    const quantity = historyWasAppliedToProductStock
+      ? 0
+      : Math.max(0, Math.trunc(toQty(row.totalSupplied)));
+    const value = historyWasAppliedToProductStock
+      ? 0
+      : Math.max(0, Math.round(toQty(row.totalValue)));
 
     const current = grouped.get(matchedIdentity);
     if (current) {
-      // Reconstruct only zero-valued legacy placeholders; populated linked summaries
-      // are already authoritative and are deliberately not incremented here.
-      if (!summaryBackedIdentities.has(matchedIdentity)) {
-        current.totalSupplied = String(toQty(current.totalSupplied) + quantity);
-        current.totalValue = String(toQty(current.totalValue) + value);
-      }
+      // Product stock already includes checked receipts. Only add history rows
+      // that were intentionally kept out of current Product stock.
+      current.totalSupplied = String(toQty(current.totalSupplied) + quantity);
+      current.totalValue = String(toQty(current.totalValue) + value);
       if (String(row.lastSuppliedDate || '') > String(current.lastSuppliedDate || '')) {
         current.lastSuppliedDate = String(row.lastSuppliedDate || '');
       }
@@ -327,6 +361,9 @@ export function buildSupplySummaryFromHistory(
       continue;
     }
 
+    // An unlinked receipt has no Product variant snapshot. Keep a summary made
+    // solely from its non-stock-applied history, grouping later matching events.
+    if (quantity === 0 && value === 0) continue;
     grouped.set(matchedIdentity, {
       suppliesno: `SUPPLY-SUMMARY-${grouped.size + 1}`,
       sku: String(row.sku || ''),
@@ -370,13 +407,17 @@ export function createHistorySupplyRow(input: {
   const qty = Math.max(0, Math.floor(input.quantity));
   const rawValue = Number(input.totalValue);
   const value = Math.max(0, Number.isFinite(rawValue) ? rawValue : 0);
+  const enteredQuantity = String(input.receivedQuantity ?? '').trim();
+  const receivedInput = enteredQuantity
+    ? { receivedQuantity: enteredQuantity, receivedUnit: String(input.receivedUnit || 'Pieces') }
+    : { receivedQuantity: String(qty), receivedUnit: 'Pieces' };
   return {
     suppliesno: `HIST-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     sku: input.sku,
     product: input.product,
     totalSupplied: String(qty),
-    receivedQuantity: String(input.receivedQuantity ?? qty),
-    receivedUnit: String(input.receivedUnit || 'Pieces'),
+    receivedQuantity: receivedInput.receivedQuantity,
+    receivedUnit: receivedInput.receivedUnit,
     totalValue: String(value),
     lastSuppliedDate: input.suppliedDate,
     status: input.status || 'Active',
@@ -391,6 +432,7 @@ export function createHistorySupplyRow(input: {
 
 /** Normalize a history row for durable SupplyRecord storage. */
 export function serializeHistorySupplyForStorage(row: SupplyDetail): SupplyDetail {
+  const receivedInput = getSupplyReceivedInput(row);
   return {
     suppliesno: String(row.suppliesno || ''),
     sku: String(row.sku || ''),
@@ -398,8 +440,8 @@ export function serializeHistorySupplyForStorage(row: SupplyDetail): SupplyDetai
     // Keep the canonical Pieces total for inventory, but also persist exactly what
     // the supplier entered and selected so the UI can restore the chosen stock level.
     totalSupplied: String(row.totalSupplied || ''),
-    receivedQuantity: String(row.receivedQuantity ?? row.totalSupplied ?? ''),
-    receivedUnit: String(row.receivedUnit || 'Pieces'),
+    receivedQuantity: receivedInput.receivedQuantity,
+    receivedUnit: receivedInput.receivedUnit,
     totalValue: String(row.totalValue || ''),
     lastSuppliedDate: String(row.lastSuppliedDate || row.lastDelivery || ''),
     status: String(row.status || 'Active'),

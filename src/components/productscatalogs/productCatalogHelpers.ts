@@ -1,4 +1,4 @@
-import type { Product, ProductFormData } from '../../types/product';
+import type { Product, ProductFormData, VariantOption } from '../../types/product';
 import type { VariationImportRow } from '@/components/productscatalogs/VariationListImport';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { getVariantStockStatus } from '@/utils/stockUtils';
@@ -7,7 +7,6 @@ export const isFormDataEqual = (a: ProductFormData, b: ProductFormData): boolean
   return (
     a.id === b.id &&
     a.productId === b.productId &&
-    a.sku === b.sku &&
     a.marketSegment === b.marketSegment &&
     a.name === b.name &&
     a.description === b.description &&

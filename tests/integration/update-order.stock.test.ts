@@ -17,7 +17,6 @@ describe('orders update - stock deduct/restore', () => {
     const product = await prisma.product.create({
       data: {
         productId: 'P-DED-1',
-        sku: 'SKU-DED-1',
         name: 'Deduct Product',
         description: 'Test',
         productType: 'TestType',
@@ -37,6 +36,7 @@ describe('orders update - stock deduct/restore', () => {
         productId: product.id,
         variantName: 'Default',
         attributes: {},
+        sku: 'SKU-DED-1',
         purchasePrice: 1000,
         sellingPrice: 2000,
         originalSellingPrice: 2000,
@@ -128,7 +128,6 @@ describe('orders update - stock deduct/restore', () => {
     const product = await prisma.product.create({
       data: {
         productId: 'P-NOCHG-1',
-        sku: 'SKU-NOCHG-1',
         name: 'No Change Product',
         description: 'Test',
         productType: 'TestType',
@@ -148,6 +147,7 @@ describe('orders update - stock deduct/restore', () => {
         productId: product.id,
         variantName: 'Default',
         attributes: {},
+        sku: 'SKU-NOCHG-1',
         purchasePrice: 1000,
         sellingPrice: 2000,
         originalSellingPrice: 2000,
@@ -242,7 +242,6 @@ describe('orders update - stock deduct/restore', () => {
     const product = await prisma.product.create({
       data: {
         productId: 'P-RES-1',
-        sku: 'SKU-RES-1',
         name: 'Restore Product',
         description: 'Test',
         productType: 'TestType',
@@ -262,6 +261,7 @@ describe('orders update - stock deduct/restore', () => {
         productId: product.id,
         variantName: 'Default',
         attributes: {},
+        sku: 'SKU-RES-1',
         purchasePrice: 1000,
         sellingPrice: 2000,
         originalSellingPrice: 2000,
@@ -353,7 +353,6 @@ describe('orders update - stock deduct/restore', () => {
     const product = await prisma.product.create({
       data: {
         productId: 'P-CANCEL-STOCK-1',
-        sku: 'SKU-CANCEL-STOCK-1',
         name: 'Cancel Stock Product',
         description: 'Test',
         productType: 'TestType',
@@ -373,6 +372,7 @@ describe('orders update - stock deduct/restore', () => {
         productId: product.id,
         variantName: 'Default',
         attributes: {},
+        sku: 'SKU-CANCEL-STOCK-1',
         purchasePrice: 1000,
         sellingPrice: 2000,
         originalSellingPrice: 2000,
@@ -467,7 +467,6 @@ describe('orders update - stock deduct/restore', () => {
     const product = await prisma.product.create({
       data: {
         productId: 'P-CANCEL-PENDING-1',
-        sku: 'SKU-CANCEL-PENDING-1',
         name: 'Cancel Pending Product',
         description: 'Test',
         productType: 'TestType',
@@ -487,6 +486,7 @@ describe('orders update - stock deduct/restore', () => {
         productId: product.id,
         variantName: 'Default',
         attributes: {},
+        sku: 'SKU-CANCEL-PENDING-1',
         purchasePrice: 1000,
         sellingPrice: 2000,
         originalSellingPrice: 2000,
@@ -581,7 +581,6 @@ describe('orders update - stock deduct/restore', () => {
     const product = await prisma.product.create({
       data: {
         productId: 'P-RES-REPLACE-1',
-        sku: 'SKU-RES-REPLACE-1',
         name: 'Restore Replace Product',
         description: 'Test',
         productType: 'TestType',
@@ -601,6 +600,7 @@ describe('orders update - stock deduct/restore', () => {
         productId: product.id,
         variantName: 'Default',
         attributes: {},
+        sku: 'SKU-RES-REPLACE-1',
         purchasePrice: 1000,
         sellingPrice: 2000,
         originalSellingPrice: 2000,
@@ -705,7 +705,7 @@ describe('orders update - stock deduct/restore', () => {
     });
     const product = await prisma.product.create({
       data: {
-        productId: 'P-EDIT-DEDUCTED-1', sku: 'SKU-EDIT-DEDUCTED-1', name: 'Edit Deducted Product',
+        productId: 'P-EDIT-DEDUCTED-1', name: 'Edit Deducted Product',
         description: 'Test', productType: 'TestType', brand: 'TestBrand', supplier: 'TestSupplier',
         status: 'Published', catalogName: 'Default', images: [], marketplaceStatus: 'Published', userId: distributor.id,
       },
@@ -713,7 +713,7 @@ describe('orders update - stock deduct/restore', () => {
     });
     const variant = await prisma.variantOption.create({
       data: {
-        productId: product.id, variantName: 'Default', attributes: {}, purchasePrice: 1000,
+        productId: product.id, variantName: 'Default', attributes: {}, sku: 'SKU-EDIT-DEDUCTED-1', purchasePrice: 1000,
         sellingPrice: 2000, originalSellingPrice: 2000, moq: 1, stockQuantity: 8,
         lowStockThreshold: 0, stockStatus: 'In Stock', isDefault: true, isActive: true,
       },
@@ -766,7 +766,7 @@ describe('orders update - stock deduct/restore', () => {
     });
     const product = await prisma.product.create({
       data: {
-        productId: 'P-EDIT-SHORT-1', sku: 'SKU-EDIT-SHORT-1', name: 'Edit Short Product',
+        productId: 'P-EDIT-SHORT-1', name: 'Edit Short Product',
         description: 'Test', productType: 'TestType', brand: 'TestBrand', supplier: 'TestSupplier',
         status: 'Published', catalogName: 'Default', images: [], marketplaceStatus: 'Published', userId: distributor.id,
         stockLevels: [{ name: 'Pieces', piecesPerUnit: 1 }, { name: 'Carton', piecesPerUnit: 2, unitsPerPreviousLevel: 2 }],
@@ -775,7 +775,7 @@ describe('orders update - stock deduct/restore', () => {
     });
     const variant = await prisma.variantOption.create({
       data: {
-        productId: product.id, variantName: 'Default', attributes: {}, purchasePrice: 1000,
+        productId: product.id, variantName: 'Default', attributes: {}, sku: 'SKU-EDIT-SHORT-1', purchasePrice: 1000,
         sellingPrice: 2000, originalSellingPrice: 2000, moq: 1, stockQuantity: 1,
         lowStockThreshold: 0, stockStatus: 'In Stock', isDefault: true, isActive: true,
       },
@@ -830,7 +830,7 @@ describe('orders update - stock deduct/restore', () => {
     });
     const product = await prisma.product.create({
       data: {
-        productId: 'P-BULK-STOCK-1', sku: 'SKU-BULK-STOCK-1', name: 'Bulk Stock Product',
+        productId: 'P-BULK-STOCK-1', name: 'Bulk Stock Product',
         description: 'Test', productType: 'TestType', brand: 'TestBrand', supplier: 'TestSupplier',
         status: 'Published', catalogName: 'Default', images: [], marketplaceStatus: 'Published', userId: distributor.id,
       },
@@ -838,7 +838,7 @@ describe('orders update - stock deduct/restore', () => {
     });
     const variant = await prisma.variantOption.create({
       data: {
-        productId: product.id, variantName: 'Default', attributes: {}, purchasePrice: 1000,
+        productId: product.id, variantName: 'Default', attributes: {}, sku: 'SKU-BULK-STOCK-1', purchasePrice: 1000,
         sellingPrice: 2000, originalSellingPrice: 2000, moq: 1, stockQuantity: 10,
         lowStockThreshold: 0, stockStatus: 'In Stock', isDefault: true, isActive: true,
       },

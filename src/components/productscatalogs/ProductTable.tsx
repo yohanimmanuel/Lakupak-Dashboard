@@ -1143,7 +1143,6 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                      )}
                    </button>
                  </th>
-                 <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tShared('columns.idSku')}</th>
                  <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tShared('columns.productName')}</th>
                  <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tShared('columns.type')}</th>
                  <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tShared('columns.category')}</th>
@@ -1158,7 +1157,7 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
             <tbody className="text-xs whitespace-nowrap">
               {filteredProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="py-12 text-center text-gray-500">
+                  <td colSpan={10} className="py-12 text-center text-gray-500">
                     <div className="flex flex-col items-center gap-2">
                       <Package className="w-12 h-12 text-gray-400" />
                       <p className="text-sm">{tTable('noProducts')}</p>
@@ -1205,24 +1204,13 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                     )}
                   </button>
                 </td>
-                <td className="py-3 px-4 text-xs text-gray-900 max-w-25 truncate">
-                  <div>
-                    <div className="font-medium truncate">
-                      {String(product.sku).trim() ? (
-                        product.sku
-                      ) : (
-                        <span className="text-red-600 font-bold">{tShared('missing.sku')}</span>
-                      )}
-                    </div>
-                    <div className="text-gray-500 text-xs truncate">{product.productId}</div>
-                  </div>
-                </td>
                  <td className="max-w-20 py-3 px-4 text-xs text-gray-900 font-medium truncate">
                    {String(product.name).trim() ? (
                      product.name
                    ) : (
                      <span className="text-red-600 font-bold">{tShared('missing.productName')}</span>
                    )}
+                   <div className="text-gray-500 text-[11px] font-normal truncate">{product.productId}</div>
                  </td>
                  <td className="truncate py-3 px-4 text-xs text-gray-700">
                   {String(product.productType).trim() ? (

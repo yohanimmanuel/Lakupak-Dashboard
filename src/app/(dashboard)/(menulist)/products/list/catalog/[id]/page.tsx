@@ -28,7 +28,6 @@ export default function ViewProductPage() {
             product(userId: $userId, id: $id) {
               id
               productId
-              sku
               marketSegment
               name
               description

@@ -85,7 +85,6 @@ export const DASHBOARD_SNAPSHOT_QUERY = `
       products {
         id
         productId
-        sku
         name
         description
         productType
@@ -518,7 +517,6 @@ export function normalizeProduct(raw: Record<string, unknown>): Product | null {
   return {
     id: typeof raw.id === 'number' ? raw.id : undefined,
     productId,
-    sku: parseString(raw.sku, productId),
     name: parseString(raw.name, 'Unnamed Product'),
     description: parseString(raw.description, ''),
     productType: parseString(raw.productType, 'Uncategorized'),

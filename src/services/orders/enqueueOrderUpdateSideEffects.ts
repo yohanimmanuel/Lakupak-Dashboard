@@ -77,10 +77,12 @@ type OrderUpdatePostCommitInput = {
   skipOrderAndStockBroadcasts?: boolean;
   /** The caller has synchronously invalidated cache and broadcast product stock updates. */
   skipSoldCountBroadcast?: boolean;
+  /** Bulk status handlers insert dashboard notifications with one createMany call. */
+  skipDashboardOrderNotification?: boolean;
 };
 
 export function scheduleOrderUpdatePostCommitEffects(input: OrderUpdatePostCommitInput) {
-  const { order, sanitizedData, previousOrderStatus, previousPaymentStatus, stockNotificationJobs, skipOrderAndStockBroadcasts = false, skipSoldCountBroadcast = false } =
+  const { order, sanitizedData, previousOrderStatus, previousPaymentStatus, stockNotificationJobs, skipOrderAndStockBroadcasts = false, skipSoldCountBroadcast = false, skipDashboardOrderNotification = false } =
     input;
 
   for (const job of stockNotificationJobs) {
@@ -119,6 +121,7 @@ export function scheduleOrderUpdatePostCommitEffects(input: OrderUpdatePostCommi
   }
 
   if (
+    !skipDashboardOrderNotification &&
     sanitizedData.orderStatus &&
     sanitizedData.orderStatus !== 'Pending' &&
     sanitizedData.orderStatus !== 'Received' &&

@@ -24,7 +24,6 @@ const PRODUCTS_QUERY = `
       nodes {
         id
         productId
-        sku
         name
         description
         productType
@@ -200,7 +199,6 @@ export function ProductPickerField({
       return {
         id: product.id || 0,
         productId: product.productId,
-        sku: product.sku,
         name: product.name,
         productType: product.productType,
         brand: product.brand,

@@ -112,10 +112,8 @@ export function validateProductInput(data: Partial<ProductFormData>): { isValid:
 export function sanitizeProductData(data: Partial<ProductFormData>): Partial<ProductFormData> {
   const sanitized: Partial<ProductFormData> = {};
 
-  // Sanitize string fields
-  if (typeof data.sku === 'string') {
-    sanitized.sku = data.sku.trim();
-  }
+  // Product-level SKU was removed. Variant SKUs are sanitized with VariantOption payloads.
+  // Sanitize product descriptive fields only.
   if (typeof data.name === 'string') {
     sanitized.name = data.name.trim();
   }

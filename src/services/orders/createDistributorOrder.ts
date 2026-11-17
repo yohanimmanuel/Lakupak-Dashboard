@@ -200,7 +200,6 @@ async function priceDistributorLines(
     select: {
       productId: true,
       name: true,
-      sku: true,
       productType: true,
       images: true,
       stockLevels: true,
@@ -267,7 +266,7 @@ async function priceDistributorLines(
       packageType: selectedStockLevel.name,
       piecesPerPackage,
       productName: product.name,
-      productSku: variant.sku || product.sku || null,
+      productSku: variant.sku || null,
       productType: product.productType || null,
       productImage: product.images[0] || null,
       variantName: variant.variantName,

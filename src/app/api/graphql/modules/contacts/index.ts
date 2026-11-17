@@ -13,6 +13,7 @@ import {
 import type { SupplierFormData } from '@/types/client';
 import { NotificationService } from '../notifications';
 import { syncOrderToBuyerProfile } from '@/utils/buyerSync';
+import { getSupplyReceivedInput, getSupplyRecordType } from '@/lib/suppliers/supplyRecords';
 
 const nullToUndefined = <T extends Record<string, unknown>>(obj: T): { [K in keyof T]: T[K] extends null ? undefined : T[K] } => {
   return Object.fromEntries(
@@ -456,15 +457,19 @@ const mapSupplier = (supplier: SupplierWithRecords) => ({
             suppliesno: row.suppliesno,
             sku: row.sku,
             product: row.product,
-            // Preserve the supplier's original input separately from canonical Pieces.
-            receivedQuantity: row.receivedQuantity,
-            receivedUnit: row.receivedUnit,
+            // Legacy rows can have an empty-string DB default. Normalize them to
+            // their canonical Pieces total so both modal and profile show a quantity.
+            ...getSupplyReceivedInput({
+              receivedQuantity: row.receivedQuantity,
+              receivedUnit: row.receivedUnit,
+              totalSupplied: row.totalSupplied,
+            }),
             totalSupplied: row.totalSupplied,
             totalValue: row.totalValue,
             lastSuppliedDate: row.lastSuppliedDate,
             status: row.status,
             deliverySuccess: row.deliverySuccess ?? undefined,
-            recordType: row.recordType === 'summary' ? 'summary' : 'history',
+            recordType: getSupplyRecordType({ suppliesno: row.suppliesno, recordType: row.recordType as 'history' | 'summary' }),
             productId: row.productId ?? undefined,
             variantName: row.variantName ?? undefined,
             updateCurrentStock: row.updateCurrentStock === true,
@@ -2445,7 +2450,6 @@ const recordSupplierSupply = async (args: {
 
   const {
     createHistorySupplyRow,
-    upsertSummaryFromSupplyEvent,
     isSupplyReceivedToday,
     todayYmdJakarta,
     parseSupplyDateYmd,
@@ -2525,19 +2529,11 @@ const recordSupplierSupply = async (args: {
       stockApplied: stockUpdatedInTx,
     });
 
-    let supplies = await loadSupplierSupplies(tx, supplier.id);
-    supplies = [...supplies, historyRow];
-    // Totals always update; product stock only when Update Stock is checked.
-    supplies = upsertSummaryFromSupplyEvent(supplies, {
-      sku,
-      product: productName,
-      quantity: qty,
-      totalValue,
-      productId,
-      variantName,
-    });
-
-    await replaceSupplierSupplyRecords(tx, supplier.id, supplies);
+    const supplies = await loadSupplierSupplies(tx, supplier.id);
+    // Persist the receipt event only. AUTO rows are current Product variant
+    // stock snapshots and are reconciled from Product after this transaction;
+    // never increment them here (that caused repeated receipt totals).
+    await replaceSupplierSupplyRecords(tx, supplier.id, [...supplies, historyRow]);
     await tx.supplier.update({
       where: { id: supplier.id },
       data: { updatedAt: new Date() },
@@ -2550,6 +2546,47 @@ const recordSupplierSupply = async (args: {
 
     return { stockUpdated: stockUpdatedInTx, withRecords: next };
   });
+
+  let supplierAfterReconcile = withRecords || supplier;
+  if (stockUpdated && productId) {
+    try {
+      const product = await prisma.product.findFirst({
+        where: { productId, userId: Number(userId) },
+        select: {
+          productId: true,
+          name: true,
+          supplier: true,
+          userId: true,
+          variantOptions: {
+            select: {
+              variantName: true,
+              sku: true,
+              purchasePrice: true,
+              stockQuantity: true,
+              isActive: true,
+            },
+          },
+        },
+      });
+      if (product) {
+        const { syncSupplierFromProduct } = await import('@/lib/suppliers/syncProductSupplies');
+        await syncSupplierFromProduct({
+          productId: product.productId,
+          name: product.name,
+          supplier: product.supplier,
+          userId: Number(userId),
+          variantOptions: product.variantOptions,
+        });
+      }
+      const refreshedSupplier = await prisma.supplier.findUnique({
+        where: { id: supplier.id },
+        include: { supplyRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] } },
+      });
+      if (refreshedSupplier) supplierAfterReconcile = refreshedSupplier;
+    } catch (syncError) {
+      console.warn('[Suppliers] Stock snapshot reconciliation skipped after receipt:', syncError);
+    }
+  }
 
   try {
     const { invalidateDashboardCache, invalidateProductCache } = await import('@/lib/queryCache');
@@ -2564,7 +2601,7 @@ const recordSupplierSupply = async (args: {
   return {
     success: true,
     stockUpdated,
-    supplier: mapSupplier(withRecords || supplier),
+    supplier: mapSupplier(supplierAfterReconcile),
     message: stockUpdated
       ? 'Supply recorded and current stock increased'
       : 'Supply recorded (current stock unchanged)',

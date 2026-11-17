@@ -20,6 +20,8 @@ import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
 import {
   buildSupplySummaryFromHistory,
+  getSupplyReceivedInput,
+  getSupplyRecordType,
   isSupplyHistoryRow,
   partitionSupplies,
 } from '@/lib/suppliers/supplyRecords';
@@ -183,15 +185,21 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
           sku: String(row.sku || ''),
           product: String(row.product || ''),
           totalSupplied: String(row.totalSupplied || ''),
-          receivedQuantity: row.receivedQuantity == null ? undefined : String(row.receivedQuantity),
-          receivedUnit: row.receivedUnit == null ? undefined : String(row.receivedUnit),
+          ...getSupplyReceivedInput({
+            receivedQuantity: row.receivedQuantity == null ? undefined : String(row.receivedQuantity),
+            receivedUnit: row.receivedUnit == null ? undefined : String(row.receivedUnit),
+            totalSupplied: String(row.totalSupplied || ''),
+          }),
           totalValue: String(row.totalValue || ''),
           lastSuppliedDate: String(row.lastSuppliedDate || legacyLastDelivery || ''),
           status: String(row.status || 'Active'),
           deliverySuccess: row.deliverySuccess == null ? undefined : String(row.deliverySuccess),
-          recordType: row.recordType === 'summary' || row.recordType === 'history'
-            ? row.recordType
-            : undefined,
+          recordType: getSupplyRecordType({
+            suppliesno: String(row.suppliesno || ''),
+            recordType: row.recordType === 'summary' || row.recordType === 'history'
+              ? row.recordType
+              : undefined,
+          }),
           productId: row.productId == null ? undefined : String(row.productId),
           variantName: row.variantName == null ? undefined : String(row.variantName),
           updateCurrentStock: row.updateCurrentStock === true,
@@ -242,7 +250,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
     for (const row of supplies) {
       const isHistoryRow = row.recordType !== 'summary';
       const receivedDescription = isHistoryRow
-        ? `${String(row.receivedQuantity ?? row.totalSupplied ?? '')} ${String(row.receivedUnit || 'Pieces')}`
+        ? `${getSupplyReceivedInput(row).receivedQuantity} ${getSupplyReceivedInput(row).receivedUnit}`
         : getSummaryPackageQuantities(row)
             .map((level) => `${level.availableQuantity} ${level.name} (${level.equivalentQuantity})`)
             .join(', ');
@@ -413,8 +421,8 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
     }
   };
 
-  // Headline totals include the supplier's opening balance plus all received supplies.
-  // summarySupplies is the canonical per-variant running total in absolute Pieces.
+  // Headline totals use the current Product variant stock snapshot plus receipt
+  // history that has not already been applied to Product stock, all in Pieces.
   const totalSupplied = summarySupplies.reduce(
     (sum: number, supply: SupplyDetail) => sum + (Number(supply.totalSupplied) || 0),
     0,
@@ -772,7 +780,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                     <td className="py-4 px-4 text-black">{String(supply.lastSuppliedDate || '—')}</td>
                     <td className="py-4 px-4 font-medium text-black">{String(supply.sku || '—')}</td>
                     <td className="py-4 px-4 text-black">
-                      {String(supply.receivedQuantity ?? supply.totalSupplied)} {String(supply.receivedUnit || 'Pieces')}
+                      {getSupplyReceivedInput(supply).receivedQuantity} {getSupplyReceivedInput(supply).receivedUnit}
                     </td>
                     <td className="py-4 px-4 text-[#0a61d7] font-semibold">
                       {formatCurrency(

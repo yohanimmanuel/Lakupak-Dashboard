@@ -301,62 +301,34 @@ export default function OrdersTable({
   ) => {
     if (selectedOrders.length === 0 || !user?.id || isBulkUpdating) return;
 
-    const batchOrderIds = [...selectedOrders];
+    const batchOrderIds = [...new Set(selectedOrders)];
     setIsBulkUpdating(true);
     setShowBulkOrderStatusDropdown(false);
     setShowBulkPaymentStatusDropdown(false);
 
     try {
-      let successes: string[] = [];
-      let failures: Array<{ orderId: string; reason: string }> = [];
-
-      if (field === 'orderStatus') {
-        // Inventory-sensitive status changes are sent once. The server locks and
-        // updates the complete batch in one transaction, preventing partial stock
-        // deductions and avoiding one browser request per order.
-        const response = await fetch('/api/orders', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            bulkOrderStatus: true,
-            orderIds: batchOrderIds,
-            orderStatus: value,
-            userId: user.id,
-          }),
-        });
-        const result = (await response.json().catch(() => ({}))) as {
-          error?: string;
-          successfulOrderIds?: string[];
-          failedOrderIds?: string[];
-        };
-        if (!response.ok) {
-          const reason = result.error || `Request failed (${response.status})`;
-          failures = batchOrderIds.map((orderId) => ({ orderId, reason }));
-        } else {
-          successes = Array.isArray(result.successfulOrderIds) ? result.successfulOrderIds : batchOrderIds;
-          failures = (result.failedOrderIds || []).map((orderId) => ({ orderId, reason: result.error || 'Update failed' }));
-        }
-      } else {
-        // Payment status does not affect inventory. Keep its existing per-order
-        // update path until a dedicated payment batch mutation is introduced.
-        for (const orderId of batchOrderIds) {
-          try {
-            const response = await fetch('/api/orders', {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ orderId, userId: user.id, paymentStatus: value }),
-            });
-            if (response.ok) {
-              successes.push(orderId);
-            } else {
-              const result = (await response.json().catch(() => ({}))) as { error?: string; detail?: string };
-              failures.push({ orderId, reason: result.detail || result.error || `Request failed (${response.status})` });
-            }
-          } catch (error) {
-            failures.push({ orderId, reason: error instanceof Error ? error.message : 'Request failed' });
-          }
-        }
+      const response = await fetch('/api/orders', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...(field === 'orderStatus'
+            ? { bulkOrderStatus: true, orderStatus: value }
+            : { bulkPaymentStatus: true, paymentStatus: value }),
+          orderIds: batchOrderIds,
+          userId: user.id,
+        }),
+      });
+      const result = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        successfulOrderIds?: string[];
+        failedOrderIds?: string[];
+      };
+      if (!response.ok) {
+        throw new Error(result.error || `Request failed (${response.status})`);
       }
+
+      const successes = Array.isArray(result.successfulOrderIds) ? result.successfulOrderIds : batchOrderIds;
+      const failures = Array.isArray(result.failedOrderIds) ? result.failedOrderIds : [];
 
       if (successes.length > 0 && setOrdersAction) {
         setOrdersAction((previous) => previous.map((order) =>
@@ -366,11 +338,7 @@ export default function OrdersTable({
       setSelectedOrders((previous) => previous.filter((orderId) => !successes.includes(orderId)));
 
       if (failures.length > 0) {
-        const message = successes.length > 0
-          ? tTable('bulkActions.updatePartialSuccess', { success: successes.length, failed: failures.length })
-          : tTable('bulkActions.updateFailed', { count: failures.length });
-        const detailLines = failures.map(({ orderId, reason }) => `${orderId}: ${reason}`);
-        alert(`${message}\n${detailLines.join('\n')}`);
+        alert(tTable('bulkActions.updatePartialSuccess', { success: successes.length, failed: failures.length }));
       }
       if (successes.length > 0) onRefreshAction?.();
     } catch (error) {
@@ -382,23 +350,28 @@ export default function OrdersTable({
   };
 
   const handleBulkArchive = async () => {
-    if (selectedOrders.length === 0) return;
+    if (selectedOrders.length === 0 || !user?.id || isBulkUpdating) return;
+    const batchOrderIds = [...new Set(selectedOrders)];
+    setIsBulkUpdating(true);
     try {
-      const successes: string[] = [];
-      for (const orderId of selectedOrders) {
-        const row = pagedOrders.find(o => o.orderId === orderId);
-        const res = await fetch('/api/orders', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId, id: row ? Number(row.id) : undefined, archive: true, userId: user?.id })
-        });
-        if (res.ok) successes.push(orderId);
+      const response = await fetch('/api/orders', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archiveOrderIds: batchOrderIds, userId: user.id }),
+      });
+      const result = (await response.json().catch(() => ({}))) as { error?: string; successfulOrderIds?: string[] };
+      if (!response.ok) throw new Error(result.error || `Request failed (${response.status})`);
+      const successes = Array.isArray(result.successfulOrderIds) ? result.successfulOrderIds : batchOrderIds;
+      if (setOrdersAction && successes.length > 0) {
+        setOrdersAction((previous) => previous.filter((order) => !successes.includes(order.orderId)));
       }
-      if (successes.length > 0 && setOrdersAction) {
-        setOrdersAction(prev => prev.filter(o => !successes.includes(o.orderId)));
-      }
-      setSelectedOrders(prev => prev.filter(id => !successes.includes(id)));
-    } catch {}
+      setSelectedOrders((previous) => previous.filter((id) => !successes.includes(id)));
+      if (successes.length > 0) onRefreshAction?.();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : tTable('bulkActions.updateFailed', { count: batchOrderIds.length }));
+    } finally {
+      setIsBulkUpdating(false);
+    }
   };
 
   const handleDelete = (order: OrderTableRow) => {
@@ -432,27 +405,25 @@ export default function OrdersTable({
     setDeleteError('');
 
     try {
-      const deletePromises = ordersToDelete.map(async (orderId) => {
-        const res = await fetch('/api/orders', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId }),
-        });
-        if (!res.ok) {
-          throw new Error(`Failed to delete order ${orderId}`);
-        }
-        return orderId;
+      const res = await fetch('/api/orders', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderIds: ordersToDelete }),
       });
-
-      await Promise.all(deletePromises);
+      const result = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        deletedOrderIds?: string[];
+      };
+      if (!res.ok) throw new Error(result.error || `Failed to delete ${ordersToDelete.length} order(s)`);
+      const deletedOrderIds = Array.isArray(result.deletedOrderIds) ? result.deletedOrderIds : ordersToDelete;
 
       if (!onRefreshAction && setOrdersAction) {
         setOrdersAction((prev) =>
-          prev.filter((order) => !ordersToDelete.includes(order.orderId))
+          prev.filter((order) => !deletedOrderIds.includes(order.orderId))
         );
       }
 
-      setSelectedOrders((prev) => prev.filter((id) => !ordersToDelete.includes(id)));
+      setSelectedOrders((prev) => prev.filter((id) => !deletedOrderIds.includes(id)));
       setOrderToDelete(null);
 
       if (page > 1 && pagedOrders.length <= ordersToDelete.length) {

@@ -84,7 +84,6 @@ export interface ProductVariant {
 export interface Product {
   id?: number;
   productId: string;
-  sku: string;
   /** Target retailer segment from distributor buyer business types */
   marketSegment?: string | null;
   name: string;
@@ -141,7 +140,6 @@ export interface Product {
 export interface ProductTableRow {
   id: number;
   productId: string;
-  sku: string;
   name: string;
   productType: string;
   brand: string;
@@ -163,6 +161,7 @@ export interface ProductTableRow {
 
 export interface ProductImportRow {
   'Product ID': string;
+  /** Legacy import column; mapped to the imported product's Default VariantOption SKU. */
   'SKU': string;
   'Product Name': string;
   'Description': string;
@@ -190,7 +189,6 @@ export type ProductImportResult = {
 export interface ProductFormData {
   id?: number;
   productId?: string;
-  sku: string;
   marketSegment: string;
   name: string;
   description: string;

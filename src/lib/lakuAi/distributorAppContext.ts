@@ -619,7 +619,6 @@ export async function buildDistributorAppAssistantContext(
           select: {
             productId: true,
             name: true,
-            sku: true,
             marketplaceStatus: true,
             productType: true,
             merchandisingCategorySlug: true,
@@ -631,7 +630,10 @@ export async function buildDistributorAppAssistantContext(
                 sellingPrice: true,
                 originalSellingPrice: true,
                 purchasePrice: true,
+                sku: true,
+                isDefault: true,
               },
+              orderBy: [{ isDefault: 'desc' }, { id: 'asc' }],
             },
           },
         },
@@ -691,7 +693,6 @@ export async function buildDistributorAppAssistantContext(
           select: {
             productId: true,
             name: true,
-            sku: true,
             marketplaceStatus: true,
             status: true,
             brand: true,
@@ -710,7 +711,12 @@ export async function buildDistributorAppAssistantContext(
       select: {
         productId: true,
         name: true,
-        sku: true,
+        variantOptions: {
+          where: { isActive: true },
+          orderBy: [{ isDefault: 'desc' }, { id: 'asc' }],
+          take: 1,
+          select: { sku: true },
+        },
         brand: true,
         marketSegment: true,
         marketplaceStatus: true,
@@ -979,7 +985,7 @@ export async function buildDistributorAppAssistantContext(
             return {
               productId: product.productId,
               name: product.name,
-              sku: product.sku,
+              sku: product.variantOptions.find((variant) => variant.isDefault)?.sku ?? product.variantOptions[0]?.sku ?? null,
               productType: product.productType,
               merchandisingCategory: product.merchandisingCategorySlug,
               marketplaceStatus: product.marketplaceStatus,
@@ -1113,7 +1119,7 @@ export async function buildDistributorAppAssistantContext(
         .map((p) => ({
           productId: p.productId,
           name: p.name,
-          sku: p.sku,
+          sku: p.variantOptions[0]?.sku ?? null,
           brand: p.brand,
           category: p.marketSegment,
           marketplaceStatus: p.marketplaceStatus,

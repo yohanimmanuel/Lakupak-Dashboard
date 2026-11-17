@@ -32,7 +32,6 @@ function rejectProductInput(message: string): never {
 }
 
 function assertProductPayload(input: {
-  sku?: unknown;
   marketSegment?: unknown;
   name?: unknown;
   description?: unknown;
@@ -44,6 +43,7 @@ function assertProductPayload(input: {
   stockLevels?: unknown;
   status?: string | null;
   variantOptions?: Array<{
+    sku?: string | null;
     stockQuantity?: number | null;
     purchasePrice?: unknown;
     sellingPrice?: unknown;
@@ -95,6 +95,9 @@ function assertProductPayload(input: {
     if (!pricesReady) rejectProductInput('Each variant needs a price and package size.');
   }
   if (!input.publishing) return;
+  if (options.some((option) => !String(option.sku ?? '').trim())) {
+    rejectProductInput('Every product variant must have its own SKU before publishing.');
+  }
   const images = Array.isArray(input.images) ? input.images : [];
   if (images.length === 0) rejectProductInput('At least one product image is required.');
   let stock = 0;
@@ -151,7 +154,6 @@ export const productsTypeDefs = /* GraphQL */ `
   type Product {
     id: Int!
     productId: String!
-    sku: String!
     marketSegment: String
     name: String!
     description: String!
@@ -372,7 +374,6 @@ export const productsTypeDefs = /* GraphQL */ `
     createProduct(
       userId: Int!
       productId: String
-      sku: String
       marketSegment: String
       name: String!
       description: String!
@@ -400,7 +401,6 @@ export const productsTypeDefs = /* GraphQL */ `
       userId: Int!
       id: String
       productId: String
-      sku: String
       marketSegment: String
       name: String
       description: String
@@ -580,7 +580,6 @@ export const mapProduct = (
   return {
     id: product.id,
     productId: product.productId,
-    sku: product.sku,
     marketSegment: (product as { marketSegment?: string | null }).marketSegment ?? null,
     name: product.name,
     description: product.description,
@@ -697,7 +696,7 @@ export const fetchProductsConnection = async (args: {
   if (search) {
     whereClause.OR = [
       { name: { contains: search, mode: 'insensitive' } },
-      { sku: { contains: search, mode: 'insensitive' } },
+      { variantOptions: { some: { sku: { contains: search, mode: 'insensitive' } } } },
       { brand: { contains: search, mode: 'insensitive' } },
       { productType: { contains: search, mode: 'insensitive' } },
       { supplier: { contains: search, mode: 'insensitive' } },
@@ -872,7 +871,6 @@ const toPrismaStockLevelsJson = (levels: unknown): Prisma.InputJsonValue =>
 
 const buildProductData = ({
   productId,
-  sku,
   marketSegment,
   name,
   description,
@@ -894,7 +892,6 @@ const buildProductData = ({
   userId,
 }: {
   productId: string;
-  sku?: string | null;
   marketSegment?: string | null;
   name: string;
   description: string;
@@ -920,7 +917,6 @@ const buildProductData = ({
 
   return {
     productId,
-    sku: sku || '',
     marketSegment: marketSegment?.trim() || null,
     name: name.trim(),
     description: description.trim(),
@@ -1071,7 +1067,6 @@ const mapProductWithOffers = async (product: Prisma.ProductGetPayload<{ include:
 export const createProduct = async (args: {
   userId: number;
   productId?: string | null;
-  sku?: string | null;
   marketSegment?: string | null;
   name: string;
   description: string;
@@ -1114,7 +1109,6 @@ export const createProduct = async (args: {
   const {
     userId,
     productId,
-    sku,
     marketSegment,
     name,
     description,
@@ -1143,7 +1137,6 @@ export const createProduct = async (args: {
   validatePriceAnchorUnit(purchasePriceUnit, effectiveStockLevels, 'Purchase price unit');
 
   assertProductPayload({
-    sku,
     marketSegment,
     name,
     description,
@@ -1171,7 +1164,6 @@ export const createProduct = async (args: {
 
   const productData = buildProductData({
     productId: finalProductId,
-    sku,
     marketSegment,
     name,
     description,
@@ -1304,7 +1296,6 @@ export const updateProduct = async (args: {
   userId: number;
   id?: string | null;
   productId?: string | null;
-  sku?: string | null;
   marketSegment?: string | null;
   name?: string | null;
   description?: string | null;
@@ -1348,7 +1339,6 @@ export const updateProduct = async (args: {
     userId,
     id,
     productId,
-    sku,
     marketSegment,
     name,
     description,
@@ -1392,6 +1382,7 @@ export const updateProduct = async (args: {
         select: {
           id: true,
           variantName: true,
+          sku: true,
           purchasePrice: true,
           sellingPrice: true,
           stockQuantity: true,
@@ -1417,10 +1408,8 @@ export const updateProduct = async (args: {
   if (publishing && !stockLevels && !storedStockLevels) {
     rejectProductInput('Convert this product’s legacy stock quantity to Pieces before publishing.');
   }
-  // Draft `present` mode skips undefined fields. Do not fill omitted marketSegment/sku from
-  // stored null — that would incorrectly fail productRequiredTextError on partial draft saves.
+  // Draft `present` mode skips omitted fields; publishing validates SKU on every variant.
   assertProductPayload({
-    sku: sku !== undefined ? sku : publishing ? productBeforeUpdate.sku : undefined,
     marketSegment:
       marketSegment !== undefined
         ? marketSegment
@@ -1456,7 +1445,6 @@ export const updateProduct = async (args: {
 
   const cleanUpdateData: Record<string, unknown> = {};
 
-  if (sku !== undefined) cleanUpdateData.sku = String(sku);
   if (marketSegment !== undefined) {
     const trimmedMarketSegment = String(marketSegment ?? '').trim();
     cleanUpdateData.marketSegment = trimmedMarketSegment || null;
@@ -1974,7 +1962,6 @@ export const resetProductPrices = async (userId: number, productId: string) => {
 };
 
 type MarketplacePublishCandidate = {
-  sku: string | null;
   name: string | null;
   description: string | null;
   productType: string | null;
@@ -1982,6 +1969,7 @@ type MarketplacePublishCandidate = {
   supplier: string | null;
   images: string[];
   variantOptions: Array<{
+    sku: string | null;
     purchasePrice: Parameters<typeof parseMoney>[0];
     sellingPrice: Parameters<typeof parseMoney>[0];
     stockQuantity: number | null;
@@ -1991,14 +1979,13 @@ type MarketplacePublishCandidate = {
 /** Returns null when the product may be published, otherwise the reason it may not. */
 const findMarketplacePublishBlocker = (product: MarketplacePublishCandidate): string | null => {
   if (
-    !product.sku?.trim() ||
     !product.name?.trim() ||
     !product.description?.trim() ||
     !product.productType?.trim() ||
     !product.brand?.trim() ||
     !product.supplier?.trim()
   ) {
-    return 'Product must have SKU, name, description, category, brand, and supplier filled';
+    return 'Product must have name, description, category, brand, and supplier filled';
   }
 
   if (!product.images || product.images.length === 0) {
@@ -2009,6 +1996,9 @@ const findMarketplacePublishBlocker = (product: MarketplacePublishCandidate): st
 
   if (!variantOptions.length) {
     return 'Product must have at least one variant option';
+  }
+  if (variantOptions.some((variant) => !String(variant.sku ?? '').trim())) {
+    return 'Every product variant must have its own SKU';
   }
 
   const allVariantsComplete = variantOptions.every(
@@ -2149,7 +2139,6 @@ export const bulkPublishMarketplaceProducts = async (args: {
     where: { productId: { in: requestedIds }, userId },
     select: {
       productId: true,
-      sku: true,
       name: true,
       description: true,
       productType: true,
@@ -2157,7 +2146,7 @@ export const bulkPublishMarketplaceProducts = async (args: {
       supplier: true,
       images: true,
       variantOptions: {
-        select: { purchasePrice: true, sellingPrice: true, stockQuantity: true },
+        select: { sku: true, purchasePrice: true, sellingPrice: true, stockQuantity: true },
       },
     },
   });

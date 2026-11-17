@@ -329,6 +329,65 @@ export const NotificationService = {
     return notifications.length;
   },
 
+  // Create dashboard order-status notifications for a whole bulk operation.
+  // Uses createMany and emits once so the dashboard refreshes the complete batch
+  // together, mirroring createProductsPublishedNotifications.
+  async createBulkOrderStatusNotifications(
+    userId: number,
+    orderStatus: string,
+    orders: Array<{ orderId: string; storeName: string | null; totalAmount: number }>,
+  ) {
+    if (orders.length === 0) return 0;
+
+    const notificationCopy = (order: typeof orders[number]) => {
+      const storeName = order.storeName || 'Unknown Store';
+      switch (orderStatus) {
+        case 'Confirmed':
+          return { title: 'Order Confirmed', message: `Order #${order.orderId} has been confirmed and is now being processed.` };
+        case 'Packed':
+          return { title: 'Order Packed', message: `Order #${order.orderId} has been packed and is ready for shipping.` };
+        case 'Shipped':
+          return { title: 'Order Shipped', message: `Order #${order.orderId} has been shipped to ${storeName}.` };
+        case 'Delivered':
+          return { title: 'Order Delivered', message: `Order #${order.orderId} has been successfully delivered to ${storeName}.` };
+        case 'Failed':
+          return { title: 'Delivery Failed', message: `Order #${order.orderId} from ${storeName} could not be delivered.` };
+        case 'Cancelled':
+          return { title: 'Order Cancelled', message: `Order #${order.orderId} from ${storeName} has been cancelled.` };
+        case 'Returned':
+          return { title: 'Order Returned', message: `Order #${order.orderId} from ${storeName} has been returned.` };
+        default:
+          return null;
+      }
+    };
+
+    const batchOrderIds = orders.map((order) => order.orderId);
+    const data = orders.flatMap((order) => {
+      const copy = notificationCopy(order);
+      if (!copy) return [];
+      return [{
+        userId,
+        type: 'order',
+        title: copy.title,
+        message: copy.message,
+        metadata: {
+          orderId: order.orderId,
+          orderStatus,
+          storeName: order.storeName || 'Unknown Store',
+          bulk: true,
+          batchOrderIds,
+          batchCount: batchOrderIds.length,
+        },
+        actionUrl: `/orders/details/${order.orderId}`,
+      }];
+    });
+
+    if (data.length === 0) return 0;
+    await prisma.notification.createMany({ data });
+    emitDashboardNewNotification(userId);
+    return data.length;
+  },
+
   // Driver-to-dashboard status notification with explicit wording
   async createDriverStatusNotification(
     userId: number,

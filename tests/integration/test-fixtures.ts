@@ -26,6 +26,7 @@ export function colorVariantOptionsPayload(colors: readonly string[] = COLOR_OPT
   return colors.map((color, i) => ({
     variantName: `Color: ${color}`,
     attributes: { Color: color },
+    sku: `SKU-${color.toUpperCase()}`,
     purchasePrice: '1000',
     sellingPrice: '2000',
     originalSellingPrice: '2000',
@@ -48,7 +49,6 @@ export async function createPublishedColorProduct(opts: {
   return createProduct({
     userId: opts.userId,
     productId: opts.productId,
-    sku: `SKU-${opts.productId}`,
     name: opts.name,
     description: 'Integration test product',
     productType: 'Apparel',

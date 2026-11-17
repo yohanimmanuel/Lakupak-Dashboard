@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useCallback, useRef, useMemo, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Trash, Plus, AlertCircle, CheckCircle, ChevronDown, ArrowLeft, Save, Upload, Download, Search } from 'lucide-react';
+import { Trash, Plus, AlertCircle, CheckCircle, ChevronDown, ChevronLeft, ChevronRight, ArrowLeft, Save, Upload, Download, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import * as XLSX from 'xlsx';
@@ -12,6 +12,7 @@ import { convertSupplyQuantityToPieces, getSupplyUnitOptions } from '@/lib/suppl
 import { getDefaultCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
+import { getVisiblePageNumbers } from '@/utils/tablePagination';
 import {
   validateOptionalEmail,
   validateRequiredPhone,
@@ -30,7 +31,7 @@ import SupplyMoveModal, {
   type ManualSupplyRecord,
 } from '@/components/clientmanagement/SupplyMoveModal';
 import {
-  mergeDuplicateSummaryRows,
+  buildSupplySummaryFromHistory,
   partitionSupplies,
   serializeHistorySupplyForStorage,
 } from '@/lib/suppliers/supplyRecords';
@@ -335,7 +336,7 @@ function parseSupplyBuckets(raw?: string | null): { history: SupplyDetail[]; sum
       history: history.length > 0
         ? ensureUniqueHistoryIds(history.map((row) => normalizeSupplyRow(row, 'history')))
         : [emptyHistoryRow()],
-      summary: mergeDuplicateSummaryRows(summary).map((row) => normalizeSupplyRow(row, 'summary')),
+      summary: buildSupplySummaryFromHistory(history, summary).map((row) => normalizeSupplyRow(row, 'summary')),
     };
   } catch {
     return { history: [emptyHistoryRow()], summary: [] };
@@ -473,6 +474,26 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     () => parseSupplyBuckets(initialData?.supplies).history,
   );
   const [suppliesTab, setSuppliesTab] = useState<'summary' | 'history'>('history');
+  // Summary and history have independent pagination so switching tabs preserves each view.
+  const supplyRowsPerPage = 8;
+  const [summaryPage, setSummaryPage] = useState(1);
+  const [historyPage, setHistoryPage] = useState(1);
+  const totalSummaryPages = Math.max(1, Math.ceil(summaryRows.length / supplyRowsPerPage));
+  const totalHistoryPages = Math.max(1, Math.ceil(historyRows.length / supplyRowsPerPage));
+  const safeSummaryPage = Math.min(summaryPage, totalSummaryPages);
+  const safeHistoryPage = Math.min(historyPage, totalHistoryPages);
+  const summaryPageStart = (safeSummaryPage - 1) * supplyRowsPerPage;
+  const summaryPageEnd = Math.min(summaryPageStart + supplyRowsPerPage, summaryRows.length);
+  const historyPageStart = (safeHistoryPage - 1) * supplyRowsPerPage;
+  const historyPageEnd = Math.min(historyPageStart + supplyRowsPerPage, historyRows.length);
+
+  useEffect(() => {
+    if (summaryPage !== safeSummaryPage) setSummaryPage(safeSummaryPage);
+  }, [summaryPage, safeSummaryPage]);
+  useEffect(() => {
+    if (historyPage !== safeHistoryPage) setHistoryPage(safeHistoryPage);
+  }, [historyPage, safeHistoryPage]);
+
   const [showImportSupplies, setShowImportSupplies] = useState(false);
   const [catalogProducts, setCatalogProducts] = useState<ProductCatalogNode[]>([]);
 
@@ -754,7 +775,8 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
 
   const addHistoryRow = useCallback(() => {
     setHistoryRows((rows) => [...rows, emptyHistoryRow()]);
-  }, []);
+    setHistoryPage(Math.max(1, Math.ceil((historyRows.length + 1) / supplyRowsPerPage)));
+  }, [historyRows.length]);
 
   const allHistoryRowsSelected = historyRows.length > 0 && selectedHistoryRows.size === historyRows.length;
   const someHistoryRowsSelected = selectedHistoryRows.size > 0 && !allHistoryRowsSelected;
@@ -876,6 +898,10 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
       const existing = rows.filter((row) => !isBlankHistoryRow(row));
       return existing.length > 0 ? [...existing, ...imported] : imported.length > 0 ? imported : [emptyHistoryRow()];
     });
+    const existingCount = historyRows.filter((row) => !isBlankHistoryRow(row)).length;
+    if (imported.length > 0) {
+      setHistoryPage(Math.max(1, Math.ceil((existingCount + imported.length) / supplyRowsPerPage)));
+    }
     // Blank rows are dropped on import, which shifts indices.
     setSelectedHistoryRows(new Set());
     setSuppliesTab('history');
@@ -1625,9 +1651,9 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                         </td>
                       </tr>
                     ) : (
-                      summaryRows.map((row, idx) => (
-                        <tr key={row.suppliesno || `sum-${idx}`} className="border-b last:border-b-0">
-                          <td className="px-3 py-3 font-medium text-black">{idx + 1}</td>
+                      summaryRows.slice(summaryPageStart, summaryPageEnd).map((row, idx) => (
+                        <tr key={row.suppliesno || `sum-${summaryPageStart + idx}`} className="border-b last:border-b-0">
+                          <td className="px-3 py-3 font-medium text-black">{summaryPageStart + idx + 1}</td>
                           <td className="px-3 py-3 text-black">
                             <div className="font-medium">{row.sku || '—'}</div>
                             <div className="text-gray-500">{row.product || '—'}</div>
@@ -1664,7 +1690,8 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                     </tr>
                   </thead>
                   <tbody>
-                    {historyRows.map((row, idx) => {
+                    {historyRows.slice(historyPageStart, historyPageEnd).map((row, visibleIndex) => {
+                      const idx = historyPageStart + visibleIndex;
                       const needsSku = isUnresolvedHistoryRow(row);
                       return (
                       <tr key={row.suppliesno || `hist-${idx}`} className="whitespace-nowrap">
@@ -1823,6 +1850,62 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                   </tbody>
                 </table>
               )}
+            </div>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-xs text-gray-500">
+                {tShared('pagination.showing', suppliesTab === 'summary' ? {
+                  from: summaryRows.length === 0 ? 0 : summaryPageStart + 1,
+                  to: summaryPageEnd,
+                  total: summaryRows.length,
+                } : {
+                  from: historyRows.length === 0 ? 0 : historyPageStart + 1,
+                  to: historyPageEnd,
+                  total: historyRows.length,
+                })}
+              </div>
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  className="rounded-lg p-2 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                  onClick={() => suppliesTab === 'summary'
+                    ? setSummaryPage((page) => Math.max(1, page - 1))
+                    : setHistoryPage((page) => Math.max(1, page - 1))}
+                  disabled={suppliesTab === 'summary' ? safeSummaryPage === 1 : safeHistoryPage === 1}
+                  aria-label={tShared('previousPage')}
+                >
+                  <ChevronLeft className="h-4 w-4 text-gray-500" />
+                </button>
+                {(suppliesTab === 'summary'
+                  ? getVisiblePageNumbers(safeSummaryPage, totalSummaryPages)
+                  : getVisiblePageNumbers(safeHistoryPage, totalHistoryPages)
+                ).map((pageNumber) => {
+                  const activePage = suppliesTab === 'summary' ? safeSummaryPage : safeHistoryPage;
+                  return (
+                    <button
+                      key={pageNumber}
+                      type="button"
+                      className={`rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                        pageNumber === activePage ? 'bg-[#0a61d7] text-white' : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
+                      }`}
+                      onClick={() => suppliesTab === 'summary' ? setSummaryPage(pageNumber) : setHistoryPage(pageNumber)}
+                      aria-current={pageNumber === activePage ? 'page' : undefined}
+                    >
+                      {pageNumber}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  className="rounded-lg p-2 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                  onClick={() => suppliesTab === 'summary'
+                    ? setSummaryPage((page) => Math.min(totalSummaryPages, page + 1))
+                    : setHistoryPage((page) => Math.min(totalHistoryPages, page + 1))}
+                  disabled={suppliesTab === 'summary' ? safeSummaryPage === totalSummaryPages : safeHistoryPage === totalHistoryPages}
+                  aria-label={tShared('nextPage')}
+                >
+                  <ChevronRight className="h-4 w-4 text-gray-500" />
+                </button>
+              </div>
             </div>
             {suppliesTab === 'history' && (
               <p className="mt-2 text-xs text-gray-500">{tSuppliersModal('updateCurrentStockHint')}</p>

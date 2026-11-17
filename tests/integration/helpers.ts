@@ -32,6 +32,25 @@ export function makeAuthenticatedDashboardPutRequest(
   return new NextRequest(req);
 }
 
+export function makeAuthenticatedDashboardDeleteRequest(
+  url: string,
+  body: unknown,
+  dashboardUserId: number,
+): NextRequest {
+  ensureIntegrationAuthEnv();
+  const token = signAccessToken({ sub: dashboardUserId, type: 'dashboard' });
+  const req = new Request(url, {
+    method: 'DELETE',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${token}`,
+      'x-forwarded-for': '127.0.0.1',
+    },
+    body: JSON.stringify(body),
+  });
+  return new NextRequest(req);
+}
+
 export function makeAuthenticatedMarketplacePutRequest(
   url: string,
   body: unknown,

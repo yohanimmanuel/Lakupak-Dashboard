@@ -180,7 +180,7 @@ export async function computeAssortmentGap(args: {
       ? {
           OR: [
             { name: { contains: search, mode: 'insensitive' as const } },
-            { sku: { contains: search, mode: 'insensitive' as const } },
+            { variantOptions: { some: { sku: { contains: search, mode: 'insensitive' as const } } } },
           ],
         }
       : {}),
@@ -193,7 +193,12 @@ export async function computeAssortmentGap(args: {
       select: {
         productId: true,
         name: true,
-        sku: true,
+        variantOptions: {
+          where: { isActive: true },
+          orderBy: [{ isDefault: 'desc' }, { id: 'asc' }],
+          take: 1,
+          select: { sku: true },
+        },
         merchandisingCategorySlug: true,
       },
       orderBy: { name: 'asc' },
@@ -261,7 +266,7 @@ export async function computeAssortmentGap(args: {
   const rows: AssortmentGapRow[] = catalog.map((product) => ({
     productId: product.productId,
     name: product.name,
-    sku: product.sku,
+    sku: product.variantOptions[0]?.sku ?? '',
     categorySlug: product.merchandisingCategorySlug,
     categoryLabel: getMerchandisingLabel(product.merchandisingCategorySlug) || product.merchandisingCategorySlug,
     cells: buildCells(segments, eligibleBySegment, purchasedByProduct.get(product.productId)),
@@ -298,11 +303,10 @@ export async function computeAssortmentGapVariants(args: {
       id: true,
       productId: true,
       name: true,
-      sku: true,
       variantOptions: {
         where: { isActive: true },
-        select: { id: true, variantName: true, sku: true },
-        orderBy: { id: 'asc' },
+        select: { id: true, variantName: true, sku: true, isDefault: true },
+        orderBy: [{ isDefault: 'desc' }, { id: 'asc' }],
       },
     },
   });
@@ -365,7 +369,7 @@ export async function computeAssortmentGapVariants(args: {
 
   const catalogVariants = product.variantOptions.length
     ? product.variantOptions
-    : [{ id: 0, variantName: product.name, sku: product.sku }];
+    : [{ id: 0, variantName: product.name, sku: null }];
 
   const rows: AssortmentGapVariantRow[] = catalogVariants.map((variant) => {
     const purchased =
@@ -382,7 +386,7 @@ export async function computeAssortmentGapVariants(args: {
   return {
     productId: product.productId,
     name: product.name,
-    sku: product.sku,
+    sku: product.variantOptions.find((variant) => variant.isDefault)?.sku ?? product.variantOptions[0]?.sku ?? '',
     segments,
     period,
     from: from ? from.toISOString() : null,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SupplyDetail } from '@/types/client';
-import { buildSupplySummaryFromHistory } from '@/lib/suppliers/supplyRecords';
+import { buildSupplySummaryFromHistory, getSupplyReceivedInput, getSupplyRecordType, mergeDuplicateSummaryRows } from '@/lib/suppliers/supplyRecords';
 import { getSupplySummaryQuantities } from '@/lib/suppliers/supplyPackageUnits';
 
 const stockLevels = [
@@ -28,50 +28,65 @@ function history(overrides: Partial<SupplyDetail> = {}): SupplyDetail {
 }
 
 describe('supplier supply summary', () => {
-  it('preserves product-linked opening balances and does not double-count their receipt history', () => {
-    const rows = buildSupplySummaryFromHistory(
-      [
-        history(),
-        history({ suppliesno: 'HIST-2', totalSupplied: '10', receivedQuantity: '10', receivedUnit: 'Pieces', totalValue: '500' }),
-        history({ productId: 'P-2', variantName: 'Oreo', sku: 'SKU-2', product: 'Widget (Oreo)', totalSupplied: '100' }),
-      ],
-      [
-        {
-          // Opening 1,000 Pieces + 240 + 10 Pieces already applied by the save logic.
-          ...history({ suppliesno: 'AUTO-P-1|BBQ', totalSupplied: '1250', totalValue: '8821500' }),
-          recordType: 'summary',
-        },
-        {
-          // Opening stock remains visible even when there is no receipt history.
-          ...history({ suppliesno: 'AUTO-P-1|Oreo', product: 'Widget (Oreo)', variantName: 'Oreo', totalSupplied: '5000', totalValue: '777777' }),
-          recordType: 'summary',
-        },
-      ],
-    );
-
-    expect(rows).toHaveLength(2);
-    expect(rows.find((row) => row.productId === 'P-1' && row.variantName === 'BBQ')?.totalSupplied).toBe('1250');
-    expect(rows.find((row) => row.productId === 'P-1' && row.variantName === 'BBQ')?.totalValue).toBe('8821500');
-    expect(rows.find((row) => row.productId === 'P-1' && row.variantName === 'Oreo')?.totalSupplied).toBe('5000');
-    expect(rows.find((row) => row.productId === 'P-1' && row.variantName === 'Oreo')?.totalValue).toBe('777777');
-    // History without a linked summary is still aggregated from the history records.
-    expect(rows.find((row) => row.productId === 'P-2')?.totalSupplied).toBe('100');
+  it('uses AUTO/HIST IDs as the canonical record-type discriminator for legacy rows', () => {
+    expect(getSupplyRecordType({ suppliesno: 'AUTO-P-1|BBQ', recordType: 'history' } as SupplyDetail)).toBe('summary');
+    expect(getSupplyRecordType({ suppliesno: 'HIST-123', recordType: 'summary' } as SupplyDetail)).toBe('history');
   });
 
-  it('uses the persisted linked summary total as authoritative when receipts are also present in history', () => {
+  it('adds only non-stock-applied history to the current product variant stock snapshot', () => {
     const rows = buildSupplySummaryFromHistory(
-      [history({ totalSupplied: '480', totalValue: '20000000' })],
       [
-        {
-          ...history({ suppliesno: 'AUTO-P-1|BBQ', totalSupplied: '1480', totalValue: '28800000' }),
-          recordType: 'summary',
-        },
+        history({ totalSupplied: '240', totalValue: '20000', stockApplied: true, updateCurrentStock: true }),
+        history({ suppliesno: 'HIST-2', totalSupplied: '30', totalValue: '3000', stockApplied: false, updateCurrentStock: false }),
+      ],
+      [
+        { ...history({ suppliesno: 'AUTO-P-1|BBQ', totalSupplied: '500', totalValue: '2500000' }), recordType: 'summary' },
       ],
     );
 
     expect(rows).toHaveLength(1);
-    expect(rows[0].totalSupplied).toBe('1480');
-    expect(rows[0].totalValue).toBe('28800000');
+    expect(rows[0].totalSupplied).toBe('530');
+    expect(rows[0].totalValue).toBe('2503000');
+  });
+
+  it('includes a checked receipt when the stock application explicitly failed', () => {
+    const rows = buildSupplySummaryFromHistory(
+      [history({ totalSupplied: '40', updateCurrentStock: true, stockApplied: false })],
+      [{ ...history({ suppliesno: 'AUTO-P-1|BBQ', totalSupplied: '300' }), recordType: 'summary' }],
+    );
+    expect(rows[0].totalSupplied).toBe('340');
+  });
+
+  it('does not add stock-applied receipt history to a product stock snapshot a second time', () => {
+    const rows = buildSupplySummaryFromHistory(
+      [history({ totalSupplied: '240', stockApplied: true, updateCurrentStock: true })],
+      [{ ...history({ suppliesno: 'AUTO-P-1|BBQ', totalSupplied: '740' }), recordType: 'summary' }],
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].totalSupplied).toBe('740');
+  });
+
+  it('keeps a product stock snapshot stable when duplicate AUTO rows exist', () => {
+    const rows = buildSupplySummaryFromHistory(
+      [],
+      [
+        { ...history({ suppliesno: 'AUTO-1', totalSupplied: '500', totalValue: '250000' }), recordType: 'summary' },
+        { ...history({ suppliesno: 'AUTO-2', totalSupplied: '500', totalValue: '250000' }), recordType: 'summary' },
+      ],
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].totalSupplied).toBe('500');
+    expect(rows[0].totalValue).toBe('250000');
+  });
+
+  it('matches a distributor-specific history label to a unique catalog SKU', () => {
+    const rows = buildSupplySummaryFromHistory(
+      [history({ productId: undefined, variantName: undefined, product: 'Accurate legacy item label', totalSupplied: '25' })],
+      [{ ...history({ suppliesno: 'AUTO-P-1|BBQ', product: 'Lakupak catalog label', totalSupplied: '300' }), recordType: 'summary' }],
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].totalSupplied).toBe('325');
+    expect(rows[0].product).toBe('Widget (BBQ)');
   });
 
   it('does not merge legacy variants that share a SKU but have different product labels', () => {
@@ -84,6 +99,50 @@ describe('supplier supply summary', () => {
     expect(rows).toHaveLength(2);
     expect(rows.find((row) => row.product.includes('Pistachio'))?.totalSupplied).toBe('2000');
     expect(rows.find((row) => row.product.includes('BBQ'))?.totalSupplied).toBe('1480');
+  });
+
+
+  it('merges linked summaries by the same product ID and SKU even when stored labels differ', () => {
+    const rows = mergeDuplicateSummaryRows([
+      history({ suppliesno: 'AUTO-A', recordType: 'summary', productId: 'P-LINKED', sku: 'SKU-ONE', variantName: 'Old label', product: 'Imported distributor label', totalSupplied: '70', totalValue: '700' }),
+      history({ suppliesno: 'AUTO-B', recordType: 'summary', productId: 'P-LINKED', sku: 'SKU-ONE', variantName: 'Current label', product: 'Current catalog label', totalSupplied: '30', totalValue: '300' }),
+      history({ suppliesno: 'AUTO-C', recordType: 'summary', productId: 'P-OTHER', sku: 'SKU-ONE', variantName: 'Current label', product: 'Other catalog product', totalSupplied: '500', totalValue: '5000' }),
+    ]);
+
+    expect(rows).toHaveLength(2);
+    expect(rows.find((row) => row.productId === 'P-LINKED')?.totalSupplied).toBe('70');
+    expect(rows.find((row) => row.productId === 'P-LINKED')?.totalValue).toBe('700');
+    expect(rows.find((row) => row.productId === 'P-OTHER')?.totalSupplied).toBe('500');
+  });
+
+  it('merges duplicate persisted summaries before projecting the profile summary', () => {
+    const rows = buildSupplySummaryFromHistory(
+      [history({ totalSupplied: '80', totalValue: '1000' })],
+      [
+        { ...history({ suppliesno: 'AUTO-1', totalSupplied: '100', totalValue: '2000' }), recordType: 'summary' },
+        { ...history({ suppliesno: 'AUTO-2', totalSupplied: '7', totalValue: '300' }), recordType: 'summary' },
+      ],
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].totalSupplied).toBe('180');
+    expect(rows[0].totalValue).toBe('3000');
+  });
+
+  it('falls back from an empty legacy receivedQuantity to canonical Pieces without applying a stale package unit', () => {
+    expect(getSupplyReceivedInput({
+      receivedQuantity: '',
+      receivedUnit: 'Cartons',
+      totalSupplied: '80',
+    })).toEqual({ receivedQuantity: '80', receivedUnit: 'Pieces' });
+  });
+
+  it('preserves a non-empty supplier-entered package quantity and unit', () => {
+    expect(getSupplyReceivedInput({
+      receivedQuantity: '2',
+      receivedUnit: 'Cartons',
+      totalSupplied: '240',
+    })).toEqual({ receivedQuantity: '2', receivedUnit: 'Cartons' });
   });
 
   it('expresses received totals in each configured stock level using supplier quantities, not product stock', () => {

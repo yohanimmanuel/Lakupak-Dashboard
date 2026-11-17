@@ -53,7 +53,6 @@ const FINANCIAL_ANALYTICS_PAGE_QUERY = `
       nodes {
         id
         productId
-        sku
         name
         description
         productType

@@ -1,6 +1,6 @@
 import type { Prisma, PrismaClient } from '@/lib/prisma-generated';
 import type { SupplyDetail } from '@/types/client';
-import { getSupplyRecordType } from '@/lib/suppliers/supplyRecords';
+import { getSupplyRecordType, getSupplyReceivedInput, mergeDuplicateSummaryRows } from '@/lib/suppliers/supplyRecords';
 import { isSupplyDeleteMarker } from '@/lib/suppliers/applySupplierSuppliesSave';
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
@@ -37,12 +37,15 @@ export function parseSuppliesJsonCompat(raw: string | null | undefined): SupplyD
         ? value as Record<string, unknown>
         : {};
       const { lastDelivery: legacyLastDelivery, ...rest } = row;
+      const receivedInput = getSupplyReceivedInput({
+        receivedQuantity: row.receivedQuantity == null ? undefined : String(row.receivedQuantity),
+        receivedUnit: row.receivedUnit == null ? undefined : String(row.receivedUnit),
+        totalSupplied: String(row.totalSupplied || ''),
+      });
       return {
         ...rest,
-        receivedQuantity: row.receivedQuantity == null
-          ? String(row.totalSupplied || '')
-          : String(row.receivedQuantity),
-        receivedUnit: String(row.receivedUnit || 'Pieces'),
+        receivedQuantity: receivedInput.receivedQuantity,
+        receivedUnit: receivedInput.receivedUnit,
         lastSuppliedDate: String(row.lastSuppliedDate || legacyLastDelivery || ''),
       } as unknown as SupplyDetail;
     });
@@ -52,19 +55,24 @@ export function parseSuppliesJsonCompat(raw: string | null | undefined): SupplyD
 }
 
 export function supplyDetailFromRecord(row: SupplyRecordRow): SupplyDetail {
+  const receivedInput = getSupplyReceivedInput({
+    receivedQuantity: row.receivedQuantity,
+    receivedUnit: row.receivedUnit,
+    totalSupplied: row.totalSupplied,
+  });
   return {
     suppliesno: row.suppliesno || '',
     sku: row.sku || '',
     product: row.product || '',
     // Keep the supplier's entered package quantity/unit separate from canonical stock.
-    receivedQuantity: row.receivedQuantity || row.totalSupplied || '',
-    receivedUnit: row.receivedUnit || 'Pieces',
+    receivedQuantity: receivedInput.receivedQuantity,
+    receivedUnit: receivedInput.receivedUnit,
     totalSupplied: row.totalSupplied || '',
     totalValue: row.totalValue || '',
     lastSuppliedDate: row.lastSuppliedDate || '',
     status: row.status || 'Active',
     deliverySuccess: row.deliverySuccess || undefined,
-    recordType: row.recordType === 'summary' ? 'summary' : 'history',
+    recordType: getSupplyRecordType({ suppliesno: row.suppliesno, recordType: row.recordType as SupplyDetail['recordType'] }),
     productId: row.productId || undefined,
     variantName: row.variantName || undefined,
     updateCurrentStock: row.updateCurrentStock === true,
@@ -131,15 +139,14 @@ export function buildSupplyRecordCreateManyRows(
   const list = raw.filter((row) => !isSupplyDeleteMarker(row));
   return list.map((row, index) => {
     const recordType = getSupplyRecordType(row);
+    const receivedInput = recordType === 'history' ? getSupplyReceivedInput(row) : null;
     return {
       supplierRefId,
       suppliesno: String(row.suppliesno || ''),
       sku: String(row.sku || ''),
       product: String(row.product || ''),
-      receivedQuantity: recordType === 'history'
-        ? String(row.receivedQuantity ?? row.totalSupplied ?? '')
-        : '',
-      receivedUnit: recordType === 'history' ? String(row.receivedUnit || 'Pieces') : 'Pieces',
+      receivedQuantity: receivedInput?.receivedQuantity ?? '',
+      receivedUnit: receivedInput?.receivedUnit ?? 'Pieces',
       totalSupplied: String(row.totalSupplied || ''),
       totalValue: String(row.totalValue || ''),
       lastSuppliedDate: String(row.lastSuppliedDate || (row as SupplyDetail & { lastDelivery?: string }).lastDelivery || ''),
@@ -167,19 +174,26 @@ export async function replaceSupplierSupplyRecords(
       : Array.isArray(details)
         ? details
         : [];
-  const list = raw.filter((row) => !isSupplyDeleteMarker(row));
+  // Collapse catalog-linked duplicate summaries before any persistence. History
+  // rows are deliberately retained as separate dated events.
+  const list = mergeDuplicateSummaryRows(raw.filter((row) => !isSupplyDeleteMarker(row)));
 
   // Preserve database IDs for unchanged/edited records. The caller must hold the
   // distributor advisory lock in the same transaction for existing suppliers.
   const incoming = buildSupplyRecordCreateManyRows(supplierRefId, list);
-  // Guard against duplicate opening/summary identities before persisting.
-  // Two summaries for one catalog variant would inflate Total Supplied.
+  // Guard the same identity used by the UI: one row per catalog product + SKU.
+  // If a row has no SKU, fall back to the product's variant label.
   const summaryKeys = new Set<string>();
   for (const row of incoming) {
-    if (row.recordType !== 'summary' || !row.productId || !row.variantName) continue;
-    const key = `${row.productId.trim().toLowerCase()}|${row.variantName.trim().toLowerCase()}`;
+    if (row.recordType !== 'summary') continue;
+    const productId = String(row.productId || '').trim().toLowerCase();
+    const sku = String(row.sku || '').trim().toLowerCase();
+    const variant = String(row.variantName || row.product || '').trim().toLowerCase();
+    const key = productId
+      ? (sku ? `${productId}|sku:${sku}` : `${productId}|variant:${variant}`)
+      : (sku ? `sku:${sku}|product:${String(row.product || '').trim().toLowerCase()}` : `product:${variant}`);
     if (summaryKeys.has(key)) {
-      throw new Error('Duplicate supply summary for the same product variant. Reconcile before saving.');
+      throw new Error('Duplicate supply summary for the same product and SKU. Reconcile before saving.');
     }
     summaryKeys.add(key);
   }

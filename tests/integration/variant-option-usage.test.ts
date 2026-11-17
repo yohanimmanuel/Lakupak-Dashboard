@@ -23,7 +23,6 @@ describe('products.variantOptionUsage (integration)', () => {
     const product = await prisma.product.create({
       data: {
         productId: 'P-VAR-USAGE-1',
-        sku: 'SKU-VAR-USAGE-1',
         name: 'Variant Usage Product',
         description: 'Test',
         productType: 'TestType',
@@ -43,6 +42,7 @@ describe('products.variantOptionUsage (integration)', () => {
         productId: product.id,
         variantName: 'Color: Brown-White Fossil',
         attributes: { Color: 'Brown-White Fossil' },
+        sku: 'SKU-VAR-USAGE-1',
         purchasePrice: 1000,
         sellingPrice: 2000,
         originalSellingPrice: 2000,
@@ -61,6 +61,7 @@ describe('products.variantOptionUsage (integration)', () => {
         productId: product.id,
         variantName: 'Color: Black',
         attributes: { Color: 'Black' },
+        sku: 'SKU-VAR-USAGE-2',
         purchasePrice: 1000,
         sellingPrice: 2000,
         originalSellingPrice: 2000,
@@ -155,7 +156,6 @@ describe('products.variantOptionUsage (integration)', () => {
     const product = await prisma.product.create({
       data: {
         productId: 'P-VAR-USAGE-2',
-        sku: 'SKU-VAR-USAGE-2',
         name: 'Variant Usage Product 2',
         description: 'Test',
         productType: 'TestType',
@@ -175,6 +175,7 @@ describe('products.variantOptionUsage (integration)', () => {
         productId: product.id,
         variantName: 'Color: Red',
         attributes: { Color: 'Red' },
+        sku: 'SKU-VAR-USAGE-2',
         purchasePrice: 1000,
         sellingPrice: 2000,
         originalSellingPrice: 2000,

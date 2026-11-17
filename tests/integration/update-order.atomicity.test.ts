@@ -17,7 +17,6 @@ describe('orders update - atomicity on failure', () => {
     const goodProduct = await prisma.product.create({
       data: {
         productId: 'P-ATOMIC-GOOD',
-        sku: 'SKU-ATOMIC-GOOD',
         name: 'Atomic Good Product',
         description: 'Test',
         productType: 'TestType',
@@ -37,6 +36,7 @@ describe('orders update - atomicity on failure', () => {
         productId: goodProduct.id,
         variantName: 'Default',
         attributes: {},
+        sku: 'SKU-ATOMIC-GOOD',
         purchasePrice: 1000,
         sellingPrice: 2000,
         originalSellingPrice: 2000,
@@ -54,7 +54,6 @@ describe('orders update - atomicity on failure', () => {
     const badProduct = await prisma.product.create({
       data: {
         productId: 'P-ATOMIC-BAD',
-        sku: 'SKU-ATOMIC-BAD',
         name: 'Atomic Bad Product',
         description: 'Test',
         productType: 'TestType',

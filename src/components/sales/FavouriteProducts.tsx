@@ -59,7 +59,6 @@ export default function FavouriteProducts({
             nodes {
               id
               productId
-              sku
               name
               description
               productType
@@ -183,7 +182,7 @@ export default function FavouriteProducts({
   const filteredProducts = products.filter(product => {
     const matchesSearch = searchQuery === '' || 
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (product.variantOptions ?? []).some((variant) => String(variant.sku ?? '').toLowerCase().includes(searchQuery.toLowerCase())) ||
       product.brand?.toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesType = selectedType === 'All Types' || product.productType === selectedType;

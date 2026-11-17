@@ -84,7 +84,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
   const [formData, setFormData] = useState<ProductFormData>({
     id: product?.id,
     productId: product?.productId || '',
-    sku: product?.sku || '',
     marketSegment: product?.marketSegment || '',
     name: product?.name || '',
     description: product?.description || '',
@@ -371,7 +370,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
       const freshFormData: ProductFormData = {
         id: product.id,
         productId: product.productId || '',
-        sku: product.sku || '',
         marketSegment: product.marketSegment || '',
         name: product.name || '',
         description: product.description || '',
@@ -426,7 +424,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
       const initial = {
         id: product?.id,
         productId: product?.productId || '',
-        sku: product?.sku || '',
         marketSegment: product?.marketSegment || '',
         name: product?.name || '',
         description: product?.description || '',
@@ -1329,12 +1326,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
         if (!text && status !== 'Published') return '';
         return priceToPieceValue(text, getPriceAnchorPieces(formData.stockLevels, anchorUnit), priceCurrency);
       };
-      // Keep product.sku populated for legacy/search; prefer existing or first variant SKU.
-      const derivedSku =
-        String(finalData.sku || '').trim() ||
-        combinationsForPayload.map((combo) => String(combo.sku || '').trim()).find(Boolean) ||
-        String(finalData.productId || '').trim() ||
-        '';
       // Submit the new variant structure
       const payload: Record<string, unknown> = {
         ...finalData,
@@ -1342,7 +1333,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
         stockLevels: formData.stockLevels,
         id: formData.id,
         productId: formData.productId,
-        sku: derivedSku,
         marketSegment: String(finalData.marketSegment || '').trim(),
         userId: user.id,
         currency: user.currency,
@@ -1386,7 +1376,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
         mutation CreateProduct(
           $userId: Int!
           $productId: String
-          $sku: String
           $marketSegment: String
           $name: String!
           $description: String!
@@ -1411,7 +1400,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
           createProduct(
             userId: $userId
             productId: $productId
-            sku: $sku
             marketSegment: $marketSegment
             name: $name
             description: $description
@@ -1435,7 +1423,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
           ) {
             id
             productId
-            sku
             marketSegment
             name
             status
@@ -1447,7 +1434,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
           $userId: Int!
           $id: String
           $productId: String
-          $sku: String
           $marketSegment: String
           $name: String
           $description: String
@@ -1473,7 +1459,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
             userId: $userId
             id: $id
             productId: $productId
-            sku: $sku
             marketSegment: $marketSegment
             name: $name
             description: $description
@@ -1497,7 +1482,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
           ) {
             id
             productId
-            sku
             marketSegment
             name
             status
@@ -1509,7 +1493,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
         const createVariables: Record<string, unknown> = {
           userId: user.id,
           productId: payload.productId,
-          sku: payload.sku,
           marketSegment: payload.marketSegment,
           name: payload.name,
           description: payload.description,
@@ -1550,7 +1533,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
         // Include all fields from payload - GraphQL client will filter out null/undefined
         const updateVariables: Record<string, unknown> = {
           userId: user.id,
-          sku: payload.sku,
           marketSegment: payload.marketSegment,
           name: payload.name,
           description: payload.description,

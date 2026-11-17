@@ -1038,7 +1038,7 @@ export async function updateOrderHandler(request: NextRequest) {
                 variantId: itemWithVariant.variantId ?? null,
                 subtotal: consistentSubtotal,
                 productNameSnapshot: product.name,
-                productSkuSnapshot: product.sku,
+                productSkuSnapshot: selectedVariant.sku ?? null,
                 productTypeSnapshot: product.productType,
                 productImageSnapshot: Array.isArray((product as { images?: string[] }).images)
                   ? ((product as { images?: string[] }).images ?? [])[0] ?? null

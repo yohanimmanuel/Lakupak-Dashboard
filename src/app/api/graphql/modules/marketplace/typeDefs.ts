@@ -71,7 +71,6 @@ export const marketplaceTypeDefs = /* GraphQL */ `
     salesChannel: String!
     brand: String
     unit: String!
-    sku: String!
     supplier: String
     publishedAt: String
     lastSyncAt: String

@@ -57,7 +57,6 @@ async function seedShippedOrderWithFleet(opts: {
   const product = await prisma.product.create({
     data: {
       productId: opts.productId,
-      sku: opts.sku,
       name: 'Driver Failed Product',
       description: 'Test',
       productType: 'TestType',
@@ -77,6 +76,7 @@ async function seedShippedOrderWithFleet(opts: {
       productId: product.id,
       variantName: 'Default',
       attributes: {},
+      sku: opts.sku,
       purchasePrice: 1000,
       sellingPrice: 2000,
       originalSellingPrice: 2000,

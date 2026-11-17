@@ -9,7 +9,7 @@ import * as XLSX from 'xlsx';
 import ImportData from '@/components/clientmanagement/ImportData';
 import { useUserStore } from '@/store/userStore';
 import { Supplier, SupplierTableRow, SupplyDetail } from '@/types/client';
-import { partitionSupplies } from '@/lib/suppliers/supplyRecords';
+import { buildSupplySummaryFromHistory, partitionSupplies } from '@/lib/suppliers/supplyRecords';
 import { formatNumber } from '@/utils/dateUtils';
 import { generateUniqueSupplierId } from '@/utils/supplier-security';
 import { fetchGraphQL } from '@/lib/graphqlClient';
@@ -40,7 +40,8 @@ function profileToTableRow(supplier: Supplier): SupplierTableRow {
   })() : [];
 
   if (Array.isArray(supplies) && supplies.length > 0) {
-    const { summary } = partitionSupplies(supplies as SupplyDetail[]);
+    const { history, summary: storedSnapshots } = partitionSupplies(supplies as SupplyDetail[]);
+    const summary = buildSupplySummaryFromHistory(history, storedSnapshots);
     summary.forEach((s: SupplyDetail) => {
       totalPurchases += parseInt((s.totalValue || '').toString().replace(/[^-\d]/g, '')) || 0;
     });
@@ -177,8 +178,8 @@ export default function SuppliersPage() {
     const requestSeq = ++suppliersRequestSeqRef.current;
     
     try {
-      // Backfill CRM suppliers/supplies from product catalog in the background.
-      // Do not block list load / Refresh / import on an unsettled sync.
+      // Reconcile supplier AUTO rows to current Product variant stock in the background.
+      // The sync overwrites snapshots (never increments them) and must not block list load.
       // Coalesce concurrent calls (e.g. React Strict Mode) onto one in-flight sync.
       if (!productSyncInFlightRef.current) {
         const syncUserId = user.id;
