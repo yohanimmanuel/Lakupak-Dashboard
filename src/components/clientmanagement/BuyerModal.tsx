@@ -18,11 +18,13 @@ import { ClientField, ClientInput } from '@/components/clientmanagement/ClientFi
 import { ClientValidatedField } from '@/components/clientmanagement/ClientValidatedField';
 import { CLIENT_SELECT_BUTTON_CLASS } from '@/components/clientmanagement/client-field-styles';
 import ImportOrdersModal from '@/components/clientmanagement/ImportOrdersModal';
+import ClientCatalogSelect from '@/components/clientmanagement/ClientCatalogSelect';
 import ImportSelectionCheckbox from '@/components/clientmanagement/ImportSelectionCheckbox';
 import MapComponent from '@/components/ordershipment/MapComponent';
 import { getDefaultCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { fetchGraphQL } from '@/lib/graphqlClient';
+import { calculatePromotionGift } from '@/utils/promotionUtils';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 import { geocodeAddress, type MapCoordinates } from '@/utils/mapboxUtils';
 import type { StockLevel } from '@/types/product';
@@ -43,6 +45,58 @@ const WEEKDAYS = [
 ] as const;
 
 type Weekday = (typeof WEEKDAYS)[number];
+
+type BuyerCatalogProduct = {
+  productId: string;
+  name: string;
+  stockLevels?: StockLevel[] | null;
+  /** Variant sellingPrice is stored in the database normalized per Piece. */
+  variantOptions?: Array<{
+    id: number;
+    variantName: string;
+    sku?: string | null;
+    sellingPrice: number;
+    isActive?: boolean | null;
+  }> | null;
+};
+
+type MarketplaceOrderLineForBuyer = {
+  id: number;
+  productId: string | null;
+  productName: string;
+  packageQuantity: number | null;
+  packageType: string | null;
+  piecesPerPackage: number | null;
+  subtotal: number;
+  variantOptionId: number | null;
+  variantId: number | null;
+  variantNameSnapshot: string | null;
+  promotionDetailsSnapshot: string | null;
+  moqSnapshot: number | null;
+};
+
+type MarketplaceOrderForBuyer = {
+  orderId: string;
+  orderDate: string;
+  orderItems: MarketplaceOrderLineForBuyer[];
+};
+
+function parseBuyerAmount(value: string | number | null | undefined): number {
+  const raw = String(value ?? '').trim();
+  const normalized = raw.replace(/[^\d,.-]/g, '').replace(/,(?=\d{3}(?:\D|$))/g, '');
+  const parsed = Number(normalized);
+  if (Number.isFinite(parsed)) return parsed;
+  const digitsOnly = Number(raw.replace(/[^\d-]/g, ''));
+  return Number.isFinite(digitsOnly) ? digitsOnly : 0;
+}
+
+function formatBuyerAmount(value: number): string {
+  return String(Math.round((Number.isFinite(value) ? value : 0) * 100) / 100);
+}
+
+function isMarketplaceOrderNo(value: string | undefined): boolean {
+  return /^LKO-\d+(?:-\d+)?$/i.test(String(value || '').trim());
+}
 
 const WEEKDAY_ALIASES: Record<string, Weekday> = {
   mon: 'Monday',
@@ -181,16 +235,22 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
         return Array.isArray(parsed) ? parsed.map((row: OrderDetail) => ({
           orderNo: row.orderNo || '',
           product: row.product || '',
-          totalOrders: normalizeBuyerOrderTotal(row.totalOrders || '', 'Boxes'),
+          productId: row.productId || '',
+          variantOptionId: row.variantOptionId == null ? '' : String(row.variantOptionId),
+          variantName: row.variantName || '',
+          stockType: row.stockType || parseBuyerOrderTotal(row.totalOrders || '', 'Boxes').unit,
+          piecesPerPackage: Number(row.piecesPerPackage) > 0 ? Number(row.piecesPerPackage) : undefined,
+          totalOrders: normalizeBuyerOrderTotal(row.totalOrders || '', row.stockType || 'Boxes'),
           totalSpend: row.totalSpend || '',
           shippingFee: row.shippingFee || '',
           lastOrderDate: row.lastOrderDate || '',
           outstanding: row.outstanding || '',
-        })) : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }];
+          syncedFromOrders: row.syncedFromOrders === true,
+        })) : [{ orderNo: '', product: '', productId: '', variantOptionId: '', variantName: '', stockType: 'Pieces', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }];
       } catch {
-        return [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }];
+        return [{ orderNo: '', product: '', productId: '', variantOptionId: '', variantName: '', stockType: 'Pieces', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }];
       }
-    })() : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }]
+    })() : [{ orderNo: '', product: '', productId: '', variantOptionId: '', variantName: '', stockType: 'Pieces', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }]
   );
 
   // Enhanced state for production features
@@ -206,7 +266,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
   const [showPreferredDaysDropdown, setShowPreferredDaysDropdown] = useState(false);
   const [showImportOrders, setShowImportOrders] = useState(false);
   const [selectedOrderRows, setSelectedOrderRows] = useState<Set<number>>(new Set());
-  const [orderStockTypes, setOrderStockTypes] = useState<string[]>(['Pieces', 'Cartons', 'Boxes']);
+  const [orderProductCatalog, setOrderProductCatalog] = useState<BuyerCatalogProduct[]>([]);
   const [addressPin, setAddressPin] = useState<MapCoordinates | null>(null);
   const [locatingAddress, setLocatingAddress] = useState(false);
   
@@ -214,42 +274,228 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
   const formRef = useRef<HTMLFormElement>(null);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
   const preferredDaysDropdownRef = useRef<HTMLDivElement>(null);
+  const orderRowsEditedRef = useRef(false);
+  const hydratedMarketplaceBuyerKeyRef = useRef('');
 
-  // Populate the stock-unit picker from this distributor's configured product levels.
+  // Load catalog products, variants and each product's configured stock levels.
   useEffect(() => {
     if (!user?.id) {
-      setOrderStockTypes(['Pieces', 'Cartons', 'Boxes']);
+      setOrderProductCatalog([]);
       return;
     }
     let cancelled = false;
     (async () => {
       try {
-        const data = await fetchGraphQL<{
-          products: {
-            nodes: Array<{ stockLevels?: StockLevel[] | null }>;
-            pagination?: { totalPages?: number };
-          };
-        }>(
-          'query BuyerOrderStockTypes($userId: Int!, $page: Int!, $limit: Int!) { products(userId: $userId, page: $page, limit: $limit) { nodes { stockLevels } pagination { totalPages } } }',
-          { userId: user.id, page: 1, limit: 1000 },
-        );
-        const names = new Set<string>();
-        for (const product of data.products?.nodes || []) {
-          for (const level of product.stockLevels || []) {
-            const name = String(level?.name || '').trim();
-            if (name) names.add(name);
-          }
-        }
-        if (!cancelled) {
-          const configured = Array.from(names);
-          setOrderStockTypes(configured.length ? configured : ['Pieces', 'Cartons', 'Boxes']);
-        }
+        const all: BuyerCatalogProduct[] = [];
+        let page = 1;
+        let totalPages = 1;
+        do {
+          const data = await fetchGraphQL<{
+            products: { nodes: BuyerCatalogProduct[]; pagination?: { totalPages?: number } };
+          }>(
+            `query BuyerOrderCatalog($userId: Int!, $page: Int!, $limit: Int!) {
+              products(userId: $userId, page: $page, limit: $limit) {
+                nodes { productId name stockLevels sellingPriceUnit variantOptions { id variantName sku sellingPrice isActive } }
+                pagination { totalPages }
+              }
+            }`,
+            { userId: user.id, page, limit: 1000 },
+          );
+          all.push(...(data.products?.nodes || []));
+          totalPages = Math.max(1, data.products?.pagination?.totalPages ?? 1);
+          page += 1;
+        } while (!cancelled && page <= totalPages);
+        if (!cancelled) setOrderProductCatalog(all);
       } catch {
-        if (!cancelled) setOrderStockTypes(['Pieces', 'Cartons', 'Boxes']);
+        if (!cancelled) setOrderProductCatalog([]);
       }
     })();
     return () => { cancelled = true; };
   }, [user?.id]);
+
+  // Marketplace-synced Buyer rows historically store an order-level product summary.
+  // Hydrate each unique order once from immutable OrderItem records when editing so
+  // product, variantOptionId, packageType and pieces-per-package are restored exactly.
+  useEffect(() => {
+    if (!isEditMode || !user?.id || !initialData?.buyerId || !initialData.orderDetails) return;
+    const hydrationKey = `${initialData.buyerId}:${initialData.orderDetails}`;
+    if (hydratedMarketplaceBuyerKeyRef.current === hydrationKey) return;
+
+    let cancelled = false;
+    const hydrateMarketplaceRows = async () => {
+      let sourceRows: OrderDetail[];
+      try {
+        const parsed: unknown = JSON.parse(initialData.orderDetails || '[]');
+        if (!Array.isArray(parsed)) return;
+        sourceRows = parsed.map((value): OrderDetail => {
+          const row = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+          return {
+            orderNo: String(row.orderNo || ''),
+            product: String(row.product || ''),
+            productId: typeof row.productId === 'string' ? row.productId : undefined,
+            variantOptionId: typeof row.variantOptionId === 'string' || typeof row.variantOptionId === 'number' ? row.variantOptionId : undefined,
+            variantName: typeof row.variantName === 'string' ? row.variantName : undefined,
+            stockType: typeof row.stockType === 'string' ? row.stockType : undefined,
+            piecesPerPackage: Number(row.piecesPerPackage) > 0 ? Number(row.piecesPerPackage) : undefined,
+            totalOrders: String(row.totalOrders || ''),
+            totalSpend: String(row.totalSpend || ''),
+            shippingFee: String(row.shippingFee || ''),
+            lastOrderDate: String(row.lastOrderDate || ''),
+            outstanding: String(row.outstanding || ''),
+            syncedFromOrders: row.syncedFromOrders === true,
+          };
+        });
+      } catch {
+        return;
+      }
+
+      const groupedLiveRows = new Map<string, OrderDetail[]>();
+      const entries: Array<{ orderNo?: string; row?: OrderDetail }> = [];
+      for (const row of sourceRows) {
+        const orderNo = String(row.orderNo || '').trim();
+        if (orderNo && (row.syncedFromOrders || isMarketplaceOrderNo(orderNo))) {
+          const existing = groupedLiveRows.get(orderNo);
+          if (existing) existing.push(row);
+          else {
+            groupedLiveRows.set(orderNo, [row]);
+            entries.push({ orderNo });
+          }
+        } else {
+          entries.push({ row });
+        }
+      }
+
+      const hydratedRows = await Promise.all(entries.map(async (entry) => {
+        if (!entry.orderNo) return entry.row ? [entry.row] : [];
+        const group = groupedLiveRows.get(entry.orderNo) || [];
+        const representative = group[0];
+        if (!representative) return [];
+        try {
+          const data = await fetchGraphQL<{ buyerOrderDetail: MarketplaceOrderForBuyer | null }>(
+            `query BuyerModalOrderLines($userId: Int!, $buyerId: String!, $orderId: String!) {
+              buyerOrderDetail(userId: $userId, buyerId: $buyerId, orderId: $orderId) {
+                orderId orderDate
+                orderItems {
+                  id productId productName packageQuantity packageType piecesPerPackage
+                  subtotal variantOptionId variantId variantNameSnapshot promotionDetailsSnapshot moqSnapshot
+                }
+              }
+            }`,
+            { userId: user.id, buyerId: initialData.buyerId, orderId: entry.orderNo },
+          );
+          const order = data.buyerOrderDetail;
+          if (!order?.orderItems?.length) return group;
+
+          // Existing BuyerRecord rows may already have been split by an earlier edit.
+          // Recombine their money values before allocating them back across order lines.
+          const overallSpend = group.reduce((sum, row) => sum + parseBuyerAmount(row.totalSpend), 0);
+          const overallOutstanding = group.reduce((sum, row) => sum + parseBuyerAmount(row.outstanding), 0);
+          const overallShipping = group.reduce((sum, row) => sum + parseBuyerAmount(row.shippingFee), 0);
+          const weights = order.orderItems.map((line) => Math.max(0, Number(line.subtotal) || 0));
+          const weightTotal = weights.reduce((sum, value) => sum + value, 0);
+          const fallbackShare = 1 / order.orderItems.length;
+
+          return order.orderItems.map((line, index): OrderDetail => {
+            const share = weightTotal > 0 ? weights[index] / weightTotal : fallbackShare;
+            const packageQuantity = Math.max(0, Number(line.packageQuantity) || 0);
+            const piecesPerPackage = Math.max(1, Number(line.piecesPerPackage) || 1);
+            const stockType = String(line.packageType || 'Pieces');
+            let freePieces = 0;
+            if (line.promotionDetailsSnapshot) {
+              try {
+                const promotionDetails = JSON.parse(line.promotionDetailsSnapshot) as import('@/utils/promotionUtils').PromotionDetails;
+                const gift = calculatePromotionGift(promotionDetails, packageQuantity * piecesPerPackage, line.moqSnapshot ?? null);
+                freePieces = Math.max(0, Number(gift?.freeQty) || 0);
+              } catch {
+                // Ignore malformed legacy promotion snapshots and retain paid quantity.
+              }
+            }
+            const displayQuantity = packageQuantity + freePieces / piecesPerPackage;
+            return {
+              orderNo: order.orderId || entry.orderNo!,
+              product: String(line.productName || representative.product || ''),
+              productId: line.productId || undefined,
+              variantOptionId: (line.variantOptionId ?? line.variantId) == null
+                ? undefined
+                : String(line.variantOptionId ?? line.variantId),
+              variantName: line.variantNameSnapshot || '',
+              stockType,
+              piecesPerPackage,
+              totalOrders: formatBuyerOrderTotal(String(displayQuantity), stockType),
+              totalSpend: formatBuyerAmount(overallSpend * share),
+              shippingFee: formatBuyerAmount(overallShipping * share),
+              lastOrderDate: representative.lastOrderDate || order.orderDate || '',
+              outstanding: formatBuyerAmount(overallOutstanding * share),
+              syncedFromOrders: true,
+            };
+          });
+        } catch {
+          return group;
+        }
+      }));
+
+      if (cancelled || orderRowsEditedRef.current) return;
+      setOrderRows(hydratedRows.flat());
+      hydratedMarketplaceBuyerKeyRef.current = hydrationKey;
+    };
+
+    void hydrateMarketplaceRows();
+    return () => { cancelled = true; };
+  }, [isEditMode, user?.id, initialData?.buyerId, initialData?.orderDetails]);
+
+  const getBuyerProduct = useCallback((productId?: string) =>
+    orderProductCatalog.find((product) => product.productId === String(productId || '')),
+  [orderProductCatalog]);
+
+  const getBuyerProductStockLevels = useCallback((productId?: string): StockLevel[] => {
+    const levels = getBuyerProduct(productId)?.stockLevels || [];
+    const valid = levels.filter((level) => level && String(level.name || '').trim());
+    return valid.length ? valid : [{ name: 'Pieces', piecesPerUnit: 1 }];
+  }, [getBuyerProduct]);
+
+  // Variant selling prices are stored per Piece. For a new manual row, derive
+  // the package price from the current catalog. Once a total has been entered,
+  // use totalSpend / quantity as the saved historical package price so older
+  // prices remain editable and are not silently replaced by today's catalog price.
+  const getBuyerPricePerPackage = useCallback((row: OrderDetail): number | null => {
+    const parsed = parseBuyerOrderTotal(row.totalOrders || '', row.stockType || 'Pieces');
+    const quantity = Number(parsed.quantity);
+    const storedSpend = String(row.totalSpend ?? '').trim();
+    if (!row.syncedFromOrders && !isMarketplaceOrderNo(row.orderNo) && storedSpend !== '' && !parsed.isMixed && Number.isFinite(quantity) && quantity > 0) {
+      const historicalPackagePrice = parseBuyerAmount(storedSpend) / quantity;
+      if (Number.isFinite(historicalPackagePrice) && historicalPackagePrice >= 0) return historicalPackagePrice;
+    }
+
+    if (!row.productId || row.variantOptionId == null || String(row.variantOptionId).trim() === '') return null;
+    const variant = getBuyerProduct(row.productId)?.variantOptions?.find(
+      (option) => String(option.id) === String(row.variantOptionId),
+    );
+    if (!variant) return null;
+    const pricePerPiece = Number(variant.sellingPrice);
+    if (!Number.isFinite(pricePerPiece) || pricePerPiece < 0) return null;
+    const unitName = String(row.stockType || parsed.unit || 'Pieces');
+    const level = getBuyerProductStockLevels(row.productId).find(
+      (candidate) => candidate.name.toLowerCase() === unitName.toLowerCase(),
+    );
+    const piecesPerPackage = Math.max(1, Number(level?.piecesPerUnit) || Number(row.piecesPerPackage) || 1);
+    return pricePerPiece * piecesPerPackage;
+  }, [getBuyerProduct, getBuyerProductStockLevels]);
+
+  // Marketplace rows preserve their historical order spend. Manual rows store
+  // the entered package price through their calculated totalSpend value.
+  const getBuyerCalculatedSpend = useCallback((row: OrderDetail): string => {
+    if (row.syncedFromOrders || isMarketplaceOrderNo(row.orderNo)) return String(row.totalSpend || '');
+    // Existing/imported manual spend is historical data. Keep it unless the
+    // user changes product/variant or edits the package price/quantity.
+    if (String(row.totalSpend ?? '').trim() !== '') return String(row.totalSpend);
+    const pricePerPackage = getBuyerPricePerPackage({ ...row, totalSpend: '' });
+    if (pricePerPackage === null) return '';
+    const parsed = parseBuyerOrderTotal(row.totalOrders || '', row.stockType || 'Pieces');
+    if (parsed.isMixed) return String(row.totalSpend || '');
+    const quantity = Number(parsed.quantity);
+    if (!Number.isFinite(quantity) || quantity < 0) return String(row.totalSpend || '');
+    return formatBuyerAmount(quantity * pricePerPackage);
+  }, [getBuyerPricePerPackage]);
 
   const selectedPreferredDays = useMemo(
     () => parsePreferredDays(form.preferredDays || ''),
@@ -361,7 +607,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
     setValidationErrors(errors);
     setSubmitAttempted(true);
     return Object.keys(errors).length === 0;
-  }, [form.storeName, form.owner, form.phone, form.email, form.address, tBuyersModal]);
+  }, [form.storeName, form.owner, form.phone, form.email, form.address, tBuyersModal, getBuyerProductStockLevels]);
 
   // Enhanced error handling
   const handleError = useCallback((message: string) => {
@@ -381,32 +627,107 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
 
   // Enhanced order row management
   const handleOrderChange = useCallback((idx: number, field: keyof OrderDetail, value: string) => {
+    orderRowsEditedRef.current = true;
     setOrderRows((rows: OrderDetail[]) => rows.map((row: OrderDetail, i: number) => i === idx ? { ...row, [field]: value } : row));
   }, []);
 
   const addOrderRow = useCallback(() => {
-    setOrderRows((rows: OrderDetail[]) => [...rows, { orderNo: '', product: '', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }]);
+    orderRowsEditedRef.current = true;
+    setOrderRows((rows: OrderDetail[]) => [...rows, { orderNo: '', product: '', productId: '', variantOptionId: '', variantName: '', stockType: 'Pieces', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }]);
   }, []);
 
+  const handleOrderProductSelect = useCallback((idx: number, productId: string) => {
+    orderRowsEditedRef.current = true;
+    const product = getBuyerProduct(productId);
+    const firstLevel = getBuyerProductStockLevels(productId)[0] || { name: 'Pieces', piecesPerUnit: 1 };
+    setOrderRows((rows) => rows.map((row, index) => index !== idx ? row : {
+      ...row,
+      productId,
+      product: product?.name || '',
+      variantOptionId: '',
+      variantName: '',
+      stockType: firstLevel.name,
+      piecesPerPackage: firstLevel.piecesPerUnit,
+      totalOrders: row.totalOrders ? formatBuyerOrderTotal(parseBuyerOrderTotal(row.totalOrders, 'Pieces').quantity, firstLevel.name) : '',
+      totalSpend: '',
+    }));
+  }, [getBuyerProduct, getBuyerProductStockLevels]);
+
+  const handleOrderVariantSelect = useCallback((idx: number, variantId: string) => {
+    orderRowsEditedRef.current = true;
+    setOrderRows((rows) => rows.map((row, index) => {
+      if (index !== idx) return row;
+      const variant = getBuyerProduct(row.productId)?.variantOptions?.find((option) => String(option.id) === variantId);
+      const nextRow = { ...row, variantOptionId: variantId, variantName: variant?.variantName || '', totalSpend: '' };
+      return { ...nextRow, totalSpend: getBuyerCalculatedSpend(nextRow) };
+    }));
+  }, [getBuyerProduct, getBuyerCalculatedSpend]);
+
   const handleOrderQuantityChange = useCallback((idx: number, quantity: string) => {
+    orderRowsEditedRef.current = true;
     setOrderRows((rows) => rows.map((row, i) => {
       if (i !== idx) return row;
-      const parsed = parseBuyerOrderTotal(row.totalOrders, orderStockTypes[0] || 'Boxes');
+      const parsed = parseBuyerOrderTotal(row.totalOrders, row.stockType || 'Pieces');
       if (parsed.isMixed) return row;
-      return { ...row, totalOrders: formatBuyerOrderTotal(quantity, parsed.unit) };
+      const packagePrice = getBuyerPricePerPackage(row);
+      const numericQuantity = Number(quantity);
+      const nextRow = { ...row, totalOrders: formatBuyerOrderTotal(quantity, row.stockType || parsed.unit) };
+      return {
+        ...nextRow,
+        totalSpend: packagePrice !== null && quantity.trim() !== '' && Number.isFinite(numericQuantity) && numericQuantity >= 0
+          ? formatBuyerAmount(numericQuantity * packagePrice)
+          : '',
+      };
     }));
-  }, [orderStockTypes]);
+  }, [getBuyerPricePerPackage]);
 
   const handleOrderUnitChange = useCallback((idx: number, unit: string) => {
+    orderRowsEditedRef.current = true;
     setOrderRows((rows) => rows.map((row, i) => {
       if (i !== idx) return row;
-      const parsed = parseBuyerOrderTotal(row.totalOrders, orderStockTypes[0] || 'Boxes');
+      const parsed = parseBuyerOrderTotal(row.totalOrders, row.stockType || 'Pieces');
       if (parsed.isMixed) return row;
-      return { ...row, totalOrders: formatBuyerOrderTotal(parsed.quantity, unit) };
+      const selectedLevel = getBuyerProductStockLevels(row.productId).find((level) => level.name === unit);
+      const previousPiecesPerPackage = Math.max(1, Number(row.piecesPerPackage) || 1);
+      const nextPiecesPerPackage = Math.max(1, Number(selectedLevel?.piecesPerUnit) || 1);
+      const previousPackagePrice = getBuyerPricePerPackage(row);
+      const nextPackagePrice = previousPackagePrice === null
+        ? null
+        : previousPackagePrice / previousPiecesPerPackage * nextPiecesPerPackage;
+      const quantity = Number(parsed.quantity);
+      const nextRow = {
+        ...row,
+        stockType: unit,
+        piecesPerPackage: nextPiecesPerPackage,
+        totalOrders: formatBuyerOrderTotal(parsed.quantity, unit),
+      };
+      return {
+        ...nextRow,
+        totalSpend: nextPackagePrice !== null && Number.isFinite(quantity)
+          ? formatBuyerAmount(quantity * nextPackagePrice)
+          : '',
+      };
     }));
-  }, [orderStockTypes]);
+  }, [getBuyerProductStockLevels, getBuyerPricePerPackage]);
+
+  const handleOrderPricePerPackageChange = useCallback((idx: number, priceValue: string) => {
+    orderRowsEditedRef.current = true;
+    setOrderRows((rows) => rows.map((row, i) => {
+      if (i !== idx) return row;
+      const parsed = parseBuyerOrderTotal(row.totalOrders, row.stockType || 'Pieces');
+      const price = priceValue.trim() === '' ? null : Number(priceValue);
+      const quantity = Number(parsed.quantity);
+      return {
+        ...row,
+        totalSpend: price !== null && Number.isFinite(price) && price >= 0 && !parsed.isMixed && Number.isFinite(quantity)
+          ? formatBuyerAmount(quantity * price)
+          : '',
+      };
+    }));
+  }, []);
 
   const deleteOrderRow = useCallback((idx: number) => {
+    orderRowsEditedRef.current = true;
     if (orderRows.length > 1) {
       setOrderRows((rows: OrderDetail[]) => rows.filter((_: OrderDetail, i: number) => i !== idx));
       // Row indices shift after a delete, so any selection is stale.
@@ -433,23 +754,26 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
   }, [allOrderRowsSelected, orderRows]);
 
   const handleBulkDeleteOrders = useCallback(() => {
+    orderRowsEditedRef.current = true;
     setOrderRows((rows) => {
       const remaining = rows.filter((_, i) => !selectedOrderRows.has(i));
       // The table always keeps at least one row to type into.
       return remaining.length > 0
         ? remaining
-        : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }];
+        : [{ orderNo: '', product: '', productId: '', variantOptionId: '', variantName: '', stockType: 'Pieces', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }];
     });
     setSelectedOrderRows(new Set());
   }, [selectedOrderRows]);
 
   const handleExportOrders = useCallback(() => {
-    const headers = ['Product', 'Total Orders', 'Total Spend', 'Last Order Date', 'Outstanding'];
+    const headers = ['Product', 'Variant', 'Total Orders', 'Stock Type', 'Total Spend', 'Last Order Date', 'Outstanding'];
     const rows = orderRows
       .filter((row) => !isBlankOrderRow(row))
       .map((row) => [
         row.product || '',
+        row.variantName || '',
         row.totalOrders || '',
+        row.stockType || parseBuyerOrderTotal(String(row.totalOrders || ''), 'Pieces').unit,
         row.totalSpend || '',
         row.lastOrderDate || '',
         row.outstanding || '',
@@ -462,25 +786,34 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
 
   // Imported orders are appended to the table; nothing is saved until the form is saved.
   const handleImportOrders = useCallback((newOrders: OrderDetail[]) => {
-    const imported: OrderDetail[] = newOrders.map((row) => ({
-      orderNo: '',
-      product: String(row.product || ''),
-      totalOrders: normalizeBuyerOrderTotal(String(row.totalOrders || ''), 'Boxes'),
-      totalSpend: String(row.totalSpend || ''),
-      shippingFee: '',
-      lastOrderDate: String(row.lastOrderDate || ''),
-      outstanding: String(row.outstanding || ''),
-    }));
+    orderRowsEditedRef.current = true;
+    const imported: OrderDetail[] = newOrders.map((row) => {
+      const importedRow: OrderDetail = {
+        orderNo: '',
+        product: String(row.product || ''),
+        productId: row.productId,
+        variantOptionId: row.variantOptionId,
+        variantName: row.variantName,
+        stockType: row.stockType || parseBuyerOrderTotal(String(row.totalOrders || ''), 'Pieces').unit,
+        piecesPerPackage: Number(row.piecesPerPackage) > 0 ? Number(row.piecesPerPackage) : undefined,
+        totalOrders: normalizeBuyerOrderTotal(String(row.totalOrders || ''), row.stockType || 'Pieces'),
+        totalSpend: String(row.totalSpend || ''),
+        shippingFee: '',
+        lastOrderDate: String(row.lastOrderDate || ''),
+        outstanding: String(row.outstanding || ''),
+      };
+      return { ...importedRow, totalSpend: getBuyerCalculatedSpend(importedRow) };
+    });
     setOrderRows((rows) => {
       const merged = [...rows.filter((row) => !isBlankOrderRow(row)), ...imported];
       return merged.length > 0
         ? merged
-        : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }];
+        : [{ orderNo: '', product: '', productId: '', variantOptionId: '', variantName: '', stockType: 'Pieces', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }];
     });
     // Blank rows are dropped on import, which shifts indices.
     setSelectedOrderRows(new Set());
     setShowImportOrders(false);
-  }, []);
+  }, [getBuyerCalculatedSpend]);
 
   // Enhanced form submission
   const handleSubmit = useCallback(async (e?: React.FormEvent) => {
@@ -501,7 +834,14 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
         ...form,
         avatar,
         buyerId: id,
-        orderDetails: JSON.stringify(orderRows),
+        orderDetails: JSON.stringify(orderRows.map((row) => {
+          const selectedLevel = getBuyerProductStockLevels(row.productId).find((level) => level.name === (row.stockType || parseBuyerOrderTotal(row.totalOrders, 'Pieces').unit));
+          return {
+            ...row,
+            totalSpend: getBuyerCalculatedSpend(row),
+            piecesPerPackage: Number(row.piecesPerPackage) > 0 ? Number(row.piecesPerPackage) : selectedLevel?.piecesPerUnit || 1,
+          };
+        })),
         notes: JSON.stringify((form.notes || '').split(',').map((n: string) => n.trim()).filter(Boolean)),
         createdAt: isEditMode ? (form.createdAt ? new Date(form.createdAt).toISOString() : new Date().toISOString()) : new Date().toISOString(),
         logistics: JSON.stringify({
@@ -697,7 +1037,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
       setSaving(false);
       setIsSubmitting(false);
     }
-  }, [form, avatar, id, orderRows, isEditMode, initialData, user?.id, onSave, router, validateForm, handleError, isSubmitting, showSuccessModal, tBuyersModal]);
+  }, [form, avatar, id, orderRows, isEditMode, initialData, user?.id, onSave, router, validateForm, handleError, isSubmitting, showSuccessModal, tBuyersModal, getBuyerProductStockLevels, getBuyerCalculatedSpend]);
 
   // Enhanced file handling
   const handleFileUpload = useCallback(async (file: File) => {
@@ -763,12 +1103,18 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
       orderDetails.length > 0 ? orderDetails.map((row: OrderDetail) => ({
         orderNo: row.orderNo || '',
         product: row.product || '',
-        totalOrders: normalizeBuyerOrderTotal(row.totalOrders || '', 'Boxes'),
+        productId: row.productId || '',
+        variantOptionId: row.variantOptionId == null ? '' : String(row.variantOptionId),
+        variantName: row.variantName || '',
+        stockType: row.stockType || parseBuyerOrderTotal(row.totalOrders || '', 'Boxes').unit,
+        piecesPerPackage: Number(row.piecesPerPackage) > 0 ? Number(row.piecesPerPackage) : undefined,
+        totalOrders: normalizeBuyerOrderTotal(row.totalOrders || '', row.stockType || 'Boxes'),
         totalSpend: row.totalSpend || '',
         shippingFee: row.shippingFee || '',
         lastOrderDate: row.lastOrderDate || '',
         outstanding: row.outstanding || '',
-      })) : [{ orderNo: '', product: '', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }]
+        syncedFromOrders: row.syncedFromOrders === true,
+      })) : [{ orderNo: '', product: '', productId: '', variantOptionId: '', variantName: '', stockType: 'Pieces', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }]
     );
     setSelectedOrderRows(new Set());
     setAvatar(initialData.avatar || '');
@@ -1084,7 +1430,9 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
                     </th>
                     <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colNo')}</th>
                     <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colProduct')}</th>
+                    <th className="py-2 px-3 font-medium uppercase">Variant</th>
                     <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colTotalOrders')}</th>
+                    <th className="py-2 px-3 font-medium uppercase">Price / Pckg</th>
                     <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colTotalSpend')}</th>
                     <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colLastOrderDate')}</th>
                     <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colOutstanding')}</th>
@@ -1103,65 +1451,108 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
                       </td>
                       <td className="py-2 px-3 font-medium text-black">{idx + 1}</td>
                       <td className="py-2 px-3">
-                        <ClientInput
-                          value={row.product || ''}
-                          onChange={(product) => handleOrderChange(idx, 'product', product)}
+                        <ClientCatalogSelect
+                          value={row.productId || ''}
+                          placeholder="Select product"
+                          allowNone={false}
+                          options={orderProductCatalog.map((product) => ({ value: product.productId, label: product.name }))}
+                          onChange={(productId: string) => handleOrderProductSelect(idx, productId)}
+                          searchPlaceholder="Search product..."
+                        />
+                      </td>
+                      <td className="py-2 px-3">
+                        <ClientCatalogSelect
+                          value={String(row.variantOptionId || '')}
+                          placeholder={row.productId ? 'Select variant' : 'Select product first'}
+                          options={(getBuyerProduct(row.productId)?.variantOptions || []).filter((variant) => variant.isActive !== false || String(variant.id) === String(row.variantOptionId || '')).map((variant) => ({ value: String(variant.id), label: variant.variantName }))}
+                          allowNone={false}
+                          disabled={!row.productId}
+                          onChange={(variantId: string) => handleOrderVariantSelect(idx, variantId)}
+                          searchPlaceholder="Search variant..."
                         />
                       </td>
                       <td className="py-2 px-3">
                         {(() => {
-                          const parsedTotal = parseBuyerOrderTotal(row.totalOrders, orderStockTypes[0] || 'Boxes');
-                          const options = Array.from(new Set([...orderStockTypes, parsedTotal.unit]));
+                          const unitOptions = getBuyerProductStockLevels(row.productId).map((level) => level.name);
+                          const parsedTotal = parseBuyerOrderTotal(row.totalOrders, row.stockType || unitOptions[0] || 'Pieces');
+                          const options = Array.from(new Set([...unitOptions, parsedTotal.unit]));
                           return parsedTotal.isMixed ? (
                             <div className="min-w-[150px] rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700">
                               {row.totalOrders}
                             </div>
                           ) : (
-                            <div className="flex min-w-[190px] items-center gap-2">
-                              <ClientInput
-                                fullWidth={false}
-                                className="w-20 min-w-0"
+                            <div className="flex min-w-[370px] items-center gap-2">
+                              <input
                                 type="number"
                                 value={parsedTotal.quantity}
-                                onChange={(quantity) => handleOrderQuantityChange(idx, quantity)}
+                                onChange={(event) => handleOrderQuantityChange(idx, event.target.value)}
+                                aria-label="Order quantity"
+                                className="box-border h-[34px] shrink-0 rounded-lg border border-gray-200 px-3 py-2 text-xs text-black transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                style={{ width: '196px', minWidth: '196px', maxWidth: '196px', flex: '0 0 196px' }}
                               />
-                              <select
-                                className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs text-black focus:border-[#0a61d7] focus:outline-none"
+                              <ClientCatalogSelect
+                                className="min-w-0 flex-1"
                                 value={parsedTotal.unit}
-                                onChange={(event) => handleOrderUnitChange(idx, event.target.value)}
-                                aria-label={tBuyersModal('colTotalOrders')}
-                              >
-                                {options.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
-                              </select>
+                                placeholder="Select stock type"
+                                options={options.map((unit) => ({ value: unit, label: unit }))}
+                                allowNone={false}
+                                onChange={(unit: string) => handleOrderUnitChange(idx, unit)}
+                                searchPlaceholder="Search stock type..."
+                              />
                             </div>
                           );
                         })()}
                       </td>
                       <td className="py-2 px-3">
-                        <div className="flex items-center">
-                          <span className="mr-2 text-xs text-gray-500 font-medium">{currencySymbol}</span>
-                          <ClientInput
-                            fullWidth={false}
-                            className="flex-1 min-w-0"
-                            value={row.totalSpend || ''}
-                            onChange={(totalSpend) => handleOrderChange(idx, 'totalSpend', totalSpend)}
-                            placeholder="0"
+                        <div className="flex w-[220px] min-w-[220px] items-center">
+                          <span className="mr-2 shrink-0 text-xs font-medium text-gray-500">{currencySymbol}</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="any"
+                            aria-label="Price per package"
+                            value={getBuyerPricePerPackage(row) === null ? '' : String(getBuyerPricePerPackage(row) ?? '')}
+                            onChange={(event) => handleOrderPricePerPackageChange(idx, event.target.value)}
+                            placeholder="Enter price"
+                            className="box-border !w-[196px] !min-w-[196px] !max-w-[196px] rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-black outline-none focus:border-[#0a61d7] focus:ring-1 focus:ring-[#0a61d7]"
+                            style={{ width: '196px', minWidth: '196px', maxWidth: '196px', flex: '0 0 196px' }}
+                            disabled={row.syncedFromOrders || isMarketplaceOrderNo(row.orderNo)}
                           />
                         </div>
                       </td>
                       <td className="py-2 px-3">
+                        <div className="flex w-[220px] min-w-[220px] items-center">
+                          <span className="mr-2 shrink-0 text-xs font-medium text-gray-500">{currencySymbol}</span>
+                          <input
+                            type="text"
+                            readOnly
+                            aria-label="Automatically calculated total spend"
+                            value={getBuyerCalculatedSpend(row)}
+                            placeholder="0"
+                            className="box-border !w-[196px] !min-w-[196px] !max-w-[196px] rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700 outline-none"
+                            style={{ width: '196px', minWidth: '196px', maxWidth: '196px', flex: '0 0 196px' }}
+                          />
+                        </div>
+                      </td>
+                      <td className="py-2 px-3">
+                        <div className="box-border w-[196px] min-w-[196px] max-w-[196px]">
                         <ClientInput
+                          fullWidth={false}
+                          compact={false}
+                          className="box-border !h-[34px] !w-[196px] !min-w-[196px] !max-w-[196px]"
                           type="date"
                           value={row.lastOrderDate || ''}
                           onChange={(lastOrderDate) => handleOrderChange(idx, 'lastOrderDate', lastOrderDate)}
                         />
+                        </div>
                       </td>
                       <td className="py-2 px-3">
-                        <div className="flex items-center">
-                          <span className="mr-2 text-xs text-gray-500 font-medium">{currencySymbol}</span>
+                        <div className="flex w-[220px] min-w-[220px] items-center">
+                          <span className="mr-2 shrink-0 text-xs text-gray-500 font-medium">{currencySymbol}</span>
                           <ClientInput
                             fullWidth={false}
-                            className="flex-1 min-w-0"
+                            compact={false}
+                            className="box-border !h-[34px] !w-[196px] !min-w-[196px] !max-w-[196px]"
                             value={row.outstanding || ''}
                             onChange={(outstanding) => handleOrderChange(idx, 'outstanding', outstanding)}
                             placeholder="0"
@@ -1341,6 +1732,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
           open={showImportOrders}
           onCloseAction={() => setShowImportOrders(false)}
           onImportAction={handleImportOrders}
+          productCatalog={orderProductCatalog}
         />
       )}
 

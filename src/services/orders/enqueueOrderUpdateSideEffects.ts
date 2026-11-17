@@ -19,7 +19,7 @@ import {
   translateMarketplaceReturnItemsReceived,
 } from '@/utils/marketplacePushTranslations';
 import { NotificationService } from '@/app/api/graphql/modules/notifications';
-import { broadcastSoldCountUpdates, decimalToNumber } from './utils';
+import { broadcastSoldCountUpdates, broadcastSoldCountUpdatesForOrders, decimalToNumber } from './utils';
 import type { StockNotificationJob } from './utils';
 
 const SIDE_EFFECT_OPTS = { retries: 2 } as const;
@@ -73,10 +73,14 @@ type OrderUpdatePostCommitInput = {
   previousOrderStatus: string | null;
   previousPaymentStatus: string | null;
   stockNotificationJobs: StockNotificationJob[];
+  /** Bulk operations enqueue their order/product broadcasts once for the whole batch. */
+  skipOrderAndStockBroadcasts?: boolean;
+  /** The caller has synchronously invalidated cache and broadcast product stock updates. */
+  skipSoldCountBroadcast?: boolean;
 };
 
 export function scheduleOrderUpdatePostCommitEffects(input: OrderUpdatePostCommitInput) {
-  const { order, sanitizedData, previousOrderStatus, previousPaymentStatus, stockNotificationJobs } =
+  const { order, sanitizedData, previousOrderStatus, previousPaymentStatus, stockNotificationJobs, skipOrderAndStockBroadcasts = false, skipSoldCountBroadcast = false } =
     input;
 
   for (const job of stockNotificationJobs) {
@@ -106,10 +110,12 @@ export function scheduleOrderUpdatePostCommitEffects(input: OrderUpdatePostCommi
     }, SIDE_EFFECT_OPTS);
   }
 
-  enqueueBroadcastOrderUpdates('order-update', [order.orderId]);
+  if (!skipOrderAndStockBroadcasts) {
+    enqueueBroadcastOrderUpdates('order-update', [order.orderId]);
 
-  if (sanitizedData.orderStatus || sanitizedData.orderItems) {
-    enqueueSoldCountBroadcast(order.orderId, 'order-update');
+    if (!skipSoldCountBroadcast && (sanitizedData.orderStatus || sanitizedData.orderItems)) {
+      enqueueSoldCountBroadcast(order.orderId, 'order-update');
+    }
   }
 
   if (

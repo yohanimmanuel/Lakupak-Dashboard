@@ -9,6 +9,11 @@ export type SupplyRecordRow = {
   suppliesno: string;
   sku: string;
   product: string;
+  /** Original quantity selected by the supplier, e.g. 4 when receivedUnit is Cartons. */
+  receivedQuantity: string;
+  /** Original stock unit selected by the supplier. */
+  receivedUnit: string;
+  /** Canonical inventory quantity, always stored in Pieces. */
   totalSupplied: string;
   totalValue: string;
   lastSuppliedDate: string;
@@ -27,10 +32,17 @@ export function parseSuppliesJsonCompat(raw: string | null | undefined): SupplyD
   try {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.map((row: Record<string, unknown>) => {
+    return parsed.map((value: unknown) => {
+      const row = value && typeof value === 'object'
+        ? value as Record<string, unknown>
+        : {};
       const { lastDelivery: legacyLastDelivery, ...rest } = row;
       return {
         ...rest,
+        receivedQuantity: row.receivedQuantity == null
+          ? String(row.totalSupplied || '')
+          : String(row.receivedQuantity),
+        receivedUnit: String(row.receivedUnit || 'Pieces'),
         lastSuppliedDate: String(row.lastSuppliedDate || legacyLastDelivery || ''),
       } as unknown as SupplyDetail;
     });
@@ -44,6 +56,9 @@ export function supplyDetailFromRecord(row: SupplyRecordRow): SupplyDetail {
     suppliesno: row.suppliesno || '',
     sku: row.sku || '',
     product: row.product || '',
+    // Keep the supplier's entered package quantity/unit separate from canonical stock.
+    receivedQuantity: row.receivedQuantity || row.totalSupplied || '',
+    receivedUnit: row.receivedUnit || 'Pieces',
     totalSupplied: row.totalSupplied || '',
     totalValue: row.totalValue || '',
     lastSuppliedDate: row.lastSuppliedDate || '',
@@ -93,6 +108,8 @@ export function buildSupplyRecordCreateManyRows(
   suppliesno: string;
   sku: string;
   product: string;
+  receivedQuantity: string;
+  receivedUnit: string;
   totalSupplied: string;
   totalValue: string;
   lastSuppliedDate: string;
@@ -119,6 +136,10 @@ export function buildSupplyRecordCreateManyRows(
       suppliesno: String(row.suppliesno || ''),
       sku: String(row.sku || ''),
       product: String(row.product || ''),
+      receivedQuantity: recordType === 'history'
+        ? String(row.receivedQuantity ?? row.totalSupplied ?? '')
+        : '',
+      receivedUnit: recordType === 'history' ? String(row.receivedUnit || 'Pieces') : 'Pieces',
       totalSupplied: String(row.totalSupplied || ''),
       totalValue: String(row.totalValue || ''),
       lastSuppliedDate: String(row.lastSuppliedDate || (row as SupplyDetail & { lastDelivery?: string }).lastDelivery || ''),
@@ -190,13 +211,22 @@ export async function replaceSupplierSupplyRecords(
       await db.supplyRecord.update({
         where: { id: match.id },
         data: {
-          suppliesno: row.suppliesno, sku: row.sku, product: row.product,
-          totalSupplied: row.totalSupplied, totalValue: row.totalValue,
-          lastSuppliedDate: row.lastSuppliedDate, status: row.status,
-          deliverySuccess: row.deliverySuccess, recordType: row.recordType,
-          productId: row.productId, variantName: row.variantName,
+          suppliesno: row.suppliesno,
+          sku: row.sku,
+          product: row.product,
+          receivedQuantity: row.receivedQuantity,
+          receivedUnit: row.receivedUnit,
+          totalSupplied: row.totalSupplied,
+          totalValue: row.totalValue,
+          lastSuppliedDate: row.lastSuppliedDate,
+          status: row.status,
+          deliverySuccess: row.deliverySuccess,
+          recordType: row.recordType,
+          productId: row.productId,
+          variantName: row.variantName,
           updateCurrentStock: row.updateCurrentStock,
-          stockApplied: row.stockApplied, sortOrder: row.sortOrder,
+          stockApplied: row.stockApplied,
+          sortOrder: row.sortOrder,
         },
       });
     } else {

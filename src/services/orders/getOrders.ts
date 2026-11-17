@@ -104,7 +104,11 @@ export async function getOrdersHandler(request: NextRequest) {
         category: oi.product?.productType || oi.productTypeSnapshot || 'Uncategorized',
         brand: oi.product?.brand || 'Unknown Brand',
         description: oi.product?.description || '',
-        images: oi.product?.images || [],
+        images: oi.product?.images?.length
+          ? oi.product.images
+          : oi.productImageSnapshot
+            ? [oi.productImageSnapshot]
+            : [],
         productDeleted: !oi.product,
         productNameSnapshot: oi.productNameSnapshot || null,
         productSkuSnapshot: oi.productSkuSnapshot || null,
@@ -241,7 +245,11 @@ export async function getOrdersHandler(request: NextRequest) {
         category: oi.product?.productType || oi.productTypeSnapshot || 'Uncategorized',
         brand: oi.product?.brand || 'Unknown Brand',
         description: oi.product?.description || '',
-        images: oi.product?.images || [],
+        images: oi.product?.images?.length
+          ? oi.product.images
+          : oi.productImageSnapshot
+            ? [oi.productImageSnapshot]
+            : [],
         productDeleted: !oi.product,
         productNameSnapshot: oi.productNameSnapshot || null,
         productSkuSnapshot: oi.productSkuSnapshot || null,

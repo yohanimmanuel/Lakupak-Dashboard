@@ -17,12 +17,12 @@ import { useOffersTranslations } from '@/hooks/useOffersTranslations';
 import { useRouter } from 'next/navigation';
 import type { Offer } from '@/types/offer';
 import { formatDiscount } from '@/components/offersincentivesdisc/OfferTable';
-import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
+import { getVisiblePageNumbers } from '@/utils/tablePagination';
 import MapFullscreenModal from '@/components/MapFullscreenModal';
 import MapComponent from '@/components/ordershipment/MapComponent';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
 import { geocodeAddress, type GeocodeResult } from '@/utils/mapboxUtils';
-import { getBuyerOrderQuantity } from '@/utils/buyerOrderQuantity';
+import { getBuyerOrderQuantity, parseBuyerOrderTotal } from '@/utils/buyerOrderQuantity';
 
 type ProfileFieldKey =
   | 'storeName'
@@ -112,6 +112,20 @@ interface BuyerProfileProps {
   onUpdate?: () => void;
 }
 
+function parseBuyerOrderDetails(raw: string | null | undefined): OrderDetail[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed as OrderDetail[] : [];
+  } catch {
+    return [];
+  }
+}
+
+function isLiveBuyerOrder(order: OrderDetail): boolean {
+  return order.syncedFromOrders === true || /^LKO-\d+(?:-\d+)?$/i.test(String(order.orderNo || '').trim());
+}
+
 type BuyerOrderLine = {
   id: number;
   productId?: string | null;
@@ -123,13 +137,13 @@ type BuyerOrderLine = {
   pricePerPackage?: number | null;
   subtotal: number;
   variantNameSnapshot?: string | null;
+  variantOptionId?: number | null;
+  variantId?: number | null;
   productSkuSnapshot?: string | null;
 };
 
 type BuyerOrderDetail = {
   orderId: string;
-  orderStatus: string;
-  paymentStatus: string;
   orderDate: string;
   totalAmount: number;
   shippingFee: number;
@@ -150,7 +164,13 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
   const [orderDetail, setOrderDetail] = useState<BuyerOrderDetail | null>(null);
   const [orderDetailLoading, setOrderDetailLoading] = useState(false);
   const [orderDetailError, setOrderDetailError] = useState('');
+  const [hoveredOrderKey, setHoveredOrderKey] = useState<string | null>(null);
+  const [hoveredOrderPosition, setHoveredOrderPosition] = useState<{ top: number; left: number } | null>(null);
+  const [hoverOrderDetails, setHoverOrderDetails] = useState<Record<string, BuyerOrderDetail>>({});
+  const [hoverOrderLoading, setHoverOrderLoading] = useState<string | null>(null);
+  const hoverOrderRequestsRef = useRef<Set<string>>(new Set());
   const orderDetailRequestRef = useRef(0);
+  const manualProductImagesRef = useRef<Map<string, string[]>>(new Map());
 
   const addressText = buyer.address?.trim() || '';
   const hasAddress = Boolean(addressText);
@@ -185,15 +205,12 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
   
   // BuyerProfile - Raw buyer data
   
-  // Parse orderDetails and notes from strings to arrays
-  const orderDetails = buyer.orderDetails ? (() => {
-    try {
-      const parsed = JSON.parse(buyer.orderDetails);
-      return parsed;
-    } catch (error) {
-      return [];
-    }
-  })() : [];
+  // Keep row status changes immediately visible; reload from the buyer record when the
+  // parent refreshes the profile after a successful save.
+  const [orderDetails, setOrderDetails] = useState<OrderDetail[]>(() => parseBuyerOrderDetails(buyer.orderDetails));
+  useEffect(() => {
+    setOrderDetails(parseBuyerOrderDetails(buyer.orderDetails));
+  }, [buyer.orderDetails]);
   
   const notes: string[] = (() => {
     if (!buyer.notes) return [];
@@ -306,22 +323,141 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
     setOrderDetailLoading(false);
   };
 
-  const openOrderDetail = async (order: OrderDetail) => {
-    if (!user?.id || !buyer.buyerId || !order.orderNo) return;
 
+  // Live order summaries intentionally stay compact. Fetch the immutable line items
+  // on hover so the preview can always show the exact selected product variants.
+  const loadHoverOrderDetail = async (order: OrderDetail) => {
+    const orderId = String(order.orderNo || '').trim();
+    if (!isLiveBuyerOrder(order) || !orderId || !user?.id || !buyer.buyerId || hoverOrderDetails[orderId] || hoverOrderRequestsRef.current.has(orderId)) return;
+
+    hoverOrderRequestsRef.current.add(orderId);
+    setHoverOrderLoading(orderId);
+    try {
+      const data = await fetchGraphQL<{ buyerOrderDetail: BuyerOrderDetail | null }>(
+        `query BuyerOrderHoverDetail($userId: Int!, $buyerId: String!, $orderId: String!) {
+          buyerOrderDetail(userId: $userId, buyerId: $buyerId, orderId: $orderId) {
+            orderId orderDate totalAmount shippingFee
+            orderItems {
+              id productId productName images packageQuantity packageType piecesPerPackage
+              pricePerPackage subtotal variantNameSnapshot variantOptionId variantId productSkuSnapshot
+            }
+          }
+        }`,
+        { userId: user.id, buyerId: buyer.buyerId, orderId },
+      );
+      if (data.buyerOrderDetail) {
+        setHoverOrderDetails((current) => ({ ...current, [orderId]: data.buyerOrderDetail! }));
+      } else {
+        setHoverOrderDetails((current) => ({ ...current, [orderId]: {
+          orderId, orderDate: '', totalAmount: 0, shippingFee: 0, orderItems: [],
+        } }));
+      }
+    } catch {
+      // The existing order row remains useful if the optional hover preview cannot load.
+    } finally {
+      hoverOrderRequestsRef.current.delete(orderId);
+      setHoverOrderLoading((current) => current === orderId ? null : current);
+    }
+  };
+
+  const loadManualProductImages = async (productId: string | null | undefined, productName: string): Promise<string[]> => {
+    if (!user?.id) return [];
+    const normalizedProductId = String(productId || '').trim();
+    const normalizedName = String(productName || '').trim();
+    const cacheKey = normalizedProductId
+      ? `id:${normalizedProductId}`
+      : `name:${normalizedName.toLowerCase()}`;
+    const cached = manualProductImagesRef.current.get(cacheKey);
+    if (cached) return cached;
+
+    let images: string[] = [];
+    try {
+      if (normalizedProductId) {
+        const productData = await fetchGraphQL<{
+          product: { images?: string[] | null } | null;
+        }>(
+          `query BuyerManualOrderProductImage($userId: Int!, $id: String!) {
+            product(userId: $userId, id: $id) { images }
+          }`,
+          { userId: user.id, id: normalizedProductId },
+        );
+        images = (productData.product?.images || []).filter((image): image is string => typeof image === 'string' && image.trim().length > 0);
+      }
+
+      if (images.length === 0 && normalizedName) {
+        const productData = await fetchGraphQL<{
+          products: { nodes: Array<{ name: string; images?: string[] | null }> };
+        }>(
+          `query BuyerManualOrderProductImageByName($userId: Int!, $search: String!) {
+            products(userId: $userId, page: 1, limit: 50, search: $search) {
+              nodes { name images }
+            }
+          }`,
+          { userId: user.id, search: normalizedName },
+        );
+        const match = productData.products?.nodes?.find((product) =>
+          String(product.name || '').trim().toLowerCase() === normalizedName.toLowerCase()
+        );
+        images = (match?.images || []).filter((image): image is string => typeof image === 'string' && image.trim().length > 0);
+      }
+    } catch {
+      // The order details should still open when a product image cannot be resolved.
+    }
+
+    manualProductImagesRef.current.set(cacheKey, images);
+    return images;
+  };
+
+  const openOrderDetail = async (order: OrderDetail) => {
     const requestId = ++orderDetailRequestRef.current;
     setSelectedOrder(order);
     setOrderDetail(null);
     setOrderDetailError('');
-    setOrderDetailLoading(true);
 
+    // Manual buyer records use the same detail layout as live marketplace orders.
+    // Resolve their product image from the saved catalog product ID (name fallback).
+    if (!isLiveBuyerOrder(order) || !order.orderNo) {
+      setOrderDetailLoading(true);
+      const parsedQuantity = parseBuyerOrderTotal(order.totalOrders, order.stockType || 'Pieces');
+      const productName = String(order.product || '').trim();
+      const images = productName
+        ? await loadManualProductImages(order.productId, productName)
+        : [];
+      if (requestId !== orderDetailRequestRef.current) return;
+      setOrderDetail({
+        orderId: order.orderNo || '—',
+        orderDate: order.lastOrderDate || '',
+        totalAmount: parseNumberByCurrency(String(order.totalSpend || '0'), userCurrency),
+        shippingFee: parseNumberByCurrency(String(order.shippingFee || '0'), userCurrency),
+        orderItems: productName ? [{
+          id: 0,
+          productId: order.productId || null,
+          productName,
+          images,
+          packageQuantity: Number(parsedQuantity.quantity) || 0,
+          packageType: order.stockType || parsedQuantity.unit,
+          piecesPerPackage: Math.max(1, Number(order.piecesPerPackage) || 1),
+          pricePerPackage: null,
+          subtotal: parseNumberByCurrency(String(order.totalSpend || '0'), userCurrency),
+          variantNameSnapshot: order.variantName || null,
+        }] : [],
+      });
+      setOrderDetailLoading(false);
+      return;
+    }
+
+    if (!user?.id || !buyer.buyerId) {
+      setOrderDetailError('Order details are unavailable.');
+      setOrderDetailLoading(false);
+      return;
+    }
+
+    setOrderDetailLoading(true);
     try {
       const data = await fetchGraphQL<{ buyerOrderDetail: BuyerOrderDetail | null }>(
         `query BuyerOrderDetail($userId: Int!, $buyerId: String!, $orderId: String!) {
           buyerOrderDetail(userId: $userId, buyerId: $buyerId, orderId: $orderId) {
             orderId
-            orderStatus
-            paymentStatus
             orderDate
             totalAmount
             shippingFee
@@ -336,6 +472,8 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
               pricePerPackage
               subtotal
               variantNameSnapshot
+              variantOptionId
+              variantId
               productSkuSnapshot
             }
           }
@@ -359,6 +497,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
       }
     }
   };
+
 
   return (
     <div className="mx-auto flex w-full min-w-0 flex-col gap-4 rounded-lg border border-[#e6e6e6] bg-white p-4">
@@ -764,7 +903,14 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
                 pagedOrderDetails.map((order: OrderDetail, idx: number) => (
                 <tr
                   key={idx + (orderPage - 1) * orderRowsPerPage}
-                  className="border-b last:border-b-0 cursor-pointer transition-colors hover:bg-blue-50/50 focus-within:bg-blue-50/50"
+                  className="border-b last:border-b-0 cursor-pointer transition-colors hover:bg-gray-100 focus-within:bg-gray-100"
+                  onMouseEnter={(event) => {
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    setHoveredOrderKey(`${order.orderNo || order.productId || order.product}-${idx + (orderPage - 1) * orderRowsPerPage}`);
+                    setHoveredOrderPosition({ top: rect.bottom + 4, left: Math.min(rect.left, window.innerWidth - 280) });
+                    void loadHoverOrderDetail(order);
+                  }}
+                  onMouseLeave={() => { setHoveredOrderKey(null); setHoveredOrderPosition(null); }}
                   onClick={() => void openOrderDetail(order)}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' || event.key === ' ') {
@@ -778,8 +924,54 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
                 >
                   <td className="py-4 px-4 font-medium text-black">{(orderPage - 1) * orderRowsPerPage + idx + 1}</td>
                   <td className="py-4 px-4 text-black">
-                    <div className="text-xsfont-medium text-black">
-                      {dedupeProductNames(order.product)}
+                    <div className="relative min-w-[12rem]">
+                      <div className="text-xs font-medium text-black">{dedupeProductNames(order.product)}</div>
+                      {dedupeProductNames(order.product).split(',').filter((name) => name.trim()).length > 1 ? (
+                        <button
+                          type="button"
+                          className="mt-1 inline-flex rounded-md border border-gray-200 bg-gray-50 px-2 py-0.5 text-[10px] font-medium text-gray-600 transition hover:bg-gray-100"
+                          onClick={(event) => { event.stopPropagation(); void openOrderDetail(order); }}
+                          onKeyDown={(event) => event.stopPropagation()}
+                        >
+                          Consolidated order · {dedupeProductNames(order.product).split(',').filter((name) => name.trim()).length} products
+                        </button>
+                      ) : null}
+                      {hoveredOrderKey === `${order.orderNo || order.productId || order.product}-${idx + (orderPage - 1) * orderRowsPerPage}` ? (
+                        <div className="pointer-events-none fixed z-[95] w-64 rounded-lg border border-gray-200 bg-white p-3 text-left shadow-xl" style={hoveredOrderPosition ? { top: hoveredOrderPosition.top, left: hoveredOrderPosition.left } : undefined} role="tooltip">
+                          <div className="mb-2 text-xs font-semibold text-gray-900">Order details</div>
+                          <div className="space-y-1 text-[11px] text-gray-600">
+                            <div>Order: <span className="font-medium text-gray-900">{order.orderNo || '—'}</span></div>
+                            <div>Product: <span className="font-medium text-gray-900">{dedupeProductNames(order.product) || '—'}</span></div>
+                            {isLiveBuyerOrder(order) && order.orderNo && hoverOrderLoading === order.orderNo && !hoverOrderDetails[order.orderNo] ? (
+                              <div className="text-gray-500">Loading ordered items…</div>
+                            ) : isLiveBuyerOrder(order) && hoverOrderDetails[order.orderNo]?.orderItems?.length ? (
+                              <div className="space-y-1">
+                                {hoverOrderDetails[order.orderNo].orderItems.slice(0, 2).map((item) => (
+                                  <div key={item.id} className="rounded-md bg-gray-50 px-2 py-1.5">
+                                    <div className="font-medium text-gray-900">{item.productName}</div>
+                                    <div>Variant: <span className="font-medium text-gray-900">{item.variantNameSnapshot || ((item.variantOptionId ?? item.variantId) != null ? `Variant #${item.variantOptionId ?? item.variantId}` : '—')}</span></div>
+                                    <div>Ordered: <span className="font-medium text-gray-900">{item.packageQuantity} {item.packageType || 'Pieces'}</span> <span className="text-gray-500">({item.piecesPerPackage || 1} pieces per package)</span></div>
+                                  </div>
+                                ))}
+                                {hoverOrderDetails[order.orderNo].orderItems.length > 2 ? (
+                                  <div className="px-2 pt-1 text-[11px] font-medium text-gray-500">
+                                    + {hoverOrderDetails[order.orderNo].orderItems.length - 2} more...
+                                  </div>
+                                ) : null}
+                              </div>
+                            ) : (
+                              <div className="rounded-md bg-gray-50 px-2 py-1.5">
+                                <div className="font-medium text-gray-900">{dedupeProductNames(order.product) || '—'}</div>
+                                <div>Variant: <span className="font-medium text-gray-900">{order.variantName || '—'}</span></div>
+                                <div>Ordered: <span className="font-medium text-gray-900">{order.totalOrders || '—'}</span> <span className="text-gray-500">({Math.max(1, Number(order.piecesPerPackage) || 1)} pieces per package)</span></div>
+                              </div>
+                            )}
+                            <div>Last order: <span className="font-medium text-gray-900">{order.lastOrderDate || '—'}</span></div>
+                            <div>Total spend: <span className="font-semibold text-[#0a61d7]">{formatCurrency(parseNumberByCurrency(String(order.totalSpend || '0'), userCurrency), userCurrency)}</span></div>
+                          </div>
+                          <div className="mt-2 border-t border-gray-100 pt-2 text-[10px] text-gray-400">Click to view the full order breakdown.</div>
+                        </div>
+                      ) : null}
                     </div>
                   </td>
                   <td className="py-4 px-4 text-black">
@@ -1152,7 +1344,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
             <div className="mb-4 border-b border-[#e6e6e6] pb-3 pr-10">
               <h3 className="text-xl font-bold text-black">Order Details</h3>
               <p className="mt-1 text-sm text-gray-500">
-                {selectedOrder.orderNo} · {selectedOrder.lastOrderDate}
+                {selectedOrder.orderNo || '—'} · {selectedOrder.lastOrderDate || '—'}
               </p>
             </div>
 
@@ -1167,15 +1359,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
               </div>
             ) : orderDetail ? (
               <>
-                <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-                  <div className="rounded-lg bg-gray-50 p-3">
-                    <div className="text-xs text-gray-500">Order status</div>
-                    <div className="mt-1 font-semibold text-black">{orderDetail.orderStatus || '—'}</div>
-                  </div>
-                  <div className="rounded-lg bg-gray-50 p-3">
-                    <div className="text-xs text-gray-500">Payment status</div>
-                    <div className="mt-1 font-semibold text-black">{orderDetail.paymentStatus || '—'}</div>
-                  </div>
+                <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="rounded-lg bg-gray-50 p-3">
                     <div className="text-xs text-gray-500">Order total</div>
                     <div className="mt-1 font-semibold text-[#0a61d7]">{formatCurrency(orderDetail.totalAmount, userCurrency)}</div>
@@ -1201,7 +1385,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
                       <thead className="bg-gray-100 text-xs uppercase text-gray-500">
                         <tr>
                           <th className="px-3 py-3">Product</th>
-                          <th className="px-3 py-3">Package type</th>
+                          <th className="px-3 py-3">Stock type</th>
                           <th className="px-3 py-3">Quantity</th>
                           <th className="px-3 py-3">Pieces / package</th>
                           <th className="px-3 py-3">Price / package</th>

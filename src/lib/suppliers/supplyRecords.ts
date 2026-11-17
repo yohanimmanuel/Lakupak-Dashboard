@@ -97,164 +97,8 @@ function findSummaryIndex(rows: SupplyDetail[], target: SummaryIdentity): number
 }
 
 /**
- * Build the supplier-facing summary from persisted supplier totals and receipt history.
- *
- * Product-linked summary rows are the authoritative running totals: when a product
- * variant is first linked to a supplier, they contain its opening supply balance;
- * finalizeSupplierSuppliesSave then applies each receipt/edit/delete delta to that
- * same summary row. Therefore, adding history to a linked summary would double-count
- * receipts. History is aggregated only for variants that do not yet have a summary row.
- *
- * All stored quantities remain canonical Pieces. UI components convert these totals
- * into the product's configured package-level quantities for display.
- */
-export function buildSupplySummaryFromHistory(
-  historyRows: SupplyDetail[],
-  linkedSummaryRows: SupplyDetail[] = [],
-): SupplyDetail[] {
-  const grouped = new Map<string, SupplyDetail>();
-  const summaryBackedIdentities = new Set<string>();
-  const aliasToIdentity = new Map<string, string>();
-  const ambiguousAliases = new Set<string>();
-
-  const primaryIdentity = (row: SupplyDetail): string => {
-    const productId = normKey(row.productId);
-    const variantName = normKey(row.variantName);
-    const sku = normKey(row.sku);
-    const product = normKey(row.product);
-
-    if (productId && variantName) return `id:${productId}|${variantName}`;
-    // A shared SKU is not a variant identity. Include the variant/product label
-    // whenever the catalog identity is unavailable (legacy rows often share SKUs).
-    if (sku && product) return `sku:${sku}|product:${product}`;
-    if (productId && product) return `id:${productId}|product:${product}`;
-    if (product) return `product:${product}`;
-    if (sku) return `sku:${sku}`;
-    return '';
-  };
-
-  const aliasesFor = (row: SupplyDetail): string[] => {
-    const aliases: string[] = [];
-    const sku = normKey(row.sku);
-    const product = normKey(row.product);
-    const productId = normKey(row.productId);
-    const variantName = normKey(row.variantName);
-
-    if (sku && product) aliases.push(`sku-product:${sku}|${product}`);
-    if (product) aliases.push(`product:${product}`);
-    if (productId && variantName) aliases.push(`id:${productId}|${variantName}`);
-    // SKU-only matching is retained only as a possible fallback. It is marked
-    // ambiguous below when multiple variants share that SKU.
-    if (sku) aliases.push(`sku-only:${sku}`);
-    return aliases;
-  };
-
-  const registerAlias = (alias: string, identity: string) => {
-    if (ambiguousAliases.has(alias)) return;
-    const existing = aliasToIdentity.get(alias);
-    if (existing && existing !== identity) {
-      aliasToIdentity.delete(alias);
-      ambiguousAliases.add(alias);
-      return;
-    }
-    aliasToIdentity.set(alias, identity);
-  };
-
-  // Preserve the product-linked summary row as the opening/running supplier balance.
-  // syncProductSupplies creates it when the product variant is first linked; subsequent
-  // supply-history changes are already applied to it by finalizeSupplierSuppliesSave.
-  // A zero-valued linked row can still use history as a fallback for older records
-  // whose first receipt predates summary-delta persistence.
-  for (const row of linkedSummaryRows) {
-    if (!isSupplySummaryRow(row)) continue;
-    const identity = primaryIdentity(row);
-    if (!identity) continue;
-
-    const existing = grouped.get(identity);
-    if (!existing) {
-      const openingOrRunningQuantity = Math.max(0, Math.trunc(toQty(row.totalSupplied)));
-      const openingOrRunningValue = Math.max(0, Math.round(toQty(row.totalValue)));
-      grouped.set(identity, {
-        ...row,
-        totalSupplied: String(openingOrRunningQuantity),
-        totalValue: String(openingOrRunningValue),
-        lastSuppliedDate: String(row.lastSuppliedDate || ''),
-        recordType: 'summary',
-      });
-      if (openingOrRunningQuantity > 0 || openingOrRunningValue > 0) {
-        summaryBackedIdentities.add(identity);
-      }
-    }
-    for (const alias of aliasesFor(row)) registerAlias(alias, identity);
-  }
-
-  for (const row of historyRows) {
-    if (!isSupplyHistoryRow(row)) continue;
-
-    const directIdentity = primaryIdentity(row);
-    const matchedIdentity = directIdentity && grouped.has(directIdentity)
-      ? directIdentity
-      : aliasesFor(row)
-          .filter((alias) => !alias.startsWith('sku-only:'))
-          .map((alias) => aliasToIdentity.get(alias))
-          .find((identity): identity is string => Boolean(identity))
-        || (!normKey(row.product) && normKey(row.sku)
-          ? aliasToIdentity.get(`sku-only:${normKey(row.sku)}`)
-          : undefined)
-        || directIdentity;
-
-    if (!matchedIdentity) continue;
-
-    const quantity = Math.max(0, Math.trunc(toQty(row.totalSupplied)));
-    const value = Math.max(0, Math.round(toQty(row.totalValue)));
-    if (quantity === 0 && value === 0) continue;
-
-    const current = grouped.get(matchedIdentity);
-    if (current) {
-      // The stored linked summary is already opening balance + receipt deltas. Do not
-      // add the same history event again. For a zero-valued legacy summary placeholder,
-      // aggregate history to reconstruct the receipt total.
-      if (!summaryBackedIdentities.has(matchedIdentity)) {
-        current.totalSupplied = String(toQty(current.totalSupplied) + quantity);
-        current.totalValue = String(toQty(current.totalValue) + value);
-      }
-      if (String(row.lastSuppliedDate || '') > String(current.lastSuppliedDate || '')) {
-        current.lastSuppliedDate = String(row.lastSuppliedDate || '');
-      }
-      // Fill missing legacy labels/identity without replacing catalog-linked labels.
-      current.sku = current.sku || String(row.sku || '');
-      current.product = current.product || String(row.product || '');
-      current.productId = current.productId || row.productId;
-      current.variantName = current.variantName || row.variantName;
-      continue;
-    }
-
-    grouped.set(matchedIdentity, {
-      suppliesno: `SUPPLY-SUMMARY-${grouped.size + 1}`,
-      sku: String(row.sku || ''),
-      product: String(row.product || ''),
-      totalSupplied: String(quantity),
-      totalValue: String(value),
-      lastSuppliedDate: String(row.lastSuppliedDate || ''),
-      status: String(row.status || 'Active'),
-      recordType: 'summary',
-      productId: row.productId,
-      variantName: row.variantName,
-    });
-    for (const alias of aliasesFor(row)) registerAlias(alias, matchedIdentity);
-  }
-
-  return Array.from(grouped.values()).sort((a, b) =>
-    String(a.sku || '').localeCompare(String(b.sku || '')) ||
-    String(a.product || '').localeCompare(String(b.product || '')),
-  );
-}
-
-/**
- * Fold legacy persisted summary rows that resolve to the same total into one row.
- * Kept for persistence/transfer compatibility; supplier-facing summaries should use
- * buildSupplySummaryFromHistory so product-linked opening/running balances are preserved
- * without counting the same history events twice.
+ * Fold summary rows that resolve to the same total (see findSummaryIndex) into one row.
+ * Heals duplicates written before SKU matching existed; a no-op when there are none.
  */
 export function mergeDuplicateSummaryRows(supplies: SupplyDetail[]): SupplyDetail[] {
   const out: SupplyDetail[] = [];
@@ -365,6 +209,145 @@ export function applySummaryDelta(
   return out;
 }
 
+
+/**
+ * Build the supplier-facing summary from persisted supplier totals and receipt history.
+ *
+ * Product-linked summary rows are authoritative running totals. The save service applies
+ * each receipt/edit/delete delta to those rows, so adding the same history again would
+ * double-count it. History is aggregated only when there is no populated linked summary.
+ * All quantities remain canonical Pieces; the profile converts them for display.
+ */
+export function buildSupplySummaryFromHistory(
+  historyRows: readonly SupplyDetail[],
+  linkedSummaryRows: readonly SupplyDetail[] = [],
+): SupplyDetail[] {
+  const grouped = new Map<string, SupplyDetail>();
+  const summaryBackedIdentities = new Set<string>();
+  const aliasToIdentity = new Map<string, string>();
+  const ambiguousAliases = new Set<string>();
+
+  const primaryIdentity = (row: SupplyDetail): string => {
+    const productId = normKey(row.productId);
+    const variantName = normKey(row.variantName);
+    const sku = normKey(row.sku);
+    const product = normKey(row.product);
+    if (productId && variantName) return `id:${productId}|${variantName}`;
+    if (sku && product) return `sku:${sku}|product:${product}`;
+    if (productId && product) return `id:${productId}|product:${product}`;
+    if (product) return `product:${product}`;
+    if (sku) return `sku:${sku}`;
+    return '';
+  };
+
+  const aliasesFor = (row: SupplyDetail): string[] => {
+    const aliases: string[] = [];
+    const sku = normKey(row.sku);
+    const product = normKey(row.product);
+    const productId = normKey(row.productId);
+    const variantName = normKey(row.variantName);
+    if (sku && product) aliases.push(`sku-product:${sku}|${product}`);
+    if (product) aliases.push(`product:${product}`);
+    if (productId && variantName) aliases.push(`id:${productId}|${variantName}`);
+    if (sku) aliases.push(`sku-only:${sku}`);
+    return aliases;
+  };
+
+  const registerAlias = (alias: string, identity: string) => {
+    if (ambiguousAliases.has(alias)) return;
+    const existing = aliasToIdentity.get(alias);
+    if (existing && existing !== identity) {
+      aliasToIdentity.delete(alias);
+      ambiguousAliases.add(alias);
+      return;
+    }
+    aliasToIdentity.set(alias, identity);
+  };
+
+  // Preserve linked opening/running balances. A positive stored summary already includes
+  // receipt deltas and must not have the same dated history added a second time.
+  for (const row of linkedSummaryRows) {
+    if (!isSupplySummaryRow(row)) continue;
+    const identity = primaryIdentity(row);
+    if (!identity) continue;
+
+    const existing = grouped.get(identity);
+    if (!existing) {
+      const openingOrRunningQuantity = Math.max(0, Math.trunc(toQty(row.totalSupplied)));
+      const openingOrRunningValue = Math.max(0, Math.round(toQty(row.totalValue)));
+      grouped.set(identity, {
+        ...row,
+        totalSupplied: String(openingOrRunningQuantity),
+        totalValue: String(openingOrRunningValue),
+        lastSuppliedDate: String(row.lastSuppliedDate || ''),
+        recordType: 'summary',
+      });
+      if (openingOrRunningQuantity > 0 || openingOrRunningValue > 0) {
+        summaryBackedIdentities.add(identity);
+      }
+    }
+    for (const alias of aliasesFor(row)) registerAlias(alias, identity);
+  }
+
+  for (const row of historyRows) {
+    if (!isSupplyHistoryRow(row)) continue;
+
+    const directIdentity = primaryIdentity(row);
+    const matchedIdentity = directIdentity && grouped.has(directIdentity)
+      ? directIdentity
+      : aliasesFor(row)
+          .filter((alias) => !alias.startsWith('sku-only:'))
+          .map((alias) => aliasToIdentity.get(alias))
+          .find((identity): identity is string => Boolean(identity))
+        || (!normKey(row.product) && normKey(row.sku)
+          ? aliasToIdentity.get(`sku-only:${normKey(row.sku)}`)
+          : undefined)
+        || directIdentity;
+
+    if (!matchedIdentity) continue;
+    const quantity = Math.max(0, Math.trunc(toQty(row.totalSupplied)));
+    const value = Math.max(0, Math.round(toQty(row.totalValue)));
+    if (quantity === 0 && value === 0) continue;
+
+    const current = grouped.get(matchedIdentity);
+    if (current) {
+      // Reconstruct only zero-valued legacy placeholders; populated linked summaries
+      // are already authoritative and are deliberately not incremented here.
+      if (!summaryBackedIdentities.has(matchedIdentity)) {
+        current.totalSupplied = String(toQty(current.totalSupplied) + quantity);
+        current.totalValue = String(toQty(current.totalValue) + value);
+      }
+      if (String(row.lastSuppliedDate || '') > String(current.lastSuppliedDate || '')) {
+        current.lastSuppliedDate = String(row.lastSuppliedDate || '');
+      }
+      current.sku = current.sku || String(row.sku || '');
+      current.product = current.product || String(row.product || '');
+      current.productId = current.productId || row.productId;
+      current.variantName = current.variantName || row.variantName;
+      continue;
+    }
+
+    grouped.set(matchedIdentity, {
+      suppliesno: `SUPPLY-SUMMARY-${grouped.size + 1}`,
+      sku: String(row.sku || ''),
+      product: String(row.product || ''),
+      totalSupplied: String(quantity),
+      totalValue: String(value),
+      lastSuppliedDate: String(row.lastSuppliedDate || ''),
+      status: String(row.status || 'Active'),
+      recordType: 'summary',
+      productId: row.productId,
+      variantName: row.variantName,
+    });
+    for (const alias of aliasesFor(row)) registerAlias(alias, matchedIdentity);
+  }
+
+  return Array.from(grouped.values()).sort((a, b) =>
+    String(a.sku || '').localeCompare(String(b.sku || '')) ||
+    String(a.product || '').localeCompare(String(b.product || '')),
+  );
+}
+
 export function shouldUpdateCurrentStock(row: Pick<SupplyDetail, 'updateCurrentStock'>): boolean {
   return row.updateCurrentStock === true;
 }
@@ -412,11 +395,13 @@ export function serializeHistorySupplyForStorage(row: SupplyDetail): SupplyDetai
     suppliesno: String(row.suppliesno || ''),
     sku: String(row.sku || ''),
     product: String(row.product || ''),
+    // Keep the canonical Pieces total for inventory, but also persist exactly what
+    // the supplier entered and selected so the UI can restore the chosen stock level.
     totalSupplied: String(row.totalSupplied || ''),
     receivedQuantity: String(row.receivedQuantity ?? row.totalSupplied ?? ''),
     receivedUnit: String(row.receivedUnit || 'Pieces'),
     totalValue: String(row.totalValue || ''),
-    lastSuppliedDate: String(row.lastSuppliedDate || ''),
+    lastSuppliedDate: String(row.lastSuppliedDate || row.lastDelivery || ''),
     status: String(row.status || 'Active'),
     recordType: 'history',
     productId: row.productId ? String(row.productId) : undefined,

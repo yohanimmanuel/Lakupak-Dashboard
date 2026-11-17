@@ -307,87 +307,75 @@ export default function OrdersTable({
     setShowBulkPaymentStatusDropdown(false);
 
     try {
-      // One at a time: concurrent status changes lock the same VariantOption stock
-      // rows in different orders and Postgres can return "deadlock detected".
-      const results: PromiseSettledResult<string>[] = [];
-      for (const orderId of batchOrderIds) {
-        let lastReason: unknown = null;
-        let succeeded = false;
-        for (let attempt = 1; attempt <= 3; attempt += 1) {
+      let successes: string[] = [];
+      let failures: Array<{ orderId: string; reason: string }> = [];
+
+      if (field === 'orderStatus') {
+        // Inventory-sensitive status changes are sent once. The server locks and
+        // updates the complete batch in one transaction, preventing partial stock
+        // deductions and avoiding one browser request per order.
+        const response = await fetch('/api/orders', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            bulkOrderStatus: true,
+            orderIds: batchOrderIds,
+            orderStatus: value,
+            userId: user.id,
+          }),
+        });
+        const result = (await response.json().catch(() => ({}))) as {
+          error?: string;
+          successfulOrderIds?: string[];
+          failedOrderIds?: string[];
+        };
+        if (!response.ok) {
+          const reason = result.error || `Request failed (${response.status})`;
+          failures = batchOrderIds.map((orderId) => ({ orderId, reason }));
+        } else {
+          successes = Array.isArray(result.successfulOrderIds) ? result.successfulOrderIds : batchOrderIds;
+          failures = (result.failedOrderIds || []).map((orderId) => ({ orderId, reason: result.error || 'Update failed' }));
+        }
+      } else {
+        // Payment status does not affect inventory. Keep its existing per-order
+        // update path until a dedicated payment batch mutation is introduced.
+        for (const orderId of batchOrderIds) {
           try {
-            const res = await fetch('/api/orders', {
+            const response = await fetch('/api/orders', {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ orderId, userId: user.id, [field]: value }),
+              body: JSON.stringify({ orderId, userId: user.id, paymentStatus: value }),
             });
-            if (!res.ok) {
-              const data = (await res.json().catch(() => ({}))) as { error?: string; detail?: string };
-              const detail = typeof data.detail === 'string' ? data.detail.trim() : '';
-              const reason =
-                detail || (typeof data.error === 'string' ? data.error.trim() : '') || String(res.status);
-              const isDeadlock = /deadlock detected|40P01|P2034/i.test(reason);
-              if (isDeadlock && attempt < 3) {
-                await new Promise((resolve) =>
-                  setTimeout(resolve, 120 * attempt + Math.floor(Math.random() * 100)),
-                );
-                continue;
-              }
-              throw new Error(`${orderId}: ${reason}`);
+            if (response.ok) {
+              successes.push(orderId);
+            } else {
+              const result = (await response.json().catch(() => ({}))) as { error?: string; detail?: string };
+              failures.push({ orderId, reason: result.detail || result.error || `Request failed (${response.status})` });
             }
-            results.push({ status: 'fulfilled', value: orderId });
-            succeeded = true;
-            break;
-          } catch (reason) {
-            lastReason = reason;
-            const message = reason instanceof Error ? reason.message : String(reason ?? '');
-            const isDeadlock = /deadlock detected|40P01|P2034/i.test(message);
-            if (isDeadlock && attempt < 3) {
-              await new Promise((resolve) =>
-                setTimeout(resolve, 120 * attempt + Math.floor(Math.random() * 100)),
-              );
-              continue;
-            }
-            break;
+          } catch (error) {
+            failures.push({ orderId, reason: error instanceof Error ? error.message : 'Request failed' });
           }
         }
-        if (!succeeded) {
-          results.push({ status: 'rejected', reason: lastReason });
-        }
       }
-
-      const successes = results
-        .filter((result): result is PromiseFulfilledResult<string> => result.status === 'fulfilled')
-        .map((result) => result.value);
-      const failedCount = batchOrderIds.length - successes.length;
 
       if (successes.length > 0 && setOrdersAction) {
-        setOrdersAction((prev) =>
-          prev.map((order) =>
-            successes.includes(order.orderId)
-              ? { ...order, [field]: value }
-              : order,
-          ),
-        );
+        setOrdersAction((previous) => previous.map((order) =>
+          successes.includes(order.orderId) ? { ...order, [field]: value } : order,
+        ));
       }
+      setSelectedOrders((previous) => previous.filter((orderId) => !successes.includes(orderId)));
 
-      setSelectedOrders((prev) => prev.filter((id) => !successes.includes(id)));
-
-      if (failedCount > 0) {
-        const message =
-          successes.length > 0
-            ? tTable('bulkActions.updatePartialSuccess', {
-                success: successes.length,
-                failed: failedCount,
-              })
-            : tTable('bulkActions.updateFailed', { count: failedCount });
-        const reasons = results
-          .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
-          .map((result) => (result.reason instanceof Error ? result.reason.message.trim() : ''))
-          .filter((reason) => reason.length > 0 && !/^\d{3}$/.test(reason));
-        alert(reasons.length > 0 ? `${message}\n${reasons.join('\n')}` : message);
+      if (failures.length > 0) {
+        const message = successes.length > 0
+          ? tTable('bulkActions.updatePartialSuccess', { success: successes.length, failed: failures.length })
+          : tTable('bulkActions.updateFailed', { count: failures.length });
+        const detailLines = failures.map(({ orderId, reason }) => `${orderId}: ${reason}`);
+        alert(`${message}\n${detailLines.join('\n')}`);
       }
-    } catch {
-      alert(tTable('bulkActions.updateFailed', { count: batchOrderIds.length }));
+      if (successes.length > 0) onRefreshAction?.();
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : '';
+      alert(detail || tTable('bulkActions.updateFailed', { count: batchOrderIds.length }));
     } finally {
       setIsBulkUpdating(false);
     }

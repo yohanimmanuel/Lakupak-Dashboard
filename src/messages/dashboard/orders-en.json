@@ -350,7 +350,7 @@
       "totalFreeQuantity": "Total Free Quantity",
       "table": {
         "description": "Description",
-        "packageType": "Pckg Type",
+        "packageType": "Stock Type",
         "piecesPerPackage": "Pcs/Pckg",
         "qty": "Qty",
         "pricePerPackage": "Price/Pckg",

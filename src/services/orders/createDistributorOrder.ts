@@ -16,6 +16,8 @@ import {
   calculateTotalQuantityWithPromotions,
   decimalToNumber,
   restoreStockForOrderItems,
+  broadcastSoldCountUpdates,
+  broadcastProductStockUpdates,
 } from './utils';
 
 const ORDER_STATUSES = new Set([
@@ -511,6 +513,9 @@ export async function createDistributorOrderHandler(request: NextRequest) {
   }
 
   await syncOrderToBuyerProfile(activeBuyerId, userId).catch(() => undefined);
+  if (!(STOCK_NO_DEDUCT_STATUSES as readonly string[]).includes(orderStatus)) {
+    await broadcastSoldCountUpdates(orderId);
+  }
   await recordManualOrderClientMatch({
     distributorId: userId,
     existingClientId: buyerId,
@@ -660,6 +665,11 @@ export async function updateDistributorOrderHandler(userId: number, body: Record
 
   try {
   await prisma.$transaction(async (tx) => {
+    // Serialize concurrent manual edits/status updates to this order so the same
+    // deducted reservation cannot be restored or re-deducted twice.
+    await tx.$queryRaw<Array<{ orderId: string }>>`
+      SELECT "orderId" FROM "Order" WHERE "orderId" = ${orderId} FOR UPDATE
+    `;
     let stockAlreadyDeducted = false;
     if (priced) {
       const current = await tx.order.findFirst({
@@ -755,5 +765,11 @@ export async function updateDistributorOrderHandler(userId: number, body: Record
 
   await syncOrderToBuyerProfile(buyerId, userId).catch(() => undefined);
   await invalidateDashboardCache(userId).catch(() => undefined);
+  // Include both removed old lines (whose stock was restored) and new lines (whose
+  // stock may have been deducted) so every affected product table refreshes.
+  await broadcastProductStockUpdates([
+    ...existing.orderItemsRel.map((item) => item.productId).filter((id): id is string => Boolean(id)),
+    ...items.map((item) => item.productId),
+  ]);
   return NextResponse.json({ orderId }, { status: 200, headers });
 }

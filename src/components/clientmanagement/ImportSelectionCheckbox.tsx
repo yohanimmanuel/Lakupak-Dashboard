@@ -2,18 +2,26 @@
 
 import React from 'react';
 
+type ImportSelectionCheckboxProps = {
+  checked: boolean;
+  indeterminate?: boolean;
+  /** Client-side event callback; see note below about the Next.js client boundary. */
+  onToggle: unknown;
+  ariaLabel: string;
+};
+
 export default function ImportSelectionCheckbox({
   checked,
   indeterminate = false,
   onToggle,
   ariaLabel,
-}: {
-  checked: boolean;
-  indeterminate?: boolean;
-  onToggle: () => void;
-  ariaLabel: string;
-}) {
+}: ImportSelectionCheckboxProps) {
   const isActive = checked || indeterminate;
+  const handleToggle = () => {
+    if (typeof onToggle === 'function') {
+      (onToggle as () => void)();
+    }
+  };
 
   return (
     <button
@@ -23,7 +31,7 @@ export default function ImportSelectionCheckbox({
       aria-label={ariaLabel}
       onClick={(event) => {
         event.stopPropagation();
-        onToggle();
+        handleToggle();
       }}
       className={`w-5 h-5 border-2 rounded transition-all duration-200 flex items-center justify-center shrink-0 ${
         isActive ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300 hover:border-green-400'

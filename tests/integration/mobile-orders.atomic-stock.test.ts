@@ -275,7 +275,7 @@ describe('mobile orders - checkout and confirm stock', () => {
     expect(confirmResponses).toHaveLength(2);
 
     const confirmStatuses = await Promise.all(confirmResponses.map((r) => r.status));
-    expect(confirmStatuses.sort()).toEqual([200, 500]);
+    expect(confirmStatuses.sort()).toEqual([200, 409]);
 
     const orders = await prisma.order.findMany({
       where: { orderId: { in: ['LKO-90001', 'LKO-90002'] } },

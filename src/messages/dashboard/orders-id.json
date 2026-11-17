@@ -350,7 +350,7 @@
       "totalFreeQuantity": "Total Kuantitas Gratis",
       "table": {
         "description": "Deskripsi",
-        "packageType": "Tipe Pk",
+        "packageType": "Tipe Stok",
         "piecesPerPackage": "Pcs/Pk",
         "qty": "Jml",
         "pricePerPackage": "Harga/Pk",

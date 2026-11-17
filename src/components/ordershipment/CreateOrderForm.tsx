@@ -657,13 +657,11 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
   }
 
   function chooseProduct(key: number, productId: string) {
-    const product = catalog.find((row) => row.productId === productId);
-    const active = product?.variantOptions.filter((option) => option.isActive) ?? [];
-    const preferred = active.find((option) => option.isDefault) || active[0];
     updateLine(key, {
       productId,
-      variantOptionId: preferred ? String(preferred.id) : '',
-      packageType: 'Pieces',
+      // Require explicit variant and stock-level selection for each product line.
+      variantOptionId: '',
+      packageType: '',
       piecesPerPackage: 1,
       savedUnit: null,
     });
@@ -1083,7 +1081,7 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
                       <label className={labelClass}>{tCreate('variant')}</label>
                       <LakupakSelect
                         value={line.variantOptionId}
-                        placeholder={tCreate('selectVariant')}
+                        placeholder={product ? 'None' : 'Select product first'}
                         options={variants.map((option) => ({ value: String(option.id), label: option.variantName }))}
                         onChange={(value) => updateLine(line.key, { variantOptionId: value, savedUnit: null })}
                       />
@@ -1092,8 +1090,8 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
                       <label className={labelClass}>Stock type</label>
                       <LakupakSelect
                         value={line.packageType}
-                        placeholder={product ? 'Select stock type' : 'Select product first'}
-                        allowEmpty={false}
+                        placeholder={product ? 'None' : 'Select product first'}
+                        allowEmpty={true}
                         options={stockLevels.map((level) => ({ value: level.name, label: level.name }))}
                         onChange={(value) => chooseStockLevel(line.key, line.productId, value)}
                       />

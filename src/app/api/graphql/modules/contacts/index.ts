@@ -348,6 +348,12 @@ type BuyerWithRecords = BuyerModel & {
   buyerRecords?: Array<{
     orderNo: string;
     product: string;
+    productId: string | null;
+    // Prisma stores variantOptionId as an Int?; keep this numeric to match generated types.
+    variantOptionId: number | null;
+    variantName: string | null;
+    stockType: string | null;
+    piecesPerPackage: number | null;
     totalOrders: string;
     totalSpend: string;
     shippingFee: string | null;
@@ -366,6 +372,10 @@ type SupplierWithRecords = SupplierModel & {
     suppliesno: string;
     sku: string;
     product: string;
+    /** Original supplier-entered package quantity, e.g. "1" for one Carton. */
+    receivedQuantity: string;
+    /** Original supplier-selected stock level; inventory quantity remains totalSupplied in Pieces. */
+    receivedUnit: string;
     totalSupplied: string;
     totalValue: string;
     lastSuppliedDate: string;
@@ -399,6 +409,11 @@ const mapBuyer = (buyer: BuyerWithRecords) => ({
           buyer.buyerRecords.map((row) => ({
             orderNo: row.orderNo,
             product: row.product,
+            productId: row.productId ?? undefined,
+            variantOptionId: row.variantOptionId ?? undefined,
+            variantName: row.variantName ?? undefined,
+            stockType: row.stockType ?? undefined,
+            piecesPerPackage: row.piecesPerPackage ?? undefined,
             totalOrders: row.totalOrders,
             totalSpend: row.totalSpend,
             shippingFee: row.shippingFee ?? undefined,
@@ -441,6 +456,9 @@ const mapSupplier = (supplier: SupplierWithRecords) => ({
             suppliesno: row.suppliesno,
             sku: row.sku,
             product: row.product,
+            // Preserve the supplier's original input separately from canonical Pieces.
+            receivedQuantity: row.receivedQuantity,
+            receivedUnit: row.receivedUnit,
             totalSupplied: row.totalSupplied,
             totalValue: row.totalValue,
             lastSuppliedDate: row.lastSuppliedDate,

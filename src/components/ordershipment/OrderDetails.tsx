@@ -1347,8 +1347,8 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                   <tr className="border-b border-[#e6e6e6] text-gray-500">
                     <th className="text-left py-2 font-medium uppercase">{tDetails('orderSummary.table.description')}</th>
                     <th className="text-left py-2 font-medium uppercase">{tDetails('orderSummary.table.packageType')}</th>
-                    <th className="text-left py-2 font-medium uppercase">{tDetails('orderSummary.table.piecesPerPackage')}</th>
                     <th className="text-left py-2 font-medium uppercase">{tDetails('orderSummary.table.qty')}</th>
+                    <th className="text-left py-2 font-medium uppercase">{tDetails('orderSummary.table.piecesPerPackage')}</th>
                     <th className="text-left py-2 font-medium uppercase">{tDetails('orderSummary.table.pricePerPackage')}</th>
                     <th className="text-right py-2 font-medium uppercase">{tDetails('orderSummary.table.totalAmount')}</th>
                     </tr>
@@ -1371,7 +1371,6 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         </Link>
                       </td>
                       <td className="py-2">{item.packageType || tShared('defaultPackageType')}</td>
-                      <td className="py-2">{item.piecesPerPackage || 1}</td>
                       <td className="py-2">
                         {item.packageQuantity || 1}
                         {item.offerApplied && item.promotionDetailsSnapshot && (() => {
@@ -1397,6 +1396,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                           return '';
                         })()}
                       </td>
+                      <td className="py-2">{Math.max(1, Number(item.piecesPerPackage) || 1)}</td>
                       <td className="py-2">
                         {formatMoney(item.pricePerPackage || 0)}
                       </td>
@@ -1493,9 +1493,18 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               <div className="space-y-3">
                 {localItems.map((item, index) => (
                   <div key={index} className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                    {/* Image Placeholder */}
-                    <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                    {/* Product image: API returns the saved image snapshot when the live product image is unavailable. */}
+                    <div className="relative w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
                       <Package className="w-8 h-8 text-gray-400" />
+                      {item.images?.[0] ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={item.images[0]}
+                          alt={item.productName}
+                          className="absolute inset-0 w-full h-full object-cover"
+                          onError={(event) => { event.currentTarget.style.display = 'none'; }}
+                        />
+                      ) : null}
                     </div>
                     
                     {/* Item Details */}

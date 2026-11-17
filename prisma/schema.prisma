@@ -245,6 +245,11 @@ model BuyerRecord {
   buyerRefId       Int
   orderNo          String   @default("")
   product          String   @default("")
+  productId        String?
+  variantOptionId  Int?
+  variantName      String?
+  stockType        String?
+  piecesPerPackage Int?
   totalOrders      String   @default("")
   totalSpend       String   @default("")
   shippingFee      String?

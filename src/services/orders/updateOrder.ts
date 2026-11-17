@@ -3,18 +3,21 @@ import { prisma } from '@/lib/db';
 import { Prisma } from '@/lib/prisma-generated';
 import { getOrderSecurityHeaders, validateOrderUpdate, sanitizeOrderData } from '@/utils/order-security';
 import { ensureAllPriceConsistency } from '@/utils/orderUtils';
-import { parsePrice } from '@/utils/currencyUtils';
-import { parseMarketplaceUserIdFromBuyerId } from '@/utils/buyerSync';
+import { parseMarketplaceUserIdFromBuyerId, syncOrderToBuyerProfile } from '@/utils/buyerSync';
 import { orderUpdateRateLimiter } from '@/utils/rateLimiter';
 import { auditOrder } from '@/lib/audit';
 import {
   decimalToNumber,
-  calculateTotalQuantityWithPromotions,
   restoreStockForOrderItems,
+  deductStockForOrderItems,
+  InsufficientOrderStockError,
+  broadcastProductStockUpdates,
+  broadcastSoldCountUpdatesForOrders,
   STOCK_NO_DEDUCT_STATUSES,
   type StockNotificationJob,
 } from './utils';
 import { getUnitPriceFromVariantOption, selectVariantOption } from '@/domain/marketplace/orderItemRules';
+import { normalizeStockLevels } from '@/utils/stockUtils';
 import {
   enqueueBroadcastOrderUpdates,
   scheduleOrderCancelPostCommitEffects,
@@ -30,6 +33,13 @@ function isDeadlockError(error: unknown): boolean {
   }
   const message = error instanceof Error ? error.message : String(error ?? '');
   return /deadlock detected|40P01|P2034/i.test(message);
+}
+
+class OrderStatusConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'OrderStatusConflictError';
+  }
 }
 
 async function runOrderTransaction<T>(
@@ -52,6 +62,155 @@ async function runOrderTransaction<T>(
     }
   }
   throw lastError;
+}
+
+const BULK_ORDER_STATUSES = new Set([
+  'Pending', 'Confirmed', 'Packed', 'Shipped', 'Delivered', 'Received', 'Failed', 'Cancelled', 'Returned',
+]);
+
+async function updateOrdersStatusBulk(
+  request: NextRequest,
+  orderIdsInput: unknown,
+  nextStatusInput: unknown,
+  ownerScopeUserId: number | null,
+  actorId: number | null,
+) {
+  const headers = getOrderSecurityHeaders();
+  const orderIds = Array.isArray(orderIdsInput)
+    ? Array.from(new Set(orderIdsInput.filter((value): value is string => typeof value === 'string').map((value) => value.trim()).filter(Boolean)))
+    : [];
+  const nextStatus = typeof nextStatusInput === 'string' ? nextStatusInput.trim() : '';
+
+  if (orderIds.length === 0 || orderIds.length > 100) {
+    return NextResponse.json({ error: 'Select between 1 and 100 orders.', code: 'invalid_bulk_selection' }, { status: 400, headers });
+  }
+  if (!BULK_ORDER_STATUSES.has(nextStatus)) {
+    return NextResponse.json({ error: 'Invalid order status.', code: 'invalid_status' }, { status: 400, headers });
+  }
+
+  try {
+    const changed = await runOrderTransaction(async (tx) => {
+      // Serialize overlapping bulk/single status changes for the same order rows.
+      // This prevents two concurrent requests from both observing Pending and
+      // deducting the same reservation twice. Stable lock ordering avoids deadlocks.
+      for (const orderId of [...orderIds].sort()) {
+        await tx.$queryRaw<Array<{ orderId: string }>>`
+          SELECT "orderId" FROM "Order" WHERE "orderId" = ${orderId} FOR UPDATE
+        `;
+      }
+      const where = {
+        orderId: { in: orderIds },
+        isDeleted: false,
+        ...(ownerScopeUserId != null ? { userId: ownerScopeUserId } : {}),
+      };
+      const orders = await tx.order.findMany({
+        where,
+        orderBy: { orderId: 'asc' },
+        include: { orderItemsRel: true },
+      });
+
+      // Fail the complete batch on missing/unauthorized IDs. Do not partially
+      // mutate a selection whose membership differs from what the user chose.
+      if (orders.length !== orderIds.length) {
+        throw new Error('One or more selected orders were not found or are not accessible.');
+      }
+
+      const updates: Array<{
+        order: {
+          orderId: string;
+          buyerId: string | null;
+          userId: number | null;
+          storeName: string | null;
+          orderStatus: string;
+          paymentStatus: string;
+          totalAmount: unknown;
+        };
+        previousOrderStatus: string;
+        stockNotificationJobs: StockNotificationJob[];
+      }> = [];
+
+      for (const current of orders) {
+        const previousStatus = String(current.orderStatus || '');
+        const wasNotDeducted = (STOCK_NO_DEDUCT_STATUSES as readonly string[]).includes(previousStatus);
+        const willBeNotDeducted = (STOCK_NO_DEDUCT_STATUSES as readonly string[]).includes(nextStatus);
+        const jobs: StockNotificationJob[] = [];
+
+        if (wasNotDeducted && !willBeNotDeducted) {
+          jobs.push(...(await deductStockForOrderItems(tx, current.orderItemsRel)));
+        } else if (!wasNotDeducted && willBeNotDeducted) {
+          jobs.push(...(await restoreStockForOrderItems(tx, current.orderItemsRel)));
+        }
+
+        const data: Record<string, unknown> = { orderStatus: nextStatus };
+        if (nextStatus === 'Confirmed' && !current.acceptedAt) {
+          data.acceptedAt = new Date();
+          if (!current.acceptedBy) data.acceptedBy = 'Admin';
+        }
+        if (nextStatus === 'Delivered') data.deliveredAt = new Date();
+
+        const updated = await tx.order.update({
+          where: { orderId: current.orderId },
+          data,
+          select: {
+            orderId: true,
+            buyerId: true,
+            userId: true,
+            storeName: true,
+            orderStatus: true,
+            paymentStatus: true,
+            totalAmount: true,
+          },
+        });
+        updates.push({ order: updated, previousOrderStatus: previousStatus, stockNotificationJobs: jobs });
+      }
+      return updates;
+    });
+
+    // Run all notifications/cache broadcasts only after the batch transaction
+    // has committed successfully.
+    for (const update of changed) {
+      if (update.previousOrderStatus === nextStatus) continue;
+      scheduleOrderUpdatePostCommitEffects({
+        order: update.order,
+        sanitizedData: { orderStatus: nextStatus, userId: update.order.userId ?? undefined },
+        previousOrderStatus: update.previousOrderStatus,
+        previousPaymentStatus: update.order.paymentStatus,
+        stockNotificationJobs: update.stockNotificationJobs,
+        skipOrderAndStockBroadcasts: true,
+      });
+      auditOrder(request, {
+        action: 'status_change',
+        resourceId: update.order.orderId,
+        actorId,
+        actorType: 'dashboard',
+        metadata: { fromStatus: update.previousOrderStatus, toStatus: nextStatus, bulk: true },
+      });
+    }
+
+    const changedOrderIds = changed
+      .filter((update) => update.previousOrderStatus !== nextStatus)
+      .map((update) => update.order.orderId);
+    if (changedOrderIds.length > 0) {
+      enqueueBroadcastOrderUpdates('bulk-order-status', changedOrderIds);
+      // Invalidate product-list caches before broadcasting so the product table
+      // fetches the committed stock immediately after this bulk request succeeds.
+      await broadcastSoldCountUpdatesForOrders(changedOrderIds);
+    }
+
+    return NextResponse.json({
+      success: true,
+      orderStatus: nextStatus,
+      successfulOrderIds: changed.map((entry) => entry.order.orderId),
+      failedOrderIds: [],
+      count: changed.length,
+    }, { headers });
+  } catch (error) {
+    if (error instanceof InsufficientOrderStockError) {
+      return NextResponse.json({ error: error.message, code: 'insufficient_stock' }, { status: 409, headers });
+    }
+    const message = error instanceof Error ? error.message : 'Failed to update selected orders.';
+    return NextResponse.json({ error: message, code: 'bulk_update_failed' }, { status: 409, headers });
+  }
 }
 
 // Move-only extraction of PUT handler from `ordersRouteService.ts`.
@@ -97,6 +256,16 @@ export async function updateOrderHandler(request: NextRequest) {
     }
     // Owner id every operation must be scoped to (null = unrestricted platform admin).
     const ownerScopeUserId: number | null = isPlatformAdmin ? null : (authenticatedUserId ?? null);
+
+    if (body.bulkOrderStatus === true) {
+      return updateOrdersStatusBulk(
+        request,
+        body.orderIds,
+        body.orderStatus,
+        ownerScopeUserId,
+        userIdForRateLimit,
+      );
+    }
 
     if (body.distributorEdit === true) {
       if (!authenticatedUserId) {
@@ -477,18 +646,26 @@ export async function updateOrderHandler(request: NextRequest) {
         ? body.reasonDetail.trim()
         : null;
 
-      // If the order already had stock deducted (any status outside the no-deduct set, i.e.
-      // Confirmed among the cancellable statuses), cancelling must return that stock. The
-      // generic orderStatus path handles this, but this dedicated cancel branch previously did
-      // not — silently leaking inventory when a Confirmed order was cancelled here.
-      const shouldRestoreStock = !(
-        STOCK_NO_DEDUCT_STATUSES as readonly string[]
-      ).includes(existingOrder.orderStatus);
-
       try {
         const { updatedOrder, stockNotificationJobs } = await runOrderTransaction(
           async (tx: Prisma.TransactionClient) => {
+            await tx.$queryRaw<Array<{ orderId: string }>>`
+              SELECT "orderId" FROM "Order" WHERE "orderId" = ${existingOrder.orderId} FOR UPDATE
+            `;
+            const lockedOrder = await tx.order.findUnique({
+              where: { orderId: existingOrder.orderId },
+              select: { orderStatus: true },
+            });
+            if (!lockedOrder || !['Pending', 'Confirmed'].includes(String(lockedOrder.orderStatus))) {
+              throw new OrderStatusConflictError(
+                `Order cannot be cancelled. Current status: ${lockedOrder?.orderStatus ?? 'Not found'}`,
+              );
+            }
+
             const stockJobs: StockNotificationJob[] = [];
+            const shouldRestoreStock = !(STOCK_NO_DEDUCT_STATUSES as readonly string[]).includes(
+              String(lockedOrder.orderStatus),
+            );
 
             if (shouldRestoreStock) {
               const itemsForStockRestore = await tx.orderItem.findMany({
@@ -564,6 +741,9 @@ export async function updateOrderHandler(request: NextRequest) {
           }
         }, { headers });
       } catch (e) {
+        if (e instanceof OrderStatusConflictError) {
+          return NextResponse.json({ error: e.message, code: 'order_status_conflict' }, { status: 409, headers });
+        }
         return NextResponse.json({ error: 'Failed to cancel order' }, { status: 500, headers });
       }
     }
@@ -641,6 +821,7 @@ export async function updateOrderHandler(request: NextRequest) {
       updateData.acceptedAt = new Date(String(sanitizedData.acceptedAt));
     }
 
+    const stockAffectedProductIds = new Set<string>();
     const stockNotificationJobs: Array<{
       userId: number;
       productId: string;
@@ -679,8 +860,16 @@ export async function updateOrderHandler(request: NextRequest) {
 
     // Make status changes, stock adjustments, item replacement, and final update atomic.
     const order = await runOrderTransaction(async (tx: Prisma.TransactionClient) => {
+      // Serialize all stock-affecting updates to a given order. A repeated status
+      // request must re-read the status after acquiring this lock before changing stock.
+      if (typeof sanitizedData.orderId === 'string') {
+        await tx.$queryRaw<Array<{ orderId: string }>>`
+          SELECT "orderId" FROM "Order" WHERE "orderId" = ${String(sanitizedData.orderId)} FOR UPDATE
+        `;
+      }
       // Deadlock retries re-enter this callback; clear attempt-local side effects first.
       stockNotificationJobs.length = 0;
+      stockAffectedProductIds.clear();
       previousPaymentStatus = null;
       previousOrderStatus = null;
       for (const key of Object.keys(updateData)) {
@@ -775,6 +964,7 @@ export async function updateOrderHandler(request: NextRequest) {
         variantOptionId: number | null;
         variantId: number | null;
         packageQuantity: number | null;
+        packageType: string | null;
         piecesPerPackage: number | null;
         promotionDetailsSnapshot: string | null;
         moqSnapshot: number | null;
@@ -788,6 +978,7 @@ export async function updateOrderHandler(request: NextRequest) {
             variantOptionId: true,
             variantId: true,
             packageQuantity: true,
+            packageType: true,
             piecesPerPackage: true,
             promotionDetailsSnapshot: true,
             moqSnapshot: true,
@@ -807,6 +998,27 @@ export async function updateOrderHandler(request: NextRequest) {
 
             if (!product) {
               throw new Error(`Product not found: ${item.productId}`);
+            }
+
+            const stockItem = item as {
+              packageType?: string | null;
+              piecesPerPackage?: number | null;
+              variantOptionId?: number | null;
+              variantId?: number | null;
+            };
+            const requestedPackageType = String(stockItem.packageType || 'Pieces');
+            const requestedPiecesPerPackage = Math.max(1, Number(stockItem.piecesPerPackage) || 1);
+            const configuredLevel = normalizeStockLevels(product.stockLevels).find(
+              (level) => level.name === requestedPackageType && level.piecesPerUnit === requestedPiecesPerPackage,
+            );
+            const unchangedHistoricalLevel = (orderItemsBeforeReplacement ?? []).some((oldItem) =>
+              oldItem.productId === item.productId &&
+              (oldItem.variantOptionId ?? oldItem.variantId) === (stockItem.variantOptionId ?? stockItem.variantId ?? null) &&
+              oldItem.packageType === requestedPackageType &&
+              (oldItem.piecesPerPackage ?? 1) === requestedPiecesPerPackage,
+            );
+            if (!configuredLevel && !unchangedHistoricalLevel) {
+              throw new Error(`Stock type "${requestedPackageType}" is no longer configured for ${product.name}. Select an available stock type.`);
             }
 
             const itemWithVariant = item as { variantOptionId?: number | null; variantId?: number | null };
@@ -847,167 +1059,58 @@ export async function updateOrderHandler(request: NextRequest) {
         await Promise.all(orderItemPromises);
       }
 
-      // Status-driven timestamps and stock adjustments (independent of whether acceptedAt was sent).
-      if (typeof sanitizedData.orderId === 'string' && sanitizedData.orderStatus) {
-        const existing = await tx.order.findUnique({ where: { orderId: String(sanitizedData.orderId) } });
+      // Status transitions and line-item edits share one inventory reconciliation path.
+      // A deducted order that changes its lines must return the old reservation and
+      // deduct the new reservation atomically, even when its status remains Confirmed.
+      if (typeof sanitizedData.orderId === 'string') {
+        const existing = await tx.order.findUnique({
+          where: { orderId: String(sanitizedData.orderId) },
+          select: { orderStatus: true, acceptedAt: true, acceptedBy: true },
+        });
         if (existing) {
-          const nextStatus = String(sanitizedData.orderStatus);
-          const prevStatus = String(existing.orderStatus || '');
+          const nextStatus = sanitizedData.orderStatus !== undefined
+            ? String(sanitizedData.orderStatus)
+            : String(existing.orderStatus || '');
+          const previousStatus = String(existing.orderStatus || '');
+          const wasNotDeducted = (STOCK_NO_DEDUCT_STATUSES as readonly string[]).includes(previousStatus);
+          const willBeNotDeducted = (STOCK_NO_DEDUCT_STATUSES as readonly string[]).includes(nextStatus);
+          const itemsWereReplaced = Array.isArray(parsedOrderItems);
 
-          // Auto-set acceptedAt on status transition to Confirmed when not provided
-          if (!sanitizedData.acceptedAt) {
-            if (nextStatus === 'Confirmed' && !existing.acceptedAt) {
-              updateData.acceptedAt = new Date();
-              if (!sanitizedData.acceptedBy && !existing.acceptedBy) {
-                updateData.acceptedBy = 'Admin';
-              }
-            }
+          if (!sanitizedData.acceptedAt && nextStatus === 'Confirmed' && !existing.acceptedAt) {
+            updateData.acceptedAt = new Date();
+            if (!sanitizedData.acceptedBy && !existing.acceptedBy) updateData.acceptedBy = 'Admin';
           }
-
-          // Update deliveredAt whenever status is set to Delivered (including after revert to Pending and back)
-          if (nextStatus === 'Delivered') {
+          if (sanitizedData.orderStatus && nextStatus === 'Delivered') {
             updateData.deliveredAt = new Date();
           }
 
-          // STOCK MANAGEMENT: Simple logic based on status
-          const orderWithItems = await tx.order.findUnique({
-            where: { orderId: String(sanitizedData.orderId) },
-            include: {
-              orderItemsRel: true,
-            },
-          });
-
-          const noDeductStatuses = STOCK_NO_DEDUCT_STATUSES as readonly string[];
-          const prevStatusNoDeduct = noDeductStatuses.includes(prevStatus);
-          const nextStatusNoDeduct = noDeductStatuses.includes(nextStatus);
-
-          // RESTORE STOCK: Moving TO Pending, Cancelled, or Returned from any other status
-          if (!prevStatusNoDeduct && nextStatusNoDeduct && orderWithItems) {
-            const itemsForStockRestore =
-              orderItemsBeforeReplacement ?? orderWithItems.orderItemsRel;
-            stockNotificationJobs.push(
-              ...(await restoreStockForOrderItems(tx, itemsForStockRestore)),
-            );
-        }
-        
-        // DEDUCT STOCK: Moving FROM Pending, Cancelled, or Returned TO any other status
-        if (prevStatusNoDeduct && !nextStatusNoDeduct && orderWithItems) {
-          const itemsForStockDeduct = [...orderWithItems.orderItemsRel].sort((a, b) => {
-            const aKey = a.variantOptionId ?? a.variantId ?? 0;
-            const bKey = b.variantOptionId ?? b.variantId ?? 0;
-            if (aKey !== bKey) return aKey - bKey;
-            return String(a.productId ?? '').localeCompare(String(b.productId ?? ''));
-          });
-          for (const orderItem of itemsForStockDeduct) {
-            if (!orderItem.productId) continue;
-            
-            // Calculate total quantity to deduct (including free items from promotion)
-            const totalQtyToDeduct = calculateTotalQuantityWithPromotions(orderItem);
-            
-            // Get the product and variant for stock deduction
-            const productForDeduct = await tx.product.findFirst({
-              where: { productId: orderItem.productId || '' },
-              include: { variantOptions: true, variants: true }
+          if (sanitizedData.orderStatus || itemsWereReplaced) {
+            const orderWithItems = await tx.order.findUnique({
+              where: { orderId: String(sanitizedData.orderId) },
+              include: { orderItemsRel: true },
             });
-            
-            if (!productForDeduct) {
-              continue; // Skip if product not found
-            }
-            
-            // Find the specific variant to deduct stock from
-            let variantToDeduct = null;
-            
-            // First try variantOptionId (most accurate)
-            if (orderItem.variantOptionId) {
-              variantToDeduct = productForDeduct.variantOptions.find(
-                (v: { id: number }) => v.id === orderItem.variantOptionId
-              ) || null;
-            }
-            
-            // If not found, try variantId
-            if (!variantToDeduct && orderItem.variantId) {
-              variantToDeduct = productForDeduct.variantOptions.find(
-                (v: { id: number }) => v.id === orderItem.variantId
-              ) || null;
-            }
-            
-            // Do not fall back to "first variant" because it can update the wrong SKU.
-            if (!variantToDeduct) {
-              console.warn(
-                '[Orders] Stock deduct skipped: variant not found',
-                JSON.stringify({
-                  productId: orderItem.productId,
-                  variantOptionId: orderItem.variantOptionId ?? null,
-                  variantId: orderItem.variantId ?? null,
-                }),
-              );
-              continue;
-            }
-            
-            const previousStock = (variantToDeduct as { stockQuantity?: number }).stockQuantity || 0;
-            const lowStockThreshold = (variantToDeduct as { lowStockThreshold?: number }).lowStockThreshold || 0;
-            // Deduct only when enough stock remains (conditional updateMany is the atomic guard).
-            const deductResult = await tx.variantOption.updateMany({
-              where: {
-                id: (variantToDeduct as { id: number }).id,
-                stockQuantity: { gte: totalQtyToDeduct },
-              },
-              data: {
-                stockQuantity: { decrement: totalQtyToDeduct },
-              },
-            });
+            if (orderWithItems) {
+              const previousItems = orderItemsBeforeReplacement ?? orderWithItems.orderItemsRel;
+              const currentItems = orderWithItems.orderItemsRel;
 
-            if (deductResult.count === 0) {
-              const currentStock = await tx.variantOption.findUnique({
-                where: { id: (variantToDeduct as { id: number }).id },
-                select: { stockQuantity: true },
-              });
-              const available = currentStock?.stockQuantity ?? previousStock;
-              const variantName = (variantToDeduct as { variantName?: string }).variantName;
-              const productLabel = variantName
-                ? `${productForDeduct.name} (${variantName})`
-                : productForDeduct.name;
-              throw new Error(
-                `Insufficient stock for ${productLabel}. Required: ${totalQtyToDeduct} pieces, available: ${available}.`,
-              );
-            }
+              // Restore the old reservation when leaving a deducted state OR when
+              // replacing lines on an order that already has deducted inventory.
+              if (!wasNotDeducted && (willBeNotDeducted || itemsWereReplaced)) {
+                for (const item of previousItems) if (item.productId) stockAffectedProductIds.add(item.productId);
+                stockNotificationJobs.push(...(await restoreStockForOrderItems(tx, previousItems)));
+              }
 
-            const afterDeduct = await tx.variantOption.findUnique({
-              where: { id: (variantToDeduct as { id: number }).id },
-              select: { stockQuantity: true, stockStatus: true },
-            });
-            const newStock = afterDeduct?.stockQuantity ?? Math.max(0, previousStock - totalQtyToDeduct);
-            let newStockStatus = 'In Stock';
-            if (newStock <= 0) {
-              newStockStatus = 'Out of Stock';
-            } else if (lowStockThreshold > 0 && newStock <= lowStockThreshold) {
-              newStockStatus = 'Low Stock';
-            }
-            if (afterDeduct && newStockStatus !== afterDeduct.stockStatus) {
-              await tx.variantOption.update({
-                where: { id: (variantToDeduct as { id: number }).id },
-                data: { stockStatus: newStockStatus },
-              });
-            }
-
-            // Check and notify if stock level crossed a threshold
-            if (productForDeduct && productForDeduct.userId) {
-              const variantName = (variantToDeduct as { variantName?: string }).variantName || undefined;
-              stockNotificationJobs.push({
-                userId: productForDeduct.userId,
-                productId: productForDeduct.productId,
-                productName: productForDeduct.name,
-                previousStock,
-                newStock: Math.max(0, newStock),
-                lowStockThreshold,
-                variantName,
-                variantOptionId: (variantToDeduct as { id: number }).id,
-              });
+              // Deduct only when entering a deducted state OR when the new lines
+              // replace an existing deducted reservation. Never double-deduct a
+              // status-only update between two deducted states.
+              if (!willBeNotDeducted && (wasNotDeducted || itemsWereReplaced)) {
+                for (const item of currentItems) if (item.productId) stockAffectedProductIds.add(item.productId);
+                stockNotificationJobs.push(...(await deductStockForOrderItems(tx, currentItems)));
+              }
             }
           }
         }
       }
-    }
       // For backward compatibility, don't require userId for updates
       const updatedOrder = await tx.order.update({
         where: { orderId: String(sanitizedData.orderId) },
@@ -1025,6 +1128,11 @@ export async function updateOrderHandler(request: NextRequest) {
     });
 
     // Run stock notifications and other side effects best-effort after DB commit.
+    const previousWasNoDeduct = (STOCK_NO_DEDUCT_STATUSES as readonly string[]).includes(previousOrderStatus ?? '');
+    const nextIsNoDeduct = (STOCK_NO_DEDUCT_STATUSES as readonly string[]).includes(String(order.orderStatus || ''));
+    const inventoryChanged = previousWasNoDeduct !== nextIsNoDeduct ||
+      (Array.isArray(parsedOrderItems) && !nextIsNoDeduct);
+
     scheduleOrderUpdatePostCommitEffects({
       order: {
         orderId: order.orderId,
@@ -1039,10 +1147,32 @@ export async function updateOrderHandler(request: NextRequest) {
       previousOrderStatus,
       previousPaymentStatus,
       stockNotificationJobs,
+      skipSoldCountBroadcast: inventoryChanged,
     });
 
+    if (inventoryChanged) {
+      // Cache invalidation must finish before the product_updated event; this avoids
+      // the Product Table briefly showing the pre-deduction quantity.
+      await broadcastProductStockUpdates([...stockAffectedProductIds]);
+    }
+
+    // Refresh the buyer's financial summary after the Order transaction commits.
+    // This keeps Buyer Profile outstanding aligned with Order.amountPaid / totalAmount
+    // instead of waiting for an asynchronous cache-side effect or a later page reload.
+    const buyerFinancialFieldsChanged =
+      sanitizedData.paymentStatus !== undefined ||
+      sanitizedData.amountPaid !== undefined ||
+      totalsChanged;
+    if (buyerFinancialFieldsChanged && order.buyerId && order.userId != null) {
+      try {
+        await syncOrderToBuyerProfile(order.buyerId, order.userId);
+      } catch (buyerSyncError) {
+        console.error('[orders] Buyer outstanding refresh failed after order update:', buyerSyncError);
+      }
+    }
+
     // Build items from relational rows for response
-    const enrichedOrderItemsUpdate = ((order as { orderItemsRel?: Array<{ productId: string | null; subtotal: number | { toNumber?: () => number; toString?: () => string } | unknown; packageQuantity?: number; packageType?: string; piecesPerPackage?: number; pricePerPackage?: number | { toNumber?: () => number; toString?: () => string } | null | unknown; product?: { name: string; productType: string; brand: string; description: string; images: string[] } | null; productNameSnapshot?: string; productSkuSnapshot?: string; productTypeSnapshot?: string }> }).orderItemsRel || []).map((oi) => ({
+    const enrichedOrderItemsUpdate = ((order as { orderItemsRel?: Array<{ productId: string | null; subtotal: number | { toNumber?: () => number; toString?: () => string } | unknown; packageQuantity?: number; packageType?: string; piecesPerPackage?: number; pricePerPackage?: number | { toNumber?: () => number; toString?: () => string } | null | unknown; product?: { name: string; productType: string; brand: string; description: string; images: string[] } | null; productImageSnapshot?: string | null; productNameSnapshot?: string; productSkuSnapshot?: string; productTypeSnapshot?: string }> }).orderItemsRel || []).map((oi) => ({
       productId: oi.productId ?? null,
       subtotal: decimalToNumber(oi.subtotal), // Convert Decimal to number
       packageType: oi.packageType,
@@ -1053,7 +1183,11 @@ export async function updateOrderHandler(request: NextRequest) {
       category: oi.product?.productType || oi.productTypeSnapshot || 'Uncategorized',
       brand: oi.product?.brand || 'Unknown Brand',
       description: oi.product?.description || '',
-      images: oi.product?.images || [],
+      images: oi.product?.images?.length
+        ? oi.product.images
+        : oi.productImageSnapshot
+          ? [oi.productImageSnapshot]
+          : [],
       productDeleted: !oi.product,
       productNameSnapshot: oi.productNameSnapshot || null,
       productSkuSnapshot: oi.productSkuSnapshot || null,
@@ -1096,9 +1230,17 @@ export async function updateOrderHandler(request: NextRequest) {
 
     return NextResponse.json(orderResponse, { headers });
   } catch (error: unknown) {
+    if (error instanceof InsufficientOrderStockError) {
+      return NextResponse.json(
+        { error: error.message, code: 'insufficient_stock' },
+        { status: 409, headers },
+      );
+    }
+    const message = String(error instanceof Error ? error.message : error);
+    const invalidStockType = message.startsWith('Stock type "');
     return NextResponse.json(
-      { error: 'Failed to update order', detail: String(error instanceof Error ? error.message : error) }, 
-      { status: 500, headers }
+      { error: message || 'Failed to update order', code: invalidStockType ? 'invalid_stock_level' : 'order_update_failed' },
+      { status: invalidStockType ? 400 : 500, headers },
     );
   }
 }

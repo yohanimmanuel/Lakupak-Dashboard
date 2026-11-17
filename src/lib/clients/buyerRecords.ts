@@ -17,6 +17,11 @@ export async function lockBuyerOrderRecords(
 export type BuyerRecordRow = {
   orderNo: string;
   product: string;
+  productId: string | null;
+  variantOptionId: number | null;
+  variantName: string | null;
+  stockType: string | null;
+  piecesPerPackage: number | null;
   totalOrders: string;
   totalSpend: string;
   shippingFee: string | null;
@@ -49,6 +54,11 @@ export function orderDetailFromRecord(row: BuyerRecordRow): OrderDetail {
   return {
     orderNo: row.orderNo || '',
     product: row.product || '',
+    productId: row.productId || undefined,
+    variantOptionId: row.variantOptionId ?? undefined,
+    variantName: row.variantName || undefined,
+    stockType: row.stockType || undefined,
+    piecesPerPackage: row.piecesPerPackage ?? undefined,
     totalOrders: row.totalOrders || '',
     totalSpend: row.totalSpend || '',
     shippingFee: row.shippingFee || undefined,
@@ -75,6 +85,15 @@ function normalizeBuyerRecordForCompare(row: OrderDetail, index: number): BuyerR
   return {
     orderNo: String(row.orderNo || ''),
     product: String(row.product || ''),
+    productId: row.productId ? String(row.productId) : null,
+    variantOptionId: row.variantOptionId != null && Number.isSafeInteger(Number(row.variantOptionId))
+      ? Number(row.variantOptionId)
+      : null,
+    variantName: row.variantName ? String(row.variantName) : null,
+    stockType: row.stockType ? String(row.stockType) : null,
+    piecesPerPackage: Number.isSafeInteger(Number(row.piecesPerPackage)) && Number(row.piecesPerPackage) > 0
+      ? Number(row.piecesPerPackage)
+      : null,
     totalOrders: String(row.totalOrders || ''),
     totalSpend: String(row.totalSpend || ''),
     shippingFee: row.shippingFee != null ? String(row.shippingFee) : null,
@@ -117,6 +136,11 @@ export function areBuyerOrderDetailsEqual(
     if (
       a.orderNo !== b.orderNo ||
       a.product !== b.product ||
+      a.productId !== b.productId ||
+      a.variantOptionId !== b.variantOptionId ||
+      a.variantName !== b.variantName ||
+      a.stockType !== b.stockType ||
+      a.piecesPerPackage !== b.piecesPerPackage ||
       a.totalOrders !== b.totalOrders ||
       a.totalSpend !== b.totalSpend ||
       a.shippingFee !== b.shippingFee ||

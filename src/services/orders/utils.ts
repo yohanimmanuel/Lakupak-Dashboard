@@ -45,25 +45,45 @@ export const decimalToNumber = (value: unknown): number => {
   return Number(value) || 0;
 };
 
-export async function broadcastSoldCountUpdates(orderId: string): Promise<void> {
+export async function broadcastProductStockUpdates(productIdsInput: string[]): Promise<void> {
   try {
-    const orderItems = await prisma.orderItem.findMany({
-      where: { orderId },
-      select: { productId: true },
+    const productIds = Array.from(new Set(productIdsInput.map((id) => String(id).trim()).filter(Boolean)));
+    if (productIds.length === 0) return;
+    // The product list query is cached. Clear each seller's cache before the
+    // WebSocket event prompts clients to force-fetch, otherwise the table can
+    // briefly render the pre-deduction stock while the catalog shows fresh data.
+    const products = await prisma.product.findMany({
+      where: { productId: { in: productIds } },
+      select: { userId: true },
     });
-    const productIds = Array.from(
-      new Set(
-        orderItems
-          .map((item: { productId: string | null }) => item.productId)
-          .filter((id: string | null): id is string => Boolean(id)),
-      ),
-    ) as string[];
-    if (productIds.length > 0) {
-      await broadcastProductUpdate(productIds);
-    }
+    const ownerIds = Array.from(new Set(products.map((product) => product.userId).filter((id): id is number => id != null)));
+    const { invalidateProductCache } = await import('@/lib/queryCache');
+    await Promise.all(ownerIds.map((ownerId) => invalidateProductCache(ownerId)));
+    await broadcastProductUpdate(productIds);
   } catch {
     // best-effort
   }
+}
+
+export async function broadcastSoldCountUpdatesForOrders(orderIds: string[]): Promise<void> {
+  try {
+    const uniqueOrderIds = Array.from(new Set(orderIds.map((id) => String(id).trim()).filter(Boolean)));
+    if (uniqueOrderIds.length === 0) return;
+    const orderItems = await prisma.orderItem.findMany({
+      where: { orderId: { in: uniqueOrderIds } },
+      select: { productId: true },
+    });
+    const productIds = orderItems
+      .map((item: { productId: string | null }) => item.productId)
+      .filter((id: string | null): id is string => Boolean(id));
+    await broadcastProductStockUpdates(productIds);
+  } catch {
+    // best-effort
+  }
+}
+
+export async function broadcastSoldCountUpdates(orderId: string): Promise<void> {
+  return broadcastSoldCountUpdatesForOrders([orderId]);
 }
 
 export function calculateTotalQuantityWithPromotions(orderItem: {
@@ -196,6 +216,112 @@ export async function restoreStockForOrderItems(
         lowStockThreshold,
         variantName: (variantToRestore as { variantName?: string }).variantName || undefined,
         variantOptionId: variantToRestore.id,
+      });
+    }
+  }
+
+  return jobs;
+}
+
+
+export class InsufficientOrderStockError extends Error {
+  readonly productId: string;
+  readonly required: number;
+  readonly available: number;
+
+  constructor(productName: string, productId: string, required: number, available: number) {
+    super(`Insufficient stock for ${productName}. Required: ${required} pieces, available: ${available}.`);
+    this.name = 'InsufficientOrderStockError';
+    this.productId = productId;
+    this.required = required;
+    this.available = available;
+  }
+}
+
+/**
+ * Deduct reserved stock from the exact variant recorded on each order item.
+ * The conditional decrement is the concurrency guard: a request cannot push
+ * inventory below zero. Call inside the same transaction as the order update.
+ */
+export async function deductStockForOrderItems(
+  tx: Prisma.TransactionClient,
+  items: RestorableOrderItem[],
+): Promise<StockNotificationJob[]> {
+  const jobs: StockNotificationJob[] = [];
+  const orderedItems = [...items].sort((a, b) => {
+    const aKey = a.variantOptionId ?? a.variantId ?? 0;
+    const bKey = b.variantOptionId ?? b.variantId ?? 0;
+    if (aKey !== bKey) return aKey - bKey;
+    return String(a.productId ?? '').localeCompare(String(b.productId ?? ''));
+  });
+
+  for (const orderItem of orderedItems) {
+    if (!orderItem.productId) continue;
+    const required = calculateTotalQuantityWithPromotions(orderItem);
+    const product = await tx.product.findFirst({
+      where: { productId: orderItem.productId },
+      include: { variantOptions: true, variants: true },
+    });
+    if (!product) continue;
+
+    let variant = orderItem.variantOptionId
+      ? product.variantOptions.find((candidate: { id: number }) => candidate.id === orderItem.variantOptionId) ?? null
+      : null;
+    if (!variant && orderItem.variantId) {
+      variant = product.variantOptions.find((candidate: { id: number }) => candidate.id === orderItem.variantId) ?? null;
+    }
+    if (!variant) {
+      console.warn('[Orders] Stock deduct skipped: variant not found', JSON.stringify({
+        productId: orderItem.productId,
+        variantOptionId: orderItem.variantOptionId ?? null,
+        variantId: orderItem.variantId ?? null,
+      }));
+      continue;
+    }
+
+    const previousStock = Number(variant.stockQuantity) || 0;
+    const lowStockThreshold = Number(variant.lowStockThreshold) || 0;
+    const result = await tx.variantOption.updateMany({
+      where: { id: variant.id, stockQuantity: { gte: required } },
+      data: { stockQuantity: { decrement: required } },
+    });
+    if (result.count === 0) {
+      const current = await tx.variantOption.findUnique({
+        where: { id: variant.id },
+        select: { stockQuantity: true },
+      });
+      throw new InsufficientOrderStockError(
+        variant.variantName ? `${product.name} (${variant.variantName})` : product.name,
+        product.productId,
+        required,
+        current?.stockQuantity ?? previousStock,
+      );
+    }
+
+    const after = await tx.variantOption.findUnique({
+      where: { id: variant.id },
+      select: { stockQuantity: true, stockStatus: true },
+    });
+    const newStock = after?.stockQuantity ?? Math.max(0, previousStock - required);
+    const nextStatus = newStock <= 0
+      ? 'Out of Stock'
+      : lowStockThreshold > 0 && newStock <= lowStockThreshold
+        ? 'Low Stock'
+        : 'In Stock';
+    if (after && nextStatus !== after.stockStatus) {
+      await tx.variantOption.update({ where: { id: variant.id }, data: { stockStatus: nextStatus } });
+    }
+
+    if (product.userId) {
+      jobs.push({
+        userId: product.userId,
+        productId: product.productId,
+        productName: product.name,
+        previousStock,
+        newStock,
+        lowStockThreshold,
+        variantName: variant.variantName || undefined,
+        variantOptionId: variant.id,
       });
     }
   }

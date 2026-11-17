@@ -4,12 +4,15 @@ import React, { useRef, useState } from 'react';
 import { Upload, X, FileText, Eye, CheckCircle2, AlertTriangle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { OrderDetail } from '@/types/client';
+import type { StockLevel } from '@/types/product';
+import { formatBuyerOrderTotal, parseBuyerOrderTotal } from '@/utils/buyerOrderQuantity';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 import ImportSelectionCheckbox from '@/components/clientmanagement/ImportSelectionCheckbox';
+import ClientCatalogSelect from '@/components/clientmanagement/ClientCatalogSelect';
 
 const orderFields = [
   { key: 'product', label: 'Product Name' },
-  { key: 'totalOrders', label: 'Total Orders (Boxes)' },
+  { key: 'totalOrders', label: 'Total Orders' },
   { key: 'totalSpend', label: 'Total Spend' },
   { key: 'lastOrderDate', label: 'Last Order Date' },
   { key: 'outstanding', label: 'Outstanding' },
@@ -17,7 +20,7 @@ const orderFields = [
 
 const orderFieldSynonyms: { [key: string]: string[] } = {
   product: ['product', 'product name', 'nama produk'],
-  totalOrders: ['total orders', 'orders', 'boxes', 'jumlah', 'jumlah box'],
+  totalOrders: ['total orders', 'total orders (boxes)', 'orders', 'boxes', 'jumlah', 'jumlah box'],
   totalSpend: ['total spend', 'spend', 'total', 'total harga', 'harga'],
   lastOrderDate: ['last order date', 'order date', 'tanggal', 'tanggal order'],
   outstanding: ['outstanding', 'piutang', 'utang'],
@@ -52,16 +55,38 @@ function removeCurrencyIdentifier(value: string | undefined): string {
   return numericPart;
 }
 
+type BuyerImportProduct = NonNullable<ImportOrdersModalProps['productCatalog']>[number];
+
+function matchCatalogProduct(productValue: string, catalog: BuyerImportProduct[]) {
+  const raw = String(productValue || '').trim().toLowerCase();
+  if (!raw) return undefined;
+  const direct = catalog.find((product) => product.name.trim().toLowerCase() === raw);
+  if (direct) return { product: direct, variant: undefined };
+  const variantMatch = catalog.flatMap((product) => (product.variantOptions || []).map((variant) => ({ product, variant })))
+    .find(({ product, variant }) => `${product.name} (${variant.variantName})`.trim().toLowerCase() === raw);
+  if (variantMatch) return variantMatch;
+  const baseName = raw.replace(/\s*\([^)]*\)\s*$/, '').trim();
+  const productMatches = catalog.filter((product) => product.name.trim().toLowerCase() === baseName);
+  return productMatches.length === 1 ? { product: productMatches[0], variant: undefined } : undefined;
+}
+
 type ImportOrdersModalProps = {
   open: boolean;
   onCloseAction: () => void;
   onImportAction: (orderDetails: OrderDetail[]) => void;
+  productCatalog?: Array<{
+    productId: string;
+    name: string;
+    stockLevels?: StockLevel[] | null;
+    variantOptions?: Array<{ id: number; variantName: string; isActive?: boolean | null }> | null;
+  }>;
 };
 
 export default function ImportOrdersModal({
   open,
   onCloseAction,
   onImportAction,
+  productCatalog = [],
 }: ImportOrdersModalProps) {
   const { tImport } = useClientsTranslations();
 
@@ -180,7 +205,27 @@ export default function ImportOrdersModal({
         
         mapped[f.key as keyof OrderDetail] = value as never;
       });
-      return mapped as OrderDetail;
+      const catalogMatch = matchCatalogProduct(String(mapped.product || ''), productCatalog);
+      const levels = catalogMatch?.product.stockLevels || [{ name: 'Pieces', piecesPerUnit: 1 }];
+      const parsed = parseBuyerOrderTotal(String(mapped.totalOrders || ''), 'Pieces');
+      const requestedUnit = String(row.__stockType || parsed.unit || 'Pieces');
+      const selectedLevel = levels.find((level) => level.name.toLowerCase() === requestedUnit.toLowerCase())
+        || levels.find((level) => level.name.toLowerCase() === 'pieces')
+        || levels[0];
+      const stockType = selectedLevel?.name || requestedUnit || 'Pieces';
+      const selectedVariantId = row.__variantOverride
+        ? String(row.__variantOptionId || '')
+        : String(row.__variantOptionId || catalogMatch?.variant?.id || '');
+      const selectedVariant = catalogMatch?.product.variantOptions?.find((variant) => String(variant.id) === selectedVariantId);
+      return {
+        ...(mapped as OrderDetail),
+        totalOrders: formatBuyerOrderTotal(parsed.quantity, stockType),
+        stockType,
+        piecesPerPackage: Number(selectedLevel?.piecesPerUnit) || 1,
+        productId: catalogMatch?.product.productId,
+        variantOptionId: selectedVariant?.id == null ? undefined : String(selectedVariant.id),
+        variantName: selectedVariant?.variantName || '',
+      } as OrderDetail;
     });
   };
 
@@ -376,6 +421,8 @@ export default function ImportOrdersModal({
                       />
                     </th>
                     {orderFields.map(f => <th key={f.key} className="py-2 px-3 font-medium uppercase">{tImport(`orderFields.${f.key}`)}</th>)}
+                    <th className="py-2 px-3 font-medium uppercase">Variant</th>
+                    <th className="py-2 px-3 font-medium uppercase">Stock Type</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -397,6 +444,52 @@ export default function ImportOrdersModal({
                           />
                         </td>
                         {orderFields.map(f => <td key={f.key} className="py-2 px-3">{row[f.key as keyof OrderDetail]}</td>)}
+                        <td className="min-w-[10rem] py-2 px-3">
+                          {(() => {
+                            const raw = rows[idx] || {};
+                            const productField = mapping.product;
+                            const matched = matchCatalogProduct(productField ? raw[productField] : '', productCatalog);
+                            const variants = (matched?.product.variantOptions || []).filter((variant) => variant.isActive !== false);
+                            const currentVariant = raw.__variantOverride
+                              ? String(raw.__variantOptionId || '')
+                              : String(raw.__variantOptionId || matched?.variant?.id || '');
+                            return (
+                              <ClientCatalogSelect
+                                value={currentVariant}
+                                placeholder="Select variant"
+                                allowNone={false}
+                                options={variants.filter((variant) => String(variant.variantName || '').trim().toLowerCase() !== 'none').map((variant) => ({ value: String(variant.id), label: variant.variantName }))}
+                                onChange={(variantId: string) => setRows((current) => current.map((item, rowIndex) => rowIndex === idx ? { ...item, __variantOptionId: variantId, __variantOverride: 'true' } : item))}
+                                disabled={!matched?.product}
+                                searchPlaceholder="Search variant..."
+                              />
+                            );
+                          })()}
+                        </td>
+                        <td className="min-w-[10rem] py-2 px-3">
+                          {(() => {
+                            const raw = rows[idx] || {};
+                            const productField = mapping.product;
+                            const matched = matchCatalogProduct(productField ? raw[productField] : '', productCatalog);
+                            const baseOptions = matched?.product.stockLevels?.length
+                              ? matched.product.stockLevels
+                              : [{ name: 'Pieces', piecesPerUnit: 1 }];
+                            const currentUnit = String(raw.__stockType || row.stockType || 'Pieces');
+                            const options = baseOptions.some((level) => level.name.toLowerCase() === currentUnit.toLowerCase())
+                              ? baseOptions
+                              : [...baseOptions, { name: currentUnit, piecesPerUnit: 1 }];
+                            return (
+                              <ClientCatalogSelect
+                                value={currentUnit}
+                                placeholder="Pieces"
+                                options={options.map((level) => ({ value: level.name, label: level.name }))}
+                                allowNone={false}
+                                onChange={(stockType: string) => setRows((current) => current.map((item, rowIndex) => rowIndex === idx ? { ...item, __stockType: stockType } : item))}
+                                searchPlaceholder="Search stock type..."
+                              />
+                            );
+                          })()}
+                        </td>
                       </tr>
                     );
                   })}

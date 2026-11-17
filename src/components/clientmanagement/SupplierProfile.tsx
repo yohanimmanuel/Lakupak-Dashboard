@@ -242,7 +242,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
     for (const row of supplies) {
       const isHistoryRow = row.recordType !== 'summary';
       const receivedDescription = isHistoryRow
-        ? `${String(row.receivedQuantity || row.totalSupplied || '')} ${String(row.receivedUnit || 'Pieces')}`
+        ? `${String(row.receivedQuantity ?? row.totalSupplied ?? '')} ${String(row.receivedUnit || 'Pieces')}`
         : getSummaryPackageQuantities(row)
             .map((level) => `${level.availableQuantity} ${level.name} (${level.equivalentQuantity})`)
             .join(', ');
@@ -416,22 +416,22 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
   // Headline totals include the supplier's opening balance plus all received supplies.
   // summarySupplies is the canonical per-variant running total in absolute Pieces.
   const totalSupplied = summarySupplies.reduce(
-    (sum, supply) => sum + (Number(supply.totalSupplied) || 0),
+    (sum: number, supply: SupplyDetail) => sum + (Number(supply.totalSupplied) || 0),
     0,
   );
   const totalValue = summarySupplies.reduce(
-    (sum, supply) => sum + (parseInt(String(supply.totalValue || '').replace(/[^\d-]/g, ''), 10) || 0),
+    (sum: number, supply: SupplyDetail) => sum + (parseInt(String(supply.totalValue || '').replace(/[^\d-]/g, ''), 10) || 0),
     0,
   );
 
   // Monthly analytics remain based on dated supplier receipts only; opening balances
   // are intentionally excluded from monthly activity metrics.
   const historyTotalSupplied = historySupplies.reduce(
-    (sum, supply) => sum + (Number(supply.totalSupplied) || 0),
+    (sum: number, supply: SupplyDetail) => sum + (Number(supply.totalSupplied) || 0),
     0,
   );
   const historyTotalValue = historySupplies.reduce(
-    (sum, supply) => sum + (parseInt(String(supply.totalValue || '').replace(/[^\d-]/g, ''), 10) || 0),
+    (sum: number, supply: SupplyDetail) => sum + (parseInt(String(supply.totalValue || '').replace(/[^\d-]/g, ''), 10) || 0),
     0,
   );
   const currency = userCurrency;
@@ -772,7 +772,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                     <td className="py-4 px-4 text-black">{String(supply.lastSuppliedDate || '—')}</td>
                     <td className="py-4 px-4 font-medium text-black">{String(supply.sku || '—')}</td>
                     <td className="py-4 px-4 text-black">
-                      {String(supply.receivedQuantity || supply.totalSupplied)} {String(supply.receivedUnit || 'Pieces')}
+                      {String(supply.receivedQuantity ?? supply.totalSupplied)} {String(supply.receivedUnit || 'Pieces')}
                     </td>
                     <td className="py-4 px-4 text-[#0a61d7] font-semibold">
                       {formatCurrency(

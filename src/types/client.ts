@@ -92,42 +92,39 @@ export interface OrderDetail {
   offerApplied?: boolean;
   /** Set when row was written by syncOrderToBuyerProfile from live Order rows. */
   syncedFromOrders?: boolean;
+  /** Catalog identity for manually managed buyer order rows. */
+  productId?: string;
+  variantOptionId?: string | number;
+  variantName?: string;
+  /** Selected stock level; totalOrders also retains a display-safe quantity + unit string. */
+  stockType?: string;
+  /** Number of base Pieces represented by one selected stockType unit. */
+  piecesPerPackage?: number;
 }
 
 export interface SupplyDetail {
   suppliesno: string;
   sku: string;
   product: string;
-  /** Quantity received (history) or rolled-up total (summary), stored in canonical Pieces. */
+  /** Canonical absolute piece quantity used for inventory and supply summaries. */
   totalSupplied: string;
-  /** Original quantity entered by the supplier for a history row. */
+  /** Original quantity entered by the supplier in receivedUnit. */
   receivedQuantity?: string;
-  /** Stock unit selected when receivedQuantity was entered (e.g. Pieces, Cartons, Boxes). */
+  /** Product stock level selected when the supplier entered receivedQuantity. */
   receivedUnit?: string;
   totalValue: string;
-  /** Last supplied date for history rows; unused on summary rows. */
-  lastSuppliedDate: string;
+  /** Canonical last supplied date for history and summary rows. */
+  lastSuppliedDate?: string;
+  /** Legacy JSON/import alias. Normalize to lastSuppliedDate when reading. */
+  lastDelivery?: string;
   status: string;
   deliverySuccess?: string;
-  /**
-   * history = dated supply event (duplicates allowed).
-   * summary = aggregate total (product↔supplier match + rolled-up history).
-   * Missing type is inferred: AUTO-* → summary, otherwise history.
-   */
   recordType?: 'history' | 'summary';
   productId?: string;
   variantName?: string;
-  /**
-   * When true, saving/editing this history row adjusts variant stock + supply summary.
-   * When deleted while true, those adjustments are reversed.
-   * Uncheck before delete to remove the history row without touching products.
-   */
   updateCurrentStock?: boolean;
-  /**
-   * Set once this history row has applied stock. Re-checking Update Stock must not
-   * apply the same row's quantity again.
-   */
   stockApplied?: boolean;
+  __delete?: true;
 }
 
 export interface BuyerFormData {

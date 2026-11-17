@@ -4,21 +4,26 @@ import React, { useRef, useState } from 'react';
 import { Upload, X, FileText, Eye, CheckCircle2, AlertTriangle, Info } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { SupplyDetail } from '@/types/client';
+import type { StockLevel } from '@/types/product';
+import { convertSupplyQuantityToPieces, getSupplyUnitOptions } from '@/lib/suppliers/supplyPackageUnits';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 import ImportSelectionCheckbox from '@/components/clientmanagement/ImportSelectionCheckbox';
+import ClientCatalogSelect from '@/components/clientmanagement/ClientCatalogSelect';
 
 /** Columns the import UI can map — string fields only (not booleans / recordType). */
 type ImportableSupplyField =
   | 'sku'
   | 'product'
   | 'totalSupplied'
+  | 'receivedUnit'
   | 'totalValue'
   | 'lastSuppliedDate';
 
 const supplyFields: { key: ImportableSupplyField; label: string }[] = [
   { key: 'sku', label: 'SKU Number (Optional)' },
   { key: 'product', label: 'Product Name (Optional)' },
-  { key: 'totalSupplied', label: 'Total Supplied (Optional)' },
+  { key: 'totalSupplied', label: 'Received Quantity (Optional)' },
+  { key: 'receivedUnit', label: 'Stock Type (Optional)' },
   { key: 'totalValue', label: 'Total Value (Optional)' },
   { key: 'lastSuppliedDate', label: 'Last Supplied Date (Optional)' },
 ];
@@ -26,7 +31,8 @@ const supplyFields: { key: ImportableSupplyField; label: string }[] = [
 const supplyFieldSynonyms: Record<ImportableSupplyField, string[]> = {
   sku: ['sku', 'sku number', 'kode', 'kode barang'],
   product: ['product', 'product name', 'nama produk'],
-  totalSupplied: ['total supplied', 'supplied', 'jumlah', 'jumlah supply'],
+  totalSupplied: ['total supplied', 'total supplied (pieces)', 'received quantity', 'supplied', 'jumlah', 'jumlah supply'],
+  receivedUnit: ['stock type', 'received unit', 'package type', 'unit', 'satuan'],
   totalValue: ['total value', 'value', 'total harga', 'harga'],
   lastSuppliedDate: ['last supplied date', 'last supplied', 'last delivery', 'delivery date', 'tanggal', 'tanggal delivery'],
 };
@@ -63,6 +69,9 @@ function removeCurrencyIdentifier(value: string | undefined): string {
 export type SupplierCatalogEntry = {
   sku: string;
   product: string;
+  productId?: string;
+  variantName?: string;
+  stockLevels?: StockLevel[];
 };
 
 type ImportSuppliesModalProps = {
@@ -75,6 +84,23 @@ type ImportSuppliesModalProps = {
 
 function normalizeKey(value: string | undefined): string {
   return String(value || '').trim().toLowerCase();
+}
+
+function getCatalogMatch(row: Record<string, string>, mapping: Record<string, string>, catalog: SupplierCatalogEntry[]) {
+  const sku = normalizeKey(mapping.sku ? row[mapping.sku] : '');
+  const product = normalizeKey(mapping.product ? row[mapping.product] : '');
+  if (sku) {
+    const bySku = catalog.find((entry) => normalizeKey(entry.sku) === sku);
+    if (bySku) return bySku;
+  }
+  if (product) {
+    const exact = catalog.find((entry) => normalizeKey(entry.product) === product);
+    if (exact) return exact;
+    const base = product.replace(/\s*\([^)]*\)\s*$/, '').trim();
+    const matches = catalog.filter((entry) => normalizeKey(entry.product).replace(/\s*\([^)]*\)\s*$/, '').trim() === base);
+    if (matches.length === 1) return matches[0];
+  }
+  return undefined;
 }
 
 /** True when the row names a product/SKU that is not in this supplier's catalog. */
@@ -223,11 +249,22 @@ export default function ImportSuppliesModal({
 
         mapped[f.key] = value;
       });
+      const catalogMatch = getCatalogMatch(row, mapping, supplierCatalog);
+      const receivedQuantity = String(mapped.totalSupplied || '').trim();
+      const requestedUnit = String(row.__receivedUnit || mapped.receivedUnit || 'Pieces').trim();
+      const stockLevels = getSupplyUnitOptions(catalogMatch?.stockLevels);
+      const matchedUnit = stockLevels.find((level) => level.name.toLowerCase() === requestedUnit.toLowerCase());
+      const receivedUnit = matchedUnit?.name || requestedUnit || 'Pieces';
+      const totalSuppliedPieces = convertSupplyQuantityToPieces(receivedQuantity, receivedUnit, stockLevels);
       return {
         suppliesno: '',
-        sku: mapped.sku || '',
-        product: mapped.product || '',
-        totalSupplied: mapped.totalSupplied || '',
+        sku: mapped.sku || catalogMatch?.sku || '',
+        product: mapped.product || catalogMatch?.product || '',
+        productId: catalogMatch?.productId,
+        variantName: catalogMatch?.variantName,
+        receivedQuantity,
+        receivedUnit,
+        totalSupplied: totalSuppliedPieces == null ? '' : String(totalSuppliedPieces),
         totalValue: mapped.totalValue || '',
         lastSuppliedDate: mapped.lastSuppliedDate || '',
         status: '',
@@ -251,6 +288,13 @@ export default function ImportSuppliesModal({
     if (!hasAnyMapping) {
       errors.push(tImport('mapAtLeastOne'));
       return errors;
+    }
+
+    const invalidUnits = mappedRows
+      .map((row, index) => ({ row, index }))
+      .filter(({ row }) => Boolean(String(row.receivedQuantity || '').trim()) && !String(row.totalSupplied || '').trim());
+    if (invalidUnits.length > 0) {
+      errors.push(`Select a valid stock type for ${invalidUnits.length} row(s). Check that the SKU or product matches a catalog item with the selected stock level.`);
     }
     
     return errors;
@@ -308,6 +352,12 @@ export default function ImportSuppliesModal({
     if (selectedRows.length === 0) {
       setValidationErrors([]);
       setError(tImport('importNoneSelected'));
+      return;
+    }
+
+    const invalidReceivedRows = selectedRows.filter((row) => !row.receivedQuantity || row.totalSupplied === '');
+    if (invalidReceivedRows.length > 0) {
+      setError('Enter a whole-number received quantity and select a valid stock type for every imported row.');
       return;
     }
 
@@ -488,7 +538,24 @@ export default function ImportSuppliesModal({
                           />
                         </td>
                         {supplyFields.map((f) => (
-                          <td key={f.key} className="py-2 px-3">{row[f.key] || ''}</td>
+                          <td key={f.key} className="py-2 px-3">
+                            {f.key === 'receivedUnit' ? (() => {
+                              const raw = rows[idx] || {};
+                              const catalogMatch = getCatalogMatch(raw, mapping, supplierCatalog);
+                              const options = getSupplyUnitOptions(catalogMatch?.stockLevels);
+                              const selected = String(raw.__receivedUnit || row.receivedUnit || 'Pieces');
+                              return (
+                                <ClientCatalogSelect
+                                  value={selected}
+                                  placeholder={options.some((level) => level.name.toLowerCase() === selected.toLowerCase()) ? 'Pieces' : `Unknown: ${selected}`}
+                                  options={options.map((level) => ({ value: level.name, label: level.name }))}
+                                  allowNone={false}
+                                  onChange={(receivedUnit: string) => setRows((current) => current.map((item, rowIndex) => rowIndex === idx ? { ...item, __receivedUnit: receivedUnit } : item))}
+                                  searchPlaceholder="Search stock type..."
+                                />
+                              );
+                            })() : f.key === 'totalSupplied' ? row.receivedQuantity : row[f.key] || ''}
+                          </td>
                         ))}
                       </tr>
                     );

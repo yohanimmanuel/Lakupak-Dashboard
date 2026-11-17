@@ -697,5 +697,192 @@ describe('orders update - stock deduct/restore', () => {
     const updatedItem = await prisma.orderItem.findFirst({ where: { orderId } });
     expect(updatedItem?.packageQuantity).toBe(5);
   });
+
+  it('reconciles stock when replacing items on an already-deducted order without changing status', async () => {
+    const distributor = await prisma.user.create({
+      data: { email: 'dist-edit-deducted@example.com', password: 'x' },
+      select: { id: true },
+    });
+    const product = await prisma.product.create({
+      data: {
+        productId: 'P-EDIT-DEDUCTED-1', sku: 'SKU-EDIT-DEDUCTED-1', name: 'Edit Deducted Product',
+        description: 'Test', productType: 'TestType', brand: 'TestBrand', supplier: 'TestSupplier',
+        status: 'Published', catalogName: 'Default', images: [], marketplaceStatus: 'Published', userId: distributor.id,
+      },
+      select: { id: true, productId: true },
+    });
+    const variant = await prisma.variantOption.create({
+      data: {
+        productId: product.id, variantName: 'Default', attributes: {}, purchasePrice: 1000,
+        sellingPrice: 2000, originalSellingPrice: 2000, moq: 1, stockQuantity: 8,
+        lowStockThreshold: 0, stockStatus: 'In Stock', isDefault: true, isActive: true,
+      },
+      select: { id: true },
+    });
+    const orderId = 'LKO-EDIT-DEDUCTED-1';
+    await prisma.order.create({
+      data: {
+        orderId, orderDate: new Date(), orderStatus: 'Confirmed', paymentStatus: 'Unpaid',
+        deliveryMethod: 'Seller/Distributor Delivery', deliveryOption: null, subtotal: 4000,
+        discounts: 0, shippingFee: 0, totalAmount: 4000, paymentTerms: 'Cash on Delivery', totalOrders: 2,
+        contactPerson: 'Tester', storeName: 'Test Store', contactPhone: '123', customerEmail: null,
+        deliveryAddress: 'Addr', preferredPickupDate: null, preferredPickupTime: null,
+        shippingMethodLabel: null, shippingMethod: null, userId: distributor.id, buyerId: null,
+        buyerIdSnapshot: null, contactPersonSnapshot: null, contactPhoneSnapshot: null,
+        customerEmailSnapshot: null, deliveryAddressSnapshot: null, orderDateSnapshot: null, storeNameSnapshot: null,
+      },
+    });
+    await prisma.orderItem.create({
+      data: {
+        orderId, productId: product.productId, subtotal: 4000, packageType: 'Pieces',
+        piecesPerPackage: 1, packageQuantity: 2, pricePerPackage: 2000,
+        productNameSnapshot: 'Edit Deducted Product', productSkuSnapshot: 'SKU-EDIT-DEDUCTED-1',
+        productTypeSnapshot: 'TestType', variantOptionId: variant.id, variantNameSnapshot: 'Default',
+        offerApplied: false, promotionDetailsSnapshot: null, moqSnapshot: 1,
+      },
+    });
+
+    const response = await updateOrderHandler(
+      makeAuthenticatedDashboardPutRequest('http://localhost/api/orders', {
+        orderId, userId: distributor.id, orderItems: [{
+          productId: product.productId, quantity: 3, packageQuantity: 3, packageType: 'Pieces',
+          piecesPerPackage: 1, pricePerPackage: 2000, subtotal: 6000, variantOptionId: variant.id,
+          productName: 'Edit Deducted Product',
+        }],
+      }, distributor.id),
+    );
+
+    expect(response.status).toBe(200);
+    const updatedVariant = await prisma.variantOption.findUnique({ where: { id: variant.id } });
+    expect(updatedVariant?.stockQuantity).toBe(7); // restore old 2, then deduct new 3
+    const updatedOrder = await prisma.order.findUnique({ where: { orderId } });
+    expect(updatedOrder?.orderStatus).toBe('Confirmed');
+  });
+
+  it('rejects replacing items on a deducted order when the new quantity exceeds stock and rolls back the restore', async () => {
+    const distributor = await prisma.user.create({
+      data: { email: 'dist-edit-shortage@example.com', password: 'x' },
+      select: { id: true },
+    });
+    const product = await prisma.product.create({
+      data: {
+        productId: 'P-EDIT-SHORT-1', sku: 'SKU-EDIT-SHORT-1', name: 'Edit Short Product',
+        description: 'Test', productType: 'TestType', brand: 'TestBrand', supplier: 'TestSupplier',
+        status: 'Published', catalogName: 'Default', images: [], marketplaceStatus: 'Published', userId: distributor.id,
+        stockLevels: [{ name: 'Pieces', piecesPerUnit: 1 }, { name: 'Carton', piecesPerUnit: 2 }],
+      },
+      select: { id: true, productId: true },
+    });
+    const variant = await prisma.variantOption.create({
+      data: {
+        productId: product.id, variantName: 'Default', attributes: {}, purchasePrice: 1000,
+        sellingPrice: 2000, originalSellingPrice: 2000, moq: 1, stockQuantity: 1,
+        lowStockThreshold: 0, stockStatus: 'In Stock', isDefault: true, isActive: true,
+      },
+      select: { id: true },
+    });
+    const orderId = 'LKO-EDIT-SHORT-1';
+    await prisma.order.create({
+      data: {
+        orderId, orderDate: new Date(), orderStatus: 'Confirmed', paymentStatus: 'Unpaid',
+        deliveryMethod: 'Seller/Distributor Delivery', deliveryOption: null, subtotal: 2000,
+        discounts: 0, shippingFee: 0, totalAmount: 2000, paymentTerms: 'Cash on Delivery', totalOrders: 1,
+        contactPerson: 'Tester', storeName: 'Test Store', contactPhone: '123', customerEmail: null,
+        deliveryAddress: 'Addr', preferredPickupDate: null, preferredPickupTime: null,
+        shippingMethodLabel: null, shippingMethod: null, userId: distributor.id, buyerId: null,
+        buyerIdSnapshot: null, contactPersonSnapshot: null, contactPhoneSnapshot: null,
+        customerEmailSnapshot: null, deliveryAddressSnapshot: null, orderDateSnapshot: null, storeNameSnapshot: null,
+      },
+    });
+    await prisma.orderItem.create({
+      data: {
+        orderId, productId: product.productId, subtotal: 2000, packageType: 'Pieces',
+        piecesPerPackage: 1, packageQuantity: 2, pricePerPackage: 1000,
+        productNameSnapshot: 'Edit Short Product', productSkuSnapshot: 'SKU-EDIT-SHORT-1',
+        productTypeSnapshot: 'TestType', variantOptionId: variant.id, variantNameSnapshot: 'Default',
+        offerApplied: false, promotionDetailsSnapshot: null, moqSnapshot: 1,
+      },
+    });
+
+    const response = await updateOrderHandler(
+      makeAuthenticatedDashboardPutRequest('http://localhost/api/orders', {
+        orderId, userId: distributor.id, orderItems: [{
+          productId: product.productId, quantity: 2, packageQuantity: 2, packageType: 'Carton',
+          piecesPerPackage: 2, pricePerPackage: 2000, subtotal: 4000, variantOptionId: variant.id,
+          productName: 'Edit Short Product',
+        }],
+      }, distributor.id),
+    );
+
+    expect(response.status).toBe(409);
+    const updatedVariant = await prisma.variantOption.findUnique({ where: { id: variant.id } });
+    expect(updatedVariant?.stockQuantity).toBe(1); // transaction rolled back; old reservation remains
+    const updatedOrder = await prisma.order.findUnique({ where: { orderId } });
+    expect(updatedOrder?.orderStatus).toBe('Confirmed');
+    const item = await prisma.orderItem.findFirst({ where: { orderId } });
+    expect(item?.packageQuantity).toBe(2);
+  });
+
+  it('updates multiple order statuses through one bulk request and deducts stock once per order', async () => {
+    const distributor = await prisma.user.create({
+      data: { email: 'dist-bulk-stock@example.com', password: 'x' },
+      select: { id: true },
+    });
+    const product = await prisma.product.create({
+      data: {
+        productId: 'P-BULK-STOCK-1', sku: 'SKU-BULK-STOCK-1', name: 'Bulk Stock Product',
+        description: 'Test', productType: 'TestType', brand: 'TestBrand', supplier: 'TestSupplier',
+        status: 'Published', catalogName: 'Default', images: [], marketplaceStatus: 'Published', userId: distributor.id,
+      },
+      select: { id: true, productId: true },
+    });
+    const variant = await prisma.variantOption.create({
+      data: {
+        productId: product.id, variantName: 'Default', attributes: {}, purchasePrice: 1000,
+        sellingPrice: 2000, originalSellingPrice: 2000, moq: 1, stockQuantity: 10,
+        lowStockThreshold: 0, stockStatus: 'In Stock', isDefault: true, isActive: true,
+      },
+      select: { id: true },
+    });
+    const orderIds = ['LKO-BULK-STOCK-1', 'LKO-BULK-STOCK-2'];
+    for (const orderId of orderIds) {
+      await prisma.order.create({
+        data: {
+          orderId, orderDate: new Date(), orderStatus: 'Pending', paymentStatus: 'Unpaid',
+          deliveryMethod: 'Seller/Distributor Delivery', deliveryOption: null, subtotal: 4000,
+          discounts: 0, shippingFee: 0, totalAmount: 4000, paymentTerms: 'Cash on Delivery', totalOrders: 2,
+          contactPerson: 'Tester', storeName: 'Test Store', contactPhone: '123', customerEmail: null,
+          deliveryAddress: 'Addr', preferredPickupDate: null, preferredPickupTime: null,
+          shippingMethodLabel: null, shippingMethod: null, userId: distributor.id, buyerId: null,
+          buyerIdSnapshot: null, contactPersonSnapshot: null, contactPhoneSnapshot: null,
+          customerEmailSnapshot: null, deliveryAddressSnapshot: null, orderDateSnapshot: null, storeNameSnapshot: null,
+        },
+      });
+      await prisma.orderItem.create({
+        data: {
+          orderId, productId: product.productId, subtotal: 4000, packageType: 'Pieces',
+          piecesPerPackage: 1, packageQuantity: 2, pricePerPackage: 2000,
+          productNameSnapshot: 'Bulk Stock Product', productSkuSnapshot: 'SKU-BULK-STOCK-1',
+          productTypeSnapshot: 'TestType', variantOptionId: variant.id, variantNameSnapshot: 'Default',
+          offerApplied: false, promotionDetailsSnapshot: null, moqSnapshot: 1,
+        },
+      });
+    }
+
+    const response = await updateOrderHandler(
+      makeAuthenticatedDashboardPutRequest('http://localhost/api/orders', {
+        bulkOrderStatus: true, orderIds, orderStatus: 'Confirmed', userId: distributor.id,
+      }, distributor.id),
+    );
+
+    expect(response.status).toBe(200);
+    const result = await response.json();
+    expect(result.successfulOrderIds).toHaveLength(2);
+    const orders = await prisma.order.findMany({ where: { orderId: { in: orderIds } } });
+    expect(orders.every((order) => order.orderStatus === 'Confirmed')).toBe(true);
+    const updatedVariant = await prisma.variantOption.findUnique({ where: { id: variant.id } });
+    expect(updatedVariant?.stockQuantity).toBe(6);
+  });
+
 });
 
