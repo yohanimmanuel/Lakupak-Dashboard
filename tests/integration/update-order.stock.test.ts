@@ -719,7 +719,7 @@ describe('orders update - stock deduct/restore', () => {
       },
       select: { id: true },
     });
-    const orderId = 'LKO-EDIT-DEDUCTED-1';
+    const orderId = 'LKO-10005';
     await prisma.order.create({
       data: {
         orderId, orderDate: new Date(), orderStatus: 'Confirmed', paymentStatus: 'Unpaid',
@@ -769,7 +769,7 @@ describe('orders update - stock deduct/restore', () => {
         productId: 'P-EDIT-SHORT-1', sku: 'SKU-EDIT-SHORT-1', name: 'Edit Short Product',
         description: 'Test', productType: 'TestType', brand: 'TestBrand', supplier: 'TestSupplier',
         status: 'Published', catalogName: 'Default', images: [], marketplaceStatus: 'Published', userId: distributor.id,
-        stockLevels: [{ name: 'Pieces', piecesPerUnit: 1 }, { name: 'Carton', piecesPerUnit: 2 }],
+        stockLevels: [{ name: 'Pieces', piecesPerUnit: 1 }, { name: 'Carton', piecesPerUnit: 2, unitsPerPreviousLevel: 2 }],
       },
       select: { id: true, productId: true },
     });
@@ -781,7 +781,7 @@ describe('orders update - stock deduct/restore', () => {
       },
       select: { id: true },
     });
-    const orderId = 'LKO-EDIT-SHORT-1';
+    const orderId = 'LKO-10006';
     await prisma.order.create({
       data: {
         orderId, orderDate: new Date(), orderStatus: 'Confirmed', paymentStatus: 'Unpaid',
@@ -885,4 +885,3 @@ describe('orders update - stock deduct/restore', () => {
   });
 
 });
-
