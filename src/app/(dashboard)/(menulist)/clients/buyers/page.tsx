@@ -436,6 +436,9 @@ export default function BuyersPage() {
                     'location',
                     'Status',
                     'status',
+                    'Preferred Delivery Days',
+                    'preferredDays',
+                    'preferredDeliveryDays',
                     'Notes',
                     'notes',
                     'Order Details',
@@ -450,6 +453,9 @@ export default function BuyersPage() {
                   additionalFields[key] = String(value);
                 }
               });
+
+              const preferredDaysValue = pick('preferredDays', 'Preferred Delivery Days', 'preferredDeliveryDays');
+              if (preferredDaysValue) additionalFields.preferredDays = preferredDaysValue;
 
               const notesValue = pick('Notes', 'notes', 'comments', 'Comments', 'tags', 'Tags');
               const orderDetailsValue = pick('Order Details', 'orderDetails', 'orders');

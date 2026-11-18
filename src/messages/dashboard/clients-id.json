@@ -554,7 +554,18 @@
       "saveFailed": "Gagal menyimpan pemasok",
       "selectVariant": "Pilih varian",
       "searchVariant": "Cari varian…",
-      "bulkUnupdateStock": "Batalkan Update Stok"
+      "bulkUnupdateStock": "Batalkan Update Stok",
+      "selectPreferredDays": "Pilih hari",
+      "createdAtHint": "Otomatis diatur ke tanggal saat ini",
+      "days": {
+        "Monday": "Senin",
+        "Tuesday": "Selasa",
+        "Wednesday": "Rabu",
+        "Thursday": "Kamis",
+        "Friday": "Jumat",
+        "Saturday": "Sabtu",
+        "Sunday": "Minggu"
+      }
     }
   },
   "import": {

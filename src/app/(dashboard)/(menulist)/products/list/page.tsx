@@ -337,10 +337,11 @@ export default function ProductsListPage() {
     suppressSocketRefreshRef.current = true;
     try {
       for (const product of data) {
-        const stockQuantity = parseInt(product['Stock Quantity'], 10) || 0;
-        const lowStockThreshold = parseInt(product['Low Stock Threshold'], 10) || 30;
-        const moqRaw = product['MOQ']?.trim();
-        const moq = moqRaw ? parseInt(moqRaw, 10) : null;
+        // Product master import contains product-level fields only. Variant stock,
+        // SKU, MOQ and pricing are configured separately after product creation.
+        const stockQuantity = 0;
+        const lowStockThreshold = 0;
+        const moq = null;
 
         let stockStatus: 'In Stock' | 'Low Stock' | 'Out of Stock';
         if (stockQuantity === 0) {
@@ -361,8 +362,8 @@ export default function ProductsListPage() {
           stockQuantity,
           lowStockThreshold,
           stockStatus,
-          purchasePrice: String(product['Purchase Price'] || ''),
-          sellingPrice: String(product['Selling Price'] || ''),
+          purchasePrice: '',
+          sellingPrice: '',
           status: 'Draft' as const,
           catalogName: product['Catalog Name'] || '',
           images: [] as string[],
@@ -371,7 +372,7 @@ export default function ProductsListPage() {
         const variantOption = {
           variantName: 'Default',
           attributes: {},
-          sku: product['SKU']?.trim() || null,
+          sku: null,
           purchasePrice: payload.purchasePrice,
           sellingPrice: payload.sellingPrice,
           originalSellingPrice: null,
@@ -435,49 +436,15 @@ export default function ProductsListPage() {
 
   const handleExport = () => {
     // Export products data to XLSX
-    const headers = ['Product ID', 'Product Name', 'Type', 'Brand', 'Supplier', 'Stock Quantity', 'Purchase Price', 'Selling Price', 'Status', 'Last Updated'];
-    const rows = products.map(product => {
-      const variantOptions = product.variantOptions || [];
-      // Calculate price range for selling price
-      let sellingPrice = '0';
-      if (variantOptions.length > 0) {
-        const prices = variantOptions
-          .map(option => parseFloat(option.sellingPrice) || 0)
-          .filter(price => price > 0);
-        
-        if (prices.length > 0) {
-          const minPrice = Math.min(...prices);
-          const maxPrice = Math.max(...prices);
-          
-          if (minPrice === maxPrice) {
-            sellingPrice = `Rp ${minPrice.toLocaleString('id-ID')}`;
-          } else {
-            sellingPrice = `Rp ${minPrice.toLocaleString('id-ID')} – Rp ${maxPrice.toLocaleString('id-ID')}`;
-          }
-        }
-      }
-      
-      // Calculate total stock
-      const variantOptionsStock = variantOptions.reduce((total, option) => ({
-        totalStock: total.totalStock + (option.stockQuantity || 0),
-        lowStockThreshold: total.lowStockThreshold + (option.lowStockThreshold || 0)
-      }), { totalStock: 0, lowStockThreshold: 0 }) || { totalStock: 0, lowStockThreshold: 0 };
-      
-      const totalStock = variantOptionsStock.totalStock;
-      
-      return [
-        product.productId || `LKP-${String(product.id).padStart(8, '0')}`, // Fallback to LKP format if no productId
-        product.name,
-        product.productType,
-        product.brand,
-        product.supplier,
-        totalStock,
-        variantOptions[0]?.purchasePrice || '0',
-        sellingPrice, // Price range or single price
-        product.status,
-        product.updatedAt ? formatDate(product.updatedAt) : 'N/A'
-      ];
-    });
+    const headers = ['Product Name', 'Description', 'Product Type', 'Brand', 'Supplier', 'Catalog Name'];
+    const rows = products.map((product) => [
+      product.name || '',
+      product.description || '',
+      product.productType || '',
+      product.brand || '',
+      product.supplier || '',
+      product.catalogName || '',
+    ]);
     
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     const wb = XLSX.utils.book_new();

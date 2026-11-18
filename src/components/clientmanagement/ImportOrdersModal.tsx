@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
-import { Upload, X, FileText, Eye, CheckCircle2, AlertTriangle } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, FileText, Eye, CheckCircle2, AlertTriangle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { OrderDetail } from '@/types/client';
 import type { StockLevel } from '@/types/product';
@@ -9,6 +9,7 @@ import { formatBuyerOrderTotal, parseBuyerOrderTotal } from '@/utils/buyerOrderQ
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 import ImportSelectionCheckbox from '@/components/clientmanagement/ImportSelectionCheckbox';
 import ClientCatalogSelect from '@/components/clientmanagement/ClientCatalogSelect';
+import ImportStartPanel, { getDuplicateImportMappingErrors } from '@/components/imports/ImportStartPanel';
 
 const orderFields = [
   { key: 'product', label: 'Product' },
@@ -71,40 +72,33 @@ function matchCatalogProduct(
   skuValue?: string,
   variantValue?: string,
 ) {
-  const raw = String(productValue || '').trim().toLowerCase();
-  const sku = String(skuValue || '').trim().toLowerCase();
-  const variantName = String(variantValue || '').trim().toLowerCase();
+  const norm = (value: unknown) => String(value || '').trim().toLocaleLowerCase();
+  const raw = norm(productValue);
+  const sku = norm(skuValue);
+  const variantName = norm(variantValue);
   const variants = catalog.flatMap((product) =>
-    (product.variantOptions || []).map((variant) => ({ product, variant })),
+    (product.variantOptions || []).filter((variant) => variant.isActive !== false).map((variant) => ({ product, variant })),
   );
 
-  // A distributor SKU is an alias only when it identifies one catalog variant.
   if (sku) {
-    const skuMatches = variants.filter(({ variant }) => String(variant.sku || '').trim().toLowerCase() === sku);
-    if (skuMatches.length === 1) return skuMatches[0];
-    if (skuMatches.length > 1 && variantName) {
-      const narrowed = skuMatches.filter(({ variant }) => variant.variantName.trim().toLowerCase() === variantName);
+    const bySku = variants.filter(({ variant }) => norm(variant.sku) === sku);
+    if (bySku.length === 1) return bySku[0];
+    if (bySku.length > 1 && variantName) {
+      const narrowed = bySku.filter(({ variant }) => norm(variant.variantName) === variantName);
       if (narrowed.length === 1) return narrowed[0];
     }
   }
 
-  if (!raw) return undefined;
-  const exactVariantLabel = variants.filter(({ product, variant }) =>
-    (product.name + ' (' + variant.variantName + ')').trim().toLowerCase() === raw,
-  );
-  if (exactVariantLabel.length === 1) return exactVariantLabel[0];
-
-  const baseName = raw.replace(/\s*\([^)]*\)\s*$/, '').trim();
-  const productMatches = catalog.filter((product) => product.name.trim().toLowerCase() === baseName);
-  if (productMatches.length !== 1) return undefined;
-
+  const exactProducts = raw ? catalog.filter((product) => norm(product.name) === raw) : [];
+  if (exactProducts.length !== 1) return undefined;
+  const product = exactProducts[0];
+  const productVariants = (product.variantOptions || []).filter((variant) => variant.isActive !== false);
   if (variantName) {
-    const matchingVariants = (productMatches[0].variantOptions || []).filter(
-      (variant) => variant.variantName.trim().toLowerCase() === variantName,
-    );
-    if (matchingVariants.length === 1) return { product: productMatches[0], variant: matchingVariants[0] };
+    const exactVariants = productVariants.filter((variant) => norm(variant.variantName) === variantName);
+    if (exactVariants.length === 1) return { product, variant: exactVariants[0] };
+    return undefined;
   }
-  return { product: productMatches[0], variant: undefined };
+  return productVariants.length === 1 ? { product, variant: productVariants[0] } : { product, variant: undefined };
 }
 
 type ImportOrdersModalProps = {
@@ -127,7 +121,6 @@ export default function ImportOrdersModal({
 }: ImportOrdersModalProps) {
   const { tImport } = useClientsTranslations();
 
-  const inputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState(0); // 0: upload, 1: mapping, 2: preview
   const [rows, setRows] = useState<Record<string, string>[]>([]);
   const [error, setError] = useState('');
@@ -140,14 +133,13 @@ export default function ImportOrdersModal({
 
   if (!open) return null;
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = (file?: File) => {
     setError('');
     setValidationErrors([]);
-    const file = e.target.files && e.target.files[0];
     if (!file) return;
     
     // File size validation (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
+    if (file.size > 10 * 1024 * 1024) {
       setError(tImport('fileTooLarge'));
       return;
     }
@@ -193,21 +185,25 @@ export default function ImportOrdersModal({
           return;
         }
         
-        const fileHeadersRow = (json[0] as string[]).map(h => h.trim()).filter(h => h);
+        const sourceHeaders = (json[0] as string[]).map((h) => String(h ?? '').trim());
+        const fileHeadersRow = sourceHeaders.filter(Boolean);
+        if (new Set(fileHeadersRow.map((header) => header.toLocaleLowerCase())).size !== fileHeadersRow.length) { setError('The file contains duplicate column headers. Rename duplicate headers and upload again.'); return; }
         if (fileHeadersRow.length === 0) {
           setError(tImport('fileHeadersRequired'));
           return;
         }
         
-        setFileHeaders(fileHeadersRow);
-        setRows(json.slice(1).map((row: unknown[]): Record<string, string> => {
+        const dataRows = json.slice(1).map((row: unknown[]): Record<string, string> => {
           const obj: Record<string, string> = {};
-          fileHeadersRow.forEach((h, i) => {
-            obj[h] = String(row[i] ?? '');
-          });
+          sourceHeaders.forEach((h, i) => { if (h) obj[h] = String(row[i] ?? ''); });
           return obj;
-        }));
-        setMapping(getAutomap(fileHeadersRow));
+        }).filter((row) => Object.values(row).some((value) => String(value).trim()));
+        if (!dataRows.length) { setError('The file contains no data rows.'); return; }
+        const autoMapping = getAutomap(fileHeadersRow);
+        // Unknown distributor-specific headers remain available for manual mapping.
+        setFileHeaders(fileHeadersRow);
+        setRows(dataRows);
+        setMapping(autoMapping);
         setStep(1); // mapping step
       } catch {
         setError(tImport('fileProcessFailed'));
@@ -254,6 +250,7 @@ export default function ImportOrdersModal({
       const selectedVariant = catalogMatch?.product.variantOptions?.find((variant) => String(variant.id) === selectedVariantId);
       return {
         ...(mapped as OrderDetail),
+        product: String(mapped.product || catalogMatch?.product.name || ''),
         totalOrders: parsed.isMixed
           ? String(mapped.totalOrders || '')
           : formatBuyerOrderTotal(parsed.quantity, stockType),
@@ -270,32 +267,57 @@ export default function ImportOrdersModal({
 
   const validateMappedData = (mappedRows: OrderDetail[]) => {
     const errors: string[] = [];
-    
-    // Only validate that we have at least some data to import
-    if (mappedRows.length === 0) {
-      errors.push(tImport('noDataToImport'));
-      return errors;
+    if (!mappedRows.length) return [tImport('noDataToImport')];
+    if (!mapping.totalOrders || (!mapping.product && !mapping.sku)) {
+      return ['Map Product or SKU and Total Orders before continuing.'];
     }
-    
-    // Check if at least one field is mapped
-    const hasAnyMapping = Object.keys(mapping).some(key => mapping[key]);
-    if (!hasAnyMapping) {
-      errors.push(tImport('mapAtLeastOne'));
-      return errors;
-    }
-
-    const invalidStockTypes = mappedRows.filter((row) => {
+    const mappingErrors = getDuplicateImportMappingErrors(mapping, Object.fromEntries(orderFields.map((field) => [field.key, field.label])));
+    if (mappingErrors.length) return mappingErrors;
+    const rowErrors: string[] = [];
+    rows.forEach((raw, index) => {
+      const row = mappedRows[index];
+      const line = index + 2;
+      const match = matchCatalogProduct(String(row.product || ''), productCatalog, String(row.sku || ''), String(row.variantName || ''));
+      if (!match) rowErrors.push(`Row ${line}: SKU or exact Product + Variant does not match one catalog variant.`);
+      else {
+        if (String(row.sku || '').trim() && String(match.variant?.sku || '').trim().toLocaleLowerCase() !== String(row.sku || '').trim().toLocaleLowerCase()) {
+          rowErrors.push(`Row ${line}: SKU does not belong to the selected Product + Variant.`);
+        }
+        if (String(row.product || '').trim() && String(match.product.name || '').trim().toLocaleLowerCase() !== String(row.product || '').trim().toLocaleLowerCase()) {
+          rowErrors.push(`Row ${line}: Product name conflicts with the matched SKU.`);
+        }
+        const originalVariant = mapping.variantName ? String(raw[mapping.variantName] || '').trim() : '';
+        if (originalVariant && String(match.variant?.variantName || '').trim().toLocaleLowerCase() !== originalVariant.toLocaleLowerCase()) {
+          rowErrors.push(`Row ${line}: Variant name conflicts with the matched SKU.`);
+        }
+        if (!match.variant && (match.product.variantOptions || []).filter((v) => v.isActive !== false).length > 1) {
+          rowErrors.push(`Row ${line}: more than one variant matches this product. Add the exact SKU or Variant.`);
+        }
+      }
       const parsed = parseBuyerOrderTotal(String(row.totalOrders || ''), String(row.stockType || 'Pieces'));
-      if (parsed.isMixed || !String(row.totalOrders || '').trim()) return false;
-      const product = productCatalog.find((item) => item.productId === row.productId);
+      if (parsed.isMixed || !String(parsed.quantity || '').trim() || !Number.isFinite(Number(parsed.quantity)) || Number(parsed.quantity) <= 0) {
+        rowErrors.push(`Row ${line}: Total Orders must be a positive number.`);
+      }
+      const product = match?.product;
       const levels = product?.stockLevels?.length ? product.stockLevels : [{ name: 'Pieces', piecesPerUnit: 1 }];
-      return !levels.some((level) => level.name.toLowerCase() === String(row.stockType || parsed.unit || 'Pieces').trim().toLowerCase());
+      const rawStockType = mapping.stockType ? String(raw[mapping.stockType] || '').trim() : '';
+      const embeddedUnit = parseBuyerOrderTotal(String(raw[mapping.totalOrders] || ''), '').unit.trim();
+      if (!rawStockType && !embeddedUnit) rowErrors.push(`Row ${line}: Stock Type is required. Use a separate Stock Type column or a combined value such as "10 Pieces".`);
+      const requested = String(raw.__stockType || rawStockType || embeddedUnit || row.stockType || 'Pieces').trim().toLocaleLowerCase();
+      if (!levels.some((level) => level.name.toLocaleLowerCase() === requested)) {
+        rowErrors.push(`Row ${line}: Stock Type "${requested}" is not configured for the matched product.`);
+      }
     });
-    if (invalidStockTypes.length > 0) {
-      errors.push(`Select a valid stock type for ${invalidStockTypes.length} row(s). Check that the SKU or product matches a catalog item with the selected stock level.`);
-    }
-    
+    if (rowErrors.length) errors.push(...rowErrors.slice(0, 10), ...(rowErrors.length > 10 ? [`And ${rowErrors.length - 10} more row error(s).`] : []));
     return errors;
+  };
+
+  const handleContinueToPreview = () => {
+    const errors = validateMappedData(getMappedRows());
+    if (errors.length) { setValidationErrors(errors); return; }
+    setValidationErrors([]);
+    setSelectedRowIndices(new Set(rows.map((_, index) => index)));
+    setStep(2);
   };
 
   const previewRows = step === 2 ? getMappedRows() : [];
@@ -355,35 +377,45 @@ export default function ImportOrdersModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-2xl border border-[#e6e6e6] p-4 w-full max-w-3xl relative">
+      <div className="bg-white rounded-2xl border border-[#e6e6e6] p-4 w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden relative">
         <button type="button" className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-100" onClick={handleClose}><X className="w-5 h-5 text-black" /></button>
-        <h2 className="text-xl font-bold text-black mb-4 border-b border-[#e6e6e6] pb-2 flex items-center gap-2">
+        <h2 className="shrink-0 text-xl font-bold text-black mb-4 border-b border-[#e6e6e6] pb-2 flex items-center gap-2">
           <FileText className="w-5 h-5 text-[#0a61d7]" /> {tImport('titleOrders')}
         </h2>
+        <div className="flex-1 min-h-0 overflow-y-auto">
         {step === 0 && (
-          <div className="flex flex-col items-center justify-center gap-4 py-8">
-            <input type="file" accept=".xlsx,.xls,.csv" ref={inputRef} className="hidden" onChange={handleFile} />
-            <button 
-              type="button" 
-              className="flex flex-col items-center gap-2 px-6 py-4 rounded-lg border-2 border-dashed border-[#0a61d7] bg-[#f7faff] hover:bg-[#e6f0ff] transition disabled:opacity-50" 
-              onClick={() => inputRef.current && inputRef.current.click()}
-              disabled={isProcessing}
-            >
-              {isProcessing ? (
-                <div className="w-8 h-8 border-2 border-[#0a61d7] border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                <Upload className="w-8 h-8 text-[#0a61d7]" />
-              )}
-              <span className="text-[#0a61d7] font-semibold">
-                {isProcessing ? tImport('uploadProcessing') : tImport('upload')}
-              </span>
-              {filename && <span className="text-xs text-gray-500">{filename}</span>}
-            </button>
-            {error && <div className="flex items-center gap-2 text-red-500 text-sm"><AlertTriangle className="w-4 h-4" /> {error}</div>}
-          </div>
+          <ImportStartPanel
+            title="Buyer order and product records"
+            overview="Import historical buyer product/order rows. Each row becomes one buyer record; it does not create a new catalog product."
+            matchingGuide="Match to the currently selected buyer's catalog using one exact Lakupak SKU, or exact Product + Variant. A distributor's external item code is only an alias if it is identical to the Lakupak SKU; if it differs, replace it with the correct Lakupak SKU or use the exact Product + Variant. No fuzzy or approximate alias matching is performed."
+            instructions={[
+              'Use one row per buyer-product-variant combination.',
+              'Provide an exact SKU, or an exact Product + Variant that exists in the current product catalog.',
+              'Total Orders must be numeric. Stock Type must match one of the stock levels configured for that product.',
+              'Do not combine multiple products or units in one row. Import a separate row for each combination.',
+            ]}
+            columns={[
+              { name: 'Product', description: 'Exact product name when SKU is not provided.' },
+              { name: 'SKU', description: 'Exact variant SKU. Recommended matching key.' },
+              { name: 'Variant', description: 'Exact variant label when SKU is not provided.' },
+              { name: 'Total Orders', required: true, description: 'Positive numeric order quantity, without unit text.' },
+              { name: 'Stock Type', required: true, description: 'Exact product stock-level name.' },
+              { name: 'Price / Pckg', description: 'Historical price for the selected stock type.' },
+              { name: 'Total Spend', description: 'Historical total spend.' },
+              { name: 'Total Outstanding', description: 'Outstanding balance.' },
+              { name: 'Last Order Date', description: 'Date in YYYY-MM-DD format.' },
+            ]}
+            templateName="Lakupak_Buyer_Records_Template.xlsx"
+            onFileSelectedAction={handleFile}
+            error={error}
+            filename={filename}
+            processing={isProcessing}
+          />
         )}
         {step === 1 && (
-          <div className="flex flex-col gap-1 max-h-[550px] overflow-y-auto">
+          <div className="flex flex-col gap-1">
+            {error ? <div className="mb-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700" role="alert">{error}</div> : null}
+            {validationErrors.length > 0 ? <div className="mb-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700" role="alert">{validationErrors.map((item, index) => <p key={index}>{item}</p>)}</div> : null}
             <div className="mb-2 font-semibold text-black">{tImport('mapColumnsRequired')}</div>
             <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white p-2">
               <table className="min-w-full text-xs font-medium text-left">
@@ -414,9 +446,9 @@ export default function ImportOrdersModal({
                 </tbody>
               </table>
             </div>
-            <div className="flex justify-end gap-2 mt-2 text-sm border-t border-gray-200 pt-4">
+            <div className="sticky bottom-0 z-20 flex justify-end gap-2 mt-2 bg-white text-sm border-t border-gray-200 pt-4">
               <button type="button" className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" onClick={() => { setStep(0); setRows([]); setFilename(''); setFileHeaders([]); setMapping({}); setSelectedRowIndices(new Set()); }}>{tImport('back')}</button>
-              <button type="button" className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center gap-2" onClick={() => { setSelectedRowIndices(new Set(rows.map((_, i) => i))); setStep(2); }} disabled={Object.keys(mapping).filter(k => mapping[k]).length === 0}>{tImport('preview')}</button>
+              <button type="button" className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center gap-2" onClick={handleContinueToPreview} disabled={Object.keys(mapping).filter(k => mapping[k]).length === 0}>{tImport('preview')}</button>
             </div>
           </div>
         )}
@@ -555,12 +587,13 @@ export default function ImportOrdersModal({
                 <AlertTriangle className="w-4 h-4" /> {error}
               </div>
             ) : null}
-            <div className="flex justify-end gap-2 mt-4 text-sm border-t border-gray-200 pt-4">
+            <div className="sticky bottom-0 z-20 flex justify-end gap-2 mt-4 bg-white text-sm border-t border-gray-200 pt-4">
               <button type="button" className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" onClick={() => { setStep(1); setSelectedRowIndices(new Set()); setError(''); }}>{tImport('back')}</button>
               <button type="button" className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center gap-2 disabled:opacity-60" onClick={handleImport} disabled={selectedRowIndices.size === 0}><CheckCircle2 className="w-4 h-4" /> {tImport('importButtonSelected', { count: selectedRowIndices.size })}</button>
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

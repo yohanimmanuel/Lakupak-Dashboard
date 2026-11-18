@@ -830,33 +830,23 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
     };
   };
   const handleExportVariationList = () => {
-    // Stock is stored once, in absolute Pieces. Package columns are equivalent views
-    // of that same value and are exported as exact decimal equivalents for readability.
-    const packageStockLevels = displayStockLevels.filter(
-      (level) => String(level.name).trim().toLocaleLowerCase() !== 'pieces',
-    );
     const headers = [
       ...variationImportColumns.map((col) => col.label),
-      tCatalog('variants.sku'),
-      tCatalog('variants.sellingPrice'),
-      tCatalog('variants.purchasePrice'),
-      tCatalog('variants.moq'),
-      'Stock Quantity', // Canonical inventory column, always in Pieces.
-      ...packageStockLevels.map((level) => level.name),
-      'Low Stock Threshold', // Threshold is also stored in Pieces.
-      tCatalog('variants.status'),
+      'SKU',
+      'Selling Price',
+      'Purchase Price',
+      'MOQ',
+      'Stock Quantity',
+      'Low Stock Threshold',
+      'Status',
     ];
     const dataRows = combinations.map((combo) => [
-      ...variants.map((variant) => String(combo[`variant_${variant.id}`] ?? tCatalog('variants.none'))),
+      ...variants.map((variant) => String(combo[`variant_${variant.id}`] ?? '')),
       combo.sku,
       combo.sellingPrice,
       combo.purchasePrice,
       combo.moq ?? '',
       combo.stockQuantity,
-      ...packageStockLevels.map((level) => {
-        const ratio = Number(level.piecesPerUnit);
-        return Number.isSafeInteger(ratio) && ratio >= 1 ? combo.stockQuantity / ratio : '';
-      }),
       combo.lowStockThreshold,
       combo.stockStatus,
     ]);

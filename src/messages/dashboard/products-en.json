@@ -571,7 +571,12 @@
       "purchasePriceUnit": "Purchase price unit",
       "pricePerPiece": "Per Piece",
       "importPriceAnchorsDescription": "Choose the unit used by the Selling Price and Purchase Price columns in the spreadsheet. Each variant keeps its own prices.",
-      "importPriceAnchorsNote": "Imported Selling Price values are per {sellingUnit}; Purchase Price values are per {purchaseUnit}."
+      "importPriceAnchorsNote": "Imported Selling Price values are per {sellingUnit}; Purchase Price values are per {purchaseUnit}.",
+      "importStockRatiosTitle": "Prepare stock levels (Step 3 of 3)",
+      "importStockRatiosDescription": "After mapping the spreadsheet columns, confirm the stock-level conversion and price units before reviewing the import preview.",
+      "importStockRatiosNote": "Imported stock quantities are interpreted using these configured stock-level conversions.",
+      "cancelImport": "Cancel import",
+      "continueToColumnMapping": "Continue to preview"
     },
     "variationImport": {
       "title": "Import Variation List",
@@ -882,5 +887,8 @@
       "shares_size": "Shares size with a SKU they buy",
       "shares_packaging": "Shares packaging with a SKU they buy"
     }
+  },
+  "variationImport": {
+    "prepareStockLevels": "Continue to stock-level preparation"
   }
 }

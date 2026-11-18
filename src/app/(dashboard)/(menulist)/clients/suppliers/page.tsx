@@ -399,6 +399,9 @@ export default function SuppliersPage() {
                     'location',
                     'Status',
                     'status',
+                    'Preferred Delivery Days',
+                    'preferredDays',
+                    'preferredDeliveryDays',
                     'Notes',
                     'notes',
                     'Supplies',
@@ -414,6 +417,9 @@ export default function SuppliersPage() {
                   additionalFields[key] = String(value);
                 }
               });
+
+              const preferredDaysValue = pick('preferredDays', 'Preferred Delivery Days', 'preferredDeliveryDays');
+              if (preferredDaysValue) additionalFields.preferredDays = preferredDaysValue;
 
               const notesValue = pick('Notes', 'notes', 'comments', 'Comments', 'tags', 'Tags');
               const suppliesValue = pick('Supplies', 'supplies', 'products', 'Products');

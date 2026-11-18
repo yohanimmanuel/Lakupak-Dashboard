@@ -29,7 +29,7 @@ type ImportVariantModalProps = {
 
 /**
  * Import preparation step. Users confirm or adjust the same chained stock ratios
- * used by the catalog before the spreadsheet column-mapping modal opens.
+ * used by the catalog after spreadsheet columns have been mapped and before preview.
  */
 export default function ImportVariantModal({
   open,
@@ -58,7 +58,7 @@ export default function ImportVariantModal({
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
-      <div className="relative max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-[#e6e6e6] bg-white p-5 shadow-xl">
+      <div className="relative flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-[#e6e6e6] bg-white shadow-xl">
         <button
           type="button"
           onClick={onCancel}
@@ -68,13 +68,14 @@ export default function ImportVariantModal({
           <X className="h-5 w-5" />
         </button>
 
-        <div className="mb-4 pr-10">
+        <div className="flex-shrink-0 border-b border-gray-200 px-5 pt-5 pb-3 pr-14">
           <h2 className="text-lg font-semibold text-gray-900">{tCatalog('variants.importStockRatiosTitle')}</h2>
           <p className="mt-1 text-sm text-gray-600">
             {tCatalog('variants.importStockRatiosDescription')}
           </p>
         </div>
 
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
         <StockLevelConversion
           stockLevels={stockLevels}
           ratioDrafts={ratioDrafts}
@@ -113,7 +114,9 @@ export default function ImportVariantModal({
           {' '}{tCatalog('variants.importPriceAnchorsNote', { sellingUnit: sellingPriceUnit, purchaseUnit: purchasePriceUnit })}
         </div>
 
-        <div className="mt-5 flex justify-end gap-2 border-t border-gray-200 pt-4">
+        </div>
+
+        <div className="flex-shrink-0 flex justify-end gap-2 border-t border-gray-200 bg-white px-5 py-4">
           <button
             type="button"
             onClick={onCancel}

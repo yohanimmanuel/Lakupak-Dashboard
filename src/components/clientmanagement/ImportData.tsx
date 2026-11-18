@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  Upload,
   X,
   FileText,
   Eye,
@@ -13,49 +12,43 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { OrderDetail, SupplyDetail } from '@/types/client';
-import { getDefaultCurrency } from '@/utils/currencyUtils';
-import { useUserStore } from '@/store/userStore';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 import ImportSelectionCheckbox from '@/components/clientmanagement/ImportSelectionCheckbox';
+import ImportStartPanel, { type ImportColumnGuide, getDuplicateImportMappingErrors } from '@/components/imports/ImportStartPanel';
 
 const PREVIEW_PAGE_SIZE = 8;
 
 type BuyerImportRow = {
-  [key: string]: string | OrderDetail[] | undefined;
-  'ID': string;
+  [key: string]: string | undefined;
+  ID: string;
   'Store Name': string;
-  'Owner': string;
-  'Phone': string;
-  'Email': string;
-  'Address': string;
+  Owner: string;
+  Phone: string;
+  Email: string;
+  Address: string;
   'Business Type': string;
-  'Status': string;
+  Status: string;
   'Created At': string;
-  'Preferred Delivery Days': string;
   'Last Shipment': string;
   'Shipment Success': string;
-  'Notes': string;
-  'Order Details': string;
-  orderDetails?: OrderDetail[];
+  Notes: string;
+  preferredDays?: string;
 };
 type SupplierImportRow = {
-  [key: string]: string | SupplyDetail[] | undefined;
-  'ID': string;
+  [key: string]: string | undefined;
+  ID: string;
   'Supplier Name': string;
-  'Contact': string;
-  'Phone': string;
-  'Email': string;
+  Contact: string;
+  Phone: string;
+  Email: string;
   'Business Type': string;
-  'Address': string;
-  'Status': string;
+  Address: string;
+  Status: string;
   'Created At': string;
-  'Preferred Delivery Days': string;
   'Last Supplied Date': string;
   'Delivery Success': string;
-  'Notes': string;
-  'Supplies': string;
-  supplies?: SupplyDetail[];
+  Notes: string;
+  preferredDays?: string;
 };
 
 type ImportType = 'Buyers' | 'Suppliers';
@@ -69,60 +62,9 @@ type ImportDataProps = {
 
 type ImportRow = BuyerImportRow | SupplierImportRow;
 
-function parseOrderDetails(cell: string | undefined, userCurrency: string): OrderDetail[] {
-  if (!cell) return [];
-  try {
-    const parsed = JSON.parse(cell);
-    if (Array.isArray(parsed)) {
-      return parsed.map((order: OrderDetail) => ({
-        ...order,
-        totalSpend: standardizeCurrencyFormat(order.totalSpend, userCurrency),
-        outstanding: standardizeCurrencyFormat(order.outstanding, userCurrency)
-      }));
-    }
-    return [];
-  } catch {
-    return [];
-  }
-}
+type MasterImportField = { key: string; labelKey: string };
 
-function parseSupplies(cell: string | undefined, userCurrency: string): SupplyDetail[] {
-  if (!cell) return [];
-  try {
-    const parsed = JSON.parse(cell);
-    if (Array.isArray(parsed)) {
-      return parsed.map((supply: SupplyDetail) => ({
-        ...supply,
-        totalValue: standardizeCurrencyFormat(supply.totalValue, userCurrency)
-      }));
-    }
-    return [];
-  } catch {
-    return [];
-  }
-}
-
-// Currency format standardization function - only changes display format, preserves actual values
-function standardizeCurrencyFormat(value: string | undefined, targetCurrency: string): string {
-  if (!value) return '';
-  
-  const valueStr = value.toString().trim();
-  if (!valueStr) return '';
-  
-  // Extract the numeric part while preserving original formatting (commas, dots, etc.)
-  // Remove only the currency prefix/symbol but keep the number format exactly as is
-  const match = valueStr.match(/^[^\d]*(.+)$/);
-  if (!match) return valueStr; // Return original if no pattern found
-  
-  const numericPart = match[1].trim();
-  if (!numericPart) return valueStr; // Return original if no numbers found
-  
-  // Simply replace the currency symbol/code with the target currency, preserve exact number format
-  return `${targetCurrency} ${numericPart}`;
-}
-
-// Add mapping state and helpers
-const buyerFields = [
+const buyerFields: MasterImportField[] = [
   { key: 'ID', labelKey: 'id' },
   { key: 'Store Name', labelKey: 'storeName' },
   { key: 'Owner', labelKey: 'owner' },
@@ -136,9 +78,8 @@ const buyerFields = [
   { key: 'Last Shipment', labelKey: 'lastShipment' },
   { key: 'Shipment Success', labelKey: 'shipmentSuccess' },
   { key: 'Notes', labelKey: 'notes' },
-  { key: 'Order Details', labelKey: 'orderDetails' },
 ];
-const supplierFields = [
+const supplierFields: MasterImportField[] = [
   { key: 'ID', labelKey: 'id' },
   { key: 'Supplier Name', labelKey: 'supplierName' },
   { key: 'Contact', labelKey: 'contact' },
@@ -152,10 +93,39 @@ const supplierFields = [
   { key: 'Last Supplied Date', labelKey: 'lastSuppliedDate' },
   { key: 'Delivery Success', labelKey: 'deliverySuccess' },
   { key: 'Notes', labelKey: 'notes' },
-  { key: 'Supplies', labelKey: 'supplies' },
 ];
 
-// Synonyms for automapping
+const LEGACY_WEEKDAY_COLUMNS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
+const LEGACY_WEEKDAY_HEADERS: Record<(typeof LEGACY_WEEKDAY_COLUMNS)[number], string[]> = {
+  Monday: ['Preferred Delivery Monday', 'Monday'],
+  Tuesday: ['Preferred Delivery Tuesday', 'Tuesday'],
+  Wednesday: ['Preferred Delivery Wednesday', 'Wednesday'],
+  Thursday: ['Preferred Delivery Thursday', 'Thursday'],
+  Friday: ['Preferred Delivery Friday', 'Friday'],
+  Saturday: ['Preferred Delivery Saturday', 'Saturday'],
+  Sunday: ['Preferred Delivery Sunday', 'Sunday'],
+};
+const PREFERRED_DELIVERY_DAY_ALIASES: Record<string, (typeof LEGACY_WEEKDAY_COLUMNS)[number]> = {
+  mon: 'Monday', monday: 'Monday', mons: 'Monday', mondays: 'Monday',
+  tue: 'Tuesday', tues: 'Tuesday', tuesday: 'Tuesday', tuesdays: 'Tuesday',
+  wed: 'Wednesday', weds: 'Wednesday', wednesday: 'Wednesday', wednesdays: 'Wednesday',
+  thu: 'Thursday', thur: 'Thursday', thurs: 'Thursday', thursday: 'Thursday', thursdays: 'Thursday',
+  fri: 'Friday', friday: 'Friday', fridays: 'Friday',
+  sat: 'Saturday', saturday: 'Saturday', saturdays: 'Saturday',
+  sun: 'Sunday', sunday: 'Sunday', sundays: 'Sunday',
+};
+
+function normalizePreferredDeliveryDays(value: unknown): string {
+  const selected = new Set<(typeof LEGACY_WEEKDAY_COLUMNS)[number]>();
+  const tokens = Array.isArray(value) ? value.map(String) : String(value ?? '').split(/[,;|/]+/);
+  for (const token of tokens) {
+    const key = token.trim().toLowerCase().replace(/[^a-z]/g, '');
+    const day = PREFERRED_DELIVERY_DAY_ALIASES[key];
+    if (day) selected.add(day);
+  }
+  return LEGACY_WEEKDAY_COLUMNS.filter((day) => selected.has(day)).join(', ');
+}
+
 const buyerSynonyms: { [key: string]: string[] } = {
   'ID': ['id', 'buyer id', 'kode', 'kode buyer'],
   'Store Name': ['store name', 'toko', 'nama toko', 'buyer name', 'name'],
@@ -166,11 +136,10 @@ const buyerSynonyms: { [key: string]: string[] } = {
   'Business Type': ['business type', 'tipe bisnis', 'jenis usaha', 'type'],
   'Status': ['status', 'buyer status'],
   'Created At': ['created at', 'tanggal dibuat', 'created'],
-  'Preferred Delivery Days': ['preferred delivery days', 'hari pengiriman', 'delivery days'],
+  'Preferred Delivery Days': ['preferred delivery days', 'preferred days', 'delivery days', 'hari pengiriman'],
   'Last Shipment': ['last shipment', 'pengiriman terakhir', 'last delivery'],
   'Shipment Success': ['shipment success', 'success rate', 'shipment rate'],
   'Notes': ['notes', 'catatan', 'tags'],
-  'Order Details': ['order details', 'orders', 'order', 'order json'],
 };
 const supplierSynonyms: { [key: string]: string[] } = {
   'ID': ['id', 'supplier id', 'kode', 'kode supplier'],
@@ -182,11 +151,10 @@ const supplierSynonyms: { [key: string]: string[] } = {
   'Address': ['address', 'alamat', 'alamat supplier', 'supplier address'],
   'Status': ['status', 'supplier status'],
   'Created At': ['created at', 'tanggal dibuat', 'created'],
-  'Preferred Delivery Days': ['preferred delivery days', 'hari pengiriman', 'delivery days'],
-  'Last Supplied Date': ['last delivery', 'pengiriman terakhir', 'last shipment'],
+  'Preferred Delivery Days': ['preferred delivery days', 'preferred days', 'delivery days', 'hari pengiriman'],
+  'Last Supplied Date': ['last supplied date', 'last delivery', 'pengiriman terakhir', 'last shipment'],
   'Delivery Success': ['delivery success', 'success rate', 'delivery rate'],
   'Notes': ['notes', 'catatan', 'tags'],
-  'Supplies': ['supplies', 'supply', 'supply json'],
 };
 
 function generateBuyerId() {
@@ -202,11 +170,8 @@ function isNonEmptyRow(row: ImportRow) {
 }
 
 export default function ImportData({ open, onCloseAction, onImportAction, type = 'Buyers' }: ImportDataProps) {
-  const user = useUserStore(state => state.user);
-  const userCurrency = user?.currency || getDefaultCurrency();
   const { tImport, tShared } = useClientsTranslations();
 
-  const inputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<number>(0); // 0: upload, 1: mapping, 2: preview
   const [rows, setRows] = useState<ImportRow[]>([]);
   const [error, setError] = useState<string>('');
@@ -219,7 +184,33 @@ export default function ImportData({ open, onCloseAction, onImportAction, type =
 
   const fields = type === 'Buyers' ? buyerFields : supplierFields;
   const synonyms = type === 'Buyers' ? buyerSynonyms : supplierSynonyms;
-  const getFieldLabel = (labelKey: string) =>
+  const columnDescriptions: Record<string, string> = type === 'Buyers'
+    ? {
+        ID: 'Ignored on import; Lakupak creates a new buyer ID.',
+        'Store Name': 'Buyer store or business name.', Owner: 'Buyer owner/contact person.',
+        Phone: 'Phone number, preferably with country code.', Email: 'Buyer email address.',
+        Address: 'Store/business address.', 'Business Type': 'Retail, wholesaler, F&B, etc.',
+        Status: 'Buyer status used by your workspace.', 'Created At': 'Optional date snapshot.',
+        'Preferred Delivery Days': 'Comma-separated weekday names or abbreviations, e.g. Monday, Thu, Fri.',
+        'Last Shipment': 'Optional last-shipment date.', 'Shipment Success': 'Optional success rate or percentage.',
+        Notes: 'Internal notes or tags.',
+      }
+    : {
+        ID: 'Ignored on import; Lakupak creates a new supplier ID.',
+        'Supplier Name': 'Supplier/company name.', Contact: 'Supplier contact person.',
+        Phone: 'Phone number, preferably with country code.', Email: 'Supplier email address.',
+        'Business Type': 'Manufacturer, distributor, wholesaler, etc.', Address: 'Supplier address.',
+        Status: 'Supplier status used by your workspace.', 'Created At': 'Optional date snapshot.',
+        'Preferred Delivery Days': 'Comma-separated weekday names or abbreviations, e.g. Monday, Thu, Fri.',
+        'Last Supplied Date': 'Optional last-supplied date.', 'Delivery Success': 'Optional success rate or percentage.',
+        Notes: 'Internal notes or tags.',
+      };
+  const importColumnGuides: ImportColumnGuide[] = fields.map((field: MasterImportField) => ({
+    name: field.key,
+    required: field.key === (type === 'Buyers' ? 'Store Name' : 'Supplier Name'),
+    description: columnDescriptions[field.key] || 'Optional field. Leave blank when the information is unavailable.',
+  }));
+  const getFieldLabel = (labelKey: string): string =>
     type === 'Buyers'
       ? tImport(`buyerFields.${labelKey}`)
       : tImport(`supplierFields.${labelKey}`);
@@ -227,22 +218,31 @@ export default function ImportData({ open, onCloseAction, onImportAction, type =
   // Automap columns to fields using synonyms
   function getAutomap(fileHeaders: string[]) {
     const mapping: { [key: string]: string } = {};
-    fields.forEach(f => {
-      const syns = [f.key, ...(synonyms[f.key] || [])];
-      const found = fileHeaders.find(h => syns.some(s => s.toLowerCase() === h.trim().toLowerCase()));
-      if (found) mapping[f.key] = found;
+    fields.forEach((field: MasterImportField) => {
+      const syns = [field.key, ...(synonyms[field.key] || [])];
+      const found = fileHeaders.find((header: string) => syns.some((synonym: string) => synonym.toLowerCase() === header.trim().toLowerCase()));
+      if (found) mapping[field.key] = found;
+    });
+    const normalizedHeaders = new Map<string, string>(fileHeaders.map((header: string): [string, string] => [header.trim().toLowerCase(), header]));
+    LEGACY_WEEKDAY_COLUMNS.forEach((day) => {
+      const found = LEGACY_WEEKDAY_HEADERS[day]
+        .map((header) => normalizedHeaders.get(header.toLowerCase()))
+        .find((header): header is string => Boolean(header));
+      if (found) mapping[`__weekday_${day}`] = found;
     });
     return mapping;
   }
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = (file?: File) => {
     setError('');
-    const file = e.target.files && e.target.files[0];
     if (!file) return;
-    setFilename(file.name);
+    if (file.size > 10 * 1024 * 1024) { setError('File is larger than 10 MB.'); return; }
     const ext = file.name.split('.').pop()?.toLowerCase();
+    if (!['xlsx', 'xls', 'csv'].includes(ext || '')) { setError('Choose an Excel (.xlsx, .xls) or CSV file.'); return; }
+    setFilename(file.name);
     const reader = new FileReader();
     reader.onload = (evt: ProgressEvent<FileReader>) => {
+      try {
       if (!evt.target || !evt.target.result) {
         setError(tImport('fileReadError'));
         return;
@@ -266,6 +266,11 @@ export default function ImportData({ open, onCloseAction, onImportAction, type =
         return;
       }
       const fileHeadersRow = (json[0] as string[]).map((h) => String(h ?? '').trim());
+      const headers = fileHeadersRow.filter(Boolean);
+      if (new Set(headers.map((header) => header.toLowerCase())).size !== headers.length) {
+        setError('The file contains duplicate column headers. Rename duplicate headers and upload again.');
+        return;
+      }
       const dataRows = json
         .slice(1)
         .map((row: unknown[]): ImportRow => {
@@ -278,37 +283,58 @@ export default function ImportData({ open, onCloseAction, onImportAction, type =
           return obj as ImportRow;
         })
         .filter(isNonEmptyRow);
-      setFileHeaders(fileHeadersRow.filter(Boolean));
+      if (dataRows.length === 0) { setError('The file has headers but no data rows.'); return; }
+      // Keep unknown headers available for manual mapping. Required-field checks run
+      // after the user maps columns, before the preview step.
+      const autoMapping = getAutomap(headers);
+      setFileHeaders(headers);
       setRows(dataRows);
       setSelectedRowIndices(new Set(dataRows.map((_, index) => index)));
-      setMapping(getAutomap(fileHeadersRow.filter(Boolean)));
+      setMapping(autoMapping);
       setStep(1); // mapping step
+      } catch { setError('The file could not be read. Check that it is a valid Excel or CSV file.'); }
     };
-    if (ext === 'csv') {
-      reader.readAsText(file);
-    } else {
-      reader.readAsArrayBuffer(file);
-    }
+    reader.onerror = () => setError('The file could not be read. Check the file and try again.');
+    if (ext === 'csv') reader.readAsText(file);
+    else reader.readAsArrayBuffer(file);
   };
 
-  // Stable mapped rows for preview + import (avoids regenerating IDs on each page change)
+  // Stable mapped rows for preview + import. The new format stores each
+  // weekday in its own column; legacy combined weekday columns remain readable.
   const mappedRows = useMemo(() => {
     return rows.map((row: ImportRow) => {
-      const mapped: Partial<BuyerImportRow | SupplierImportRow> = {};
-      fields.forEach(f => {
+      const mapped: Record<string, string> = {};
+      fields.forEach((f: MasterImportField) => {
         const col = mapping[f.key];
-        mapped[f.key as keyof (BuyerImportRow | SupplierImportRow)] = col ? row[col] : '';
+        mapped[f.key] = col ? String(row[col] ?? '') : '';
       });
-      if (type === 'Buyers') {
-        mapped.ID = generateBuyerId();
-        mapped.orderDetails = parseOrderDetails(mapped['Order Details'] as string, userCurrency);
-      } else {
-        mapped.ID = generateSupplierId();
-        mapped.supplies = parseSupplies(mapped['Supplies'] as string, userCurrency);
-      }
-      return mapped;
+      const directPreferredDays = mapped['Preferred Delivery Days'] || '';
+      const legacySevenDayFlags = LEGACY_WEEKDAY_COLUMNS.filter((day) => {
+        const header = mapping[`__weekday_${day}`];
+        const cell = header ? String(row[header] ?? '').trim().toLowerCase() : '';
+        return ['yes', 'y', 'true', '1', 'x'].includes(cell);
+      });
+      mapped.preferredDays = normalizePreferredDeliveryDays(directPreferredDays || legacySevenDayFlags);
+      mapped['Preferred Delivery Days'] = mapped.preferredDays;
+      if (type === 'Buyers') mapped.ID = generateBuyerId();
+      else mapped.ID = generateSupplierId();
+      return mapped as ImportRow;
     });
-  }, [rows, mapping, type, userCurrency, fields]);
+  }, [rows, mapping, type, fields]);
+
+  const handleContinueToPreview = () => {
+    const mappingErrors = getDuplicateImportMappingErrors(
+      mapping,
+      Object.fromEntries(fields.map((field: MasterImportField) => [field.key, getFieldLabel(field.labelKey)])),
+    );
+    if (mappingErrors.length) { setError(mappingErrors.join(' ')); return; }
+    const requiredNameField = type === 'Buyers' ? 'Store Name' : 'Supplier Name';
+    if (!mapping[requiredNameField]) { setError(`Map the required ${requiredNameField} column before preview.`); return; }
+    const invalid = rows.map((row, index) => ({ row, line: index + 2 })).filter(({ row }) => !String(row[mapping[requiredNameField]] || '').trim());
+    if (invalid.length) { setError(`Missing ${requiredNameField} in row(s): ${invalid.slice(0, 8).map((item) => item.line).join(', ')}.`); return; }
+    setError('');
+    setStep(2);
+  };
 
   const totalPreviewPages = Math.max(1, Math.ceil(mappedRows.length / PREVIEW_PAGE_SIZE));
   const safePreviewPage = Math.min(previewPage, totalPreviewPages);
@@ -382,7 +408,7 @@ export default function ImportData({ open, onCloseAction, onImportAction, type =
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-2xl border border-[#e6e6e6] p-4 w-full max-w-3xl relative">
+      <div className="bg-white rounded-2xl border border-[#e6e6e6] p-4 w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden relative">
         <button
           className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-100 disabled:opacity-50"
           onClick={handleClose}
@@ -390,22 +416,35 @@ export default function ImportData({ open, onCloseAction, onImportAction, type =
         >
           <X className="w-5 h-5 text-black" />
         </button>
-        <h2 className="text-xl font-bold text-black mb-4 border-b border-[#e6e6e6] pb-2 flex items-center gap-2">
+        <h2 className="shrink-0 text-xl font-bold text-black mb-4 border-b border-[#e6e6e6] pb-2 flex items-center gap-2">
           <FileText className="w-5 h-5 text-[#0a61d7]" /> {type === 'Buyers' ? tImport('titleBuyers') : tImport('titleSuppliers')}
         </h2>
+        <div className="flex-1 min-h-0 overflow-y-auto">
         {step === 0 && (
-          <div className="flex flex-col items-center justify-center gap-4 py-8">
-            <input type="file" accept=".xlsx,.xls,.csv" ref={inputRef} className="hidden" onChange={handleFile} />
-            <button type="button" className="flex flex-col items-center gap-2 px-6 py-4 rounded-lg border-2 border-dashed border-[#0a61d7] bg-[#f7faff] hover:bg-[#e6f0ff] transition" onClick={() => inputRef.current && inputRef.current.click()}>
-              <Upload className="w-8 h-8 text-[#0a61d7]" />
-              <span className="text-[#0a61d7] font-semibold">{tImport('upload')}</span>
-              {filename && <span className="text-xs text-gray-500">{filename}</span>}
-            </button>
-            {error && <div className="flex items-center gap-2 text-red-500 text-sm"><AlertTriangle className="w-4 h-4" /> {error}</div>}
-          </div>
+          <ImportStartPanel
+            title={type === 'Buyers' ? 'Buyer master records' : 'Supplier master records'}
+            overview={type === 'Buyers'
+              ? 'Import buyer/store contact and account information. Buyer order details can be imported separately from the Buyer profile using the Order & Product Details template.'
+              : 'Import supplier contact and account information. Supplier delivery history can be imported separately from the Supplier profile using the Supply History template.'}
+            matchingGuide={type === 'Buyers'
+              ? 'This creates new buyer records; it does not match existing product SKUs or merge buyers by name. The ID column is ignored and Lakupak generates a new buyer ID. Check for duplicate Store Names in the file before importing.'
+              : 'This creates new supplier records; it does not match existing product SKUs or merge suppliers by name. The ID column is ignored and Lakupak generates a new supplier ID. Check for duplicate Supplier Names in the file before importing.'}
+            instructions={[
+              `Use one row per ${type === 'Buyers' ? 'buyer/store' : 'supplier'}.`,
+              `Keep "${type === 'Buyers' ? 'Store Name' : 'Supplier Name'}" filled for every row. IDs are generated by Lakupak.`,
+              'Use consistent phone numbers, email addresses and status values. Leave unknown optional fields blank.',
+              'Do not paste order/supply records into the master template; import those from their dedicated record import screens.',
+            ]}
+            columns={importColumnGuides}
+            templateName={type === 'Buyers' ? 'Lakupak_Buyer_Template.xlsx' : 'Lakupak_Supplier_Template.xlsx'}
+            onFileSelectedAction={handleFile}
+            error={error}
+            filename={filename}
+          />
         )}
         {step === 1 && (
-          <div className="flex flex-col gap-1 max-h-[550px] overflow-y-auto">
+          <div className="flex flex-col gap-1">
+            {error ? <div className="mb-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700" role="alert">{error}</div> : null}
             <div className="mb-2 font-semibold text-black">{tImport('mapColumnsOptional')}</div>
             <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-blue-700 text-sm flex items-start gap-2">
@@ -444,15 +483,15 @@ export default function ImportData({ open, onCloseAction, onImportAction, type =
                 </tbody>
               </table>
             </div>
-            <div className="flex justify-end gap-2 mt-2 text-sm border-t border-gray-200 pt-4">
+            <div className="sticky bottom-0 z-20 flex justify-end gap-2 mt-2 bg-white text-sm border-t border-gray-200 pt-4">
               <button type="button" className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" onClick={() => { setStep(0); setRows([]); setFilename(''); setFileHeaders([]); setMapping({}); }}>{tImport('back')}</button>
               <button
                 type="button"
                 className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center gap-2"
                 onClick={() => {
+                  handleContinueToPreview();
                   setPreviewPage(1);
                   setSelectedRowIndices(new Set(rows.map((_, index) => index)));
-                  setStep(2);
                 }}
               >
                 {tImport('preview')}
@@ -571,7 +610,7 @@ export default function ImportData({ open, onCloseAction, onImportAction, type =
                 <AlertTriangle className="w-4 h-4" /> {error}
               </div>
             ) : null}
-            <div className="flex justify-end gap-2 mt-2 text-sm border-t border-gray-200 pt-4">
+            <div className="sticky bottom-0 z-20 flex justify-end gap-2 mt-2 bg-white text-sm border-t border-gray-200 pt-4">
               <button
                 type="button"
                 className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 disabled:opacity-50"
@@ -600,6 +639,7 @@ export default function ImportData({ open, onCloseAction, onImportAction, type =
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

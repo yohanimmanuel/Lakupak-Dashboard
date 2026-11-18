@@ -571,7 +571,12 @@
       "purchasePriceUnit": "Satuan harga beli",
       "pricePerPiece": "Per Pieces",
       "importPriceAnchorsDescription": "Pilih satuan yang digunakan pada kolom Harga Jual dan Harga Beli di spreadsheet. Setiap varian tetap memiliki harganya sendiri.",
-      "importPriceAnchorsNote": "Nilai Harga Jual yang diimpor adalah per {sellingUnit}; Harga Beli adalah per {purchaseUnit}."
+      "importPriceAnchorsNote": "Nilai Harga Jual yang diimpor adalah per {sellingUnit}; Harga Beli adalah per {purchaseUnit}.",
+      "importStockRatiosTitle": "Siapkan tingkat stok (Langkah 3 dari 3)",
+      "importStockRatiosDescription": "Setelah memetakan kolom spreadsheet, pastikan konversi tingkat stok dan satuan harga sebelum meninjau pratinjau impor.",
+      "importStockRatiosNote": "Jumlah stok yang diimpor akan menggunakan konversi tingkat stok yang dikonfigurasi di sini.",
+      "cancelImport": "Batalkan impor",
+      "continueToColumnMapping": "Lanjutkan ke pratinjau"
     },
     "variationImport": {
       "title": "Impor Daftar Variasi",
@@ -882,5 +887,8 @@
       "shares_size": "Ukuran sama dengan SKU yang dibeli",
       "shares_packaging": "Kemasan sama dengan SKU yang dibeli"
     }
+  },
+  "variationImport": {
+    "prepareStockLevels": "Lanjutkan ke pengaturan tingkat stok"
   }
 }

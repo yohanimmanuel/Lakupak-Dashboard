@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
-import { Upload, X, FileText, Eye, CheckCircle2, AlertTriangle, Info } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, FileText, Eye, CheckCircle2, AlertTriangle, Info } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { SupplyDetail } from '@/types/client';
 import type { StockLevel } from '@/types/product';
@@ -9,6 +9,7 @@ import { convertSupplyQuantityToPieces, getSupplyUnitOptions } from '@/lib/suppl
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 import ImportSelectionCheckbox from '@/components/clientmanagement/ImportSelectionCheckbox';
 import ClientCatalogSelect from '@/components/clientmanagement/ClientCatalogSelect';
+import ImportStartPanel, { getDuplicateImportMappingErrors } from '@/components/imports/ImportStartPanel';
 
 /** Columns the import UI can map — string fields only (not booleans / recordType). */
 type ImportableSupplyField =
@@ -106,27 +107,18 @@ function getCatalogMatch(row: Record<string, string>, mapping: Record<string, st
   const sku = normalizeKey(mapping.sku ? row[mapping.sku] : '');
   const product = normalizeKey(mapping.product ? row[mapping.product] : '');
   const variantName = normalizeKey(mapping.variantName ? row[mapping.variantName] : '');
-
   if (sku) {
     const skuMatches = catalog.filter((entry) => normalizeKey(entry.sku) === sku);
     if (skuMatches.length === 1) return skuMatches[0];
     if (skuMatches.length > 1 && variantName) {
-      const narrowed = skuMatches.filter((entry) => normalizeKey(entry.variantName) === variantName);
-      if (narrowed.length === 1) return narrowed[0];
+      const exact = skuMatches.filter((entry) => normalizeKey(entry.variantName) === variantName);
+      if (exact.length === 1) return exact[0];
     }
   }
-
-  if (product) {
-    const exact = catalog.filter((entry) => normalizeKey(entry.product) === product);
-    if (exact.length === 1 && !variantName) return exact[0];
-    const base = product.replace(/\s*\([^)]*\)\s*$/, '').trim();
-    const matches = catalog.filter((entry) =>
-      normalizeKey(entry.product).replace(/\s*\([^)]*\)\s*$/, '').trim() === base &&
-      (!variantName || normalizeKey(entry.variantName) === variantName),
-    );
-    if (matches.length === 1) return matches[0];
-  }
-  return undefined;
+  if (!product) return undefined;
+  const exactProducts = catalog.filter((entry) => normalizeKey(entry.product) === product);
+  const exact = exactProducts.filter((entry) => !variantName || normalizeKey(entry.variantName) === variantName);
+  return exact.length === 1 ? exact[0] : undefined;
 }
 
 /** True when the row names a product/SKU that is not in this supplier's catalog. */
@@ -160,7 +152,6 @@ export default function ImportSuppliesModal({
 }: ImportSuppliesModalProps) {
   const { tImport } = useClientsTranslations();
 
-  const inputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState(0); // 0: upload, 1: mapping, 2: preview
   const [rows, setRows] = useState<Record<string, string>[]>([]);
   const [error, setError] = useState('');
@@ -173,14 +164,13 @@ export default function ImportSuppliesModal({
 
   if (!open) return null;
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = (file?: File) => {
     setError('');
     setValidationErrors([]);
-    const file = e.target.files && e.target.files[0];
     if (!file) return;
     
     // File size validation (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
+    if (file.size > 10 * 1024 * 1024) {
       setError(tImport('fileTooLarge'));
       return;
     }
@@ -226,21 +216,25 @@ export default function ImportSuppliesModal({
           return;
         }
         
-        const fileHeadersRow = (json[0] as string[]).map(h => h.trim()).filter(h => h);
+        const sourceHeaders = (json[0] as string[]).map((h) => String(h ?? '').trim());
+        const fileHeadersRow = sourceHeaders.filter(Boolean);
+        if (new Set(fileHeadersRow.map((header) => header.toLocaleLowerCase())).size !== fileHeadersRow.length) { setError('The file contains duplicate column headers. Rename duplicate headers and upload again.'); return; }
         if (fileHeadersRow.length === 0) {
           setError(tImport('fileHeadersRequired'));
           return;
         }
         
-        setFileHeaders(fileHeadersRow);
-        setRows(json.slice(1).map((row: unknown[]): Record<string, string> => {
+        const dataRows = json.slice(1).map((row: unknown[]): Record<string, string> => {
           const obj: Record<string, string> = {};
-          fileHeadersRow.forEach((h, i) => {
-            obj[h] = String(row[i] ?? '');
-          });
+          sourceHeaders.forEach((h, i) => { if (h) obj[h] = String(row[i] ?? ''); });
           return obj;
-        }));
-        setMapping(getAutomap(fileHeadersRow));
+        }).filter((row) => Object.values(row).some((value) => String(value).trim()));
+        if (!dataRows.length) { setError('The file contains no data rows.'); return; }
+        const autoMapping = getAutomap(fileHeadersRow);
+        // Preserve distributor-specific headers for manual mapping before validation.
+        setFileHeaders(fileHeadersRow);
+        setRows(dataRows);
+        setMapping(autoMapping);
         setStep(1); // mapping step
       } catch {
         setError(tImport('fileProcessFailed'));
@@ -311,29 +305,43 @@ export default function ImportSuppliesModal({
   };
 
   const validateMappedData = (mappedRows: SupplyDetail[]) => {
+    if (!mappedRows.length) return [tImport('noDataToImport')];
+    if (!mapping.totalSupplied || (!mapping.sku && !mapping.product)) {
+      return ['Map Received Quantity and either SKU or Product + Variant before continuing.'];
+    }
+    const mappingErrors = getDuplicateImportMappingErrors(mapping, Object.fromEntries(supplyFields.map((field) => [field.key, field.label])));
+    if (mappingErrors.length) return mappingErrors;
     const errors: string[] = [];
-    
-    // Only validate that we have at least some data to import
-    if (mappedRows.length === 0) {
-      errors.push(tImport('noDataToImport'));
-      return errors;
-    }
-    
-    // Check if at least one field is mapped
-    const hasAnyMapping = Object.keys(mapping).some(key => mapping[key]);
-    if (!hasAnyMapping) {
-      errors.push(tImport('mapAtLeastOne'));
-      return errors;
-    }
+    rows.forEach((raw, index) => {
+      const line = index + 2;
+      const row = mappedRows[index];
+      const match = getCatalogMatch(raw, mapping, supplierCatalog);
+      if (!match) errors.push(`Row ${line}: SKU or exact Product + Variant does not match one supplier catalog item.`);
+      else {
+        if (String(row.sku || '').trim() && normalizeKey(match.sku) !== normalizeKey(row.sku)) errors.push(`Row ${line}: SKU does not belong to the selected Product + Variant.`);
+        if (String(row.product || '').trim() && normalizeKey(match.product) !== normalizeKey(row.product)) errors.push(`Row ${line}: Product name conflicts with the matched SKU.`);
+        if (String(row.variantName || '').trim() && normalizeKey(match.variantName) !== normalizeKey(row.variantName)) errors.push(`Row ${line}: Variant name conflicts with the matched SKU.`);
+      }
+      const quantity = String(row.receivedQuantity || '').trim();
+      if (!quantity || !/^\d+(?:\.\d+)?$/.test(quantity) || Number(quantity) <= 0) errors.push(`Row ${line}: Received Quantity must be a positive number.`);
+      const rawCombined = splitReceivedQuantityAndUnit(mapping.totalSupplied ? raw[mapping.totalSupplied] : '');
+      const rawUnit = mapping.receivedUnit ? String(raw[mapping.receivedUnit] || '').trim() : '';
+      if (!rawUnit && !rawCombined.unit) errors.push(`Row ${line}: Stock Type is required. Use a separate Stock Type column or a legacy value such as "80 Pieces".`);
+      const levels = getSupplyUnitOptions(match?.stockLevels);
+      if (!levels.some((level) => level.name.toLocaleLowerCase() === String(row.receivedUnit || '').trim().toLocaleLowerCase())) {
+        errors.push(`Row ${line}: Stock Type "${row.receivedUnit}" is not configured for the matched product.`);
+      }
+      if (match && !row.totalSupplied) errors.push(`Row ${line}: Quantity cannot be converted using this product's stock levels.`);
+    });
+    return errors.slice(0, 10).concat(errors.length > 10 ? [`And ${errors.length - 10} more row error(s).`] : []);
+  };
 
-    const invalidUnits = mappedRows
-      .map((row, index) => ({ row, index }))
-      .filter(({ row }) => Boolean(String(row.receivedQuantity || '').trim()) && !String(row.totalSupplied || '').trim());
-    if (invalidUnits.length > 0) {
-      errors.push(`Select a valid stock type for ${invalidUnits.length} row(s). Check that the SKU or product matches a catalog item with the selected stock level.`);
-    }
-    
-    return errors;
+  const handleContinueToPreview = () => {
+    const errors = validateMappedData(getMappedRows());
+    if (errors.length) { setValidationErrors(errors); return; }
+    setValidationErrors([]);
+    setSelectedRowIndices(new Set(rows.map((_, index) => index)));
+    setStep(2);
   };
 
   const previewRows = step === 2 ? getMappedRows() : [];
@@ -411,35 +419,43 @@ export default function ImportSuppliesModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-2xl border border-[#e6e6e6] p-4 w-full max-w-3xl relative">
+      <div className="bg-white rounded-2xl border border-[#e6e6e6] p-4 w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden relative">
         <button type="button" className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-100" onClick={handleClose}><X className="w-5 h-5 text-black" /></button>
-        <h2 className="text-xl font-bold text-black mb-4 border-b border-[#e6e6e6] pb-2 flex items-center gap-2">
+        <h2 className="shrink-0 text-xl font-bold text-black mb-4 border-b border-[#e6e6e6] pb-2 flex items-center gap-2">
           <FileText className="w-5 h-5 text-[#0a61d7]" /> {tImport('titleSupplies')}
         </h2>
+        <div className="flex-1 min-h-0 overflow-y-auto">
         {step === 0 && (
-          <div className="flex flex-col items-center justify-center gap-4 py-8">
-            <input type="file" accept=".xlsx,.xls,.csv" ref={inputRef} className="hidden" onChange={handleFile} />
-            <button 
-              type="button" 
-              className="flex flex-col items-center gap-2 px-6 py-4 rounded-lg border-2 border-dashed border-[#0a61d7] bg-[#f7faff] hover:bg-[#e6f0ff] transition disabled:opacity-50" 
-              onClick={() => inputRef.current && inputRef.current.click()}
-              disabled={isProcessing}
-            >
-              {isProcessing ? (
-                <div className="w-8 h-8 border-2 border-[#0a61d7] border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                <Upload className="w-8 h-8 text-[#0a61d7]" />
-              )}
-              <span className="text-[#0a61d7] font-semibold">
-                {isProcessing ? tImport('uploadProcessing') : tImport('upload')}
-              </span>
-              {filename && <span className="text-xs text-gray-500">{filename}</span>}
-            </button>
-            {error && <div className="flex items-center gap-2 text-red-500 text-sm"><AlertTriangle className="w-4 h-4" /> {error}</div>}
-          </div>
+          <ImportStartPanel
+            title="Supplier supply history"
+            overview="Import dated receipt rows for the selected supplier. Each row is a receipt event; quantities are converted to canonical Pieces using the matched product's configured stock levels."
+            matchingGuide="Match only to the selected supplier's catalog using one exact Lakupak SKU, or exact Product + Variant. A distributor's external item code is only an alias if it is identical to the Lakupak SKU; if it differs, replace it with the correct Lakupak SKU or use the exact Product + Variant. Ambiguous and unmatched rows are rejected before preview."
+            instructions={[
+              'Use one row per received product variant and delivery date.',
+              'Match using an exact SKU, or exact Product + Variant. Do not use combined or approximate product names.',
+              'Received Quantity must be numeric. Stock Type must exactly match a stock level configured for that product.',
+              'Use the selected supplier’s own catalog items only. Rows that do not match are rejected before preview.',
+            ]}
+            columns={[
+              { name: 'Product', description: 'Exact catalog product name; required when SKU is blank.' },
+              { name: 'SKU', description: 'Exact SKU of the product variant (or use exact Product + Variant below). Preferred match key.' },
+              { name: 'Variant', description: 'Exact variant name when SKU is not provided.' },
+              { name: 'Received Quantity', required: true, description: 'Numeric received amount in the selected Stock Type.' },
+              { name: 'Stock Type', required: true, description: 'Exact stock-level name configured for the product.' },
+              { name: 'Purchase Value', description: 'Total purchase value for this receipt.' },
+              { name: 'Last Supplied Date', description: 'Receipt date in YYYY-MM-DD format.' },
+            ]}
+            templateName="Lakupak_Supplier_Records_Template.xlsx"
+            onFileSelectedAction={handleFile}
+            error={error}
+            filename={filename}
+            processing={isProcessing}
+          />
         )}
         {step === 1 && (
-          <div className="flex flex-col gap-1 max-h-[550px] overflow-y-auto">
+          <div className="flex flex-col gap-1">
+            {error ? <div className="mb-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700" role="alert">{error}</div> : null}
+            {validationErrors.length > 0 ? <div className="mb-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700" role="alert">{validationErrors.map((item, index) => <p key={index}>{item}</p>)}</div> : null}
             <div className="mb-2 font-semibold text-black">{tImport('mapColumnsOptional')}</div>
             
             {/* Info Message */}
@@ -480,9 +496,9 @@ export default function ImportSuppliesModal({
                 </tbody>
               </table>
             </div>
-            <div className="flex justify-end gap-2 mt-2 text-sm border-t border-gray-200 pt-4">
+            <div className="sticky bottom-0 z-20 flex justify-end gap-2 mt-2 bg-white text-sm border-t border-gray-200 pt-4">
               <button type="button" className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" onClick={() => { setStep(0); setRows([]); setFilename(''); setFileHeaders([]); setMapping({}); setValidationErrors([]); setSelectedRowIndices(new Set()); }}>{tImport('back')}</button>
-              <button type="button" className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center gap-2" onClick={() => { setSelectedRowIndices(new Set(rows.map((_, i) => i))); setStep(2); }} disabled={Object.keys(mapping).filter(k => mapping[k]).length === 0}>{tImport('preview')}</button>
+              <button type="button" className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center gap-2" onClick={handleContinueToPreview} disabled={Object.keys(mapping).filter(k => mapping[k]).length === 0}>{tImport('preview')}</button>
             </div>
           </div>
         )}
@@ -615,7 +631,7 @@ export default function ImportSuppliesModal({
                 <AlertTriangle className="w-4 h-4" /> {error}
               </div>
             ) : null}
-            <div className="flex justify-end gap-2 mt-4 text-sm border-t border-gray-200 pt-4">
+            <div className="sticky bottom-0 z-20 flex justify-end gap-2 mt-4 bg-white text-sm border-t border-gray-200 pt-4">
               <button type="button" className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" onClick={() => { setStep(1); setValidationErrors([]); setSelectedRowIndices(new Set()); setError(''); }}>{tImport('back')}</button>
               <button
                 type="button"
@@ -628,6 +644,7 @@ export default function ImportSuppliesModal({
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

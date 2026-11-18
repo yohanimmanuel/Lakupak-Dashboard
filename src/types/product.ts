@@ -161,7 +161,7 @@ export interface ProductTableRow {
 
 export interface ProductImportRow {
   'Product ID': string;
-  /** Legacy import column; mapped to the imported product's Default VariantOption SKU. */
+  /** Internal compatibility field; not exposed in the product-level import template. */
   'SKU': string;
   'Product Name': string;
   'Description': string;

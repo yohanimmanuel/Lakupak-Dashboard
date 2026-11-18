@@ -20,6 +20,58 @@ const statusTabs = [
   { label: "Blocked" },
 ];
 
+const PREFERRED_DELIVERY_DAYS = [
+  'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
+] as const;
+
+type PreferredDeliveryDay = typeof PREFERRED_DELIVERY_DAYS[number];
+
+const PREFERRED_DELIVERY_DAY_ALIASES: Record<string, PreferredDeliveryDay> = {
+  mon: 'Monday', monday: 'Monday', mons: 'Monday', mondays: 'Monday',
+  tue: 'Tuesday', tues: 'Tuesday', tuesday: 'Tuesday', tuesdays: 'Tuesday',
+  wed: 'Wednesday', weds: 'Wednesday', wednesday: 'Wednesday', wednesdays: 'Wednesday',
+  thu: 'Thursday', thur: 'Thursday', thurs: 'Thursday', thursday: 'Thursday', thursdays: 'Thursday',
+  fri: 'Friday', friday: 'Friday', fridays: 'Friday',
+  sat: 'Saturday', saturday: 'Saturday', saturdays: 'Saturday',
+  sun: 'Sunday', sunday: 'Sunday', sundays: 'Sunday',
+};
+
+function normalizePreferredDeliveryDays(value: unknown): string {
+  let raw = value;
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    const record = raw as Record<string, unknown>;
+    raw = record.preferredDays ?? record.preferredDeliveryDays ?? record.days ?? '';
+  } else if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (trimmed.startsWith('{')) {
+      try {
+        const parsed: unknown = JSON.parse(trimmed);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          const record = parsed as Record<string, unknown>;
+          raw = record.preferredDays ?? record.preferredDeliveryDays ?? record.days ?? raw;
+        }
+      } catch {
+        // Treat non-JSON text as the user's weekday list.
+      }
+    }
+  }
+  const tokens = Array.isArray(raw)
+    ? raw.map((item) => String(item))
+    : String(raw ?? '').split(/[,;|/]+/);
+  const selected = new Set<PreferredDeliveryDay>();
+  for (const token of tokens) {
+    const key = token.trim().toLowerCase().replace(/[^a-z]/g, '');
+    const day = PREFERRED_DELIVERY_DAY_ALIASES[key];
+    if (day) selected.add(day);
+  }
+  return PREFERRED_DELIVERY_DAYS.filter((day) => selected.has(day)).join(', ');
+}
+
+const BUYER_MASTER_HEADERS = [
+  'ID', 'Store Name', 'Owner', 'Phone', 'Email', 'Address', 'Business Type', 'Status',
+  'Created At', 'Preferred Delivery Days', 'Last Shipment', 'Shipment Success', 'Notes',
+];
+
 /** Table-only urgency fields — detail/edit pages keep the fuller progress bar. */
 function buyerHasIncompleteTableData(buyer: Buyer): boolean {
   return (
@@ -430,23 +482,33 @@ export default function BuyerTable({
   }, []);
 
   const handleExportXLSX = useCallback(() => {
-    const headers = ['ID', 'Name', 'Address', 'Business Type', 'Total Orders', 'Total Spend', 'Outstanding', 'Last Visit', 'Status'];
-    const rows = filteredBuyers.map((b: BuyerTableRow) => [
-      b.buyerId,
-      b.name,
-      b.address,
-      b.businessType,
-      b.totalOrders,
-      b.totalSpend,
-      b.outstanding,
-      b.lastVisit || '',
-      b.status
-    ]);
+    const headers = BUYER_MASTER_HEADERS;
+    const rows = filteredBuyers.map((b: BuyerTableRow) => {
+      const source = buyers.find((item) => item.buyerId === b.buyerId) as (Buyer & {
+        preferredDays?: string; logistics?: string; lastShipment?: string; shipmentSuccess?: string; lastVisit?: string;
+      }) | undefined;
+      const preferredDays = normalizePreferredDeliveryDays(source?.preferredDays || source?.logistics || '');
+      return [
+        b.buyerId,
+        b.storeName || b.name,
+        b.owner || source?.owner || '',
+        b.phone || source?.phone || '',
+        b.email || source?.email || '',
+        b.address,
+        b.businessType,
+        b.status,
+        b.createdAt || '',
+        preferredDays,
+        source?.lastShipment || source?.lastVisit || '',
+        source?.shipmentSuccess || '',
+        source?.notes || '',
+      ];
+    });
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Buyers');
     if (onExportXLSX) onExportXLSX(wb, 'buyers.xlsx');
-  }, [filteredBuyers, onExportXLSX]);
+  }, [filteredBuyers, buyers, onExportXLSX]);
 
   // Enhanced search handling
   const handleSearchChange = useCallback((value: string) => {

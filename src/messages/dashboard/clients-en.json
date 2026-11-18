@@ -544,7 +544,18 @@
       "saveFailed": "Failed to save supplier",
       "selectVariant": "Select variant",
       "searchVariant": "Search variant…",
-      "bulkUnupdateStock": "Unupdate Stock"
+      "bulkUnupdateStock": "Unupdate Stock",
+      "selectPreferredDays": "Select days",
+      "createdAtHint": "Automatically set to current date",
+      "days": {
+        "Monday": "Monday",
+        "Tuesday": "Tuesday",
+        "Wednesday": "Wednesday",
+        "Thursday": "Thursday",
+        "Friday": "Friday",
+        "Saturday": "Saturday",
+        "Sunday": "Sunday"
+      }
     }
   },
   "import": {

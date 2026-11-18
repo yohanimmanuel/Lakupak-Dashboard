@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useMemo, useRef, useState } from 'react';
-import { Upload, X, FileText, Eye, CheckCircle2, AlertTriangle, Loader2, Plus, Trash2 } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { X, FileText, Eye, CheckCircle2, AlertTriangle, Loader2, Plus, Trash2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useProductsTranslations } from '@/hooks/useProductsTranslations';
+import ImportStartPanel, { getDuplicateImportMappingErrors } from '@/components/imports/ImportStartPanel';
 
 export type VariationImportVariantColumn = {
   id: string;
@@ -222,7 +223,6 @@ export default function VariationListImport({
   const t = (key: string, values?: Record<string, string | number>) =>
     tCatalog(`variationImport.${key}` as Parameters<typeof tCatalog>[0], values as never);
 
-  const inputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState(0);
   const [rows, setRows] = useState<Record<string, string>[]>([]);
   const [error, setError] = useState('');
@@ -304,11 +304,6 @@ export default function VariationListImport({
     setSelectedRowIndices(new Set());
   };
 
-  const openPreviewStep = () => {
-    setError('');
-    setSelectedRowIndices(new Set(rows.map((_, index) => index)));
-    setStep(2);
-  };
 
   const toggleRowSelection = (index: number) => {
     setSelectedRowIndices((prev) => {
@@ -360,12 +355,13 @@ export default function VariationListImport({
     });
   };
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = (file?: File) => {
     setError('');
-    const file = e.target.files?.[0];
     if (!file) return;
-    setFilename(file.name);
     const ext = file.name.split('.').pop()?.toLowerCase();
+    if (!['xlsx', 'xls', 'csv'].includes(ext || '')) { setError('Choose an Excel (.xlsx, .xls) or CSV file.'); return; }
+    if (file.size > 10 * 1024 * 1024) { setError('File is larger than 10 MB.'); return; }
+    setFilename(file.name);
     const reader = new FileReader();
     reader.onload = (evt: ProgressEvent<FileReader>) => {
       if (!evt.target?.result) {
@@ -386,6 +382,7 @@ export default function VariationListImport({
           return;
         }
         const fileHeadersRow = json[0].map((h) => String(h ?? '').trim());
+        if (new Set(fileHeadersRow.filter(Boolean).map((header) => header.toLocaleLowerCase())).size !== fileHeadersRow.filter(Boolean).length) { setError('The file contains duplicate column headers. Rename duplicate headers and upload again.'); return; }
         const dataRows = json
           .slice(1)
           .map((row: string[]) => {
@@ -413,6 +410,8 @@ export default function VariationListImport({
           (index) => t('varLevelLabel', { index }),
         );
 
+        // Keep custom headers available for manual mapping; required variant/SKU
+        // mappings are validated before the preview step.
         setExtraVariantColumns(extras);
         setMapping(initialMapping);
 
@@ -421,6 +420,7 @@ export default function VariationListImport({
         setError(t('fileReadError'));
       }
     };
+    reader.onerror = () => setError('The file could not be read.');
     if (ext === 'csv') reader.readAsText(file);
     else reader.readAsArrayBuffer(file);
   };
@@ -471,6 +471,37 @@ export default function VariationListImport({
 
   const mappedRows = getMappedRows();
   const selectedMappedRows = mappedRows.filter((_, index) => selectedRowIndices.has(index));
+
+  const openPreviewStep = () => {
+    const errors: string[] = getDuplicateImportMappingErrors(
+      mapping,
+      Object.fromEntries(variantImportFields.map((field) => [field.mappingKey, getFieldLabel(field)])),
+    );
+    if (!mapping.sku) errors.push('Map the SKU column before preview.');
+    for (const column of baseVariantColumns) {
+      if (!mapping[column.id]) errors.push(`Map the ${column.label} column before preview.`);
+    }
+    const combinationRows = new Map<string, number>();
+    rows.forEach((raw, index) => {
+      const line = index + 2;
+      const mapped = mappedRows[index];
+      if (!String(mapped.sku || '').trim()) errors.push(`Row ${line}: SKU is required.`);
+      if (mapped.variantValuesByPosition.some((value) => !String(value || '').trim())) errors.push(`Row ${line}: every variant value is required.`);
+      const combinationKey = mapped.variantValuesByPosition.map((value) => String(value || '').trim().toLocaleLowerCase()).join('|');
+      if (combinationKey && mapped.variantValuesByPosition.every((value) => String(value || '').trim())) {
+        const previousLine = combinationRows.get(combinationKey);
+        if (previousLine) errors.push(`Row ${line}: this variant combination duplicates row ${previousLine}. Keep one row per combination.`);
+        else combinationRows.set(combinationKey, line);
+      }
+      for (const [label, value] of [['Selling Price', mapped.sellingPrice], ['Purchase Price', mapped.purchasePrice], ['MOQ', mapped.moq], ['Stock Quantity', mapped.stockQuantity], ['Low Stock Threshold', mapped.lowStockThreshold]] as const) {
+        if (String(value || '').trim() && !/^\d+(?:[.,]\d+)?$/.test(String(value).trim())) errors.push(`Row ${line}: ${label} must be numeric.`);
+      }
+    });
+    if (errors.length) { setError(errors.slice(0, 10).join(' ')); return; }
+    setError('');
+    setSelectedRowIndices(new Set(rows.map((_, index) => index)));
+    setStep(2);
+  };
   const allRowsSelected = rows.length > 0 && selectedRowIndices.size === rows.length;
   const someRowsSelected = selectedRowIndices.size > 0 && !allRowsSelected;
 
@@ -538,32 +569,39 @@ export default function VariationListImport({
           </h2>
         </div>
 
-        <div className="flex flex-1 min-h-0 flex-col px-4 py-4">
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden px-4 py-4">
         {step === 0 && (
-          <div className="flex flex-col gap-4">
-            {notice}
-            <div className="flex flex-col items-center justify-center gap-4 py-4">
-              <input type="file" accept=".xlsx,.xls,.csv" ref={inputRef} className="hidden" onChange={handleFile} />
-              <button
-                type="button"
-                className="flex flex-col items-center gap-2 px-6 py-4 rounded-lg border-2 border-dashed border-[#0a61d7] bg-[#f7faff] hover:bg-[#e6f0ff] transition"
-                onClick={() => inputRef.current?.click()}
-              >
-                <Upload className="w-8 h-8 text-[#0a61d7]" />
-                <span className="text-[#0a61d7] font-semibold">{t('upload')}</span>
-                {filename && <span className="text-xs text-gray-500">{filename}</span>}
-              </button>
-              {error && (
-                <div className="flex items-center gap-2 text-red-500 text-sm">
-                  <AlertTriangle className="w-4 h-4" /> {error}
-                </div>
-              )}
-            </div>
+          <div className="flex-1 min-h-0 overflow-y-auto">
+          <ImportStartPanel
+            title="Product variant and stock import"
+            overview="Import the variant combinations and SKU-level data for the product currently open in Product Catalog. Each row represents one combination of the configured variant types."
+            matchingGuide="Rows belong to the product currently open. The exact combination of values in the configured variant columns identifies each variant row; SKU is assigned to that combination. Use the same spelling for configured option values. This flow does not fuzzy-match old SKU aliases or create additional product records."
+            instructions={[
+              'Use one row per variant combination. Do not group multiple SKUs in one row.',
+              'Include one column for every configured variant type (for example Size, Flavor, Pack) and an exact SKU for each row.',
+              'Selling Price, Purchase Price, MOQ, Stock Quantity and Low Stock Threshold must be numeric when supplied.',
+              'Use the existing configured variant labels. New or unmatched combinations are not silently guessed; review the mapping and preview before applying.',
+            ]}
+            columns={[
+              ...variantColumns.map((column) => ({ name: column.label, required: true, description: `Value for the product variant type ${column.label}.` })),
+              { name: 'SKU', required: true, description: 'Unique SKU for this variant combination.' },
+              { name: 'Selling Price', description: 'Selling price in the configured price unit.' },
+              { name: 'Purchase Price', description: 'Purchase price in the configured price unit.' },
+              { name: 'MOQ', description: 'Minimum order quantity.' },
+              { name: 'Stock Quantity', description: 'Current stock quantity in Pieces.' },
+              { name: 'Low Stock Threshold', description: 'Low-stock alert threshold in Pieces.' },
+              { name: 'Status', description: 'Optional stock status label.' },
+            ]}
+            templateName="Lakupak_Product_Variants_Template.xlsx"
+            onFileSelectedAction={handleFile}
+            error={error}
+            filename={filename}
+          />
           </div>
         )}
-
         {step === 1 && (
           <div className="flex flex-1 min-h-0 flex-col gap-3">
+            {error ? <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700" role="alert">{error}</div> : null}
             {notice}
             <div className="font-semibold text-black">{t('mapColumnsOptional')}</div>
             <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -664,7 +702,7 @@ export default function VariationListImport({
                 </tbody>
               </table>
             </div>
-            <div className="flex-shrink-0 flex justify-end gap-2 pt-3 text-sm border-t border-[#e6e6e6]">
+            <div className="flex-shrink-0 sticky bottom-0 z-20 flex justify-end gap-2 pt-3 pb-1 bg-white text-sm border-t border-[#e6e6e6]">
               <button
                 type="button"
                 className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200"
@@ -773,7 +811,7 @@ export default function VariationListImport({
                 <AlertTriangle className="w-4 h-4" /> {error}
               </div>
             )}
-            <div className="flex-shrink-0 flex justify-end gap-2 pt-3 text-sm border-t border-[#e6e6e6]">
+            <div className="flex-shrink-0 sticky bottom-0 z-20 flex justify-end gap-2 pt-3 pb-1 bg-white text-sm border-t border-[#e6e6e6]">
               <button
                 type="button"
                 className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200"

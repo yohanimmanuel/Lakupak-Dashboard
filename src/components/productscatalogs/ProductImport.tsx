@@ -1,9 +1,10 @@
 'use client';
-import React, { useRef, useState } from 'react';
-import { Upload, X, FileText, Eye, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, FileText, Eye, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ProductImportRow, ProductImportResult } from '@/types/product';
 import { useProductsTranslations } from '@/hooks/useProductsTranslations';
+import ImportStartPanel, { getDuplicateImportMappingErrors } from '@/components/imports/ImportStartPanel';
 
 type ProductImportProps = {
   open: boolean;
@@ -12,36 +13,21 @@ type ProductImportProps = {
 };
 
 const productFields = [
-  { key: 'Product ID', slug: 'productId' },
-  { key: 'SKU', slug: 'sku' },
   { key: 'Product Name', slug: 'productName' },
   { key: 'Description', slug: 'description' },
   { key: 'Product Type', slug: 'productType' },
   { key: 'Brand', slug: 'brand' },
   { key: 'Supplier', slug: 'supplier' },
-  { key: 'Purchase Price', slug: 'purchasePrice' },
-  { key: 'Selling Price', slug: 'sellingPrice' },
-  { key: 'Stock Quantity', slug: 'stockQuantity' },
-  { key: 'Low Stock Threshold', slug: 'lowStockThreshold' },
-  { key: 'MOQ', slug: 'moq' },
   { key: 'Catalog Name', slug: 'catalogName' },
 ];
 
 const productSynonyms: { [key: string]: string[] } = {
-  'Product ID': ['id', 'product id', 'kode', 'kode produk', 'product code'],
-  'SKU': ['sku', 'stock keeping unit', 'kode barang'],
   'Product Name': ['name', 'product name', 'nama produk', 'nama barang', 'title'],
   'Description': ['description', 'desc', 'deskripsi', 'detail', 'product description'],
   'Product Type': ['category', 'kategori', 'jenis', 'type', 'product type'],
   'Brand': ['brand', 'merek', 'brand name'],
   'Supplier': ['supplier', 'vendor', 'pemasok', 'supplier name'],
-  'Purchase Price': ['purchase price', 'buy price', 'cost', 'harga beli', 'harga modal'],
-  'Selling Price': ['selling price', 'sell price', 'price', 'harga jual', 'harga'],
-  'Stock Quantity': ['stock quantity', 'stock', 'qty', 'quantity', 'jumlah stok', 'stok'],
-  'Low Stock Threshold': ['low stock threshold', 'threshold', 'ambang bawah', 'low threshold'],
-  'MOQ': ['moq', 'minimum order', 'minimum order quantity', 'pesanan minimum'],
-  'Product Category': ['catalog type', 'catalog', 'type', 'jenis katalog', 'category', 'product category', 'sales channel'],
-  'Catalog Name': ['catalog name', 'catalog', 'nama katalog'],
+  'Catalog Name': ['catalog name', 'nama katalog'],
 };
 
 function generateProductId() {
@@ -54,7 +40,6 @@ function isNonEmptyRow(row: Record<string, string>) {
 
 export default function ProductImport({ open, onCloseAction, onImportAction }: ProductImportProps) {
   const { tImport } = useProductsTranslations();
-  const inputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<number>(0);
   const [rows, setRows] = useState<Record<string, string>[]>([]);
   const [error, setError] = useState<string>('');
@@ -85,14 +70,16 @@ export default function ProductImport({ open, onCloseAction, onImportAction }: P
     setImporting(false);
   };
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = (file?: File) => {
     setError('');
-    const file = e.target.files && e.target.files[0];
     if (!file) return;
-    setFilename(file.name);
     const ext = file.name.split('.').pop()?.toLowerCase();
+    if (!['xlsx', 'xls', 'csv'].includes(ext || '')) { setError('Choose an Excel (.xlsx, .xls) or CSV file.'); return; }
+    if (file.size > 10 * 1024 * 1024) { setError('File is larger than 10 MB.'); return; }
+    setFilename(file.name);
     const reader = new FileReader();
     reader.onload = (evt: ProgressEvent<FileReader>) => {
+      try {
       if (!evt.target || !evt.target.result) {
         setError(tImport('fileReadError'));
         return;
@@ -112,6 +99,7 @@ export default function ProductImport({ open, onCloseAction, onImportAction }: P
         return;
       }
       const fileHeadersRow = json[0].map((h) => String(h ?? '').trim());
+      if (new Set(fileHeadersRow.filter(Boolean).map((header) => header.toLocaleLowerCase())).size !== fileHeadersRow.filter(Boolean).length) { setError('The file contains duplicate column headers. Rename duplicate headers and upload again.'); return; }
       const dataRows = json
         .slice(1)
         .map((row: string[]) => {
@@ -128,11 +116,15 @@ export default function ProductImport({ open, onCloseAction, onImportAction }: P
         return;
       }
 
+      const autoMapping = getAutomap(fileHeadersRow);
+      // Keep all source headers so custom distributor column names can be mapped manually.
       setFileHeaders(fileHeadersRow);
       setRows(dataRows);
-      setMapping(getAutomap(fileHeadersRow));
+      setMapping(autoMapping);
       setStep(1);
+      } catch { setError('The file could not be read. Check that it is a valid Excel or CSV file.'); }
     };
+    reader.onerror = () => setError('The file could not be read.');
     if (ext === 'csv') {
       reader.readAsText(file);
     } else {
@@ -150,22 +142,40 @@ export default function ProductImport({ open, onCloseAction, onImportAction }: P
 
       mapped['Product ID'] = generateProductId();
       mapped['Status'] = 'Draft';
-
-      if (!mapped['Product Category']) {
-        mapped['Product Category'] = '';
-      }
-      if (!mapped['Stock Quantity']) {
-        mapped['Stock Quantity'] = '0';
-      }
-      if (!mapped['Low Stock Threshold']) {
-        mapped['Low Stock Threshold'] = '30';
-      }
-      if (!mapped['MOQ']) {
-        mapped['MOQ'] = '';
-      }
+      mapped['Product Category'] = '';
+      mapped['SKU'] = '';
+      mapped['Purchase Price'] = '';
+      mapped['Selling Price'] = '';
+      mapped['Stock Quantity'] = '0';
+      mapped['Low Stock Threshold'] = '0';
+      mapped['MOQ'] = '';
+      mapped['Stock Status'] = 'Out of Stock';
 
       return mapped as ProductImportRow;
     });
+  };
+
+  const validateRows = () => {
+    const required = ['Product Name', 'Description', 'Product Type', 'Brand', 'Supplier'];
+    const mappingErrors = getDuplicateImportMappingErrors(mapping, Object.fromEntries(productFields.map((field) => [field.key, field.slug])));
+    if (mappingErrors.length) return mappingErrors;
+    const errors: string[] = [];
+    const missingMappings = required.filter((field) => !mapping[field]);
+    if (missingMappings.length) return [`Map all required columns: ${missingMappings.join(', ')}.`];
+    rows.forEach((row, index) => {
+      const line = index + 2;
+      required.forEach((field) => {
+        if (!String(row[mapping[field]] || '').trim()) errors.push(`Row ${line}: ${field} is required.`);
+      });
+    });
+    return errors.slice(0, 10).concat(errors.length > 10 ? [`And ${errors.length - 10} more row error(s).`] : []);
+  };
+
+  const handleContinueToPreview = () => {
+    const errors = validateRows();
+    if (errors.length) { setError(errors.join(' ')); return; }
+    setError('');
+    setStep(2);
   };
 
   const handleImport = async () => {
@@ -198,7 +208,7 @@ export default function ProductImport({ open, onCloseAction, onImportAction }: P
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-2xl border border-[#e6e6e6] p-4 w-full max-w-5xl relative max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl border border-[#e6e6e6] p-4 w-full max-w-5xl relative max-h-[90vh] flex flex-col overflow-hidden">
         <button
           className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-100"
           onClick={() => {
@@ -211,35 +221,39 @@ export default function ProductImport({ open, onCloseAction, onImportAction }: P
         >
           <X className="w-5 h-5 text-black" />
         </button>
-        <h2 className="text-xl font-bold text-black mb-4 border-b border-gray-200 pb-2 flex items-center gap-2">
+        <h2 className="shrink-0 text-xl font-bold text-black mb-4 border-b border-gray-200 pb-2 flex items-center gap-2">
           <FileText className="w-5 h-5 text-[#0a61d7]" /> {tImport('title')}
         </h2>
+        <div className="flex-1 min-h-0 overflow-y-auto">
 
         {step === 0 && (
-          <div className="flex flex-col gap-4 py-4">
-            {draftNotice}
-            <div className="flex flex-col items-center justify-center gap-4">
-              <input type="file" accept=".xlsx,.xls,.csv" ref={inputRef} className="hidden" onChange={handleFile} />
-              <button
-                type="button"
-                className="flex flex-col items-center gap-2 px-6 py-4 rounded-lg border-2 border-dashed border-[#0a61d7] bg-[#f7faff] hover:bg-[#e6f0ff] transition"
-                onClick={() => inputRef.current && inputRef.current.click()}
-              >
-                <Upload className="w-8 h-8 text-[#0a61d7]" />
-                <span className="text-[#0a61d7] font-semibold">{tImport('upload')}</span>
-                {filename && <span className="text-xs text-gray-500">{filename}</span>}
-              </button>
-              {error && (
-                <div className="flex items-center gap-2 text-red-500 text-sm">
-                  <AlertTriangle className="w-4 h-4" /> {error}
-                </div>
-              )}
-            </div>
-          </div>
+          <ImportStartPanel
+            title="Product master import"
+            overview="Create draft product records using product-level information only. Variant SKUs, prices, stock quantities and package settings are managed separately in the Product Catalog's Variant List."
+            matchingGuide="This import creates new product records and does not match or update existing products. Product IDs are generated by Lakupak. Variant SKU, selling price, purchase price, MOQ and stock are not part of this product-level template; add them later through the Product Variant import."
+            instructions={[
+              'Use one row per product. Do not add separate rows for product variants in this file.',
+              'Product Name, Description, Product Type, Brand and Supplier are required.',
+              'Keep product-level information in this file. Do not include variant SKUs, prices, stock quantities or MOQ.',
+              'Imported products are created as Draft. Add images, stock levels and variant details in the catalog afterward.',
+            ]}
+            columns={[
+              { name: 'Product Name', required: true, description: 'Product display name.' },
+              { name: 'Description', required: true, description: 'Product description.' },
+              { name: 'Product Type', required: true, description: 'Product category/type.' },
+              { name: 'Brand', required: true, description: 'Brand or manufacturer name.' },
+              { name: 'Supplier', required: true, description: 'Supplier name associated with the product.' },
+              { name: 'Catalog Name', description: 'Optional catalog grouping name.' },
+            ]}
+            templateName="Lakupak_Product_Template.xlsx"
+            onFileSelectedAction={handleFile}
+            error={error}
+            filename={filename}
+          />
         )}
-
         {step === 1 && (
-          <div className="flex flex-col gap-1 max-h-[550px] overflow-y-auto">
+          <div className="flex flex-col gap-1">
+            {error ? <div className="mb-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700" role="alert">{error}</div> : null}
             {draftNotice}
             <div className="mb-2 font-semibold text-black">{tImport('mapColumnsOptional')}</div>
             <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -278,7 +292,7 @@ export default function ProductImport({ open, onCloseAction, onImportAction }: P
                 </tbody>
               </table>
             </div>
-            <div className="flex justify-end gap-2 mt-2 text-sm border-t border-[#e6e6e6] pt-4">
+            <div className="sticky bottom-0 z-20 flex justify-end gap-2 mt-2 bg-white text-sm border-t border-[#e6e6e6] pt-4">
               <button
                 type="button"
                 className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200"
@@ -295,7 +309,7 @@ export default function ProductImport({ open, onCloseAction, onImportAction }: P
               <button
                 type="button"
                 className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center gap-2"
-                onClick={() => setStep(2)}
+                onClick={handleContinueToPreview}
                 disabled={Object.keys(mapping).filter((k) => mapping[k]).length === 0}
               >
                 {tImport('preview')}
@@ -339,7 +353,7 @@ export default function ProductImport({ open, onCloseAction, onImportAction }: P
                 <AlertTriangle className="w-4 h-4" /> {error}
               </div>
             )}
-            <div className="flex justify-end gap-2 mt-4 text-sm border-t border-[#e6e6e6] pt-4">
+            <div className="sticky bottom-0 z-20 flex justify-end gap-2 mt-4 bg-white text-sm border-t border-[#e6e6e6] pt-4">
               <button
                 type="button"
                 className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200"
@@ -367,6 +381,7 @@ export default function ProductImport({ open, onCloseAction, onImportAction }: P
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

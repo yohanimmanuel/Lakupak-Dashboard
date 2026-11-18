@@ -12,6 +12,58 @@ import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
 
+const PREFERRED_DELIVERY_DAYS = [
+  'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
+] as const;
+
+type PreferredDeliveryDay = typeof PREFERRED_DELIVERY_DAYS[number];
+
+const PREFERRED_DELIVERY_DAY_ALIASES: Record<string, PreferredDeliveryDay> = {
+  mon: 'Monday', monday: 'Monday', mons: 'Monday', mondays: 'Monday',
+  tue: 'Tuesday', tues: 'Tuesday', tuesday: 'Tuesday', tuesdays: 'Tuesday',
+  wed: 'Wednesday', weds: 'Wednesday', wednesday: 'Wednesday', wednesdays: 'Wednesday',
+  thu: 'Thursday', thur: 'Thursday', thurs: 'Thursday', thursday: 'Thursday', thursdays: 'Thursday',
+  fri: 'Friday', friday: 'Friday', fridays: 'Friday',
+  sat: 'Saturday', saturday: 'Saturday', saturdays: 'Saturday',
+  sun: 'Sunday', sunday: 'Sunday', sundays: 'Sunday',
+};
+
+function normalizePreferredDeliveryDays(value: unknown): string {
+  let raw = value;
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    const record = raw as Record<string, unknown>;
+    raw = record.preferredDays ?? record.preferredDeliveryDays ?? record.days ?? '';
+  } else if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (trimmed.startsWith('{')) {
+      try {
+        const parsed: unknown = JSON.parse(trimmed);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          const record = parsed as Record<string, unknown>;
+          raw = record.preferredDays ?? record.preferredDeliveryDays ?? record.days ?? raw;
+        }
+      } catch {
+        // Treat non-JSON text as the user's weekday list.
+      }
+    }
+  }
+  const tokens = Array.isArray(raw)
+    ? raw.map((item) => String(item))
+    : String(raw ?? '').split(/[,;|/]+/);
+  const selected = new Set<PreferredDeliveryDay>();
+  for (const token of tokens) {
+    const key = token.trim().toLowerCase().replace(/[^a-z]/g, '');
+    const day = PREFERRED_DELIVERY_DAY_ALIASES[key];
+    if (day) selected.add(day);
+  }
+  return PREFERRED_DELIVERY_DAYS.filter((day) => selected.has(day)).join(', ');
+}
+
+const SUPPLIER_MASTER_HEADERS = [
+  'ID', 'Supplier Name', 'Contact', 'Phone', 'Email', 'Business Type', 'Address', 'Status',
+  'Created At', 'Preferred Delivery Days', 'Last Supplied Date', 'Delivery Success', 'Notes',
+];
+
 // Use suppliers prop or state, not suppliersMock
 // Add explicit types for all map/filter parameters
 
@@ -352,18 +404,28 @@ export default function SupplierTable({ suppliers = [], setSuppliers, onSelectSu
   }, [showStatusDropdown]);
 
   const handleExportXLSX = () => {
-    const headers = ['ID', 'Name', 'Contact Person', 'Business Type', 'Location', 'Total Supplies (Pieces)', 'Total Purchases', 'Created At', 'Status'];
-    const rows = filteredSuppliers.map((s: SupplierTableRow) => [
-      s.supplierId,
-      s.name,
-      s.contact,
-      s.businessType,
-      s.address,
-      `${Number(s.totalSupplies || 0).toLocaleString('en-US')} Pieces`,
-      s.totalPurchases,
-      s.createdAt,
-      s.status
-    ]);
+    const headers = SUPPLIER_MASTER_HEADERS;
+    const rows = filteredSuppliers.map((s: SupplierTableRow) => {
+      const source = suppliers.find((item) => item.supplierId === s.supplierId) as (Supplier & {
+        preferredDeliveryDays?: string; preferredDays?: string; logistics?: string; lastSuppliedDate?: string; deliverySuccess?: string;
+      }) | undefined;
+      const preferredDays = normalizePreferredDeliveryDays(source?.preferredDeliveryDays || source?.preferredDays || source?.logistics || '');
+      return [
+        s.supplierId,
+        s.name,
+        s.contact || source?.contact || '',
+        s.phone || source?.phone || '',
+        s.email || source?.email || '',
+        s.businessType,
+        s.address,
+        s.status,
+        s.createdAt || '',
+        preferredDays,
+        source?.lastSuppliedDate || '',
+        source?.deliverySuccess || (source?.onTimeDeliveryRate != null ? String(source.onTimeDeliveryRate) : ''),
+        source?.notes || '',
+      ];
+    });
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Suppliers');
