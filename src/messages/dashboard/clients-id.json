@@ -444,7 +444,6 @@
       "receivedCol": "Diterima",
       "purchaseValueCol": "Nilai Pembelian",
       "lastSuppliedDateCol": "Tanggal Pasokan Terakhir",
-      "lastSuppliedDateCol": "Tanggal Pasokan Terakhir",
       "analytics": "Analitik",
       "monthlyPurchaseAnalytics": "Analitik Pembelian Bulanan",
       "totalMonthlyPurchaseValue": "Nilai Pembelian Bulanan Total:",
@@ -552,7 +551,9 @@
       "saveSuccessTitle": "Perubahan Berhasil Disimpan!",
       "saveSuccessEdit": "Pemasok berhasil diperbarui.",
       "saveSuccessCreate": "Pemasok berhasil dibuat.",
-      "saveFailed": "Gagal menyimpan pemasok"
+      "saveFailed": "Gagal menyimpan pemasok",
+      "selectVariant": "Pilih varian",
+      "searchVariant": "Cari varian…"
     }
   },
   "import": {
@@ -632,18 +633,23 @@
       "supplies": "Pasokan (Opsional)"
     },
     "orderFields": {
-      "product": "Nama Produk",
-      "totalOrders": "Total Pesanan (Kotak)",
+      "product": "Produk",
+      "sku": "SKU",
+      "variantName": "Varian",
+      "totalOrders": "Total Pesanan",
+      "pricePerPackage": "Harga / Kemasan",
       "totalSpend": "Total Belanja",
-      "lastOrderDate": "Tanggal Pesanan Terakhir",
-      "outstanding": "Tunggakan"
+      "outstanding": "Total Tunggakan",
+      "lastOrderDate": "Tanggal Pesanan Terakhir"
     },
     "supplyFields": {
-      "sku": "Nomor SKU (Opsional)",
-      "product": "Nama Produk (Opsional)",
-      "totalSupplied": "Total Pasokan (Opsional)",
-      "totalValue": "Nilai Total (Opsional)",
-      "lastSuppliedDate": "Pengiriman Terakhir (Opsional)"
+      "product": "Produk",
+      "sku": "SKU",
+      "variantName": "Varian",
+      "totalSupplied": "Jumlah Diterima",
+      "receivedUnit": "Satuan / Jenis Kemasan",
+      "totalValue": "Nilai Pembelian",
+      "lastSuppliedDate": "Tanggal Pasokan Terakhir"
     }
   },
   "matching": {

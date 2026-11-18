@@ -434,7 +434,6 @@
       "receivedCol": "Received",
       "purchaseValueCol": "Purchase Value",
       "lastSuppliedDateCol": "Last Supplied Date",
-      "lastSuppliedDateCol": "Last Supplied Date",
       "analytics": "Analytics",
       "monthlyPurchaseAnalytics": "Monthly Purchase Analytics",
       "totalMonthlyPurchaseValue": "Total Monthly Purchase Value:",
@@ -542,7 +541,9 @@
       "saveSuccessTitle": "Changes Saved Successfully!",
       "saveSuccessEdit": "Supplier has been updated successfully.",
       "saveSuccessCreate": "Supplier has been created successfully.",
-      "saveFailed": "Failed to save supplier"
+      "saveFailed": "Failed to save supplier",
+      "selectVariant": "Select variant",
+      "searchVariant": "Search variant…"
     }
   },
   "import": {
@@ -622,18 +623,23 @@
       "supplies": "Supplies (Optional)"
     },
     "orderFields": {
-      "product": "Product Name",
-      "totalOrders": "Total Orders (Boxes)",
+      "product": "Product",
+      "sku": "SKU",
+      "variantName": "Variant",
+      "totalOrders": "Total Orders",
+      "pricePerPackage": "Price / Pckg",
       "totalSpend": "Total Spend",
-      "lastOrderDate": "Last Order Date",
-      "outstanding": "Outstanding"
+      "outstanding": "Total Outstanding",
+      "lastOrderDate": "Last Order Date"
     },
     "supplyFields": {
-      "sku": "SKU Number (Optional)",
-      "product": "Product Name (Optional)",
-      "totalSupplied": "Total Supplied (Optional)",
-      "totalValue": "Total Value (Optional)",
-      "lastSuppliedDate": "Last Supplied Date (Optional)"
+      "product": "Product",
+      "sku": "SKU",
+      "variantName": "Variant",
+      "totalSupplied": "Received Quantity",
+      "receivedUnit": "Received Unit / Package Type",
+      "totalValue": "Purchase Value",
+      "lastSuppliedDate": "Last Supplied Date"
     }
   },
   "matching": {

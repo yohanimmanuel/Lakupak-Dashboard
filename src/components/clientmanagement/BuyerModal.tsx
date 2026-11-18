@@ -239,6 +239,8 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
           productId: row.productId || '',
           variantOptionId: row.variantOptionId == null ? '' : String(row.variantOptionId),
           variantName: row.variantName || '',
+          sku: row.sku || '',
+          pricePerPackage: row.pricePerPackage == null ? '' : String(row.pricePerPackage),
           stockType: row.stockType || parseBuyerOrderTotal(row.totalOrders || '', 'Boxes').unit,
           piecesPerPackage: Number(row.piecesPerPackage) > 0 ? Number(row.piecesPerPackage) : undefined,
           totalOrders: normalizeBuyerOrderTotal(row.totalOrders || '', row.stockType || 'Boxes'),
@@ -348,6 +350,8 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
             productId: typeof row.productId === 'string' ? row.productId : undefined,
             variantOptionId: typeof row.variantOptionId === 'string' || typeof row.variantOptionId === 'number' ? row.variantOptionId : undefined,
             variantName: typeof row.variantName === 'string' ? row.variantName : undefined,
+            sku: typeof row.sku === 'string' ? row.sku : undefined,
+            pricePerPackage: typeof row.pricePerPackage === 'string' ? row.pricePerPackage : undefined,
             stockType: typeof row.stockType === 'string' ? row.stockType : undefined,
             piecesPerPackage: Number(row.piecesPerPackage) > 0 ? Number(row.piecesPerPackage) : undefined,
             totalOrders: String(row.totalOrders || ''),
@@ -471,6 +475,11 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
   // use totalSpend / quantity as the saved historical package price so older
   // prices remain editable and are not silently replaced by today's catalog price.
   const getBuyerPricePerPackage = useCallback((row: OrderDetail): number | null => {
+    const explicitPackagePrice = String(row.pricePerPackage ?? '').trim();
+    if (explicitPackagePrice !== '') {
+      const parsedExplicitPrice = parseBuyerAmount(explicitPackagePrice);
+      if (Number.isFinite(parsedExplicitPrice) && parsedExplicitPrice >= 0) return parsedExplicitPrice;
+    }
     const parsed = parseBuyerOrderTotal(row.totalOrders || '', row.stockType || 'Pieces');
     const quantity = Number(parsed.quantity);
     const storedSpend = String(row.totalSpend ?? '').trim();
@@ -660,10 +669,12 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
       product: product?.name || '',
       variantOptionId: '',
       variantName: '',
+      sku: '',
       stockType: firstLevel.name,
       piecesPerPackage: firstLevel.piecesPerUnit,
       totalOrders: row.totalOrders ? formatBuyerOrderTotal(parseBuyerOrderTotal(row.totalOrders, 'Pieces').quantity, firstLevel.name) : '',
       totalSpend: '',
+      pricePerPackage: '',
     }));
   }, [getBuyerProduct, getBuyerProductStockLevels]);
 
@@ -672,7 +683,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
     setOrderRows((rows) => rows.map((row, index) => {
       if (index !== idx) return row;
       const variant = getBuyerProduct(row.productId)?.variantOptions?.find((option) => String(option.id) === variantId);
-      const nextRow = { ...row, variantOptionId: variantId, variantName: variant?.variantName || '', totalSpend: '' };
+      const nextRow = { ...row, variantOptionId: variantId, variantName: variant?.variantName || '', sku: variant?.sku || '', pricePerPackage: '', totalSpend: '' };
       return { ...nextRow, totalSpend: getBuyerCalculatedSpend(nextRow) };
     }));
   }, [getBuyerProduct, getBuyerCalculatedSpend]);
@@ -713,6 +724,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
         ...row,
         stockType: unit,
         piecesPerPackage: nextPiecesPerPackage,
+        pricePerPackage: nextPackagePrice == null ? '' : String(nextPackagePrice),
         totalOrders: formatBuyerOrderTotal(parsed.quantity, unit),
       };
       return {
@@ -733,6 +745,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
       const quantity = Number(parsed.quantity);
       return {
         ...row,
+        pricePerPackage: priceValue,
         totalSpend: price !== null && Number.isFinite(price) && price >= 0 && !parsed.isMixed && Number.isFinite(quantity)
           ? formatBuyerAmount(quantity * price)
           : '',
@@ -780,23 +793,24 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
   }, [selectedOrderRows]);
 
   const handleExportOrders = useCallback(() => {
-    const headers = ['Product', 'Variant', 'Total Orders', 'Stock Type', 'Total Spend', 'Last Order Date', 'Outstanding'];
+    const headers = ['Product', 'SKU', 'Variant', 'Total Orders', 'Price / Pckg', 'Total Spend', 'Total Outstanding', 'Last Order Date'];
     const rows = orderRows
       .filter((row) => !isBlankOrderRow(row))
       .map((row) => [
         row.product || '',
+        row.sku || getBuyerProduct(row.productId)?.variantOptions?.find((variant) => String(variant.id) === String(row.variantOptionId || ''))?.sku || '',
         row.variantName || '',
         row.totalOrders || '',
-        row.stockType || parseBuyerOrderTotal(String(row.totalOrders || ''), 'Pieces').unit,
-        row.totalSpend || '',
-        row.lastOrderDate || '',
+        getBuyerPricePerPackage(row) ?? '',
+        getBuyerCalculatedSpend(row),
         row.outstanding || '',
+        row.lastOrderDate || '',
       ]);
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Orders');
     XLSX.writeFile(wb, `${form.storeName || id || 'buyer'}-orders.xlsx`);
-  }, [orderRows, form.storeName, id]);
+  }, [orderRows, form.storeName, id, getBuyerPricePerPackage, getBuyerCalculatedSpend, getBuyerProduct]);
 
   // Imported orders are appended to the table; nothing is saved until the form is saved.
   const handleImportOrders = useCallback((newOrders: OrderDetail[]) => {
@@ -808,6 +822,8 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
         productId: row.productId,
         variantOptionId: row.variantOptionId,
         variantName: row.variantName,
+        sku: row.sku || '',
+        pricePerPackage: row.pricePerPackage == null ? '' : String(row.pricePerPackage),
         stockType: row.stockType || parseBuyerOrderTotal(String(row.totalOrders || ''), 'Pieces').unit,
         piecesPerPackage: Number(row.piecesPerPackage) > 0 ? Number(row.piecesPerPackage) : undefined,
         totalOrders: normalizeBuyerOrderTotal(String(row.totalOrders || ''), row.stockType || 'Pieces'),
@@ -1124,6 +1140,8 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
         productId: row.productId || '',
         variantOptionId: row.variantOptionId == null ? '' : String(row.variantOptionId),
         variantName: row.variantName || '',
+        sku: row.sku || '',
+        pricePerPackage: row.pricePerPackage == null ? '' : String(row.pricePerPackage),
         stockType: row.stockType || parseBuyerOrderTotal(row.totalOrders || '', 'Boxes').unit,
         piecesPerPackage: Number(row.piecesPerPackage) > 0 ? Number(row.piecesPerPackage) : undefined,
         totalOrders: normalizeBuyerOrderTotal(row.totalOrders || '', row.stockType || 'Boxes'),
@@ -1448,12 +1466,13 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
                     </th>
                     <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colNo')}</th>
                     <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colProduct')}</th>
+                    <th className="py-2 px-3 font-medium uppercase">SKU</th>
                     <th className="py-2 px-3 font-medium uppercase">Variant</th>
                     <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colTotalOrders')}</th>
                     <th className="py-2 px-3 font-medium uppercase">Price / Pckg</th>
                     <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colTotalSpend')}</th>
-                    <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colLastOrderDate')}</th>
                     <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colOutstanding')}</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colLastOrderDate')}</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -1479,6 +1498,9 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
                           onChange={(productId: string) => handleOrderProductSelect(idx, productId)}
                           searchPlaceholder="Search product..."
                         />
+                      </td>
+                      <td className="py-2 px-3 text-black">
+                        {row.sku || getBuyerProduct(row.productId)?.variantOptions?.find((variant) => String(variant.id) === String(row.variantOptionId || ''))?.sku || '—'}
                       </td>
                       <td className="py-2 px-3">
                         <ClientCatalogSelect
@@ -1555,18 +1577,6 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
                         </div>
                       </td>
                       <td className="py-2 px-3">
-                        <div className="box-border w-[196px] min-w-[196px] max-w-[196px]">
-                        <ClientInput
-                          fullWidth={false}
-                          compact={false}
-                          className="box-border !h-[34px] !w-[196px] !min-w-[196px] !max-w-[196px]"
-                          type="date"
-                          value={row.lastOrderDate || ''}
-                          onChange={(lastOrderDate) => handleOrderChange(idx, 'lastOrderDate', lastOrderDate)}
-                        />
-                        </div>
-                      </td>
-                      <td className="py-2 px-3">
                         <div className="flex w-[220px] min-w-[220px] items-center">
                           <span className="mr-2 shrink-0 text-xs text-gray-500 font-medium">{currencySymbol}</span>
                           <ClientInput
@@ -1576,6 +1586,18 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
                             value={row.outstanding || ''}
                             onChange={(outstanding) => handleOrderChange(idx, 'outstanding', outstanding)}
                             placeholder="0"
+                          />
+                        </div>
+                      </td>
+                      <td className="py-2 px-3">
+                        <div className="box-border w-[196px] min-w-[196px] max-w-[196px]">
+                          <ClientInput
+                            fullWidth={false}
+                            compact={false}
+                            className="box-border !h-[34px] !w-[196px] !min-w-[196px] !max-w-[196px]"
+                            type="date"
+                            value={row.lastOrderDate || ''}
+                            onChange={(lastOrderDate) => handleOrderChange(idx, 'lastOrderDate', lastOrderDate)}
                           />
                         </div>
                       </td>

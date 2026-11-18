@@ -202,6 +202,57 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
     tBuyersProfile(`fields.${key}` as Parameters<typeof tBuyersProfile>[0]);
   const [buyerOffers, setBuyerOffers] = useState<Offer[]>([]);
   const [offersLoading, setOffersLoading] = useState(false);
+  const [variantSkuById, setVariantSkuById] = useState<Record<string, string>>({});
+
+  // Older saved buyer rows may contain variantOptionId but predate the SKU
+  // snapshot field. Resolve those SKUs from the live catalog for display/export.
+  useEffect(() => {
+    if (!user?.id) {
+      setVariantSkuById({});
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        let page = 1;
+        let totalPages = 1;
+        const lookup: Record<string, string> = {};
+        do {
+          const data = await fetchGraphQL<{
+            products: {
+              nodes: Array<{
+                productId: string;
+                variantOptions?: Array<{ id: number; sku?: string | null; variantName?: string | null }> | null;
+              }>;
+              pagination: { totalPages?: number };
+            };
+          }>(
+            `query BuyerProfileVariantSkus($userId: Int!, $page: Int!, $limit: Int!) {
+              products(userId: $userId, page: $page, limit: $limit) {
+                nodes { productId variantOptions { id sku variantName } }
+                pagination { totalPages }
+              }
+            }`,
+            { userId: user.id, page, limit: 1000 },
+          );
+          for (const product of data.products?.nodes || []) {
+            for (const variant of product.variantOptions || []) {
+              if (!variant.sku) continue;
+              lookup[`id:${variant.id}`] = variant.sku;
+              const variantName = String(variant.variantName || '').trim().toLowerCase();
+              if (variantName) lookup[`product:${product.productId}|variant:${variantName}`] = variant.sku;
+            }
+          }
+          totalPages = Math.max(1, data.products?.pagination?.totalPages ?? 1);
+          page += 1;
+        } while (!cancelled && page <= totalPages);
+        if (!cancelled) setVariantSkuById(lookup);
+      } catch {
+        if (!cancelled) setVariantSkuById({});
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id]);
   
   // BuyerProfile - Raw buyer data
   
@@ -881,21 +932,24 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
         </div>
         {/* Above Order & Product Details table */}
         <div className="min-w-0 overflow-x-auto rounded-lg">
-          <table className="min-w-full text-xs font-medium text-left">
+          <table className="w-max min-w-full whitespace-nowrap text-xs font-medium text-left">
             <thead>
               <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
                 <th className="py-2 px-4 font-medium uppercase">{tBuyersModal('colNo')}</th>
                 <th className="py-2 px-4 font-medium uppercase">{tBuyersProfile('productName')}</th>
+                <th className="py-2 px-4 font-medium uppercase">SKU</th>
+                <th className="py-2 px-4 font-medium uppercase">Variant</th>
                 <th className="py-2 px-4 font-medium uppercase">{tBuyersModal('colTotalOrders')}</th>
+                <th className="py-2 px-4 font-medium uppercase">Price / Pckg</th>
                 <th className="py-2 px-4 font-medium uppercase">{tShared('columns.totalSpend')}</th>
-                <th className="py-2 px-4 font-medium uppercase">{tBuyersModal('colLastOrderDate')}</th>
                 <th className="py-2 px-4 font-medium uppercase">{tShared('columns.outstanding')}</th>
+                <th className="py-2 px-4 font-medium uppercase">{tBuyersModal('colLastOrderDate')}</th>
               </tr>
             </thead>
             <tbody>
               {pagedOrderDetails.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-10 px-4 text-center text-sm text-gray-500">
+                  <td colSpan={9} className="py-10 px-4 text-center text-sm text-gray-500">
                     {tBuyersProfile('noOrders')}
                   </td>
                 </tr>
@@ -975,15 +1029,37 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
                     </div>
                   </td>
                   <td className="py-4 px-4 text-black">
+                    {order.sku
+                      || (order.variantOptionId != null ? variantSkuById[`id:${order.variantOptionId}`] : '')
+                      || (order.productId && order.variantName ? variantSkuById[`product:${order.productId}|variant:${order.variantName.trim().toLowerCase()}`] : '')
+                      || hoverOrderDetails[order.orderNo]?.orderItems.map((item) => item.productSkuSnapshot).filter(Boolean).join(', ')
+                      || '—'}
+                  </td>
+                  <td className="py-4 px-4 text-black">
+                    {order.variantName || hoverOrderDetails[order.orderNo]?.orderItems.map((item) => item.variantNameSnapshot).filter(Boolean).join(', ') || '—'}
+                  </td>
+                  <td className="py-4 px-4 text-black">
                     {order.totalOrders}
+                  </td>
+                  <td className="py-4 px-4 text-black">
+                    {(() => {
+                      const liveItems = hoverOrderDetails[order.orderNo]?.orderItems || [];
+                      const derived = liveItems.length === 1 ? liveItems[0].pricePerPackage : null;
+                      const qty = getBuyerOrderQuantity(order.totalOrders);
+                      const historical = order.pricePerPackage != null && String(order.pricePerPackage).trim() !== ''
+                        ? parseNumberByCurrency(String(order.pricePerPackage), userCurrency)
+                        : (qty > 0 ? parseNumberByCurrency(String(order.totalSpend || '0'), userCurrency) / qty : null);
+                      const amount = derived ?? historical;
+                      return amount == null || !Number.isFinite(amount) ? '—' : formatCurrency(amount, userCurrency);
+                    })()}
                   </td>
                   <td className="py-4 px-4 text-[#0a61d7] font-semibold">
                     {formatCurrency(parseNumberByCurrency(String(order.totalSpend), userCurrency), userCurrency)}
                   </td>
-                  <td className="py-4 px-4 text-black">{order.lastOrderDate}</td>
                   <td className="py-4 px-4 text-[#f65911] font-semibold">
                     {formatCurrency(parseNumberByCurrency(String(order.outstanding), userCurrency), userCurrency)}
                   </td>
+                  <td className="py-4 px-4 text-black">{order.lastOrderDate}</td>
                 </tr>
                 ))
               )}

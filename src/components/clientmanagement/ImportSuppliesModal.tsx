@@ -12,28 +12,31 @@ import ClientCatalogSelect from '@/components/clientmanagement/ClientCatalogSele
 
 /** Columns the import UI can map — string fields only (not booleans / recordType). */
 type ImportableSupplyField =
-  | 'sku'
   | 'product'
+  | 'sku'
+  | 'variantName'
   | 'totalSupplied'
   | 'receivedUnit'
   | 'totalValue'
   | 'lastSuppliedDate';
 
 const supplyFields: { key: ImportableSupplyField; label: string }[] = [
-  { key: 'sku', label: 'SKU Number (Optional)' },
-  { key: 'product', label: 'Product Name (Optional)' },
+  { key: 'product', label: 'Product (Optional)' },
+  { key: 'sku', label: 'SKU (Optional)' },
+  { key: 'variantName', label: 'Variant (Optional)' },
   { key: 'totalSupplied', label: 'Received Quantity (Optional)' },
-  { key: 'receivedUnit', label: 'Stock Type (Optional)' },
-  { key: 'totalValue', label: 'Total Value (Optional)' },
+  { key: 'receivedUnit', label: 'Received Unit / Package Type (Optional)' },
+  { key: 'totalValue', label: 'Purchase Value (Optional)' },
   { key: 'lastSuppliedDate', label: 'Last Supplied Date (Optional)' },
 ];
 
 const supplyFieldSynonyms: Record<ImportableSupplyField, string[]> = {
-  sku: ['sku', 'sku number', 'kode', 'kode barang'],
-  product: ['product', 'product name', 'nama produk'],
-  totalSupplied: ['total supplied', 'total supplied (pieces)', 'received quantity', 'supplied', 'jumlah', 'jumlah supply'],
-  receivedUnit: ['stock type', 'received unit', 'package type', 'unit', 'satuan'],
-  totalValue: ['total value', 'value', 'total harga', 'harga'],
+  product: ['product', 'product name', 'nama produk', 'item', 'description'],
+  sku: ['sku', 'sku number', 'kode', 'kode barang', 'item code', 'product code'],
+  variantName: ['variant', 'variant name', 'product variant', 'option', 'variant produk'],
+  totalSupplied: ['total supplied', 'total supplied (pieces)', 'received quantity', 'received', 'supplied', 'quantity', 'qty', 'jumlah', 'jumlah supply'],
+  receivedUnit: ['stock type', 'received unit', 'package type', 'received package type', 'unit', 'satuan'],
+  totalValue: ['purchase value', 'purchase amount', 'total value', 'value', 'total harga', 'harga'],
   lastSuppliedDate: ['last supplied date', 'last supplied', 'last delivery', 'delivery date', 'tanggal', 'tanggal delivery'],
 };
 
@@ -261,7 +264,7 @@ export default function ImportSuppliesModal({
         sku: mapped.sku || catalogMatch?.sku || '',
         product: mapped.product || catalogMatch?.product || '',
         productId: catalogMatch?.productId,
-        variantName: catalogMatch?.variantName,
+        variantName: mapped.variantName || catalogMatch?.variantName || '',
         receivedQuantity,
         receivedUnit,
         totalSupplied: totalSuppliedPieces == null ? '' : String(totalSuppliedPieces),
@@ -511,7 +514,12 @@ export default function ImportSuppliesModal({
                         ariaLabel={allRowsSelected ? tImport('deselectAll') : tImport('selectAll')}
                       />
                     </th>
-                    {supplyFields.map(f => <th key={f.key} className="py-2 px-3 font-medium uppercase">{tImport(`supplyFields.${f.key}`)}</th>)}
+                    <th className="py-2 px-3 font-medium uppercase">{tImport('supplyFields.product')}</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tImport('supplyFields.sku')}</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tImport('supplyFields.variantName')}</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tImport('supplyFields.totalSupplied')} ({tImport('supplyFields.receivedUnit')})</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tImport('supplyFields.totalValue')}</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tImport('supplyFields.lastSuppliedDate')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -537,9 +545,13 @@ export default function ImportSuppliesModal({
                             ariaLabel={tImport('selectRow', { index: idx + 1 })}
                           />
                         </td>
-                        {supplyFields.map((f) => (
-                          <td key={f.key} className="py-2 px-3">
-                            {f.key === 'receivedUnit' ? (() => {
+                        {(['product', 'sku', 'variantName'] as const).map((key) => (
+                          <td key={key} className="py-2 px-3">{row[key] || ''}</td>
+                        ))}
+                        <td className="py-2 px-3">
+                          <div className="flex min-w-[15rem] items-center gap-2">
+                            <span>{row.receivedQuantity || ''}</span>
+                            {(() => {
                               const raw = rows[idx] || {};
                               const catalogMatch = getCatalogMatch(raw, mapping, supplierCatalog);
                               const options = getSupplyUnitOptions(catalogMatch?.stockLevels);
@@ -554,9 +566,11 @@ export default function ImportSuppliesModal({
                                   searchPlaceholder="Search stock type..."
                                 />
                               );
-                            })() : f.key === 'totalSupplied' ? row.receivedQuantity : row[f.key] || ''}
-                          </td>
-                        ))}
+                            })()}
+                          </div>
+                        </td>
+                        <td className="py-2 px-3">{row.totalValue || ''}</td>
+                        <td className="py-2 px-3">{row.lastSuppliedDate || ''}</td>
                       </tr>
                     );
                   })}

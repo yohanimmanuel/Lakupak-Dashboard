@@ -61,11 +61,10 @@ type ProductCatalogNode = {
   }> | null;
 };
 
-function catalogProductLabel(productName: string, variantName: string): string {
-  const name = productName.trim();
-  const variant = variantName.trim();
-  if (!variant || variant.toLowerCase() === 'default') return name;
-  return `${name} (${variant})`;
+function catalogProductLabel(productName: string, _variantName: string): string {
+  // Product is always the catalog's parent product. Variant is displayed and
+  // selected independently so one product does not appear as several products.
+  return productName.trim();
 }
 
 function buildCatalogOptions(
@@ -110,6 +109,7 @@ function buildCatalogOptions(
 
 function SupplyMatchDropdown({
   value,
+  displayValue,
   placeholder,
   options,
   emptyLabel,
@@ -121,6 +121,7 @@ function SupplyMatchDropdown({
   needsAttention = false,
 }: {
   value: string;
+  displayValue?: string;
   placeholder: string;
   options: Array<{ value: string; label: string; optionKey: string }>;
   emptyLabel: string;
@@ -252,7 +253,7 @@ function SupplyMatchDropdown({
         onClick={() => setOpen((next) => !next)}
       >
         <span className={`truncate ${value ? 'text-black' : needsAttention ? 'font-medium text-amber-700' : 'text-gray-500'}`}>
-          {value || placeholder}
+          {displayValue || value || placeholder}
         </span>
         <ChevronDown className={`h-3.5 w-3.5 shrink-0 ${needsAttention ? 'text-amber-600' : 'text-gray-400'}`} />
       </button>
@@ -694,24 +695,26 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   );
 
   const skuDropdownOptions = useMemo(
-    () =>
-      catalogOptions.map((opt) => ({
-        optionKey: opt.key,
-        value: opt.sku,
-        label: opt.product,
-      })),
+    () => catalogOptions.map((opt) => ({
+      optionKey: opt.key,
+      value: opt.sku,
+      label: `${opt.product} · ${opt.variantName}`,
+    })),
     [catalogOptions],
   );
 
   const productDropdownOptions = useMemo(() => {
-    const seen = new Set<string>();
-    const rows: Array<{ optionKey: string; value: string; label: string }> = [];
+    const byProductId = new Map<string, { optionKey: string; value: string; label: string }>();
     for (const opt of catalogOptions) {
-      if (seen.has(opt.product)) continue;
-      seen.add(opt.product);
-      rows.push({ optionKey: `product:${opt.product}`, value: opt.product, label: opt.product });
+      if (!byProductId.has(opt.productId)) {
+        byProductId.set(opt.productId, {
+          optionKey: `product:${opt.productId}`,
+          value: opt.productId,
+          label: opt.product,
+        });
+      }
     }
-    return rows.sort((a, b) => a.value.localeCompare(b.value));
+    return Array.from(byProductId.values()).sort((a, b) => a.label.localeCompare(b.label));
   }, [catalogOptions]);
 
   // History rows only — summary is read-only on the edit page
@@ -744,31 +747,30 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     [catalogOptions],
   );
 
+  const handleHistoryVariantSelect = useCallback((idx: number, sku: string) => {
+    handleHistorySkuSelect(idx, sku);
+  }, [handleHistorySkuSelect]);
+
   const handleHistoryProductSelect = useCallback(
-    (idx: number, product: string) => {
-      const matches = catalogOptions.filter((opt) => opt.product === product);
-      const only = matches.length === 1 ? matches[0] : undefined;
-      setHistoryRows((rows) =>
-        rows.map((row, i) => {
-          if (i !== idx) return row;
-          // Ambiguous labels must not inherit productId from the first match.
-          // Keep ids empty unless this row's SKU uniquely identifies a variant.
-          const skuMatch = matches.find((m) => m.sku === row.sku);
-          const identified = only || skuMatch;
-          return {
-            ...row,
-            product,
-            sku: identified?.sku || '',
-            productId: identified?.productId || '',
-            variantName: identified?.variantName || '',
-            receivedUnit: 'Pieces',
-            totalSupplied: String(row.receivedQuantity ?? row.totalSupplied ?? ''),
-            // Ambiguous product: never keep stock updates on while identity is unresolved.
-            updateCurrentStock: identified ? row.updateCurrentStock === true : false,
-            recordType: 'history',
-          };
-        }),
-      );
+    (idx: number, productId: string) => {
+      const matches = catalogOptions.filter((opt) => opt.productId === productId);
+      setHistoryRows((rows) => rows.map((row, i) => {
+        if (i !== idx) return row;
+        const identified = matches.find((item) => item.sku === row.sku)
+          || (matches.length === 1 ? matches[0] : undefined);
+        const productName = matches[0]?.product || row.product;
+        return {
+          ...row,
+          product: productName,
+          productId,
+          sku: identified?.sku || '',
+          variantName: identified?.variantName || '',
+          receivedUnit: 'Pieces',
+          totalSupplied: String(row.receivedQuantity ?? row.totalSupplied ?? ''),
+          updateCurrentStock: identified ? row.updateCurrentStock === true : false,
+          recordType: 'history',
+        };
+      }));
     },
     [catalogOptions],
   );
@@ -864,21 +866,24 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
 
   const handleExportHistory = useCallback(() => {
     const exportRows = historyRows.filter((row) => !isBlankHistoryRow(row));
-    const headers = ['SKU', 'Product', 'Received Quantity', 'Stock Type', 'Total Supplied (Pieces)', 'Total Value', 'Last Supplied Date'];
-    const rows = exportRows.map((row) => [
-      row.sku || '',
-      row.product || '',
-      row.receivedQuantity ?? row.totalSupplied ?? '',
-      row.receivedUnit || 'Pieces',
-      row.totalSupplied || '',
-      row.totalValue || '',
-      row.lastSuppliedDate || '',
-    ]);
+    const headers = ['Product', 'SKU', 'Variant', 'Received (Package Type)', 'Purchase Value', 'Last Supplied Date', 'Update Stock'];
+    const rows = exportRows.map((row) => {
+      const matched = catalogOptions.find((option) => option.sku === row.sku);
+      return [
+        matched?.product || row.product || '',
+        row.sku || '',
+        row.variantName || matched?.variantName || '',
+        `${row.receivedQuantity ?? row.totalSupplied ?? ''} ${row.receivedUnit || 'Pieces'}`.trim(),
+        row.totalValue || '',
+        row.lastSuppliedDate || '',
+        row.updateCurrentStock === true ? 'Yes' : 'No',
+      ];
+    });
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Supply History');
     XLSX.writeFile(wb, `${form.supplierName || id || 'supplier'}-supply-history.xlsx`);
-  }, [historyRows, form.supplierName, id]);
+  }, [historyRows, catalogOptions, form.supplierName, id]);
 
   const handleImportHistory = useCallback((newSupplies: SupplyDetail[]) => {
     // Every imported row is a new supply event: always a fresh id, never one already
@@ -1638,15 +1643,18 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                   <thead>
                     <tr className="whitespace-nowrap bg-gray-100 text-gray-500">
                       <th className="px-3 py-2 font-medium uppercase">{tSuppliersModal('colNo')}</th>
-                      <th className="px-3 py-2 font-medium uppercase">{tSuppliersProfile('skuProductCol')}</th>
-                      <th className="px-3 py-2 font-medium uppercase">{tSuppliersProfile('totalSuppliedCol')} (Package Type)</th>
+                      <th className="px-3 py-2 font-medium uppercase">{tSuppliersModal('colProduct')}</th>
+                      <th className="px-3 py-2 font-medium uppercase">{tSuppliersModal('colSku')}</th>
+                      <th className="px-3 py-2 font-medium uppercase">Variant</th>
+                      <th className="px-3 py-2 font-medium uppercase">{tSuppliersProfile('receivedCol')} (Package Type)</th>
                       <th className="px-3 py-2 font-medium uppercase">{tSuppliersProfile('totalPurchaseCol')}</th>
+                      <th className="px-3 py-2 font-medium uppercase">{tSuppliersProfile('lastSuppliedDateCol')}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {summaryRows.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="px-3 py-8 text-center text-sm text-gray-500">
+                        <td colSpan={7} className="px-3 py-8 text-center text-sm text-gray-500">
                           {tSuppliersProfile('noSupplies')}
                         </td>
                       </tr>
@@ -1654,14 +1662,14 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                       summaryRows.slice(summaryPageStart, summaryPageEnd).map((row, idx) => (
                         <tr key={row.suppliesno || `sum-${summaryPageStart + idx}`} className="border-b last:border-b-0">
                           <td className="px-3 py-3 font-medium text-black">{summaryPageStart + idx + 1}</td>
-                          <td className="px-3 py-3 text-black">
-                            <div className="font-medium">{row.sku || '—'}</div>
-                            <div className="text-gray-500">{row.product || '—'}</div>
-                          </td>
+                          <td className="px-3 py-3 text-black">{catalogOptions.find((option) => option.sku === row.sku)?.product || row.product || '—'}</td>
+                          <td className="px-3 py-3 text-black">{row.sku || '—'}</td>
+                          <td className="px-3 py-3 text-black">{row.variantName || catalogOptions.find((option) => option.sku === row.sku)?.variantName || '—'}</td>
                           <td className="px-3 py-3 text-black">{row.totalSupplied || '0'}{getSupplyUnit(row) ? ` ${getSupplyUnit(row)}` : ''}</td>
                           <td className="px-3 py-3 font-semibold text-[#0a61d7]">
                             {currencySymbol}{row.totalValue || '0'}
                           </td>
+                          <td className="px-3 py-3 text-black">{row.lastSuppliedDate || '—'}</td>
                         </tr>
                       ))
                     )}
@@ -1680,8 +1688,9 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                         />
                       </th>
                       <th className="px-3 py-2 font-medium uppercase">{tSuppliersModal('colNo')}</th>
-                      <th className="px-3 py-2 font-medium uppercase">{tSuppliersModal('colSku')}</th>
                       <th className="px-3 py-2 font-medium uppercase">{tSuppliersModal('colProduct')}</th>
+                      <th className="px-3 py-2 font-medium uppercase">{tSuppliersModal('colSku')}</th>
+                      <th className="px-3 py-2 font-medium uppercase">Variant</th>
                       <th className="px-3 py-2 font-medium uppercase">{tSuppliersProfile('receivedCol')} (Package Type)</th>
                       <th className="px-3 py-2 font-medium uppercase">{tSuppliersProfile('purchaseValueCol')}</th>
                       <th className="px-3 py-2 font-medium uppercase">{tSuppliersProfile('lastSuppliedDateCol')}</th>
@@ -1705,9 +1714,24 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                         <td className="px-3 py-2 font-medium text-black">{idx + 1}</td>
                         <td className="px-3 py-2">
                           <SupplyMatchDropdown
+                            value={row.productId || catalogOptions.find((option) => option.sku === row.sku)?.productId || productDropdownOptions.find((option) => option.label.toLowerCase() === String(row.product || '').trim().toLowerCase())?.value || ''}
+                            displayValue={catalogOptions.find((option) => option.productId === (row.productId || catalogOptions.find((candidate) => candidate.sku === row.sku)?.productId))?.product || row.product || ''}
+                            placeholder={tSuppliersModal('selectProduct')}
+                            options={productDropdownOptions}
+                            emptyLabel={tSuppliersModal('catalogEmpty')}
+                            noMatchLabel={tSuppliersModal('catalogNoMatch')}
+                            searchPlaceholder={tSuppliersModal('searchProduct')}
+                            onSelect={(productId) => handleHistoryProductSelect(idx, productId)}
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <SupplyMatchDropdown
                             value={row.sku || ''}
                             placeholder={tSuppliersModal('selectSku')}
-                            options={skuDropdownOptions}
+                            options={skuDropdownOptions.filter((option) => {
+                              const selectedProductId = row.productId || catalogOptions.find((candidate) => candidate.sku === row.sku)?.productId;
+                              return !selectedProductId || catalogOptions.find((candidate) => candidate.sku === option.value)?.productId === selectedProductId;
+                            })}
                             emptyLabel={tSuppliersModal('catalogEmpty')}
                             noMatchLabel={tSuppliersModal('catalogNoMatch')}
                             searchPlaceholder={tSuppliersModal('searchSku')}
@@ -1728,13 +1752,17 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                         </td>
                         <td className="px-3 py-2">
                           <SupplyMatchDropdown
-                            value={row.product || ''}
-                            placeholder={tSuppliersModal('selectProduct')}
-                            options={productDropdownOptions}
+                            value={row.sku || ''}
+                            displayValue={row.variantName || ''}
+                            placeholder={row.productId ? tSuppliersModal('selectVariant') : tSuppliersModal('selectProduct')}
+                            options={catalogOptions
+                              .filter((option) => option.productId === (row.productId || catalogOptions.find((candidate) => candidate.sku === row.sku)?.productId))
+                              .map((option) => ({ optionKey: option.key, value: option.sku, label: option.variantName }))}
                             emptyLabel={tSuppliersModal('catalogEmpty')}
                             noMatchLabel={tSuppliersModal('catalogNoMatch')}
-                            searchPlaceholder={tSuppliersModal('searchProduct')}
-                            onSelect={(product) => handleHistoryProductSelect(idx, product)}
+                            searchPlaceholder={tSuppliersModal('searchVariant')}
+                            onSelect={(sku) => handleHistoryVariantSelect(idx, sku)}
+                            className={!row.productId ? 'opacity-60' : ''}
                           />
                         </td>
                         <td className="px-3 py-2">

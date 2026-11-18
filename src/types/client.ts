@@ -94,8 +94,11 @@ export interface OrderDetail {
   syncedFromOrders?: boolean;
   /** Catalog identity for manually managed buyer order rows. */
   productId?: string;
+  sku?: string;
   variantOptionId?: string | number;
   variantName?: string;
+  /** Historical or imported selling price for one selected package. */
+  pricePerPackage?: string;
   /** Selected stock level; totalOrders also retains a display-safe quantity + unit string. */
   stockType?: string;
   /** Number of base Pieces represented by one selected stockType unit. */
