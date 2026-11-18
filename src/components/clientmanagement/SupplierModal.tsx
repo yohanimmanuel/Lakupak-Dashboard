@@ -55,6 +55,7 @@ type ProductCatalogNode = {
   stockLevels?: StockLevel[] | null;
   supplier?: string | null;
   variantOptions?: Array<{
+    id?: number;
     variantName?: string | null;
     sku?: string | null;
     isActive?: boolean | null;
@@ -643,7 +644,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                   stockUnit
                   stockLevels
                   supplier
-                  variantOptions { variantName sku isActive }
+                  variantOptions { id variantName sku isActive }
                 }
                 pagination { totalPages }
               }
@@ -689,7 +690,8 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
         fallbackToAll: false,
       }).map((opt) => {
         const product = catalogProducts.find((item) => item.productId === opt.productId);
-        return { sku: opt.sku, product: opt.product, productId: opt.productId, variantName: opt.variantName, stockLevels: product?.stockLevels || [] };
+        const variant = product?.variantOptions?.find((item) => String(item.variantName || '').trim() === opt.variantName);
+        return { variantOptionId: variant?.id, sku: opt.sku, product: opt.product, productId: opt.productId, variantName: opt.variantName, stockLevels: product?.stockLevels || [] };
       }),
     [catalogProducts, form.supplierName, initialData?.name],
   );
@@ -782,6 +784,9 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
 
   const allHistoryRowsSelected = historyRows.length > 0 && selectedHistoryRows.size === historyRows.length;
   const someHistoryRowsSelected = selectedHistoryRows.size > 0 && !allHistoryRowsSelected;
+  const hasSelectedRowsWithStockUpdate = [...selectedHistoryRows].some(
+    (index) => historyRows[index]?.updateCurrentStock === true,
+  );
 
   const toggleHistoryRowSelection = useCallback((idx: number) => {
     setSelectedHistoryRows((prev) => {
@@ -806,6 +811,24 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
               ...r,
               updateCurrentStock: true,
               // Same rule as the row checkbox: only the server sets stockApplied.
+              stockApplied: r.stockApplied === true,
+              recordType: 'history',
+            }
+          : r,
+      ),
+    );
+    setSelectedHistoryRows(new Set());
+  }, [selectedHistoryRows]);
+
+  const handleBulkUnupdateStock = useCallback(() => {
+    setHistoryRows((rows) =>
+      rows.map((r, i) =>
+        selectedHistoryRows.has(i)
+          ? {
+              ...r,
+              updateCurrentStock: false,
+              // Keep the server-owned applied flag unchanged. The normal save path
+              // handles any required stock reversal from the persisted state.
               stockApplied: r.stockApplied === true,
               recordType: 'history',
             }
@@ -866,14 +889,15 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
 
   const handleExportHistory = useCallback(() => {
     const exportRows = historyRows.filter((row) => !isBlankHistoryRow(row));
-    const headers = ['Product', 'SKU', 'Variant', 'Received (Package Type)', 'Purchase Value', 'Last Supplied Date', 'Update Stock'];
+    const headers = ['Product', 'SKU', 'Variant', 'Received Quantity', 'Stock Type', 'Purchase Value', 'Last Supplied Date', 'Update Stock'];
     const rows = exportRows.map((row) => {
       const matched = catalogOptions.find((option) => option.sku === row.sku);
       return [
         matched?.product || row.product || '',
         row.sku || '',
         row.variantName || matched?.variantName || '',
-        `${row.receivedQuantity ?? row.totalSupplied ?? ''} ${row.receivedUnit || 'Pieces'}`.trim(),
+        row.receivedQuantity ?? row.totalSupplied ?? '',
+        row.receivedUnit || 'Pieces',
         row.totalValue || '',
         row.lastSuppliedDate || '',
         row.updateCurrentStock === true ? 'Yes' : 'No',
@@ -1626,6 +1650,15 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                     onClick={handleBulkUpdateStock}
                   >
                     {tSuppliersModal('bulkUpdateStock')}
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    onClick={handleBulkUnupdateStock}
+                    disabled={!hasSelectedRowsWithStockUpdate}
+                    title={tSuppliersModal('bulkUnupdateStock')}
+                  >
+                    {tSuppliersModal('bulkUnupdateStock')}
                   </button>
                   <button
                     type="button"

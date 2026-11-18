@@ -91,7 +91,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
   const [loadingTransfers, setLoadingTransfers] = useState(false);
   const [moveMessage, setMoveMessage] = useState('');
   const [supplyStockLevelsLookup, setSupplyStockLevelsLookup] = useState<Record<string, StockLevel[]>>({});
-  const [supplyCatalogLookup, setSupplyCatalogLookup] = useState<Record<string, { name: string; variantsBySku: Record<string, string> }>>({});
+  const [supplyCatalogLookup, setSupplyCatalogLookup] = useState<Record<string, { name: string; variantsBySku: Record<string, string>; variantsById: Record<string, string> }>>({});
   const [supplyCatalogBySku, setSupplyCatalogBySku] = useState<Record<string, { name: string; variantName: string }>>({});
 
   useEffect(() => {
@@ -107,7 +107,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
         let page = 1;
         let totalPages = 1;
         const lookup: Record<string, StockLevel[]> = {};
-        const catalogLookup: Record<string, { name: string; variantsBySku: Record<string, string> }> = {};
+        const catalogLookup: Record<string, { name: string; variantsBySku: Record<string, string>; variantsById: Record<string, string> }> = {};
         const catalogBySku: Record<string, { name: string; variantName: string }> = {};
 
         do {
@@ -117,7 +117,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                 productId: string;
                 name: string;
                 stockLevels?: StockLevel[] | null;
-                variantOptions?: Array<{ sku?: string | null; variantName?: string | null }> | null;
+                variantOptions?: Array<{ id: number; sku?: string | null; variantName?: string | null }> | null;
               }>;
               pagination: { totalPages?: number };
             };
@@ -128,7 +128,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                   productId
                   name
                   stockLevels
-                  variantOptions { sku variantName }
+                  variantOptions { id sku variantName }
                 }
                 pagination { totalPages }
               }
@@ -142,7 +142,9 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
             if (productId) {
               lookup[`product:${productId}`] = levels;
               const variantsBySku: Record<string, string> = {};
+              const variantsById: Record<string, string> = {};
               for (const variant of product.variantOptions || []) {
+                variantsById[String(variant.id)] = String(variant.variantName || '');
                 const sku = String(variant.sku || '').trim();
                 if (sku) {
                   lookup[`sku:${sku}`] = levels;
@@ -150,7 +152,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                   catalogBySku[sku] = { name: String(product.name || ''), variantName: String(variant.variantName || '') };
                 }
               }
-              catalogLookup[productId] = { name: String(product.name || ''), variantsBySku };
+              catalogLookup[productId] = { name: String(product.name || ''), variantsBySku, variantsById };
             }
           }
 
@@ -806,7 +808,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                   >
                     <td className="py-4 px-4 text-black">{String(supplyCatalogLookup[String(supply.productId || '')]?.name || supplyCatalogBySku[String(supply.sku || '')]?.name || supply.product || '—')}</td>
                     <td className="py-4 px-4 font-medium text-black">{String(supply.sku || '—')}</td>
-                    <td className="py-4 px-4 text-black">{String(supply.variantName || supplyCatalogLookup[String(supply.productId || '')]?.variantsBySku[String(supply.sku || '')] || supplyCatalogBySku[String(supply.sku || '')]?.variantName || '—')}</td>
+                    <td className="py-4 px-4 text-black">{String(supplyCatalogLookup[String(supply.productId || '')]?.variantsById[String(supply.variantOptionId || '')] || supply.variantName || supplyCatalogLookup[String(supply.productId || '')]?.variantsBySku[String(supply.sku || '')] || supplyCatalogBySku[String(supply.sku || '')]?.variantName || '—')}</td>
                     <td className="py-4 px-4 text-black">
                       {getSupplyReceivedInput(supply).receivedQuantity} {getSupplyReceivedInput(supply).receivedUnit}
                     </td>

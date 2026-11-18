@@ -1628,8 +1628,9 @@ export const updateProduct = async (args: {
         const matchedByAttrs = attrsKey ? existingByAttrs.get(attrsKey) ?? null : null;
         const existing = matchedByAttrs || existingByName.get(normalizedName) || null;
 
-        // If we matched an existing option by attributes, keep its original name to prevent duplicates.
-        const p = existing ? { ...raw, variantName: normalizeVariantName(existing.variantName) } : { ...raw, variantName: normalizedName };
+        // Keep the database identity when attributes identify the same variant.
+        // A display-name-only change must update the existing row, not create a new identity.
+        const p = { ...raw, variantName: normalizedName };
 
         // If this VariantOption has ever been ordered, block any identity mutation to preserve integrity.
         const hasOrderHistory = existing ? orderedOptionIds.has(existing.id) : false;
@@ -1643,17 +1644,17 @@ export const updateProduct = async (args: {
           }
         }
 
-        const doUpsert = async () =>
-          tx.variantOption.upsert({
-            where: {
-              productId_variantName: {
-                productId: updated.id,
-                variantName: p.variantName,
-              },
-            },
-            update: { ...p },
-            create: { ...p, productId: updated.id },
+        const doUpsert = async () => {
+          if (existing) {
+            return tx.variantOption.update({
+              where: { id: existing.id },
+              data: { ...p },
+            });
+          }
+          return tx.variantOption.create({
+            data: { ...p, productId: updated.id },
           });
+        };
 
         try {
           await doUpsert();
@@ -1761,9 +1762,7 @@ export const updateProduct = async (args: {
 
     for (const newVariant of newVariants) {
       // Find matching previous variant by variantName (since IDs change on deleteMany/create)
-      const previousVariant = previousVariants.find(
-        (pv) => pv.variantName === newVariant.variantName
-      );
+      const previousVariant = previousVariants.find((pv) => pv.id === newVariant.id);
 
       const newStock = newVariant.stockQuantity || 0;
       const lowStockThreshold = newVariant.lowStockThreshold || 0;

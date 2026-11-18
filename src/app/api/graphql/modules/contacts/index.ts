@@ -642,6 +642,17 @@ const fetchSingleBuyer = async (args: { userId: number; id: string }) => {
 const fetchSingleSupplier = async (args: { userId: number; id: string }) => {
   const { userId, id } = args;
 
+  // SupplierProfile and SupplierTable must read the same AUTO snapshot. The list
+  // route reconciles these rows from Product stock; doing the same before the
+  // single-supplier read prevents a just-saved profile from returning stale AUTO
+  // quantities until the user visits the list and refreshes a second time.
+  try {
+    const { syncAllProductSuppliersForUser } = await import('@/lib/suppliers/syncProductSupplies');
+    await syncAllProductSuppliersForUser(Number(userId));
+  } catch (syncError) {
+    console.warn('[Suppliers] Profile snapshot reconciliation skipped:', syncError);
+  }
+
   const supplierInclude = {
     supplyRecords: { orderBy: [{ sortOrder: 'asc' as const }, { id: 'asc' as const }] },
   };

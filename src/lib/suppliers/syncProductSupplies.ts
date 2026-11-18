@@ -1,8 +1,10 @@
 import { prisma, type Prisma } from '@/lib/db';
 import type { SupplyDetail } from '@/types/client';
 import { isSupplySummaryRow } from '@/lib/suppliers/supplyRecords';
+import { resolveCatalogIdentity } from '@/lib/catalog/identityResolver';
 
 type VariantSnapshot = {
+  id?: number;
   variantName: string;
   sku?: string | null;
   purchasePrice: unknown;
@@ -39,12 +41,12 @@ const toMoneyNumber = (value: unknown): number => {
 };
 
 /** Variant-stable identity — never use shared catalog SKUs (often duplicated across options). */
-export function supplyIdentity(productId: string, variantName: string): string {
-  return `${String(productId).trim()}|${String(variantName || '').trim()}`;
+export function supplyIdentity(productId: string, variantName: string, variantOptionId?: number): string {
+  return variantOptionId != null ? `${String(productId).trim()}|variant:${variantOptionId}` : `${String(productId).trim()}|${String(variantName || '').trim()}`;
 }
 
-export function supplyAutoNo(productId: string, variantName: string): string {
-  return `AUTO-${supplyIdentity(productId, variantName)}`;
+export function supplyAutoNo(productId: string, variantName: string, variantOptionId?: number): string {
+  return `AUTO-${supplyIdentity(productId, variantName, variantOptionId)}`;
 }
 
 export const productLabel = (productName: string, variantName: string): string => {
@@ -62,21 +64,24 @@ function findSupplyRow(
   summaryVariantName?: string,
 ): SupplyDetail | undefined {
   const effectiveVariantName = summaryVariantName || String(variant.variantName || '').trim();
-  const identity = supplyIdentity(product.productId, effectiveVariantName);
-  const autoNo = supplyAutoNo(product.productId, effectiveVariantName);
+  const identity = supplyIdentity(product.productId, effectiveVariantName, variant.id);
+  const autoNo = supplyAutoNo(product.productId, effectiveVariantName, variant.id);
   const label = productLabel(product.name, effectiveVariantName);
   const sku = String(displaySku || variant.sku || identity).trim();
   const summaryRows = supplies.filter(isSupplySummaryRow);
+  const byVariantName = summaryRows.find((row) =>
+    String(row.productId || '').trim() === product.productId &&
+    String(row.variantName || '').trim().toLowerCase() === effectiveVariantName.toLowerCase(),
+  );
+  const skuMatches = summaryRows.filter((row) =>
+    String(row.productId || '').trim() === product.productId &&
+    String(row.sku || '').trim().toLowerCase() === sku.toLowerCase(),
+  );
   return (
+    (variant.id != null ? summaryRows.find((row) => row.variantOptionId != null && Number(row.variantOptionId) === variant.id) : undefined) ||
     summaryRows.find((row) => String(row.suppliesno || '') === autoNo) ||
-    summaryRows.find((row) =>
-      String(row.productId || '').trim() === product.productId &&
-      String(row.sku || '').trim().toLowerCase() === sku.toLowerCase(),
-    ) ||
-    summaryRows.find((row) =>
-      String(row.productId || '').trim() === product.productId &&
-      String(row.variantName || '').trim().toLowerCase() === effectiveVariantName.toLowerCase(),
-    ) ||
+    byVariantName ||
+    (skuMatches.length === 1 ? skuMatches[0] : undefined) ||
     summaryRows.find((row) => String(row.sku || '').trim() === identity) ||
     summaryRows.find((row) => String(row.product || '').trim() === label)
   );
@@ -89,10 +94,11 @@ function buildNewSupplyRow(
   const qty = Math.max(0, Math.floor(Number(variant.stockQuantity) || 0));
   const unitCost = toMoneyNumber(variant.purchasePrice);
   const totalValue = Math.round(unitCost * qty);
-  const displaySku = String(variant.sku ?? '').trim() || supplyIdentity(product.productId, variant.variantName);
+  const displaySku = String(variant.sku ?? '').trim() || supplyIdentity(product.productId, variant.variantName, variant.id);
   return {
-    suppliesno: supplyAutoNo(product.productId, variant.variantName),
+    suppliesno: supplyAutoNo(product.productId, variant.variantName, variant.id),
     sku: displaySku,
+    variantOptionId: variant.id ?? null,
     product: productLabel(product.name, variant.variantName),
     totalSupplied: String(qty),
     totalValue: String(totalValue),
@@ -277,31 +283,14 @@ export function applyProductToSupplierMaps(
   let supplies = [...(suppliesBySupplierId.get(target.id) || [])];
   let changed = false;
 
-  // Product ID + SKU is the supplier-summary identity. If a catalog accidentally
-  // contains more than one active variant with the same SKU, their stock snapshots
-  // are consolidated once instead of creating multiple AUTO rows.
-  const variantGroups = new Map<string, VariantSnapshot[]>();
+  // Each VariantOption owns its own summary. SKUs are editable and may be reused.
   for (const variant of variants) {
-    const displaySku = String(variant.sku ?? '').trim() || supplyIdentity(product.productId, variant.variantName);
-    const groupKey = `${product.productId}|${displaySku.toLowerCase()}`;
-    const group = variantGroups.get(groupKey) || [];
-    group.push(variant);
-    variantGroups.set(groupKey, group);
-  }
-
-  for (const group of variantGroups.values()) {
-    const variant = group[0];
-    const displaySku = String(variant.sku ?? '').trim() || supplyIdentity(product.productId, variant.variantName);
-    const memberNames = group.map((item) => String(item.variantName || '').trim()).filter(Boolean);
-    const summaryVariantName = memberNames.length > 1 ? memberNames.join(' + ') : memberNames[0] || 'Default';
-    const label = productLabel(product.name, summaryVariantName);
-    const autoNo = supplyAutoNo(product.productId, summaryVariantName);
-    const qty = group.reduce((sum, item) => sum + Math.max(0, Math.floor(Number(item.stockQuantity) || 0)), 0);
-    const totalValue = Math.round(group.reduce((sum, item) => {
-      const itemQty = Math.max(0, Math.floor(Number(item.stockQuantity) || 0));
-      return sum + toMoneyNumber(item.purchasePrice) * itemQty;
-    }, 0));
-    const current = findSupplyRow(supplies, product, variant, displaySku, summaryVariantName);
+    const displaySku = String(variant.sku ?? '').trim() || supplyIdentity(product.productId, variant.variantName, variant.id);
+    const label = productLabel(product.name, variant.variantName);
+    const autoNo = supplyAutoNo(product.productId, variant.variantName, variant.id);
+    const qty = Math.max(0, Math.floor(Number(variant.stockQuantity) || 0));
+    const totalValue = Math.round(toMoneyNumber(variant.purchasePrice) * qty);
+    const current = findSupplyRow(supplies, product, variant, displaySku, variant.variantName);
 
     if (current && isSupplySummaryRow(current)) {
       if (
@@ -310,7 +299,8 @@ export function applyProductToSupplierMaps(
         current.suppliesno !== autoNo ||
         current.recordType !== 'summary' ||
         current.productId !== product.productId ||
-        current.variantName !== summaryVariantName ||
+        Number(current.variantOptionId || 0) !== Number(variant.id || 0) ||
+        current.variantName !== variant.variantName ||
         Number(current.totalSupplied || 0) !== qty ||
         Number(current.totalValue || 0) !== totalValue
       ) {
@@ -319,9 +309,8 @@ export function applyProductToSupplierMaps(
         current.suppliesno = autoNo;
         current.recordType = 'summary';
         current.productId = product.productId;
-        current.variantName = summaryVariantName;
-        // Always overwrite from current catalog stock. Never add to the previous
-        // snapshot, so a supplier-list refresh cannot increase totals by itself.
+        current.variantOptionId = variant.id ?? null;
+        current.variantName = variant.variantName;
         current.totalSupplied = String(qty);
         current.totalValue = String(totalValue);
         current.lastSuppliedDate = '';
@@ -331,29 +320,24 @@ export function applyProductToSupplierMaps(
       const beforeCount = supplies.length;
       supplies = supplies.filter((row) => {
         if (row === current || !isSupplySummaryRow(row)) return true;
+        if (row.variantOptionId != null && variant.id != null) return Number(row.variantOptionId) !== variant.id;
         const sameProduct = String(row.productId || '').trim() === product.productId;
-        const sameSku = String(row.sku || '').trim().toLowerCase() === displaySku.toLowerCase();
-        const sameVariant = memberNames.some((name) =>
-          String(row.variantName || '').trim().toLowerCase() === name.toLowerCase(),
-        );
         const sameAutoNo = String(row.suppliesno || '').trim() === autoNo;
-        return !(sameProduct && (sameSku || sameVariant) || sameAutoNo);
+        const sameVariant = String(row.variantName || '').trim().toLowerCase() === variant.variantName.toLowerCase();
+        return !(sameProduct && (sameVariant || sameAutoNo));
       });
       if (supplies.length !== beforeCount) changed = true;
       continue;
     }
 
-    // A catalog reassignment must never mint another opening balance when this
-    // product/SKU is still represented by a summary under another supplier.
     const alreadyRecordedElsewhere = suppliers.some((supplier) =>
-      (suppliesBySupplierId.get(supplier.id) || []).some((row) => {
-        if (!isSupplySummaryRow(row)) return false;
-        const rowProductId = String(row.productId || '').trim().toLowerCase();
-        const rowSku = String(row.sku || '').trim().toLowerCase();
-        const rowVariant = String(row.variantName || '').trim().toLowerCase();
-        return rowProductId === product.productId.trim().toLowerCase() &&
-          (rowSku === displaySku.toLowerCase() || memberNames.some((name) => rowVariant === name.toLowerCase()));
-      }),
+      (suppliesBySupplierId.get(supplier.id) || []).some((row) =>
+        isSupplySummaryRow(row) &&
+        (variant.id != null && row.variantOptionId != null
+          ? Number(row.variantOptionId) === variant.id
+          : String(row.productId || '').trim().toLowerCase() === product.productId.trim().toLowerCase() &&
+            String(row.variantName || '').trim().toLowerCase() === variant.variantName.toLowerCase()),
+      ),
     );
     if (alreadyRecordedElsewhere) continue;
 
@@ -361,13 +345,14 @@ export function applyProductToSupplierMaps(
     newRow.suppliesno = autoNo;
     newRow.sku = displaySku;
     newRow.product = label;
-    newRow.variantName = summaryVariantName;
+    newRow.productId = product.productId;
+    newRow.variantOptionId = variant.id ?? null;
+    newRow.variantName = variant.variantName;
     newRow.totalSupplied = String(qty);
     newRow.totalValue = String(totalValue);
     supplies.push(newRow);
     changed = true;
   }
-
   if (changed) {
     suppliesBySupplierId.set(target.id, supplies);
     dirtySupplierIds.add(target.id);
@@ -609,6 +594,33 @@ export async function syncSupplierFromProduct(product: ProductSnapshot): Promise
     );
     const dirtySupplierIds = new Set<number>();
 
+    // Reattach old rows whose product was deleted/recreated when the legacy SKU
+    // or verified alias uniquely resolves to this current product variant.
+    for (const supplier of suppliers) {
+      const rows = suppliesBySupplierId.get(supplier.id) || [];
+      let relinked = false;
+      for (const row of rows) {
+        if (row.variantOptionId != null) continue;
+        const resolved = await resolveCatalogIdentity(tx, product.userId, {
+          productId: row.productId,
+          productName: row.product,
+          variantName: row.variantName,
+          sku: row.sku,
+        });
+        if (resolved.status !== 'matched' || resolved.candidate.productId !== product.productId) continue;
+        row.productId = resolved.candidate.productId;
+        row.variantOptionId = resolved.candidate.variantOptionId;
+        row.variantName = resolved.candidate.variantName;
+        row.sku = row.sku || resolved.candidate.sku || '';
+        row.product = productLabel(product.name, resolved.candidate.variantName);
+        relinked = true;
+      }
+      if (relinked) {
+        suppliesBySupplierId.set(supplier.id, rows);
+        dirtySupplierIds.add(supplier.id);
+      }
+    }
+
     applyProductToSupplierMaps(product, suppliesBySupplierId, suppliers, dirtySupplierIds);
 
     for (const supplierId of dirtySupplierIds) {
@@ -650,6 +662,7 @@ export async function syncAllProductSuppliersForUser(userId: number): Promise<{
           userId: true,
           variantOptions: {
             select: {
+              id: true,
               variantName: true,
               sku: true,
               purchasePrice: true,

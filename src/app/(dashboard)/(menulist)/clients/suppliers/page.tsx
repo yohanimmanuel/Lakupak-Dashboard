@@ -178,69 +178,40 @@ export default function SuppliersPage() {
     const requestSeq = ++suppliersRequestSeqRef.current;
     
     try {
-      // Reconcile supplier AUTO rows to current Product variant stock in the background.
-      // The sync overwrites snapshots (never increments them) and must not block list load.
-      // Coalesce concurrent calls (e.g. React Strict Mode) onto one in-flight sync.
+      // Reconcile supplier AUTO rows before reading the table. Do not render an
+      // older supplier snapshot and then replace it asynchronously: SupplierTable
+      // and SupplierProfile must observe the same persisted summary state.
       if (!productSyncInFlightRef.current) {
         const syncUserId = user.id;
-        productSyncInFlightRef.current = fetchGraphQL<{
+        let syncPromise: Promise<void>;
+        syncPromise = fetchGraphQL<{
           syncSuppliersFromProducts: {
             success: boolean;
             productsProcessed: number;
             suppliersTouched: number;
           };
         }>(
-          `
-            mutation SyncSuppliersFromProducts($userId: Int!) {
-              syncSuppliersFromProducts(userId: $userId) {
-                success
-                productsProcessed
-                suppliersTouched
-              }
+          `mutation SyncSuppliersFromProducts($userId: Int!) {
+            syncSuppliersFromProducts(userId: $userId) {
+              success
+              productsProcessed
+              suppliersTouched
             }
-          `,
+          }`,
           { userId: syncUserId },
         )
-          .then(async (syncResult) => {
-            const touched = syncResult?.syncSuppliersFromProducts?.suppliersTouched ?? 0;
-            if (touched <= 0) return;
-
-            // Sync wrote supplier rows — refresh the list without blocking callers.
-            const refreshSeq = ++suppliersRequestSeqRef.current;
-            try {
-              const refreshData = await fetchGraphQL<{
-                suppliers: { nodes: Supplier[] };
-              }>(SUPPLIERS_QUERY, {
-                userId: syncUserId,
-                page: 1,
-                limit: 1000,
-              });
-              if (refreshSeq <= suppliersAppliedSeqRef.current) return;
-              const refreshed = refreshData.suppliers.nodes.map((supplier: Supplier) => {
-                const supplies = supplier.supplies ? JSON.parse(supplier.supplies) : [];
-                const { avgMonthlyPurchaseValue, avgMonthlySupplied } =
-                  calculateMonthlyAverages(supplies);
-                return {
-                  ...supplier,
-                  avgMonthlyPurchaseValue,
-                  avgMonthlySupplied,
-                };
-              });
-              setSuppliers(refreshed);
-              hasLoadedSuppliersRef.current = true;
-              suppliersCountRef.current = refreshed.length;
-              suppliersAppliedSeqRef.current = refreshSeq;
-            } catch (refreshError) {
-              console.warn('Supplier list refresh after sync skipped:', refreshError);
-            }
-          })
+          .then(() => undefined)
           .catch((syncError) => {
             console.warn('Supplier product sync skipped:', syncError);
           })
           .finally(() => {
-            productSyncInFlightRef.current = null;
+            if (productSyncInFlightRef.current === syncPromise) {
+              productSyncInFlightRef.current = null;
+            }
           });
+        productSyncInFlightRef.current = syncPromise;
       }
+      await productSyncInFlightRef.current;
 
       const data = await fetchGraphQL<{
         suppliers: {

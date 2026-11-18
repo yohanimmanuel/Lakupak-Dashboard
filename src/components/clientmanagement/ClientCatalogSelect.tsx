@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { createPortal } from 'react-dom';
 import { ChevronDown, Search } from 'lucide-react';
 
-type Option = { value: string; label: string };
+type Option = { value: string; label: string; searchText?: string; description?: string };
 
 type ClientCatalogSelectProps = {
   value: string;
@@ -18,6 +18,8 @@ type ClientCatalogSelectProps = {
   disabled?: boolean;
   className?: string;
   searchPlaceholder?: string;
+  /** Optional menu renderer for compact multi-line catalog options. */
+  renderOption?: (option: Option) => React.ReactNode;
 };
 
 /** Searchable catalog picker styled consistently with the supplier SKU/product pickers. */
@@ -31,6 +33,7 @@ export default function ClientCatalogSelect({
   disabled = false,
   className = '',
   searchPlaceholder = 'Search...',
+  renderOption,
 }: ClientCatalogSelectProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -47,7 +50,7 @@ export default function ClientCatalogSelect({
   const filtered = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
     if (!needle) return options;
-    return options.filter((option) => `${option.label} ${option.value}`.toLocaleLowerCase().includes(needle));
+    return options.filter((option) => `${option.label} ${option.value} ${option.searchText || ''} ${option.description || ''}`.toLocaleLowerCase().includes(needle));
   }, [options, query]);
 
   const updateMenuPosition = useCallback(() => {
@@ -129,7 +132,7 @@ export default function ClientCatalogSelect({
             onClick={(event) => { event.stopPropagation(); emitChange(option.value); setOpen(false); setQuery(''); }}
             className={`block w-full px-3 py-2 text-left text-xs hover:bg-gray-100 ${value === option.value ? 'bg-gray-50 font-semibold text-[#0a61d7]' : 'text-gray-700'}`}
           >
-            {option.label}
+            {renderOption ? renderOption(option) : option.label}
           </button>
         ))}
         {filtered.length === 0 ? <div className="px-3 py-3 text-xs text-gray-500">No matching options</div> : null}

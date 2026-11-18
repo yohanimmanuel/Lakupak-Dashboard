@@ -271,7 +271,7 @@ export function computeSupplyStockEffects(
     const checked = shouldUpdateCurrentStock(row);
     const wasChecked = prev ? shouldUpdateCurrentStock(prev) : false;
     // Only the persisted server flag counts — never trust a client-invented stockApplied.
-    const stockAlreadyApplied = prev?.stockApplied === true;
+    const stockAlreadyApplied = prev?.stockApplied === true || (prev?.stockApplied == null && prev?.updateCurrentStock === true);
 
     if (!prev) {
       if (qty > 0 || value > 0) {
@@ -525,7 +525,8 @@ export async function finalizeSupplierSuppliesSave(args: {
       (prev ? successfulStockApplyKeys.has(effectRowKey(prev)) : false);
     const stockApplied = disabledThisSave
       ? false
-      : stockAppliedThisSave || prev?.stockApplied === true;
+      : stockAppliedThisSave || prev?.stockApplied === true ||
+        (prev?.stockApplied == null && prev?.updateCurrentStock === true);
     return {
       ...row,
       recordType: 'history' as const,

@@ -78,7 +78,10 @@ export default function SupplierDetailsPage() {
       revalidateOnReconnect: true,
       errorRetryCount: 3,
       errorRetryInterval: 1000,
-      dedupingInterval: 5000,
+      // A supplier may have just been saved and its AUTO rows reconciled from
+      // Product stock. Do not reuse a very recent pre-save response for this route.
+      dedupingInterval: 0,
+      revalidateOnMount: true,
     },
   );
 

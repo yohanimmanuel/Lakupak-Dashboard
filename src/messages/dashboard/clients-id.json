@@ -553,7 +553,8 @@
       "saveSuccessCreate": "Pemasok berhasil dibuat.",
       "saveFailed": "Gagal menyimpan pemasok",
       "selectVariant": "Pilih varian",
-      "searchVariant": "Cari varian…"
+      "searchVariant": "Cari varian…",
+      "bulkUnupdateStock": "Batalkan Update Stok"
     }
   },
   "import": {
@@ -640,7 +641,8 @@
       "pricePerPackage": "Harga / Kemasan",
       "totalSpend": "Total Belanja",
       "outstanding": "Total Tunggakan",
-      "lastOrderDate": "Tanggal Pesanan Terakhir"
+      "lastOrderDate": "Tanggal Pesanan Terakhir",
+      "stockType": "Jenis Stok"
     },
     "supplyFields": {
       "product": "Produk",

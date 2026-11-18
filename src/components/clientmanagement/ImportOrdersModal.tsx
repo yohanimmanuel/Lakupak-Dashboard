@@ -15,6 +15,7 @@ const orderFields = [
   { key: 'sku', label: 'SKU' },
   { key: 'variantName', label: 'Variant' },
   { key: 'totalOrders', label: 'Total Orders' },
+  { key: 'stockType', label: 'Stock Type' },
   { key: 'pricePerPackage', label: 'Price / Pckg' },
   { key: 'totalSpend', label: 'Total Spend' },
   { key: 'outstanding', label: 'Total Outstanding' },
@@ -26,6 +27,7 @@ const orderFieldSynonyms: { [key: string]: string[] } = {
   sku: ['sku', 'sku number', 'item code', 'product code', 'kode barang'],
   variantName: ['variant', 'variant name', 'product variant', 'option', 'variant produk'],
   totalOrders: ['total orders', 'total orders (boxes)', 'orders', 'boxes', 'quantity', 'qty', 'jumlah', 'jumlah box'],
+  stockType: ['stock type', 'stock unit', 'unit', 'package type', 'package unit', 'order unit', 'satuan', 'jenis stok', 'jenis kemasan'],
   pricePerPackage: ['price / pckg', 'price per package', 'price per pkg', 'unit price', 'harga per unit', 'harga satuan'],
   totalSpend: ['total spend', 'spend', 'total', 'total harga', 'harga'],
   outstanding: ['outstanding', 'total outstanding', 'balance due', 'piutang', 'utang'],
@@ -63,17 +65,46 @@ function removeCurrencyIdentifier(value: string | undefined): string {
 
 type BuyerImportProduct = NonNullable<ImportOrdersModalProps['productCatalog']>[number];
 
-function matchCatalogProduct(productValue: string, catalog: BuyerImportProduct[]) {
+function matchCatalogProduct(
+  productValue: string,
+  catalog: BuyerImportProduct[],
+  skuValue?: string,
+  variantValue?: string,
+) {
   const raw = String(productValue || '').trim().toLowerCase();
+  const sku = String(skuValue || '').trim().toLowerCase();
+  const variantName = String(variantValue || '').trim().toLowerCase();
+  const variants = catalog.flatMap((product) =>
+    (product.variantOptions || []).map((variant) => ({ product, variant })),
+  );
+
+  // A distributor SKU is an alias only when it identifies one catalog variant.
+  if (sku) {
+    const skuMatches = variants.filter(({ variant }) => String(variant.sku || '').trim().toLowerCase() === sku);
+    if (skuMatches.length === 1) return skuMatches[0];
+    if (skuMatches.length > 1 && variantName) {
+      const narrowed = skuMatches.filter(({ variant }) => variant.variantName.trim().toLowerCase() === variantName);
+      if (narrowed.length === 1) return narrowed[0];
+    }
+  }
+
   if (!raw) return undefined;
-  const direct = catalog.find((product) => product.name.trim().toLowerCase() === raw);
-  if (direct) return { product: direct, variant: undefined };
-  const variantMatch = catalog.flatMap((product) => (product.variantOptions || []).map((variant) => ({ product, variant })))
-    .find(({ product, variant }) => `${product.name} (${variant.variantName})`.trim().toLowerCase() === raw);
-  if (variantMatch) return variantMatch;
+  const exactVariantLabel = variants.filter(({ product, variant }) =>
+    (product.name + ' (' + variant.variantName + ')').trim().toLowerCase() === raw,
+  );
+  if (exactVariantLabel.length === 1) return exactVariantLabel[0];
+
   const baseName = raw.replace(/\s*\([^)]*\)\s*$/, '').trim();
   const productMatches = catalog.filter((product) => product.name.trim().toLowerCase() === baseName);
-  return productMatches.length === 1 ? { product: productMatches[0], variant: undefined } : undefined;
+  if (productMatches.length !== 1) return undefined;
+
+  if (variantName) {
+    const matchingVariants = (productMatches[0].variantOptions || []).filter(
+      (variant) => variant.variantName.trim().toLowerCase() === variantName,
+    );
+    if (matchingVariants.length === 1) return { product: productMatches[0], variant: matchingVariants[0] };
+  }
+  return { product: productMatches[0], variant: undefined };
 }
 
 type ImportOrdersModalProps = {
@@ -211,13 +242,11 @@ export default function ImportOrdersModal({
         
         mapped[f.key as keyof OrderDetail] = value as never;
       });
-      const catalogMatch = matchCatalogProduct(String(mapped.product || ''), productCatalog);
+      const catalogMatch = matchCatalogProduct(String(mapped.product || ''), productCatalog, String(mapped.sku || ''), String(mapped.variantName || ''));
       const levels = catalogMatch?.product.stockLevels || [{ name: 'Pieces', piecesPerUnit: 1 }];
-      const parsed = parseBuyerOrderTotal(String(mapped.totalOrders || ''), 'Pieces');
-      const requestedUnit = String(row.__stockType || parsed.unit || 'Pieces');
-      const selectedLevel = levels.find((level) => level.name.toLowerCase() === requestedUnit.toLowerCase())
-        || levels.find((level) => level.name.toLowerCase() === 'pieces')
-        || levels[0];
+      const parsed = parseBuyerOrderTotal(String(mapped.totalOrders || ''), String(mapped.stockType || 'Pieces'));
+      const requestedUnit = String(row.__stockType || mapped.stockType || parsed.unit || 'Pieces').trim();
+      const selectedLevel = levels.find((level) => level.name.toLowerCase() === requestedUnit.toLowerCase());
       const stockType = selectedLevel?.name || requestedUnit || 'Pieces';
       const selectedVariantId = row.__variantOverride
         ? String(row.__variantOptionId || '')
@@ -225,13 +254,15 @@ export default function ImportOrdersModal({
       const selectedVariant = catalogMatch?.product.variantOptions?.find((variant) => String(variant.id) === selectedVariantId);
       return {
         ...(mapped as OrderDetail),
-        totalOrders: formatBuyerOrderTotal(parsed.quantity, stockType),
+        totalOrders: parsed.isMixed
+          ? String(mapped.totalOrders || '')
+          : formatBuyerOrderTotal(parsed.quantity, stockType),
         stockType,
-        piecesPerPackage: Number(selectedLevel?.piecesPerUnit) || 1,
+        piecesPerPackage: selectedLevel ? Number(selectedLevel.piecesPerUnit) || 1 : undefined,
         productId: catalogMatch?.product.productId,
         variantOptionId: selectedVariant?.id == null ? undefined : String(selectedVariant.id),
         sku: String(mapped.sku || selectedVariant?.sku || ''),
-        variantName: String(mapped.variantName || selectedVariant?.variantName || ''),
+        variantName: String(selectedVariant?.variantName || mapped.variantName || ''),
         pricePerPackage: String(mapped.pricePerPackage || ''),
       } as OrderDetail;
     });
@@ -251,6 +282,17 @@ export default function ImportOrdersModal({
     if (!hasAnyMapping) {
       errors.push(tImport('mapAtLeastOne'));
       return errors;
+    }
+
+    const invalidStockTypes = mappedRows.filter((row) => {
+      const parsed = parseBuyerOrderTotal(String(row.totalOrders || ''), String(row.stockType || 'Pieces'));
+      if (parsed.isMixed || !String(row.totalOrders || '').trim()) return false;
+      const product = productCatalog.find((item) => item.productId === row.productId);
+      const levels = product?.stockLevels?.length ? product.stockLevels : [{ name: 'Pieces', piecesPerUnit: 1 }];
+      return !levels.some((level) => level.name.toLowerCase() === String(row.stockType || parsed.unit || 'Pieces').trim().toLowerCase());
+    });
+    if (invalidStockTypes.length > 0) {
+      errors.push(`Select a valid stock type for ${invalidStockTypes.length} row(s). Check that the SKU or product matches a catalog item with the selected stock level.`);
     }
     
     return errors;
@@ -470,26 +512,34 @@ export default function ImportOrdersModal({
                                   searchPlaceholder="Search variant..."
                                 />
                               );
-                            })() : f.key === 'totalOrders' ? (() => {
+                            })() : f.key === 'totalOrders' ? (
+                              <span>{parseBuyerOrderTotal(row.totalOrders, row.stockType || 'Pieces').quantity}</span>
+                            ) : f.key === 'stockType' ? (() => {
                               const raw = rows[idx] || {};
                               const productField = mapping.product;
-                              const matched = matchCatalogProduct(productField ? raw[productField] : '', productCatalog);
-                              const baseOptions = matched?.product.stockLevels?.length ? matched.product.stockLevels : [{ name: 'Pieces', piecesPerUnit: 1 }];
+                              const skuField = mapping.sku;
+                              const variantField = mapping.variantName;
+                              const matched = matchCatalogProduct(
+                                productField ? raw[productField] : '',
+                                productCatalog,
+                                skuField ? raw[skuField] : '',
+                                variantField ? raw[variantField] : '',
+                              );
+                              const options = matched?.product.stockLevels?.length
+                                ? matched.product.stockLevels
+                                : [{ name: 'Pieces', piecesPerUnit: 1 }];
                               const currentUnit = String(raw.__stockType || row.stockType || 'Pieces');
-                              const options = baseOptions.some((level) => level.name.toLowerCase() === currentUnit.toLowerCase()) ? baseOptions : [...baseOptions, { name: currentUnit, piecesPerUnit: 1 }];
                               return (
-                                <div className="flex min-w-[14rem] items-center gap-2">
-                                  <span>{parseBuyerOrderTotal(row.totalOrders, row.stockType || 'Pieces').quantity}</span>
-                                  <ClientCatalogSelect
-                                    className="min-w-[8rem]"
-                                    value={currentUnit}
-                                    placeholder="Pieces"
-                                    options={options.map((level) => ({ value: level.name, label: level.name }))}
-                                    allowNone={false}
-                                    onChange={(stockType: string) => setRows((current) => current.map((item, rowIndex) => rowIndex === idx ? { ...item, __stockType: stockType } : item))}
-                                    searchPlaceholder="Search stock type..."
-                                  />
-                                </div>
+                                <ClientCatalogSelect
+                                  className="min-w-[8rem]"
+                                  value={currentUnit}
+                                  placeholder="Pieces"
+                                  options={options.map((level) => ({ value: level.name, label: level.name }))}
+                                  allowNone={false}
+                                  onChange={(stockType: string) => setRows((current) => current.map((item, rowIndex) => rowIndex === idx ? { ...item, __stockType: stockType } : item))}
+                                  searchPlaceholder="Search stock type..."
+                                  disabled={!matched?.product}
+                                />
                               );
                             })() : row[f.key as keyof OrderDetail]}
                           </td>

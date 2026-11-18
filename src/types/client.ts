@@ -125,6 +125,7 @@ export interface SupplyDetail {
   recordType?: 'history' | 'summary';
   productId?: string;
   variantName?: string;
+  variantOptionId?: number | null;
   updateCurrentStock?: boolean;
   stockApplied?: boolean;
   __delete?: true;

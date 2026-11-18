@@ -2,6 +2,7 @@ import type { SupplyDetail } from '@/types/client';
 import { isSupplyHistoryRow, isSupplySummaryRow } from '@/lib/suppliers/supplyRecords';
 export type CatalogVariantRef = {
   productId: string;
+  variantOptionId?: number;
   variantName: string;
   sku: string;
   productLabel: string;
@@ -33,10 +34,12 @@ function toQty(value: unknown): number {
  */
 export function buildCatalogVariantIndexes(variants: CatalogVariantRef[]): {
   byProductVariant: Map<string, CatalogVariantRef>;
+  byVariantOptionId: Map<number, CatalogVariantRef>;
   byUniqueSku: Map<string, CatalogVariantRef>;
   byUniqueLabel: Map<string, CatalogVariantRef>;
 } {
   const byProductVariant = new Map<string, CatalogVariantRef>();
+  const byVariantOptionId = new Map<number, CatalogVariantRef>();
   const skuCounts = new Map<string, number>();
   const labelCounts = new Map<string, number>();
   const bySku = new Map<string, CatalogVariantRef>();
@@ -47,6 +50,7 @@ export function buildCatalogVariantIndexes(variants: CatalogVariantRef[]): {
     const variantName = String(variant.variantName || '').trim();
     if (!productId || !variantName) continue;
     byProductVariant.set(`${norm(productId)}|${norm(variantName)}`, variant);
+    if (variant.variantOptionId != null) byVariantOptionId.set(variant.variantOptionId, variant);
 
     const sku = norm(variant.sku);
     if (sku) {
@@ -75,7 +79,7 @@ export function buildCatalogVariantIndexes(variants: CatalogVariantRef[]): {
     }
   }
 
-  return { byProductVariant, byUniqueSku, byUniqueLabel };
+  return { byProductVariant, byVariantOptionId, byUniqueSku, byUniqueLabel };
 }
 
 export function resolveSupplyRowVariant(
@@ -83,6 +87,10 @@ export function resolveSupplyRowVariant(
   indexes: ReturnType<typeof buildCatalogVariantIndexes>,
 ): CatalogVariantRef | null {
   const productId = String(row.productId || '').trim();
+  if (row.variantOptionId != null) {
+    const byId = indexes.byVariantOptionId.get(Number(row.variantOptionId));
+    if (byId) return byId;
+  }
   const variantName = String(row.variantName || '').trim();
   if (productId && variantName) {
     const hit = indexes.byProductVariant.get(`${norm(productId)}|${norm(variantName)}`);

@@ -464,6 +464,47 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
     orderProductCatalog.find((product) => product.productId === String(productId || '')),
   [orderProductCatalog]);
 
+  // Resolve the selected SKU/variant from the canonical catalog identity first.
+  // Legacy text is only a fallback and must identify exactly one variant.
+  const getBuyerVariantForRow = useCallback((row: OrderDetail) => {
+    const product = getBuyerProduct(row.productId);
+    const variants = product?.variantOptions || [];
+    const byId = variants.find((variant) => String(variant.id) === String(row.variantOptionId || ''));
+    if (byId) return byId;
+
+    const sku = String(row.sku || '').trim().toLocaleLowerCase();
+    if (sku) {
+      const skuMatches = variants.filter((variant) => String(variant.sku || '').trim().toLocaleLowerCase() === sku);
+      if (skuMatches.length === 1) return skuMatches[0];
+    }
+
+    const variantName = String(row.variantName || '').trim().toLocaleLowerCase();
+    if (variantName) {
+      const nameMatches = variants.filter((variant) => String(variant.variantName || '').trim().toLocaleLowerCase() === variantName);
+      if (nameMatches.length === 1) return nameMatches[0];
+    }
+    return undefined;
+  }, [getBuyerProduct]);
+
+  const orderSkuDropdownOptions = useMemo(() => orderProductCatalog.flatMap((product) =>
+    (product.variantOptions || [])
+      .filter((variant) => variant.isActive !== false && String(variant.sku || '').trim())
+      .map((variant) => {
+        const sku = String(variant.sku || '').trim();
+        const description = `${String(product.name || '').trim()} · ${String(variant.variantName || '').trim()}`;
+        return {
+          value: String(variant.id),
+          productId: product.productId,
+          sku,
+          // The closed selector displays only the SKU, matching SupplierModal.
+          label: sku,
+          // Keep product and variant searchable without putting them on the SKU line.
+          searchText: description,
+          description,
+        };
+      }),
+  ), [orderProductCatalog]);
+
   const getBuyerProductStockLevels = useCallback((productId?: string): StockLevel[] => {
     const levels = getBuyerProduct(productId)?.stockLevels || [];
     const valid = levels.filter((level) => level && String(level.name || '').trim());
@@ -688,6 +729,36 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
     }));
   }, [getBuyerProduct, getBuyerCalculatedSpend]);
 
+  // SKU selection also selects its owning product and VariantOption. We use the
+  // variant ID as the option value so reused SKUs cannot collide in the picker.
+  const handleOrderSkuSelect = useCallback((idx: number, variantId: string) => {
+    orderRowsEditedRef.current = true;
+    const match = orderProductCatalog.flatMap((product) =>
+      (product.variantOptions || []).map((variant) => ({ product, variant })),
+    ).find(({ variant }) => String(variant.id) === variantId);
+    if (!match) return;
+
+    const levels = getBuyerProductStockLevels(match.product.productId);
+    setOrderRows((rows) => rows.map((row, index) => {
+      if (index !== idx) return row;
+      const currentUnit = String(row.stockType || '').trim();
+      const selectedLevel = levels.find((level) => level.name.toLocaleLowerCase() === currentUnit.toLocaleLowerCase()) || levels[0];
+      const nextRow: OrderDetail = {
+        ...row,
+        product: match.product.name,
+        productId: match.product.productId,
+        variantOptionId: String(match.variant.id),
+        variantName: match.variant.variantName,
+        sku: match.variant.sku || '',
+        stockType: selectedLevel?.name || 'Pieces',
+        piecesPerPackage: selectedLevel?.piecesPerUnit || 1,
+        pricePerPackage: '',
+        totalSpend: '',
+      };
+      return { ...nextRow, totalSpend: getBuyerCalculatedSpend(nextRow) };
+    }));
+  }, [orderProductCatalog, getBuyerProductStockLevels, getBuyerCalculatedSpend]);
+
   const handleOrderQuantityChange = useCallback((idx: number, quantity: string) => {
     orderRowsEditedRef.current = true;
     setOrderRows((rows) => rows.map((row, i) => {
@@ -793,7 +864,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
   }, [selectedOrderRows]);
 
   const handleExportOrders = useCallback(() => {
-    const headers = ['Product', 'SKU', 'Variant', 'Total Orders', 'Price / Pckg', 'Total Spend', 'Total Outstanding', 'Last Order Date'];
+    const headers = ['Product', 'SKU', 'Variant', 'Total Orders', 'Stock Type', 'Price / Pckg', 'Total Spend', 'Total Outstanding', 'Last Order Date'];
     const rows = orderRows
       .filter((row) => !isBlankOrderRow(row))
       .map((row) => [
@@ -801,6 +872,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
         row.sku || getBuyerProduct(row.productId)?.variantOptions?.find((variant) => String(variant.id) === String(row.variantOptionId || ''))?.sku || '',
         row.variantName || '',
         row.totalOrders || '',
+        row.stockType || parseBuyerOrderTotal(row.totalOrders || '', 'Pieces').unit,
         getBuyerPricePerPackage(row) ?? '',
         getBuyerCalculatedSpend(row),
         row.outstanding || '',
@@ -1499,8 +1571,28 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
                           searchPlaceholder="Search product..."
                         />
                       </td>
-                      <td className="py-2 px-3 text-black">
-                        {row.sku || getBuyerProduct(row.productId)?.variantOptions?.find((variant) => String(variant.id) === String(row.variantOptionId || ''))?.sku || '—'}
+                      <td className="min-w-[13rem] py-2 px-3">
+                        {(() => {
+                          const skuOptions = orderSkuDropdownOptions.filter((option) =>
+                            !row.productId || option.productId === row.productId,
+                          );
+                          return (
+                            <ClientCatalogSelect
+                              value={String(getBuyerVariantForRow(row)?.id || '')}
+                              placeholder="Select SKU"
+                              options={skuOptions}
+                              allowNone={false}
+                              onChange={(variantId: string) => handleOrderSkuSelect(idx, variantId)}
+                              searchPlaceholder="Search SKU, product or variant..."
+                              renderOption={(option) => (
+                                <span className="flex flex-col gap-0.5">
+                                  <span className="font-semibold text-black">{option.label}</span>
+                                  <span className="text-[10px] font-normal text-gray-500">{option.description || option.searchText}</span>
+                                </span>
+                              )}
+                            />
+                          );
+                        })()}
                       </td>
                       <td className="py-2 px-3">
                         <ClientCatalogSelect

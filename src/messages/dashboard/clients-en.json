@@ -543,7 +543,8 @@
       "saveSuccessCreate": "Supplier has been created successfully.",
       "saveFailed": "Failed to save supplier",
       "selectVariant": "Select variant",
-      "searchVariant": "Search variant…"
+      "searchVariant": "Search variant…",
+      "bulkUnupdateStock": "Unupdate Stock"
     }
   },
   "import": {
@@ -630,7 +631,8 @@
       "pricePerPackage": "Price / Pckg",
       "totalSpend": "Total Spend",
       "outstanding": "Total Outstanding",
-      "lastOrderDate": "Last Order Date"
+      "lastOrderDate": "Last Order Date",
+      "stockType": "Stock Type"
     },
     "supplyFields": {
       "product": "Product",

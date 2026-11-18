@@ -2,6 +2,7 @@ import type { Prisma, PrismaClient } from '@/lib/prisma-generated';
 import type { SupplyDetail } from '@/types/client';
 import { getSupplyRecordType, getSupplyReceivedInput, mergeDuplicateSummaryRows } from '@/lib/suppliers/supplyRecords';
 import { isSupplyDeleteMarker } from '@/lib/suppliers/applySupplierSuppliesSave';
+import { resolveCatalogIdentity } from '@/lib/catalog/identityResolver';
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
@@ -22,6 +23,7 @@ export type SupplyRecordRow = {
   recordType: string;
   productId: string | null;
   variantName: string | null;
+  variantOptionId: number | null;
   updateCurrentStock: boolean;
   stockApplied: boolean;
   sortOrder: number;
@@ -75,6 +77,7 @@ export function supplyDetailFromRecord(row: SupplyRecordRow): SupplyDetail {
     recordType: getSupplyRecordType({ suppliesno: row.suppliesno, recordType: row.recordType as SupplyDetail['recordType'] }),
     productId: row.productId || undefined,
     variantName: row.variantName || undefined,
+    variantOptionId: row.variantOptionId ?? undefined,
     updateCurrentStock: row.updateCurrentStock === true,
     stockApplied: row.stockApplied === true,
   };
@@ -126,6 +129,7 @@ export function buildSupplyRecordCreateManyRows(
   recordType: string;
   productId: string | null;
   variantName: string | null;
+  variantOptionId: number | null;
   updateCurrentStock: boolean;
   stockApplied: boolean;
   sortOrder: number;
@@ -155,6 +159,7 @@ export function buildSupplyRecordCreateManyRows(
       recordType,
       productId: row.productId ? String(row.productId) : null,
       variantName: row.variantName ? String(row.variantName) : null,
+      variantOptionId: row.variantOptionId != null && Number.isSafeInteger(Number(row.variantOptionId)) ? Number(row.variantOptionId) : null,
       updateCurrentStock: row.updateCurrentStock === true,
       stockApplied: row.stockApplied === true,
       sortOrder: index,
@@ -176,10 +181,31 @@ export async function replaceSupplierSupplyRecords(
         : [];
   // Collapse catalog-linked duplicate summaries before any persistence. History
   // rows are deliberately retained as separate dated events.
-  const list = mergeDuplicateSummaryRows(raw.filter((row) => !isSupplyDeleteMarker(row)));
+  let list = raw.filter((row) => !isSupplyDeleteMarker(row));
+  // Resolve legacy rows against the distributor's current catalog. Only unique or
+  // verified matches are linked; unmatched/ambiguous rows retain their original data.
+  const supplierOwner = await db.supplier.findUnique({
+    where: { id: supplierRefId },
+    select: { userId: true },
+  });
+  if (supplierOwner?.userId != null) {
+    for (const row of list) {
+      if (row.variantOptionId != null) continue;
+      const resolved = await resolveCatalogIdentity(db, supplierOwner.userId, {
+        productId: row.productId, productName: row.product, variantName: row.variantName, sku: row.sku,
+      });
+      if (resolved.status === 'matched') {
+        row.variantOptionId = resolved.candidate.variantOptionId;
+        row.productId = resolved.candidate.productId;
+        row.variantName = row.variantName || resolved.candidate.variantName;
+        row.sku = row.sku || resolved.candidate.sku || '';
+      }
+    }
+  }
 
   // Preserve database IDs for unchanged/edited records. The caller must hold the
   // distributor advisory lock in the same transaction for existing suppliers.
+  list = mergeDuplicateSummaryRows(list);
   const incoming = buildSupplyRecordCreateManyRows(supplierRefId, list);
   // Guard the same identity used by the UI: one row per catalog product + SKU.
   // If a row has no SKU, fall back to the product's variant label.
@@ -189,7 +215,10 @@ export async function replaceSupplierSupplyRecords(
     const productId = String(row.productId || '').trim().toLowerCase();
     const sku = String(row.sku || '').trim().toLowerCase();
     const variant = String(row.variantName || row.product || '').trim().toLowerCase();
-    const key = productId
+    const variantOptionId = row.variantOptionId == null ? '' : String(row.variantOptionId);
+    const key = variantOptionId
+      ? `variant-option:${variantOptionId}`
+      : productId
       ? (sku ? `${productId}|sku:${sku}` : `${productId}|variant:${variant}`)
       : (sku ? `sku:${sku}|product:${String(row.product || '').trim().toLowerCase()}` : `product:${variant}`);
     if (summaryKeys.has(key)) {
@@ -238,6 +267,7 @@ export async function replaceSupplierSupplyRecords(
           recordType: row.recordType,
           productId: row.productId,
           variantName: row.variantName,
+          variantOptionId: row.variantOptionId,
           updateCurrentStock: row.updateCurrentStock,
           stockApplied: row.stockApplied,
           sortOrder: row.sortOrder,

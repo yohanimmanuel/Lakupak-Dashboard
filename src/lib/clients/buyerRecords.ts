@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from '@/lib/prisma-generated';
 import type { OrderDetail } from '@/types/client';
+import { resolveCatalogIdentity } from '@/lib/catalog/identityResolver';
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
@@ -19,6 +20,7 @@ export type BuyerRecordRow = {
   product: string;
   productId: string | null;
   variantOptionId: number | null;
+  skuSnapshot: string | null;
   variantName: string | null;
   stockType: string | null;
   piecesPerPackage: number | null;
@@ -56,6 +58,7 @@ export function orderDetailFromRecord(row: BuyerRecordRow): OrderDetail {
     product: row.product || '',
     productId: row.productId || undefined,
     variantOptionId: row.variantOptionId ?? undefined,
+    sku: row.skuSnapshot || undefined,
     variantName: row.variantName || undefined,
     stockType: row.stockType || undefined,
     piecesPerPackage: row.piecesPerPackage ?? undefined,
@@ -90,6 +93,7 @@ function normalizeBuyerRecordForCompare(row: OrderDetail, index: number): BuyerR
       ? Number(row.variantOptionId)
       : null,
     variantName: row.variantName ? String(row.variantName) : null,
+    skuSnapshot: row.sku ? String(row.sku) : null,
     stockType: row.stockType ? String(row.stockType) : null,
     piecesPerPackage: Number.isSafeInteger(Number(row.piecesPerPackage)) && Number(row.piecesPerPackage) > 0
       ? Number(row.piecesPerPackage)
@@ -138,6 +142,7 @@ export function areBuyerOrderDetailsEqual(
       a.product !== b.product ||
       a.productId !== b.productId ||
       a.variantOptionId !== b.variantOptionId ||
+      a.skuSnapshot !== b.skuSnapshot ||
       a.variantName !== b.variantName ||
       a.stockType !== b.stockType ||
       a.piecesPerPackage !== b.piecesPerPackage ||
@@ -187,6 +192,27 @@ async function replaceBuyerOrderRecordsInTx(
   list: OrderDetail[],
 ): Promise<ReplaceBuyerOrderRecordsResult> {
   await lockBuyerOrderRecords(tx, buyerRefId);
+
+  const buyer = await tx.buyer.findUnique({
+    where: { id: buyerRefId },
+    select: { userId: true },
+  });
+  if (buyer?.userId != null) {
+    for (const row of list) {
+      if (row.variantOptionId != null) continue;
+      const resolved = await resolveCatalogIdentity(tx, buyer.userId, {
+        productId: row.productId,
+        productName: row.product,
+        variantName: row.variantName,
+        sku: row.sku,
+      });
+      if (resolved.status === 'matched') {
+        row.variantOptionId = resolved.candidate.variantOptionId;
+        row.productId = resolved.candidate.productId;
+        row.sku = row.sku || resolved.candidate.sku || '';
+      }
+    }
+  }
 
   const existing = await loadBuyerOrderDetails(tx, buyerRefId);
   if (areBuyerOrderDetailsEqual(existing, list)) {

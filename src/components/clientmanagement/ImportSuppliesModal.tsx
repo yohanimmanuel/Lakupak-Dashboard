@@ -34,8 +34,8 @@ const supplyFieldSynonyms: Record<ImportableSupplyField, string[]> = {
   product: ['product', 'product name', 'nama produk', 'item', 'description'],
   sku: ['sku', 'sku number', 'kode', 'kode barang', 'item code', 'product code'],
   variantName: ['variant', 'variant name', 'product variant', 'option', 'variant produk'],
-  totalSupplied: ['total supplied', 'total supplied (pieces)', 'received quantity', 'received', 'supplied', 'quantity', 'qty', 'jumlah', 'jumlah supply'],
-  receivedUnit: ['stock type', 'received unit', 'package type', 'received package type', 'unit', 'satuan'],
+  totalSupplied: ['total supplied', 'total supplied (pieces)', 'received quantity', 'received', 'received (package type)', 'received quantity (received unit)', 'received quantity (package type)', 'supplied', 'quantity', 'qty', 'jumlah', 'jumlah supply'],
+  receivedUnit: ['stock type', 'stock unit', 'received unit', 'package type', 'package unit', 'received package type', 'received stock type', 'unit', 'satuan', 'jenis stok', 'jenis kemasan'],
   totalValue: ['purchase value', 'purchase amount', 'total value', 'value', 'total harga', 'harga'],
   lastSuppliedDate: ['last supplied date', 'last supplied', 'last delivery', 'delivery date', 'tanggal', 'tanggal delivery'],
 };
@@ -70,6 +70,7 @@ function removeCurrencyIdentifier(value: string | undefined): string {
 }
 
 export type SupplierCatalogEntry = {
+  variantOptionId?: number;
   sku: string;
   product: string;
   productId?: string;
@@ -89,18 +90,40 @@ function normalizeKey(value: string | undefined): string {
   return String(value || '').trim().toLowerCase();
 }
 
+/**
+ * Older supplier exports combined quantity and package type in one cell
+ * (for example, "80 Pieces" or "2 Cartons"). New exports use separate
+ * Received Quantity and Stock Type columns. Keep both formats importable.
+ */
+function splitReceivedQuantityAndUnit(value: string | undefined): { quantity: string; unit: string } {
+  const raw = String(value || '').trim();
+  const match = raw.match(/^([\d,]+(?:\.\d+)?)\s+(.+?)\s*$/);
+  if (!match) return { quantity: raw, unit: '' };
+  return { quantity: match[1].replace(/,/g, ''), unit: match[2].trim() };
+}
+
 function getCatalogMatch(row: Record<string, string>, mapping: Record<string, string>, catalog: SupplierCatalogEntry[]) {
   const sku = normalizeKey(mapping.sku ? row[mapping.sku] : '');
   const product = normalizeKey(mapping.product ? row[mapping.product] : '');
+  const variantName = normalizeKey(mapping.variantName ? row[mapping.variantName] : '');
+
   if (sku) {
-    const bySku = catalog.find((entry) => normalizeKey(entry.sku) === sku);
-    if (bySku) return bySku;
+    const skuMatches = catalog.filter((entry) => normalizeKey(entry.sku) === sku);
+    if (skuMatches.length === 1) return skuMatches[0];
+    if (skuMatches.length > 1 && variantName) {
+      const narrowed = skuMatches.filter((entry) => normalizeKey(entry.variantName) === variantName);
+      if (narrowed.length === 1) return narrowed[0];
+    }
   }
+
   if (product) {
-    const exact = catalog.find((entry) => normalizeKey(entry.product) === product);
-    if (exact) return exact;
+    const exact = catalog.filter((entry) => normalizeKey(entry.product) === product);
+    if (exact.length === 1 && !variantName) return exact[0];
     const base = product.replace(/\s*\([^)]*\)\s*$/, '').trim();
-    const matches = catalog.filter((entry) => normalizeKey(entry.product).replace(/\s*\([^)]*\)\s*$/, '').trim() === base);
+    const matches = catalog.filter((entry) =>
+      normalizeKey(entry.product).replace(/\s*\([^)]*\)\s*$/, '').trim() === base &&
+      (!variantName || normalizeKey(entry.variantName) === variantName),
+    );
     if (matches.length === 1) return matches[0];
   }
   return undefined;
@@ -253,17 +276,27 @@ export default function ImportSuppliesModal({
         mapped[f.key] = value;
       });
       const catalogMatch = getCatalogMatch(row, mapping, supplierCatalog);
-      const receivedQuantity = String(mapped.totalSupplied || '').trim();
-      const requestedUnit = String(row.__receivedUnit || mapped.receivedUnit || 'Pieces').trim();
+      const combinedReceived = splitReceivedQuantityAndUnit(mapped.totalSupplied);
+      const receivedQuantity = combinedReceived.unit
+        ? combinedReceived.quantity
+        : String(mapped.totalSupplied || '').trim();
+      // A manually mapped Stock Type column wins. Otherwise use the unit parsed
+      // from the legacy combined export column, then default numeric-only rows to Pieces.
+      const requestedUnit = String(
+        row.__receivedUnit || mapped.receivedUnit || combinedReceived.unit || 'Pieces',
+      ).trim();
       const stockLevels = getSupplyUnitOptions(catalogMatch?.stockLevels);
       const matchedUnit = stockLevels.find((level) => level.name.toLowerCase() === requestedUnit.toLowerCase());
       const receivedUnit = matchedUnit?.name || requestedUnit || 'Pieces';
-      const totalSuppliedPieces = convertSupplyQuantityToPieces(receivedQuantity, receivedUnit, stockLevels);
+      const totalSuppliedPieces = matchedUnit
+        ? convertSupplyQuantityToPieces(receivedQuantity, receivedUnit, stockLevels)
+        : null;
       return {
         suppliesno: '',
         sku: mapped.sku || catalogMatch?.sku || '',
         product: mapped.product || catalogMatch?.product || '',
         productId: catalogMatch?.productId,
+        variantOptionId: catalogMatch?.variantOptionId,
         variantName: mapped.variantName || catalogMatch?.variantName || '',
         receivedQuantity,
         receivedUnit,

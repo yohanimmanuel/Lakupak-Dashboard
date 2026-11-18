@@ -66,6 +66,7 @@ model User {
   marketplaceHomeOffers MarketplaceHomeOffer[]
   assortmentOpportunities AssortmentOpportunity[]
   assortmentOpportunitySettings AssortmentOpportunitySettings?
+  catalogIdentityAliases CatalogIdentityAlias[]
 
   @@index([companyId])
   @@index([accountStatus])
@@ -247,6 +248,8 @@ model BuyerRecord {
   product          String   @default("")
   productId        String?
   variantOptionId  Int?
+  skuSnapshot      String?
+  variantOption    VariantOption? @relation(fields: [variantOptionId], references: [id], onDelete: SetNull)
   variantName      String?
   stockType        String?
   piecesPerPackage Int?
@@ -308,6 +311,8 @@ model SupplyRecord {
   recordType         String   @default("history")
   productId          String?
   variantName        String?
+  variantOptionId    Int?
+  variantOption      VariantOption? @relation(fields: [variantOptionId], references: [id], onDelete: SetNull)
   updateCurrentStock Boolean  @default(false)
   /// True after this history row has already adjusted variant stock (re-check must not re-apply).
   stockApplied       Boolean  @default(false)
@@ -321,6 +326,7 @@ model SupplyRecord {
   @@index([supplierRefId, sortOrder])
   @@index([productId])
   @@index([sku])
+  @@index([variantOptionId])
 }
 
 model Product {
@@ -367,6 +373,7 @@ model Product {
   favoriteProducts  FavoriteProduct[]
   user              User?            @relation(fields: [userId], references: [id])
   productReviews    ProductReview[]
+  identityAliases   CatalogIdentityAlias[] @relation("CatalogAliasProduct")
 
   // Indexes for performance - added to fix slow queries
   @@index([userId])
@@ -375,6 +382,40 @@ model Product {
   @@index([merchandisingCategorySlug])
   @@index([userId, marketplaceStatus])
   @@index([createdAt])
+}
+
+
+/// Durable historical identifiers used to resolve legacy imports and catalog renames.
+/// Alias values are intentionally non-unique: collisions must be surfaced as ambiguous.
+model CatalogIdentityAlias {
+  id                       Int      @id @default(autoincrement())
+  userId                   Int
+  aliasType                String
+  aliasValue               String
+  normalizedValue          String
+  source                   String   @default("legacy")
+  externalSystem           String?
+  legacyProductId          String?
+  legacyVariantOptionId    Int?
+  legacyProductName        String?
+  legacyVariantName        String?
+  legacySku                String?
+  canonicalProductId       String?
+  canonicalVariantOptionId Int?
+  verified                 Boolean  @default(false)
+  metadata                 Json?
+  createdAt                DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt                DateTime @updatedAt @db.Timestamptz(3)
+
+  user                   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  canonicalProduct       Product?       @relation("CatalogAliasProduct", fields: [canonicalProductId], references: [productId], onDelete: SetNull)
+  canonicalVariantOption VariantOption? @relation("CatalogAliasVariant", fields: [canonicalVariantOptionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, aliasType, normalizedValue])
+  @@index([userId, canonicalProductId])
+  @@index([userId, canonicalVariantOptionId])
+  @@index([userId, legacyProductId])
+  @@index([userId, legacyVariantOptionId])
 }
 
 model ProductVariant {
@@ -744,6 +785,9 @@ model VariantOption {
   product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   orderItems OrderItem[]
   offers     Offer[]
+  buyerRecords BuyerRecord[]
+  supplierSupplyRecords SupplyRecord[]
+  identityAliases CatalogIdentityAlias[] @relation("CatalogAliasVariant")
   assortmentOpportunities AssortmentOpportunity[]
 
   @@unique([productId, variantName])
