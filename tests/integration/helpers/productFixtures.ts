@@ -141,7 +141,16 @@ export async function createMinimalOrderForVariant(opts: {
   variantOptionId: number;
   variantNameSnapshot: string;
   orderId: string;
+  variantId?: number | null;
 }) {
+  const variantSnapshot = await prisma.variantOption.findUnique({
+    where: { id: opts.variantOptionId },
+    select: {
+      sku: true,
+      attributes: true,
+      product: { select: { name: true, productType: true, images: true } },
+    },
+  });
   await prisma.order.create({
     data: {
       orderId: opts.orderId,
@@ -186,11 +195,14 @@ export async function createMinimalOrderForVariant(opts: {
       piecesPerPackage: 1,
       packageQuantity: 1,
       pricePerPackage: 2000,
-      productNameSnapshot: 'Sync Test Shirt',
-      productSkuSnapshot: `SKU-${opts.productId}`,
-      productTypeSnapshot: 'Apparel',
+      productNameSnapshot: variantSnapshot?.product.name ?? 'Sync Test Shirt',
+      productSkuSnapshot: variantSnapshot?.sku ?? null,
+      productTypeSnapshot: variantSnapshot?.product.productType ?? 'Apparel',
+      productImageSnapshot: variantSnapshot?.product.images?.[0] ?? null,
       variantOptionId: opts.variantOptionId,
+      variantId: opts.variantId ?? null,
       variantNameSnapshot: opts.variantNameSnapshot,
+      variantAttributesSnapshot: variantSnapshot?.attributes ?? undefined,
       offerApplied: false,
       promotionDetailsSnapshot: null,
       moqSnapshot: 1,

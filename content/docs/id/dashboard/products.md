@@ -98,7 +98,7 @@ Ikuti urutan ini saat membuat atau mengedit produk:
 
 > **Penting:** Setelah menambah, menghapus, atau mengganti nama tipe/opsi varian, klik **Refresh** lagi sebelum menyimpan atau mempublikasikan. Jika langkah ini dilewati, tabel varian bisa tidak sinkron dan **Save** atau **Publish** bisa gagal meskipun form terlihat sudah lengkap.
 
-Varian dan harga bisa **terkunci** jika produk punya penawaran aktif. Ubah/hapus varian yang dipakai pesanan lama diblokir dengan modal penjelasan; buat opsi baru untuk melindungi riwayat pesanan.
+Varian dan harga bisa **terkunci** jika produk memiliki penawaran aktif. Selain itu, varian katalog dapat diubah namanya atau dihapus secara terpisah dari pesanan. Item pesanan lama tetap menyimpan snapshot produk, SKU, nama varian, dan atribut saat pemesanan.
 
 ### Simpan, draf, dan unpublish
 

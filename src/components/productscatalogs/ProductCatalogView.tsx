@@ -64,8 +64,6 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
     formData,
     generalCategoryRef,
     getSelectedCategory,
-    guardVariantOptionEditOnFocus,
-    guardVariantTypeEditOnFocus,
     handleCancel,
     handleCategorySelect,
     handleDragLeave,
@@ -1143,11 +1141,6 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
                           type="text"
                           value={(variantDrafts.find((v) => v.id === variant.id)?.variantType ?? variant.variantType) as string}
                           onChange={(e) => updateVariant(variant.id, 'variantType', e.target.value)}
-                          onFocus={(e) => {
-                            guardVariantTypeEditOnFocus(variant.id).then((blocked) => {
-                              if (blocked) (e.target as HTMLInputElement).blur();
-                            });
-                          }}
                           onBlur={() => commitVariantTypeRename(variant.id)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
@@ -1226,11 +1219,6 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
                                 ?.options.find((o) => o.id === option.id)?.name ?? option.name) as string
                             }
                             onChange={(e) => updateVariantOption(variant.id, option.id, 'name', e.target.value)}
-                            onFocus={(e) => {
-                              guardVariantOptionEditOnFocus(variant.id, option.id).then((blocked) => {
-                                if (blocked) (e.target as HTMLInputElement).blur();
-                              });
-                            }}
                             onBlur={() => commitVariantOptionRename(variant.id, option.id)}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') {
@@ -1869,18 +1857,6 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
                 </div>
               )}
               <div className="mt-4 flex justify-end gap-2">
-                {variantGuardModal.action?.kind === 'create_option' && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      addVariantOption(variantGuardModal.action!.variantId, variantGuardModal.action!.initialName);
-                      setVariantGuardModal(null);
-                    }}
-                    className="px-4 py-2 text-xs font-semibold rounded-lg bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#0a61d7]/30"
-                  >
-                    {tCatalog('variantGuard.createNewOption')}
-                  </button>
-                )}
                 <button
                   type="button"
                   onClick={() => setVariantGuardModal(null)}

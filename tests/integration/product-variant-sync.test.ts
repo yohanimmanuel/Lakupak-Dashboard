@@ -94,7 +94,7 @@ describe('products.updateProduct + marketplace variant sync (integration)', () =
     expect(activeColors).not.toContain('Yellow');
   });
 
-  it('deactivates an ordered variant instead of deleting it; marketplace hides inactive options', async () => {
+  it('deletes an ordered variant while preserving order snapshots; marketplace hides the removed option', async () => {
     const distributor = await createTestDistributor();
     const productId = 'P-VAR-SYNC-2';
     await createPublishedProductWithColorVariants(distributor.id, productId);
@@ -156,19 +156,31 @@ describe('products.updateProduct + marketplace variant sync (integration)', () =
       ],
     });
 
-    const yellowAfter = await prisma.variantOption.findUnique({
-      where: { id: yellow!.id },
-      select: { isActive: true },
-    });
-    expect(yellowAfter?.isActive).toBe(false);
+    const yellowAfter = await prisma.variantOption.findUnique({ where: { id: yellow!.id } });
+    expect(yellowAfter).toBeNull();
 
-    // Locked by order history: Yellow remains in definition options for integrity.
+    const historicalOrderItem = await prisma.orderItem.findFirst({
+      where: { orderId: 'LKO-VAR-SYNC-2' },
+      select: {
+        variantOptionId: true,
+        productNameSnapshot: true,
+        productSkuSnapshot: true,
+        variantNameSnapshot: true,
+        variantAttributesSnapshot: true,
+      },
+    });
+    expect(historicalOrderItem?.variantOptionId).toBeNull();
+    expect(historicalOrderItem?.productNameSnapshot).toBe('Sync Test Shirt');
+    expect(historicalOrderItem?.variantNameSnapshot).toBe(yellow!.variantName);
+    expect(historicalOrderItem?.variantAttributesSnapshot).toEqual({ Color: 'Yellow', Size: 'M' });
+
+    // Removed options disappear from the editable product definitions as well.
     const defs = await prisma.productVariant.findMany({
       where: { productId: productRow!.id, variantType: 'Color' },
       select: { options: true },
     });
     const colorOpts = Array.isArray(defs[0]?.options) ? (defs[0]!.options as string[]) : [];
-    expect(colorOpts).toContain('Yellow');
+    expect(colorOpts).not.toContain('Yellow');
 
     const listing = await fetchMarketplaceProducts({ search: 'Sync Test Shirt', limit: 20 });
     const node = listing.nodes.find(
@@ -178,7 +190,54 @@ describe('products.updateProduct + marketplace variant sync (integration)', () =
     expect(activeColors).not.toContain('Yellow');
   });
 
-  it('blocks attribute changes on a variant option tied to past orders', async () => {
+  it('allows removing a variant type referenced by an order and preserves the order snapshot', async () => {
+    const distributor = await createTestDistributor();
+    const productId = 'P-VAR-SYNC-4';
+    await createPublishedProductWithColorVariants(distributor.id, productId);
+
+    const product = await prisma.product.findFirst({ where: { productId }, select: { id: true } });
+    const colorDefinition = await prisma.productVariant.findFirst({
+      where: { productId: product!.id, variantType: 'Color' },
+      select: { id: true },
+    });
+    const yellow = await prisma.variantOption.findFirst({
+      where: { productId: product!.id, variantName: { contains: 'Yellow' } },
+      select: { id: true, variantName: true },
+    });
+    expect(colorDefinition).not.toBeNull();
+    expect(yellow).not.toBeNull();
+
+    await createMinimalOrderForVariant({
+      distributorUserId: distributor.id,
+      productId,
+      variantOptionId: yellow!.id,
+      variantNameSnapshot: yellow!.variantName,
+      variantId: colorDefinition!.id,
+      orderId: 'LKO-VAR-SYNC-4',
+    });
+
+    await updateProduct({
+      userId: distributor.id,
+      productId,
+      variantDefinitions: [{ variantType: 'Size', options: ['M'], position: 0 }],
+    });
+
+    const item = await prisma.orderItem.findFirst({
+      where: { orderId: 'LKO-VAR-SYNC-4' },
+      select: { variantId: true, variantOptionId: true, variantNameSnapshot: true, variantAttributesSnapshot: true },
+    });
+    expect(item?.variantId).toBeNull();
+    expect(item?.variantOptionId).toBe(yellow!.id);
+    expect(item?.variantNameSnapshot).toBe(yellow!.variantName);
+    expect(item?.variantAttributesSnapshot).toEqual({ Color: 'Yellow', Size: 'M' });
+
+    const colorDefinitionAfter = await prisma.productVariant.findFirst({
+      where: { productId: product!.id, variantType: 'Color' },
+    });
+    expect(colorDefinitionAfter).toBeNull();
+  });
+
+  it('allows editing a variant option tied to past orders without changing the order snapshot', async () => {
     const distributor = await createTestDistributor();
     const productId = 'P-VAR-SYNC-3';
     await createPublishedProductWithColorVariants(distributor.id, productId);
@@ -200,27 +259,35 @@ describe('products.updateProduct + marketplace variant sync (integration)', () =
       orderId: 'LKO-VAR-SYNC-3',
     });
 
-    await expect(
-      updateProduct({
-        userId: distributor.id,
-        productId,
-        variantOptions: [
-          {
-            variantName: 'Color: Yellow | Size: M',
-            attributes: { Color: 'Gold', Size: 'M' },
-            sku: `SKU-${productId}-YELLOW`,
-            purchasePrice: '1000',
-            sellingPrice: '2000',
-            originalSellingPrice: '2000',
-            moq: 1,
-            stockQuantity: 10,
-            lowStockThreshold: 0,
-            stockStatus: 'In Stock',
-            isDefault: false,
-            isActive: true,
-          },
-        ],
-      }),
-    ).rejects.toThrow(/used in past orders/i);
+    await updateProduct({
+      userId: distributor.id,
+      productId,
+      variantOptions: [
+        {
+          variantName: 'Color: Yellow | Size: M',
+          attributes: { Color: 'Gold', Size: 'M' },
+          sku: `SKU-${productId}-YELLOW`,
+          purchasePrice: '1000',
+          sellingPrice: '2000',
+          originalSellingPrice: '2000',
+          moq: 1,
+          stockQuantity: 10,
+          lowStockThreshold: 0,
+          stockStatus: 'In Stock',
+          isDefault: false,
+          isActive: true,
+        },
+      ],
+    });
+
+    const currentVariant = await prisma.variantOption.findUnique({ where: { id: yellow!.id } });
+    expect(currentVariant?.attributes).toEqual({ Color: 'Gold', Size: 'M' });
+    const historicalOrderItem = await prisma.orderItem.findFirst({
+      where: { orderId: 'LKO-VAR-SYNC-3' },
+      select: { variantOptionId: true, variantNameSnapshot: true, variantAttributesSnapshot: true },
+    });
+    expect(historicalOrderItem?.variantOptionId).toBe(yellow!.id);
+    expect(historicalOrderItem?.variantNameSnapshot).toBe(yellow!.variantName);
+    expect(historicalOrderItem?.variantAttributesSnapshot).toEqual({ Color: 'Yellow', Size: 'M' });
   });
 });

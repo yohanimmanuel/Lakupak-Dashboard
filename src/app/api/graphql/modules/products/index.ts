@@ -1505,105 +1505,54 @@ export const updateProduct = async (args: {
       },
     });
 
-    // Single source of truth for "what is locked by past orders" — reused by every guardrail below
-    // (variant-type immutability, variant-option immutability, and delete-vs-deactivate).
-    // `hasAnyOrderHistory` is product-level (covers legacy orders without a variantOptionId);
-    // `orderedOptionIds` pinpoints exactly which VariantOptions are immutable.
-    const [orderItemCount, orderedOptions] = await Promise.all([
-      tx.orderItem.count({ where: { productId: productBeforeUpdate.productId } }),
-      tx.variantOption.findMany({
-        where: { productId: updated.id, orderItems: { some: {} } },
-        select: { id: true, attributes: true },
-      }),
-    ]);
-    const orderedOptionIds = new Set(orderedOptions.map((o) => o.id));
-    const hasAnyOrderHistory = orderItemCount > 0;
-
-    // Business rule (orders tied): variant TYPES cannot be deleted, but their option lists stay editable.
-    // - No order history  -> full replace (free editing), including clearing when payload is [].
-    // - Has order history -> never delete a type; option values follow the incoming payload, while any
-    //   value locked by a past order is force-kept. Distributors may rename/add/remove non-ordered options.
+    // Product variant definitions are catalog configuration, not order-owned data.
+    // OrderItem keeps immutable text/attribute snapshots and its optional relation is
+    // detached by ON DELETE SET NULL when a definition is removed.
     if (variantDefinitions !== undefined && variantDefinitions !== null && Array.isArray(variantDefinitions)) {
-      if (hasAnyOrderHistory && variantDefinitions.length === 0) {
-        throw new Error(
-          'Cannot clear variant definitions for a product with order history.',
-        );
-      }
+      const existingDefinitions = await tx.productVariant.findMany({
+        where: { productId: updated.id },
+        select: { id: true, variantType: true },
+      });
+      const existingByType = new Map(existingDefinitions.map((definition) => [definition.variantType, definition]));
+      const incomingTypes = new Set(variantDefinitions.map((definition) => definition.variantType));
 
-      if (!hasAnyOrderHistory) {
-        await tx.productVariant.deleteMany({ where: { productId: updated.id } });
-        if (variantDefinitions.length > 0) {
-          await tx.productVariant.createMany({
-            data: variantDefinitions.map((def) => ({
-              productId: updated.id,
-              variantType: def.variantType,
-              options: def.options,
-              position: def.position,
-            })),
-          });
-        }
-      } else if (variantDefinitions.length > 0) {
-        const existingDefs = await tx.productVariant.findMany({
-          where: { productId: updated.id },
-          select: { id: true, variantType: true, options: true, position: true },
-        });
-        const existingByType = new Map(existingDefs.map((d) => [d.variantType, d]));
-
-        // Compute the option values that are "locked" by order history per variant type.
-        // Only values tied to an ordered VariantOption must survive; everything else follows
-        // the incoming payload so removed options (e.g. a deleted color) disappear from the marketplace.
-        const lockedValuesByType = new Map<string, Set<string>>();
-        for (const vo of orderedOptions) {
-          const attrs =
-            vo.attributes && typeof vo.attributes === 'object'
-              ? (vo.attributes as Record<string, unknown>)
-              : {};
-          for (const [type, val] of Object.entries(attrs)) {
-            if (val === null || val === undefined) continue;
-            if (!lockedValuesByType.has(type)) lockedValuesByType.set(type, new Set());
-            lockedValuesByType.get(type)!.add(String(val));
-          }
-        }
-
-        // Only upsert by variantType; never delete existing variant types when order history exists.
-        for (const def of variantDefinitions) {
-          const existing = existingByType.get(def.variantType);
-          // Options follow the incoming payload, plus any value locked by an existing order.
-          const nextOpts = Array.isArray(def.options) ? def.options.map((o) => String(o)) : [];
-          const lockedForType = lockedValuesByType.get(def.variantType) ?? new Set<string>();
-          const merged = Array.from(new Set([...nextOpts, ...lockedForType]));
-
-          if (!existing) {
-            await tx.productVariant.create({
-              data: {
-                productId: updated.id,
-                variantType: def.variantType,
-                options: merged,
-                position: def.position,
-              },
-            });
-            continue;
-          }
-
+      // Keep IDs for unchanged definition layers. Renaming/removing a layer deletes
+      // only that catalog definition; OrderItem.variantId is nullable and its own
+      // order-time snapshots remain untouched by the FK's ON DELETE SET NULL.
+      for (const definition of variantDefinitions) {
+        const existing = existingByType.get(definition.variantType);
+        if (existing) {
           await tx.productVariant.update({
             where: { id: existing.id },
+            data: { options: definition.options, position: definition.position },
+          });
+        } else {
+          await tx.productVariant.create({
             data: {
-              options: merged,
-              position: def.position,
+              productId: updated.id,
+              variantType: definition.variantType,
+              options: definition.options,
+              position: definition.position,
             },
           });
         }
       }
+
+      const removedDefinitionIds = existingDefinitions
+        .filter((definition) => !incomingTypes.has(definition.variantType))
+        .map((definition) => definition.id);
+      if (removedDefinitionIds.length > 0) {
+        await tx.productVariant.deleteMany({ where: { id: { in: removedDefinitionIds } } });
+      }
     }
 
-    // IMPORTANT: preserve VariantOption ids so pending OrderItems keep their `variantOptionId`.
-    // We upsert by the DB-unique key (productId, variantName) and delete only removed options.
-    // Empty array is intentional: clear/deactivate all options not locked by orders.
+    // Preserve VariantOption IDs for unchanged/renamed options. Removed options are deleted
+    // after their historical OrderItems have been snapshotted and detached by the FK.
     if (variantOptions !== undefined && variantOptions !== null && Array.isArray(variantOptions)) {
       const payload = createVariantOptionsPayload(variantOptions, currency ?? undefined);
       const keepNames = payload.map((p) => p.variantName);
 
-      // Map existing VariantOptions by variantName so we can apply guardrails.
+      // Map existing VariantOptions by attributes/name so edits preserve stable IDs.
       const existingVariantOptions = await tx.variantOption.findMany({
         where: { productId: updated.id },
         select: {
@@ -1629,20 +1578,9 @@ export const updateProduct = async (args: {
         const existing = matchedByAttrs || existingByName.get(normalizedName) || null;
 
         // Keep the database identity when attributes identify the same variant.
-        // A display-name-only change must update the existing row, not create a new identity.
+        // A display-name-only change updates the existing row; historical order
+        // labels remain isolated in OrderItem snapshots.
         const p = { ...raw, variantName: normalizedName };
-
-        // If this VariantOption has ever been ordered, block any identity mutation to preserve integrity.
-        const hasOrderHistory = existing ? orderedOptionIds.has(existing.id) : false;
-
-        if (hasOrderHistory && existing) {
-          const nextAttrs = p.attributes ?? null;
-          const prevAttrs = existing.attributes ?? null;
-          const attrsChanged = JSON.stringify(prevAttrs) !== JSON.stringify(nextAttrs);
-          if (attrsChanged) {
-            throw new Error(`This variant is used in past orders. Create a new variant to continue selling.`);
-          }
-        }
 
         const doUpsert = async () => {
           if (existing) {
@@ -1676,7 +1614,7 @@ export const updateProduct = async (args: {
         }
       }
 
-      // Guardrail: do not delete VariantOptions referenced by orders. Deactivate instead.
+      // Prune removed catalog options after snapshotting linked order items.
       // Also skip pruning when the payload does not cover the full variant matrix — an incomplete
       // list (e.g. user edited variant types but did not refresh the variation table) must not wipe DB rows.
       // Exception: empty payload with empty/cleared definitions is an intentional clear.
@@ -1699,27 +1637,46 @@ export const updateProduct = async (args: {
           select: { id: true, variantName: true },
         });
 
-        const deactivateIds = removed.filter((vo) => orderedOptionIds.has(vo.id)).map((vo) => vo.id);
-        const removableIds = removed.filter((vo) => !orderedOptionIds.has(vo.id)).map((vo) => vo.id);
+        if (removed.length > 0) {
+          // Preserve the order-time catalog values before deleting the live variant.
+          // Never overwrite an existing snapshot: historical orders must not change
+          // when a distributor renames or removes a current catalog option.
+          for (const removedOption of removed) {
+            const previous = existingVariantOptions.find((option) => option.id === removedOption.id);
+            if (!previous) continue;
+            const linkedOrderItems = await tx.orderItem.findMany({
+              where: { variantOptionId: previous.id },
+              select: {
+                id: true,
+                productNameSnapshot: true,
+                productSkuSnapshot: true,
+                variantNameSnapshot: true,
+                variantAttributesSnapshot: true,
+              },
+            });
+            for (const orderItem of linkedOrderItems) {
+              const snapshotData: Prisma.OrderItemUpdateInput = {};
+              if (!String(orderItem.productNameSnapshot || '').trim()) snapshotData.productNameSnapshot = productBeforeUpdate.name;
+              if (!String(orderItem.productSkuSnapshot || '').trim()) snapshotData.productSkuSnapshot = previous.sku;
+              if (!String(orderItem.variantNameSnapshot || '').trim()) snapshotData.variantNameSnapshot = previous.variantName;
+              if (orderItem.variantAttributesSnapshot == null && previous.attributes != null) {
+                snapshotData.variantAttributesSnapshot = previous.attributes as Prisma.InputJsonValue;
+              }
+              if (Object.keys(snapshotData).length > 0) {
+                await tx.orderItem.update({ where: { id: orderItem.id }, data: snapshotData });
+              }
+            }
+          }
 
-        // Options tied to past orders are deactivated (kept for history); the rest are deleted.
-        if (deactivateIds.length > 0) {
-          await tx.variantOption.updateMany({
-            where: { id: { in: deactivateIds } },
-            data: { isActive: false },
-          });
-        }
-
-        if (removableIds.length > 0) {
+          // OrderItem.variantOptionId is nullable with ON DELETE SET NULL, so
+          // removing the catalog option detaches the order while retaining snapshots.
           await tx.variantOption.deleteMany({
-            where: {
-              id: { in: removableIds },
-            },
+            where: { id: { in: removed.map((option) => option.id) } },
           });
         }
 
         // Remove supplier history/summary rows for catalog variants that were
-        // deleted or deactivated. The existing helper runs on this transaction,
+        // removed from the active catalog. The existing helper runs on this transaction,
         // so the catalog change and supplier cleanup commit or roll back together.
         const remainingVariantOptions = await tx.variantOption.findMany({
           where: { productId: updated.id },
@@ -1842,7 +1799,7 @@ export const updateProduct = async (args: {
     const newVariants = updatedProduct.variantOptions || [];
 
     for (const newVariant of newVariants) {
-      // Find matching previous variant by variantName (since IDs change on deleteMany/create)
+      // Stable IDs identify retained variants across catalog edits.
       const previousVariant = previousVariants.find((pv) => pv.id === newVariant.id);
 
       const newStock = newVariant.stockQuantity || 0;
@@ -2383,21 +2340,17 @@ export const productsResolvers = {
       ctx: unknown,
     ) => {
       requireDashboardUser(ctx, args.userId);
-      const { userId, productId } = args;
       const variantNames = Array.isArray(args.variantNames) ? args.variantNames.filter(Boolean).map(String) : [];
       const variantOptionIds = Array.isArray(args.variantOptionIds)
-        ? args.variantOptionIds.filter((n) => typeof n === 'number' && Number.isFinite(n))
+        ? args.variantOptionIds.filter((id) => typeof id === 'number' && Number.isFinite(id))
         : [];
-
       if (variantNames.length === 0 && variantOptionIds.length === 0) return [];
 
       const product = await prisma.product.findFirst({
-        where: { userId, productId: String(productId) },
+        where: { userId: args.userId, productId: String(args.productId) },
         select: { id: true },
       });
-      if (!product) {
-        throw new Error('Product not found or you do not have permission to view it');
-      }
+      if (!product) throw new Error('Product not found or you do not have permission to view it');
 
       const options = await prisma.variantOption.findMany({
         where: {
@@ -2407,28 +2360,24 @@ export const productsResolvers = {
         },
         select: { id: true, variantName: true },
       });
-
       if (options.length === 0) return [];
 
-      const optionIdToName = new Map(options.map((o) => [o.id, o.variantName]));
       const orderItems = await prisma.orderItem.findMany({
-        where: { variantOptionId: { in: options.map((o) => o.id) } },
+        where: { variantOptionId: { in: options.map((option) => option.id) } },
         select: { orderId: true, variantOptionId: true },
       });
-
       const byOptionId = new Map<number, { orderItemCount: number; orderIds: Set<string> }>();
-      for (const oi of orderItems) {
-        if (!oi.variantOptionId) continue;
-        const entry = byOptionId.get(oi.variantOptionId) ?? { orderItemCount: 0, orderIds: new Set<string>() };
+      for (const item of orderItems) {
+        if (item.variantOptionId == null) continue;
+        const entry = byOptionId.get(item.variantOptionId) ?? { orderItemCount: 0, orderIds: new Set<string>() };
         entry.orderItemCount += 1;
-        entry.orderIds.add(oi.orderId);
-        byOptionId.set(oi.variantOptionId, entry);
+        entry.orderIds.add(item.orderId);
+        byOptionId.set(item.variantOptionId, entry);
       }
-
-      return options.map((opt) => {
-        const entry = byOptionId.get(opt.id);
+      return options.map((option) => {
+        const entry = byOptionId.get(option.id);
         return {
-          variantName: optionIdToName.get(opt.id) ?? opt.variantName,
+          variantName: option.variantName,
           orderItemCount: entry?.orderItemCount ?? 0,
           orderIds: entry ? Array.from(entry.orderIds).sort() : [],
         };

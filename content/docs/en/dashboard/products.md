@@ -98,7 +98,7 @@ Follow this order when creating or editing a product:
 
 > **Important:** After you add, remove, or rename any variant type or option, click **Refresh** again before saving or publishing. If you skip this step, the variation table can be out of sync and **Save** or **Publish** may fail with an error even when the form looks complete.
 
-Variants and prices may be **locked** when the product has an active offer. Renaming or deleting variants used in past orders is blocked with an explanatory modal; create new options instead to protect order history.
+Variants and prices may be **locked** when the product has an active offer. Otherwise, catalog variants can be renamed or removed independently of orders. Past order items retain their original product, SKU, variant name, and attribute snapshots.
 
 ### Save, draft, and unpublish
 

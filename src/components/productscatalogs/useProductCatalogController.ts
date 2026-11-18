@@ -296,41 +296,12 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
   const [variantGuardModal, setVariantGuardModal] = useState<{
     title: string;
     intro?: string;
-    items?: Array<{
-      variantName: string;
-      orderItemCount: number;
-      orderIds?: string[];
-    }>;
+    items?: Array<{ variantName: string; orderItemCount: number; orderIds?: string[] }>;
     policy?: string;
     footer?: string;
     message?: string;
     action?: { kind: 'create_option'; variantId: string; initialName: string } | null;
   } | null>(null);
-  const getAffectedVariantOptionIds = (params: {
-    variantType: string;
-    optionName?: string;
-  }): number[] => {
-    const { variantType, optionName } = params;
-    const opts = product?.variantOptions;
-    if (!Array.isArray(opts) || opts.length === 0) return [];
-    const type = String(variantType || '').trim();
-    const optName = optionName != null ? String(optionName).trim() : '';
-    if (!type) return [];
-    return opts
-      .filter((vo) => {
-        const attrs =
-          vo.attributes && typeof vo.attributes === 'object' ? (vo.attributes as Record<string, unknown>) : null;
-        if (attrs && Object.prototype.hasOwnProperty.call(attrs, type)) {
-          if (!optName) return true; // variant type operation (rename/delete layer)
-          return String(attrs[type] ?? '') === optName;
-        }
-        // Fallback for older persisted data without attributes.
-        const name = vo.variantName ? String(vo.variantName) : '';
-        return optName ? name.includes(`${type}: ${optName}`) : name.includes(`${type}: `);
-      })
-      .map((vo) => Number(vo.id))
-      .filter((id) => Number.isFinite(id));
-  };
   // Prefer local form status so publish/unpublish can switch UI without a full reload.
   // Published products are view-only; Draft products are editable.
   const currentProductStatus = useMemo(() => {
@@ -714,24 +685,16 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
     variantDrafts,
     setVariantDrafts,
     setCombinations,
-    currentMode,
-    userId: user?.id ?? undefined,
-    productId: formData.productId,
-    getAffectedVariantOptionIds,
-    setVariantGuardModal,
   });
   const {
     addVariant,
     removeVariant,
     updateVariant,
-    showRenameBlockedModal,
     commitVariantTypeRename,
     addVariantOption,
     removeVariantOption,
     updateVariantOption,
     commitVariantOptionRename,
-    guardVariantTypeEditOnFocus,
-    guardVariantOptionEditOnFocus,
   } = variantManager;
   const validateNumericInput = (value: string): boolean => {
     // Allow empty string (for clearing the field)
@@ -1806,8 +1769,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
     formData,
     generalCategoryRef,
     getSelectedCategory,
-    guardVariantOptionEditOnFocus,
-    guardVariantTypeEditOnFocus,
     handleCancel,
     handleCategorySelect,
     handleDragLeave,
