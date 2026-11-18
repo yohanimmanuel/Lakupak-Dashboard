@@ -1586,7 +1586,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
                               searchPlaceholder="Search SKU, product or variant..."
                               renderOption={(option) => (
                                 <span className="flex flex-col gap-0.5">
-                                  <span className="font-semibold text-black">{option.label}</span>
+                                  <span className="font-normal text-black">{option.label}</span>
                                   <span className="text-[10px] font-normal text-gray-500">{option.description || option.searchText}</span>
                                 </span>
                               )}

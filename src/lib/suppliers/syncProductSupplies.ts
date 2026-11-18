@@ -381,6 +381,7 @@ export function removeProductFromSupplierMaps(
 }
 
 export type ProductVariantSupplyIdentity = {
+  variantOptionId?: number | null;
   variantName: string;
   sku?: string | null;
 };
@@ -411,7 +412,9 @@ export function removeProductVariantsFromSupplierMaps(
   const removed = removedVariants.map((variant) => {
     const variantName = String(variant.variantName || '').trim();
     const sku = String(variant.sku || '').trim();
+    const variantOptionId = Number(variant.variantOptionId);
     return {
+      variantOptionId: Number.isSafeInteger(variantOptionId) && variantOptionId > 0 ? variantOptionId : null,
       variantName,
       sku,
       nameKey: normalizeSupplyIdentity(variantName),
@@ -438,6 +441,10 @@ export function removeProductVariantsFromSupplierMaps(
       if (rowProductId && rowProductId !== productId) return true;
 
       const matchesRemovedVariant = removed.some((variant) => {
+        // Stable VariantOption IDs take precedence over mutable names/SKUs.
+        if (variant.variantOptionId != null && row.variantOptionId != null) {
+          return Number(row.variantOptionId) === variant.variantOptionId;
+        }
         if (rowVariantName) return rowProductId === productId && rowVariantName === variant.nameKey;
         if (rowSupplyNo === variant.autoNo || rowSku === variant.compositeSku) return true;
         if (rowLabelKey && rowLabelKey === variant.labelKey) return true;
@@ -570,67 +577,76 @@ export async function removeProductSupplies(args: {
  * When the matched supplier changes, linked summary AND history rows move off the
  * previous supplier(s) onto the new one (frozen summary totals preserved when moving).
  */
-export async function syncSupplierFromProduct(product: ProductSnapshot): Promise<void> {
+export async function syncSupplierFromProductInTransaction(
+  tx: Prisma.TransactionClient,
+  product: ProductSnapshot,
+): Promise<void> {
   if (!product.userId || !String(product.productId || '').trim()) return;
 
-  await prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(${product.userId}, ${879_332})`;
+await tx.$executeRaw`SELECT pg_advisory_xact_lock(${product.userId}, ${879_332})`;
 
-    const suppliers = await tx.supplier.findMany({
-      where: { userId: product.userId },
-      orderBy: { id: 'asc' },
-      select: {
-        id: true,
-        name: true,
-        supplyRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] },
-      },
+const suppliers = await tx.supplier.findMany({
+  where: { userId: product.userId },
+  orderBy: { id: 'asc' },
+  select: {
+    id: true,
+    name: true,
+    supplyRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] },
+  },
+});
+
+const { supplyDetailFromRecord, replaceSupplierSupplyRecords } = await import(
+  '@/lib/suppliers/supplyRecordStore'
+);
+const suppliesBySupplierId = new Map<number, SupplyDetail[]>(
+  suppliers.map((row) => [row.id, row.supplyRecords.map(supplyDetailFromRecord)]),
+);
+const dirtySupplierIds = new Set<number>();
+
+// Reattach old rows whose product was deleted/recreated when the legacy SKU
+// or verified alias uniquely resolves to this current product variant.
+for (const supplier of suppliers) {
+  const rows = suppliesBySupplierId.get(supplier.id) || [];
+  let relinked = false;
+  for (const row of rows) {
+    if (row.variantOptionId != null) continue;
+    const resolved = await resolveCatalogIdentity(tx, product.userId, {
+      productId: row.productId,
+      productName: row.product,
+      variantName: row.variantName,
+      sku: row.sku,
     });
+    if (resolved.status !== 'matched' || resolved.candidate.productId !== product.productId) continue;
+    row.productId = resolved.candidate.productId;
+    row.variantOptionId = resolved.candidate.variantOptionId;
+    row.variantName = resolved.candidate.variantName;
+    row.sku = row.sku || resolved.candidate.sku || '';
+    row.product = productLabel(product.name, resolved.candidate.variantName);
+    relinked = true;
+  }
+  if (relinked) {
+    suppliesBySupplierId.set(supplier.id, rows);
+    dirtySupplierIds.add(supplier.id);
+  }
+}
 
-    const { supplyDetailFromRecord, replaceSupplierSupplyRecords } = await import(
-      '@/lib/suppliers/supplyRecordStore'
-    );
-    const suppliesBySupplierId = new Map<number, SupplyDetail[]>(
-      suppliers.map((row) => [row.id, row.supplyRecords.map(supplyDetailFromRecord)]),
-    );
-    const dirtySupplierIds = new Set<number>();
+applyProductToSupplierMaps(product, suppliesBySupplierId, suppliers, dirtySupplierIds);
 
-    // Reattach old rows whose product was deleted/recreated when the legacy SKU
-    // or verified alias uniquely resolves to this current product variant.
-    for (const supplier of suppliers) {
-      const rows = suppliesBySupplierId.get(supplier.id) || [];
-      let relinked = false;
-      for (const row of rows) {
-        if (row.variantOptionId != null) continue;
-        const resolved = await resolveCatalogIdentity(tx, product.userId, {
-          productId: row.productId,
-          productName: row.product,
-          variantName: row.variantName,
-          sku: row.sku,
-        });
-        if (resolved.status !== 'matched' || resolved.candidate.productId !== product.productId) continue;
-        row.productId = resolved.candidate.productId;
-        row.variantOptionId = resolved.candidate.variantOptionId;
-        row.variantName = resolved.candidate.variantName;
-        row.sku = row.sku || resolved.candidate.sku || '';
-        row.product = productLabel(product.name, resolved.candidate.variantName);
-        relinked = true;
-      }
-      if (relinked) {
-        suppliesBySupplierId.set(supplier.id, rows);
-        dirtySupplierIds.add(supplier.id);
-      }
-    }
+for (const supplierId of dirtySupplierIds) {
+  const next = suppliesBySupplierId.get(supplierId) || [];
+  await replaceSupplierSupplyRecords(tx, supplierId, next);
+  await tx.supplier.update({
+    where: { id: supplierId },
+    data: { updatedAt: new Date() },
+  });
+}
+}
 
-    applyProductToSupplierMaps(product, suppliesBySupplierId, suppliers, dirtySupplierIds);
-
-    for (const supplierId of dirtySupplierIds) {
-      const next = suppliesBySupplierId.get(supplierId) || [];
-      await replaceSupplierSupplyRecords(tx, supplierId, next);
-      await tx.supplier.update({
-        where: { id: supplierId },
-        data: { updatedAt: new Date() },
-      });
-    }
+/** Backward-compatible wrapper for callers outside an existing transaction. */
+export async function syncSupplierFromProduct(product: ProductSnapshot): Promise<void> {
+  if (!product.userId || !String(product.productId || '').trim()) return;
+  await prisma.$transaction(async (tx) => {
+    await syncSupplierFromProductInTransaction(tx, product);
   });
 }
 

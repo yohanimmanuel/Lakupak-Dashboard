@@ -1717,8 +1717,89 @@ export const updateProduct = async (args: {
             },
           });
         }
+
+        // Remove supplier history/summary rows for catalog variants that were
+        // deleted or deactivated. The existing helper runs on this transaction,
+        // so the catalog change and supplier cleanup commit or roll back together.
+        const remainingVariantOptions = await tx.variantOption.findMany({
+          where: { productId: updated.id },
+          select: {
+            id: true,
+            variantName: true,
+            sku: true,
+            purchasePrice: true,
+            stockQuantity: true,
+            isActive: true,
+          },
+        });
+        const removedById = new Map<number, { variantOptionId: number; variantName: string; sku?: string | null }>();
+        for (const removedOption of removed) {
+          const previous = existingVariantOptions.find((option) => option.id === removedOption.id);
+          if (previous) {
+            removedById.set(previous.id, {
+              variantOptionId: previous.id,
+              variantName: previous.variantName,
+              sku: previous.sku,
+            });
+          }
+        }
+        for (const inactiveOption of remainingVariantOptions) {
+          if (inactiveOption.isActive === false) {
+            removedById.set(inactiveOption.id, {
+              variantOptionId: inactiveOption.id,
+              variantName: inactiveOption.variantName,
+              sku: inactiveOption.sku,
+            });
+          }
+        }
+        if (removedById.size > 0) {
+          const { removeProductVariantsSuppliesInTransaction } = await import(
+            '@/lib/suppliers/syncProductSupplies'
+          );
+          await removeProductVariantsSuppliesInTransaction(tx, {
+            userId,
+            productId: productBeforeUpdate.productId,
+            name: updated.name,
+            removedVariants: Array.from(removedById.values()),
+            allVariants: Array.from(new Map(
+              [
+                ...remainingVariantOptions.map((option) => ({
+                  variantOptionId: option.id,
+                  variantName: option.variantName,
+                  sku: option.sku,
+                })),
+                ...Array.from(removedById.values()),
+              ].map((option) => [option.variantOptionId, option]),
+            ).values()),
+          });
+        }
       }
     }
+
+    // Synchronize supplier records before the Product Catalog save transaction
+    // commits. This makes new variants visible immediately and makes failures
+    // roll back the catalog edit instead of leaving supplier records stale.
+    const finalVariantOptions = await tx.variantOption.findMany({
+      where: { productId: updated.id },
+      select: {
+        id: true,
+        variantName: true,
+        sku: true,
+        purchasePrice: true,
+        stockQuantity: true,
+        isActive: true,
+      },
+    });
+    const { syncSupplierFromProductInTransaction } = await import(
+      '@/lib/suppliers/syncProductSupplies'
+    );
+    await syncSupplierFromProductInTransaction(tx, {
+      productId: updated.productId,
+      name: updated.name,
+      supplier: updated.supplier,
+      userId,
+      variantOptions: finalVariantOptions,
+    });
 
     return updated;
   });
@@ -1816,24 +1897,6 @@ export const updateProduct = async (args: {
 
   await broadcastProductChanges(updatedProduct.productId);
 
-  // Mirror supplier name + new variant snapshots into CRM suppliers/supplies.
-  // Existing supply totals stay fixed (do not follow live stock edits).
-  try {
-    const { syncSupplierFromProduct } = await import('@/lib/suppliers/syncProductSupplies');
-    await syncSupplierFromProduct({
-      productId: updatedProduct.productId,
-      name: updatedProduct.name,
-      supplier: updatedProduct.supplier,
-      userId,
-      variantOptions: updatedProduct.variantOptions || [],
-    });
-  } catch (syncError) {
-    console.warn('[Products] Supplier supply sync failed on update', {
-      userId,
-      productId: updatedProduct.productId,
-      error: syncError,
-    });
-  }
   
   // Invalidate marketplace search cache (public-facing, needs caching)
   await invalidateSearchCache('search-cache:marketplace:*');
@@ -1873,17 +1936,21 @@ export const deleteProduct = async (args: { userId: number; id: string }) => {
   ]);
   const mappedProduct = mapProduct(productToDelete, offerMap, soldCountMap);
 
-  await prisma.product.delete({
-    where: isNumericId(id) ? { id: Number(id) } : { productId: id },
-  });
-
-  // Cleanup uses the pre-delete snapshot. A failed product delete leaves supply history intact.
-  const { removeProductSupplies } = await import('@/lib/suppliers/syncProductSupplies');
-  await removeProductSupplies({
-    userId,
-    productId: productToDelete.productId,
-    name: productToDelete.name,
-    variantOptions: productToDelete.variantOptions,
+  // Delete the linked supplier rows and catalog product in one transaction.
+  // If either operation fails, neither side is left partially updated.
+  await prisma.$transaction(async (tx) => {
+    const { removeProductSuppliesInTransaction } = await import(
+      '@/lib/suppliers/syncProductSupplies'
+    );
+    await removeProductSuppliesInTransaction(tx, {
+      userId,
+      productId: productToDelete.productId,
+      name: productToDelete.name,
+      variantOptions: productToDelete.variantOptions,
+    });
+    await tx.product.delete({
+      where: isNumericId(id) ? { id: Number(id) } : { productId: id },
+    });
   });
 
   // Broadcast changes for marketplace (products affect public marketplace)
