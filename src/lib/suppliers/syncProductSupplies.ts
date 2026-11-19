@@ -501,45 +501,16 @@ export async function removeProductSupplies(args: {
  * When the matched supplier changes, linked summary AND history rows move off the
  * previous supplier(s) onto the new one (frozen summary totals preserved when moving).
  */
+/**
+ * Receipt-only supplier architecture: product catalog changes do not create,
+ * overwrite, transfer or delete supplier receipts or legacy AUTO snapshots.
+ * Kept as a compatibility entry point for existing product mutations.
+ */
 export async function syncSupplierFromProductInTransaction(
-  tx: Prisma.TransactionClient,
-  product: ProductSnapshot,
+  _tx: Prisma.TransactionClient,
+  _product: ProductSnapshot,
 ): Promise<void> {
-  if (!product.userId || !String(product.productId || '').trim()) return;
-
-await tx.$executeRaw`SELECT pg_advisory_xact_lock(${product.userId}, ${879_332})`;
-
-const suppliers = await tx.supplier.findMany({
-  where: { userId: product.userId },
-  orderBy: { id: 'asc' },
-  select: {
-    id: true,
-    name: true,
-    supplyRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] },
-  },
-});
-
-const { supplyDetailFromRecord, replaceSupplierSupplyRecords } = await import(
-  '@/lib/suppliers/supplyRecordStore'
-);
-const suppliesBySupplierId = new Map<number, SupplyDetail[]>(
-  suppliers.map((row) => [row.id, row.supplyRecords.map(supplyDetailFromRecord)]),
-);
-const dirtySupplierIds = new Set<number>();
-
-// Do not automatically reattach ID-less legacy rows by SKU, alias or label.
-// Recreated variants can reuse all of those fields without sharing identity.
-
-applyProductToSupplierMaps(product, suppliesBySupplierId, suppliers, dirtySupplierIds);
-
-for (const supplierId of dirtySupplierIds) {
-  const next = suppliesBySupplierId.get(supplierId) || [];
-  await replaceSupplierSupplyRecords(tx, supplierId, next);
-  await tx.supplier.update({
-    where: { id: supplierId },
-    data: { updatedAt: new Date() },
-  });
-}
+  // Supplier records are written only by explicit receipt/import actions.
 }
 
 /** Backward-compatible wrapper for callers outside an existing transaction. */
@@ -554,102 +525,10 @@ export async function syncSupplierFromProduct(product: ProductSnapshot): Promise
  * Backfill linked supplies onto existing matched suppliers from all of a user's products.
  * Loads suppliers once, applies every product in memory, and writes each changed supplier once.
  */
-export async function syncAllProductSuppliersForUser(userId: number): Promise<{
+/** No-op compatibility entry point; never backfill stock as supplier receipts. */
+export async function syncAllProductSuppliersForUser(_userId: number): Promise<{
   productsProcessed: number;
   suppliersTouched: number;
 }> {
-  if (!Number.isFinite(userId) || userId <= 0) {
-    return { productsProcessed: 0, suppliersTouched: 0 };
-  }
-
-  return prisma.$transaction(
-    async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${userId}, ${879_332})`;
-
-      const products = await tx.product.findMany({
-        where: {
-          userId,
-          supplier: { not: '' },
-        },
-        select: {
-          productId: true,
-          name: true,
-          supplier: true,
-          userId: true,
-          variantOptions: {
-            select: {
-              id: true,
-              variantName: true,
-              sku: true,
-              purchasePrice: true,
-              stockQuantity: true,
-              isActive: true,
-            },
-          },
-        },
-      });
-      const suppliers = await tx.supplier.findMany({
-        where: { userId },
-        orderBy: { id: 'asc' },
-        select: {
-          id: true,
-          name: true,
-          supplyRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] },
-        },
-      });
-
-      if (products.length === 0 || suppliers.length === 0) {
-        return { productsProcessed: products.length, suppliersTouched: 0 };
-      }
-
-      const { supplyDetailFromRecord, replaceSupplierSupplyRecords } = await import(
-        '@/lib/suppliers/supplyRecordStore'
-      );
-      const suppliesBySupplierId = new Map<number, SupplyDetail[]>(
-        suppliers.map((row) => [row.id, row.supplyRecords.map(supplyDetailFromRecord)]),
-      );
-      const dirtySupplierIds = new Set<number>();
-
-      // Group by normalized supplier name for stable processing order.
-      const productsBySupplier = new Map<string, ProductSnapshot[]>();
-      for (const product of products) {
-        const name = String(product.supplier ?? '').trim();
-        if (!name || !product.userId) continue;
-        const key = name.toLowerCase();
-        const list = productsBySupplier.get(key) || [];
-        list.push({
-          productId: product.productId,
-          name: product.name,
-          supplier: name,
-          userId: product.userId,
-          variantOptions: product.variantOptions,
-        });
-        productsBySupplier.set(key, list);
-      }
-
-      for (const group of productsBySupplier.values()) {
-        for (const product of group) {
-          applyProductToSupplierMaps(product, suppliesBySupplierId, suppliers, dirtySupplierIds);
-        }
-      }
-
-      for (const supplierId of dirtySupplierIds) {
-        const next = suppliesBySupplierId.get(supplierId) || [];
-        await replaceSupplierSupplyRecords(tx, supplierId, next);
-        await tx.supplier.update({
-          where: { id: supplierId },
-          data: { updatedAt: new Date() },
-        });
-      }
-
-      return {
-        productsProcessed: products.length,
-        suppliersTouched: dirtySupplierIds.size,
-      };
-    },
-    {
-      maxWait: 10_000,
-      timeout: 60_000,
-    },
-  );
+  return { productsProcessed: 0, suppliersTouched: 0 };
 }

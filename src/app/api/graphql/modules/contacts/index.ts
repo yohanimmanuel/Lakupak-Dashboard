@@ -1,3 +1,4 @@
+import { supplierReceiptTotals } from '@/lib/suppliers/supplierReceiptTotals';
 import { type Buyer as BuyerModel, type Supplier as SupplierModel } from '@/lib/db';
 import { prisma } from '../common/prisma';
 import { sanitizePagination, buildPaginationInfo, isNumericId, parseMoney, MAX_PRODUCT_LIMIT } from '../common/utils';
@@ -433,12 +434,10 @@ const mapSupplier = (supplier: SupplierWithRecords) => ({
   avgMonthlyPurchaseValue: (supplier as { avgMonthlyPurchaseValue?: unknown }).avgMonthlyPurchaseValue 
     ? parseMoney((supplier as { avgMonthlyPurchaseValue?: unknown }).avgMonthlyPurchaseValue as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined) 
     : null, // Convert Decimal to number
-  totalPurchases: (supplier as { totalPurchases?: unknown }).totalPurchases 
-    ? parseMoney((supplier as { totalPurchases?: unknown }).totalPurchases as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined) 
-    : null, // Convert Decimal to number
-  totalSupplies: (supplier as { totalSupplies?: unknown }).totalSupplies 
-    ? parseMoney((supplier as { totalSupplies?: unknown }).totalSupplies as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined) 
-    : null, // Convert Decimal to number
+  // SupplierTable and SupplierProfile must report the same active receipts.
+  // Legacy AUTO/opening balances and archived receipts are excluded.
+  totalPurchases: supplierReceiptTotals(supplier.supplyRecords || []).totalPurchases,
+  totalSupplies: supplierReceiptTotals(supplier.supplyRecords || []).totalSupplies,
   onTimeDeliveryRate: (supplier as { onTimeDeliveryRate?: unknown }).onTimeDeliveryRate 
     ? parseMoney((supplier as { onTimeDeliveryRate?: unknown }).onTimeDeliveryRate as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined) 
     : null, // Convert Decimal to number
@@ -1604,7 +1603,13 @@ const updateSupplier = async (args: {
 
     return mapSupplier(withRecords!);
   } catch (error: unknown) {
-    throw new Error('Failed to update supplier');
+    // Surface actionable stock/identity validation errors rather than hiding
+    // every failure behind a generic message. Do not expose database internals.
+    if (error instanceof Error && /^(Supply stock update blocked:|Cannot reverse supplier stock:|Supplier supplies have changed\.|Duplicate supply record number\.|Duplicate stored supply record number\.)/.test(error.message)) {
+      throw error;
+    }
+    console.error('Supplier update failed', error);
+    throw new Error('Failed to update supplier. Check the server log for details.');
   }
 };
 

@@ -3,7 +3,6 @@ import type { Prisma, PrismaClient } from '@/lib/prisma-generated';
 import type { SupplyDetail } from '@/types/client';
 import {
   isSupplyHistoryRow,
-  mergeDuplicateSummaryRows,
   parseSuppliesJson,
   shouldUpdateCurrentStock,
   todayYmdJakarta,
@@ -42,46 +41,8 @@ async function findVariantForSupply(args: {
       select: { id: true, stockQuantity: true },
     });
   }
-  const sku = String(args.sku || '').trim();
-  const productId = String(args.productId || '').trim();
-  const variantName = String(args.variantName || '').trim();
-
-  if (productId) {
-    const product = await db.product.findFirst({
-      where: { userId: args.userId, productId },
-      select: {
-        variantOptions: {
-          where: variantName ? { variantName, isActive: true } : { isActive: true },
-          select: { id: true, variantName: true, sku: true, stockQuantity: true },
-          take: 20,
-        },
-      },
-    });
-    if (product?.variantOptions?.length) {
-      const byName = variantName
-        ? product.variantOptions.find((v) => v.variantName === variantName)
-        : undefined;
-      if (byName) return byName;
-      const bySku = sku
-        ? product.variantOptions.find((v) => String(v.sku || '').trim() === sku)
-        : undefined;
-      if (bySku) return bySku;
-      // Only fall back when the product has a single active variant.
-      if (product.variantOptions.length === 1) return product.variantOptions[0];
-      return null;
-    }
-  }
-
-  if (sku) {
-    return db.variantOption.findFirst({
-      where: {
-        sku,
-        isActive: true,
-        product: { userId: args.userId },
-      },
-      select: { id: true, stockQuantity: true },
-    });
-  }
+  // An ID-less legacy receipt must be explicitly reconciled before it may
+  // affect live inventory. Neither a product name nor a shared SKU is identity.
 
   return null;
 }
@@ -102,13 +63,17 @@ export async function incrementVariantStockForSupply(args: {
   const variant = await findVariantForSupply({ ...args, db });
   if (!variant) return false;
 
-  // Atomic adjust + zero floor (avoids lost updates from read-then-write).
+  // An exact reversal must never silently clamp to zero.
   const updated = await db.$executeRaw`
     UPDATE "VariantOption"
-    SET "stockQuantity" = GREATEST(0, "stockQuantity" + ${qty})
+    SET "stockQuantity" = "stockQuantity" + ${qty}
     WHERE "id" = ${variant.id}
+      AND "stockQuantity" + ${qty} >= 0
   `;
-  return Number(updated) > 0;
+  if (Number(updated) !== 1) {
+    throw new Error('Cannot reverse supplier stock: insufficient current stock for this variant.');
+  }
+  return true;
 }
 
 export type SupplyStockEffect = {
@@ -299,6 +264,7 @@ export function computeSupplyStockEffects(
     }
 
     const identityChanged =
+      String(prev.variantOptionId ?? '') !== String(row.variantOptionId ?? '') ||
       String(prev.sku || '').trim() !== String(row.sku || '').trim() ||
       String(prev.productId || '').trim() !== String(row.productId || '').trim() ||
       String(prev.variantName || '').trim() !== String(row.variantName || '').trim();
@@ -508,7 +474,9 @@ export async function finalizeSupplierSuppliesSave(args: {
       quantity: effect.quantityDelta,
       db: args.db,
     });
-    if (!updated) continue;
+    if (!updated) {
+      throw new Error('Supply stock update blocked: the original variant no longer exists or its identity is ambiguous.');
+    }
     stockUpdatedCount += 1;
     if (effect.reason === 'add' || effect.reason === 'enable' || effect.reason === 'edit') {
       successfulStockApplyKeys.add(effectRowKey(effect.row));
@@ -552,7 +520,9 @@ export async function finalizeSupplierSuppliesSave(args: {
   // derives the visible total from the current Product stock + non-applied HIST
   // rows. This prevents save/reload cycles from accumulating the same receipt.
   const previousSummaryRows = previous.filter((row) => !isSupplyHistoryRow(row));
-  supplies = mergeDuplicateSummaryRows([...previousSummaryRows, ...supplies.filter(isSupplyHistoryRow)]);
+  // Legacy opening balances are retained but are no longer recalculated or
+  // treated as receipts. New supplier accounting consists only of history.
+  supplies = [...previousSummaryRows, ...supplies.filter(isSupplyHistoryRow)];
 
   return {
     suppliesJson: JSON.stringify(supplies),

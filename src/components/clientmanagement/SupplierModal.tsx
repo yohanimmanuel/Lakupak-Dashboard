@@ -75,6 +75,7 @@ function formatPreferredDays(days: readonly string[]): string {
 }
 
 type CatalogVariantOption = {
+  variantOptionId?: number;
   key: string;
   sku: string;
   product: string;
@@ -126,10 +127,11 @@ function buildCatalogOptions(
       const variantName = String(variant?.variantName || '').trim() || 'Default';
       const sku =
         String(variant?.sku || '').trim() || `${productId}|${variantName}`;
-      const key = `${productId}|${variantName}|${sku}`;
+      const key = variant?.id != null ? `variant:${variant.id}` : `${productId}|${variantName}|${sku}`;
       if (seen.has(key)) continue;
       seen.add(key);
       out.push({
+        variantOptionId: variant?.id,
         key,
         sku,
         product: catalogProductLabel(productName, variantName),
@@ -510,7 +512,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   const [historyRows, setHistoryRows] = useState<SupplyDetail[]>(
     () => parseSupplyBuckets(initialData?.supplies).history,
   );
-  const [suppliesTab, setSuppliesTab] = useState<'summary' | 'opening' | 'history'>('summary');
+  const [suppliesTab, setSuppliesTab] = useState<'summary' | 'opening' | 'history'>('history');
   const [showArchivedSupplies, setShowArchivedSupplies] = useState(false);
   const [archivedOpeningRows, setArchivedOpeningRows] = useState<SupplyDetail[]>(() => {
     try { return (JSON.parse(initialData?.supplies || '[]') as SupplyDetail[]).filter((row) => !!row.archivedAt); }
@@ -762,8 +764,10 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   const skuDropdownOptions = useMemo(
     () => catalogOptions.map((opt) => ({
       optionKey: opt.key,
-      value: opt.sku,
-      label: `${opt.product} · ${opt.variantName}`,
+      // SKU is a display label, never a selection key: multiple variants
+      // legitimately share a SKU.
+      value: String(opt.variantOptionId ?? opt.key),
+      label: `${opt.sku} · ${opt.product} · ${opt.variantName}`,
     })),
     [catalogOptions],
   );
@@ -789,32 +793,19 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     );
   }, []);
 
-  const handleHistorySkuSelect = useCallback(
-    (idx: number, sku: string) => {
-      const match = catalogOptions.find((opt) => opt.sku === sku);
-      setHistoryRows((rows) =>
-        rows.map((row, i) =>
-          i === idx
-            ? {
-                ...row,
-                sku,
-                product: match?.product || row.product,
-                productId: match?.productId || row.productId,
-                variantName: match?.variantName || row.variantName,
-                receivedUnit: 'Pieces',
-                totalSupplied: String(row.receivedQuantity ?? row.totalSupplied ?? ''),
-                recordType: 'history',
-              }
-            : row,
-        ),
-      );
-    },
-    [catalogOptions],
-  );
-
-  const handleHistoryVariantSelect = useCallback((idx: number, sku: string) => {
-    handleHistorySkuSelect(idx, sku);
-  }, [handleHistorySkuSelect]);
+  const handleHistoryVariantSelect = useCallback((idx: number, variantId: string) => {
+    const match = catalogOptions.find((opt) => opt.variantOptionId != null && String(opt.variantOptionId) === variantId);
+    if (!match) return;
+    setHistoryRows((rows) => rows.map((row, i) => i === idx ? {
+      ...row,
+      sku: match.sku,
+      product: match.product,
+      productId: match.productId,
+      variantName: match.variantName,
+      variantOptionId: match.variantOptionId,
+      recordType: 'history',
+    } : row));
+  }, [catalogOptions]);
 
   const handleHistoryProductSelect = useCallback(
     (idx: number, productId: string) => {
@@ -829,6 +820,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
           product: productName,
           productId,
           sku: identified?.sku || '',
+          variantOptionId: identified?.variantOptionId ?? null,
           variantName: identified?.variantName || '',
           receivedUnit: 'Pieces',
           totalSupplied: String(row.receivedQuantity ?? row.totalSupplied ?? ''),
@@ -1134,7 +1126,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
           .filter((row) => !isBlankHistoryRow(row))
           .map((row) => normalizeSupplyRow(row, 'history')),
       );
-      const cleanedSummary = summaryRows.map((row) => normalizeSupplyRow(row, 'summary'));
+      const cleanedSummary = [...openingRows, ...archivedOpeningRows].map((row) => normalizeSupplyRow(row, 'summary'));
       // Tombstones carry explicit reverse-stock intent from the delete modal.
       const mergedSupplies = [...cleanedSummary, ...cleanedHistory, ...pendingDeleteMarkers];
 
@@ -1338,7 +1330,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
       setSaving(false);
       setIsSubmitting(false);
     }
-  }, [form, id, historyRows, summaryRows, pendingDeleteMarkers, isEditMode, initialData, user?.id, onSave, router, validateForm, handleError, isSubmitting, isNavigating, tSuppliersModal, computedLastSuppliedDate]);
+  }, [form, id, historyRows, openingRows, archivedOpeningRows, pendingDeleteMarkers, isEditMode, initialData, user?.id, onSave, router, validateForm, handleError, isSubmitting, isNavigating, tSuppliersModal, computedLastSuppliedDate]);
 
   return (
     <>
@@ -1501,8 +1493,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <label className="block text-sm font-bold text-black">{tSuppliersModal('suppliesSection')}</label>
               
-              {suppliesTab === 'history' && (
-                <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
                     className="flex items-center gap-1 rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 text-xs font-medium text-black transition hover:bg-gray-100"
@@ -1517,39 +1508,10 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                   >
                     <Download className="h-3.5 w-3.5" /> {tSuppliersProfile('exportSupplies')}
                   </button>
-                </div>
-              )}
-            </div>
-
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-              <div className="inline-flex rounded-full border border-[#e6e6e6] bg-gray-50 p-1">
-                <button
-                  type="button"
-                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                    suppliesTab === 'summary'
-                      ? 'bg-white text-black shadow-sm'
-                      : 'text-gray-500 hover:text-black'
-                  }`}
-                  onClick={() => setSuppliesTab('summary')}
-                >
-                  {tSuppliersProfile('supplySummaryTab')}
-                </button>
-
-                <button type="button" className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${suppliesTab === 'opening' ? 'bg-white text-black shadow-sm' : 'text-gray-500 hover:text-black'}`} onClick={() => { setSuppliesTab('opening'); setSummaryPage(1); }}>Opening Balance</button>
-                <button
-                  type="button"
-                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                    suppliesTab === 'history'
-                      ? 'bg-white text-black shadow-sm'
-                      : 'text-gray-500 hover:text-black'
-                  }`}
-                  onClick={() => setSuppliesTab('history')}
-                >
-                  {tSuppliersProfile('supplyHistoryTab')}
-                </button>
+                  <button type="button" className="rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 text-xs font-medium text-black hover:bg-gray-100" onClick={() => setShowArchivedSupplies(true)}>Archived Supplies</button>
               </div>
-              <button type="button" className="rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 text-xs font-medium text-black hover:bg-gray-100" onClick={() => setShowArchivedSupplies(true)}>Archived Supplies</button>
             </div>
+
             {showImportSupplies && (
               <ImportSuppliesModal
                 open={showImportSupplies}
@@ -1698,20 +1660,21 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                         </td>
                         <td className="px-3 py-2">
                           <SupplyMatchDropdown
-                            value={row.sku || ''}
+                            value={row.variantOptionId != null ? String(row.variantOptionId) : ''}
+                            displayValue={row.sku || ''}
                             placeholder={tSuppliersModal('selectSku')}
                             options={skuDropdownOptions.filter((option) => {
                               const selectedProductId = row.productId;
-                              return !selectedProductId || catalogOptions.some((candidate) => candidate.sku === option.value && candidate.productId === selectedProductId);
+                              return !selectedProductId || catalogOptions.some((candidate) => String(candidate.variantOptionId ?? candidate.key) === option.value && candidate.productId === selectedProductId);
                             })}
                             emptyLabel={tSuppliersModal('catalogEmpty')}
                             noMatchLabel={tSuppliersModal('catalogNoMatch')}
                             searchPlaceholder={tSuppliersModal('searchSku')}
                             needsAttention={needsSku}
-                            onSelect={(sku) => handleHistorySkuSelect(idx, sku)}
+                            onSelect={(variantId) => handleHistoryVariantSelect(idx, variantId)}
                             renderOption={(option) => (
                               <span className="flex flex-col gap-0.5">
-                                <span className="font-medium text-black">{option.value}</span>
+                                <span className="font-medium text-black">{option.label.split(' · ')[0]}</span>
                                 <span className="text-[10px] text-gray-500">{option.label}</span>
                               </span>
                             )}
@@ -1724,17 +1687,17 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                         </td>
                         <td className="px-3 py-2">
                           <SupplyMatchDropdown
-                            value={row.sku || ''}
+                            value={row.variantOptionId != null ? String(row.variantOptionId) : ''}
                             displayValue={row.variantName ? `${row.variantName}${catalogOptions.some((option) => option.productId === row.productId && option.sku === row.sku && option.variantName === row.variantName) ? '' : ' (Archived)'}` : ''}
                             placeholder={row.productId ? tSuppliersModal('selectVariant') : tSuppliersModal('selectProduct')}
                             options={catalogOptions
                               .filter((option) => option.productId === row.productId)
-                              .map((option) => ({ optionKey: option.key, value: option.sku, label: option.variantName }))}
+                              .map((option) => ({ optionKey: option.key, value: String(option.variantOptionId ?? option.key), label: option.variantName }))}
                             emptyLabel={tSuppliersModal('catalogEmpty')}
                             noMatchLabel={tSuppliersModal('catalogNoMatch')}
                             searchPlaceholder={tSuppliersModal('searchVariant')}
-                            onSelect={(sku) => handleHistoryVariantSelect(idx, sku)}
-                            className={!row.productId ? 'opacity-60' : ''}
+                            onSelect={(variantId) => handleHistoryVariantSelect(idx, variantId)}
+                            className={!row.productId && !row.variantName ? 'opacity-60' : ''}
                           />
                         </td>
                         <td className="px-3 py-2">
@@ -2063,6 +2026,23 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
               <h2 className="text-lg font-bold text-black">Archived Supplies</h2>
               <button type="button" className="rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 text-sm font-medium text-black hover:bg-gray-100" onClick={() => setShowArchivedSupplies(false)}>Close</button>
             </div>
+            {openingRows.length > 0 && (
+              <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <h3 className="mb-1 text-sm font-semibold text-amber-900">Legacy catalog opening snapshots</h3>
+                <p className="mb-3 text-xs text-amber-800">These are retained from the old supplier system. They are not purchase receipts and no longer contribute to receipt totals. Remove or archive eligible snapshots individually; active catalog variants remain protected.</p>
+                <div className="max-h-64 space-y-2 overflow-y-auto">
+                  {openingRows.map((row) => (
+                    <div key={row.suppliesno} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-white p-3">
+                      <div className="text-xs text-gray-800"><strong>{row.product}</strong> — {row.variantName || 'Default'} · {row.totalSupplied} Pieces</div>
+                      <div className="flex gap-2">
+                        <button type="button" disabled={archiveBusy} className="rounded-lg border px-2 py-1 text-xs" onClick={() => setOpeningAction({kind:'archive', rows:[row]})}>Archive</button>
+                        <button type="button" disabled={archiveBusy} className="rounded-lg border border-red-200 px-2 py-1 text-xs text-red-600" onClick={() => setOpeningAction({kind:'delete', rows:[row]})}>Delete</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {archivedOpeningRows.length === 0 ? (
               <div className="rounded-lg border border-[#e6e6e6] bg-gray-50 p-6 text-center text-sm text-gray-600">No archived supplies yet.</div>
             ) : (

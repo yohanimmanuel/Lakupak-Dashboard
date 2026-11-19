@@ -187,26 +187,9 @@ export async function replaceSupplierSupplyRecords(
   // Collapse catalog-linked duplicate summaries before any persistence. History
   // rows are deliberately retained as separate dated events.
   let list = raw.filter((row) => !isSupplyDeleteMarker(row));
-  // Resolve legacy rows against the distributor's current catalog. Only unique or
-  // verified matches are linked; unmatched/ambiguous rows retain their original data.
-  const supplierOwner = await db.supplier.findUnique({
-    where: { id: supplierRefId },
-    select: { userId: true },
-  });
-  if (supplierOwner?.userId != null) {
-    for (const row of list) {
-      if (row.variantOptionId != null) continue;
-      const resolved = await resolveCatalogIdentity(db, supplierOwner.userId, {
-        productId: row.productId, productName: row.product, variantName: row.variantName, sku: row.sku,
-      });
-      if (resolved.status === 'matched') {
-        row.variantOptionId = resolved.candidate.variantOptionId;
-        row.productId = resolved.candidate.productId;
-        row.variantName = row.variantName || resolved.candidate.variantName;
-        row.sku = row.sku || resolved.candidate.sku || '';
-      }
-    }
-  }
+  // Never auto-link historical receipts to a current variant by SKU/name.
+  // Legacy imports without an explicit variant ID remain unlinked until
+  // an authorized user selects the exact variant in the supplier editor.
 
   // Preserve database IDs for unchanged/edited records. The caller must hold the
   // distributor advisory lock in the same transaction for existing suppliers.
@@ -280,8 +263,15 @@ export async function replaceSupplierSupplyRecords(
       // do not attach it to a newly-created variant with the same label or SKU.
       const originalId = match.historicalVariantOptionId ?? match.variantOptionId;
       if (originalId != null) {
-        row.historicalVariantOptionId = originalId;
-        if (row.variantOptionId !== originalId) row.variantOptionId = null;
+        // A receipt may be deliberately reassigned to another live variant.
+        // The stock-effect transaction has already reversed the previous ID
+        // and applied the new ID before this record is persisted.
+        if (row.recordType !== 'history' || row.variantOptionId == null) {
+          row.historicalVariantOptionId = originalId;
+          if (row.variantOptionId !== originalId) row.variantOptionId = null;
+        } else {
+          row.historicalVariantOptionId = row.variantOptionId;
+        }
       }
       used.add(match.id);
       await db.supplyRecord.update({

@@ -78,7 +78,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
   
   // Get user currency for display
   const userCurrency = user?.currency || getDefaultCurrency();
-  const [suppliesTab, setSuppliesTab] = useState<'summary' | 'opening' | 'history'>('summary');
+  const [suppliesTab, setSuppliesTab] = useState<'summary' | 'opening' | 'history'>('history');
   const [showArchivedSupplies, setShowArchivedSupplies] = useState(false);
   const [supplyStockLevelsLookup, setSupplyStockLevelsLookup] = useState<Record<string, StockLevel[]>>({});
   const [supplyCatalogLookup, setSupplyCatalogLookup] = useState<Record<string, { name: string; variantsBySku: Record<string, string>; variantsById: Record<string, string> }>>({});
@@ -291,11 +291,11 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
 
   // Headline totals use the current Product variant stock snapshot plus receipt
   // history that has not already been applied to Product stock, all in Pieces.
-  const totalSupplied = summarySupplies.reduce(
+  const totalSupplied = historySupplies.reduce(
     (sum: number, supply: SupplyDetail) => sum + (Number(supply.totalSupplied) || 0),
     0,
   );
-  const totalValue = summarySupplies.reduce(
+  const totalValue = historySupplies.reduce(
     (sum: number, supply: SupplyDetail) => sum + (parseInt(String(supply.totalValue || '').replace(/[^\d-]/g, ''), 10) || 0),
     0,
   );
@@ -543,13 +543,17 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
           <div className="font-semibold text-md text-black">
             {tSuppliersProfile('suppliesSection')}
           </div>
-          
-
+          <button type="button" className="rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 text-xs font-medium text-black hover:bg-gray-100" onClick={() => setShowArchivedSupplies(true)}>Archived Supplies</button>
         </div>
         {showArchivedSupplies && (
           <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label="Archived Supplies">
             <div className="w-full max-w-3xl max-h-[80vh] overflow-y-auto rounded-xl border border-[#e6e6e6] bg-white p-6 text-gray-900 shadow-2xl">
               <div className="mb-5 flex items-center justify-between border-b border-[#e6e6e6] pb-4"><h2 className="text-lg font-bold text-black">Archived Supplies</h2><button type="button" className="rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 text-sm font-medium text-black hover:bg-gray-100" onClick={() => setShowArchivedSupplies(false)}>Close</button></div>
+              {openingSupplies.length > 0 && (
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                  {openingSupplies.length} legacy catalog opening snapshot(s) retained. These are not supplier receipts. Open Edit Supplier to manage eligible snapshots.
+                </div>
+              )}
               {archivedSupplies.length === 0 ? (
                 <div className="rounded-lg border border-[#e6e6e6] bg-gray-50 p-6 text-center text-sm text-gray-600">No archived supplies yet.</div>
               ) : <div className="space-y-2">{archivedSupplies.map((row) => (
@@ -570,38 +574,6 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                             {tSuppliersProfile('totalPurchaseValueLabel')} <span className="font-bold text-[#0a61d7]">{formatCurrency(totalValue, userCurrency)}</span>
           </div>
         </div>
-        <div className="mb-4 inline-flex rounded-full border border-[#e6e6e6] bg-gray-50 p-1">
-          <button
-            type="button"
-            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-              suppliesTab === 'summary'
-                ? 'bg-white text-black shadow-sm'
-                : 'text-gray-500 hover:text-black'
-            }`}
-            onClick={() => {
-              setSuppliesTab('summary');
-              setSupplyPage(1);
-            }}
-          >
-            {tSuppliersProfile('supplySummaryTab')}
-          </button>
-          <button type="button" className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${suppliesTab === 'opening' ? 'bg-white text-black shadow-sm' : 'text-gray-500 hover:text-black'}`} onClick={() => { setSuppliesTab('opening'); setSupplyPage(1); }}>Opening Balance</button>
-          <button
-            type="button"
-            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-              suppliesTab === 'history'
-                ? 'bg-white text-black shadow-sm'
-                : 'text-gray-500 hover:text-black'
-            }`}
-            onClick={() => {
-              setSuppliesTab('history');
-              setSupplyPage(1);
-            }}
-          >
-            {tSuppliersProfile('supplyHistoryTab')}
-          </button>
-        </div>
-        <div className="mb-4 flex justify-end"><button type="button" className="rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 text-xs font-medium text-black hover:bg-gray-100" onClick={() => setShowArchivedSupplies(true)}>Archived Supplies</button></div>
         <div className="min-w-0 overflow-x-auto rounded-lg">
           <table className="w-max min-w-full whitespace-nowrap text-xs font-medium text-left">
             <thead>
@@ -643,7 +615,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                   >
                     <td className="py-4 px-4 text-black">{String(supplyCatalogLookup[String(supply.productId || '')]?.name || supplyCatalogBySku[String(supply.sku || '')]?.name || supply.product || '—')}</td>
                     <td className="py-4 px-4 font-medium text-black">{String(supply.sku || '—')}</td>
-                    <td className="py-4 px-4 text-black">{String(supplyCatalogLookup[String(supply.productId || '')]?.variantsById[String(supply.variantOptionId || '')] || supply.variantName || supplyCatalogLookup[String(supply.productId || '')]?.variantsBySku[String(supply.sku || '')] || supplyCatalogBySku[String(supply.sku || '')]?.variantName || '—')}</td>
+                    <td className="py-4 px-4 text-black">{String(supply.variantName || supplyCatalogLookup[String(supply.productId || '')]?.variantsById[String(supply.variantOptionId || '')] || '—')}</td>
                     <td className="py-4 px-4 text-black">
                       {getSupplyReceivedInput(supply).receivedQuantity} {getSupplyReceivedInput(supply).receivedUnit}
                     </td>
@@ -667,7 +639,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
                     </td>
                     <td className="py-4 px-4 text-black">{String(supplyCatalogLookup[String(supply.productId || '')]?.name || supplyCatalogBySku[String(supply.sku || '')]?.name || supply.product || '—')}</td>
                     <td className="py-4 px-4 font-medium text-black">{String(supply.sku || '—')}</td>
-                    <td className="py-4 px-4 text-black">{String(supply.variantName || supplyCatalogLookup[String(supply.productId || '')]?.variantsBySku[String(supply.sku || '')] || supplyCatalogBySku[String(supply.sku || '')]?.variantName || '—')}</td>
+                    <td className="py-4 px-4 text-black">{String(supply.variantName || supplyCatalogLookup[String(supply.productId || '')]?.variantsById[String(supply.variantOptionId || '')] || '—')}</td>
                     <td className="py-4 px-4 text-black">
                       <div className="flex min-w-[9rem] flex-col gap-1">
                         {getSummaryPackageQuantities(supply).map((level) => (

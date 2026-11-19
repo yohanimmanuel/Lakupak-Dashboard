@@ -56,6 +56,13 @@ function dedupeProductNames(product: string | null | undefined): string {
   return unique.join(', ');
 }
 
+/** Keep consolidated cells readable while retaining the full order in the details popup. */
+function compactOrderValues(values: Array<string | null | undefined>, limit = 2): React.ReactNode {
+  const valid = values.map((value) => String(value || '').trim()).filter(Boolean);
+  if (!valid.length) return '—';
+  return <>{valid.slice(0, limit).join(', ')}{valid.length > limit ? <span className="ml-1 whitespace-nowrap font-semibold text-gray-500">+{valid.length - limit} more</span> : null}</>;
+}
+
 /** Parse an order date for newest-first history ordering. Invalid or empty dates sort last. */
 function getHistoryDateTimestamp(value: string | null | undefined): number | null {
   const normalized = String(value || '').trim();
@@ -410,6 +417,17 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
       setHoverOrderLoading((current) => current === orderId ? null : current);
     }
   };
+
+  // Prefetch the visible live order items instead of waiting for a hover.
+  // The SKU/variant cells render skeletons until the exact saved snapshots arrive.
+  useEffect(() => {
+    for (const order of pagedOrderDetails) {
+      if (isLiveBuyerOrder(order) && order.orderNo) void loadHoverOrderDetail(order);
+    }
+    // Re-run only when the visible page or buyer changes; request deduplication
+    // is handled by hoverOrderRequestsRef.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderPage, buyer.buyerId, buyer.orderDetails, user?.id]);
 
   const loadManualProductImages = async (productId: string | null | undefined, productName: string): Promise<string[]> => {
     if (!user?.id) return [];
@@ -1029,14 +1047,23 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
                     </div>
                   </td>
                   <td className="py-4 px-4 text-black">
-                    {order.sku
-                      || (order.variantOptionId != null ? variantSkuById[`id:${order.variantOptionId}`] : '')
-                      || (order.productId && order.variantName ? variantSkuById[`product:${order.productId}|variant:${order.variantName.trim().toLowerCase()}`] : '')
-                      || hoverOrderDetails[order.orderNo]?.orderItems.map((item) => item.productSkuSnapshot).filter(Boolean).join(', ')
-                      || '—'}
+                    {(() => {
+                      const detail = hoverOrderDetails[order.orderNo];
+                      if (isLiveBuyerOrder(order) && !detail) return <span className="inline-block h-3 w-28 animate-pulse rounded bg-gray-200" aria-label="Loading SKU" />;
+                      if (detail?.orderItems?.length) return compactOrderValues(detail.orderItems.map((item) => item.productSkuSnapshot));
+                      const raw = order.sku
+                        || (order.variantOptionId != null ? variantSkuById[`id:${order.variantOptionId}`] : '')
+                        || (order.productId && order.variantName ? variantSkuById[`product:${order.productId}|variant:${order.variantName.trim().toLowerCase()}`] : '');
+                      return compactOrderValues(String(raw || '').split(',').map((v) => v.trim()));
+                    })()}
                   </td>
                   <td className="py-4 px-4 text-black">
-                    {order.variantName || hoverOrderDetails[order.orderNo]?.orderItems.map((item) => item.variantNameSnapshot).filter(Boolean).join(', ') || '—'}
+                    {(() => {
+                      const detail = hoverOrderDetails[order.orderNo];
+                      if (isLiveBuyerOrder(order) && !detail) return <span className="inline-block h-3 w-32 animate-pulse rounded bg-gray-200" aria-label="Loading variant" />;
+                      if (detail?.orderItems?.length) return compactOrderValues(detail.orderItems.map((item) => item.variantNameSnapshot));
+                      return compactOrderValues(String(order.variantName || '').split(',').map((v) => v.trim()));
+                    })()}
                   </td>
                   <td className="py-4 px-4 text-black">
                     {order.totalOrders}
