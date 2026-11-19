@@ -126,6 +126,8 @@ export interface SupplyDetail {
   productId?: string;
   variantName?: string;
   variantOptionId?: number | null;
+  /** Original catalog identity retained after the live variant FK is cleared. */
+  historicalVariantOptionId?: number | null;
   archivedAt?: string | null;
   updateCurrentStock?: boolean;
   stockApplied?: boolean;
