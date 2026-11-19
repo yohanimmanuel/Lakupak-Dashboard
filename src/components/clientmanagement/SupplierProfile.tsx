@@ -160,13 +160,10 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
     text += `Notes: ${notes.join(', ')}\n`;
     text += `\nSupplies & Product Data:\n`;
     for (const row of supplies) {
-      const isHistoryRow = row.recordType !== 'summary';
-      const receivedDescription = isHistoryRow
-        ? `${getSupplyReceivedInput(row).receivedQuantity} ${getSupplyReceivedInput(row).receivedUnit}`
-        : getSummaryPackageQuantities(row)
-            .map((level) => `${level.availableQuantity} ${level.name} (${level.equivalentQuantity})`)
-            .join(', ');
-      text += `- Supplies No: ${row.suppliesno}, SKU: ${row.sku}, Product: ${row.product}, Received: ${receivedDescription}, Total Value: ${row.totalValue}, Last Supplied Date: ${row.lastSuppliedDate}, Status: ${row.status}\n`;
+      if (!isSupplyHistoryRow(row) || row.archivedAt) continue;
+      const received = getSupplyReceivedInput(row);
+      const receivedDescription = `${received.receivedQuantity} ${received.receivedUnit}`;
+      text += `- Supplies No: ${row.suppliesno}, SKU: ${row.sku}, Product: ${row.product}, Variant: ${row.variantName || 'Default'}, Received: ${receivedDescription}, Total Value: ${row.totalValue}, Last Supplied Date: ${row.lastSuppliedDate}, Status: ${row.status}\\n`;
     }
     navigator.clipboard.writeText(text);
   };
