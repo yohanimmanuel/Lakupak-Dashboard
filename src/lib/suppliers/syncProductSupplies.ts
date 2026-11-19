@@ -1,7 +1,6 @@
 import { prisma, type Prisma } from '@/lib/db';
 import type { SupplyDetail } from '@/types/client';
 import { isSupplySummaryRow } from '@/lib/suppliers/supplyRecords';
-import { resolveCatalogIdentity } from '@/lib/catalog/identityResolver';
 
 type VariantSnapshot = {
   id?: number;
@@ -69,21 +68,26 @@ function findSupplyRow(
   const label = productLabel(product.name, effectiveVariantName);
   const sku = String(displaySku || variant.sku || identity).trim();
   const summaryRows = supplies.filter(isSupplySummaryRow);
-  const byVariantName = summaryRows.find((row) =>
+  // An old snapshot with a deleted VariantOption ID must never be adopted by
+  // a newly-created variant that happens to reuse its name or SKU.
+  const eligible = summaryRows.filter((row) =>
+    row.variantOptionId == null || variant.id == null || Number(row.variantOptionId) === variant.id,
+  );
+  const byVariantName = eligible.find((row) =>
     String(row.productId || '').trim() === product.productId &&
     String(row.variantName || '').trim().toLowerCase() === effectiveVariantName.toLowerCase(),
   );
-  const skuMatches = summaryRows.filter((row) =>
+  const skuMatches = eligible.filter((row) =>
     String(row.productId || '').trim() === product.productId &&
     String(row.sku || '').trim().toLowerCase() === sku.toLowerCase(),
   );
   return (
     (variant.id != null ? summaryRows.find((row) => row.variantOptionId != null && Number(row.variantOptionId) === variant.id) : undefined) ||
-    summaryRows.find((row) => String(row.suppliesno || '') === autoNo) ||
+    eligible.find((row) => String(row.suppliesno || '') === autoNo) ||
     byVariantName ||
     (skuMatches.length === 1 ? skuMatches[0] : undefined) ||
-    summaryRows.find((row) => String(row.sku || '').trim() === identity) ||
-    summaryRows.find((row) => String(row.product || '').trim() === label)
+    eligible.find((row) => String(row.sku || '').trim() === identity) ||
+    eligible.find((row) => String(row.product || '').trim() === label)
   );
 }
 
@@ -118,12 +122,13 @@ export function mergeSupplyLists(primary: SupplyDetail[], incoming: SupplyDetail
       .map((row, i) => [String(row.suppliesno || '').trim(), i] as const)
       .filter(([no]) => no.length > 0),
   );
-  // Summary rows only — history events with the same product label must not collapse.
+  // Only legacy summaries without variant IDs may use label fallback.
+  // A recreated variant must never adopt an archived summary with the same label.
   const indexBySummaryProduct = new Map<string, number>();
   out.forEach((row, i) => {
     if (!isSupplySummaryRow(row)) return;
     const product = String(row.product || '').trim();
-    if (product) indexBySummaryProduct.set(product, i);
+    if (product && row.variantOptionId == null) indexBySummaryProduct.set(product, i);
   });
 
   for (const row of incoming) {
@@ -139,13 +144,13 @@ export function mergeSupplyLists(primary: SupplyDetail[], incoming: SupplyDetail
 
     const existingIdx =
       (no && indexByNo.has(no) ? indexByNo.get(no) : undefined) ??
-      (product && indexBySummaryProduct.has(product)
+      (row.variantOptionId == null && product && indexBySummaryProduct.has(product)
         ? indexBySummaryProduct.get(product)
         : undefined);
 
     if (existingIdx == null) {
       if (no) indexByNo.set(no, out.length);
-      if (product) indexBySummaryProduct.set(product, out.length);
+      if (product && row.variantOptionId == null) indexBySummaryProduct.set(product, out.length);
       out.push(row);
       continue;
     }
@@ -234,14 +239,8 @@ export function applyProductToSupplierMaps(
   };
 
   if (clearMatch) {
-    for (const supplier of suppliers) {
-      const supplies = suppliesBySupplierId.get(supplier.id) || [];
-      const kept = supplies.filter((row) => !belongsToProduct(row, product, matchHints));
-      if (kept.length !== supplies.length) {
-        suppliesBySupplierId.set(supplier.id, kept);
-        dirtySupplierIds.add(supplier.id);
-      }
-    }
+    // Unassigning a supplier changes catalog metadata, not prior receipts.
+    // Historical rows remain under the original supplier until explicitly edited.
     return;
   }
 
@@ -403,71 +402,17 @@ export function removeProductVariantsFromSupplierMaps(
   const productId = String(product.productId || '').trim();
   if (!productId || removedVariants.length === 0) return;
 
-  const allSkuCounts = new Map<string, number>();
-  for (const variant of allVariants) {
-    const sku = normalizeSupplyIdentity(variant.sku);
-    if (sku) allSkuCounts.set(sku, (allSkuCounts.get(sku) || 0) + 1);
-  }
+  // Catalog deletion is not an accounting event. Supplier receipt history and
+  // summary/opening-balance snapshots must survive even when their catalog option
+  // no longer exists. A future option with the same name/SKU is a NEW identity.
+  // Intentionally leave the stored rows untouched; the UI can display their
+  // frozen product/variant labels without a live catalog dropdown option.
+  void allVariants;
+  void suppliesBySupplierId;
+  void suppliers;
+  void dirtySupplierIds;
+  void removedVariants;
 
-  const removed = removedVariants.map((variant) => {
-    const variantName = String(variant.variantName || '').trim();
-    const sku = String(variant.sku || '').trim();
-    const variantOptionId = Number(variant.variantOptionId);
-    return {
-      variantOptionId: Number.isSafeInteger(variantOptionId) && variantOptionId > 0 ? variantOptionId : null,
-      variantName,
-      sku,
-      nameKey: normalizeSupplyIdentity(variantName),
-      skuKey: normalizeSupplyIdentity(sku),
-      autoNo: `AUTO-${productId}|${variantName}`,
-      compositeSku: `${productId}|${variantName}`,
-      labelKey: normalizeSupplyIdentity(productLabel(String(product.name || ''), variantName)),
-    };
-  }).filter((variant) => variant.nameKey);
-
-  if (removed.length === 0) return;
-
-  for (const supplier of suppliers) {
-    const supplies = suppliesBySupplierId.get(supplier.id) || [];
-    const kept = supplies.filter((row) => {
-      const rowProductId = String(row.productId || '').trim();
-      const rowVariantName = normalizeSupplyIdentity(row.variantName);
-      const rowSupplyNo = String(row.suppliesno || '').trim();
-      const rowSku = String(row.sku || '').trim();
-      const rowSkuKey = normalizeSupplyIdentity(rowSku);
-      const rowLabelKey = normalizeSupplyIdentity(row.product);
-
-      // Never remove a row explicitly linked to another catalog product.
-      if (rowProductId && rowProductId !== productId) return true;
-
-      const matchesRemovedVariant = removed.some((variant) => {
-        // Stable VariantOption IDs take precedence over mutable names/SKUs.
-        if (variant.variantOptionId != null && row.variantOptionId != null) {
-          return Number(row.variantOptionId) === variant.variantOptionId;
-        }
-        if (rowVariantName) return rowProductId === productId && rowVariantName === variant.nameKey;
-        if (rowSupplyNo === variant.autoNo || rowSku === variant.compositeSku) return true;
-        if (rowLabelKey && rowLabelKey === variant.labelKey) return true;
-
-        // A plain legacy SKU is safe only when it identifies exactly one variant
-        // across this product. Shared parent SKUs must not delete sibling variants.
-        const skuIsUnique = variant.skuKey && allSkuCounts.get(variant.skuKey) === 1;
-        if (skuIsUnique && rowSkuKey === variant.skuKey) return true;
-
-        // Rows with this Product ID but no variant metadata can be attributed only
-        // when the product has a single known variant; otherwise leave them intact.
-        if (rowProductId === productId && allVariants.length === 1) return true;
-        return false;
-      });
-
-      return !matchesRemovedVariant;
-    });
-
-    if (kept.length !== supplies.length) {
-      suppliesBySupplierId.set(supplier.id, kept);
-      dirtySupplierIds.add(supplier.id);
-    }
-  }
 }
 
 async function rewriteSupplierSupplyMaps(
@@ -547,14 +492,11 @@ export async function removeProductSuppliesInTransaction(
     variantOptions?: VariantSnapshot[];
   },
 ): Promise<number> {
-  const variants = (args.variantOptions || []).filter((variant) => String(variant.variantName || '').trim());
-  const hints: ProductSupplyMatchHints = {
-    skus: variants.map((variant) => String(variant.sku || '').trim()).filter(Boolean),
-    labels: variants.map((variant) => productLabel(String(args.name || ''), variant.variantName)),
-  };
-  return rewriteSupplierSupplyMaps(tx, args.userId, (maps, suppliers, dirty) => {
-    removeProductFromSupplierMaps({ productId: args.productId }, maps, suppliers, dirty, hints);
-  });
+  // Preserve accounting snapshots on product deletion too. In particular, do
+  // not remove history or summary rows merely because the catalog ID vanished.
+  void tx;
+  void args;
+  return 0;
 }
 
 /** Backward-compatible transaction wrapper for callers outside a transaction. */
@@ -603,32 +545,8 @@ const suppliesBySupplierId = new Map<number, SupplyDetail[]>(
 );
 const dirtySupplierIds = new Set<number>();
 
-// Reattach old rows whose product was deleted/recreated when the legacy SKU
-// or verified alias uniquely resolves to this current product variant.
-for (const supplier of suppliers) {
-  const rows = suppliesBySupplierId.get(supplier.id) || [];
-  let relinked = false;
-  for (const row of rows) {
-    if (row.variantOptionId != null) continue;
-    const resolved = await resolveCatalogIdentity(tx, product.userId, {
-      productId: row.productId,
-      productName: row.product,
-      variantName: row.variantName,
-      sku: row.sku,
-    });
-    if (resolved.status !== 'matched' || resolved.candidate.productId !== product.productId) continue;
-    row.productId = resolved.candidate.productId;
-    row.variantOptionId = resolved.candidate.variantOptionId;
-    row.variantName = resolved.candidate.variantName;
-    row.sku = row.sku || resolved.candidate.sku || '';
-    row.product = productLabel(product.name, resolved.candidate.variantName);
-    relinked = true;
-  }
-  if (relinked) {
-    suppliesBySupplierId.set(supplier.id, rows);
-    dirtySupplierIds.add(supplier.id);
-  }
-}
+// Do not automatically reattach ID-less legacy rows by SKU, alias or label.
+// Recreated variants can reuse all of those fields without sharing identity.
 
 applyProductToSupplierMaps(product, suppliesBySupplierId, suppliers, dirtySupplierIds);
 

@@ -311,6 +311,8 @@ model SupplyRecord {
   productId          String?
   variantName        String?
   variantOptionId    Int?
+  /// Immutable historical catalog identity. Retained when variantOptionId is cleared by deletion.
+  historicalVariantOptionId Int?
   variantOption      VariantOption? @relation(fields: [variantOptionId], references: [id], onDelete: SetNull)
   updateCurrentStock Boolean  @default(false)
   /// True after this history row has already adjusted variant stock (re-check must not re-apply).
@@ -326,6 +328,7 @@ model SupplyRecord {
   @@index([productId])
   @@index([sku])
   @@index([variantOptionId])
+  @@index([historicalVariantOptionId])
 }
 
 model Product {

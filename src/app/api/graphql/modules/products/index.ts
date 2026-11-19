@@ -1675,8 +1675,9 @@ export const updateProduct = async (args: {
           });
         }
 
-        // Remove supplier history/summary rows for catalog variants that were
-        // removed from the active catalog. The existing helper runs on this transaction,
+        // Preserve supplier history/summary snapshots for removed variants.
+        // The helper deliberately performs no deletion; old catalog IDs stay
+        // distinct from newly created variants with the same name or SKU. The existing helper runs on this transaction,
         // so the catalog change and supplier cleanup commit or roll back together.
         const remainingVariantOptions = await tx.variantOption.findMany({
           where: { productId: updated.id },
@@ -1893,7 +1894,7 @@ export const deleteProduct = async (args: { userId: number; id: string }) => {
   ]);
   const mappedProduct = mapProduct(productToDelete, offerMap, soldCountMap);
 
-  // Delete the linked supplier rows and catalog product in one transaction.
+  // Delete the catalog product while preserving supplier accounting snapshots.
   // If either operation fails, neither side is left partially updated.
   await prisma.$transaction(async (tx) => {
     const { removeProductSuppliesInTransaction } = await import(

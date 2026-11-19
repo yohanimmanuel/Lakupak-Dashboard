@@ -89,7 +89,8 @@ export function resolveSupplyRowVariant(
   const productId = String(row.productId || '').trim();
   if (row.variantOptionId != null) {
     const byId = indexes.byVariantOptionId.get(Number(row.variantOptionId));
-    if (byId) return byId;
+    // Archived ID must not resolve through a recycled SKU, label or name.
+    return byId ?? null;
   }
   const variantName = String(row.variantName || '').trim();
   if (productId && variantName) {

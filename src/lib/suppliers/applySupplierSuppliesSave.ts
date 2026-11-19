@@ -25,12 +25,23 @@ export { todayYmdJakarta };
 
 async function findVariantForSupply(args: {
   userId: number;
+  variantOptionId?: number | null;
   sku?: string | null;
   productId?: string | null;
   variantName?: string | null;
   db?: DbClient;
 }): Promise<{ id: number; stockQuantity: number } | null> {
   const db = args.db ?? prisma;
+  // An explicit variant identity is authoritative, including when archived.
+  // Never fall back to a reused SKU/name if the original variant is gone.
+  if (args.variantOptionId != null) {
+    const id = Number(args.variantOptionId);
+    if (!Number.isSafeInteger(id) || id <= 0) return null;
+    return db.variantOption.findFirst({
+      where: { id, isActive: true, product: { userId: args.userId } },
+      select: { id: true, stockQuantity: true },
+    });
+  }
   const sku = String(args.sku || '').trim();
   const productId = String(args.productId || '').trim();
   const variantName = String(args.variantName || '').trim();
@@ -77,6 +88,7 @@ async function findVariantForSupply(args: {
 
 export async function incrementVariantStockForSupply(args: {
   userId: number;
+  variantOptionId?: number | null;
   sku?: string | null;
   productId?: string | null;
   variantName?: string | null;
@@ -489,6 +501,7 @@ export async function finalizeSupplierSuppliesSave(args: {
     if (effect.applyStock === false) continue;
     const updated = await incrementVariantStockForSupply({
       userId: args.userId,
+      variantOptionId: effect.row.variantOptionId,
       sku: effect.row.sku,
       productId: effect.row.productId,
       variantName: effect.row.variantName,

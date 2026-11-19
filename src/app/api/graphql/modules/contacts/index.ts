@@ -136,6 +136,7 @@ export const contactsTypeDefs = /* GraphQL */ `
   }
 
   input RecordSupplierSupplyInput {
+    variantOptionId: Int
     sku: String
     product: String!
     quantity: Int!
@@ -1896,7 +1897,7 @@ const fetchSupplierTransferRecords = async (args: { userId: number; supplierId: 
     }),
     prisma.product.findMany({ where: { userId }, select: {
       productId: true, supplier: true,
-      variantOptions: { select: { variantName: true } },
+      variantOptions: { select: { id: true, variantName: true } },
     } }),
     prisma.supplier.findMany({ where: { userId }, select: { name: true } }),
   ]);
@@ -2223,6 +2224,9 @@ const moveSelectedSupplyRecords = async (args: {
       if (selected.length !== recordIds.length || selected.some(row =>
         row.recordType !== (openingIds.includes(row.id) ? 'summary' : 'history')
       )) throw new Error('Records changed. Refresh and retry.');
+      if (selected.some(r => r.variantOptionId == null)) {
+        throw new Error('Legacy supply records without a stable variant ID require manual reconciliation before transfer.');
+      }
       const identities = selected.map(r => ({
         productId: String(r.productId || '').trim(),
         variantName: String(r.variantName || '').trim(),
@@ -2233,13 +2237,13 @@ const moveSelectedSupplyRecords = async (args: {
       const products = await tx.product.findMany({
         where: { userId, productId: { in: [...new Set(identities.map(i => i.productId))] } },
         select: { productId: true, supplier: true,
-          variantOptions: { select: { variantName: true } } },
+          variantOptions: { select: { id: true, variantName: true } } },
       });
       const byProduct = new Map(products.map(p => [p.productId.toLowerCase(), p]));
       const targetNames = new Set<string>();
-      for (const identity of identities) {
+      for (const [index, identity] of identities.entries()) {
         const product = byProduct.get(identity.productId.toLowerCase());
-        if (!product || !product.variantOptions.some(v => v.variantName.toLowerCase() === identity.variantName.toLowerCase())) {
+        if (!product || !product.variantOptions.some(v => v.id === selected[index].variantOptionId && v.variantName.toLowerCase() === identity.variantName.toLowerCase())) {
           throw new Error('Product variant no longer exists in the catalog.');
         }
         const targetName = String(product.supplier || '').trim();
@@ -2435,6 +2439,7 @@ const recordSupplierSupply = async (args: {
   userId: number;
   supplierId: string;
   input: {
+    variantOptionId?: number | null;
     sku?: string | null;
     product: string;
     quantity: number;
@@ -2501,6 +2506,12 @@ const recordSupplierSupply = async (args: {
   const sku = String(input.sku || '').trim();
   const productId = String(input.productId || '').trim() || undefined;
   const variantName = String(input.variantName || '').trim() || undefined;
+  // An explicit variant ID is immutable historical identity, not a SKU alias.
+  // Legacy callers may omit it; only uniquely resolved live variants are linked.
+  const requestedVariantId = input.variantOptionId == null ? null : Number(input.variantOptionId);
+  if (requestedVariantId != null && (!Number.isSafeInteger(requestedVariantId) || requestedVariantId <= 0)) {
+    throw new Error('Invalid variantOptionId');
+  }
 
   // Prefer explicit checkbox; fall back to "today" for older API callers.
   const updateStock =
@@ -2515,10 +2526,28 @@ const recordSupplierSupply = async (args: {
     // Same lock key as updateSupplier so concurrent supply writes share one critical section.
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(${Number(userId)}, ${879_332})`;
 
+    const selected = requestedVariantId == null ? null : await tx.variantOption.findFirst({
+      where: { id: requestedVariantId, product: { userId: Number(userId) } },
+      select: { id: true, isActive: true, sku: true, variantName: true, product: { select: { productId: true } } },
+    });
+    if (requestedVariantId != null && !selected) throw new Error('Variant does not belong to this user');
+    if (selected && productId && selected.product.productId !== productId) throw new Error('Variant/product mismatch');
+    if (selected && sku && selected.sku && selected.sku !== sku) throw new Error('Variant/SKU mismatch');
+    if (selected && variantName && selected.variantName !== variantName) throw new Error('Variant name mismatch');
+    // Never auto-link a legacy receipt by a recycled SKU. Legacy history remains
+    // unlinked until the user explicitly chooses a live variant.
+    const variantOptionId = selected?.id;
     let stockUpdatedInTx = false;
+    if (updateStock && !variantOptionId) {
+      throw new Error('Select a current product variant before updating stock');
+    }
+    if (updateStock && selected?.isActive !== true) {
+      throw new Error('Archived variants cannot receive stock');
+    }
     if (updateStock) {
       stockUpdatedInTx = await incrementVariantStockForSupply({
         userId: Number(userId),
+        variantOptionId,
         sku,
         productId,
         variantName,
@@ -2536,6 +2565,7 @@ const recordSupplierSupply = async (args: {
       suppliedDate,
       productId,
       variantName,
+      variantOptionId,
       updateCurrentStock: updateStock,
       stockApplied: stockUpdatedInTx,
     });

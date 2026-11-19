@@ -24,6 +24,7 @@ export type SupplyRecordRow = {
   productId: string | null;
   variantName: string | null;
   variantOptionId: number | null;
+  historicalVariantOptionId?: number | null;
   updateCurrentStock: boolean;
   stockApplied: boolean;
   sortOrder: number;
@@ -77,7 +78,7 @@ export function supplyDetailFromRecord(row: SupplyRecordRow): SupplyDetail {
     recordType: getSupplyRecordType({ suppliesno: row.suppliesno, recordType: row.recordType as SupplyDetail['recordType'] }),
     productId: row.productId || undefined,
     variantName: row.variantName || undefined,
-    variantOptionId: row.variantOptionId ?? undefined,
+    variantOptionId: row.variantOptionId ?? row.historicalVariantOptionId ?? undefined,
     updateCurrentStock: row.updateCurrentStock === true,
     stockApplied: row.stockApplied === true,
   };
@@ -130,6 +131,7 @@ export function buildSupplyRecordCreateManyRows(
   productId: string | null;
   variantName: string | null;
   variantOptionId: number | null;
+  historicalVariantOptionId?: number | null;
   updateCurrentStock: boolean;
   stockApplied: boolean;
   sortOrder: number;
@@ -160,6 +162,7 @@ export function buildSupplyRecordCreateManyRows(
       productId: row.productId ? String(row.productId) : null,
       variantName: row.variantName ? String(row.variantName) : null,
       variantOptionId: row.variantOptionId != null && Number.isSafeInteger(Number(row.variantOptionId)) ? Number(row.variantOptionId) : null,
+      historicalVariantOptionId: row.variantOptionId != null && Number.isSafeInteger(Number(row.variantOptionId)) ? Number(row.variantOptionId) : null,
       updateCurrentStock: row.updateCurrentStock === true,
       stockApplied: row.stockApplied === true,
       sortOrder: index,
@@ -226,6 +229,23 @@ export async function replaceSupplierSupplyRecords(
     }
     summaryKeys.add(key);
   }
+  // A supplier snapshot may refer to a variant removed during this same product
+  // update. Such an ID is historical data, NOT a valid live foreign key.
+  const requestedIds = [...new Set(incoming.map((row) => row.variantOptionId).filter((id): id is number => id != null))];
+  const liveVariants = requestedIds.length
+    ? await db.variantOption.findMany({
+        where: { id: { in: requestedIds } },
+        select: { id: true },
+      })
+    : [];
+  const liveIds = new Set(liveVariants.map((variant) => variant.id));
+  for (const row of incoming) {
+    const requestedId = row.variantOptionId;
+    if (requestedId != null) {
+      row.historicalVariantOptionId = requestedId;
+      if (!liveIds.has(requestedId)) row.variantOptionId = null;
+    }
+  }
   const existing = await db.supplyRecord.findMany({ where: { supplierRefId } });
   const byNo = new Map<string, typeof existing>();
   for (const row of existing) {
@@ -250,6 +270,13 @@ export async function replaceSupplierSupplyRecords(
     }
     const match = matches[0];
     if (match) {
+      // An existing snapshot owns its original identity permanently. In particular,
+      // do not attach it to a newly-created variant with the same label or SKU.
+      const originalId = match.historicalVariantOptionId ?? match.variantOptionId;
+      if (originalId != null) {
+        row.historicalVariantOptionId = originalId;
+        if (row.variantOptionId !== originalId) row.variantOptionId = null;
+      }
       used.add(match.id);
       await db.supplyRecord.update({
         where: { id: match.id },
@@ -268,6 +295,7 @@ export async function replaceSupplierSupplyRecords(
           productId: row.productId,
           variantName: row.variantName,
           variantOptionId: row.variantOptionId,
+          historicalVariantOptionId: row.historicalVariantOptionId,
           updateCurrentStock: row.updateCurrentStock,
           stockApplied: row.stockApplied,
           sortOrder: row.sortOrder,

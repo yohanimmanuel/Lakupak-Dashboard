@@ -734,23 +734,13 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     };
   }, [user?.id]);
 
-  const catalogOptions = useMemo(() => {
-    const base = buildCatalogOptions(catalogProducts, form.supplierName || initialData?.name);
-    const seen = new Set(base.map((opt) => opt.sku));
-    for (const row of historyRows) {
-      const sku = String(row.sku || '').trim();
-      if (!sku || seen.has(sku)) continue;
-      seen.add(sku);
-      base.push({
-        key: `legacy:${sku}`,
-        sku,
-        product: String(row.product || '').trim() || sku,
-        productId: String(row.productId || '').trim(),
-        variantName: String(row.variantName || '').trim(),
-      });
-    }
-    return base;
-  }, [catalogProducts, form.supplierName, initialData?.name, historyRows]);
+  // Only live catalog variants are selectable. Historical rows retain their
+  // own frozen SKU/product/variant labels; do not reinsert deleted variants as
+  // fake catalog options (which could accidentally re-link a recreated SKU).
+  const catalogOptions = useMemo(
+    () => buildCatalogOptions(catalogProducts, form.supplierName || initialData?.name),
+    [catalogProducts, form.supplierName, initialData?.name],
+  );
 
   /** Strict ownership list for import validation — no full-catalog fallback. */
   const supplierOwnedCatalog = useMemo(
@@ -1816,8 +1806,8 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                         <td className="px-3 py-2 font-medium text-black">{idx + 1}</td>
                         <td className="px-3 py-2">
                           <SupplyMatchDropdown
-                            value={row.productId || catalogOptions.find((option) => option.sku === row.sku)?.productId || productDropdownOptions.find((option) => option.label.toLowerCase() === String(row.product || '').trim().toLowerCase())?.value || ''}
-                            displayValue={catalogOptions.find((option) => option.productId === (row.productId || catalogOptions.find((candidate) => candidate.sku === row.sku)?.productId))?.product || row.product || ''}
+                            value={row.productId || ''}
+                            displayValue={row.product || catalogOptions.find((option) => option.productId === row.productId)?.product || ''}
                             placeholder={tSuppliersModal('selectProduct')}
                             options={productDropdownOptions}
                             emptyLabel={tSuppliersModal('catalogEmpty')}
@@ -1831,8 +1821,8 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                             value={row.sku || ''}
                             placeholder={tSuppliersModal('selectSku')}
                             options={skuDropdownOptions.filter((option) => {
-                              const selectedProductId = row.productId || catalogOptions.find((candidate) => candidate.sku === row.sku)?.productId;
-                              return !selectedProductId || catalogOptions.find((candidate) => candidate.sku === option.value)?.productId === selectedProductId;
+                              const selectedProductId = row.productId;
+                              return !selectedProductId || catalogOptions.some((candidate) => candidate.sku === option.value && candidate.productId === selectedProductId);
                             })}
                             emptyLabel={tSuppliersModal('catalogEmpty')}
                             noMatchLabel={tSuppliersModal('catalogNoMatch')}
@@ -1855,10 +1845,10 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                         <td className="px-3 py-2">
                           <SupplyMatchDropdown
                             value={row.sku || ''}
-                            displayValue={row.variantName || ''}
+                            displayValue={row.variantName ? `${row.variantName}${catalogOptions.some((option) => option.productId === row.productId && option.sku === row.sku && option.variantName === row.variantName) ? '' : ' (Archived)'}` : ''}
                             placeholder={row.productId ? tSuppliersModal('selectVariant') : tSuppliersModal('selectProduct')}
                             options={catalogOptions
-                              .filter((option) => option.productId === (row.productId || catalogOptions.find((candidate) => candidate.sku === row.sku)?.productId))
+                              .filter((option) => option.productId === row.productId)
                               .map((option) => ({ optionKey: option.key, value: option.sku, label: option.variantName }))}
                             emptyLabel={tSuppliersModal('catalogEmpty')}
                             noMatchLabel={tSuppliersModal('catalogNoMatch')}

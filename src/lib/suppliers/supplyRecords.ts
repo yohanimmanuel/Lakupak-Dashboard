@@ -77,11 +77,12 @@ const normKey = (value: unknown): string => String(value ?? '').trim().toLowerCa
  * catalog-linked row when both productId and SKU are identical. Different SKUs
  * under the same productId remain separate variants.
  */
-const summaryKey = (row: Pick<SupplyDetail, 'sku' | 'product' | 'productId' | 'variantName'>): string => {
+const summaryKey = (row: SummaryIdentity): string => {
   const productId = normKey(row.productId);
   const sku = normKey(row.sku);
   const variantName = normKey(row.variantName);
   const product = normKey(row.product);
+  if (row.variantOptionId != null) return `variant-option:${row.variantOptionId}`;
   if (productId && sku) return `id:${productId}|sku:${sku}`;
   if (productId) return `id:${productId}|variant:${variantName || product}`;
   // Without a catalog ID, retain the label as a safety discriminator because
@@ -89,7 +90,18 @@ const summaryKey = (row: Pick<SupplyDetail, 'sku' | 'product' | 'productId' | 'v
   return `sku:${sku}|product:${product}`;
 };
 
-type SummaryIdentity = Pick<SupplyDetail, 'sku' | 'product' | 'productId' | 'variantName'>;
+type SummaryIdentity = Pick<SupplyDetail, 'sku' | 'product' | 'productId' | 'variantName' | 'variantOptionId'>;
+
+const incompatibleVariantIds = (a: SummaryIdentity, b: SummaryIdentity): boolean =>
+  a.variantOptionId != null && b.variantOptionId != null &&
+  String(a.variantOptionId) !== String(b.variantOptionId);
+
+// An explicitly linked historical variant must never be adopted by another
+// variant, even if its SKU and display name were reused.
+const compatibleVariantIds = (a: SummaryIdentity, b: SummaryIdentity): boolean =>
+  (a.variantOptionId == null && b.variantOptionId == null) ||
+  (a.variantOptionId != null && b.variantOptionId != null && !incompatibleVariantIds(a, b));
+
 
 /** Never combine the same distributor SKU across two different catalog products. */
 const sameCatalogProductOrUnlinked = (a: SummaryIdentity, b: SummaryIdentity): boolean => {
@@ -107,7 +119,7 @@ const sameCatalogProductOrUnlinked = (a: SummaryIdentity, b: SummaryIdentity): b
  */
 function findSummaryIndex(rows: SupplyDetail[], target: SummaryIdentity): number {
   const key = summaryKey(target);
-  const byIdentity = rows.findIndex((row) => isSupplySummaryRow(row) && summaryKey(row) === key);
+  const byIdentity = rows.findIndex((row) => isSupplySummaryRow(row) && compatibleVariantIds(row, target) && summaryKey(row) === key);
   if (byIdentity >= 0) return byIdentity;
 
   const sku = normKey(target.sku);
@@ -116,7 +128,7 @@ function findSummaryIndex(rows: SupplyDetail[], target: SummaryIdentity): number
   rows.forEach((row, index) => {
     if (!isSupplySummaryRow(row)) return;
     if (normKey(row.sku) !== sku) return;
-    if (!sameCatalogProductOrUnlinked(row, target)) return;
+    if (!sameCatalogProductOrUnlinked(row, target) || !compatibleVariantIds(row, target)) return;
     bySku.push(index);
   });
   const product = normKey(target.product);
@@ -162,6 +174,7 @@ export function mergeDuplicateSummaryRows(supplies: SupplyDetail[]): SupplyDetai
       product: preferred.product || other.product,
       productId: preferred.productId || other.productId,
       variantName: preferred.variantName || other.variantName,
+      variantOptionId: preferred.variantOptionId ?? other.variantOptionId,
       totalSupplied: String(Math.max(toQty(current.totalSupplied), toQty(row.totalSupplied))),
       totalValue: String(Math.max(toQty(current.totalValue), toQty(row.totalValue))),
     };
@@ -180,6 +193,7 @@ export function upsertSummaryFromSupplyEvent(
     totalValue: number;
     productId?: string;
     variantName?: string;
+    variantOptionId?: number | null;
     status?: string;
   },
 ): SupplyDetail[] {
@@ -200,6 +214,7 @@ export function applySummaryDelta(
     totalValue: number;
     productId?: string;
     variantName?: string;
+    variantOptionId?: number | null;
     status?: string;
   },
 ): SupplyDetail[] {
@@ -226,6 +241,7 @@ export function applySummaryDelta(
         : event.product || current.product,
       productId: event.productId || current.productId,
       variantName: event.variantName || current.variantName,
+      variantOptionId: current.variantOptionId ?? event.variantOptionId,
       totalSupplied: String(nextQty),
       totalValue: String(nextValue),
       status: current.status || event.status || 'Active',
@@ -246,6 +262,7 @@ export function applySummaryDelta(
     recordType: 'summary',
     productId: event.productId,
     variantName: event.variantName,
+    variantOptionId: event.variantOptionId,
   });
   return out;
 }
@@ -272,6 +289,7 @@ export function buildSupplySummaryFromHistory(
     const sku = normKey(row.sku);
     const variantName = normKey(row.variantName);
     const product = normKey(row.product);
+    if (row.variantOptionId != null) return `variant-option:${row.variantOptionId}`;
     if (productId && sku) return `id:${productId}|sku:${sku}`;
     if (productId && variantName) return `id:${productId}|variant:${variantName}`;
     if (productId && product) return `id:${productId}|variant:${product}`;
@@ -287,6 +305,7 @@ export function buildSupplySummaryFromHistory(
     const product = normKey(row.product);
     const productId = normKey(row.productId);
     const variantName = normKey(row.variantName);
+    if (row.variantOptionId != null) return [`variant-option:${row.variantOptionId}`];
     if (productId && sku) aliases.push(`id:${productId}|sku:${sku}`);
     if (productId && variantName) aliases.push(`id:${productId}|variant:${variantName}`);
     if (sku && product) aliases.push(`sku-product:${sku}|${product}`);
@@ -327,10 +346,10 @@ export function buildSupplySummaryFromHistory(
 
     const directIdentity = primaryIdentity(row);
     const matchedIdentity = (directIdentity && grouped.has(directIdentity) ? directIdentity : undefined)
-      || aliasesFor(row)
+      || (row.variantOptionId != null ? undefined : aliasesFor(row)
         .map((alias) => aliasToIdentity.get(alias))
-        .find((identity): identity is string => Boolean(identity))
-      || (!normKey(row.product) && normKey(row.sku)
+        .find((identity): identity is string => Boolean(identity)))
+      || (row.variantOptionId == null && !normKey(row.product) && normKey(row.sku)
         ? aliasToIdentity.get(`sku-only:${normKey(row.sku)}`)
         : undefined)
       || directIdentity;
@@ -375,6 +394,7 @@ export function buildSupplySummaryFromHistory(
       recordType: 'summary',
       productId: row.productId,
       variantName: row.variantName,
+      variantOptionId: row.variantOptionId,
     });
     for (const alias of aliasesFor(row)) registerAlias(alias, matchedIdentity);
   }
@@ -397,6 +417,7 @@ export function createHistorySupplyRow(input: {
   suppliedDate: string;
   productId?: string;
   variantName?: string;
+  variantOptionId?: number | null;
   status?: string;
   receivedQuantity?: string;
   receivedUnit?: string;
@@ -424,6 +445,7 @@ export function createHistorySupplyRow(input: {
     recordType: 'history',
     productId: input.productId,
     variantName: input.variantName,
+    variantOptionId: input.variantOptionId ?? undefined,
     // Always persist explicitly so SupplyRecord / API payloads keep the flag.
     updateCurrentStock: input.updateCurrentStock === true,
     stockApplied: input.stockApplied === true,
