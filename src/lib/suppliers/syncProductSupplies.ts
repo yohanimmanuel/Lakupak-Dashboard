@@ -85,7 +85,7 @@ function findSupplyRow(
     (variant.id != null ? summaryRows.find((row) => row.variantOptionId != null && Number(row.variantOptionId) === variant.id) : undefined) ||
     eligible.find((row) => String(row.suppliesno || '') === autoNo) ||
     byVariantName ||
-    (skuMatches.length === 1 ? skuMatches[0] : undefined) ||
+    (skuMatches.length === 1 && !effectiveVariantName ? skuMatches[0] : undefined) ||
     eligible.find((row) => String(row.sku || '').trim() === identity) ||
     eligible.find((row) => String(row.product || '').trim() === label)
   );
@@ -329,17 +329,8 @@ export function applyProductToSupplierMaps(
       continue;
     }
 
-    const alreadyRecordedElsewhere = suppliers.some((supplier) =>
-      (suppliesBySupplierId.get(supplier.id) || []).some((row) =>
-        isSupplySummaryRow(row) &&
-        (variant.id != null && row.variantOptionId != null
-          ? Number(row.variantOptionId) === variant.id
-          : String(row.productId || '').trim().toLowerCase() === product.productId.trim().toLowerCase() &&
-            String(row.variantName || '').trim().toLowerCase() === variant.variantName.toLowerCase()),
-      ),
-    );
-    if (alreadyRecordedElsewhere) continue;
-
+    // A historical/other-supplier snapshot must not suppress this supplier's
+    // active catalog variant. Each active variant needs its own AUTO summary.
     const newRow = buildNewSupplyRow(product, variant);
     newRow.suppliesno = autoNo;
     newRow.sku = displaySku;

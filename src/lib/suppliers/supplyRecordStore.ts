@@ -222,7 +222,7 @@ export async function replaceSupplierSupplyRecords(
     const key = variantOptionId
       ? `variant-option:${variantOptionId}`
       : productId
-      ? (sku ? `${productId}|sku:${sku}` : `${productId}|variant:${variant}`)
+      ? (variant ? `${productId}|variant:${variant}` : `${productId}|sku:${sku}`)
       : (sku ? `sku:${sku}|product:${String(row.product || '').trim().toLowerCase()}` : `product:${variant}`);
     if (summaryKeys.has(key)) {
       throw new Error('Duplicate supply summary for the same product and SKU. Reconcile before saving.');

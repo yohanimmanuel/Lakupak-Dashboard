@@ -817,7 +817,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
       const matches = catalogOptions.filter((opt) => opt.productId === productId);
       setHistoryRows((rows) => rows.map((row, i) => {
         if (i !== idx) return row;
-        const identified = matches.find((item) => item.sku === row.sku)
+        const identified = matches.find((item) => item.variantName === row.variantName)
           || (matches.length === 1 ? matches[0] : undefined);
         const productName = matches[0]?.product || row.product;
         return {
@@ -1807,7 +1807,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                         <td className="px-3 py-2">
                           <SupplyMatchDropdown
                             value={row.productId || ''}
-                            displayValue={row.product || catalogOptions.find((option) => option.productId === row.productId)?.product || ''}
+                            displayValue={catalogOptions.find((option) => option.productId === row.productId)?.product || row.product || ''}
                             placeholder={tSuppliersModal('selectProduct')}
                             options={productDropdownOptions}
                             emptyLabel={tSuppliersModal('catalogEmpty')}

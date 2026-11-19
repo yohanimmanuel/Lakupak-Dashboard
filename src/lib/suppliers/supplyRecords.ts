@@ -83,6 +83,7 @@ const summaryKey = (row: SummaryIdentity): string => {
   const variantName = normKey(row.variantName);
   const product = normKey(row.product);
   if (row.variantOptionId != null) return `variant-option:${row.variantOptionId}`;
+  if (productId && variantName) return `id:${productId}|variant:${variantName}`;
   if (productId && sku) return `id:${productId}|sku:${sku}`;
   if (productId) return `id:${productId}|variant:${variantName || product}`;
   // Without a catalog ID, retain the label as a safety discriminator because
@@ -122,6 +123,9 @@ function findSummaryIndex(rows: SupplyDetail[], target: SummaryIdentity): number
   const byIdentity = rows.findIndex((row) => isSupplySummaryRow(row) && compatibleVariantIds(row, target) && summaryKey(row) === key);
   if (byIdentity >= 0) return byIdentity;
 
+  // A shared SKU is not a variant identity. Never merge distinct named
+  // variants on SKU fallback, even when only one candidate exists.
+  if (normKey(target.variantName)) return -1;
   const sku = normKey(target.sku);
   if (!sku) return -1;
   const bySku: number[] = [];
@@ -290,6 +294,7 @@ export function buildSupplySummaryFromHistory(
     const variantName = normKey(row.variantName);
     const product = normKey(row.product);
     if (row.variantOptionId != null) return `variant-option:${row.variantOptionId}`;
+    if (productId && variantName) return `id:${productId}|variant:${variantName}`;
     if (productId && sku) return `id:${productId}|sku:${sku}`;
     if (productId && variantName) return `id:${productId}|variant:${variantName}`;
     if (productId && product) return `id:${productId}|variant:${product}`;
