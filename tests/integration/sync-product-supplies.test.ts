@@ -341,7 +341,7 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
     expect((suppliesBySupplierId.get(1) || []).map((row) => row.suppliesno)).toEqual(['HIST-KEEP-OTHER']);
   });
 
-  it('removes only the deleted variant summary and history from supplier records', async () => {
+  it('preserves deleted variant summary and history as historical snapshots', async () => {
     const distributor = await createTestDistributor();
     const productId = 'P-SUPPLY-VARIANT-DEL-1';
     const bbqName = 'Flavor: BBQ';
@@ -438,13 +438,15 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
 
     const rows = await loadSupplierSupplies(prisma, supplier.id);
     expect(rows.map((row) => row.suppliesno).sort()).toEqual([
+      supplyAutoNo(productId, bbqName),
       supplyAutoNo(productId, spicyName),
+      'HIST-VARIANT-BBQ',
       'HIST-VARIANT-SPICY',
       'HIST-OTHER-PRODUCT',
     ].sort());
   });
 
-  it('removes linked summary and history supplies when a product is deleted', async () => {
+  it('preserves linked summary and history supplies when a product is deleted', async () => {
     const distributor = await createTestDistributor();
     const productId = 'P-SUPPLY-DEL-1';
     const autoNo = supplyAutoNo(productId, 'Default');
@@ -508,7 +510,10 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
 
     const rows = await loadSupplierSupplies(prisma, supplier.id);
 
-    expect(rows).toHaveLength(1);
-    expect(rows[0].suppliesno).toBe('HIST-KEEP');
+    expect(rows.map((row) => row.suppliesno).sort()).toEqual([
+      autoNo,
+      'HIST-DEL-1',
+      'HIST-KEEP',
+    ].sort());
   });
 });
