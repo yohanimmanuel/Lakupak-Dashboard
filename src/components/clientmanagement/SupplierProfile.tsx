@@ -4,10 +4,7 @@ import { Phone, MapPin, Store, Tag, Truck, Info, FileText, Calendar, BarChart2, 
 import Link from "next/link";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts';
 import { useEffect, useMemo, useState } from 'react';
-import { fetchGraphQL } from '@/lib/graphqlClient';
 import { Supplier, SupplyDetail } from '@/types/client';
-import type { StockLevel } from '@/types/product';
-import { getSupplySummaryQuantities, getSupplyUnitOptions } from '@/lib/suppliers/supplyPackageUnits';
 import { formatDate, formatNumber } from '@/utils/dateUtils';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
@@ -15,7 +12,6 @@ import { useUserStore } from '@/store/userStore';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
 import {
-  buildSupplySummaryFromHistory,
   getSupplyReceivedInput,
   getSupplyRecordType,
   isSupplyHistoryRow,
@@ -78,106 +74,8 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
   
   // Get user currency for display
   const userCurrency = user?.currency || getDefaultCurrency();
-  const [suppliesTab, setSuppliesTab] = useState<'summary' | 'opening' | 'history'>('history');
   const [showArchivedSupplies, setShowArchivedSupplies] = useState(false);
-  const [supplyStockLevelsLookup, setSupplyStockLevelsLookup] = useState<Record<string, StockLevel[]>>({});
-  const [supplyCatalogLookup, setSupplyCatalogLookup] = useState<Record<string, { name: string; variantsBySku: Record<string, string>; variantsById: Record<string, string> }>>({});
-  const [supplyCatalogBySku, setSupplyCatalogBySku] = useState<Record<string, { name: string; variantName: string }>>({});
 
-  useEffect(() => {
-    const userId = user?.id;
-    if (!userId) {
-      setSupplyStockLevelsLookup({});
-      return;
-    }
-
-    let cancelled = false;
-    (async () => {
-      try {
-        let page = 1;
-        let totalPages = 1;
-        const lookup: Record<string, StockLevel[]> = {};
-        const catalogLookup: Record<string, { name: string; variantsBySku: Record<string, string>; variantsById: Record<string, string> }> = {};
-        const catalogBySku: Record<string, { name: string; variantName: string }> = {};
-
-        do {
-          const data = await fetchGraphQL<{
-            products: {
-              nodes: Array<{
-                productId: string;
-                name: string;
-                stockLevels?: StockLevel[] | null;
-                variantOptions?: Array<{ id: number; sku?: string | null; variantName?: string | null }> | null;
-              }>;
-              pagination: { totalPages?: number };
-            };
-          }>(
-            `query SupplierProfileStockUnits($userId: Int!, $page: Int!, $limit: Int!) {
-              products(userId: $userId, page: $page, limit: $limit) {
-                nodes {
-                  productId
-                  name
-                  stockLevels
-                  variantOptions { id sku variantName }
-                }
-                pagination { totalPages }
-              }
-            }`,
-            { userId, page, limit: 1000 },
-          );
-
-          for (const product of data.products?.nodes || []) {
-            const levels = getSupplyUnitOptions(product.stockLevels);
-            const productId = String(product.productId || '').trim();
-            if (productId) {
-              lookup[`product:${productId}`] = levels;
-              const variantsBySku: Record<string, string> = {};
-              const variantsById: Record<string, string> = {};
-              for (const variant of product.variantOptions || []) {
-                variantsById[String(variant.id)] = String(variant.variantName || '');
-                const sku = String(variant.sku || '').trim();
-                if (sku) {
-                  lookup[`sku:${sku}`] = levels;
-                  variantsBySku[sku] = String(variant.variantName || '');
-                  catalogBySku[sku] = { name: String(product.name || ''), variantName: String(variant.variantName || '') };
-                }
-              }
-              catalogLookup[productId] = { name: String(product.name || ''), variantsBySku, variantsById };
-            }
-          }
-
-          totalPages = Math.max(1, data.products?.pagination?.totalPages ?? 1);
-          page += 1;
-        } while (!cancelled && page <= totalPages);
-
-        if (!cancelled) {
-          setSupplyStockLevelsLookup(lookup);
-          setSupplyCatalogLookup(catalogLookup);
-          setSupplyCatalogBySku(catalogBySku);
-        }
-      } catch {
-        if (!cancelled) {
-          setSupplyStockLevelsLookup({});
-          setSupplyCatalogLookup({});
-          setSupplyCatalogBySku({});
-        }
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [user?.id]);
-
-  const getSupplyStockLevels = (supply: SupplyDetail): StockLevel[] => {
-    const productId = String(supply.productId || '').trim();
-    const sku = String(supply.sku || '').trim();
-    const levels = (productId ? supplyStockLevelsLookup[`product:${productId}`] : undefined)
-      || (sku ? supplyStockLevelsLookup[`sku:${sku}`] : undefined);
-    return getSupplyUnitOptions(levels);
-  };
-
-  const getSummaryPackageQuantities = (supply: SupplyDetail) =>
-    getSupplySummaryQuantities(supply.totalSupplied, getSupplyStockLevels(supply));
-  
   // SupplierProfile - Raw supplier data
   
   // Parse supplies and notes from strings to arrays
@@ -284,10 +182,8 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
   );
   const historySupplies = supplyBuckets.history;
   const openingSupplies = supplyBuckets.summary;
-  const summarySupplies = useMemo(
-    () => buildSupplySummaryFromHistory(historySupplies, supplyBuckets.summary),
-    [historySupplies, supplyBuckets.summary],
-  );
+  // The active supplier table is receipt history only. Legacy summary rows remain
+  // available to the archived-supplies cleanup view and never affect receipt totals.
 
   // Headline totals use the current Product variant stock snapshot plus receipt
   // history that has not already been applied to Product stock, all in Pieces.
@@ -314,7 +210,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
   
   const [supplyPage, setSupplyPage] = useState(1);
   const supplyRowsPerPage = TABLE_PAGE_SIZE;
-  const activeSupplyRows = suppliesTab === 'history' ? historySupplies : suppliesTab === 'opening' ? openingSupplies : summarySupplies;
+  const activeSupplyRows = historySupplies;
   const totalSupplyRows = activeSupplyRows.length;
   const totalSupplyPages = Math.max(1, Math.ceil(totalSupplyRows / supplyRowsPerPage));
   const pagedSupplies = activeSupplyRows.slice(
@@ -578,76 +474,34 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
           <table className="w-max min-w-full whitespace-nowrap text-xs font-medium text-left">
             <thead>
               <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
-                {suppliesTab === 'history' ? (
-                  <>
-                    <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('productName')}</th>
-                    <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('skuNumber')}</th>
-                    <th className="py-2 px-4 font-medium uppercase">Variant</th>
-                    <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('receivedCol')} (Package Type)</th>
-                    <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('purchaseValueCol')}</th>
-                    <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('lastSuppliedDateCol')}</th>
-                  </>
-                ) : (
-                  <>
-                    <th className="py-2 px-4 font-medium uppercase">{tSuppliersModal('colNo')}</th>
-                    <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('productName')}</th>
-                    <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('skuNumber')}</th>
-                    <th className="py-2 px-4 font-medium uppercase">Variant</th>
-                    <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('receivedCol')} (Package Type)</th>
-                    <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('totalPurchaseCol')}</th>
-                    <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('lastSuppliedDateCol')}</th>
-                  </>
-                )}
+                <>
+                  <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('productName')}</th>
+                  <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('skuNumber')}</th>
+                  <th className="py-2 px-4 font-medium uppercase">Variant</th>
+                  <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('receivedCol')} (Package Type)</th>
+                  <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('purchaseValueCol')}</th>
+                  <th className="py-2 px-4 font-medium uppercase">{tSuppliersProfile('lastSuppliedDateCol')}</th>
+                </>
               </tr>
             </thead>
             <tbody>
               {pagedSupplies.length === 0 ? (
                 <tr>
-                  <td colSpan={suppliesTab === 'history' ? 6 : 7} className="py-10 px-4 text-center text-sm text-gray-500">
+                  <td colSpan={6} className="py-10 px-4 text-center text-sm text-gray-500">
                     {tSuppliersProfile('noSupplies')}
                   </td>
                 </tr>
-              ) : suppliesTab === 'history' ? (
+              ) : (
                 pagedSupplies.map((supply: SupplyDetail, idx: number) => (
                   <tr
                     key={`hist-${supply.suppliesno || ''}-${idx}-${supplyPage}`}
                     className="border-b last:border-b-0"
                   >
-                    <td className="py-4 px-4 text-black">{String(supplyCatalogLookup[String(supply.productId || '')]?.name || supplyCatalogBySku[String(supply.sku || '')]?.name || supply.product || '—')}</td>
+                    <td className="py-4 px-4 text-black">{String(supply.product || '—')}</td>
                     <td className="py-4 px-4 font-medium text-black">{String(supply.sku || '—')}</td>
-                    <td className="py-4 px-4 text-black">{String(supply.variantName || supplyCatalogLookup[String(supply.productId || '')]?.variantsById[String(supply.variantOptionId || '')] || '—')}</td>
+                    <td className="py-4 px-4 text-black">{String(supply.variantName || '—')}</td>
                     <td className="py-4 px-4 text-black">
                       {getSupplyReceivedInput(supply).receivedQuantity} {getSupplyReceivedInput(supply).receivedUnit}
-                    </td>
-                    <td className="py-4 px-4 text-[#0a61d7] font-semibold">
-                      {formatCurrency(
-                        parseNumberByCurrency(String(supply.totalValue), userCurrency),
-                        userCurrency,
-                      )}
-                    </td>
-                    <td className="py-4 px-4 text-black">{String(supply.lastSuppliedDate || '—')}</td>
-                  </tr>
-                ))
-              ) : (
-                pagedSupplies.map((supply: SupplyDetail, idx: number) => (
-                  <tr
-                    key={`sum-${supply.suppliesno || idx}-${supplyPage}`}
-                    className="border-b last:border-b-0"
-                  >
-                    <td className="py-4 px-4 font-medium text-black">
-                      {(supplyPage - 1) * supplyRowsPerPage + idx + 1}
-                    </td>
-                    <td className="py-4 px-4 text-black">{String(supplyCatalogLookup[String(supply.productId || '')]?.name || supplyCatalogBySku[String(supply.sku || '')]?.name || supply.product || '—')}</td>
-                    <td className="py-4 px-4 font-medium text-black">{String(supply.sku || '—')}</td>
-                    <td className="py-4 px-4 text-black">{String(supply.variantName || supplyCatalogLookup[String(supply.productId || '')]?.variantsById[String(supply.variantOptionId || '')] || '—')}</td>
-                    <td className="py-4 px-4 text-black">
-                      <div className="flex min-w-[9rem] flex-col gap-1">
-                        {getSummaryPackageQuantities(supply).map((level) => (
-                          <span key={`${supply.suppliesno}-${level.name}`} className="whitespace-nowrap">
-                            {level.availableQuantity} {level.name} ({level.equivalentQuantity})
-                          </span>
-                        ))}
-                      </div>
                     </td>
                     <td className="py-4 px-4 text-[#0a61d7] font-semibold">
                       {formatCurrency(
