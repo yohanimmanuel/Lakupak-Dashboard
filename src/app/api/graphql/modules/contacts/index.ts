@@ -580,19 +580,8 @@ const fetchSingleBuyer = async (args: { userId: number; id: string }) => {
     throw new Error('Buyer not found');
   }
 
-  // Refresh spend/outstanding from live orders only when order-derived details exist
-  // (avoids wiping createBuyer / imported orderDetails with []).
-  try {
-    const synced = await syncOrderToBuyerProfile(buyer.buyerId, userId);
-    if (synced) {
-      const refreshed = isNumericId(id)
-        ? await prisma.buyer.findFirst({ where: { id: Number(id), userId }, include: buyerInclude })
-        : await prisma.buyer.findFirst({ where: { buyerId: id, userId }, include: buyerInclude });
-      if (refreshed) buyer = refreshed;
-    }
-  } catch {
-    // best-effort; return the row we already loaded
-  }
+  // BuyerRecord already contains order/SKU/variant snapshots. Profile reads stay
+  // read-only; order mutations are responsible for refreshing this persisted view.
 
   return mapBuyer(buyer);
 };
