@@ -339,6 +339,7 @@ type SupplierWithRecords = SupplierModel & {
     updateCurrentStock: boolean;
     stockApplied: boolean;
     stockAppliedVariantOptionId?: number | null;
+    historicalVariantOptionId?: number | null;
     sortOrder: number;
     archivedAt?: Date | null;
     variantOptionId?: number | null;
@@ -430,6 +431,7 @@ const mapSupplier = (supplier: SupplierWithRecords) => ({
             updateCurrentStock: row.updateCurrentStock === true,
             stockApplied: row.stockApplied === true,
             stockAppliedVariantOptionId: row.stockAppliedVariantOptionId ?? undefined,
+            historicalVariantOptionId: row.historicalVariantOptionId ?? undefined,
             variantOptionId: row.variantOptionId ?? undefined,
             archivedAt: row.archivedAt?.toISOString() ?? null,
           })),
@@ -1777,25 +1779,13 @@ const bulkDeleteBuyers = async (args: { userId: number; ids: string[] }) => {
 
 const syncSuppliersFromProducts = async (args: { userId: number }) => {
   const { userId } = args;
-  if (!/^\d+$/.test(String(userId))) {
-    throw new Error('Invalid userId format');
-  }
-
-  const { syncAllProductSuppliersForUser } = await import('@/lib/suppliers/syncProductSupplies');
-  const result = await syncAllProductSuppliersForUser(Number(userId));
-
-  try {
-    const { invalidateDashboardCache } = await import('@/lib/queryCache');
-    await invalidateDashboardCache(Number(userId));
-  } catch {
-    // Ignore cache invalidation errors
-  }
-
+  // Supplier receipts are now entered/imported explicitly. This old mutation
+  // remains as a compatibility no-op and must not regenerate AUTO balances.
   return {
     success: true,
-    productsProcessed: result.productsProcessed,
-    suppliersTouched: result.suppliersTouched,
-    message: `Synced ${result.productsProcessed} product(s) into ${result.suppliersTouched} supplier(s)`,
+    productsProcessed: 0,
+    suppliersTouched: 0,
+    message: 'Supplier receipts are managed explicitly; no catalog snapshots were generated.',
   };
 };
 
