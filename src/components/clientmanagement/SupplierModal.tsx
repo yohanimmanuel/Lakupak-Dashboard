@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useCallback, useRef, useMemo, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Trash, Plus, AlertCircle, CheckCircle, ChevronDown, ChevronLeft, ChevronRight, ArrowLeft, Save, Upload, Download, Search } from 'lucide-react';
+import { Trash, Archive, RotateCcw, Plus, AlertCircle, CheckCircle, ChevronDown, ChevronLeft, ChevronRight, ArrowLeft, Save, Upload, Download, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import * as XLSX from 'xlsx';
@@ -367,7 +367,7 @@ function parseSupplyBuckets(raw?: string | null): { history: SupplyDetail[]; sum
         receivedUnit: String(row.receivedUnit || 'Pieces'),
       } as SupplyDetail;
     });
-    const { history, summary } = partitionSupplies(normalizedRows);
+    const { history, summary } = partitionSupplies(normalizedRows.filter((row) => !row.archivedAt));
     return {
       history: history.length > 0
         ? ensureUniqueHistoryIds(history.map((row) => normalizeSupplyRow(row, 'history')))
@@ -511,7 +511,18 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     () => parseSupplyBuckets(initialData?.supplies).history,
   );
   const [suppliesTab, setSuppliesTab] = useState<'summary' | 'opening' | 'history'>('summary');
+  const [showArchivedSupplies, setShowArchivedSupplies] = useState(false);
+  const [archivedOpeningRows, setArchivedOpeningRows] = useState<SupplyDetail[]>(() => {
+    try { return (JSON.parse(initialData?.supplies || '[]') as SupplyDetail[]).filter((row) => !!row.archivedAt); }
+    catch { return []; }
+  });
+  const [archiveBusy, setArchiveBusy] = useState(false);
+  const [selectedOpeningRows, setSelectedOpeningRows] = useState<Set<string>>(new Set());
+  const [openingAction, setOpeningAction] = useState<{ kind: "archive" | "restore" | "delete"; rows: SupplyDetail[] } | null>(null);
   const [openingRows, setOpeningRows] = useState<SupplyDetail[]>(() => parseSupplyBuckets(initialData?.supplies).opening);
+  useEffect(() => {
+    setSummaryRows(buildSupplySummaryFromHistory(historyRows.filter((item) => !isBlankHistoryRow(item)), openingRows));
+  }, [openingRows, historyRows]);
   const displayedSummaryRows = suppliesTab === 'opening' ? openingRows : summaryRows;
   // Summary and history have independent pagination so switching tabs preserves each view.
   const supplyRowsPerPage = 8;
@@ -1017,6 +1028,8 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     setId(initialData.supplierId || generateSupplierId());
     setSummaryRows(buckets.summary);
     setOpeningRows(buckets.opening);
+    try { setArchivedOpeningRows((JSON.parse(initialData.supplies || '[]') as SupplyDetail[]).filter((row) => !!row.archivedAt)); }
+    catch { setArchivedOpeningRows([]); }
     setHistoryRows(buckets.history);
     setSelectedHistoryRows(new Set());
     setPendingDeleteMarkers([]);
@@ -1030,21 +1043,61 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     setSubmitAttempted(false);
   }, [initialData, isEditMode, safeParseJSON, getLatestSuppliedDate]);
 
-  const clearArchivedOpening = async (row: SupplyDetail) => {
-    if (!isEditMode || !user?.id || !initialData?.supplierId) return;
-    if (!window.confirm('Clear this archived opening balance? Supply history will remain unchanged.')) return;
+  const setOpeningArchive = async (row: SupplyDetail, archived: boolean) => {
+    if (!isEditMode || !user?.id || !initialData?.supplierId || archiveBusy) return;
+    setArchiveBusy(true);
+    setError('');
     try {
-      await fetchGraphQL<{ clearArchivedOpeningBalance: boolean }>(
-        `mutation ClearArchivedOpening($userId: Int!, $supplierId: String!, $suppliesno: String!) {
-          clearArchivedOpeningBalance(userId: $userId, supplierId: $supplierId, suppliesno: $suppliesno)
+      await fetchGraphQL<{ setOpeningBalanceArchived: boolean }>(
+        `mutation SetOpeningArchive($userId: Int!, $supplierId: String!, $suppliesno: String!, $archived: Boolean!) {
+          setOpeningBalanceArchived(userId: $userId, supplierId: $supplierId, suppliesno: $suppliesno, archived: $archived)
+        }`,
+        { userId: user.id, supplierId: initialData.supplierId, suppliesno: row.suppliesno, archived },
+      );
+      setOpeningRows((current) => archived
+        ? current.filter((item) => item.suppliesno !== row.suppliesno)
+        : [...current.filter((item) => item.suppliesno !== row.suppliesno), { ...row, archivedAt: null }]);
+      setArchivedOpeningRows((rows) => archived
+        ? [...rows.filter((item) => item.suppliesno !== row.suppliesno), { ...row, archivedAt: new Date().toISOString() }]
+        : rows.filter((item) => item.suppliesno !== row.suppliesno));
+      setSummaryRows((current) => current); // Refreshed from the opening balance state below.
+      setSummaryPage(1);
+      setSelectedOpeningRows((prev) => { const next = new Set(prev); next.delete(row.suppliesno); return next; });
+      setSuccess(archived ? 'Opening balance archived.' : 'Opening balance restored.');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Unable to change archive status');
+    } finally { setArchiveBusy(false); }
+  };
+
+  const deleteOpening = async (row: SupplyDetail) => {
+    if (!isEditMode || !user?.id || !initialData?.supplierId || archiveBusy) return;
+    setArchiveBusy(true);
+    setError('');
+    try {
+      await fetchGraphQL<{ deleteArchivedOpeningBalance: boolean }>(
+        `mutation DeleteArchivedOpening($userId: Int!, $supplierId: String!, $suppliesno: String!) {
+          deleteArchivedOpeningBalance(userId: $userId, supplierId: $supplierId, suppliesno: $suppliesno)
         }`,
         { userId: user.id, supplierId: initialData.supplierId, suppliesno: row.suppliesno },
       );
-      setOpeningRows((rows) => rows.filter((item) => item.suppliesno !== row.suppliesno));
-      setSummaryRows((rows) => rows.filter((item) => item.suppliesno !== row.suppliesno));
-      setSuccess('Archived opening balance cleared. Supply history was preserved.');
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Unable to clear opening balance');
+      setOpeningRows((current) => current.filter((item) => item.suppliesno !== row.suppliesno));
+      setArchivedOpeningRows((rows) => rows.filter((item) => item.suppliesno !== row.suppliesno));
+      setSelectedOpeningRows((prev) => { const nextSelected = new Set(prev); nextSelected.delete(row.suppliesno); return nextSelected; });
+
+      setSummaryPage(1);
+      setSuccess('Opening balance deleted. Historical receipts were preserved.');
+    } catch (error) { setError(error instanceof Error ? error.message : 'Unable to delete opening balance'); }
+    finally { setArchiveBusy(false); }
+  };
+
+  const performOpeningAction = async () => {
+    if (!openingAction) return;
+    const { kind, rows } = openingAction;
+    setOpeningAction(null);
+    // Each mutation is individually validated on the server; stop on first failure.
+    for (const row of rows) {
+      if (kind === 'delete') await deleteOpening(row);
+      else await setOpeningArchive(row, kind === 'archive');
     }
   };
 
@@ -1447,6 +1500,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
           <div className="my-2 border-t border-gray-200 pt-2">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <label className="block text-sm font-bold text-black">{tSuppliersModal('suppliesSection')}</label>
+              
               {suppliesTab === 'history' && (
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -1494,7 +1548,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                   {tSuppliersProfile('supplyHistoryTab')}
                 </button>
               </div>
-
+              <button type="button" className="rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 text-xs font-medium text-black hover:bg-gray-100" onClick={() => setShowArchivedSupplies(true)}>Archived Supplies</button>
             </div>
             {showImportSupplies && (
               <ImportSuppliesModal
@@ -1503,6 +1557,15 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                 onImportAction={handleImportHistory}
                 supplierCatalog={supplierOwnedCatalog}
               />
+            )}
+            {suppliesTab === 'opening' && isEditMode && selectedOpeningRows.size > 0 && (
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#e6e6e6] border-l-4 border-l-blue-500 bg-white p-3 shadow-sm">
+                <span className="text-sm font-semibold text-gray-700">{selectedOpeningRows.size} opening balance(s) selected</span>
+                <div className="flex items-center gap-2">
+                  <button type="button" disabled={archiveBusy} onClick={() => setOpeningAction({kind:'archive', rows:openingRows.filter((r)=>selectedOpeningRows.has(r.suppliesno))})} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold"><Archive className="h-4 w-4"/> Archive selected</button>
+                  <button type="button" disabled={archiveBusy} onClick={() => setOpeningAction({kind:'delete', rows:openingRows.filter((r)=>selectedOpeningRows.has(r.suppliesno))})} className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600"><Trash className="h-4 w-4"/> Delete selected</button>
+                </div>
+              </div>
             )}
             {suppliesTab === 'history' && selectedHistoryRows.size > 0 && (
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#e6e6e6] border-l-4 border-l-green-500 bg-white p-3 shadow-sm">
@@ -1541,6 +1604,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                 <table className="min-w-full bg-white text-left text-xs font-medium">
                   <thead>
                     <tr className="whitespace-nowrap bg-gray-100 text-gray-500">
+                      {suppliesTab === 'opening' && isEditMode && <th className="w-10 px-3 py-2"><input type="checkbox" aria-label="Select all opening balances" checked={openingRows.length > 0 && openingRows.every((r)=>selectedOpeningRows.has(r.suppliesno))} onChange={(e)=>setSelectedOpeningRows(e.target.checked ? new Set(openingRows.map((r)=>r.suppliesno)) : new Set())}/></th>}
                       <th className="px-3 py-2 font-medium uppercase">{tSuppliersModal('colNo')}</th>
                       <th className="px-3 py-2 font-medium uppercase">{tSuppliersModal('colProduct')}</th>
                       <th className="px-3 py-2 font-medium uppercase">{tSuppliersModal('colSku')}</th>
@@ -1554,13 +1618,14 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                   <tbody>
                     {displayedSummaryRows.length === 0 ? (
                       <tr>
-                        <td colSpan={suppliesTab === 'opening' ? 8 : 7} className="px-3 py-8 text-center text-sm text-gray-500">
+                        <td colSpan={suppliesTab === 'opening' ? (isEditMode ? 9 : 8) : 7} className="px-3 py-8 text-center text-sm text-gray-500">
                           {tSuppliersProfile('noSupplies')}
                         </td>
                       </tr>
                     ) : (
                       displayedSummaryRows.slice(summaryPageStart, summaryPageEnd).map((row, idx) => (
                         <tr key={row.suppliesno || `sum-${summaryPageStart + idx}`} className="border-b last:border-b-0">
+                          {suppliesTab === 'opening' && isEditMode && <td className="px-3 py-3"><input type="checkbox" aria-label={`Select ${row.variantName || row.product}`} checked={selectedOpeningRows.has(row.suppliesno)} onChange={(e)=>setSelectedOpeningRows((prev)=>{const next=new Set(prev); if(e.target.checked)next.add(row.suppliesno);else next.delete(row.suppliesno);return next;})}/></td>}
                           <td className="px-3 py-3 font-medium text-black">{summaryPageStart + idx + 1}</td>
                           <td className="px-3 py-3 text-black">{catalogOptions.find((option) => option.sku === row.sku)?.product || row.product || '—'}</td>
                           <td className="px-3 py-3 text-black">{row.sku || '—'}</td>
@@ -1570,7 +1635,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                             {currencySymbol}{row.totalValue || '0'}
                           </td>
                           <td className="px-3 py-3 text-black">{row.lastSuppliedDate || '—'}</td>
-                          {suppliesTab === 'opening' && <td className="px-3 py-3"><button type="button" className="rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50" onClick={() => void clearArchivedOpening(row)}>Clear if Archived</button></td>}
+                          {suppliesTab === 'opening' && <td className="px-3 py-3">{isEditMode && <div className="flex items-center gap-2"><button type="button" title="Archive opening balance" aria-label={`Archive ${row.variantName || row.product}`} className="rounded-lg border border-gray-200 p-2 text-gray-600 hover:bg-gray-100 disabled:opacity-50" disabled={archiveBusy} onClick={() => setOpeningAction({kind:'archive',rows:[row]})}><Archive className="h-4 w-4"/></button><button type="button" title="Delete opening balance" aria-label={`Delete ${row.variantName || row.product}`} className="rounded-lg border border-red-200 p-2 text-red-600 hover:bg-red-50 disabled:opacity-50" disabled={archiveBusy} onClick={() => setOpeningAction({kind:'delete',rows:[row]})}><Trash className="h-4 w-4"/></button></div>}</td>}
                         </tr>
                       ))
                     )}
@@ -1971,6 +2036,45 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
           )}
         </form>
       </div>
+
+      {openingAction && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label="Confirm opening balance action">
+          <div className="w-full max-w-md rounded-xl border border-[#e6e6e6] bg-white p-6 shadow-2xl">
+            <h2 className="mb-2 text-lg font-bold text-gray-900">{openingAction.kind === 'delete' ? 'Delete opening balance?' : openingAction.kind === 'archive' ? 'Archive opening balance?' : 'Restore opening balance?'}</h2>
+            <p className="mb-6 text-sm text-gray-600">{openingAction.rows.length} opening balance(s) selected. {openingAction.kind === 'delete' ? 'This permanently removes the selected opening balances, but never deletes historical receipts. Only deleted catalog variants are eligible.' : openingAction.kind === 'archive' ? 'Archived opening balances are removed from active totals and can be restored later. Only deleted catalog variants are eligible.' : 'The selected balances will return to active totals.'}</p>
+            <div className="flex justify-end gap-2">
+              <button type="button" className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700" onClick={() => setOpeningAction(null)}>Cancel</button>
+              <button type="button" disabled={archiveBusy} className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${openingAction.kind === 'delete' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`} onClick={() => void performOpeningAction()}>Confirm {openingAction.kind}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showArchivedSupplies && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label="Archived Supplies">
+          <div className="w-full max-w-3xl max-h-[80vh] overflow-y-auto rounded-xl border border-[#e6e6e6] bg-white p-6 text-gray-900 shadow-2xl">
+            <div className="mb-5 flex items-center justify-between border-b border-[#e6e6e6] pb-4">
+              <h2 className="text-lg font-bold text-black">Archived Supplies</h2>
+              <button type="button" className="rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 text-sm font-medium text-black hover:bg-gray-100" onClick={() => setShowArchivedSupplies(false)}>Close</button>
+            </div>
+            {archivedOpeningRows.length === 0 ? (
+              <div className="rounded-lg border border-[#e6e6e6] bg-gray-50 p-6 text-center text-sm text-gray-600">No archived supplies yet.</div>
+            ) : (
+              <div className="space-y-2">
+                {archivedOpeningRows.map((row) => (
+                  <div key={row.suppliesno} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#e6e6e6] bg-white p-4">
+                    <div className="min-w-0 text-sm text-black">
+                      <div className="font-semibold">{row.product} — {row.variantName || 'Default'}</div>
+                      <div className="mt-1 text-xs text-gray-500">{row.sku} · {row.totalSupplied} Pieces</div>
+                    </div>
+                    <button type="button" disabled={archiveBusy} className="rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-xs font-semibold text-black hover:bg-gray-50 disabled:opacity-50" onClick={() => setOpeningAction({kind:"restore",rows:[row]})}><RotateCcw className="mr-1 inline h-4 w-4"/> Restore</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {showSuccessModal && (
         <div className="fixed inset-0 flex items-center justify-center z-[60] pointer-events-none">

@@ -79,6 +79,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
   // Get user currency for display
   const userCurrency = user?.currency || getDefaultCurrency();
   const [suppliesTab, setSuppliesTab] = useState<'summary' | 'opening' | 'history'>('summary');
+  const [showArchivedSupplies, setShowArchivedSupplies] = useState(false);
   const [supplyStockLevelsLookup, setSupplyStockLevelsLookup] = useState<Record<string, StockLevel[]>>({});
   const [supplyCatalogLookup, setSupplyCatalogLookup] = useState<Record<string, { name: string; variantsBySku: Record<string, string>; variantsById: Record<string, string> }>>({});
   const [supplyCatalogBySku, setSupplyCatalogBySku] = useState<Record<string, { name: string; variantName: string }>>({});
@@ -273,8 +274,12 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
   };
   
   const analyticsData = getSupplierAnalytics(suppliesRaw || '', user?.language);
+  const archivedSupplies = useMemo(
+    () => supplies.filter((row) => !!row.archivedAt && row.recordType === 'summary'),
+    [suppliesRaw],
+  );
   const supplyBuckets = useMemo(
-    () => partitionSupplies(Array.isArray(supplies) ? supplies : []),
+    () => partitionSupplies(Array.isArray(supplies) ? supplies.filter((row) => !row.archivedAt) : []),
     [supplies],
   );
   const historySupplies = supplyBuckets.history;
@@ -538,8 +543,24 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
           <div className="font-semibold text-md text-black">
             {tSuppliersProfile('suppliesSection')}
           </div>
+          
 
         </div>
+        {showArchivedSupplies && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label="Archived Supplies">
+            <div className="w-full max-w-3xl max-h-[80vh] overflow-y-auto rounded-xl border border-[#e6e6e6] bg-white p-6 text-gray-900 shadow-2xl">
+              <div className="mb-5 flex items-center justify-between border-b border-[#e6e6e6] pb-4"><h2 className="text-lg font-bold text-black">Archived Supplies</h2><button type="button" className="rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 text-sm font-medium text-black hover:bg-gray-100" onClick={() => setShowArchivedSupplies(false)}>Close</button></div>
+              {archivedSupplies.length === 0 ? (
+                <div className="rounded-lg border border-[#e6e6e6] bg-gray-50 p-6 text-center text-sm text-gray-600">No archived supplies yet.</div>
+              ) : <div className="space-y-2">{archivedSupplies.map((row) => (
+                <div key={row.suppliesno} className="rounded-lg border border-[#e6e6e6] bg-white p-4 text-sm text-black">
+                  <div className="font-semibold">{row.product} — {row.variantName || 'Default'}</div>
+                  <div className="mt-1 text-xs text-gray-500">{row.sku} · {row.totalSupplied} Pieces</div>
+                </div>
+              ))}</div>}
+            </div>
+          </div>
+        )}
         {/* Summary Statistics */}
         <div className="flex flex-wrap gap-4 mb-4">
           <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">
@@ -580,6 +601,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
             {tSuppliersProfile('supplyHistoryTab')}
           </button>
         </div>
+        <div className="mb-4 flex justify-end"><button type="button" className="rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 text-xs font-medium text-black hover:bg-gray-100" onClick={() => setShowArchivedSupplies(true)}>Archived Supplies</button></div>
         <div className="min-w-0 overflow-x-auto rounded-lg">
           <table className="w-max min-w-full whitespace-nowrap text-xs font-medium text-left">
             <thead>

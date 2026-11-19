@@ -275,6 +275,11 @@ export function applyProductToSupplierMaps(
       ),
     );
     if (previouslyOpenedElsewhere) continue;
+    // Archived opening balances are tombstones: catalog sync must not recreate them.
+    if (supplies.some((row) => row.archivedAt && row.recordType === 'summary' && (
+      (variant.id != null && row.variantOptionId === variant.id) ||
+      row.suppliesno === autoNo
+    ))) continue;
     const current = findSupplyRow(supplies, product, variant, displaySku, variant.variantName);
 
     if (current && isSupplySummaryRow(current)) {

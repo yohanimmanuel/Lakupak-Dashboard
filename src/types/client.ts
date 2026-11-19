@@ -126,6 +126,7 @@ export interface SupplyDetail {
   productId?: string;
   variantName?: string;
   variantOptionId?: number | null;
+  archivedAt?: string | null;
   updateCurrentStock?: boolean;
   stockApplied?: boolean;
   __delete?: true;

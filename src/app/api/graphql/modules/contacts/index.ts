@@ -281,7 +281,8 @@ export const contactsTypeDefs = /* GraphQL */ `
       userId: Int!
     ): SyncProductSuppliersResult!
 
-    clearArchivedOpeningBalance(userId: Int!, supplierId: String!, suppliesno: String!): Boolean!
+    setOpeningBalanceArchived(userId: Int!, supplierId: String!, suppliesno: String!, archived: Boolean!): Boolean!
+    deleteArchivedOpeningBalance(userId: Int!, supplierId: String!, suppliesno: String!): Boolean!
 
     recordSupplierSupply(
       userId: Int!
@@ -336,6 +337,8 @@ type SupplierWithRecords = SupplierModel & {
     updateCurrentStock: boolean;
     stockApplied: boolean;
     sortOrder: number;
+    archivedAt?: Date | null;
+    variantOptionId?: number | null;
   }>;
 };
 
@@ -422,6 +425,8 @@ const mapSupplier = (supplier: SupplierWithRecords) => ({
             variantName: row.variantName ?? undefined,
             updateCurrentStock: row.updateCurrentStock === true,
             stockApplied: row.stockApplied === true,
+            variantOptionId: row.variantOptionId ?? undefined,
+            archivedAt: row.archivedAt?.toISOString() ?? null,
           })),
         )
       : null,
@@ -1793,29 +1798,50 @@ const syncSuppliersFromProducts = async (args: { userId: number }) => {
   };
 };
 
-/** Explicit deletion of an archived catalog opening balance only. Never touch receipts. */
-const clearArchivedOpeningBalance = async (args: { userId: number; supplierId: string; suppliesno: string }): Promise<boolean> => {
-  const { userId, supplierId, suppliesno } = args;
-  if (!suppliesno.startsWith('AUTO-')) throw new Error('Only opening balances may be cleared');
-  return prisma.$transaction(async (tx) => {
+/** Order-style reversible soft archive. Never archives receipts or a live variant. */
+const setOpeningBalanceArchived = async (args: { userId: number; supplierId: string; suppliesno: string; archived: boolean }): Promise<boolean> => {
+  const { userId, supplierId, suppliesno, archived } = args;
+  if (!suppliesno.startsWith('AUTO-')) throw new Error('Only catalog opening balances can be archived');
+  await prisma.$transaction(async (tx) => {
     const supplier = await tx.supplier.findFirst({
       where: { userId, OR: isNumericId(supplierId) ? [{ id: Number(supplierId) }, { supplierId }] : [{ supplierId }] },
       select: { id: true },
     });
     if (!supplier) throw new Error('Supplier not found');
-    const row = await tx.supplyRecord.findFirst({
-      where: { supplierRefId: supplier.id, suppliesno },
-    });
-    if (!row || (row.recordType !== 'summary' && !row.suppliesno.startsWith('AUTO-'))) throw new Error('Opening balance not found');
-    // A live variant always protects its opening balance, even when the user
-    // reassigns its supplier or edits its name/SKU.
-    const historicalId = row.historicalVariantOptionId ?? row.variantOptionId;
-    if (!historicalId) throw new Error('Legacy opening balance has no stable variant ID; manual reconciliation required');
-    const activeVariant = await tx.variantOption.findUnique({ where: { id: historicalId }, select: { id: true } });
-    if (activeVariant) throw new Error('Delete the catalog variant before clearing its opening balance');
-    await tx.supplyRecord.delete({ where: { id: row.id } });
-    return true;
+    const row = await tx.supplyRecord.findFirst({ where: { supplierRefId: supplier.id, suppliesno } });
+    if (!row || row.recordType !== 'summary') throw new Error('Opening balance not found');
+    if (archived) {
+      const historicalId = row.historicalVariantOptionId ?? row.variantOptionId;
+      if (!historicalId) throw new Error('Legacy opening balance needs manual identity reconciliation');
+      const live = await tx.variantOption.findUnique({ where: { id: historicalId }, select: { id: true } });
+      if (live) throw new Error('Delete the catalog variant before archiving its opening balance');
+    }
+    await tx.supplyRecord.update({ where: { id: row.id }, data: { archivedAt: archived ? new Date() : null } });
   });
+  try { const { invalidateDashboardCache } = await import('@/lib/queryCache'); await invalidateDashboardCache(userId); } catch { /* best effort */ }
+  return true;
+};
+
+/** Explicit deletion of a catalog opening balance; never deletes actual receipts. */
+const deleteArchivedOpeningBalance = async (args: { userId: number; supplierId: string; suppliesno: string }): Promise<boolean> => {
+  const { userId, supplierId, suppliesno } = args;
+  if (!suppliesno.startsWith('AUTO-')) throw new Error('Only catalog opening balances can be deleted');
+  await prisma.$transaction(async (tx) => {
+    const supplier = await tx.supplier.findFirst({
+      where: { userId, OR: isNumericId(supplierId) ? [{ id: Number(supplierId) }, { supplierId }] : [{ supplierId }] },
+      select: { id: true },
+    });
+    if (!supplier) throw new Error('Supplier not found');
+    const row = await tx.supplyRecord.findFirst({ where: { supplierRefId: supplier.id, suppliesno } });
+    if (!row || row.recordType !== 'summary') throw new Error('Opening balance not found');
+    const historicalId = row.historicalVariantOptionId ?? row.variantOptionId;
+    if (!historicalId) throw new Error('Legacy opening balance needs manual identity reconciliation');
+    const live = await tx.variantOption.findUnique({ where: { id: historicalId }, select: { id: true } });
+    if (live) throw new Error('Delete the catalog variant before deleting its opening balance');
+    await tx.supplyRecord.delete({ where: { id: row.id } });
+  });
+  try { const { invalidateDashboardCache } = await import('@/lib/queryCache'); await invalidateDashboardCache(userId); } catch { /* best effort */ }
+  return true;
 };
 
 const recordSupplierSupply = async (args: {
@@ -2106,7 +2132,8 @@ export const contactsResolvers = {
     bulkDeleteSuppliers: withDashboardAuth(bulkDeleteSuppliers),
     syncSuppliersFromProducts: withDashboardAuth(syncSuppliersFromProducts),
     recordSupplierSupply: withDashboardAuth(recordSupplierSupply),
-    clearArchivedOpeningBalance: withDashboardAuth(clearArchivedOpeningBalance),
+    setOpeningBalanceArchived: withDashboardAuth(setOpeningBalanceArchived),
+    deleteArchivedOpeningBalance: withDashboardAuth(deleteArchivedOpeningBalance),
   },
 };
 

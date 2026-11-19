@@ -313,6 +313,8 @@ model SupplyRecord {
   variantOptionId    Int?
   /// Immutable historical catalog identity. Retained when variantOptionId is cleared by deletion.
   historicalVariantOptionId Int?
+  /// Soft archive for catalog opening balances; historical receipts are never archived here.
+  archivedAt DateTime? @db.Timestamptz(3)
   variantOption      VariantOption? @relation(fields: [variantOptionId], references: [id], onDelete: SetNull)
   updateCurrentStock Boolean  @default(false)
   /// True after this history row has already adjusted variant stock (re-check must not re-apply).
@@ -329,6 +331,7 @@ model SupplyRecord {
   @@index([sku])
   @@index([variantOptionId])
   @@index([historicalVariantOptionId])
+  @@index([supplierRefId, archivedAt])
 }
 
 model Product {

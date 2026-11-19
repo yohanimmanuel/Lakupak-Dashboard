@@ -25,6 +25,7 @@ export type SupplyRecordRow = {
   variantName: string | null;
   variantOptionId: number | null;
   historicalVariantOptionId?: number | null;
+  archivedAt?: Date | null;
   updateCurrentStock: boolean;
   stockApplied: boolean;
   sortOrder: number;
@@ -81,6 +82,7 @@ export function supplyDetailFromRecord(row: SupplyRecordRow): SupplyDetail {
     variantOptionId: row.variantOptionId ?? row.historicalVariantOptionId ?? undefined,
     updateCurrentStock: row.updateCurrentStock === true,
     stockApplied: row.stockApplied === true,
+    archivedAt: row.archivedAt?.toISOString() ?? null,
   };
 }
 
@@ -104,7 +106,7 @@ export async function loadSupplierSuppliesJson(
   supplierRefId: number,
 ): Promise<string | null> {
   const rows = await db.supplyRecord.findMany({
-    where: { supplierRefId },
+    where: { supplierRefId, archivedAt: null },
     orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
   });
   if (rows.length > 0) return serializeSupplyRecords(rows);
@@ -269,6 +271,10 @@ export async function replaceSupplierSupplyRecords(
       throw new Error('Duplicate stored supply record number. Reconcile before saving.');
     }
     const match = matches[0];
+    if (match?.archivedAt) {
+      used.add(match.id);
+      continue;
+    }
     if (match) {
       // An existing snapshot owns its original identity permanently. In particular,
       // do not attach it to a newly-created variant with the same label or SKU.
@@ -306,7 +312,7 @@ export async function replaceSupplierSupplyRecords(
       used.add(created.id);
     }
   }
-  const removedIds = existing.filter((row) => !used.has(row.id)).map((row) => row.id);
+  const removedIds = existing.filter((row) => !used.has(row.id) && !row.archivedAt).map((row) => row.id);
   if (removedIds.length) {
     await db.supplyRecord.deleteMany({ where: { supplierRefId, id: { in: removedIds } } });
   }
