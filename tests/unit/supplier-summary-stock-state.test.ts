@@ -14,10 +14,10 @@ const receipt = (overrides: Partial<SupplyDetail> = {}): SupplyDetail => ({
   updateCurrentStock: true, stockApplied: true, ...overrides,
 });
 
-describe('supplier totals stay stable across stock checkbox state', () => {
-  it('uses the synchronized Product snapshot when the receipt has been applied', () => {
+describe('supplier reporting includes all receipts independent of stock checkbox state', () => {
+  it('adds an applied receipt to the opening snapshot', () => {
     const [summary] = buildSupplySummaryFromHistory([receipt()], [snapshot(12519)]);
-    expect(Number(summary.totalSupplied)).toBe(12519);
+    expect(Number(summary.totalSupplied)).toBe(12775);
   });
 
   it('adds the receipt to the reduced Product snapshot after stock is reversed', () => {
@@ -28,11 +28,11 @@ describe('supplier totals stay stable across stock checkbox state', () => {
     expect(Number(summary.totalSupplied)).toBe(12519);
   });
 
-  it('does not double-count a checked receipt after AUTO snapshots are synchronized', () => {
+  it('counts a checked receipt once in supplier reporting', () => {
     const [summary] = buildSupplySummaryFromHistory(
       [receipt({ updateCurrentStock: true, stockApplied: true })],
       [snapshot(12519)],
     );
-    expect(Number(summary.totalSupplied)).toBe(12519);
+    expect(Number(summary.totalSupplied)).toBe(12775);
   });
 });

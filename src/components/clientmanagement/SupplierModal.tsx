@@ -1558,6 +1558,12 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                 supplierCatalog={supplierOwnedCatalog}
               />
             )}
+            {suppliesTab === 'opening' && isEditMode && error && (
+              <div role="alert" className="mb-3 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
             {suppliesTab === 'opening' && isEditMode && selectedOpeningRows.size > 0 && (
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#e6e6e6] border-l-4 border-l-blue-500 bg-white p-3 shadow-sm">
                 <span className="text-sm font-semibold text-gray-700">{selectedOpeningRows.size} opening balance(s) selected</span>
@@ -1604,7 +1610,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                 <table className="min-w-full bg-white text-left text-xs font-medium">
                   <thead>
                     <tr className="whitespace-nowrap bg-gray-100 text-gray-500">
-                      {suppliesTab === 'opening' && isEditMode && <th className="w-10 px-3 py-2"><input type="checkbox" aria-label="Select all opening balances" checked={openingRows.length > 0 && openingRows.every((r)=>selectedOpeningRows.has(r.suppliesno))} onChange={(e)=>setSelectedOpeningRows(e.target.checked ? new Set(openingRows.map((r)=>r.suppliesno)) : new Set())}/></th>}
+                      {suppliesTab === 'opening' && isEditMode && <th className="w-10 px-3 py-2"><ImportSelectionCheckbox ariaLabel="Select all opening balances" checked={openingRows.length > 0 && openingRows.every((r)=>selectedOpeningRows.has(r.suppliesno))} indeterminate={selectedOpeningRows.size > 0 && !openingRows.every((r)=>selectedOpeningRows.has(r.suppliesno))} onToggle={() => setSelectedOpeningRows(openingRows.length > 0 && openingRows.every((r)=>selectedOpeningRows.has(r.suppliesno)) ? new Set() : new Set(openingRows.map((r)=>r.suppliesno)))}/></th>}
                       <th className="px-3 py-2 font-medium uppercase">{tSuppliersModal('colNo')}</th>
                       <th className="px-3 py-2 font-medium uppercase">{tSuppliersModal('colProduct')}</th>
                       <th className="px-3 py-2 font-medium uppercase">{tSuppliersModal('colSku')}</th>
@@ -1625,7 +1631,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                     ) : (
                       displayedSummaryRows.slice(summaryPageStart, summaryPageEnd).map((row, idx) => (
                         <tr key={row.suppliesno || `sum-${summaryPageStart + idx}`} className="border-b last:border-b-0">
-                          {suppliesTab === 'opening' && isEditMode && <td className="px-3 py-3"><input type="checkbox" aria-label={`Select ${row.variantName || row.product}`} checked={selectedOpeningRows.has(row.suppliesno)} onChange={(e)=>setSelectedOpeningRows((prev)=>{const next=new Set(prev); if(e.target.checked)next.add(row.suppliesno);else next.delete(row.suppliesno);return next;})}/></td>}
+                          {suppliesTab === 'opening' && isEditMode && <td className="px-3 py-3"><ImportSelectionCheckbox ariaLabel={`Select ${row.variantName || row.product}`} checked={selectedOpeningRows.has(row.suppliesno)} onToggle={() => setSelectedOpeningRows((prev)=>{const next=new Set(prev); if(next.has(row.suppliesno))next.delete(row.suppliesno);else next.add(row.suppliesno);return next;})}/></td>}
                           <td className="px-3 py-3 font-medium text-black">{summaryPageStart + idx + 1}</td>
                           <td className="px-3 py-3 text-black">{catalogOptions.find((option) => option.sku === row.sku)?.product || row.product || '—'}</td>
                           <td className="px-3 py-3 text-black">{row.sku || '—'}</td>
@@ -2028,7 +2034,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
           )}
           
           {/* Error Message */}
-          {error && (
+          {error && !(suppliesTab === 'opening' && isEditMode) && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
               <span className="text-red-800 text-xs font-medium">{error}</span>

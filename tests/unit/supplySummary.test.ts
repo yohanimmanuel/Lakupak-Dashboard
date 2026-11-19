@@ -45,8 +45,8 @@ describe('supplier summary stays stable when Product stock is toggled', () => {
     );
 
     expect(summary).toHaveLength(1);
-    expect(summary[0].totalSupplied).toBe('12519');
-    expect(summary[0].totalValue).toBe('900000');
+    expect(summary[0].totalSupplied).toBe('12775');
+    expect(summary[0].totalValue).toBe('951200');
   });
 
   it('preserves 12,519 pieces when the same 256-piece receipt is reversed from Product stock', () => {
@@ -79,5 +79,18 @@ describe('supplier summary stays stable when Product stock is toggled', () => {
     expect(summary).toHaveLength(1);
     expect(summary[0].variantOptionId).toBe(42);
     expect(summary[0].totalSupplied).toBe('12519');
+  });
+});
+
+describe('multiple receipts for one variant', () => {
+  it('adds both receipts to opening balance, even when stockApplied is true', () => {
+    const rows = buildSupplySummaryFromHistory(
+      [history({ suppliesno: 'HIST-A', totalSupplied: '600', totalValue: '6000', stockApplied: true }),
+       history({ suppliesno: 'HIST-B', totalSupplied: '600', totalValue: '6000', stockApplied: true })],
+      [autoSnapshot('2200', '22000')],
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].totalSupplied).toBe('3400');
+    expect(rows[0].totalValue).toBe('34000');
   });
 });

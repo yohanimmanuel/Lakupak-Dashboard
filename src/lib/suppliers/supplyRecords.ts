@@ -275,10 +275,11 @@ export function applySummaryDelta(
 /**
  * Build the supplier-facing summary from persisted supplier totals and receipt history.
  *
- * Product-linked summary rows are authoritative running totals. The save service applies
- * each receipt/edit/delete delta to those rows, so adding the same history again would
- * double-count it. History is aggregated only when there is no populated linked summary.
+ * Supplier reporting combines opening snapshots and every distinct historical receipt.
+ * The stockApplied flag controls catalog inventory updates, not supplier reporting.
  * All quantities remain canonical Pieces; the profile converts them for display.
+ * Callers must ensure opening snapshots represent opening stock, not current stock
+ * already including the receipts, to avoid counting the same physical units twice.
  */
 export function buildSupplySummaryFromHistory(
   historyRows: readonly SupplyDetail[],
@@ -360,19 +361,14 @@ export function buildSupplySummaryFromHistory(
       || directIdentity;
 
     if (!matchedIdentity) continue;
-    const historyWasAppliedToProductStock = row.stockApplied === true ||
-      (row.stockApplied == null && row.updateCurrentStock === true);
-    const quantity = historyWasAppliedToProductStock
-      ? 0
-      : Math.max(0, Math.trunc(toQty(row.totalSupplied)));
-    const value = historyWasAppliedToProductStock
-      ? 0
-      : Math.max(0, Math.round(toQty(row.totalValue)));
+    // Supplier reporting counts every persisted receipt once, regardless of whether
+    // it also updated catalog inventory. Opening balances are a separate category.
+    const quantity = Math.max(0, Math.trunc(toQty(row.totalSupplied)));
+    const value = Math.max(0, Math.round(toQty(row.totalValue)));
 
     const current = grouped.get(matchedIdentity);
     if (current) {
-      // Product stock already includes checked receipts. Only add history rows
-      // that were intentionally kept out of current Product stock.
+      // Each history receipt contributes once to supplier reporting.
       current.totalSupplied = String(toQty(current.totalSupplied) + quantity);
       current.totalValue = String(toQty(current.totalValue) + value);
       if (String(row.lastSuppliedDate || '') > String(current.lastSuppliedDate || '')) {
