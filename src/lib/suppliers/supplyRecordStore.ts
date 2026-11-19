@@ -28,6 +28,7 @@ export type SupplyRecordRow = {
   archivedAt?: Date | null;
   updateCurrentStock: boolean;
   stockApplied: boolean;
+  stockAppliedVariantOptionId?: number | null;
   sortOrder: number;
 };
 
@@ -79,9 +80,13 @@ export function supplyDetailFromRecord(row: SupplyRecordRow): SupplyDetail {
     recordType: getSupplyRecordType({ suppliesno: row.suppliesno, recordType: row.recordType as SupplyDetail['recordType'] }),
     productId: row.productId || undefined,
     variantName: row.variantName || undefined,
-    variantOptionId: row.variantOptionId ?? row.historicalVariantOptionId ?? undefined,
+    // Keep historical identity separate from the live FK. A deleted variant
+    // must not become a stock target merely because its historic ID is retained.
+    variantOptionId: row.variantOptionId ?? undefined,
+    historicalVariantOptionId: row.historicalVariantOptionId ?? undefined,
     updateCurrentStock: row.updateCurrentStock === true,
     stockApplied: row.stockApplied === true,
+    stockAppliedVariantOptionId: row.stockAppliedVariantOptionId ?? undefined,
     archivedAt: row.archivedAt?.toISOString() ?? null,
   };
 }
@@ -136,6 +141,7 @@ export function buildSupplyRecordCreateManyRows(
   historicalVariantOptionId?: number | null;
   updateCurrentStock: boolean;
   stockApplied: boolean;
+  stockAppliedVariantOptionId?: number | null;
   sortOrder: number;
 }> {
   const raw =
@@ -164,9 +170,12 @@ export function buildSupplyRecordCreateManyRows(
       productId: row.productId ? String(row.productId) : null,
       variantName: row.variantName ? String(row.variantName) : null,
       variantOptionId: row.variantOptionId != null && Number.isSafeInteger(Number(row.variantOptionId)) ? Number(row.variantOptionId) : null,
-      historicalVariantOptionId: row.variantOptionId != null && Number.isSafeInteger(Number(row.variantOptionId)) ? Number(row.variantOptionId) : null,
+      historicalVariantOptionId: row.historicalVariantOptionId != null && Number.isSafeInteger(Number(row.historicalVariantOptionId))
+        ? Number(row.historicalVariantOptionId)
+        : row.variantOptionId != null && Number.isSafeInteger(Number(row.variantOptionId)) ? Number(row.variantOptionId) : null,
       updateCurrentStock: row.updateCurrentStock === true,
       stockApplied: row.stockApplied === true,
+      stockAppliedVariantOptionId: row.stockAppliedVariantOptionId != null && Number.isSafeInteger(Number(row.stockAppliedVariantOptionId)) ? Number(row.stockAppliedVariantOptionId) : null,
       sortOrder: index,
     };
   });
@@ -266,11 +275,16 @@ export async function replaceSupplierSupplyRecords(
         // A receipt may be deliberately reassigned to another live variant.
         // The stock-effect transaction has already reversed the previous ID
         // and applied the new ID before this record is persisted.
-        if (row.recordType !== 'history' || row.variantOptionId == null) {
+        if (row.recordType !== 'history') {
           row.historicalVariantOptionId = originalId;
-          if (row.variantOptionId !== originalId) row.variantOptionId = null;
+          row.variantOptionId = null;
+        } else if (row.variantOptionId == null) {
+          // An unchanged historical receipt keeps its original ID as a snapshot,
+          // but remains unlinked when the original catalog variant was deleted.
+          row.historicalVariantOptionId = row.historicalVariantOptionId ?? originalId;
         } else {
-          row.historicalVariantOptionId = row.variantOptionId;
+          // A valid, explicitly selected live ID is an intentional reassignment.
+          row.historicalVariantOptionId = row.historicalVariantOptionId ?? row.variantOptionId;
         }
       }
       used.add(match.id);
@@ -294,6 +308,7 @@ export async function replaceSupplierSupplyRecords(
           historicalVariantOptionId: row.historicalVariantOptionId,
           updateCurrentStock: row.updateCurrentStock,
           stockApplied: row.stockApplied,
+          stockAppliedVariantOptionId: row.stockAppliedVariantOptionId,
           sortOrder: row.sortOrder,
         },
       });
