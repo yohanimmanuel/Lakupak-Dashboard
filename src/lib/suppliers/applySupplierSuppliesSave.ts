@@ -28,6 +28,8 @@ async function findVariantForSupply(args: {
   sku?: string | null;
   productId?: string | null;
   variantName?: string | null;
+  /** Reversals may target an inactive but still-existing original variant. */
+  allowInactive?: boolean;
   db?: DbClient;
 }): Promise<{ id: number; stockQuantity: number } | null> {
   const db = args.db ?? prisma;
@@ -37,7 +39,11 @@ async function findVariantForSupply(args: {
     const id = Number(args.variantOptionId);
     if (!Number.isSafeInteger(id) || id <= 0) return null;
     return db.variantOption.findFirst({
-      where: { id, isActive: true, product: { userId: args.userId } },
+      where: {
+        id,
+        ...(args.allowInactive ? {} : { isActive: true }),
+        product: { userId: args.userId },
+      },
       select: { id: true, stockQuantity: true },
     });
   }
@@ -54,13 +60,15 @@ export async function incrementVariantStockForSupply(args: {
   productId?: string | null;
   variantName?: string | null;
   quantity: number;
+  /** Allow a stock reversal against an inactive variant that still exists. */
+  allowInactive?: boolean;
   db?: DbClient;
 }): Promise<boolean> {
   const qty = Math.trunc(Number(args.quantity) || 0);
   if (qty === 0) return false;
 
   const db = args.db ?? prisma;
-  const variant = await findVariantForSupply({ ...args, db });
+  const variant = await findVariantForSupply({ ...args, db, allowInactive: args.allowInactive });
   if (!variant) return false;
 
   // An exact reversal must never silently clamp to zero.
@@ -78,6 +86,10 @@ export async function incrementVariantStockForSupply(args: {
 
 export type SupplyStockEffect = {
   row: SupplyDetail;
+  /** Exact inventory target; old-side identity moves use the persisted applied target. */
+  stockVariantOptionId?: number | null;
+  /** Only an old-side reversal may be skipped when its original catalog row was deleted. */
+  allowMissingVariant?: boolean;
   quantityDelta: number;
   valueDelta: number;
   reason: 'add' | 'edit' | 'delete' | 'enable' | 'disable';
@@ -223,6 +235,8 @@ export function computeSupplyStockEffects(
     if (prevQty > 0 || prevValue > 0) {
       effects.push({
         row: from,
+        stockVariantOptionId: from.stockAppliedVariantOptionId ?? from.variantOptionId,
+        allowMissingVariant: true,
         quantityDelta: -prevQty,
         valueDelta: -prevValue,
         reason: 'edit',
@@ -232,6 +246,7 @@ export function computeSupplyStockEffects(
     if (toQtyValue > 0 || toValueAmount > 0) {
       effects.push({
         row: to,
+        stockVariantOptionId: to.variantOptionId,
         quantityDelta: toQtyValue,
         valueDelta: toValueAmount,
         reason: 'edit',
@@ -248,7 +263,7 @@ export function computeSupplyStockEffects(
     const checked = shouldUpdateCurrentStock(row);
     const wasChecked = prev ? shouldUpdateCurrentStock(prev) : false;
     // Only the persisted server flag counts — never trust a client-invented stockApplied.
-    const stockAlreadyApplied = prev?.stockApplied === true || (prev?.stockApplied == null && prev?.updateCurrentStock === true);
+    const stockAlreadyApplied = prev?.stockApplied === true;
 
     if (!prev) {
       if (qty > 0 || value > 0) {
@@ -315,6 +330,8 @@ export function computeSupplyStockEffects(
       if (stockAlreadyApplied && (prevQty > 0 || prevValue > 0)) {
         effects.push({
           row: prev,
+          stockVariantOptionId: prev.stockAppliedVariantOptionId ?? prev.variantOptionId,
+          allowMissingVariant: true,
           quantityDelta: -prevQty,
           valueDelta: -prevValue,
           reason: 'disable',
@@ -360,6 +377,8 @@ export function computeSupplyStockEffects(
       if (quantityDelta !== 0 || valueDelta !== 0) {
         effects.push({
           row,
+          stockVariantOptionId: prev.stockAppliedVariantOptionId ?? prev.variantOptionId ?? row.variantOptionId,
+          allowMissingVariant: quantityDelta < 0,
           quantityDelta,
           valueDelta,
           reason: 'edit',
@@ -412,9 +431,11 @@ export function computeSupplyStockEffects(
 
     // Totals always reverse on delete. Product stock only when Update Stock is checked
     // and this row previously contributed to stock.
-    const previouslyApplied = prev.stockApplied === true || shouldUpdateCurrentStock(prev);
+    const previouslyApplied = prev.stockApplied === true;
     effects.push({
       row: prev,
+      stockVariantOptionId: prev.stockAppliedVariantOptionId ?? prev.variantOptionId,
+      allowMissingVariant: true,
       quantityDelta: -qty,
       valueDelta: -value,
       reason: 'delete',
@@ -460,26 +481,30 @@ export async function finalizeSupplierSuppliesSave(args: {
   };
 
   // Apply stock first and record which effect rows actually changed product stock.
-  const successfulStockApplyKeys = new Set<string>();
+  const successfulStockApplyTargets = new Map<string, number>();
   let stockUpdatedCount = 0;
   for (const effect of effects) {
     if (effect.quantityDelta === 0) continue;
     if (effect.applyStock === false) continue;
     const updated = await incrementVariantStockForSupply({
       userId: args.userId,
-      variantOptionId: effect.row.variantOptionId,
+      variantOptionId: effect.stockVariantOptionId ?? effect.row.variantOptionId,
       sku: effect.row.sku,
       productId: effect.row.productId,
       variantName: effect.row.variantName,
       quantity: effect.quantityDelta,
+      allowInactive: effect.quantityDelta < 0,
       db: args.db,
     });
     if (!updated) {
-      throw new Error('Supply stock update blocked: the original variant no longer exists or its identity is ambiguous.');
+      // A reversal for a variant deleted from the catalog has no remaining
+      // inventory row to adjust. Never redirect it to a same-SKU replacement.
+      if (effect.quantityDelta < 0 && effect.allowMissingVariant) continue;
+      throw new Error('Supply stock update blocked for receipt ' + (effect.row.suppliesno || '(new)') + ': selected variant ' + (effect.stockVariantOptionId ?? effect.row.variantOptionId ?? '(missing ID)') + ' does not exist for this inventory movement.');
     }
     stockUpdatedCount += 1;
-    if (effect.reason === 'add' || effect.reason === 'enable' || effect.reason === 'edit') {
-      successfulStockApplyKeys.add(effectRowKey(effect.row));
+    if ((effect.reason === 'add' || effect.reason === 'enable' || effect.reason === 'edit') && effect.stockVariantOptionId != null) {
+      successfulStockApplyTargets.set(effectRowKey(effect.row), effect.stockVariantOptionId);
     }
   }
 
@@ -500,19 +525,21 @@ export async function finalizeSupplierSuppliesSave(args: {
     const disabledThisSave = effects.some(
       (effect) => effect.reason === 'disable' && rowMatchesEffect(effect),
     );
-    const stockAppliedThisSave =
-      successfulStockApplyKeys.has(effectRowKey(row)) ||
-      // Enable/edit effects may key off the previous blank-id row.
-      (prev ? successfulStockApplyKeys.has(effectRowKey(prev)) : false);
+    const appliedTargetThisSave =
+      successfulStockApplyTargets.get(effectRowKey(row)) ??
+      (prev ? successfulStockApplyTargets.get(effectRowKey(prev)) : undefined);
+    const stockAppliedThisSave = appliedTargetThisSave != null;
     const stockApplied = disabledThisSave
       ? false
-      : stockAppliedThisSave || prev?.stockApplied === true ||
-        (prev?.stockApplied == null && prev?.updateCurrentStock === true);
+      : stockAppliedThisSave || prev?.stockApplied === true;
     return {
       ...row,
       recordType: 'history' as const,
       updateCurrentStock: row.updateCurrentStock === true,
       stockApplied,
+      stockAppliedVariantOptionId: disabledThisSave
+        ? null
+        : appliedTargetThisSave ?? (prev?.stockApplied ? prev.stockAppliedVariantOptionId ?? prev.variantOptionId ?? null : null),
     };
   });
   // Keep the AUTO rows as product-stock snapshots. They are deliberately not
