@@ -314,6 +314,7 @@ type BuyerWithRecords = BuyerModel & {
     discountBadge: string | null;
     offerApplied: boolean | null;
     syncedFromOrders: boolean;
+    skuSnapshot: string | null;
     sortOrder: number;
   }>;
 };
@@ -365,6 +366,7 @@ const mapBuyer = (buyer: BuyerWithRecords) => ({
             product: row.product,
             productId: row.productId ?? undefined,
             variantOptionId: row.variantOptionId ?? undefined,
+            sku: row.skuSnapshot ?? undefined,
             variantName: row.variantName ?? undefined,
             stockType: row.stockType ?? undefined,
             piecesPerPackage: row.piecesPerPackage ?? undefined,
@@ -596,16 +598,8 @@ const fetchSingleBuyer = async (args: { userId: number; id: string }) => {
 const fetchSingleSupplier = async (args: { userId: number; id: string }) => {
   const { userId, id } = args;
 
-  // SupplierProfile and SupplierTable must read the same AUTO snapshot. The list
-  // route reconciles these rows from Product stock; doing the same before the
-  // single-supplier read prevents a just-saved profile from returning stale AUTO
-  // quantities until the user visits the list and refreshes a second time.
-  try {
-    const { syncAllProductSuppliersForUser } = await import('@/lib/suppliers/syncProductSupplies');
-    await syncAllProductSuppliersForUser(Number(userId));
-  } catch (syncError) {
-    console.warn('[Suppliers] Profile snapshot reconciliation skipped:', syncError);
-  }
+  // Supplier reads are read-only. Current inventory belongs to Product Catalog;
+  // supplier totals are derived only from persisted receipt history.
 
   const supplierInclude = {
     supplyRecords: { orderBy: [{ sortOrder: 'asc' as const }, { id: 'asc' as const }] },
