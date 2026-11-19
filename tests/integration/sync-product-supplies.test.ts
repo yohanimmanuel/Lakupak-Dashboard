@@ -23,7 +23,7 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
     await resetDb();
   });
 
-  it('keeps existing supplier opening balances and history in place until explicitly transferred', async () => {
+  it('preserves old supplier history and creates an independent current-supplier opening snapshot', async () => {
     const distributor = await createTestDistributor();
     const productId = 'P-SUPPLY-MOVE-1';
     const autoNo = supplyAutoNo(productId, 'Default');
@@ -147,17 +147,17 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
       onA.some((r) => r.suppliesno === 'HIST-OTHER'),
     ).toBe(true);
 
-    // Supplier B must not receive a duplicate opening balance.
-    // Existing opening balances remain with Supplier A
-    // until the user explicitly transfers them.
-    expect(
-      onB.some(
-        (r) =>
-          r.recordType === 'summary' &&
-          r.productId === productId &&
-          r.variantName === 'Default',
-      ),
-    ).toBe(false);
+    // Supplier B receives its own catalog-based opening snapshot, not a
+    // transfer of Supplier A's historical receipt or accounting entry.
+    const openingOnB = onB.filter(
+      (r) =>
+        r.recordType === 'summary' &&
+        r.productId === productId &&
+        r.variantName === 'Default',
+    );
+    expect(openingOnB).toHaveLength(1);
+    expect(openingOnB[0].totalSupplied).toBe('250');
+    expect(openingOnB[0].totalValue).toBe('1250000');
 
     // Historical supplies must never move automatically.
     expect(
@@ -188,13 +188,12 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
       afterA.find((r) => r.suppliesno === autoNo)?.totalValue,
     ).toBe('1250000');
 
-    expect(
-      afterB.some(
-        (r) =>
-          r.recordType === 'summary' &&
-          r.productId === productId,
-      ),
-    ).toBe(false);
+    const openingAfterSync = afterB.filter(
+      (r) => r.recordType === 'summary' && r.productId === productId,
+    );
+    expect(openingAfterSync).toHaveLength(1);
+    expect(openingAfterSync[0].totalSupplied).toBe('250');
+    expect(openingAfterSync[0].totalValue).toBe('1250000');
 
     expect(
       afterB.some((r) => r.suppliesno === 'HIST-MOVE-1'),
