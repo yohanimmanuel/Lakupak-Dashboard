@@ -512,7 +512,9 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   const [historyRows, setHistoryRows] = useState<SupplyDetail[]>(
     () => parseSupplyBuckets(initialData?.supplies).history,
   );
-  const [suppliesTab, setSuppliesTab] = useState<'summary' | 'opening' | 'history'>('history');
+  // Supplier editing now has a single receipt-history view; legacy opening rows
+  // are retained only for the Archived Supplies cleanup dialog.
+  const suppliesTab = 'history' as const;
   const [showArchivedSupplies, setShowArchivedSupplies] = useState(false);
   const [archivedOpeningRows, setArchivedOpeningRows] = useState<SupplyDetail[]>(() => {
     try { return (JSON.parse(initialData?.supplies || '[]') as SupplyDetail[]).filter((row) => !!row.archivedAt); }
@@ -988,7 +990,6 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     }
     // Blank rows are dropped on import, which shifts indices.
     setSelectedHistoryRows(new Set());
-    setSuppliesTab('history');
     setShowImportSupplies(false);
   }, [historyRows, pendingDeleteMarkers]);
 
@@ -1028,7 +1029,6 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     setShowDeleteHistoryModal(false);
     setDeleteHistoryIndices([]);
     setDeleteUpdateStock(false);
-    setSuppliesTab('history');
     setValidationErrors({});
     setError('');
     setSuccess('');
@@ -1113,8 +1113,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     });
     if (unresolvedStockRows.length > 0) {
       handleError(tSuppliersModal('selectSkuBeforeStockUpdate'));
-      setSuppliesTab('history');
-      return;
+        return;
     }
 
     setIsSubmitting(true);
