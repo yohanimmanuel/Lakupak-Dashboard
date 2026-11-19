@@ -129,6 +129,8 @@ export interface SupplyDetail {
   archivedAt?: string | null;
   updateCurrentStock?: boolean;
   stockApplied?: boolean;
+  /** Variant whose stock was actually adjusted; kept even if that catalog variant is deleted. */
+  stockAppliedVariantOptionId?: number | null;
   __delete?: true;
 }
 

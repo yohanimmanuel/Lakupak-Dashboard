@@ -337,6 +337,7 @@ type SupplierWithRecords = SupplierModel & {
     variantName: string | null;
     updateCurrentStock: boolean;
     stockApplied: boolean;
+    stockAppliedVariantOptionId?: number | null;
     sortOrder: number;
     archivedAt?: Date | null;
     variantOptionId?: number | null;
@@ -426,6 +427,7 @@ const mapSupplier = (supplier: SupplierWithRecords) => ({
             variantName: row.variantName ?? undefined,
             updateCurrentStock: row.updateCurrentStock === true,
             stockApplied: row.stockApplied === true,
+            stockAppliedVariantOptionId: row.stockAppliedVariantOptionId ?? undefined,
             variantOptionId: row.variantOptionId ?? undefined,
             archivedAt: row.archivedAt?.toISOString() ?? null,
           })),
