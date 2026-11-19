@@ -247,35 +247,8 @@ export function applyProductToSupplierMaps(
   if (!target) return;
   if (variants.length === 0) return;
 
-  // Stamp catalog identity onto matching rows wherever they still live (no move),
-  // so the old-supplier notice can resolve imports without a productId.
-  for (const supplier of suppliers) {
-    const supplies = suppliesBySupplierId.get(supplier.id) || [];
-    let stamped = false;
-    const next = supplies.map((row) => {
-      if (!belongsToProduct(row, product, matchHints)) return row;
-      const variantName =
-        row.variantName ||
-        variants.find(
-          (v) =>
-            (String(v.sku ?? '').trim() || supplyIdentity(product.productId, v.variantName)) ===
-              String(row.sku || '').trim() ||
-            productLabel(product.name, v.variantName) === String(row.product || '').trim(),
-        )?.variantName ||
-        row.variantName;
-      if (row.productId === product.productId && row.variantName === variantName) return row;
-      stamped = true;
-      return {
-        ...row,
-        productId: row.productId || product.productId,
-        variantName: variantName || row.variantName,
-      };
-    });
-    if (stamped) {
-      suppliesBySupplierId.set(supplier.id, next);
-      dirtySupplierIds.add(supplier.id);
-    }
-  }
+  // Supplier reassignment never rewrites rows owned by another supplier.
+  // Existing receipts and opening balances remain attached to their original supplier.
 
   // Link product onto the new supplier with an AUTO summary only — leave prior
   // supplier history/totals in place for the move-candidates notice.
@@ -289,6 +262,19 @@ export function applyProductToSupplierMaps(
     const autoNo = supplyAutoNo(product.productId, variant.variantName, variant.id);
     const qty = Math.max(0, Math.floor(Number(variant.stockQuantity) || 0));
     const totalValue = Math.round(toMoneyNumber(variant.purchasePrice) * qty);
+    // Do not automatically copy an existing opening balance to a new supplier.
+    // Only a truly new catalog variant gets an initial opening snapshot.
+    const previouslyOpenedElsewhere = suppliers.some((supplier) => supplier.id !== target.id &&
+      (suppliesBySupplierId.get(supplier.id) || []).some((row) =>
+        isSupplySummaryRow(row) && (
+          (variant.id != null && row.variantOptionId != null && Number(row.variantOptionId) === variant.id) ||
+          (variant.id == null && row.variantOptionId == null &&
+            String(row.productId || '').trim() === product.productId &&
+            String(row.variantName || '').trim().toLowerCase() === variant.variantName.trim().toLowerCase())
+        ),
+      ),
+    );
+    if (previouslyOpenedElsewhere) continue;
     const current = findSupplyRow(supplies, product, variant, displaySku, variant.variantName);
 
     if (current && isSupplySummaryRow(current)) {

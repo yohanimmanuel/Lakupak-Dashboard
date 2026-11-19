@@ -5,10 +5,6 @@ import Link from "next/link";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts';
 import { useEffect, useMemo, useState } from 'react';
 import { fetchGraphQL } from '@/lib/graphqlClient';
-import SupplyMoveModal, {
-  type SupplyMoveCandidateRow,
-  type ManualSupplyRecord,
-} from '@/components/clientmanagement/SupplyMoveModal';
 import { Supplier, SupplyDetail } from '@/types/client';
 import type { StockLevel } from '@/types/product';
 import { getSupplySummaryQuantities, getSupplyUnitOptions } from '@/lib/suppliers/supplyPackageUnits';
@@ -82,14 +78,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
   
   // Get user currency for display
   const userCurrency = user?.currency || getDefaultCurrency();
-  const [suppliesTab, setSuppliesTab] = useState<'summary' | 'history'>('history');
-  const [moveCandidates, setMoveCandidates] = useState<SupplyMoveCandidateRow[]>([]);
-  const [showMoveModal, setShowMoveModal] = useState(false);
-  const [movingSupplies, setMovingSupplies] = useState(false);
-  const [transferMode, setTransferMode] = useState<'automatic' | 'manual'>('automatic');
-  const [manualRecords, setManualRecords] = useState<ManualSupplyRecord[]>([]);
-  const [loadingTransfers, setLoadingTransfers] = useState(false);
-  const [moveMessage, setMoveMessage] = useState('');
+  const [suppliesTab, setSuppliesTab] = useState<'summary' | 'opening' | 'history'>('summary');
   const [supplyStockLevelsLookup, setSupplyStockLevelsLookup] = useState<Record<string, StockLevel[]>>({});
   const [supplyCatalogLookup, setSupplyCatalogLookup] = useState<Record<string, { name: string; variantsBySku: Record<string, string>; variantsById: Record<string, string> }>>({});
   const [supplyCatalogBySku, setSupplyCatalogBySku] = useState<Record<string, { name: string; variantName: string }>>({});
@@ -289,161 +278,11 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
     [supplies],
   );
   const historySupplies = supplyBuckets.history;
+  const openingSupplies = supplyBuckets.summary;
   const summarySupplies = useMemo(
     () => buildSupplySummaryFromHistory(historySupplies, supplyBuckets.summary),
     [historySupplies, supplyBuckets.summary],
   );
-
-  useEffect(() => {
-    let cancelled = false;
-    const userId = user?.id;
-    const supplierKey = String(supplier.supplierId || supplier.id || '').trim();
-    if (!userId || !supplierKey) {
-      setMoveCandidates([]);
-      return;
-    }
-    (async () => {
-      try {
-        const data = await fetchGraphQL<{
-          supplierSupplyMoveCandidates: SupplyMoveCandidateRow[];
-        }>(
-          `query SupplierSupplyMoveCandidates($userId: Int!, $supplierId: String!) {
-            supplierSupplyMoveCandidates(userId: $userId, supplierId: $supplierId) {
-              productId
-              variantName
-              sku
-              productLabel
-              targetSupplierName
-              historyCount
-              totalSupplied
-              totalValue
-            }
-          }`,
-          { userId, supplierId: supplierKey },
-        );
-        if (!cancelled) {
-          setMoveCandidates(data.supplierSupplyMoveCandidates || []);
-        }
-      } catch {
-        if (!cancelled) setMoveCandidates([]);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id, supplier.supplierId, supplier.id, supplier.supplies]);
-
-  const openManualTransfers = async () => {
-    const userId = user?.id;
-    const supplierId = String(supplier.supplierId || supplier.id || '').trim();
-    if (!userId || !supplierId || loadingTransfers || movingSupplies) return;
-
-    setLoadingTransfers(true);
-    setMoveMessage('');
-    try {
-      const data = await fetchGraphQL<{
-        supplierTransferRecords: ManualSupplyRecord[];
-      }>(
-        `query ManualSupplierTransfers($userId: Int!, $supplierId: String!) {
-          supplierTransferRecords(userId: $userId, supplierId: $supplierId) {
-            id
-            sku
-            product
-            totalSupplied
-            totalValue
-            lastSuppliedDate
-            productId
-            variantName
-            targetSupplierName
-            recordType
-          }
-        }`,
-        { userId, supplierId },
-      );
-      setManualRecords(data.supplierTransferRecords ?? []);
-      setTransferMode('manual');
-      setShowMoveModal(true);
-    } catch (err) {
-      setMoveMessage(err instanceof Error ? err.message : 'Failed to load supply transfers');
-    } finally {
-      setLoadingTransfers(false);
-    }
-  };
-
-  const handleManualSupplyMove = async (recordIds: number[]) => {
-    const userId = user?.id;
-    const fromSupplierId = String(supplier.supplierId || '').trim();
-    if (!userId || !fromSupplierId || !recordIds.length || movingSupplies) return;
-    setMovingSupplies(true);
-    setMoveMessage('');
-    try {
-      const data = await fetchGraphQL<{
-        moveSelectedSupplyRecords: { success: boolean; movedHistoryCount: number };
-      }>(`mutation ManualMove($userId: Int!, $fromSupplierId: String!,
-          $recordIds: [Int!]!) {
-          moveSelectedSupplyRecords(userId: $userId, fromSupplierId: $fromSupplierId,
-            recordIds: $recordIds) {
-            success movedHistoryCount
-          }
-        }`, { userId, fromSupplierId, recordIds });
-      if (!data.moveSelectedSupplyRecords.success) throw new Error('Transfer failed');
-      setShowMoveModal(false);
-      setMoveMessage(`Moved ${data.moveSelectedSupplyRecords.movedHistoryCount} supply record(s).`);
-      onUpdate?.();
-    } catch (err) {
-      setMoveMessage(err instanceof Error ? err.message : 'Transfer failed');
-    } finally {
-      setMovingSupplies(false);
-    }
-  };
-
-  const handleConfirmSupplyMove = async (
-    variants: Array<{ productId: string; variantName: string }>,
-  ) => {
-    const userId = user?.id;
-    const supplierKey = String(supplier.supplierId || supplier.id || '').trim();
-    if (!userId || !supplierKey || variants.length === 0) return;
-    setMovingSupplies(true);
-    setMoveMessage('');
-    try {
-      const data = await fetchGraphQL<{
-        moveSupplierSupplies: {
-          success: boolean;
-          movedHistoryCount: number;
-          message?: string | null;
-        };
-      }>(
-        `mutation MoveSupplierSupplies(
-          $userId: Int!
-          $fromSupplierId: String!
-          $variants: [SupplyMoveVariantInput!]!
-        ) {
-          moveSupplierSupplies(
-            userId: $userId
-            fromSupplierId: $fromSupplierId
-            variants: $variants
-          ) {
-            success
-            movedHistoryCount
-            message
-          }
-        }`,
-        { userId, fromSupplierId: supplierKey, variants },
-      );
-      const result = data.moveSupplierSupplies;
-      setShowMoveModal(false);
-      setMoveMessage(
-        tSuppliersProfile('supplyMoveSuccess', { count: result.movedHistoryCount || 0 }),
-      );
-      onUpdate?.();
-    } catch (error) {
-      setMoveMessage(
-        error instanceof Error ? error.message : tSuppliersProfile('supplyMoveFailed'),
-      );
-    } finally {
-      setMovingSupplies(false);
-    }
-  };
 
   // Headline totals use the current Product variant stock snapshot plus receipt
   // history that has not already been applied to Product stock, all in Pieces.
@@ -470,7 +309,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
   
   const [supplyPage, setSupplyPage] = useState(1);
   const supplyRowsPerPage = TABLE_PAGE_SIZE;
-  const activeSupplyRows = suppliesTab === 'history' ? historySupplies : summarySupplies;
+  const activeSupplyRows = suppliesTab === 'history' ? historySupplies : suppliesTab === 'opening' ? openingSupplies : summarySupplies;
   const totalSupplyRows = activeSupplyRows.length;
   const totalSupplyPages = Math.max(1, Math.ceil(totalSupplyRows / supplyRowsPerPage));
   const pagedSupplies = activeSupplyRows.slice(
@@ -700,34 +539,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
             {tSuppliersProfile('suppliesSection')}
           </div>
 
-          <button
-            type="button"
-            className="rounded-lg border border-[#e6e6e6] px-3 py-1.5 text-xs font-semibold text-black hover:bg-gray-50"
-            onClick={() => void openManualTransfers()}
-            disabled={movingSupplies || loadingTransfers}
-          >
-            Manage Supply Transfers
-          </button>
         </div>
-        {moveMessage ? (
-          <div className="mb-3 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
-            {moveMessage}
-          </div>
-        ) : null}
-        {showMoveModal && (
-          <SupplyMoveModal
-            open={showMoveModal}
-            candidates={moveCandidates}
-            currency={userCurrency}
-            submitting={movingSupplies}
-            onCloseAction={() => setShowMoveModal(false)}
-            onConfirmAction={handleConfirmSupplyMove}
-                mode={transferMode}
-                manualRecords={manualRecords}
-                manualEnabled={true}
-                onManualConfirmAction={handleManualSupplyMove}
-          />
-        )}
         {/* Summary Statistics */}
         <div className="flex flex-wrap gap-4 mb-4">
           <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">
@@ -752,6 +564,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
           >
             {tSuppliersProfile('supplySummaryTab')}
           </button>
+          <button type="button" className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${suppliesTab === 'opening' ? 'bg-white text-black shadow-sm' : 'text-gray-500 hover:text-black'}`} onClick={() => { setSuppliesTab('opening'); setSupplyPage(1); }}>Opening Balance</button>
           <button
             type="button"
             className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${

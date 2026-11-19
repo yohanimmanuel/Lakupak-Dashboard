@@ -23,7 +23,7 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
     await resetDb();
   });
 
-  it('preserves old supplier history and creates an independent current-supplier opening snapshot', async () => {
+  it('preserves old supplier history without automatically duplicating opening balances', async () => {
     const distributor = await createTestDistributor();
     const productId = 'P-SUPPLY-MOVE-1';
     const autoNo = supplyAutoNo(productId, 'Default');
@@ -147,17 +147,14 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
       onA.some((r) => r.suppliesno === 'HIST-OTHER'),
     ).toBe(true);
 
-    // Supplier B receives its own catalog-based opening snapshot, not a
-    // transfer of Supplier A's historical receipt or accounting entry.
+    // Supplier reassignment must not create a second opening balance.
     const openingOnB = onB.filter(
       (r) =>
         r.recordType === 'summary' &&
         r.productId === productId &&
         r.variantName === 'Default',
     );
-    expect(openingOnB).toHaveLength(1);
-    expect(openingOnB[0].totalSupplied).toBe('250');
-    expect(openingOnB[0].totalValue).toBe('1250000');
+    expect(openingOnB).toHaveLength(0);
 
     // Historical supplies must never move automatically.
     expect(
@@ -191,9 +188,7 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
     const openingAfterSync = afterB.filter(
       (r) => r.recordType === 'summary' && r.productId === productId,
     );
-    expect(openingAfterSync).toHaveLength(1);
-    expect(openingAfterSync[0].totalSupplied).toBe('250');
-    expect(openingAfterSync[0].totalValue).toBe('1250000');
+    expect(openingAfterSync).toHaveLength(0);
 
     expect(
       afterB.some((r) => r.suppliesno === 'HIST-MOVE-1'),

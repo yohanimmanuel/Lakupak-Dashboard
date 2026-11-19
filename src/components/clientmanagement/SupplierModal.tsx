@@ -26,10 +26,6 @@ import { CLIENT_SELECT_BUTTON_CLASS } from '@/components/clientmanagement/client
 import ImportSuppliesModal from '@/components/clientmanagement/ImportSuppliesModal';
 import ImportSelectionCheckbox from '@/components/clientmanagement/ImportSelectionCheckbox';
 import ClientCatalogSelect from '@/components/clientmanagement/ClientCatalogSelect';
-import SupplyMoveModal, {
-  type SupplyMoveCandidateRow,
-  type ManualSupplyRecord,
-} from '@/components/clientmanagement/SupplyMoveModal';
 import {
   buildSupplySummaryFromHistory,
   partitionSupplies,
@@ -353,12 +349,12 @@ function normalizeSupplyRow(row: SupplyDetail, recordType: 'history' | 'summary'
   };
 }
 
-function parseSupplyBuckets(raw?: string | null): { history: SupplyDetail[]; summary: SupplyDetail[] } {
-  if (!raw) return { history: [emptyHistoryRow()], summary: [] };
+function parseSupplyBuckets(raw?: string | null): { history: SupplyDetail[]; summary: SupplyDetail[]; opening: SupplyDetail[] } {
+  if (!raw) return { history: [emptyHistoryRow()], summary: [], opening: [] };
   try {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed) || parsed.length === 0) {
-      return { history: [emptyHistoryRow()], summary: [] };
+      return { history: [emptyHistoryRow()], summary: [], opening: [] };
     }
     // Backward compatibility: older saved rows used `lastDelivery`.
     // Normalize them on read, but only persist `lastSuppliedDate` going forward.
@@ -377,9 +373,10 @@ function parseSupplyBuckets(raw?: string | null): { history: SupplyDetail[]; sum
         ? ensureUniqueHistoryIds(history.map((row) => normalizeSupplyRow(row, 'history')))
         : [emptyHistoryRow()],
       summary: buildSupplySummaryFromHistory(history, summary).map((row) => normalizeSupplyRow(row, 'summary')),
+      opening: summary.map((row) => normalizeSupplyRow(row, 'summary')),
     };
   } catch {
-    return { history: [emptyHistoryRow()], summary: [] };
+    return { history: [emptyHistoryRow()], summary: [], opening: [] };
   }
 }
 
@@ -513,17 +510,19 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   const [historyRows, setHistoryRows] = useState<SupplyDetail[]>(
     () => parseSupplyBuckets(initialData?.supplies).history,
   );
-  const [suppliesTab, setSuppliesTab] = useState<'summary' | 'history'>('history');
+  const [suppliesTab, setSuppliesTab] = useState<'summary' | 'opening' | 'history'>('summary');
+  const [openingRows, setOpeningRows] = useState<SupplyDetail[]>(() => parseSupplyBuckets(initialData?.supplies).opening);
+  const displayedSummaryRows = suppliesTab === 'opening' ? openingRows : summaryRows;
   // Summary and history have independent pagination so switching tabs preserves each view.
   const supplyRowsPerPage = 8;
   const [summaryPage, setSummaryPage] = useState(1);
   const [historyPage, setHistoryPage] = useState(1);
-  const totalSummaryPages = Math.max(1, Math.ceil(summaryRows.length / supplyRowsPerPage));
+  const totalSummaryPages = Math.max(1, Math.ceil(displayedSummaryRows.length / supplyRowsPerPage));
   const totalHistoryPages = Math.max(1, Math.ceil(historyRows.length / supplyRowsPerPage));
   const safeSummaryPage = Math.min(summaryPage, totalSummaryPages);
   const safeHistoryPage = Math.min(historyPage, totalHistoryPages);
   const summaryPageStart = (safeSummaryPage - 1) * supplyRowsPerPage;
-  const summaryPageEnd = Math.min(summaryPageStart + supplyRowsPerPage, summaryRows.length);
+  const summaryPageEnd = Math.min(summaryPageStart + supplyRowsPerPage, displayedSummaryRows.length);
   const historyPageStart = (safeHistoryPage - 1) * supplyRowsPerPage;
   const historyPageEnd = Math.min(historyPageStart + supplyRowsPerPage, historyRows.length);
 
@@ -569,12 +568,6 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   const [deleteHistoryIndices, setDeleteHistoryIndices] = useState<number[]>([]);
   const [deleteUpdateStock, setDeleteUpdateStock] = useState(false);
   const [selectedHistoryRows, setSelectedHistoryRows] = useState<Set<number>>(new Set());
-  const [moveCandidates, setMoveCandidates] = useState<SupplyMoveCandidateRow[]>([]);
-  const [showMoveModal, setShowMoveModal] = useState(false);
-  const [movingSupplies, setMovingSupplies] = useState(false);
-  const [transferMode, setTransferMode] = useState<'automatic' | 'manual'>('automatic');
-  const [manualRecords, setManualRecords] = useState<ManualSupplyRecord[]>([]);
-  const [loadingTransfers, setLoadingTransfers] = useState(false);
 
   // Enhanced state management with proper typing
   const [saving, setSaving] = useState(false);
@@ -1023,6 +1016,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
 
     setId(initialData.supplierId || generateSupplierId());
     setSummaryRows(buckets.summary);
+    setOpeningRows(buckets.opening);
     setHistoryRows(buckets.history);
     setSelectedHistoryRows(new Set());
     setPendingDeleteMarkers([]);
@@ -1036,187 +1030,23 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     setSubmitAttempted(false);
   }, [initialData, isEditMode, safeParseJSON, getLatestSuppliedDate]);
 
-  useEffect(() => {
-    let cancelled = false;
-    const userId = user?.id;
-    const supplierKey = String(initialData?.supplierId || id || '').trim();
-    if (!isEditMode || !userId || !supplierKey) {
-      setMoveCandidates([]);
-      return;
-    }
-    (async () => {
-      try {
-        const data = await fetchGraphQL<{
-          supplierSupplyMoveCandidates: SupplyMoveCandidateRow[];
-        }>(
-          `query SupplierSupplyMoveCandidates($userId: Int!, $supplierId: String!) {
-            supplierSupplyMoveCandidates(userId: $userId, supplierId: $supplierId) {
-              productId
-              variantName
-              sku
-              productLabel
-              targetSupplierName
-              historyCount
-              totalSupplied
-              totalValue
-            }
-          }`,
-          { userId, supplierId: supplierKey },
-        );
-        if (!cancelled) setMoveCandidates(data.supplierSupplyMoveCandidates || []);
-      } catch {
-        if (!cancelled) setMoveCandidates([]);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isEditMode, user?.id, initialData?.supplierId, initialData?.supplies, id]);
-
-  const hasUnsavedSupplyChanges = useMemo(() => {
-    if (!isEditMode || !initialData) return false;
-    const original = parseSupplyBuckets(initialData.supplies);
-    const normalize = (rows: SupplyDetail[]) => rows
-      .filter((row) => !isBlankHistoryRow(row))
-      .map((row) => ({
-        suppliesno: row.suppliesno || '', sku: row.sku || '',
-        product: row.product || '', totalSupplied: row.totalSupplied || '',
-        receivedQuantity: row.receivedQuantity ?? row.totalSupplied ?? '', receivedUnit: row.receivedUnit || 'Pieces',
-        totalValue: row.totalValue || '', lastSuppliedDate: row.lastSuppliedDate || '',
-        productId: row.productId || '', variantName: row.variantName || '',
-        updateCurrentStock: row.updateCurrentStock === true,
-      }));
-    return pendingDeleteMarkers.length > 0 ||
-      JSON.stringify(normalize(historyRows)) !== JSON.stringify(normalize(original.history));
-  }, [isEditMode, initialData, historyRows, pendingDeleteMarkers]);
-
-  const openManualTransfers = async () => {
-    const userId = user?.id;
-    const supplierId = String(initialData?.supplierId || id || '').trim();
-    if (!isEditMode || !userId || !supplierId || loadingTransfers || movingSupplies || saving || isSubmitting || isNavigating) return;
-
-    if (hasUnsavedSupplyChanges) {
-      setError('Save or discard unsaved supply changes before transferring records.');
-      return;
-    }
-    setLoadingTransfers(true);
-    setError('');
+  const clearArchivedOpening = async (row: SupplyDetail) => {
+    if (!isEditMode || !user?.id || !initialData?.supplierId) return;
+    if (!window.confirm('Clear this archived opening balance? Supply history will remain unchanged.')) return;
     try {
-      const data = await fetchGraphQL<{
-        supplierTransferRecords: ManualSupplyRecord[];
-      }>(
-        `query ManualSupplierTransfers($userId: Int!, $supplierId: String!) {
-          supplierTransferRecords(userId: $userId, supplierId: $supplierId) {
-            id sku product totalSupplied totalValue lastSuppliedDate productId variantName targetSupplierName recordType
-          }
+      await fetchGraphQL<{ clearArchivedOpeningBalance: boolean }>(
+        `mutation ClearArchivedOpening($userId: Int!, $supplierId: String!, $suppliesno: String!) {
+          clearArchivedOpeningBalance(userId: $userId, supplierId: $supplierId, suppliesno: $suppliesno)
         }`,
-        { userId, supplierId },
+        { userId: user.id, supplierId: initialData.supplierId, suppliesno: row.suppliesno },
       );
-      setManualRecords(data.supplierTransferRecords ?? []);
-      setTransferMode('manual');
-      setShowMoveModal(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load supply transfers');
-    } finally {
-      setLoadingTransfers(false);
+      setOpeningRows((rows) => rows.filter((item) => item.suppliesno !== row.suppliesno));
+      setSummaryRows((rows) => rows.filter((item) => item.suppliesno !== row.suppliesno));
+      setSuccess('Archived opening balance cleared. Supply history was preserved.');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Unable to clear opening balance');
     }
   };
-
-  const handleManualSupplyMove = async (recordIds: number[]) => {
-    const userId = user?.id;
-    const fromSupplierId = String(initialData?.supplierId || id || '').trim();
-    if (!userId || !fromSupplierId || !recordIds.length ||
-        movingSupplies || hasUnsavedSupplyChanges) return;
-    setMovingSupplies(true);
-    try {
-      const data = await fetchGraphQL<{
-        moveSelectedSupplyRecords: { success: boolean; movedHistoryCount: number; supplies: string | null };
-      }>(`mutation ManualMove($userId: Int!, $fromSupplierId: String!,
-          $recordIds: [Int!]!) {
-          moveSelectedSupplyRecords(userId: $userId, fromSupplierId: $fromSupplierId,
-            recordIds: $recordIds) {
-            success movedHistoryCount supplies
-          }
-        }`, { userId, fromSupplierId, recordIds });
-      if (!data.moveSelectedSupplyRecords.success) throw new Error('Transfer failed');
-      const buckets = parseSupplyBuckets(data.moveSelectedSupplyRecords.supplies);
-      setSummaryRows(buckets.summary);
-      setHistoryRows(buckets.history);
-      setShowMoveModal(false);
-      setSuccess(`Moved ${data.moveSelectedSupplyRecords.movedHistoryCount} supply record(s). Reload before editing further.`);
-      // The loaded edit-form snapshot is now stale. Return to the supplier page.
-      router.push(`/clients/suppliers/details/${encodeURIComponent(fromSupplierId)}`);
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Transfer failed');
-    } finally {
-      setMovingSupplies(false);
-    }
-  };
-
-  const handleConfirmSupplyMove = useCallback(
-    async (variants: Array<{ productId: string; variantName: string }>) => {
-      const userId = user?.id;
-      const supplierKey = String(initialData?.supplierId || id || '').trim();
-      if (!userId || !supplierKey || variants.length === 0) return;
-      setMovingSupplies(true);
-      try {
-        const data = await fetchGraphQL<{
-          moveSupplierSupplies: {
-            success: boolean;
-            movedHistoryCount: number;
-            supplies?: string | null;
-            message?: string | null;
-          };
-        }>(
-          `mutation MoveSupplierSupplies(
-            $userId: Int!
-            $fromSupplierId: String!
-            $variants: [SupplyMoveVariantInput!]!
-          ) {
-            moveSupplierSupplies(
-              userId: $userId
-              fromSupplierId: $fromSupplierId
-              variants: $variants
-            ) {
-              success
-              movedHistoryCount
-              supplies
-              message
-            }
-          }`,
-          { userId, fromSupplierId: supplierKey, variants },
-        );
-        const result = data.moveSupplierSupplies;
-        const buckets = parseSupplyBuckets(result.supplies);
-        setSummaryRows(buckets.summary);
-        setHistoryRows(
-          buckets.history.length > 0 ? buckets.history : [emptyHistoryRow()],
-        );
-        setSelectedHistoryRows(new Set());
-        setPendingDeleteMarkers([]);
-        setMoveCandidates((prev) =>
-          prev.filter(
-            (row) =>
-              !variants.some(
-                (v) => v.productId === row.productId && v.variantName === row.variantName,
-              ),
-          ),
-        );
-        setShowMoveModal(false);
-        setSuccess(
-          tSuppliersProfile('supplyMoveSuccess', { count: result.movedHistoryCount || 0 }),
-        );
-      } catch (error) {
-        setError(
-          error instanceof Error ? error.message : tSuppliersProfile('supplyMoveFailed'),
-        );
-      } finally {
-        setMovingSupplies(false);
-      }
-    },
-    [user?.id, initialData?.supplierId, id, tSuppliersProfile],
-  );
 
   // Enhanced form submission
   const handleSubmit = useCallback(async (e?: React.FormEvent) => {
@@ -1651,6 +1481,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                   {tSuppliersProfile('supplySummaryTab')}
                 </button>
 
+                <button type="button" className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${suppliesTab === 'opening' ? 'bg-white text-black shadow-sm' : 'text-gray-500 hover:text-black'}`} onClick={() => { setSuppliesTab('opening'); setSummaryPage(1); }}>Opening Balance</button>
                 <button
                   type="button"
                   className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
@@ -1664,31 +1495,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                 </button>
               </div>
 
-              {isEditMode && (
-                <button
-                  type="button"
-                  className="rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-gray-100 disabled:opacity-50"
-                  onClick={() => void openManualTransfers()}
-                  disabled={loadingTransfers || movingSupplies || saving || isSubmitting || isNavigating}
-                >
-                  Manage Supply Transfers
-                </button>
-              )}
             </div>
-            {showMoveModal && (
-              <SupplyMoveModal
-                open={showMoveModal}
-                candidates={moveCandidates}
-                currency={user?.currency || getDefaultCurrency()}
-                submitting={movingSupplies}
-                onCloseAction={() => setShowMoveModal(false)}
-                onConfirmAction={handleConfirmSupplyMove}
-                mode={transferMode}
-                manualRecords={manualRecords}
-                manualEnabled={true}
-                onManualConfirmAction={handleManualSupplyMove}
-              />
-            )}
             {showImportSupplies && (
               <ImportSuppliesModal
                 open={showImportSupplies}
@@ -1730,7 +1537,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
               </div>
             )}
             <div className="overflow-x-auto rounded-lg border border-gray-200">
-              {suppliesTab === 'summary' ? (
+              {suppliesTab !== 'history' ? (
                 <table className="min-w-full bg-white text-left text-xs font-medium">
                   <thead>
                     <tr className="whitespace-nowrap bg-gray-100 text-gray-500">
@@ -1741,17 +1548,18 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                       <th className="px-3 py-2 font-medium uppercase">{tSuppliersProfile('receivedCol')} (Package Type)</th>
                       <th className="px-3 py-2 font-medium uppercase">{tSuppliersProfile('totalPurchaseCol')}</th>
                       <th className="px-3 py-2 font-medium uppercase">{tSuppliersProfile('lastSuppliedDateCol')}</th>
+                      {suppliesTab === 'opening' && <th className="px-3 py-2 font-medium uppercase">Action</th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {summaryRows.length === 0 ? (
+                    {displayedSummaryRows.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-3 py-8 text-center text-sm text-gray-500">
+                        <td colSpan={suppliesTab === 'opening' ? 8 : 7} className="px-3 py-8 text-center text-sm text-gray-500">
                           {tSuppliersProfile('noSupplies')}
                         </td>
                       </tr>
                     ) : (
-                      summaryRows.slice(summaryPageStart, summaryPageEnd).map((row, idx) => (
+                      displayedSummaryRows.slice(summaryPageStart, summaryPageEnd).map((row, idx) => (
                         <tr key={row.suppliesno || `sum-${summaryPageStart + idx}`} className="border-b last:border-b-0">
                           <td className="px-3 py-3 font-medium text-black">{summaryPageStart + idx + 1}</td>
                           <td className="px-3 py-3 text-black">{catalogOptions.find((option) => option.sku === row.sku)?.product || row.product || '—'}</td>
@@ -1762,6 +1570,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                             {currencySymbol}{row.totalValue || '0'}
                           </td>
                           <td className="px-3 py-3 text-black">{row.lastSuppliedDate || '—'}</td>
+                          {suppliesTab === 'opening' && <td className="px-3 py-3"><button type="button" className="rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50" onClick={() => void clearArchivedOpening(row)}>Clear if Archived</button></td>}
                         </tr>
                       ))
                     )}
@@ -1973,10 +1782,10 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
             </div>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-xs text-gray-500">
-                {tShared('pagination.showing', suppliesTab === 'summary' ? {
-                  from: summaryRows.length === 0 ? 0 : summaryPageStart + 1,
+                {tShared('pagination.showing', suppliesTab !== 'history' ? {
+                  from: displayedSummaryRows.length === 0 ? 0 : summaryPageStart + 1,
                   to: summaryPageEnd,
-                  total: summaryRows.length,
+                  total: displayedSummaryRows.length,
                 } : {
                   from: historyRows.length === 0 ? 0 : historyPageStart + 1,
                   to: historyPageEnd,
@@ -1987,19 +1796,19 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                 <button
                   type="button"
                   className="rounded-lg p-2 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
-                  onClick={() => suppliesTab === 'summary'
+                  onClick={() => suppliesTab !== 'history'
                     ? setSummaryPage((page) => Math.max(1, page - 1))
                     : setHistoryPage((page) => Math.max(1, page - 1))}
-                  disabled={suppliesTab === 'summary' ? safeSummaryPage === 1 : safeHistoryPage === 1}
+                  disabled={suppliesTab !== 'history' ? safeSummaryPage === 1 : safeHistoryPage === 1}
                   aria-label={tShared('previousPage')}
                 >
                   <ChevronLeft className="h-4 w-4 text-gray-500" />
                 </button>
-                {(suppliesTab === 'summary'
+                {(suppliesTab !== 'history'
                   ? getVisiblePageNumbers(safeSummaryPage, totalSummaryPages)
                   : getVisiblePageNumbers(safeHistoryPage, totalHistoryPages)
                 ).map((pageNumber) => {
-                  const activePage = suppliesTab === 'summary' ? safeSummaryPage : safeHistoryPage;
+                  const activePage = suppliesTab !== 'history' ? safeSummaryPage : safeHistoryPage;
                   return (
                     <button
                       key={pageNumber}
@@ -2007,7 +1816,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                       className={`rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
                         pageNumber === activePage ? 'bg-[#0a61d7] text-white' : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
                       }`}
-                      onClick={() => suppliesTab === 'summary' ? setSummaryPage(pageNumber) : setHistoryPage(pageNumber)}
+                      onClick={() => suppliesTab !== 'history' ? setSummaryPage(pageNumber) : setHistoryPage(pageNumber)}
                       aria-current={pageNumber === activePage ? 'page' : undefined}
                     >
                       {pageNumber}
@@ -2017,10 +1826,10 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                 <button
                   type="button"
                   className="rounded-lg p-2 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
-                  onClick={() => suppliesTab === 'summary'
+                  onClick={() => suppliesTab !== 'history'
                     ? setSummaryPage((page) => Math.min(totalSummaryPages, page + 1))
                     : setHistoryPage((page) => Math.min(totalHistoryPages, page + 1))}
-                  disabled={suppliesTab === 'summary' ? safeSummaryPage === totalSummaryPages : safeHistoryPage === totalHistoryPages}
+                  disabled={suppliesTab !== 'history' ? safeSummaryPage === totalSummaryPages : safeHistoryPage === totalHistoryPages}
                   aria-label={tShared('nextPage')}
                 >
                   <ChevronRight className="h-4 w-4 text-gray-500" />
@@ -2030,7 +1839,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
             {suppliesTab === 'history' && (
               <p className="mt-2 text-xs text-gray-500">{tSuppliersModal('updateCurrentStockHint')}</p>
             )}
-            {suppliesTab === 'summary' && (
+            {suppliesTab !== 'history' && (
               <p className="mt-2 text-xs text-gray-500">{tSuppliersModal('summaryReadOnlyHint')}</p>
             )}
           </div>
