@@ -562,8 +562,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   const [historyRows, setHistoryRows] = useState<SupplyDetail[]>(
     () => parseSupplyRows(initialData?.supplies).history,
   );
-  // Supplier editing now has a single receipt-history view; legacy opening rows
-  // are retained only for the Archived Supplies cleanup dialog.
+  // Supplier editing and archival operate on dated receipt history only.
   // Supplier editor and archive view operate only on receipt history.
   const [showArchivedSupplies, setShowArchivedSupplies] = useState(false);
   const [archivedOpeningRows, setArchivedOpeningRows] = useState<SupplyDetail[]>(
@@ -2070,9 +2069,9 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
       </div>
 
       {archivedAction && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label="Confirm opening balance action">
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label="Confirm supplier receipt action">
           <div className="w-full max-w-md rounded-xl border border-[#e6e6e6] bg-white p-6 shadow-2xl">
-            <h2 className="mb-2 text-lg font-bold text-gray-900">{archivedAction.kind === 'delete' ? 'Delete supply records?' : archivedAction.kind === 'archive' ? 'Archive supply records?' : 'Restore supply records?'}</h2>
+            <h2 className="mb-2 text-lg font-bold text-gray-900">{archivedAction.kind === 'delete' ? 'Delete receipt records?' : archivedAction.kind === 'archive' ? 'Archive receipt records?' : 'Restore receipt records?'}</h2>
             <p className="mb-6 text-sm text-gray-600">{archivedAction.rows.length} supply record(s) selected. {archivedAction.kind === 'delete' ? 'This permanently removes the selected eligible records. Historical records for live catalog variants are protected.' : archivedAction.kind === 'archive' ? 'Archived records are removed from active receipt history and can be restored later.' : 'The selected records will return to active receipt history.'}</p>
             <div className="flex justify-end gap-2">
               <button type="button" className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700" onClick={() => setArchivedAction(null)}>Cancel</button>
