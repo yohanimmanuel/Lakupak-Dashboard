@@ -1683,21 +1683,6 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                 supplierCatalog={supplierOwnedCatalog}
               />
             )}
-            {suppliesTab === 'opening' && isEditMode && error && (
-              <div role="alert" className="mb-3 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
-            {suppliesTab === 'opening' && isEditMode && selectedOpeningRows.size > 0 && (
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#e6e6e6] border-l-4 border-l-blue-500 bg-white p-3 shadow-sm">
-                <span className="text-sm font-semibold text-gray-700">{selectedOpeningRows.size} opening balance(s) selected</span>
-                <div className="flex items-center gap-2">
-                  <button type="button" disabled={archiveBusy} onClick={() => setOpeningAction({kind:'archive', rows:openingRows.filter((r)=>selectedOpeningRows.has(r.suppliesno))})} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold"><Archive className="h-4 w-4"/> Archive selected</button>
-                  <button type="button" disabled={archiveBusy} onClick={() => setOpeningAction({kind:'delete', rows:openingRows.filter((r)=>selectedOpeningRows.has(r.suppliesno))})} className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600"><Trash className="h-4 w-4"/> Delete selected</button>
-                </div>
-              </div>
-            )}
             {suppliesTab === 'history' && selectedHistoryRows.size > 0 && (
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#e6e6e6] border-l-4 border-l-green-500 bg-white p-3 shadow-sm">
                 <span className="text-sm font-semibold text-green-700">
@@ -1746,49 +1731,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
               </div>
             )}
             <div className="overflow-x-auto rounded-lg border border-gray-200">
-              {suppliesTab !== 'history' ? (
-                <table className="min-w-full bg-white text-left text-xs font-medium">
-                  <thead>
-                    <tr className="whitespace-nowrap bg-gray-100 text-gray-500">
-                      {suppliesTab === 'opening' && isEditMode && <th className="w-10 px-3 py-2"><ImportSelectionCheckbox ariaLabel="Select all opening balances" checked={openingRows.length > 0 && openingRows.every((r)=>selectedOpeningRows.has(r.suppliesno))} indeterminate={selectedOpeningRows.size > 0 && !openingRows.every((r)=>selectedOpeningRows.has(r.suppliesno))} onToggle={() => setSelectedOpeningRows(openingRows.length > 0 && openingRows.every((r)=>selectedOpeningRows.has(r.suppliesno)) ? new Set() : new Set(openingRows.map((r)=>r.suppliesno)))}/></th>}
-                      <th className="px-3 py-2 font-medium uppercase">{tSuppliersModal('colNo')}</th>
-                      <th className="px-3 py-2 font-medium uppercase">{tSuppliersModal('colProduct')}</th>
-                      <th className="px-3 py-2 font-medium uppercase">{tSuppliersModal('colSku')}</th>
-                      <th className="px-3 py-2 font-medium uppercase">Variant</th>
-                      <th className="px-3 py-2 font-medium uppercase">{tSuppliersProfile('receivedCol')} (Package Type)</th>
-                      <th className="px-3 py-2 font-medium uppercase">{tSuppliersProfile('totalPurchaseCol')}</th>
-                      <th className="px-3 py-2 font-medium uppercase">{tSuppliersProfile('lastSuppliedDateCol')}</th>
-                      {suppliesTab === 'opening' && <th className="px-3 py-2 font-medium uppercase">Action</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {displayedSummaryRows.length === 0 ? (
-                      <tr>
-                        <td colSpan={suppliesTab === 'opening' ? (isEditMode ? 9 : 8) : 7} className="px-3 py-8 text-center text-sm text-gray-500">
-                          {tSuppliersProfile('noSupplies')}
-                        </td>
-                      </tr>
-                    ) : (
-                      displayedSummaryRows.slice(summaryPageStart, summaryPageEnd).map((row, idx) => (
-                        <tr key={row.suppliesno || `sum-${summaryPageStart + idx}`} className="border-b last:border-b-0">
-                          {suppliesTab === 'opening' && isEditMode && <td className="px-3 py-3"><ImportSelectionCheckbox ariaLabel={`Select ${row.variantName || row.product}`} checked={selectedOpeningRows.has(row.suppliesno)} onToggle={() => setSelectedOpeningRows((prev)=>{const next=new Set(prev); if(next.has(row.suppliesno))next.delete(row.suppliesno);else next.add(row.suppliesno);return next;})}/></td>}
-                          <td className="px-3 py-3 font-medium text-black">{summaryPageStart + idx + 1}</td>
-                          <td className="px-3 py-3 text-black">{catalogOptions.find((option) => option.sku === row.sku)?.product || row.product || '—'}</td>
-                          <td className="px-3 py-3 text-black">{row.sku || '—'}</td>
-                          <td className="px-3 py-3 text-black">{row.variantName || catalogOptions.find((option) => option.sku === row.sku)?.variantName || '—'}</td>
-                          <td className="px-3 py-3 text-black">{row.totalSupplied || '0'}{getSupplyUnit(row) ? ` ${getSupplyUnit(row)}` : ''}</td>
-                          <td className="px-3 py-3 font-semibold text-[#0a61d7]">
-                            {currencySymbol}{row.totalValue || '0'}
-                          </td>
-                          <td className="px-3 py-3 text-black">{row.lastSuppliedDate || '—'}</td>
-                          {suppliesTab === 'opening' && <td className="px-3 py-3">{isEditMode && <div className="flex items-center gap-2"><button type="button" title="Archive opening balance" aria-label={`Archive ${row.variantName || row.product}`} className="rounded-lg border border-gray-200 p-2 text-gray-600 hover:bg-gray-100 disabled:opacity-50" disabled={archiveBusy} onClick={() => setOpeningAction({kind:'archive',rows:[row]})}><Archive className="h-4 w-4"/></button><button type="button" title="Delete opening balance" aria-label={`Delete ${row.variantName || row.product}`} className="rounded-lg border border-red-200 p-2 text-red-600 hover:bg-red-50 disabled:opacity-50" disabled={archiveBusy} onClick={() => setOpeningAction({kind:'delete',rows:[row]})}><Trash className="h-4 w-4"/></button></div>}</td>}
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              ) : (
-                <table className="min-w-full bg-white text-left text-xs font-medium">
+                              <table className="min-w-full bg-white text-left text-xs font-medium">
                   <thead>
                     <tr className="whitespace-nowrap bg-gray-100 text-gray-500">
                       <th className="w-12 px-3 py-2">
@@ -2013,15 +1956,11 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                     })}
                   </tbody>
                 </table>
-              )}
+
             </div>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-xs text-gray-500">
-                {tShared('pagination.showing', suppliesTab !== 'history' ? {
-                  from: displayedSummaryRows.length === 0 ? 0 : summaryPageStart + 1,
-                  to: summaryPageEnd,
-                  total: displayedSummaryRows.length,
-                } : {
+                {tShared('pagination.showing', {
                   from: historyRows.length === 0 ? 0 : historyPageStart + 1,
                   to: historyPageEnd,
                   total: historyRows.length,
@@ -2031,19 +1970,14 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                 <button
                   type="button"
                   className="rounded-lg p-2 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
-                  onClick={() => suppliesTab !== 'history'
-                    ? setSummaryPage((page) => Math.max(1, page - 1))
-                    : setHistoryPage((page) => Math.max(1, page - 1))}
-                  disabled={suppliesTab !== 'history' ? safeSummaryPage === 1 : safeHistoryPage === 1}
+                  onClick={() => setHistoryPage((page) => Math.max(1, page - 1))}
+                  disabled={safeHistoryPage === 1}
                   aria-label={tShared('previousPage')}
                 >
                   <ChevronLeft className="h-4 w-4 text-gray-500" />
                 </button>
-                {(suppliesTab !== 'history'
-                  ? getVisiblePageNumbers(safeSummaryPage, totalSummaryPages)
-                  : getVisiblePageNumbers(safeHistoryPage, totalHistoryPages)
-                ).map((pageNumber) => {
-                  const activePage = suppliesTab !== 'history' ? safeSummaryPage : safeHistoryPage;
+                {getVisiblePageNumbers(safeHistoryPage, totalHistoryPages).map((pageNumber) => {
+                  const activePage = safeHistoryPage;
                   return (
                     <button
                       key={pageNumber}
@@ -2051,7 +1985,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                       className={`rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
                         pageNumber === activePage ? 'bg-[#0a61d7] text-white' : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
                       }`}
-                      onClick={() => suppliesTab !== 'history' ? setSummaryPage(pageNumber) : setHistoryPage(pageNumber)}
+                      onClick={() => setHistoryPage(pageNumber)}
                       aria-current={pageNumber === activePage ? 'page' : undefined}
                     >
                       {pageNumber}
@@ -2061,10 +1995,8 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                 <button
                   type="button"
                   className="rounded-lg p-2 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
-                  onClick={() => suppliesTab !== 'history'
-                    ? setSummaryPage((page) => Math.min(totalSummaryPages, page + 1))
-                    : setHistoryPage((page) => Math.min(totalHistoryPages, page + 1))}
-                  disabled={suppliesTab !== 'history' ? safeSummaryPage === totalSummaryPages : safeHistoryPage === totalHistoryPages}
+                  onClick={() => setHistoryPage((page) => Math.min(totalHistoryPages, page + 1))}
+                  disabled={safeHistoryPage === totalHistoryPages}
                   aria-label={tShared('nextPage')}
                 >
                   <ChevronRight className="h-4 w-4 text-gray-500" />
