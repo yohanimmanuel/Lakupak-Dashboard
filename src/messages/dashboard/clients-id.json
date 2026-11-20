@@ -568,7 +568,8 @@
       },
       "noProductOwned": "Tidak ada produk yang dimiliki",
       "supplierChangedTitle": "Pemasok berubah",
-      "supplierChangedDescription": "Produk ini sekarang dimiliki pemasok lain. Catatan pasokan lama tetap disimpan sebagai riwayat dan tidak dapat dialihkan. Buat baris pasokan baru dengan produk milik pemasok ini, atau arsipkan/hapus catatan lama."
+      "supplierChangedDescription": "Produk ini sekarang dimiliki pemasok lain. Anda dapat memperbaiki catatan ini pada baris yang sama: pilih produk milik pemasok ini, lalu pilih SKU dan varian aktif. ID catatan tetap sama.",
+      "variantDeletedCorrectionDescription": "Varian katalog sebelumnya telah dihapus. Anda dapat memperbaiki catatan ini pada baris yang sama dengan memilih produk, SKU, dan varian aktif milik pemasok ini. ID catatan tetap sama."
     }
   },
   "import": {

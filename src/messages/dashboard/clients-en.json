@@ -558,7 +558,8 @@
       },
       "noProductOwned": "No product owned",
       "supplierChangedTitle": "Supplier changed",
-      "supplierChangedDescription": "This product now belongs to another supplier. The original supply receipt stays here as a historical record and cannot be reassigned. Create a new supply row using a product owned by this supplier, or archive/delete the old receipt."
+      "supplierChangedDescription": "This product now belongs to another supplier. You can correct this receipt in the same row: choose a product currently owned by this supplier, then select its live SKU and variant. The receipt ID stays the same.",
+      "variantDeletedCorrectionDescription": "The original catalog variant was deleted. You can correct this receipt in the same row by selecting a product, SKU and active variant owned by this supplier. The receipt ID will stay the same."
     }
   },
   "import": {
