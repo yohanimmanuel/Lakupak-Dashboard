@@ -535,7 +535,7 @@ function withBuyerOrderLineSnapshots(
 ): BuyerWithRecords {
   const records = buyer.buyerRecords || [];
   const orderLineDetails = records
-    .filter((record) => record.syncedFromOrders || /^LKO-\\d+(?:-\\d+)?$/i.test(String(record.orderNo || '')))
+    .filter((record) => record.syncedFromOrders || String(record.orderNo || '').toUpperCase().startsWith('LKO-'))
     .map((record) => ({
       orderNo: record.orderNo,
       orderDate: record.lastOrderDate,
