@@ -2221,8 +2221,12 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                     const targets = archivedOpeningRows.filter((row) => selectedArchivedRows.has(row.suppliesno));
                     for (const row of targets) {
                       if (!await setOpeningArchive(row, false)) break;
+                      setSelectedArchivedRows((previous) => {
+                        const next = new Set(previous);
+                        next.delete(row.suppliesno);
+                        return next;
+                      });
                     }
-                    setSelectedArchivedRows(new Set());
                   }}><RotateCcw className="mr-1 inline h-4 w-4" />Restore selected</button>
                 <button type="button" disabled={archiveBusy || selectedArchivedRows.size === 0}
                   className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-600 transition-colors hover:border-red-400 hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-red-200 disabled:hover:bg-white disabled:hover:text-red-600"
