@@ -1773,11 +1773,11 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                             attentionMessage={supplierChanged
                               ? tSuppliersModal('supplierChangedDescription')
                               : hasReplacementVariant
-                              ? tSuppliersModal('variantDeletedReplacementDescription')
+                              ? tSuppliersModal('variantDeletedCorrectionDescription')
                               : needsVariantLink
                                 ? tSuppliersModal('variantLegacyDescription')
                                 : canArchiveRow
-                                  ? tSuppliersModal('variantDeletedDescription')
+                                  ? tSuppliersModal('variantDeletedCorrectionDescription')
                                   : undefined}
                             onSelect={(variantId) => handleHistoryVariantSelect(idx, variantId)}
                             renderOption={(option) => (
