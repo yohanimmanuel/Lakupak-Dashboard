@@ -64,17 +64,6 @@ export function partitionSupplies(rows: SupplyDetail[]): {
   return { history, summary };
 }
 
-const toQty = (value: unknown): number => {
-  const n = Number(String(value ?? '').replace(/[^\d.-]/g, ''));
-  return Number.isFinite(n) ? n : 0;
-};
-
-const normKey = (value: unknown): string => String(value ?? '').trim().toLowerCase();
-
-/**
- * Receipt helpers intentionally do not produce supplier opening balances or
- * AUTO summary rows. Supplier reporting is performed from receipt history only.
- */
 export function serializeHistorySupplyForStorage(row: SupplyDetail): SupplyDetail {
   const receivedInput = getSupplyReceivedInput(row);
   return {
