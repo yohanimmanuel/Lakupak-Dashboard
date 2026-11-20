@@ -501,10 +501,10 @@ export async function finalizeSupplierSuppliesSave(args: {
   // incremented when a HIST receipt is saved: buildSupplySummaryFromHistory()
   // derives the visible total from the current Product stock + non-applied HIST
   // rows. This prevents save/reload cycles from accumulating the same receipt.
-  const previousSummaryRows = previous.filter((row) => !isSupplyHistoryRow(row));
-  // Legacy opening balances are retained but are no longer recalculated or
-  // treated as receipts. New supplier accounting consists only of history.
-  supplies = [...previousSummaryRows, ...supplies.filter(isSupplyHistoryRow)];
+  // Supplier updates are receipt-only. Do not copy legacy opening/summary
+  // snapshots into the editable payload; the persistence layer retains any
+  // existing legacy rows independently without counting them as receipts.
+  supplies = supplies.filter(isSupplyHistoryRow);
 
   return {
     suppliesJson: JSON.stringify(supplies),
