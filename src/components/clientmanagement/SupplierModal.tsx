@@ -27,9 +27,8 @@ import ImportSuppliesModal from '@/components/clientmanagement/ImportSuppliesMod
 import ImportSelectionCheckbox from '@/components/clientmanagement/ImportSelectionCheckbox';
 import ClientCatalogSelect from '@/components/clientmanagement/ClientCatalogSelect';
 import {
-  buildSupplySummaryFromHistory,
+  getSupplyRecordType,
   getSupplyReceivedInput,
-  partitionSupplies,
   serializeHistorySupplyForStorage,
 } from '@/lib/suppliers/supplyRecords';
 import type { SupplyDeleteMarker } from '@/lib/suppliers/applySupplierSuppliesSave';
@@ -396,39 +395,24 @@ function emptyHistoryRow(): SupplyDetail {
   };
 }
 
-function normalizeSupplyRow(row: SupplyDetail, recordType: 'history' | 'summary'): SupplyDetail {
-  if (recordType === 'history') {
-    return serializeHistorySupplyForStorage({
-      ...row,
-      // Preserve the supplier's original entry while totalSupplied remains canonical Pieces.
-      receivedQuantity: String(row.receivedQuantity ?? row.totalSupplied ?? ''),
-      receivedUnit: String(row.receivedUnit || 'Pieces'),
-      status: row.status || statusOptions[0],
-    });
-  }
-  return {
-    suppliesno: row.suppliesno || '',
-    sku: row.sku || '',
-    product: row.product || '',
-    totalSupplied: row.totalSupplied || '',
-    totalValue: row.totalValue || '',
-    lastSuppliedDate: row.lastSuppliedDate || '',
+function normalizeSupplyRow(row: SupplyDetail): SupplyDetail {
+  return serializeHistorySupplyForStorage({
+    ...row,
+    // Preserve the supplier's original entry while totalSupplied remains canonical Pieces.
+    receivedQuantity: String(row.receivedQuantity ?? row.totalSupplied ?? ''),
+    receivedUnit: String(row.receivedUnit || 'Pieces'),
     status: row.status || statusOptions[0],
-    recordType: 'summary',
-    productId: row.productId,
-    variantName: row.variantName,
-  };
+    recordType: 'history',
+  });
 }
 
-function parseSupplyBuckets(raw?: string | null): { history: SupplyDetail[]; summary: SupplyDetail[]; opening: SupplyDetail[] } {
-  if (!raw) return { history: [emptyHistoryRow()], summary: [], opening: [] };
+function parseSupplyRows(raw?: string | null): { history: SupplyDetail[]; archived: SupplyDetail[] } {
+  if (!raw) return { history: [emptyHistoryRow()], archived: [] };
   try {
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-      return { history: [emptyHistoryRow()], summary: [], opening: [] };
-    }
-    // Backward compatibility: older saved rows used `lastDelivery`.
-    // Normalize them on read, but only persist `lastSuppliedDate` going forward.
+    if (!Array.isArray(parsed)) return { history: [emptyHistoryRow()], archived: [] };
+
+    // Preserve legacy date and package-unit snapshots while reading older supplier rows.
     const normalizedRows = (parsed as Array<SupplyDetail & { lastDelivery?: string }>).map((row) => {
       const { lastDelivery: legacyLastDelivery, ...rest } = row;
       return {
@@ -438,16 +422,16 @@ function parseSupplyBuckets(raw?: string | null): { history: SupplyDetail[]; sum
         receivedUnit: String(row.receivedUnit || 'Pieces'),
       } as SupplyDetail;
     });
-    const { history, summary } = partitionSupplies(normalizedRows.filter((row) => !row.archivedAt));
+    const history = normalizedRows.filter((row) => !row.archivedAt && getSupplyRecordType(row) === 'history');
+    const archived = normalizedRows.filter((row) => Boolean(row.archivedAt) && getSupplyRecordType(row) === 'history');
     return {
       history: history.length > 0
-        ? ensureUniqueHistoryIds(history.map((row) => normalizeSupplyRow(row, 'history')))
+        ? ensureUniqueHistoryIds(history.map((row) => normalizeSupplyRow(row)))
         : [emptyHistoryRow()],
-      summary: buildSupplySummaryFromHistory(history, summary).map((row) => normalizeSupplyRow(row, 'summary')),
-      opening: summary.map((row) => normalizeSupplyRow(row, 'summary')),
+      archived,
     };
   } catch {
-    return { history: [emptyHistoryRow()], summary: [], opening: [] };
+    return { history: [emptyHistoryRow()], archived: [] };
   }
 }
 
@@ -576,18 +560,14 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   
   const [id, setId] = useState(() => initialData?.supplierId || generateSupplierId());
   const [historyRows, setHistoryRows] = useState<SupplyDetail[]>(
-    () => parseSupplyBuckets(initialData?.supplies).history,
+    () => parseSupplyRows(initialData?.supplies).history,
   );
-  // Supplier editing now has a single receipt-history view; legacy opening rows
-  // are retained only for the Archived Supplies cleanup dialog.
-  // The editor now exposes receipts only. Keep the union return type for
-  // retained legacy cleanup branches so TypeScript does not compare impossible
-  // literal states while those records remain available for migration/cleanup.
+  // Supplier editing and archival operate on dated receipt history only.
+  // Supplier editor and archive view operate only on receipt history.
   const [showArchivedSupplies, setShowArchivedSupplies] = useState(false);
-  const [archivedOpeningRows, setArchivedOpeningRows] = useState<SupplyDetail[]>(() => {
-    try { return (JSON.parse(initialData?.supplies || '[]') as SupplyDetail[]).filter((row) => !!row.archivedAt); }
-    catch { return []; }
-  });
+  const [archivedOpeningRows, setArchivedOpeningRows] = useState<SupplyDetail[]>(
+    () => parseSupplyRows(initialData?.supplies).archived,
+  );
   const [archiveBusy, setArchiveBusy] = useState(false);
   const [selectedArchivedRows, setSelectedArchivedRows] = useState<Set<string>>(new Set());
   const [archivedPage, setArchivedPage] = useState(1);
@@ -596,12 +576,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   const safeArchivedPage = Math.min(archivedPage, archivedTotalPages);
   const archivedPageStart = (safeArchivedPage - 1) * archivedPageSize;
   const archivedPageRows = archivedOpeningRows.slice(archivedPageStart, archivedPageStart + archivedPageSize);
-  const [openingAction, setOpeningAction] = useState<{ kind: "archive" | "restore" | "delete"; rows: SupplyDetail[] } | null>(null);
-  const [openingRows, setOpeningRows] = useState<SupplyDetail[]>(() => parseSupplyBuckets(initialData?.supplies).opening);
-  // Receipts whose original live variant was deleted remain in history until the
-  // user explicitly archives or deletes them. A replacement with the same SKU is
-  // never treated as the same variant.
-  // Summary and history have independent pagination so switching tabs preserves each view.
+  const [archivedAction, setArchivedAction] = useState<{ kind: 'archive' | 'restore' | 'delete'; rows: SupplyDetail[] } | null>(null);
   const supplyRowsPerPage = 8;
   const [historyPage, setHistoryPage] = useState(1);
   const totalHistoryPages = Math.max(1, Math.ceil(historyRows.length / supplyRowsPerPage));
@@ -1038,7 +1013,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
       .map((i) => historyRows[i])
       .filter((row) => row && !isBlankHistoryRow(row))
       .map((row): SupplyDeleteMarker => ({
-        ...normalizeSupplyRow(row, 'history'),
+        ...normalizeSupplyRow(row),
         __delete: true,
         updateCurrentStock: deleteUpdateStock,
       }));
@@ -1082,7 +1057,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
         .filter(Boolean),
     );
     const imported = newSupplies.map((row): SupplyDetail => ({
-      ...normalizeSupplyRow(row, 'history'),
+      ...normalizeSupplyRow(row),
       suppliesno: newHistoryId(taken),
       // Imports are historical by default — totals only, no product stock change.
       updateCurrentStock: false,
@@ -1107,8 +1082,8 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     const parsedNotes = safeParseJSON(initialData.notes || '', []);
     const parsedLogistics = safeParseJSON(initialData.logistics || '', {});
 
-    const buckets = parseSupplyBuckets(initialData.supplies);
-    const latestSuppliedDate = getLatestSuppliedDate(buckets.history);
+    const receiptRows = parseSupplyRows(initialData.supplies);
+    const latestSuppliedDate = getLatestSuppliedDate(receiptRows.history);
 
     setForm({
       supplierName: initialData.name || '',
@@ -1126,10 +1101,8 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     });
 
     setId(initialData.supplierId || generateSupplierId());
-    setOpeningRows(buckets.opening);
-    try { setArchivedOpeningRows((JSON.parse(initialData.supplies || '[]') as SupplyDetail[]).filter((row) => !!row.archivedAt)); }
-    catch { setArchivedOpeningRows([]); }
-    setHistoryRows(buckets.history);
+    setArchivedOpeningRows(receiptRows.archived);
+    setHistoryRows(receiptRows.history);
     setSelectedHistoryRows(new Set());
     setPendingDeleteMarkers([]);
     setShowDeleteHistoryModal(false);
@@ -1141,72 +1114,76 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     setSubmitAttempted(false);
   }, [initialData, isEditMode, safeParseJSON, getLatestSuppliedDate]);
 
-  const setOpeningArchive = async (row: SupplyDetail, archived: boolean): Promise<boolean> => {
+  const setSupplyArchived = async (row: SupplyDetail, archived: boolean): Promise<boolean> => {
     if (!isEditMode || !user?.id || !initialData?.supplierId || archiveBusy) return false;
     setArchiveBusy(true);
     setError('');
     try {
-      await fetchGraphQL<{ setOpeningBalanceArchived: boolean }>(
-        `mutation SetOpeningArchive($userId: Int!, $supplierId: String!, $suppliesno: String!, $archived: Boolean!) {
-          setOpeningBalanceArchived(userId: $userId, supplierId: $supplierId, suppliesno: $suppliesno, archived: $archived)
+      await fetchGraphQL<{ setSupplierReceiptArchived: boolean }>(
+        `mutation SetSupplyArchived($userId: Int!, $supplierId: String!, $suppliesno: String!, $archived: Boolean!) {
+          setSupplierReceiptArchived(userId: $userId, supplierId: $supplierId, suppliesno: $suppliesno, archived: $archived)
         }`,
         { userId: user.id, supplierId: initialData.supplierId, suppliesno: row.suppliesno, archived },
       );
-      if (row.recordType === 'history') {
-        setHistoryRows((current) => archived
-          ? current.filter((item) => item.suppliesno !== row.suppliesno)
-          : [...current.filter((item) => item.suppliesno !== row.suppliesno), { ...row, archivedAt: null }]);
+      if (archived) {
+        setHistoryRows((rows) => rows.filter((item) => item.suppliesno !== row.suppliesno));
+        setArchivedOpeningRows((rows) => [...rows.filter((item) => item.suppliesno !== row.suppliesno), { ...row, archivedAt: new Date().toISOString() }]);
+        // Selection is indexed by row position; archiving changes those indices.
+        setSelectedHistoryRows(new Set());
       } else {
-        setOpeningRows((current) => archived
-          ? current.filter((item) => item.suppliesno !== row.suppliesno)
-          : [...current.filter((item) => item.suppliesno !== row.suppliesno), { ...row, archivedAt: null }]);
+        setArchivedOpeningRows((rows) => rows.filter((item) => item.suppliesno !== row.suppliesno));
+        setHistoryRows((rows) => [...rows.filter((item) => item.suppliesno !== row.suppliesno), { ...row, archivedAt: null }]);
       }
-      setArchivedOpeningRows((rows) => archived
-        ? [...rows.filter((item) => item.suppliesno !== row.suppliesno), { ...row, archivedAt: new Date().toISOString() }]
-        : rows.filter((item) => item.suppliesno !== row.suppliesno));
+      setHistoryPage(1);
       setSuccess(archived ? 'Supply archived.' : 'Supply restored.');
       return true;
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Unable to change archive status');
       return false;
-    } finally { setArchiveBusy(false); }
+    } finally {
+      setArchiveBusy(false);
+    }
   };
 
-  const deleteOpening = async (row: SupplyDetail): Promise<boolean> => {
+  const deleteArchivedSupply = async (row: SupplyDetail): Promise<boolean> => {
     if (!isEditMode || !user?.id || !initialData?.supplierId || archiveBusy) return false;
     setArchiveBusy(true);
     setError('');
     try {
-      await fetchGraphQL<{ deleteArchivedOpeningBalance: boolean }>(
-        `mutation DeleteArchivedOpening($userId: Int!, $supplierId: String!, $suppliesno: String!) {
-          deleteArchivedOpeningBalance(userId: $userId, supplierId: $supplierId, suppliesno: $suppliesno)
+      await fetchGraphQL<{ deleteArchivedSupplierReceipt: boolean }>(
+        `mutation DeleteArchivedSupply($userId: Int!, $supplierId: String!, $suppliesno: String!) {
+          deleteArchivedSupplierReceipt(userId: $userId, supplierId: $supplierId, suppliesno: $suppliesno)
         }`,
         { userId: user.id, supplierId: initialData.supplierId, suppliesno: row.suppliesno },
       );
-      setOpeningRows((current) => current.filter((item) => item.suppliesno !== row.suppliesno));
-      setHistoryRows((current) => current.filter((item) => item.suppliesno !== row.suppliesno));
       setArchivedOpeningRows((rows) => rows.filter((item) => item.suppliesno !== row.suppliesno));
-
-      setSuccess('Supply deleted. Other receipt history was preserved.');
+      setSelectedArchivedRows((previous) => { const next = new Set(previous); next.delete(row.suppliesno); return next; });
+      setSuccess('Archived supply permanently deleted.');
       return true;
-    } catch (error) { setError(error instanceof Error ? error.message : 'Unable to delete archived supply'); return false; }
-    finally { setArchiveBusy(false); }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Unable to delete archived supply');
+      return false;
+    } finally {
+      setArchiveBusy(false);
+    }
   };
 
-  const performOpeningAction = async () => {
-    if (!openingAction) return;
-    const { kind, rows } = openingAction;
-    setOpeningAction(null);
-    // Each operation manages its own busy/error state. Keep the remaining
-    // records available for retry if an individual mutation fails.
+  const performArchivedAction = async () => {
+    if (!archivedAction) return;
+    const { kind, rows } = archivedAction;
+    // Keep successful actions applied, and stop at the first failure so
+    // remaining selections are available for retry.
     for (const row of rows) {
       const succeeded = kind === 'delete'
-        ? await deleteOpening(row)
-        : await setOpeningArchive(row, kind === 'archive');
-      if (!succeeded) break; // Do not claim the rest of a failed bulk action completed.
+        ? await deleteArchivedSupply(row)
+        : await setSupplyArchived(row, kind === 'archive');
+      if (!succeeded) break;
+      setSelectedArchivedRows((previous) => {
+        const next = new Set(previous);
+        next.delete(row.suppliesno);
+        return next;
+      });
     }
-    // Archiving/deleting history rows changes their indices in the table.
-    setSelectedHistoryRows(new Set());
   };
 
   // Enhanced form submission
@@ -1244,7 +1221,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
       const cleanedHistory = ensureUniqueHistoryIds(
         historyRows
           .filter((row) => !isBlankHistoryRow(row))
-          .map((row) => normalizeSupplyRow(row, 'history')),
+          .map((row) => normalizeSupplyRow(row)),
       );
       // Supplier saves write receipt history only. Legacy opening/summary
       // snapshots remain in the database for compatibility, but are no longer
@@ -1688,7 +1665,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                       type="button"
                       disabled={archiveBusy}
                       className="inline-flex items-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                      onClick={() => setOpeningAction({
+                      onClick={() => setArchivedAction({
                         kind: 'archive',
                         rows: selectedHistoryRowIndices.map((index) => historyRows[index]).filter((row): row is SupplyDetail => Boolean(row)),
                       })}
@@ -1909,7 +1886,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                                 type="button"
                                 className="rounded-full p-1 text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
                                 disabled={archiveBusy}
-                                onClick={() => setOpeningAction({ kind: 'archive', rows: [row] })}
+                                onClick={() => setArchivedAction({ kind: 'archive', rows: [row] })}
                                 title="Archive supply"
                                 aria-label="Archive supply"
                               >
@@ -2097,14 +2074,14 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
         </form>
       </div>
 
-      {openingAction && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label="Confirm opening balance action">
+      {archivedAction && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label="Confirm supplier receipt action">
           <div className="w-full max-w-md rounded-xl border border-[#e6e6e6] bg-white p-6 shadow-2xl">
-            <h2 className="mb-2 text-lg font-bold text-gray-900">{openingAction.kind === 'delete' ? 'Delete supply records?' : openingAction.kind === 'archive' ? 'Archive supply records?' : 'Restore supply records?'}</h2>
-            <p className="mb-6 text-sm text-gray-600">{openingAction.rows.length} supply record(s) selected. {openingAction.kind === 'delete' ? 'This permanently removes the selected eligible records. Historical records for live catalog variants are protected.' : openingAction.kind === 'archive' ? 'Archived records are removed from active receipt history and can be restored later.' : 'The selected records will return to active receipt history.'}</p>
+            <h2 className="mb-2 text-lg font-bold text-gray-900">{archivedAction.kind === 'delete' ? 'Delete receipt records?' : archivedAction.kind === 'archive' ? 'Archive receipt records?' : 'Restore receipt records?'}</h2>
+            <p className="mb-6 text-sm text-gray-600">{archivedAction.rows.length} supply record(s) selected. {archivedAction.kind === 'delete' ? 'This permanently removes the selected eligible records. Historical records for live catalog variants are protected.' : archivedAction.kind === 'archive' ? 'Archived records are removed from active receipt history and can be restored later.' : 'The selected records will return to active receipt history.'}</p>
             <div className="flex justify-end gap-2">
-              <button type="button" className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700" onClick={() => setOpeningAction(null)}>Cancel</button>
-              <button type="button" disabled={archiveBusy} className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${openingAction.kind === 'delete' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`} onClick={() => void performOpeningAction()}>Confirm {openingAction.kind}</button>
+              <button type="button" className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700" onClick={() => setArchivedAction(null)}>Cancel</button>
+              <button type="button" disabled={archiveBusy} className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${archivedAction.kind === 'delete' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`} onClick={() => void performArchivedAction()}>Confirm {archivedAction.kind}</button>
             </div>
           </div>
         </div>
@@ -2125,7 +2102,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                   onClick={async () => {
                     const targets = archivedOpeningRows.filter((row) => selectedArchivedRows.has(row.suppliesno));
                     for (const row of targets) {
-                      if (!await setOpeningArchive(row, false)) break;
+                      if (!await setSupplyArchived(row, false)) break;
                       setSelectedArchivedRows((previous) => {
                         const next = new Set(previous);
                         next.delete(row.suppliesno);
@@ -2135,7 +2112,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                   }}><RotateCcw className="mr-1 inline h-4 w-4" />Restore selected</button>
                 <button type="button" disabled={archiveBusy || selectedArchivedRows.size === 0}
                   className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-600 transition-colors hover:border-red-400 hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-red-200 disabled:hover:bg-white disabled:hover:text-red-600"
-                  onClick={() => setOpeningAction({ kind: 'delete', rows: archivedOpeningRows.filter((row) => selectedArchivedRows.has(row.suppliesno)) })}>
+                  onClick={() => setArchivedAction({ kind: 'delete', rows: archivedOpeningRows.filter((row) => selectedArchivedRows.has(row.suppliesno)) })}>
                   <Trash className="mr-1 inline h-4 w-4" />Delete selected
                 </button>
               </div>
@@ -2192,10 +2169,10 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                         <div className="flex gap-2">
                           <button type="button" disabled={archiveBusy} aria-label="Restore supply"
                             title="Restore supply" className="rounded-full p-1.5 text-blue-600 transition-colors hover:bg-blue-100 hover:text-blue-800 disabled:cursor-not-allowed disabled:opacity-40"
-                            onClick={() => void setOpeningArchive(row, false)}><RotateCcw className="h-4 w-4"/></button>
+                            onClick={() => void setSupplyArchived(row, false)}><RotateCcw className="h-4 w-4"/></button>
                           <button type="button" disabled={archiveBusy} aria-label="Delete archived supply"
                             title="Delete archived supply" className="rounded-full p-1.5 text-red-500 transition-colors hover:bg-red-100 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-40"
-                            onClick={() => setOpeningAction({kind:'delete',rows:[row]})}><Trash className="h-4 w-4"/></button>
+                            onClick={() => setArchivedAction({kind:'delete',rows:[row]})}><Trash className="h-4 w-4"/></button>
                         </div>
                       </td>
                     </tr>;

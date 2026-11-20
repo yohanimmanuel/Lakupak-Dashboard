@@ -497,13 +497,9 @@ export async function finalizeSupplierSuppliesSave(args: {
       stockAppliedVariantOptionId,
     };
   });
-  // Keep the AUTO rows as product-stock snapshots. They are deliberately not
-  // incremented when a HIST receipt is saved: buildSupplySummaryFromHistory()
-  // derives the visible total from the current Product stock + non-applied HIST
-  // rows. This prevents save/reload cycles from accumulating the same receipt.
-  // Supplier updates are receipt-only. Do not copy legacy opening/summary
-  // snapshots into the editable payload; the persistence layer retains any
-  // existing legacy rows independently without counting them as receipts.
+  // Inventory changes are applied only to the Product Catalog target selected
+  // by the receipt's exact VariantOption ID. Supplier history remains a separate
+  // audit record and is never converted into an opening/summary ledger.
   supplies = supplies.filter(isSupplyHistoryRow);
 
   return {

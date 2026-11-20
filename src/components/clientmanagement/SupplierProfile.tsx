@@ -15,7 +15,6 @@ import {
   getSupplyReceivedInput,
   getSupplyRecordType,
   isSupplyHistoryRow,
-  partitionSupplies,
 } from '@/lib/suppliers/supplyRecords';
 
 function getSupplierAnalytics(suppliesStr: string, language?: string | null) {
@@ -30,7 +29,7 @@ function getSupplierAnalytics(suppliesStr: string, language?: string | null) {
     const map: { [monthKey: string]: { supplied: number; value: number; date: Date } } = {};
     supplies.forEach(function(supply: SupplyDetail) {
       // Monthly charts are driven by dated history events only
-      if (!isSupplyHistoryRow(supply) || !supply.lastSuppliedDate) return;
+      if (!isSupplyHistoryRow(supply) || supply.archivedAt || !supply.lastSuppliedDate) return;
       const date = new Date(supply.lastSuppliedDate);
       if (isNaN(date.getTime())) return; // Skip invalid dates
       
@@ -170,20 +169,14 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
   
   const analyticsData = getSupplierAnalytics(suppliesRaw || '', user?.language);
   const archivedSupplies = useMemo(
-    () => supplies.filter((row) => !!row.archivedAt),
+    () => supplies.filter((row) => !!row.archivedAt && isSupplyHistoryRow(row)),
     [suppliesRaw],
   );
-  const supplyBuckets = useMemo(
-    () => partitionSupplies(Array.isArray(supplies) ? supplies.filter((row) => !row.archivedAt) : []),
+  const historySupplies = useMemo(
+    () => Array.isArray(supplies) ? supplies.filter((row) => !row.archivedAt && isSupplyHistoryRow(row)) : [],
     [supplies],
   );
-  const historySupplies = supplyBuckets.history;
-  const openingSupplies = supplyBuckets.summary;
-  // The active supplier table is receipt history only. Legacy summary rows remain
-  // available to the archived-supplies cleanup view and never affect receipt totals.
-
-  // Headline totals use the current Product variant stock snapshot plus receipt
-  // history that has not already been applied to Product stock, all in Pieces.
+  // Headline totals are derived from active receipt history, never catalog snapshots.
   const totalSupplied = historySupplies.reduce(
     (sum: number, supply: SupplyDetail) => sum + (Number(supply.totalSupplied) || 0),
     0,
@@ -442,11 +435,6 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
           <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label="Archived Supplies">
             <div className="w-full max-w-3xl max-h-[80vh] overflow-y-auto rounded-xl border border-[#e6e6e6] bg-white p-6 text-gray-900 shadow-2xl">
               <div className="mb-5 flex items-center justify-between border-b border-[#e6e6e6] pb-4"><h2 className="text-lg font-bold text-black">Archived Supplies</h2><button type="button" className="rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 text-sm font-medium text-black hover:bg-gray-100" onClick={() => setShowArchivedSupplies(false)}>Close</button></div>
-              {openingSupplies.length > 0 && (
-                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-                  {openingSupplies.length} legacy catalog opening snapshot(s) retained. These are not supplier receipts. Open Edit Supplier to manage eligible snapshots.
-                </div>
-              )}
               {archivedSupplies.length === 0 ? (
                 <div className="rounded-lg border border-[#e6e6e6] bg-gray-50 p-6 text-center text-sm text-gray-600">No archived supplies yet.</div>
               ) : <div className="space-y-2">{archivedSupplies.map((row) => (

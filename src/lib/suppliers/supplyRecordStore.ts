@@ -1,6 +1,6 @@
 import type { Prisma, PrismaClient } from '@/lib/prisma-generated';
 import type { SupplyDetail } from '@/types/client';
-import { getSupplyRecordType, getSupplyReceivedInput, mergeDuplicateSummaryRows } from '@/lib/suppliers/supplyRecords';
+import { getSupplyRecordType, getSupplyReceivedInput } from '@/lib/suppliers/supplyRecords';
 import { isSupplyDeleteMarker } from '@/lib/suppliers/applySupplierSuppliesSave';
 import { resolveCatalogIdentity } from '@/lib/catalog/identityResolver';
 
@@ -193,36 +193,14 @@ export async function replaceSupplierSupplyRecords(
       : Array.isArray(details)
         ? details
         : [];
-  // Collapse catalog-linked duplicate summaries before any persistence. History
-  // rows are deliberately retained as separate dated events.
-  let list = raw.filter((row) => !isSupplyDeleteMarker(row));
+  // Active supplier saves supply only receipt history. This lower-level helper
+  // also accepts explicitly provided legacy snapshots for backward-compatible
+  // restoration and test setup. Never synthesize or merge summaries here.
+  const list = raw.filter((row) => !isSupplyDeleteMarker(row));
   // Never auto-link historical receipts to a current variant by SKU/name.
   // Legacy imports without an explicit variant ID remain unlinked until
   // an authorized user selects the exact variant in the supplier editor.
-
-  // Preserve database IDs for unchanged/edited records. The caller must hold the
-  // distributor advisory lock in the same transaction for existing suppliers.
-  list = mergeDuplicateSummaryRows(list);
   const incoming = buildSupplyRecordCreateManyRows(supplierRefId, list);
-  // Guard the same identity used by the UI: one row per catalog product + SKU.
-  // If a row has no SKU, fall back to the product's variant label.
-  const summaryKeys = new Set<string>();
-  for (const row of incoming) {
-    if (row.recordType !== 'summary') continue;
-    const productId = String(row.productId || '').trim().toLowerCase();
-    const sku = String(row.sku || '').trim().toLowerCase();
-    const variant = String(row.variantName || row.product || '').trim().toLowerCase();
-    const variantOptionId = row.variantOptionId == null ? '' : String(row.variantOptionId);
-    const key = variantOptionId
-      ? `variant-option:${variantOptionId}`
-      : productId
-      ? (variant ? `${productId}|variant:${variant}` : `${productId}|sku:${sku}`)
-      : (sku ? `sku:${sku}|product:${String(row.product || '').trim().toLowerCase()}` : `product:${variant}`);
-    if (summaryKeys.has(key)) {
-      throw new Error('Duplicate supply summary for the same product and SKU. Reconcile before saving.');
-    }
-    summaryKeys.add(key);
-  }
   // A supplier snapshot may refer to a variant removed during this same product
   // update. Such an ID is historical data, NOT a valid live foreign key.
   const requestedIds = [...new Set(incoming.map((row) => row.variantOptionId).filter((id): id is number => id != null))];
@@ -323,7 +301,7 @@ export async function replaceSupplierSupplyRecords(
   // receipt-only supplier save. They remain read-compatible for older data
   // and can be migrated separately after explicit review.
   const removedIds = existing
-    .filter((row) => !used.has(row.id) && !row.archivedAt && row.recordType === 'history')
+    .filter((row) => !used.has(row.id) && !row.archivedAt && getSupplyRecordType({ suppliesno: row.suppliesno, recordType: row.recordType === 'summary' ? 'summary' : 'history' }) === 'history')
     .map((row) => row.id);
   if (removedIds.length) {
     await db.supplyRecord.deleteMany({ where: { supplierRefId, id: { in: removedIds } } });

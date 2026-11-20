@@ -283,8 +283,8 @@ export const contactsTypeDefs = /* GraphQL */ `
       userId: Int!
     ): SyncProductSuppliersResult!
 
-    setOpeningBalanceArchived(userId: Int!, supplierId: String!, suppliesno: String!, archived: Boolean!): Boolean!
-    deleteArchivedOpeningBalance(userId: Int!, supplierId: String!, suppliesno: String!): Boolean!
+    setSupplierReceiptArchived(userId: Int!, supplierId: String!, suppliesno: String!, archived: Boolean!): Boolean!
+    deleteArchivedSupplierReceipt(userId: Int!, supplierId: String!, suppliesno: String!): Boolean!
 
     recordSupplierSupply(
       userId: Int!
@@ -444,7 +444,7 @@ const mapSupplier = (supplier: SupplierWithRecords) => ({
     ? parseMoney((supplier as { avgMonthlyPurchaseValue?: unknown }).avgMonthlyPurchaseValue as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined) 
     : null, // Convert Decimal to number
   // SupplierTable and SupplierProfile must report the same active receipts.
-  // Legacy AUTO/opening balances and archived receipts are excluded.
+  // Supplier totals include active dated receipts only; legacy snapshots and archives are excluded.
   totalPurchases: supplierReceiptTotals(supplier.supplyRecords || []).totalPurchases,
   totalSupplies: supplierReceiptTotals(supplier.supplyRecords || []).totalSupplies,
   onTimeDeliveryRate: (supplier as { onTimeDeliveryRate?: unknown }).onTimeDeliveryRate 
@@ -1915,11 +1915,11 @@ const syncSuppliersFromProducts = async (args: { userId: number }) => {
 };
 
 /**
- * Soft archive a legacy opening snapshot or a receipt whose original catalog
- * variant has been deleted. Active/live variants and normal active receipts
- * cannot be archived.
+ * Soft archive a receipt only when its original catalog variant has been deleted.
+ * Active receipts linked to live variants cannot be archived.
  */
-const setOpeningBalanceArchived = async (args: { userId: number; supplierId: string; suppliesno: string; archived: boolean }): Promise<boolean> => {
+/** Archive only orphaned/legacy receipt history. This is visibility-only and never changes stock. */
+const setSupplierReceiptArchived = async (args: { userId: number; supplierId: string; suppliesno: string; archived: boolean }): Promise<boolean> => {
   const { userId, supplierId, suppliesno, archived } = args;
   await prisma.$transaction(async (tx) => {
     const supplier = await tx.supplier.findFirst({
@@ -1931,36 +1931,26 @@ const setOpeningBalanceArchived = async (args: { userId: number; supplierId: str
     const row = await tx.supplyRecord.findFirst({
       where: { supplierRefId: supplier.id, suppliesno },
     });
-    if (!row) throw new Error('Supply record not found');
+    if (!row || row.recordType !== 'history') throw new Error('Receipt history record not found');
+    if (row.variantOptionId != null) throw new Error('Only receipts whose original catalog variant is no longer linked can be archived');
 
-    const isLegacyOpening = row.recordType === 'summary';
-    const isOrphanedReceipt = row.recordType === 'history' && row.variantOptionId == null;
-    if (!isLegacyOpening && !isOrphanedReceipt) {
-      throw new Error('Only legacy opening snapshots or receipts without a live catalog variant can be archived');
-    }
-
-    const historicalId = row.historicalVariantOptionId ?? row.variantOptionId;
+    const historicalId = row.historicalVariantOptionId;
     if (historicalId) {
-      const liveVariant = await tx.variantOption.findFirst({
+      const stillExists = await tx.variantOption.findFirst({
         where: { id: historicalId, product: { userId } },
         select: { id: true },
       });
-      if (liveVariant) {
-        throw new Error('This catalog variant still exists. Only supplies whose original variant was deleted can be archived.');
-      }
+      if (stillExists) throw new Error('The original catalog variant still exists; this receipt cannot be archived.');
     }
-    // ID-less legacy receipts are eligible only when no live inventory link
-    // exists. Archiving is a visibility action, never a stock reversal.
     if (row.stockApplied && row.stockAppliedVariantOptionId != null) {
-      const appliedVariant = await tx.variantOption.findFirst({
+      const appliedTargetStillExists = await tx.variantOption.findFirst({
         where: { id: row.stockAppliedVariantOptionId, product: { userId } },
         select: { id: true },
       });
-      if (appliedVariant) {
-        throw new Error('This supply has an active inventory movement. Disable Update Stock and save before archiving.');
+      if (appliedTargetStillExists) {
+        throw new Error('This receipt still has an active inventory movement. Untick Update Stock and save before archiving.');
       }
     }
-
     await tx.supplyRecord.update({
       where: { id: row.id },
       data: { archivedAt: archived ? new Date() : null },
@@ -1970,8 +1960,8 @@ const setOpeningBalanceArchived = async (args: { userId: number; supplierId: str
   return true;
 };
 
-/** Permanently delete a legacy opening snapshot or orphaned receipt after explicit user action. */
-const deleteArchivedOpeningBalance = async (args: { userId: number; supplierId: string; suppliesno: string }): Promise<boolean> => {
+/** Permanently delete an already-archived orphaned receipt history row. */
+const deleteArchivedSupplierReceipt = async (args: { userId: number; supplierId: string; suppliesno: string }): Promise<boolean> => {
   const { userId, supplierId, suppliesno } = args;
   await prisma.$transaction(async (tx) => {
     const supplier = await tx.supplier.findFirst({
@@ -1983,33 +1973,19 @@ const deleteArchivedOpeningBalance = async (args: { userId: number; supplierId: 
     const row = await tx.supplyRecord.findFirst({
       where: { supplierRefId: supplier.id, suppliesno },
     });
-    if (!row) throw new Error('Supply record not found');
-
-    const isLegacyOpening = row.recordType === 'summary';
-    const isOrphanedReceipt = row.recordType === 'history' && row.variantOptionId == null;
-    if (!isLegacyOpening && !isOrphanedReceipt) {
-      throw new Error('Only legacy opening snapshots or receipts without a live catalog variant can be deleted');
+    if (!row || row.recordType !== 'history' || !row.archivedAt) {
+      throw new Error('Only archived receipt history can be permanently deleted.');
     }
-
-    const historicalId = row.historicalVariantOptionId ?? row.variantOptionId;
-    if (historicalId) {
-      const liveVariant = await tx.variantOption.findFirst({
-        where: { id: historicalId, product: { userId } },
-        select: { id: true },
-      });
-      if (liveVariant) {
-        throw new Error('This catalog variant still exists. Only supplies whose original variant was deleted can be deleted here.');
-      }
+    if (row.variantOptionId != null) {
+      throw new Error('A receipt linked to a live catalog variant cannot be permanently deleted here.');
     }
-    if (!row.archivedAt) throw new Error('Archive this supply before permanently deleting it.');
     if (row.stockApplied && row.stockAppliedVariantOptionId != null) {
-      const appliedVariant = await tx.variantOption.findFirst({
+      const appliedTargetStillExists = await tx.variantOption.findFirst({
         where: { id: row.stockAppliedVariantOptionId, product: { userId } },
         select: { id: true },
       });
-      if (appliedVariant) throw new Error('Cannot delete a receipt with an active inventory movement.');
+      if (appliedTargetStillExists) throw new Error('Cannot delete a receipt with an active inventory movement.');
     }
-
     await tx.supplyRecord.delete({ where: { id: row.id } });
   });
   try { const { invalidateDashboardCache } = await import('@/lib/queryCache'); await invalidateDashboardCache(userId); } catch { /* best effort */ }
@@ -2304,8 +2280,8 @@ export const contactsResolvers = {
     bulkDeleteSuppliers: withDashboardAuth(bulkDeleteSuppliers),
     syncSuppliersFromProducts: withDashboardAuth(syncSuppliersFromProducts),
     recordSupplierSupply: withDashboardAuth(recordSupplierSupply),
-    setOpeningBalanceArchived: withDashboardAuth(setOpeningBalanceArchived),
-    deleteArchivedOpeningBalance: withDashboardAuth(deleteArchivedOpeningBalance),
+    setSupplierReceiptArchived: withDashboardAuth(setSupplierReceiptArchived),
+    deleteArchivedSupplierReceipt: withDashboardAuth(deleteArchivedSupplierReceipt),
   },
 };
 
