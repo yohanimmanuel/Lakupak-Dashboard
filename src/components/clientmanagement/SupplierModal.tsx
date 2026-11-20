@@ -366,14 +366,6 @@ function SupplierVariantAlert({ message }: { message: string }) {
   );
 }
 
-/** Older saved receipt with labels but no durable live or historical variant ID. */
-function isLegacyUnlinkedReceipt(row: SupplyDetail): boolean {
-  return Boolean(String(row.suppliesno || '').trim()) &&
-    row.variantOptionId == null &&
-    row.historicalVariantOptionId == null &&
-    !isBlankHistoryRow(row);
-}
-
 function generateSupplierId() {
   return 'LKS-' + Math.floor(10000000 + Math.random() * 90000000).toString();
 }
@@ -1824,7 +1816,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                             emptyLabel={tSuppliersModal('catalogEmpty')}
                             noMatchLabel={tSuppliersModal('catalogNoMatch')}
                             searchPlaceholder={tSuppliersModal('searchSku')}
-                            needsAttention={needsSku}
+                            needsAttention={needsVariantLink || canArchiveRow}
                             onSelect={(variantId) => handleHistoryVariantSelect(idx, variantId)}
                             renderOption={(option) => (
                               <span className="flex flex-col gap-0.5">
