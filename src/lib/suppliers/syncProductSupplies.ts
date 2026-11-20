@@ -1,6 +1,5 @@
 import { prisma, type Prisma } from '@/lib/db';
 import type { SupplyDetail } from '@/types/client';
-import { isSupplySummaryRow } from '@/lib/suppliers/supplyRecords';
 
 type VariantSnapshot = {
   id?: number;
@@ -24,21 +23,6 @@ type SupplierRow = {
   name: string;
 };
 
-const toMoneyNumber = (value: unknown): number => {
-  if (value == null) return 0;
-  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-  if (typeof value === 'object' && value !== null && 'toNumber' in value) {
-    try {
-      const n = (value as { toNumber: () => number }).toNumber();
-      return Number.isFinite(n) ? n : 0;
-    } catch {
-      // fall through
-    }
-  }
-  const parsed = Number(String(value).replace(/[^\d.-]/g, ''));
-  return Number.isFinite(parsed) ? parsed : 0;
-};
-
 /** Variant-stable identity — never use shared catalog SKUs (often duplicated across options). */
 export function supplyIdentity(productId: string, variantName: string, variantOptionId?: number): string {
   return variantOptionId != null ? `${String(productId).trim()}|variant:${variantOptionId}` : `${String(productId).trim()}|${String(variantName || '').trim()}`;
@@ -54,122 +38,6 @@ export const productLabel = (productName: string, variantName: string): string =
   if (!variant || variant.toLowerCase() === 'default') return name;
   return `${name} (${variant})`;
 };
-
-function findSupplyRow(
-  supplies: SupplyDetail[],
-  product: ProductSnapshot,
-  variant: VariantSnapshot,
-  displaySku?: string,
-  summaryVariantName?: string,
-): SupplyDetail | undefined {
-  const effectiveVariantName = summaryVariantName || String(variant.variantName || '').trim();
-  const identity = supplyIdentity(product.productId, effectiveVariantName, variant.id);
-  const autoNo = supplyAutoNo(product.productId, effectiveVariantName, variant.id);
-  const label = productLabel(product.name, effectiveVariantName);
-  const sku = String(displaySku || variant.sku || identity).trim();
-  const summaryRows = supplies.filter(isSupplySummaryRow);
-  // An old snapshot with a deleted VariantOption ID must never be adopted by
-  // a newly-created variant that happens to reuse its name or SKU.
-  const eligible = summaryRows.filter((row) =>
-    row.variantOptionId == null || variant.id == null || Number(row.variantOptionId) === variant.id,
-  );
-  const byVariantName = eligible.find((row) =>
-    String(row.productId || '').trim() === product.productId &&
-    String(row.variantName || '').trim().toLowerCase() === effectiveVariantName.toLowerCase(),
-  );
-  const skuMatches = eligible.filter((row) =>
-    String(row.productId || '').trim() === product.productId &&
-    String(row.sku || '').trim().toLowerCase() === sku.toLowerCase(),
-  );
-  return (
-    (variant.id != null ? summaryRows.find((row) => row.variantOptionId != null && Number(row.variantOptionId) === variant.id) : undefined) ||
-    eligible.find((row) => String(row.suppliesno || '') === autoNo) ||
-    byVariantName ||
-    (skuMatches.length === 1 && !effectiveVariantName ? skuMatches[0] : undefined) ||
-    eligible.find((row) => String(row.sku || '').trim() === identity) ||
-    eligible.find((row) => String(row.product || '').trim() === label)
-  );
-}
-
-function buildNewSupplyRow(
-  product: ProductSnapshot,
-  variant: VariantSnapshot,
-): SupplyDetail {
-  const qty = Math.max(0, Math.floor(Number(variant.stockQuantity) || 0));
-  const unitCost = toMoneyNumber(variant.purchasePrice);
-  const totalValue = Math.round(unitCost * qty);
-  const displaySku = String(variant.sku ?? '').trim() || supplyIdentity(product.productId, variant.variantName, variant.id);
-  return {
-    suppliesno: supplyAutoNo(product.productId, variant.variantName, variant.id),
-    sku: displaySku,
-    variantOptionId: variant.id ?? null,
-    product: productLabel(product.name, variant.variantName),
-    totalSupplied: String(qty),
-    totalValue: String(totalValue),
-    // Match updates totals only — never write a dated history event.
-    lastSuppliedDate: '',
-    status: 'Active',
-    recordType: 'summary',
-    productId: product.productId,
-    variantName: variant.variantName,
-  };
-}
-
-export function mergeSupplyLists(primary: SupplyDetail[], incoming: SupplyDetail[]): SupplyDetail[] {
-  const out = [...primary];
-  const indexByNo = new Map(
-    out
-      .map((row, i) => [String(row.suppliesno || '').trim(), i] as const)
-      .filter(([no]) => no.length > 0),
-  );
-  // Only legacy summaries without variant IDs may use label fallback.
-  // A recreated variant must never adopt an archived summary with the same label.
-  const indexBySummaryProduct = new Map<string, number>();
-  out.forEach((row, i) => {
-    if (!isSupplySummaryRow(row)) return;
-    const product = String(row.product || '').trim();
-    if (product && row.variantOptionId == null) indexBySummaryProduct.set(product, i);
-  });
-
-  for (const row of incoming) {
-    const no = String(row.suppliesno || '').trim();
-    const product = String(row.product || '').trim();
-
-    if (!isSupplySummaryRow(row)) {
-      if (no && indexByNo.has(no)) continue;
-      if (no) indexByNo.set(no, out.length);
-      out.push(row);
-      continue;
-    }
-
-    const existingIdx =
-      (no && indexByNo.has(no) ? indexByNo.get(no) : undefined) ??
-      (row.variantOptionId == null && product && indexBySummaryProduct.has(product)
-        ? indexBySummaryProduct.get(product)
-        : undefined);
-
-    if (existingIdx == null) {
-      if (no) indexByNo.set(no, out.length);
-      if (product && row.variantOptionId == null) indexBySummaryProduct.set(product, out.length);
-      out.push(row);
-      continue;
-    }
-    // Prefer keeping frozen totals already on the primary row; refresh labels only.
-    const current = out[existingIdx];
-    out[existingIdx] = {
-      ...current,
-      suppliesno: current.suppliesno || row.suppliesno,
-      sku: current.sku || row.sku,
-      product: row.product || current.product,
-      status: current.status || row.status,
-      lastSuppliedDate: current.lastSuppliedDate || row.lastSuppliedDate,
-      recordType: 'summary',
-      productId: current.productId || row.productId,
-      variantName: current.variantName || row.variantName,
-    };
-  }
-  return out;
-}
 
 export type ProductSupplyMatchHints = {
   /** Catalog / display SKUs from the product's variants */
@@ -208,136 +76,17 @@ export function belongsToProduct(
   return false;
 }
 
-/** Pure in-memory reassignment used by sync + unit tests. */
+/** Retired compatibility entry point. Catalog supplier changes never create
+ * AUTO summaries, transfer receipts, or mutate historical supplier data.
+ * Retained temporarily for older callers; the production sync is a no-op too.
+ */
 export function applyProductToSupplierMaps(
-  product: ProductSnapshot,
-  suppliesBySupplierId: Map<number, SupplyDetail[]>,
-  suppliers: SupplierRow[],
-  dirtySupplierIds: Set<number>,
+  _product: ProductSnapshot,
+  _suppliesBySupplierId: Map<number, SupplyDetail[]>,
+  _suppliers: SupplierRow[],
+  _dirtySupplierIds: Set<number>,
 ): void {
-  const supplierName = String(product.supplier ?? '').trim();
-  const variants = (product.variantOptions || []).filter(
-    (v) => v && v.isActive !== false && String(v.variantName ?? '').trim(),
-  );
-  const targetKey = supplierName.toLowerCase();
-  const clearMatch = supplierName.length === 0;
-  const target = !clearMatch
-    ? suppliers.find((row) => String(row.name || '').trim().toLowerCase() === targetKey) || null
-    : null;
-
-  // Unknown supplier name → leave existing auto rows where they are.
-  if (!clearMatch && !target) return;
-
-  // Catalog SKU/label hints — used when clearing a supplier match (and by delete).
-  // Reassignment does NOT auto-move history/summary off the old supplier; the old
-  // supplier UI shows an amber notice so the user can choose what to move.
-  const matchHints: ProductSupplyMatchHints = {
-    skus: variants
-      .map((v) => String(v.sku ?? '').trim() || supplyIdentity(product.productId, v.variantName))
-      .filter(Boolean),
-    labels: variants.map((v) => productLabel(product.name, v.variantName)),
-  };
-
-  if (clearMatch) {
-    // Unassigning a supplier changes catalog metadata, not prior receipts.
-    // Historical rows remain under the original supplier until explicitly edited.
-    return;
-  }
-
-  if (!target) return;
-  if (variants.length === 0) return;
-
-  // Supplier reassignment never rewrites rows owned by another supplier.
-  // Existing receipts and opening balances remain attached to their original supplier.
-
-  // Link product onto the new supplier with an AUTO summary only — leave prior
-  // supplier history/totals in place for the move-candidates notice.
-  let supplies = [...(suppliesBySupplierId.get(target.id) || [])];
-  let changed = false;
-
-  // Each VariantOption owns its own summary. SKUs are editable and may be reused.
-  for (const variant of variants) {
-    const displaySku = String(variant.sku ?? '').trim() || supplyIdentity(product.productId, variant.variantName, variant.id);
-    const label = productLabel(product.name, variant.variantName);
-    const autoNo = supplyAutoNo(product.productId, variant.variantName, variant.id);
-    const qty = Math.max(0, Math.floor(Number(variant.stockQuantity) || 0));
-    const totalValue = Math.round(toMoneyNumber(variant.purchasePrice) * qty);
-    // Do not automatically copy an existing opening balance to a new supplier.
-    // Only a truly new catalog variant gets an initial opening snapshot.
-    const previouslyOpenedElsewhere = suppliers.some((supplier) => supplier.id !== target.id &&
-      (suppliesBySupplierId.get(supplier.id) || []).some((row) =>
-        isSupplySummaryRow(row) && (
-          (variant.id != null && row.variantOptionId != null && Number(row.variantOptionId) === variant.id) ||
-          (variant.id == null && row.variantOptionId == null &&
-            String(row.productId || '').trim() === product.productId &&
-            String(row.variantName || '').trim().toLowerCase() === variant.variantName.trim().toLowerCase())
-        ),
-      ),
-    );
-    if (previouslyOpenedElsewhere) continue;
-    // Archived opening balances are tombstones: catalog sync must not recreate them.
-    if (supplies.some((row) => row.archivedAt && row.recordType === 'summary' && (
-      (variant.id != null && row.variantOptionId === variant.id) ||
-      row.suppliesno === autoNo
-    ))) continue;
-    const current = findSupplyRow(supplies, product, variant, displaySku, variant.variantName);
-
-    if (current && isSupplySummaryRow(current)) {
-      if (
-        current.product !== label ||
-        current.sku !== displaySku ||
-        current.suppliesno !== autoNo ||
-        current.recordType !== 'summary' ||
-        current.productId !== product.productId ||
-        Number(current.variantOptionId || 0) !== Number(variant.id || 0) ||
-        current.variantName !== variant.variantName ||
-        Number(current.totalSupplied || 0) !== qty ||
-        Number(current.totalValue || 0) !== totalValue
-      ) {
-        current.product = label;
-        current.sku = displaySku;
-        current.suppliesno = autoNo;
-        current.recordType = 'summary';
-        current.productId = product.productId;
-        current.variantOptionId = variant.id ?? null;
-        current.variantName = variant.variantName;
-        current.totalSupplied = String(qty);
-        current.totalValue = String(totalValue);
-        current.lastSuppliedDate = '';
-        changed = true;
-      }
-
-      const beforeCount = supplies.length;
-      supplies = supplies.filter((row) => {
-        if (row === current || !isSupplySummaryRow(row)) return true;
-        if (row.variantOptionId != null && variant.id != null) return Number(row.variantOptionId) !== variant.id;
-        const sameProduct = String(row.productId || '').trim() === product.productId;
-        const sameAutoNo = String(row.suppliesno || '').trim() === autoNo;
-        const sameVariant = String(row.variantName || '').trim().toLowerCase() === variant.variantName.toLowerCase();
-        return !(sameProduct && (sameVariant || sameAutoNo));
-      });
-      if (supplies.length !== beforeCount) changed = true;
-      continue;
-    }
-
-    // A historical/other-supplier snapshot must not suppress this supplier's
-    // active catalog variant. Each active variant needs its own AUTO summary.
-    const newRow = buildNewSupplyRow(product, variant);
-    newRow.suppliesno = autoNo;
-    newRow.sku = displaySku;
-    newRow.product = label;
-    newRow.productId = product.productId;
-    newRow.variantOptionId = variant.id ?? null;
-    newRow.variantName = variant.variantName;
-    newRow.totalSupplied = String(qty);
-    newRow.totalValue = String(totalValue);
-    supplies.push(newRow);
-    changed = true;
-  }
-  if (changed) {
-    suppliesBySupplierId.set(target.id, supplies);
-    dirtySupplierIds.add(target.id);
-  }
+  // Receipt history is created only by explicit supplier actions.
 }
 
 /** Strip every summary + history row linked to the product from all supplier maps. */
@@ -498,8 +247,7 @@ export async function removeProductSupplies(args: {
 /**
  * Link a product's variants into an existing CRM supplier's supplies list.
  * Does not create suppliers — users must import/create suppliers first, then match.
- * When the matched supplier changes, linked summary AND history rows move off the
- * previous supplier(s) onto the new one (frozen summary totals preserved when moving).
+ * Catalog changes must not create AUTO summaries or transfer historical receipts.
  */
 /**
  * Receipt-only supplier architecture: product catalog changes do not create,
@@ -521,10 +269,6 @@ export async function syncSupplierFromProduct(product: ProductSnapshot): Promise
   });
 }
 
-/**
- * Backfill linked supplies onto existing matched suppliers from all of a user's products.
- * Loads suppliers once, applies every product in memory, and writes each changed supplier once.
- */
 /** No-op compatibility entry point; never backfill stock as supplier receipts. */
 export async function syncAllProductSuppliersForUser(_userId: number): Promise<{
   productsProcessed: number;
