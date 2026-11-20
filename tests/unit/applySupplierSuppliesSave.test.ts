@@ -137,6 +137,8 @@ describe('computeSupplyStockEffects (Update Current Stock checkbox)', () => {
     ];
     const incoming = [
       history({
+        variantOptionId: null,
+        historicalVariantOptionId: 101,
         sku: '',
         productId: '',
         variantName: '',

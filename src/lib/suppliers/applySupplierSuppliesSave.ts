@@ -241,6 +241,8 @@ export function computeSupplyStockEffects(
       valueDelta,
       reason,
       applyStock,
+      // Supplier Summary/Openings no longer exist as an accounting ledger.
+      applySummary: false,
       stockVariantOptionId: stockVariantOptionId ?? row.variantOptionId ?? null,
       allowMissingVariant,
     });
