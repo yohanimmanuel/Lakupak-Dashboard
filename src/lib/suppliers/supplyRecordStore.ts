@@ -211,7 +211,7 @@ export async function replaceSupplierSupplyRecords(
   if (!supplierOwner?.userId) throw new Error('Supplier owner not found');
   const liveVariants = requestedIds.length
     ? await db.variantOption.findMany({
-        where: { id: { in: requestedIds }, product: { userId: supplierOwner.userId } },
+        where: { id: { in: requestedIds }, isActive: true, product: { userId: supplierOwner.userId } },
         select: { id: true },
       })
     : [];
