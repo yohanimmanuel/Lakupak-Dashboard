@@ -1748,7 +1748,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                             displayValue={catalogOptions.find((option) => option.productId === row.productId)?.product || row.product || ''}
                             placeholder={tSuppliersModal('selectProduct')}
                             options={productDropdownOptions}
-                            emptyLabel={catalogLoadStatus === 'loaded' && productDropdownOptions.length === 0 ? 'No product owned' : tSuppliersModal('catalogEmpty')}
+                            emptyLabel={catalogLoadStatus === 'loaded' && productDropdownOptions.length === 0 ? tSuppliersModal('noProductOwned') : tSuppliersModal('catalogEmpty')}
                             noMatchLabel={tSuppliersModal('catalogNoMatch')}
                             searchPlaceholder={tSuppliersModal('searchProduct')}
                             onSelect={(productId) => handleHistoryProductSelect(idx, productId)}
@@ -1768,10 +1768,10 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                             noMatchLabel={tSuppliersModal('catalogNoMatch')}
                             searchPlaceholder={tSuppliersModal('searchSku')}
                             needsAttention={supplierChanged || needsVariantLink || canArchiveRow}
-                            attentionTitle={supplierChanged ? 'Supplier changed' : undefined}
+                            attentionTitle={supplierChanged ? tSuppliersModal('supplierChangedTitle') : undefined}
                             disabled={deletedVariant}
                             attentionMessage={supplierChanged
-                              ? 'This product now belongs to another supplier. The original receipt remains here as historical supply data and cannot be reassigned. Create a new supply row for a product currently owned by this supplier, or archive/delete this old receipt.'
+                              ? tSuppliersModal('supplierChangedDescription')
                               : hasReplacementVariant
                               ? 'The original variant was deleted. This receipt is a historical snapshot and cannot be reassigned. Create a new supply row and select the new catalog variant, or archive this old receipt.'
                               : needsVariantLink
@@ -1801,7 +1801,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                             noMatchLabel={tSuppliersModal('catalogNoMatch')}
                             searchPlaceholder={tSuppliersModal('searchVariant')}
                             onSelect={(variantId) => handleHistoryVariantSelect(idx, variantId)}
-                            disabled={deletedVariant}
+                            disabled={deletedVariant || supplierChanged}
                             className={!row.productId && !row.variantName ? 'opacity-60' : ''}
                           />
                         </td>
