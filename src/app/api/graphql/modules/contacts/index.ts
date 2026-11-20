@@ -452,6 +452,77 @@ const mapSupplier = (supplier: SupplierWithRecords) => ({
   updatedAt: supplier.updatedAt.toISOString(),
 });
 
+type BuyerOrderLineSnapshot = {
+  productId: string | null;
+  variantOptionId: number | null;
+  productSkuSnapshot: string | null;
+  variantNameSnapshot: string | null;
+};
+
+async function loadBuyerOrderLineSnapshots(
+  userId: number,
+  buyerIds: string[],
+): Promise<Map<string, BuyerOrderLineSnapshot[]>> {
+  if (buyerIds.length === 0) return new Map();
+  const orders = await prisma.order.findMany({
+    where: {
+      userId,
+      buyerId: { in: buyerIds },
+      isDeleted: false,
+      orderStatus: { notIn: ['Cancelled', 'Returned'] },
+    },
+    select: {
+      orderId: true,
+      buyerId: true,
+      orderItemsRel: {
+        select: {
+          productId: true,
+          variantOptionId: true,
+          productSkuSnapshot: true,
+          variantNameSnapshot: true,
+        },
+      },
+    },
+  });
+  const snapshots = new Map<string, BuyerOrderLineSnapshot[]>();
+  for (const order of orders) {
+    snapshots.set(`${order.buyerId}|${order.orderId}`, order.orderItemsRel.map((item) => ({
+      productId: item.productId ?? null,
+      variantOptionId: item.variantOptionId ?? null,
+      productSkuSnapshot: item.productSkuSnapshot ?? null,
+      variantNameSnapshot: item.variantNameSnapshot ?? null,
+    })));
+  }
+  return snapshots;
+}
+
+function withBuyerOrderLineSnapshots(
+  buyer: BuyerWithRecords,
+  snapshots: Map<string, BuyerOrderLineSnapshot[]>,
+): BuyerWithRecords {
+  if (!buyer.buyerRecords?.length) return buyer;
+  return {
+    ...buyer,
+    buyerRecords: buyer.buyerRecords.map((record) => {
+      const lines = snapshots.get(`${buyer.buyerId}|${record.orderNo}`) || [];
+      if (lines.length === 0) return record;
+      const distinct = (values: Array<string | null | undefined>) =>
+        [...new Set(values.map((value) => String(value || '').trim()).filter(Boolean))];
+      const skus = distinct(lines.map((line) => line.productSkuSnapshot));
+      const variants = distinct(lines.map((line) => line.variantNameSnapshot));
+      const productIds = distinct(lines.map((line) => line.productId));
+      const variantIds = [...new Set(lines.map((line) => line.variantOptionId).filter((value): value is number => value != null))];
+      return {
+        ...record,
+        skuSnapshot: record.skuSnapshot || (skus.length ? skus.join(', ') : null),
+        variantName: record.variantName || (variants.length ? variants.join(', ') : null),
+        productId: record.productId || (productIds.length === 1 ? productIds[0] : null),
+        variantOptionId: record.variantOptionId ?? (variantIds.length === 1 ? variantIds[0] : null),
+      };
+    }),
+  };
+}
+
 const fetchBuyersConnection = async (args: {
   userId: number;
   page?: number;
@@ -500,8 +571,11 @@ const fetchBuyersConnection = async (args: {
     prisma.buyer.count({ where: whereClause }),
   ]);
 
+  // Backfill missing legacy BuyerRecord SKU/variant labels from immutable OrderItem
+  // snapshots in one batched query. Do not depend on the current Product Catalog.
+  const orderLineSnapshots = await loadBuyerOrderLineSnapshots(userId, buyers.map((buyer) => buyer.buyerId));
   return {
-    nodes: buyers.map(mapBuyer),
+    nodes: buyers.map((buyer) => mapBuyer(withBuyerOrderLineSnapshots(buyer as BuyerWithRecords, orderLineSnapshots))),
     pagination: buildPaginationInfo(safePage, safeLimit, totalCount),
   };
 };
@@ -580,10 +654,10 @@ const fetchSingleBuyer = async (args: { userId: number; id: string }) => {
     throw new Error('Buyer not found');
   }
 
-  // BuyerRecord already contains order/SKU/variant snapshots. Profile reads stay
-  // read-only; order mutations are responsible for refreshing this persisted view.
-
-  return mapBuyer(buyer);
+  // Profile reads stay read-only. Fill missing legacy labels from immutable OrderItem
+  // snapshots in the same request, using one batched query rather than client hydration.
+  const orderLineSnapshots = await loadBuyerOrderLineSnapshots(userId, [buyer.buyerId]);
+  return mapBuyer(withBuyerOrderLineSnapshots(buyer as BuyerWithRecords, orderLineSnapshots));
 };
 
 const fetchSingleSupplier = async (args: { userId: number; id: string }) => {
