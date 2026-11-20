@@ -535,8 +535,15 @@ function withBuyerOrderLineSnapshots(
   snapshots: Map<string, BuyerOrderLineSnapshot[]>,
 ): BuyerWithRecords {
   const records = buyer.buyerRecords || [];
-  const orderLineDetails = records
-    .filter((record) => record.syncedFromOrders || String(record.orderNo || '').toUpperCase().startsWith('LKO-'))
+  // BuyerRecord is a compact per-order summary. Older imports may contain more
+  // than one summary row for an orderNo; emit immutable OrderItem lines only once.
+  const marketplaceRecordsByOrder = new Map<string, (typeof records)[number]>();
+  for (const record of records) {
+    const orderNo = String(record.orderNo || '').trim();
+    if (!orderNo || !(record.syncedFromOrders || orderNo.toUpperCase().startsWith('LKO-'))) continue;
+    if (!marketplaceRecordsByOrder.has(orderNo)) marketplaceRecordsByOrder.set(orderNo, record);
+  }
+  const orderLineDetails = [...marketplaceRecordsByOrder.values()]
     .map((record) => ({
       orderNo: record.orderNo,
       orderDate: record.lastOrderDate,

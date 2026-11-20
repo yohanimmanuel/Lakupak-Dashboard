@@ -1169,25 +1169,30 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
       notes: Array.isArray(parsedNotes) ? parsedNotes.join(', ') : '',
     });
     setId(isEditMode ? (initialData.buyerId || generateSecureBuyerId()) : generateSecureBuyerId());
-    setOrderRows(
-      orderDetails.length > 0 ? orderDetails.map((row: OrderDetail) => ({
-        orderNo: row.orderNo || '',
-        product: row.product || '',
-        productId: row.productId || '',
-        variantOptionId: row.variantOptionId == null ? '' : String(row.variantOptionId),
-        variantName: row.variantName || '',
-        sku: row.sku || '',
-        pricePerPackage: row.pricePerPackage == null ? '' : String(row.pricePerPackage),
-        stockType: row.stockType || parseBuyerOrderTotal(row.totalOrders || '', 'Boxes').unit,
-        piecesPerPackage: Number(row.piecesPerPackage) > 0 ? Number(row.piecesPerPackage) : undefined,
-        totalOrders: normalizeBuyerOrderTotal(row.totalOrders || '', row.stockType || 'Boxes'),
-        totalSpend: row.totalSpend || '',
-        shippingFee: row.shippingFee || '',
-        lastOrderDate: row.lastOrderDate || '',
-        outstanding: row.outstanding || '',
-        syncedFromOrders: row.syncedFromOrders === true,
-      })) : [{ orderNo: '', product: '', productId: '', variantOptionId: '', variantName: '', stockType: 'Pieces', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }]
-    );
+    // Marketplace orders are expanded from immutable OrderItem snapshots by the
+    // dedicated hydration effect. Do not overwrite those line-level rows with the
+    // consolidated one-row-per-order BuyerRecord summary here.
+    if (!initialData.orderLineDetails) {
+      setOrderRows(
+        orderDetails.length > 0 ? orderDetails.map((row: OrderDetail) => ({
+          orderNo: row.orderNo || '',
+          product: row.product || '',
+          productId: row.productId || '',
+          variantOptionId: row.variantOptionId == null ? '' : String(row.variantOptionId),
+          variantName: row.variantName || '',
+          sku: row.sku || '',
+          pricePerPackage: row.pricePerPackage == null ? '' : String(row.pricePerPackage),
+          stockType: row.stockType || parseBuyerOrderTotal(row.totalOrders || '', 'Boxes').unit,
+          piecesPerPackage: Number(row.piecesPerPackage) > 0 ? Number(row.piecesPerPackage) : undefined,
+          totalOrders: normalizeBuyerOrderTotal(row.totalOrders || '', row.stockType || 'Boxes'),
+          totalSpend: row.totalSpend || '',
+          shippingFee: row.shippingFee || '',
+          lastOrderDate: row.lastOrderDate || '',
+          outstanding: row.outstanding || '',
+          syncedFromOrders: row.syncedFromOrders === true,
+        })) : [{ orderNo: '', product: '', productId: '', variantOptionId: '', variantName: '', stockType: 'Pieces', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }]
+      );
+    }
     setSelectedOrderRows(new Set());
     setAvatar(initialData.avatar || '');
     setValidationErrors({});
