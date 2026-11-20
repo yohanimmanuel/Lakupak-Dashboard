@@ -565,7 +565,10 @@
         "Friday": "Jumat",
         "Saturday": "Sabtu",
         "Sunday": "Minggu"
-      }
+      },
+      "noProductOwned": "Tidak ada produk yang dimiliki",
+      "supplierChangedTitle": "Pemasok berubah",
+      "supplierChangedDescription": "Produk ini sekarang dimiliki pemasok lain. Catatan pasokan lama tetap disimpan sebagai riwayat dan tidak dapat dialihkan. Buat baris pasokan baru dengan produk milik pemasok ini, atau arsipkan/hapus catatan lama."
     }
   },
   "import": {
