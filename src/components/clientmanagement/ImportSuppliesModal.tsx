@@ -88,7 +88,7 @@ type ImportSuppliesModalProps = {
 };
 
 function normalizeKey(value: string | undefined): string {
-  return String(value || '').trim().replace(/\\s+/g, ' ').toLowerCase();
+  return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
 function productNameMatches(input: string, catalogProduct: string, variant: string): boolean {
