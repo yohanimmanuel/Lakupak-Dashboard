@@ -122,6 +122,9 @@ function getCatalogMatch(row: Record<string, string>, mapping: Record<string, st
       const exact = skuMatches.filter((entry) => normalizeKey(entry.variantName) === variantName);
       if (exact.length === 1) return exact[0];
     }
+    // Never fall back from an unmatched/ambiguous SKU to a same-name variant.
+    // That could silently assign a deleted SKU to a newly created catalog ID.
+    return undefined;
   }
   if (!product) return undefined;
   const exactProducts = catalog.filter((entry) => productNameMatches(product, entry.product, entry.variantName || ''));
