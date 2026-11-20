@@ -477,6 +477,7 @@ export async function finalizeSupplierSuppliesSave(args: {
             String(prev.variantName || '').trim() !== String(row.variantName || '').trim())
       : false;
     const oldMovementReversed = Boolean(prev?.stockApplied) && Boolean(prev) &&
+      (disabledThisSave || liveIdentityChanged) &&
       successfulStockReversals.has(effectRowKey(prev));
     const stockApplied = appliedTargetThisSave != null
       ? true
