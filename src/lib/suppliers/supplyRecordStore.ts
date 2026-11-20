@@ -226,9 +226,14 @@ export async function replaceSupplierSupplyRecords(
   // A supplier snapshot may refer to a variant removed during this same product
   // update. Such an ID is historical data, NOT a valid live foreign key.
   const requestedIds = [...new Set(incoming.map((row) => row.variantOptionId).filter((id): id is number => id != null))];
+  const supplierOwner = await db.supplier.findUnique({
+    where: { id: supplierRefId },
+    select: { userId: true },
+  });
+  if (!supplierOwner?.userId) throw new Error('Supplier owner not found');
   const liveVariants = requestedIds.length
     ? await db.variantOption.findMany({
-        where: { id: { in: requestedIds } },
+        where: { id: { in: requestedIds }, product: { userId: supplierOwner.userId } },
         select: { id: true },
       })
     : [];
@@ -236,7 +241,11 @@ export async function replaceSupplierSupplyRecords(
   for (const row of incoming) {
     const requestedId = row.variantOptionId;
     if (requestedId != null) {
-      row.historicalVariantOptionId = requestedId;
+      // A live link can change after explicit user selection, but the original
+      // historical identity must never be overwritten by the replacement ID.
+      if (row.historicalVariantOptionId == null) {
+        row.historicalVariantOptionId = requestedId;
+      }
       if (!liveIds.has(requestedId)) row.variantOptionId = null;
     }
   }

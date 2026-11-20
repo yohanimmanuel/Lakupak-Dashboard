@@ -958,8 +958,12 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     selectedHistoryRecords.every((row) => row.updateCurrentStock !== true);
   const canBulkUnupdateStock = selectedHistoryRecords.length > 0 &&
     selectedHistoryRecords.every((row) => row.updateCurrentStock === true);
+  const canArchiveHistoryRow = (row: SupplyDetail) =>
+    isEditMode && Boolean(String(row.suppliesno || '').trim()) &&
+    row.variantOptionId == null &&
+    (isDeletedVariantReceipt(row) || isLegacyUnlinkedReceipt(row));
   const canBulkArchiveHistory = selectedHistoryRecords.length > 0 &&
-    selectedHistoryRecords.every((row) => isDeletedVariantReceipt(row) && !hasMatchingLiveVariant(row));
+    selectedHistoryRecords.every(canArchiveHistoryRow);
 
   const toggleHistoryRowSelection = useCallback((idx: number) => {
     setSelectedHistoryRows((prev) => {
@@ -1208,7 +1212,8 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     if (!openingAction) return;
     const { kind, rows } = openingAction;
     setOpeningAction(null);
-    // Each mutation is individually validated on the server; stop on first failure.
+    // Each operation manages its own busy/error state. Keep the remaining
+    // records available for retry if an individual mutation fails.
     for (const row of rows) {
       if (kind === 'delete') await deleteOpening(row);
       else await setOpeningArchive(row, kind === 'archive');
@@ -1786,9 +1791,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                         catalogLoadStatus === 'loaded' &&
                         hasMatchingLiveVariant(row);
                       const needsVariantLink = isLegacyUnlinkedReceipt(row) || hasReplacementVariant;
-                      const canArchiveRow = deletedVariant &&
-                        catalogLoadStatus === 'loaded' &&
-                        !hasReplacementVariant;
+                      const canArchiveRow = canArchiveHistoryRow(row);
                       return (
                       <tr key={row.suppliesno || `hist-${idx}`} className="whitespace-nowrap">
                         <td className="px-3 py-2">
