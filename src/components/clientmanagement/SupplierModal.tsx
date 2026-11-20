@@ -590,7 +590,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   const safeArchivedPage = Math.min(archivedPage, archivedTotalPages);
   const archivedPageStart = (safeArchivedPage - 1) * archivedPageSize;
   const archivedPageRows = archivedOpeningRows.slice(archivedPageStart, archivedPageStart + archivedPageSize);
-  // Summary and history have independent pagination so switching tabs preserves each view.
+  const [archivedAction, setArchivedAction] = useState<{ kind: 'archive' | 'restore' | 'delete'; rows: SupplyDetail[] } | null>(null);
   const supplyRowsPerPage = 8;
   const [historyPage, setHistoryPage] = useState(1);
   const totalHistoryPages = Math.max(1, Math.ceil(historyRows.length / supplyRowsPerPage));
@@ -1179,6 +1179,19 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     } finally {
       setArchiveBusy(false);
     }
+  };
+
+  const performArchivedAction = async () => {
+    if (!archivedAction) return;
+    const { kind, rows } = archivedAction;
+    setArchivedAction(null);
+    for (const row of rows) {
+      const succeeded = kind === 'delete'
+        ? await deleteArchivedSupply(row)
+        : await setSupplyArchived(row, kind === 'archive');
+      if (!succeeded) break;
+    }
+    setSelectedHistoryRows(new Set());
   };
 
   // Enhanced form submission
