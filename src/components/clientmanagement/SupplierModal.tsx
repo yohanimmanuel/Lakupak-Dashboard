@@ -778,6 +778,26 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     [catalogProducts, form.supplierName, initialData?.name],
   );
 
+  // A replacement variant may have the same product/variant identity but a new
+  // VariantOption ID. In that case the receipt should be relinked, not archived.
+  const hasMatchingLiveVariant = useCallback((row: SupplyDetail) => {
+    const normalize = (value: unknown) => String(value || '').trim().toLocaleLowerCase();
+    const productId = normalize(row.productId);
+    const productName = normalize(row.product);
+    const sku = normalize(row.sku);
+    const variantName = normalize(row.variantName);
+    return catalogOptions.some((option) => {
+      const sameProduct =
+        (productId && normalize(option.productId) === productId) ||
+        (productName && normalize(option.product) === productName);
+      if (!sameProduct) return false;
+      return Boolean(
+        (sku && normalize(option.sku) === sku) ||
+        (variantName && normalize(option.variantName) === variantName),
+      );
+    });
+  }, [catalogOptions]);
+
   /** Strict ownership list for import validation — no full-catalog fallback. */
   const supplierOwnedCatalog = useMemo(
     () =>
@@ -881,7 +901,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   const canBulkUnupdateStock = selectedHistoryRecords.length > 0 &&
     selectedHistoryRecords.every((row) => row.updateCurrentStock === true);
   const canBulkArchiveHistory = selectedHistoryRecords.length > 0 &&
-    selectedHistoryRecords.every(isDeletedVariantReceipt);
+    selectedHistoryRecords.every((row) => isDeletedVariantReceipt(row) && !hasMatchingLiveVariant(row));
 
   const toggleHistoryRowSelection = useCallback((idx: number) => {
     setSelectedHistoryRows((prev) => {
@@ -1705,7 +1725,9 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                       const idx = historyPageStart + visibleIndex;
                       const needsSku = isUnresolvedHistoryRow(row);
                       const deletedVariant = isDeletedVariantReceipt(row);
-                      const needsVariantLink = isLegacyUnlinkedReceipt(row);
+                      const hasReplacementVariant = deletedVariant && hasMatchingLiveVariant(row);
+                      const needsVariantLink = isLegacyUnlinkedReceipt(row) || hasReplacementVariant;
+                      const canArchiveRow = deletedVariant && !hasReplacementVariant;
                       return (
                       <tr key={row.suppliesno || `hist-${idx}`} className="whitespace-nowrap">
                         <td className="px-3 py-2">
@@ -1751,11 +1773,13 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                           />
                           {needsVariantLink ? (
                             <p className="mt-1 max-w-[24rem] whitespace-normal text-[10px] font-medium text-amber-700">
-                              This older receipt is not linked to a catalog variant. Re-select its live SKU and variant so the system knows exactly which inventory item to update.
+                              {hasReplacementVariant
+                                ? 'The original variant was deleted and a replacement with the same product/variant details now exists under a new ID. Re-select its live SKU and variant to link this receipt to inventory.'
+                                : 'This older receipt is not linked to a catalog variant. Re-select its live SKU and variant so the system knows exactly which inventory item to update.'}
                             </p>
-                          ) : deletedVariant ? (
+                          ) : canArchiveRow ? (
                             <p className="mt-1 max-w-[24rem] whitespace-normal text-[10px] font-medium text-amber-700">
-                              The original catalog variant was deleted. Choose another live variant, or archive/delete this supply.
+                              The original catalog variant was deleted and no matching replacement exists. Choose another variant, or archive/delete this supply.
                             </p>
                           ) : needsSku ? (
                             <p className="mt-1 text-[10px] font-medium text-amber-700">
@@ -1874,7 +1898,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                             >
                               <Plus className="h-4 w-4" />
                             </button>
-                            {deletedVariant ? (
+                            {canArchiveRow ? (
                               <button
                                 type="button"
                                 className="rounded-full p-1 text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
