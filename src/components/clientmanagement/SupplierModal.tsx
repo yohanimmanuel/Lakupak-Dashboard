@@ -2199,10 +2199,10 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
 
       {showArchivedSupplies && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label="Archived Supplies">
-          <div className="w-full max-w-3xl max-h-[80vh] overflow-y-auto rounded-xl border border-[#e6e6e6] bg-white p-6 text-gray-900 shadow-2xl">
+          <div className="w-full max-w-5xl max-h-[85vh] overflow-y-auto rounded-xl border border-[#e6e6e6] bg-white p-6 text-gray-900 shadow-2xl">
             <div className="mb-5 flex items-center justify-between border-b border-[#e6e6e6] pb-4">
               <h2 className="text-lg font-bold text-black">Archived Supplies</h2>
-              <button type="button" className="rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 text-sm font-medium text-black hover:bg-gray-100" onClick={() => setShowArchivedSupplies(false)}>Close</button>
+              <button type="button" className="rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 text-sm font-medium text-black transition-colors hover:border-gray-300 hover:bg-gray-100" onClick={() => setShowArchivedSupplies(false)}>Close</button>
             </div>
             {openingRows.length > 0 && (
               <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 p-3">
@@ -2245,14 +2245,14 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
               <span className="text-xs text-gray-500">{archivedOpeningRows.length} archived supply record(s)</span>
               <div className="flex gap-2">
                 <button type="button" disabled={archiveBusy || selectedArchivedRows.size === 0}
-                  className="rounded-lg border border-[#e6e6e6] px-3 py-2 text-xs font-semibold disabled:opacity-40"
+                  className="rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-[#0a61d7] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[#e6e6e6] disabled:hover:bg-white disabled:hover:text-gray-700"
                   onClick={async () => {
                     const targets = archivedOpeningRows.filter((row) => selectedArchivedRows.has(row.suppliesno));
                     for (const row of targets) await setOpeningArchive(row, false);
                     setSelectedArchivedRows(new Set());
                   }}><RotateCcw className="mr-1 inline h-4 w-4" />Restore selected</button>
                 <button type="button" disabled={archiveBusy || selectedArchivedRows.size === 0}
-                  className="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 disabled:opacity-40"
+                  className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-600 transition-colors hover:border-red-400 hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-red-200 disabled:hover:bg-white disabled:hover:text-red-600"
                   onClick={() => setOpeningAction({ kind: 'delete', rows: archivedOpeningRows.filter((row) => selectedArchivedRows.has(row.suppliesno)) })}>
                   <Trash className="mr-1 inline h-4 w-4" />Delete selected
                 </button>
@@ -2262,9 +2262,11 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
               <table className="min-w-[1000px] w-full text-left text-xs">
                 <thead className="bg-gray-100 text-gray-500">
                   <tr>
-                    <th className="px-3 py-3"><input type="checkbox" aria-label="Select all archived supplies"
+                    <th className="px-3 py-3"><ImportSelectionCheckbox
                       checked={archivedOpeningRows.length > 0 && archivedOpeningRows.every((row) => selectedArchivedRows.has(row.suppliesno))}
-                      onChange={(e) => setSelectedArchivedRows(e.target.checked ? new Set(archivedOpeningRows.map((row) => row.suppliesno)) : new Set())}/></th>
+                      onToggle={() => setSelectedArchivedRows(archivedOpeningRows.length > 0 && archivedOpeningRows.every((row) => selectedArchivedRows.has(row.suppliesno)) ? new Set() : new Set(archivedOpeningRows.map((row) => row.suppliesno)))}
+                      ariaLabel="Select all archived supplies"
+                    /></th>
                     <th className="px-3 py-3">NO.</th>
                     <th className="px-3 py-3">PRODUCT</th>
                     <th className="px-3 py-3">SKU</th>
@@ -2279,14 +2281,16 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                   {archivedOpeningRows.map((row, index) => {
                     const received = getSupplyReceivedInput(row);
                     return <tr key={row.suppliesno || index} className="text-gray-800">
-                      <td className="px-3 py-3"><input type="checkbox" aria-label={`Select archived supply ${index + 1}`}
+                      <td className="px-3 py-3"><ImportSelectionCheckbox
                         checked={selectedArchivedRows.has(row.suppliesno)}
-                        onChange={(e) => setSelectedArchivedRows((previous) => {
+                        onToggle={() => setSelectedArchivedRows((previous) => {
                           const next = new Set(previous);
-                          if (e.target.checked) next.add(row.suppliesno);
-                          else next.delete(row.suppliesno);
+                          if (next.has(row.suppliesno)) next.delete(row.suppliesno);
+                          else next.add(row.suppliesno);
                           return next;
-                        })}/></td>
+                        })}
+                        ariaLabel={`Select archived supply ${index + 1}`}
+                      /></td>
                       <td className="px-3 py-3">{index + 1}</td>
                       <td className="px-3 py-3 font-medium">{row.product || '—'}</td>
                       <td className="px-3 py-3">{row.sku || '—'}</td>
@@ -2297,10 +2301,10 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                       <td className="px-3 py-3">
                         <div className="flex gap-2">
                           <button type="button" disabled={archiveBusy} aria-label="Restore supply"
-                            title="Restore supply" className="rounded-full p-1 text-blue-600 hover:bg-blue-50 disabled:opacity-40"
+                            title="Restore supply" className="rounded-full p-1.5 text-blue-600 transition-colors hover:bg-blue-100 hover:text-blue-800 disabled:cursor-not-allowed disabled:opacity-40"
                             onClick={() => void setOpeningArchive(row, false)}><RotateCcw className="h-4 w-4"/></button>
                           <button type="button" disabled={archiveBusy} aria-label="Delete archived supply"
-                            title="Delete archived supply" className="rounded-full p-1 text-red-500 hover:bg-red-50 disabled:opacity-40"
+                            title="Delete archived supply" className="rounded-full p-1.5 text-red-500 transition-colors hover:bg-red-100 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-40"
                             onClick={() => setOpeningAction({kind:'delete',rows:[row]})}><Trash className="h-4 w-4"/></button>
                         </div>
                       </td>
