@@ -197,7 +197,7 @@ export async function replaceSupplierSupplyRecords(
   // Keep every dated receipt as an independent accounting event.
   let list = raw
     .filter((row) => !isSupplyDeleteMarker(row))
-    .filter((row) => getSupplyRecordType(row) === 'history');
+    .filter((row) => getSupplyRecordType({ suppliesno: row.suppliesno, recordType: row.recordType === 'summary' ? 'summary' : 'history' }) === 'history');
   // Never auto-link historical receipts to a current variant by SKU/name.
   // Legacy imports without an explicit variant ID remain unlinked until
   // an authorized user selects the exact variant in the supplier editor.
