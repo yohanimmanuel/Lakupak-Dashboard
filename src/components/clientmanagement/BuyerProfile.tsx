@@ -209,58 +209,6 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
     tBuyersProfile(`fields.${key}` as Parameters<typeof tBuyersProfile>[0]);
   const [buyerOffers, setBuyerOffers] = useState<Offer[]>([]);
   const [offersLoading, setOffersLoading] = useState(false);
-  const [variantSkuById, setVariantSkuById] = useState<Record<string, string>>({});
-
-  // Older saved buyer rows may contain variantOptionId but predate the SKU
-  // snapshot field. Resolve those SKUs from the live catalog for display/export.
-  useEffect(() => {
-    if (!user?.id) {
-      setVariantSkuById({});
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        let page = 1;
-        let totalPages = 1;
-        const lookup: Record<string, string> = {};
-        do {
-          const data = await fetchGraphQL<{
-            products: {
-              nodes: Array<{
-                productId: string;
-                variantOptions?: Array<{ id: number; sku?: string | null; variantName?: string | null }> | null;
-              }>;
-              pagination: { totalPages?: number };
-            };
-          }>(
-            `query BuyerProfileVariantSkus($userId: Int!, $page: Int!, $limit: Int!) {
-              products(userId: $userId, page: $page, limit: $limit) {
-                nodes { productId variantOptions { id sku variantName } }
-                pagination { totalPages }
-              }
-            }`,
-            { userId: user.id, page, limit: 1000 },
-          );
-          for (const product of data.products?.nodes || []) {
-            for (const variant of product.variantOptions || []) {
-              if (!variant.sku) continue;
-              lookup[`id:${variant.id}`] = variant.sku;
-              const variantName = String(variant.variantName || '').trim().toLowerCase();
-              if (variantName) lookup[`product:${product.productId}|variant:${variantName}`] = variant.sku;
-            }
-          }
-          totalPages = Math.max(1, data.products?.pagination?.totalPages ?? 1);
-          page += 1;
-        } while (!cancelled && page <= totalPages);
-        if (!cancelled) setVariantSkuById(lookup);
-      } catch {
-        if (!cancelled) setVariantSkuById({});
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [user?.id]);
-  
   // BuyerProfile - Raw buyer data
   
   // Keep row status changes immediately visible; reload from the buyer record when the
@@ -1049,18 +997,13 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
                   <td className="py-4 px-4 text-black">
                     {(() => {
                       const detail = hoverOrderDetails[order.orderNo];
-                      if (isLiveBuyerOrder(order) && !detail) return <span className="inline-block h-3 w-28 animate-pulse rounded bg-gray-200" aria-label="Loading SKU" />;
                       if (detail?.orderItems?.length) return compactOrderValues(detail.orderItems.map((item) => item.productSkuSnapshot));
-                      const raw = order.sku
-                        || (order.variantOptionId != null ? variantSkuById[`id:${order.variantOptionId}`] : '')
-                        || (order.productId && order.variantName ? variantSkuById[`product:${order.productId}|variant:${order.variantName.trim().toLowerCase()}`] : '');
-                      return compactOrderValues(String(raw || '').split(',').map((v) => v.trim()));
+                      return compactOrderValues(String(order.sku || '').split(',').map((v) => v.trim()));
                     })()}
                   </td>
                   <td className="py-4 px-4 text-black">
                     {(() => {
                       const detail = hoverOrderDetails[order.orderNo];
-                      if (isLiveBuyerOrder(order) && !detail) return <span className="inline-block h-3 w-32 animate-pulse rounded bg-gray-200" aria-label="Loading variant" />;
                       if (detail?.orderItems?.length) return compactOrderValues(detail.orderItems.map((item) => item.variantNameSnapshot));
                       return compactOrderValues(String(order.variantName || '').split(',').map((v) => v.trim()));
                     })()}

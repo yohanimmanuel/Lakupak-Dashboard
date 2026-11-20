@@ -37,6 +37,7 @@ export const contactsTypeDefs = /* GraphQL */ `
     logistics: String
     notes: String
     orderDetails: String
+    orderLineDetails: String
     avgMonthlySpending: Float
     avgMonthlyOrders: Float
     userId: Int
@@ -296,6 +297,7 @@ export const contactsTypeDefs = /* GraphQL */ `
 `;
 
 type BuyerWithRecords = BuyerModel & {
+  orderLineDetails?: string | null;
   buyerRecords?: Array<{
     orderNo: string;
     product: string;
@@ -314,6 +316,7 @@ type BuyerWithRecords = BuyerModel & {
     discountBadge: string | null;
     offerApplied: boolean | null;
     syncedFromOrders: boolean;
+    skuSnapshot: string | null;
     sortOrder: number;
   }>;
 };
@@ -337,6 +340,8 @@ type SupplierWithRecords = SupplierModel & {
     variantName: string | null;
     updateCurrentStock: boolean;
     stockApplied: boolean;
+    stockAppliedVariantOptionId?: number | null;
+    historicalVariantOptionId?: number | null;
     sortOrder: number;
     archivedAt?: Date | null;
     variantOptionId?: number | null;
@@ -356,6 +361,7 @@ const mapBuyer = (buyer: BuyerWithRecords) => ({
   status: buyer.status,
   logistics: buyer.logistics ?? null,
   notes: buyer.notes ?? null,
+  orderLineDetails: (buyer as BuyerWithRecords).orderLineDetails ?? null,
   orderDetails:
     buyer.buyerRecords && buyer.buyerRecords.length > 0
       ? JSON.stringify(
@@ -364,6 +370,7 @@ const mapBuyer = (buyer: BuyerWithRecords) => ({
             product: row.product,
             productId: row.productId ?? undefined,
             variantOptionId: row.variantOptionId ?? undefined,
+            sku: row.skuSnapshot ?? undefined,
             variantName: row.variantName ?? undefined,
             stockType: row.stockType ?? undefined,
             piecesPerPackage: row.piecesPerPackage ?? undefined,
@@ -426,6 +433,8 @@ const mapSupplier = (supplier: SupplierWithRecords) => ({
             variantName: row.variantName ?? undefined,
             updateCurrentStock: row.updateCurrentStock === true,
             stockApplied: row.stockApplied === true,
+            stockAppliedVariantOptionId: row.stockAppliedVariantOptionId ?? undefined,
+            historicalVariantOptionId: row.historicalVariantOptionId ?? undefined,
             variantOptionId: row.variantOptionId ?? undefined,
             archivedAt: row.archivedAt?.toISOString() ?? null,
           })),
@@ -445,6 +454,120 @@ const mapSupplier = (supplier: SupplierWithRecords) => ({
   createdAt: supplier.createdAt.toISOString(),
   updatedAt: supplier.updatedAt.toISOString(),
 });
+
+type BuyerOrderLineSnapshot = {
+  id: number;
+  productId: string | null;
+  productName: string;
+  productSkuSnapshot: string | null;
+  variantOptionId: number | null;
+  variantId: number | null;
+  variantNameSnapshot: string | null;
+  packageQuantity: number | null;
+  packageType: string | null;
+  piecesPerPackage: number | null;
+  subtotal: string;
+  pricePerPackage: string | null;
+  promotionDetailsSnapshot: string | null;
+  moqSnapshot: number | null;
+};
+
+async function loadBuyerOrderLineSnapshots(
+  userId: number,
+  buyerIds: string[],
+): Promise<Map<string, BuyerOrderLineSnapshot[]>> {
+  if (buyerIds.length === 0) return new Map();
+  const orders = await prisma.order.findMany({
+    where: {
+      userId,
+      buyerId: { in: buyerIds },
+      isDeleted: false,
+      orderStatus: { notIn: ['Cancelled', 'Returned'] },
+    },
+    select: {
+      orderId: true,
+      buyerId: true,
+      orderItemsRel: {
+        select: {
+          id: true,
+          productId: true,
+          productNameSnapshot: true,
+          variantId: true,
+          variantOptionId: true,
+          productSkuSnapshot: true,
+          variantNameSnapshot: true,
+          packageQuantity: true,
+          packageType: true,
+          piecesPerPackage: true,
+          subtotal: true,
+          pricePerPackage: true,
+          promotionDetailsSnapshot: true,
+          moqSnapshot: true,
+        },
+      },
+    },
+  });
+  const snapshots = new Map<string, BuyerOrderLineSnapshot[]>();
+  for (const order of orders) {
+    snapshots.set(`${order.buyerId}|${order.orderId}`, order.orderItemsRel.map((item) => ({
+      id: item.id,
+      productId: item.productId ?? null,
+      productName: item.productNameSnapshot || 'Unknown Product',
+      productSkuSnapshot: item.productSkuSnapshot ?? null,
+      variantOptionId: item.variantOptionId ?? null,
+      variantId: item.variantId ?? null,
+      variantNameSnapshot: item.variantNameSnapshot ?? null,
+      packageQuantity: item.packageQuantity ?? null,
+      packageType: item.packageType ?? null,
+      piecesPerPackage: item.piecesPerPackage ?? null,
+      subtotal: item.subtotal.toString(),
+      pricePerPackage: item.pricePerPackage?.toString() ?? null,
+      promotionDetailsSnapshot: item.promotionDetailsSnapshot ?? null,
+      moqSnapshot: item.moqSnapshot ?? null,
+    })));
+  }
+  return snapshots;
+}
+
+function withBuyerOrderLineSnapshots(
+  buyer: BuyerWithRecords,
+  snapshots: Map<string, BuyerOrderLineSnapshot[]>,
+): BuyerWithRecords {
+  const records = buyer.buyerRecords || [];
+  const orderLineDetails = records
+    .filter((record) => record.syncedFromOrders || String(record.orderNo || '').toUpperCase().startsWith('LKO-'))
+    .map((record) => ({
+      orderNo: record.orderNo,
+      orderDate: record.lastOrderDate,
+      totalSpend: record.totalSpend,
+      shippingFee: record.shippingFee,
+      outstanding: record.outstanding,
+      orderItems: snapshots.get(`${buyer.buyerId}|${record.orderNo}`) || [],
+    }))
+    .filter((record) => record.orderItems.length > 0);
+
+  return {
+    ...buyer,
+    orderLineDetails: orderLineDetails.length ? JSON.stringify(orderLineDetails) : null,
+    buyerRecords: records.map((record) => {
+      const lines = snapshots.get(`${buyer.buyerId}|${record.orderNo}`) || [];
+      if (lines.length === 0) return record;
+      const distinct = (values: Array<string | null | undefined>) =>
+        [...new Set(values.map((value) => String(value || '').trim()).filter(Boolean))];
+      const skus = distinct(lines.map((line) => line.productSkuSnapshot));
+      const variants = distinct(lines.map((line) => line.variantNameSnapshot));
+      const productIds = distinct(lines.map((line) => line.productId));
+      const variantIds = [...new Set(lines.map((line) => line.variantOptionId).filter((value): value is number => value != null))];
+      return {
+        ...record,
+        skuSnapshot: record.skuSnapshot || (skus.length ? skus.join(', ') : null),
+        variantName: record.variantName || (variants.length ? variants.join(', ') : null),
+        productId: record.productId || (productIds.length === 1 ? productIds[0] : null),
+        variantOptionId: record.variantOptionId ?? (variantIds.length === 1 ? variantIds[0] : null),
+      };
+    }),
+  };
+}
 
 const fetchBuyersConnection = async (args: {
   userId: number;
@@ -494,8 +617,11 @@ const fetchBuyersConnection = async (args: {
     prisma.buyer.count({ where: whereClause }),
   ]);
 
+  // Backfill missing legacy BuyerRecord SKU/variant labels from immutable OrderItem
+  // snapshots in one batched query. Do not depend on the current Product Catalog.
+  const orderLineSnapshots = await loadBuyerOrderLineSnapshots(userId, buyers.map((buyer) => buyer.buyerId));
   return {
-    nodes: buyers.map(mapBuyer),
+    nodes: buyers.map((buyer) => mapBuyer(withBuyerOrderLineSnapshots(buyer as BuyerWithRecords, orderLineSnapshots))),
     pagination: buildPaginationInfo(safePage, safeLimit, totalCount),
   };
 };
@@ -574,36 +700,17 @@ const fetchSingleBuyer = async (args: { userId: number; id: string }) => {
     throw new Error('Buyer not found');
   }
 
-  // Refresh spend/outstanding from live orders only when order-derived details exist
-  // (avoids wiping createBuyer / imported orderDetails with []).
-  try {
-    const synced = await syncOrderToBuyerProfile(buyer.buyerId, userId);
-    if (synced) {
-      const refreshed = isNumericId(id)
-        ? await prisma.buyer.findFirst({ where: { id: Number(id), userId }, include: buyerInclude })
-        : await prisma.buyer.findFirst({ where: { buyerId: id, userId }, include: buyerInclude });
-      if (refreshed) buyer = refreshed;
-    }
-  } catch {
-    // best-effort; return the row we already loaded
-  }
-
-  return mapBuyer(buyer);
+  // Profile reads stay read-only. Fill missing legacy labels from immutable OrderItem
+  // snapshots in the same request, using one batched query rather than client hydration.
+  const orderLineSnapshots = await loadBuyerOrderLineSnapshots(userId, [buyer.buyerId]);
+  return mapBuyer(withBuyerOrderLineSnapshots(buyer as BuyerWithRecords, orderLineSnapshots));
 };
 
 const fetchSingleSupplier = async (args: { userId: number; id: string }) => {
   const { userId, id } = args;
 
-  // SupplierProfile and SupplierTable must read the same AUTO snapshot. The list
-  // route reconciles these rows from Product stock; doing the same before the
-  // single-supplier read prevents a just-saved profile from returning stale AUTO
-  // quantities until the user visits the list and refreshes a second time.
-  try {
-    const { syncAllProductSuppliersForUser } = await import('@/lib/suppliers/syncProductSupplies');
-    await syncAllProductSuppliersForUser(Number(userId));
-  } catch (syncError) {
-    console.warn('[Suppliers] Profile snapshot reconciliation skipped:', syncError);
-  }
+  // Supplier reads are read-only. Current inventory belongs to Product Catalog;
+  // supplier totals are derived only from persisted receipt history.
 
   const supplierInclude = {
     supplyRecords: { orderBy: [{ sortOrder: 'asc' as const }, { id: 'asc' as const }] },
@@ -1781,68 +1888,91 @@ const bulkDeleteBuyers = async (args: { userId: number; ids: string[] }) => {
 
 const syncSuppliersFromProducts = async (args: { userId: number }) => {
   const { userId } = args;
-  if (!/^\d+$/.test(String(userId))) {
-    throw new Error('Invalid userId format');
-  }
-
-  const { syncAllProductSuppliersForUser } = await import('@/lib/suppliers/syncProductSupplies');
-  const result = await syncAllProductSuppliersForUser(Number(userId));
-
-  try {
-    const { invalidateDashboardCache } = await import('@/lib/queryCache');
-    await invalidateDashboardCache(Number(userId));
-  } catch {
-    // Ignore cache invalidation errors
-  }
-
+  // Supplier receipts are now entered/imported explicitly. This old mutation
+  // remains as a compatibility no-op and must not regenerate AUTO balances.
   return {
     success: true,
-    productsProcessed: result.productsProcessed,
-    suppliersTouched: result.suppliersTouched,
-    message: `Synced ${result.productsProcessed} product(s) into ${result.suppliersTouched} supplier(s)`,
+    productsProcessed: 0,
+    suppliersTouched: 0,
+    message: 'Supplier receipts are managed explicitly; no catalog snapshots were generated.',
   };
 };
 
-/** Order-style reversible soft archive. Never archives receipts or a live variant. */
+/**
+ * Soft archive a legacy opening snapshot or a receipt whose original catalog
+ * variant has been deleted. Active/live variants and normal active receipts
+ * cannot be archived.
+ */
 const setOpeningBalanceArchived = async (args: { userId: number; supplierId: string; suppliesno: string; archived: boolean }): Promise<boolean> => {
   const { userId, supplierId, suppliesno, archived } = args;
-  if (!suppliesno.startsWith('AUTO-')) throw new Error('Only catalog opening balances can be archived');
   await prisma.$transaction(async (tx) => {
     const supplier = await tx.supplier.findFirst({
       where: { userId, OR: isNumericId(supplierId) ? [{ id: Number(supplierId) }, { supplierId }] : [{ supplierId }] },
       select: { id: true },
     });
     if (!supplier) throw new Error('Supplier not found');
-    const row = await tx.supplyRecord.findFirst({ where: { supplierRefId: supplier.id, suppliesno } });
-    if (!row || row.recordType !== 'summary') throw new Error('Opening balance not found');
-    if (archived) {
-      const historicalId = row.historicalVariantOptionId ?? row.variantOptionId;
-      if (!historicalId) throw new Error('Legacy opening balance needs manual identity reconciliation');
-      const live = await tx.variantOption.findUnique({ where: { id: historicalId }, select: { id: true } });
-      if (live) throw new Error('Delete the catalog variant before archiving its opening balance');
+
+    const row = await tx.supplyRecord.findFirst({
+      where: { supplierRefId: supplier.id, suppliesno },
+    });
+    if (!row) throw new Error('Supply record not found');
+
+    const isLegacyOpening = row.recordType === 'summary';
+    const isOrphanedReceipt = row.recordType === 'history' && row.variantOptionId == null;
+    if (!isLegacyOpening && !isOrphanedReceipt) {
+      throw new Error('Only legacy opening snapshots or receipts without a live catalog variant can be archived');
     }
-    await tx.supplyRecord.update({ where: { id: row.id }, data: { archivedAt: archived ? new Date() : null } });
+
+    const historicalId = row.historicalVariantOptionId ?? row.variantOptionId;
+    if (!historicalId) throw new Error('This supply has no preserved variant identity and needs manual reconciliation');
+    const liveVariant = await tx.variantOption.findFirst({
+      where: { id: historicalId, product: { userId } },
+      select: { id: true },
+    });
+    if (liveVariant) {
+      throw new Error('This catalog variant still exists. Only supplies whose original variant was deleted can be archived.');
+    }
+
+    await tx.supplyRecord.update({
+      where: { id: row.id },
+      data: { archivedAt: archived ? new Date() : null },
+    });
   });
   try { const { invalidateDashboardCache } = await import('@/lib/queryCache'); await invalidateDashboardCache(userId); } catch { /* best effort */ }
   return true;
 };
 
-/** Explicit deletion of a catalog opening balance; never deletes actual receipts. */
+/** Permanently delete a legacy opening snapshot or orphaned receipt after explicit user action. */
 const deleteArchivedOpeningBalance = async (args: { userId: number; supplierId: string; suppliesno: string }): Promise<boolean> => {
   const { userId, supplierId, suppliesno } = args;
-  if (!suppliesno.startsWith('AUTO-')) throw new Error('Only catalog opening balances can be deleted');
   await prisma.$transaction(async (tx) => {
     const supplier = await tx.supplier.findFirst({
       where: { userId, OR: isNumericId(supplierId) ? [{ id: Number(supplierId) }, { supplierId }] : [{ supplierId }] },
       select: { id: true },
     });
     if (!supplier) throw new Error('Supplier not found');
-    const row = await tx.supplyRecord.findFirst({ where: { supplierRefId: supplier.id, suppliesno } });
-    if (!row || row.recordType !== 'summary') throw new Error('Opening balance not found');
+
+    const row = await tx.supplyRecord.findFirst({
+      where: { supplierRefId: supplier.id, suppliesno },
+    });
+    if (!row) throw new Error('Supply record not found');
+
+    const isLegacyOpening = row.recordType === 'summary';
+    const isOrphanedReceipt = row.recordType === 'history' && row.variantOptionId == null;
+    if (!isLegacyOpening && !isOrphanedReceipt) {
+      throw new Error('Only legacy opening snapshots or receipts without a live catalog variant can be deleted');
+    }
+
     const historicalId = row.historicalVariantOptionId ?? row.variantOptionId;
-    if (!historicalId) throw new Error('Legacy opening balance needs manual identity reconciliation');
-    const live = await tx.variantOption.findUnique({ where: { id: historicalId }, select: { id: true } });
-    if (live) throw new Error('Delete the catalog variant before deleting its opening balance');
+    if (!historicalId) throw new Error('This supply has no preserved variant identity and needs manual reconciliation');
+    const liveVariant = await tx.variantOption.findFirst({
+      where: { id: historicalId, product: { userId } },
+      select: { id: true },
+    });
+    if (liveVariant) {
+      throw new Error('This catalog variant still exists. Only supplies whose original variant was deleted can be deleted here.');
+    }
+
     await tx.supplyRecord.delete({ where: { id: row.id } });
   });
   try { const { invalidateDashboardCache } = await import('@/lib/queryCache'); await invalidateDashboardCache(userId); } catch { /* best effort */ }

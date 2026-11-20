@@ -353,9 +353,28 @@ export async function syncOrderToBuyerProfile(buyerId: string, userId: number): 
       const orderTotal = headerTotal > 0 ? headerTotal : lineSpend + shippingFee;
       const orderOutstanding = unpaidOrderAmount(orderTotal, order);
       
+      // Persist immutable SKU/variant snapshots on BuyerRecord so buyer views
+      // can display order identity immediately without fetching the live catalog.
+      const skuSnapshots = [...new Set(order.orderItemsRel
+        .map((item) => String(item.productSkuSnapshot || '').trim())
+        .filter(Boolean))];
+      const variantSnapshots = [...new Set(order.orderItemsRel
+        .map((item) => String(item.variantNameSnapshot || '').trim())
+        .filter(Boolean))];
+      const distinctProductIds = [...new Set(order.orderItemsRel
+        .map((item) => String(item.productId || '').trim())
+        .filter(Boolean))];
+      const distinctVariantIds = [...new Set(order.orderItemsRel
+        .map((item) => item.variantOptionId)
+        .filter((value): value is number => value != null))];
+
       return {
         orderNo: order.orderId,
         product: productNames,
+        productId: distinctProductIds.length === 1 ? distinctProductIds[0] : undefined,
+        variantOptionId: distinctVariantIds.length === 1 ? distinctVariantIds[0] : undefined,
+        sku: skuSnapshots.length ? skuSnapshots.join(', ') : undefined,
+        variantName: variantSnapshots.length ? variantSnapshots.join(', ') : undefined,
         totalOrders,
         totalSpend: orderTotal.toString(), // Prefer priced order total after send-pricing
         shippingFee: shippingFee.toString(),

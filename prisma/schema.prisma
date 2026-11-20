@@ -319,6 +319,8 @@ model SupplyRecord {
   updateCurrentStock Boolean  @default(false)
   /// True after this history row has already adjusted variant stock (re-check must not re-apply).
   stockApplied       Boolean  @default(false)
+  /// Exact variant whose stock was changed by this receipt; no FK by design so it survives deletion.
+  stockAppliedVariantOptionId Int?
   sortOrder          Int      @default(0)
   createdAt          DateTime @default(now()) @db.Timestamptz(3)
   updatedAt          DateTime @updatedAt @db.Timestamptz(3)

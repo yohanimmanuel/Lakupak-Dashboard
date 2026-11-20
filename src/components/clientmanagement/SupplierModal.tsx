@@ -28,6 +28,7 @@ import ImportSelectionCheckbox from '@/components/clientmanagement/ImportSelecti
 import ClientCatalogSelect from '@/components/clientmanagement/ClientCatalogSelect';
 import {
   buildSupplySummaryFromHistory,
+  getSupplyReceivedInput,
   partitionSupplies,
   serializeHistorySupplyForStorage,
 } from '@/lib/suppliers/supplyRecords';
@@ -512,7 +513,13 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   const [historyRows, setHistoryRows] = useState<SupplyDetail[]>(
     () => parseSupplyBuckets(initialData?.supplies).history,
   );
-  const [suppliesTab, setSuppliesTab] = useState<'summary' | 'opening' | 'history'>('history');
+  // Supplier editing now has a single receipt-history view; legacy opening rows
+  // are retained only for the Archived Supplies cleanup dialog.
+  // The editor now exposes receipts only. Keep the union return type for
+  // retained legacy cleanup branches so TypeScript does not compare impossible
+  // literal states while those records remain available for migration/cleanup.
+  const getSuppliesTab = (): 'summary' | 'opening' | 'history' => 'history';
+  const suppliesTab = getSuppliesTab();
   const [showArchivedSupplies, setShowArchivedSupplies] = useState(false);
   const [archivedOpeningRows, setArchivedOpeningRows] = useState<SupplyDetail[]>(() => {
     try { return (JSON.parse(initialData?.supplies || '[]') as SupplyDetail[]).filter((row) => !!row.archivedAt); }
@@ -522,6 +529,14 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   const [selectedOpeningRows, setSelectedOpeningRows] = useState<Set<string>>(new Set());
   const [openingAction, setOpeningAction] = useState<{ kind: "archive" | "restore" | "delete"; rows: SupplyDetail[] } | null>(null);
   const [openingRows, setOpeningRows] = useState<SupplyDetail[]>(() => parseSupplyBuckets(initialData?.supplies).opening);
+  // Receipts whose original live variant was deleted remain in history until the
+  // user explicitly archives or deletes them. A replacement with the same SKU is
+  // never treated as the same variant.
+  const orphanedHistoryRows = historyRows.filter((row) =>
+    row.recordType === 'history' &&
+    row.variantOptionId == null &&
+    row.historicalVariantOptionId != null,
+  );
   useEffect(() => {
     setSummaryRows(buildSupplySummaryFromHistory(historyRows.filter((item) => !isBlankHistoryRow(item)), openingRows));
   }, [openingRows, historyRows]);
@@ -988,7 +1003,6 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     }
     // Blank rows are dropped on import, which shifts indices.
     setSelectedHistoryRows(new Set());
-    setSuppliesTab('history');
     setShowImportSupplies(false);
   }, [historyRows, pendingDeleteMarkers]);
 
@@ -1028,7 +1042,6 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     setShowDeleteHistoryModal(false);
     setDeleteHistoryIndices([]);
     setDeleteUpdateStock(false);
-    setSuppliesTab('history');
     setValidationErrors({});
     setError('');
     setSuccess('');
@@ -1046,16 +1059,21 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
         }`,
         { userId: user.id, supplierId: initialData.supplierId, suppliesno: row.suppliesno, archived },
       );
-      setOpeningRows((current) => archived
-        ? current.filter((item) => item.suppliesno !== row.suppliesno)
-        : [...current.filter((item) => item.suppliesno !== row.suppliesno), { ...row, archivedAt: null }]);
+      if (row.recordType === 'history') {
+        setHistoryRows((current) => archived
+          ? current.filter((item) => item.suppliesno !== row.suppliesno)
+          : [...current.filter((item) => item.suppliesno !== row.suppliesno), { ...row, archivedAt: null }]);
+      } else {
+        setOpeningRows((current) => archived
+          ? current.filter((item) => item.suppliesno !== row.suppliesno)
+          : [...current.filter((item) => item.suppliesno !== row.suppliesno), { ...row, archivedAt: null }]);
+      }
       setArchivedOpeningRows((rows) => archived
         ? [...rows.filter((item) => item.suppliesno !== row.suppliesno), { ...row, archivedAt: new Date().toISOString() }]
         : rows.filter((item) => item.suppliesno !== row.suppliesno));
-      setSummaryRows((current) => current); // Refreshed from the opening balance state below.
       setSummaryPage(1);
       setSelectedOpeningRows((prev) => { const next = new Set(prev); next.delete(row.suppliesno); return next; });
-      setSuccess(archived ? 'Opening balance archived.' : 'Opening balance restored.');
+      setSuccess(archived ? 'Supply archived.' : 'Supply restored.');
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Unable to change archive status');
     } finally { setArchiveBusy(false); }
@@ -1073,11 +1091,12 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
         { userId: user.id, supplierId: initialData.supplierId, suppliesno: row.suppliesno },
       );
       setOpeningRows((current) => current.filter((item) => item.suppliesno !== row.suppliesno));
+      setHistoryRows((current) => current.filter((item) => item.suppliesno !== row.suppliesno));
       setArchivedOpeningRows((rows) => rows.filter((item) => item.suppliesno !== row.suppliesno));
       setSelectedOpeningRows((prev) => { const nextSelected = new Set(prev); nextSelected.delete(row.suppliesno); return nextSelected; });
 
       setSummaryPage(1);
-      setSuccess('Opening balance deleted. Historical receipts were preserved.');
+      setSuccess('Supply deleted. Other receipt history was preserved.');
     } catch (error) { setError(error instanceof Error ? error.message : 'Unable to delete opening balance'); }
     finally { setArchiveBusy(false); }
   };
@@ -1113,8 +1132,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     });
     if (unresolvedStockRows.length > 0) {
       handleError(tSuppliersModal('selectSkuBeforeStockUpdate'));
-      setSuppliesTab('history');
-      return;
+        return;
     }
 
     setIsSubmitting(true);
@@ -1126,7 +1144,12 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
           .filter((row) => !isBlankHistoryRow(row))
           .map((row) => normalizeSupplyRow(row, 'history')),
       );
-      const cleanedSummary = [...openingRows, ...archivedOpeningRows].map((row) => normalizeSupplyRow(row, 'summary'));
+      // Archived history receipts remain stored as history records; never coerce
+      // them into legacy summary rows when saving the supplier.
+      const cleanedSummary = [
+        ...openingRows,
+        ...archivedOpeningRows.filter((row) => row.recordType === 'summary'),
+      ].map((row) => normalizeSupplyRow(row, 'summary'));
       // Tombstones carry explicit reverse-stock intent from the delete modal.
       const mergedSupplies = [...cleanedSummary, ...cleanedHistory, ...pendingDeleteMarkers];
 
@@ -2009,8 +2032,8 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
       {openingAction && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label="Confirm opening balance action">
           <div className="w-full max-w-md rounded-xl border border-[#e6e6e6] bg-white p-6 shadow-2xl">
-            <h2 className="mb-2 text-lg font-bold text-gray-900">{openingAction.kind === 'delete' ? 'Delete opening balance?' : openingAction.kind === 'archive' ? 'Archive opening balance?' : 'Restore opening balance?'}</h2>
-            <p className="mb-6 text-sm text-gray-600">{openingAction.rows.length} opening balance(s) selected. {openingAction.kind === 'delete' ? 'This permanently removes the selected opening balances, but never deletes historical receipts. Only deleted catalog variants are eligible.' : openingAction.kind === 'archive' ? 'Archived opening balances are removed from active totals and can be restored later. Only deleted catalog variants are eligible.' : 'The selected balances will return to active totals.'}</p>
+            <h2 className="mb-2 text-lg font-bold text-gray-900">{openingAction.kind === 'delete' ? 'Delete supply records?' : openingAction.kind === 'archive' ? 'Archive supply records?' : 'Restore supply records?'}</h2>
+            <p className="mb-6 text-sm text-gray-600">{openingAction.rows.length} supply record(s) selected. {openingAction.kind === 'delete' ? 'This permanently removes the selected eligible records. Historical records for live catalog variants are protected.' : openingAction.kind === 'archive' ? 'Archived records are removed from active receipt history and can be restored later.' : 'The selected records will return to active receipt history.'}</p>
             <div className="flex justify-end gap-2">
               <button type="button" className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700" onClick={() => setOpeningAction(null)}>Cancel</button>
               <button type="button" disabled={archiveBusy} className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${openingAction.kind === 'delete' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`} onClick={() => void performOpeningAction()}>Confirm {openingAction.kind}</button>
@@ -2028,12 +2051,32 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
             </div>
             {openingRows.length > 0 && (
               <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 p-3">
-                <h3 className="mb-1 text-sm font-semibold text-amber-900">Legacy catalog opening snapshots</h3>
-                <p className="mb-3 text-xs text-amber-800">These are retained from the old supplier system. They are not purchase receipts and no longer contribute to receipt totals. Remove or archive eligible snapshots individually; active catalog variants remain protected.</p>
+                <h3 className="mb-1 text-sm font-semibold text-amber-900">Legacy opening snapshots</h3>
+                <p className="mb-3 text-xs text-amber-800">These old catalog snapshots are not supplier receipts and are excluded from receipt totals. You can remove or archive them here.</p>
                 <div className="max-h-64 space-y-2 overflow-y-auto">
                   {openingRows.map((row) => (
                     <div key={row.suppliesno} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-white p-3">
                       <div className="text-xs text-gray-800"><strong>{row.product}</strong> — {row.variantName || 'Default'} · {row.totalSupplied} Pieces</div>
+                      <div className="flex gap-2">
+                        <button type="button" disabled={archiveBusy} className="rounded-lg border px-2 py-1 text-xs" onClick={() => setOpeningAction({kind:'archive', rows:[row]})}>Archive</button>
+                        <button type="button" disabled={archiveBusy} className="rounded-lg border border-red-200 px-2 py-1 text-xs text-red-600" onClick={() => setOpeningAction({kind:'delete', rows:[row]})}>Delete</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {orphanedHistoryRows.length > 0 && (
+              <div className="mb-5 rounded-lg border border-blue-200 bg-blue-50 p-3">
+                <h3 className="mb-1 text-sm font-semibold text-blue-900">Receipts from deleted catalog variants</h3>
+                <p className="mb-3 text-xs text-blue-800">These receipts retain their original variant identity, but that catalog variant no longer exists. Archive them to keep history, or delete them permanently. New variants with the same SKU remain separate.</p>
+                <div className="max-h-64 space-y-2 overflow-y-auto">
+                  {orphanedHistoryRows.map((row) => (
+                    <div key={row.suppliesno} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-200 bg-white p-3">
+                      <div className="text-xs text-gray-800">
+                        <strong>{row.product}</strong> — {row.variantName || 'Default'}
+                        <div className="mt-1 text-gray-500">{row.sku} · {getSupplyReceivedInput(row).receivedQuantity} {getSupplyReceivedInput(row).receivedUnit}</div>
+                      </div>
                       <div className="flex gap-2">
                         <button type="button" disabled={archiveBusy} className="rounded-lg border px-2 py-1 text-xs" onClick={() => setOpeningAction({kind:'archive', rows:[row]})}>Archive</button>
                         <button type="button" disabled={archiveBusy} className="rounded-lg border border-red-200 px-2 py-1 text-xs text-red-600" onClick={() => setOpeningAction({kind:'delete', rows:[row]})}>Delete</button>

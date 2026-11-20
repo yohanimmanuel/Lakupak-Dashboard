@@ -1256,23 +1256,8 @@ export const createProduct = async (args: {
 
   await broadcastProductChanges(updatedProduct.productId);
 
-  // Mirror supplier name + variant stock snapshots into CRM suppliers/supplies.
-  try {
-    const { syncSupplierFromProduct } = await import('@/lib/suppliers/syncProductSupplies');
-    await syncSupplierFromProduct({
-      productId: updatedProduct.productId,
-      name: updatedProduct.name,
-      supplier: updatedProduct.supplier,
-      userId,
-      variantOptions: updatedProduct.variantOptions || [],
-    });
-  } catch (syncError) {
-    console.warn('[Products] Supplier supply sync failed on create', {
-      userId,
-      productId: updatedProduct.productId,
-      error: syncError,
-    });
-  }
+  // Product creation does not create synthetic supplier opening balances.
+  // Supplier records are created only by explicit receipt/import workflows.
   
   // Invalidate marketplace search cache (public-facing, needs caching)
   try {
@@ -1668,6 +1653,19 @@ export const updateProduct = async (args: {
             }
           }
 
+          // Snapshot the exact supplier receipt identity before the FK is set NULL.
+          // This gives future archive/delete and stock-reconciliation flows the
+          // original variant ID even if the catalog option is recreated with the same SKU.
+          for (const removedOption of removed) {
+            await tx.supplyRecord.updateMany({
+              where: {
+                variantOptionId: removedOption.id,
+                historicalVariantOptionId: null,
+              },
+              data: { historicalVariantOptionId: removedOption.id },
+            });
+          }
+
           // OrderItem.variantOptionId is nullable with ON DELETE SET NULL, so
           // removing the catalog option detaches the order while retaining snapshots.
           await tx.variantOption.deleteMany({
@@ -1734,30 +1732,8 @@ export const updateProduct = async (args: {
       }
     }
 
-    // Synchronize supplier records before the Product Catalog save transaction
-    // commits. This makes new variants visible immediately and makes failures
-    // roll back the catalog edit instead of leaving supplier records stale.
-    const finalVariantOptions = await tx.variantOption.findMany({
-      where: { productId: updated.id },
-      select: {
-        id: true,
-        variantName: true,
-        sku: true,
-        purchasePrice: true,
-        stockQuantity: true,
-        isActive: true,
-      },
-    });
-    const { syncSupplierFromProductInTransaction } = await import(
-      '@/lib/suppliers/syncProductSupplies'
-    );
-    await syncSupplierFromProductInTransaction(tx, {
-      productId: updated.productId,
-      name: updated.name,
-      supplier: updated.supplier,
-      userId,
-      variantOptions: finalVariantOptions,
-    });
+    // Product edits update only the catalog. Existing supplier receipts are
+    // historical transactions and are never regenerated from current stock.
 
     return updated;
   });
@@ -1897,6 +1873,15 @@ export const deleteProduct = async (args: { userId: number; id: string }) => {
   // Delete the catalog product while preserving supplier accounting snapshots.
   // If either operation fails, neither side is left partially updated.
   await prisma.$transaction(async (tx) => {
+    // Snapshot every supplier receipt's original VariantOption ID before product
+    // deletion cascades the catalog variants and clears their live foreign keys.
+    for (const variant of productToDelete.variantOptions) {
+      await tx.supplyRecord.updateMany({
+        where: { variantOptionId: variant.id, historicalVariantOptionId: null },
+        data: { historicalVariantOptionId: variant.id },
+      });
+    }
+
     const { removeProductSuppliesInTransaction } = await import(
       '@/lib/suppliers/syncProductSupplies'
     );

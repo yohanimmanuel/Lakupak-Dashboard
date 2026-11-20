@@ -12,6 +12,8 @@ export interface Buyer {
   logistics?: string;
   notes?: string;
   orderDetails?: string;
+  /** Immutable OrderItem line snapshots included in the initial buyer query. */
+  orderLineDetails?: string;
   avgMonthlySpending?: number;
   avgMonthlyOrders?: number;
   createdAt?: Date;
@@ -126,9 +128,13 @@ export interface SupplyDetail {
   productId?: string;
   variantName?: string;
   variantOptionId?: number | null;
+  /** Original catalog identity retained after the live variant FK is cleared. */
+  historicalVariantOptionId?: number | null;
   archivedAt?: string | null;
   updateCurrentStock?: boolean;
   stockApplied?: boolean;
+  /** Variant whose stock was actually adjusted; kept even if that catalog variant is deleted. */
+  stockAppliedVariantOptionId?: number | null;
   __delete?: true;
 }
 

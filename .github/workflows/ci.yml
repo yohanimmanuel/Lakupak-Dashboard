@@ -36,6 +36,18 @@ jobs:
       - run: npx prisma validate
       - run: npm run lint
       - run: npm run typecheck
+      - name: Build source branch ZIP
+        if: github.event_name == 'pull_request'
+        run: |
+          git archive --format=zip --output "$RUNNER_TEMP/Lakupak-Dashboard-${GITHUB_SHA}.zip" HEAD
+      - name: Upload source branch ZIP
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lakupak-source-${{ github.sha }}
+          path: ${{ runner.temp }}/Lakupak-Dashboard-${{ github.sha }}.zip
+          if-no-files-found: error
+          retention-days: 7
 
   integration:
     name: Integration tests + health smoke
