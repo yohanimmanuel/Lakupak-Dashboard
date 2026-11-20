@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { prisma } from '@/lib/db';
 import { createProduct } from '@/app/api/graphql/modules/products';
 
@@ -9,9 +10,11 @@ export async function createDistributor(email?: string) {
 }
 
 export async function createMarketplaceBuyer() {
-  const suffix = Math.random().toString(36).slice(2, 8);
+  // Time-only phone suffixes can collide when parallel integration tests create
+  // marketplace users in the same millisecond. Use a UUID-backed unique value.
+  const suffix = randomUUID().replace(/-/g, '').slice(0, 16);
   return prisma.marketplaceUser.create({
-    data: { username: `buyer_${suffix}`, phone: `+6200000${String(Date.now()).slice(-6)}` },
+    data: { username: `buyer_${suffix}`, phone: `+6200000${suffix}` },
     select: { id: true },
   });
 }
