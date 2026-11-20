@@ -228,7 +228,10 @@ export async function replaceSupplierSupplyRecords(
       if (row.historicalVariantOptionId == null) {
         row.historicalVariantOptionId = requestedId;
       }
-      if (!liveIds.has(requestedId)) row.variantOptionId = null;
+      // Existing historical rows may still point to variants now owned by
+      // another supplier. Preserve those unchanged links; only newly selected
+      // targets must be owned by this supplier.
+      // Validation runs after matching the persisted receipt by suppliesno.
     }
   }
   const existing = await db.supplyRecord.findMany({ where: { supplierRefId } });
@@ -255,6 +258,11 @@ export async function replaceSupplierSupplyRecords(
       throw new Error('Duplicate stored supply record number. Reconcile before saving.');
     }
     const match = matches[0];
+    if (row.variantOptionId != null &&
+        (!match || row.variantOptionId !== match.variantOptionId) &&
+        !liveIds.has(row.variantOptionId)) {
+      throw new Error('Select a live catalog variant owned by this supplier.');
+    }
     if (match?.archivedAt) {
       used.add(match.id);
       continue;
