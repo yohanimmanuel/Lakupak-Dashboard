@@ -573,7 +573,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   
   const [id, setId] = useState(() => initialData?.supplierId || generateSupplierId());
   const [historyRows, setHistoryRows] = useState<SupplyDetail[]>(
-    () => parseSupplyBuckets(initialData?.supplies).history,
+    () => parseSupplyRows(initialData?.supplies).history,
   );
   // Supplier editing now has a single receipt-history view; legacy opening rows
   // are retained only for the Archived Supplies cleanup dialog.
@@ -581,10 +581,9 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   // retained legacy cleanup branches so TypeScript does not compare impossible
   // literal states while those records remain available for migration/cleanup.
   const [showArchivedSupplies, setShowArchivedSupplies] = useState(false);
-  const [archivedOpeningRows, setArchivedOpeningRows] = useState<SupplyDetail[]>(() => {
-    try { return (JSON.parse(initialData?.supplies || '[]') as SupplyDetail[]).filter((row) => !!row.archivedAt); }
-    catch { return []; }
-  });
+  const [archivedOpeningRows, setArchivedOpeningRows] = useState<SupplyDetail[]>(
+    () => parseSupplyRows(initialData?.supplies).archived,
+  );
   const [archiveBusy, setArchiveBusy] = useState(false);
   const [selectedArchivedRows, setSelectedArchivedRows] = useState<Set<string>>(new Set());
   const [archivedPage, setArchivedPage] = useState(1);
@@ -593,11 +592,6 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   const safeArchivedPage = Math.min(archivedPage, archivedTotalPages);
   const archivedPageStart = (safeArchivedPage - 1) * archivedPageSize;
   const archivedPageRows = archivedOpeningRows.slice(archivedPageStart, archivedPageStart + archivedPageSize);
-  const [openingAction, setOpeningAction] = useState<{ kind: "archive" | "restore" | "delete"; rows: SupplyDetail[] } | null>(null);
-  const [openingRows, setOpeningRows] = useState<SupplyDetail[]>(() => parseSupplyBuckets(initialData?.supplies).opening);
-  // Receipts whose original live variant was deleted remain in history until the
-  // user explicitly archives or deletes them. A replacement with the same SKU is
-  // never treated as the same variant.
   // Summary and history have independent pagination so switching tabs preserves each view.
   const supplyRowsPerPage = 8;
   const [historyPage, setHistoryPage] = useState(1);
@@ -1104,8 +1098,8 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     const parsedNotes = safeParseJSON(initialData.notes || '', []);
     const parsedLogistics = safeParseJSON(initialData.logistics || '', {});
 
-    const buckets = parseSupplyBuckets(initialData.supplies);
-    const latestSuppliedDate = getLatestSuppliedDate(buckets.history);
+    const receiptRows = parseSupplyRows(initialData.supplies);
+    const latestSuppliedDate = getLatestSuppliedDate(receiptRows.history);
 
     setForm({
       supplierName: initialData.name || '',
