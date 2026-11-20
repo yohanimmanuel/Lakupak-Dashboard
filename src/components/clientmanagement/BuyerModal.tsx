@@ -78,12 +78,6 @@ type MarketplaceOrderLineForBuyer = {
   moqSnapshot: number | null;
 };
 
-type MarketplaceOrderForBuyer = {
-  orderId: string;
-  orderDate: string;
-  orderItems: MarketplaceOrderLineForBuyer[];
-};
-
 function parseBuyerAmount(value: string | number | null | undefined): number {
   const raw = String(value ?? '').trim();
   const normalized = raw.replace(/[^\d,.-]/g, '').replace(/,(?=\d{3}(?:\D|$))/g, '');
