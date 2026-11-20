@@ -29,7 +29,7 @@ function getSupplierAnalytics(suppliesStr: string, language?: string | null) {
     const map: { [monthKey: string]: { supplied: number; value: number; date: Date } } = {};
     supplies.forEach(function(supply: SupplyDetail) {
       // Monthly charts are driven by dated history events only
-      if (!isSupplyHistoryRow(supply) || !supply.lastSuppliedDate) return;
+      if (!isSupplyHistoryRow(supply) || supply.archivedAt || !supply.lastSuppliedDate) return;
       const date = new Date(supply.lastSuppliedDate);
       if (isNaN(date.getTime())) return; // Skip invalid dates
       
