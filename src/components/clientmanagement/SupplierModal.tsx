@@ -595,6 +595,12 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   });
   const [archiveBusy, setArchiveBusy] = useState(false);
   const [selectedArchivedRows, setSelectedArchivedRows] = useState<Set<string>>(new Set());
+  const [archivedPage, setArchivedPage] = useState(1);
+  const archivedPageSize = 5;
+  const archivedTotalPages = Math.max(1, Math.ceil(archivedOpeningRows.length / archivedPageSize));
+  const safeArchivedPage = Math.min(archivedPage, archivedTotalPages);
+  const archivedPageStart = (safeArchivedPage - 1) * archivedPageSize;
+  const archivedPageRows = archivedOpeningRows.slice(archivedPageStart, archivedPageStart + archivedPageSize);
   const [selectedOpeningRows, setSelectedOpeningRows] = useState<Set<string>>(new Set());
   const [openingAction, setOpeningAction] = useState<{ kind: "archive" | "restore" | "delete"; rows: SupplyDetail[] } | null>(null);
   const [openingRows, setOpeningRows] = useState<SupplyDetail[]>(() => parseSupplyBuckets(initialData?.supplies).opening);
@@ -2204,8 +2210,8 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
 
       {showArchivedSupplies && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label="Archived Supplies">
-          <div className="w-full max-w-5xl max-h-[85vh] overflow-y-auto rounded-xl border border-[#e6e6e6] bg-white p-6 text-gray-900 shadow-2xl">
-            <div className="mb-5 flex items-center justify-between border-b border-[#e6e6e6] pb-4">
+          <div className="w-full max-w-5xl max-h-[85vh] overflow-y-auto rounded-xl border border-[#e6e6e6] bg-white py-6 text-gray-900 shadow-2xl">
+            <div className="mb-5 flex items-center justify-between border-b border-[#e6e6e6] px-6 pb-4">
               <h2 className="text-lg font-bold text-black">Archived Supplies</h2>
               <button type="button" className="rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 text-sm font-medium text-black transition-colors hover:border-gray-300 hover:bg-gray-100" onClick={() => setShowArchivedSupplies(false)}>Close</button>
             </div>
@@ -2226,27 +2232,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                 </div>
               </div>
             )}
-            {orphanedHistoryRows.length > 0 && (
-              <div className="mb-5 rounded-lg border border-blue-200 bg-blue-50 p-3">
-                <h3 className="mb-1 text-sm font-semibold text-blue-900">Receipts from deleted catalog variants</h3>
-                <p className="mb-3 text-xs text-blue-800">These receipts retain their original variant identity, but that catalog variant no longer exists. Archive them to keep history, or delete them permanently. New variants with the same SKU remain separate.</p>
-                <div className="max-h-64 space-y-2 overflow-y-auto">
-                  {orphanedHistoryRows.map((row) => (
-                    <div key={row.suppliesno} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-200 bg-white p-3">
-                      <div className="text-xs text-gray-800">
-                        <strong>{row.product}</strong> — {row.variantName || 'Default'}
-                        <div className="mt-1 text-gray-500">{row.sku} · {getSupplyReceivedInput(row).receivedQuantity} {getSupplyReceivedInput(row).receivedUnit}</div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button type="button" disabled={archiveBusy} className="rounded-lg border px-2 py-1 text-xs" onClick={() => setOpeningAction({kind:'archive', rows:[row]})}>Archive</button>
-                        <button type="button" disabled={archiveBusy} className="rounded-lg border border-red-200 px-2 py-1 text-xs text-red-600" onClick={() => setOpeningAction({kind:'delete', rows:[row]})}>Delete</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-6">
               <span className="text-xs text-gray-500">{archivedOpeningRows.length} archived supply record(s)</span>
               <div className="flex gap-2">
                 <button type="button" disabled={archiveBusy || selectedArchivedRows.size === 0}
@@ -2263,13 +2249,21 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                 </button>
               </div>
             </div>
-            <div className="overflow-x-auto rounded-lg border border-[#e6e6e6]">
+            <div className="mx-6 overflow-x-auto rounded-lg border border-[#e6e6e6]">
               <table className="min-w-[1000px] w-full text-left text-xs">
                 <thead className="bg-gray-100 text-gray-500">
                   <tr>
                     <th className="px-3 py-3"><ImportSelectionCheckbox
-                      checked={archivedOpeningRows.length > 0 && archivedOpeningRows.every((row) => selectedArchivedRows.has(row.suppliesno))}
-                      onToggle={() => setSelectedArchivedRows(archivedOpeningRows.length > 0 && archivedOpeningRows.every((row) => selectedArchivedRows.has(row.suppliesno)) ? new Set() : new Set(archivedOpeningRows.map((row) => row.suppliesno)))}
+                      checked={archivedPageRows.length > 0 && archivedPageRows.every((row) => selectedArchivedRows.has(row.suppliesno))}
+                      onToggle={() => setSelectedArchivedRows((previous) => {
+                        const next = new Set(previous);
+                        const allSelected = archivedPageRows.length > 0 && archivedPageRows.every((row) => next.has(row.suppliesno));
+                        for (const row of archivedPageRows) {
+                          if (allSelected) next.delete(row.suppliesno);
+                          else next.add(row.suppliesno);
+                        }
+                        return next;
+                      })}
                       ariaLabel="Select all archived supplies"
                     /></th>
                     <th className="px-3 py-3">NO.</th>
@@ -2283,7 +2277,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#e6e6e6]">
-                  {archivedOpeningRows.map((row, index) => {
+                  {archivedPageRows.map((row, index) => {
                     const received = getSupplyReceivedInput(row);
                     return <tr key={row.suppliesno || index} className="text-gray-800">
                       <td className="px-3 py-3"><ImportSelectionCheckbox
@@ -2294,9 +2288,9 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                           else next.add(row.suppliesno);
                           return next;
                         })}
-                        ariaLabel={`Select archived supply ${index + 1}`}
+                        ariaLabel={`Select archived supply ${archivedPageStart + index + 1}`}
                       /></td>
-                      <td className="px-3 py-3">{index + 1}</td>
+                      <td className="px-3 py-3">{archivedPageStart + index + 1}</td>
                       <td className="px-3 py-3 font-medium">{row.product || '—'}</td>
                       <td className="px-3 py-3">{row.sku || '—'}</td>
                       <td className="px-3 py-3">{row.variantName || 'Default'}</td>
@@ -2318,6 +2312,33 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                   {archivedOpeningRows.length === 0 && <tr><td colSpan={9} className="p-6 text-center text-gray-500">No archived supplies yet.</td></tr>}
                 </tbody>
               </table>
+            </div>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 px-6">
+              <span className="text-xs text-gray-500">
+                Showing {archivedOpeningRows.length === 0 ? 0 : archivedPageStart + 1} to {Math.min(archivedPageStart + archivedPageSize, archivedOpeningRows.length)} of {archivedOpeningRows.length}
+              </span>
+              <div className="flex items-center gap-2">
+                <button type="button" aria-label="Previous archived supplies page"
+                  disabled={safeArchivedPage === 1}
+                  className="rounded-lg p-2 text-gray-500 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                  onClick={() => setArchivedPage(Math.max(1, safeArchivedPage - 1))}>
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                {Array.from({ length: archivedTotalPages }, (_, index) => index + 1).map((page) => (
+                  <button key={page} type="button" onClick={() => setArchivedPage(page)}
+                    aria-label={`Archived supplies page ${page}`}
+                    aria-current={safeArchivedPage === page ? 'page' : undefined}
+                    className={`min-h-9 min-w-9 rounded-lg px-2 text-sm font-semibold transition ${safeArchivedPage === page ? 'bg-[#0a61d7] text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
+                    {page}
+                  </button>
+                ))}
+                <button type="button" aria-label="Next archived supplies page"
+                  disabled={safeArchivedPage === archivedTotalPages}
+                  className="rounded-lg p-2 text-gray-500 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                  onClick={() => setArchivedPage(Math.min(archivedTotalPages, safeArchivedPage + 1))}>
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
