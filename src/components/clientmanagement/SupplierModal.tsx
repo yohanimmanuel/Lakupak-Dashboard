@@ -106,15 +106,15 @@ function catalogProductLabel(productName: string, _variantName: string): string 
 function buildCatalogOptions(
   products: ProductCatalogNode[],
   supplierName?: string,
-  options?: { fallbackToAll?: boolean },
+  _options?: { fallbackToAll?: boolean },
 ): CatalogVariantOption[] {
   const supplierKey = String(supplierName || '').trim().toLowerCase();
   const matched = supplierKey
     ? products.filter((p) => String(p.supplier || '').trim().toLowerCase() === supplierKey)
     : [];
-  // Prefer supplier-matched products; optionally fall back to full catalog for dropdowns.
-  const allowFallback = options?.fallbackToAll !== false;
-  const source = matched.length > 0 ? matched : allowFallback ? products : [];
+  // A supplier with no catalog ownership must never inherit another
+  // supplier's product directory. Keep historical receipt labels separately.
+  const source = matched;
   const out: CatalogVariantOption[] = [];
   const seen = new Set<string>();
 
@@ -157,6 +157,7 @@ function SupplyMatchDropdown({
   className = '',
   needsAttention = false,
   attentionMessage,
+  attentionTitle,
   disabled = false,
 }: {
   value: string;
@@ -172,6 +173,7 @@ function SupplyMatchDropdown({
   /** Highlight an unmatched legacy/deleted variant and explain the required action. */
   needsAttention?: boolean;
   attentionMessage?: string;
+  attentionTitle?: string;
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -285,7 +287,7 @@ function SupplyMatchDropdown({
     <div className={`relative min-w-[10rem] ${className}`}>
       {needsAttention && attentionMessage && (
         <span className="absolute -right-2 -top-2 z-20 rounded-full bg-white shadow-sm">
-          <SupplierVariantAlert message={attentionMessage} />
+          <SupplierVariantAlert message={attentionMessage} title={attentionTitle} />
         </span>
       )}
       <button
@@ -325,7 +327,7 @@ function isLegacyUnlinkedReceipt(row: SupplyDetail): boolean {
 }
 
 /** Compact explanation for legacy/deleted variant receipts; no persistent row-height expansion. */
-function SupplierVariantAlert({ message }: { message: string }) {
+function SupplierVariantAlert({ message, title = 'Supply variant needs attention' }: { message: string; title?: string }) {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -348,7 +350,7 @@ function SupplierVariantAlert({ message }: { message: string }) {
           className="pointer-events-none fixed z-[120] w-72 rounded-lg border border-amber-200 bg-white px-3 py-2.5 text-left text-xs font-normal leading-5 text-gray-700 shadow-xl"
           style={{ left: position.left, top: position.top }}
         >
-          <span className="mb-1 block text-[11px] font-semibold text-amber-800">Supply variant needs attention</span>
+          <span className="mb-1 block text-[11px] font-semibold text-amber-800">{title}</span>
           {message}
         </div>,
         document.body,
@@ -794,7 +796,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   // own frozen SKU/product/variant labels; do not reinsert deleted variants as
   // fake catalog options (which could accidentally re-link a recreated SKU).
   const catalogOptions = useMemo(
-    () => buildCatalogOptions(catalogProducts, form.supplierName || initialData?.name),
+    () => buildCatalogOptions(catalogProducts, form.supplierName || initialData?.name, { fallbackToAll: false }),
     [catalogProducts, form.supplierName, initialData?.name],
   );
 
@@ -817,6 +819,20 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
       );
     });
   }, [catalogOptions]);
+
+  // Ownership transfer is distinct from catalog deletion: the VariantOption
+  // still exists, but its product now belongs to a different supplier.
+  // Historical receipts remain with the original supplier as snapshots.
+  const isSupplierChangedReceipt = useCallback((row: SupplyDetail) => {
+    if (!String(row.suppliesno || '').trim() || catalogLoadStatus !== 'loaded') return false;
+    const linked = row.variantOptionId != null
+      ? catalogProducts.find((product) => product.variantOptions?.some((variant) => variant.id === row.variantOptionId))
+      : catalogProducts.find((product) => product.productId === row.productId);
+    if (!linked) return false;
+    const currentOwner = String(linked.supplier || '').trim().toLowerCase();
+    const thisSupplier = String(form.supplierName || initialData?.name || '').trim().toLowerCase();
+    return Boolean(thisSupplier && currentOwner !== thisSupplier);
+  }, [catalogProducts, catalogLoadStatus, form.supplierName, initialData?.name]);
 
   /** Strict ownership list for import validation — no full-catalog fallback. */
   const supplierOwnedCatalog = useMemo(
@@ -1709,6 +1725,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                   <tbody>
                     {historyRows.slice(historyPageStart, historyPageEnd).map((row, visibleIndex) => {
                       const idx = historyPageStart + visibleIndex;
+                      const supplierChanged = isSupplierChangedReceipt(row);
                       const deletedVariant = isDeletedVariantReceipt(row);
                       const hasReplacementVariant = deletedVariant &&
                         catalogLoadStatus === 'loaded' &&
@@ -1731,11 +1748,11 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                             displayValue={catalogOptions.find((option) => option.productId === row.productId)?.product || row.product || ''}
                             placeholder={tSuppliersModal('selectProduct')}
                             options={productDropdownOptions}
-                            emptyLabel={tSuppliersModal('catalogEmpty')}
+                            emptyLabel={catalogLoadStatus === 'loaded' && productDropdownOptions.length === 0 ? 'No product owned' : tSuppliersModal('catalogEmpty')}
                             noMatchLabel={tSuppliersModal('catalogNoMatch')}
                             searchPlaceholder={tSuppliersModal('searchProduct')}
                             onSelect={(productId) => handleHistoryProductSelect(idx, productId)}
-                            disabled={deletedVariant}
+                            disabled={deletedVariant || supplierChanged}
                           />
                         </td>
                         <td className="px-3 py-2">
@@ -1750,9 +1767,12 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                             emptyLabel={tSuppliersModal('catalogEmpty')}
                             noMatchLabel={tSuppliersModal('catalogNoMatch')}
                             searchPlaceholder={tSuppliersModal('searchSku')}
-                            needsAttention={needsVariantLink || canArchiveRow}
+                            needsAttention={supplierChanged || needsVariantLink || canArchiveRow}
+                            attentionTitle={supplierChanged ? 'Supplier changed' : undefined}
                             disabled={deletedVariant}
-                            attentionMessage={hasReplacementVariant
+                            attentionMessage={supplierChanged
+                              ? 'This product now belongs to another supplier. The original receipt remains here as historical supply data and cannot be reassigned. Create a new supply row for a product currently owned by this supplier, or archive/delete this old receipt.'
+                              : hasReplacementVariant
                               ? 'The original variant was deleted. This receipt is a historical snapshot and cannot be reassigned. Create a new supply row and select the new catalog variant, or archive this old receipt.'
                               : needsVariantLink
                                 ? 'This older receipt has no saved link to a live catalog variant. Select the current SKU and variant so the system knows exactly which inventory item this receipt belongs to.'
@@ -1772,7 +1792,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                         <td className="px-3 py-2">
                           <SupplyMatchDropdown
                             value={row.variantOptionId != null ? String(row.variantOptionId) : ''}
-                            displayValue={row.variantName ? `${row.variantName}${catalogOptions.some((option) => option.productId === row.productId && option.sku === row.sku && option.variantName === row.variantName) ? '' : ' (Archived)'}` : ''}
+                            displayValue={row.variantName ? `${row.variantName}${supplierChanged ? '' : catalogOptions.some((option) => option.productId === row.productId && option.sku === row.sku && option.variantName === row.variantName) ? '' : ' (Archived)'}` : ''}
                             placeholder={row.productId ? tSuppliersModal('selectVariant') : tSuppliersModal('selectProduct')}
                             options={catalogOptions
                               .filter((option) => option.productId === row.productId)
