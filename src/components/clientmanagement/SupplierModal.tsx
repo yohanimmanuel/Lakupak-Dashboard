@@ -1132,72 +1132,57 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     setSubmitAttempted(false);
   }, [initialData, isEditMode, safeParseJSON, getLatestSuppliedDate]);
 
-  const setOpeningArchive = async (row: SupplyDetail, archived: boolean): Promise<boolean> => {
+  const setSupplyArchived = async (row: SupplyDetail, archived: boolean): Promise<boolean> => {
     if (!isEditMode || !user?.id || !initialData?.supplierId || archiveBusy) return false;
     setArchiveBusy(true);
     setError('');
     try {
       await fetchGraphQL<{ setOpeningBalanceArchived: boolean }>(
-        `mutation SetOpeningArchive($userId: Int!, $supplierId: String!, $suppliesno: String!, $archived: Boolean!) {
+        `mutation SetSupplyArchived($userId: Int!, $supplierId: String!, $suppliesno: String!, $archived: Boolean!) {
           setOpeningBalanceArchived(userId: $userId, supplierId: $supplierId, suppliesno: $suppliesno, archived: $archived)
         }`,
         { userId: user.id, supplierId: initialData.supplierId, suppliesno: row.suppliesno, archived },
       );
-      if (row.recordType === 'history') {
-        setHistoryRows((current) => archived
-          ? current.filter((item) => item.suppliesno !== row.suppliesno)
-          : [...current.filter((item) => item.suppliesno !== row.suppliesno), { ...row, archivedAt: null }]);
+      if (archived) {
+        setHistoryRows((rows) => rows.filter((item) => item.suppliesno !== row.suppliesno));
+        setArchivedOpeningRows((rows) => [...rows.filter((item) => item.suppliesno !== row.suppliesno), { ...row, archivedAt: new Date().toISOString() }]);
+        setSelectedHistoryRows((previous) => { const next = new Set(previous); next.delete(row.suppliesno); return next; });
       } else {
-        setOpeningRows((current) => archived
-          ? current.filter((item) => item.suppliesno !== row.suppliesno)
-          : [...current.filter((item) => item.suppliesno !== row.suppliesno), { ...row, archivedAt: null }]);
+        setArchivedOpeningRows((rows) => rows.filter((item) => item.suppliesno !== row.suppliesno));
+        setHistoryRows((rows) => [...rows.filter((item) => item.suppliesno !== row.suppliesno), { ...row, archivedAt: null }]);
       }
-      setArchivedOpeningRows((rows) => archived
-        ? [...rows.filter((item) => item.suppliesno !== row.suppliesno), { ...row, archivedAt: new Date().toISOString() }]
-        : rows.filter((item) => item.suppliesno !== row.suppliesno));
+      setHistoryPage(1);
       setSuccess(archived ? 'Supply archived.' : 'Supply restored.');
       return true;
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Unable to change archive status');
       return false;
-    } finally { setArchiveBusy(false); }
+    } finally {
+      setArchiveBusy(false);
+    }
   };
 
-  const deleteOpening = async (row: SupplyDetail): Promise<boolean> => {
+  const deleteArchivedSupply = async (row: SupplyDetail): Promise<boolean> => {
     if (!isEditMode || !user?.id || !initialData?.supplierId || archiveBusy) return false;
     setArchiveBusy(true);
     setError('');
     try {
       await fetchGraphQL<{ deleteArchivedOpeningBalance: boolean }>(
-        `mutation DeleteArchivedOpening($userId: Int!, $supplierId: String!, $suppliesno: String!) {
+        `mutation DeleteArchivedSupply($userId: Int!, $supplierId: String!, $suppliesno: String!) {
           deleteArchivedOpeningBalance(userId: $userId, supplierId: $supplierId, suppliesno: $suppliesno)
         }`,
         { userId: user.id, supplierId: initialData.supplierId, suppliesno: row.suppliesno },
       );
-      setOpeningRows((current) => current.filter((item) => item.suppliesno !== row.suppliesno));
-      setHistoryRows((current) => current.filter((item) => item.suppliesno !== row.suppliesno));
       setArchivedOpeningRows((rows) => rows.filter((item) => item.suppliesno !== row.suppliesno));
-
-      setSuccess('Supply deleted. Other receipt history was preserved.');
+      setSelectedArchivedRows((previous) => { const next = new Set(previous); next.delete(row.suppliesno); return next; });
+      setSuccess('Archived supply permanently deleted.');
       return true;
-    } catch (error) { setError(error instanceof Error ? error.message : 'Unable to delete archived supply'); return false; }
-    finally { setArchiveBusy(false); }
-  };
-
-  const performOpeningAction = async () => {
-    if (!openingAction) return;
-    const { kind, rows } = openingAction;
-    setOpeningAction(null);
-    // Each operation manages its own busy/error state. Keep the remaining
-    // records available for retry if an individual mutation fails.
-    for (const row of rows) {
-      const succeeded = kind === 'delete'
-        ? await deleteOpening(row)
-        : await setOpeningArchive(row, kind === 'archive');
-      if (!succeeded) break; // Do not claim the rest of a failed bulk action completed.
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Unable to delete archived supply');
+      return false;
+    } finally {
+      setArchiveBusy(false);
     }
-    // Archiving/deleting history rows changes their indices in the table.
-    setSelectedHistoryRows(new Set());
   };
 
   // Enhanced form submission
@@ -1679,7 +1664,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                       type="button"
                       disabled={archiveBusy}
                       className="inline-flex items-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                      onClick={() => setOpeningAction({
+                      onClick={() => setArchivedAction({
                         kind: 'archive',
                         rows: selectedHistoryRowIndices.map((index) => historyRows[index]).filter((row): row is SupplyDetail => Boolean(row)),
                       })}
@@ -1900,7 +1885,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                                 type="button"
                                 className="rounded-full p-1 text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
                                 disabled={archiveBusy}
-                                onClick={() => setOpeningAction({ kind: 'archive', rows: [row] })}
+                                onClick={() => setArchivedAction({ kind: 'archive', rows: [row] })}
                                 title="Archive supply"
                                 aria-label="Archive supply"
                               >
@@ -2088,14 +2073,14 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
         </form>
       </div>
 
-      {openingAction && (
+      {archivedAction && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label="Confirm opening balance action">
           <div className="w-full max-w-md rounded-xl border border-[#e6e6e6] bg-white p-6 shadow-2xl">
-            <h2 className="mb-2 text-lg font-bold text-gray-900">{openingAction.kind === 'delete' ? 'Delete supply records?' : openingAction.kind === 'archive' ? 'Archive supply records?' : 'Restore supply records?'}</h2>
-            <p className="mb-6 text-sm text-gray-600">{openingAction.rows.length} supply record(s) selected. {openingAction.kind === 'delete' ? 'This permanently removes the selected eligible records. Historical records for live catalog variants are protected.' : openingAction.kind === 'archive' ? 'Archived records are removed from active receipt history and can be restored later.' : 'The selected records will return to active receipt history.'}</p>
+            <h2 className="mb-2 text-lg font-bold text-gray-900">{archivedAction.kind === 'delete' ? 'Delete supply records?' : archivedAction.kind === 'archive' ? 'Archive supply records?' : 'Restore supply records?'}</h2>
+            <p className="mb-6 text-sm text-gray-600">{archivedAction.rows.length} supply record(s) selected. {archivedAction.kind === 'delete' ? 'This permanently removes the selected eligible records. Historical records for live catalog variants are protected.' : archivedAction.kind === 'archive' ? 'Archived records are removed from active receipt history and can be restored later.' : 'The selected records will return to active receipt history.'}</p>
             <div className="flex justify-end gap-2">
-              <button type="button" className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700" onClick={() => setOpeningAction(null)}>Cancel</button>
-              <button type="button" disabled={archiveBusy} className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${openingAction.kind === 'delete' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`} onClick={() => void performOpeningAction()}>Confirm {openingAction.kind}</button>
+              <button type="button" className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700" onClick={() => setArchivedAction(null)}>Cancel</button>
+              <button type="button" disabled={archiveBusy} className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${archivedAction.kind === 'delete' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`} onClick={() => void performArchivedAction()}>Confirm {archivedAction.kind}</button>
             </div>
           </div>
         </div>
@@ -2116,7 +2101,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                   onClick={async () => {
                     const targets = archivedOpeningRows.filter((row) => selectedArchivedRows.has(row.suppliesno));
                     for (const row of targets) {
-                      if (!await setOpeningArchive(row, false)) break;
+                      if (!await setSupplyArchived(row, false)) break;
                       setSelectedArchivedRows((previous) => {
                         const next = new Set(previous);
                         next.delete(row.suppliesno);
@@ -2126,7 +2111,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                   }}><RotateCcw className="mr-1 inline h-4 w-4" />Restore selected</button>
                 <button type="button" disabled={archiveBusy || selectedArchivedRows.size === 0}
                   className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-600 transition-colors hover:border-red-400 hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-red-200 disabled:hover:bg-white disabled:hover:text-red-600"
-                  onClick={() => setOpeningAction({ kind: 'delete', rows: archivedOpeningRows.filter((row) => selectedArchivedRows.has(row.suppliesno)) })}>
+                  onClick={() => setArchivedAction({ kind: 'delete', rows: archivedOpeningRows.filter((row) => selectedArchivedRows.has(row.suppliesno)) })}>
                   <Trash className="mr-1 inline h-4 w-4" />Delete selected
                 </button>
               </div>
@@ -2183,10 +2168,10 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                         <div className="flex gap-2">
                           <button type="button" disabled={archiveBusy} aria-label="Restore supply"
                             title="Restore supply" className="rounded-full p-1.5 text-blue-600 transition-colors hover:bg-blue-100 hover:text-blue-800 disabled:cursor-not-allowed disabled:opacity-40"
-                            onClick={() => void setOpeningArchive(row, false)}><RotateCcw className="h-4 w-4"/></button>
+                            onClick={() => void setSupplyArchived(row, false)}><RotateCcw className="h-4 w-4"/></button>
                           <button type="button" disabled={archiveBusy} aria-label="Delete archived supply"
                             title="Delete archived supply" className="rounded-full p-1.5 text-red-500 transition-colors hover:bg-red-100 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-40"
-                            onClick={() => setOpeningAction({kind:'delete',rows:[row]})}><Trash className="h-4 w-4"/></button>
+                            onClick={() => setArchivedAction({kind:'delete',rows:[row]})}><Trash className="h-4 w-4"/></button>
                         </div>
                       </td>
                     </tr>;
