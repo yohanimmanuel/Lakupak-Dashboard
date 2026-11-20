@@ -280,6 +280,11 @@ function SupplyMatchDropdown({
 
   return (
     <div className={`relative min-w-[10rem] ${className}`}>
+      {needsAttention && (
+        <span className="pointer-events-none absolute -right-1 -top-1 z-10 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white text-amber-600 shadow-sm">
+          <AlertCircle className="h-3.5 w-3.5" />
+        </span>
+      )}
       <button
         ref={buttonRef}
         type="button"
@@ -1825,19 +1830,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                               </span>
                             )}
                           />
-                          {needsVariantLink ? (
-                            <div className="mt-1 flex h-5 items-center">
-                              <SupplierVariantAlert
-                                message={hasReplacementVariant
-                                  ? 'The original variant was deleted and a replacement with the same product/variant details now exists under a new ID. Select the live SKU and variant to reconnect this receipt to inventory.'
-                                  : 'This older receipt has no saved link to a live catalog variant. Select the current SKU and variant so the system knows exactly which inventory item this receipt belongs to.'}
-                              />
-                            </div>
-                          ) : canArchiveRow ? (
-                            <div className="mt-1 flex h-5 items-center">
-                              <SupplierVariantAlert message="The original catalog variant was deleted and no matching replacement was found. Choose another variant, or archive/delete this supply." />
-                            </div>
-                          ) : null}
+                    
                         </td>
                         <td className="px-3 py-2">
                           <SupplyMatchDropdown
