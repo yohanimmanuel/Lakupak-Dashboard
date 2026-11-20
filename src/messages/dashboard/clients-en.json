@@ -726,7 +726,12 @@
     "supplierGuideColumn5Name": "Purchase Value",
     "supplierGuideColumn5Description": "Total purchase value for this receipt.",
     "supplierGuideColumn6Name": "Last Supplied Date",
-    "supplierGuideColumn6Description": "Receipt date in YYYY-MM-DD format."
+    "supplierGuideColumn6Description": "Receipt date in YYYY-MM-DD format.",
+    "importStartReading": "Reading file…",
+    "importStartDrop": "Drag and drop your file here",
+    "importStartBrowse": "or click to browse your computer",
+    "importStartCheckTitle": "Import check:",
+    "importStartCheckBody": "Lakupak validates headers, required values, numeric fields, stock types and catalog matches before opening the preview. Failed files remain on this screen."
   },
   "matching": {
     "title": "Buyer Matching",
