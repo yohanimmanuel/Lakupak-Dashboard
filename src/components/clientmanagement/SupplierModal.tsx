@@ -157,6 +157,7 @@ function SupplyMatchDropdown({
   renderOption,
   className = '',
   needsAttention = false,
+  attentionMessage,
 }: {
   value: string;
   displayValue?: string;
@@ -168,8 +169,9 @@ function SupplyMatchDropdown({
   onSelect: (value: string) => void;
   renderOption?: (option: { value: string; label: string }) => React.ReactNode;
   className?: string;
-  /** Highlight empty control (e.g. ambiguous product needs SKU). */
+  /** Highlight an unmatched legacy/deleted variant and explain the required action. */
   needsAttention?: boolean;
+  attentionMessage?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -280,9 +282,9 @@ function SupplyMatchDropdown({
 
   return (
     <div className={`relative min-w-[10rem] ${className}`}>
-      {needsAttention && (
-        <span className="pointer-events-none absolute -right-1 -top-1 z-10 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white text-amber-600 shadow-sm">
-          <AlertCircle className="h-3.5 w-3.5" />
+      {needsAttention && attentionMessage && (
+        <span className="absolute -right-2 -top-2 z-20 rounded-full bg-white shadow-sm">
+          <SupplierVariantAlert message={attentionMessage} />
         </span>
       )}
       <button
@@ -1822,6 +1824,13 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                             noMatchLabel={tSuppliersModal('catalogNoMatch')}
                             searchPlaceholder={tSuppliersModal('searchSku')}
                             needsAttention={needsVariantLink || canArchiveRow}
+                            attentionMessage={hasReplacementVariant
+                              ? 'The original variant was deleted and a replacement with the same product/variant details now exists under a new ID. Select the live SKU and variant to reconnect this receipt to inventory.'
+                              : needsVariantLink
+                                ? 'This older receipt has no saved link to a live catalog variant. Select the current SKU and variant so the system knows exactly which inventory item this receipt belongs to.'
+                                : canArchiveRow
+                                  ? 'The original catalog variant was deleted and no matching replacement was found. Choose another variant, or archive/delete this supply.'
+                                  : undefined}
                             onSelect={(variantId) => handleHistoryVariantSelect(idx, variantId)}
                             renderOption={(option) => (
                               <span className="flex flex-col gap-0.5">
