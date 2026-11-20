@@ -46,6 +46,40 @@ describe('computeSupplyStockEffects (Update Current Stock checkbox)', () => {
     expect(effects[0].applyStock).toBe(true);
   });
 
+  it('saves an unmatched legacy receipt without a live variant as history-only', async () => {
+    const incoming = [history({
+      suppliesno: 'HIST-S1dryxq2',
+      variantOptionId: null,
+      historicalVariantOptionId: 812,
+      stockAppliedVariantOptionId: null,
+      stockApplied: false,
+      updateCurrentStock: true,
+    })];
+
+    const effects = computeSupplyStockEffects([], incoming);
+    expect(effects).toHaveLength(1);
+    expect(effects[0].reason).toBe('add');
+    expect(effects[0].quantityDelta).toBe(120);
+    expect(effects[0].applyStock).toBe(false);
+
+    const result = await finalizeSupplierSuppliesSave({
+      userId: 1,
+      previousSuppliesRaw: null,
+      nextSuppliesRaw: JSON.stringify(incoming),
+    });
+    const rows = JSON.parse(result.suppliesJson) as SupplyDetail[];
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      suppliesno: 'HIST-S1dryxq2',
+      variantOptionId: null,
+      historicalVariantOptionId: 812,
+      updateCurrentStock: false,
+      stockApplied: false,
+      stockAppliedVariantOptionId: null,
+    });
+    expect(result.stockUpdatedCount).toBe(0);
+  });
+
   it('applies a carton-entered supply using its normalized Piece quantity', () => {
     const incoming = [history({ receivedQuantity: '2', receivedUnit: 'Cartons', totalSupplied: '240', updateCurrentStock: true })];
     const effects = computeSupplyStockEffects([], incoming);
