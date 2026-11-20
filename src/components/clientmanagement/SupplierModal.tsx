@@ -577,9 +577,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   );
   // Supplier editing now has a single receipt-history view; legacy opening rows
   // are retained only for the Archived Supplies cleanup dialog.
-  // The editor now exposes receipts only. Keep the union return type for
-  // retained legacy cleanup branches so TypeScript does not compare impossible
-  // literal states while those records remain available for migration/cleanup.
+  // Supplier editor and archive view operate only on receipt history.
   const [showArchivedSupplies, setShowArchivedSupplies] = useState(false);
   const [archivedOpeningRows, setArchivedOpeningRows] = useState<SupplyDetail[]>(
     () => parseSupplyRows(initialData?.supplies).archived,
@@ -1117,10 +1115,8 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     });
 
     setId(initialData.supplierId || generateSupplierId());
-    setOpeningRows(buckets.opening);
-    try { setArchivedOpeningRows((JSON.parse(initialData.supplies || '[]') as SupplyDetail[]).filter((row) => !!row.archivedAt)); }
-    catch { setArchivedOpeningRows([]); }
-    setHistoryRows(buckets.history);
+    setArchivedOpeningRows(receiptRows.archived);
+    setHistoryRows(receiptRows.history);
     setSelectedHistoryRows(new Set());
     setPendingDeleteMarkers([]);
     setShowDeleteHistoryModal(false);
