@@ -28,6 +28,29 @@ function history(overrides: Partial<SupplyDetail> = {}): SupplyDetail {
   };
 }
 
+describe('in-place supplier receipt correction', () => {
+  it('reverses the previous applied variant and applies the replacement once', () => {
+    const before = history({ variantOptionId: 101, stockApplied: true, stockAppliedVariantOptionId: 101, totalSupplied: '40' });
+    const after = history({ variantOptionId: 202, historicalVariantOptionId: 202, totalSupplied: '20', stockApplied: true });
+    const effects = computeSupplyStockEffects([before], [after]).filter((effect) => effect.applyStock);
+    expect(effects.map((effect) => [effect.stockVariantOptionId, effect.quantityDelta])).toEqual([[101, -40], [202, 20]]);
+  });
+
+  it('does not invent a reversal against a recreated SKU when the old variant was deleted', () => {
+    const before = history({ variantOptionId: null, historicalVariantOptionId: 101, stockApplied: true, stockAppliedVariantOptionId: 101, totalSupplied: '40' });
+    const after = history({ variantOptionId: 202, historicalVariantOptionId: 202, stockApplied: true, totalSupplied: '20' });
+    const effects = computeSupplyStockEffects([before], [after]).filter((effect) => effect.applyStock);
+    expect(effects.map((effect) => [effect.stockVariantOptionId, effect.quantityDelta])).toEqual([[101, -40], [202, 20]]);
+    expect(effects[0].allowMissingVariant).toBe(true);
+  });
+
+  it('allows correcting the receipt without applying any stock when unchecked', () => {
+    const before = history({ variantOptionId: null, historicalVariantOptionId: 101, stockApplied: false, updateCurrentStock: false });
+    const after = history({ variantOptionId: 202, historicalVariantOptionId: 202, stockApplied: false, updateCurrentStock: false });
+    expect(computeSupplyStockEffects([before], [after]).every((effect) => !effect.applyStock)).toBe(true);
+  });
+});
+
 describe('computeSupplyStockEffects (Update Current Stock checkbox)', () => {
   it('keeps Jakarta today helper available for legacy today fallbacks', () => {
     const today = todayYmdJakarta(new Date('2026-11-10T17:30:00.000Z'));
