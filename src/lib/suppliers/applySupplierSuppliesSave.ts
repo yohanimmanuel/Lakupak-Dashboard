@@ -256,7 +256,18 @@ export function computeSupplyStockEffects(
 
     if (!prev) {
       if (quantity > 0 || value > 0) {
-        addEffect(row, quantity, value, 'add', checked, row.variantOptionId);
+        // Legacy/imported receipts can have no live variant FK after catalog
+        // deletion. They remain valid history rows, but must never attempt a
+        // positive inventory movement using SKU/name as a substitute identity.
+        const hasExactLiveVariant = row.variantOptionId != null;
+        addEffect(
+          row,
+          quantity,
+          value,
+          'add',
+          checked && hasExactLiveVariant,
+          row.variantOptionId,
+        );
       }
       continue;
     }
