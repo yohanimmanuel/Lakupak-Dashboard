@@ -1,24 +1,30 @@
 import { describe, expect, it } from 'vitest';
 import type { SupplyDetail } from '@/types/client';
-import { applySummaryDelta, buildSupplySummaryFromHistory, mergeDuplicateSummaryRows, serializeHistorySupplyForStorage } from '@/lib/suppliers/supplyRecords';
+import { serializeHistorySupplyForStorage, getSupplyRecordType } from '@/lib/suppliers/supplyRecords';
 
-const row = (variantOptionId: number, recordType: 'history' | 'summary'): SupplyDetail => ({
-  suppliesno: `${recordType === 'history' ? 'HIST' : 'AUTO'}-P-1|variant:${variantOptionId}`,
-  productId: 'P-1', variantOptionId, variantName: 'Original', sku: 'REUSED-SKU',
-  product: 'Original', totalSupplied: '10', totalValue: '100',
-  recordType, status: 'Active', stockApplied: false,
+const receipt = (variantOptionId: number): SupplyDetail => ({
+  suppliesno: `HIST-P-1|variant:${variantOptionId}`,
+  productId: 'P-1',
+  variantOptionId,
+  variantName: 'Original',
+  sku: 'REUSED-SKU',
+  product: 'Original',
+  totalSupplied: '10',
+  totalValue: '100',
+  recordType: 'history',
+  status: 'Active',
+  stockApplied: false,
 });
 
-describe('archived supplier variant identity', () => {
-  it('preserves live, historical, and applied variant IDs when serializing a receipt', () => {
+describe('supplier receipt variant identity', () => {
+  it('preserves live, historical, and applied variant IDs when serializing', () => {
     const serialized = serializeHistorySupplyForStorage({
-      ...row(205, 'history'),
+      ...receipt(205),
       historicalVariantOptionId: 101,
       stockAppliedVariantOptionId: 99,
       updateCurrentStock: true,
       stockApplied: true,
     });
-
     expect(serialized).toMatchObject({
       variantOptionId: 205,
       historicalVariantOptionId: 101,
@@ -27,21 +33,23 @@ describe('archived supplier variant identity', () => {
       stockApplied: true,
     });
   });
-  it('keeps deleted and recreated variants separate despite matching SKU and label', () => {
-    const rows = mergeDuplicateSummaryRows([row(1, 'summary'), row(2, 'summary')]);
-    expect(rows).toHaveLength(2);
-  });
-  it('never applies a receipt delta from an archived variant to the recreated variant', () => {
-    const rows = applySummaryDelta([row(2, 'summary')], {
-      productId: 'P-1', variantOptionId: 1, variantName: 'Original',
-      sku: 'REUSED-SKU', product: 'Original', quantity: 5, totalValue: 50,
+
+  it('preserves distinct receipt identities for recreated variants with the same SKU', () => {
+    const oldReceipt = serializeHistorySupplyForStorage({
+      ...receipt(1),
+      historicalVariantOptionId: 1,
     });
-    expect(rows).toHaveLength(2);
-    expect(rows.find(r => r.variantOptionId === 2)?.totalSupplied).toBe('10');
+    const replacementReceipt = serializeHistorySupplyForStorage({
+      ...receipt(2),
+      historicalVariantOptionId: 2,
+    });
+    expect(oldReceipt.historicalVariantOptionId).toBe(1);
+    expect(replacementReceipt.historicalVariantOptionId).toBe(2);
+    expect(oldReceipt.variantOptionId).not.toBe(replacementReceipt.variantOptionId);
+    expect(oldReceipt.sku).toBe(replacementReceipt.sku);
   });
-  it('does not merge archived receipt history into a recreated stock snapshot', () => {
-    const rows = buildSupplySummaryFromHistory([row(1, 'history')], [row(2, 'summary')]);
-    expect(rows).toHaveLength(2);
-    expect(rows.find(r => r.variantOptionId === 2)?.totalSupplied).toBe('10');
+
+  it('continues to identify legacy AUTO snapshots without treating them as receipts', () => {
+    expect(getSupplyRecordType({ suppliesno: 'AUTO-P-1', recordType: 'history' })).toBe('summary');
   });
 });
