@@ -575,9 +575,6 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   });
   
   const [id, setId] = useState(() => initialData?.supplierId || generateSupplierId());
-  const [summaryRows, setSummaryRows] = useState<SupplyDetail[]>(
-    () => parseSupplyBuckets(initialData?.supplies).summary,
-  );
   const [historyRows, setHistoryRows] = useState<SupplyDetail[]>(
     () => parseSupplyBuckets(initialData?.supplies).history,
   );
@@ -607,26 +604,14 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   // Receipts whose original live variant was deleted remain in history until the
   // user explicitly archives or deletes them. A replacement with the same SKU is
   // never treated as the same variant.
-  useEffect(() => {
-    setSummaryRows(buildSupplySummaryFromHistory(historyRows.filter((item) => !isBlankHistoryRow(item)), openingRows));
-  }, [openingRows, historyRows]);
-  const displayedSummaryRows = suppliesTab === 'opening' ? openingRows : summaryRows;
   // Summary and history have independent pagination so switching tabs preserves each view.
   const supplyRowsPerPage = 8;
-  const [summaryPage, setSummaryPage] = useState(1);
   const [historyPage, setHistoryPage] = useState(1);
-  const totalSummaryPages = Math.max(1, Math.ceil(displayedSummaryRows.length / supplyRowsPerPage));
   const totalHistoryPages = Math.max(1, Math.ceil(historyRows.length / supplyRowsPerPage));
-  const safeSummaryPage = Math.min(summaryPage, totalSummaryPages);
   const safeHistoryPage = Math.min(historyPage, totalHistoryPages);
-  const summaryPageStart = (safeSummaryPage - 1) * supplyRowsPerPage;
-  const summaryPageEnd = Math.min(summaryPageStart + supplyRowsPerPage, displayedSummaryRows.length);
   const historyPageStart = (safeHistoryPage - 1) * supplyRowsPerPage;
   const historyPageEnd = Math.min(historyPageStart + supplyRowsPerPage, historyRows.length);
 
-  useEffect(() => {
-    if (summaryPage !== safeSummaryPage) setSummaryPage(safeSummaryPage);
-  }, [summaryPage, safeSummaryPage]);
   useEffect(() => {
     if (historyPage !== safeHistoryPage) setHistoryPage(safeHistoryPage);
   }, [historyPage, safeHistoryPage]);
@@ -1144,7 +1129,6 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     });
 
     setId(initialData.supplierId || generateSupplierId());
-    setSummaryRows(buckets.summary);
     setOpeningRows(buckets.opening);
     try { setArchivedOpeningRows((JSON.parse(initialData.supplies || '[]') as SupplyDetail[]).filter((row) => !!row.archivedAt)); }
     catch { setArchivedOpeningRows([]); }
@@ -1183,7 +1167,6 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
       setArchivedOpeningRows((rows) => archived
         ? [...rows.filter((item) => item.suppliesno !== row.suppliesno), { ...row, archivedAt: new Date().toISOString() }]
         : rows.filter((item) => item.suppliesno !== row.suppliesno));
-      setSummaryPage(1);
       setSelectedOpeningRows((prev) => { const next = new Set(prev); next.delete(row.suppliesno); return next; });
       setSuccess(archived ? 'Supply archived.' : 'Supply restored.');
       return true;
@@ -1209,7 +1192,6 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
       setArchivedOpeningRows((rows) => rows.filter((item) => item.suppliesno !== row.suppliesno));
       setSelectedOpeningRows((prev) => { const nextSelected = new Set(prev); nextSelected.delete(row.suppliesno); return nextSelected; });
 
-      setSummaryPage(1);
       setSuccess('Supply deleted. Other receipt history was preserved.');
       return true;
     } catch (error) { setError(error instanceof Error ? error.message : 'Unable to delete archived supply'); return false; }
@@ -1644,7 +1626,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
           )}
           
           {/* Error Message */}
-          {error && !(suppliesTab === 'opening' && isEditMode) && (
+          {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
               <span className="text-red-800 text-xs font-medium">{error}</span>
@@ -1683,7 +1665,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                 supplierCatalog={supplierOwnedCatalog}
               />
             )}
-            {suppliesTab === 'history' && selectedHistoryRows.size > 0 && (
+            {selectedHistoryRows.size > 0 && (
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#e6e6e6] border-l-4 border-l-green-500 bg-white p-3 shadow-sm">
                 <span className="text-sm font-semibold text-green-700">
                   {tSuppliersModal('historyRowsSelected', { count: selectedHistoryRows.size })}
@@ -2003,11 +1985,8 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                 </button>
               </div>
             </div>
-            {suppliesTab === 'history' && (
+            {(
               <p className="mt-2 text-xs text-gray-500">{tSuppliersModal('updateCurrentStockHint')}</p>
-            )}
-            {suppliesTab !== 'history' && (
-              <p className="mt-2 text-xs text-gray-500">{tSuppliersModal('summaryReadOnlyHint')}</p>
             )}
           </div>
           <div className="flex gap-2">
