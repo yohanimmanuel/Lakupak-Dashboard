@@ -1170,14 +1170,19 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   const performArchivedAction = async () => {
     if (!archivedAction) return;
     const { kind, rows } = archivedAction;
-    setArchivedAction(null);
+    // Keep successful actions applied, and stop at the first failure so
+    // remaining selections are available for retry.
     for (const row of rows) {
       const succeeded = kind === 'delete'
         ? await deleteArchivedSupply(row)
         : await setSupplyArchived(row, kind === 'archive');
       if (!succeeded) break;
+      setSelectedArchivedRows((previous) => {
+        const next = new Set(previous);
+        next.delete(row.suppliesno);
+        return next;
+      });
     }
-    setSelectedHistoryRows(new Set());
   };
 
   // Enhanced form submission
