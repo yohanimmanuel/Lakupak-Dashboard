@@ -206,12 +206,16 @@ export async function replaceSupplierSupplyRecords(
   const requestedIds = [...new Set(incoming.map((row) => row.variantOptionId).filter((id): id is number => id != null))];
   const supplierOwner = await db.supplier.findUnique({
     where: { id: supplierRefId },
-    select: { userId: true },
+    select: { userId: true, name: true },
   });
   if (!supplierOwner?.userId) throw new Error('Supplier owner not found');
   const liveVariants = requestedIds.length
     ? await db.variantOption.findMany({
-        where: { id: { in: requestedIds }, isActive: true, product: { userId: supplierOwner.userId } },
+        where: {
+          id: { in: requestedIds },
+          isActive: true,
+          product: { userId: supplierOwner.userId, supplier: { equals: supplierOwner.name, mode: 'insensitive' } },
+        },
         select: { id: true },
       })
     : [];
