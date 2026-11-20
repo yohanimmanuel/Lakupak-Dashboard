@@ -290,7 +290,7 @@ function SupplyMatchDropdown({
         }`}
         onClick={() => setOpen((next) => !next)}
       >
-        <span className={`truncate ${value ? 'text-black' : needsAttention ? 'font-medium text-amber-700' : 'text-gray-500'}`}>
+        <span className={`truncate ${(value || displayValue) ? 'text-black' : needsAttention ? 'font-medium text-amber-700' : 'text-gray-500'}`}>
           {displayValue || value || placeholder}
         </span>
         <ChevronDown className={`h-3.5 w-3.5 shrink-0 ${needsAttention ? 'text-amber-600' : 'text-gray-400'}`} />
@@ -1128,11 +1128,13 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
       if (row.updateCurrentStock !== true) return false;
       const qty = Number(String(row.totalSupplied || '').replace(/[^\d.-]/g, ''));
       if (!Number.isFinite(qty) || qty <= 0) return false;
-      return !String(row.sku || '').trim() && !String(row.productId || '').trim();
+      // Snapshot labels are not an inventory target. A stock movement needs
+      // the exact current VariantOption selected in the catalog dropdown.
+      return row.variantOptionId == null;
     });
     if (unresolvedStockRows.length > 0) {
-      handleError(tSuppliersModal('selectSkuBeforeStockUpdate'));
-        return;
+      handleError('Select the live catalog SKU/variant for every receipt marked Update Stock. Historical labels alone cannot identify an inventory variant.');
+      return;
     }
 
     setIsSubmitting(true);
@@ -1659,6 +1661,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                     {historyRows.slice(historyPageStart, historyPageEnd).map((row, visibleIndex) => {
                       const idx = historyPageStart + visibleIndex;
                       const needsSku = isUnresolvedHistoryRow(row);
+                      const needsVariantLink = !isBlankHistoryRow(row) && row.variantOptionId == null;
                       return (
                       <tr key={row.suppliesno || `hist-${idx}`} className="whitespace-nowrap">
                         <td className="px-3 py-2">
@@ -1705,6 +1708,10 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                           {needsSku ? (
                             <p className="mt-1 text-[10px] font-medium text-amber-700">
                               {tSuppliersModal('selectSku')}
+                            </p>
+                          ) : needsVariantLink ? (
+                            <p className="mt-1 text-[10px] font-medium text-amber-700">
+                              Re-select the live catalog SKU/variant to link this receipt to inventory.
                             </p>
                           ) : null}
                         </td>

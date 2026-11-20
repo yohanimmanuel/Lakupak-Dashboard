@@ -352,7 +352,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
       return;
     }
 
-    const linesByOrder = new Map(initialOrderLines.map((order) => [order.orderNo, order]));
+    const linesByOrder = new Map(initialOrderLines.map((order) => [String(order.orderNo || '').trim(), order]));
     const groupedRows = new Map<string, OrderDetail[]>();
     const result: OrderDetail[] = [];
 
