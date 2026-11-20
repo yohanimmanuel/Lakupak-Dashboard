@@ -1270,14 +1270,11 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
           .filter((row) => !isBlankHistoryRow(row))
           .map((row) => normalizeSupplyRow(row, 'history')),
       );
-      // Archived history receipts remain stored as history records; never coerce
-      // them into legacy summary rows when saving the supplier.
-      const cleanedSummary = [
-        ...openingRows,
-        ...archivedOpeningRows.filter((row) => row.recordType === 'summary'),
-      ].map((row) => normalizeSupplyRow(row, 'summary'));
+      // Supplier saves write receipt history only. Legacy opening/summary
+      // snapshots remain in the database for compatibility, but are no longer
+      // part of the editable supplier payload or an inventory ledger.
       // Tombstones carry explicit reverse-stock intent from the delete modal.
-      const mergedSupplies = [...cleanedSummary, ...cleanedHistory, ...pendingDeleteMarkers];
+      const mergedSupplies = [...cleanedHistory, ...pendingDeleteMarkers];
 
       const payload: Record<string, unknown> = {
         ...form,
