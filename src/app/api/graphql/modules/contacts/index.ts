@@ -37,6 +37,7 @@ export const contactsTypeDefs = /* GraphQL */ `
     logistics: String
     notes: String
     orderDetails: String
+    orderLineDetails: String
     avgMonthlySpending: Float
     avgMonthlyOrders: Float
     userId: Int
@@ -296,6 +297,7 @@ export const contactsTypeDefs = /* GraphQL */ `
 `;
 
 type BuyerWithRecords = BuyerModel & {
+  orderLineDetails?: string | null;
   buyerRecords?: Array<{
     orderNo: string;
     product: string;
@@ -359,6 +361,7 @@ const mapBuyer = (buyer: BuyerWithRecords) => ({
   status: buyer.status,
   logistics: buyer.logistics ?? null,
   notes: buyer.notes ?? null,
+  orderLineDetails: (buyer as BuyerWithRecords).orderLineDetails ?? null,
   orderDetails:
     buyer.buyerRecords && buyer.buyerRecords.length > 0
       ? JSON.stringify(
@@ -453,10 +456,20 @@ const mapSupplier = (supplier: SupplierWithRecords) => ({
 });
 
 type BuyerOrderLineSnapshot = {
+  id: number;
   productId: string | null;
-  variantOptionId: number | null;
+  productName: string;
   productSkuSnapshot: string | null;
+  variantOptionId: number | null;
+  variantId: number | null;
   variantNameSnapshot: string | null;
+  packageQuantity: number | null;
+  packageType: string | null;
+  piecesPerPackage: number | null;
+  subtotal: string;
+  pricePerPackage: string | null;
+  promotionDetailsSnapshot: string | null;
+  moqSnapshot: number | null;
 };
 
 async function loadBuyerOrderLineSnapshots(
@@ -476,10 +489,20 @@ async function loadBuyerOrderLineSnapshots(
       buyerId: true,
       orderItemsRel: {
         select: {
+          id: true,
           productId: true,
+          productNameSnapshot: true,
+          variantId: true,
           variantOptionId: true,
           productSkuSnapshot: true,
           variantNameSnapshot: true,
+          packageQuantity: true,
+          packageType: true,
+          piecesPerPackage: true,
+          subtotal: true,
+          pricePerPackage: true,
+          promotionDetailsSnapshot: true,
+          moqSnapshot: true,
         },
       },
     },
@@ -487,10 +510,20 @@ async function loadBuyerOrderLineSnapshots(
   const snapshots = new Map<string, BuyerOrderLineSnapshot[]>();
   for (const order of orders) {
     snapshots.set(`${order.buyerId}|${order.orderId}`, order.orderItemsRel.map((item) => ({
+      id: item.id,
       productId: item.productId ?? null,
-      variantOptionId: item.variantOptionId ?? null,
+      productName: item.productNameSnapshot || 'Unknown Product',
       productSkuSnapshot: item.productSkuSnapshot ?? null,
+      variantOptionId: item.variantOptionId ?? null,
+      variantId: item.variantId ?? null,
       variantNameSnapshot: item.variantNameSnapshot ?? null,
+      packageQuantity: item.packageQuantity ?? null,
+      packageType: item.packageType ?? null,
+      piecesPerPackage: item.piecesPerPackage ?? null,
+      subtotal: item.subtotal.toString(),
+      pricePerPackage: item.pricePerPackage?.toString() ?? null,
+      promotionDetailsSnapshot: item.promotionDetailsSnapshot ?? null,
+      moqSnapshot: item.moqSnapshot ?? null,
     })));
   }
   return snapshots;
@@ -500,10 +533,23 @@ function withBuyerOrderLineSnapshots(
   buyer: BuyerWithRecords,
   snapshots: Map<string, BuyerOrderLineSnapshot[]>,
 ): BuyerWithRecords {
-  if (!buyer.buyerRecords?.length) return buyer;
+  const records = buyer.buyerRecords || [];
+  const orderLineDetails = records
+    .filter((record) => record.syncedFromOrders || /^LKO-\\d+(?:-\\d+)?$/i.test(String(record.orderNo || '')))
+    .map((record) => ({
+      orderNo: record.orderNo,
+      orderDate: record.lastOrderDate,
+      totalSpend: record.totalSpend,
+      shippingFee: record.shippingFee,
+      outstanding: record.outstanding,
+      orderItems: snapshots.get(`${buyer.buyerId}|${record.orderNo}`) || [],
+    }))
+    .filter((record) => record.orderItems.length > 0);
+
   return {
     ...buyer,
-    buyerRecords: buyer.buyerRecords.map((record) => {
+    orderLineDetails: orderLineDetails.length ? JSON.stringify(orderLineDetails) : null,
+    buyerRecords: records.map((record) => {
       const lines = snapshots.get(`${buyer.buyerId}|${record.orderNo}`) || [];
       if (lines.length === 0) return record;
       const distinct = (values: Array<string | null | undefined>) =>
