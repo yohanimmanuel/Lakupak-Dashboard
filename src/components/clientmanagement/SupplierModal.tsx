@@ -1119,9 +1119,9 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     setArchiveBusy(true);
     setError('');
     try {
-      await fetchGraphQL<{ setOpeningBalanceArchived: boolean }>(
+      await fetchGraphQL<{ setSupplierReceiptArchived: boolean }>(
         `mutation SetSupplyArchived($userId: Int!, $supplierId: String!, $suppliesno: String!, $archived: Boolean!) {
-          setOpeningBalanceArchived(userId: $userId, supplierId: $supplierId, suppliesno: $suppliesno, archived: $archived)
+          setSupplierReceiptArchived(userId: $userId, supplierId: $supplierId, suppliesno: $suppliesno, archived: $archived)
         }`,
         { userId: user.id, supplierId: initialData.supplierId, suppliesno: row.suppliesno, archived },
       );
@@ -1149,9 +1149,9 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     setArchiveBusy(true);
     setError('');
     try {
-      await fetchGraphQL<{ deleteArchivedOpeningBalance: boolean }>(
+      await fetchGraphQL<{ deleteArchivedSupplierReceipt: boolean }>(
         `mutation DeleteArchivedSupply($userId: Int!, $supplierId: String!, $suppliesno: String!) {
-          deleteArchivedOpeningBalance(userId: $userId, supplierId: $supplierId, suppliesno: $suppliesno)
+          deleteArchivedSupplierReceipt(userId: $userId, supplierId: $supplierId, suppliesno: $suppliesno)
         }`,
         { userId: user.id, supplierId: initialData.supplierId, suppliesno: row.suppliesno },
       );
