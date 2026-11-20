@@ -88,7 +88,15 @@ type ImportSuppliesModalProps = {
 };
 
 function normalizeKey(value: string | undefined): string {
-  return String(value || '').trim().toLowerCase();
+  return String(value || '').trim().replace(/\\s+/g, ' ').toLowerCase();
+}
+
+function productNameMatches(input: string, catalogProduct: string, variant: string): boolean {
+  const actual = normalizeKey(input);
+  const catalog = normalizeKey(catalogProduct);
+  const variantSuffix = normalizeKey(variant);
+  return actual === catalog ||
+    (variantSuffix.length > 0 && actual === `${catalog} (${variantSuffix})`);
 }
 
 /**
@@ -114,9 +122,12 @@ function getCatalogMatch(row: Record<string, string>, mapping: Record<string, st
       const exact = skuMatches.filter((entry) => normalizeKey(entry.variantName) === variantName);
       if (exact.length === 1) return exact[0];
     }
+    // Never fall back from an unmatched/ambiguous SKU to a same-name variant.
+    // That could silently assign a deleted SKU to a newly created catalog ID.
+    return undefined;
   }
   if (!product) return undefined;
-  const exactProducts = catalog.filter((entry) => normalizeKey(entry.product) === product);
+  const exactProducts = catalog.filter((entry) => productNameMatches(product, entry.product, entry.variantName || ''));
   const exact = exactProducts.filter((entry) => !variantName || normalizeKey(entry.variantName) === variantName);
   return exact.length === 1 ? exact[0] : undefined;
 }
@@ -161,6 +172,7 @@ export default function ImportSuppliesModal({
   const [isProcessing, setIsProcessing] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [selectedRowIndices, setSelectedRowIndices] = useState<Set<number>>(new Set());
+  const [importMode, setImportMode] = useState<'catalog' | 'historical'>('catalog');
 
   if (!open) return null;
 
@@ -289,8 +301,8 @@ export default function ImportSuppliesModal({
         suppliesno: '',
         sku: mapped.sku || catalogMatch?.sku || '',
         product: mapped.product || catalogMatch?.product || '',
-        productId: catalogMatch?.productId,
-        variantOptionId: catalogMatch?.variantOptionId,
+        productId: importMode === 'historical' ? undefined : catalogMatch?.productId,
+        variantOptionId: importMode === 'historical' ? null : catalogMatch?.variantOptionId,
         variantName: mapped.variantName || catalogMatch?.variantName || '',
         receivedQuantity,
         receivedUnit,
@@ -316,10 +328,10 @@ export default function ImportSuppliesModal({
       const line = index + 2;
       const row = mappedRows[index];
       const match = getCatalogMatch(raw, mapping, supplierCatalog);
-      if (!match) errors.push(`Row ${line}: SKU or exact Product + Variant does not match one supplier catalog item.`);
-      else {
+      if (!match && importMode === 'catalog') errors.push(`Row ${line}: No unique live catalog match. Choose Historical Receipt mode to preserve this row without changing inventory.`);
+      else if (match && importMode === 'catalog') {
         if (String(row.sku || '').trim() && normalizeKey(match.sku) !== normalizeKey(row.sku)) errors.push(`Row ${line}: SKU does not belong to the selected Product + Variant.`);
-        if (String(row.product || '').trim() && normalizeKey(match.product) !== normalizeKey(row.product)) errors.push(`Row ${line}: Product name conflicts with the matched SKU.`);
+        if (String(row.product || '').trim() && !productNameMatches(row.product, match.product, match.variantName || '')) errors.push(`Row ${line}: Product name conflicts with the matched SKU.`);
         if (String(row.variantName || '').trim() && normalizeKey(match.variantName) !== normalizeKey(row.variantName)) errors.push(`Row ${line}: Variant name conflicts with the matched SKU.`);
       }
       const quantity = String(row.receivedQuantity || '').trim();
@@ -329,9 +341,9 @@ export default function ImportSuppliesModal({
       if (!rawUnit && !rawCombined.unit) errors.push(`Row ${line}: Stock Type is required. Use a separate Stock Type column or a legacy value such as "80 Pieces".`);
       const levels = getSupplyUnitOptions(match?.stockLevels);
       if (!levels.some((level) => level.name.toLocaleLowerCase() === String(row.receivedUnit || '').trim().toLocaleLowerCase())) {
-        errors.push(`Row ${line}: Stock Type "${row.receivedUnit}" is not configured for the matched product.`);
+        errors.push(`Row ${line}: Stock Type "${row.receivedUnit}" cannot be converted without a matching catalog product. Choose Pieces or match the product first.`);
       }
-      if (match && !row.totalSupplied) errors.push(`Row ${line}: Quantity cannot be converted using this product's stock levels.`);
+      if (!row.totalSupplied) errors.push(`Row ${line}: Quantity cannot be converted safely to Pieces.`);
     });
     return errors.slice(0, 10).concat(errors.length > 10 ? [`And ${errors.length - 10} more row error(s).`] : []);
   };
@@ -346,7 +358,7 @@ export default function ImportSuppliesModal({
 
   const previewRows = step === 2 ? getMappedRows() : [];
   const foreignRowIndices = previewRows
-    .map((row, index) => (isForeignSupplyRow(row, supplierCatalog) ? index : -1))
+    .map((row, index) => (importMode === 'catalog' && isForeignSupplyRow(row, supplierCatalog) ? index : -1))
     .filter((index) => index >= 0);
   const foreignSelectedCount = foreignRowIndices.filter((index) => selectedRowIndices.has(index)).length;
   const hasForeignSelected = foreignSelectedCount > 0;
@@ -375,6 +387,7 @@ export default function ImportSuppliesModal({
     setSelectedRowIndices(new Set());
     setValidationErrors([]);
     setError('');
+    setImportMode('catalog');
   };
 
   const handleClose = () => {
@@ -405,7 +418,9 @@ export default function ImportSuppliesModal({
       return;
     }
 
-    const foreignSelected = selectedRows.filter((row) => isForeignSupplyRow(row, supplierCatalog));
+    const foreignSelected = importMode === 'catalog'
+      ? selectedRows.filter((row) => isForeignSupplyRow(row, supplierCatalog))
+      : [];
     if (foreignSelected.length > 0) {
       setValidationErrors([]);
       setError(tImport('supplyNotOwnedBlock'));
@@ -429,12 +444,12 @@ export default function ImportSuppliesModal({
           <ImportStartPanel
             title="Supplier supply history"
             overview="Import dated receipt rows for the selected supplier. Each row is a receipt event; quantities are converted to canonical Pieces using the matched product's configured stock levels."
-            matchingGuide="Match only to the selected supplier's catalog using one exact Lakupak SKU, or exact Product + Variant. A distributor's external item code is only an alias if it is identical to the Lakupak SKU; if it differs, replace it with the correct Lakupak SKU or use the exact Product + Variant. Ambiguous and unmatched rows are rejected before preview."
+            matchingGuide="Choose Catalog Match for uniquely identified live variants, or Historical Receipt for older/unmatched SKUs. Historical imports preserve the original labels and never update inventory."
             instructions={[
               'Use one row per received product variant and delivery date.',
-              'Match using an exact SKU, or exact Product + Variant. Do not use combined or approximate product names.',
+              'Catalog Match accepts a unique SKU or Product + Variant, including product names with a trailing (Variant).',
               'Received Quantity must be numeric. Stock Type must exactly match a stock level configured for that product.',
-              'Use the selected supplier’s own catalog items only. Rows that do not match are rejected before preview.',
+              'For unmatched or deleted variants choose Historical Receipt; unmatched package units must be Pieces to avoid guessing conversion.',
             ]}
             columns={[
               { name: 'Product', description: 'Exact catalog product name; required when SKU is blank.' },
@@ -456,6 +471,24 @@ export default function ImportSuppliesModal({
           <div className="flex flex-col gap-1">
             {error ? <div className="mb-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700" role="alert">{error}</div> : null}
             {validationErrors.length > 0 ? <div className="mb-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700" role="alert">{validationErrors.map((item, index) => <p key={index}>{item}</p>)}</div> : null}
+            <div className="mb-3 rounded-lg border border-gray-200 p-3 text-sm text-gray-800">
+              <div className="mb-2 font-semibold">Import mode</div>
+              <div className="flex flex-wrap gap-4">
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input type="radio" checked={importMode === 'catalog'} onChange={() => { setImportMode('catalog'); setValidationErrors([]); }} />
+                  Match to Product Catalog
+                </label>
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input type="radio" checked={importMode === 'historical'} onChange={() => { setImportMode('historical'); setValidationErrors([]); }} />
+                  Historical Receipt (no stock update)
+                </label>
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                {importMode === 'historical'
+                  ? 'Preserves the spreadsheet SKU, product and variant without linking inventory. Unknown package ratios cannot be converted; use Pieces for unmatched products.'
+                  : 'Every row must uniquely identify a current catalog variant. Imports do not automatically update stock.'}
+              </p>
+            </div>
             <div className="mb-2 font-semibold text-black">{tImport('mapColumnsOptional')}</div>
             
             {/* Info Message */}
