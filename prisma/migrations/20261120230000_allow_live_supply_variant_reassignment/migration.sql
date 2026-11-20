@@ -23,10 +23,10 @@ BEGIN
       IF OLD."variantOptionId" IS NULL OR OLD."archivedAt" IS NOT NULL THEN
         RAISE EXCEPTION 'Cannot reattach supply whose original catalog variant is unavailable';
       END IF;
-      IF NOT EXISTS (SELECT 1 FROM "VariantOption" v WHERE v."id" = OLD."variantOptionId") THEN
+      IF NOT EXISTS (SELECT 1 FROM "VariantOption" v WHERE v."id" = OLD."variantOptionId" AND v."isActive" = true) THEN
         RAISE EXCEPTION 'Cannot reattach supply whose original catalog variant is unavailable';
       END IF;
-      IF NOT EXISTS (SELECT 1 FROM "VariantOption" v WHERE v."id" = NEW."variantOptionId") THEN
+      IF NOT EXISTS (SELECT 1 FROM "VariantOption" v WHERE v."id" = NEW."variantOptionId" AND v."isActive" = true) THEN
         RAISE EXCEPTION 'Replacement catalog variant does not exist';
       END IF;
     END IF;
