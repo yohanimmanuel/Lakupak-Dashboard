@@ -555,7 +555,10 @@
         "Friday": "Friday",
         "Saturday": "Saturday",
         "Sunday": "Sunday"
-      }
+      },
+      "noProductOwned": "No product owned",
+      "supplierChangedTitle": "Supplier changed",
+      "supplierChangedDescription": "This product now belongs to another supplier. The original supply receipt stays here as a historical record and cannot be reassigned. Create a new supply row using a product owned by this supplier, or archive/delete the old receipt."
     }
   },
   "import": {
