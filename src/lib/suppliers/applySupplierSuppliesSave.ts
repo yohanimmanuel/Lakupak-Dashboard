@@ -261,11 +261,15 @@ export function computeSupplyStockEffects(
 
     const previousQuantity = toQty(prev.totalSupplied);
     const previousValue = toValue(prev.totalValue);
+    // A stable live variant ID is authoritative. SKU/name changes are catalog
+    // edits, not inventory identity changes, when the ID remains the same.
+    // For legacy rows without a live ID, compare the saved snapshots only.
     const identityChanged =
-      String(prev.variantOptionId ?? '') !== String(row.variantOptionId ?? '') ||
-      String(prev.sku || '').trim() !== String(row.sku || '').trim() ||
-      String(prev.productId || '').trim() !== String(row.productId || '').trim() ||
-      String(prev.variantName || '').trim() !== String(row.variantName || '').trim();
+      prev.variantOptionId != null || row.variantOptionId != null
+        ? prev.variantOptionId !== row.variantOptionId
+        : String(prev.sku || '').trim() !== String(row.sku || '').trim() ||
+          String(prev.productId || '').trim() !== String(row.productId || '').trim() ||
+          String(prev.variantName || '').trim() !== String(row.variantName || '').trim();
     const previouslyApplied = prev.stockApplied === true;
     const previousMovementVariantId =
       prev.stockAppliedVariantOptionId ?? prev.variantOptionId ?? null;
@@ -287,14 +291,22 @@ export function computeSupplyStockEffects(
     }
 
     if (checked) {
-      if (!previouslyApplied || identityChanged) {
+      if (row.variantOptionId == null && prev) {
+        // Existing legacy receipt whose catalog variant was deleted: an old checked
+        // UI flag is not permission to invent a target. Keep an already-applied
+        // movement snapshot intact when unchanged; an identity edit above already
+        // reversed its old movement (if the old row still exists).
+        if (identityChanged && previouslyApplied) {
+          // The old movement was reversed above. With no exact new ID, do not apply
+          // this receipt to a guessed same-SKU variant.
+        }
+      } else if (!previouslyApplied || identityChanged) {
         // No prior movement exists (or the receipt is being deliberately reassigned):
         // apply the complete new quantity to the explicitly selected live variant.
         if (quantity > 0) {
           addEffect(row, quantity, value, previouslyApplied ? 'edit' : 'enable', true, row.variantOptionId);
         }
-        // Record value/quantity edits as receipt changes only; there is no separate
-        // summary ledger in the receipt-only architecture.
+        // Receipt edits never update a separate summary ledger.
       } else {
         // Same live identity and a movement already exists: apply only the delta.
         const quantityDelta = quantity - previousQuantity;
@@ -447,7 +459,11 @@ export async function finalizeSupplierSuppliesSave(args: {
     return {
       ...row,
       recordType: 'history' as const,
-      updateCurrentStock: row.updateCurrentStock === true,
+      // A deleted-variant history row may arrive with a stale checked flag.
+      // Keep it checked only when a previous stock movement is still recorded;
+      // a new/reenabled movement always requires a real live variant ID.
+      updateCurrentStock: row.updateCurrentStock === true &&
+        (row.variantOptionId != null || stockApplied),
       stockApplied,
       stockAppliedVariantOptionId: disabledThisSave
         ? null
