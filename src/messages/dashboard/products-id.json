@@ -310,7 +310,26 @@
       "moq": "MOQ (Opsional)",
       "productCategory": "Kategori Produk / Saluran Penjualan (Opsional)",
       "catalogName": "Nama Katalog (Opsional)"
-    }
+    },
+    "productGuideTitle": "Impor data utama produk",
+    "productGuideOverview": "Buat draf produk menggunakan informasi tingkat produk saja. SKU varian, harga, jumlah stok, dan pengaturan kemasan dikelola terpisah di Daftar Varian katalog.",
+    "productGuideMatching": "Impor ini membuat produk baru dan tidak mencocokkan atau memperbarui produk yang ada. ID produk dibuat Lakupak. SKU varian, harga, MOQ, dan stok ditambahkan melalui impor varian produk.",
+    "productGuideInstruction0": "Gunakan satu baris per produk. Jangan tambahkan baris terpisah untuk varian.",
+    "productGuideInstruction1": "Nama Produk, Deskripsi, Jenis Produk, Merek, dan Pemasok wajib diisi.",
+    "productGuideInstruction2": "Isi informasi tingkat produk saja. Jangan sertakan SKU varian, harga, stok, atau MOQ.",
+    "productGuideInstruction3": "Produk yang diimpor dibuat sebagai Draf. Lengkapi gambar, satuan stok, dan varian di katalog.",
+    "productGuideColumn0Name": "Nama Produk",
+    "productGuideColumn0Description": "Nama tampilan produk.",
+    "productGuideColumn1Name": "Deskripsi",
+    "productGuideColumn1Description": "Deskripsi produk.",
+    "productGuideColumn2Name": "Jenis Produk",
+    "productGuideColumn2Description": "Kategori atau jenis produk.",
+    "productGuideColumn3Name": "Merek",
+    "productGuideColumn3Description": "Nama merek atau produsen.",
+    "productGuideColumn4Name": "Pemasok",
+    "productGuideColumn4Description": "Nama pemasok produk.",
+    "productGuideColumn5Name": "Nama Katalog",
+    "productGuideColumn5Description": "Nama pengelompokan katalog opsional."
   },
   "deleted": {
     "title": "Produk telah dihapus",
