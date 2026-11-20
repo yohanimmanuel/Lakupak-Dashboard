@@ -1801,7 +1801,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                             noMatchLabel={tSuppliersModal('catalogNoMatch')}
                             searchPlaceholder={tSuppliersModal('searchVariant')}
                             onSelect={(variantId) => handleHistoryVariantSelect(idx, variantId)}
-                            disabled={deletedVariant || supplierChanged}
+                            disabled={false}
                             className={!row.productId && !row.variantName ? 'opacity-60' : ''}
                           />
                         </td>
