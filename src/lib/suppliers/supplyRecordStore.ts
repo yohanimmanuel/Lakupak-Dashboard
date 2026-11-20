@@ -280,6 +280,9 @@ export async function replaceSupplierSupplyRecords(
       // An existing snapshot owns its original identity permanently. In particular,
       // do not attach it to a newly-created variant with the same label or SKU.
       const originalId = match.historicalVariantOptionId ?? match.variantOptionId;
+      if (originalId != null && row.variantOptionId != null && row.variantOptionId !== originalId) {
+        throw new Error('This historical receipt belongs to a deleted catalog variant. Create a new supply row for the replacement variant instead of changing this receipt.');
+      }
       if (originalId != null) {
         // A receipt may be deliberately reassigned to another live variant.
         // The stock-effect transaction has already reversed the previous ID
