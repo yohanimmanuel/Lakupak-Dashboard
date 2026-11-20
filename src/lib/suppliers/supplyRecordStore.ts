@@ -302,7 +302,7 @@ export async function replaceSupplierSupplyRecords(
   // receipt-only supplier save. They remain read-compatible for older data
   // and can be migrated separately after explicit review.
   const removedIds = existing
-    .filter((row) => !used.has(row.id) && !row.archivedAt && row.recordType === 'history')
+    .filter((row) => !used.has(row.id) && !row.archivedAt && getSupplyRecordType(row) === 'history')
     .map((row) => row.id);
   if (removedIds.length) {
     await db.supplyRecord.deleteMany({ where: { supplierRefId, id: { in: removedIds } } });
