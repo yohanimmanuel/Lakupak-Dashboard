@@ -308,6 +308,21 @@ function isUnresolvedHistoryRow(row: SupplyDetail): boolean {
   return Boolean(product) && !sku && !productId;
 }
 
+/** A saved receipt whose original VariantOption was deleted from the catalog. */
+function isDeletedVariantReceipt(row: SupplyDetail): boolean {
+  return Boolean(String(row.suppliesno || '').trim()) &&
+    row.variantOptionId == null &&
+    row.historicalVariantOptionId != null;
+}
+
+/** Older saved receipt with labels but no durable live or historical variant ID. */
+function isLegacyUnlinkedReceipt(row: SupplyDetail): boolean {
+  return Boolean(String(row.suppliesno || '').trim()) &&
+    row.variantOptionId == null &&
+    row.historicalVariantOptionId == null &&
+    !isBlankHistoryRow(row);
+}
+
 function generateSupplierId() {
   return 'LKS-' + Math.floor(10000000 + Math.random() * 90000000).toString();
 }
@@ -854,9 +869,19 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
 
   const allHistoryRowsSelected = historyRows.length > 0 && selectedHistoryRows.size === historyRows.length;
   const someHistoryRowsSelected = selectedHistoryRows.size > 0 && !allHistoryRowsSelected;
-  const hasSelectedRowsWithStockUpdate = [...selectedHistoryRows].some(
-    (index) => historyRows[index]?.updateCurrentStock === true,
-  );
+  const selectedHistoryRowIndices = [...selectedHistoryRows].filter((index) => {
+    const row = historyRows[index];
+    return Boolean(row) && !isBlankHistoryRow(row);
+  });
+  const selectedHistoryRecords = selectedHistoryRowIndices
+    .map((index) => historyRows[index])
+    .filter((row): row is SupplyDetail => Boolean(row));
+  const canBulkUpdateStock = selectedHistoryRecords.length > 0 &&
+    selectedHistoryRecords.every((row) => row.updateCurrentStock !== true);
+  const canBulkUnupdateStock = selectedHistoryRecords.length > 0 &&
+    selectedHistoryRecords.every((row) => row.updateCurrentStock === true);
+  const canBulkArchiveHistory = selectedHistoryRecords.length > 0 &&
+    selectedHistoryRecords.every(isDeletedVariantReceipt);
 
   const toggleHistoryRowSelection = useCallback((idx: number) => {
     setSelectedHistoryRows((prev) => {
@@ -876,7 +901,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   const handleBulkUpdateStock = useCallback(() => {
     setHistoryRows((rows) =>
       rows.map((r, i) =>
-        selectedHistoryRows.has(i)
+        selectedHistoryRowIndices.includes(i)
           ? {
               ...r,
               updateCurrentStock: true,
@@ -888,12 +913,12 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
       ),
     );
     setSelectedHistoryRows(new Set());
-  }, [selectedHistoryRows]);
+  }, [selectedHistoryRowIndices]);
 
   const handleBulkUnupdateStock = useCallback(() => {
     setHistoryRows((rows) =>
       rows.map((r, i) =>
-        selectedHistoryRows.has(i)
+        selectedHistoryRowIndices.includes(i)
           ? {
               ...r,
               updateCurrentStock: false,
@@ -1110,6 +1135,9 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
       if (kind === 'delete') await deleteOpening(row);
       else await setOpeningArchive(row, kind === 'archive');
     }
+    // Archiving/deleting history rows changes their indices in the table.
+    setSelectedHistoryRows(new Set());
+    setSelectedOpeningRows(new Set());
   };
 
   // Enhanced form submission
@@ -1566,22 +1594,37 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                   {tSuppliersModal('historyRowsSelected', { count: selectedHistoryRows.size })}
                 </span>
                 <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-gray-50"
-                    onClick={handleBulkUpdateStock}
-                  >
-                    {tSuppliersModal('bulkUpdateStock')}
-                  </button>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-                    onClick={handleBulkUnupdateStock}
-                    disabled={!hasSelectedRowsWithStockUpdate}
-                    title={tSuppliersModal('bulkUnupdateStock')}
-                  >
-                    {tSuppliersModal('bulkUnupdateStock')}
-                  </button>
+                  {canBulkUpdateStock ? (
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-gray-50"
+                      onClick={handleBulkUpdateStock}
+                    >
+                      {tSuppliersModal('bulkUpdateStock')}
+                    </button>
+                  ) : canBulkUnupdateStock ? (
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                      onClick={handleBulkUnupdateStock}
+                      title={tSuppliersModal('bulkUnupdateStock')}
+                    >
+                      {tSuppliersModal('bulkUnupdateStock')}
+                    </button>
+                  ) : null}
+                  {canBulkArchiveHistory ? (
+                    <button
+                      type="button"
+                      disabled={archiveBusy}
+                      className="inline-flex items-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      onClick={() => setOpeningAction({
+                        kind: 'archive',
+                        rows: selectedHistoryRowIndices.map((index) => historyRows[index]).filter((row): row is SupplyDetail => Boolean(row)),
+                      })}
+                    >
+                      <Archive className="h-4 w-4" /> Archive selected
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700"
@@ -1661,7 +1704,8 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                     {historyRows.slice(historyPageStart, historyPageEnd).map((row, visibleIndex) => {
                       const idx = historyPageStart + visibleIndex;
                       const needsSku = isUnresolvedHistoryRow(row);
-                      const needsVariantLink = !isBlankHistoryRow(row) && row.variantOptionId == null;
+                      const deletedVariant = isDeletedVariantReceipt(row);
+                      const needsVariantLink = isLegacyUnlinkedReceipt(row);
                       return (
                       <tr key={row.suppliesno || `hist-${idx}`} className="whitespace-nowrap">
                         <td className="px-3 py-2">
@@ -1705,13 +1749,17 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                               </span>
                             )}
                           />
-                          {needsSku ? (
+                          {needsVariantLink ? (
+                            <p className="mt-1 max-w-[24rem] whitespace-normal text-[10px] font-medium text-amber-700">
+                              This older receipt is not linked to a catalog variant. Re-select its live SKU and variant so the system knows exactly which inventory item to update.
+                            </p>
+                          ) : deletedVariant ? (
+                            <p className="mt-1 max-w-[24rem] whitespace-normal text-[10px] font-medium text-amber-700">
+                              The original catalog variant was deleted. Choose another live variant, or archive/delete this supply.
+                            </p>
+                          ) : needsSku ? (
                             <p className="mt-1 text-[10px] font-medium text-amber-700">
                               {tSuppliersModal('selectSku')}
-                            </p>
-                          ) : needsVariantLink ? (
-                            <p className="mt-1 text-[10px] font-medium text-amber-700">
-                              Re-select the live catalog SKU/variant to link this receipt to inventory.
                             </p>
                           ) : null}
                         </td>
@@ -1826,6 +1874,18 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                             >
                               <Plus className="h-4 w-4" />
                             </button>
+                            {deletedVariant ? (
+                              <button
+                                type="button"
+                                className="rounded-full p-1 text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                disabled={archiveBusy}
+                                onClick={() => setOpeningAction({ kind: 'archive', rows: [row] })}
+                                title="Archive supply"
+                                aria-label="Archive supply"
+                              >
+                                <Archive className="h-4 w-4" />
+                              </button>
+                            ) : null}
                             <button
                               type="button"
                               className="rounded-full p-1 font-bold text-red-500 hover:bg-red-100"
