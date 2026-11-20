@@ -453,23 +453,23 @@ export default function ImportSuppliesModal({
         <div className="flex-1 min-h-0 overflow-y-auto">
         {step === 0 && (
           <ImportStartPanel
-            title="Supplier supply history"
-            overview="Import dated receipt rows for the selected supplier. Each row is a receipt event; quantities are converted to canonical Pieces using the matched product's configured stock levels."
-            matchingGuide="Choose Catalog Match for uniquely identified live variants, or Historical Receipt for older/unmatched SKUs. Historical imports preserve the original labels and never update inventory."
+            title={tImport('supplierGuideTitle')}
+            overview={tImport('supplierGuideOverview')}
+            matchingGuide={tImport('supplierGuideMatching')}
             instructions={[
-              'Use one row per received product variant and delivery date.',
-              'Catalog Match accepts a unique SKU or Product + Variant, including product names with a trailing (Variant).',
-              'Received Quantity must be numeric. Stock Type must exactly match a stock level configured for that product.',
-              'For unmatched or deleted variants choose Historical Receipt; unmatched package units must be Pieces to avoid guessing conversion.',
+              tImport('supplierGuideInstruction0'),
+              tImport('supplierGuideInstruction1'),
+              tImport('supplierGuideInstruction2'),
+              tImport('supplierGuideInstruction3'),
             ]}
             columns={[
-              { name: 'Product', description: 'Exact catalog product name; required when SKU is blank.' },
-              { name: 'SKU', description: 'Exact SKU of the product variant (or use exact Product + Variant below). Preferred match key.' },
-              { name: 'Variant', description: 'Exact variant name when SKU is not provided.' },
-              { name: 'Received Quantity', required: true, description: 'Numeric received amount in the selected Stock Type.' },
-              { name: 'Stock Type', required: true, description: 'Exact stock-level name configured for the product.' },
-              { name: 'Purchase Value', description: 'Total purchase value for this receipt.' },
-              { name: 'Last Supplied Date', description: 'Receipt date in YYYY-MM-DD format.' },
+              { name: tImport('supplierGuideColumn0Name'), description: tImport('supplierGuideColumn0Description') },
+              { name: tImport('supplierGuideColumn1Name'), description: tImport('supplierGuideColumn1Description') },
+              { name: tImport('supplierGuideColumn2Name'), description: tImport('supplierGuideColumn2Description') },
+              { name: tImport('supplierGuideColumn3Name'), required: true, description: tImport('supplierGuideColumn3Description') },
+              { name: tImport('supplierGuideColumn4Name'), required: true, description: tImport('supplierGuideColumn4Description') },
+              { name: tImport('supplierGuideColumn5Name'), description: tImport('supplierGuideColumn5Description') },
+              { name: tImport('supplierGuideColumn6Name'), description: tImport('supplierGuideColumn6Description') },
             ]}
             templateName="Lakupak_Supplier_Records_Template.xlsx"
             onFileSelectedAction={handleFile}
