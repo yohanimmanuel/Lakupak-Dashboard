@@ -1128,7 +1128,8 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
       if (archived) {
         setHistoryRows((rows) => rows.filter((item) => item.suppliesno !== row.suppliesno));
         setArchivedOpeningRows((rows) => [...rows.filter((item) => item.suppliesno !== row.suppliesno), { ...row, archivedAt: new Date().toISOString() }]);
-        setSelectedHistoryRows((previous) => { const next = new Set(previous); next.delete(row.suppliesno); return next; });
+        // Selection is indexed by row position; archiving changes those indices.
+        setSelectedHistoryRows(new Set());
       } else {
         setArchivedOpeningRows((rows) => rows.filter((item) => item.suppliesno !== row.suppliesno));
         setHistoryRows((rows) => [...rows.filter((item) => item.suppliesno !== row.suppliesno), { ...row, archivedAt: null }]);
