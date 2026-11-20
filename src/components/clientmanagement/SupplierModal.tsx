@@ -300,19 +300,70 @@ function SupplyMatchDropdown({
   );
 }
 
-/** Product chosen but SKU/productId cleared (ambiguous label). */
-function isUnresolvedHistoryRow(row: SupplyDetail): boolean {
-  const product = String(row.product || '').trim();
-  const sku = String(row.sku || '').trim();
-  const productId = String(row.productId || '').trim();
-  return Boolean(product) && !sku && !productId;
-}
-
 /** A saved receipt whose original VariantOption was deleted from the catalog. */
 function isDeletedVariantReceipt(row: SupplyDetail): boolean {
   return Boolean(String(row.suppliesno || '').trim()) &&
     row.variantOptionId == null &&
     row.historicalVariantOptionId != null;
+}
+
+/** Older saved receipt with labels but no durable live or historical variant ID. */
+function isLegacyUnlinkedReceipt(row: SupplyDetail): boolean {
+  return Boolean(String(row.suppliesno || '').trim()) &&
+    row.variantOptionId == null &&
+    row.historicalVariantOptionId == null &&
+    !isBlankHistoryRow(row);
+}
+
+/** Compact explanation for legacy/deleted variant receipts; no persistent row-height expansion. */
+function SupplierVariantAlert({ message }: { message: string }) {
+  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  const showTooltip = () => {
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (!rect || typeof window === 'undefined') return;
+    const width = 288;
+    setPosition({
+      left: Math.max(12, Math.min(rect.left, window.innerWidth - width - 12)),
+      top: Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - 116)),
+    });
+    setOpen(true);
+  };
+
+  const tooltip = open && position && typeof document !== 'undefined'
+    ? createPortal(
+        <div
+          role="tooltip"
+          className="pointer-events-none fixed z-[120] w-72 rounded-lg border border-amber-200 bg-white px-3 py-2.5 text-left text-xs font-normal leading-5 text-gray-700 shadow-xl"
+          style={{ left: position.left, top: position.top }}
+        >
+          <span className="mb-1 block text-[11px] font-semibold text-amber-800">Supply variant needs attention</span>
+          {message}
+        </div>,
+        document.body,
+      )
+    : null;
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-label="Supply variant information"
+        title={message}
+        onMouseEnter={showTooltip}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={showTooltip}
+        onBlur={() => setOpen(false)}
+        className="inline-flex h-5 w-5 items-center justify-center rounded-full text-amber-600 outline-none hover:bg-amber-50 focus-visible:ring-2 focus-visible:ring-amber-400"
+      >
+        <AlertCircle className="h-4 w-4" />
+      </button>
+      {tooltip}
+    </>
+  );
 }
 
 /** Older saved receipt with labels but no durable live or historical variant ID. */
@@ -578,6 +629,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
 
   const [showImportSupplies, setShowImportSupplies] = useState(false);
   const [catalogProducts, setCatalogProducts] = useState<ProductCatalogNode[]>([]);
+  const [catalogLoadStatus, setCatalogLoadStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
 
   // Supply summaries are stored in canonical Pieces regardless of the legacy stockUnit label.
   const getSupplyUnit = useCallback((_row: SupplyDetail) => 'Pieces', []);
@@ -727,6 +779,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   // Load catalog variants for SKU ↔ product match dropdowns (all pages).
   useEffect(() => {
     if (!user?.id) return;
+    setCatalogLoadStatus('loading');
     let cancelled = false;
     (async () => {
       try {
@@ -760,9 +813,15 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
           totalPages = Math.max(1, data.products?.pagination?.totalPages ?? 1);
           page += 1;
         } while (!cancelled && page <= totalPages);
-        if (!cancelled) setCatalogProducts(all);
+        if (!cancelled) {
+          setCatalogProducts(all);
+          setCatalogLoadStatus('loaded');
+        }
       } catch {
-        if (!cancelled) setCatalogProducts([]);
+        if (!cancelled) {
+          setCatalogProducts([]);
+          setCatalogLoadStatus('error');
+        }
       }
     })();
     return () => {
@@ -1723,11 +1782,14 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                   <tbody>
                     {historyRows.slice(historyPageStart, historyPageEnd).map((row, visibleIndex) => {
                       const idx = historyPageStart + visibleIndex;
-                      const needsSku = isUnresolvedHistoryRow(row);
                       const deletedVariant = isDeletedVariantReceipt(row);
-                      const hasReplacementVariant = deletedVariant && hasMatchingLiveVariant(row);
+                      const hasReplacementVariant = deletedVariant &&
+                        catalogLoadStatus === 'loaded' &&
+                        hasMatchingLiveVariant(row);
                       const needsVariantLink = isLegacyUnlinkedReceipt(row) || hasReplacementVariant;
-                      const canArchiveRow = deletedVariant && !hasReplacementVariant;
+                      const canArchiveRow = deletedVariant &&
+                        catalogLoadStatus === 'loaded' &&
+                        !hasReplacementVariant;
                       return (
                       <tr key={row.suppliesno || `hist-${idx}`} className="whitespace-nowrap">
                         <td className="px-3 py-2">
@@ -1772,19 +1834,17 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                             )}
                           />
                           {needsVariantLink ? (
-                            <p className="mt-1 max-w-[24rem] whitespace-normal text-[10px] font-medium text-amber-700">
-                              {hasReplacementVariant
-                                ? 'The original variant was deleted and a replacement with the same product/variant details now exists under a new ID. Re-select its live SKU and variant to link this receipt to inventory.'
-                                : 'This older receipt is not linked to a catalog variant. Re-select its live SKU and variant so the system knows exactly which inventory item to update.'}
-                            </p>
+                            <div className="mt-1 flex h-5 items-center">
+                              <SupplierVariantAlert
+                                message={hasReplacementVariant
+                                  ? 'The original variant was deleted and a replacement with the same product/variant details now exists under a new ID. Select the live SKU and variant to reconnect this receipt to inventory.'
+                                  : 'This older receipt has no saved link to a live catalog variant. Select the current SKU and variant so the system knows exactly which inventory item this receipt belongs to.'}
+                              />
+                            </div>
                           ) : canArchiveRow ? (
-                            <p className="mt-1 max-w-[24rem] whitespace-normal text-[10px] font-medium text-amber-700">
-                              The original catalog variant was deleted and no matching replacement exists. Choose another variant, or archive/delete this supply.
-                            </p>
-                          ) : needsSku ? (
-                            <p className="mt-1 text-[10px] font-medium text-amber-700">
-                              {tSuppliersModal('selectSku')}
-                            </p>
+                            <div className="mt-1 flex h-5 items-center">
+                              <SupplierVariantAlert message="The original catalog variant was deleted and no matching replacement was found. Choose another variant, or archive/delete this supply." />
+                            </div>
                           ) : null}
                         </td>
                         <td className="px-3 py-2">
