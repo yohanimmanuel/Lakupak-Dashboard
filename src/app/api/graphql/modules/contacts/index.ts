@@ -444,7 +444,7 @@ const mapSupplier = (supplier: SupplierWithRecords) => ({
     ? parseMoney((supplier as { avgMonthlyPurchaseValue?: unknown }).avgMonthlyPurchaseValue as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined) 
     : null, // Convert Decimal to number
   // SupplierTable and SupplierProfile must report the same active receipts.
-  // Legacy AUTO/opening balances and archived receipts are excluded.
+  // Supplier totals include active dated receipts only; legacy snapshots and archives are excluded.
   totalPurchases: supplierReceiptTotals(supplier.supplyRecords || []).totalPurchases,
   totalSupplies: supplierReceiptTotals(supplier.supplyRecords || []).totalSupplies,
   onTimeDeliveryRate: (supplier as { onTimeDeliveryRate?: unknown }).onTimeDeliveryRate 
@@ -1915,9 +1915,8 @@ const syncSuppliersFromProducts = async (args: { userId: number }) => {
 };
 
 /**
- * Soft archive a legacy opening snapshot or a receipt whose original catalog
- * variant has been deleted. Active/live variants and normal active receipts
- * cannot be archived.
+ * Soft archive a receipt only when its original catalog variant has been deleted.
+ * Active receipts linked to live variants cannot be archived.
  */
 /** Archive only orphaned/legacy receipt history. This is visibility-only and never changes stock. */
 const setOpeningBalanceArchived = async (args: { userId: number; supplierId: string; suppliesno: string; archived: boolean }): Promise<boolean> => {
@@ -1961,7 +1960,7 @@ const setOpeningBalanceArchived = async (args: { userId: number; supplierId: str
   return true;
 };
 
-/** Permanently delete an already-archived orphaned/legacy receipt history row. */
+/** Permanently delete an already-archived orphaned receipt history row. */
 const deleteArchivedOpeningBalance = async (args: { userId: number; supplierId: string; suppliesno: string }): Promise<boolean> => {
   const { userId, supplierId, suppliesno } = args;
   await prisma.$transaction(async (tx) => {
