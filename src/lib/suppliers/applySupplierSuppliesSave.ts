@@ -476,7 +476,7 @@ export async function finalizeSupplierSuppliesSave(args: {
             String(prev.productId || '').trim() !== String(row.productId || '').trim() ||
             String(prev.variantName || '').trim() !== String(row.variantName || '').trim())
       : false;
-    const oldMovementReversed = Boolean(prev?.stockApplied) && Boolean(prev) &&
+    const oldMovementReversed = prev != null && prev.stockApplied === true &&
       (disabledThisSave || liveIdentityChanged) &&
       successfulStockReversals.has(effectRowKey(prev));
     const stockApplied = appliedTargetThisSave != null
