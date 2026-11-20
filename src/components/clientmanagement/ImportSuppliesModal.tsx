@@ -334,7 +334,7 @@ export default function ImportSuppliesModal({
       const line = index + 2;
       const row = mappedRows[index];
       const match = getCatalogMatch(raw, mapping, supplierCatalog);
-      if (!match && importMode === 'catalog') errors.push(`Row ${line}: No unique live catalog match. Choose Historical Receipt mode to preserve this row without changing inventory.`);
+      if (!match && importMode === 'catalog') errors.push(tImport('noUniqueMatch', { row: line }));
       else if (match && importMode === 'catalog') {
         // A unique Product + Variant match is allowed to replace an obsolete SKU.
         // The preview displays the current catalog SKU before import.
@@ -483,23 +483,32 @@ export default function ImportSuppliesModal({
             {error ? <div className="mb-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700" role="alert">{error}</div> : null}
             {validationErrors.length > 0 ? <div className="mb-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700" role="alert">{validationErrors.map((item, index) => <p key={index}>{item}</p>)}</div> : null}
             <div className="mb-3 rounded-lg border border-gray-200 p-3 text-sm text-gray-800">
-              <div className="mb-2 font-semibold">Import mode</div>
+              <div className="mb-2 font-semibold">{tImport('modeTitle')}</div>
               <div className="flex flex-wrap gap-4">
                 <label className="flex cursor-pointer items-center gap-2">
                   <input type="radio" checked={importMode === 'catalog'} onChange={() => { setImportMode('catalog'); setValidationErrors([]); }} />
-                  Match to Product Catalog
+                  {tImport('modeCatalog')}
                 </label>
                 <label className="flex cursor-pointer items-center gap-2">
                   <input type="radio" checked={importMode === 'historical'} onChange={() => { setImportMode('historical'); setValidationErrors([]); }} />
-                  Historical Receipt (no stock update)
+                  {tImport('modeHistorical')}
                 </label>
               </div>
               <p className="mt-2 text-xs text-gray-500">
                 {importMode === 'historical'
-                  ? 'Preserves the spreadsheet SKU, product and variant without linking inventory. Unknown package ratios cannot be converted; use Pieces for unmatched products.'
-                  : 'Every row must uniquely identify a current catalog variant. Imports do not automatically update stock.'}
+                  ? tImport('modeHistoricalHint')
+                  : tImport('modeCatalogHint')}
               </p>
             </div>
+            {importMode === 'catalog' && rows.some((raw) => {
+              const match = getCatalogMatch(raw, mapping, supplierCatalog);
+              const sku = mapping.sku ? String(raw[mapping.sku] || '') : '';
+              return match && sku && normalizeKey(sku) !== normalizeKey(match.sku);
+            }) && (
+              <div className="mb-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+                {tImport('replacementNotice')}
+              </div>
+            )}
             <div className="mb-2 font-semibold text-black">{tImport('mapColumnsOptional')}</div>
             
             {/* Info Message */}
