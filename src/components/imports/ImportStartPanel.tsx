@@ -3,6 +3,7 @@
 import React, { useRef, useState } from 'react';
 import { AlertTriangle, Download, FileSpreadsheet, Upload } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { useTranslations } from 'next-intl';
 
 export type ImportColumnGuide = {
   name: string;
@@ -54,6 +55,7 @@ export default function ImportStartPanel({
   filename,
   processing = false,
 }: ImportStartPanelProps) {
+  const tImport = useTranslations('dashboard.clients.import');
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [active, setActive] = useState(false);
@@ -65,22 +67,22 @@ export default function ImportStartPanel({
     templateSheet['!cols'] = columns.map((column) => ({ wch: Math.max(16, Math.min(42, column.name.length + 5)) }));
 
     const guideRows: (string | number)[][] = [
-      ['Lakupak Import Template', title],
-      ['Purpose', overview],
-      ['Before importing', 'Keep the header row unchanged. Add one record per row, with each value under its matching column.'],
-      ['Matching and aliases', matchingGuide],
+      [tImport('importStartTemplate'), title],
+      [tImport('importStartPurpose'), overview],
+      [tImport('importStartInstructions'), tImport('importStartTemplateGuide')],
+      [tImport('importStartAliases'), matchingGuide],
       [],
-      ['Column', 'Required', 'Description'],
-      ...columns.map((column) => [column.name, column.required ? 'Yes' : 'No', column.description]),
+      [tImport('importStartColumn'), tImport('importStartRequiredYes'), tImport('importStartDescription')],
+      ...columns.map((column) => [column.name, column.required ? tImport('importStartRequiredYes') : tImport('importStartRequiredNo'), column.description]),
       [],
-      ['Important', 'If validation fails, the file will stop before preview. Correct the indicated rows/columns and upload again.'],
+      [tImport('importStartImportant'), tImport('importStartValidationGuide')],
     ];
     const guideSheet = XLSX.utils.aoa_to_sheet(guideRows);
     guideSheet['!cols'] = [{ wch: 28 }, { wch: 14 }, { wch: 84 }];
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, templateSheet, 'Lakupak Template');
-    XLSX.utils.book_append_sheet(workbook, guideSheet, 'Instructions');
+    XLSX.utils.book_append_sheet(workbook, guideSheet, tImport('importStartSheet'));
     XLSX.writeFile(workbook, templateName.endsWith('.xlsx') ? templateName : `${templateName}.xlsx`);
   };
 
@@ -99,21 +101,21 @@ export default function ImportStartPanel({
         </div>
         <p className="mb-3 text-sm leading-5 text-gray-600">{overview}</p>
         <div className="mb-3 rounded-lg bg-gray-50 p-3">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-700">Before you import</p>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-700">{tImport('importStartBefore')}</p>
           <ol className="list-decimal space-y-1 pl-4 text-xs leading-5 text-gray-600">
             {instructions.map((instruction, index) => <li key={index}>{instruction}</li>)}
           </ol>
         </div>
         <div className="mb-3 rounded-lg border border-blue-100 bg-blue-50 p-3">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-blue-800">Matching and aliases</p>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-blue-800">{tImport('importStartMatching')}</p>
           <p className="text-xs leading-5 text-blue-900">{matchingGuide}</p>
         </div>
         <div className="mb-3">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-700">Column guide</p>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-700">{tImport('importStartColumns')}</p>
           <div className="rounded-lg border border-gray-200">
             <table className="w-full text-left text-xs">
               <thead className="sticky top-0 bg-gray-100 text-gray-600">
-                <tr><th className="px-2 py-2">Column</th><th className="px-2 py-2">Use</th></tr>
+                <tr><th className="px-2 py-2">{tImport('importStartColumn')}</th><th className="px-2 py-2">{tImport('importStartUse')}</th></tr>
               </thead>
               <tbody>
                 {columns.map((column) => (
@@ -127,21 +129,21 @@ export default function ImportStartPanel({
               </tbody>
             </table>
           </div>
-          <p className="mt-1 text-[11px] text-gray-500">* Required field. Other columns may be left blank.</p>
+          <p className="mt-1 text-[11px] text-gray-500">* {tImport('importStartRequired')}</p>
         </div>
         <button
           type="button"
           onClick={downloadTemplate}
           className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition hover:border-[#0a61d7] hover:text-[#0a61d7]"
         >
-          <Download className="h-4 w-4" /> Download Excel template
+          <Download className="h-4 w-4" /> {tImport('importStartDownload')}
         </button>
       </section>
 
       <section className="flex min-w-0 flex-col">
         <div className="mb-2">
-          <h3 className="text-base font-semibold text-gray-900">Upload your file</h3>
-          <p className="mt-1 text-xs text-gray-500">Excel (.xlsx, .xls) or CSV · max 10 MB · one header row · one record per row</p>
+          <h3 className="text-base font-semibold text-gray-900">{tImport('importStartUpload')}</h3>
+          <p className="mt-1 text-xs text-gray-500">{tImport('importStartUploadHint')}</p>
         </div>
         <input
           ref={inputRef}
