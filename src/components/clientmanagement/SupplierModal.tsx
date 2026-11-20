@@ -287,7 +287,7 @@ function SupplyMatchDropdown({
     <div className={`relative min-w-[10rem] ${className}`}>
       {needsAttention && attentionMessage && (
         <span className="absolute -right-2 -top-2 z-20 rounded-full bg-white shadow-sm">
-          <SupplierVariantAlert message={attentionMessage} title={attentionTitle} />
+          <SupplierVariantAlert message={attentionMessage} title={attentionTitle || 'Supply variant needs attention'} />
         </span>
       )}
       <button
@@ -327,7 +327,7 @@ function isLegacyUnlinkedReceipt(row: SupplyDetail): boolean {
 }
 
 /** Compact explanation for legacy/deleted variant receipts; no persistent row-height expansion. */
-function SupplierVariantAlert({ message, title = 'Supply variant needs attention' }: { message: string; title?: string }) {
+function SupplierVariantAlert({ message, title }: { message: string; title: string }) {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -882,7 +882,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   const handleHistoryVariantSelect = useCallback((idx: number, variantId: string) => {
     const match = catalogOptions.find((opt) => opt.variantOptionId != null && String(opt.variantOptionId) === variantId);
     if (!match) return;
-    setHistoryRows((rows) => rows.map((row, i) => i === idx && !isDeletedVariantReceipt(row) ? {
+    setHistoryRows((rows) => rows.map((row, i) => i === idx ? {
       ...row,
       sku: match.sku,
       product: match.product,
@@ -897,7 +897,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     (idx: number, productId: string) => {
       const matches = catalogOptions.filter((opt) => opt.productId === productId);
       setHistoryRows((rows) => rows.map((row, i) => {
-        if (i !== idx || isDeletedVariantReceipt(row)) return row;
+        if (i !== idx) return row;
         const identified = matches.find((item) => item.variantName === row.variantName)
           || (matches.length === 1 ? matches[0] : undefined);
         const productName = matches[0]?.product || row.product;
@@ -1752,7 +1752,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                             noMatchLabel={tSuppliersModal('catalogNoMatch')}
                             searchPlaceholder={tSuppliersModal('searchProduct')}
                             onSelect={(productId) => handleHistoryProductSelect(idx, productId)}
-                            disabled={deletedVariant || supplierChanged}
+                            disabled={false}
                           />
                         </td>
                         <td className="px-3 py-2">
@@ -1768,16 +1768,16 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                             noMatchLabel={tSuppliersModal('catalogNoMatch')}
                             searchPlaceholder={tSuppliersModal('searchSku')}
                             needsAttention={supplierChanged || needsVariantLink || canArchiveRow}
-                            attentionTitle={supplierChanged ? tSuppliersModal('supplierChangedTitle') : undefined}
-                            disabled={deletedVariant}
+                            attentionTitle={supplierChanged ? tSuppliersModal('supplierChangedTitle') : tSuppliersModal('variantAttentionTitle')}
+                            disabled={false}
                             attentionMessage={supplierChanged
                               ? tSuppliersModal('supplierChangedDescription')
                               : hasReplacementVariant
-                              ? 'The original variant was deleted. This receipt is a historical snapshot and cannot be reassigned. Create a new supply row and select the new catalog variant, or archive this old receipt.'
+                              ? tSuppliersModal('variantDeletedReplacementDescription')
                               : needsVariantLink
-                                ? 'This older receipt has no saved link to a live catalog variant. Select the current SKU and variant so the system knows exactly which inventory item this receipt belongs to.'
+                                ? tSuppliersModal('variantLegacyDescription')
                                 : canArchiveRow
-                                  ? 'The original catalog variant was deleted. This receipt cannot be reassigned. Create a new supply row for another variant, or archive/delete this receipt.'
+                                  ? tSuppliersModal('variantDeletedDescription')
                                   : undefined}
                             onSelect={(variantId) => handleHistoryVariantSelect(idx, variantId)}
                             renderOption={(option) => (
@@ -1792,7 +1792,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                         <td className="px-3 py-2">
                           <SupplyMatchDropdown
                             value={row.variantOptionId != null ? String(row.variantOptionId) : ''}
-                            displayValue={row.variantName ? `${row.variantName}${supplierChanged ? '' : catalogOptions.some((option) => option.productId === row.productId && option.sku === row.sku && option.variantName === row.variantName) ? '' : ' (Archived)'}` : ''}
+                            displayValue={row.variantName ? `${row.variantName}${supplierChanged ? '' : catalogOptions.some((option) => option.productId === row.productId && option.sku === row.sku && option.variantName === row.variantName) ? '' : ` (${tSuppliersModal('variantArchivedLabel')})`}` : ''}
                             placeholder={row.productId ? tSuppliersModal('selectVariant') : tSuppliersModal('selectProduct')}
                             options={catalogOptions
                               .filter((option) => option.productId === row.productId)
