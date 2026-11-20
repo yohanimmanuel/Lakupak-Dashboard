@@ -236,7 +236,11 @@ export async function replaceSupplierSupplyRecords(
   for (const row of incoming) {
     const requestedId = row.variantOptionId;
     if (requestedId != null) {
-      row.historicalVariantOptionId = requestedId;
+      // A live link can change after explicit user selection, but the original
+      // historical identity must never be overwritten by the replacement ID.
+      if (row.historicalVariantOptionId == null) {
+        row.historicalVariantOptionId = requestedId;
+      }
       if (!liveIds.has(requestedId)) row.variantOptionId = null;
     }
   }
