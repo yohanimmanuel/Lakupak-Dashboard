@@ -9,7 +9,8 @@ import * as XLSX from 'xlsx';
 import ImportData from '@/components/clientmanagement/ImportData';
 import { useUserStore } from '@/store/userStore';
 import { Supplier, SupplierTableRow, SupplyDetail } from '@/types/client';
-import { buildSupplySummaryFromHistory, partitionSupplies } from '@/lib/suppliers/supplyRecords';
+import { isSupplyHistoryRow } from '@/lib/suppliers/supplyRecords';
+import { supplierReceiptTotals } from '@/lib/suppliers/supplierReceiptTotals';
 import { formatNumber } from '@/utils/dateUtils';
 import { generateUniqueSupplierId } from '@/utils/supplier-security';
 import { fetchGraphQL } from '@/lib/graphqlClient';
@@ -30,27 +31,18 @@ function profileToTableRow(supplier: Supplier): SupplierTableRow {
   let totalPurchases = 0;
   let totalSupplied = 0;
   
-  // Parse supplies from string to array — totals use summary rows only (not history).
-  const supplies = supplier.supplies ? (() => {
+  // Supplier totals are derived exclusively from active receipt history.
+  // Legacy AUTO snapshots and archived receipts are not purchase events.
+  const supplies: SupplyDetail[] = supplier.supplies ? (() => {
     try {
-      return JSON.parse(supplier.supplies);
-    } catch {
-      return [];
-    }
+      const parsed: unknown = JSON.parse(supplier.supplies);
+      return Array.isArray(parsed) ? parsed as SupplyDetail[] : [];
+    } catch { return []; }
   })() : [];
+  const totals = supplierReceiptTotals(supplies);
+  totalPurchases = totals.totalPurchases;
+  totalSupplied = totals.totalSupplies;
 
-  if (Array.isArray(supplies) && supplies.length > 0) {
-    const { history, summary: storedSnapshots } = partitionSupplies(supplies as SupplyDetail[]);
-    const summary = buildSupplySummaryFromHistory(history, storedSnapshots);
-    summary.forEach((s: SupplyDetail) => {
-      totalPurchases += parseInt((s.totalValue || '').toString().replace(/[^-\d]/g, '')) || 0;
-    });
-    totalSupplied = summary.reduce(
-      (sum: number, s: SupplyDetail) => sum + (parseInt(String(s.totalSupplied), 10) || 0),
-      0,
-    );
-  }
-  
   return {
     id: supplier.id || 0,
     supplierId: supplier.supplierId,
