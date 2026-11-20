@@ -122,9 +122,15 @@ function getCatalogMatch(row: Record<string, string>, mapping: Record<string, st
       const exact = skuMatches.filter((entry) => normalizeKey(entry.variantName) === variantName);
       if (exact.length === 1) return exact[0];
     }
-    // Never fall back from an unmatched/ambiguous SKU to a same-name variant.
-    // That could silently assign a deleted SKU to a newly created catalog ID.
-    return undefined;
+    // An old SKU may have been replaced. Only reconcile it when both the
+    // product AND variant name uniquely identify one current catalog variant.
+    // A SKU mismatch by itself must never guess a replacement.
+    if (!product || !variantName) return undefined;
+    const replacement = catalog.filter((entry) =>
+      productNameMatches(product, entry.product, entry.variantName || '') &&
+      normalizeKey(entry.variantName) === variantName,
+    );
+    return replacement.length === 1 ? replacement[0] : undefined;
   }
   if (!product) return undefined;
   const exactProducts = catalog.filter((entry) => productNameMatches(product, entry.product, entry.variantName || ''));
@@ -299,11 +305,11 @@ export default function ImportSuppliesModal({
         : null;
       return {
         suppliesno: '',
-        sku: mapped.sku || catalogMatch?.sku || '',
-        product: mapped.product || catalogMatch?.product || '',
+        sku: importMode === 'catalog' ? (catalogMatch?.sku || mapped.sku || '') : (mapped.sku || ''),
+        product: importMode === 'catalog' ? (catalogMatch?.product || mapped.product || '') : (mapped.product || ''),
         productId: importMode === 'historical' ? undefined : catalogMatch?.productId,
         variantOptionId: importMode === 'historical' ? null : catalogMatch?.variantOptionId,
-        variantName: mapped.variantName || catalogMatch?.variantName || '',
+        variantName: importMode === 'catalog' ? (catalogMatch?.variantName || mapped.variantName || '') : (mapped.variantName || ''),
         receivedQuantity,
         receivedUnit,
         totalSupplied: totalSuppliedPieces == null ? '' : String(totalSuppliedPieces),
@@ -330,9 +336,14 @@ export default function ImportSuppliesModal({
       const match = getCatalogMatch(raw, mapping, supplierCatalog);
       if (!match && importMode === 'catalog') errors.push(`Row ${line}: No unique live catalog match. Choose Historical Receipt mode to preserve this row without changing inventory.`);
       else if (match && importMode === 'catalog') {
-        if (String(row.sku || '').trim() && normalizeKey(match.sku) !== normalizeKey(row.sku)) errors.push(`Row ${line}: SKU does not belong to the selected Product + Variant.`);
-        if (String(row.product || '').trim() && !productNameMatches(row.product, match.product, match.variantName || '')) errors.push(`Row ${line}: Product name conflicts with the matched SKU.`);
-        if (String(row.variantName || '').trim() && normalizeKey(match.variantName) !== normalizeKey(row.variantName)) errors.push(`Row ${line}: Variant name conflicts with the matched SKU.`);
+        // A unique Product + Variant match is allowed to replace an obsolete SKU.
+        // The preview displays the current catalog SKU before import.
+        const rawProduct = mapping.product ? String(raw[mapping.product] || '') : '';
+        if (rawProduct && !productNameMatches(rawProduct, match.product, match.variantName || '')) {
+          errors.push(`Row ${line}: Product name conflicts with the matched SKU.`);
+        }
+        const rawVariant = mapping.variantName ? String(raw[mapping.variantName] || '') : '';
+        if (rawVariant && normalizeKey(match.variantName) !== normalizeKey(rawVariant)) errors.push(`Row ${line}: Variant name conflicts with the matched SKU.`);
       }
       const quantity = String(row.receivedQuantity || '').trim();
       if (!quantity || !/^\d+(?:\.\d+)?$/.test(quantity) || Number(quantity) <= 0) errors.push(`Row ${line}: Received Quantity must be a positive number.`);
