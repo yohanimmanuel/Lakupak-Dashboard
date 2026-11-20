@@ -583,8 +583,6 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   // The editor now exposes receipts only. Keep the union return type for
   // retained legacy cleanup branches so TypeScript does not compare impossible
   // literal states while those records remain available for migration/cleanup.
-  const getSuppliesTab = (): 'summary' | 'opening' | 'history' => 'history';
-  const suppliesTab = getSuppliesTab();
   const [showArchivedSupplies, setShowArchivedSupplies] = useState(false);
   const [archivedOpeningRows, setArchivedOpeningRows] = useState<SupplyDetail[]>(() => {
     try { return (JSON.parse(initialData?.supplies || '[]') as SupplyDetail[]).filter((row) => !!row.archivedAt); }
@@ -598,7 +596,6 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   const safeArchivedPage = Math.min(archivedPage, archivedTotalPages);
   const archivedPageStart = (safeArchivedPage - 1) * archivedPageSize;
   const archivedPageRows = archivedOpeningRows.slice(archivedPageStart, archivedPageStart + archivedPageSize);
-  const [selectedOpeningRows, setSelectedOpeningRows] = useState<Set<string>>(new Set());
   const [openingAction, setOpeningAction] = useState<{ kind: "archive" | "restore" | "delete"; rows: SupplyDetail[] } | null>(null);
   const [openingRows, setOpeningRows] = useState<SupplyDetail[]>(() => parseSupplyBuckets(initialData?.supplies).opening);
   // Receipts whose original live variant was deleted remain in history until the
@@ -1167,7 +1164,6 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
       setArchivedOpeningRows((rows) => archived
         ? [...rows.filter((item) => item.suppliesno !== row.suppliesno), { ...row, archivedAt: new Date().toISOString() }]
         : rows.filter((item) => item.suppliesno !== row.suppliesno));
-      setSelectedOpeningRows((prev) => { const next = new Set(prev); next.delete(row.suppliesno); return next; });
       setSuccess(archived ? 'Supply archived.' : 'Supply restored.');
       return true;
     } catch (error) {
@@ -1190,7 +1186,6 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
       setOpeningRows((current) => current.filter((item) => item.suppliesno !== row.suppliesno));
       setHistoryRows((current) => current.filter((item) => item.suppliesno !== row.suppliesno));
       setArchivedOpeningRows((rows) => rows.filter((item) => item.suppliesno !== row.suppliesno));
-      setSelectedOpeningRows((prev) => { const nextSelected = new Set(prev); nextSelected.delete(row.suppliesno); return nextSelected; });
 
       setSuccess('Supply deleted. Other receipt history was preserved.');
       return true;
@@ -1212,7 +1207,6 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     }
     // Archiving/deleting history rows changes their indices in the table.
     setSelectedHistoryRows(new Set());
-    setSelectedOpeningRows(new Set());
   };
 
   // Enhanced form submission
@@ -1458,7 +1452,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
       setSaving(false);
       setIsSubmitting(false);
     }
-  }, [form, id, historyRows, openingRows, archivedOpeningRows, pendingDeleteMarkers, isEditMode, initialData, user?.id, onSave, router, validateForm, handleError, isSubmitting, isNavigating, tSuppliersModal, computedLastSuppliedDate]);
+  }, [form, id, historyRows, archivedOpeningRows, pendingDeleteMarkers, isEditMode, initialData, user?.id, onSave, router, validateForm, handleError, isSubmitting, isNavigating, tSuppliersModal, computedLastSuppliedDate]);
 
   return (
     <>
