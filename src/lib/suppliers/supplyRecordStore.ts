@@ -284,11 +284,8 @@ export async function replaceSupplierSupplyRecords(
         throw new Error('This historical receipt belongs to a deleted catalog variant. Create a new supply row for the replacement variant instead of changing this receipt.');
       }
       if (originalId != null) {
-        // A receipt may be deliberately reassigned to another live variant.
-        // The stock-effect transaction has already reversed the previous ID
-        // and applied the new ID before this record is persisted.
-        // Keep the original catalog identity immutable across receipt reassignment.
-        // The incoming live FK is the user's explicitly selected current variant.
+        // Existing receipts retain their original variant identity. The user
+        // must create a separate receipt when supplying a replacement variant.
         row.historicalVariantOptionId = originalId;
         if (row.recordType !== 'history') row.variantOptionId = null;
       }
