@@ -158,6 +158,7 @@ function SupplyMatchDropdown({
   className = '',
   needsAttention = false,
   attentionMessage,
+  disabled = false,
 }: {
   value: string;
   displayValue?: string;
@@ -172,6 +173,7 @@ function SupplyMatchDropdown({
   /** Highlight an unmatched legacy/deleted variant and explain the required action. */
   needsAttention?: boolean;
   attentionMessage?: string;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -290,12 +292,13 @@ function SupplyMatchDropdown({
       <button
         ref={buttonRef}
         type="button"
+        disabled={disabled}
         className={`flex h-9 w-full items-center justify-between gap-1 rounded-lg border px-2 py-0 text-left text-xs text-black hover:bg-gray-100 ${
           needsAttention
             ? 'border-amber-400 bg-amber-50 ring-1 ring-amber-200'
             : 'border-[#e6e6e6] bg-white'
         }`}
-        onClick={() => setOpen((next) => !next)}
+        onClick={() => { if (!disabled) setOpen((next) => !next); }}
       >
         <span className={`truncate ${(value || displayValue) ? 'text-black' : needsAttention ? 'font-medium text-amber-700' : 'text-gray-500'}`}>
           {displayValue || value || placeholder}
@@ -904,7 +907,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   const handleHistoryVariantSelect = useCallback((idx: number, variantId: string) => {
     const match = catalogOptions.find((opt) => opt.variantOptionId != null && String(opt.variantOptionId) === variantId);
     if (!match) return;
-    setHistoryRows((rows) => rows.map((row, i) => i === idx ? {
+    setHistoryRows((rows) => rows.map((row, i) => i === idx && !isDeletedVariantReceipt(row) ? {
       ...row,
       sku: match.sku,
       product: match.product,
@@ -919,7 +922,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     (idx: number, productId: string) => {
       const matches = catalogOptions.filter((opt) => opt.productId === productId);
       setHistoryRows((rows) => rows.map((row, i) => {
-        if (i !== idx) return row;
+        if (i !== idx || isDeletedVariantReceipt(row)) return row;
         const identified = matches.find((item) => item.variantName === row.variantName)
           || (matches.length === 1 ? matches[0] : undefined);
         const productName = matches[0]?.product || row.product;
@@ -1812,6 +1815,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                             noMatchLabel={tSuppliersModal('catalogNoMatch')}
                             searchPlaceholder={tSuppliersModal('searchProduct')}
                             onSelect={(productId) => handleHistoryProductSelect(idx, productId)}
+                            disabled={deletedVariant}
                           />
                         </td>
                         <td className="px-3 py-2">
@@ -1827,12 +1831,13 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                             noMatchLabel={tSuppliersModal('catalogNoMatch')}
                             searchPlaceholder={tSuppliersModal('searchSku')}
                             needsAttention={needsVariantLink || canArchiveRow}
+                            disabled={deletedVariant}
                             attentionMessage={hasReplacementVariant
-                              ? 'The original variant was deleted and a replacement with the same product/variant details now exists under a new ID. Select the live SKU and variant to reconnect this receipt to inventory.'
+                              ? 'The original variant was deleted. This receipt is a historical snapshot and cannot be reassigned. Create a new supply row and select the new catalog variant, or archive this old receipt.'
                               : needsVariantLink
                                 ? 'This older receipt has no saved link to a live catalog variant. Select the current SKU and variant so the system knows exactly which inventory item this receipt belongs to.'
                                 : canArchiveRow
-                                  ? 'The original catalog variant was deleted and no matching replacement was found. Choose another variant, or archive/delete this supply.'
+                                  ? 'The original catalog variant was deleted. This receipt cannot be reassigned. Create a new supply row for another variant, or archive/delete this receipt.'
                                   : undefined}
                             onSelect={(variantId) => handleHistoryVariantSelect(idx, variantId)}
                             renderOption={(option) => (
@@ -1856,6 +1861,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                             noMatchLabel={tSuppliersModal('catalogNoMatch')}
                             searchPlaceholder={tSuppliersModal('searchVariant')}
                             onSelect={(variantId) => handleHistoryVariantSelect(idx, variantId)}
+                            disabled={deletedVariant}
                             className={!row.productId && !row.variantName ? 'opacity-60' : ''}
                           />
                         </td>
@@ -2244,7 +2250,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                       <div className="font-semibold">{row.product} — {row.variantName || 'Default'}</div>
                       <div className="mt-1 text-xs text-gray-500">{row.sku} · {row.totalSupplied} Pieces</div>
                     </div>
-                    <button type="button" disabled={archiveBusy} className="rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-xs font-semibold text-black hover:bg-gray-50 disabled:opacity-50" onClick={() => setOpeningAction({kind:"restore",rows:[row]})}><RotateCcw className="mr-1 inline h-4 w-4"/> Restore</button>
+                    <button type="button" disabled={archiveBusy} className="rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-xs font-semibold text-black hover:bg-gray-50 disabled:opacity-50" onClick={() => void setOpeningArchive(row, false)}><RotateCcw className="mr-1 inline h-4 w-4"/> Restore</button>
                   </div>
                 ))}
               </div>
