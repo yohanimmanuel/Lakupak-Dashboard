@@ -9,7 +9,6 @@ import * as XLSX from 'xlsx';
 import ImportData from '@/components/clientmanagement/ImportData';
 import { useUserStore } from '@/store/userStore';
 import { Supplier, SupplierTableRow, SupplyDetail } from '@/types/client';
-import { isSupplyHistoryRow } from '@/lib/suppliers/supplyRecords';
 import { supplierReceiptTotals } from '@/lib/suppliers/supplierReceiptTotals';
 import { formatNumber } from '@/utils/dateUtils';
 import { generateUniqueSupplierId } from '@/utils/supplier-security';
