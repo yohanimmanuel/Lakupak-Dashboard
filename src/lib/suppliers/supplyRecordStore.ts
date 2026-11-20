@@ -275,17 +275,10 @@ export async function replaceSupplierSupplyRecords(
         // A receipt may be deliberately reassigned to another live variant.
         // The stock-effect transaction has already reversed the previous ID
         // and applied the new ID before this record is persisted.
-        if (row.recordType !== 'history') {
-          row.historicalVariantOptionId = originalId;
-          row.variantOptionId = null;
-        } else if (row.variantOptionId == null) {
-          // An unchanged historical receipt keeps its original ID as a snapshot,
-          // but remains unlinked when the original catalog variant was deleted.
-          row.historicalVariantOptionId = row.historicalVariantOptionId ?? originalId;
-        } else {
-          // A valid, explicitly selected live ID is an intentional reassignment.
-          row.historicalVariantOptionId = row.historicalVariantOptionId ?? row.variantOptionId;
-        }
+        // Keep the original catalog identity immutable across receipt reassignment.
+        // The incoming live FK is the user's explicitly selected current variant.
+        row.historicalVariantOptionId = originalId;
+        if (row.recordType !== 'history') row.variantOptionId = null;
       }
       used.add(match.id);
       await db.supplyRecord.update({

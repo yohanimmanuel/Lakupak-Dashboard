@@ -231,6 +231,34 @@ describe('computeSupplyStockEffects (Update Current Stock checkbox)', () => {
     expect(computeSupplyStockEffects(previous, incoming)).toEqual([]);
   });
 
+  it('clears a stale stock checkbox when an unchanged deleted-variant receipt was never applied', async () => {
+    const previous = [history({
+      variantOptionId: null,
+      historicalVariantOptionId: 10,
+      stockApplied: false,
+      updateCurrentStock: true,
+    })];
+    const incoming = [history({
+      variantOptionId: null,
+      historicalVariantOptionId: 10,
+      stockApplied: false,
+      updateCurrentStock: true,
+    })];
+    const result = await finalizeSupplierSuppliesSave({
+      userId: 1,
+      previousSuppliesRaw: JSON.stringify(previous),
+      nextSuppliesRaw: JSON.stringify(incoming),
+    });
+    const rows = JSON.parse(result.suppliesJson) as SupplyDetail[];
+    expect(rows[0]).toMatchObject({
+      variantOptionId: null,
+      historicalVariantOptionId: 10,
+      updateCurrentStock: false,
+      stockApplied: false,
+      stockAppliedVariantOptionId: null,
+    });
+  });
+
   it('does not treat a SKU/name correction as a different inventory identity when variant ID is unchanged', () => {
     const previous = [
       history({

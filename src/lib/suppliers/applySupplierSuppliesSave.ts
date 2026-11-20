@@ -452,22 +452,35 @@ export async function finalizeSupplierSuppliesSave(args: {
     const appliedTargetThisSave =
       successfulStockApplyTargets.get(effectRowKey(row)) ??
       (prev ? successfulStockApplyTargets.get(effectRowKey(prev)) : undefined);
-    const stockAppliedThisSave = appliedTargetThisSave != null;
-    const stockApplied = disabledThisSave
-      ? false
-      : stockAppliedThisSave || prev?.stockApplied === true;
+    const liveIdentityChanged = prev
+      ? (prev.variantOptionId != null || row.variantOptionId != null
+          ? prev.variantOptionId !== row.variantOptionId
+          : String(prev.sku || '').trim() !== String(row.sku || '').trim() ||
+            String(prev.productId || '').trim() !== String(row.productId || '').trim() ||
+            String(prev.variantName || '').trim() !== String(row.variantName || '').trim())
+      : false;
+    const oldMovementReversed = Boolean(prev?.stockApplied) && (
+      disabledThisSave ||
+      (liveIdentityChanged && effects.some((effect) =>
+        effect.row === prev && effect.quantityDelta < 0 && effect.applyStock !== false,
+      ))
+    );
+    const stockApplied = appliedTargetThisSave != null
+      ? true
+      : prev?.stockApplied === true && !oldMovementReversed;
+    const stockAppliedVariantOptionId = appliedTargetThisSave != null
+      ? appliedTargetThisSave
+      : stockApplied
+        ? prev?.stockAppliedVariantOptionId ?? prev?.variantOptionId ?? null
+        : null;
     return {
       ...row,
       recordType: 'history' as const,
-      // A deleted-variant history row may arrive with a stale checked flag.
-      // Keep it checked only when a previous stock movement is still recorded;
-      // a new/reenabled movement always requires a real live variant ID.
+      // Unresolved deleted-variant receipts are history-only unless a movement remains applied.
       updateCurrentStock: row.updateCurrentStock === true &&
         (row.variantOptionId != null || stockApplied),
       stockApplied,
-      stockAppliedVariantOptionId: disabledThisSave
-        ? null
-        : appliedTargetThisSave ?? (prev?.stockApplied ? prev.stockAppliedVariantOptionId ?? prev.variantOptionId ?? null : null),
+      stockAppliedVariantOptionId,
     };
   });
   // Keep the AUTO rows as product-stock snapshots. They are deliberately not
