@@ -88,7 +88,7 @@ type ImportSuppliesModalProps = {
 };
 
 function normalizeKey(value: string | undefined): string {
-  return String(value || '').trim().replace(/\\s+/g, ' ').toLowerCase();
+  return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
 function productNameMatches(input: string, catalogProduct: string, variant: string): boolean {
@@ -122,9 +122,15 @@ function getCatalogMatch(row: Record<string, string>, mapping: Record<string, st
       const exact = skuMatches.filter((entry) => normalizeKey(entry.variantName) === variantName);
       if (exact.length === 1) return exact[0];
     }
-    // Never fall back from an unmatched/ambiguous SKU to a same-name variant.
-    // That could silently assign a deleted SKU to a newly created catalog ID.
-    return undefined;
+    // An old SKU may have been replaced. Only reconcile it when both the
+    // product AND variant name uniquely identify one current catalog variant.
+    // A SKU mismatch by itself must never guess a replacement.
+    if (!product || !variantName) return undefined;
+    const replacement = catalog.filter((entry) =>
+      productNameMatches(product, entry.product, entry.variantName || '') &&
+      normalizeKey(entry.variantName) === variantName,
+    );
+    return replacement.length === 1 ? replacement[0] : undefined;
   }
   if (!product) return undefined;
   const exactProducts = catalog.filter((entry) => productNameMatches(product, entry.product, entry.variantName || ''));
@@ -299,11 +305,11 @@ export default function ImportSuppliesModal({
         : null;
       return {
         suppliesno: '',
-        sku: mapped.sku || catalogMatch?.sku || '',
-        product: mapped.product || catalogMatch?.product || '',
+        sku: importMode === 'catalog' ? (catalogMatch?.sku || mapped.sku || '') : (mapped.sku || ''),
+        product: importMode === 'catalog' ? (catalogMatch?.product || mapped.product || '') : (mapped.product || ''),
         productId: importMode === 'historical' ? undefined : catalogMatch?.productId,
         variantOptionId: importMode === 'historical' ? null : catalogMatch?.variantOptionId,
-        variantName: mapped.variantName || catalogMatch?.variantName || '',
+        variantName: importMode === 'catalog' ? (catalogMatch?.variantName || mapped.variantName || '') : (mapped.variantName || ''),
         receivedQuantity,
         receivedUnit,
         totalSupplied: totalSuppliedPieces == null ? '' : String(totalSuppliedPieces),
@@ -328,11 +334,16 @@ export default function ImportSuppliesModal({
       const line = index + 2;
       const row = mappedRows[index];
       const match = getCatalogMatch(raw, mapping, supplierCatalog);
-      if (!match && importMode === 'catalog') errors.push(`Row ${line}: No unique live catalog match. Choose Historical Receipt mode to preserve this row without changing inventory.`);
+      if (!match && importMode === 'catalog') errors.push(tImport('noUniqueMatch', { row: line }));
       else if (match && importMode === 'catalog') {
-        if (String(row.sku || '').trim() && normalizeKey(match.sku) !== normalizeKey(row.sku)) errors.push(`Row ${line}: SKU does not belong to the selected Product + Variant.`);
-        if (String(row.product || '').trim() && !productNameMatches(row.product, match.product, match.variantName || '')) errors.push(`Row ${line}: Product name conflicts with the matched SKU.`);
-        if (String(row.variantName || '').trim() && normalizeKey(match.variantName) !== normalizeKey(row.variantName)) errors.push(`Row ${line}: Variant name conflicts with the matched SKU.`);
+        // A unique Product + Variant match is allowed to replace an obsolete SKU.
+        // The preview displays the current catalog SKU before import.
+        const rawProduct = mapping.product ? String(raw[mapping.product] || '') : '';
+        if (rawProduct && !productNameMatches(rawProduct, match.product, match.variantName || '')) {
+          errors.push(`Row ${line}: Product name conflicts with the matched SKU.`);
+        }
+        const rawVariant = mapping.variantName ? String(raw[mapping.variantName] || '') : '';
+        if (rawVariant && normalizeKey(match.variantName) !== normalizeKey(rawVariant)) errors.push(`Row ${line}: Variant name conflicts with the matched SKU.`);
       }
       const quantity = String(row.receivedQuantity || '').trim();
       if (!quantity || !/^\d+(?:\.\d+)?$/.test(quantity) || Number(quantity) <= 0) errors.push(`Row ${line}: Received Quantity must be a positive number.`);
@@ -442,23 +453,23 @@ export default function ImportSuppliesModal({
         <div className="flex-1 min-h-0 overflow-y-auto">
         {step === 0 && (
           <ImportStartPanel
-            title="Supplier supply history"
-            overview="Import dated receipt rows for the selected supplier. Each row is a receipt event; quantities are converted to canonical Pieces using the matched product's configured stock levels."
-            matchingGuide="Choose Catalog Match for uniquely identified live variants, or Historical Receipt for older/unmatched SKUs. Historical imports preserve the original labels and never update inventory."
+            title={tImport('supplierGuideTitle')}
+            overview={tImport('supplierGuideOverview')}
+            matchingGuide={tImport('supplierGuideMatching')}
             instructions={[
-              'Use one row per received product variant and delivery date.',
-              'Catalog Match accepts a unique SKU or Product + Variant, including product names with a trailing (Variant).',
-              'Received Quantity must be numeric. Stock Type must exactly match a stock level configured for that product.',
-              'For unmatched or deleted variants choose Historical Receipt; unmatched package units must be Pieces to avoid guessing conversion.',
+              tImport('supplierGuideInstruction0'),
+              tImport('supplierGuideInstruction1'),
+              tImport('supplierGuideInstruction2'),
+              tImport('supplierGuideInstruction3'),
             ]}
             columns={[
-              { name: 'Product', description: 'Exact catalog product name; required when SKU is blank.' },
-              { name: 'SKU', description: 'Exact SKU of the product variant (or use exact Product + Variant below). Preferred match key.' },
-              { name: 'Variant', description: 'Exact variant name when SKU is not provided.' },
-              { name: 'Received Quantity', required: true, description: 'Numeric received amount in the selected Stock Type.' },
-              { name: 'Stock Type', required: true, description: 'Exact stock-level name configured for the product.' },
-              { name: 'Purchase Value', description: 'Total purchase value for this receipt.' },
-              { name: 'Last Supplied Date', description: 'Receipt date in YYYY-MM-DD format.' },
+              { name: tImport('supplierGuideColumn0Name'), description: tImport('supplierGuideColumn0Description') },
+              { name: tImport('supplierGuideColumn1Name'), description: tImport('supplierGuideColumn1Description') },
+              { name: tImport('supplierGuideColumn2Name'), description: tImport('supplierGuideColumn2Description') },
+              { name: tImport('supplierGuideColumn3Name'), required: true, description: tImport('supplierGuideColumn3Description') },
+              { name: tImport('supplierGuideColumn4Name'), required: true, description: tImport('supplierGuideColumn4Description') },
+              { name: tImport('supplierGuideColumn5Name'), description: tImport('supplierGuideColumn5Description') },
+              { name: tImport('supplierGuideColumn6Name'), description: tImport('supplierGuideColumn6Description') },
             ]}
             templateName="Lakupak_Supplier_Records_Template.xlsx"
             onFileSelectedAction={handleFile}
@@ -472,23 +483,32 @@ export default function ImportSuppliesModal({
             {error ? <div className="mb-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700" role="alert">{error}</div> : null}
             {validationErrors.length > 0 ? <div className="mb-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700" role="alert">{validationErrors.map((item, index) => <p key={index}>{item}</p>)}</div> : null}
             <div className="mb-3 rounded-lg border border-gray-200 p-3 text-sm text-gray-800">
-              <div className="mb-2 font-semibold">Import mode</div>
+              <div className="mb-2 font-semibold">{tImport('modeTitle')}</div>
               <div className="flex flex-wrap gap-4">
                 <label className="flex cursor-pointer items-center gap-2">
                   <input type="radio" checked={importMode === 'catalog'} onChange={() => { setImportMode('catalog'); setValidationErrors([]); }} />
-                  Match to Product Catalog
+                  {tImport('modeCatalog')}
                 </label>
                 <label className="flex cursor-pointer items-center gap-2">
                   <input type="radio" checked={importMode === 'historical'} onChange={() => { setImportMode('historical'); setValidationErrors([]); }} />
-                  Historical Receipt (no stock update)
+                  {tImport('modeHistorical')}
                 </label>
               </div>
               <p className="mt-2 text-xs text-gray-500">
                 {importMode === 'historical'
-                  ? 'Preserves the spreadsheet SKU, product and variant without linking inventory. Unknown package ratios cannot be converted; use Pieces for unmatched products.'
-                  : 'Every row must uniquely identify a current catalog variant. Imports do not automatically update stock.'}
+                  ? tImport('modeHistoricalHint')
+                  : tImport('modeCatalogHint')}
               </p>
             </div>
+            {importMode === 'catalog' && rows.some((raw) => {
+              const match = getCatalogMatch(raw, mapping, supplierCatalog);
+              const sku = mapping.sku ? String(raw[mapping.sku] || '') : '';
+              return match && sku && normalizeKey(sku) !== normalizeKey(match.sku);
+            }) && (
+              <div className="mb-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+                {tImport('replacementNotice')}
+              </div>
+            )}
             <div className="mb-2 font-semibold text-black">{tImport('mapColumnsOptional')}</div>
             
             {/* Info Message */}
