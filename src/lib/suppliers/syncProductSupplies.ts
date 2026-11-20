@@ -76,19 +76,6 @@ export function belongsToProduct(
   return false;
 }
 
-/** Retired compatibility entry point. Catalog supplier changes never create
- * AUTO summaries, transfer receipts, or mutate historical supplier data.
- * Retained temporarily for older callers; the production sync is a no-op too.
- */
-export function applyProductToSupplierMaps(
-  _product: ProductSnapshot,
-  _suppliesBySupplierId: Map<number, SupplyDetail[]>,
-  _suppliers: SupplierRow[],
-  _dirtySupplierIds: Set<number>,
-): void {
-  // Receipt history is created only by explicit supplier actions.
-}
-
 /** Strip every summary + history row linked to the product from all supplier maps. */
 export function removeProductFromSupplierMaps(
   product: Pick<ProductSnapshot, 'productId'>,
