@@ -607,11 +607,6 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   // Receipts whose original live variant was deleted remain in history until the
   // user explicitly archives or deletes them. A replacement with the same SKU is
   // never treated as the same variant.
-  const orphanedHistoryRows = historyRows.filter((row) =>
-    row.recordType === 'history' &&
-    row.variantOptionId == null &&
-    row.historicalVariantOptionId != null,
-  );
   useEffect(() => {
     setSummaryRows(buildSupplySummaryFromHistory(historyRows.filter((item) => !isBlankHistoryRow(item)), openingRows));
   }, [openingRows, historyRows]);
@@ -2215,23 +2210,6 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
               <h2 className="text-lg font-bold text-black">Archived Supplies</h2>
               <button type="button" className="rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 text-sm font-medium text-black transition-colors hover:border-gray-300 hover:bg-gray-100" onClick={() => setShowArchivedSupplies(false)}>Close</button>
             </div>
-            {openingRows.length > 0 && (
-              <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 p-3">
-                <h3 className="mb-1 text-sm font-semibold text-amber-900">Legacy opening snapshots</h3>
-                <p className="mb-3 text-xs text-amber-800">These old catalog snapshots are not supplier receipts and are excluded from receipt totals. You can remove or archive them here.</p>
-                <div className="max-h-64 space-y-2 overflow-y-auto">
-                  {openingRows.map((row) => (
-                    <div key={row.suppliesno} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-white p-3">
-                      <div className="text-xs text-gray-800"><strong>{row.product}</strong> — {row.variantName || 'Default'} · {row.totalSupplied} Pieces</div>
-                      <div className="flex gap-2">
-                        <button type="button" disabled={archiveBusy} className="rounded-lg border px-2 py-1 text-xs" onClick={() => setOpeningAction({kind:'archive', rows:[row]})}>Archive</button>
-                        <button type="button" disabled={archiveBusy} className="rounded-lg border border-red-200 px-2 py-1 text-xs text-red-600" onClick={() => setOpeningAction({kind:'delete', rows:[row]})}>Delete</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-6">
               <span className="text-xs text-gray-500">{archivedOpeningRows.length} archived supply record(s)</span>
               <div className="flex gap-2">
