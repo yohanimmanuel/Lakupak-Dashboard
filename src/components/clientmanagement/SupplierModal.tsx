@@ -28,6 +28,7 @@ import ImportSelectionCheckbox from '@/components/clientmanagement/ImportSelecti
 import ClientCatalogSelect from '@/components/clientmanagement/ClientCatalogSelect';
 import {
   buildSupplySummaryFromHistory,
+  getSupplyReceivedInput,
   partitionSupplies,
   serializeHistorySupplyForStorage,
 } from '@/lib/suppliers/supplyRecords';
@@ -514,7 +515,11 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   );
   // Supplier editing now has a single receipt-history view; legacy opening rows
   // are retained only for the Archived Supplies cleanup dialog.
-  const suppliesTab = 'history' as const;
+  // The editor now exposes receipts only. Keep the union return type for
+  // retained legacy cleanup branches so TypeScript does not compare impossible
+  // literal states while those records remain available for migration/cleanup.
+  const getSuppliesTab = (): 'summary' | 'opening' | 'history' => 'history';
+  const suppliesTab = getSuppliesTab();
   const [showArchivedSupplies, setShowArchivedSupplies] = useState(false);
   const [archivedOpeningRows, setArchivedOpeningRows] = useState<SupplyDetail[]>(() => {
     try { return (JSON.parse(initialData?.supplies || '[]') as SupplyDetail[]).filter((row) => !!row.archivedAt); }
