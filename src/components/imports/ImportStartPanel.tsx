@@ -174,8 +174,8 @@ export default function ImportStartPanel({
           <span className={`mb-3 flex h-14 w-14 items-center justify-center rounded-full ${dragging || active ? 'bg-blue-100' : 'bg-gray-200'}`}>
             <Upload className="h-7 w-7" />
           </span>
-          <span className="text-sm font-semibold">{processing ? 'Reading file…' : 'Drag and drop your file here'}</span>
-          <span className="mt-1 text-xs opacity-75">or click to browse your computer</span>
+          <span className="text-sm font-semibold">{processing ? tImport('importStartReading') : tImport('importStartDrop')}</span>
+          <span className="mt-1 text-xs opacity-75">{tImport('importStartBrowse')}</span>
           {filename ? <span className="mt-3 max-w-full truncate rounded-md bg-white/80 px-3 py-1 text-xs font-medium">{filename}</span> : null}
         </button>
         {error ? (
@@ -185,7 +185,7 @@ export default function ImportStartPanel({
           </div>
         ) : null}
         <div className="mt-3 rounded-lg bg-amber-50 p-3 text-xs leading-5 text-amber-800">
-          <strong>Import check:</strong> Lakupak validates headers, required values, numeric fields, stock types and catalog matches before opening the preview. Failed files remain on this screen.
+          <strong>{tImport('importStartCheckTitle')}</strong> {tImport('importStartCheckBody')}
         </div>
       </section>
     </div>
