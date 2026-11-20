@@ -27,9 +27,8 @@ import ImportSuppliesModal from '@/components/clientmanagement/ImportSuppliesMod
 import ImportSelectionCheckbox from '@/components/clientmanagement/ImportSelectionCheckbox';
 import ClientCatalogSelect from '@/components/clientmanagement/ClientCatalogSelect';
 import {
-  buildSupplySummaryFromHistory,
+  getSupplyRecordType,
   getSupplyReceivedInput,
-  partitionSupplies,
   serializeHistorySupplyForStorage,
 } from '@/lib/suppliers/supplyRecords';
 import type { SupplyDeleteMarker } from '@/lib/suppliers/applySupplierSuppliesSave';
@@ -420,15 +419,13 @@ function normalizeSupplyRow(row: SupplyDetail, recordType: 'history' | 'summary'
   };
 }
 
-function parseSupplyBuckets(raw?: string | null): { history: SupplyDetail[]; summary: SupplyDetail[]; opening: SupplyDetail[] } {
-  if (!raw) return { history: [emptyHistoryRow()], summary: [], opening: [] };
+function parseSupplyRows(raw?: string | null): { history: SupplyDetail[]; archived: SupplyDetail[] } {
+  if (!raw) return { history: [emptyHistoryRow()], archived: [] };
   try {
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-      return { history: [emptyHistoryRow()], summary: [], opening: [] };
-    }
-    // Backward compatibility: older saved rows used `lastDelivery`.
-    // Normalize them on read, but only persist `lastSuppliedDate` going forward.
+    if (!Array.isArray(parsed)) return { history: [emptyHistoryRow()], archived: [] };
+
+    // Preserve legacy date and package-unit snapshots while reading older supplier rows.
     const normalizedRows = (parsed as Array<SupplyDetail & { lastDelivery?: string }>).map((row) => {
       const { lastDelivery: legacyLastDelivery, ...rest } = row;
       return {
@@ -438,16 +435,16 @@ function parseSupplyBuckets(raw?: string | null): { history: SupplyDetail[]; sum
         receivedUnit: String(row.receivedUnit || 'Pieces'),
       } as SupplyDetail;
     });
-    const { history, summary } = partitionSupplies(normalizedRows.filter((row) => !row.archivedAt));
+    const history = normalizedRows.filter((row) => !row.archivedAt && getSupplyRecordType(row) === 'history');
+    const archived = normalizedRows.filter((row) => Boolean(row.archivedAt) && getSupplyRecordType(row) === 'history');
     return {
       history: history.length > 0
         ? ensureUniqueHistoryIds(history.map((row) => normalizeSupplyRow(row, 'history')))
         : [emptyHistoryRow()],
-      summary: buildSupplySummaryFromHistory(history, summary).map((row) => normalizeSupplyRow(row, 'summary')),
-      opening: summary.map((row) => normalizeSupplyRow(row, 'summary')),
+      archived,
     };
   } catch {
-    return { history: [emptyHistoryRow()], summary: [], opening: [] };
+    return { history: [emptyHistoryRow()], archived: [] };
   }
 }
 
