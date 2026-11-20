@@ -283,8 +283,8 @@ export const contactsTypeDefs = /* GraphQL */ `
       userId: Int!
     ): SyncProductSuppliersResult!
 
-    setOpeningBalanceArchived(userId: Int!, supplierId: String!, suppliesno: String!, archived: Boolean!): Boolean!
-    deleteArchivedOpeningBalance(userId: Int!, supplierId: String!, suppliesno: String!): Boolean!
+    setSupplierReceiptArchived(userId: Int!, supplierId: String!, suppliesno: String!, archived: Boolean!): Boolean!
+    deleteArchivedSupplierReceipt(userId: Int!, supplierId: String!, suppliesno: String!): Boolean!
 
     recordSupplierSupply(
       userId: Int!
@@ -1919,7 +1919,7 @@ const syncSuppliersFromProducts = async (args: { userId: number }) => {
  * Active receipts linked to live variants cannot be archived.
  */
 /** Archive only orphaned/legacy receipt history. This is visibility-only and never changes stock. */
-const setOpeningBalanceArchived = async (args: { userId: number; supplierId: string; suppliesno: string; archived: boolean }): Promise<boolean> => {
+const setSupplierReceiptArchived = async (args: { userId: number; supplierId: string; suppliesno: string; archived: boolean }): Promise<boolean> => {
   const { userId, supplierId, suppliesno, archived } = args;
   await prisma.$transaction(async (tx) => {
     const supplier = await tx.supplier.findFirst({
@@ -1961,7 +1961,7 @@ const setOpeningBalanceArchived = async (args: { userId: number; supplierId: str
 };
 
 /** Permanently delete an already-archived orphaned receipt history row. */
-const deleteArchivedOpeningBalance = async (args: { userId: number; supplierId: string; suppliesno: string }): Promise<boolean> => {
+const deleteArchivedSupplierReceipt = async (args: { userId: number; supplierId: string; suppliesno: string }): Promise<boolean> => {
   const { userId, supplierId, suppliesno } = args;
   await prisma.$transaction(async (tx) => {
     const supplier = await tx.supplier.findFirst({
@@ -2280,8 +2280,8 @@ export const contactsResolvers = {
     bulkDeleteSuppliers: withDashboardAuth(bulkDeleteSuppliers),
     syncSuppliersFromProducts: withDashboardAuth(syncSuppliersFromProducts),
     recordSupplierSupply: withDashboardAuth(recordSupplierSupply),
-    setOpeningBalanceArchived: withDashboardAuth(setOpeningBalanceArchived),
-    deleteArchivedOpeningBalance: withDashboardAuth(deleteArchivedOpeningBalance),
+    setSupplierReceiptArchived: withDashboardAuth(setSupplierReceiptArchived),
+    deleteArchivedSupplierReceipt: withDashboardAuth(deleteArchivedSupplierReceipt),
   },
 };
 
