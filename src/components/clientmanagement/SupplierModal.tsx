@@ -1732,6 +1732,16 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                         hasMatchingLiveVariant(row);
                       const needsVariantLink = isLegacyUnlinkedReceipt(row) || hasReplacementVariant;
                       const canArchiveRow = canArchiveHistoryRow(row);
+                      // Once the user chooses an owned product or live variant,
+                      // the old-receipt warning must not linger over the editable
+                      // SKU dropdown. Incomplete corrections use placeholders.
+                      const selectedLiveVariant = row.variantOptionId != null &&
+                        catalogOptions.some((option) => option.variantOptionId === row.variantOptionId);
+                      const correctingOwnedProduct = row.variantOptionId == null &&
+                        !String(row.sku || '').trim() &&
+                        catalogOptions.some((option) => option.productId === row.productId);
+                      const showVariantAttention = !selectedLiveVariant && !correctingOwnedProduct &&
+                        (supplierChanged || needsVariantLink || canArchiveRow);
                       return (
                       <tr key={row.suppliesno || `hist-${idx}`} className="whitespace-nowrap">
                         <td className="px-3 py-2">
@@ -1767,7 +1777,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                             emptyLabel={tSuppliersModal('catalogEmpty')}
                             noMatchLabel={tSuppliersModal('catalogNoMatch')}
                             searchPlaceholder={tSuppliersModal('searchSku')}
-                            needsAttention={supplierChanged || needsVariantLink || canArchiveRow}
+                            needsAttention={showVariantAttention}
                             attentionTitle={supplierChanged ? tSuppliersModal('supplierChangedTitle') : tSuppliersModal('variantAttentionTitle')}
                             disabled={false}
                             attentionMessage={supplierChanged
