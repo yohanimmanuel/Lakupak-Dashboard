@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { SupplyDetail } from '@/types/client';
 import {
-  applyProductToSupplierMaps,
   belongsToProduct,
   removeProductVariantsFromSupplierMaps,
   supplyAutoNo,
+  syncAllProductSuppliersForUser,
 } from '@/lib/suppliers/syncProductSupplies';
 
 const receipt = (suppliesno: string, productId = 'P-1'): SupplyDetail => ({
@@ -20,25 +20,11 @@ const receipt = (suppliesno: string, productId = 'P-1'): SupplyDetail => ({
 });
 
 describe('receipt-only catalog synchronization', () => {
-  it('never creates AUTO summaries or moves historical receipts on supplier reassignment', () => {
-    const original = receipt('HIST-1');
-    const supplies = new Map<number, SupplyDetail[]>([[1, [original]], [2, []]]);
-    const dirty = new Set<number>();
-    applyProductToSupplierMaps(
-      {
-        productId: 'P-1',
-        name: 'Widget',
-        supplier: 'Supplier B',
-        userId: 9,
-        variantOptions: [{ variantName: 'Default', sku: 'REUSED-SKU', purchasePrice: 100, stockQuantity: 100 }],
-      },
-      supplies,
-      [{ id: 1, name: 'Supplier A' }, { id: 2, name: 'Supplier B' }],
-      dirty,
-    );
-    expect(dirty.size).toBe(0);
-    expect(supplies.get(1)).toEqual([original]);
-    expect(supplies.get(2)).toEqual([]);
+  it('does not backfill catalog stock as supplier opening balances', async () => {
+    await expect(syncAllProductSuppliersForUser(9)).resolves.toEqual({
+      productsProcessed: 0,
+      suppliersTouched: 0,
+    });
   });
 
   it('preserves all receipt history when a catalog variant is deleted', () => {
