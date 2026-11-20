@@ -23,6 +23,8 @@ function history(overrides: Partial<SupplyDetail> = {}): SupplyDetail {
     recordType: 'history',
     productId: 'LKP-TEST',
     variantName: 'aa',
+    // Stock-enabled receipts must identify the exact catalog variant.
+    variantOptionId: 101,
     updateCurrentStock: true,
     ...overrides,
   };
@@ -146,9 +148,12 @@ describe('computeSupplyStockEffects (Update Current Stock checkbox)', () => {
     expect(computeSupplyStockEffects(previous, incoming)).toEqual([]);
   });
 
-  it('reverses previous identity and applies new when sku/product changes while checked', () => {
+  it('reverses previous variant ID and applies the newly selected variant ID while checked', () => {
     const previous = [
       history({
+        variantOptionId: 10,
+        stockAppliedVariantOptionId: 10,
+        stockApplied: true,
         sku: 'SKU-OLD',
         productId: 'LKP-OLD',
         variantName: 'old',
@@ -159,6 +164,7 @@ describe('computeSupplyStockEffects (Update Current Stock checkbox)', () => {
     ];
     const incoming = [
       history({
+        variantOptionId: 20,
         sku: 'SKU-NEW',
         productId: 'LKP-NEW',
         variantName: 'new',
@@ -181,6 +187,69 @@ describe('computeSupplyStockEffects (Update Current Stock checkbox)', () => {
       valueDelta: 4000000,
       row: expect.objectContaining({ sku: 'SKU-NEW', productId: 'LKP-NEW' }),
     });
+  });
+
+  it('does not try to apply stock for an unchanged legacy receipt whose variant was deleted', () => {
+    const previous = [
+      history({
+        variantOptionId: null,
+        historicalVariantOptionId: 10,
+        stockApplied: false,
+        updateCurrentStock: true,
+      }),
+    ];
+    const incoming = [
+      history({
+        variantOptionId: null,
+        historicalVariantOptionId: 10,
+        stockApplied: false,
+        updateCurrentStock: true,
+      }),
+    ];
+    expect(computeSupplyStockEffects(previous, incoming)).toEqual([]);
+  });
+
+  it('preserves an already-applied historical movement when the live variant was deleted and the receipt is unchanged', () => {
+    const previous = [
+      history({
+        variantOptionId: null,
+        historicalVariantOptionId: 10,
+        stockAppliedVariantOptionId: 10,
+        stockApplied: true,
+        updateCurrentStock: true,
+      }),
+    ];
+    const incoming = [
+      history({
+        variantOptionId: null,
+        historicalVariantOptionId: 10,
+        stockAppliedVariantOptionId: 10,
+        stockApplied: true,
+        updateCurrentStock: true,
+      }),
+    ];
+    expect(computeSupplyStockEffects(previous, incoming)).toEqual([]);
+  });
+
+  it('does not treat a SKU/name correction as a different inventory identity when variant ID is unchanged', () => {
+    const previous = [
+      history({
+        variantOptionId: 101,
+        stockAppliedVariantOptionId: 101,
+        stockApplied: true,
+        sku: 'SKU-OLD',
+        variantName: 'Old label',
+      }),
+    ];
+    const incoming = [
+      history({
+        variantOptionId: 101,
+        stockApplied: true,
+        sku: 'SKU-CORRECTED',
+        variantName: 'Corrected label',
+      }),
+    ];
+    expect(computeSupplyStockEffects(previous, incoming)).toEqual([]);
   });
 
   it('first-time enabling after totals-only save applies stock once without re-adding totals', () => {
