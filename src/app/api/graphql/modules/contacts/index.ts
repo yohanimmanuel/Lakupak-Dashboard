@@ -1778,46 +1778,81 @@ const syncSuppliersFromProducts = async (args: { userId: number }) => {
   };
 };
 
-/** Order-style reversible soft archive. Never archives receipts or a live variant. */
+/**
+ * Soft archive a legacy opening snapshot or a receipt whose original catalog
+ * variant has been deleted. Active/live variants and normal active receipts
+ * cannot be archived.
+ */
 const setOpeningBalanceArchived = async (args: { userId: number; supplierId: string; suppliesno: string; archived: boolean }): Promise<boolean> => {
   const { userId, supplierId, suppliesno, archived } = args;
-  if (!suppliesno.startsWith('AUTO-')) throw new Error('Only catalog opening balances can be archived');
   await prisma.$transaction(async (tx) => {
     const supplier = await tx.supplier.findFirst({
       where: { userId, OR: isNumericId(supplierId) ? [{ id: Number(supplierId) }, { supplierId }] : [{ supplierId }] },
       select: { id: true },
     });
     if (!supplier) throw new Error('Supplier not found');
-    const row = await tx.supplyRecord.findFirst({ where: { supplierRefId: supplier.id, suppliesno } });
-    if (!row || row.recordType !== 'summary') throw new Error('Opening balance not found');
-    if (archived) {
-      const historicalId = row.historicalVariantOptionId ?? row.variantOptionId;
-      if (!historicalId) throw new Error('Legacy opening balance needs manual identity reconciliation');
-      const live = await tx.variantOption.findUnique({ where: { id: historicalId }, select: { id: true } });
-      if (live) throw new Error('Delete the catalog variant before archiving its opening balance');
+
+    const row = await tx.supplyRecord.findFirst({
+      where: { supplierRefId: supplier.id, suppliesno },
+    });
+    if (!row) throw new Error('Supply record not found');
+
+    const isLegacyOpening = row.recordType === 'summary';
+    const isOrphanedReceipt = row.recordType === 'history' && row.variantOptionId == null;
+    if (!isLegacyOpening && !isOrphanedReceipt) {
+      throw new Error('Only legacy opening snapshots or receipts without a live catalog variant can be archived');
     }
-    await tx.supplyRecord.update({ where: { id: row.id }, data: { archivedAt: archived ? new Date() : null } });
+
+    const historicalId = row.historicalVariantOptionId ?? row.variantOptionId;
+    if (!historicalId) throw new Error('This supply has no preserved variant identity and needs manual reconciliation');
+    const liveVariant = await tx.variantOption.findFirst({
+      where: { id: historicalId, product: { userId } },
+      select: { id: true },
+    });
+    if (liveVariant) {
+      throw new Error('This catalog variant still exists. Only supplies whose original variant was deleted can be archived.');
+    }
+
+    await tx.supplyRecord.update({
+      where: { id: row.id },
+      data: { archivedAt: archived ? new Date() : null },
+    });
   });
   try { const { invalidateDashboardCache } = await import('@/lib/queryCache'); await invalidateDashboardCache(userId); } catch { /* best effort */ }
   return true;
 };
 
-/** Explicit deletion of a catalog opening balance; never deletes actual receipts. */
+/** Permanently delete a legacy opening snapshot or orphaned receipt after explicit user action. */
 const deleteArchivedOpeningBalance = async (args: { userId: number; supplierId: string; suppliesno: string }): Promise<boolean> => {
   const { userId, supplierId, suppliesno } = args;
-  if (!suppliesno.startsWith('AUTO-')) throw new Error('Only catalog opening balances can be deleted');
   await prisma.$transaction(async (tx) => {
     const supplier = await tx.supplier.findFirst({
       where: { userId, OR: isNumericId(supplierId) ? [{ id: Number(supplierId) }, { supplierId }] : [{ supplierId }] },
       select: { id: true },
     });
     if (!supplier) throw new Error('Supplier not found');
-    const row = await tx.supplyRecord.findFirst({ where: { supplierRefId: supplier.id, suppliesno } });
-    if (!row || row.recordType !== 'summary') throw new Error('Opening balance not found');
+
+    const row = await tx.supplyRecord.findFirst({
+      where: { supplierRefId: supplier.id, suppliesno },
+    });
+    if (!row) throw new Error('Supply record not found');
+
+    const isLegacyOpening = row.recordType === 'summary';
+    const isOrphanedReceipt = row.recordType === 'history' && row.variantOptionId == null;
+    if (!isLegacyOpening && !isOrphanedReceipt) {
+      throw new Error('Only legacy opening snapshots or receipts without a live catalog variant can be deleted');
+    }
+
     const historicalId = row.historicalVariantOptionId ?? row.variantOptionId;
-    if (!historicalId) throw new Error('Legacy opening balance needs manual identity reconciliation');
-    const live = await tx.variantOption.findUnique({ where: { id: historicalId }, select: { id: true } });
-    if (live) throw new Error('Delete the catalog variant before deleting its opening balance');
+    if (!historicalId) throw new Error('This supply has no preserved variant identity and needs manual reconciliation');
+    const liveVariant = await tx.variantOption.findFirst({
+      where: { id: historicalId, product: { userId } },
+      select: { id: true },
+    });
+    if (liveVariant) {
+      throw new Error('This catalog variant still exists. Only supplies whose original variant was deleted can be deleted here.');
+    }
+
     await tx.supplyRecord.delete({ where: { id: row.id } });
   });
   try { const { invalidateDashboardCache } = await import('@/lib/queryCache'); await invalidateDashboardCache(userId); } catch { /* best effort */ }

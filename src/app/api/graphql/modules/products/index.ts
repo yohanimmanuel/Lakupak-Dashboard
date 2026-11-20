@@ -1653,6 +1653,19 @@ export const updateProduct = async (args: {
             }
           }
 
+          // Snapshot the exact supplier receipt identity before the FK is set NULL.
+          // This gives future archive/delete and stock-reconciliation flows the
+          // original variant ID even if the catalog option is recreated with the same SKU.
+          for (const removedOption of removed) {
+            await tx.supplyRecord.updateMany({
+              where: {
+                variantOptionId: removedOption.id,
+                historicalVariantOptionId: null,
+              },
+              data: { historicalVariantOptionId: removedOption.id },
+            });
+          }
+
           // OrderItem.variantOptionId is nullable with ON DELETE SET NULL, so
           // removing the catalog option detaches the order while retaining snapshots.
           await tx.variantOption.deleteMany({
