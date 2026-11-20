@@ -169,7 +169,7 @@ export default function SupplierProfile({ supplier, onClose, onUpdate }: Supplie
   
   const analyticsData = getSupplierAnalytics(suppliesRaw || '', user?.language);
   const archivedSupplies = useMemo(
-    () => supplies.filter((row) => !!row.archivedAt),
+    () => supplies.filter((row) => !!row.archivedAt && isSupplyHistoryRow(row)),
     [suppliesRaw],
   );
   const historySupplies = useMemo(
