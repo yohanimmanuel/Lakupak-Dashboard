@@ -64,6 +64,53 @@ export function partitionSupplies(rows: SupplyDetail[]): {
   return { history, summary };
 }
 
+export function shouldUpdateCurrentStock(row: Pick<SupplyDetail, 'updateCurrentStock'>): boolean {
+  return row.updateCurrentStock === true;
+}
+
+export function createHistorySupplyRow(input: {
+  sku: string;
+  product: string;
+  quantity: number;
+  totalValue: number;
+  suppliedDate: string;
+  productId?: string;
+  variantName?: string;
+  variantOptionId?: number | null;
+  status?: string;
+  receivedQuantity?: string;
+  receivedUnit?: string;
+  updateCurrentStock?: boolean;
+  /** Set true only after a successful product-stock increment. */
+  stockApplied?: boolean;
+}): SupplyDetail {
+  const qty = Math.max(0, Math.floor(input.quantity));
+  const rawValue = Number(input.totalValue);
+  const value = Math.max(0, Number.isFinite(rawValue) ? rawValue : 0);
+  const enteredQuantity = String(input.receivedQuantity ?? '').trim();
+  const receivedInput = enteredQuantity
+    ? { receivedQuantity: enteredQuantity, receivedUnit: String(input.receivedUnit || 'Pieces') }
+    : { receivedQuantity: String(qty), receivedUnit: 'Pieces' };
+  return {
+    suppliesno: `HIST-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    sku: input.sku,
+    product: input.product,
+    totalSupplied: String(qty),
+    receivedQuantity: receivedInput.receivedQuantity,
+    receivedUnit: receivedInput.receivedUnit,
+    totalValue: String(value),
+    lastSuppliedDate: input.suppliedDate,
+    status: input.status || 'Active',
+    recordType: 'history',
+    productId: input.productId,
+    variantName: input.variantName,
+    variantOptionId: input.variantOptionId ?? undefined,
+    // Always persist explicitly so SupplyRecord / API payloads keep the flag.
+    updateCurrentStock: input.updateCurrentStock === true,
+    stockApplied: input.stockApplied === true,
+  };
+}
+
 export function serializeHistorySupplyForStorage(row: SupplyDetail): SupplyDetail {
   const receivedInput = getSupplyReceivedInput(row);
   return {
