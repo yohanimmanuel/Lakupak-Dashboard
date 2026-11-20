@@ -528,6 +528,8 @@
       "historyRowsSelected": "{count} baris riwayat dipilih",
       "bulkUpdateStock": "Update Stok",
       "bulkDelete": "Hapus",
+      "variantAttentionTitle": "Varian pasokan perlu diperhatikan",
+      "variantArchivedLabel": "Diarsipkan",
       "selectAll": "Pilih semua baris riwayat",
       "deselectAll": "Batalkan pilihan semua baris riwayat",
       "bulkDeleteHistoryModalTitle": "Hapus Catatan Pasokan",

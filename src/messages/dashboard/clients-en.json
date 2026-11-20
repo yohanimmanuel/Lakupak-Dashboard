@@ -518,6 +518,8 @@
       "historyRowsSelected": "{count, plural, one {# history row selected} other {# history rows selected}}",
       "bulkUpdateStock": "Update Stock",
       "bulkDelete": "Delete",
+      "variantAttentionTitle": "Supply variant needs attention",
+      "variantArchivedLabel": "Archived",
       "selectAll": "Select all history rows",
       "deselectAll": "Deselect all history rows",
       "bulkDeleteHistoryModalTitle": "Delete Supply Records",
