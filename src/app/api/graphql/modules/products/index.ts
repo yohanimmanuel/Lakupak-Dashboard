@@ -1873,6 +1873,15 @@ export const deleteProduct = async (args: { userId: number; id: string }) => {
   // Delete the catalog product while preserving supplier accounting snapshots.
   // If either operation fails, neither side is left partially updated.
   await prisma.$transaction(async (tx) => {
+    // Snapshot every supplier receipt's original VariantOption ID before product
+    // deletion cascades the catalog variants and clears their live foreign keys.
+    for (const variant of productToDelete.variantOptions) {
+      await tx.supplyRecord.updateMany({
+        where: { variantOptionId: variant.id, historicalVariantOptionId: null },
+        data: { historicalVariantOptionId: variant.id },
+      });
+    }
+
     const { removeProductSuppliesInTransaction } = await import(
       '@/lib/suppliers/syncProductSupplies'
     );
