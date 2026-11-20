@@ -395,28 +395,15 @@ function emptyHistoryRow(): SupplyDetail {
   };
 }
 
-function normalizeSupplyRow(row: SupplyDetail, recordType: 'history' | 'summary'): SupplyDetail {
-  if (recordType === 'history') {
-    return serializeHistorySupplyForStorage({
-      ...row,
-      // Preserve the supplier's original entry while totalSupplied remains canonical Pieces.
-      receivedQuantity: String(row.receivedQuantity ?? row.totalSupplied ?? ''),
-      receivedUnit: String(row.receivedUnit || 'Pieces'),
-      status: row.status || statusOptions[0],
-    });
-  }
-  return {
-    suppliesno: row.suppliesno || '',
-    sku: row.sku || '',
-    product: row.product || '',
-    totalSupplied: row.totalSupplied || '',
-    totalValue: row.totalValue || '',
-    lastSuppliedDate: row.lastSuppliedDate || '',
+function normalizeSupplyRow(row: SupplyDetail): SupplyDetail {
+  return serializeHistorySupplyForStorage({
+    ...row,
+    // Preserve the supplier's original entry while totalSupplied remains canonical Pieces.
+    receivedQuantity: String(row.receivedQuantity ?? row.totalSupplied ?? ''),
+    receivedUnit: String(row.receivedUnit || 'Pieces'),
     status: row.status || statusOptions[0],
-    recordType: 'summary',
-    productId: row.productId,
-    variantName: row.variantName,
-  };
+    recordType: 'history',
+  });
 }
 
 function parseSupplyRows(raw?: string | null): { history: SupplyDetail[]; archived: SupplyDetail[] } {
@@ -439,7 +426,7 @@ function parseSupplyRows(raw?: string | null): { history: SupplyDetail[]; archiv
     const archived = normalizedRows.filter((row) => Boolean(row.archivedAt) && getSupplyRecordType(row) === 'history');
     return {
       history: history.length > 0
-        ? ensureUniqueHistoryIds(history.map((row) => normalizeSupplyRow(row, 'history')))
+        ? ensureUniqueHistoryIds(history.map((row) => normalizeSupplyRow(row)))
         : [emptyHistoryRow()],
       archived,
     };
@@ -1027,7 +1014,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
       .map((i) => historyRows[i])
       .filter((row) => row && !isBlankHistoryRow(row))
       .map((row): SupplyDeleteMarker => ({
-        ...normalizeSupplyRow(row, 'history'),
+        ...normalizeSupplyRow(row),
         __delete: true,
         updateCurrentStock: deleteUpdateStock,
       }));
@@ -1071,7 +1058,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
         .filter(Boolean),
     );
     const imported = newSupplies.map((row): SupplyDetail => ({
-      ...normalizeSupplyRow(row, 'history'),
+      ...normalizeSupplyRow(row),
       suppliesno: newHistoryId(taken),
       // Imports are historical by default — totals only, no product stock change.
       updateCurrentStock: false,
@@ -1229,7 +1216,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
       const cleanedHistory = ensureUniqueHistoryIds(
         historyRows
           .filter((row) => !isBlankHistoryRow(row))
-          .map((row) => normalizeSupplyRow(row, 'history')),
+          .map((row) => normalizeSupplyRow(row)),
       );
       // Supplier saves write receipt history only. Legacy opening/summary
       // snapshots remain in the database for compatibility, but are no longer
