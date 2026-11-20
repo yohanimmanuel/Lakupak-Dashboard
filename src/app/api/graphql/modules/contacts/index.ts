@@ -1940,13 +1940,25 @@ const setOpeningBalanceArchived = async (args: { userId: number; supplierId: str
     }
 
     const historicalId = row.historicalVariantOptionId ?? row.variantOptionId;
-    if (!historicalId) throw new Error('This supply has no preserved variant identity and needs manual reconciliation');
-    const liveVariant = await tx.variantOption.findFirst({
-      where: { id: historicalId, product: { userId } },
-      select: { id: true },
-    });
-    if (liveVariant) {
-      throw new Error('This catalog variant still exists. Only supplies whose original variant was deleted can be archived.');
+    if (historicalId) {
+      const liveVariant = await tx.variantOption.findFirst({
+        where: { id: historicalId, product: { userId } },
+        select: { id: true },
+      });
+      if (liveVariant) {
+        throw new Error('This catalog variant still exists. Only supplies whose original variant was deleted can be archived.');
+      }
+    }
+    // ID-less legacy receipts are eligible only when no live inventory link
+    // exists. Archiving is a visibility action, never a stock reversal.
+    if (row.stockApplied && row.stockAppliedVariantOptionId != null) {
+      const appliedVariant = await tx.variantOption.findFirst({
+        where: { id: row.stockAppliedVariantOptionId, product: { userId } },
+        select: { id: true },
+      });
+      if (appliedVariant) {
+        throw new Error('This supply has an active inventory movement. Disable Update Stock and save before archiving.');
+      }
     }
 
     await tx.supplyRecord.update({
@@ -1980,13 +1992,22 @@ const deleteArchivedOpeningBalance = async (args: { userId: number; supplierId: 
     }
 
     const historicalId = row.historicalVariantOptionId ?? row.variantOptionId;
-    if (!historicalId) throw new Error('This supply has no preserved variant identity and needs manual reconciliation');
-    const liveVariant = await tx.variantOption.findFirst({
-      where: { id: historicalId, product: { userId } },
-      select: { id: true },
-    });
-    if (liveVariant) {
-      throw new Error('This catalog variant still exists. Only supplies whose original variant was deleted can be deleted here.');
+    if (historicalId) {
+      const liveVariant = await tx.variantOption.findFirst({
+        where: { id: historicalId, product: { userId } },
+        select: { id: true },
+      });
+      if (liveVariant) {
+        throw new Error('This catalog variant still exists. Only supplies whose original variant was deleted can be deleted here.');
+      }
+    }
+    if (!row.archivedAt) throw new Error('Archive this supply before permanently deleting it.');
+    if (row.stockApplied && row.stockAppliedVariantOptionId != null) {
+      const appliedVariant = await tx.variantOption.findFirst({
+        where: { id: row.stockAppliedVariantOptionId, product: { userId } },
+        select: { id: true },
+      });
+      if (appliedVariant) throw new Error('Cannot delete a receipt with an active inventory movement.');
     }
 
     await tx.supplyRecord.delete({ where: { id: row.id } });
