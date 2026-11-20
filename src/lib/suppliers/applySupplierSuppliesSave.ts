@@ -209,12 +209,14 @@ export function computeSupplyStockEffects(
 ): SupplyStockEffect[] {
   const { live: liveIncoming, deleteMarkers } = splitSupplyDeleteMarkers(incoming);
   const deleteReverseByKey = new Map<string, boolean>();
+
   for (const marker of deleteMarkers) {
-    const reverse = marker.updateCurrentStock === true;
     const id = String(marker.suppliesno || '').trim();
-    if (id) deleteReverseByKey.set(`id:${id}`, reverse);
-    const fp = historyRowFingerprint(marker);
-    if (fp.replace(/\|/g, '')) deleteReverseByKey.set(`fp:${fp}`, reverse);
+    if (id) deleteReverseByKey.set(`id:${id}`, marker.updateCurrentStock === true);
+    const fingerprint = historyRowFingerprint(marker);
+    if (fingerprint.replace(/\\|/g, '')) {
+      deleteReverseByKey.set(`fp:${fingerprint}`, marker.updateCurrentStock === true);
+    }
   }
 
   const previousHistory = previous.filter(isSupplyHistoryRow);
@@ -223,224 +225,134 @@ export function computeSupplyStockEffects(
   const matchedPrevious = new Set<SupplyDetail>();
   const effects: SupplyStockEffect[] = [];
 
-  const pushIdentityMove = (
-    from: SupplyDetail,
-    to: SupplyDetail,
-    toQtyValue: number,
-    toValueAmount: number,
+  const addEffect = (
+    row: SupplyDetail,
+    quantityDelta: number,
+    valueDelta: number,
+    reason: SupplyStockEffect['reason'],
     applyStock: boolean,
+    stockVariantOptionId?: number | null,
+    allowMissingVariant = false,
   ) => {
-    const prevQty = toQty(from.totalSupplied);
-    const prevValue = toValue(from.totalValue);
-    if (prevQty > 0 || prevValue > 0) {
-      effects.push({
-        row: from,
-        stockVariantOptionId: from.stockAppliedVariantOptionId ?? from.variantOptionId,
-        allowMissingVariant: true,
-        quantityDelta: -prevQty,
-        valueDelta: -prevValue,
-        reason: 'edit',
-        applyStock,
-      });
-    }
-    if (toQtyValue > 0 || toValueAmount > 0) {
-      effects.push({
-        row: to,
-        stockVariantOptionId: to.variantOptionId,
-        quantityDelta: toQtyValue,
-        valueDelta: toValueAmount,
-        reason: 'edit',
-        applyStock,
-      });
-    }
+    if (quantityDelta === 0 && valueDelta === 0) return;
+    effects.push({
+      row,
+      quantityDelta,
+      valueDelta,
+      reason,
+      applyStock,
+      stockVariantOptionId: stockVariantOptionId ?? row.variantOptionId ?? null,
+      allowMissingVariant,
+    });
   };
 
   for (const row of incomingHistory) {
     const prev = matchPreviousHistoryRow(row, previousIndexes, matchedPrevious);
-
-    const qty = toQty(row.totalSupplied);
+    const quantity = toQty(row.totalSupplied);
     const value = toValue(row.totalValue);
     const checked = shouldUpdateCurrentStock(row);
-    const wasChecked = prev ? shouldUpdateCurrentStock(prev) : false;
-    // Only the persisted server flag counts — never trust a client-invented stockApplied.
-    const stockAlreadyApplied = prev?.stockApplied === true;
 
     if (!prev) {
-      if (qty > 0 || value > 0) {
-        effects.push({
-          row,
-          quantityDelta: qty,
-          valueDelta: value,
-          reason: 'add',
-          applyStock: checked,
-        });
+      if (quantity > 0 || value > 0) {
+        addEffect(row, quantity, value, 'add', checked, row.variantOptionId);
       }
       continue;
     }
 
+    const previousQuantity = toQty(prev.totalSupplied);
+    const previousValue = toValue(prev.totalValue);
     const identityChanged =
       String(prev.variantOptionId ?? '') !== String(row.variantOptionId ?? '') ||
       String(prev.sku || '').trim() !== String(row.sku || '').trim() ||
       String(prev.productId || '').trim() !== String(row.productId || '').trim() ||
       String(prev.variantName || '').trim() !== String(row.variantName || '').trim();
+    const previouslyApplied = prev.stockApplied === true;
+    const previousMovementVariantId =
+      prev.stockAppliedVariantOptionId ?? prev.variantOptionId ?? null;
 
-    // Flip off → on: apply product stock only (totals already counted).
-    if (!wasChecked && checked && (qty > 0 || value > 0)) {
-      if (stockAlreadyApplied) {
-        // Legacy: stock flag still set without a disable reverse — qty deltas only.
-        const quantityDelta = qty - toQty(prev.totalSupplied);
-        const valueDelta = value - toValue(prev.totalValue);
-        if (quantityDelta !== 0 || valueDelta !== 0) {
-          effects.push({
-            row,
-            quantityDelta,
-            valueDelta,
-            reason: 'edit',
-            applyStock: true,
-          });
+    // The persisted flag is the authoritative record of a real inventory movement.
+    // Checkbox intent alone must never cause a reversal of stock that was not applied.
+    if (previouslyApplied && (!checked || identityChanged)) {
+      if (previousQuantity > 0) {
+        addEffect(
+          prev,
+          -previousQuantity,
+          -previousValue,
+          checked ? 'edit' : 'disable',
+          true,
+          previousMovementVariantId,
+          true,
+        );
+      }
+    }
+
+    if (checked) {
+      if (!previouslyApplied || identityChanged) {
+        // No prior movement exists (or the receipt is being deliberately reassigned):
+        // apply the complete new quantity to the explicitly selected live variant.
+        if (quantity > 0) {
+          addEffect(row, quantity, value, previouslyApplied ? 'edit' : 'enable', true, row.variantOptionId);
         }
+        // Record value/quantity edits as receipt changes only; there is no separate
+        // summary ledger in the receipt-only architecture.
       } else {
-        effects.push({
-          row,
-          quantityDelta: qty,
-          valueDelta: value,
-          reason: 'enable',
-          applyStock: true,
-          applySummary: false,
-        });
-        const quantityDelta = qty - toQty(prev.totalSupplied);
-        const valueDelta = value - toValue(prev.totalValue);
+        // Same live identity and a movement already exists: apply only the delta.
+        const quantityDelta = quantity - previousQuantity;
+        const valueDelta = value - previousValue;
         if (quantityDelta !== 0 || valueDelta !== 0) {
-          effects.push({
+          addEffect(
             row,
             quantityDelta,
             valueDelta,
-            reason: 'edit',
-            applyStock: false,
-          });
+            'edit',
+            quantityDelta !== 0,
+            previousMovementVariantId,
+            quantityDelta < 0,
+          );
         }
       }
-      continue;
-    }
-
-    // Flip on → off: reverse product stock only (totals stay with the history row).
-    if (wasChecked && !checked) {
-      const prevQty = toQty(prev.totalSupplied);
-      const prevValue = toValue(prev.totalValue);
-      if (stockAlreadyApplied && (prevQty > 0 || prevValue > 0)) {
-        effects.push({
-          row: prev,
-          stockVariantOptionId: prev.stockAppliedVariantOptionId ?? prev.variantOptionId,
-          allowMissingVariant: true,
-          quantityDelta: -prevQty,
-          valueDelta: -prevValue,
-          reason: 'disable',
-          applyStock: true,
-          applySummary: false,
-        });
-      }
-      // Totals still follow qty/value/identity edits on the row.
+    } else if (!previouslyApplied) {
+      // Totals/history-only edits do not touch Product Catalog stock.
       if (identityChanged) {
-        const newIdentified =
-          Boolean(String(row.sku || '').trim()) || Boolean(String(row.productId || '').trim());
-        if (newIdentified) {
-          pushIdentityMove(prev, row, qty, value, false);
-        }
+        addEffect(prev, -previousQuantity, -previousValue, 'edit', false, null);
+        addEffect(row, quantity, value, 'edit', false, row.variantOptionId);
       } else {
-        const quantityDelta = qty - prevQty;
-        const valueDelta = value - prevValue;
-        if (quantityDelta !== 0 || valueDelta !== 0) {
-          effects.push({
-            row,
-            quantityDelta,
-            valueDelta,
-            reason: 'edit',
-            applyStock: false,
-          });
-        }
+        addEffect(row, quantity - previousQuantity, value - previousValue, 'edit', false, row.variantOptionId);
       }
-      continue;
-    }
-
-    // Stay checked: stock + totals.
-    if (checked && wasChecked) {
-      if (identityChanged) {
-        const newIdentified =
-          Boolean(String(row.sku || '').trim()) || Boolean(String(row.productId || '').trim());
-        if (!newIdentified) continue;
-        pushIdentityMove(prev, row, qty, value, true);
-        continue;
-      }
-
-      const quantityDelta = qty - toQty(prev.totalSupplied);
-      const valueDelta = value - toValue(prev.totalValue);
-      if (quantityDelta !== 0 || valueDelta !== 0) {
-        effects.push({
-          row,
-          stockVariantOptionId: prev.stockAppliedVariantOptionId ?? prev.variantOptionId ?? row.variantOptionId,
-          allowMissingVariant: quantityDelta < 0,
-          quantityDelta,
-          valueDelta,
-          reason: 'edit',
-          applyStock: true,
-        });
-      }
-      continue;
-    }
-
-    // Stay unchecked: totals only.
-    if (!checked) {
-      if (identityChanged) {
-        const newIdentified =
-          Boolean(String(row.sku || '').trim()) || Boolean(String(row.productId || '').trim());
-        if (!newIdentified) continue;
-        pushIdentityMove(prev, row, qty, value, false);
-        continue;
-      }
-
-      const quantityDelta = qty - toQty(prev.totalSupplied);
-      const valueDelta = value - toValue(prev.totalValue);
-      if (quantityDelta !== 0 || valueDelta !== 0) {
-        effects.push({
-          row,
-          quantityDelta,
-          valueDelta,
-          reason: 'edit',
-          applyStock: false,
-        });
-      }
+    } else if (!identityChanged) {
+      // The previous movement was reversed above. Receipt edits remain history-only.
+      addEffect(row, quantity - previousQuantity, value - previousValue, 'edit', false, row.variantOptionId);
+    } else {
+      // Previous movement was reversed above; the newly selected receipt is unchecked.
+      addEffect(row, quantity, value, 'edit', false, row.variantOptionId);
     }
   }
 
-  // Deleted history rows → reverse only when delete intent says so.
-  // Survival is solely from matchedPrevious so duplicate rows are handled independently.
+  // Explicit delete markers remove the receipt. Reverse stock only if it was
+  // actually applied and the user opted into reversal in the delete confirmation.
   for (const prev of previousHistory) {
     if (matchedPrevious.has(prev)) continue;
     const id = String(prev.suppliesno || '').trim();
-    const fp = historyRowFingerprint(prev);
-
+    const fingerprint = historyRowFingerprint(prev);
     const intent =
       (id ? deleteReverseByKey.get(`id:${id}`) : undefined) ??
-      (fp.replace(/\|/g, '') ? deleteReverseByKey.get(`fp:${fp}`) : undefined);
-    // Require an explicit delete marker from the modal.
+      (fingerprint.replace(/\\|/g, '') ? deleteReverseByKey.get(`fp:${fingerprint}`) : undefined);
     if (intent === undefined) continue;
 
-    const qty = toQty(prev.totalSupplied);
+    const quantity = toQty(prev.totalSupplied);
     const value = toValue(prev.totalValue);
-    if (qty <= 0 && value <= 0) continue;
+    if (quantity <= 0 && value <= 0) continue;
 
-    // Totals always reverse on delete. Product stock only when Update Stock is checked
-    // and this row previously contributed to stock.
     const previouslyApplied = prev.stockApplied === true;
-    effects.push({
-      row: prev,
-      stockVariantOptionId: prev.stockAppliedVariantOptionId ?? prev.variantOptionId,
-      allowMissingVariant: true,
-      quantityDelta: -qty,
-      valueDelta: -value,
-      reason: 'delete',
-      applyStock: intent === true && previouslyApplied,
-    });
+    addEffect(
+      prev,
+      -quantity,
+      -value,
+      'delete',
+      intent && previouslyApplied,
+      prev.stockAppliedVariantOptionId ?? prev.variantOptionId ?? null,
+      true,
+    );
   }
 
   return effects;
