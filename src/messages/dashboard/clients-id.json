@@ -736,7 +736,12 @@
     "supplierGuideColumn5Name": "Nilai Pembelian",
     "supplierGuideColumn5Description": "Total nilai pembelian penerimaan ini.",
     "supplierGuideColumn6Name": "Tanggal Pasokan Terakhir",
-    "supplierGuideColumn6Description": "Tanggal penerimaan dalam format YYYY-MM-DD."
+    "supplierGuideColumn6Description": "Tanggal penerimaan dalam format YYYY-MM-DD.",
+    "importStartReading": "Membaca file…",
+    "importStartDrop": "Seret dan lepas file Anda di sini",
+    "importStartBrowse": "atau klik untuk memilih file dari komputer",
+    "importStartCheckTitle": "Pemeriksaan impor:",
+    "importStartCheckBody": "Lakupak memeriksa judul kolom, data wajib, nilai angka, jenis stok, dan kecocokan katalog sebelum menampilkan pratinjau. File yang gagal diperiksa akan tetap berada di halaman ini."
   },
   "matching": {
     "title": "Pencocokan Pembeli",
