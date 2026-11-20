@@ -419,6 +419,9 @@ export async function finalizeSupplierSuppliesSave(args: {
 
   // Apply stock first and record which effect rows actually changed product stock.
   const successfulStockApplyTargets = new Map<string, number>();
+  // A deleted variant cannot be reversed. Preserve the applied-movement snapshot
+  // unless an actual inventory UPDATE succeeded; intent alone is insufficient.
+  const successfulStockReversals = new Set<string>();
   let stockUpdatedCount = 0;
   for (const effect of effects) {
     if (effect.quantityDelta === 0) continue;
@@ -440,6 +443,7 @@ export async function finalizeSupplierSuppliesSave(args: {
       throw new Error('Supply stock update blocked for receipt ' + (effect.row.suppliesno || '(new)') + ': selected variant ' + (effect.stockVariantOptionId ?? effect.row.variantOptionId ?? '(missing ID)') + ' does not exist for this inventory movement.');
     }
     stockUpdatedCount += 1;
+    if (effect.quantityDelta < 0) successfulStockReversals.add(effectRowKey(effect.row));
     if ((effect.reason === 'add' || effect.reason === 'enable' || effect.reason === 'edit') && effect.stockVariantOptionId != null) {
       successfulStockApplyTargets.set(effectRowKey(effect.row), effect.stockVariantOptionId);
     }
@@ -472,12 +476,8 @@ export async function finalizeSupplierSuppliesSave(args: {
             String(prev.productId || '').trim() !== String(row.productId || '').trim() ||
             String(prev.variantName || '').trim() !== String(row.variantName || '').trim())
       : false;
-    const oldMovementReversed = Boolean(prev?.stockApplied) && (
-      disabledThisSave ||
-      (liveIdentityChanged && effects.some((effect) =>
-        effect.row === prev && effect.quantityDelta < 0 && effect.applyStock !== false,
-      ))
-    );
+    const oldMovementReversed = Boolean(prev?.stockApplied) && Boolean(prev) &&
+      successfulStockReversals.has(effectRowKey(prev));
     const stockApplied = appliedTargetThisSave != null
       ? true
       : prev?.stockApplied === true && !oldMovementReversed;
