@@ -258,8 +258,13 @@ export async function replaceSupplierSupplyRecords(
       // An existing snapshot owns its original identity permanently. In particular,
       // do not attach it to a newly-created variant with the same label or SKU.
       const originalId = match.historicalVariantOptionId ?? match.variantOptionId;
-      if (originalId != null && row.variantOptionId != null && row.variantOptionId !== originalId) {
-        throw new Error('This historical receipt belongs to a deleted catalog variant. Create a new supply row for the replacement variant instead of changing this receipt.');
+      if (originalId != null && row.variantOptionId != null && row.variantOptionId !== match.variantOptionId) {
+        // A live receipt can be explicitly reassigned, but a deleted/archived
+        // original must remain a frozen snapshot. Do not use SKU/name matching.
+        const originalStillLive = match.variantOptionId != null && liveIds.has(match.variantOptionId);
+        if (!originalStillLive) {
+          throw new Error('The original catalog variant is no longer live. Create a new supply row for the replacement variant instead.');
+        }
       }
       if (originalId != null) {
         // Existing receipts retain their original variant identity. The user
