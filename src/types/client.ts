@@ -12,6 +12,8 @@ export interface Buyer {
   logistics?: string;
   notes?: string;
   orderDetails?: string;
+  /** Immutable OrderItem line snapshots included in the initial buyer query. */
+  orderLineDetails?: string;
   avgMonthlySpending?: number;
   avgMonthlyOrders?: number;
   createdAt?: Date;

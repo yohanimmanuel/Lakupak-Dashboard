@@ -65,10 +65,12 @@ type MarketplaceOrderLineForBuyer = {
   id: number;
   productId: string | null;
   productName: string;
+  productSkuSnapshot: string | null;
   packageQuantity: number | null;
   packageType: string | null;
   piecesPerPackage: number | null;
   subtotal: number;
+  pricePerPackage: number | null;
   variantOptionId: number | null;
   variantId: number | null;
   variantNameSnapshot: string | null;
@@ -328,137 +330,105 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
     return () => { cancelled = true; };
   }, [user?.id]);
 
-  // Marketplace-synced Buyer rows historically store an order-level product summary.
-  // Hydrate each unique order once from immutable OrderItem records when editing so
-  // product, variantOptionId, packageType and pieces-per-package are restored exactly.
+  // Marketplace order lines and their immutable catalog snapshots are included
+  // in the initial Buyer query. Expand the saved summaries synchronously instead
+  // of fetching each order after the modal opens.
   useEffect(() => {
-    if (!isEditMode || !user?.id || !initialData?.buyerId || !initialData.orderDetails) return;
-    const hydrationKey = `${initialData.buyerId}:${initialData.orderDetails}`;
-    if (hydratedMarketplaceBuyerKeyRef.current === hydrationKey) return;
+    if (!isEditMode || !initialData?.buyerId || !initialData.orderDetails || !initialData.orderLineDetails) return;
+    const hydrationKey = `${initialData.buyerId}:${initialData.orderDetails}:${initialData.orderLineDetails}`;
+    if (hydratedMarketplaceBuyerKeyRef.current === hydrationKey || orderRowsEditedRef.current) return;
 
-    let cancelled = false;
-    const hydrateMarketplaceRows = async () => {
-      let sourceRows: OrderDetail[];
-      try {
-        const parsed: unknown = JSON.parse(initialData.orderDetails || '[]');
-        if (!Array.isArray(parsed)) return;
-        sourceRows = parsed.map((value): OrderDetail => {
-          const row = value && typeof value === 'object' ? value as Record<string, unknown> : {};
-          return {
-            orderNo: String(row.orderNo || ''),
-            product: String(row.product || ''),
-            productId: typeof row.productId === 'string' ? row.productId : undefined,
-            variantOptionId: typeof row.variantOptionId === 'string' || typeof row.variantOptionId === 'number' ? row.variantOptionId : undefined,
-            variantName: typeof row.variantName === 'string' ? row.variantName : undefined,
-            sku: typeof row.sku === 'string' ? row.sku : undefined,
-            pricePerPackage: typeof row.pricePerPackage === 'string' ? row.pricePerPackage : undefined,
-            stockType: typeof row.stockType === 'string' ? row.stockType : undefined,
-            piecesPerPackage: Number(row.piecesPerPackage) > 0 ? Number(row.piecesPerPackage) : undefined,
-            totalOrders: String(row.totalOrders || ''),
-            totalSpend: String(row.totalSpend || ''),
-            shippingFee: String(row.shippingFee || ''),
-            lastOrderDate: String(row.lastOrderDate || ''),
-            outstanding: String(row.outstanding || ''),
-            syncedFromOrders: row.syncedFromOrders === true,
-          };
-        });
-      } catch {
-        return;
-      }
-
-      const groupedLiveRows = new Map<string, OrderDetail[]>();
-      const entries: Array<{ orderNo?: string; row?: OrderDetail }> = [];
-      for (const row of sourceRows) {
-        const orderNo = String(row.orderNo || '').trim();
-        if (orderNo && (row.syncedFromOrders || isMarketplaceOrderNo(orderNo))) {
-          const existing = groupedLiveRows.get(orderNo);
-          if (existing) existing.push(row);
-          else {
-            groupedLiveRows.set(orderNo, [row]);
-            entries.push({ orderNo });
-          }
-        } else {
-          entries.push({ row });
-        }
-      }
-
-      const hydratedRows = await Promise.all(entries.map(async (entry) => {
-        if (!entry.orderNo) return entry.row ? [entry.row] : [];
-        const group = groupedLiveRows.get(entry.orderNo) || [];
-        const representative = group[0];
-        if (!representative) return [];
-        try {
-          const data = await fetchGraphQL<{ buyerOrderDetail: MarketplaceOrderForBuyer | null }>(
-            `query BuyerModalOrderLines($userId: Int!, $buyerId: String!, $orderId: String!) {
-              buyerOrderDetail(userId: $userId, buyerId: $buyerId, orderId: $orderId) {
-                orderId orderDate
-                orderItems {
-                  id productId productName packageQuantity packageType piecesPerPackage
-                  subtotal variantOptionId variantId variantNameSnapshot promotionDetailsSnapshot moqSnapshot
-                }
-              }
-            }`,
-            { userId: user.id, buyerId: initialData.buyerId, orderId: entry.orderNo },
-          );
-          const order = data.buyerOrderDetail;
-          if (!order?.orderItems?.length) return group;
-
-          // Existing BuyerRecord rows may already have been split by an earlier edit.
-          // Recombine their money values before allocating them back across order lines.
-          const overallSpend = group.reduce((sum, row) => sum + parseBuyerAmount(row.totalSpend), 0);
-          const overallOutstanding = group.reduce((sum, row) => sum + parseBuyerAmount(row.outstanding), 0);
-          const overallShipping = group.reduce((sum, row) => sum + parseBuyerAmount(row.shippingFee), 0);
-          const weights = order.orderItems.map((line) => Math.max(0, Number(line.subtotal) || 0));
-          const weightTotal = weights.reduce((sum, value) => sum + value, 0);
-          const fallbackShare = 1 / order.orderItems.length;
-
-          return order.orderItems.map((line, index): OrderDetail => {
-            const share = weightTotal > 0 ? weights[index] / weightTotal : fallbackShare;
-            const packageQuantity = Math.max(0, Number(line.packageQuantity) || 0);
-            const piecesPerPackage = Math.max(1, Number(line.piecesPerPackage) || 1);
-            const stockType = String(line.packageType || 'Pieces');
-            let freePieces = 0;
-            if (line.promotionDetailsSnapshot) {
-              try {
-                const promotionDetails = JSON.parse(line.promotionDetailsSnapshot) as import('@/utils/promotionUtils').PromotionDetails;
-                const gift = calculatePromotionGift(promotionDetails, packageQuantity * piecesPerPackage, line.moqSnapshot ?? null);
-                freePieces = Math.max(0, Number(gift?.freeQty) || 0);
-              } catch {
-                // Ignore malformed legacy promotion snapshots and retain paid quantity.
-              }
-            }
-            const displayQuantity = packageQuantity + freePieces / piecesPerPackage;
-            return {
-              orderNo: order.orderId || entry.orderNo!,
-              product: String(line.productName || representative.product || ''),
-              productId: line.productId || undefined,
-              variantOptionId: (line.variantOptionId ?? line.variantId) == null
-                ? undefined
-                : String(line.variantOptionId ?? line.variantId),
-              variantName: line.variantNameSnapshot || '',
-              stockType,
-              piecesPerPackage,
-              totalOrders: formatBuyerOrderTotal(String(displayQuantity), stockType),
-              totalSpend: formatBuyerAmount(overallSpend * share),
-              shippingFee: formatBuyerAmount(overallShipping * share),
-              lastOrderDate: representative.lastOrderDate || order.orderDate || '',
-              outstanding: formatBuyerAmount(overallOutstanding * share),
-              syncedFromOrders: true,
-            };
-          });
-        } catch {
-          return group;
-        }
-      }));
-
-      if (cancelled || orderRowsEditedRef.current) return;
-      setOrderRows(hydratedRows.flat());
-      hydratedMarketplaceBuyerKeyRef.current = hydrationKey;
+    let sourceRows: OrderDetail[];
+    type InitialOrderLines = {
+      orderNo: string;
+      orderDate: string;
+      totalSpend: string;
+      shippingFee: string | null;
+      outstanding: string;
+      orderItems: MarketplaceOrderLineForBuyer[];
     };
+    let initialOrderLines: InitialOrderLines[];
+    try {
+      const parsedRows: unknown = JSON.parse(initialData.orderDetails);
+      const parsedLines: unknown = JSON.parse(initialData.orderLineDetails);
+      if (!Array.isArray(parsedRows) || !Array.isArray(parsedLines)) return;
+      sourceRows = parsedRows as OrderDetail[];
+      initialOrderLines = parsedLines as InitialOrderLines[];
+    } catch {
+      return;
+    }
 
-    void hydrateMarketplaceRows();
-    return () => { cancelled = true; };
-  }, [isEditMode, user?.id, initialData?.buyerId, initialData?.orderDetails]);
+    const linesByOrder = new Map(initialOrderLines.map((order) => [order.orderNo, order]));
+    const groupedRows = new Map<string, OrderDetail[]>();
+    const result: OrderDetail[] = [];
+
+    for (const row of sourceRows) {
+      const orderNo = String(row.orderNo || '').trim();
+      if (orderNo && (row.syncedFromOrders || isMarketplaceOrderNo(orderNo))) {
+        const group = groupedRows.get(orderNo) || [];
+        group.push(row);
+        groupedRows.set(orderNo, group);
+      } else {
+        result.push(row);
+      }
+    }
+
+    for (const [orderNo, group] of groupedRows) {
+      const order = linesByOrder.get(orderNo);
+      if (!order?.orderItems?.length) {
+        result.push(...group);
+        continue;
+      }
+      const representative = group[0];
+      const overallSpend = group.reduce((sum, row) => sum + parseBuyerAmount(row.totalSpend), 0);
+      const overallOutstanding = group.reduce((sum, row) => sum + parseBuyerAmount(row.outstanding), 0);
+      const overallShipping = group.reduce((sum, row) => sum + parseBuyerAmount(row.shippingFee), 0);
+      const weights = order.orderItems.map((line) => Math.max(0, Number(line.subtotal) || 0));
+      const weightTotal = weights.reduce((sum, value) => sum + value, 0);
+      const fallbackShare = 1 / order.orderItems.length;
+
+      result.push(...order.orderItems.map((line, index): OrderDetail => {
+        const share = weightTotal > 0 ? weights[index] / weightTotal : fallbackShare;
+        const packageQuantity = Math.max(0, Number(line.packageQuantity) || 0);
+        const piecesPerPackage = Math.max(1, Number(line.piecesPerPackage) || 1);
+        const stockType = String(line.packageType || 'Pieces');
+        let freePieces = 0;
+        if (line.promotionDetailsSnapshot) {
+          try {
+            const promotionDetails = JSON.parse(line.promotionDetailsSnapshot) as import('@/utils/promotionUtils').PromotionDetails;
+            const gift = calculatePromotionGift(promotionDetails, packageQuantity * piecesPerPackage, line.moqSnapshot ?? null);
+            freePieces = Math.max(0, Number(gift?.freeQty) || 0);
+          } catch {
+            // Retain paid quantity when a historical promotion snapshot is malformed.
+          }
+        }
+        const displayQuantity = packageQuantity + freePieces / piecesPerPackage;
+        return {
+          orderNo,
+          product: String(line.productName || representative.product || ''),
+          productId: line.productId || undefined,
+          variantOptionId: (line.variantOptionId ?? line.variantId) == null
+            ? undefined
+            : String(line.variantOptionId ?? line.variantId),
+          variantName: line.variantNameSnapshot || '',
+          sku: line.productSkuSnapshot || '',
+          pricePerPackage: line.pricePerPackage == null ? '' : String(line.pricePerPackage),
+          stockType,
+          piecesPerPackage,
+          totalOrders: formatBuyerOrderTotal(String(displayQuantity), stockType),
+          totalSpend: formatBuyerAmount(overallSpend * share),
+          shippingFee: formatBuyerAmount(overallShipping * share),
+          lastOrderDate: representative.lastOrderDate || order.orderDate || '',
+          outstanding: formatBuyerAmount(overallOutstanding * share),
+          syncedFromOrders: true,
+        };
+      }));
+    }
+
+    setOrderRows(result);
+    hydratedMarketplaceBuyerKeyRef.current = hydrationKey;
+  }, [isEditMode, initialData?.buyerId, initialData?.orderDetails, initialData?.orderLineDetails]);
+
 
   const getBuyerProduct = useCallback((productId?: string) =>
     orderProductCatalog.find((product) => product.productId === String(productId || '')),
