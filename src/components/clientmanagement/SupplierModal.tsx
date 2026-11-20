@@ -158,6 +158,7 @@ function SupplyMatchDropdown({
   className = '',
   needsAttention = false,
   attentionMessage,
+  disabled = false,
 }: {
   value: string;
   displayValue?: string;
@@ -172,6 +173,7 @@ function SupplyMatchDropdown({
   /** Highlight an unmatched legacy/deleted variant and explain the required action. */
   needsAttention?: boolean;
   attentionMessage?: string;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -290,12 +292,13 @@ function SupplyMatchDropdown({
       <button
         ref={buttonRef}
         type="button"
+        disabled={disabled}
         className={`flex h-9 w-full items-center justify-between gap-1 rounded-lg border px-2 py-0 text-left text-xs text-black hover:bg-gray-100 ${
           needsAttention
             ? 'border-amber-400 bg-amber-50 ring-1 ring-amber-200'
             : 'border-[#e6e6e6] bg-white'
         }`}
-        onClick={() => setOpen((next) => !next)}
+        onClick={() => { if (!disabled) setOpen((next) => !next); }}
       >
         <span className={`truncate ${(value || displayValue) ? 'text-black' : needsAttention ? 'font-medium text-amber-700' : 'text-gray-500'}`}>
           {displayValue || value || placeholder}
@@ -591,6 +594,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     catch { return []; }
   });
   const [archiveBusy, setArchiveBusy] = useState(false);
+  const [selectedArchivedRows, setSelectedArchivedRows] = useState<Set<string>>(new Set());
   const [selectedOpeningRows, setSelectedOpeningRows] = useState<Set<string>>(new Set());
   const [openingAction, setOpeningAction] = useState<{ kind: "archive" | "restore" | "delete"; rows: SupplyDetail[] } | null>(null);
   const [openingRows, setOpeningRows] = useState<SupplyDetail[]>(() => parseSupplyBuckets(initialData?.supplies).opening);
@@ -904,7 +908,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   const handleHistoryVariantSelect = useCallback((idx: number, variantId: string) => {
     const match = catalogOptions.find((opt) => opt.variantOptionId != null && String(opt.variantOptionId) === variantId);
     if (!match) return;
-    setHistoryRows((rows) => rows.map((row, i) => i === idx ? {
+    setHistoryRows((rows) => rows.map((row, i) => i === idx && !isDeletedVariantReceipt(row) ? {
       ...row,
       sku: match.sku,
       product: match.product,
@@ -919,7 +923,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     (idx: number, productId: string) => {
       const matches = catalogOptions.filter((opt) => opt.productId === productId);
       setHistoryRows((rows) => rows.map((row, i) => {
-        if (i !== idx) return row;
+        if (i !== idx || isDeletedVariantReceipt(row)) return row;
         const identified = matches.find((item) => item.variantName === row.variantName)
           || (matches.length === 1 ? matches[0] : undefined);
         const productName = matches[0]?.product || row.product;
@@ -1812,6 +1816,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                             noMatchLabel={tSuppliersModal('catalogNoMatch')}
                             searchPlaceholder={tSuppliersModal('searchProduct')}
                             onSelect={(productId) => handleHistoryProductSelect(idx, productId)}
+                            disabled={deletedVariant}
                           />
                         </td>
                         <td className="px-3 py-2">
@@ -1827,12 +1832,13 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                             noMatchLabel={tSuppliersModal('catalogNoMatch')}
                             searchPlaceholder={tSuppliersModal('searchSku')}
                             needsAttention={needsVariantLink || canArchiveRow}
+                            disabled={deletedVariant}
                             attentionMessage={hasReplacementVariant
-                              ? 'The original variant was deleted and a replacement with the same product/variant details now exists under a new ID. Select the live SKU and variant to reconnect this receipt to inventory.'
+                              ? 'The original variant was deleted. This receipt is a historical snapshot and cannot be reassigned. Create a new supply row and select the new catalog variant, or archive this old receipt.'
                               : needsVariantLink
                                 ? 'This older receipt has no saved link to a live catalog variant. Select the current SKU and variant so the system knows exactly which inventory item this receipt belongs to.'
                                 : canArchiveRow
-                                  ? 'The original catalog variant was deleted and no matching replacement was found. Choose another variant, or archive/delete this supply.'
+                                  ? 'The original catalog variant was deleted. This receipt cannot be reassigned. Create a new supply row for another variant, or archive/delete this receipt.'
                                   : undefined}
                             onSelect={(variantId) => handleHistoryVariantSelect(idx, variantId)}
                             renderOption={(option) => (
@@ -1856,6 +1862,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                             noMatchLabel={tSuppliersModal('catalogNoMatch')}
                             searchPlaceholder={tSuppliersModal('searchVariant')}
                             onSelect={(variantId) => handleHistoryVariantSelect(idx, variantId)}
+                            disabled={deletedVariant}
                             className={!row.productId && !row.variantName ? 'opacity-60' : ''}
                           />
                         </td>
@@ -2234,21 +2241,75 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                 </div>
               </div>
             )}
-            {archivedOpeningRows.length === 0 ? (
-              <div className="rounded-lg border border-[#e6e6e6] bg-gray-50 p-6 text-center text-sm text-gray-600">No archived supplies yet.</div>
-            ) : (
-              <div className="space-y-2">
-                {archivedOpeningRows.map((row) => (
-                  <div key={row.suppliesno} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#e6e6e6] bg-white p-4">
-                    <div className="min-w-0 text-sm text-black">
-                      <div className="font-semibold">{row.product} — {row.variantName || 'Default'}</div>
-                      <div className="mt-1 text-xs text-gray-500">{row.sku} · {row.totalSupplied} Pieces</div>
-                    </div>
-                    <button type="button" disabled={archiveBusy} className="rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-xs font-semibold text-black hover:bg-gray-50 disabled:opacity-50" onClick={() => setOpeningAction({kind:"restore",rows:[row]})}><RotateCcw className="mr-1 inline h-4 w-4"/> Restore</button>
-                  </div>
-                ))}
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs text-gray-500">{archivedOpeningRows.length} archived supply record(s)</span>
+              <div className="flex gap-2">
+                <button type="button" disabled={archiveBusy || selectedArchivedRows.size === 0}
+                  className="rounded-lg border border-[#e6e6e6] px-3 py-2 text-xs font-semibold disabled:opacity-40"
+                  onClick={async () => {
+                    const targets = archivedOpeningRows.filter((row) => selectedArchivedRows.has(row.suppliesno));
+                    for (const row of targets) await setOpeningArchive(row, false);
+                    setSelectedArchivedRows(new Set());
+                  }}><RotateCcw className="mr-1 inline h-4 w-4" />Restore selected</button>
+                <button type="button" disabled={archiveBusy || selectedArchivedRows.size === 0}
+                  className="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 disabled:opacity-40"
+                  onClick={() => setOpeningAction({ kind: 'delete', rows: archivedOpeningRows.filter((row) => selectedArchivedRows.has(row.suppliesno)) })}>
+                  <Trash className="mr-1 inline h-4 w-4" />Delete selected
+                </button>
               </div>
-            )}
+            </div>
+            <div className="overflow-x-auto rounded-lg border border-[#e6e6e6]">
+              <table className="min-w-[1000px] w-full text-left text-xs">
+                <thead className="bg-gray-100 text-gray-500">
+                  <tr>
+                    <th className="px-3 py-3"><input type="checkbox" aria-label="Select all archived supplies"
+                      checked={archivedOpeningRows.length > 0 && archivedOpeningRows.every((row) => selectedArchivedRows.has(row.suppliesno))}
+                      onChange={(e) => setSelectedArchivedRows(e.target.checked ? new Set(archivedOpeningRows.map((row) => row.suppliesno)) : new Set())}/></th>
+                    <th className="px-3 py-3">NO.</th>
+                    <th className="px-3 py-3">PRODUCT</th>
+                    <th className="px-3 py-3">SKU</th>
+                    <th className="px-3 py-3">VARIANT</th>
+                    <th className="px-3 py-3">RECEIVED (PACKAGE TYPE)</th>
+                    <th className="px-3 py-3">PURCHASE VALUE</th>
+                    <th className="px-3 py-3">LAST SUPPLIED DATE</th>
+                    <th className="px-3 py-3">ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#e6e6e6]">
+                  {archivedOpeningRows.map((row, index) => {
+                    const received = getSupplyReceivedInput(row);
+                    return <tr key={row.suppliesno || index} className="text-gray-800">
+                      <td className="px-3 py-3"><input type="checkbox" aria-label={`Select archived supply ${index + 1}`}
+                        checked={selectedArchivedRows.has(row.suppliesno)}
+                        onChange={(e) => setSelectedArchivedRows((previous) => {
+                          const next = new Set(previous);
+                          if (e.target.checked) next.add(row.suppliesno);
+                          else next.delete(row.suppliesno);
+                          return next;
+                        })}/></td>
+                      <td className="px-3 py-3">{index + 1}</td>
+                      <td className="px-3 py-3 font-medium">{row.product || '—'}</td>
+                      <td className="px-3 py-3">{row.sku || '—'}</td>
+                      <td className="px-3 py-3">{row.variantName || 'Default'}</td>
+                      <td className="px-3 py-3">{received.receivedQuantity} {received.receivedUnit}</td>
+                      <td className="px-3 py-3">{currencySymbol}{row.totalValue || '0'}</td>
+                      <td className="px-3 py-3">{row.lastSuppliedDate || '—'}</td>
+                      <td className="px-3 py-3">
+                        <div className="flex gap-2">
+                          <button type="button" disabled={archiveBusy} aria-label="Restore supply"
+                            title="Restore supply" className="rounded-full p-1 text-blue-600 hover:bg-blue-50 disabled:opacity-40"
+                            onClick={() => void setOpeningArchive(row, false)}><RotateCcw className="h-4 w-4"/></button>
+                          <button type="button" disabled={archiveBusy} aria-label="Delete archived supply"
+                            title="Delete archived supply" className="rounded-full p-1 text-red-500 hover:bg-red-50 disabled:opacity-40"
+                            onClick={() => setOpeningAction({kind:'delete',rows:[row]})}><Trash className="h-4 w-4"/></button>
+                        </div>
+                      </td>
+                    </tr>;
+                  })}
+                  {archivedOpeningRows.length === 0 && <tr><td colSpan={9} className="p-6 text-center text-gray-500">No archived supplies yet.</td></tr>}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
