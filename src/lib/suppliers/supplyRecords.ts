@@ -471,6 +471,16 @@ export function serializeHistorySupplyForStorage(row: SupplyDetail): SupplyDetai
     recordType: 'history',
     productId: row.productId ? String(row.productId) : undefined,
     variantName: row.variantName ? String(row.variantName) : undefined,
+    // These IDs are the inventory identity. Omitting them makes the visible
+    // SKU/variant labels look selected while the saved receipt loses its live
+    // target, so stock updates are rejected and the checkbox is cleared.
+    variantOptionId: row.variantOptionId == null ? undefined : Number(row.variantOptionId),
+    historicalVariantOptionId: row.historicalVariantOptionId == null
+      ? (row.variantOptionId == null ? undefined : Number(row.variantOptionId))
+      : Number(row.historicalVariantOptionId),
+    stockAppliedVariantOptionId: row.stockAppliedVariantOptionId == null
+      ? undefined
+      : Number(row.stockAppliedVariantOptionId),
     updateCurrentStock: row.updateCurrentStock === true,
     stockApplied: row.stockApplied === true,
   };

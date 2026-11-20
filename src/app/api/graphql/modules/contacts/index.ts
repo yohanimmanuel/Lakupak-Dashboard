@@ -474,13 +474,14 @@ type BuyerOrderLineSnapshot = {
 
 async function loadBuyerOrderLineSnapshots(
   userId: number,
-  buyerIds: string[],
+  orderNos: string[],
 ): Promise<Map<string, BuyerOrderLineSnapshot[]>> {
-  if (buyerIds.length === 0) return new Map();
+  const exactOrderNos = [...new Set(orderNos.map((value) => String(value || '').trim()).filter(Boolean))];
+  if (exactOrderNos.length === 0) return new Map();
   const orders = await prisma.order.findMany({
     where: {
       userId,
-      buyerId: { in: buyerIds },
+      orderId: { in: exactOrderNos },
       isDeleted: false,
       orderStatus: { notIn: ['Cancelled', 'Returned'] },
     },
@@ -509,7 +510,7 @@ async function loadBuyerOrderLineSnapshots(
   });
   const snapshots = new Map<string, BuyerOrderLineSnapshot[]>();
   for (const order of orders) {
-    snapshots.set(`${order.buyerId}|${order.orderId}`, order.orderItemsRel.map((item) => ({
+    snapshots.set(String(order.orderId || '').trim(), order.orderItemsRel.map((item) => ({
       id: item.id,
       productId: item.productId ?? null,
       productName: item.productNameSnapshot || 'Unknown Product',
@@ -534,15 +535,22 @@ function withBuyerOrderLineSnapshots(
   snapshots: Map<string, BuyerOrderLineSnapshot[]>,
 ): BuyerWithRecords {
   const records = buyer.buyerRecords || [];
-  const orderLineDetails = records
-    .filter((record) => record.syncedFromOrders || String(record.orderNo || '').toUpperCase().startsWith('LKO-'))
+  // BuyerRecord is a compact per-order summary. Older imports may contain more
+  // than one summary row for an orderNo; emit immutable OrderItem lines only once.
+  const marketplaceRecordsByOrder = new Map<string, (typeof records)[number]>();
+  for (const record of records) {
+    const orderNo = String(record.orderNo || '').trim();
+    if (!orderNo || !(record.syncedFromOrders || orderNo.toUpperCase().startsWith('LKO-'))) continue;
+    if (!marketplaceRecordsByOrder.has(orderNo)) marketplaceRecordsByOrder.set(orderNo, record);
+  }
+  const orderLineDetails = [...marketplaceRecordsByOrder.values()]
     .map((record) => ({
       orderNo: record.orderNo,
       orderDate: record.lastOrderDate,
       totalSpend: record.totalSpend,
       shippingFee: record.shippingFee,
       outstanding: record.outstanding,
-      orderItems: snapshots.get(`${buyer.buyerId}|${record.orderNo}`) || [],
+      orderItems: snapshots.get(String(record.orderNo || '').trim()) || [],
     }))
     .filter((record) => record.orderItems.length > 0);
 
@@ -550,7 +558,7 @@ function withBuyerOrderLineSnapshots(
     ...buyer,
     orderLineDetails: orderLineDetails.length ? JSON.stringify(orderLineDetails) : null,
     buyerRecords: records.map((record) => {
-      const lines = snapshots.get(`${buyer.buyerId}|${record.orderNo}`) || [];
+      const lines = snapshots.get(String(record.orderNo || '').trim()) || [];
       if (lines.length === 0) return record;
       const distinct = (values: Array<string | null | undefined>) =>
         [...new Set(values.map((value) => String(value || '').trim()).filter(Boolean))];
@@ -619,7 +627,12 @@ const fetchBuyersConnection = async (args: {
 
   // Backfill missing legacy BuyerRecord SKU/variant labels from immutable OrderItem
   // snapshots in one batched query. Do not depend on the current Product Catalog.
-  const orderLineSnapshots = await loadBuyerOrderLineSnapshots(userId, buyers.map((buyer) => buyer.buyerId));
+  const buyerOrderNos = buyers.flatMap((buyer) =>
+    (buyer as BuyerWithRecords).buyerRecords
+      ?.filter((record) => record.syncedFromOrders || String(record.orderNo || '').toUpperCase().startsWith('LKO-'))
+      .map((record) => record.orderNo) || [],
+  );
+  const orderLineSnapshots = await loadBuyerOrderLineSnapshots(userId, buyerOrderNos);
   return {
     nodes: buyers.map((buyer) => mapBuyer(withBuyerOrderLineSnapshots(buyer as BuyerWithRecords, orderLineSnapshots))),
     pagination: buildPaginationInfo(safePage, safeLimit, totalCount),
@@ -702,7 +715,10 @@ const fetchSingleBuyer = async (args: { userId: number; id: string }) => {
 
   // Profile reads stay read-only. Fill missing legacy labels from immutable OrderItem
   // snapshots in the same request, using one batched query rather than client hydration.
-  const orderLineSnapshots = await loadBuyerOrderLineSnapshots(userId, [buyer.buyerId]);
+  const buyerOrderNos = (buyer as BuyerWithRecords).buyerRecords
+    ?.filter((record) => record.syncedFromOrders || String(record.orderNo || '').toUpperCase().startsWith('LKO-'))
+    .map((record) => record.orderNo) || [];
+  const orderLineSnapshots = await loadBuyerOrderLineSnapshots(userId, buyerOrderNos);
   return mapBuyer(withBuyerOrderLineSnapshots(buyer as BuyerWithRecords, orderLineSnapshots));
 };
 
