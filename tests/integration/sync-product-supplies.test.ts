@@ -8,7 +8,7 @@ import {
   removeProductSuppliesInTransaction,
   removeProductVariantsSuppliesInTransaction,
   supplyAutoNo,
-  syncSupplierFromProduct,
+  syncAllProductSuppliersForUser,
 } from '@/lib/suppliers/syncProductSupplies';
 import {
   loadSupplierSupplies,
@@ -18,12 +18,12 @@ import type { SupplyDetail } from '@/types/client';
 import { resetDb } from './helpers';
 import { createTestDistributor } from './helpers/productFixtures';
 
-describe('syncSupplierFromProduct supplier change (integration)', () => {
+describe('receipt-only supplier/product relationship (integration)', () => {
   beforeEach(async () => {
     await resetDb();
   });
 
-  it('preserves old supplier history without automatically duplicating opening balances', async () => {
+  it('keeps receipts with their original supplier and does not auto-create replacement balances', async () => {
     const distributor = await createTestDistributor();
     const productId = 'P-SUPPLY-MOVE-1';
     const autoNo = supplyAutoNo(productId, 'Default');
@@ -100,25 +100,9 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
       [summary, history, unrelated],
     );
 
-    const productSnapshot = {
-      productId,
-      name: 'Move Test Widget',
-      supplier: 'Supplier B',
-      userId: distributor.id,
-      variantOptions: [
-        {
-          variantName: 'Default',
-          sku: 'SKU-MOVE-1',
-          purchasePrice: '5000',
-          stockQuantity: 250,
-          isActive: true,
-        },
-      ],
-    };
-
-    // Changing the Product Catalog supplier must not automatically
-    // move existing opening balances or historical supply records.
-    await syncSupplierFromProduct(productSnapshot);
+    // Legacy catalog-to-supplier reconciliation is now a compatibility no-op.
+    // Product supplier reassignment must never move receipts or synthesize balances.
+    await syncAllProductSuppliersForUser(distributor.id);
 
     const [onA, onB] = await Promise.all([
       loadSupplierSupplies(prisma, supplierA.id),
@@ -161,9 +145,8 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
       onB.some((r) => r.suppliesno === 'HIST-MOVE-1'),
     ).toBe(false);
 
-    // Repeated synchronization must be idempotent.
-    // It must not generate duplicate opening balances.
-    await syncSupplierFromProduct(productSnapshot);
+    // Repeated compatibility sync remains a no-op.
+    await syncAllProductSuppliersForUser(distributor.id);
 
     const [afterA, afterB] = await Promise.all([
       loadSupplierSupplies(prisma, supplierA.id),
@@ -195,31 +178,38 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
     ).toBe(false);
   });
 
-  it('reconciles AUTO summary to current variant stock without accumulating on repeated sync', async () => {
+  it('does not create supplier opening balances from product creation, stock edits, or legacy sync', async () => {
     const distributor = await createTestDistributor();
-    const productId = 'P-SUPPLY-SNAPSHOT-IDEMPOTENT';
+    const productId = 'P-SUPPLY-RECEIPT-ONLY';
     const supplier = await prisma.supplier.create({
       data: {
-        supplierId: `LKS-SNAPSHOT-${distributor.id}`,
-        name: 'Snapshot Supplier', contact: 'S', email: 'snapshot@test.local',
-        phone: '555', businessType: 'Distributor', address: 'S St', status: 'Active', userId: distributor.id,
+        supplierId: `LKS-RECEIPT-ONLY-${distributor.id}`,
+        name: 'Receipt Only Supplier',
+        contact: 'S',
+        email: 'receipt-only@test.local',
+        phone: '555',
+        businessType: 'Distributor',
+        address: 'S St',
+        status: 'Active',
+        userId: distributor.id,
       },
     });
+
     await createProduct({
       userId: distributor.id,
       productId,
-      name: 'Snapshot Widget',
+      name: 'Receipt Only Widget',
       description: 'Test',
       productType: 'Test',
       brand: 'Test',
       supplier: supplier.name,
       status: 'Published',
       catalogName: 'Default',
-      images: ['https://example.com/snapshot-widget.jpg'],
+      images: ['https://example.com/receipt-only-widget.jpg'],
       variantOptions: [{
         variantName: 'Default',
         attributes: {},
-        sku: 'SKU-SNAPSHOT',
+        sku: 'SKU-RECEIPT-ONLY',
         purchasePrice: '1000',
         sellingPrice: '1500',
         originalSellingPrice: '1500',
@@ -231,41 +221,25 @@ describe('syncSupplierFromProduct supplier change (integration)', () => {
         isActive: true,
       }],
     });
+
+    let rows = await loadSupplierSupplies(prisma, supplier.id);
+    expect(rows).toHaveLength(0);
+
     const product = await prisma.product.findFirst({
       where: { productId, userId: distributor.id },
       include: { variantOptions: true },
     });
-    if (!product) throw new Error('Fixture product was not created');
-    const snapshot = {
-      productId: product.productId,
-      name: product.name,
-      supplier: product.supplier,
-      userId: distributor.id,
-      variantOptions: product.variantOptions.map((v) => ({
-        variantName: v.variantName, sku: v.sku, purchasePrice: v.purchasePrice,
-        stockQuantity: v.stockQuantity, isActive: v.isActive,
-      })),
-    };
+    if (!product?.variantOptions[0]) throw new Error('Fixture variant was not created');
 
-    await syncSupplierFromProduct(snapshot);
-    await syncSupplierFromProduct(snapshot);
-    let rows = await loadSupplierSupplies(prisma, supplier.id);
-    expect(rows.filter((row) => row.suppliesno === supplyAutoNo(productId, 'Default'))).toHaveLength(1);
-    expect(rows.find((row) => row.suppliesno === supplyAutoNo(productId, 'Default'))?.totalSupplied).toBe('500');
-
-    await prisma.variantOption.updateMany({ where: { productId: product.id }, data: { stockQuantity: 350 } });
-    const refreshed = await prisma.product.findUnique({ where: { id: product.id }, include: { variantOptions: true } });
-    if (!refreshed) throw new Error('Fixture product disappeared');
-    await syncSupplierFromProduct({
-      ...snapshot,
-      variantOptions: refreshed.variantOptions.map((v) => ({
-        variantName: v.variantName, sku: v.sku, purchasePrice: v.purchasePrice,
-        stockQuantity: v.stockQuantity, isActive: v.isActive,
-      })),
+    await prisma.variantOption.update({
+      where: { id: product.variantOptions[0].id },
+      data: { stockQuantity: 350 },
     });
+    await syncAllProductSuppliersForUser(distributor.id);
+
     rows = await loadSupplierSupplies(prisma, supplier.id);
-    expect(rows.filter((row) => row.suppliesno === supplyAutoNo(productId, 'Default'))).toHaveLength(1);
-    expect(rows.find((row) => row.suppliesno === supplyAutoNo(productId, 'Default'))?.totalSupplied).toBe('350');
+    expect(rows).toHaveLength(0);
+    expect(rows.some((row) => row.recordType === 'summary' || row.suppliesno.startsWith('AUTO-'))).toBe(false);
   });
 
   it('rolls back supplier cleanup when the surrounding product deletion transaction fails', async () => {
