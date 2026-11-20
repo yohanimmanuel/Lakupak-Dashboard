@@ -1240,6 +1240,9 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
 
     const unresolvedStockRows = historyRows.filter((row) => {
       if (isBlankHistoryRow(row)) return false;
+      // Deleted/legacy variant snapshots may remain in the table indefinitely.
+      // They are historical records, not unresolved new stock operations.
+      if (row.variantOptionId == null && String(row.suppliesno || '').trim()) return false;
       if (row.updateCurrentStock !== true) return false;
       const qty = Number(String(row.totalSupplied || '').replace(/[^\d.-]/g, ''));
       if (!Number.isFinite(qty) || qty <= 0) return false;
@@ -1628,6 +1631,23 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
             required
             rows={3}
           />
+          {/* Supplier and supply action feedback stays beside the affected table. */}
+          {/* Success Message */}
+          {success && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+              <span className="text-green-800 text-xs font-medium">{success}</span>
+            </div>
+          )}
+          
+          {/* Error Message */}
+          {error && !(suppliesTab === 'opening' && isEditMode) && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+              <span className="text-red-800 text-xs font-medium">{error}</span>
+            </div>
+          )}
+
           {/* Supplies & Product Data — summary read-only; history editable via table + import/export */}
           <div className="my-2 border-t border-gray-200 pt-2">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -2166,21 +2186,6 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
             placeholder={tSuppliersModal('notesPlaceholder')}
           />
           
-          {/* Success Message */}
-          {success && (
-            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
-              <span className="text-green-800 text-xs font-medium">{success}</span>
-            </div>
-          )}
-          
-          {/* Error Message */}
-          {error && !(suppliesTab === 'opening' && isEditMode) && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
-              <span className="text-red-800 text-xs font-medium">{error}</span>
-            </div>
-          )}
         </form>
       </div>
 
