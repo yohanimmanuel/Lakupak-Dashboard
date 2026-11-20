@@ -193,11 +193,10 @@ export async function replaceSupplierSupplyRecords(
       : Array.isArray(details)
         ? details
         : [];
-  // Receipt-only saves never merge or validate legacy AUTO/summary snapshots.
-  // Keep every dated receipt as an independent accounting event.
-  let list = raw
-    .filter((row) => !isSupplyDeleteMarker(row))
-    .filter((row) => getSupplyRecordType({ suppliesno: row.suppliesno, recordType: row.recordType === 'summary' ? 'summary' : 'history' }) === 'history');
+  // Active supplier saves supply only receipt history. This lower-level helper
+  // also accepts explicitly provided legacy snapshots for backward-compatible
+  // restoration and test setup. Never synthesize or merge summaries here.
+  const list = raw.filter((row) => !isSupplyDeleteMarker(row));
   // Never auto-link historical receipts to a current variant by SKU/name.
   // Legacy imports without an explicit variant ID remain unlinked until
   // an authorized user selects the exact variant in the supplier editor.
