@@ -256,24 +256,21 @@ export async function replaceSupplierSupplyRecords(
       continue;
     }
     if (match) {
-      // An existing snapshot owns its original identity permanently. In particular,
-      // do not attach it to a newly-created variant with the same label or SKU.
-      const originalId = match.historicalVariantOptionId ?? match.variantOptionId;
-      if (originalId != null && row.variantOptionId != null && row.variantOptionId !== match.variantOptionId) {
-        // Reassignment is allowed only from a currently active live link.
-        // The historical ID is an immutable audit snapshot and may itself be
-        // inactive after an earlier authorized reassignment. Never use SKU/name matching.
-        const originalStillLive = match.variantOptionId != null &&
-          liveIds.has(match.variantOptionId);
-        if (!originalStillLive) {
-          throw new Error('The original catalog variant is no longer live. Create a new supply row for the replacement variant instead.');
-        }
+      // An explicit in-place correction replaces the receipt's current product
+      // identity, even if its previous variant was deleted or moved suppliers.
+      // The receipt ID remains stable. Never infer a replacement by SKU/name:
+      // only a selected, active catalog VariantOption ID may be persisted.
+      const identityChanged = row.variantOptionId != null &&
+        row.variantOptionId !== match.variantOptionId;
+      if (identityChanged && !liveIds.has(row.variantOptionId!)) {
+        throw new Error('Select an active catalog variant to correct this supply receipt.');
       }
-      if (originalId != null) {
-        // Existing receipts retain their original variant identity. The user
-        // must create a separate receipt when supplying a replacement variant.
-        row.historicalVariantOptionId = originalId;
-        if (row.recordType !== 'history') row.variantOptionId = null;
+      if (identityChanged) {
+        row.historicalVariantOptionId = row.variantOptionId;
+      } else if (match.historicalVariantOptionId != null) {
+        row.historicalVariantOptionId = match.historicalVariantOptionId;
+      } else if (match.variantOptionId != null) {
+        row.historicalVariantOptionId = match.variantOptionId;
       }
       used.add(match.id);
       await db.supplyRecord.update({
