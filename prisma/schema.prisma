@@ -313,7 +313,7 @@ model SupplyRecord {
   variantOptionId    Int?
   /// Immutable historical catalog identity. Retained when variantOptionId is cleared by deletion.
   historicalVariantOptionId Int?
-  /// Soft archive for catalog opening balances; historical receipts are never archived here.
+  /// Soft archive for eligible orphaned/legacy supplier receipts and retained legacy snapshots.
   archivedAt DateTime? @db.Timestamptz(3)
   variantOption      VariantOption? @relation(fields: [variantOptionId], references: [id], onDelete: SetNull)
   updateCurrentStock Boolean  @default(false)
