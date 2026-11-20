@@ -1160,8 +1160,8 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     setSubmitAttempted(false);
   }, [initialData, isEditMode, safeParseJSON, getLatestSuppliedDate]);
 
-  const setOpeningArchive = async (row: SupplyDetail, archived: boolean) => {
-    if (!isEditMode || !user?.id || !initialData?.supplierId || archiveBusy) return;
+  const setOpeningArchive = async (row: SupplyDetail, archived: boolean): Promise<boolean> => {
+    if (!isEditMode || !user?.id || !initialData?.supplierId || archiveBusy) return false;
     setArchiveBusy(true);
     setError('');
     try {
@@ -1186,13 +1186,15 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
       setSummaryPage(1);
       setSelectedOpeningRows((prev) => { const next = new Set(prev); next.delete(row.suppliesno); return next; });
       setSuccess(archived ? 'Supply archived.' : 'Supply restored.');
+      return true;
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Unable to change archive status');
+      return false;
     } finally { setArchiveBusy(false); }
   };
 
-  const deleteOpening = async (row: SupplyDetail) => {
-    if (!isEditMode || !user?.id || !initialData?.supplierId || archiveBusy) return;
+  const deleteOpening = async (row: SupplyDetail): Promise<boolean> => {
+    if (!isEditMode || !user?.id || !initialData?.supplierId || archiveBusy) return false;
     setArchiveBusy(true);
     setError('');
     try {
@@ -1209,7 +1211,8 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
 
       setSummaryPage(1);
       setSuccess('Supply deleted. Other receipt history was preserved.');
-    } catch (error) { setError(error instanceof Error ? error.message : 'Unable to delete opening balance'); }
+      return true;
+    } catch (error) { setError(error instanceof Error ? error.message : 'Unable to delete archived supply'); return false; }
     finally { setArchiveBusy(false); }
   };
 
@@ -1220,8 +1223,10 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     // Each operation manages its own busy/error state. Keep the remaining
     // records available for retry if an individual mutation fails.
     for (const row of rows) {
-      if (kind === 'delete') await deleteOpening(row);
-      else await setOpeningArchive(row, kind === 'archive');
+      const succeeded = kind === 'delete'
+        ? await deleteOpening(row)
+        : await setOpeningArchive(row, kind === 'archive');
+      if (!succeeded) break; // Do not claim the rest of a failed bulk action completed.
     }
     // Archiving/deleting history rows changes their indices in the table.
     setSelectedHistoryRows(new Set());
@@ -2217,7 +2222,9 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                   className="rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-[#0a61d7] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[#e6e6e6] disabled:hover:bg-white disabled:hover:text-gray-700"
                   onClick={async () => {
                     const targets = archivedOpeningRows.filter((row) => selectedArchivedRows.has(row.suppliesno));
-                    for (const row of targets) await setOpeningArchive(row, false);
+                    for (const row of targets) {
+                      if (!await setOpeningArchive(row, false)) break;
+                    }
                     setSelectedArchivedRows(new Set());
                   }}><RotateCcw className="mr-1 inline h-4 w-4" />Restore selected</button>
                 <button type="button" disabled={archiveBusy || selectedArchivedRows.size === 0}
