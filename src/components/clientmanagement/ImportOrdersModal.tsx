@@ -385,25 +385,25 @@ export default function ImportOrdersModal({
         <div className="flex-1 min-h-0 overflow-y-auto">
         {step === 0 && (
           <ImportStartPanel
-            title="Buyer order and product records"
-            overview="Import historical buyer product/order rows. Each row becomes one buyer record; it does not create a new catalog product."
-            matchingGuide="Match to the currently selected buyer's catalog using one exact Lakupak SKU, or exact Product + Variant. A distributor's external item code is only an alias if it is identical to the Lakupak SKU; if it differs, replace it with the correct Lakupak SKU or use the exact Product + Variant. No fuzzy or approximate alias matching is performed."
+            title={tImport('buyerGuideTitle')}
+            overview={tImport('buyerGuideOverview')}
+            matchingGuide={tImport('buyerGuideMatching')}
             instructions={[
-              'Use one row per buyer-product-variant combination.',
-              'Provide an exact SKU, or an exact Product + Variant that exists in the current product catalog.',
-              'Total Orders must be numeric. Stock Type must match one of the stock levels configured for that product.',
-              'Do not combine multiple products or units in one row. Import a separate row for each combination.',
+              tImport('buyerGuideInstruction0'),
+              tImport('buyerGuideInstruction1'),
+              tImport('buyerGuideInstruction2'),
+              tImport('buyerGuideInstruction3'),
             ]}
             columns={[
-              { name: 'Product', description: 'Exact product name when SKU is not provided.' },
-              { name: 'SKU', description: 'Exact variant SKU. Recommended matching key.' },
-              { name: 'Variant', description: 'Exact variant label when SKU is not provided.' },
-              { name: 'Total Orders', required: true, description: 'Positive numeric order quantity, without unit text.' },
-              { name: 'Stock Type', required: true, description: 'Exact product stock-level name.' },
-              { name: 'Price / Pckg', description: 'Historical price for the selected stock type.' },
-              { name: 'Total Spend', description: 'Historical total spend.' },
-              { name: 'Total Outstanding', description: 'Outstanding balance.' },
-              { name: 'Last Order Date', description: 'Date in YYYY-MM-DD format.' },
+              { name: tImport('buyerGuideColumn0Name'), description: tImport('buyerGuideColumn0Description') },
+              { name: tImport('buyerGuideColumn1Name'), description: tImport('buyerGuideColumn1Description') },
+              { name: tImport('buyerGuideColumn2Name'), description: tImport('buyerGuideColumn2Description') },
+              { name: tImport('buyerGuideColumn3Name'), required: true, description: tImport('buyerGuideColumn3Description') },
+              { name: tImport('buyerGuideColumn4Name'), required: true, description: tImport('buyerGuideColumn4Description') },
+              { name: tImport('buyerGuideColumn5Name'), description: tImport('buyerGuideColumn5Description') },
+              { name: tImport('buyerGuideColumn6Name'), description: tImport('buyerGuideColumn6Description') },
+              { name: tImport('buyerGuideColumn7Name'), description: tImport('buyerGuideColumn7Description') },
+              { name: tImport('buyerGuideColumn8Name'), description: tImport('buyerGuideColumn8Description') },
             ]}
             templateName="Lakupak_Buyer_Records_Template.xlsx"
             onFileSelectedAction={handleFile}
