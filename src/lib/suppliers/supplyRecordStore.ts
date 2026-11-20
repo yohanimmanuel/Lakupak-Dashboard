@@ -228,6 +228,16 @@ export async function replaceSupplierSupplyRecords(
     }
   }
   const existing = await db.supplyRecord.findMany({ where: { supplierRefId } });
+  const historicalIds = [...new Set(existing
+    .map((record) => record.historicalVariantOptionId ?? record.variantOptionId)
+    .filter((id): id is number => id != null))];
+  const activeOriginals = historicalIds.length
+    ? await db.variantOption.findMany({
+        where: { id: { in: historicalIds }, isActive: true, product: { userId: supplierOwner.userId } },
+        select: { id: true },
+      })
+    : [];
+  const activeOriginalIds = new Set(activeOriginals.map((variant) => variant.id));
   const byNo = new Map<string, typeof existing>();
   for (const row of existing) {
     if (!row.suppliesno) continue;
@@ -261,7 +271,8 @@ export async function replaceSupplierSupplyRecords(
       if (originalId != null && row.variantOptionId != null && row.variantOptionId !== match.variantOptionId) {
         // A live receipt can be explicitly reassigned, but a deleted/archived
         // original must remain a frozen snapshot. Do not use SKU/name matching.
-        const originalStillLive = match.variantOptionId != null && liveIds.has(match.variantOptionId);
+        const originalStillLive = match.variantOptionId != null &&
+          liveIds.has(match.variantOptionId) && originalId != null && activeOriginalIds.has(originalId);
         if (!originalStillLive) {
           throw new Error('The original catalog variant is no longer live. Create a new supply row for the replacement variant instead.');
         }
