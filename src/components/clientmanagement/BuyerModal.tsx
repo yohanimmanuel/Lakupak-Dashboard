@@ -1684,7 +1684,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
                             type="button" 
                             className="rounded-full p-1 font-bold text-red-500 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50" 
                             onClick={() => deleteOrderRow(idx)} 
-                            disabled={orderRows.length === 1}
+
                             aria-label={tBuyersModal('deleteOrderRow', { index: idx + 1 })}
                           >
                             <Trash className="h-4 w-4" />
