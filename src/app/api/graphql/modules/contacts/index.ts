@@ -1012,7 +1012,8 @@ const updateBuyer = async (args: {
     if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
       throw new Error('Buyer with this identifier already exists');
     }
-    throw new Error('Failed to update buyer');
+    console.error('[Buyers] updateBuyer failed', error);
+    throw new Error(error instanceof Error ? error.message : 'Failed to update buyer');
   }
 };
 
