@@ -32,7 +32,6 @@ export function getDuplicateImportMappingErrors(
 type ImportStartPanelProps = {
   title: string;
   overview: string;
-  matchingGuide: string;
   instructions: string[];
   columns: ImportColumnGuide[];
   templateName: string;
@@ -47,7 +46,6 @@ type ImportStartPanelProps = {
 export default function ImportStartPanel({
   title,
   overview,
-  matchingGuide,
   instructions,
   columns,
   templateName,
@@ -73,7 +71,6 @@ export default function ImportStartPanel({
       [tImport('importStartTemplate'), title],
       [tImport('importStartPurpose'), overview],
       [tImport('importStartInstructions'), tImport('importStartTemplateGuide')],
-      [tImport('importStartAliases'), matchingGuide],
       ...(exampleRows.length ? [
         [tImport('exampleRowsTitle'), tImport('exampleRowsHint')],
         [tImport('variantFormatLabel'), tImport('variantFormatHint')],
