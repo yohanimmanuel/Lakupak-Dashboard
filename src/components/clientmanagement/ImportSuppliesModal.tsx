@@ -323,6 +323,18 @@ export default function ImportSuppliesModal({
     });
   };
 
+  const isCatalogMismatch = (raw: Record<string, string>): boolean => {
+    if (importMode !== 'catalog') return false;
+    const match = getCatalogMatch(raw, mapping, supplierCatalog);
+    if (!match) return true;
+    const product = mapping.product ? String(raw[mapping.product] || '') : '';
+    const variant = mapping.variantName ? String(raw[mapping.variantName] || '') : '';
+    return Boolean(
+      (product && !productNameMatches(product, match.product, match.variantName || '')) ||
+      (variant && normalizeImportVariant(variant) !== normalizeImportVariant(match.variantName)),
+    );
+  };
+
   const validateMappedData = (mappedRows: SupplyDetail[]) => {
     if (!mappedRows.length) return [tImport('noDataToImport')];
     if (!mapping.totalSupplied || (!mapping.sku && !mapping.product)) {
@@ -337,12 +349,13 @@ export default function ImportSuppliesModal({
       const match = getCatalogMatch(raw, mapping, supplierCatalog);
       // Catalog mismatches are previewable, but cannot be imported until
       // corrected or switched to Historical Receipt mode.
+      if (isCatalogMismatch(raw)) errors.push(tImport('catalogMismatchSummary'));
       if (match && importMode === 'catalog') {
         // A unique Product + Variant match is allowed to replace an obsolete SKU.
         // The preview displays the current catalog SKU before import.
         const rawProduct = mapping.product ? String(raw[mapping.product] || '') : '';
         if (rawProduct && !productNameMatches(rawProduct, match.product, match.variantName || '')) {
-          errors.push(`Row ${line}: Product name conflicts with the matched SKU.`);
+          errors.push(tImport('catalogMismatchSummary'));
         }
         const rawVariant = mapping.variantName ? String(raw[mapping.variantName] || '') : '';
         if (rawVariant && normalizeImportVariant(match.variantName) !== normalizeImportVariant(rawVariant)) errors.push(tImport('catalogMismatchSummary'));
@@ -362,14 +375,17 @@ export default function ImportSuppliesModal({
   };
 
   const mismatchedRowIndices = importMode === 'catalog'
-    ? rows.map((raw, index) => getCatalogMatch(raw, mapping, supplierCatalog) ? -1 : index)
+    ? rows.map((raw, index) => isCatalogMismatch(raw) ? index : -1)
         .filter((index) => index >= 0)
     : [];
   const hasCatalogMismatches = mismatchedRowIndices.length > 0;
 
   const handleContinueToPreview = () => {
     const errors = validateMappedData(getMappedRows());
-    if (errors.length) { setValidationErrors(errors); return; }
+    if (errors.some((message) => message !== tImport('catalogMismatchSummary'))) {
+      setValidationErrors(errors);
+      return;
+    }
     setValidationErrors([]);
     setSelectedRowIndices(new Set(rows.map((_, index) => index)));
     setStep(2);
