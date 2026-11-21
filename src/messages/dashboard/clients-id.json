@@ -753,7 +753,8 @@
     "buyerCatalogMismatchSummary": "Beberapa baris tidak cocok. Tidak ditemukan kecocokan unik dengan katalog aktif. Periksa baris berwarna merah sebelum mengimpor.",
     "exampleRowsTitle": "Tiga baris contoh disertakan",
     "exampleRowsHint": "Templat Excel memuat tiga baris ilustrasi. Ganti semua nama produk dan SKU EXAMPLE dengan data katalog aktif Anda sebelum mengimpor.",
-    "variantFormatHint": "Untuk beberapa atribut varian, tulis Atribut: Nilai | Atribut: Nilai. Pisahkan setiap atribut dengan |, misalnya Size: 30 x 2 | Colour: Blue atau Size: 90 x 2 | Flavour: Spicy | Colour: Black. Urutan atribut serta ejaan Color/Colour dan Flavor/Flavour dinormalisasi, tetapi kecocokan katalog harus tetap unik."
+    "variantFormatHint": "Untuk beberapa atribut varian, tulis Atribut: Nilai | Atribut: Nilai. Pisahkan setiap atribut dengan |, misalnya Size: 30 x 2 | Colour: Blue atau Size: 90 x 2 | Flavour: Spicy | Colour: Black. Urutan atribut serta ejaan Color/Colour dan Flavor/Flavour dinormalisasi, tetapi kecocokan katalog harus tetap unik.",
+    "variantFormatLabel": "Format varian"
   },
   "matching": {
     "title": "Pencocokan Pembeli",
