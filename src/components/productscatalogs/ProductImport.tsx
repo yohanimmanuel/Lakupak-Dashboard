@@ -230,7 +230,6 @@ export default function ProductImport({ open, onCloseAction, onImportAction }: P
           <ImportStartPanel
             title={tImport('productGuideTitle')}
             overview={tImport('productGuideOverview')}
-            matchingGuide={tImport('productGuideMatching')}
             instructions={[
               tImport('productGuideInstruction0'),
               tImport('productGuideInstruction1'),
