@@ -10,6 +10,7 @@ import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 import ImportSelectionCheckbox from '@/components/clientmanagement/ImportSelectionCheckbox';
 import ClientCatalogSelect from '@/components/clientmanagement/ClientCatalogSelect';
 import ImportStartPanel, { getDuplicateImportMappingErrors } from '@/components/imports/ImportStartPanel';
+import { normalizeImportVariant } from '@/lib/catalog/importVariantMatching';
 
 /** Columns the import UI can map — string fields only (not booleans / recordType). */
 type ImportableSupplyField =
@@ -119,7 +120,7 @@ function getCatalogMatch(row: Record<string, string>, mapping: Record<string, st
     const skuMatches = catalog.filter((entry) => normalizeKey(entry.sku) === sku);
     if (skuMatches.length === 1) return skuMatches[0];
     if (skuMatches.length > 1 && variantName) {
-      const exact = skuMatches.filter((entry) => normalizeKey(entry.variantName) === variantName);
+      const exact = skuMatches.filter((entry) => normalizeImportVariant(entry.variantName) === normalizeImportVariant(variantName));
       if (exact.length === 1) return exact[0];
     }
     // An old SKU may have been replaced. Only reconcile it when both the
@@ -128,13 +129,13 @@ function getCatalogMatch(row: Record<string, string>, mapping: Record<string, st
     if (!product || !variantName) return undefined;
     const replacement = catalog.filter((entry) =>
       productNameMatches(product, entry.product, entry.variantName || '') &&
-      normalizeKey(entry.variantName) === variantName,
+      normalizeImportVariant(entry.variantName) === normalizeImportVariant(variantName),
     );
     return replacement.length === 1 ? replacement[0] : undefined;
   }
   if (!product) return undefined;
   const exactProducts = catalog.filter((entry) => productNameMatches(product, entry.product, entry.variantName || ''));
-  const exact = exactProducts.filter((entry) => !variantName || normalizeKey(entry.variantName) === variantName);
+  const exact = exactProducts.filter((entry) => !variantName || normalizeImportVariant(entry.variantName) === normalizeImportVariant(variantName));
   return exact.length === 1 ? exact[0] : undefined;
 }
 
@@ -344,7 +345,7 @@ export default function ImportSuppliesModal({
           errors.push(`Row ${line}: Product name conflicts with the matched SKU.`);
         }
         const rawVariant = mapping.variantName ? String(raw[mapping.variantName] || '') : '';
-        if (rawVariant && normalizeKey(match.variantName) !== normalizeKey(rawVariant)) errors.push(`Row ${line}: Variant name conflicts with the matched SKU.`);
+        if (rawVariant && normalizeImportVariant(match.variantName) !== normalizeImportVariant(rawVariant)) errors.push(tImport('catalogMismatchSummary'));
       }
       const quantity = String(row.receivedQuantity || '').trim();
       if (!quantity || !/^\d+(?:\.\d+)?$/.test(quantity) || Number(quantity) <= 0) errors.push(`Row ${line}: Received Quantity must be a positive number.`);
@@ -357,7 +358,7 @@ export default function ImportSuppliesModal({
       }
       if (!row.totalSupplied) errors.push(`Row ${line}: Quantity cannot be converted safely to Pieces.`);
     });
-    return errors.slice(0, 10).concat(errors.length > 10 ? [`And ${errors.length - 10} more row error(s).`] : []);
+    return [...new Set(errors)].slice(0, 10);
   };
 
   const mismatchedRowIndices = importMode === 'catalog'
