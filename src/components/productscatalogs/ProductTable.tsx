@@ -299,6 +299,17 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
     }
   `;
 
+  const BULK_DELETE_PRODUCTS_MUTATION = `
+    mutation BulkDeleteProducts($userId: Int!, $productIds: [String!]!) {
+      bulkDeleteProducts(userId: $userId, productIds: $productIds) {
+        success
+        successful
+        failed
+        message
+      }
+    }
+  `;
+
   const handleDeleteConfirm = useCallback(async () => {
     if (!user?.id) return;
 
@@ -309,24 +320,20 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
       const deletedProductIds: string[] = [];
 
       if (isBulkDelete) {
-        const deleteResults = await Promise.all(
-          selectedProducts.map(async (productId) => {
-            const product = tableRows.find((p) => String(p.id) === productId);
-            if (product) {
-              await fetchGraphQL(DELETE_PRODUCT_MUTATION, {
-                userId: user.id,
-                id: product.productId,
-              });
-              return product.productId;
-            }
-            return null;
-          }),
-        );
-
-        deletedProductIds.push(
-          ...deleteResults.filter((productId): productId is string => Boolean(productId)),
-        );
-        setSelectedProducts([]);
+        const ids = selectedProducts
+          .map((productId) => tableRows.find((p) => String(p.id) === productId)?.productId)
+          .filter((id): id is string => Boolean(id));
+        const response = await fetchGraphQL<{
+          bulkDeleteProducts: { successful: string[]; failed: string[]; message: string };
+        }>(BULK_DELETE_PRODUCTS_MUTATION, { userId: user.id, productIds: ids });
+        deletedProductIds.push(...response.bulkDeleteProducts.successful);
+        setSelectedProducts(response.bulkDeleteProducts.failed
+          .map((id) => tableRows.find((product) => product.productId === id))
+          .filter((product): product is ProductTableRow => Boolean(product))
+          .map((product) => String(product.id)));
+        if (response.bulkDeleteProducts.failed.length) {
+          setDeleteError(response.bulkDeleteProducts.message);
+        }
       } else {
         if (!productToDelete) return;
         const deletedProductId = productToDelete.productId;
