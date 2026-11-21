@@ -370,6 +370,24 @@ export const productsTypeDefs = /* GraphQL */ `
     ): MarketplaceProductConnection!
   }
 
+  input BulkDraftProductInput {
+    productId: String
+    name: String!
+    description: String!
+    productType: String!
+    brand: String!
+    supplier: String!
+    catalogName: String
+    currency: String
+  }
+
+  type BulkProductOperationResult {
+    success: Boolean!
+    successful: [String!]!
+    failed: [String!]!
+    message: String!
+  }
+
   extend type Mutation {
     createProduct(
       userId: Int!
@@ -423,6 +441,9 @@ export const productsTypeDefs = /* GraphQL */ `
       variantDefinitions: [VariantDefinitionInput!]
       variantOptions: [VariantOptionInput!]
     ): Product!
+
+    bulkCreateDraftProducts(userId: Int!, products: [BulkDraftProductInput!]!): BulkProductOperationResult!
+    bulkDeleteProducts(userId: Int!, productIds: [String!]!): BulkProductOperationResult!
 
     deleteProduct(userId: Int!, id: String!): DeleteProductResult!
 
@@ -1105,7 +1126,7 @@ export const createProduct = async (args: {
     isDefault: boolean;
     isActive: boolean;
   }> | null;
-}) => {
+}, options: { deferSideEffects?: boolean } = {}) => {
   const {
     userId,
     productId,
@@ -1210,8 +1231,8 @@ export const createProduct = async (args: {
     },
   });
 
-  // Invalidate caches — client rates must not rewrite public catalog prices
-  try {
+  // Batch import defers cache and broadcast side effects until all rows finish.
+  if (!options.deferSideEffects) try {
     const { invalidateProductCache, invalidateDashboardCache } = await import('@/lib/queryCache');
     await Promise.all([
       invalidateProductCache(userId),
@@ -1228,7 +1249,7 @@ export const createProduct = async (args: {
   }
 
   // Check stock levels and trigger inventory notifications for newly created products
-  if (updatedProduct.variantOptions && updatedProduct.variantOptions.length > 0) {
+  if (!options.deferSideEffects && updatedProduct.variantOptions && updatedProduct.variantOptions.length > 0) {
     for (const variant of updatedProduct.variantOptions) {
       const stockQuantity = variant.stockQuantity || 0;
       const lowStockThreshold = variant.lowStockThreshold || 0;
@@ -1254,20 +1275,20 @@ export const createProduct = async (args: {
     }
   }
 
-  await broadcastProductChanges(updatedProduct.productId);
+  if (!options.deferSideEffects) await broadcastProductChanges(updatedProduct.productId);
 
   // Product creation does not create synthetic supplier opening balances.
   // Supplier records are created only by explicit receipt/import workflows.
   
   // Invalidate marketplace search cache (public-facing, needs caching)
-  try {
+  if (!options.deferSideEffects) try {
     await invalidateSearchCache('search-cache:marketplace:*');
   } catch {
     // ignore cache invalidation failures
   }
   
   // Invalidate product cache again after broadcast to ensure fresh data on next query
-  try {
+  if (!options.deferSideEffects) try {
     const { invalidateProductCache } = await import('@/lib/queryCache');
     await invalidateProductCache(userId);
   } catch {
@@ -1275,6 +1296,82 @@ export const createProduct = async (args: {
   }
   
   return mapProductWithOffers(updatedProduct);
+};
+
+type BulkDraftProductInput = {
+  productId?: string | null;
+  name: string;
+  description: string;
+  productType: string;
+  brand: string;
+  supplier: string;
+  catalogName?: string | null;
+  currency?: string | null;
+};
+
+export const bulkCreateDraftProducts = async (args: { userId: number; products: BulkDraftProductInput[] }) => {
+  if (args.products.length > 200) throw new Error('Import at most 200 products per batch.');
+  const successful: string[] = [];
+  const failed: string[] = [];
+  for (const [index, product] of args.products.entries()) {
+    try {
+      // Reuse the canonical product validation, variant creation, and ownership rules.
+      const created = await createProduct({
+        ...product,
+        userId: args.userId,
+        status: 'Draft',
+        variantOptions: [{
+          variantName: 'Default', attributes: {}, sku: null, purchasePrice: '',
+          sellingPrice: '', originalSellingPrice: null, moq: null,
+          stockQuantity: 0, lowStockThreshold: 0, stockStatus: 'Out of Stock',
+          isDefault: true, isActive: true,
+        }],
+      }, { deferSideEffects: true });
+      successful.push(created.productId);
+    } catch {
+      failed.push(product.productId || `row:${index + 1}`);
+    }
+  }
+  if (successful.length) {
+    const { invalidateProductCache, invalidateDashboardCache } = await import('@/lib/queryCache');
+    await Promise.allSettled([
+      invalidateProductCache(args.userId),
+      invalidateDashboardCache(args.userId),
+      invalidateSearchCache('search-cache:marketplace:*'),
+    ]);
+    // The catalog subscription receives one batch completion broadcast.
+    await broadcastProductChanges(successful[0]);
+  }
+  return {
+    success: failed.length === 0,
+    successful,
+    failed,
+    message: `${successful.length} products imported, ${failed.length} failed`,
+  };
+};
+
+export const bulkDeleteProducts = async (args: { userId: number; productIds: string[] }) => {
+  const requested = [...new Set(args.productIds)];
+  if (requested.length > 200) throw new Error('Delete at most 200 products per batch.');
+  const successful: string[] = [];
+  const failed: string[] = [];
+  for (const id of requested) {
+    try {
+      // Keep existing product deletion transaction, supplier snapshots, and
+      // marketplace cleanup; do not replace with an unsafe deleteMany().
+      const result = await deleteProduct({ userId: args.userId, id });
+      if (result.success) successful.push(id);
+      else failed.push(id);
+    } catch {
+      failed.push(id);
+    }
+  }
+  return {
+    success: failed.length === 0,
+    successful,
+    failed,
+    message: `${successful.length} products deleted, ${failed.length} failed`,
+  };
 };
 
 export const updateProduct = async (args: {
@@ -2397,6 +2494,20 @@ export const productsResolvers = {
         resourceType: 'Product',
         resourceId: extractProductId(result) ?? args.id ?? undefined,
       });
+      return result;
+    },
+    bulkCreateDraftProducts: async (_: unknown, args: Parameters<typeof bulkCreateDraftProducts>[0], ctx: unknown) => {
+      requireDashboardUser(ctx, args.userId);
+      const result = await bulkCreateDraftProducts(args);
+      auditCatalog({ action: 'product.bulk_create', actorId: args.userId, resourceType: 'Product',
+        metadata: { requested: args.products.length, succeeded: result.successful.length, failed: result.failed.length } });
+      return result;
+    },
+    bulkDeleteProducts: async (_: unknown, args: Parameters<typeof bulkDeleteProducts>[0], ctx: unknown) => {
+      requireDashboardUser(ctx, args.userId);
+      const result = await bulkDeleteProducts(args);
+      auditCatalog({ action: 'product.bulk_delete', actorId: args.userId, resourceType: 'Product',
+        metadata: { requested: args.productIds.length, succeeded: result.successful.length, failed: result.failed.length } });
       return result;
     },
     deleteProduct: async (_: unknown, args: Parameters<typeof deleteProduct>[0], ctx: unknown) => {
