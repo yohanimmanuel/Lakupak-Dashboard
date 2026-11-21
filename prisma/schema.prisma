@@ -1626,7 +1626,7 @@ model AssortmentOpportunity {
   segment             String
   reasons             String[]  @default([])
   breakdown           Json
-  /// introduce | reorder
+  /// introduce | reorder | replace | remove
   recommendedAction   String
   lastPurchasedAt     DateTime? @db.Timestamptz(3)
   reorderIntervalDays Int?
