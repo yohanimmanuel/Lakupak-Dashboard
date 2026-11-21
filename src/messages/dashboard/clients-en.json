@@ -561,7 +561,10 @@
       "noProductOwned": "No product owned",
       "supplierChangedTitle": "Supplier changed",
       "supplierChangedDescription": "This product now belongs to another supplier. You can correct this receipt in the same row: choose a product currently owned by this supplier, then select its live SKU and variant. The receipt ID stays the same.",
-      "variantDeletedCorrectionDescription": "The original catalog variant was deleted. You can correct this receipt in the same row by selecting a product, SKU and active variant owned by this supplier. The receipt ID will stay the same."
+      "variantDeletedCorrectionDescription": "The original catalog variant was deleted. You can correct this receipt in the same row by selecting a product, SKU and active variant owned by this supplier. The receipt ID will stay the same.",
+      "variantAttentionTitle": "Supply variant needs attention",
+      "variantLegacyDescription": "This receipt is not linked to a current catalog variant. Select a product, SKU, and active variant to correct it in the same row.",
+      "variantArchivedLabel": "Archived"
     }
   },
   "import": {
@@ -737,7 +740,8 @@
     "importStartDrop": "Drag and drop your file here",
     "importStartBrowse": "or click to browse your computer",
     "importStartCheckTitle": "Import check:",
-    "importStartCheckBody": "Lakupak validates headers, required values, numeric fields, stock types and catalog matches before opening the preview. Failed files remain on this screen."
+    "importStartCheckBody": "Lakupak validates headers, required values, numeric fields, stock types and catalog matches before opening the preview. Failed files remain on this screen.",
+    "catalogMismatchSummary": "Some rows cannot be placed. No unique live catalog match. Choose Historical Receipt mode to preserve them without changing inventory."
   },
   "matching": {
     "title": "Buyer Matching",

@@ -790,12 +790,9 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
 
   const deleteOrderRow = useCallback((idx: number) => {
     orderRowsEditedRef.current = true;
-    if (orderRows.length > 1) {
-      setOrderRows((rows: OrderDetail[]) => rows.filter((_: OrderDetail, i: number) => i !== idx));
-      // Row indices shift after a delete, so any selection is stale.
-      setSelectedOrderRows(new Set());
-    }
-  }, [orderRows.length]);
+    setOrderRows((rows: OrderDetail[]) => rows.filter((_: OrderDetail, i: number) => i !== idx));
+    setSelectedOrderRows(new Set());
+  }, []);
 
   const allOrderRowsSelected = orderRows.length > 0 && selectedOrderRows.size === orderRows.length;
   const someOrderRowsSelected = selectedOrderRows.size > 0 && !allOrderRowsSelected;
@@ -819,10 +816,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
     orderRowsEditedRef.current = true;
     setOrderRows((rows) => {
       const remaining = rows.filter((_, i) => !selectedOrderRows.has(i));
-      // The table always keeps at least one row to type into.
-      return remaining.length > 0
-        ? remaining
-        : [{ orderNo: '', product: '', productId: '', variantOptionId: '', variantName: '', stockType: 'Pieces', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }];
+      return remaining;
     });
     setSelectedOrderRows(new Set());
   }, [selectedOrderRows]);
@@ -904,7 +898,16 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
         ...form,
         avatar,
         buyerId: id,
-        orderDetails: JSON.stringify(orderRows.map((row) => {
+        // Empty/placeholder rows are not buyer transactions. [] explicitly
+        // clears all manual buyer records without deleting the buyer.
+        orderDetails: JSON.stringify(orderRows.filter((row) =>
+          Boolean(String(row.orderNo || '').trim() ||
+            String(row.product || '').trim() ||
+            String(row.sku || '').trim() ||
+            String(row.variantOptionId || '').trim() ||
+            String(row.totalOrders || '').trim() ||
+            String(row.lastOrderDate || '').trim()),
+        ).map((row) => {
           const selectedLevel = getBuyerProductStockLevels(row.productId).find((level) => level.name === (row.stockType || parseBuyerOrderTotal(row.totalOrders, 'Pieces').unit));
           return {
             ...row,
