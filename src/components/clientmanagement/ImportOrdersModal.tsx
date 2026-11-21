@@ -10,6 +10,7 @@ import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 import ImportSelectionCheckbox from '@/components/clientmanagement/ImportSelectionCheckbox';
 import ClientCatalogSelect from '@/components/clientmanagement/ClientCatalogSelect';
 import ImportStartPanel, { getDuplicateImportMappingErrors } from '@/components/imports/ImportStartPanel';
+import { normalizeImportVariant } from '@/lib/catalog/importVariantMatching';
 
 const orderFields = [
   { key: 'product', label: 'Product' },
@@ -84,7 +85,7 @@ function matchCatalogProduct(
     const bySku = variants.filter(({ variant }) => norm(variant.sku) === sku);
     if (bySku.length === 1) return bySku[0];
     if (bySku.length > 1 && variantName) {
-      const narrowed = bySku.filter(({ variant }) => norm(variant.variantName) === variantName);
+      const narrowed = bySku.filter(({ variant }) => normalizeImportVariant(variant.variantName) === normalizeImportVariant(variantName));
       if (narrowed.length === 1) return narrowed[0];
     }
   }
@@ -94,7 +95,7 @@ function matchCatalogProduct(
   const product = exactProducts[0];
   const productVariants = (product.variantOptions || []).filter((variant) => variant.isActive !== false);
   if (variantName) {
-    const exactVariants = productVariants.filter((variant) => norm(variant.variantName) === variantName);
+    const exactVariants = productVariants.filter((variant) => normalizeImportVariant(variant.variantName) === normalizeImportVariant(variantName));
     if (exactVariants.length === 1) return { product, variant: exactVariants[0] };
     return undefined;
   }
@@ -287,7 +288,7 @@ export default function ImportOrdersModal({
           rowErrors.push(`Row ${line}: Product name conflicts with the matched SKU.`);
         }
         const originalVariant = mapping.variantName ? String(raw[mapping.variantName] || '').trim() : '';
-        if (originalVariant && String(match.variant?.variantName || '').trim().toLocaleLowerCase() !== originalVariant.toLocaleLowerCase()) {
+        if (originalVariant && normalizeImportVariant(match.variant?.variantName) !== normalizeImportVariant(originalVariant)) {
           rowErrors.push(`Row ${line}: Variant name conflicts with the matched SKU.`);
         }
         if (!match.variant && (match.product.variantOptions || []).filter((v) => v.isActive !== false).length > 1) {
@@ -330,7 +331,7 @@ export default function ImportOrdersModal({
       const rawVariant = mapping.variantName ? String(raw[mapping.variantName] || '').trim().toLowerCase() : '';
       if (rawSku && rawSku !== String(match.variant?.sku || '').trim().toLowerCase()) return index;
       if (rawProduct && rawProduct !== String(match.product.name || '').trim().toLowerCase()) return index;
-      if (rawVariant && rawVariant !== String(match.variant?.variantName || '').trim().toLowerCase()) return index;
+      if (rawVariant && normalizeImportVariant(rawVariant) !== normalizeImportVariant(match.variant?.variantName)) return index;
       return -1;
     })
     .filter((index) => index >= 0);
