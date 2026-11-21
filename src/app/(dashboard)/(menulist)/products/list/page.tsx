@@ -265,46 +265,13 @@ export default function ProductsListPage() {
   // Use the enhanced generateUniqueProductId from security utils
   const generateLKPProductId = () => generateUniqueProductId();
 
-  const CREATE_PRODUCT_MUTATION = `
-    mutation CreateProduct(
-      $userId: Int!
-      $productId: String
-      $name: String!
-      $description: String!
-      $productType: String!
-      $brand: String!
-      $supplier: String!
-      $status: String
-      $catalogName: String
-      $images: [String!]
-      $halalCertified: Boolean
-      $bpomApproved: Boolean
-      $originalProduct: Boolean
-      $returnPolicyDays: Int
-      $currency: String
-      $variantOptions: [VariantOptionInput!]
-    ) {
-      createProduct(
-        userId: $userId
-        productId: $productId
-        name: $name
-        description: $description
-        productType: $productType
-        brand: $brand
-        supplier: $supplier
-        status: $status
-        catalogName: $catalogName
-        images: $images
-        halalCertified: $halalCertified
-        bpomApproved: $bpomApproved
-        originalProduct: $originalProduct
-        returnPolicyDays: $returnPolicyDays
-        currency: $currency
-        variantOptions: $variantOptions
-      ) {
-        id
-        productId
-        name
+  const BULK_IMPORT_PRODUCTS_MUTATION = `
+    mutation BulkCreateDraftProducts($userId: Int!, $products: [BulkDraftProductInput!]!) {
+      bulkCreateDraftProducts(userId: $userId, products: $products) {
+        success
+        successful
+        failed
+        message
       }
     }
   `;
@@ -333,82 +300,27 @@ export default function ProductsListPage() {
 
     let succeeded = 0;
     let failed = 0;
-
     suppressSocketRefreshRef.current = true;
     try {
-      for (const product of data) {
-        // Product master import contains product-level fields only. Variant stock,
-        // SKU, MOQ and pricing are configured separately after product creation.
-        const stockQuantity = 0;
-        const lowStockThreshold = 0;
-        const moq = null;
-
-        let stockStatus: 'In Stock' | 'Low Stock' | 'Out of Stock';
-        if (stockQuantity === 0) {
-          stockStatus = 'Out of Stock';
-        } else if (lowStockThreshold > 0 && stockQuantity <= lowStockThreshold) {
-          stockStatus = 'Low Stock';
-        } else {
-          stockStatus = 'In Stock';
-        }
-
-        const payload = {
+      // One GraphQL request for the entire import; the backend creates draft
+      // products and consolidates cache/broadcast work after the batch.
+      const result = await fetchGraphQL<{
+        bulkCreateDraftProducts: { successful: string[]; failed: string[] };
+      }>(BULK_IMPORT_PRODUCTS_MUTATION, {
+        userId: user.id,
+        products: data.map((product) => ({
           productId: generateLKPProductId(),
           name: product['Product Name'] || '',
           description: product['Description'] || '',
           productType: product['Product Type'] || '',
           brand: product['Brand'] || '',
           supplier: product['Supplier'] || '',
-          stockQuantity,
-          lowStockThreshold,
-          stockStatus,
-          purchasePrice: '',
-          sellingPrice: '',
-          status: 'Draft' as const,
-          catalogName: product['Catalog Name'] || '',
-          images: [] as string[],
-        };
-
-        const variantOption = {
-          variantName: 'Default',
-          attributes: {},
-          sku: null,
-          purchasePrice: payload.purchasePrice,
-          sellingPrice: payload.sellingPrice,
-          originalSellingPrice: null,
-          moq: Number.isFinite(moq) ? moq : null,
-          stockQuantity: payload.stockQuantity,
-          lowStockThreshold: payload.lowStockThreshold,
-          stockStatus: payload.stockStatus,
-          isDefault: true,
-          isActive: true,
-        };
-
-        try {
-          await fetchGraphQL(CREATE_PRODUCT_MUTATION, {
-            userId: user.id,
-            productId: payload.productId,
-            name: payload.name,
-            description: payload.description,
-            productType: payload.productType,
-            brand: payload.brand,
-            supplier: payload.supplier,
-            status: payload.status,
-            catalogName: payload.catalogName || null,
-            images: payload.images,
-            halalCertified: false,
-            bpomApproved: false,
-            originalProduct: true,
-            returnPolicyDays: 7,
-            currency: userCurrency,
-            variantOptions: [variantOption],
-          });
-          succeeded += 1;
-        } catch {
-          failed += 1;
-        }
-      }
-
+          catalogName: product['Catalog Name'] || null,
+          currency: userCurrency,
+        })),
+      });
+      succeeded = result.bulkCreateDraftProducts.successful.length;
+      failed = result.bulkCreateDraftProducts.failed.length;
       await fetchProducts(true, true);
     } finally {
       suppressSocketRefreshRef.current = false;
