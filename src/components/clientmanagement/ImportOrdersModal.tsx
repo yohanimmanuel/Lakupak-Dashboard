@@ -308,7 +308,14 @@ export default function ImportOrdersModal({
         rowErrors.push(`Row ${line}: Stock Type "${requested}" is not configured for the matched product.`);
       }
     });
-    if (rowErrors.length) errors.push(...rowErrors.slice(0, 10), ...(rowErrors.length > 10 ? [`And ${rowErrors.length - 10} more row error(s).`] : []));
+    // Keep numeric/unit errors actionable, but summarize catalog identity
+    // conflicts once instead of producing hundreds of near-identical messages.
+    const catalogErrors = rowErrors.filter((message) =>
+      /SKU does not belong|Product name conflicts|Variant name conflicts|more than one variant matches/.test(message));
+    const otherErrors = rowErrors.filter((message) => !catalogErrors.includes(message));
+    if (catalogErrors.length) errors.push(tImport('buyerCatalogMismatchSummary'));
+    if (otherErrors.length) errors.push(...otherErrors.slice(0, 10),
+      ...(otherErrors.length > 10 ? [`And ${otherErrors.length - 10} more row error(s).`] : []));
     return errors;
   };
 
@@ -316,14 +323,25 @@ export default function ImportOrdersModal({
   const mismatchedRowIndices = rows
     .map((raw, index) => {
       const row = mappedPreviewCandidates[index];
-      return matchCatalogProduct(String(row.product || ''), productCatalog, String(row.sku || ''), String(row.variantName || '')) ? -1 : index;
+      const match = matchCatalogProduct(String(row.product || ''), productCatalog, String(row.sku || ''), String(row.variantName || ''));
+      if (!match) return index;
+      const rawSku = mapping.sku ? String(raw[mapping.sku] || '').trim().toLowerCase() : '';
+      const rawProduct = mapping.product ? String(raw[mapping.product] || '').trim().toLowerCase() : '';
+      const rawVariant = mapping.variantName ? String(raw[mapping.variantName] || '').trim().toLowerCase() : '';
+      if (rawSku && rawSku !== String(match.variant?.sku || '').trim().toLowerCase()) return index;
+      if (rawProduct && rawProduct !== String(match.product.name || '').trim().toLowerCase()) return index;
+      if (rawVariant && rawVariant !== String(match.variant?.variantName || '').trim().toLowerCase()) return index;
+      return -1;
     })
     .filter((index) => index >= 0);
   const hasCatalogMismatches = mismatchedRowIndices.length > 0;
 
   const handleContinueToPreview = () => {
     const errors = validateMappedData(getMappedRows());
-    if (errors.length) { setValidationErrors(errors); return; }
+    if (errors.length && errors.some((message) => message !== tImport('buyerCatalogMismatchSummary'))) {
+      setValidationErrors(errors);
+      return;
+    }
     setValidationErrors([]);
     setSelectedRowIndices(new Set(rows.map((_, index) => index)));
     setStep(2);
