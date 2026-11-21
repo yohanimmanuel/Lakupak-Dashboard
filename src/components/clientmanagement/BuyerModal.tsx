@@ -790,7 +790,11 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
 
   const deleteOrderRow = useCallback((idx: number) => {
     orderRowsEditedRef.current = true;
-    setOrderRows((rows: OrderDetail[]) => rows.filter((_: OrderDetail, i: number) => i !== idx));
+    setOrderRows((rows: OrderDetail[]) => {
+      // The last visible row is the editable placeholder, not a persisted record.
+      if (rows.length <= 1) return [{ orderNo: '', product: '', productId: '', variantOptionId: '', variantName: '', stockType: 'Pieces', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }];
+      return rows.filter((_: OrderDetail, i: number) => i !== idx);
+    });
     setSelectedOrderRows(new Set());
   }, []);
 
@@ -816,7 +820,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
     orderRowsEditedRef.current = true;
     setOrderRows((rows) => {
       const remaining = rows.filter((_, i) => !selectedOrderRows.has(i));
-      return remaining;
+      return remaining.length > 0 ? remaining : [{ orderNo: '', product: '', productId: '', variantOptionId: '', variantName: '', stockType: 'Pieces', totalOrders: '', totalSpend: '', shippingFee: '', lastOrderDate: '', outstanding: '' }];
     });
     setSelectedOrderRows(new Set());
   }, [selectedOrderRows]);
