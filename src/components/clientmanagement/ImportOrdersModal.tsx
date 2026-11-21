@@ -420,7 +420,6 @@ export default function ImportOrdersModal({
           <ImportStartPanel
             title={tImport('buyerGuideTitle')}
             overview={tImport('buyerGuideOverview')}
-            matchingGuide={`${tImport('buyerGuideMatching')} ${tImport('variantFormatHint')}`}
             instructions={[
               tImport('buyerGuideInstruction0'),
               tImport('buyerGuideInstruction1'),
