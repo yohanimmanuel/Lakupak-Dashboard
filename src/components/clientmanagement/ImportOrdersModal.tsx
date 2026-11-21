@@ -312,9 +312,10 @@ export default function ImportOrdersModal({
     return errors;
   };
 
+  const mappedPreviewCandidates = getMappedRows();
   const mismatchedRowIndices = rows
     .map((raw, index) => {
-      const row = getMappedRows()[index];
+      const row = mappedPreviewCandidates[index];
       return matchCatalogProduct(String(row.product || ''), productCatalog, String(row.sku || ''), String(row.variantName || '')) ? -1 : index;
     })
     .filter((index) => index >= 0);
@@ -536,8 +537,8 @@ export default function ImportOrdersModal({
                       <tr
                         key={idx}
                         onClick={() => toggleRowSelection(idx)}
-                        className={`whitespace-nowrap text-black cursor-pointer ${
-                          isMismatched ? 'bg-red-50 text-red-800' : isSelected ? 'hover:bg-blue-50/40' : 'opacity-50 bg-gray-50 hover:bg-gray-100'
+                        className={`whitespace-nowrap cursor-pointer ${
+                          isMismatched ? 'bg-red-50 text-red-800' : isSelected ? 'text-black hover:bg-blue-50/40' : 'opacity-50 bg-gray-50 text-black hover:bg-gray-100'
                         }`}
                       >
                         <td className="py-2 px-3">
