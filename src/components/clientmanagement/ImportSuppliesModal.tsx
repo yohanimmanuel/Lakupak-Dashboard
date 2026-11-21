@@ -485,7 +485,7 @@ export default function ImportSuppliesModal({
           <ImportStartPanel
             title={tImport('supplierGuideTitle')}
             overview={tImport('supplierGuideOverview')}
-            matchingGuide={tImport('supplierGuideMatching')}
+            matchingGuide={`${tImport('supplierGuideMatching')} ${tImport('variantFormatHint')}`}
             instructions={[
               tImport('supplierGuideInstruction0'),
               tImport('supplierGuideInstruction1'),
