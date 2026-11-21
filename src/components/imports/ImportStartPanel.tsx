@@ -113,10 +113,7 @@ export default function ImportStartPanel({
             {instructions.map((instruction, index) => <li key={index}>{instruction}</li>)}
           </ol>
         </div>
-        <div className="mb-3 rounded-lg border border-blue-100 bg-blue-50 p-3">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-blue-800">{tImport('importStartMatching')}</p>
-          <p className="text-xs leading-5 text-blue-900">{matchingGuide}</p>
-        </div>
+
         {exampleRows.length > 0 && (
           <div className="mb-3 space-y-1 text-xs leading-5 text-gray-600">
             <p><strong>{tImport('exampleRowsTitle')}:</strong> {tImport('exampleRowsHint')}</p>
