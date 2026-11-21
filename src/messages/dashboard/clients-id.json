@@ -751,7 +751,8 @@
     "importStartBrowse": "atau klik untuk memilih file dari komputer",
     "importStartCheckTitle": "Pemeriksaan impor:",
     "importStartCheckBody": "Lakupak memeriksa judul kolom, data wajib, nilai angka, jenis stok, dan kecocokan katalog sebelum menampilkan pratinjau. File yang gagal diperiksa akan tetap berada di halaman ini.",
-    "catalogMismatchSummary": "Beberapa baris tidak dapat dicocokkan. Tidak ditemukan kecocokan unik dengan katalog aktif. Pilih mode Riwayat Pasokan untuk menyimpannya tanpa mengubah inventaris."
+    "catalogMismatchSummary": "Beberapa baris tidak dapat dicocokkan. Tidak ditemukan kecocokan unik dengan katalog aktif. Pilih mode Riwayat Pasokan untuk menyimpannya tanpa mengubah inventaris.",
+    "buyerCatalogMismatchSummary": "Beberapa baris tidak dapat dicocokkan. Tidak ditemukan kecocokan unik dengan katalog aktif. Periksa baris yang ditandai sebelum mengimpor."
   },
   "matching": {
     "title": "Pencocokan Pembeli",
