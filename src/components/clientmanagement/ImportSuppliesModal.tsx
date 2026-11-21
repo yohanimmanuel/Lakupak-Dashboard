@@ -484,6 +484,7 @@ export default function ImportSuppliesModal({
               { name: tImport('supplierGuideColumn5Name'), description: tImport('supplierGuideColumn5Description') },
               { name: tImport('supplierGuideColumn6Name'), description: tImport('supplierGuideColumn6Description') },
             ]}
+            exampleRows={[["Example Product","EXAMPLE-SKU-1","Size: 30 x 2 | Colour: Blue","5","Pieces","100000","2026-11-21"],["Example Product","EXAMPLE-SKU-2","Size: 90 x 2 | Flavour: Spicy | Colour: Black","10","Pieces","200000","2026-11-21"],["Example Product","EXAMPLE-SKU-3","Size: 40 x 3 | Flavour: BBQ","2","Pieces","50000","2026-11-21"]]}
             templateName="Lakupak_Supplier_Records_Template.xlsx"
             onFileSelectedAction={handleFile}
             error={error}
