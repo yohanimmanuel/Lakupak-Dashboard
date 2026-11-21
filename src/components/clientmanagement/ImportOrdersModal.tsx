@@ -278,8 +278,8 @@ export default function ImportOrdersModal({
       const row = mappedRows[index];
       const line = index + 2;
       const match = matchCatalogProduct(String(row.product || ''), productCatalog, String(row.sku || ''), String(row.variantName || ''));
-      if (!match) rowErrors.push(`Row ${line}: SKU or exact Product + Variant does not match one catalog variant.`);
-      else {
+      // Catalog mismatches are highlighted in preview, not repeated per row.
+      if (match) {
         if (String(row.sku || '').trim() && String(match.variant?.sku || '').trim().toLocaleLowerCase() !== String(row.sku || '').trim().toLocaleLowerCase()) {
           rowErrors.push(`Row ${line}: SKU does not belong to the selected Product + Variant.`);
         }
@@ -311,6 +311,14 @@ export default function ImportOrdersModal({
     if (rowErrors.length) errors.push(...rowErrors.slice(0, 10), ...(rowErrors.length > 10 ? [`And ${rowErrors.length - 10} more row error(s).`] : []));
     return errors;
   };
+
+  const mismatchedRowIndices = rows
+    .map((raw, index) => {
+      const row = getMappedRows()[index];
+      return matchCatalogProduct(String(row.product || ''), productCatalog, String(row.sku || ''), String(row.variantName || '')) ? -1 : index;
+    })
+    .filter((index) => index >= 0);
+  const hasCatalogMismatches = mismatchedRowIndices.length > 0;
 
   const handleContinueToPreview = () => {
     const errors = validateMappedData(getMappedRows());
@@ -360,6 +368,11 @@ export default function ImportOrdersModal({
     const errors = validateMappedData(mappedRows);
     if (errors.length > 0) {
       setValidationErrors(errors);
+      return;
+    }
+
+    if (mismatchedRowIndices.some((index) => selectedRowIndices.has(index))) {
+      setError(tImport('buyerCatalogMismatchSummary'));
       return;
     }
 
@@ -416,6 +429,11 @@ export default function ImportOrdersModal({
           <div className="flex flex-col gap-1">
             {error ? <div className="mb-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700" role="alert">{error}</div> : null}
             {validationErrors.length > 0 ? <div className="mb-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700" role="alert">{validationErrors.map((item, index) => <p key={index}>{item}</p>)}</div> : null}
+            {hasCatalogMismatches && (
+              <div className="mb-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700" role="alert">
+                {tImport('buyerCatalogMismatchSummary')}
+              </div>
+            )}
             <div className="mb-2 font-semibold text-black">{tImport('mapColumnsRequired')}</div>
             <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white p-2">
               <table className="min-w-full text-xs font-medium text-left">
@@ -479,6 +497,11 @@ export default function ImportOrdersModal({
               </div>
             </div>
             
+            {hasCatalogMismatches && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700" role="alert">
+                {tImport('buyerCatalogMismatchSummary')}
+              </div>
+            )}
             {/* Validation Errors */}
             {validationErrors.length > 0 && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
@@ -508,12 +531,13 @@ export default function ImportOrdersModal({
                 <tbody>
                   {previewRows.map((row, idx) => {
                     const isSelected = selectedRowIndices.has(idx);
+                    const isMismatched = mismatchedRowIndices.includes(idx);
                     return (
                       <tr
                         key={idx}
                         onClick={() => toggleRowSelection(idx)}
                         className={`whitespace-nowrap text-black cursor-pointer ${
-                          isSelected ? 'hover:bg-blue-50/40' : 'opacity-50 bg-gray-50 hover:bg-gray-100'
+                          isMismatched ? 'bg-red-50 text-red-800' : isSelected ? 'hover:bg-blue-50/40' : 'opacity-50 bg-gray-50 hover:bg-gray-100'
                         }`}
                       >
                         <td className="py-2 px-3">
@@ -589,7 +613,7 @@ export default function ImportOrdersModal({
             ) : null}
             <div className="sticky bottom-0 z-20 flex justify-end gap-2 mt-4 bg-white text-sm border-t border-gray-200 pt-4">
               <button type="button" className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200" onClick={() => { setStep(1); setSelectedRowIndices(new Set()); setError(''); }}>{tImport('back')}</button>
-              <button type="button" className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center gap-2 disabled:opacity-60" onClick={handleImport} disabled={selectedRowIndices.size === 0}><CheckCircle2 className="w-4 h-4" /> {tImport('importButtonSelected', { count: selectedRowIndices.size })}</button>
+              <button type="button" className="px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] flex items-center gap-2 disabled:opacity-60" onClick={handleImport} disabled={selectedRowIndices.size === 0 || mismatchedRowIndices.some((index) => selectedRowIndices.has(index))}><CheckCircle2 className="w-4 h-4" /> {tImport('importButtonSelected', { count: selectedRowIndices.size })}</button>
             </div>
           </div>
         )}
