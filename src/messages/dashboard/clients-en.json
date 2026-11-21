@@ -741,8 +741,12 @@
     "importStartBrowse": "or click to browse your computer",
     "importStartCheckTitle": "Import check:",
     "importStartCheckBody": "Lakupak validates headers, required values, numeric fields, stock types and catalog matches before opening the preview. Failed files remain on this screen.",
-    "catalogMismatchSummary": "Some rows cannot be placed. No unique live catalog match. Choose Historical Receipt mode to preserve them without changing inventory.",
-    "buyerCatalogMismatchSummary": "Some rows cannot be matched. No unique live catalog match. Review the highlighted rows before importing."
+    "catalogMismatchSummary": "Some rows are mismatched. No unique live catalog match. Review the red-highlighted rows or use Historical Receipt mode without updating inventory.",
+    "buyerCatalogMismatchSummary": "Some rows are mismatched. No unique live catalog match. Review the red-highlighted rows before importing.",
+    "exampleRowsTitle": "Three sample rows included",
+    "exampleRowsHint": "The Excel template includes three illustrative rows. Replace all EXAMPLE products and SKUs with your own live catalog data before importing.",
+    "variantFormatHint": "For multiple variant attributes, write Attribute: Value | Attribute: Value. Separate each attribute with |, for example Size: 30 x 2 | Colour: Blue or Size: 90 x 2 | Flavour: Spicy | Colour: Black. Attribute order and Color/Colour or Flavor/Flavour spellings are normalized; the catalog match must still be unique.",
+    "variantFormatLabel": "Variant format"
   },
   "matching": {
     "title": "Buyer Matching",

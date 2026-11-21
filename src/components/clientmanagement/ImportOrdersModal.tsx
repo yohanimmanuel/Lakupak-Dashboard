@@ -10,6 +10,7 @@ import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 import ImportSelectionCheckbox from '@/components/clientmanagement/ImportSelectionCheckbox';
 import ClientCatalogSelect from '@/components/clientmanagement/ClientCatalogSelect';
 import ImportStartPanel, { getDuplicateImportMappingErrors } from '@/components/imports/ImportStartPanel';
+import { normalizeImportVariant } from '@/lib/catalog/importVariantMatching';
 
 const orderFields = [
   { key: 'product', label: 'Product' },
@@ -84,7 +85,7 @@ function matchCatalogProduct(
     const bySku = variants.filter(({ variant }) => norm(variant.sku) === sku);
     if (bySku.length === 1) return bySku[0];
     if (bySku.length > 1 && variantName) {
-      const narrowed = bySku.filter(({ variant }) => norm(variant.variantName) === variantName);
+      const narrowed = bySku.filter(({ variant }) => normalizeImportVariant(variant.variantName) === normalizeImportVariant(variantName));
       if (narrowed.length === 1) return narrowed[0];
     }
   }
@@ -94,7 +95,7 @@ function matchCatalogProduct(
   const product = exactProducts[0];
   const productVariants = (product.variantOptions || []).filter((variant) => variant.isActive !== false);
   if (variantName) {
-    const exactVariants = productVariants.filter((variant) => norm(variant.variantName) === variantName);
+    const exactVariants = productVariants.filter((variant) => normalizeImportVariant(variant.variantName) === normalizeImportVariant(variantName));
     if (exactVariants.length === 1) return { product, variant: exactVariants[0] };
     return undefined;
   }
@@ -287,7 +288,7 @@ export default function ImportOrdersModal({
           rowErrors.push(`Row ${line}: Product name conflicts with the matched SKU.`);
         }
         const originalVariant = mapping.variantName ? String(raw[mapping.variantName] || '').trim() : '';
-        if (originalVariant && String(match.variant?.variantName || '').trim().toLocaleLowerCase() !== originalVariant.toLocaleLowerCase()) {
+        if (originalVariant && normalizeImportVariant(match.variant?.variantName) !== normalizeImportVariant(originalVariant)) {
           rowErrors.push(`Row ${line}: Variant name conflicts with the matched SKU.`);
         }
         if (!match.variant && (match.product.variantOptions || []).filter((v) => v.isActive !== false).length > 1) {
@@ -330,7 +331,7 @@ export default function ImportOrdersModal({
       const rawVariant = mapping.variantName ? String(raw[mapping.variantName] || '').trim().toLowerCase() : '';
       if (rawSku && rawSku !== String(match.variant?.sku || '').trim().toLowerCase()) return index;
       if (rawProduct && rawProduct !== String(match.product.name || '').trim().toLowerCase()) return index;
-      if (rawVariant && rawVariant !== String(match.variant?.variantName || '').trim().toLowerCase()) return index;
+      if (rawVariant && normalizeImportVariant(rawVariant) !== normalizeImportVariant(match.variant?.variantName)) return index;
       return -1;
     })
     .filter((index) => index >= 0);
@@ -419,7 +420,7 @@ export default function ImportOrdersModal({
           <ImportStartPanel
             title={tImport('buyerGuideTitle')}
             overview={tImport('buyerGuideOverview')}
-            matchingGuide={tImport('buyerGuideMatching')}
+            matchingGuide={`${tImport('buyerGuideMatching')} ${tImport('variantFormatHint')}`}
             instructions={[
               tImport('buyerGuideInstruction0'),
               tImport('buyerGuideInstruction1'),
@@ -437,6 +438,7 @@ export default function ImportOrdersModal({
               { name: tImport('buyerGuideColumn7Name'), description: tImport('buyerGuideColumn7Description') },
               { name: tImport('buyerGuideColumn8Name'), description: tImport('buyerGuideColumn8Description') },
             ]}
+            exampleRows={[["Example Product","EXAMPLE-SKU-1","Size: 30 x 2 | Colour: Blue","5","Pieces","10000","50000","0","2026-11-21"],["Example Product","EXAMPLE-SKU-2","Size: 90 x 2 | Flavour: Spicy | Colour: Black","10","Pieces","15000","150000","0","2026-11-21"],["Example Product","EXAMPLE-SKU-3","Size: 40 x 3 | Flavour: BBQ","2","Pieces","12000","24000","0","2026-11-21"]]}
             templateName="Lakupak_Buyer_Records_Template.xlsx"
             onFileSelectedAction={handleFile}
             error={error}

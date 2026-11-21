@@ -10,6 +10,7 @@ import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 import ImportSelectionCheckbox from '@/components/clientmanagement/ImportSelectionCheckbox';
 import ClientCatalogSelect from '@/components/clientmanagement/ClientCatalogSelect';
 import ImportStartPanel, { getDuplicateImportMappingErrors } from '@/components/imports/ImportStartPanel';
+import { normalizeImportVariant } from '@/lib/catalog/importVariantMatching';
 
 /** Columns the import UI can map — string fields only (not booleans / recordType). */
 type ImportableSupplyField =
@@ -119,7 +120,7 @@ function getCatalogMatch(row: Record<string, string>, mapping: Record<string, st
     const skuMatches = catalog.filter((entry) => normalizeKey(entry.sku) === sku);
     if (skuMatches.length === 1) return skuMatches[0];
     if (skuMatches.length > 1 && variantName) {
-      const exact = skuMatches.filter((entry) => normalizeKey(entry.variantName) === variantName);
+      const exact = skuMatches.filter((entry) => normalizeImportVariant(entry.variantName) === normalizeImportVariant(variantName));
       if (exact.length === 1) return exact[0];
     }
     // An old SKU may have been replaced. Only reconcile it when both the
@@ -128,13 +129,13 @@ function getCatalogMatch(row: Record<string, string>, mapping: Record<string, st
     if (!product || !variantName) return undefined;
     const replacement = catalog.filter((entry) =>
       productNameMatches(product, entry.product, entry.variantName || '') &&
-      normalizeKey(entry.variantName) === variantName,
+      normalizeImportVariant(entry.variantName) === normalizeImportVariant(variantName),
     );
     return replacement.length === 1 ? replacement[0] : undefined;
   }
   if (!product) return undefined;
   const exactProducts = catalog.filter((entry) => productNameMatches(product, entry.product, entry.variantName || ''));
-  const exact = exactProducts.filter((entry) => !variantName || normalizeKey(entry.variantName) === variantName);
+  const exact = exactProducts.filter((entry) => !variantName || normalizeImportVariant(entry.variantName) === normalizeImportVariant(variantName));
   return exact.length === 1 ? exact[0] : undefined;
 }
 
@@ -322,6 +323,18 @@ export default function ImportSuppliesModal({
     });
   };
 
+  const isCatalogMismatch = (raw: Record<string, string>): boolean => {
+    if (importMode !== 'catalog') return false;
+    const match = getCatalogMatch(raw, mapping, supplierCatalog);
+    if (!match) return true;
+    const product = mapping.product ? String(raw[mapping.product] || '') : '';
+    const variant = mapping.variantName ? String(raw[mapping.variantName] || '') : '';
+    return Boolean(
+      (product && !productNameMatches(product, match.product, match.variantName || '')) ||
+      (variant && normalizeImportVariant(variant) !== normalizeImportVariant(match.variantName)),
+    );
+  };
+
   const validateMappedData = (mappedRows: SupplyDetail[]) => {
     if (!mappedRows.length) return [tImport('noDataToImport')];
     if (!mapping.totalSupplied || (!mapping.sku && !mapping.product)) {
@@ -336,15 +349,16 @@ export default function ImportSuppliesModal({
       const match = getCatalogMatch(raw, mapping, supplierCatalog);
       // Catalog mismatches are previewable, but cannot be imported until
       // corrected or switched to Historical Receipt mode.
+      if (isCatalogMismatch(raw)) errors.push(tImport('catalogMismatchSummary'));
       if (match && importMode === 'catalog') {
         // A unique Product + Variant match is allowed to replace an obsolete SKU.
         // The preview displays the current catalog SKU before import.
         const rawProduct = mapping.product ? String(raw[mapping.product] || '') : '';
         if (rawProduct && !productNameMatches(rawProduct, match.product, match.variantName || '')) {
-          errors.push(`Row ${line}: Product name conflicts with the matched SKU.`);
+          errors.push(tImport('catalogMismatchSummary'));
         }
         const rawVariant = mapping.variantName ? String(raw[mapping.variantName] || '') : '';
-        if (rawVariant && normalizeKey(match.variantName) !== normalizeKey(rawVariant)) errors.push(`Row ${line}: Variant name conflicts with the matched SKU.`);
+        if (rawVariant && normalizeImportVariant(match.variantName) !== normalizeImportVariant(rawVariant)) errors.push(tImport('catalogMismatchSummary'));
       }
       const quantity = String(row.receivedQuantity || '').trim();
       if (!quantity || !/^\d+(?:\.\d+)?$/.test(quantity) || Number(quantity) <= 0) errors.push(`Row ${line}: Received Quantity must be a positive number.`);
@@ -357,18 +371,21 @@ export default function ImportSuppliesModal({
       }
       if (!row.totalSupplied) errors.push(`Row ${line}: Quantity cannot be converted safely to Pieces.`);
     });
-    return errors.slice(0, 10).concat(errors.length > 10 ? [`And ${errors.length - 10} more row error(s).`] : []);
+    return [...new Set(errors)].slice(0, 10);
   };
 
   const mismatchedRowIndices = importMode === 'catalog'
-    ? rows.map((raw, index) => getCatalogMatch(raw, mapping, supplierCatalog) ? -1 : index)
+    ? rows.map((raw, index) => isCatalogMismatch(raw) ? index : -1)
         .filter((index) => index >= 0)
     : [];
   const hasCatalogMismatches = mismatchedRowIndices.length > 0;
 
   const handleContinueToPreview = () => {
     const errors = validateMappedData(getMappedRows());
-    if (errors.length) { setValidationErrors(errors); return; }
+    if (errors.some((message) => message !== tImport('catalogMismatchSummary'))) {
+      setValidationErrors(errors);
+      return;
+    }
     setValidationErrors([]);
     setSelectedRowIndices(new Set(rows.map((_, index) => index)));
     setStep(2);
@@ -468,7 +485,7 @@ export default function ImportSuppliesModal({
           <ImportStartPanel
             title={tImport('supplierGuideTitle')}
             overview={tImport('supplierGuideOverview')}
-            matchingGuide={tImport('supplierGuideMatching')}
+            matchingGuide={`${tImport('supplierGuideMatching')} ${tImport('variantFormatHint')}`}
             instructions={[
               tImport('supplierGuideInstruction0'),
               tImport('supplierGuideInstruction1'),
@@ -484,6 +501,7 @@ export default function ImportSuppliesModal({
               { name: tImport('supplierGuideColumn5Name'), description: tImport('supplierGuideColumn5Description') },
               { name: tImport('supplierGuideColumn6Name'), description: tImport('supplierGuideColumn6Description') },
             ]}
+            exampleRows={[["Example Product","EXAMPLE-SKU-1","Size: 30 x 2 | Colour: Blue","5","Pieces","100000","2026-11-21"],["Example Product","EXAMPLE-SKU-2","Size: 90 x 2 | Flavour: Spicy | Colour: Black","10","Pieces","200000","2026-11-21"],["Example Product","EXAMPLE-SKU-3","Size: 40 x 3 | Flavour: BBQ","2","Pieces","50000","2026-11-21"]]}
             templateName="Lakupak_Supplier_Records_Template.xlsx"
             onFileSelectedAction={handleFile}
             error={error}

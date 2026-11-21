@@ -751,8 +751,12 @@
     "importStartBrowse": "atau klik untuk memilih file dari komputer",
     "importStartCheckTitle": "Pemeriksaan impor:",
     "importStartCheckBody": "Lakupak memeriksa judul kolom, data wajib, nilai angka, jenis stok, dan kecocokan katalog sebelum menampilkan pratinjau. File yang gagal diperiksa akan tetap berada di halaman ini.",
-    "catalogMismatchSummary": "Beberapa baris tidak dapat dicocokkan. Tidak ditemukan kecocokan unik dengan katalog aktif. Pilih mode Riwayat Pasokan untuk menyimpannya tanpa mengubah inventaris.",
-    "buyerCatalogMismatchSummary": "Beberapa baris tidak dapat dicocokkan. Tidak ditemukan kecocokan unik dengan katalog aktif. Periksa baris yang ditandai sebelum mengimpor."
+    "catalogMismatchSummary": "Beberapa baris tidak cocok. Tidak ditemukan kecocokan unik dengan katalog aktif. Periksa baris berwarna merah atau gunakan mode Riwayat Pasokan tanpa memperbarui inventaris.",
+    "buyerCatalogMismatchSummary": "Beberapa baris tidak cocok. Tidak ditemukan kecocokan unik dengan katalog aktif. Periksa baris berwarna merah sebelum mengimpor.",
+    "exampleRowsTitle": "Tiga baris contoh disertakan",
+    "exampleRowsHint": "Templat Excel memuat tiga baris ilustrasi. Ganti semua nama produk dan SKU EXAMPLE dengan data katalog aktif Anda sebelum mengimpor.",
+    "variantFormatHint": "Untuk beberapa atribut varian, tulis Atribut: Nilai | Atribut: Nilai. Pisahkan setiap atribut dengan |, misalnya Size: 30 x 2 | Colour: Blue atau Size: 90 x 2 | Flavour: Spicy | Colour: Black. Urutan atribut serta ejaan Color/Colour dan Flavor/Flavour dinormalisasi, tetapi kecocokan katalog harus tetap unik.",
+    "variantFormatLabel": "Format varian"
   },
   "matching": {
     "title": "Pencocokan Pembeli",
