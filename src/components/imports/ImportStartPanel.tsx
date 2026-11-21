@@ -74,7 +74,10 @@ export default function ImportStartPanel({
       [tImport('importStartPurpose'), overview],
       [tImport('importStartInstructions'), tImport('importStartTemplateGuide')],
       [tImport('importStartAliases'), matchingGuide],
-      ...(exampleRows.length ? [[tImport('exampleRowsTitle'), tImport('exampleRowsHint')]] : []),
+      ...(exampleRows.length ? [
+        [tImport('exampleRowsTitle'), tImport('exampleRowsHint')],
+        [tImport('variantFormatLabel'), tImport('variantFormatHint')],
+      ] : []),
       [],
       [tImport('importStartColumn'), tImport('importStartRequiredYes'), tImport('importStartDescription')],
       ...columns.map((column) => [column.name, column.required ? tImport('importStartRequiredYes') : tImport('importStartRequiredNo'), column.description]),
@@ -115,7 +118,10 @@ export default function ImportStartPanel({
           <p className="text-xs leading-5 text-blue-900">{matchingGuide}</p>
         </div>
         {exampleRows.length > 0 && (
-          <p className="mb-3 text-xs leading-5 text-gray-600"><strong>{tImport('exampleRowsTitle')}:</strong> {tImport('exampleRowsHint')}</p>
+          <div className="mb-3 space-y-1 text-xs leading-5 text-gray-600">
+            <p><strong>{tImport('exampleRowsTitle')}:</strong> {tImport('exampleRowsHint')}</p>
+            <p><strong>{tImport('variantFormatLabel')}:</strong> {tImport('variantFormatHint')}</p>
+          </div>
         )}
         <div className="mb-3">
           <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-700">{tImport('importStartColumns')}</p>
