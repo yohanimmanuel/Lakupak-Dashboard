@@ -32,7 +32,6 @@ export function getDuplicateImportMappingErrors(
 type ImportStartPanelProps = {
   title: string;
   overview: string;
-  matchingGuide: string;
   instructions: string[];
   columns: ImportColumnGuide[];
   templateName: string;
@@ -47,7 +46,6 @@ type ImportStartPanelProps = {
 export default function ImportStartPanel({
   title,
   overview,
-  matchingGuide,
   instructions,
   columns,
   templateName,
@@ -73,7 +71,6 @@ export default function ImportStartPanel({
       [tImport('importStartTemplate'), title],
       [tImport('importStartPurpose'), overview],
       [tImport('importStartInstructions'), tImport('importStartTemplateGuide')],
-      [tImport('importStartAliases'), matchingGuide],
       ...(exampleRows.length ? [
         [tImport('exampleRowsTitle'), tImport('exampleRowsHint')],
         [tImport('variantFormatLabel'), tImport('variantFormatHint')],
@@ -113,10 +110,7 @@ export default function ImportStartPanel({
             {instructions.map((instruction, index) => <li key={index}>{instruction}</li>)}
           </ol>
         </div>
-        <div className="mb-3 rounded-lg border border-blue-100 bg-blue-50 p-3">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-blue-800">{tImport('importStartMatching')}</p>
-          <p className="text-xs leading-5 text-blue-900">{matchingGuide}</p>
-        </div>
+
         {exampleRows.length > 0 && (
           <div className="mb-3 space-y-1 text-xs leading-5 text-gray-600">
             <p><strong>{tImport('exampleRowsTitle')}:</strong> {tImport('exampleRowsHint')}</p>

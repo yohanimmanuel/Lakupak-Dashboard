@@ -691,7 +691,6 @@
     "importStartUploadHint": "Excel (.xlsx, .xls) atau CSV · maks. 10 MB · satu baris judul · satu data per baris",
     "importStartPurpose": "Tujuan",
     "importStartInstructions": "Sebelum mengimpor",
-    "importStartAliases": "Pencocokan dan alias",
     "importStartRequiredYes": "Ya",
     "importStartRequiredNo": "Tidak",
     "importStartDescription": "Deskripsi",
@@ -702,7 +701,6 @@
     "importStartSheet": "Petunjuk",
     "buyerGuideTitle": "Data pesanan dan produk pembeli",
     "buyerGuideOverview": "Impor riwayat produk/pesanan pembeli. Setiap baris menjadi satu catatan pembeli tanpa membuat produk katalog baru.",
-    "buyerGuideMatching": "Cocokkan dengan katalog pembeli menggunakan SKU Lakupak yang tepat atau Produk + Varian yang tepat. Kode barang eksternal hanya cocok jika sama dengan SKU Lakupak. Tidak ada pencocokan perkiraan.",
     "buyerGuideInstruction0": "Gunakan satu baris untuk setiap kombinasi pembeli, produk, dan varian.",
     "buyerGuideInstruction1": "Masukkan SKU yang tepat atau Produk + Varian yang ada di katalog.",
     "buyerGuideInstruction2": "Jumlah pesanan harus berupa angka. Jenis stok harus sesuai dengan satuan produk.",
@@ -727,7 +725,6 @@
     "buyerGuideColumn8Description": "Tanggal dalam format YYYY-MM-DD.",
     "supplierGuideTitle": "Riwayat pasokan pemasok",
     "supplierGuideOverview": "Impor riwayat penerimaan untuk pemasok terpilih. Setiap baris merupakan satu penerimaan; jumlah dikonversi ke Pieces berdasarkan satuan produk yang cocok.",
-    "supplierGuideMatching": "Pilih Pencocokan Katalog untuk varian aktif yang cocok secara unik, atau Riwayat Pasokan untuk SKU lama/tidak cocok. Impor historis mempertahankan data asli tanpa memperbarui inventaris.",
     "supplierGuideInstruction0": "Gunakan satu baris per varian produk yang diterima dan tanggal pengiriman.",
     "supplierGuideInstruction1": "Pencocokan Katalog menerima SKU unik atau Produk + Varian, termasuk nama produk dengan akhiran (Varian).",
     "supplierGuideInstruction2": "Jumlah diterima harus berupa angka. Jenis stok harus sesuai dengan satuan produk.",
@@ -756,7 +753,55 @@
     "exampleRowsTitle": "Tiga baris contoh disertakan",
     "exampleRowsHint": "Templat Excel memuat tiga baris ilustrasi. Ganti semua nama produk dan SKU EXAMPLE dengan data katalog aktif Anda sebelum mengimpor.",
     "variantFormatHint": "Untuk beberapa atribut varian, tulis Atribut: Nilai | Atribut: Nilai. Pisahkan setiap atribut dengan |, misalnya Size: 30 x 2 | Colour: Blue atau Size: 90 x 2 | Flavour: Spicy | Colour: Black. Urutan atribut serta ejaan Color/Colour dan Flavor/Flavour dinormalisasi, tetapi kecocokan katalog harus tetap unik.",
-    "variantFormatLabel": "Format varian"
+    "variantFormatLabel": "Format varian",
+    "master": {
+      "buyer": {
+        "title": "Data utama pembeli",
+        "overview": "Impor informasi kontak dan akun pembeli atau toko. Detail pesanan dapat diimpor terpisah melalui profil pembeli.",
+        "columns": {
+          "id": "Diabaikan; Lakupak membuat ID pembeli baru.",
+          "storeName": "Nama toko atau usaha pembeli.",
+          "owner": "Pemilik atau narahubung pembeli.",
+          "phone": "Nomor telepon, sebaiknya dengan kode negara.",
+          "email": "Alamat email pembeli.",
+          "address": "Alamat toko atau usaha.",
+          "businessType": "Jenis usaha, misalnya ritel, grosir, atau makanan dan minuman.",
+          "status": "Status pembeli dalam ruang kerja.",
+          "createdAt": "Tanggal pembuatan, opsional.",
+          "preferredDeliveryDays": "Hari pengiriman dipisahkan koma, misalnya Monday, Thu, Fri.",
+          "lastShipment": "Tanggal pengiriman terakhir, opsional.",
+          "shipmentSuccess": "Tingkat keberhasilan pengiriman, opsional.",
+          "notes": "Catatan atau tag internal."
+        },
+        "instruction0": "Gunakan satu baris untuk setiap pembeli atau toko.",
+        "instruction1": "Isi Nama Toko pada setiap baris. ID pembeli dibuat otomatis oleh Lakupak.",
+        "instruction2": "Gunakan nomor telepon, alamat email, dan status yang konsisten. Kosongkan informasi opsional yang belum diketahui.",
+        "instruction3": "Impor detail pesanan secara terpisah melalui profil pembeli."
+      },
+      "supplier": {
+        "title": "Data utama pemasok",
+        "overview": "Impor informasi kontak dan akun pemasok. Riwayat pasokan dapat diimpor terpisah melalui profil pemasok.",
+        "columns": {
+          "id": "Diabaikan; Lakupak membuat ID pemasok baru.",
+          "supplierName": "Nama pemasok atau perusahaan.",
+          "contact": "Narahubung pemasok.",
+          "phone": "Nomor telepon, sebaiknya dengan kode negara.",
+          "email": "Alamat email pemasok.",
+          "businessType": "Jenis usaha, misalnya produsen, distributor, atau grosir.",
+          "address": "Alamat pemasok.",
+          "status": "Status pemasok dalam ruang kerja.",
+          "createdAt": "Tanggal pembuatan, opsional.",
+          "preferredDeliveryDays": "Hari pengiriman dipisahkan koma, misalnya Monday, Thu, Fri.",
+          "lastSuppliedDate": "Tanggal pasokan terakhir, opsional.",
+          "deliverySuccess": "Tingkat keberhasilan pengiriman, opsional.",
+          "notes": "Catatan atau tag internal."
+        },
+        "instruction0": "Gunakan satu baris untuk setiap pemasok.",
+        "instruction1": "Isi Nama Pemasok pada setiap baris. ID pemasok dibuat otomatis oleh Lakupak.",
+        "instruction2": "Gunakan nomor telepon, alamat email, dan status yang konsisten. Kosongkan informasi opsional yang belum diketahui.",
+        "instruction3": "Impor catatan penerimaan pasokan secara terpisah melalui profil pemasok."
+      }
+    }
   },
   "matching": {
     "title": "Pencocokan Pembeli",

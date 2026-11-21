@@ -681,7 +681,6 @@
     "importStartUploadHint": "Excel (.xlsx, .xls) or CSV · max 10 MB · one header row · one record per row",
     "importStartPurpose": "Purpose",
     "importStartInstructions": "Before importing",
-    "importStartAliases": "Matching and aliases",
     "importStartRequiredYes": "Yes",
     "importStartRequiredNo": "No",
     "importStartDescription": "Description",
@@ -692,7 +691,6 @@
     "importStartSheet": "Instructions",
     "buyerGuideTitle": "Buyer order and product records",
     "buyerGuideOverview": "Import historical buyer product/order rows. Each row becomes one buyer record; it does not create a new catalog product.",
-    "buyerGuideMatching": "Match to the currently selected buyer's catalog using one exact Lakupak SKU, or exact Product + Variant. A distributor's external item code is only an alias if it is identical to the Lakupak SKU; if it differs, replace it with the correct Lakupak SKU or use the exact Product + Variant. No fuzzy or approximate alias matching is performed.",
     "buyerGuideInstruction0": "Use one row per buyer-product-variant combination.",
     "buyerGuideInstruction1": "Provide an exact SKU, or an exact Product + Variant that exists in the current product catalog.",
     "buyerGuideInstruction2": "Total Orders must be numeric. Stock Type must match one of the stock levels configured for that product.",
@@ -717,7 +715,6 @@
     "buyerGuideColumn8Description": "Date in YYYY-MM-DD format.",
     "supplierGuideTitle": "Supplier supply history",
     "supplierGuideOverview": "Import dated receipt rows for the selected supplier. Each row is a receipt event; quantities are converted to canonical Pieces using the matched product's configured stock levels.",
-    "supplierGuideMatching": "Choose Catalog Match for uniquely identified live variants, or Historical Receipt for older/unmatched SKUs. Historical imports preserve the original labels and never update inventory.",
     "supplierGuideInstruction0": "Use one row per received product variant and delivery date.",
     "supplierGuideInstruction1": "Catalog Match accepts a unique SKU or Product + Variant, including product names with a trailing (Variant).",
     "supplierGuideInstruction2": "Received Quantity must be numeric. Stock Type must exactly match a stock level configured for that product.",
@@ -746,7 +743,55 @@
     "exampleRowsTitle": "Three sample rows included",
     "exampleRowsHint": "The Excel template includes three illustrative rows. Replace all EXAMPLE products and SKUs with your own live catalog data before importing.",
     "variantFormatHint": "For multiple variant attributes, write Attribute: Value | Attribute: Value. Separate each attribute with |, for example Size: 30 x 2 | Colour: Blue or Size: 90 x 2 | Flavour: Spicy | Colour: Black. Attribute order and Color/Colour or Flavor/Flavour spellings are normalized; the catalog match must still be unique.",
-    "variantFormatLabel": "Variant format"
+    "variantFormatLabel": "Variant format",
+    "master": {
+      "buyer": {
+        "title": "Buyer master records",
+        "overview": "Import buyer/store contact and account information. Order details can be imported separately from the Buyer profile.",
+        "columns": {
+          "id": "Ignored; Lakupak generates a new buyer ID.",
+          "storeName": "Buyer store or business name.",
+          "owner": "Buyer owner or contact person.",
+          "phone": "Phone number, preferably with country code.",
+          "email": "Buyer email address.",
+          "address": "Store or business address.",
+          "businessType": "Retail, wholesaler, F&B, etc.",
+          "status": "Buyer status in your workspace.",
+          "createdAt": "Optional creation date.",
+          "preferredDeliveryDays": "Weekdays separated by commas, e.g. Monday, Thu, Fri.",
+          "lastShipment": "Optional last-shipment date.",
+          "shipmentSuccess": "Optional shipment success rate.",
+          "notes": "Internal notes or tags."
+        },
+        "instruction0": "Use one row per buyer or store.",
+        "instruction1": "Enter a Store Name for every row. Lakupak generates buyer IDs.",
+        "instruction2": "Use consistent phone numbers, email addresses, and statuses. Leave unknown optional fields blank.",
+        "instruction3": "Import order details separately from the buyer profile."
+      },
+      "supplier": {
+        "title": "Supplier master records",
+        "overview": "Import supplier contact and account information. Supply history can be imported separately from the Supplier profile.",
+        "columns": {
+          "id": "Ignored; Lakupak generates a new supplier ID.",
+          "supplierName": "Supplier or company name.",
+          "contact": "Supplier contact person.",
+          "phone": "Phone number, preferably with country code.",
+          "email": "Supplier email address.",
+          "businessType": "Manufacturer, distributor, wholesaler, etc.",
+          "address": "Supplier address.",
+          "status": "Supplier status in your workspace.",
+          "createdAt": "Optional creation date.",
+          "preferredDeliveryDays": "Weekdays separated by commas, e.g. Monday, Thu, Fri.",
+          "lastSuppliedDate": "Optional last-supplied date.",
+          "deliverySuccess": "Optional delivery success rate.",
+          "notes": "Internal notes or tags."
+        },
+        "instruction0": "Use one row per supplier.",
+        "instruction1": "Enter a Supplier Name for every row. Lakupak generates supplier IDs.",
+        "instruction2": "Use consistent phone numbers, email addresses, and statuses. Leave unknown optional fields blank.",
+        "instruction3": "Import supply receipts separately from the supplier profile."
+      }
+    }
   },
   "matching": {
     "title": "Buyer Matching",

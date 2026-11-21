@@ -575,7 +575,6 @@ export default function VariationListImport({
           <ImportStartPanel
             title="Product variant and stock import"
             overview="Import the variant combinations and SKU-level data for the product currently open in Product Catalog. Each row represents one combination of the configured variant types."
-            matchingGuide="Rows belong to the product currently open. The exact combination of values in the configured variant columns identifies each variant row; SKU is assigned to that combination. Use the same spelling for configured option values. This flow does not fuzzy-match old SKU aliases or create additional product records."
             instructions={[
               'Use one row per variant combination. Do not group multiple SKUs in one row.',
               'Include one column for every configured variant type (for example Size, Flavor, Pack) and an exact SKU for each row.',
