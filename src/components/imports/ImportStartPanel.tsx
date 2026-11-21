@@ -36,6 +36,7 @@ type ImportStartPanelProps = {
   instructions: string[];
   columns: ImportColumnGuide[];
   templateName: string;
+  exampleRows?: string[][];
   onFileSelectedAction: (file: File) => void;
   error?: string;
   filename?: string;
@@ -50,6 +51,7 @@ export default function ImportStartPanel({
   instructions,
   columns,
   templateName,
+  exampleRows = [],
   onFileSelectedAction,
   error,
   filename,
@@ -62,8 +64,9 @@ export default function ImportStartPanel({
 
   const downloadTemplate = () => {
     const headers = columns.map((column) => column.name);
-    // Templates intentionally contain headers only; never include example or live records.
-    const templateSheet = XLSX.utils.aoa_to_sheet([headers]);
+    // Three clearly marked examples make variant formatting discoverable.
+    // Examples are illustrative, not real catalog IDs; users must replace them.
+    const templateSheet = XLSX.utils.aoa_to_sheet([headers, ...exampleRows]);
     templateSheet['!cols'] = columns.map((column) => ({ wch: Math.max(16, Math.min(42, column.name.length + 5)) }));
 
     const guideRows: (string | number)[][] = [
@@ -71,6 +74,7 @@ export default function ImportStartPanel({
       [tImport('importStartPurpose'), overview],
       [tImport('importStartInstructions'), tImport('importStartTemplateGuide')],
       [tImport('importStartAliases'), matchingGuide],
+      ...(exampleRows.length ? [[tImport('exampleRowsTitle'), tImport('exampleRowsHint')]] : []),
       [],
       [tImport('importStartColumn'), tImport('importStartRequiredYes'), tImport('importStartDescription')],
       ...columns.map((column) => [column.name, column.required ? tImport('importStartRequiredYes') : tImport('importStartRequiredNo'), column.description]),
@@ -110,6 +114,9 @@ export default function ImportStartPanel({
           <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-blue-800">{tImport('importStartMatching')}</p>
           <p className="text-xs leading-5 text-blue-900">{matchingGuide}</p>
         </div>
+        {exampleRows.length > 0 && (
+          <p className="mb-3 text-xs leading-5 text-gray-600"><strong>{tImport('exampleRowsTitle')}:</strong> {tImport('exampleRowsHint')}</p>
+        )}
         <div className="mb-3">
           <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-700">{tImport('importStartColumns')}</p>
           <div className="rounded-lg border border-gray-200">
