@@ -191,14 +191,14 @@ Data klien yang mutakhir memperbaiki pemenuhan pesanan, analitik, dan widget das
 - [Produk](/id/docs/dashboard/products) untuk katalog terkait supply
 - [Beranda](/id/docs/dashboard/home) untuk widget pembeli dan pemasok
 
-## Penerimaan pemasok, ringkasan, dan hubungan stok terkini (November 2026)
+## Riwayat suplai, snapshot, dan hubungan stok terkini (November 2026)
 
 Catatan pemasok dan katalog produk **terpisah tetapi dapat ditautkan**. Menambah, mengubah, mengganti nama, atau menghapus produk/varian tidak otomatis membuat penerimaan pemasok, mengubah riwayat, atau memindahkan penerimaan ke varian lain. Riwayat penerimaan dibuat atau diimpor secara eksplisit; sinkronisasi otomatis dari katalog ke pemasok yang lama tidak lagi digunakan.
 
 - **Riwayat suplai** menyimpan setiap penerimaan: tanggal, snapshot produk/varian, jumlah dan satuan yang dimasukkan, nilai, serta status penerapan pembaruan stok.
-- **Ringkasan suplai / snapshot saldo awal** berbeda dari riwayat penerimaan. Catatan lama berawalan `AUTO-` adalah ringkasan, sedangkan `HIST-` adalah riwayat. Jangan menghitung ringkasan dan riwayat penyusunnya dua kali.
+- **Snapshot** mempertahankan informasi produk, varian, dan suplai historis, terpisah dari transaksi penerimaan baru. Catatan lama berawalan `AUTO-` tetap disimpan sebagai snapshot historis, sedangkan `HIST-` menunjukkan riwayat suplai. Jangan menghitung snapshot sebagai penerimaan tambahan.
 - **Identitas varian:** hubungan inventaris menggunakan ID produk dan ID opsi varian aktif, bukan hanya SKU atau nama yang sama. Varian yang dihapus lalu dibuat ulang memiliki ID baru.
-- **Varian terhapus atau berganti nama:** riwayat dan ringkasan tetap menyimpan label historisnya; sistem tidak boleh otomatis menghubungkannya ke varian baru.
+- **Varian terhapus atau berganti nama:** riwayat suplai dan snapshot tetap menyimpan label historisnya; sistem tidak boleh otomatis menghubungkannya ke varian baru.
 - **Data lama tidak cocok:** pilih ulang varian katalog aktif sebelum memperbarui stok. Jika varian sudah dihapus, pilih varian lain untuk penerimaan baru atau arsipkan/hapus catatan usang jika tersedia. Penerimaan baru yang masih kosong tidak memerlukan peringatan data lama.
 - **Satuan penerimaan:** jumlah dan satuan asli (misalnya karton) tetap disimpan; jumlah dasar dalam pieces dihitung menggunakan rasio konversi varian. Keduanya bukan dua inventaris terpisah.
 - **Update Current Stock:** stok hanya diperbarui melalui tindakan penerimaan yang eksplisit dan berhasil. Jangan menganggap impor atau penyimpanan baris otomatis menambah stok, dan jangan menerapkan penerimaan yang sama dua kali.
