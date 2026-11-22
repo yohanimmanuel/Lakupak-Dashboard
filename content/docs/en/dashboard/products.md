@@ -167,3 +167,15 @@ If an old receipt references the deleted variant, its original stock movement ca
 - Imported products are created as **Draft**. Check mapped variant options, their SKUs, conversion levels, quantities, and prices before publishing; the product itself has no top-level SKU.
 - A receipt can reference a deleted variant through its historical snapshot, but it cannot update that removed variant's inventory. A newly created same-name variant is a different ID.
 - Orders and supplier receipts can both affect the same variant stock. They do not create separate carton, box, and piece inventories; conversions are alternative units of the same quantity.
+
+## CRUD actions and system results
+
+| Action | System result |
+|---|---|
+| Create/import product | Creates a Draft catalog entry; product ID is separate from variant-level SKUs. Initial stock is not a supplier receipt. |
+| Edit variants, prices, units | Saves each variant's identity, SKU, conversion levels, price, MOQ and stock; refresh the variation list after changing options. Stock levels represent one inventory. |
+| Publish / unpublish | Adds/removes eligible products from buyer marketplace discovery; bulk actions process selected products without changing historical orders or supplier receipts. |
+| Delete product or variant | Removes the live catalog selection; preserves historical order lines, Supply History and Snapshots. Recreating the same SKU/name does not restore the old variant ID. |
+| Import/export catalog | Maps spreadsheet columns and exports catalog data; verify variant matches, units and draft status before publishing. |
+
+Stock movements from orders and explicit supplier receipts affect the same variant inventory. Do not add a carton quantity and its converted piece quantity as separate stock.
