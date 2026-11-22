@@ -193,14 +193,14 @@ Keeping client records current improves order fulfillment, analytics, and dashbo
 - [Products](/en/docs/dashboard/products) for catalog linked to supply lines
 - [Home](/en/docs/dashboard/home) for buyer and supplier widgets
 
-## Current supplier receipts, summaries, and inventory linkage (November 2026)
+## Current supply history, snapshots, and inventory linkage (November 2026)
 
 Supplier records and the product catalog are **separate but linkable**. Adding, editing, renaming, or deleting a catalog product or variant does **not** automatically create supplier receipt history, rewrite existing receipts, or move receipt records to another variant. Supplier receipts are created or imported explicitly. This replaces the older automatic product-to-supplier synchronization behavior.
 
 - **Supply history** records individual supplier receipts, including the supplied date, product/variant snapshot, entered quantity and unit, value, and whether an inventory update was requested and applied.
-- **Supply summary / opening-balance snapshots** are distinct from receipt history. Legacy `AUTO-` records are summaries; `HIST-` records are receipt history. Do not treat a summary as an additional receipt or double-count it alongside the history that contributes to a total.
+- **Snapshots** preserve previously recorded product, variant, and supply information separately from new receipt transactions. Legacy `AUTO-` records are retained as historical snapshots; `HIST-` records identify supply history. Do not count a snapshot as an additional receipt.
 - **Variant identity:** inventory links use the live product ID and variant option ID, not just a matching SKU or display name. Recreating a deleted variant with the same name or SKU creates a different identity.
-- **Deleted or renamed catalog variants:** existing supplier summary and history rows retain their recorded product and variant labels as historical snapshots. A missing live option is not silently substituted with another variant.
+- **Deleted or renamed catalog variants:** existing supply history and snapshot records retain their recorded product and variant labels as historical snapshots. A missing live option is not silently substituted with another variant.
 - **Unmatched historical rows:** select a valid current catalog variant before applying a new stock update. If the variant was deleted, choose another live variant for a new receipt or archive/delete the obsolete supply record where the interface permits. An unselected new receipt needs no legacy warning.
 - **Received units:** receipts preserve the entered quantity and stock level (such as cartons), while the canonical inventory quantity is calculated in base pieces using that variant's conversion rules. These are two representations of one quantity, not separate inventories.
 - **Update Current Stock:** stock changes are an explicit receipt action; an imported or saved supplier row must not be assumed to have changed inventory unless its stock update was successfully applied. Avoid reapplying the same historical receipt.
