@@ -96,3 +96,18 @@ Jaga data perusahaan dan penagihan tetap mutakhir.
 | Marketplace pembeli | [Ringkasan Marketplace](/id/docs/marketplace/overview) |
 | Publikasi produk | [Produk](/id/docs/dashboard/products) |
 | Tarif per retailer | [Penawaran](/id/docs/dashboard/offers) |
+
+## Tindakan simpan dan hasil sistem
+
+| Tindakan | Hasil sistem |
+|---|---|
+| Edit / Save / Cancel profil | Menyimpan atau membatalkan perubahan profil; tidak mengubah data pembeli/pemasok. |
+| Simpan identitas perusahaan dan pengiriman | Memperbarui logo, kontak, pickup, metode kirim, dan lead time di storefront jika fitur aktif. |
+| Simpan kode referral | Memvalidasi keunikan kode sebelum pembeli memakainya untuk bergabung. |
+| Ubah tampilan harga diskon | Menentukan apakah PO baru langsung menampilkan tarif klien atau menunggu **Send pricing to buyer**; kartu produk tetap harga dasar. |
+| Ubah bahasa / wilayah / mata uang | Memperbarui preferensi yang didukung; mata uang dapat dibatasi wilayah. |
+| Edit rekening / alamat tagihan | Menyimpan detail tagihan; tidak otomatis mencatat pembayaran. |
+| Buat/ubah password | Memperbarui kredensial melalui alur keamanan. |
+| Start/Reset tur | Mengulang panduan tanpa mengubah data operasional. |
+
+Gunakan **Save** untuk menyimpan dan **Cancel** untuk membatalkan perubahan. Fitur tersembunyi dapat bergantung pada konfigurasi akun.

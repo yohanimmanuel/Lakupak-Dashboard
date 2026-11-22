@@ -6,7 +6,7 @@ module: dashboard
 order: 13
 ---
 
-The **Products** area is your B2B catalog control room. You create SKUs with variants and images, track stock per variant, and keep underused products visible, priced, and stocked so they can be introduced to suitable retailers.
+The **Products** area is your B2B catalog control room. You create products with variant-level SKUs and images, track stock per variant, and keep underused products visible, priced, and stocked so they can be introduced to suitable retailers.
 
 Assortment gap detection (for example heatmap views of under-penetration across eligible retailers) builds on this catalog foundation. Low penetration is a signal to investigate, not proof of unmet demand.
 
@@ -52,7 +52,7 @@ Import is supported in the product import modal (column mapping for XLSX/CSV). T
 - Mobile uses card layout
 - **8** products per page; empty state: **No products recorded**
 
-**List columns:** ID/SKU, Product Name, Type, Category, Brand, Stock, Selling Price, Status, Last Updated, Actions.
+**List columns:** Product ID / variant SKU, Product Name, Type, Category, Brand, Stock, Selling Price, Status, Last Updated, Actions.
 
 **Row actions:** **View Product** (Published) or **Edit Product** (Draft), **Delete Product**.
 
@@ -74,9 +74,9 @@ Routes: `/products/add`, `/products/edit/{id}`, `/products/catalog/{id}` (view).
 
 ### General information
 
-Fields include **Product ID** (auto `LKP-`), **SKU Number**, **Brand**, **Type** (category dropdown), **Product Name**, **Supplier**, **Product Description**, and assurance checkboxes (**Halal Certified**, **BPOM Approved**, **Original Product**) plus **Return Policy (days)**.
+Fields include **Product ID** (auto `LKP-`), **Brand**, **Type** (category dropdown), **Product Name**, **Supplier**, **Product Description**, and assurance checkboxes (**Halal Certified**, **BPOM Approved**, **Original Product**) plus **Return Policy (days)**.
 
-**Product Catalog Completion** shows percent complete and missing fields (SKU, name, description, category, brand, supplier, images, variants, stock).
+**Product Catalog Completion** shows percent complete and missing fields (name, description, category, brand, supplier, images, variants, stock, and variant-level SKU where required).
 
 ### Variants, stock, and images
 
@@ -84,7 +84,7 @@ Fields include **Product ID** (auto `LKP-`), **SKU Number**, **Brand**, **Type**
 - **Product Settings:** Product Type, **Product Category (by Channel)**, **Catalog Name**
 - **Product Variants:** define variant types and options (e.g. Size: S, M, L)
 - **Variation Lists:** table of every combination with **SKU**, **Selling Price**, **Purchase Price**, **MOQ**, **Stock Qty**, **Low Threshold**, and per-row status (**In Stock**, **Low Stock**, **Out of Stock**)
-- **Quick Action: Apply To All** copies SKU, prices, MOQ, and stock values across all rows
+- **Quick Action: Apply To All** copies applicable prices, MOQ, and stock values across rows; each variant retains its own SKU identity
 - **Product Stock Summary:** total pieces, threshold, overall status
 
 #### Setting up variants correctly
@@ -116,20 +116,20 @@ Leaving edit with unsaved changes triggers a browser confirmation.
 From the list (**Publish**) or form (**Save and Publish**):
 
 1. Open **Marketplace Preview** (single) or **Bulk Publish (N products)** when storefront publishing is available on your plan
-2. Review readiness: SKU, name, description, type, brand, supplier, variant pricing, stock &gt; 0, at least one image
+2. Review readiness: variant SKU where required, name, description, type, brand, supplier, variant pricing, stock &gt; 0, at least one image
 3. Confirm **Publish** only when readiness checks pass
 
 Incomplete products are listed under **Cannot Publish** with missing fields called out.
 
 ## Import and export
 
-**Export** columns include Product ID, SKU, Product Name, Type, Brand, Supplier, stock, purchase and selling price, status, and last updated.
+**Export** columns include Product ID, variant SKU (where applicable), Product Name, Type, Brand, Supplier, stock, purchase and selling price, status, and last updated.
 
 **Import** maps spreadsheet columns to catalog fields; status is always set to **Draft** on import.
 
 ## Deleted products
 
-Opening a link to a removed product shows **Product has been deleted** with **Go Back** and **Add Products**. Historical orders may still reference that SKU.
+Opening a link to a removed product shows **Product has been deleted** with **Go Back** and **Add Products**. Historical orders may still reference the original product and variant SKU snapshots.
 
 ## Related areas
 
@@ -138,3 +138,44 @@ Opening a link to a removed product shows **Product has been deleted** with **Go
 | Discounts on catalog items | [Offers](/en/docs/dashboard/offers) |
 | Orders using SKUs | [Orders](/en/docs/dashboard/orders) |
 | Low-stock widgets | [Home](/en/docs/dashboard/home) |
+
+## Variant SKU and inventory rules (November 2026)
+
+**There is no longer a top-level product SKU field.** A product has a stable Product ID (`LKP-`); SKUs belong to its individual variant options. Marketplace publishing and integrations must read variant SKUs, not request `Product.sku` from the product root. The variation table remains the place to review each variant's SKU, pricing, MOQ, and stock.
+
+### One inventory across flexible stock levels
+
+Stock levels such as pieces, cartons, and boxes are **units of the same variant inventory**, not independent stock pools. Configure conversion ratios for the variant and normalize transactions to the base quantity; the interface can display an equivalent breakdown in larger and smaller units. Entering a carton receipt must preserve the user's carton quantity and unit in the receipt, even when inventory uses pieces internally. Do not add both representations as separate stock.
+
+### Catalog changes versus supplier history
+
+- Creating a product or variant establishes its catalog and initial stock information; it does **not** generate a supplier purchase receipt or automatically synchronize a supplier ledger.
+- Supply history and snapshots remain preserved when a product or variant is renamed or deleted. Deleting and recreating an option with the same label/SKU does not restore its previous variant option ID.
+- Existing historical supplier rows may display a frozen variant label when the live variant no longer exists. Users must select a valid live variant for future stock-affecting receipts; never match solely by name or SKU.
+- Stock increases from supplier receipts occur only when the explicit stock-update action succeeds. Inventory also changes through order fulfillment and other supported stock operations; supplier history alone is not the live stock balance.
+
+For the distinction between supply history and snapshots, see [Clients](/en/docs/dashboard/clients).
+
+### What happens when a variant is deleted?
+
+Deleting a catalog variant removes its live inventory identity and makes it unavailable for future variant selection. **It does not automatically delete or archive supplier Supply History or Snapshots.** Existing receipts keep their historical labels and variant identifiers. Recreating an option with the same name or SKU produces a new identity and does not reconnect old stock movements.
+
+If an old receipt references the deleted variant, its original stock movement cannot be reversed against a missing catalog row. Users must choose a current valid variant for new stock-affecting receipts; do not silently transfer historical stock or receipts to the replacement variant. To manage obsolete receipt entries, use the Supplier profile's archive or delete actions and review any stock-reversal choice. See [Clients](/en/docs/dashboard/clients).
+
+### Imports and historical inventory links
+
+- Imported products are created as **Draft**. Check mapped variant options, their SKUs, conversion levels, quantities, and prices before publishing; the product itself has no top-level SKU.
+- A receipt can reference a deleted variant through its historical snapshot, but it cannot update that removed variant's inventory. A newly created same-name variant is a different ID.
+- Orders and supplier receipts can both affect the same variant stock. They do not create separate carton, box, and piece inventories; conversions are alternative units of the same quantity.
+
+## CRUD actions and system results
+
+| Action | System result |
+|---|---|
+| Create/import product | Creates a Draft catalog entry; product ID is separate from variant-level SKUs. Initial stock is not a supplier receipt. |
+| Edit variants, prices, units | Saves each variant's identity, SKU, conversion levels, price, MOQ and stock; refresh the variation list after changing options. Stock levels represent one inventory. |
+| Publish / unpublish | Adds/removes eligible products from buyer marketplace discovery; bulk actions process selected products without changing historical orders or supplier receipts. |
+| Delete product or variant | Removes the live catalog selection; preserves historical order lines, Supply History and Snapshots. Recreating the same SKU/name does not restore the old variant ID. |
+| Import/export catalog | Maps spreadsheet columns and exports catalog data; verify variant matches, units and draft status before publishing. |
+
+Stock movements from orders and explicit supplier receipts affect the same variant inventory. Do not add a carton quantity and its converted piece quantity as separate stock.

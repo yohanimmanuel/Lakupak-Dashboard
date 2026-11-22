@@ -77,3 +77,14 @@ Metrics come from marketplace activity for your account. Very large catalogs may
 | Publish catalog | [Products](/en/docs/dashboard/products) |
 | Company and shipping setup | [Settings](/en/docs/dashboard/settings) |
 | Buyer Marketplace | [Marketplace overview](/en/docs/marketplace/overview) |
+
+## Actions and results
+
+| Action | System result |
+|---|---|
+| Select period / Refresh | Recomputes the displayed sales, views, conversion and funnel for the chosen reporting window; does not change transactions. |
+| Sort / open product performance | Reorders the product table or opens that product's analytics and reviews; no catalog mutation. |
+| Manage Products | Opens the catalog to publish/unpublish or edit products; those changes control live marketplace listings. |
+| Edit settings | Opens Distributor Operations to update company identity, contact and delivery options shown to buyers. |
+
+This page is **read-only reporting**, not a place to create, edit or delete sales, views or orders. Marketplace activity and product publication determine its results; reporting figures may need Refresh after a change.

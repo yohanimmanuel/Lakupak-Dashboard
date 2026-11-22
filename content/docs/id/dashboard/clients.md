@@ -190,3 +190,42 @@ Data klien yang mutakhir memperbaiki pemenuhan pesanan, analitik, dan widget das
 - [Pesanan](/id/docs/dashboard/orders) untuk alur pesanan B2B
 - [Produk](/id/docs/dashboard/products) untuk katalog terkait supply
 - [Beranda](/id/docs/dashboard/home) untuk widget pembeli dan pemasok
+
+## Riwayat suplai, snapshot, dan hubungan stok terkini (November 2026)
+
+Catatan pemasok dan katalog produk **terpisah tetapi dapat ditautkan**. Menambah, mengubah, mengganti nama, atau menghapus produk/varian tidak otomatis membuat penerimaan pemasok, mengubah riwayat, atau memindahkan penerimaan ke varian lain. Riwayat penerimaan dibuat atau diimpor secara eksplisit; sinkronisasi otomatis dari katalog ke pemasok yang lama tidak lagi digunakan.
+
+- **Riwayat suplai** menyimpan setiap penerimaan: tanggal, snapshot produk/varian, jumlah dan satuan yang dimasukkan, nilai, serta status penerapan pembaruan stok.
+- **Snapshot** mempertahankan informasi produk, varian, dan suplai historis, terpisah dari transaksi penerimaan baru. Catatan lama berawalan `AUTO-` tetap disimpan sebagai snapshot historis, sedangkan `HIST-` menunjukkan riwayat suplai. Jangan menghitung snapshot sebagai penerimaan tambahan.
+- **Identitas varian:** hubungan inventaris menggunakan ID produk dan ID opsi varian aktif, bukan hanya SKU atau nama yang sama. Varian yang dihapus lalu dibuat ulang memiliki ID baru.
+- **Varian terhapus atau berganti nama:** riwayat suplai dan snapshot tetap menyimpan label historisnya; sistem tidak boleh otomatis menghubungkannya ke varian baru.
+- **Data lama tidak cocok:** pilih ulang varian katalog aktif sebelum memperbarui stok. Jika varian sudah dihapus, pilih varian lain untuk penerimaan baru atau arsipkan/hapus catatan usang jika tersedia. Penerimaan baru yang masih kosong tidak memerlukan peringatan data lama.
+- **Satuan penerimaan:** jumlah dan satuan asli (misalnya karton) tetap disimpan; jumlah dasar dalam pieces dihitung menggunakan rasio konversi varian. Keduanya bukan dua inventaris terpisah.
+- **Update Current Stock:** stok hanya diperbarui melalui tindakan penerimaan yang eksplisit dan berhasil. Jangan menganggap impor atau penyimpanan baris otomatis menambah stok, dan jangan menerapkan penerimaan yang sama dua kali.
+
+Catatan pesanan pembeli dan penerimaan pemasok mempertahankan snapshot historis. Gunakan stok varian di katalog untuk mengetahui stok saat ini, bukan hanya menjumlahkan penerimaan pemasok.
+
+### Menghapus dan mengarsipkan riwayat suplai
+
+- **Archive:** memindahkan penerimaan dari tampilan Riwayat Suplai aktif tetapi tetap menyimpan detailnya sebagai snapshot. Catatan dapat dilihat di **Archived Supplies**. Arsip bukan penghapusan atau pembalikan stok.
+- **Delete:** menghapus catatan riwayat suplai secara eksplisit, termasuk melalui aksi massal jika tersedia. Saat penghapusan, pengguna dapat memilih apakah pembaruan stok sebelumnya perlu dibalik. Stok hanya dapat dibalik jika pergerakan tersebut benar-benar pernah diterapkan dan pengguna memilih pembalikan. Menghapus catatan tanpa pembalikan tidak otomatis mengurangi stok.
+- **Mengapa pembalikan bisa tidak tersedia:** jika varian asal sudah dihapus, target stok lama tidak lagi ada. Sistem tidak boleh mengurangi stok varian baru hanya karena nama atau SKU-nya sama.
+- **Menonaktifkan Update Current Stock:** pada penerimaan yang sebelumnya berhasil menambah stok, menonaktifkan opsi ini membalik pergerakan stok jika varian asal masih tersedia, tetapi catatan penerimaan tetap ada.
+- **Ketidakcocokan historis:** varian yang dihapus atau dibuat ulang dapat menyisakan label historis tanpa pilihan varian aktif. Pilih varian yang masih berlaku untuk pembaruan stok berikutnya, atau arsipkan/hapus catatan yang sudah tidak diperlukan.
+
+**Penting:** Arsip mempertahankan catatan tanpa memenuhi daftar aktif; penghapusan menghilangkan catatan secara sengaja. Periksa pilihan pembalikan stok sebelum konfirmasi.
+
+## Tindakan CRUD dan hasil sistem
+
+| Tindakan | Hasil sistem |
+|---|---|
+| Tambah/ubah pembeli | Menyimpan profil dan baris pesanan opsional; riwayat pesanan tetap menyimpan detail produk/varian saat transaksi. |
+| Impor/ekspor pembeli | Memetakan kolom spreadsheet; ekspor mengikuti data yang dipilih/terfilter. Periksa nama yang belum cocok. |
+| Hapus pembeli | Menghapus dari CRM aktif; pesanan historis masih dapat merujuk pembeli. Tarif privat tanpa klien valid tidak bisa tetap Active. |
+| Tambah/ubah/impor penerimaan | Menyimpan Riwayat Suplai, jumlah/satuan asli, dan snapshot produk/varian. Stok berubah hanya jika **Update Current Stock** berhasil. |
+| Archive / Restore | Memindahkan catatan yang memenuhi syarat keluar/masuk daftar aktif tanpa membalik stok; snapshot tetap ada. Tersedia tindakan individual dan massal sesuai fitur. |
+| Delete penerimaan | Penghapusan permanen mengikuti syarat; **riwayat untuk varian katalog aktif dilindungi** dalam konfirmasi saat ini. Pembalikan stok yang pernah diterapkan hanya dilakukan jika dipilih dan memungkinkan. |
+| Ubah penerimaan / nonaktifkan update stok | Menyesuaikan pergerakan lama pada varian asal jika tersedia; menonaktifkan update mempertahankan catatan tetapi membalik stok bila memungkinkan. |
+| Hapus/buat ulang varian | Riwayat dan snapshot tetap ada; varian baru memiliki ID baru meskipun nama/SKU sama. |
+
+**Panduan pencocokan:** Baris baru yang kosong cukup memakai placeholder. Varian lama atau dibuat ulang harus dipilih ulang secara eksplisit. Varian yang dihapus memerlukan pilihan varian aktif lain untuk transaksi berikutnya, atau arsip/hapus catatan usang yang memenuhi syarat.

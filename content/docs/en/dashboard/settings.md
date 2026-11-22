@@ -99,3 +99,18 @@ Keep billing and company data current to avoid payout or compliance issues.
 | Buyer Marketplace | [Marketplace overview](/en/docs/marketplace/overview) |
 | Publish products | [Products](/en/docs/dashboard/products) |
 | Per-retailer rates | [Offers](/en/docs/dashboard/offers) |
+
+## Save actions and downstream results
+
+| Action | System result |
+|---|---|
+| Edit / Save / Cancel profile | Saves or discards personal profile changes; does not edit buyer or supplier records. |
+| Save company identity and delivery options | Updates storefront-facing logo, contacts, pickup, shipping methods and lead time where marketplace features are enabled. |
+| Save referral code | Validates uniqueness before buyers can use the code to join the storefront. |
+| Toggle buyer discounted-price display | Controls whether new submitted POs show applicable client rates immediately or wait for **Send pricing to buyer**; product cards still show base price. |
+| Change language / region / currency | Changes supported interface and regional settings; currency availability can be restricted by region. |
+| Edit billing account / address | Updates saved billing details; does not itself record a payment or payout. |
+| Create/change password | Updates credentials through the security flow. |
+| Start/reset a tour | Replays or resets onboarding progress without changing operational data. |
+
+Use **Save** to persist edits and **Cancel** to discard pending changes. Hidden features may depend on account configuration.

@@ -145,7 +145,7 @@ Same pattern as buyers:
 - **Pagination** (8 rows per page on desktop)
 - **Bulk delete** with row selection
 
-**Columns:** ID, Name, Business Type, Location, Total Supplies (SKU count), Total Purchases, Created At, Status, Actions.
+**Columns:** ID, Name, Business Type, Location, Total Supplies, Total Purchases, Created At, Status, Actions. Supply totals reflect supplier records, not the number of automatically synchronized catalog SKUs.
 
 **Edit** opens the supplier details page (`/clients/suppliers/details/{supplierId}`). From there, **Edit Details** opens `/clients/suppliers/edit/{supplierId}`.
 
@@ -159,7 +159,7 @@ Fields include:
 - Status: Active, Inactive, Blocked
 - Logistics: preferred delivery days, last delivery, delivery success
 - Notes
-- **Supply lines**: supplies number, SKU, product, total supplied, total value, last delivery, status
+- **Supply lines**: receipt number, variant SKU, product and variant, quantity and received unit, total value, last supplied date, status
 - System-generated supplier ID when not provided
 
 ### Supplier details (profile)
@@ -192,3 +192,56 @@ Keeping client records current improves order fulfillment, analytics, and dashbo
 - [Orders](/en/docs/dashboard/orders) for live B2B order flow
 - [Products](/en/docs/dashboard/products) for catalog linked to supply lines
 - [Home](/en/docs/dashboard/home) for buyer and supplier widgets
+
+## Current supply history, snapshots, and inventory linkage (November 2026)
+
+Supplier records and the product catalog are **separate but linkable**. Adding, editing, renaming, or deleting a catalog product or variant does **not** automatically create supplier receipt history, rewrite existing receipts, or move receipt records to another variant. Supplier receipts are created or imported explicitly. This replaces the older automatic product-to-supplier synchronization behavior.
+
+- **Supply history** records individual supplier receipts, including the supplied date, product/variant snapshot, entered quantity and unit, value, and whether an inventory update was requested and applied.
+- **Snapshots** preserve previously recorded product, variant, and supply information separately from new receipt transactions. Legacy `AUTO-` records are retained as historical snapshots; `HIST-` records identify supply history. Do not count a snapshot as an additional receipt.
+- **Variant identity:** inventory links use the live product ID and variant option ID, not just a matching SKU or display name. Recreating a deleted variant with the same name or SKU creates a different identity.
+- **Deleted or renamed catalog variants:** existing supply history and snapshot records retain their recorded product and variant labels as historical snapshots. A missing live option is not silently substituted with another variant.
+- **Unmatched historical rows:** select a valid current catalog variant before applying a new stock update. If the variant was deleted, choose another live variant for a new receipt or archive/delete the obsolete supply record where the interface permits. An unselected new receipt needs no legacy warning.
+- **Received units:** receipts preserve the entered quantity and stock level (such as cartons), while the canonical inventory quantity is calculated in base pieces using that variant's conversion rules. These are two representations of one quantity, not separate inventories.
+- **Update Current Stock:** stock changes are an explicit receipt action; an imported or saved supplier row must not be assumed to have changed inventory unless its stock update was successfully applied. Avoid reapplying the same historical receipt.
+
+Buyer order lines and supplier receipt lines are operational records; catalog edits should not retroactively rewrite their historical product and variant snapshots. For stock on hand, use the product variant inventory view rather than summing supplier receipts alone (orders and other adjustments can also affect stock).
+
+### Deleting and archiving supply history
+
+- **Archive:** move a receipt out of the active Supply History view while retaining its recorded details as a snapshot. Archived receipts can be reviewed in **Archived Supplies**; archiving is not the same as deleting a receipt or reversing an inventory movement.
+- **Delete:** explicitly remove the selected supply history record (including via supported bulk actions). A deletion is different from archiving. Deletion is restricted to eligible records; where offered, the deletion flow may allow reversing an inventory update; only a stock movement that was actually applied can be reversed, and only when the user opts into that reversal. Deleting a record without reversing inventory does not automatically remove stock already received.
+- **Why a stock reversal may be unavailable:** if the original product variant was deleted, its former inventory target no longer exists. The historical receipt/snapshot can still be identified, but the system must not deduct stock from a newly created variant merely because its name or SKU matches.
+- **Unchecking Update Current Stock:** for an existing successfully applied receipt, disabling this option reverses the linked stock movement when its original live variant remains available; the receipt itself remains in history. This is not equivalent to deleting the receipt.
+- **Historical mismatch:** a deleted or recreated variant can leave a frozen label without a valid live selection. For future stock updates, explicitly select an existing variant; otherwise archive or delete obsolete records as appropriate.
+
+**Important:** Archiving is for retaining records without cluttering active history; deletion is for intentionally removing a record. Review the stock-reversal choice before confirming deletion.
+
+### Archive, restore, and protected receipt actions
+
+- Archive an eligible receipt with its **Archive** action or **Archive selected**. It leaves active Supply History but remains available under **Archived Supplies**; archiving does not itself reverse stock.
+- Open **Archived Supplies** to **Restore** a receipt or **Restore selected** in bulk. Restored receipts return to active history without creating another stock receipt.
+- Permanent deletion from **Archived Supplies** is limited to eligible records. **Historical records tied to live catalog variants are protected**; a disabled or rejected delete is not a reason to delete the product variant merely to bypass protection.
+- A receipt deleted through the supported active-history flow is removed only after confirmation. Reversing previously applied inventory is a separate choice and requires the original stock movement to exist; deleted catalog variants cannot be used as reversal targets.
+- For bulk archive, restore, or delete, review the selected rows and confirmation. If an operation fails partway through, verify which records were processed before retrying.
+
+### Reconciliation and stock updates
+
+- A **new empty row** has no mismatch warning. An **older unlinked receipt** needs a live catalog variant selected before a new stock update. A **deleted variant** retains its historical label, but that label is not a live inventory link.
+- **Update Current Stock** is explicit: enabling it applies stock to the selected variant, disabling it can reverse an already applied movement, and editing a receipt can adjust the movement. The system tracks successful application so saving again does not duplicate stock.
+- Import files may use differing column labels. Verify mapped product/variant identities, quantities, units, and whether inventory should change before saving; a matching SKU text alone is not proof of the same variant.
+
+## CRUD actions and system results
+
+| Action | System result |
+|---|---|
+| Create/edit buyer | Saves the buyer profile and optional order lines; order history retains recorded product/variant details. |
+| Import/export buyers | Maps spreadsheet columns into buyer fields; exports the selected/filtered data. Review unmatched names before saving. |
+| Delete buyer | Removes the buyer from the active CRM; historical orders may still refer to that buyer. Linked private rates without a valid client cannot remain Active. |
+| Create/edit/import supplier receipt | Records Supply History with entered quantity/unit and a product/variant snapshot. Inventory changes only when **Update Current Stock** succeeds. |
+| Archive / restore receipt | Moves eligible history out of / back into the active list; retains its snapshot and does not itself reverse stock. Individual and bulk actions are available where enabled. |
+| Delete receipt | Permanent deletion is subject to eligibility checks; **historical receipts for live catalog variants are protected** in the current confirmation flow. Where deletion is permitted, a previously applied stock movement is reversed only when selected and possible. |
+| Edit an applied receipt / untick stock update | Reconciles the old movement against the original variant when available; unticking retains the receipt but reverses the applied movement when possible. |
+| Delete/recreate variant | Existing receipts and snapshots stay historical; a recreated name/SKU has a new variant ID and cannot inherit the old inventory link automatically. |
+
+**Matching guidance:** A blank new receipt needs only the dropdown placeholder. A legacy or recreated variant needs an explicit live-variant reselection. A deleted variant requires another valid variant for future stock actions, or archive/delete of an eligible obsolete record. Avoid interpreting an old matching name as the same variant ID.

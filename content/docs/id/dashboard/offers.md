@@ -114,3 +114,15 @@ Dua kontrol yang membuka harga itu:
 | Harga di pesanan pembelian | [Pesanan](/id/docs/dashboard/orders) |
 | Sakelar harga pembeli | [Pengaturan](/id/docs/dashboard/settings) |
 | Marketplace pembeli | [Ringkasan Marketplace](/id/docs/marketplace/overview) |
+
+## Tindakan CRUD dan hasil sistem
+
+| Tindakan | Hasil sistem |
+|---|---|
+| Buat / Save Draft | Menyimpan diskon persen/nominal dan/atau Buy X Get Y, cakupan produk/varian, waktu, dan klien; target belum lengkap tetap Draft. |
+| Edit | Mengubah aturan tarif untuk harga berikutnya; tidak otomatis menulis ulang harga pesanan historis. |
+| Activate / Deactivate (satuan/massal) | Mengatur kelayakan tarif untuk PO baru; tanggal kedaluwarsa atau klien kosong mencegah aktivasi. |
+| Delete (satuan/massal) | Menghapus tarif terpilih setelah konfirmasi, bukan produk atau pembelinya. |
+| Export | Mengunduh tarif dan metrik penggunaan. |
+
+**Visibilitas:** Tarif privat hanya untuk retailer terkait. Kartu produk tetap memakai harga dasar; aksi kirim harga atau pengaturan distributor menentukan kapan harga negosiasi terlihat.

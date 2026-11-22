@@ -77,3 +77,14 @@ Metrik berasal dari aktivitas marketplace akun Anda. Katalog sangat besar mungki
 | Publikasikan katalog | [Produk](/id/docs/dashboard/products) |
 | Setup perusahaan dan pengiriman | [Pengaturan](/id/docs/dashboard/settings) |
 | Marketplace pembeli | [Ringkasan Marketplace](/id/docs/marketplace/overview) |
+
+## Tindakan dan hasil sistem
+
+| Tindakan | Hasil sistem |
+|---|---|
+| Pilih periode / Refresh | Memuat ulang penjualan, view, konversi, dan funnel untuk periode terpilih; tidak mengubah transaksi. |
+| Sort / buka performa produk | Mengurutkan tabel atau membuka analitik dan ulasan produk; tidak mengubah katalog. |
+| Manage Products | Membuka katalog untuk publish/unpublish atau edit produk; menentukan listing marketplace aktif. |
+| Edit settings | Membuka Distributor Operations untuk memperbarui identitas, kontak, dan opsi pengiriman yang terlihat oleh pembeli. |
+
+Halaman ini **pelaporan hanya-baca**, bukan tempat membuat, mengubah, atau menghapus penjualan, view, atau pesanan. Aktivitas marketplace dan publikasi produk menentukan hasilnya; Refresh dapat diperlukan setelah perubahan.
