@@ -161,3 +161,9 @@ For the distinction between supply history and snapshots, see [Clients](/en/docs
 Deleting a catalog variant removes its live inventory identity and makes it unavailable for future variant selection. **It does not automatically delete or archive supplier Supply History or Snapshots.** Existing receipts keep their historical labels and variant identifiers. Recreating an option with the same name or SKU produces a new identity and does not reconnect old stock movements.
 
 If an old receipt references the deleted variant, its original stock movement cannot be reversed against a missing catalog row. Users must choose a current valid variant for new stock-affecting receipts; do not silently transfer historical stock or receipts to the replacement variant. To manage obsolete receipt entries, use the Supplier profile's archive or delete actions and review any stock-reversal choice. See [Clients](/en/docs/dashboard/clients).
+
+### Imports and historical inventory links
+
+- Imported products are created as **Draft**. Check mapped variant options, their SKUs, conversion levels, quantities, and prices before publishing; the product itself has no top-level SKU.
+- A receipt can reference a deleted variant through its historical snapshot, but it cannot update that removed variant's inventory. A newly created same-name variant is a different ID.
+- Orders and supplier receipts can both affect the same variant stock. They do not create separate carton, box, and piece inventories; conversions are alternative units of the same quantity.
