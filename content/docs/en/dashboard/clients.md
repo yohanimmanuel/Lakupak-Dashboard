@@ -216,3 +216,17 @@ Buyer order lines and supplier receipt lines are operational records; catalog ed
 - **Historical mismatch:** a deleted or recreated variant can leave a frozen label without a valid live selection. For future stock updates, explicitly select an existing variant; otherwise archive or delete obsolete records as appropriate.
 
 **Important:** Archiving is for retaining records without cluttering active history; deletion is for intentionally removing a record. Review the stock-reversal choice before confirming deletion.
+
+### Archive, restore, and protected receipt actions
+
+- Archive an eligible receipt with its **Archive** action or **Archive selected**. It leaves active Supply History but remains available under **Archived Supplies**; archiving does not itself reverse stock.
+- Open **Archived Supplies** to **Restore** a receipt or **Restore selected** in bulk. Restored receipts return to active history without creating another stock receipt.
+- Permanent deletion from **Archived Supplies** is limited to eligible records. **Historical records tied to live catalog variants are protected**; a disabled or rejected delete is not a reason to delete the product variant merely to bypass protection.
+- A receipt deleted through the supported active-history flow is removed only after confirmation. Reversing previously applied inventory is a separate choice and requires the original stock movement to exist; deleted catalog variants cannot be used as reversal targets.
+- For bulk archive, restore, or delete, review the selected rows and confirmation. If an operation fails partway through, verify which records were processed before retrying.
+
+### Reconciliation and stock updates
+
+- A **new empty row** has no mismatch warning. An **older unlinked receipt** needs a live catalog variant selected before a new stock update. A **deleted variant** retains its historical label, but that label is not a live inventory link.
+- **Update Current Stock** is explicit: enabling it applies stock to the selected variant, disabling it can reverse an already applied movement, and editing a receipt can adjust the movement. The system tracks successful application so saving again does not duplicate stock.
+- Import files may use differing column labels. Verify mapped product/variant identities, quantities, units, and whether inventory should change before saving; a matching SKU text alone is not proof of the same variant.
