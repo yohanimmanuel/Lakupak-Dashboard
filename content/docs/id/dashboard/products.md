@@ -161,3 +161,15 @@ Lihat [Klien](/id/docs/dashboard/clients) untuk penjelasan riwayat suplai dan sn
 Menghapus varian katalog menghilangkan identitas inventaris aktif dan varian tersebut tidak dapat dipilih untuk transaksi baru. **Penghapusan varian tidak otomatis menghapus atau mengarsipkan Riwayat Suplai maupun Snapshot.** Penerimaan lama tetap menyimpan label dan ID historis. Varian yang dibuat ulang dengan nama atau SKU sama memiliki identitas baru dan tidak otomatis terhubung ke pergerakan stok lama.
 
 Jika penerimaan lama terkait varian yang telah dihapus, pergerakan stok asal tidak dapat dibalik pada baris katalog yang sudah tidak ada. Untuk penerimaan baru yang memengaruhi stok, pilih varian aktif secara eksplisit. Jangan memindahkan penerimaan atau stok historis secara otomatis ke varian pengganti. Gunakan tindakan Archive atau Delete pada profil Pemasok untuk mengelola catatan usang dan periksa pilihan pembalikan stok. Lihat [Klien](/id/docs/dashboard/clients).
+
+## Tindakan CRUD dan hasil sistem
+
+| Tindakan | Hasil sistem |
+|---|---|
+| Tambah/impor produk | Membuat katalog Draft; Product ID berbeda dari SKU per varian. Stok awal bukan penerimaan pemasok. |
+| Ubah varian, harga, satuan | Menyimpan ID/SKU varian, rasio satuan, harga, MOQ, dan stok; Refresh daftar variasi setelah mengubah opsi. Semua satuan memakai satu inventaris. |
+| Publish / Unpublish | Menampilkan/menghapus produk yang memenuhi syarat dari marketplace; tindakan massal tidak mengubah riwayat pesanan atau suplai. |
+| Hapus produk/varian | Menghapus pilihan katalog aktif tetapi mempertahankan baris pesanan, Riwayat Suplai, dan Snapshot. Nama/SKU sama tidak memulihkan ID varian lama. |
+| Impor/ekspor katalog | Memetakan kolom spreadsheet dan mengekspor katalog; periksa varian, satuan, dan status Draft sebelum publikasi. |
+
+Pesanan dan penerimaan pemasok yang memperbarui stok memakai inventaris varian yang sama. Jangan menghitung karton dan hasil konversi pieces sebagai stok terpisah.
