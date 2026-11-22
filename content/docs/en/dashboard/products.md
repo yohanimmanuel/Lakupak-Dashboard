@@ -149,9 +149,9 @@ Stock levels such as pieces, cartons, and boxes are **units of the same variant 
 
 ### Catalog changes versus supplier history
 
-- Creating a product or variant establishes its catalog and opening stock information; it does **not** generate a supplier purchase receipt or automatically synchronize a supplier ledger.
-- Supplier receipt history and summary/opening-balance snapshots remain preserved when a product or variant is renamed or deleted. Deleting and recreating an option with the same label/SKU does not restore its previous variant option ID.
+- Creating a product or variant establishes its catalog and initial stock information; it does **not** generate a supplier purchase receipt or automatically synchronize a supplier ledger.
+- Supply history and snapshots remain preserved when a product or variant is renamed or deleted. Deleting and recreating an option with the same label/SKU does not restore its previous variant option ID.
 - Existing historical supplier rows may display a frozen variant label when the live variant no longer exists. Users must select a valid live variant for future stock-affecting receipts; never match solely by name or SKU.
 - Stock increases from supplier receipts occur only when the explicit stock-update action succeeds. Inventory also changes through order fulfillment and other supported stock operations; supplier history alone is not the live stock balance.
 
-For the supplier-side receipt and summary distinction, see [Clients](/en/docs/dashboard/clients).
+For the distinction between supply history and snapshots, see [Clients](/en/docs/dashboard/clients).
