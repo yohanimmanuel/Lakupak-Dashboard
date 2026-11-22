@@ -116,3 +116,15 @@ Two controls release that price:
 | Price on the purchase order | [Orders](/en/docs/dashboard/orders) |
 | Buyer price toggle | [Settings](/en/docs/dashboard/settings) |
 | Buyer Marketplace | [Marketplace overview](/en/docs/marketplace/overview) |
+
+## CRUD actions and system results
+
+| Action | System result |
+|---|---|
+| Create / save draft | Saves percentage, fixed-amount and/or Buy X Get Y terms, product/variant scope, timing and client; incomplete targeting stays Draft. |
+| Edit | Updates the rate rules for applicable future pricing; it does not rewrite previously captured order prices automatically. |
+| Activate / deactivate (single or bulk) | Controls eligibility for new purchase-order pricing; expired dates or a missing client prevent activation. |
+| Delete (single or bulk) | Removes selected rate records after confirmation, not the underlying product or buyer. |
+| Export | Downloads offer records and usage metrics. |
+
+**Visibility:** Rates are private to the linked retailer. Product cards retain base prices; the order's pricing-send action or the distributor Settings toggle determines when the buyer sees the negotiated price.
