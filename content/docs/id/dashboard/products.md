@@ -74,7 +74,7 @@ Jalur: `/products/add`, `/products/edit/{id}`, `/products/catalog/{id}` (lihat).
 
 ### Informasi umum
 
-Field: **Product ID** (otomatis `LKP-`), **SKU Number**, **Brand**, **Type**, **Product Name**, **Supplier**, **Product Description**, checkbox jaminan (**Halal Certified**, **BPOM Approved**, **Original Product**), **Return Policy (days)**.
+Field: **Product ID** (otomatis `LKP-`), **Brand**, **Type**, **Product Name**, **Supplier**, **Product Description**, checkbox jaminan (**Halal Certified**, **BPOM Approved**, **Original Product**), **Return Policy (days)**.
 
 **Product Catalog Completion** menampilkan persen lengkap dan field yang kosong.
 
@@ -114,7 +114,7 @@ Produk **Published** hanya bisa dilihat. Untuk mengedit, unpublish dulu.
 Dari daftar (**Publish**) atau form (**Save and Publish**):
 
 1. Buka **Marketplace Preview** atau **Bulk Publish**
-2. Cek kelengkapan: SKU, nama, deskripsi, tipe, brand, supplier, harga varian, stok &gt; 0, minimal satu gambar
+2. Cek kelengkapan: SKU varian bila diperlukan, nama, deskripsi, tipe, brand, supplier, harga varian, stok &gt; 0, minimal satu gambar
 3. Lihat tampilan di **Lakupak Marketplace App**
 4. Konfirmasi **Publish**
 
@@ -122,7 +122,7 @@ Produk tidak lengkap tercantum di **Cannot Publish**.
 
 ## Impor dan ekspor
 
-**Export** mencakup Product ID, SKU, nama, tipe, brand, supplier, stok, harga, status, last updated.
+**Export** mencakup Product ID, SKU varian (jika ada), nama, tipe, brand, supplier, stok, harga, status, last updated.
 
 **Import** memetakan kolom spreadsheet; status selalu **Draft**.
 
@@ -138,3 +138,20 @@ Tautan produk yang dihapus menampilkan **Product has been deleted** dengan **Go 
 | Pesanan | [Pesanan](/id/docs/dashboard/orders) |
 | Marketplace pembeli | [Ringkasan Marketplace](/id/docs/marketplace/overview) |
 | Widget stok rendah | [Beranda](/id/docs/dashboard/home) |
+
+## SKU varian dan sinkronisasi inventaris terkini (November 2026)
+
+**SKU pada level produk utama sudah dihapus.** Produk menggunakan Product ID (`LKP-`), sedangkan SKU disimpan pada setiap opsi varian. Publikasi marketplace dan integrasi tidak boleh meminta `Product.sku` dari level produk utama. SKU, harga, MOQ, dan stok varian dikelola pada tabel variasi.
+
+### Satu inventaris untuk berbagai satuan stok
+
+Pieces, karton, dan box adalah **satuan dari stok varian yang sama**, bukan stok terpisah. Rasio konversi mengubah transaksi ke satuan dasar dan antarmuka dapat menampilkan pecahan ke satuan yang lebih besar. Jika pengguna memasukkan karton, jumlah dan satuan karton tetap disimpan pada penerimaan walaupun inventaris menghitung pieces. Jangan menjumlahkan kedua representasi sebagai stok berbeda.
+
+### Perubahan katalog dan riwayat pemasok
+
+- Membuat produk atau varian menetapkan data katalog dan stok awal, **bukan** otomatis membuat penerimaan pembelian pemasok.
+- Riwayat penerimaan, ringkasan, dan snapshot saldo awal pemasok tetap disimpan saat produk/varian diganti nama atau dihapus.
+- Varian baru dengan nama atau SKU yang sama tetap memiliki ID opsi varian berbeda. Catatan historis yang tidak lagi cocok tetap menampilkan label lama dan tidak boleh otomatis dialihkan.
+- Penambahan stok dari penerimaan hanya terjadi jika tindakan pembaruan stok berhasil. Pesanan dan penyesuaian stok lain juga dapat mengubah stok saat ini.
+
+Lihat [Klien](/id/docs/dashboard/clients) untuk penjelasan riwayat dan ringkasan pemasok.
