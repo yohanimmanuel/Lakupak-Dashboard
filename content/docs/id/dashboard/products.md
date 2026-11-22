@@ -155,3 +155,9 @@ Pieces, karton, dan box adalah **satuan dari stok varian yang sama**, bukan stok
 - Penambahan stok dari penerimaan hanya terjadi jika tindakan pembaruan stok berhasil. Pesanan dan penyesuaian stok lain juga dapat mengubah stok saat ini.
 
 Lihat [Klien](/id/docs/dashboard/clients) untuk penjelasan riwayat suplai dan snapshot.
+
+### Apa yang terjadi saat varian dihapus?
+
+Menghapus varian katalog menghilangkan identitas inventaris aktif dan varian tersebut tidak dapat dipilih untuk transaksi baru. **Penghapusan varian tidak otomatis menghapus atau mengarsipkan Riwayat Suplai maupun Snapshot.** Penerimaan lama tetap menyimpan label dan ID historis. Varian yang dibuat ulang dengan nama atau SKU sama memiliki identitas baru dan tidak otomatis terhubung ke pergerakan stok lama.
+
+Jika penerimaan lama terkait varian yang telah dihapus, pergerakan stok asal tidak dapat dibalik pada baris katalog yang sudah tidak ada. Untuk penerimaan baru yang memengaruhi stok, pilih varian aktif secara eksplisit. Jangan memindahkan penerimaan atau stok historis secara otomatis ke varian pengganti. Gunakan tindakan Archive atau Delete pada profil Pemasok untuk mengelola catatan usang dan periksa pilihan pembalikan stok. Lihat [Klien](/id/docs/dashboard/clients).
