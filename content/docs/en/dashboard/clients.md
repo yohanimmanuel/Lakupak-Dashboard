@@ -206,3 +206,13 @@ Supplier records and the product catalog are **separate but linkable**. Adding, 
 - **Update Current Stock:** stock changes are an explicit receipt action; an imported or saved supplier row must not be assumed to have changed inventory unless its stock update was successfully applied. Avoid reapplying the same historical receipt.
 
 Buyer order lines and supplier receipt lines are operational records; catalog edits should not retroactively rewrite their historical product and variant snapshots. For stock on hand, use the product variant inventory view rather than summing supplier receipts alone (orders and other adjustments can also affect stock).
+
+### Deleting and archiving supply history
+
+- **Archive:** move a receipt out of the active Supply History view while retaining its recorded details as a snapshot. Archived receipts can be reviewed in **Archived Supplies**; archiving is not the same as deleting a receipt or reversing an inventory movement.
+- **Delete:** explicitly remove the selected supply history record (including via supported bulk actions). A deletion is different from archiving. The deletion flow may offer a choice about reversing an inventory update; only a stock movement that was actually applied can be reversed, and only when the user opts into that reversal. Deleting a record without reversing inventory does not automatically remove stock already received.
+- **Why a stock reversal may be unavailable:** if the original product variant was deleted, its former inventory target no longer exists. The historical receipt/snapshot can still be identified, but the system must not deduct stock from a newly created variant merely because its name or SKU matches.
+- **Unchecking Update Current Stock:** for an existing successfully applied receipt, disabling this option reverses the linked stock movement when its original live variant remains available; the receipt itself remains in history. This is not equivalent to deleting the receipt.
+- **Historical mismatch:** a deleted or recreated variant can leave a frozen label without a valid live selection. For future stock updates, explicitly select an existing variant; otherwise archive or delete obsolete records as appropriate.
+
+**Important:** Archiving is for retaining records without cluttering active history; deletion is for intentionally removing a record. Review the stock-reversal choice before confirming deletion.
