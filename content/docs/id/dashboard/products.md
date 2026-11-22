@@ -150,8 +150,8 @@ Pieces, karton, dan box adalah **satuan dari stok varian yang sama**, bukan stok
 ### Perubahan katalog dan riwayat pemasok
 
 - Membuat produk atau varian menetapkan data katalog dan stok awal, **bukan** otomatis membuat penerimaan pembelian pemasok.
-- Riwayat penerimaan, ringkasan, dan snapshot saldo awal pemasok tetap disimpan saat produk/varian diganti nama atau dihapus.
+- Riwayat suplai dan snapshot tetap disimpan saat produk/varian diganti nama atau dihapus.
 - Varian baru dengan nama atau SKU yang sama tetap memiliki ID opsi varian berbeda. Catatan historis yang tidak lagi cocok tetap menampilkan label lama dan tidak boleh otomatis dialihkan.
 - Penambahan stok dari penerimaan hanya terjadi jika tindakan pembaruan stok berhasil. Pesanan dan penyesuaian stok lain juga dapat mengubah stok saat ini.
 
-Lihat [Klien](/id/docs/dashboard/clients) untuk penjelasan riwayat dan ringkasan pemasok.
+Lihat [Klien](/id/docs/dashboard/clients) untuk penjelasan riwayat suplai dan snapshot.
