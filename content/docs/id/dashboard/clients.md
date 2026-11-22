@@ -214,3 +214,18 @@ Catatan pesanan pembeli dan penerimaan pemasok mempertahankan snapshot historis.
 - **Ketidakcocokan historis:** varian yang dihapus atau dibuat ulang dapat menyisakan label historis tanpa pilihan varian aktif. Pilih varian yang masih berlaku untuk pembaruan stok berikutnya, atau arsipkan/hapus catatan yang sudah tidak diperlukan.
 
 **Penting:** Arsip mempertahankan catatan tanpa memenuhi daftar aktif; penghapusan menghilangkan catatan secara sengaja. Periksa pilihan pembalikan stok sebelum konfirmasi.
+
+## Tindakan CRUD dan hasil sistem
+
+| Tindakan | Hasil sistem |
+|---|---|
+| Tambah/ubah pembeli | Menyimpan profil dan baris pesanan opsional; riwayat pesanan tetap menyimpan detail produk/varian saat transaksi. |
+| Impor/ekspor pembeli | Memetakan kolom spreadsheet; ekspor mengikuti data yang dipilih/terfilter. Periksa nama yang belum cocok. |
+| Hapus pembeli | Menghapus dari CRM aktif; pesanan historis masih dapat merujuk pembeli. Tarif privat tanpa klien valid tidak bisa tetap Active. |
+| Tambah/ubah/impor penerimaan | Menyimpan Riwayat Suplai, jumlah/satuan asli, dan snapshot produk/varian. Stok berubah hanya jika **Update Current Stock** berhasil. |
+| Archive / Restore | Memindahkan catatan yang memenuhi syarat keluar/masuk daftar aktif tanpa membalik stok; snapshot tetap ada. Tersedia tindakan individual dan massal sesuai fitur. |
+| Delete penerimaan | Penghapusan permanen mengikuti syarat; **riwayat untuk varian katalog aktif dilindungi** dalam konfirmasi saat ini. Pembalikan stok yang pernah diterapkan hanya dilakukan jika dipilih dan memungkinkan. |
+| Ubah penerimaan / nonaktifkan update stok | Menyesuaikan pergerakan lama pada varian asal jika tersedia; menonaktifkan update mempertahankan catatan tetapi membalik stok bila memungkinkan. |
+| Hapus/buat ulang varian | Riwayat dan snapshot tetap ada; varian baru memiliki ID baru meskipun nama/SKU sama. |
+
+**Panduan pencocokan:** Baris baru yang kosong cukup memakai placeholder. Varian lama atau dibuat ulang harus dipilih ulang secara eksplisit. Varian yang dihapus memerlukan pilihan varian aktif lain untuk transaksi berikutnya, atau arsip/hapus catatan usang yang memenuhi syarat.
