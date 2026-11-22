@@ -204,3 +204,13 @@ Catatan pemasok dan katalog produk **terpisah tetapi dapat ditautkan**. Menambah
 - **Update Current Stock:** stok hanya diperbarui melalui tindakan penerimaan yang eksplisit dan berhasil. Jangan menganggap impor atau penyimpanan baris otomatis menambah stok, dan jangan menerapkan penerimaan yang sama dua kali.
 
 Catatan pesanan pembeli dan penerimaan pemasok mempertahankan snapshot historis. Gunakan stok varian di katalog untuk mengetahui stok saat ini, bukan hanya menjumlahkan penerimaan pemasok.
+
+### Menghapus dan mengarsipkan riwayat suplai
+
+- **Archive:** memindahkan penerimaan dari tampilan Riwayat Suplai aktif tetapi tetap menyimpan detailnya sebagai snapshot. Catatan dapat dilihat di **Archived Supplies**. Arsip bukan penghapusan atau pembalikan stok.
+- **Delete:** menghapus catatan riwayat suplai secara eksplisit, termasuk melalui aksi massal jika tersedia. Saat penghapusan, pengguna dapat memilih apakah pembaruan stok sebelumnya perlu dibalik. Stok hanya dapat dibalik jika pergerakan tersebut benar-benar pernah diterapkan dan pengguna memilih pembalikan. Menghapus catatan tanpa pembalikan tidak otomatis mengurangi stok.
+- **Mengapa pembalikan bisa tidak tersedia:** jika varian asal sudah dihapus, target stok lama tidak lagi ada. Sistem tidak boleh mengurangi stok varian baru hanya karena nama atau SKU-nya sama.
+- **Menonaktifkan Update Current Stock:** pada penerimaan yang sebelumnya berhasil menambah stok, menonaktifkan opsi ini membalik pergerakan stok jika varian asal masih tersedia, tetapi catatan penerimaan tetap ada.
+- **Ketidakcocokan historis:** varian yang dihapus atau dibuat ulang dapat menyisakan label historis tanpa pilihan varian aktif. Pilih varian yang masih berlaku untuk pembaruan stok berikutnya, atau arsipkan/hapus catatan yang sudah tidak diperlukan.
+
+**Penting:** Arsip mempertahankan catatan tanpa memenuhi daftar aktif; penghapusan menghilangkan catatan secara sengaja. Periksa pilihan pembalikan stok sebelum konfirmasi.
