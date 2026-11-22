@@ -155,3 +155,9 @@ Stock levels such as pieces, cartons, and boxes are **units of the same variant 
 - Stock increases from supplier receipts occur only when the explicit stock-update action succeeds. Inventory also changes through order fulfillment and other supported stock operations; supplier history alone is not the live stock balance.
 
 For the distinction between supply history and snapshots, see [Clients](/en/docs/dashboard/clients).
+
+### What happens when a variant is deleted?
+
+Deleting a catalog variant removes its live inventory identity and makes it unavailable for future variant selection. **It does not automatically delete or archive supplier Supply History or Snapshots.** Existing receipts keep their historical labels and variant identifiers. Recreating an option with the same name or SKU produces a new identity and does not reconnect old stock movements.
+
+If an old receipt references the deleted variant, its original stock movement cannot be reversed against a missing catalog row. Users must choose a current valid variant for new stock-affecting receipts; do not silently transfer historical stock or receipts to the replacement variant. To manage obsolete receipt entries, use the Supplier profile's archive or delete actions and review any stock-reversal choice. See [Clients](/en/docs/dashboard/clients).
