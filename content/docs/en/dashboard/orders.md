@@ -110,3 +110,17 @@ There is no order import from this screen.
 | Client rates | [Offers](/en/docs/dashboard/offers) |
 | Buyer price toggle | [Settings](/en/docs/dashboard/settings) |
 | Buyer Marketplace | [Marketplace overview](/en/docs/marketplace/overview) |
+
+## CRUD actions and system results
+
+| Action | System result |
+|---|---|
+| Create manual order / receive marketplace PO | Associates a buyer and product variant lines; captures order-time product, variant, quantity and price details. |
+| Edit order | Updates permitted lines, delivery/contact details, tracking and status; inventory-affecting changes must reconcile against the linked variant, not a matching name alone. |
+| Change status / payment | Updates fulfillment or payment reporting; delivery and payment are distinct statuses. |
+| Send pricing / update | Releases retailer-specific rates and free quantities to the buyer and sends a notification; otherwise buyer-facing catalog base pricing is retained unless the Settings toggle allows immediate display. |
+| Archive / unarchive | Removes/restores orders from the active list without erasing historical order information. |
+| Delete cancelled orders | Restricted to eligible Cancelled orders; confirm deletion rather than treating archive as deletion. |
+| Export | Downloads order data; no import is offered on this screen. |
+
+**Finding an order:** Search by order ID, buyer, tracking number and product name where available. Product/variant snapshots protect the meaning of past lines after catalog changes.
