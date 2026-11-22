@@ -102,3 +102,17 @@ Tidak ada impor pesanan dari layar ini.
 | Tarif klien | [Penawaran](/id/docs/dashboard/offers) |
 | Sakelar harga pembeli | [Pengaturan](/id/docs/dashboard/settings) |
 | Marketplace pembeli | [Ringkasan Marketplace](/id/docs/marketplace/overview) |
+
+## Tindakan CRUD dan hasil sistem
+
+| Tindakan | Hasil sistem |
+|---|---|
+| Buat pesanan manual / terima PO marketplace | Menghubungkan pembeli dan baris varian; menyimpan detail produk, jumlah, dan harga saat pemesanan. |
+| Ubah pesanan | Memperbarui baris, pengiriman, kontak, resi, dan status yang diizinkan; perubahan stok memakai ID varian terkait, bukan hanya nama. |
+| Ubah status / pembayaran | Memperbarui pelaporan pemenuhan dan pembayaran secara terpisah. |
+| Kirim harga / pembaruan harga | Membuka tarif khusus dan jumlah gratis bagi pembeli serta mengirim notifikasi; selain itu harga dasar tetap tampil kecuali pengaturan mengizinkan tampilan langsung. |
+| Archive / Unarchive | Mengeluarkan/mengembalikan pesanan dari daftar aktif tanpa menghapus informasi historis. |
+| Delete Cancelled | Hanya pesanan Cancelled yang memenuhi syarat; arsip bukan penghapusan. |
+| Export | Mengunduh data pesanan; tidak ada impor pada layar ini. |
+
+**Cari pesanan:** ID, pembeli, resi, dan nama produk jika tersedia. Snapshot varian mempertahankan arti transaksi lama setelah katalog berubah.
