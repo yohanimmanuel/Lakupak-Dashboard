@@ -23,6 +23,7 @@ export const offersTypeDefs = /* GraphQL */ `
     categoryId: String
     categoryLabel: String
     variantOptionId: Int
+    eligibleStockLevels: [String!]
     variantName: String
     discountType: String!
     discountValue: Float!
@@ -54,6 +55,7 @@ export const offersTypeDefs = /* GraphQL */ `
   input OfferGroupTargetInput {
     productId: String
     variantOptionId: Int
+    eligibleStockLevels: [String!]
   }
 
   type SaveOfferGroupResult {
@@ -174,6 +176,7 @@ function mapOffer(offer: OfferRow) {
     categoryId: offer.categoryId,
     categoryLabel: offer.categoryId ? getMerchandisingLabel(offer.categoryId) : null,
     variantOptionId: offer.variantOptionId ?? null,
+    eligibleStockLevels: offer.eligibleStockLevels ?? null,
     variantName: offer.variantOption?.variantName ?? null,
     discountType: offer.discountType,
     discountValue: parseMoney(offer.discountValue),
@@ -786,7 +789,7 @@ const saveOfferGroup = async (args: {
   status?: string | null;
   notes?: string | null;
   description?: string | null;
-  targets: Array<{ productId?: string | null; variantOptionId?: number | null }>;
+  targets: Array<{ productId?: string | null; variantOptionId?: number | null; eligibleStockLevels?: string[] | null }>;
 }) => {
   const { userId } = args;
   const buyerId = args.buyerId?.trim() || null;
@@ -807,6 +810,7 @@ const saveOfferGroup = async (args: {
   const desiredTargets: Array<{
     productId: string | null;
     variantOptionId: number | null;
+    eligibleStockLevels: string[] | null;
   }> = [];
   const seenKeys = new Set<string>();
   for (const raw of args.targets) {
@@ -818,7 +822,7 @@ const saveOfferGroup = async (args: {
     const key = offerTargetKey(productId, variantOptionId);
     if (seenKeys.has(key)) continue;
     seenKeys.add(key);
-    desiredTargets.push({ productId, variantOptionId });
+    desiredTargets.push({ productId, variantOptionId, eligibleStockLevels: raw.eligibleStockLevels ?? null });
   }
 
   if (desiredTargets.length === 0) {
@@ -957,6 +961,7 @@ const saveOfferGroup = async (args: {
             ...sharedData,
             productId: target.productId,
             variantOptionId: target.variantOptionId,
+            eligibleStockLevels: target.eligibleStockLevels ?? undefined,
           },
           include: offerInclude,
         });
@@ -971,6 +976,7 @@ const saveOfferGroup = async (args: {
             ...sharedData,
             productId: target.productId,
             variantOptionId: target.variantOptionId,
+            eligibleStockLevels: target.eligibleStockLevels ?? undefined,
           },
           include: offerInclude,
         });
