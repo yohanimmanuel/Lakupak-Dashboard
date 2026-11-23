@@ -62,7 +62,9 @@ export const addToCart = async (args: {
   const { userId, productId, productData, quantity = 1, variant = 'Default', packageType = 'Pieces', piecesPerPackage = 1 } = args;
 
   return prisma.$transaction(async (tx) => {
-    const existingItem = await tx.userActivity.findFirst({
+    // Match explicit stock-level metadata in the database first. Older cart
+    // records predate packageType/piecesPerPackage and represent Pieces / 1.
+    let existingItem = await tx.userActivity.findFirst({
       where: {
         userId,
         productId,
@@ -74,6 +76,25 @@ export const addToCart = async (args: {
         ],
       },
     });
+
+    if (!existingItem && packageType === 'Pieces' && piecesPerPackage === 1) {
+      const candidates = await tx.userActivity.findMany({
+        where: {
+          userId,
+          productId,
+          activityType: 'cart',
+          metadata: { path: ['variant'], equals: variant },
+        },
+      });
+      existingItem = candidates.find((candidate) => {
+        const saved = candidate.metadata as {
+          packageType?: string;
+          piecesPerPackage?: number;
+        } | null;
+        return (saved?.packageType ?? 'Pieces') === 'Pieces' &&
+          (saved?.piecesPerPackage ?? 1) === 1;
+      }) ?? null;
+    }
 
     let item: Awaited<ReturnType<typeof tx.userActivity.create>> | Awaited<ReturnType<typeof tx.userActivity.update>>;
     let message = 'Item added to cart';
