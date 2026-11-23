@@ -71,6 +71,7 @@ type OfferNode = {
   productId: string | null;
   categoryId: string | null;
   variantOptionId: number | null;
+  eligibleStockLevels: string[] | null;
   discountType: string;
   discountValue: number;
   buyQuantity: number | null;
@@ -230,8 +231,9 @@ function offerIsCurrent(offer: OfferNode): boolean {
   return true;
 }
 
-function pickOffer(offers: OfferNode[], product: ProductNode, variantId: number): OfferNode | null {
-  const current = offers.filter(offerIsCurrent);
+function pickOffer(offers: OfferNode[], product: ProductNode, variantId: number, stockLevelName: string): OfferNode | null {
+  const current = offers.filter((offer) => offerIsCurrent(offer) &&
+    (offer.eligibleStockLevels == null || offer.eligibleStockLevels.includes(stockLevelName)));
   return (
     current.find((offer) => offer.productId === product.productId && offer.variantOptionId === variantId) ||
     current.find((offer) => offer.productId === product.productId && offer.variantOptionId == null) ||
@@ -575,7 +577,7 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
         const data = await fetchGraphQL<{ offersForBuyer: OfferNode[] }>(
           `query CreateOrderOffers($userId: Int!, $buyerId: String!) {
             offersForBuyer(userId: $userId, buyerId: $buyerId) {
-              id productId categoryId variantOptionId
+              id productId categoryId variantOptionId eligibleStockLevels
               discountType discountValue buyQuantity freeQuantity startDate endDate status
             }
           }`,
@@ -682,7 +684,7 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
     const product = catalog.find((row) => row.productId === line.productId);
     const variant = product?.variantOptions.find((option) => String(option.id) === line.variantOptionId);
     const quantity = Number.parseInt(line.quantity, 10);
-    const offer = product && variant ? pickOffer(offers, product, variant.id) : null;
+    const offer = product && variant ? pickOffer(offers, product, variant.id, line.packageType) : null;
     const preview = previewPrice(variant ? Number(variant.sellingPrice) : 0, offer);
     const qty = Number.isInteger(quantity) && quantity > 0 ? quantity : 0;
     const keepSaved = line.savedUnit != null && line.savedBuyerId === buyerId && line.savedBuyerId !== '';
