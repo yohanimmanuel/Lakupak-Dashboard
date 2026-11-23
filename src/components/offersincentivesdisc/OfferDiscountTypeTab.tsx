@@ -12,6 +12,8 @@ export type ProductSelection = {
   variantScope: 'entire' | 'specific';
   /** Empty when variantScope is entire. */
   variantOptionIds: number[];
+  /** Variant ID -> eligible stock levels. Missing means legacy unrestricted. */
+  stockLevelsByVariant?: Record<string, string[]>;
 };
 
 export type OfferWizardFormData = {
