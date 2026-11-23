@@ -196,18 +196,20 @@ function offersToForm(offers: Offer[]): OfferWizardFormData {
 
   const byProduct = new Map<
     string,
-    { entire: boolean; variantIds: number[] }
+    { entire: boolean; variantIds: number[]; levels: Record<string, string[]> }
   >();
   for (const row of offers) {
     if (!row.productId) continue;
     const cur = byProduct.get(row.productId) || {
       entire: false,
       variantIds: [],
+      levels: {},
     };
     if (row.variantOptionId == null) {
       cur.entire = true;
     } else if (!cur.variantIds.includes(row.variantOptionId)) {
       cur.variantIds.push(row.variantOptionId);
+      if (row.eligibleStockLevels) cur.levels[String(row.variantOptionId)] = row.eligibleStockLevels;
     }
     byProduct.set(row.productId, cur);
   }
@@ -217,6 +219,7 @@ function offersToForm(offers: Offer[]): OfferWizardFormData {
       productId,
       variantScope: (scope.entire ? 'entire' : 'specific') as 'entire' | 'specific',
       variantOptionIds: scope.entire ? [] : scope.variantIds,
+      stockLevelsByVariant: scope.entire ? undefined : scope.levels,
     }),
   );
 
