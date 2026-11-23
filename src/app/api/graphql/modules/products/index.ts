@@ -1126,6 +1126,7 @@ export const createProduct = async (args: {
     sellingPrice: string;
     originalSellingPrice?: string | null;
     moq?: number | null;
+    moqByStockLevel?: Record<string, number> | null;
     stockQuantity: number;
     lowStockThreshold: number;
     stockStatus: string;
@@ -1416,6 +1417,7 @@ export const updateProduct = async (args: {
     sellingPrice: string;
     originalSellingPrice?: string | null;
     moq?: number | null;
+    moqByStockLevel?: Record<string, number> | null;
     stockQuantity: number;
     lowStockThreshold: number;
     stockStatus: string;
