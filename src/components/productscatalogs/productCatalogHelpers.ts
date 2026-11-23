@@ -398,6 +398,7 @@ export function rebuildCombinationsFromVariants(
           purchasePrice: combinationData!.purchasePrice ?? '',
           sellingPrice: combinationData!.sellingPrice ?? '',
           moq: combinationData!.moq,
+          moqByStockLevel: { ...(combinationData!.moqByStockLevel ?? {}) },
           stockQuantity: combinationData!.stockQuantity ?? 0,
           lowStockThreshold: combinationData!.lowStockThreshold ?? 0,
           stockStatus: (combinationData!.stockStatus ?? 'In Stock') as Combination['stockStatus'],
