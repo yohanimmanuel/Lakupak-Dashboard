@@ -134,6 +134,8 @@ export default function OfferProductTab({
   const [draftScope, setDraftScope] = useState<'entire' | 'specific'>('entire');
   const [draftVariantIds, setDraftVariantIds] = useState<number[]>([]);
   const [draftLevelSelections, setDraftLevelSelections] = useState<Record<string, string[]>>({});
+  const [draftAllLevels, setDraftAllLevels] = useState<string[]>([]);
+  const [allLevelsExpanded, setAllLevelsExpanded] = useState(false);
   const [expandedVariantId, setExpandedVariantId] = useState<number | null>(null);
 
   const selections = formData.productSelections;
@@ -182,6 +184,8 @@ export default function OfferProductTab({
     setModalProduct(product);
     const names = (product.stockLevels ?? []).map((level) => level.name);
     setDraftLevelSelections(Object.fromEntries(product.variantOptions.map(v => [String(v.id), existing?.stockLevelsByVariant?.[String(v.id)] ?? names])));
+    setDraftAllLevels(existing?.eligibleStockLevels ?? names);
+    setAllLevelsExpanded(false);
     setExpandedVariantId(null);
     if (existing) {
       setDraftScope(existing.variantScope);
@@ -216,7 +220,9 @@ export default function OfferProductTab({
     );
   };
 
-  const validLevelSelection = !modalProduct || modalProduct.variantOptions.every(v => (draftScope === 'entire' || draftVariantIds.includes(v.id)) ? (draftLevelSelections[String(v.id)]?.length ?? 0) > 0 : true);
+  const validLevelSelection = !modalProduct || (draftScope === 'entire'
+    ? draftAllLevels.length > 0
+    : draftVariantIds.every(id => (draftLevelSelections[String(id)]?.length ?? 0) > 0));
   const confirmModal = () => {
     if (!modalProduct) return;
     if ((draftScope === 'specific' && draftVariantIds.length === 0) || !validLevelSelection) return;
@@ -224,7 +230,8 @@ export default function OfferProductTab({
       productId: modalProduct.productId,
       variantScope: draftScope,
       variantOptionIds: draftScope === 'entire' ? [] : [...draftVariantIds],
-      stockLevelsByVariant: Object.fromEntries((draftScope === 'entire' ? modalProduct.variantOptions.map(v => v.id) : draftVariantIds).map(id => [String(id), draftLevelSelections[String(id)] ?? []])),
+      stockLevelsByVariant: draftScope === 'entire' ? undefined : Object.fromEntries(draftVariantIds.map(id => [String(id), draftLevelSelections[String(id)] ?? []])),
+      eligibleStockLevels: draftScope === 'entire' ? [...draftAllLevels] : null,
     };
     const idx = selections.findIndex((s) => s.productId === modalProduct.productId);
     const next =
@@ -502,6 +509,38 @@ export default function OfferProductTab({
                   </div>
                 </div>
               </button>
+              {draftScope === 'entire' && (
+                <div className="mt-2 rounded-lg border border-gray-200 overflow-hidden">
+                  <button
+                    type="button"
+                    aria-expanded={allLevelsExpanded}
+                    onClick={() => setAllLevelsExpanded(value => !value)}
+                    className="w-full flex items-center justify-between px-3 py-3 text-left text-xs font-medium text-gray-700"
+                  >
+                    <span>Tipe stok yang memenuhi syarat ({draftAllLevels.length})</span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${allLevelsExpanded ? 'rotate-180' : ''}`} />
+                  </button>
+                  {allLevelsExpanded && (
+                    <div className="flex flex-wrap gap-2 border-t border-gray-200 p-3">
+                      {(modalProduct.stockLevels ?? []).map(level => {
+                        const active = draftAllLevels.includes(level.name);
+                        return (
+                          <button
+                            type="button"
+                            key={level.name}
+                            aria-pressed={active}
+                            onClick={() => setDraftAllLevels(prev => active ? prev.filter(name => name !== level.name) : [...prev, level.name])}
+                            className={`rounded-md border px-3 py-1.5 text-xs ${active ? 'border-[#0a61d7] bg-[#e1efff] text-[#0a61d7]' : 'border-gray-300 bg-white text-gray-700'}`}
+                          >
+                            {level.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {draftAllLevels.length === 0 && <p className="px-3 pb-2 text-xs text-red-600">Pilih minimal satu tipe stok.</p>}
+                </div>
+              )}
 
               <div className="pt-1">
                 <button type="button" onClick={selectSpecific} className="w-full text-left mb-2">
@@ -523,7 +562,7 @@ export default function OfferProductTab({
                       const selectedLevels = draftLevelSelections[String(v.id)] ?? [];
                       const expanded = expandedVariantId === v.id;
                       return (
-                        <div key={v.id} className={`rounded-lg border-2 transition-all ${checked ? 'border-[#0a61d7] bg-[#f0f6ff]' : 'border-gray-200'}`}>
+                        <div key={v.id} className={`rounded-lg border-2 transition-all ${draftScope === 'entire' ? 'border-gray-200 bg-gray-50 opacity-60' : checked ? 'border-[#0a61d7] bg-[#f0f6ff]' : 'border-gray-200'}`}>
                           <div className="flex items-center gap-2 p-3">
                             <button
                               type="button"
@@ -542,13 +581,13 @@ export default function OfferProductTab({
                               aria-label={`Tipe stok: ${v.variantName}`}
                               aria-expanded={expanded}
                               onClick={() => setExpandedVariantId(expanded ? null : v.id)}
-                              disabled={!checked}
+                              disabled={!checked || draftScope === 'entire'}
                               className="ml-1 rounded p-1 text-gray-600 hover:bg-blue-100 disabled:opacity-40"
                             >
                               <ChevronDown className={`w-4 h-4 transition-transform ${expanded ? 'rotate-180' : ''}`} />
                             </button>
                           </div>
-                          {checked && expanded && (
+                          {checked && draftScope === 'specific' && expanded && (
                             <div className="border-t border-blue-200 px-3 py-3">
                               <p className="mb-2 text-xs font-medium text-gray-700">Tipe stok yang memenuhi syarat</p>
                               <div className="flex flex-wrap gap-2">
@@ -574,7 +613,7 @@ export default function OfferProductTab({
                               </div>
                             </div>
                           )}
-                          {checked && selectedLevels.length === 0 && (
+                          {checked && draftScope === 'specific' && selectedLevels.length === 0 && (
                             <p className="px-3 pb-2 text-xs text-red-600">Pilih minimal satu tipe stok.</p>
                           )}
                         </div>

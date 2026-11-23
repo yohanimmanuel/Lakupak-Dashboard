@@ -859,7 +859,7 @@ const saveOfferGroup = async (args: {
     if (target.productId) {
       await assertProductBelongsToUser(userId, target.productId);
       if (target.eligibleStockLevels != null) {
-        if (!target.variantOptionId || target.eligibleStockLevels.length === 0) throw new Error('Select at least one stock level for each selected variant.');
+        if (target.eligibleStockLevels.length === 0) throw new Error('Select at least one eligible stock level.');
         const catalog = await prisma.product.findFirst({ where: { productId: target.productId, userId }, select: { stockLevels: true } });
         const validNames = new Set((Array.isArray(catalog?.stockLevels) ? catalog.stockLevels : []).filter((level): level is { name: string } => !!level && typeof level === 'object' && !Array.isArray(level) && typeof level.name === 'string').map(level => level.name));
         if (target.eligibleStockLevels.some(name => !validNames.has(name))) throw new Error('Offer includes a stock level that is no longer configured for this product.');

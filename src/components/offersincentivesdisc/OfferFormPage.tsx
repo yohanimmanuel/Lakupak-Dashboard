@@ -196,7 +196,7 @@ function offersToForm(offers: Offer[]): OfferWizardFormData {
 
   const byProduct = new Map<
     string,
-    { entire: boolean; variantIds: number[]; levels: Record<string, string[]> }
+    { entire: boolean; variantIds: number[]; levels: Record<string, string[]>; allLevels?: string[] | null }
   >();
   for (const row of offers) {
     if (!row.productId) continue;
@@ -207,6 +207,7 @@ function offersToForm(offers: Offer[]): OfferWizardFormData {
     };
     if (row.variantOptionId == null) {
       cur.entire = true;
+      cur.allLevels = row.eligibleStockLevels ?? null;
     } else if (!cur.variantIds.includes(row.variantOptionId)) {
       cur.variantIds.push(row.variantOptionId);
       if (row.eligibleStockLevels) cur.levels[String(row.variantOptionId)] = row.eligibleStockLevels;
@@ -220,6 +221,7 @@ function offersToForm(offers: Offer[]): OfferWizardFormData {
       variantScope: (scope.entire ? 'entire' : 'specific') as 'entire' | 'specific',
       variantOptionIds: scope.entire ? [] : scope.variantIds,
       stockLevelsByVariant: scope.entire ? undefined : scope.levels,
+      eligibleStockLevels: scope.entire ? scope.allLevels ?? null : null,
     }),
   );
 
@@ -253,15 +255,7 @@ function expandProductTargets(
   for (const sel of selections) {
     if (!sel.productId) continue;
     if (sel.variantScope === 'entire') {
-      // Explicit variant targets are required to persist different eligible levels per variant.
-      const configured = Object.entries(sel.stockLevelsByVariant ?? {});
-      if (configured.length > 0) {
-        for (const [id, levels] of configured) {
-          targets.push({ productId: sel.productId, variantOptionId: Number(id), eligibleStockLevels: levels });
-        }
-      } else {
-        targets.push({ productId: sel.productId, variantOptionId: null });
-      }
+      targets.push({ productId: sel.productId, variantOptionId: null, eligibleStockLevels: sel.eligibleStockLevels ?? null });
     } else {
       for (const variantOptionId of sel.variantOptionIds) {
         targets.push({ productId: sel.productId, variantOptionId, eligibleStockLevels: sel.stockLevelsByVariant?.[String(variantOptionId)] ?? null });

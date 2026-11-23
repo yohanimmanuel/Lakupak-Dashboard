@@ -14,6 +14,8 @@ export type ProductSelection = {
   variantOptionIds: number[];
   /** Variant ID -> eligible stock levels. Missing means legacy unrestricted. */
   stockLevelsByVariant?: Record<string, string[]>;
+  /** Shared eligibility for all variants; null/undefined = legacy unrestricted. */
+  eligibleStockLevels?: string[] | null;
 };
 
 export type OfferWizardFormData = {
