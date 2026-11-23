@@ -307,7 +307,7 @@
       "sellingPrice": "Harga Jual (Opsional)",
       "stockQuantity": "Jumlah Stok (pcs) (Opsional)",
       "lowStockThreshold": "Ambang Bawah (Opsional)",
-      "moq": "MOQ (Opsional)",
+      "moq": "MOQ (Pieces, Opsional)",
       "productCategory": "Kategori Produk / Saluran Penjualan (Opsional)",
       "catalogName": "Nama Katalog (Opsional)"
     },
@@ -538,7 +538,7 @@
       "sku": "SKU",
       "sellingPrice": "Harga Jual",
       "purchasePrice": "Harga Beli",
-      "moq": "MOQ",
+      "moq": "MOQ (Pieces)",
       "stockQty": "Stok (Pcs)",
       "stockUnit": "Satuan stok",
       "stockLevelsTitle": "Konversi Tingkat Stok",
