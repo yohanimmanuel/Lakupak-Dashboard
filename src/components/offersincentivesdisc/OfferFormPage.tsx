@@ -52,6 +52,7 @@ const PRODUCTS_QUERY = `
         name
         brand
         images
+        stockLevels
         variantOptions { id variantName sellingPrice }
       }
       pagination { totalPages }
@@ -243,8 +244,8 @@ function offersToForm(offers: Offer[]): OfferWizardFormData {
 function expandProductTargets(
   selections: OfferWizardFormData['productSelections'],
   opts?: { allowEmpty?: boolean },
-): Array<{ productId: string | null; variantOptionId: number | null }> {
-  const targets: Array<{ productId: string | null; variantOptionId: number | null }> =
+): Array<{ productId: string | null; variantOptionId: number | null; eligibleStockLevels?: string[] | null }> {
+  const targets: Array<{ productId: string | null; variantOptionId: number | null; eligibleStockLevels?: string[] | null }> =
     [];
   for (const sel of selections) {
     if (!sel.productId) continue;
@@ -252,7 +253,7 @@ function expandProductTargets(
       targets.push({ productId: sel.productId, variantOptionId: null });
     } else {
       for (const variantOptionId of sel.variantOptionIds) {
-        targets.push({ productId: sel.productId, variantOptionId });
+        targets.push({ productId: sel.productId, variantOptionId, eligibleStockLevels: sel.stockLevelsByVariant?.[String(variantOptionId)] ?? null });
       }
     }
   }
@@ -422,7 +423,7 @@ export function OfferFormPage({ mode }: { mode: 'create' | 'edit' }) {
           `query OffersInGroup($userId: Int!, $id: String!) {
             offersInGroup(userId: $userId, id: $id) {
               id offerId groupId buyerId buyerStoreName productId productName categoryId categoryLabel
-              variantOptionId variantName
+              variantOptionId variantName eligibleStockLevels
               discountType discountValue buyQuantity freeQuantity promotionApplyMode startDate endDate status notes description
             }
           }`,
@@ -507,6 +508,7 @@ export function OfferFormPage({ mode }: { mode: 'create' | 'edit' }) {
       targets: targets.map((t) => ({
         productId: t.productId,
         variantOptionId: t.variantOptionId,
+        eligibleStockLevels: t.eligibleStockLevels ?? null,
       })),
     });
 
