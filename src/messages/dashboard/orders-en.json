@@ -82,7 +82,7 @@
       "buyer": "Buyer",
       "status": "Status",
       "total": "Total",
-      "items": "Items",
+      "items": "Pieces",
       "delivery": "Delivery",
       "tracking": "Tracking",
       "payment": "Payment"
@@ -92,7 +92,7 @@
       "date": "Date:",
       "status": "Status:",
       "total": "Total:",
-      "items": "Items:",
+      "items": "Pieces:",
       "delivery": "Delivery:",
       "tracking": "Tracking:",
       "payment": "Payment:"
