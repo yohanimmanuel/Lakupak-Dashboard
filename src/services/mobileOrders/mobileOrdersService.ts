@@ -551,16 +551,20 @@ async function appendItemsToPendingOrder(params: {
         }
         if (!variantOption) throw new Error(`No variant options found for product: ${item.productId}.`);
 
+        const requestedPackageType = String(item.packageType || 'Pieces');
+        const requestedPiecesPerPackage = Math.max(1, parseInt(String(item.piecesPerPackage || 1), 10) || 1);
+        // An order may contain the same variant in Pieces and Cartons. Never
+        // combine their package counts or overwrite the original unit snapshot.
         const existing = await tx.orderItem.findFirst({
           where: {
             orderId: order.orderId,
             productId: String(item.productId || ''),
             variantOptionId: variantOption.id,
+            packageType: requestedPackageType,
+            piecesPerPackage: requestedPiecesPerPackage,
           },
         });
-        const piecesPerPackage = existing
-          ? Math.max(1, decimalToNumber(existing.piecesPerPackage) || 1)
-          : Math.max(1, parseInt(String(item.piecesPerPackage || 1), 10) || 1);
+        const piecesPerPackage = requestedPiecesPerPackage;
         const addedPackages = Math.max(1, parseInt(String(item.packageQuantity || 1), 10) || 1);
         const packageQuantity = (existing ? decimalToNumber(existing.packageQuantity) : 0) + addedPackages;
         const totalQuantity = packageQuantity * piecesPerPackage;
