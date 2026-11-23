@@ -6,7 +6,6 @@ import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
 import { formatDateLong } from '@/utils/dateUtils';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
-import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { Order, OrderTableRow } from '@/types/order';
 import { useOrdersTranslations } from '@/hooks/useOrdersTranslations';
 import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
