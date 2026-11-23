@@ -56,8 +56,10 @@ export const addToCart = async (args: {
   productData: Record<string, unknown>;
   quantity?: number;
   variant?: string;
+  packageType?: string;
+  piecesPerPackage?: number;
 }) => {
-  const { userId, productId, productData, quantity = 1, variant = 'Default' } = args;
+  const { userId, productId, productData, quantity = 1, variant = 'Default', packageType = 'Pieces', piecesPerPackage = 1 } = args;
 
   return prisma.$transaction(async (tx) => {
     const existingItem = await tx.userActivity.findFirst({
@@ -76,16 +78,19 @@ export const addToCart = async (args: {
     let message = 'Item added to cart';
 
     if (existingItem) {
-      const metadata = (existingItem.metadata as { quantity?: number; variant?: string; selected?: boolean }) || {};
+      const metadata = (existingItem.metadata as { quantity?: number; variant?: string; selected?: boolean; packageType?: string; piecesPerPackage?: number }) || {};
       const currentQuantity = metadata.quantity || 1;
+      const sameLevel = (metadata.packageType ?? 'Pieces') === packageType && (metadata.piecesPerPackage ?? 1) === piecesPerPackage;
 
       item = await tx.userActivity.update({
         where: { id: existingItem.id },
         data: {
           productData: productData as Prisma.InputJsonValue,
           metadata: {
-            quantity: currentQuantity + quantity,
+            quantity: sameLevel ? currentQuantity + quantity : quantity,
             variant: variant,
+            packageType,
+            piecesPerPackage,
             selected: true,
           },
           updatedAt: new Date(),
@@ -102,6 +107,8 @@ export const addToCart = async (args: {
           metadata: {
             quantity,
             variant,
+            packageType,
+            piecesPerPackage,
             selected: true,
           } as Prisma.InputJsonValue,
         },
