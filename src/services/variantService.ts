@@ -18,7 +18,9 @@ export const validateVariant = async (
   productId: string, 
   variantId?: number,
   orderQuantity?: number,
-  packageQuantity?: number
+  packageQuantity?: number,
+  packageType?: string,
+  piecesPerPackage?: number,
 ): Promise<VariantValidationResult> => {
   try {
     // Get the product with its variant options (new structure)
@@ -63,15 +65,32 @@ export const validateVariant = async (
       };
     }
 
-    // Validate MOQ for the specific variant (if MOQ is set)
-    // MOQ is now in pieces (piece-based system)
-    if (targetVariant.moq && orderQuantity !== undefined) {
-      if (orderQuantity < targetVariant.moq) {
-        return {
-          isValid: false,
-          error: `Minimum order quantity for ${targetVariant.variantName} is ${targetVariant.moq} pieces. You ordered ${orderQuantity} pieces.`
-        };
+    // The catalog's variant-specific MOQ for a selected stock level takes
+    // precedence. Legacy variant MOQ remains the fallback in base pieces.
+    const levelMoqs = targetVariant.moqByStockLevel as Record<string, unknown> | null;
+    const configuredLevelMoq = packageType ? levelMoqs?.[packageType] : undefined;
+    if (packageType && piecesPerPackage != null) {
+      const levels = Array.isArray(product.stockLevels) ? product.stockLevels : [];
+      const configured = levels.find((level) =>
+        level != null && typeof level === 'object' && !Array.isArray(level) &&
+        level.name === packageType && level.piecesPerUnit === piecesPerPackage
+      );
+      if (levels.length > 0 && !configured) {
+        return { isValid: false, error: 'Selected stock level is no longer available. Please review the order.' };
       }
+    }
+    if (configuredLevelMoq !== undefined && configuredLevelMoq !== null) {
+      if (typeof configuredLevelMoq !== 'number' || !Number.isSafeInteger(configuredLevelMoq) || configuredLevelMoq < 0) {
+        return { isValid: false, error: 'Invalid stock-level MOQ configuration.' };
+      }
+      if (packageQuantity !== undefined && packageQuantity < Math.max(1, configuredLevelMoq)) {
+        return { isValid: false, error: `Minimum order quantity for ${targetVariant.variantName} is ${Math.max(1, configuredLevelMoq)} ${packageType}.` };
+      }
+    } else if (targetVariant.moq && orderQuantity !== undefined && orderQuantity < targetVariant.moq) {
+      return {
+        isValid: false,
+        error: `Minimum order quantity for ${targetVariant.variantName} is ${targetVariant.moq} pieces. You ordered ${orderQuantity} pieces.`
+      };
     }
 
     // Convert Decimal sellingPrice to number for the return value
