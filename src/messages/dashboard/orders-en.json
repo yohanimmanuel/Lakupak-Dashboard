@@ -346,7 +346,7 @@
     },
     "orderSummary": {
       "title": "Order Summary",
-      "totalQuantity": "Total Quantity Ordered",
+      "totalQuantity": "Total Pieces Ordered",
       "totalFreeQuantity": "Total Free Quantity",
       "table": {
         "description": "Description",
