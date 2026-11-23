@@ -438,7 +438,7 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
             `query CreateOrderProducts($userId: Int!) {
               products(userId: $userId, page: 1, limit: 200) {
                 nodes {
-                  productId name sku productType images merchandisingCategorySlug stockLevels
+                  productId name productType images merchandisingCategorySlug stockLevels
                   variantOptions { id variantName sellingPrice sku moq isDefault isActive }
                 }
               }
