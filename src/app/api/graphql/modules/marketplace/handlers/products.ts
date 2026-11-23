@@ -853,6 +853,9 @@ export const fetchMarketplaceProducts = async (args: {
       publishedAt: product.publishedAt?.toISOString() || null,
       lastSyncAt: product.lastSyncAt?.toISOString() || null,
       piecesPerPackage: 1,
+      stockLevels: Array.isArray((product as { stockLevels?: unknown }).stockLevels)
+        ? (product as { stockLevels: unknown[] }).stockLevels
+        : [{ name: 'Pieces', piecesPerUnit: 1 }],
       packageType: marketplaceStockUnit((product as { stockUnit?: string | null }).stockUnit),
       stockUnit: marketplaceStockUnit((product as { stockUnit?: string | null }).stockUnit),
       seller: {
