@@ -251,6 +251,7 @@ async function priceDistributorLines(
     const offer = await getOfferForClientAndProduct(buyerId, product.productId, {
       userId,
       variantOptionId: variant.id,
+      stockLevelName: selectedStockLevel.name,
     });
     const applied = offer ? applyOfferToPrice(basePricePerPiece, offer) : null;
     const unitPricePerPiece = money(applied ? applied.unitPrice : basePricePerPiece);
