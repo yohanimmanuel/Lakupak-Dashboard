@@ -62,16 +62,20 @@ export const addToCart = async (args: {
   const { userId, productId, productData, quantity = 1, variant = 'Default', packageType = 'Pieces', piecesPerPackage = 1 } = args;
 
   return prisma.$transaction(async (tx) => {
-    const existingItem = await tx.userActivity.findFirst({
-      where: {
-        userId,
-        productId,
-        activityType: 'cart',
-        metadata: {
-          path: ['variant'],
-          equals: variant,
-        },
-      },
+    // A cart line is uniquely identified by product, variant and selected stock level.
+    // Legacy entries without stock-level metadata are interpreted as Pieces / 1.
+    const candidates = await tx.userActivity.findMany({
+      where: { userId, productId, activityType: 'cart' },
+    });
+    const existingItem = candidates.find((candidate) => {
+      const saved = (candidate.metadata as {
+        variant?: string;
+        packageType?: string;
+        piecesPerPackage?: number;
+      } | null) ?? {};
+      return (saved.variant ?? 'Default') === variant &&
+        (saved.packageType ?? 'Pieces') === packageType &&
+        (saved.piecesPerPackage ?? 1) === piecesPerPackage;
     });
 
     let item: Awaited<ReturnType<typeof tx.userActivity.create>> | Awaited<ReturnType<typeof tx.userActivity.update>>;
