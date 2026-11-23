@@ -834,6 +834,7 @@ export const fetchMarketplaceProducts = async (args: {
         sellingPrice: safeParsePrice(vo.sellingPrice),
         originalSellingPrice: safeParsePrice(vo.originalSellingPrice),
         moq: vo.moq,
+        moqByStockLevel: vo.moqByStockLevel ?? {},
         stockQuantity: vo.stockQuantity || 0,
         lowStockThreshold: vo.lowStockThreshold || 0,
         stockStatus: vo.stockStatus || 'In Stock',
