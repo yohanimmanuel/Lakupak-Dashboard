@@ -1669,7 +1669,15 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
       { key: 'sellingPrice', weight: VARIATION_COL_WEIGHTS.sellingPrice },
       { key: 'purchasePrice', weight: VARIATION_COL_WEIGHTS.purchasePrice },
       { key: 'moq', weight: VARIATION_COL_WEIGHTS.moq },
-      { key: 'stock', weight: VARIATION_COL_WEIGHTS.stock },
+      ...displayStockLevels.flatMap((level, index) => {
+        const stockKey = `stock:${level.name.toLowerCase() || index}`;
+        return [
+          { key: stockKey, weight: VARIATION_COL_WEIGHTS.stock / Math.max(1, displayStockLevels.length) },
+          ...(!legacyStockUnit && level.name !== 'Pieces'
+            ? [{ key: `moq:${level.name.toLowerCase() || index}`, weight: VARIATION_COL_WEIGHTS.moq }]
+            : []),
+        ];
+      }),
       { key: 'lowThreshold', weight: VARIATION_COL_WEIGHTS.lowThreshold },
       { key: 'status', weight: VARIATION_COL_WEIGHTS.status },
     ];
@@ -1677,7 +1685,7 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
       keys.push({ key: 'actions', weight: VARIATION_COL_WEIGHTS.actions });
     }
     return keys;
-  }, [variants, isViewMode]);
+  }, [variants, displayStockLevels, legacyStockUnit, isViewMode]);
   const hasCustomVariationColWidths = variationColKeys.some(
     (col) => typeof variationColWidths[col.key] === 'number',
   );

@@ -1398,7 +1398,7 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
                     style={{
                       tableLayout: 'fixed',
                       width: variationTablePixelWidth != null ? variationTablePixelWidth : '100%',
-                      ...(variationTablePixelWidth == null ? { minWidth: '100%' } : {}),
+                      ...(variationTablePixelWidth == null ? { minWidth: `max(100%, ${(variants.length + 6 + displayStockLevels.length + (!legacyStockUnit ? displayStockLevels.filter(level => level.name !== 'Pieces').length : 0)) * 110}px)` } : {}),
                     }}
                   >
                     <thead className="bg-gray-50">
@@ -1472,7 +1472,11 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
                               />
                             </th>
                             {!legacyStockUnit && level.name !== 'Pieces' && (
-                              <th className="px-2 py-1.5 text-left text-xs font-semibold text-gray-700 border-b border-r border-gray-300" style={{ minWidth: 110 }}>
+                              <th
+                                data-col-key={`moq:${level.name.toLowerCase() || levelIndex}`}
+                                className="relative px-2 py-1.5 text-left text-xs font-semibold text-gray-700 border-b border-r border-gray-300"
+                                style={variationColStyle(`moq:${level.name.toLowerCase() || levelIndex}`, VARIATION_COL_WEIGHTS.moq)}
+                              >
                                 MOQ ({level.name})
                               </th>
                             )}
