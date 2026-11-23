@@ -82,7 +82,7 @@
       "buyer": "Pembeli",
       "status": "Status",
       "total": "Total",
-      "items": "Item",
+      "items": "Pieces",
       "delivery": "Pengiriman",
       "tracking": "Pelacakan",
       "payment": "Pembayaran"
@@ -92,7 +92,7 @@
       "date": "Tanggal:",
       "status": "Status:",
       "total": "Total:",
-      "items": "Item:",
+      "items": "Pieces:",
       "delivery": "Pengiriman:",
       "tracking": "Pelacakan:",
       "payment": "Pembayaran:"
