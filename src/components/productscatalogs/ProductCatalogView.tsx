@@ -1717,7 +1717,7 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
                                     value={combination.moqByStockLevel?.[level.name] ?? ''}
                                     onChange={(event) => {
                                       const raw = event.target.value;
-                                      if (raw !== '' && (!/^\\d+$/.test(raw) || !Number.isSafeInteger(Number(raw)))) return;
+                                      if (raw !== '' && (!/^\d+$/.test(raw) || !Number.isSafeInteger(Number(raw)))) return;
                                       const next = { ...(combination.moqByStockLevel ?? {}) };
                                       if (raw === '') delete next[level.name];
                                       else next[level.name] = Number(raw);
