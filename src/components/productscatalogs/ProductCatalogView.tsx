@@ -1449,45 +1449,45 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
                         ))}
                         {displayStockLevels.map((level, levelIndex) => {
                           const colKey = `stock:${level.name.toLowerCase() || levelIndex}`;
+                          const moqKey = `moq:${level.name.toLowerCase() || levelIndex}`;
                           return (
                             <React.Fragment key={colKey}>
-                            {!legacyStockUnit && level.name !== 'Pieces' && (
-                                  <span className="text-[10px] font-normal text-gray-500">{tCatalog('variants.piecesPerUnitShort', { count: level.piecesPerUnit })}</span>
-                                )}
-                              </div>
-                              <span
-                                role="separator"
-                                aria-orientation="vertical"
-                                aria-label={level.name}
-                                onPointerDown={(event) => beginVariationColResize(colKey, event)}
-                                className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize touch-none hover:bg-[#0a61d7]/35"
-                              />
-                            </th>
-                            {!legacyStockUnit && level.name !== 'Pieces' && (
+                              {!legacyStockUnit && level.name !== 'Pieces' && (
+                                <th
+                                  data-col-key={moqKey}
+                                  className="relative px-2 py-1.5 text-left text-xs font-semibold text-gray-700 border-b border-r border-gray-300"
+                                  style={variationColStyle(moqKey, VARIATION_COL_WEIGHTS.moq)}
+                                >
+                                  MOQ ({level.name})
+                                  <span
+                                    role="separator"
+                                    aria-orientation="vertical"
+                                    aria-label={`MOQ (${level.name})`}
+                                    onPointerDown={(event) => beginVariationColResize(moqKey, event)}
+                                    className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize touch-none hover:bg-[#0a61d7]/35"
+                                  />
+                                </th>
+                              )}
                               <th
-                                data-col-key={`moq:${level.name.toLowerCase() || levelIndex}`}
-                                className="relative px-2 py-1.5 text-left text-xs font-semibold text-gray-700 border-b border-r border-gray-300"
-                                style={variationColStyle(`moq:${level.name.toLowerCase() || levelIndex}`, VARIATION_COL_WEIGHTS.moq)}
+                                data-col-key={colKey}
+                                className="relative text-xs font-semibold text-gray-700 px-2 py-1.5 text-left border-b border-r border-gray-300"
+                                style={variationColStyle(colKey, VARIATION_COL_WEIGHTS.stock / Math.max(1, activeStockLevels.length))}
                               >
-                                MOQ ({level.name})
+                                <div className="flex flex-col pr-1">
+                                  <span>{level.name}</span>
+                                  {!legacyStockUnit && level.name !== 'Pieces' && (
+                                    <span className="text-[10px] font-normal text-gray-500">{tCatalog('variants.piecesPerUnitShort', { count: level.piecesPerUnit })}</span>
+                                  )}
+                                </div>
                                 <span
                                   role="separator"
                                   aria-orientation="vertical"
-                                  aria-label={`MOQ (${level.name})`}
-                                  onPointerDown={(event) => beginVariationColResize(`moq:${level.name.toLowerCase() || levelIndex}`, event)}
+                                  aria-label={level.name}
+                                  onPointerDown={(event) => beginVariationColResize(colKey, event)}
                                   className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize touch-none hover:bg-[#0a61d7]/35"
                                 />
                               </th>
-                            )}
-                            <th
-                              key={colKey}
-                              data-col-key={colKey}
-                              className="relative text-xs font-semibold text-gray-700 px-2 py-1.5 text-left border-b border-r border-gray-300"
-                              style={variationColStyle(colKey, VARIATION_COL_WEIGHTS.stock / Math.max(1, activeStockLevels.length))}
-                            >
-                              <div className="flex flex-col pr-1">
-                                <span>{level.name}</span>
-                                </React.Fragment>
+                            </React.Fragment>
                           );
                         })}
                         {([
