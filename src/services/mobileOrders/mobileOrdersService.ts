@@ -385,6 +385,7 @@ async function assertAppendLineOrderable(
         userId: args.distributorUserId,
         db: tx,
         variantOptionId: args.variantOption.id,
+        stockLevelName: args.packageType,
       })
     : null;
   const freeQty =
@@ -1501,6 +1502,7 @@ export async function createMobileMarketplaceOrders(
         ? await getOfferForClientAndProduct(precheckBuyerId, product.productId, {
             userId: product.userId ?? undefined,
             variantOptionId: variantOption.id ?? null,
+            stockLevelName: String(item.packageType || 'Pieces'),
           })
         : null;
 
@@ -1709,6 +1711,7 @@ export async function createMobileMarketplaceOrders(
                 userId: product.userId ?? undefined,
                 db: tx,
                 variantOptionId: variantOption.id ?? null,
+                stockLevelName: String(item.packageType || 'Pieces'),
               },
             );
 
