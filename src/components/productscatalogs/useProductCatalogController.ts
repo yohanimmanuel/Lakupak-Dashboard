@@ -707,7 +707,7 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
     return numericRegex.test(value);
   };
   // Update combination
-  const updateCombination = (combinationId: string, field: string, value: string | number | undefined) => {
+  const updateCombination = (combinationId: string, field: string, value: string | number | Record<string, number> | undefined) => {
     setCombinations(prev => prev.map(combination => {
       if (combination.id === combinationId) {
         const updated = { ...combination, [field]: value };
