@@ -934,6 +934,7 @@ model Offer {
   productId          String? // Product.productId XOR categoryId (both null ok for drafts)
   categoryId         String? // merchandisingCategorySlug
   variantOptionId    Int? // null = whole product (all variants); set = that VariantOption only
+  eligibleStockLevels Json? // null = legacy unrestricted; array of selected product stock level names
   discountType       String // percentage | fixed_amount | buy_x_get_y
   discountValue      Decimal   @db.Decimal(10, 2)
   buyQuantity        Int? // required when buy_x_get_y; also set for combo with price discount

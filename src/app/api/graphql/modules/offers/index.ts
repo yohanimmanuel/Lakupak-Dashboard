@@ -23,6 +23,7 @@ export const offersTypeDefs = /* GraphQL */ `
     categoryId: String
     categoryLabel: String
     variantOptionId: Int
+    eligibleStockLevels: [String!]
     variantName: String
     discountType: String!
     discountValue: Float!
@@ -54,6 +55,7 @@ export const offersTypeDefs = /* GraphQL */ `
   input OfferGroupTargetInput {
     productId: String
     variantOptionId: Int
+    eligibleStockLevels: [String!]
   }
 
   type SaveOfferGroupResult {
@@ -174,6 +176,7 @@ function mapOffer(offer: OfferRow) {
     categoryId: offer.categoryId,
     categoryLabel: offer.categoryId ? getMerchandisingLabel(offer.categoryId) : null,
     variantOptionId: offer.variantOptionId ?? null,
+    eligibleStockLevels: Array.isArray(offer.eligibleStockLevels) ? offer.eligibleStockLevels : null,
     variantName: offer.variantOption?.variantName ?? null,
     discountType: offer.discountType,
     discountValue: parseMoney(offer.discountValue),
@@ -786,7 +789,7 @@ const saveOfferGroup = async (args: {
   status?: string | null;
   notes?: string | null;
   description?: string | null;
-  targets: Array<{ productId?: string | null; variantOptionId?: number | null }>;
+  targets: Array<{ productId?: string | null; variantOptionId?: number | null; eligibleStockLevels?: string[] | null }>;
 }) => {
   const { userId } = args;
   const buyerId = args.buyerId?.trim() || null;
@@ -807,6 +810,7 @@ const saveOfferGroup = async (args: {
   const desiredTargets: Array<{
     productId: string | null;
     variantOptionId: number | null;
+    eligibleStockLevels: string[] | null;
   }> = [];
   const seenKeys = new Set<string>();
   for (const raw of args.targets) {
@@ -818,7 +822,7 @@ const saveOfferGroup = async (args: {
     const key = offerTargetKey(productId, variantOptionId);
     if (seenKeys.has(key)) continue;
     seenKeys.add(key);
-    desiredTargets.push({ productId, variantOptionId });
+    desiredTargets.push({ productId, variantOptionId, eligibleStockLevels: raw.eligibleStockLevels ?? null });
   }
 
   if (desiredTargets.length === 0) {
@@ -854,6 +858,12 @@ const saveOfferGroup = async (args: {
   for (const target of desiredTargets) {
     if (target.productId) {
       await assertProductBelongsToUser(userId, target.productId);
+      if (target.eligibleStockLevels != null) {
+        if (!target.variantOptionId || target.eligibleStockLevels.length === 0) throw new Error('Select at least one stock level for each selected variant.');
+        const catalog = await prisma.product.findFirst({ where: { productId: target.productId, userId }, select: { stockLevels: true } });
+        const validNames = new Set((Array.isArray(catalog?.stockLevels) ? catalog.stockLevels : []).filter((level): level is { name: string } => !!level && typeof level === 'object' && !Array.isArray(level) && typeof level.name === 'string').map(level => level.name));
+        if (target.eligibleStockLevels.some(name => !validNames.has(name))) throw new Error('Offer includes a stock level that is no longer configured for this product.');
+      }
       if (target.variantOptionId != null) {
         await assertVariantBelongsToProduct(
           userId,
@@ -957,6 +967,7 @@ const saveOfferGroup = async (args: {
             ...sharedData,
             productId: target.productId,
             variantOptionId: target.variantOptionId,
+            eligibleStockLevels: target.eligibleStockLevels ?? undefined,
           },
           include: offerInclude,
         });
@@ -971,6 +982,7 @@ const saveOfferGroup = async (args: {
             ...sharedData,
             productId: target.productId,
             variantOptionId: target.variantOptionId,
+            eligibleStockLevels: target.eligibleStockLevels ?? undefined,
           },
           include: offerInclude,
         });

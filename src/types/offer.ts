@@ -17,6 +17,7 @@ export interface Offer {
   categoryId?: string | null;
   categoryLabel?: string | null;
   variantOptionId?: number | null;
+  eligibleStockLevels?: string[] | null;
   variantName?: string | null;
   discountType: OfferDiscountType;
   discountValue: number;
