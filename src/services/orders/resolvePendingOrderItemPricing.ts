@@ -209,6 +209,7 @@ export async function syncOrderItemPricingFromCatalog(params: {
       ? await getOfferForClientAndProduct(buyerId, productId, {
           userId: params.userId,
           variantOptionId: item.variantOptionId ?? null,
+          stockLevelName: item.packageType,
           db,
         })
       : null;

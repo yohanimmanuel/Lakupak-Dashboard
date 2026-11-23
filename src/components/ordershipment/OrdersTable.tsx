@@ -6,10 +6,22 @@ import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
 import { formatDateLong } from '@/utils/dateUtils';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
-import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { Order, OrderTableRow } from '@/types/order';
 import { useOrdersTranslations } from '@/hooks/useOrdersTranslations';
 import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
+
+/** Order totals arrive from the API as numeric decimal values, not locale-formatted input. */
+function formatOrderTableTotal(value: number | string | null | undefined, currency: string): string {
+  const amount = Number(value ?? 0);
+  const safeAmount = Number.isFinite(amount) ? amount : 0;
+  if (currency === 'IDR') {
+    return `Rp${safeAmount.toLocaleString('id-ID', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  }
+  return formatCurrency(safeAmount, currency);
+}
 
 const statusTabs = [
   { label: "All" },
@@ -768,7 +780,7 @@ export default function OrdersTable({
                      {translateOrderStatus(order.orderStatus)}
                    </span>
                  </td>
-                 <td className="py-3 px-4 text-[#0a61d7] font-semibold">{formatCurrency(parseNumberByCurrency(String(order.totalAmount), userCurrency), userCurrency)}</td>
+                 <td className="py-3 px-4 text-[#0a61d7] font-semibold">{formatOrderTableTotal(order.totalAmount, userCurrency)}</td>
                  <td className="py-3 px-4 text-black">{order.items}</td>
                  <td className="py-3 px-4 text-black">{translateDeliveryMethod(order.deliveryMethod)}</td>
                  <td className="py-3 px-4 text-black">{order.trackingNumber || tShared('notAvailable')}</td>
@@ -906,7 +918,7 @@ export default function OrdersTable({
               </div>
                              <div className="text-xs text-gray-500">{tTable('mobileLabels.date')} <span className="text-black font-medium">{formatDateLong(order.orderDate)}</span></div>
                <div className="text-xs text-gray-500">{tTable('mobileLabels.status')} <span className={`inline-block px-2 py-1 rounded-full font-bold ${getStatusColor(order.orderStatus)}`}>{translateOrderStatus(order.orderStatus)}</span></div>
-                               <div className="text-xs text-gray-500">{tTable('mobileLabels.total')} <span className="text-[#0a61d7] font-semibold">{formatCurrency(parseNumberByCurrency(String(order.totalAmount), userCurrency), userCurrency)}</span></div>
+                               <div className="text-xs text-gray-500">{tTable('mobileLabels.total')} <span className="text-[#0a61d7] font-semibold">{formatOrderTableTotal(order.totalAmount, userCurrency)}</span></div>
                <div className="text-xs text-gray-500">{tTable('mobileLabels.items')} <span className="text-black font-medium">{order.items}</span></div>
                <div className="text-xs text-gray-500">{tTable('mobileLabels.delivery')} <span className="text-black font-medium">{translateDeliveryMethod(order.deliveryMethod)}</span></div>
                <div className="text-xs text-gray-500">{tTable('mobileLabels.tracking')} <span className="text-black font-medium">{order.trackingNumber || tShared('notAvailable')}</span></div>

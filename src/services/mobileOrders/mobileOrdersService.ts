@@ -385,6 +385,7 @@ async function assertAppendLineOrderable(
         userId: args.distributorUserId,
         db: tx,
         variantOptionId: args.variantOption.id,
+        stockLevelName: args.packageType,
       })
     : null;
   const freeQty =
@@ -612,6 +613,7 @@ async function appendItemsToPendingOrder(params: {
           packageQuantity,
           variantForValidation,
           order.buyerId,
+          requestedPackageType,
         );
 
         let variantNameSnapshot: string | null = null;
@@ -1273,6 +1275,7 @@ export async function createMobileMarketplaceOrders(
             packageQuantity,
             variantForValidation,
             matchPlan.buyerId,
+            String(item.packageType || 'Pieces'),
           );
 
           let variantNameSnapshot: string | null = null;
@@ -1501,6 +1504,7 @@ export async function createMobileMarketplaceOrders(
         ? await getOfferForClientAndProduct(precheckBuyerId, product.productId, {
             userId: product.userId ?? undefined,
             variantOptionId: variantOption.id ?? null,
+            stockLevelName: String(item.packageType || 'Pieces'),
           })
         : null;
 
@@ -1709,6 +1713,7 @@ export async function createMobileMarketplaceOrders(
                 userId: product.userId ?? undefined,
                 db: tx,
                 variantOptionId: variantOption.id ?? null,
+                stockLevelName: String(item.packageType || 'Pieces'),
               },
             );
 
@@ -1785,6 +1790,7 @@ export async function createMobileMarketplaceOrders(
               packageQuantity,
               variantForValidation,
               matchPlan.buyerId,
+              String(item.packageType || 'Pieces'),
             );
 
             let variantNameSnapshot: string | null = null;

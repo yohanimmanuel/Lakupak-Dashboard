@@ -17,6 +17,7 @@ export type ResolvedOffer = {
   productId: string | null;
   categoryId: string | null;
   variantOptionId: number | null;
+  eligibleStockLevels: string[] | null;
   discountType: OfferDiscountType;
   discountValue: number;
   buyQuantity: number | null;
@@ -62,6 +63,7 @@ function mapOffer(row: {
   productId: string | null;
   categoryId: string | null;
   variantOptionId?: number | null;
+  eligibleStockLevels?: unknown;
   discountType: string;
   discountValue: unknown;
   buyQuantity: number | null;
@@ -80,6 +82,11 @@ function mapOffer(row: {
     productId: row.productId,
     categoryId: row.categoryId,
     variantOptionId: row.variantOptionId ?? null,
+    eligibleStockLevels: row.eligibleStockLevels == null
+      ? null
+      : Array.isArray(row.eligibleStockLevels)
+        ? row.eligibleStockLevels.filter((name): name is string => typeof name === 'string')
+        : [],
     discountType: row.discountType as OfferDiscountType,
     discountValue: toNumber(row.discountValue),
     buyQuantity: row.buyQuantity,
@@ -109,6 +116,7 @@ export async function getOfferForClientAndProduct(
     at?: Date;
     db?: DbClient;
     variantOptionId?: number | null;
+    stockLevelName?: string | null;
   },
 ): Promise<ResolvedOffer | null> {
   const buyerId = String(clientId || '').trim();
@@ -153,6 +161,15 @@ export async function getOfferForClientAndProduct(
         : {}),
   };
 
+  // Null eligibility is legacy unrestricted. Explicit selections require the
+  // actual ordered stock type; unknown types must not receive restricted rates.
+  const eligible = (row: { eligibleStockLevels: unknown }): boolean => {
+    if (row.eligibleStockLevels == null) return true;
+    return Array.isArray(row.eligibleStockLevels) &&
+      typeof opts?.stockLevelName === 'string' &&
+      row.eligibleStockLevels.includes(opts.stockLevelName);
+  };
+
   // 1) Variant-specific offer
   if (variantOptionId != null) {
     const variantOffer = await db.offer.findFirst({
@@ -163,7 +180,7 @@ export async function getOfferForClientAndProduct(
       },
       orderBy: { updatedAt: 'desc' },
     });
-    if (variantOffer) return mapOffer(variantOffer);
+    if (variantOffer && eligible(variantOffer)) return mapOffer(variantOffer);
   }
 
   // 2) Whole-product offer (all variants)
@@ -175,7 +192,7 @@ export async function getOfferForClientAndProduct(
     },
     orderBy: { updatedAt: 'desc' },
   });
-  if (productOffer) return mapOffer(productOffer);
+  if (productOffer && eligible(productOffer)) return mapOffer(productOffer);
 
   // 3) Category offer
   const categorySlug = product.merchandisingCategorySlug?.trim();
@@ -191,7 +208,7 @@ export async function getOfferForClientAndProduct(
     orderBy: { updatedAt: 'desc' },
   });
 
-  return categoryOffer ? mapOffer(categoryOffer) : null;
+  return categoryOffer && eligible(categoryOffer) ? mapOffer(categoryOffer) : null;
 }
 
 function resolveFreeQuantity(

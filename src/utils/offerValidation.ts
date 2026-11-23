@@ -92,6 +92,7 @@ export async function validateOfferForProduct(
     id?: number | null;
   },
   buyerId?: string | null,
+  stockLevelName?: string | null,
 ): Promise<OfferValidationResult> {
   try {
     const clientId = String(buyerId || '').trim();
@@ -119,6 +120,7 @@ export async function validateOfferForProduct(
     const offer = await getOfferForClientAndProduct(clientId, productId, {
       db: tx,
       variantOptionId: variant.id ?? null,
+      stockLevelName,
     });
     if (!offer) {
       return { isValid: false, error: 'No active offer for this client and product' };
