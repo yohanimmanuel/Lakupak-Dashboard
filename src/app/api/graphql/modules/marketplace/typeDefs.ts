@@ -259,6 +259,8 @@ export const marketplaceTypeDefs = /* GraphQL */ `
     productData: JSONObject!
     quantity: Int
     variant: String
+    packageType: String
+    piecesPerPackage: Int
   }
 
   input UpdateCartItemInput {
