@@ -18,6 +18,7 @@ export type ProductOption = {
   name: string;
   brand?: string | null;
   images: string[];
+  stockLevels?: Array<{ name: string; piecesPerUnit: number }>;
   variantOptions: Array<{
     id: number;
     variantName: string;
@@ -132,6 +133,8 @@ export default function OfferProductTab({
   const [modalProduct, setModalProduct] = useState<ProductOption | null>(null);
   const [draftScope, setDraftScope] = useState<'entire' | 'specific'>('entire');
   const [draftVariantIds, setDraftVariantIds] = useState<number[]>([]);
+  const [draftLevelSelections, setDraftLevelSelections] = useState<Record<string, string[]>>({});
+  const [expandedVariantId, setExpandedVariantId] = useState<number | null>(null);
 
   const selections = formData.productSelections;
   const selectedIds = useMemo(
@@ -177,6 +180,9 @@ export default function OfferProductTab({
   const openModal = (product: ProductOption) => {
     const existing = selections.find((s) => s.productId === product.productId);
     setModalProduct(product);
+    const names = (product.stockLevels ?? []).map((level) => level.name);
+    setDraftLevelSelections(Object.fromEntries(product.variantOptions.map(v => [String(v.id), existing?.stockLevelsByVariant?.[String(v.id)] ?? names])));
+    setExpandedVariantId(null);
     if (existing) {
       setDraftScope(existing.variantScope);
       if (existing.variantScope === 'entire') {
@@ -210,13 +216,15 @@ export default function OfferProductTab({
     );
   };
 
+  const validLevelSelection = !modalProduct || draftScope === 'entire' || draftVariantIds.every(id => (draftLevelSelections[String(id)]?.length ?? 0) > 0);
   const confirmModal = () => {
     if (!modalProduct) return;
-    if (draftScope === 'specific' && draftVariantIds.length === 0) return;
+    if (draftScope === 'specific' && (draftVariantIds.length === 0 || !validLevelSelection)) return;
     const nextSel: ProductSelection = {
       productId: modalProduct.productId,
       variantScope: draftScope,
       variantOptionIds: draftScope === 'entire' ? [] : [...draftVariantIds],
+      stockLevelsByVariant: draftScope === 'entire' ? undefined : Object.fromEntries(draftVariantIds.map(id => [String(id), draftLevelSelections[String(id)] ?? []])),
     };
     const idx = selections.findIndex((s) => s.productId === modalProduct.productId);
     const next =
@@ -234,7 +242,7 @@ export default function OfferProductTab({
   };
 
   const canConfirm =
-    draftScope === 'entire' || draftVariantIds.length > 0;
+    (draftScope === 'entire' || draftVariantIds.length > 0) && validLevelSelection;
   const isEditingExisting =
     modalProduct != null && selectedIds.has(modalProduct.productId);
 
@@ -514,8 +522,8 @@ export default function OfferProductTab({
                       const checked = draftVariantIds.includes(v.id);
                       const disabled = draftScope === 'entire';
                       return (
+                        <div key={v.id}>
                         <button
-                          key={v.id}
                           type="button"
                           disabled={disabled}
                           onClick={() => toggleVariant(v.id)}
@@ -539,6 +547,24 @@ export default function OfferProductTab({
                             </span>
                           </div>
                         </button>
+                        {checked && draftScope === 'specific' && (
+                          <div className="mt-1 mb-2 rounded-lg border border-gray-200 px-3 py-2">
+                            <button type="button" className="w-full flex items-center justify-between text-xs font-medium text-gray-700" onClick={() => setExpandedVariantId(expandedVariantId === v.id ? null : v.id)}>
+                              <span>Tipe stok yang memenuhi syarat ({draftLevelSelections[String(v.id)]?.length ?? 0})</span>
+                              <ChevronDown className="w-4 h-4" />
+                            </button>
+                            {expandedVariantId === v.id && (
+                              <div className="flex flex-wrap gap-2 mt-3">
+                                {(modalProduct.stockLevels ?? []).map(level => {
+                                  const active = (draftLevelSelections[String(v.id)] ?? []).includes(level.name);
+                                  return <button key={level.name} type="button" onClick={() => setDraftLevelSelections(prev => ({...prev, [String(v.id)]: active ? (prev[String(v.id)] ?? []).filter(name => name !== level.name) : [...(prev[String(v.id)] ?? []), level.name]}))} className={`rounded-md border px-3 py-1.5 text-xs ${active ? "border-[#0a61d7] bg-[#f0f6ff] text-[#0a61d7]" : "border-gray-200 text-gray-700"}`}>{level.name}</button>;
+                                })}
+                              </div>
+                            )}
+                            {(draftLevelSelections[String(v.id)]?.length ?? 0) === 0 && <p className="mt-2 text-xs text-red-600">Pilih minimal satu tipe stok.</p>}
+                          </div>
+                        )}
+                        </div>
                       );
                     })}
                   </div>
