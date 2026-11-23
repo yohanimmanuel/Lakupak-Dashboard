@@ -307,7 +307,7 @@
       "sellingPrice": "Selling Price (Optional)",
       "stockQuantity": "Stock Qty (pcs) (Optional)",
       "lowStockThreshold": "Low Stock Threshold (Optional)",
-      "moq": "MOQ (Optional)",
+      "moq": "MOQ (Pieces, Optional)",
       "productCategory": "Product Category / Sales Channel (Optional)",
       "catalogName": "Catalog Name (Optional)"
     },
@@ -538,7 +538,7 @@
       "sku": "SKU",
       "sellingPrice": "Selling Price",
       "purchasePrice": "Purchase Price",
-      "moq": "MOQ",
+      "moq": "MOQ (Pieces)",
       "stockQty": "Stock (Pieces)",
       "stockUnit": "Stock unit",
       "stockLevelsTitle": "Stock Level Conversion",
