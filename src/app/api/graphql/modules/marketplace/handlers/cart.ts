@@ -67,10 +67,11 @@ export const addToCart = async (args: {
         userId,
         productId,
         activityType: 'cart',
-        metadata: {
-          path: ['variant'],
-          equals: variant,
-        },
+        AND: [
+          { metadata: { path: ['variant'], equals: variant } },
+          { metadata: { path: ['packageType'], equals: packageType } },
+          { metadata: { path: ['piecesPerPackage'], equals: piecesPerPackage } },
+        ],
       },
     });
 
