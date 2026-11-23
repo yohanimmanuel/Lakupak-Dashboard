@@ -1478,6 +1478,13 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
                                 style={variationColStyle(`moq:${level.name.toLowerCase() || levelIndex}`, VARIATION_COL_WEIGHTS.moq)}
                               >
                                 MOQ ({level.name})
+                                <span
+                                  role="separator"
+                                  aria-orientation="vertical"
+                                  aria-label={`MOQ (${level.name})`}
+                                  onPointerDown={(event) => beginVariationColResize(`moq:${level.name.toLowerCase() || levelIndex}`, event)}
+                                  className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize touch-none hover:bg-[#0a61d7]/35"
+                                />
                               </th>
                             )}
                             </React.Fragment>
