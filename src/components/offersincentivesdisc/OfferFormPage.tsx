@@ -253,7 +253,15 @@ function expandProductTargets(
   for (const sel of selections) {
     if (!sel.productId) continue;
     if (sel.variantScope === 'entire') {
-      targets.push({ productId: sel.productId, variantOptionId: null });
+      // Explicit variant targets are required to persist different eligible levels per variant.
+      const configured = Object.entries(sel.stockLevelsByVariant ?? {});
+      if (configured.length > 0) {
+        for (const [id, levels] of configured) {
+          targets.push({ productId: sel.productId, variantOptionId: Number(id), eligibleStockLevels: levels });
+        }
+      } else {
+        targets.push({ productId: sel.productId, variantOptionId: null });
+      }
     } else {
       for (const variantOptionId of sel.variantOptionIds) {
         targets.push({ productId: sel.productId, variantOptionId, eligibleStockLevels: sel.stockLevelsByVariant?.[String(variantOptionId)] ?? null });

@@ -216,15 +216,15 @@ export default function OfferProductTab({
     );
   };
 
-  const validLevelSelection = !modalProduct || draftScope === 'entire' || draftVariantIds.every(id => (draftLevelSelections[String(id)]?.length ?? 0) > 0);
+  const validLevelSelection = !modalProduct || modalProduct.variantOptions.every(v => (draftScope === 'entire' || draftVariantIds.includes(v.id)) ? (draftLevelSelections[String(v.id)]?.length ?? 0) > 0 : true);
   const confirmModal = () => {
     if (!modalProduct) return;
-    if (draftScope === 'specific' && (draftVariantIds.length === 0 || !validLevelSelection)) return;
+    if ((draftScope === 'specific' && draftVariantIds.length === 0) || !validLevelSelection) return;
     const nextSel: ProductSelection = {
       productId: modalProduct.productId,
       variantScope: draftScope,
       variantOptionIds: draftScope === 'entire' ? [] : [...draftVariantIds],
-      stockLevelsByVariant: draftScope === 'entire' ? undefined : Object.fromEntries(draftVariantIds.map(id => [String(id), draftLevelSelections[String(id)] ?? []])),
+      stockLevelsByVariant: Object.fromEntries((draftScope === 'entire' ? modalProduct.variantOptions.map(v => v.id) : draftVariantIds).map(id => [String(id), draftLevelSelections[String(id)] ?? []])),
     };
     const idx = selections.findIndex((s) => s.productId === modalProduct.productId);
     const next =
@@ -519,51 +519,64 @@ export default function OfferProductTab({
                 ) : (
                   <div className="space-y-2">
                     {modalProduct.variantOptions.map((v) => {
-                      const checked = draftVariantIds.includes(v.id);
-                      const disabled = draftScope === 'entire';
+                      const checked = draftScope === 'entire' || draftVariantIds.includes(v.id);
+                      const selectedLevels = draftLevelSelections[String(v.id)] ?? [];
+                      const expanded = expandedVariantId === v.id;
                       return (
-                        <div key={v.id}>
-                        <button
-                          type="button"
-                          disabled={disabled}
-                          onClick={() => toggleVariant(v.id)}
-                          className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
-                            disabled
-                              ? 'border-gray-100 bg-gray-50 cursor-not-allowed opacity-70'
-                              : checked
-                                ? 'border-[#0a61d7] bg-[#f0f6ff]'
-                                : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <GreenCheckbox checked={checked} disabled={disabled} />
-                              <span className="text-sm text-black truncate">
-                                {v.variantName}
-                              </span>
-                            </div>
+                        <div key={v.id} className={`rounded-lg border-2 transition-all ${checked ? 'border-[#0a61d7] bg-[#f0f6ff]' : 'border-gray-200'}`}>
+                          <div className="flex items-center gap-2 p-3">
+                            <button
+                              type="button"
+                              disabled={draftScope === 'entire'}
+                              onClick={() => toggleVariant(v.id)}
+                              className="flex flex-1 min-w-0 items-center gap-3 text-left disabled:cursor-default"
+                            >
+                              <GreenCheckbox checked={checked} disabled={draftScope === 'entire'} />
+                              <span className="text-sm text-black truncate">{v.variantName}</span>
+                            </button>
                             <span className="text-xs font-medium text-gray-700 shrink-0">
                               {formatCurrency(Number(v.sellingPrice) || 0, currency)}
                             </span>
-                          </div>
-                        </button>
-                        {checked && draftScope === 'specific' && (
-                          <div className="mt-1 mb-2 rounded-lg border border-gray-200 px-3 py-2">
-                            <button type="button" className="w-full flex items-center justify-between text-xs font-medium text-gray-700" onClick={() => setExpandedVariantId(expandedVariantId === v.id ? null : v.id)}>
-                              <span>Tipe stok yang memenuhi syarat ({draftLevelSelections[String(v.id)]?.length ?? 0})</span>
-                              <ChevronDown className="w-4 h-4" />
+                            <button
+                              type="button"
+                              aria-label={`Tipe stok: ${v.variantName}`}
+                              aria-expanded={expanded}
+                              onClick={() => setExpandedVariantId(expanded ? null : v.id)}
+                              disabled={!checked}
+                              className="ml-1 rounded p-1 text-gray-600 hover:bg-blue-100 disabled:opacity-40"
+                            >
+                              <ChevronDown className={`w-4 h-4 transition-transform ${expanded ? 'rotate-180' : ''}`} />
                             </button>
-                            {expandedVariantId === v.id && (
-                              <div className="flex flex-wrap gap-2 mt-3">
+                          </div>
+                          {checked && expanded && (
+                            <div className="border-t border-blue-200 px-3 py-3">
+                              <p className="mb-2 text-xs font-medium text-gray-700">Tipe stok yang memenuhi syarat</p>
+                              <div className="flex flex-wrap gap-2">
                                 {(modalProduct.stockLevels ?? []).map(level => {
-                                  const active = (draftLevelSelections[String(v.id)] ?? []).includes(level.name);
-                                  return <button key={level.name} type="button" onClick={() => setDraftLevelSelections(prev => ({...prev, [String(v.id)]: active ? (prev[String(v.id)] ?? []).filter(name => name !== level.name) : [...(prev[String(v.id)] ?? []), level.name]}))} className={`rounded-md border px-3 py-1.5 text-xs ${active ? "border-[#0a61d7] bg-[#f0f6ff] text-[#0a61d7]" : "border-gray-200 text-gray-700"}`}>{level.name}</button>;
+                                  const active = selectedLevels.includes(level.name);
+                                  return (
+                                    <button
+                                      key={level.name}
+                                      type="button"
+                                      aria-pressed={active}
+                                      onClick={() => setDraftLevelSelections(prev => ({
+                                        ...prev,
+                                        [String(v.id)]: active
+                                          ? (prev[String(v.id)] ?? []).filter(name => name !== level.name)
+                                          : [...(prev[String(v.id)] ?? []), level.name],
+                                      }))}
+                                      className={`rounded-md border px-3 py-1.5 text-xs ${active ? 'border-[#0a61d7] bg-[#e1efff] text-[#0a61d7]' : 'border-gray-300 bg-white text-gray-700'}`}
+                                    >
+                                      {level.name}
+                                    </button>
+                                  );
                                 })}
                               </div>
-                            )}
-                            {(draftLevelSelections[String(v.id)]?.length ?? 0) === 0 && <p className="mt-2 text-xs text-red-600">Pilih minimal satu tipe stok.</p>}
-                          </div>
-                        )}
+                            </div>
+                          )}
+                          {checked && selectedLevels.length === 0 && (
+                            <p className="px-3 pb-2 text-xs text-red-600">Pilih minimal satu tipe stok.</p>
+                          )}
                         </div>
                       );
                     })}
