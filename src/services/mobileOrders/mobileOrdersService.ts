@@ -613,6 +613,7 @@ async function appendItemsToPendingOrder(params: {
           packageQuantity,
           variantForValidation,
           order.buyerId,
+          requestedPackageType,
         );
 
         let variantNameSnapshot: string | null = null;
@@ -1274,6 +1275,7 @@ export async function createMobileMarketplaceOrders(
             packageQuantity,
             variantForValidation,
             matchPlan.buyerId,
+            String(item.packageType || 'Pieces'),
           );
 
           let variantNameSnapshot: string | null = null;
@@ -1788,6 +1790,7 @@ export async function createMobileMarketplaceOrders(
               packageQuantity,
               variantForValidation,
               matchPlan.buyerId,
+              String(item.packageType || 'Pieces'),
             );
 
             let variantNameSnapshot: string | null = null;
