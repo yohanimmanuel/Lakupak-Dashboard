@@ -488,59 +488,65 @@ export default function OfferProductTab({
             </div>
 
             <div className="p-4 space-y-3 overflow-y-auto flex-1">
-              <button
-                type="button"
-                onClick={selectEntire}
-                className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
+              <div
+                className={`w-full rounded-lg border-2 transition-all ${
                   draftScope === 'entire'
                     ? 'border-[#0a61d7] bg-[#f0f6ff]'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <GreenCheckbox checked={draftScope === 'entire'} />
-                  <div>
-                    <div className="text-sm font-medium text-black">
-                      {tCreatePage('entireProduct')}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {tCreatePage('entireProductHint')}
+                <button
+                  type="button"
+                  onClick={selectEntire}
+                  className="w-full text-left p-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <GreenCheckbox checked={draftScope === 'entire'} />
+                    <div>
+                      <div className="text-sm font-medium text-black">
+                        {tCreatePage('entireProduct')}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {tCreatePage('entireProductHint')}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </button>
-              {draftScope === 'entire' && (
-                <div className="mt-2 rounded-lg border border-gray-200 overflow-hidden">
-                  <button
-                    type="button"
-                    aria-expanded={allLevelsExpanded}
-                    onClick={() => setAllLevelsExpanded(value => !value)}
-                    className="w-full flex items-center justify-between px-3 py-3 text-left text-xs font-medium text-gray-700"
-                  >
-                    <span>Tipe stok yang memenuhi syarat ({draftAllLevels.length})</span>
-                    <ChevronDown className={`w-4 h-4 transition-transform ${allLevelsExpanded ? 'rotate-180' : ''}`} />
-                  </button>
-                  {allLevelsExpanded && (
-                    <div className="flex flex-wrap gap-2 border-t border-gray-200 p-3">
-                      {(modalProduct.stockLevels ?? []).map(level => {
-                        const active = draftAllLevels.includes(level.name);
-                        return (
-                          <button
-                            type="button"
-                            key={level.name}
-                            aria-pressed={active}
-                            onClick={() => setDraftAllLevels(prev => active ? prev.filter(name => name !== level.name) : [...prev, level.name])}
-                            className={`rounded-md border px-3 py-1.5 text-xs ${active ? 'border-[#0a61d7] bg-[#e1efff] text-[#0a61d7]' : 'border-gray-300 bg-white text-gray-700'}`}
-                          >
-                            {level.name}
-                          </button>
-                        );
-                      })}
+                </button>
+                {draftScope === 'entire' && (
+                  <div className="px-3 pb-3">
+                    <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+                      <button
+                        type="button"
+                        aria-expanded={allLevelsExpanded}
+                        onClick={() => setAllLevelsExpanded(value => !value)}
+                        className="w-full flex items-center justify-between px-3 py-3 text-left text-xs font-medium text-gray-700"
+                      >
+                        <span>Tipe stok yang memenuhi syarat ({draftAllLevels.length})</span>
+                        <ChevronDown className={`w-4 h-4 transition-transform ${allLevelsExpanded ? 'rotate-180' : ''}`} />
+                      </button>
+                      {allLevelsExpanded && (
+                        <div className="flex flex-wrap gap-2 border-t border-gray-200 p-3">
+                          {(modalProduct.stockLevels ?? []).map(level => {
+                            const active = draftAllLevels.includes(level.name);
+                            return (
+                              <button
+                                type="button"
+                                key={level.name}
+                                aria-pressed={active}
+                                onClick={() => setDraftAllLevels(prev => active ? prev.filter(name => name !== level.name) : [...prev, level.name])}
+                                className={`rounded-md border px-3 py-1.5 text-xs ${active ? 'border-[#0a61d7] bg-[#e1efff] text-[#0a61d7]' : 'border-gray-300 bg-white text-gray-700'}`}
+                              >
+                                {level.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {draftAllLevels.length === 0 && <p className="px-3 pb-2 text-xs text-red-600">Pilih minimal satu tipe stok.</p>}
                     </div>
-                  )}
-                  {draftAllLevels.length === 0 && <p className="px-3 pb-2 text-xs text-red-600">Pilih minimal satu tipe stok.</p>}
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
 
               <div className="pt-1">
                 <button type="button" onClick={selectSpecific} className="w-full text-left mb-2">
