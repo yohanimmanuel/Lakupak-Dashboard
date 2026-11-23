@@ -64,6 +64,7 @@ export default function EditProductPage() {
                 sellingPrice
                 originalSellingPrice
                 moq
+                moqByStockLevel
                 stockQuantity
                 lowStockThreshold
                 stockStatus

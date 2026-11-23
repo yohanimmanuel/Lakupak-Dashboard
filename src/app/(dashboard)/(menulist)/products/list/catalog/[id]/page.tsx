@@ -56,6 +56,7 @@ export default function ViewProductPage() {
                 sellingPrice
                 originalSellingPrice
                 moq
+                moqByStockLevel
                 stockQuantity
                 lowStockThreshold
                 stockStatus
