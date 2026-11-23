@@ -898,7 +898,6 @@ const saveOfferGroup = async (args: {
 
   const sharedData = {
     groupId: resolvedGroupId,
-    buyerId,
     categoryId: null as string | null,
     discountType: args.discountType,
     discountValue: args.discountValue,
@@ -965,8 +964,15 @@ const saveOfferGroup = async (args: {
           where: { id: existing.id },
           data: {
             ...sharedData,
-            productId: target.productId,
-            variantOptionId: target.variantOptionId,
+            // Use Prisma's checked relation writes rather than mixing relation
+            // scalar IDs with checked update inputs.
+            buyer: buyerId ? { connect: { buyerId } } : { disconnect: true },
+            product: target.productId
+              ? { connect: { productId: target.productId } }
+              : { disconnect: true },
+            variantOption: target.variantOptionId != null
+              ? { connect: { id: target.variantOptionId } }
+              : { disconnect: true },
             eligibleStockLevels: target.eligibleStockLevels ?? undefined,
           },
           include: offerInclude,
@@ -978,10 +984,15 @@ const saveOfferGroup = async (args: {
         const created = await tx.offer.create({
           data: {
             offerId,
-            userId,
             ...sharedData,
-            productId: target.productId,
-            variantOptionId: target.variantOptionId,
+            user: { connect: { id: userId } },
+            ...(buyerId ? { buyer: { connect: { buyerId } } } : {}),
+            ...(target.productId
+              ? { product: { connect: { productId: target.productId } } }
+              : {}),
+            ...(target.variantOptionId != null
+              ? { variantOption: { connect: { id: target.variantOptionId } } }
+              : {}),
             eligibleStockLevels: target.eligibleStockLevels ?? undefined,
           },
           include: offerInclude,
