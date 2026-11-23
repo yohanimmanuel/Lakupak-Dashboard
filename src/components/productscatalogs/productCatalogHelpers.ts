@@ -35,6 +35,7 @@ export interface Combination {
   purchasePrice: string;
   sellingPrice: string;
   moq?: number;
+  moqByStockLevel?: Record<string, number>;
   stockQuantity: number;
   lowStockThreshold: number;
   stockStatus: 'In Stock' | 'Low Stock' | 'Out of Stock';
