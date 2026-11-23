@@ -1335,7 +1335,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                       }
                     }
                     return total;
-                  }, 0)}
+                  }, 0)} <span className="text-sm font-medium">Pieces</span>
                 </div>
               </div>
             </div>
@@ -1433,7 +1433,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                 type="button"
                 disabled={!canSendPricing || isSendingPricing}
                 onClick={() => void handleSendPricingToBuyer()}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-[#0a61d7] hover:bg-[#0851b8] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-[#0a61d7] hover:bg-[#0851b8] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 title={sendPricingTitle}
               >
                 {isSendingPricing ? (
