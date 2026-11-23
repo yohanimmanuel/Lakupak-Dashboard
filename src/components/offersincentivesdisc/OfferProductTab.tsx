@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, Check, Grid, List, Package, X } from 'lucide-react';
+import { Search, Check, Grid, List, Package, X, ChevronDown } from 'lucide-react';
 import type {
   OfferWizardFormData,
   ProductSelection,
