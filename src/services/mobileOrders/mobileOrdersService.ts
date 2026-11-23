@@ -360,6 +360,7 @@ async function assertAppendLineOrderable(
     };
     packageQuantity: number;
     piecesPerPackage: number;
+    packageType: string;
     buyerId: string | null;
     distributorUserId: number;
   },
@@ -370,6 +371,8 @@ async function assertAppendLineOrderable(
     args.variantOption.id,
     orderedPieces,
     args.packageQuantity,
+    args.packageType,
+    args.piecesPerPackage,
   );
   if (!variantValidation.isValid) {
     throw new Error(variantValidation.error || `Variant is not valid for product: ${args.productId}`);
@@ -574,6 +577,7 @@ async function appendItemsToPendingOrder(params: {
           variantOption,
           packageQuantity,
           piecesPerPackage,
+          packageType: requestedPackageType,
           buyerId: order.buyerId,
           distributorUserId,
         });
@@ -1456,6 +1460,8 @@ export async function createMobileMarketplaceOrders(
         item.variantId,
         totalPieces,
         packageQuantity,
+        String(item.packageType || 'Pieces'),
+        piecesPerPackage,
       );
       if (!variantValidation.isValid) {
         return NextResponse.json({ error: variantValidation.error }, { status: 404, headers });
