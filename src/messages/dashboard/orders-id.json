@@ -346,7 +346,7 @@
     },
     "orderSummary": {
       "title": "Ringkasan Pesanan",
-      "totalQuantity": "Total Kuantitas Dipesan",
+      "totalQuantity": "Total Pieces Dipesan",
       "totalFreeQuantity": "Total Kuantitas Gratis",
       "table": {
         "description": "Deskripsi",

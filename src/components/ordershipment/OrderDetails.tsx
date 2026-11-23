@@ -1308,7 +1308,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               <div className="bg-green-100 rounded-lg p-3 border border-[#e6e6e6]">
                 <div className="text-sm text-gray-600 font-medium mb-1">{tDetails('orderSummary.totalQuantity')}</div>
                 <div className="text-lg font-bold text-black">
-                  {localItems.reduce((total, item) => total + (item.packageQuantity || 1), 0)} 
+                  {localItems.reduce((total, item) => total + Math.max(1, Number(item.packageQuantity) || 1) * Math.max(1, Number(item.piecesPerPackage) || 1), 0)} 
                 </div>
               </div>
               
