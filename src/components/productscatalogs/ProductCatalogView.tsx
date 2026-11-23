@@ -1450,6 +1450,7 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
                         {displayStockLevels.map((level, levelIndex) => {
                           const colKey = `stock:${level.name.toLowerCase() || levelIndex}`;
                           return (
+                            <React.Fragment key={colKey}>
                             <th
                               key={colKey}
                               data-col-key={colKey}
@@ -1470,6 +1471,12 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
                                 className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize touch-none hover:bg-[#0a61d7]/35"
                               />
                             </th>
+                            {!legacyStockUnit && level.name !== 'Pieces' && (
+                              <th className="px-2 py-1.5 text-left text-xs font-semibold text-gray-700 border-b border-r border-gray-300" style={{ minWidth: 110 }}>
+                                MOQ ({level.name})
+                              </th>
+                            )}
+                            </React.Fragment>
                           );
                         })}
                         {([
@@ -1676,7 +1683,8 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
                             const wholeQuantity = getWholeStockQuantity(combination.stockQuantity, ratio);
                             const fractionLabel = legacyStockUnit ? '' : getStockLevelFractionLabel(combination.stockQuantity, ratio);
                             return (
-                              <td key={`${combination.id}-${level.name}-${levelIndex}`} className="px-2 py-1.5 border-r border-b border-gray-300 align-middle" style={{ height: rowHeight }}>
+                              <React.Fragment key={`${combination.id}-${level.name}-${levelIndex}`}>
+                              <td className="px-2 py-1.5 border-r border-b border-gray-300 align-middle" style={{ height: rowHeight }}>
                                 <div className="flex min-w-0 items-center gap-1">
                                   <input
                                     type="number"
@@ -1699,6 +1707,29 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
                                   {fractionLabel && <span className="shrink-0 text-xs text-gray-500 tabular-nums">{fractionLabel}</span>}
                                 </div>
                               </td>
+                              {!legacyStockUnit && level.name !== 'Pieces' && (
+                                <td className="px-2 py-1.5 border-r border-b border-gray-300 align-middle" style={{ height: rowHeight }}>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    aria-label={`MOQ (${level.name})`}
+                                    value={combination.moqByStockLevel?.[level.name] ?? ''}
+                                    onChange={(event) => {
+                                      const raw = event.target.value;
+                                      if (raw !== '' && (!/^\d+$/.test(raw) || !Number.isSafeInteger(Number(raw)))) return;
+                                      const next = { ...(combination.moqByStockLevel ?? {}) };
+                                      if (raw === '') delete next[level.name];
+                                      else next[level.name] = Number(raw);
+                                      updateCombination(combination.id, 'moqByStockLevel', next);
+                                    }}
+                                    disabled={isViewMode || isOfferConnected}
+                                    className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent disabled:bg-gray-50 text-black"
+                                    placeholder={tCatalog('variants.numberPlaceholder')}
+                                  />
+                                </td>
+                              )}
+                              </React.Fragment>
                             );
                           })}
                           <td className="px-2 py-1.5 border-r border-b border-gray-300 align-middle" style={{ height: rowHeight }}>

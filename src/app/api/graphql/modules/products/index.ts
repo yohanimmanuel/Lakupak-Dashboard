@@ -143,6 +143,7 @@ export const productsTypeDefs = /* GraphQL */ `
     sellingPrice: Float!
     originalSellingPrice: Float
     moq: Int
+    moqByStockLevel: JSONObject
     stockQuantity: Int
     lowStockThreshold: Int
     stockStatus: String
@@ -253,6 +254,7 @@ export const productsTypeDefs = /* GraphQL */ `
     sellingPrice: String!
     originalSellingPrice: String
     moq: Int
+    moqByStockLevel: JSONObject
     stockQuantity: Int!
     lowStockThreshold: Int!
     stockStatus: String!
@@ -473,6 +475,7 @@ export const variantOptionSelect = {
   sellingPrice: true,
   originalSellingPrice: true,
   moq: true,
+  moqByStockLevel: true,
   stockQuantity: true,
   lowStockThreshold: true,
   stockStatus: true,
@@ -528,6 +531,7 @@ const mapVariantOption = (variantOption: Prisma.VariantOptionGetPayload<{ select
   sellingPrice: parseMoney(variantOption.sellingPrice),
   originalSellingPrice: variantOption.originalSellingPrice ? parseMoney(variantOption.originalSellingPrice) : null,
   moq: variantOption.moq ?? null,
+  moqByStockLevel: variantOption.moqByStockLevel ?? {},
   stockQuantity: variantOption.stockQuantity ?? 0,
   lowStockThreshold: variantOption.lowStockThreshold ?? 0,
   stockStatus: variantOption.stockStatus ?? 'In Stock',
@@ -1027,6 +1031,7 @@ const createVariantOptionsPayload = (
     sellingPrice: string;
     originalSellingPrice?: string | null;
     moq?: number | null;
+    moqByStockLevel?: Record<string, number> | null;
     stockQuantity: number;
     lowStockThreshold: number;
     stockStatus: string;
@@ -1049,6 +1054,7 @@ const createVariantOptionsPayload = (
       // Offers no longer rewrite catalog prices — do not persist originalSellingPrice
       originalSellingPrice: null,
       moq: option.moq == null ? null : clampVariantInt(option.moq, 0),
+      moqByStockLevel: Object.fromEntries(Object.entries(option.moqByStockLevel ?? {}).filter(([name, qty]) => name !== 'Pieces' && typeof qty === 'number' && Number.isSafeInteger(qty) && qty >= 0)) as Prisma.InputJsonValue,
       stockQuantity: clampVariantInt(option.stockQuantity, 0),
       lowStockThreshold: clampVariantInt(option.lowStockThreshold, 0),
       stockStatus: option.stockStatus || 'In Stock',
@@ -1120,6 +1126,7 @@ export const createProduct = async (args: {
     sellingPrice: string;
     originalSellingPrice?: string | null;
     moq?: number | null;
+    moqByStockLevel?: Record<string, number> | null;
     stockQuantity: number;
     lowStockThreshold: number;
     stockStatus: string;
@@ -1410,6 +1417,7 @@ export const updateProduct = async (args: {
     sellingPrice: string;
     originalSellingPrice?: string | null;
     moq?: number | null;
+    moqByStockLevel?: Record<string, number> | null;
     stockQuantity: number;
     lowStockThreshold: number;
     stockStatus: string;

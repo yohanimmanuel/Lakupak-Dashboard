@@ -246,6 +246,7 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
           purchasePrice: scaleAnchoredPrice(option.purchasePrice, 1, getPriceAnchorPieces(normalizeStockLevels(product.stockLevels), product.purchasePriceUnit), userCurrency),
           sellingPrice: scaleAnchoredPrice(option.sellingPrice, 1, getPriceAnchorPieces(normalizeStockLevels(product.stockLevels), product.sellingPriceUnit), userCurrency),
           moq: option.moq,
+          moqByStockLevel: option.moqByStockLevel ?? {},
           stockQuantity: option.stockQuantity || 0,
           lowStockThreshold: option.lowStockThreshold || 0,
           stockStatus: getVariantStockStatus(option.stockQuantity || 0, option.lowStockThreshold || 0),
@@ -706,7 +707,7 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
     return numericRegex.test(value);
   };
   // Update combination
-  const updateCombination = (combinationId: string, field: string, value: string | number | undefined) => {
+  const updateCombination = (combinationId: string, field: string, value: string | number | Record<string, number> | undefined) => {
     setCombinations(prev => prev.map(combination => {
       if (combination.id === combinationId) {
         const updated = { ...combination, [field]: value };
@@ -1317,6 +1318,7 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
           sellingPrice: serializeComboPrice(combo.sellingPrice, formData.sellingPriceUnit),
           originalSellingPrice: null,
           moq: combo.moq,
+          moqByStockLevel: Object.fromEntries(Object.entries(combo.moqByStockLevel ?? {}).filter(([name, value]) => formData.stockLevels.some(level => level.name === name && level.name !== 'Pieces') && Number.isSafeInteger(value) && value >= 0)),
           stockQuantity: combo.stockQuantity,
           lowStockThreshold: combo.lowStockThreshold,
           stockStatus: getVariantStockStatus(combo.stockQuantity, combo.lowStockThreshold),
