@@ -337,7 +337,7 @@
       "title": "Item Pesanan",
       "seeMore": "Lihat Lainnya ({count} item lagi)",
       "qty": "Jml: {qty}",
-      "freePieces": "(+ {count} qty gratis)",
+      "freePieces": "(+ {count} Pieces gratis)",
       "viewProductTitle": "Klik untuk melihat detail produk",
       "allItemsTitle": "Semua Item Pesanan",
       "category": "Kategori: {category}",
