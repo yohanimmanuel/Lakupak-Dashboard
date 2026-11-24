@@ -2,6 +2,7 @@
 
 import React, { use, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { ArrowLeft } from 'lucide-react';
 import OfferEditorForm, { type OfferFormValues } from '@/components/offersincentivesdisc/OfferEditorForm';
 
@@ -25,6 +26,7 @@ function mapApiOfferToForm(o: Record<string, unknown>): Partial<OfferFormValues>
 
 export default function EditOfferPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idStr } = use(params);
+  const t = useTranslations('dashboard.offers.campaign');
   const offerId = Number(idStr);
   const valid = Number.isInteger(offerId) && offerId > 0;
 
@@ -35,7 +37,7 @@ export default function EditOfferPage({ params }: { params: Promise<{ id: string
   useEffect(() => {
     if (!valid) {
       setLoading(false);
-      setLoadError('Invalid offer');
+      setLoadError(t('invalid'));
       return;
     }
     let cancelled = false;
@@ -45,13 +47,13 @@ export default function EditOfferPage({ params }: { params: Promise<{ id: string
         const j = r.ok ? await r.json().catch(() => null) : null;
         if (cancelled) return;
         if (!r.ok || !j?.offer) {
-          setLoadError('Could not load this offer.');
+          setLoadError(t('loadOneFailed'));
           setInitial(null);
         } else {
           setInitial(mapApiOfferToForm(j.offer as Record<string, unknown>));
         }
       } catch {
-        if (!cancelled) setLoadError('Could not load this offer.');
+        if (!cancelled) setLoadError(t('loadOneFailed'));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -59,7 +61,7 @@ export default function EditOfferPage({ params }: { params: Promise<{ id: string
     return () => {
       cancelled = true;
     };
-  }, [offerId, valid]);
+  }, [offerId, valid, t]);
 
   if (loading && valid) {
     return (
@@ -72,12 +74,12 @@ export default function EditOfferPage({ params }: { params: Promise<{ id: string
                 className="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800 @3xl/main:w-auto @3xl/main:justify-start"
               >
                 <ArrowLeft className="h-4 w-4" />
-                Back to campaign
+                {t('back')}
               </Link>
-              <h1 className="truncate text-2xl font-bold text-gray-900">Edit campaign</h1>
+              <h1 className="truncate text-2xl font-bold text-gray-900">{t('editTitle')}</h1>
             </div>
           </div>
-          <div className="p-8 text-center text-sm text-gray-600">Loading…</div>
+          <div className="p-8 text-center text-sm text-gray-600">{t('loading')}</div>
         </div>
       </div>
     );
@@ -94,12 +96,12 @@ export default function EditOfferPage({ params }: { params: Promise<{ id: string
                 className="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800 @3xl/main:w-auto @3xl/main:justify-start"
               >
                 <ArrowLeft className="h-4 w-4" />
-                Back to campaign
+                {t('back')}
               </Link>
-              <h1 className="truncate text-2xl font-bold text-gray-900">Edit campaign</h1>
+              <h1 className="truncate text-2xl font-bold text-gray-900">{t('editTitle')}</h1>
             </div>
           </div>
-          <div className="p-8 text-center text-sm text-red-600">{loadError ?? 'Offer not found.'}</div>
+          <div className="p-8 text-center text-sm text-red-600">{loadError ?? t('notFound')}</div>
         </div>
       </div>
     );
@@ -110,8 +112,8 @@ export default function EditOfferPage({ params }: { params: Promise<{ id: string
       mode="edit"
       offerId={offerId}
       initial={initial}
-      pageTitle="Edit campaign"
-      pageDescription="Update banner copy, visuals, and publishing."
+      pageTitle={t('editTitle')}
+      pageDescription={t('editDescription')}
     />
   );
 }

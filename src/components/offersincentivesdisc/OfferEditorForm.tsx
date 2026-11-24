@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { ArrowLeft, Check, CheckCircle, ChevronDown, ImagePlus, Loader2, Upload, X } from 'lucide-react';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { OFFER_ICON_OPTIONS } from '@/utils/marketplaceHomeOfferIcons';
@@ -82,12 +83,12 @@ export default function OfferEditorForm({
   mode,
   offerId,
   initial,
-  pageTitle,
   pageDescription,
   backHref = '/offers/campaign',
   apiBase = '/api/offers/campaigns',
 }: Props) {
   const router = useRouter();
+  const t = useTranslations('dashboard.offers.campaign');
   const [values, setValues] = useState<OfferFormValues>(() => ({
     ...defaultValues,
     ...(initial ?? {}),
@@ -149,13 +150,13 @@ export default function OfferEditorForm({
   const collectCampaignErrors = () => {
     const errors: Record<string, string> = {};
     const title = values.title.trim();
-    if (title.length === 0) errors.title = 'Title is required';
-    else if (title.length < CAMPAIGN_TITLE_MIN) errors.title = 'Title must be at least 2 characters';
-    else if (title.length > CAMPAIGN_TITLE_MAX) errors.title = 'Title is too long';
-    if (values.subtitle.trim().length > CAMPAIGN_SUBTITLE_MAX) errors.subtitle = 'Subtitle is too long';
-    if (values.discountText.trim().length > CAMPAIGN_DISCOUNT_MAX) errors.discountText = 'Discount label is too long';
-    if (values.endDateText.trim().length > CAMPAIGN_END_LINE_MAX) errors.endDateText = 'Urgency line is too long';
-    if (values.detailsBody.trim().length > CAMPAIGN_DETAILS_MAX) errors.detailsBody = 'Detail text is too long';
+    if (title.length === 0) errors.title = t('requiredTitle');
+    else if (title.length < CAMPAIGN_TITLE_MIN) errors.title = t('shortTitle');
+    else if (title.length > CAMPAIGN_TITLE_MAX) errors.title = t('longTitle');
+    if (values.subtitle.trim().length > CAMPAIGN_SUBTITLE_MAX) errors.subtitle = t('longSubtitle');
+    if (values.discountText.trim().length > CAMPAIGN_DISCOUNT_MAX) errors.discountText = t('longDiscount');
+    if (values.endDateText.trim().length > CAMPAIGN_END_LINE_MAX) errors.endDateText = t('longUrgency');
+    if (values.detailsBody.trim().length > CAMPAIGN_DETAILS_MAX) errors.detailsBody = t('longDetails');
     return errors;
   };
 
@@ -172,7 +173,14 @@ export default function OfferEditorForm({
     ];
     const match = known.find(([text]) => message.includes(text));
     if (!match) return false;
-    setFieldErrors({ [match[1]]: message });
+    const localized: Record<string, string> = {
+      title: message.includes('required') ? t('requiredTitle') : message.includes('at least') ? t('shortTitle') : t('longTitle'),
+      subtitle: t('longSubtitle'),
+      discountText: t('longDiscount'),
+      endDateText: t('longUrgency'),
+      detailsBody: t('longDetails'),
+    };
+    setFieldErrors({ [match[1]]: localized[match[1]] ?? message });
     return true;
   };
 
@@ -184,7 +192,7 @@ export default function OfferEditorForm({
     }
     setFieldErrors({});
     if (mode === 'edit' && offerId == null) {
-      alert('Failed to save');
+      alert(t('saveFailed'));
       return;
     }
     setSaving(true);
@@ -198,7 +206,7 @@ export default function OfferEditorForm({
       });
       if (!r.ok) {
         const j = await r.json().catch(() => ({}));
-        const message = (j as { error?: string }).error || (mode === 'create' ? 'Failed to create' : 'Failed to save');
+        const message = (j as { error?: string }).error || (mode === 'create' ? t('createFailed') : t('saveFailed'));
         if (!applyServerFieldError(message)) alert(message);
         return;
       }
@@ -222,13 +230,13 @@ export default function OfferEditorForm({
       });
       if (!response.ok) {
         const result = await response.json().catch(() => ({}));
-        alert((result as { error?: string }).error || 'Failed to unpublish campaign');
+        alert((result as { error?: string }).error || t('unpublishFailed'));
         return;
       }
       router.push(backHref);
       router.refresh();
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to unpublish campaign');
+      alert(error instanceof Error ? error.message : t('unpublishFailed'));
     } finally {
       setSaving(false);
     }
@@ -242,10 +250,10 @@ export default function OfferEditorForm({
     setUploadingCustomBanner(true);
     try {
       const result = await uploadToCloudinaryDirect(file, 'marketplace-home-offers');
-      if (!result.success || !result.url) throw new Error(result.error || 'Upload failed');
+      if (!result.success || !result.url) throw new Error(result.error || t('uploadFailed'));
       set('customBannerImageUrl')(result.url);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Upload failed');
+      alert(e instanceof Error ? e.message : t('uploadFailed'));
     } finally {
       setUploadingCustomBanner(false);
       if (customBannerFileRef.current) customBannerFileRef.current.value = '';
@@ -258,6 +266,20 @@ export default function OfferEditorForm({
     if (useCustomHomeBanner) setOpenMenu(null);
   }, [useCustomHomeBanner]);
 
+  const iconLabels: Record<string, string> = {
+    gift: t('iconGift'),
+    flash: t('iconFlash'),
+    flame: t('iconFlame'),
+    pricetag: t('iconPricetag'),
+    cart: t('iconCart'),
+    star: t('iconStar'),
+    heart: t('iconHeart'),
+    megaphone: t('iconMegaphone'),
+    ribbon: t('iconRibbon'),
+    trophy: t('iconTrophy'),
+    rocket: t('iconRocket'),
+  };
+
   const renderIconMenu = (which: 'right' | 'discount', menuDisabled?: boolean) => {
     const current = which === 'right' ? values.rightIconKey : values.discountIconKey;
     const setKey = which === 'right' ? set('rightIconKey') : set('discountIconKey');
@@ -267,7 +289,7 @@ export default function OfferEditorForm({
     return (
       <div className={`relative ${menuDisabled ? 'opacity-50' : ''}`} ref={ref}>
         <span className="text-xs font-medium text-gray-700">
-          {which === 'right' ? 'Large right icon' : 'Icon in discount pill'}
+          {which === 'right' ? t('rightIcon') : t('discountIcon')}
         </span>
         <button
           type="button"
@@ -275,7 +297,7 @@ export default function OfferEditorForm({
           className="mt-1 w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-50 text-xs disabled:pointer-events-none disabled:cursor-not-allowed"
           onClick={() => setOpenMenu((m) => (m === which ? null : which))}
         >
-          <span className="truncate">{OFFER_ICON_OPTIONS.find((o) => o.value === current)?.label ?? 'Select'}</span>
+          <span className="truncate">{iconLabels[current] ?? t('select')}</span>
           <ChevronDown className="w-4 h-4 text-gray-500 shrink-0" />
         </button>
         {open ? (
@@ -294,7 +316,7 @@ export default function OfferEditorForm({
                     isActive ? 'bg-[#0a61d7] text-white' : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
-                  <span>{opt.label}</span>
+                  <span>{iconLabels[opt.value] ?? opt.label}</span>
                   {isActive ? <Check className="w-4 h-4" /> : null}
                 </button>
               );
@@ -316,10 +338,10 @@ export default function OfferEditorForm({
             className="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800 @3xl/main:w-auto @3xl/main:justify-start"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to campaign
+            {t('back')}
           </button>
           <div className="flex min-w-0 flex-wrap items-center gap-3">
-            <h1 className="truncate text-2xl font-bold text-gray-900">{pageTitle}</h1>
+            <h1 className="truncate text-2xl font-bold text-gray-900">{mode === 'create' ? t('newTitle') : t('editTitle')}</h1>
           </div>
         </div>
         {mode === 'edit' && values.isPublished && (
@@ -330,74 +352,73 @@ export default function OfferEditorForm({
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-2 font-semibold text-white transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
-            {saving ? 'Unpublishing…' : 'Unpublish'}
+            {saving ? t('unpublishing') : t('unpublish')}
           </button>
         )}
       </div>
       {pageDescription ? (
         <div className="px-4 py-3 bg-gray-50 border-b border-[#e6e6e6]">
-          <p className="text-sm text-gray-600">{pageDescription}</p>
+          <p className="text-sm text-gray-600">{mode === 'create' ? t('newDescription') : t('editDescription')}</p>
         </div>
       ) : null}
       <div className="space-y-8 p-4">
       <section className="space-y-4">
         <div>
-          <h2 className="text-sm font-semibold text-gray-900">Banner copy</h2>
+          <h2 className="text-sm font-semibold text-gray-900">{t('bannerCopy')}</h2>
           <p className="text-xs text-gray-600 mt-1">
-            These fields map to the Marketplace home card: main headline, supporting line, pill label, and urgency line
-            (e.g. “Ends Sunday”). Keep the title short and clear.
+            {t('bannerCopyHint')}
           </p>
         </div>
 
         <label className="block space-y-1">
           <span className="text-xs font-medium text-gray-700">
-            Title<span className="text-red-500 ml-1">*</span>
+            {t('title')}<span className="text-red-500 ml-1">*</span>
           </span>
           <input
             className={fieldErrors.title ? invalidInputClass : inputClass}
             value={values.title}
             maxLength={CAMPAIGN_TITLE_MAX}
             onChange={(e) => set('title')(e.target.value)}
-            placeholder="e.g. Weekend stock-up sale"
+            placeholder={t('titlePlaceholder')}
             aria-invalid={fieldErrors.title ? true : undefined}
           />
           {fieldErrors.title ? <p className="text-red-500 text-xs mt-1">{fieldErrors.title}</p> : null}
         </label>
 
         <label className="block space-y-1">
-          <span className="text-xs font-medium text-gray-700">Subtitle</span>
+          <span className="text-xs font-medium text-gray-700">{t('subtitle')}</span>
           <input
             className={fieldErrors.subtitle ? invalidInputClass : inputClass}
             value={values.subtitle}
             maxLength={CAMPAIGN_SUBTITLE_MAX}
             onChange={(e) => set('subtitle')(e.target.value)}
-            placeholder="Short supporting line under the title"
+            placeholder={t('subtitlePlaceholder')}
             aria-invalid={fieldErrors.subtitle ? true : undefined}
           />
           {fieldErrors.subtitle ? <p className="text-red-500 text-xs mt-1">{fieldErrors.subtitle}</p> : null}
         </label>
 
         <label className="block space-y-1">
-          <span className="text-xs font-medium text-gray-700">Discount / promo label</span>
+          <span className="text-xs font-medium text-gray-700">{t('discountLabel')}</span>
           <input
             className={fieldErrors.discountText ? invalidInputClass : inputClass}
             value={values.discountText}
             maxLength={CAMPAIGN_DISCOUNT_MAX}
             onChange={(e) => set('discountText')(e.target.value)}
-            placeholder="Shown in the white pill (e.g. Up to 30% off)"
+            placeholder={t('discountPlaceholder')}
             aria-invalid={fieldErrors.discountText ? true : undefined}
           />
           {fieldErrors.discountText ? <p className="text-red-500 text-xs mt-1">{fieldErrors.discountText}</p> : null}
         </label>
 
         <label className="block space-y-1">
-          <span className="text-xs font-medium text-gray-700">Urgency / end line</span>
+          <span className="text-xs font-medium text-gray-700">{t('urgency')}</span>
           <input
             className={fieldErrors.endDateText ? invalidInputClass : inputClass}
             value={values.endDateText}
             maxLength={CAMPAIGN_END_LINE_MAX}
             onChange={(e) => set('endDateText')(e.target.value)}
-            placeholder="e.g. Ends 12 Apr · Free shipping over Rp500k"
+            placeholder={t('urgencyPlaceholder')}
             aria-invalid={fieldErrors.endDateText ? true : undefined}
           />
           {fieldErrors.endDateText ? <p className="text-red-500 text-xs mt-1">{fieldErrors.endDateText}</p> : null}
@@ -406,12 +427,9 @@ export default function OfferEditorForm({
 
       <section className="space-y-4 border-t border-[#e6e6e6] pt-8">
         <div>
-          <h2 className="text-sm font-semibold text-gray-900">Look &amp; feel</h2>
+          <h2 className="text-sm font-semibold text-gray-900">{t('lookFeel')}</h2>
           <p className="text-xs text-gray-600 mt-1">
-            Choose how the offer appears on <strong>Marketplace home</strong>: either upload a full-width custom
-            graphic, or use the built-in template (colors, optional hero image, icons). When a custom home image is set,
-            template options are turned off for home, they still apply if you remove the image later. Banner copy above
-            and detail text below are always used on the <strong>offer detail</strong> screen.
+            {t('lookFeelHint')}
           </p>
         </div>
 
@@ -420,10 +438,10 @@ export default function OfferEditorForm({
             <div className="min-w-0">
               <p className="text-xs font-medium text-gray-900 flex items-center gap-2">
                 <ImagePlus className="w-4 h-4 text-gray-600" />
-                Custom home banner image (optional)
+                {t('customBanner')}
               </p>
               <p className="text-[11px] text-gray-600 mt-1">
-                PNG / JPG / WebP / GIF, wide banner (e.g. 1200×400). Home shows only this image; tap opens the offer.
+                {t('customBannerHint')}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -434,7 +452,7 @@ export default function OfferEditorForm({
                   className="px-3 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50"
                   disabled={uploadingCustomBanner}
                 >
-                  Remove image
+                  {t('removeImage')}
                 </button>
               ) : null}
               <button
@@ -444,7 +462,7 @@ export default function OfferEditorForm({
                 className="inline-flex items-center gap-2 rounded-lg bg-[#0a61d7] px-3 py-2 text-xs font-medium text-white hover:bg-[#084ba6] disabled:opacity-50"
               >
                 <Upload className="h-4 w-4" />
-                {uploadingCustomBanner ? 'Uploading…' : 'Upload image'}
+                {uploadingCustomBanner ? t('uploading') : t('uploadImage')}
               </button>
               <input
                 ref={customBannerFileRef}
@@ -462,7 +480,7 @@ export default function OfferEditorForm({
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={values.customBannerImageUrl.trim()}
-              alt="Custom banner preview"
+              alt={t('customBannerPreview')}
               className="mt-3 w-full max-h-48 object-contain rounded-lg border border-gray-200 bg-gray-50"
             />
           ) : null}
@@ -471,14 +489,14 @@ export default function OfferEditorForm({
         <div className="space-y-4">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
-              <h3 className="text-xs font-semibold text-gray-900">Built-in template (home)</h3>
+              <h3 className="text-xs font-semibold text-gray-900">{t('builtIn')}</h3>
               <p className="text-[11px] text-gray-600 mt-0.5">
-                Colors tint the card and overlay an optional hero image. Icons match the Marketplace app.
+                {t('builtInHint')}
               </p>
             </div>
             {useCustomHomeBanner ? (
               <span className="text-[11px] font-medium text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1 shrink-0">
-                Template disabled, remove custom image to edit
+                {t('templateDisabled')}
               </span>
             ) : null}
           </div>
@@ -491,7 +509,7 @@ export default function OfferEditorForm({
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <span className="text-xs font-medium text-gray-700">Background color</span>
+                <span className="text-xs font-medium text-gray-700">{t('background')}</span>
                 <div className="flex items-center gap-3 flex-wrap">
                   <input
                     type="color"
@@ -499,13 +517,13 @@ export default function OfferEditorForm({
                     onChange={(e) => set('backgroundColor')(e.target.value)}
                     disabled={useCustomHomeBanner}
                     className="h-10 w-14 shrink-0 cursor-pointer rounded-lg border border-[#e6e6e6] bg-white p-1 disabled:cursor-not-allowed"
-                    aria-label="Background color"
+                    aria-label={t('background')}
                   />
-                  <p className="text-[11px] text-gray-500 leading-snug">Banner tint (and over hero images).</p>
+                  <p className="text-[11px] text-gray-500 leading-snug">{t('backgroundHint')}</p>
                 </div>
               </div>
               <div className="space-y-2">
-                <span className="text-xs font-medium text-gray-700">Text color</span>
+                <span className="text-xs font-medium text-gray-700">{t('textColor')}</span>
                 <div className="flex items-center gap-3 flex-wrap">
                   <input
                     type="color"
@@ -513,21 +531,21 @@ export default function OfferEditorForm({
                     onChange={(e) => set('textColor')(e.target.value)}
                     disabled={useCustomHomeBanner}
                     className="h-10 w-14 shrink-0 cursor-pointer rounded-lg border border-[#e6e6e6] bg-white p-1 disabled:cursor-not-allowed"
-                    aria-label="Text color"
+                    aria-label={t('textColor')}
                   />
-                  <p className="text-[11px] text-gray-500 leading-snug">Headline and body on the banner.</p>
+                  <p className="text-[11px] text-gray-500 leading-snug">{t('textColorHint')}</p>
                 </div>
               </div>
             </div>
 
             <label className="block space-y-1">
-              <span className="text-xs font-medium text-gray-700">Optional hero image URL (HTTPS)</span>
+              <span className="text-xs font-medium text-gray-700">{t('heroUrl')}</span>
               <input
                 className={`${inputClass} disabled:bg-gray-100 disabled:text-gray-500`}
                 value={values.bannerImageUrl}
                 onChange={(e) => set('bannerImageUrl')(e.target.value)}
                 disabled={useCustomHomeBanner}
-                placeholder="https://… (shown behind text with a color tint for readability)"
+                placeholder={t('heroPlaceholder')}
               />
             </label>
 
@@ -537,7 +555,7 @@ export default function OfferEditorForm({
             </div>
 
             <div>
-              <p className="text-xs font-medium text-gray-700 mb-2">Preview (built-in layout)</p>
+              <p className="text-xs font-medium text-gray-700 mb-2">{t('preview')}</p>
               <div
                 className="rounded-lg border border-[#e6e6e6] overflow-hidden min-h-[100px]"
                 style={{
@@ -550,10 +568,10 @@ export default function OfferEditorForm({
                 <div className="flex flex-row items-center p-5 gap-2" style={{ color: textPicker }}>
                   <div className="flex-1 min-w-0 pr-2">
                     <p className="font-bold text-xl leading-tight line-clamp-2 mb-1">
-                      {values.title || 'Title preview'}
+                      {values.title || t('titlePreview')}
                     </p>
                     <p className="text-sm font-semibold opacity-90 line-clamp-2 mb-3">
-                      {values.subtitle || 'Subtitle preview'}
+                      {values.subtitle || t('subtitlePreview')}
                     </p>
                     <div className="mt-1">
                       <span className="inline-flex flex-row items-center gap-1 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold">
@@ -563,7 +581,7 @@ export default function OfferEditorForm({
                           size={16}
                           style={{ color: bgPicker }}
                         />
-                        <span style={{ color: bgPicker }}>{values.discountText || 'Promo'}</span>
+                        <span style={{ color: bgPicker }}>{values.discountText || t('promoPreview')}</span>
                       </span>
                     </div>
                   </div>
@@ -593,10 +611,10 @@ export default function OfferEditorForm({
       </section>
 
       <section className="space-y-4 border-t border-[#e6e6e6] pt-8">
-        <h2 className="text-sm font-semibold text-gray-900">Detail page</h2>
+        <h2 className="text-sm font-semibold text-gray-900">{t('detailPage')}</h2>
 
         <label className="block space-y-1">
-          <span className="text-xs font-medium text-gray-700">Sort order (lower = chosen first)</span>
+          <span className="text-xs font-medium text-gray-700">{t('sortOrder')}</span>
           <input
             type="number"
             className={`${inputClass} max-w-[200px]`}
@@ -606,14 +624,14 @@ export default function OfferEditorForm({
         </label>
 
         <label className="block space-y-1">
-          <span className="text-xs font-medium text-gray-700">Full detail text (after tap)</span>
+          <span className="text-xs font-medium text-gray-700">{t('details')}</span>
           <textarea
             className={fieldErrors.detailsBody ? invalidTextareaClass : textareaClass}
             rows={6}
             maxLength={CAMPAIGN_DETAILS_MAX}
             value={values.detailsBody}
             onChange={(e) => set('detailsBody')(e.target.value)}
-            placeholder="Terms, categories on sale, how to redeem, etc."
+            placeholder={t('detailsPlaceholder')}
             aria-invalid={fieldErrors.detailsBody ? true : undefined}
           />
           {fieldErrors.detailsBody ? <p className="text-red-500 text-xs mt-1">{fieldErrors.detailsBody}</p> : null}
@@ -623,17 +641,6 @@ export default function OfferEditorForm({
       </div>
       <div className="sticky bottom-0 z-20 flex justify-end border-t border-[#e6e6e6] bg-white p-4">
         <div className="flex w-full min-w-0 flex-col gap-2 @4xl/main:flex-row @4xl/main:flex-wrap @4xl/main:items-center @5xl/main:w-auto">
-          {mode === 'create' && (
-          <button
-            type="button"
-            onClick={() => router.push(backHref)}
-            disabled={saving}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-black disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
-          >
-            <X className="h-4 w-4" />
-            Cancel
-          </button>
-          )}
           <button
             type="button"
             onClick={() => void save(false)}
@@ -641,7 +648,7 @@ export default function OfferEditorForm({
             className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#0a61d7] bg-white px-4 py-2 text-sm font-semibold text-[#0a61d7] transition hover:bg-[#f7faff] disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400 disabled:hover:bg-gray-100 @4xl/main:w-auto"
           >
             {saveMode === 'draft' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            {saveMode === 'draft' ? 'Saving…' : 'Save draft'}
+            {saveMode === 'draft' ? t('saving') : t('saveDraft')}
           </button>
           <button
             type="button"
@@ -657,7 +664,7 @@ export default function OfferEditorForm({
             ) : (
               <>
                 <CheckCircle className="w-4 h-4" />
-                Save and publish
+                {t('savePublish')}
               </>
             )}
           </button>
