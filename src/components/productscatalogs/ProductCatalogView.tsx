@@ -213,86 +213,7 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
               </button>
             </>
           )}
-          {currentMode === 'add' && (
-            <>
-              <button
-                type="button"
-                onClick={() => router.push('/products/list')}
-                disabled={saving}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-black disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
-              >
-                <X className="h-4 w-4" />
-                {tCatalog('header.cancel')}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSubmitWithStatus('Draft')}
-                disabled={saving}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#0a61d7] bg-white px-4 py-2 text-sm font-semibold text-[#0a61d7] transition hover:bg-[#f7faff] disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400 disabled:hover:bg-gray-100 @4xl/main:w-auto"
-              >
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {saving ? tCatalog('header.saving') : tCatalog('header.saveDraft')}
-              </button>
-              <button
-                type="submit"
-                form="product-form"
-                disabled={saving}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 font-semibold text-white transition-colors hover:bg-[#0851b8] disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
-              >
-                {saving ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    {tCatalog('header.saving')}
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="w-5 h-5" />
-                    {tCatalog('header.saveAndPublish')}
-                  </>
-                )}
-              </button>
-            </>
-          )}
-          {currentMode === 'edit' && currentProductStatus !== 'Published' && (
-            <>
-              <button
-                type="button"
-                onClick={handleCancel}
-                disabled={!hasUnsavedChanges || saving}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-black disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
-              >
-                <X className="h-4 w-4" />
-                {tCatalog('header.cancel')}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSubmitWithStatus('Draft')}
-                disabled={saving}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#0a61d7] bg-white px-4 py-2 text-sm font-semibold text-[#0a61d7] transition hover:bg-[#f7faff] disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400 disabled:hover:bg-gray-100 @4xl/main:w-auto"
-              >
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {saving ? tCatalog('header.saving') : tCatalog('header.saveDraft')}
-              </button>
-              <button
-                type="submit"
-                form="product-form"
-                disabled={saving}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 font-semibold text-white transition-colors hover:bg-[#084ba6] disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
-              >
-                {saving ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    {tCatalog('header.saving')}
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="w-4 h-4" />
-                    {tCatalog('header.saveAndPublish')}
-                  </>
-                )}
-              </button>
-            </>
-          )}
+
         </div>
       </div>
 
@@ -1832,6 +1753,92 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
           </div>
         </div>
       </form>
+      {currentMode !== 'view' && (
+        <div className="sticky bottom-0 z-20 flex justify-end border-t border-[#e6e6e6] bg-white p-4">
+          <div className="flex w-full flex-col gap-2 @4xl/main:w-auto @4xl/main:flex-row @4xl/main:items-center">
+          {currentMode === 'add' && (
+            <>
+              <button
+                type="button"
+                onClick={() => router.push('/products/list')}
+                disabled={saving}
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-black disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
+              >
+                <X className="h-4 w-4" />
+                {tCatalog('header.cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSubmitWithStatus('Draft')}
+                disabled={saving}
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#0a61d7] bg-white px-4 py-2 text-sm font-semibold text-[#0a61d7] transition hover:bg-[#f7faff] disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400 disabled:hover:bg-gray-100 @4xl/main:w-auto"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {saving ? tCatalog('header.saving') : tCatalog('header.saveDraft')}
+              </button>
+              <button
+                type="submit"
+                form="product-form"
+                disabled={saving}
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 font-semibold text-white transition-colors hover:bg-[#0851b8] disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
+              >
+                {saving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    {tCatalog('header.saving')}
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-5 h-5" />
+                    {tCatalog('header.saveAndPublish')}
+                  </>
+                )}
+              </button>
+            </>
+          )}
+          {currentMode === 'edit' && currentProductStatus !== 'Published' && (
+            <>
+              <button
+                type="button"
+                onClick={handleCancel}
+                disabled={!hasUnsavedChanges || saving}
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-black disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
+              >
+                <X className="h-4 w-4" />
+                {tCatalog('header.cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSubmitWithStatus('Draft')}
+                disabled={saving}
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#0a61d7] bg-white px-4 py-2 text-sm font-semibold text-[#0a61d7] transition hover:bg-[#f7faff] disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400 disabled:hover:bg-gray-100 @4xl/main:w-auto"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {saving ? tCatalog('header.saving') : tCatalog('header.saveDraft')}
+              </button>
+              <button
+                type="submit"
+                form="product-form"
+                disabled={saving}
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 font-semibold text-white transition-colors hover:bg-[#084ba6] disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
+              >
+                {saving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    {tCatalog('header.saving')}
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    {tCatalog('header.saveAndPublish')}
+                  </>
+                )}
+              </button>
+            </>
+          )}
+          </div>
+        </div>
+      )}
 
       {/* Success Modal */}
       {showSuccessModal && (

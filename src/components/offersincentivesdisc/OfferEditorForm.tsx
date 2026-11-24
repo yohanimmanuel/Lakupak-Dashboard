@@ -298,44 +298,7 @@ export default function OfferEditorForm({
             <h1 className="truncate text-2xl font-bold text-gray-900">{pageTitle}</h1>
           </div>
         </div>
-        <div className="flex w-full min-w-0 flex-col gap-2 @4xl/main:flex-row @4xl/main:flex-wrap @4xl/main:items-center @5xl/main:w-auto">
-          <button
-            type="button"
-            onClick={() => router.push(backHref)}
-            disabled={saving}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-black disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
-          >
-            <X className="h-4 w-4" />
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={() => void save(false)}
-            disabled={saving}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#0a61d7] bg-white px-4 py-2 text-sm font-semibold text-[#0a61d7] transition hover:bg-[#f7faff] disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400 disabled:hover:bg-gray-100 @4xl/main:w-auto"
-          >
-            {saveMode === 'draft' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            {saveMode === 'draft' ? 'Saving…' : 'Save draft'}
-          </button>
-          <button
-            type="button"
-            onClick={() => void save(true)}
-            disabled={saving}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 font-semibold text-white transition-colors hover:bg-[#084ba6] disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
-          >
-            {saveMode === 'publish' ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Saving…
-              </>
-            ) : (
-              <>
-                <CheckCircle className="w-4 h-4" />
-                Save and publish
-              </>
-            )}
-          </button>
-        </div>
+
       </div>
       {pageDescription ? (
         <div className="px-4 py-3 bg-gray-50 border-b border-[#e6e6e6]">
@@ -623,6 +586,46 @@ export default function OfferEditorForm({
         </label>
 
       </section>
+      </div>
+      <div className="sticky bottom-0 z-20 flex justify-end border-t border-[#e6e6e6] bg-white p-4">
+        <div className="flex w-full min-w-0 flex-col gap-2 @4xl/main:flex-row @4xl/main:flex-wrap @4xl/main:items-center @5xl/main:w-auto">
+          <button
+            type="button"
+            onClick={() => router.push(backHref)}
+            disabled={saving}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-black disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
+          >
+            <X className="h-4 w-4" />
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => void save(false)}
+            disabled={saving}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#0a61d7] bg-white px-4 py-2 text-sm font-semibold text-[#0a61d7] transition hover:bg-[#f7faff] disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400 disabled:hover:bg-gray-100 @4xl/main:w-auto"
+          >
+            {saveMode === 'draft' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {saveMode === 'draft' ? 'Saving…' : 'Save draft'}
+          </button>
+          <button
+            type="button"
+            onClick={() => void save(true)}
+            disabled={saving}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 font-semibold text-white transition-colors hover:bg-[#084ba6] disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
+          >
+            {saveMode === 'publish' ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Saving…
+              </>
+            ) : (
+              <>
+                <CheckCircle className="w-4 h-4" />
+                Save and publish
+              </>
+            )}
+          </button>
+        </div>
       </div>
       </div>
     </div>
