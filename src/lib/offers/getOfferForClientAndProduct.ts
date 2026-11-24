@@ -172,7 +172,7 @@ export async function getOfferForClientAndProduct(
 
   // 1) Variant-specific offer
   if (variantOptionId != null) {
-    const variantOffer = await db.offer.findFirst({
+    const variantOffers = await db.offer.findMany({
       where: {
         ...baseWhere,
         productId: pid,
@@ -180,11 +180,12 @@ export async function getOfferForClientAndProduct(
       },
       orderBy: { updatedAt: 'desc' },
     });
-    if (variantOffer && eligible(variantOffer)) return mapOffer(variantOffer);
+    const variantOffer = variantOffers.find(eligible);
+    if (variantOffer) return mapOffer(variantOffer);
   }
 
   // 2) Whole-product offer (all variants)
-  const productOffer = await db.offer.findFirst({
+  const productOffers = await db.offer.findMany({
     where: {
       ...baseWhere,
       productId: pid,
@@ -192,13 +193,14 @@ export async function getOfferForClientAndProduct(
     },
     orderBy: { updatedAt: 'desc' },
   });
-  if (productOffer && eligible(productOffer)) return mapOffer(productOffer);
+  const productOffer = productOffers.find(eligible);
+  if (productOffer) return mapOffer(productOffer);
 
   // 3) Category offer
   const categorySlug = product.merchandisingCategorySlug?.trim();
   if (!categorySlug) return null;
 
-  const categoryOffer = await db.offer.findFirst({
+  const categoryOffers = await db.offer.findMany({
     where: {
       ...baseWhere,
       productId: null,
@@ -208,7 +210,8 @@ export async function getOfferForClientAndProduct(
     orderBy: { updatedAt: 'desc' },
   });
 
-  return categoryOffer && eligible(categoryOffer) ? mapOffer(categoryOffer) : null;
+  const categoryOffer = categoryOffers.find(eligible);
+  return categoryOffer ? mapOffer(categoryOffer) : null;
 }
 
 function resolveFreeQuantity(
