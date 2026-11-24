@@ -712,6 +712,17 @@
       "deleteError": "Failed to delete",
       "titleFallback": "Title",
       "promoFallback": "Promo"
-    }
+    },
+    "iconGift": "Gift",
+    "iconFlash": "Flash",
+    "iconFlame": "Flame",
+    "iconPricetag": "Price tag",
+    "iconCart": "Cart",
+    "iconStar": "Star",
+    "iconHeart": "Heart",
+    "iconMegaphone": "Megaphone",
+    "iconRibbon": "Ribbon",
+    "iconTrophy": "Trophy",
+    "iconRocket": "Rocket"
   }
 }
