@@ -712,6 +712,17 @@
       "deleteError": "Gagal menghapus",
       "titleFallback": "Judul",
       "promoFallback": "Promo"
-    }
+    },
+    "iconGift": "Hadiah",
+    "iconFlash": "Kilat",
+    "iconFlame": "Api",
+    "iconPricetag": "Label harga",
+    "iconCart": "Keranjang",
+    "iconStar": "Bintang",
+    "iconHeart": "Hati",
+    "iconMegaphone": "Megafon",
+    "iconRibbon": "Pita",
+    "iconTrophy": "Trofi",
+    "iconRocket": "Roket"
   }
 }
