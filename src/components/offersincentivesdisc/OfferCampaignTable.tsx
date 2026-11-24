@@ -470,7 +470,7 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
                                 r.isPublished ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
                               }`}
                             >
-                              {r.isPublished ? 'Published' : 'Draft'}
+                              {t(r.isPublished ? 'published' : 'draft')}
                             </span>
                           </td>
                           <td className="whitespace-nowrap px-4 py-3 align-middle text-xs text-gray-700">
@@ -481,8 +481,8 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
                               <Link
                                 href={`/offers/campaign/${r.id}/edit`}
                                 className="inline-flex items-center justify-center rounded-lg p-2 transition-colors hover:bg-gray-100 focus:outline-none"
-                                title="Edit"
-                                aria-label={`Edit “${r.title}”`}
+                                title={t('edit')}
+                                aria-label={`${t('edit')} “${r.title}”`}
                               >
                                 <Edit className="h-4 w-4 text-gray-500" />
                               </Link>
@@ -493,8 +493,8 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
                                   setDeleteTarget({ kind: 'one', id: r.id, title: r.title });
                                 }}
                                 className="inline-flex items-center justify-center rounded-lg p-2 transition-colors hover:bg-red-100"
-                                title="Delete"
-                                aria-label={`Delete “${r.title}”`}
+                                title={t('delete')}
+                                aria-label={`${t('delete')} “${r.title}”`}
                               >
                                 <Trash2 className="h-4 w-4 text-red-600" />
                               </button>
@@ -510,7 +510,7 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
               {totalRows > 0 ? (
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                   <div className="text-sm text-gray-500">
-                    Showing {fromRow} to {toRow} of {totalRows} results
+                    {t('showing', { from: fromRow, to: toRow, total: totalRows })}
                   </div>
                   <div className="flex items-center gap-2">
                     <button
