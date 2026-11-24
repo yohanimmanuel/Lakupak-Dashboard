@@ -1,6 +1,7 @@
 // Production-ready authentication UI enhancements
 import React, { useState, useCallback, useEffect } from 'react';
 import { getPasswordStrength } from './auth-security';
+import { Eye, EyeOff } from 'lucide-react';
 
 // Enhanced error handling hook
 export const useAuthErrorHandler = () => {
@@ -73,6 +74,7 @@ interface ValidatedInputProps {
   required?: boolean;
   readOnly?: boolean;
   showPasswordStrength?: boolean;
+  showPasswordToggle?: boolean;
   className?: string;
 }
 
@@ -87,9 +89,11 @@ export const ValidatedInput: React.FC<ValidatedInputProps> = ({
   required = false,
   readOnly = false,
   showPasswordStrength = false,
+  showPasswordToggle = false,
   className = ''
 }) => {
   const [touched, setTouched] = useState(false);
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [validationError, setValidationError] = useState<string>('');
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -127,18 +131,31 @@ export const ValidatedInput: React.FC<ValidatedInputProps> = ({
         {label}
         {required && <span className="text-red-500 ml-1">*</span>}
       </label>
-      <input
-        type={type}
-        value={value}
-        onChange={handleChange}
-        onBlur={handleBlur}
-        placeholder={placeholder}
-        className={inputClasses}
-        required={required}
-        readOnly={readOnly}
-        aria-readonly={readOnly}
-        autoComplete={type === 'password' ? 'current-password' : 'on'}
-      />
+      <div className="relative">
+        <input
+          type={type === 'password' && passwordVisible ? 'text' : type}
+          value={value}
+          onChange={handleChange}
+          onBlur={handleBlur}
+          placeholder={placeholder}
+          className={`${inputClasses} ${showPasswordToggle && type === 'password' ? 'pr-12' : ''}`}
+          required={required}
+          readOnly={readOnly}
+          aria-readonly={readOnly}
+          autoComplete={type === 'password' ? 'current-password' : 'on'}
+        />
+        {showPasswordToggle && type === 'password' && (
+          <button
+            type="button"
+            onClick={() => setPasswordVisible(visible => !visible)}
+            aria-label={passwordVisible ? 'Hide password' : 'Show password'}
+            aria-pressed={passwordVisible}
+            className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-gray-400 transition-colors hover:text-[#0a61d7] focus:outline-none focus:text-[#0a61d7]"
+          >
+            {passwordVisible ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+          </button>
+        )}
+      </div>
       {hasError && (
         <p className="text-red-500 text-xs mt-1">{validationError}</p>
       )}

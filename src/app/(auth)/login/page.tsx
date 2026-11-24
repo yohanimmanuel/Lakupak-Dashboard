@@ -249,6 +249,7 @@ export default function LoginPage() {
           <ValidatedInput
             label={tLogin('password')}
             type="password"
+            showPasswordToggle
             value={password}
             onChange={setPassword}
             placeholder={tLogin('passwordPlaceholder')}
