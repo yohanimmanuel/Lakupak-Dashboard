@@ -64,7 +64,6 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
     formData,
     generalCategoryRef,
     getSelectedCategory,
-    handleCancel,
     handleCategorySelect,
     handleDragLeave,
     handleDragOver,
@@ -1760,15 +1759,6 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
             <>
               <button
                 type="button"
-                onClick={() => router.push('/products/list')}
-                disabled={saving}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-black disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
-              >
-                <X className="h-4 w-4" />
-                {tCatalog('header.cancel')}
-              </button>
-              <button
-                type="button"
                 onClick={() => handleSubmitWithStatus('Draft')}
                 disabled={saving}
                 className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#0a61d7] bg-white px-4 py-2 text-sm font-semibold text-[#0a61d7] transition hover:bg-[#f7faff] disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400 disabled:hover:bg-gray-100 @4xl/main:w-auto"
@@ -1798,15 +1788,6 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
           )}
           {currentMode === 'edit' && currentProductStatus !== 'Published' && (
             <>
-              <button
-                type="button"
-                onClick={handleCancel}
-                disabled={!hasUnsavedChanges || saving}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-black disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
-              >
-                <X className="h-4 w-4" />
-                {tCatalog('header.cancel')}
-              </button>
               <button
                 type="button"
                 onClick={() => handleSubmitWithStatus('Draft')}
