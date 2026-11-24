@@ -266,6 +266,20 @@ export default function OfferEditorForm({
     if (useCustomHomeBanner) setOpenMenu(null);
   }, [useCustomHomeBanner]);
 
+  const iconLabels: Record<string, string> = {
+    gift: t('iconGift'),
+    flash: t('iconFlash'),
+    flame: t('iconFlame'),
+    pricetag: t('iconPricetag'),
+    cart: t('iconCart'),
+    star: t('iconStar'),
+    heart: t('iconHeart'),
+    megaphone: t('iconMegaphone'),
+    ribbon: t('iconRibbon'),
+    trophy: t('iconTrophy'),
+    rocket: t('iconRocket'),
+  };
+
   const renderIconMenu = (which: 'right' | 'discount', menuDisabled?: boolean) => {
     const current = which === 'right' ? values.rightIconKey : values.discountIconKey;
     const setKey = which === 'right' ? set('rightIconKey') : set('discountIconKey');
@@ -283,7 +297,7 @@ export default function OfferEditorForm({
           className="mt-1 w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-50 text-xs disabled:pointer-events-none disabled:cursor-not-allowed"
           onClick={() => setOpenMenu((m) => (m === which ? null : which))}
         >
-          <span className="truncate">{OFFER_ICON_OPTIONS.find((o) => o.value === current)?.label ?? t('select')}</span>
+          <span className="truncate">{iconLabels[current] ?? t('select')}</span>
           <ChevronDown className="w-4 h-4 text-gray-500 shrink-0" />
         </button>
         {open ? (
@@ -302,7 +316,7 @@ export default function OfferEditorForm({
                     isActive ? 'bg-[#0a61d7] text-white' : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
-                  <span>{opt.label}</span>
+                  <span>{iconLabels[opt.value] ?? opt.label}</span>
                   {isActive ? <Check className="w-4 h-4" /> : null}
                 </button>
               );
