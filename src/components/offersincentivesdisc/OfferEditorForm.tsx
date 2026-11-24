@@ -172,7 +172,14 @@ export default function OfferEditorForm({
     ];
     const match = known.find(([text]) => message.includes(text));
     if (!match) return false;
-    setFieldErrors({ [match[1]]: message });
+    const localized: Record<string, string> = {
+      title: message.includes('required') ? t('requiredTitle') : message.includes('at least') ? t('shortTitle') : t('longTitle'),
+      subtitle: t('longSubtitle'),
+      discountText: t('longDiscount'),
+      endDateText: t('longUrgency'),
+      detailsBody: t('longDetails'),
+    };
+    setFieldErrors({ [match[1]]: localized[match[1]] ?? message });
     return true;
   };
 
@@ -430,7 +437,7 @@ export default function OfferEditorForm({
                   className="px-3 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50"
                   disabled={uploadingCustomBanner}
                 >
-                  Remove image
+                  {t('removeImage')}
                 </button>
               ) : null}
               <button
@@ -474,7 +481,7 @@ export default function OfferEditorForm({
             </div>
             {useCustomHomeBanner ? (
               <span className="text-[11px] font-medium text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1 shrink-0">
-                Template disabled, remove custom image to edit
+                {t('templateDisabled')}
               </span>
             ) : null}
           </div>
