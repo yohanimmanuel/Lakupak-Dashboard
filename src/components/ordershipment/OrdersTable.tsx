@@ -186,6 +186,12 @@ export default function OrdersTable({
   const [showBulkOrderStatusDropdown, setShowBulkOrderStatusDropdown] = useState(false);
   const [showBulkPaymentStatusDropdown, setShowBulkPaymentStatusDropdown] = useState(false);
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+  const [insufficientStockMessage, setInsufficientStockMessage] = useState<string | null>(null);
+  const showStockError = (message: string): boolean => {
+    if (!/insufficient stock/i.test(message)) return false;
+    setInsufficientStockMessage(message);
+    return true;
+  };
   
   // Handle tab indicator animation
   useLayoutEffect(() => {
@@ -350,12 +356,15 @@ export default function OrdersTable({
       setSelectedOrders((previous) => previous.filter((orderId) => !successes.includes(orderId)));
 
       if (failures.length > 0) {
-        alert(tTable('bulkActions.updatePartialSuccess', { success: successes.length, failed: failures.length }));
+        // A partial batch can fail because stock is insufficient for one order.
+        const message = result.error || tTable('bulkActions.updatePartialSuccess', { success: successes.length, failed: failures.length });
+        if (!showStockError(message)) alert(message);
       }
       if (successes.length > 0) onRefreshAction?.();
     } catch (error) {
       const detail = error instanceof Error ? error.message : '';
-      alert(detail || tTable('bulkActions.updateFailed', { count: batchOrderIds.length }));
+      const message = detail || tTable('bulkActions.updateFailed', { count: batchOrderIds.length });
+      if (!showStockError(message)) alert(message);
     } finally {
       setIsBulkUpdating(false);
     }
@@ -967,6 +976,26 @@ export default function OrdersTable({
           </button>
         </div>
       </div>
+
+      {/* Stock validation failure: preserve the server's exact required/available pieces message. */}
+      {insufficientStockMessage && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-4" role="presentation">
+          <div role="alertdialog" aria-modal="true" aria-labelledby="insufficient-stock-title" aria-describedby="insufficient-stock-detail" className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-5 shadow-xl">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50">
+                <AlertCircle className="h-5 w-5 text-red-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 id="insufficient-stock-title" className="text-lg font-semibold text-gray-900">Insufficient stock</h2>
+                <p id="insufficient-stock-detail" className="mt-2 whitespace-pre-wrap break-words text-sm text-gray-600">{insufficientStockMessage}</p>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end">
+              <button type="button" autoFocus onClick={() => setInsufficientStockMessage(null)} className="rounded-lg bg-[#0a61d7] px-5 py-2 text-sm font-semibold text-white hover:bg-[#0851b8] focus:outline-none focus:ring-2 focus:ring-[#0a61d7]/30">OK</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (() => {
