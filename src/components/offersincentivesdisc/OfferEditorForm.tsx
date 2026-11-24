@@ -83,8 +83,6 @@ export default function OfferEditorForm({
   mode,
   offerId,
   initial,
-  pageTitle: _pageTitle,
-  pageDescription: _pageDescription,
   backHref = '/offers/campaign',
   apiBase = '/api/offers/campaigns',
 }: Props) {
@@ -318,7 +316,7 @@ export default function OfferEditorForm({
             className="flex w-full shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800 @3xl/main:w-auto @3xl/main:justify-start"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to campaign
+            {t('back')}
           </button>
           <div className="flex min-w-0 flex-wrap items-center gap-3">
             <h1 className="truncate text-2xl font-bold text-gray-900">{mode === 'create' ? t('newTitle') : t('editTitle')}</h1>
