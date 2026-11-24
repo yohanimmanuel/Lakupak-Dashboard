@@ -625,17 +625,7 @@ export default function CreateSalesJobForm({
           </button>
           <h1 className="text-2xl font-bold text-black">{editing ? t('form.editTitle') : t('form.pageTitle')}</h1>
         </div>
-        <div className="flex items-center gap-2 flex-wrap justify-end">
-          <button
-            type="button"
-            onClick={() => void save()}
-            disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm disabled:opacity-50"
-          >
-            <Save className="w-4 h-4" />
-            {saving ? t('form.saving') : editing ? t('form.saveChanges') : t('form.saveJobs')}
-          </button>
-        </div>
+
       </div>
 
       {notice && <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-xs text-green-700">{notice}</div>}
@@ -898,6 +888,19 @@ export default function CreateSalesJobForm({
         <Plus className="w-5 h-5" />
         {t('form.addJob')}
       </button>
+      </div>
+      <div className="sticky bottom-0 z-20 flex justify-end border-t border-[#e6e6e6] bg-white p-4">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <button
+            type="button"
+            onClick={() => void save()}
+            disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold hover:bg-[#084ba6] transition text-sm disabled:opacity-50"
+          >
+            <Save className="w-4 h-4" />
+            {saving ? t('form.saving') : editing ? t('form.saveChanges') : t('form.saveJobs')}
+          </button>
+        </div>
       </div>
       {completingJobs.length > 0 && (
         <CompleteSalesJobModal
