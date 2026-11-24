@@ -1449,8 +1449,8 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
 
   return (
     <>
-      <div className="flex w-full min-w-0 flex-col overflow-hidden rounded-lg border border-[#e6e6e6] bg-white p-4">
-        <div className="mb-4 flex flex-col gap-3 border-b border-[#e6e6e6] pb-4 @5xl/main:flex-row @5xl/main:items-center @5xl/main:justify-between">
+      <div className="flex w-full min-w-0 flex-col overflow-visible rounded-lg border border-[#e6e6e6] bg-white">
+        <div className="flex flex-col gap-3 border-b border-[#e6e6e6] p-4 @5xl/main:flex-row @5xl/main:items-center @5xl/main:justify-between">
           <div className="flex min-w-0 flex-col gap-3 @3xl/main:flex-row @3xl/main:items-center">
             <Link
               href={isEditMode && initialData?.supplierId ? `/clients/suppliers/details/${encodeURIComponent(initialData.supplierId)}` : '/clients/suppliers'}
@@ -1465,7 +1465,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
           </div>
 
         </div>
-        <form className="flex flex-col gap-2">
+        <form className="flex flex-col gap-2 px-4 py-4">
           <div className="mt-0">
             <ClientField
               label={tShared('columns.id')}
