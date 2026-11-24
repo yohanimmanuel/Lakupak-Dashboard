@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import {
   Check,
   ChevronLeft,
@@ -47,6 +48,7 @@ export type CampaignOfferRow = {
 const rowsPerPage = TABLE_PAGE_SIZE;
 
 function OfferPublishStripPreview({ row }: { row: CampaignOfferRow }) {
+  const t = useTranslations('dashboard.offers.campaign.table');
   const custom = row.customBannerImageUrl?.trim();
   if (custom) {
     return (
@@ -70,7 +72,7 @@ function OfferPublishStripPreview({ row }: { row: CampaignOfferRow }) {
     >
       <div className="flex-1 min-w-0 pr-3">
         <p className="text-base font-bold leading-snug line-clamp-2" style={{ color: text }}>
-          {row.title || 'Title'}
+          {row.title || t('titleFallback')}
         </p>
         {row.subtitle.trim() ? (
           <p className="text-sm font-semibold opacity-90 mt-1 line-clamp-2" style={{ color: text }}>
@@ -85,7 +87,7 @@ function OfferPublishStripPreview({ row }: { row: CampaignOfferRow }) {
             style={{ color: bg }}
           />
           <span className="text-xs font-bold" style={{ color: bg }}>
-            {row.discountText || 'Promo'}
+            {row.discountText || t('promoFallback')}
           </span>
         </div>
       </div>
@@ -118,6 +120,7 @@ type Props = {
 };
 
 export default function OfferCampaignTable({ rows, loading = false, onRefreshAction }: Props) {
+  const t = useTranslations('dashboard.offers.campaign.table');
   const [query, setQuery] = useState('');
   const [selectedTab, setSelectedTab] = useState<'All' | 'Published' | 'Draft'>('All');
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -206,7 +209,7 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
     });
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
-      throw new Error((j as { error?: string }).error || `Update failed (#${id})`);
+      throw new Error((j as { error?: string }).error || `${t('updateFailed')} (#${id})`);
     }
   };
 
@@ -214,7 +217,7 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
     const res = await fetch(`/api/offers/campaigns/${id}`, { method: 'DELETE' });
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
-      throw new Error((j as { error?: string }).error || `Delete failed (#${id})`);
+      throw new Error((j as { error?: string }).error || `${t('deleteFailed')} (#${id})`);
     }
   };
 
@@ -236,7 +239,7 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
       setSelectedIds([]);
       await onRefreshAction();
     } catch (e) {
-      setPublishError(e instanceof Error ? e.message : 'Publish failed');
+      setPublishError(e instanceof Error ? e.message : t('publishFailed'));
     } finally {
       setPublishSubmitting(false);
     }
@@ -259,7 +262,7 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
       setSelectedIds([]);
       await onRefreshAction();
     } catch (e) {
-      setUnpublishError(e instanceof Error ? e.message : 'Unpublish failed');
+      setUnpublishError(e instanceof Error ? e.message : t('unpublishFailed'));
     } finally {
       setUnpublishSubmitting(false);
     }
@@ -283,7 +286,7 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
       setSelectedIds([]);
       await onRefreshAction();
     } catch (e) {
-      setDeleteError(e instanceof Error ? e.message : 'Delete failed');
+      setDeleteError(e instanceof Error ? e.message : t('deleteFailed'));
     } finally {
       setDeleteSubmitting(false);
     }
@@ -300,7 +303,7 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
       setSelectedIds((prev) => prev.filter((x) => x !== id));
       await onRefreshAction();
     } catch (e) {
-      setDeleteError(e instanceof Error ? e.message : 'Failed to delete');
+      setDeleteError(e instanceof Error ? e.message : t('deleteError'));
     } finally {
       setDeleteSubmitting(false);
     }
@@ -313,9 +316,9 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
           <SlidingSegmentedControl
             className="max-w-md"
             items={[
-              { key: 'All', label: 'All' },
-              { key: 'Published', label: 'Published' },
-              { key: 'Draft', label: 'Draft' },
+              { key: 'All', label: t('all') },
+              { key: 'Published', label: t('published') },
+              { key: 'Draft', label: t('draft') },
             ]}
             value={selectedTab}
             onChange={(key) => setSelectedTab(key as typeof selectedTab)}
@@ -327,7 +330,7 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search campaigns…"
+            placeholder={t('search')}
             className="w-full rounded-lg border border-[#e6e6e6] bg-white py-2 pl-10 pr-4 text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0a61d7]"
           />
         </div>
@@ -336,17 +339,17 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
           <div className="mb-3 rounded-lg border border-[#e6e6e6] border-l-4 border-l-green-500 bg-white p-3 shadow-sm md:p-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <span className="text-sm font-semibold text-[#0a61d7]">
-                {selectedIds.length} {selectedIds.length === 1 ? 'campaign' : 'campaigns'} selected
+                {selectedIds.length} {t(selectedIds.length === 1 ? 'campaign' : 'campaigns')} {t('selected')}
               </span>
               <div className="flex items-center gap-2 md:gap-4">
                 <span className="hidden text-xs font-semibold text-gray-600 md:block">
                   {bulkState.mixed
-                    ? 'Mixed draft and published. Only removal is allowed.'
+                    ? t('mixedHint')
                     : bulkState.canPublish
-                      ? 'Publish selected campaigns to your storefront.'
+                      ? t('publishHint')
                       : bulkState.canUnpublish
-                        ? 'Unpublish selected campaigns.'
-                        : 'Remove selected campaigns.'}
+                        ? t('unpublishHint')
+                        : t('removeHint')}
                 </span>
                 <div className="flex flex-wrap gap-2">
                   {bulkState.canPublish ? (
@@ -359,9 +362,7 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
                       }}
                       className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700 disabled:opacity-50"
                     >
-                      <Zap className="h-4 w-4" />
-                      Publish
-                    </button>
+                      <Zap className="h-4 w-4" />{t('publish')}</button>
                   ) : null}
                   {bulkState.canUnpublish ? (
                     <button
@@ -373,9 +374,7 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
                       }}
                       className="flex items-center gap-2 rounded-lg bg-yellow-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-yellow-700 disabled:opacity-50"
                     >
-                      <EyeOff className="h-4 w-4" />
-                      Unpublish
-                    </button>
+                      <EyeOff className="h-4 w-4" />{t('unpublish')}</button>
                   ) : null}
                   <button
                     type="button"
@@ -386,9 +385,7 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
                     }}
                     className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:opacity-50"
                   >
-                    <Trash2 className="h-4 w-4" />
-                    Remove
-                  </button>
+                    <Trash2 className="h-4 w-4" />{t('remove')}</button>
                 </div>
               </div>
             </div>
@@ -396,7 +393,7 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
         )}
 
         {loading ? (
-          <div className="p-5 text-sm text-gray-600">Loading…</div>
+          <div className="p-5 text-sm text-gray-600">{t('loading')}</div>
         ) : (
           <>
             <div className="overflow-auto">
@@ -411,17 +408,17 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
                           className={`flex h-4 w-4 items-center justify-center rounded border-2 transition-all duration-200 ${
                             allSelected ? 'border-green-500 bg-green-500' : 'border-gray-300 bg-white hover:border-green-400'
                           }`}
-                          aria-label={allSelected ? 'Deselect all' : 'Select all'}
+                          aria-label={t(allSelected ? 'deselectAll' : 'selectAll')}
                         >
                           {allSelected ? <Check className="h-3 w-3 text-white" /> : null}
                         </button>
                       </th>
-                      <th className="w-16 px-4 py-3 text-left font-medium uppercase">Sort</th>
-                      <th className="w-[104px] px-4 py-3 text-left font-medium uppercase">Preview</th>
-                      <th className="min-w-[200px] px-5 py-3 text-left font-medium uppercase">Title</th>
-                      <th className="px-4 py-3 text-left font-medium uppercase">Status</th>
-                      <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium uppercase">Last Updated</th>
-                      <th className="w-[120px] px-5 py-3 text-center font-medium uppercase">Actions</th>
+                      <th className="w-16 px-4 py-3 text-left font-medium uppercase">{t('sort')}</th>
+                      <th className="w-[104px] px-4 py-3 text-left font-medium uppercase">{t('preview')}</th>
+                      <th className="min-w-[200px] px-5 py-3 text-left font-medium uppercase">{t('title')}</th>
+                      <th className="px-4 py-3 text-left font-medium uppercase">{t('status')}</th>
+                      <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium uppercase">{t('updated')}</th>
+                      <th className="w-[120px] px-5 py-3 text-center font-medium uppercase">{t('actions')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -431,7 +428,7 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
                           <div className="flex flex-col items-center gap-2">
                             <Gift className="h-12 w-12 text-gray-400" />
                             <p className="text-sm">
-                              {rows.length === 0 ? 'No campaigns yet' : 'No campaigns match your filters.'}
+                              {t(rows.length === 0 ? 'empty' : 'noMatches')}
                             </p>
                           </div>
                         </td>
@@ -454,7 +451,7 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
                                   ? 'border-green-500 bg-green-500'
                                   : 'border-gray-300 bg-white hover:border-green-400'
                               }`}
-                              aria-label={selectedIds.includes(r.id) ? 'Deselect row' : 'Select row'}
+                              aria-label={t(selectedIds.includes(r.id) ? 'deselectRow' : 'selectRow')}
                             >
                               {selectedIds.includes(r.id) ? <Check className="h-3 w-3 text-white" /> : null}
                             </button>
@@ -521,7 +518,7 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
                       onClick={() => setListPage(Math.max(1, listPage - 1))}
                       disabled={listPage === 1}
                       className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
-                      aria-label="Previous page"
+                      aria-label={t('previous')}
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </button>
@@ -546,7 +543,7 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
                       onClick={() => setListPage(Math.min(totalPages, listPage + 1))}
                       disabled={listPage === totalPages}
                       className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
-                      aria-label="Next page"
+                      aria-label={t('next')}
                     >
                       <ChevronRight className="h-4 w-4" />
                     </button>
@@ -563,13 +560,13 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
           <div className="flex max-h-[min(90vh,720px)] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-[#e6e6e6] bg-white shadow-xl">
             <div className="flex h-14 shrink-0 items-center justify-between border-b border-[#e6e6e6] px-4">
               <h2 id="publish-dialog-heading" className="text-base font-semibold text-gray-900">
-                Publish preview ({selectedRows.length} draft{selectedRows.length !== 1 ? 's' : ''})
+                {t('publishPreview', { count: selectedRows.length })}
               </h2>
               <button
                 type="button"
                 onClick={() => !publishSubmitting && setPublishOpen(false)}
                 className="rounded-lg p-2 text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-                aria-label="Close"
+                aria-label={t('close')}
                 disabled={publishSubmitting}
               >
                 <X className="h-5 w-5" />
@@ -577,9 +574,7 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
             </div>
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
               <p className="text-sm text-gray-700">
-                These banners will go live on your Marketplace storefront. On home, the{' '}
-                <span className="font-semibold text-gray-900">lowest sort order</span> among published offers wins the
-                banner slot.
+                {t('publishExplanation')}
               </p>
               {publishError ? (
                 <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{publishError}</p>
@@ -595,9 +590,9 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
                       </div>
                     ) : null}
                     <p className="text-xs text-gray-600">
-                      <span className="font-medium text-gray-800">Sort order {row.sortOrder}</span>
+                      <span className="font-medium text-gray-800">{t('sortOrder', { order: row.sortOrder })}</span>
                       {' · '}
-                      Home shows one banner; the published offer with the smallest number is chosen first.
+                      {t('sortHint')}
                     </p>
                   </div>
                 </div>
@@ -609,9 +604,7 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
                 onClick={() => setPublishOpen(false)}
                 disabled={publishSubmitting}
                 className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-              >
-                Cancel
-              </button>
+              >{t('cancel')}</button>
               <button
                 type="button"
                 onClick={() => void confirmPublish()}
@@ -619,7 +612,7 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
                 className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
               >
                 <Zap className="h-4 w-4" />
-                {publishSubmitting ? 'Publishing…' : 'Publish'}
+                {publishSubmitting ? t('publishing') : t('publish')}
               </button>
             </div>
           </div>
@@ -630,12 +623,12 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
           <div className="w-full max-w-md overflow-hidden rounded-lg border border-[#e6e6e6] bg-white shadow-xl">
             <div className="flex h-14 items-center justify-between border-b border-[#e6e6e6] px-4">
-              <h2 className="text-base font-semibold text-gray-900">Unpublish offers</h2>
+              <h2 className="text-base font-semibold text-gray-900">{t('unpublishTitle')}</h2>
               <button
                 type="button"
                 onClick={() => !unpublishSubmitting && setUnpublishOpen(false)}
                 className="rounded-lg p-2 text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-                aria-label="Close"
+                aria-label={t('close')}
                 disabled={unpublishSubmitting}
               >
                 <X className="h-5 w-5" />
@@ -643,9 +636,7 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
             </div>
             <div className="space-y-3 p-4">
               <p className="text-sm text-gray-700">
-                You&apos;re about to unpublish{' '}
-                <span className="font-semibold text-gray-900">{selectedIds.length}</span> offer
-                {selectedIds.length !== 1 ? 's' : ''}. They will no longer appear as published (draft).
+                {t('unpublishConfirm', { count: selectedIds.length })}
               </p>
               {unpublishError ? (
                 <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{unpublishError}</p>
@@ -657,16 +648,14 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
                 onClick={() => setUnpublishOpen(false)}
                 disabled={unpublishSubmitting}
                 className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-              >
-                Cancel
-              </button>
+              >{t('cancel')}</button>
               <button
                 type="button"
                 onClick={() => void confirmUnpublish()}
                 disabled={unpublishSubmitting}
                 className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700 disabled:opacity-50"
               >
-                {unpublishSubmitting ? 'Unpublishing…' : 'Unpublish'}
+                {unpublishSubmitting ? t('unpublishing') : t('unpublish')}
               </button>
             </div>
           </div>
@@ -677,7 +666,7 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
           <div className="w-full max-w-sm rounded-lg border border-[#e6e6e6] bg-white p-4">
             <h2 className="mb-2 text-lg font-bold text-red-500">
-              {deleteTarget.kind === 'bulk' ? 'Delete campaigns' : 'Delete campaign'}
+              {t(deleteTarget.kind === 'bulk' ? 'deleteBulkTitle' : 'deleteTitle')}
             </h2>
             {deleteError ? (
               <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3">
@@ -686,8 +675,8 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
             ) : null}
             <p className="mb-4 text-gray-500">
               {deleteTarget.kind === 'bulk'
-                ? `Delete ${selectedIds.length} campaign${selectedIds.length === 1 ? '' : 's'}? This cannot be undone.`
-                : `Are you sure you want to delete “${deleteTarget.title}”? This cannot be undone.`}
+                ? t('deleteBulkConfirm', { count: selectedIds.length })
+                : t('deleteOneConfirm', { title: deleteTarget.title })}
             </p>
             <div className="flex justify-end gap-2">
               <button
@@ -695,16 +684,14 @@ export default function OfferCampaignTable({ rows, loading = false, onRefreshAct
                 className="rounded-lg bg-gray-200 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
                 onClick={() => setDeleteTarget(null)}
                 disabled={deleteSubmitting}
-              >
-                Cancel
-              </button>
+              >{t('cancel')}</button>
               <button
                 type="button"
                 className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50"
                 onClick={() => void (deleteTarget.kind === 'bulk' ? confirmBulkDelete() : confirmOneDelete())}
                 disabled={deleteSubmitting}
               >
-                {deleteSubmitting ? 'Deleting…' : 'Delete'}
+                {deleteSubmitting ? t('deleting') : t('deleteButton')}
               </button>
             </div>
           </div>
