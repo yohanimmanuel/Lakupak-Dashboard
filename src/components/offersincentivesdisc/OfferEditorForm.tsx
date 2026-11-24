@@ -210,6 +210,30 @@ export default function OfferEditorForm({
     }
   };
 
+  // Change publication status without submitting unsaved campaign form fields.
+  const handleUnpublish = async () => {
+    if (mode !== 'edit' || offerId == null || !values.isPublished || saving) return;
+    setSaving(true);
+    try {
+      const response = await fetch(`${apiBase}/${offerId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isPublished: false }),
+      });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        alert((result as { error?: string }).error || 'Failed to unpublish campaign');
+        return;
+      }
+      router.push(backHref);
+      router.refresh();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to unpublish campaign');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const bgPicker = normalizeColorForPicker(values.backgroundColor, '#0a61d7');
   const textPicker = normalizeColorForPicker(values.textColor, '#ffffff');
   const heroPreviewUrlCss = cssSafeUrl(values.bannerImageUrl);
@@ -298,7 +322,17 @@ export default function OfferEditorForm({
             <h1 className="truncate text-2xl font-bold text-gray-900">{pageTitle}</h1>
           </div>
         </div>
-
+        {mode === 'edit' && values.isPublished && (
+          <button
+            type="button"
+            onClick={() => void handleUnpublish()}
+            disabled={saving}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-2 font-semibold text-white transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+            {saving ? 'Unpublishing…' : 'Unpublish'}
+          </button>
+        )}
       </div>
       {pageDescription ? (
         <div className="px-4 py-3 bg-gray-50 border-b border-[#e6e6e6]">
