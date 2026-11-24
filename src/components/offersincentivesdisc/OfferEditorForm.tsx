@@ -341,7 +341,7 @@ export default function OfferEditorForm({
           </button>
         )}
       </div>
-      {pageDescription ? (
+      {(
         <div className="px-4 py-3 bg-gray-50 border-b border-[#e6e6e6]">
           <p className="text-sm text-gray-600">{mode === 'create' ? t('newDescription') : t('editDescription')}</p>
         </div>
