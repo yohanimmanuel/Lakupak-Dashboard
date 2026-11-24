@@ -416,7 +416,7 @@ export default function OfferEditorForm({
             <div className="min-w-0">
               <p className="text-xs font-medium text-gray-900 flex items-center gap-2">
                 <ImagePlus className="w-4 h-4 text-gray-600" />
-                Custom home banner image (optional)
+                {t('customBanner')}
               </p>
               <p className="text-[11px] text-gray-600 mt-1">
                 {t('customBannerHint')}
@@ -642,7 +642,7 @@ export default function OfferEditorForm({
             ) : (
               <>
                 <CheckCircle className="w-4 h-4" />
-                Save and publish
+                {t('savePublish')}
               </>
             )}
           </button>
