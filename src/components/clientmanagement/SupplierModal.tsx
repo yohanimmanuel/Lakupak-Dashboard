@@ -1463,26 +1463,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
               {isEditMode ? tSuppliersModal('editTitle') : tSuppliersModal('addTitle')}
             </h1>
           </div>
-          <div className="flex w-full min-w-0 flex-col gap-2 @4xl/main:flex-row @4xl/main:flex-wrap @4xl/main:items-center @5xl/main:w-auto">
-            <button
-              type="button"
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 font-semibold text-white transition-colors hover:bg-[#084ba6] disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
-              onClick={handleSubmit}
-              disabled={saving || isSubmitting || isNavigating}
-            >
-              {saving ? (
-                <>
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  {tSuppliersModal('saving')}
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4" />
-                  {tSuppliersModal('save')}
-                </>
-              )}
-            </button>
-          </div>
+
         </div>
         <form className="flex flex-col gap-2">
           <div className="mt-0">
@@ -2102,6 +2083,28 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
           />
           
         </form>
+        <div className="sticky bottom-0 z-20 flex justify-end border-t border-[#e6e6e6] bg-white p-4">
+          <div className="flex w-full min-w-0 flex-col gap-2 @4xl/main:flex-row @4xl/main:flex-wrap @4xl/main:items-center @5xl/main:w-auto">
+            <button
+              type="button"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 font-semibold text-white transition-colors hover:bg-[#084ba6] disabled:cursor-not-allowed disabled:opacity-50 @4xl/main:w-auto"
+              onClick={handleSubmit}
+              disabled={saving || isSubmitting || isNavigating}
+            >
+              {saving ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  {tSuppliersModal('saving')}
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  {tSuppliersModal('save')}
+                </>
+              )}
+            </button>
+          </div>
+        </div>
       </div>
 
       {archivedAction && (
