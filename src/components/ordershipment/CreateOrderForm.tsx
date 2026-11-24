@@ -1339,7 +1339,7 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
               )}
             </div>
           </section>
-          <div className="sticky bottom-0 z-20 flex justify-end border-t border-[#e6e6e6] bg-white p-4">
+          <div className="sticky bottom-0 z-20 flex justify-end rounded-b-lg border-t border-[#e6e6e6] bg-white p-4">
               <button
                 type="button"
                 onClick={() => void save()}

@@ -1753,7 +1753,7 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
         </div>
       </form>
       {currentMode !== 'view' && (
-        <div className="sticky bottom-0 z-20 flex justify-end border-t border-[#e6e6e6] bg-white p-4">
+        <div className="sticky bottom-0 z-20 flex justify-end rounded-b-lg border-t border-[#e6e6e6] bg-white p-4">
           <div className="flex w-full flex-col gap-2 @4xl/main:w-auto @4xl/main:flex-row @4xl/main:items-center">
           {currentMode === 'add' && (
             <>

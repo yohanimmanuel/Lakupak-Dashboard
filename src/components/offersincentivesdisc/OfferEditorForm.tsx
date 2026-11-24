@@ -639,7 +639,7 @@ export default function OfferEditorForm({
 
       </section>
       </div>
-      <div className="sticky bottom-0 z-20 flex justify-end border-t border-[#e6e6e6] bg-white p-4">
+      <div className="sticky bottom-0 z-20 flex justify-end rounded-b-lg border-t border-[#e6e6e6] bg-white p-4">
         <div className="flex w-full min-w-0 flex-col gap-2 @4xl/main:flex-row @4xl/main:flex-wrap @4xl/main:items-center @5xl/main:w-auto">
           <button
             type="button"

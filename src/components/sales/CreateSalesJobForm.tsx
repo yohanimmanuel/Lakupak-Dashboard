@@ -889,7 +889,7 @@ export default function CreateSalesJobForm({
         {t('form.addJob')}
       </button>
       </div>
-      <div className="sticky bottom-0 z-20 flex justify-end border-t border-[#e6e6e6] bg-white p-4">
+      <div className="sticky bottom-0 z-20 flex justify-end rounded-b-lg border-t border-[#e6e6e6] bg-white p-4">
         <div className="flex items-center gap-2 flex-wrap justify-end">
           <button
             type="button"
