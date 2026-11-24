@@ -972,14 +972,7 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
                   }}
                 />
               </div>
-              <button
-                type="button"
-                onClick={() => void save()}
-                disabled={saving || loading || orderLoading}
-                className="w-full rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-semibold text-white hover:bg-[#084ba6] disabled:opacity-60 @4xl/main:w-auto"
-              >
-                {saving ? tCreate('saving') : editing ? tCreate('saveChanges') : tCreate('save')}
-              </button>
+
             </div>
           </div>
 
@@ -1346,6 +1339,16 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
               )}
             </div>
           </section>
+          <div className="sticky bottom-0 z-20 flex justify-end border-t border-[#e6e6e6] bg-white p-4">
+              <button
+                type="button"
+                onClick={() => void save()}
+                disabled={saving || loading || orderLoading}
+                className="w-full rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-semibold text-white hover:bg-[#084ba6] disabled:opacity-60 @4xl/main:w-auto"
+              >
+                {saving ? tCreate('saving') : editing ? tCreate('saveChanges') : tCreate('save')}
+              </button>
+          </div>
         </div>
       </div>
     </div>
