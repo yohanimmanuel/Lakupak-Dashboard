@@ -4,6 +4,7 @@ import { ensureMarketplaceMembership } from '@/lib/marketplace/access';
 import { createMobileMarketplaceOrders } from '@/services/mobileOrders/mobileOrdersService';
 import { updateOrderHandler } from '@/services/orders/updateOrder';
 import {
+  activateTestMarketplaceMembership,
   ensureIntegrationAuthEnv,
   makeAuthenticatedDashboardPutRequest,
   makeAuthenticatedMarketplacePostRequest,
@@ -77,6 +78,7 @@ describe('mobile orders - checkout and confirm stock', () => {
 
     const membership = await ensureMarketplaceMembership(buyer.id, distributor.id);
     expect(membership).toEqual({ ok: true, access: 'pending' });
+    await activateTestMarketplaceMembership(buyer.id, distributor.id);
 
     const commonBody = {
       orderDate: new Date().toISOString(),
@@ -238,6 +240,7 @@ describe('mobile orders - checkout and confirm stock', () => {
 
     const membership = await ensureMarketplaceMembership(buyer.id, distributor.id);
     expect(membership).toEqual({ ok: true, access: 'pending' });
+    await activateTestMarketplaceMembership(buyer.id, distributor.id);
 
     for (const orderId of ['LKO-90001', 'LKO-90002']) {
       const res = await createMobileMarketplaceOrders(

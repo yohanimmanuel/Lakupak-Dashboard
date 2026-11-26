@@ -2,7 +2,11 @@ import { describe, beforeEach, expect, it } from 'vitest';
 import { prisma } from '@/lib/db';
 import { ensureMarketplaceMembership } from '@/lib/marketplace/access';
 import { createMobileMarketplaceOrders } from '@/services/mobileOrders/mobileOrdersService';
-import { makeAuthenticatedMarketplacePostRequest, resetDb } from './helpers';
+import {
+  activateTestMarketplaceMembership,
+  makeAuthenticatedMarketplacePostRequest,
+  resetDb,
+} from './helpers';
 
 describe('mobile orders - fail fast without partial writes', () => {
   beforeEach(async () => {
@@ -65,6 +69,7 @@ describe('mobile orders - fail fast without partial writes', () => {
 
     const membership = await ensureMarketplaceMembership(buyer.id, distributor.id);
     expect(membership).toEqual({ ok: true, access: 'pending' });
+    await activateTestMarketplaceMembership(buyer.id, distributor.id);
 
     const res = await createMobileMarketplaceOrders(
       makeAuthenticatedMarketplacePostRequest(
@@ -208,6 +213,7 @@ describe('mobile orders - fail fast without partial writes', () => {
 
     const membership = await ensureMarketplaceMembership(buyer.id, distributor.id);
     expect(membership).toEqual({ ok: true, access: 'pending' });
+    await activateTestMarketplaceMembership(buyer.id, distributor.id);
 
     const res = await createMobileMarketplaceOrders(
       makeAuthenticatedMarketplacePostRequest(

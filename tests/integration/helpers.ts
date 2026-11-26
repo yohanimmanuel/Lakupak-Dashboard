@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { signAccessToken } from '@/lib/jwt';
 import { waitForSideEffectQueueIdle } from '@/lib/sideEffectQueue';
+import { approveMarketplaceAccessRequest } from '@/lib/marketplace/access';
+import { buildMobileBuyerId } from '@/utils/buyerSync';
 
 /** JWT + auth secrets for handlers that call `getAuthenticatedUserId` / `verifyAccessToken`. */
 export function ensureIntegrationAuthEnv(): void {
@@ -68,6 +70,27 @@ export function makeAuthenticatedMarketplacePutRequest(
     body: JSON.stringify(body),
   });
   return new NextRequest(req);
+}
+
+/**
+ * Join creates Prospect membership. Order APIs require an Active storefront —
+ * approve with a segment so integration suites can place orders.
+ */
+export async function activateTestMarketplaceMembership(
+  marketplaceUserId: number,
+  distributorId: number,
+  businessType = 'Retail GT',
+): Promise<void> {
+  const result = await approveMarketplaceAccessRequest({
+    distributorId,
+    buyerId: buildMobileBuyerId(marketplaceUserId, distributorId),
+    businessType,
+  });
+  if (!('ok' in result) || !result.ok) {
+    throw new Error(
+      `activateTestMarketplaceMembership failed: ${'error' in result ? result.error : 'unknown'}`,
+    );
+  }
 }
 
 /** Marketplace POST with a closed-storefront JWT (membership distributor claim). */
