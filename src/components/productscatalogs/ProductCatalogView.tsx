@@ -1466,12 +1466,30 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
                                 />
                               </div>
                               {!segmentValue.trim() ? (
-                                <div className="mt-1 text-[10px] text-gray-500">
-                                  {tCatalog('variants.usesDefaultPrice')}
-                                  {combination.sellingPrice
-                                    ? `: ${currencySymbol} ${combination.sellingPrice}`
-                                    : ''}
-                                </div>
+                                combination.sellingPrice && !isViewMode && !isOfferConnected ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      updateSegmentSellingPrice(
+                                        combination.id,
+                                        pricingTab,
+                                        String(combination.sellingPrice),
+                                      )
+                                    }
+                                    className="mt-1 text-left text-[10px] font-medium text-[#0a61d7] hover:underline"
+                                    title={tCatalog('variants.useDefaultPriceAction')}
+                                  >
+                                    {tCatalog('variants.usesDefaultPrice')}
+                                    {`: ${currencySymbol} ${combination.sellingPrice}`}
+                                  </button>
+                                ) : (
+                                  <div className="mt-1 text-[10px] text-gray-500">
+                                    {tCatalog('variants.usesDefaultPrice')}
+                                    {combination.sellingPrice
+                                      ? `: ${currencySymbol} ${combination.sellingPrice}`
+                                      : ''}
+                                  </div>
+                                )
                               ) : (formData.sellingPriceUnit || 'Pieces') !== 'Pieces' ? (
                                 (() => {
                                   const anchor = activeStockLevels.find(

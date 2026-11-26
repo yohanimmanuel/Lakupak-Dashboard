@@ -2,6 +2,11 @@ import { prisma } from '@/lib/db';
 import { calculatePromotionGift, PromotionDetails } from './promotionUtils';
 import { parseMoney } from '@/app/api/graphql/modules/common/utils';
 
+export {
+  isMarketplaceAccessRequestBuyer,
+  isMarketplaceMembershipBuyerId,
+} from '@/utils/marketplaceBuyerId';
+
 // Central helper to build mobile marketplace Buyer IDs consistently across modules
 // Base: LKB-<marketplaceUserId padded>
 // Per distributor: LKB-<marketplaceUserId padded>-<distributorUserId>

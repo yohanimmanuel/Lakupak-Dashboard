@@ -134,7 +134,11 @@ export async function POST(req: NextRequest) {
       actorType: 'marketplace',
       actorId: user.id,
       success: true,
-      metadata: { scope: 'marketplace', distributorId: membership.distributorId },
+      metadata: {
+        scope: 'marketplace',
+        distributorId: membership.distributorId,
+        membershipAccess: membership.access,
+      },
     });
     
     // Generate JWT token
@@ -148,6 +152,7 @@ export async function POST(req: NextRequest) {
     
     return NextResponse.json({
       token,
+      membershipAccess: membership.access,
       user: {
         id: user.id,
         name: user.name || 'User',

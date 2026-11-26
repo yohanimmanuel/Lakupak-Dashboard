@@ -1,7 +1,7 @@
 'use client';
 
 import React from "react";
-import { Phone, MapPin, Tag, Truck, Info, Calendar, BarChart2, ArrowLeft, Edit, Copy, Mail, ChevronLeft, ChevronRight, User, Plus, X, Package } from "lucide-react";
+import { Phone, MapPin, Tag, Truck, Info, Calendar, BarChart2, ArrowLeft, Edit, Copy, Mail, ChevronLeft, ChevronRight, User, Plus, X, Package, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts';
 import { useState, useEffect, useRef } from 'react';
@@ -28,6 +28,7 @@ import {
   normalizeBuyerOrderTotal,
   parseBuyerOrderTotal,
 } from '@/utils/buyerOrderQuantity';
+import { isMarketplaceAccessRequestBuyer } from '@/utils/marketplaceBuyerId';
 
 type ProfileFieldKey =
   | 'storeName'
@@ -214,6 +215,9 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
     tBuyersProfile(`fields.${key}` as Parameters<typeof tBuyersProfile>[0]);
   const [buyerOffers, setBuyerOffers] = useState<Offer[]>([]);
   const [offersLoading, setOffersLoading] = useState(false);
+  const [approveBusy, setApproveBusy] = useState(false);
+  const [approveError, setApproveError] = useState<string | null>(null);
+  const canApproveMarketplaceAccess = Boolean(buyer.businessType?.trim());
   // BuyerProfile - Raw buyer data
   
   // Keep row status changes immediately visible; reload from the buyer record when the
@@ -273,6 +277,37 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
   
   // BuyerProfile - Final parsed data
   
+  const handleApproveMarketplaceAccess = async () => {
+    const businessType = buyer.businessType?.trim() || '';
+    if (!businessType) {
+      setApproveError(tBuyersProfile('approveAccessNeedsSegment'));
+      return;
+    }
+    setApproveBusy(true);
+    setApproveError(null);
+    try {
+      const response = await fetch('/api/buyers/approve-marketplace-access', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          buyerId: buyer.buyerId,
+          businessType,
+        }),
+      });
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) {
+        setApproveError(data.error || tBuyersProfile('approveAccessFailed'));
+        return;
+      }
+      onUpdate?.();
+      router.refresh();
+    } catch {
+      setApproveError(tBuyersProfile('approveAccessFailed'));
+    } finally {
+      setApproveBusy(false);
+    }
+  };
+
   const handleCopy = () => {
     let text = '';
     text += `ID: ${buyer.id}\n`;
@@ -549,6 +584,32 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
           </Link>
         </div>
       </div>
+
+      {isMarketplaceAccessRequestBuyer(buyer) ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <div className="flex flex-col gap-3 @3xl/main:flex-row @3xl/main:items-center @3xl/main:justify-between">
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold text-amber-950">{tBuyersProfile('approveAccessTitle')}</h3>
+              <p className="mt-1 text-xs text-amber-900/80">{tBuyersProfile('approveAccessHint')}</p>
+            </div>
+            <button
+              type="button"
+              disabled={approveBusy || !canApproveMarketplaceAccess}
+              onClick={() => void handleApproveMarketplaceAccess()}
+              title={
+                canApproveMarketplaceAccess ? undefined : tBuyersProfile('approveAccessNeedsSegment')
+              }
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-semibold text-white hover:bg-[#084ba6] disabled:opacity-60"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              {approveBusy ? tBuyersProfile('approveAccessBusy') : tBuyersProfile('approveAccess')}
+            </button>
+          </div>
+          {approveError ? (
+            <p className="mt-2 text-sm text-red-700">{approveError}</p>
+          ) : null}
+        </div>
+      ) : null}
       
       {/* Data Completion Progress */}
       {(() => {

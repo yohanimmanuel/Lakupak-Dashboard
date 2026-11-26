@@ -111,7 +111,11 @@ export const marketplaceResolvers = {
       ) {
         return { success: false, cartItem: null, message: 'This product is not in your distributor storefront' };
       }
-      return addToCart({ ...args.input, userId: authedUserId });
+      return addToCart({
+        ...args.input,
+        userId: authedUserId,
+        distributorId: getContextUser(ctx)?.distributorId ?? null,
+      });
     },
     updateCartItem: async (_: unknown, args: { input: Parameters<typeof updateCartItem>[0] }, ctx: unknown) => {
       const user = getContextUser(ctx);

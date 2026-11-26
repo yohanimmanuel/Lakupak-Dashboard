@@ -241,7 +241,13 @@ export async function POST(req: NextRequest) {
           country: finalCountry
         }
       });
-      await ensureMarketplaceMembership(user.id, invitingDistributor.id);
+      const membership = await ensureMarketplaceMembership(user.id, invitingDistributor.id);
+      if ('error' in membership) {
+        return NextResponse.json(
+          { error: membership.error, code: membership.code },
+          { status: membership.status, headers },
+        );
+      }
       
       auditAuth(req, {
         action: 'register',
@@ -250,7 +256,7 @@ export async function POST(req: NextRequest) {
         resourceType: 'MarketplaceUser',
         resourceId: String(user.id),
         success: true,
-        metadata: { scope: 'marketplace', via: 'otp' },
+        metadata: { scope: 'marketplace', via: 'otp', membershipAccess: membership.access },
       });
 
       // Generate JWT token
@@ -264,6 +270,7 @@ export async function POST(req: NextRequest) {
       
       return NextResponse.json({
         token,
+        membershipAccess: membership.access,
         user: {
           id: user.id,
           name: user.name || 'User',
@@ -306,7 +313,12 @@ export async function POST(req: NextRequest) {
         actorType: 'marketplace',
         actorId: existingUser.id,
         success: true,
-        metadata: { scope: 'marketplace', via: 'otp', distributorId: membership.distributorId },
+        metadata: {
+          scope: 'marketplace',
+          via: 'otp',
+          distributorId: membership.distributorId,
+          membershipAccess: membership.access,
+        },
       });
 
       // Generate JWT token
@@ -320,6 +332,7 @@ export async function POST(req: NextRequest) {
       
       return NextResponse.json({
         token,
+        membershipAccess: membership.access,
         user: {
           id: existingUser.id,
           name: existingUser.name || 'User',

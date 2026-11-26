@@ -307,7 +307,6 @@ export default function FavouriteProducts({
               className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
               onClick={() => {
                 setShowTypeDropdown(!showTypeDropdown);
-                setShowCategoryDropdown(false);
               }}
             >
               {translateFilter(selectedType)}

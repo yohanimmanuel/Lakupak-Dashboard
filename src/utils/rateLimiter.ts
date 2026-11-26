@@ -571,7 +571,7 @@ export async function graphQLComplexityRateLimiter(
   let fieldCount: number;
   try {
     ({ complexity, depth, fieldCount } = calculateGraphQLComplexity(query));
-  } catch (error) {
+    } catch (error) {
     if (error instanceof GraphQLComplexityParseError) {
       return NextResponse.json(
         {

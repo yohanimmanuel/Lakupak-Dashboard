@@ -14,6 +14,7 @@ import {
 import type { SupplierFormData } from '@/types/client';
 import { NotificationService } from '../notifications';
 import { syncOrderToBuyerProfile } from '@/utils/buyerSync';
+import { clearOrphanVariantSegmentPrices } from '@/utils/marketplaceSegmentPrice';
 import { getSupplyReceivedInput, getSupplyRecordType } from '@/lib/suppliers/supplyRecords';
 
 const nullToUndefined = <T extends Record<string, unknown>>(obj: T): { [K in keyof T]: T[K] extends null ? undefined : T[K] } => {
@@ -1113,6 +1114,14 @@ const deleteBuyer = async (args: { userId: number; id: string }) => {
         where: { buyerId: id },
       });
     }
+
+    // If this was the last buyer in a market segment, drop that segment's
+    // catalog prices so remaining / recreated buyers use the default price.
+    await clearOrphanVariantSegmentPrices({
+      distributorUserId,
+      removedBusinessTypes: [deleted.businessType],
+      db: tx,
+    });
   });
 
   // Invalidate dashboard cache after buyer deletion
@@ -1878,6 +1887,12 @@ const bulkDeleteBuyers = async (args: { userId: number; ids: string[] }) => {
 
     await tx.buyer.deleteMany({
       where: { userId: distributorUserId, id: { in: dbIds } },
+    });
+
+    await clearOrphanVariantSegmentPrices({
+      distributorUserId,
+      removedBusinessTypes: found.map((buyer) => buyer.businessType),
+      db: tx,
     });
   });
 

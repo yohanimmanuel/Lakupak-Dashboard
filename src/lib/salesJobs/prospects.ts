@@ -139,6 +139,69 @@ export async function createSalesProspect(distributorId: number, input: Prospect
   return mapProspect(row);
 }
 
+/** Chat / description create: free-form market segment businessType (e.g. Retailer GT). */
+export type DescribedProspectInput = {
+  name: string;
+  storeName?: string | null;
+  phone: string;
+  address: string;
+  businessType?: string | null;
+  email?: string | null;
+  region?: string | null;
+  notes?: string | null;
+  customerNumber?: string | null;
+};
+
+export async function createDescribedProspect(distributorId: number, input: DescribedProspectInput) {
+  const owner = clip(input.name || '', 100);
+  const storeName = clip(input.storeName || input.name || '', 100);
+  const phone = clip(input.phone || '', 20);
+  const address = clip(input.address || '', 500);
+  const businessType = clip(input.businessType || 'Retailer', 100) || 'Retailer';
+  const email = clip(input.email || '', 254);
+  const region = clip(input.region || '', 80);
+  const notes = clip(input.notes || '', 500);
+
+  if (!owner || !storeName || !phone || !address) {
+    throw new Error('MISSING_FIELDS');
+  }
+
+  let customerNumber = clip(input.customerNumber || '', 50);
+  if (!customerNumber) {
+    customerNumber = `AI-${Date.now().toString(36).toUpperCase()}`;
+  }
+
+  // Avoid unique conflicts on auto numbers.
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const taken = await prisma.buyer.findFirst({
+      where: { userId: distributorId, customerNumber },
+      select: { buyerId: true },
+    });
+    if (!taken) break;
+    customerNumber = `AI-${Date.now().toString(36).toUpperCase()}-${attempt + 1}`;
+  }
+  await assertUniqueCustomerNumber(distributorId, customerNumber);
+
+  const row = await prisma.buyer.create({
+    data: {
+      buyerId: `LKP-${randomUUID()}`,
+      userId: distributorId,
+      customerNumber,
+      owner,
+      storeName,
+      phone,
+      address,
+      region: region || null,
+      email,
+      businessType,
+      notes: notes || null,
+      status: 'Prospect',
+    },
+    select: prospectSelect,
+  });
+  return mapProspect(row);
+}
+
 export async function updateSalesProspect(distributorId: number, buyerId: string, input: ProspectInput) {
   const { notes, businessType, ...rest } = readFields(input);
   const data = {

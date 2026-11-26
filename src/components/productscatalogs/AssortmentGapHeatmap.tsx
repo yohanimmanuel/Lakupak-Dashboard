@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, ChevronLeft, ChevronRight, Filter, Search, X } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Filter, Package, Search, X } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useProductsTranslations } from '@/hooks/useProductsTranslations';
@@ -369,8 +369,16 @@ export default function AssortmentGapHeatmap() {
               {tHeatmap('retry')}
             </button>
           </div>
-        ) : !data || data.rows.length === 0 ? (
-          <p className="py-16 text-center text-sm text-gray-500">{tHeatmap('empty')}</p>
+        ) : !data || data.segments.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 py-16 text-center text-gray-500">
+            <Package className="h-12 w-12 text-gray-400" />
+            <p className="text-sm">{tHeatmap('noOrdersYet')}</p>
+          </div>
+        ) : data.rows.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 py-16 text-center text-gray-500">
+            <Package className="h-12 w-12 text-gray-400" />
+            <p className="text-sm">{tHeatmap('empty')}</p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Clock, Search, UserX, Users } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Clock, Loader2, Search, UserX, Users } from 'lucide-react';
 import { STAT_ICON_BG_BLUE, STAT_ICON_BG_GREEN, STAT_ICON_BLUE, STAT_ICON_GREEN } from '@/utils/statCardStyles';
 import { useTranslations } from 'next-intl';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -15,7 +15,7 @@ type Side = { name: string; owner?: string | null; phone?: string | null; addres
 type Candidate = {
   id: string;
   existingClientId: string;
-  incomingOrderId: string;
+  incomingOrderId: string | null;
   confidenceScore: number;
   matchedSignals: string[];
   status: string;
@@ -37,11 +37,6 @@ function confidenceScoreClass(score: number): string {
   return 'text-red-600';
 }
 
-function existingBuyerStatus(row: Candidate): string | null {
-  if (row.incoming.status && row.incoming.status !== 'Prospect') return row.incoming.status;
-  return null;
-}
-
 function cardEdgeClass(status: string): string {
   if (status === 'needs_more_info') return 'border-l-4 border-l-amber-400';
   if (status === 'not_a_match') return 'border-l-4 border-l-red-500';
@@ -51,8 +46,12 @@ function cardEdgeClass(status: string): string {
 const CARD = 'bg-white rounded-lg border border-[#e6e6e6] p-4';
 const INPUT =
   'w-full px-3 py-2 text-xs text-black border border-[#e6e6e6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] bg-white';
-const PRIMARY = 'px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold text-sm hover:bg-[#084ba6] transition-colors disabled:opacity-50';
-const OUTLINE = 'px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium text-sm hover:bg-gray-100 transition-colors';
+const PRIMARY =
+  'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[#0a61d7] text-white font-semibold text-sm hover:bg-[#084ba6] transition-colors disabled:cursor-not-allowed disabled:opacity-50';
+const OUTLINE =
+  'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-black font-medium text-sm hover:bg-gray-100 transition-colors disabled:cursor-not-allowed disabled:opacity-50';
+
+type ActionKind = 'merge' | 'not_a_match' | 'needs_more_info' | 'undo';
 
 const STATUS_BADGE: Record<string, string> = {
   Prospect: 'bg-gray-100 text-gray-700',
@@ -85,11 +84,12 @@ function MatchListSkeleton() {
 
 function Field({ label, value }: { label: string; value?: string | null }) {
   const text = value?.trim();
-  if (!text) return null;
   return (
     <div>
       <p className="text-xs text-gray-500">{label}</p>
-      <p className="text-xs text-black mt-0.5 break-words">{text}</p>
+      <p className={`text-xs mt-0.5 break-words ${text ? 'text-black' : 'text-gray-400'}`}>
+        {text || '—'}
+      </p>
     </div>
   );
 }
@@ -124,6 +124,7 @@ export default function ClientMatchingQueue() {
   const [page, setPage] = useState(1);
   const [error, setError] = useState('');
   const [listLoading, setListLoading] = useState(true);
+  const [actionBusy, setActionBusy] = useState<{ id: string; action: ActionKind } | null>(null);
   const [autoMatch, setAutoMatch] = useState(false);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
@@ -182,32 +183,44 @@ export default function ClientMatchingQueue() {
     if (node) setIndicatorStyle({ left: node.offsetLeft, width: node.offsetWidth });
   }, [queue]);
 
-  const act = async (work: () => Promise<void>) => {
+  const act = async (id: string, action: ActionKind, work: () => Promise<void>) => {
+    if (actionBusy) return;
     setError('');
+    setActionBusy({ id, action });
     try {
       await work();
+      if (action === 'undo') {
+        setQueue('pending');
+        setPage(1);
+      }
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Request failed');
+    } finally {
+      setActionBusy(null);
     }
   };
 
-  const undoMatch = (id: string) => {
-    setError('');
-    setListLoading(true);
-    fetchGraphQL(
-      `mutation Undo($userId: Int!, $id: String!) { undoClientMatch(userId: $userId, id: $id) }`,
-      { userId, id },
-    )
-      .then(() => {
-        setQueue('pending');
-        setPage(1);
-      })
-      .catch((err: unknown) => {
-        setListLoading(false);
-        setError(err instanceof Error ? err.message : 'Request failed');
-      });
-  };
+  const actionIsBusy = (id: string, action: ActionKind) =>
+    actionBusy?.id === id && actionBusy.action === action;
+
+  const ActionLabel = ({
+    id,
+    action,
+    label,
+  }: {
+    id: string;
+    action: ActionKind;
+    label: string;
+  }) =>
+    actionIsBusy(id, action) ? (
+      <>
+        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+        <span>{label}</span>
+      </>
+    ) : (
+      <>{label}</>
+    );
 
   const signalLabel = (signal: string) => t(`signals.${signal}` as 'signals.phone_match');
   const tabLabel = (tab: (typeof TABS)[number]) => {
@@ -395,12 +408,18 @@ export default function ClientMatchingQueue() {
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t('prospect')}</p>
                     <div className="grid gap-3">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-semibold text-black">{row.existing.name}</p>
-                        {row.existing.status === 'Prospect' && (
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${STATUS_BADGE.Prospect}`}>
+                        <p className="text-sm font-semibold text-black">
+                          {row.existing.name?.trim() || '—'}
+                        </p>
+                        {row.existing.status ? (
+                          <span
+                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              STATUS_BADGE[row.existing.status] || STATUS_BADGE.Prospect
+                            }`}
+                          >
                             {statusLabel(row.existing.status)}
                           </span>
-                        )}
+                        ) : null}
                       </div>
                       <Field label={t('owner')} value={row.existing.owner} />
                       <Field label={t('phone')} value={row.existing.phone} />
@@ -411,28 +430,36 @@ export default function ClientMatchingQueue() {
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t('existing')}</p>
                     <div className="grid gap-3">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-semibold text-black">{row.incoming.name}</p>
-                        {existingBuyerStatus(row) && (
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${STATUS_BADGE[existingBuyerStatus(row) as string] || STATUS_BADGE.Active}`}>
-                            {statusLabel(existingBuyerStatus(row) as string)}
+                        <p className="text-sm font-semibold text-black">
+                          {row.incoming.name?.trim() || '—'}
+                        </p>
+                        {row.incoming.status ? (
+                          <span
+                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              STATUS_BADGE[row.incoming.status] || STATUS_BADGE.Active
+                            }`}
+                          >
+                            {statusLabel(row.incoming.status)}
                           </span>
-                        )}
+                        ) : null}
                       </div>
                       <Field label={t('owner')} value={row.incoming.owner} />
                       <Field label={t('phone')} value={row.incoming.phone} />
                       <Field label={t('address')} value={row.incoming.address} />
-                      {row.incomingOrderId ? <Field label={t('orderId')} value={row.incomingOrderId} /> : null}
+                      <Field label={t('orderId')} value={row.incomingOrderId} />
                     </div>
                   </div>
                 </div>
                 <div className="flex flex-wrap justify-end gap-2 mt-4">
-                  {(row.status === 'pending' || row.status === 'needs_more_info') && row.incomingOrderId ? (
+                  {row.status !== 'merged' ? (
                     <>
                       <button
                         type="button"
                         className={PRIMARY}
+                        disabled={Boolean(actionBusy)}
+                        aria-busy={actionIsBusy(row.id, 'merge')}
                         onClick={() =>
-                          act(() =>
+                          void act(row.id, 'merge', () =>
                             fetchGraphQL(
                               `mutation Resolve($userId: Int!, $id: String!, $action: String!) { resolveClientMatch(userId: $userId, id: $id, action: $action) }`,
                               { userId, id: row.id, action: 'merge' },
@@ -440,13 +467,15 @@ export default function ClientMatchingQueue() {
                           )
                         }
                       >
-                        {t('merge')}
+                        <ActionLabel id={row.id} action="merge" label={t('merge')} />
                       </button>
                       <button
                         type="button"
                         className={OUTLINE}
+                        disabled={Boolean(actionBusy)}
+                        aria-busy={actionIsBusy(row.id, 'not_a_match')}
                         onClick={() =>
-                          act(() =>
+                          void act(row.id, 'not_a_match', () =>
                             fetchGraphQL(
                               `mutation Resolve($userId: Int!, $id: String!, $action: String!) { resolveClientMatch(userId: $userId, id: $id, action: $action) }`,
                               { userId, id: row.id, action: 'not_a_match' },
@@ -454,13 +483,15 @@ export default function ClientMatchingQueue() {
                           )
                         }
                       >
-                        {t('notMatch')}
+                        <ActionLabel id={row.id} action="not_a_match" label={t('notMatch')} />
                       </button>
                       <button
                         type="button"
                         className={OUTLINE}
+                        disabled={Boolean(actionBusy)}
+                        aria-busy={actionIsBusy(row.id, 'needs_more_info')}
                         onClick={() =>
-                          act(() =>
+                          void act(row.id, 'needs_more_info', () =>
                             fetchGraphQL(
                               `mutation Resolve($userId: Int!, $id: String!, $action: String!) { resolveClientMatch(userId: $userId, id: $id, action: $action) }`,
                               { userId, id: row.id, action: 'needs_more_info' },
@@ -468,13 +499,26 @@ export default function ClientMatchingQueue() {
                           )
                         }
                       >
-                        {t('needsMore')}
+                        <ActionLabel id={row.id} action="needs_more_info" label={t('needsMore')} />
                       </button>
                     </>
                   ) : null}
                   {(row.status === 'merged' || row.status === 'not_a_match') && (
-                    <button type="button" className={OUTLINE} onClick={() => undoMatch(row.id)}>
-                      {t('undo')}
+                    <button
+                      type="button"
+                      className={OUTLINE}
+                      disabled={Boolean(actionBusy)}
+                      aria-busy={actionIsBusy(row.id, 'undo')}
+                      onClick={() =>
+                        void act(row.id, 'undo', () =>
+                          fetchGraphQL(
+                            `mutation Undo($userId: Int!, $id: String!) { undoClientMatch(userId: $userId, id: $id) }`,
+                            { userId, id: row.id },
+                          ).then(() => undefined),
+                        )
+                      }
+                    >
+                      <ActionLabel id={row.id} action="undo" label={t('undo')} />
                     </button>
                   )}
                 </div>

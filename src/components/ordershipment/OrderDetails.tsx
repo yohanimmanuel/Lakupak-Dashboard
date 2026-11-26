@@ -230,7 +230,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const buyerIdDisplay = order.buyerId || order.buyerIdSnapshot || '';
   const buyerHref = order.buyerId
     ? `/clients/buyers/details/${buyerIdDisplay}`
-    : `/clients/buyers/deleted?id=${buyerIdDisplay}`;
+    : '/clients/buyers';
 
   // Snapshot fallbacks for buyer-related display fields
   const contactPersonDisplay = order.buyerId ? committedFields.contactPerson : (order.contactPersonSnapshot || committedFields.contactPerson);

@@ -217,8 +217,7 @@
       "title": "Data pembeli telah dihapus",
       "description": "Pembeli yang Anda coba lihat tidak lagi tersedia. Data ini masih dapat muncul sebagai referensi di pesanan lama.",
       "reference": "Referensi: {id}",
-      "goBack": "Kembali",
-      "backToList": "Daftar Pembeli",
+      "backToList": "Ke daftar",
       "goHome": "Ke Beranda"
     },
     "detailsPage": {
@@ -227,8 +226,6 @@
       "loading": "Memuat detail pembeli...",
       "errorTitle": "Gagal Memuat Pembeli",
       "unexpectedError": "Terjadi kesalahan yang tidak terduga",
-      "deletedRedirect": "Data pembeli telah dihapus",
-      "redirecting": "Mengalihkan ke halaman penghapusan...",
       "error": "Kesalahan"
     },
     "profile": {
@@ -237,6 +234,12 @@
       "copyData": "Salin Data",
       "editDetails": "Edit Detail",
       "matchWithOrder": "Cocokkan dengan pesanan marketplace",
+      "approveAccessTitle": "Permintaan akses marketplace",
+      "approveAccessHint": "Atur segmen pasar (tipe bisnis) pada pembeli ini, lalu setujui agar mereka bisa membuka etalase dengan harga yang benar.",
+      "approveAccessNeedsSegment": "Atur segmen pasar (tipe bisnis) sebelum menyetujui akses.",
+      "approveAccess": "Setujui akses",
+      "approveAccessBusy": "Menyetujui…",
+      "approveAccessFailed": "Gagal menyetujui akses. Coba lagi.",
       "profileCompletion": "Kelengkapan Profil",
       "fieldsCompleted": "{completed} dari {total} field terisi",
       "missingFields": "Kosong: {fields}",

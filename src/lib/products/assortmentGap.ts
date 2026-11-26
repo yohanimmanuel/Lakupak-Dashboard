@@ -186,6 +186,33 @@ export async function computeAssortmentGap(args: {
       : {}),
   };
 
+  // No eligible buyers / segments → empty heatmap (Prisma.join([]) throws).
+  if (segmentKeys.length === 0) {
+    const [totalProducts, categoryRows] = await Promise.all([
+      prisma.product.count({ where: productWhere }),
+      prisma.product.findMany({
+        where: { userId, merchandisingCategorySlug: { not: null } },
+        select: { merchandisingCategorySlug: true },
+        distinct: ['merchandisingCategorySlug'],
+      }),
+    ]);
+    const categories: AssortmentGapCategory[] = categoryRows
+      .map((row) => row.merchandisingCategorySlug)
+      .filter((slug): slug is string => Boolean(slug))
+      .map((slug) => ({ slug, label: getMerchandisingLabel(slug) || slug }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+    return {
+      segments: [],
+      period,
+      from: from ? from.toISOString() : null,
+      rows: [],
+      categories,
+      totalProducts,
+      page,
+      limit,
+    };
+  }
+
   const [totalProducts, catalog, categoryRows, eligibleRows] = await Promise.all([
     prisma.product.count({ where: productWhere }),
     prisma.product.findMany({
@@ -312,6 +339,26 @@ export async function computeAssortmentGapVariants(args: {
   });
   if (!product) {
     throw new Error('Product not found');
+  }
+
+  if (segmentKeys.length === 0) {
+    const catalogVariants = product.variantOptions.length
+      ? product.variantOptions
+      : [{ id: 0, variantName: product.name, sku: null }];
+    return {
+      productId: product.productId,
+      name: product.name,
+      sku: product.variantOptions.find((variant) => variant.isDefault)?.sku ?? product.variantOptions[0]?.sku ?? '',
+      segments: [],
+      period,
+      from: from ? from.toISOString() : null,
+      rows: catalogVariants.map((variant) => ({
+        variantOptionId: variant.id,
+        variantName: variant.variantName,
+        sku: variant.sku,
+        cells: [],
+      })),
+    };
   }
 
   const [eligibleRows, purchasedRows] = await Promise.all([

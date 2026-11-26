@@ -28,6 +28,11 @@ import {
   stripPlacesSearchJson,
   type ProspectFormFill,
 } from '@/lib/salesJobs/placesProspecting';
+import {
+  parseCreateProspectFromAssistant,
+  runCreateProspectFromAssistant,
+  stripCreateProspectJson,
+} from '@/lib/lakuAi/createDescribedProspect';
 
 export type DistributorAppChatMessage = {
   role: 'user' | 'assistant';
@@ -279,14 +284,20 @@ export async function runDistributorAppAssistant(input: {
     'Allowed inputs:',
     workflowInputGuide(),
     'If they are not asking to build, rename, describe, or fill a workflow, end with {"plan":null}. A greeting, an analysis question, order help, buyer help, or product help is not a workflow edit.',
-    'BUYER PROSPECTING VIA CLIENTS (Google Places):',
-    'When the user asks to find, search, list, prospect, or get more retailers/outlets/warung/minimarket/restaurants near a place or matching a buyer persona, end with BOTH {"plan":null} AND a placesSearch object in one JSON blob, for example:',
+    'CREATE A PROSPECT FROM A DESCRIPTION (fill form only — do not save):',
+    'When the user asks to create, add, or save a prospect/buyer and gives concrete details (name and/or store, phone, address, optional business type / market segment), end with BOTH {"plan":null} AND a createProspect object in one JSON blob, for example:',
+    '{"plan":null,"createProspect":{"name":"Yohan","storeName":"Yohan","phone":"+65 86548867","address":"Hillview Terrace 21, 669232","businessType":"Retailer GT"}}',
+    'Required: name (or owner), phone, address. Optional: storeName (defaults to name), businessType (market segment label such as Retailer GT — free text), email, region, notes, customerNumber.',
+    'Do NOT invent missing phone or address. If those are missing, ask for them and do not emit createProspect yet.',
+    'After createProspect, the server only prepares Fill form fields. Nothing is saved until the user opens the buyer form and clicks Save. Confirm the proposed fields in plain language. Do not invent or quote a buyer ID. Do not say the prospect was already saved.',
+    'BUYER PROSPECTING VIA CLIENTS (Google Places — list only):',
+    'When the user asks to find, search, list, or get more retailers/outlets/warung/minimarket/restaurants near a place or matching a buyer persona (without giving one specific person to save), end with BOTH {"plan":null} AND a placesSearch object in one JSON blob, for example:',
     '{"plan":null,"placesSearch":{"buyerType":"minimarket","region":"Bandung","notes":"dekat sekolah","create":false,"pageSize":15}}',
     'buyerType must be one of: warung, kiosk, minimarket, restaurant, hotel, canteen, other.',
-    'Use region and notes from their criteria. Always set create false for list/search/find requests. Never auto-save buyers. The user saves from Clients → Buyers with Fill form fields then Save as status Prospect.',
-    'Emit placesSearch on EVERY such request in the conversation, including follow-ups like another city, another buyer type, or "find more". Do not invent outlet names yourself; the server runs Google Places and attaches form buttons.',
+    'Use region and notes from their criteria. Always set create false for list/search/find requests. Do not auto-save Places results; those stay suggestions with Fill form buttons.',
+    'Emit placesSearch on EVERY such list/search request, including follow-ups like another city or buyer type. Do not invent outlet names yourself; the server runs Google Places.',
     'Only skip placesSearch for general how-to questions about prospecting with no search request.',
-    'Say the results are suggestions for Clients buyers, not saved yet.',
+    'If the user both describes one person to create AND asks to search Places, prefer createProspect for the named person; use placesSearch only for the search part.',
     'There is no separate Sales Prospect module. Prospecting is done in Clients (buyers with Prospect status).',
     'The JSON is removed before they see the reply. Do not mention it, tool calls, function calls, safety labels, or recipe ids.',
     'Name every step you keep, in order, in the reply: the trigger, then each app, Lakupak AI, action, condition, or end.',
@@ -456,11 +467,18 @@ export async function runDistributorAppAssistant(input: {
             ? unavailableCopy
             : parsed.reply || (leaked ? readableFallback : '');
 
+    const createProspectInput = parseCreateProspectFromAssistant(raw);
     const placesCriteria = parsePlacesSearchFromAssistant(raw);
     let prospectFill: ProspectFormFill | null = null;
     let prospectFills: ProspectFormFill[] = [];
-    // Places prospecting runs in the sticky sidebar (and any non-canvas chat). Skip on the workflow canvas.
-    if (placesCriteria && !input.onCanvas) {
+    // Create / Places run in the sticky sidebar (and any non-canvas chat). Skip on the workflow canvas.
+    if (createProspectInput && !input.onCanvas) {
+      const created = await runCreateProspectFromAssistant(input.userId, locale, createProspectInput);
+      prospectFill = created.prospectFill;
+      prospectFills = created.prospectFills;
+      const cleaned = stripCreateProspectJson(stripPlacesSearchJson(reply));
+      reply = cleaned ? `${cleaned}\n\n${created.reply}` : created.reply;
+    } else if (placesCriteria && !input.onCanvas) {
       const placesResult = await runPlacesProspecting(input.userId, {
         ...placesCriteria,
         // Listing/search never auto-saves. User saves from the prospect form.
@@ -470,10 +488,10 @@ export async function runDistributorAppAssistant(input: {
       prospectFill = placesResult.prospectFill;
       prospectFills = placesResult.prospectFills;
       const placesReply = formatPlacesProspectingReply(locale, placesResult);
-      const cleaned = stripPlacesSearchJson(reply);
+      const cleaned = stripPlacesSearchJson(stripCreateProspectJson(reply));
       reply = cleaned ? `${cleaned}\n\n${placesReply}` : placesReply;
     } else {
-      reply = stripPlacesSearchJson(reply);
+      reply = stripCreateProspectJson(stripPlacesSearchJson(reply));
     }
 
     if (!reply) {

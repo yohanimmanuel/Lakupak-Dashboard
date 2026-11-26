@@ -1581,7 +1581,8 @@ model ClientMatchCandidate {
   id                   String    @id @default(uuid())
   distributorId        Int
   existingClientId     String
-  incomingOrderId      String
+  /// Optional: buyer-to-buyer matches (e.g. marketplace access Prospects) have no order yet.
+  incomingOrderId      String?
   provisionalClientId  String?
   confidenceScore      Int
   matchedSignals       String[]  @default([])
@@ -1594,9 +1595,9 @@ model ClientMatchCandidate {
   createdAt            DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt            DateTime  @updatedAt @db.Timestamptz(3)
 
-  distributor    User  @relation(fields: [distributorId], references: [id], onDelete: Cascade)
-  existingClient Buyer @relation("MatchExistingClient", fields: [existingClientId], references: [buyerId], onDelete: Cascade)
-  incomingOrder  Order @relation(fields: [incomingOrderId], references: [orderId], onDelete: Cascade)
+  distributor    User   @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+  existingClient Buyer  @relation("MatchExistingClient", fields: [existingClientId], references: [buyerId], onDelete: Cascade)
+  incomingOrder  Order? @relation(fields: [incomingOrderId], references: [orderId], onDelete: Cascade)
 
   @@index([distributorId, status])
   @@index([distributorId, autoMerged, createdAt])

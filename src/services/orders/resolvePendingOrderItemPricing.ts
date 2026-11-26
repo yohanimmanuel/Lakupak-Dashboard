@@ -4,9 +4,13 @@ import {
   getOfferForClientAndProduct,
   type ResolvedOffer,
 } from '@/lib/offers/getOfferForClientAndProduct';
-import { parsePrice } from '@/utils/currencyUtils';
 import { calculateOrderTotalAmount } from '@/utils/orderCalculations';
 import type { Order } from '@/types/order';
+import {
+  orderFlowVariantOptionsInclude,
+  resolveVariantOptionMarketplaceUnitPrice,
+} from '@/utils/marketplaceSegmentPrice';
+import { resolveMoqInPieces } from '@/utils/promotionUtils';
 import { decimalToNumber } from './utils';
 
 function pickVariantOption<
@@ -174,9 +178,10 @@ export async function syncOrderItemPricingFromCatalog(params: {
   const buyerStillLinked = buyerId
     ? await db.buyer.findFirst({
         where: { buyerId, userId: params.userId },
-        select: { buyerId: true },
+        select: { buyerId: true, businessType: true },
       })
     : null;
+  const buyerBusinessType = buyerStillLinked?.businessType?.trim() || null;
 
   const updates: PendingOrderPriceUpdate[] = [];
 
@@ -186,7 +191,7 @@ export async function syncOrderItemPricingFromCatalog(params: {
     const productId = String(item.productId);
     const product = await db.product.findFirst({
       where: { productId, userId: params.userId },
-      include: { variantOptions: true },
+      include: { variantOptions: orderFlowVariantOptionsInclude },
     });
     if (!product) continue;
 
@@ -195,14 +200,7 @@ export async function syncOrderItemPricingFromCatalog(params: {
       item.variantOptionId ?? null,
     );
     const baseUnitPrice = variantOption
-      ? parsePrice(
-          variantOption.sellingPrice as
-            | string
-            | number
-            | { toNumber?: () => number; toString?: () => string }
-            | null
-            | undefined,
-        )
+      ? resolveVariantOptionMarketplaceUnitPrice(variantOption, buyerBusinessType)
       : 0;
 
     const offer = buyerStillLinked
@@ -219,12 +217,21 @@ export async function syncOrderItemPricingFromCatalog(params: {
 
     if (!(baseUnitPrice > 0) && !offer) continue;
 
-    const moq =
-      item.moqSnapshot != null && item.moqSnapshot > 0
-        ? item.moqSnapshot
-        : (variantOption as { moq?: number | null } | null)?.moq ?? null;
-    const snapshots = buildOfferSnapshots(baseUnitPrice, offer, moq);
     const piecesPerPackage = Math.max(1, Number(item.piecesPerPackage) || 1);
+    const moqByStockLevel = (variantOption as { moqByStockLevel?: Record<string, number> | null } | null)
+      ?.moqByStockLevel;
+    // Prefer stock-level MOQ (e.g. Cartons) converted to pieces so Before/After MOQ differ correctly.
+    const moq =
+      resolveMoqInPieces({
+        packageType: item.packageType,
+        piecesPerPackage,
+        moqPieces:
+          item.moqSnapshot != null && item.moqSnapshot > 0
+            ? item.moqSnapshot
+            : (variantOption as { moq?: number | null } | null)?.moq ?? null,
+        moqByStockLevel,
+      });
+    const snapshots = buildOfferSnapshots(baseUnitPrice, offer, moq);
     const packageQuantity = Math.max(1, Number(item.packageQuantity) || 1);
     const pricePerPackage = snapshots.unitPrice * piecesPerPackage;
     const subtotal = pricePerPackage * packageQuantity;

@@ -24,7 +24,7 @@ export async function requireDistributorMember(
     return {
       ok: false,
       response: NextResponse.json(
-        { error: 'This storefront is only open to retailers invited by the distributor', code: 'NOT_A_MEMBER' },
+        { error: 'This storefront is only open to approved retailers', code: 'NOT_A_MEMBER' },
         { status: 403, headers },
       ),
     };

@@ -87,7 +87,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { name, email, storeName, bio, username, password, phone, countryCode, countryDialCode, address, addressFullName, addressLabel, addressIsDefault, referralCode } = body;
+    const {
+      name,
+      email,
+      storeName,
+      bio,
+      username,
+      password,
+      phone,
+      countryCode,
+      countryDialCode,
+      address,
+      addressFullName,
+      addressLabel,
+      addressIsDefault,
+      referralCode,
+    } = body;
 
     if (!normalizeReferralCode(referralCode)) {
       return NextResponse.json(
@@ -217,7 +232,13 @@ export async function POST(req: NextRequest) {
       throw error;
     });
 
-    await ensureMarketplaceMembership(user.id, invitingDistributor.id);
+    const membership = await ensureMarketplaceMembership(user.id, invitingDistributor.id);
+    if ('error' in membership) {
+      return NextResponse.json(
+        { error: membership.error, code: membership.code },
+        { status: membership.status, headers },
+      );
+    }
 
     try {
       await syncMarketplaceUserToBuyerProfiles(user.id);
@@ -267,6 +288,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       token,
+      membershipAccess: membership.access,
       user: {
         id: user.id,
         name: user.name || 'User',

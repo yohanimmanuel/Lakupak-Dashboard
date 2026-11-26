@@ -249,16 +249,22 @@ function planMarker(raw: string): {
       description?: unknown;
       updates?: unknown;
       placesSearch?: unknown;
+      createProspect?: unknown;
     };
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
     const hasPlacesSearch =
       parsed.placesSearch != null && typeof parsed.placesSearch === 'object' && !Array.isArray(parsed.placesSearch);
+    const hasCreateProspect =
+      parsed.createProspect != null &&
+      typeof parsed.createProspect === 'object' &&
+      !Array.isArray(parsed.createProspect);
     const hasEdit =
       'plan' in parsed ||
       'name' in parsed ||
       'description' in parsed ||
       'updates' in parsed ||
-      hasPlacesSearch;
+      hasPlacesSearch ||
+      hasCreateProspect;
     if (!hasEdit) return null;
     const name = textField(parsed.name, 80);
     const description = textField(parsed.description, 400);
@@ -332,7 +338,7 @@ export function readAssistantWorkflow(content: string): {
     const end = jsonObjectEnd(text, index);
     if (end < 0) continue;
     const raw = text.slice(index, end);
-    if (!/"plan"|"recipeId"|"name"|"description"|"updates"|"placesSearch"/.test(raw)) continue;
+    if (!/"plan"|"recipeId"|"name"|"description"|"updates"|"placesSearch"|"createProspect"/.test(raw)) continue;
     consider(raw, index, end);
     index = end - 1;
   }

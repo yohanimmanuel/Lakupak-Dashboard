@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { completeActiveProspectJobs, reopenProspectJobs, withSuppressAutoComplete } from '@/lib/salesJobs/service';
 import { classifyClientSignals, phonesMatch, type MatchSignal } from '@/lib/clientMatching/signals';
 import { parseMarketplaceUserIdFromBuyerId } from '@/utils/buyerSync';
+import { isMarketplaceMembershipBuyerId } from '@/utils/marketplaceBuyerId';
 
 type Tx = Prisma.TransactionClient;
 
@@ -50,7 +51,8 @@ function profileFrom(input: {
     email: input.email || '',
     phone: input.phone || '',
     storeName: input.storeName || 'Store',
-    businessType: 'Retailer',
+    // Marketplace membership buyers start with no segment; distributor sets it on approve/merge.
+    businessType: '',
     address: input.address || '',
     avatar: input.avatar,
     status: 'Active',
@@ -86,6 +88,7 @@ type BuyerSnapshot = {
   storeName: string;
   businessType: string;
   address: string;
+  region: string | null;
   avatar: string | null;
   status: string;
   customerNumber: string | null;
@@ -106,6 +109,14 @@ type MergeUndoSnapshot = {
   nullOriginOrderIds?: string[];
 };
 
+/** Marketplace membership rows never keep a default "Retailer" segment (prices / merge fill). */
+function segmentForBuyer(buyerId: string, businessType: string | null | undefined): string {
+  const value = String(businessType ?? '').trim();
+  if (!value) return '';
+  if (isMarketplaceMembershipBuyerId(buyerId) && value.toLowerCase() === 'retailer') return '';
+  return value;
+}
+
 function snapshotBuyer(buyer: BuyerSnapshot): BuyerSnapshot {
   return {
     buyerId: buyer.buyerId,
@@ -113,8 +124,9 @@ function snapshotBuyer(buyer: BuyerSnapshot): BuyerSnapshot {
     email: buyer.email,
     phone: buyer.phone,
     storeName: buyer.storeName,
-    businessType: buyer.businessType,
+    businessType: segmentForBuyer(buyer.buyerId, buyer.businessType),
     address: buyer.address,
+    region: buyer.region,
     avatar: buyer.avatar,
     status: buyer.status,
     customerNumber: buyer.customerNumber,
@@ -124,6 +136,7 @@ function snapshotBuyer(buyer: BuyerSnapshot): BuyerSnapshot {
 }
 
 const BUYER_SNAPSHOT_SELECT = {
+  id: true,
   buyerId: true,
   owner: true,
   email: true,
@@ -131,6 +144,7 @@ const BUYER_SNAPSHOT_SELECT = {
   storeName: true,
   businessType: true,
   address: true,
+  region: true,
   avatar: true,
   status: true,
   customerNumber: true,
@@ -383,7 +397,62 @@ export async function planMarketplaceClientMatch(input: {
 }
 
 function isMarketplaceBuyerId(buyerId: string): boolean {
-  return /^LKB-\d+-\d+$/.test(buyerId) || buyerId.startsWith('mobile_user_');
+  return isMarketplaceMembershipBuyerId(buyerId);
+}
+
+/** Prefer marketplace / surviving fields; fill gaps from the absorbed buyer without wiping data. */
+function mergeNotes(primary: string | null | undefined, secondary: string | null | undefined): string | null {
+  const parse = (raw: string | null | undefined): string[] => {
+    const text = String(raw ?? '').trim();
+    if (!text) return [];
+    try {
+      const parsed: unknown = JSON.parse(text);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+      }
+    } catch {
+      // plain string note
+    }
+    return [text];
+  };
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const part of [...parse(primary), ...parse(secondary)]) {
+    const key = part.trim().toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(part.trim());
+  }
+  return out.length > 0 ? JSON.stringify(out) : null;
+}
+
+function mergeLogistics(primary: string | null | undefined, secondary: string | null | undefined): string | null {
+  const parse = (raw: string | null | undefined): Record<string, unknown> | null => {
+    const text = String(raw ?? '').trim();
+    if (!text) return null;
+    try {
+      const parsed: unknown = JSON.parse(text);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  };
+  const left = parse(primary);
+  const right = parse(secondary);
+  if (!left && !right) return present(primary) ?? present(secondary);
+  const merged: Record<string, unknown> = { ...(right || {}), ...(left || {}) };
+  // Fill empty left keys from right without overwriting marketplace values.
+  if (left && right) {
+    for (const [key, value] of Object.entries(right)) {
+      const current = left[key];
+      if (current == null || current === '') merged[key] = value;
+      else merged[key] = current;
+    }
+  }
+  return JSON.stringify(merged);
 }
 
 function phoneMatchOutranks(
@@ -413,7 +482,7 @@ async function mergeProspectIntoMarketplace(
     prospectId: string;
     marketplaceBuyerId: string;
     incoming: IncomingProfile;
-    incomingOrderId: string;
+    incomingOrderId: string | null;
     keepCandidateId?: string;
   },
 ): Promise<MergeUndoSnapshot | null> {
@@ -430,6 +499,7 @@ async function mergeProspectIntoMarketplace(
   if (!prospect || !market) throw new Error('Client not found');
 
   const marketplaceUserId = parseMarketplaceUserIdFromBuyerId(market.buyerId);
+  const orderId = args.incomingOrderId?.trim() || '';
   const [marketplaceUser, incomingOrder, orders, jobs, offers] = await Promise.all([
     marketplaceUserId
       ? tx.marketplaceUser.findUnique({
@@ -437,10 +507,12 @@ async function mergeProspectIntoMarketplace(
           select: { name: true, email: true, phone: true, storeName: true, chosenAddress: true, image: true },
         })
       : Promise.resolve(null),
-    tx.order.findFirst({
-      where: { orderId: args.incomingOrderId, userId: args.distributorId },
-      select: { storeName: true, contactPerson: true, contactPhone: true, deliveryAddress: true, customerEmail: true },
-    }),
+    orderId
+      ? tx.order.findFirst({
+          where: { orderId, userId: args.distributorId },
+          select: { storeName: true, contactPerson: true, contactPhone: true, deliveryAddress: true, customerEmail: true },
+        })
+      : Promise.resolve(null),
     tx.order.findMany({ where: { buyerId: prospect.buyerId, userId: args.distributorId }, select: { orderId: true } }),
     tx.salesJob.findMany({
       where: { clientId: prospect.buyerId, distributorId: args.distributorId },
@@ -454,21 +526,35 @@ async function mergeProspectIntoMarketplace(
     await tx.buyer.update({ where: { buyerId: prospect.buyerId }, data: { customerNumber: null } });
   }
 
+  // Marketplace (account + membership row) wins; absorbed buyer only fills blanks.
+  // Do not auto-approve storefront access: keep Prospect until Approve access is used.
+  const keepPendingMarketplaceAccess =
+    isMarketplaceBuyerId(market.buyerId) &&
+    String(market.status || '').trim().toLowerCase() === 'prospect';
+  // Membership rows register with blank segment. Prefer CRM/manual segment so VariantSegmentPrice keys stay valid.
+  const marketSegment = segmentForBuyer(market.buyerId, market.businessType);
   await tx.buyer.update({
     where: { buyerId: market.buyerId },
     data: {
-      owner: firstPresent(marketplaceUser?.name, incomingOrder?.contactPerson, args.incoming.owner, market.owner, prospect.owner),
-      email: firstPresent(marketplaceUser?.email, incomingOrder?.customerEmail, args.incoming.email, market.email, prospect.email),
-      phone: firstPresent(marketplaceUser?.phone, incomingOrder?.contactPhone, args.incoming.phone, market.phone, prospect.phone),
-      storeName: firstPresent(marketplaceUser?.storeName, incomingOrder?.storeName, args.incoming.storeName, market.storeName, prospect.storeName),
-      businessType: firstPresent(market.businessType, args.incoming.businessType, prospect.businessType) || 'Retailer',
-      address: firstPresent(marketplaceUser?.chosenAddress, incomingOrder?.deliveryAddress, args.incoming.address, market.address, prospect.address),
+      owner: firstPresent(marketplaceUser?.name, market.owner, incomingOrder?.contactPerson, args.incoming.owner, prospect.owner),
+      email: firstPresent(marketplaceUser?.email, market.email, incomingOrder?.customerEmail, args.incoming.email, prospect.email),
+      phone: firstPresent(marketplaceUser?.phone, market.phone, incomingOrder?.contactPhone, args.incoming.phone, prospect.phone),
+      storeName: firstPresent(marketplaceUser?.storeName, market.storeName, incomingOrder?.storeName, args.incoming.storeName, prospect.storeName),
+      businessType: firstPresent(marketSegment, prospect.businessType, args.incoming.businessType) || '',
+      address: firstPresent(marketplaceUser?.chosenAddress, market.address, incomingOrder?.deliveryAddress, args.incoming.address, prospect.address),
+      region: firstPresent(market.region, prospect.region) || null,
       avatar: marketplaceUser?.image || market.avatar || args.incoming.avatar || prospect.avatar,
       customerNumber,
-      logistics: present(market.logistics) ?? prospect.logistics,
-      notes: present(market.notes) ?? prospect.notes,
-      status: 'Active',
+      logistics: mergeLogistics(market.logistics, prospect.logistics),
+      notes: mergeNotes(market.notes, prospect.notes),
+      status: keepPendingMarketplaceAccess ? 'Prospect' : 'Active',
     },
+  });
+
+  // Keep CRM order/product history that would otherwise cascade-delete with the prospect.
+  await tx.buyerRecord.updateMany({
+    where: { buyerRefId: prospect.id },
+    data: { buyerRefId: market.id },
   });
 
   if (orders.length > 0) {
@@ -503,23 +589,35 @@ async function mergeProspectIntoMarketplace(
       data: { existingClientId: market.buyerId },
     });
   }
-  await tx.clientMatchCandidate.updateMany({
-    where: {
-      distributorId: args.distributorId,
-      existingClientId: prospect.buyerId,
-      status: { in: ['pending', 'needs_more_info'] },
-      incomingOrderId: { not: args.incomingOrderId },
-    },
-    data: { existingClientId: market.buyerId },
-  });
-  await tx.clientMatchCandidate.deleteMany({
-    where: {
-      distributorId: args.distributorId,
-      existingClientId: prospect.buyerId,
-      status: { in: ['pending', 'needs_more_info'] },
-      incomingOrderId: args.incomingOrderId,
-    },
-  });
+  if (orderId) {
+    await tx.clientMatchCandidate.updateMany({
+      where: {
+        distributorId: args.distributorId,
+        existingClientId: prospect.buyerId,
+        status: { in: ['pending', 'needs_more_info'] },
+        incomingOrderId: { not: orderId },
+      },
+      data: { existingClientId: market.buyerId },
+    });
+    await tx.clientMatchCandidate.deleteMany({
+      where: {
+        distributorId: args.distributorId,
+        existingClientId: prospect.buyerId,
+        status: { in: ['pending', 'needs_more_info'] },
+        incomingOrderId: orderId,
+      },
+    });
+  } else {
+    await tx.clientMatchCandidate.updateMany({
+      where: {
+        distributorId: args.distributorId,
+        existingClientId: prospect.buyerId,
+        status: { in: ['pending', 'needs_more_info'] },
+        NOT: args.keepCandidateId ? { id: args.keepCandidateId } : undefined,
+      },
+      data: { existingClientId: market.buyerId },
+    });
+  }
   await tx.buyer.delete({ where: { buyerId: prospect.buyerId } });
 
   return {
@@ -582,8 +680,9 @@ async function applyBuyerSnapshot(tx: Tx, distributorId: number, buyer: BuyerSna
     email: buyer.email,
     phone: buyer.phone,
     storeName: buyer.storeName,
-    businessType: buyer.businessType || 'Retailer',
+    businessType: segmentForBuyer(buyer.buyerId, buyer.businessType),
     address: buyer.address,
+    region: buyer.region,
     avatar: buyer.avatar,
     status: buyer.status || 'Prospect',
     customerNumber: buyer.customerNumber,
@@ -659,10 +758,13 @@ async function restoreMovedJobs(
 async function restoreProspectSnapshot(tx: Tx, distributorId: number, snapshot: MergeUndoSnapshot) {
   const prospect = snapshot.prospect;
   const before = snapshot.marketplaceBefore;
+  // Restore the CRM/manual buyer (with its market segment) before clearing the
+  // marketplace row. Otherwise Buyer_clear_orphan_segment_prices sees no owner for
+  // that segment mid-unmerge and deletes VariantSegmentPrice rows.
+  await applyBuyerSnapshot(tx, distributorId, prospect, true);
   if (before?.buyerId && before.buyerId !== prospect.buyerId) {
     await applyBuyerSnapshot(tx, distributorId, before, false);
   }
-  await applyBuyerSnapshot(tx, distributorId, prospect, true);
   if ((snapshot.movedOrderIds ?? []).length > 0) {
     await tx.order.updateMany({
       where: { orderId: { in: snapshot.movedOrderIds }, userId: distributorId },
@@ -785,17 +887,25 @@ async function materializePossibleMatch(distributorId: number, candidateId: stri
   });
   if (open) return open.id;
 
-  const [prospect, other, order] = await Promise.all([
+  // Absorb non-marketplace into marketplace when one side is an LKB membership row.
+  let absorbId = parsed.prospectId;
+  let surviveId = parsed.otherId;
+  if (isMarketplaceBuyerId(absorbId) && !isMarketplaceBuyerId(surviveId)) {
+    absorbId = parsed.otherId;
+    surviveId = parsed.prospectId;
+  }
+
+  const [absorb, survive, order] = await Promise.all([
     prisma.buyer.findFirst({
-      where: { buyerId: parsed.prospectId, userId: distributorId },
+      where: { buyerId: absorbId, userId: distributorId },
       select: BUYER_SNAPSHOT_SELECT,
     }),
     prisma.buyer.findFirst({
-      where: { buyerId: parsed.otherId, userId: distributorId },
-      select: { owner: true, phone: true, storeName: true, address: true },
+      where: { buyerId: surviveId, userId: distributorId },
+      select: BUYER_SNAPSHOT_SELECT,
     }),
     prisma.order.findFirst({
-      where: { userId: distributorId, isDeleted: false, buyerId: { in: [parsed.prospectId, parsed.otherId] } },
+      where: { userId: distributorId, isDeleted: false, buyerId: { in: [absorbId, surviveId] } },
       orderBy: { createdAt: 'desc' },
       select: {
         orderId: true,
@@ -808,40 +918,39 @@ async function materializePossibleMatch(distributorId: number, candidateId: stri
       },
     }),
   ]);
-  if (!prospect || !other) throw new Error('Client not found');
-  if (!order) throw new Error('This match needs an order');
+  if (!absorb || !survive) throw new Error('Client not found');
   const signals = classifyClientSignals({
-    incomingPhone: prospect.phone,
-    incomingAddress: prospect.address,
-    incomingStoreName: prospect.storeName,
-    incomingOwnerName: prospect.owner,
-    existingPhone: other.phone,
-    existingAddress: other.address,
-    existingStoreName: other.storeName,
-    existingOwnerName: other.owner,
+    incomingPhone: absorb.phone,
+    incomingAddress: absorb.address,
+    incomingStoreName: absorb.storeName,
+    incomingOwnerName: absorb.owner,
+    existingPhone: survive.phone,
+    existingAddress: survive.address,
+    existingStoreName: survive.storeName,
+    existingOwnerName: survive.owner,
   });
   const created = await prisma.clientMatchCandidate.create({
     data: {
       distributorId,
-      existingClientId: parsed.prospectId,
-      provisionalClientId: parsed.otherId,
-      incomingOrderId: order.orderId,
+      existingClientId: absorbId,
+      provisionalClientId: surviveId,
+      incomingOrderId: order?.orderId ?? null,
       confidenceScore: signals.score,
       matchedSignals: signals.signals,
       status: 'pending',
       autoMerged: false,
       undoSnapshot: {
-        priorStatus: prospect.status,
+        priorStatus: absorb.status,
         provisionalProfile: {
-          buyerId: parsed.otherId,
-          owner: order.contactPerson || '',
-          email: order.customerEmail || '',
-          phone: order.contactPhone || '',
-          storeName: order.storeName || '',
-          businessType: 'Retailer',
-          address: order.deliveryAddress || '',
-          avatar: null,
-          status: 'Active',
+          buyerId: surviveId,
+          owner: order?.contactPerson || survive.owner || '',
+          email: order?.customerEmail || survive.email || '',
+          phone: order?.contactPhone || survive.phone || '',
+          storeName: order?.storeName || survive.storeName || '',
+          businessType: survive.businessType || '',
+          address: order?.deliveryAddress || survive.address || '',
+          avatar: survive.avatar,
+          status: survive.status || 'Active',
           userId: distributorId,
         },
       },
@@ -909,7 +1018,7 @@ export async function recordManualOrderClientMatch(input: {
           email: input.email || '',
           phone: input.phone || '',
           storeName: input.storeName || '',
-          businessType: 'Retailer',
+          businessType: '',
           address: input.address || '',
           avatar: null,
           status: 'Active',
@@ -927,43 +1036,52 @@ export async function mergeCandidate(distributorId: number, candidateId: string)
   });
   if (!candidate) throw new Error('Match not found');
   if (candidate.status === 'merged' && !candidate.undoneAt) throw new Error('This match is already merged');
-  if (candidate.status === 'not_a_match') throw new Error('This match was dismissed');
 
-  const existing = await prisma.buyer.findFirst({
+  let existing = await prisma.buyer.findFirst({
     where: { buyerId: candidate.existingClientId, userId: distributorId },
   });
   if (!existing) throw new Error('Existing client not found');
 
   const stored = candidate.undoSnapshot as { provisionalProfile?: ProvisionalProfile } | null;
   const incoming = stored?.provisionalProfile;
-  const marketplaceBuyerId =
+  let absorbId = existing.buyerId;
+  let surviveId =
     candidate.provisionalClientId && candidate.provisionalClientId !== existing.buyerId
       ? candidate.provisionalClientId
       : null;
+  // Matching rule: absorb CRM/prospect into marketplace membership when sides are flipped.
+  if (surviveId && isMarketplaceBuyerId(absorbId) && !isMarketplaceBuyerId(surviveId)) {
+    absorbId = surviveId;
+    surviveId = existing.buyerId;
+    existing = await prisma.buyer.findFirst({
+      where: { buyerId: absorbId, userId: distributorId },
+    });
+    if (!existing) throw new Error('Existing client not found');
+  }
 
   await prisma.$transaction(async (tx) => {
     let undo: MergeUndoSnapshot | null = null;
-    let survivingId = existing.buyerId;
-    if (marketplaceBuyerId) {
+    let survivingId = existing!.buyerId;
+    if (surviveId) {
       undo = await mergeProspectIntoMarketplace(tx, {
         distributorId,
-        prospectId: existing.buyerId,
-        marketplaceBuyerId,
+        prospectId: absorbId,
+        marketplaceBuyerId: surviveId,
         incoming: incoming ?? {},
         incomingOrderId: candidate.incomingOrderId,
         keepCandidateId: candidate.id,
       });
-      survivingId = marketplaceBuyerId;
+      survivingId = surviveId;
     } else if (incoming) {
-      undo = inPlaceUndo(await fillBuyerFromIncoming(tx, existing.buyerId, incoming));
-    } else if (existing.status === 'Prospect') {
-      await tx.buyer.update({ where: { buyerId: existing.buyerId }, data: { status: 'Active' } });
+      undo = inPlaceUndo(await fillBuyerFromIncoming(tx, existing!.buyerId, incoming));
+    } else if (existing!.status === 'Prospect') {
+      await tx.buyer.update({ where: { buyerId: existing!.buyerId }, data: { status: 'Active' } });
     }
-    if (!marketplaceBuyerId) {
-      const nullOriginOrderIds = await claimNullBuyerOrder(tx, distributorId, candidate.incomingOrderId, existing.buyerId);
+    if (!surviveId && candidate.incomingOrderId) {
+      const nullOriginOrderIds = await claimNullBuyerOrder(tx, distributorId, candidate.incomingOrderId, existing!.buyerId);
       if (nullOriginOrderIds.length > 0) {
         undo = {
-          ...((undo ?? candidate.undoSnapshot ?? { priorStatus: existing.status }) as MergeUndoSnapshot),
+          ...((undo ?? candidate.undoSnapshot ?? { priorStatus: existing!.status }) as MergeUndoSnapshot),
           nullOriginOrderIds,
         };
       }
@@ -976,7 +1094,8 @@ export async function mergeCandidate(distributorId: number, candidateId: string)
         autoMerged: false,
         undoneAt: null,
         existingClientId: survivingId,
-        undoSnapshot: (undo ?? candidate.undoSnapshot ?? { priorStatus: existing.status }) as Prisma.InputJsonValue,
+        provisionalClientId: surviveId,
+        undoSnapshot: (undo ?? candidate.undoSnapshot ?? { priorStatus: existing!.status }) as Prisma.InputJsonValue,
       },
     });
   });
@@ -985,7 +1104,11 @@ export async function mergeCandidate(distributorId: number, candidateId: string)
 export async function dismissCandidate(distributorId: number, candidateId: string, status: 'not_a_match' | 'needs_more_info') {
   if (candidateId.startsWith('possible:')) candidateId = await materializePossibleMatch(distributorId, candidateId);
   const updated = await prisma.clientMatchCandidate.updateMany({
-    where: { id: candidateId, distributorId, status: { in: ['pending', 'needs_more_info'] } },
+    where: {
+      id: candidateId,
+      distributorId,
+      status: { in: ['pending', 'needs_more_info', 'not_a_match'] },
+    },
     data: { status },
   });
   if (updated.count === 0) throw new Error('Match not found');
@@ -1046,7 +1169,7 @@ export async function undoAutoMerge(distributorId: number, candidateId: string) 
           email: profile.email,
           phone: profile.phone,
           storeName: profile.storeName,
-          businessType: profile.businessType || 'Retailer',
+          businessType: segmentForBuyer(profile.buyerId, profile.businessType),
           address: profile.address,
           avatar: profile.avatar,
           status: 'Active',
@@ -1054,10 +1177,12 @@ export async function undoAutoMerge(distributorId: number, candidateId: string) 
         },
       });
     }
-    await tx.order.updateMany({
-      where: { orderId: candidate.incomingOrderId, userId: distributorId },
-      data: { buyerId: profile.buyerId },
-    });
+    if (candidate.incomingOrderId) {
+      await tx.order.updateMany({
+        where: { orderId: candidate.incomingOrderId, userId: distributorId },
+        data: { buyerId: profile.buyerId },
+      });
+    }
     await clearNullOriginOrders(tx, distributorId, snapshot?.nullOriginOrderIds);
     if (snapshot?.priorStatus && candidate.existingClientId !== profile.buyerId) {
       const remainingOrders = await tx.order.count({

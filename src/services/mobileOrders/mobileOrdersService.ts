@@ -11,7 +11,7 @@ import {
   updateOfferStatusesBasedOnLimits,
 } from '@/utils/offerValidation';
 import type { OfferValidationResult } from '@/utils/offerValidation';
-import { calculateOrderItemPromotion } from '@/utils/promotionUtils';
+import { calculateOrderItemPromotion, resolveMoqInPieces } from '@/utils/promotionUtils';
 import { getOfferForClientAndProduct } from '@/lib/offers/getOfferForClientAndProduct';
 import { validateVariant } from '@/services/variantService';
 import { parsePrice } from '@/utils/currencyUtils';
@@ -21,6 +21,11 @@ import { computeTotalQtyNeededWithBuyXGetY, selectVariantOption } from '@/domain
 import { enqueueSideEffect } from '@/lib/sideEffectQueue';
 import { applyBuyerPriceVisibility } from '@/services/mobileOrders/maskBuyerFacingPrices';
 import { getAuthenticatedMarketplaceUserId } from '@/utils/auth-helpers';
+import {
+  loadBuyerBusinessTypeByBuyerId,
+  orderFlowVariantOptionsInclude,
+  resolveVariantOptionMarketplaceUnitPrice,
+} from '@/utils/marketplaceSegmentPrice';
 
 export interface OrderItemInput {
   productId: string;
@@ -355,6 +360,7 @@ async function assertAppendLineOrderable(
     variantOption: {
       id: number;
       moq: number | null;
+      moqByStockLevel?: Record<string, number> | null;
       stockQuantity: number | null;
       attributes: unknown;
     };
@@ -407,16 +413,22 @@ async function assertAppendLineOrderable(
       productOffer.discountType === 'percentage' ||
       productOffer.discountType === 'fixed_amount');
   if (hasBxgyPromo && buyQty != null && freeQty != null) {
+    const moqPieces = resolveMoqInPieces({
+      packageType: args.packageType,
+      piecesPerPackage: args.piecesPerPackage,
+      moqPieces: args.variantOption.moq,
+      moqByStockLevel: args.variantOption.moqByStockLevel,
+    });
     const promotionDetails = {
       minQuantity: buyQty,
       freeQuantity: freeQty,
       applyMode: productOffer?.promotionApplyMode ?? 'after_moq',
-      moq: args.variantOption.moq ?? null,
+      moq: moqPieces,
     };
     const qty = computeTotalQtyNeededWithBuyXGetY({
       packageQuantity: args.packageQuantity,
       piecesPerPackage: args.piecesPerPackage,
-      moqPieces: args.variantOption.moq,
+      moqPieces,
       promotionDetails,
     });
     ordered = qty.orderedPieces;
@@ -533,6 +545,8 @@ async function appendItemsToPendingOrder(params: {
       select: { currency: true },
     }))?.currency ?? 'IDR';
 
+  const buyerBusinessType = await loadBuyerBusinessTypeByBuyerId(order.buyerId as string);
+
   const usedOfferIds: string[] = [];
   try {
     await prisma.$transaction(async (tx) => {
@@ -540,7 +554,7 @@ async function appendItemsToPendingOrder(params: {
       for (const item of orderItems) {
         const product = await tx.product.findFirst({
           where: { productId: String(item.productId || '') },
-          include: { variants: true, variantOptions: true },
+          include: { variants: true, variantOptions: orderFlowVariantOptionsInclude },
         });
         if (!product) throw new Error(`Product not found: ${item.productId}`);
 
@@ -582,16 +596,10 @@ async function appendItemsToPendingOrder(params: {
           buyerId: order.buyerId,
           distributorUserId,
         });
+        const segmentUnitPrice = resolveVariantOptionMarketplaceUnitPrice(variantOption, buyerBusinessType);
         const variantForValidation = {
           id: variantOption.id ?? null,
-          sellingPrice: parsePrice(
-            variantOption.sellingPrice as
-              | string
-              | number
-              | { toNumber?: () => number; toString?: () => string }
-              | null
-              | undefined,
-          ),
+          sellingPrice: segmentUnitPrice,
           originalSellingPrice: variantOption.originalSellingPrice
             ? parsePrice(
                 variantOption.originalSellingPrice as
@@ -650,14 +658,7 @@ async function appendItemsToPendingOrder(params: {
 
         const linePricing = resolveLinePricing({
           offerValidation,
-          baseUnitPrice: parsePrice(
-            variantOption.sellingPrice as
-              | string
-              | number
-              | { toNumber?: () => number; toString?: () => string }
-              | null
-              | undefined,
-          ),
+          baseUnitPrice: segmentUnitPrice,
         });
         const orderItemData = buildOrderItemCreateData({
           orderId: order.orderId,
@@ -1074,7 +1075,8 @@ export async function createMobileMarketplaceOrders(
         email: marketplaceUser.email || '',
         phone: marketplaceUser.phone || '',
         storeName: marketplaceUser.storeName || 'Mobile Store',
-        businessType: 'Retailer',
+        // Leave blank until distributor sets segment / merge fills from CRM buyer.
+        businessType: '',
         address: marketplaceUser.chosenAddress || '',
         avatar: marketplaceUser.image || null,
         status: 'Active',
@@ -1082,6 +1084,8 @@ export async function createMobileMarketplaceOrders(
       },
     });
     }
+
+    const buyerBusinessType = await loadBuyerBusinessTypeByBuyerId(matchPlan.buyerId);
 
     const groupSubtotal = Array.isArray(orderItems)
       ? orderItems.reduce((sum: number, it: OrderItemInput) => sum + parseFloat(String(it.subtotal || 0)), 0)
@@ -1169,7 +1173,7 @@ export async function createMobileMarketplaceOrders(
                 owner: order.contactPerson || 'Unknown',
                 email: order.customerEmail || '',
                 phone: order.contactPhone || '',
-                businessType: 'Retailer',
+                businessType: '',
                 address: order.deliveryAddress || '',
                 status: 'Active',
               },
@@ -1225,7 +1229,7 @@ export async function createMobileMarketplaceOrders(
         const orderItemPromises = orderItems.map(async (item: OrderItemInput) => {
           const product = await tx.product.findFirst({
             where: { productId: String(item.productId || '') },
-            include: { variants: true, variantOptions: true },
+            include: { variants: true, variantOptions: orderFlowVariantOptionsInclude },
           });
           if (!product) throw new Error(`Product not found: ${item.productId}`);
 
@@ -1244,16 +1248,10 @@ export async function createMobileMarketplaceOrders(
           const piecesPerPackage = parseInt(String(item.piecesPerPackage || 1));
           const totalQuantity = packageQuantity * piecesPerPackage;
           const orderTotal = groupTotalAmount;
+          const segmentUnitPrice = resolveVariantOptionMarketplaceUnitPrice(variantOption, buyerBusinessType);
           const variantForValidation = {
             id: variantOption.id ?? null,
-            sellingPrice: parsePrice(
-              variantOption.sellingPrice as
-                | string
-                | number
-                | { toNumber?: () => number; toString?: () => string }
-                | null
-                | undefined,
-            ),
+            sellingPrice: segmentUnitPrice,
             originalSellingPrice: variantOption.originalSellingPrice
               ? parsePrice(
                   variantOption.originalSellingPrice as
@@ -1310,14 +1308,7 @@ export async function createMobileMarketplaceOrders(
 
           const linePricing = resolveLinePricing({
               offerValidation,
-              baseUnitPrice: parsePrice(
-                variantOption.sellingPrice as
-                  | string
-                  | number
-                  | { toNumber?: () => number; toString?: () => string }
-                  | null
-                  | undefined,
-              ),
+              baseUnitPrice: segmentUnitPrice,
             });
           const orderItemData = buildOrderItemCreateData({
             orderId: order.orderId,
@@ -1428,7 +1419,7 @@ export async function createMobileMarketplaceOrders(
     for (const item of orderItems) {
       const product = await prisma.product.findFirst({
         where: { productId: String(item.productId || '') },
-        include: { variants: true, variantOptions: true },
+        include: { variants: true, variantOptions: orderFlowVariantOptionsInclude },
       });
 
       if (!product) {
@@ -1529,17 +1520,23 @@ export async function createMobileMarketplaceOrders(
           productOffer.discountType === 'fixed_amount');
 
       if (hasBxgyPromo) {
+        const moqPieces = resolveMoqInPieces({
+          packageType: String(item.packageType || 'Pieces'),
+          piecesPerPackage,
+          moqPieces: variantOption.moq,
+          moqByStockLevel: (variantOption as { moqByStockLevel?: Record<string, number> | null }).moqByStockLevel,
+        });
         const promotionDetails = {
           minQuantity: buyQty,
           freeQuantity: freeQty,
           applyMode: productOffer?.promotionApplyMode ?? 'after_moq',
-          moq: variantOption.moq ?? null,
+          moq: moqPieces,
         };
 
         const promoQty = computeTotalQtyNeededWithBuyXGetY({
           packageQuantity: orderedQty,
           piecesPerPackage,
-          moqPieces: variantOption.moq,
+          moqPieces,
           promotionDetails,
         });
         orderedPieces = promoQty.orderedPieces;
@@ -1599,7 +1596,7 @@ export async function createMobileMarketplaceOrders(
         email: marketplaceUser.email || '',
         phone: marketplaceUser.phone || '',
         storeName: marketplaceUser.storeName || 'Mobile Store',
-        businessType: 'Retailer',
+        businessType: '',
         address: marketplaceUser.chosenAddress || '',
         avatar: marketplaceUser.image || null,
         status: 'Active',
@@ -1607,6 +1604,8 @@ export async function createMobileMarketplaceOrders(
       },
     });
     }
+
+    const buyerBusinessType = await loadBuyerBusinessTypeByBuyerId(matchPlan.buyerId);
 
     const groupSubtotal = itemsForDistributor.reduce(
       (sum: number, it: OrderItemInput) => sum + parseFloat(String(it.subtotal || 0)),
@@ -1693,7 +1692,7 @@ export async function createMobileMarketplaceOrders(
           const orderItemPromises = itemsForDistributor.map(async (item: OrderItemInput) => {
             const product = await tx.product.findFirst({
               where: { productId: String(item.productId || '') },
-              include: { variants: true, variantOptions: true },
+              include: { variants: true, variantOptions: orderFlowVariantOptionsInclude },
             });
             if (!product) throw new Error(`Product not found: ${item.productId}`);
 
@@ -1738,16 +1737,22 @@ export async function createMobileMarketplaceOrders(
                 productOffer.discountType === 'fixed_amount');
 
             if (hasBxgyPromo) {
+              const moqPieces = resolveMoqInPieces({
+                packageType: String(item.packageType || 'Pieces'),
+                piecesPerPackage,
+                moqPieces: variantOption.moq,
+                moqByStockLevel: (variantOption as { moqByStockLevel?: Record<string, number> | null }).moqByStockLevel,
+              });
               const promotionDetails = {
                 minQuantity: buyQty,
                 freeQuantity: freeQty,
                 applyMode: productOffer?.promotionApplyMode ?? 'after_moq',
-                moq: variantOption.moq ?? null,
+                moq: moqPieces,
               };
               const qty = computeTotalQtyNeededWithBuyXGetY({
                 packageQuantity,
                 piecesPerPackage,
-                moqPieces: variantOption.moq,
+                moqPieces,
                 promotionDetails,
               });
               orderedPieces = qty.orderedPieces;
@@ -1759,16 +1764,10 @@ export async function createMobileMarketplaceOrders(
             // possible until that confirmation.
             const totalQuantity = orderedPieces;
             const orderTotal = groupTotalAmount;
+            const segmentUnitPrice = resolveVariantOptionMarketplaceUnitPrice(variantOption, buyerBusinessType);
             const variantForValidation = {
               id: variantOption.id ?? null,
-              sellingPrice: parsePrice(
-                variantOption.sellingPrice as
-                  | string
-                  | number
-                  | { toNumber?: () => number; toString?: () => string }
-                  | null
-                  | undefined,
-              ),
+              sellingPrice: segmentUnitPrice,
               originalSellingPrice: variantOption.originalSellingPrice
                 ? parsePrice(
                     variantOption.originalSellingPrice as
@@ -1825,14 +1824,7 @@ export async function createMobileMarketplaceOrders(
 
             const linePricing = resolveLinePricing({
                 offerValidation,
-                baseUnitPrice: parsePrice(
-                  variantOption.sellingPrice as
-                    | string
-                    | number
-                    | { toNumber?: () => number; toString?: () => string }
-                    | null
-                    | undefined,
-                ),
+                baseUnitPrice: segmentUnitPrice,
               });
             const orderItemData = buildOrderItemCreateData({
               orderId: createdOrder.orderId,
@@ -1918,7 +1910,7 @@ export async function createMobileMarketplaceOrders(
                 owner: order.contactPerson || 'Unknown',
                 email: order.customerEmail || '',
                 phone: order.contactPhone || '',
-                businessType: 'Retailer',
+                businessType: '',
                 address: order.deliveryAddress || '',
                 status: 'Active',
               },

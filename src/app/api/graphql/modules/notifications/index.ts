@@ -700,6 +700,26 @@ export const NotificationService = {
     }
   },
 
+  /** Retailer signed up / joined with this distributor's referral code as a Prospect. */
+  async createMarketplaceAccessRequestNotification(
+    userId: number,
+    buyerId: string,
+    storeName: string,
+  ) {
+    const label = storeName.trim() || 'A retailer';
+    await prisma.notification.create({
+      data: {
+        userId,
+        type: 'buyer',
+        title: 'Marketplace access request',
+        message: `${label} requested access to your storefront. Set their market segment, then approve.`,
+        metadata: { buyerId, storeName: label, kind: 'marketplace_access_request' },
+        actionUrl: `/clients/buyers/details/${buyerId}`,
+      },
+    });
+    emitDashboardNewNotification(userId);
+  },
+
   // Create product published notification
   async createProductNotification(
     userId: number,

@@ -96,13 +96,25 @@ export async function sendExpoPushToMarketplaceUser(
         ? (titleOrTranslations as Record<DriverPushLanguage, MarketplacePushPayload>)[group.language]
         : { title: titleOrTranslations as string, body: (bodyOrData as string) ?? '' };
 
+      const dataType =
+        typeof dataPayload.type === 'string' ? dataPayload.type : undefined;
+      const channelId =
+        dataType === 'membership_approved' ||
+        dataType === 'membership' ||
+        dataType === 'platform_announcement' ||
+        dataType === 'system'
+          ? 'system'
+          : dataType === 'promotion'
+            ? 'promotions'
+            : 'orders';
+
       const payload = {
         to: group.tokens,
         title,
         body,
         data: dataPayload,
         sound: 'default' as const,
-        channelId: 'orders',
+        channelId,
         priority: 'high' as const,
       };
 

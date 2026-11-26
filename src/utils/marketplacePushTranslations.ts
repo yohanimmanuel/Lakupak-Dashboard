@@ -233,6 +233,23 @@ export function translateMarketplaceFleetAssigned(params: {
   };
 }
 
+/** Distributor approved marketplace storefront access for this buyer. */
+export function translateMarketplaceMembershipApproved(): Record<
+  DriverPushLanguage,
+  MarketplacePushPayload
+> {
+  return {
+    id: {
+      title: 'Akses disetujui',
+      body: 'Distributor Anda telah menyetujui akses. Anda sekarang dapat melihat produk dan harga mereka.',
+    },
+    en: {
+      title: 'Access approved',
+      body: 'Your distributor approved your access. You can now browse their products and prices.',
+    },
+  };
+}
+
 export function translateMarketplacePaymentIntentSubmitted(params: { orderId: string }): Record<
   DriverPushLanguage,
   MarketplacePushPayload

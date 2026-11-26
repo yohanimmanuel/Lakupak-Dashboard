@@ -717,6 +717,7 @@ export async function buildDistributorAppAssistantContext(
           select: { sku: true },
         },
         brand: true,
+        productType: true,
         marketplaceStatus: true,
         status: true,
         description: true,

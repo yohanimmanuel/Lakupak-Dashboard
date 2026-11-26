@@ -217,8 +217,7 @@
       "title": "Buyer data has been deleted",
       "description": "The buyer you are trying to view is no longer available. It can still appear as a reference in past orders.",
       "reference": "Reference: {id}",
-      "goBack": "Go Back",
-      "backToList": "Buyers List",
+      "backToList": "Go to list",
       "goHome": "Go to Home"
     },
     "detailsPage": {
@@ -227,8 +226,6 @@
       "loading": "Loading buyer details...",
       "errorTitle": "Error Loading Buyer",
       "unexpectedError": "An unexpected error occurred",
-      "deletedRedirect": "Buyer has been deleted",
-      "redirecting": "Redirecting to deleted notice...",
       "error": "Error"
     },
     "profile": {
@@ -237,6 +234,12 @@
       "copyData": "Copy Data",
       "editDetails": "Edit Details",
       "matchWithOrder": "Match with a marketplace order",
+      "approveAccessTitle": "Marketplace access request",
+      "approveAccessHint": "Set the market segment (business type) on this buyer, then approve so they can open your storefront with the correct prices.",
+      "approveAccessNeedsSegment": "Set a market segment (business type) before approving access.",
+      "approveAccess": "Approve access",
+      "approveAccessBusy": "Approving…",
+      "approveAccessFailed": "Could not approve access. Try again.",
       "profileCompletion": "Profile Completion",
       "fieldsCompleted": "{completed} of {total} fields completed",
       "missingFields": "Missing: {fields}",

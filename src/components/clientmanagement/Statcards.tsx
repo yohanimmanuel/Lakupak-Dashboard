@@ -19,6 +19,10 @@ import {
   STAT_ICON_BLUE,
   STAT_ICON_GREEN,
 } from '@/utils/statCardStyles';
+import {
+  formatBuyerOrderQuantityDisplay,
+  getBuyerOrderQuantity,
+} from '@/utils/buyerOrderQuantity';
 
 /**
  * Statcards Component - Single Source of Truth Currency
@@ -47,6 +51,11 @@ function cleanDecimals(value: number): number {
 /** Whole-currency amounts (IDR-safe: strips thousand separators like 12.345.000). */
 function parseMoneyValue(value: unknown): number {
   return parseInt(String(value ?? '').replace(/[^\d-]/g, ''), 10) || 0;
+}
+
+/** Round package/item averages to hundredths for buyer stat cards. */
+function formatAvgOrderedItems(value: number, perMonthSuffix: string): string {
+  return `${formatBuyerOrderQuantityDisplay(value)}${perMonthSuffix}`;
 }
 
 function monthKeyFromValue(value: Date | string | null | undefined): string | null {
@@ -85,7 +94,8 @@ function buyerCalendarMonthActivity(buyers: Buyer[], from: Date = new Date()) {
       const bucket = key === currentKey ? current : key === previousKey ? previous : null;
       if (!bucket) continue;
       bucket.spend += parseMoneyValue(detail.totalSpend);
-      const items = parseMoneyValue(detail.totalOrders);
+      // totalOrders is unit-aware ("6.63 Cartons") — never parse as money digits.
+      const items = getBuyerOrderQuantity(detail.totalOrders);
       bucket.items += items > 0 ? items : 1;
       if (buyerKey) bucket.buyerIds.add(buyerKey);
     }
@@ -295,12 +305,12 @@ export default function Statcards({ type, data }: StatcardsProps) {
           },
           {
             label: tShared('stats.avgOrderFrequency'),
-            value: `${currentMonthlyItems.toFixed(1)}${perMonth}`,
+            value: formatAvgOrderedItems(currentMonthlyItems, perMonth),
             change: monthlyItemsGrowth.growth,
-            currentValue: `${monthlyItemsGrowth.current.toFixed(1)}${perMonth}`,
+            currentValue: formatAvgOrderedItems(monthlyItemsGrowth.current, perMonth),
             previousValue:
               monthlyItemsGrowth.previous != null
-                ? `${monthlyItemsGrowth.previous.toFixed(1)}${perMonth}`
+                ? formatAvgOrderedItems(monthlyItemsGrowth.previous, perMonth)
                 : undefined,
             icon: <Repeat className={`w-6 h-6 ${STAT_ICON_BLUE}`} />,
             color: STAT_ICON_BG_BLUE,
@@ -475,12 +485,12 @@ export default function Statcards({ type, data }: StatcardsProps) {
           },
           {
             label: tShared('stats.avgOrderFrequency'),
-            value: `${currentMonthlyItems.toFixed(1)}${perMonth}`,
+            value: formatAvgOrderedItems(currentMonthlyItems, perMonth),
             change: monthlyItemsGrowth.growth,
-            currentValue: `${monthlyItemsGrowth.current.toFixed(1)}${perMonth}`,
+            currentValue: formatAvgOrderedItems(monthlyItemsGrowth.current, perMonth),
             previousValue:
               monthlyItemsGrowth.previous != null
-                ? `${monthlyItemsGrowth.previous.toFixed(1)}${perMonth}`
+                ? formatAvgOrderedItems(monthlyItemsGrowth.previous, perMonth)
                 : undefined,
             icon: <Repeat className={`w-6 h-6 ${STAT_ICON_BLUE}`} />,
             color: STAT_ICON_BG_BLUE,

@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
     }
     if (!(await isMarketplaceMember(marketplaceUserId, distributorId))) {
       return NextResponse.json(
-        { error: 'This storefront is only open to retailers invited by the distributor', code: 'NOT_A_MEMBER' },
+        { error: 'This storefront is only open to approved retailers', code: 'NOT_A_MEMBER' },
         { status: 403, headers },
       );
     }

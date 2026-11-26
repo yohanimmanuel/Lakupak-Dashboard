@@ -10,6 +10,12 @@ import {
 import { getMeiliClient, MEILI_PRODUCTS_INDEX, getMarketplaceSearchEngineMode } from '@/lib/meili';
 import type { SearchParams } from 'meilisearch';
 import { expandCategoryFilterValues } from '@/utils/categoryUtils';
+import {
+  formatResolvedVariantSellingPrice,
+  loadDistributorBusinessTypesMap,
+  marketplaceVariantOptionsSegmentInclude,
+  resolveMarketplaceSellingPrice,
+} from '@/utils/marketplaceSegmentPrice';
 
 function isSafeCategoryFilterToken(value: string): boolean {
   return value.length > 0 && value.length <= 64 && /^[\p{L}\p{N}\s&\-_/]+$/u.test(value);
@@ -37,7 +43,7 @@ const marketplaceProductInclude = {
   variants: true,
   // Only surface sellable variant options. Options tied to past orders that the distributor
   // "removed" are deactivated (isActive=false) rather than deleted, and must not appear in the marketplace.
-  variantOptions: { where: { isActive: true } },
+  variantOptions: marketplaceVariantOptionsSegmentInclude,
   user: {
     select: {
       firstName: true,
@@ -747,6 +753,17 @@ export const fetchMarketplaceProducts = async (args: {
   // Per-retailer offers are private — marketplace shows public base prices only (no RFQ).
   // Keep GraphQL offer fields as null/false so clients do not break.
 
+  const distributorIdsForBuyerLookup =
+    isDistributorScoped && scopedDistributorIds.length > 0
+      ? scopedDistributorIds
+      : args.marketplaceUserId
+        ? userIds
+        : [];
+  const businessTypeByDistributor =
+    args.marketplaceUserId && distributorIdsForBuyerLookup.length > 0
+      ? await loadDistributorBusinessTypesMap(args.marketplaceUserId, distributorIdsForBuyerLookup)
+      : new Map<number, string>();
+
   // Transform products for marketplace format
   const marketplaceProducts = await Promise.all(resolvedProducts.map(async (product) => {
     const variantOptions = product.variantOptions || [];
@@ -755,8 +772,18 @@ export const fetchMarketplaceProducts = async (args: {
       return null;
     }
     
+    const buyerBusinessType =
+      product.userId != null ? businessTypeByDistributor.get(product.userId) ?? null : null;
+
+    const resolvedUnitPrice = (vo: (typeof variantOptions)[number]) =>
+      resolveMarketplaceSellingPrice(
+        safeParsePrice(vo.sellingPrice),
+        vo.segmentPriceRows,
+        buyerBusinessType,
+      );
+
     const firstVariantOption = variantOptions.find((vo) => vo.isDefault) || variantOptions[0];
-    const sellingPrice = safeParsePrice(firstVariantOption.sellingPrice);
+    const sellingPrice = formatResolvedVariantSellingPrice(resolvedUnitPrice(firstVariantOption));
     const purchasePrice = safeParsePrice(firstVariantOption.purchasePrice);
     const storedOriginalPrice = firstVariantOption.originalSellingPrice 
       ? safeParsePrice(firstVariantOption.originalSellingPrice) 
@@ -813,7 +840,10 @@ export const fetchMarketplaceProducts = async (args: {
       variants: product.variants || [],
       // Raw rows are returned as JSON: segment prices are distributor-private and must not reach buyers.
       variantOptions: (product.variantOptions || []).map((vo) => {
-        const publicOption: Record<string, unknown> = { ...vo };
+        const publicOption: Record<string, unknown> = {
+          ...vo,
+          sellingPrice: formatResolvedVariantSellingPrice(resolvedUnitPrice(vo)),
+        };
         // Segment prices are distributor-private (relational rows or legacy map).
         delete publicOption.segmentPrices;
         delete publicOption.segmentPriceRows;
@@ -823,7 +853,7 @@ export const fetchMarketplaceProducts = async (args: {
         id: vo.id,
         sku: vo.sku,
         purchasePrice: safeParsePrice(vo.purchasePrice),
-        sellingPrice: safeParsePrice(vo.sellingPrice),
+        sellingPrice: formatResolvedVariantSellingPrice(resolvedUnitPrice(vo)),
         originalSellingPrice: safeParsePrice(vo.originalSellingPrice),
         moq: vo.moq,
         moqByStockLevel: vo.moqByStockLevel ?? {},

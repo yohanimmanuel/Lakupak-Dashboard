@@ -4,7 +4,7 @@ import BuyerProfile from '@/components/clientmanagement/BuyerProfile';
 import { SkeletonClientProfilePage } from '@/components/skeleton/SkeletonClientProfilePage';
 import useSWR from 'swr';
 import { useParams } from 'next/navigation';
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useUserStore } from '@/store/userStore';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import type { Buyer } from '@/types/client';
@@ -82,13 +82,6 @@ export default function BuyerDetailsPage() {
     },
   );
 
-  useEffect(() => {
-    if (buyer && 'error' in buyer && buyer.error === 'Buyer not found') {
-      const ref = encodeURIComponent(String(id || ''));
-      window.location.href = `/clients/buyers/deleted?id=${ref}`;
-    }
-  }, [buyer, id]);
-
   const showSkeleton =
     !isHydrated ||
     isLoading ||
@@ -139,10 +132,22 @@ export default function BuyerDetailsPage() {
 
   if (!buyer || ('error' in buyer && buyer.error === 'Buyer not found')) {
     return (
-      <div className="flex min-h-full w-full min-w-0 flex-col items-center justify-center bg-gradient-to-b from-gray-50 to-white p-4">
-        <div className="text-center">
-          <div className="text-gray-500 text-lg font-semibold mb-2">{tPage('deletedRedirect')}</div>
-          <div className="text-gray-600">{tPage('redirecting')}</div>
+      <div className="flex h-full min-h-full w-full min-w-0 flex-col items-center justify-center bg-gradient-to-b from-gray-50 to-white p-4">
+        <div className="max-w-md rounded-lg border border-[#e6e6e6] bg-white p-8 text-center">
+          <h1 className="mb-2 text-xl font-semibold text-gray-900">{tBuyers('deleted.title')}</h1>
+          <p className="mb-6 text-sm text-gray-600">{tBuyers('deleted.description')}</p>
+          {id ? (
+            <p className="mb-4 text-xs text-gray-500">{tBuyers('deleted.reference', { id })}</p>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => {
+              window.location.href = '/clients/buyers';
+            }}
+            className="rounded-lg bg-[#0a61d7] px-4 py-2 text-sm text-white transition-colors hover:bg-[#0851b8]"
+          >
+            {tBuyers('deleted.backToList')}
+          </button>
         </div>
       </div>
     );

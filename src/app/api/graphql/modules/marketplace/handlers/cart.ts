@@ -1,5 +1,6 @@
 import type { Prisma } from '@/lib/db';
 import { prisma } from '../../common/prisma';
+import { applySegmentPricesToMarketplaceProductSnapshot } from '@/utils/marketplaceSegmentPrice';
 
 export const fetchMobileCart = async (userId: number, distributorId: number | null) => {
   // Fetch all cart items from database (keeping unpublished products in DB for history)
@@ -35,23 +36,46 @@ export const fetchMobileCart = async (userId: number, distributorId: number | nu
   // Unpublished products stay in DB but are hidden from cart
   const visibleCartItems = cartItems.filter(item => publishedProductIds.has(item.productId));
 
+  const items = await Promise.all(
+    visibleCartItems.map(async (item) => {
+      let productData = item.productData as Record<string, unknown>;
+      if (distributorId) {
+        const refreshed = await applySegmentPricesToMarketplaceProductSnapshot(
+          productData,
+          item.productId,
+          userId,
+          distributorId,
+        );
+        productData = refreshed;
+        if (JSON.stringify(refreshed) !== JSON.stringify(item.productData)) {
+          await prisma.userActivity.update({
+            where: { id: item.id },
+            data: { productData: refreshed as Prisma.InputJsonValue },
+          });
+        }
+      }
+      return {
+        id: item.id,
+        userId: item.userId,
+        productId: item.productId,
+        productData: productData as Prisma.InputJsonValue,
+        activityType: item.activityType,
+        metadata: item.metadata as Prisma.InputJsonValue | null,
+        createdAt: item.createdAt.toISOString(),
+        updatedAt: item.updatedAt.toISOString(),
+      };
+    }),
+  );
+
   return {
-    items: visibleCartItems.map(item => ({
-      id: item.id,
-      userId: item.userId,
-      productId: item.productId,
-      productData: item.productData as Prisma.InputJsonValue,
-      activityType: item.activityType,
-      metadata: item.metadata as Prisma.InputJsonValue | null,
-      createdAt: item.createdAt.toISOString(),
-      updatedAt: item.updatedAt.toISOString(),
-    })),
+    items,
     success: true
   };
 };
 
 export const addToCart = async (args: {
   userId: number;
+  distributorId?: number | null;
   productId: string;
   productData: Record<string, unknown>;
   quantity?: number;
@@ -59,7 +83,16 @@ export const addToCart = async (args: {
   packageType?: string;
   piecesPerPackage?: number;
 }) => {
-  const { userId, productId, productData, quantity = 1, variant = 'Default', packageType = 'Pieces', piecesPerPackage = 1 } = args;
+  const { userId, productId, quantity = 1, variant = 'Default', packageType = 'Pieces', piecesPerPackage = 1 } = args;
+  let productData = args.productData;
+  if (args.distributorId) {
+    productData = await applySegmentPricesToMarketplaceProductSnapshot(
+      productData,
+      productId,
+      userId,
+      args.distributorId,
+    );
+  }
 
   return prisma.$transaction(async (tx) => {
     // Match explicit stock-level metadata in the database first. Older cart
