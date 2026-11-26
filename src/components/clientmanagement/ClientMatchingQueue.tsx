@@ -286,7 +286,7 @@ export default function ClientMatchingQueue() {
           aria-checked={autoMatch}
           className="inline-flex items-center gap-3 px-4 py-2 rounded-lg bg-white border border-[#e6e6e6] text-sm font-medium text-black hover:bg-gray-100 shrink-0"
           onClick={() =>
-            act(async () => {
+            void act('__settings__', 'merge', async () => {
               const next = !autoMatch;
               const data = await fetchGraphQL<{ updateClientMatchSettings: { autoMatch: boolean } }>(
                 `mutation SetAutoMatch($userId: Int!, $autoMatch: Boolean!) { updateClientMatchSettings(userId: $userId, autoMatch: $autoMatch) { autoMatch } }`,

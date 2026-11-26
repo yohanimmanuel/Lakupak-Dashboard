@@ -589,7 +589,14 @@ async function appendItemsToPendingOrder(params: {
         await assertAppendLineOrderable(tx, {
           productId: product.productId,
           productName: product.name,
-          variantOption,
+          variantOption: {
+            id: variantOption.id,
+            moq: variantOption.moq,
+            moqByStockLevel: (variantOption as { moqByStockLevel?: Record<string, number> | null })
+              .moqByStockLevel,
+            stockQuantity: variantOption.stockQuantity,
+            attributes: variantOption.attributes,
+          },
           packageQuantity,
           piecesPerPackage,
           packageType: requestedPackageType,

@@ -64,7 +64,7 @@ describe('mobile orders - fail fast without partial writes', () => {
     });
 
     const membership = await ensureMarketplaceMembership(buyer.id, distributor.id);
-    expect(membership).toEqual({ ok: true });
+    expect(membership).toEqual({ ok: true, access: 'pending' });
 
     const res = await createMobileMarketplaceOrders(
       makeAuthenticatedMarketplacePostRequest(
@@ -207,7 +207,7 @@ describe('mobile orders - fail fast without partial writes', () => {
     expect(offer.id).toBeTruthy();
 
     const membership = await ensureMarketplaceMembership(buyer.id, distributor.id);
-    expect(membership).toEqual({ ok: true });
+    expect(membership).toEqual({ ok: true, access: 'pending' });
 
     const res = await createMobileMarketplaceOrders(
       makeAuthenticatedMarketplacePostRequest(
