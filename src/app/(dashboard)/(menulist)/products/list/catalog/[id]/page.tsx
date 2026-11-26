@@ -28,7 +28,6 @@ export default function ViewProductPage() {
             product(userId: $userId, id: $id) {
               id
               productId
-              marketSegment
               name
               description
               productType
@@ -57,6 +56,7 @@ export default function ViewProductPage() {
                 originalSellingPrice
                 moq
                 moqByStockLevel
+                segmentPrices
                 stockQuantity
                 lowStockThreshold
                 stockStatus

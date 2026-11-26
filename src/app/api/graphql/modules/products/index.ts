@@ -2,7 +2,6 @@ import { GraphQLError } from 'graphql';
 import { type Prisma } from '@/lib/db';
 import {
   productImagesError,
-  productMarketSegmentError,
   productReturnDaysError,
   productTextFieldsError,
 } from '@/utils/product-security';
@@ -26,13 +25,13 @@ import { auditCatalog } from '@/lib/audit';
 import { requireDashboardUser, withDashboardAuth } from '@/app/api/graphql/modules/common/auth';
 import { computeAssortmentGap, computeAssortmentGapVariants } from '@/lib/products/assortmentGap';
 import { normalizeStockLevels, validateStockLevels, type StockLevel } from '@/utils/stockUtils';
+import { SEGMENT_PRICE_KEY_MAX, segmentPriceKey } from '@/utils/priceAnchorUtils';
 
 function rejectProductInput(message: string): never {
   throw new GraphQLError(message, { extensions: { code: 'BAD_USER_INPUT' } });
 }
 
 function assertProductPayload(input: {
-  marketSegment?: unknown;
   name?: unknown;
   description?: unknown;
   productType?: unknown;
@@ -63,8 +62,6 @@ function assertProductPayload(input: {
     input.textMode,
   );
   if (textError) rejectProductInput(textError);
-  const marketSegmentError = productMarketSegmentError(input.marketSegment);
-  if (marketSegmentError) rejectProductInput(marketSegmentError);
   const imageError = productImagesError(input.images);
   if (imageError) rejectProductInput(imageError);
   const daysError = productReturnDaysError(input.returnPolicyDays);
@@ -144,6 +141,7 @@ export const productsTypeDefs = /* GraphQL */ `
     originalSellingPrice: Float
     moq: Int
     moqByStockLevel: JSONObject
+    segmentPrices: JSONObject
     stockQuantity: Int
     lowStockThreshold: Int
     stockStatus: String
@@ -155,7 +153,6 @@ export const productsTypeDefs = /* GraphQL */ `
   type Product {
     id: Int!
     productId: String!
-    marketSegment: String
     name: String!
     description: String!
     productType: String!
@@ -255,6 +252,7 @@ export const productsTypeDefs = /* GraphQL */ `
     originalSellingPrice: String
     moq: Int
     moqByStockLevel: JSONObject
+    segmentPrices: JSONObject
     stockQuantity: Int!
     lowStockThreshold: Int!
     stockStatus: String!
@@ -394,7 +392,6 @@ export const productsTypeDefs = /* GraphQL */ `
     createProduct(
       userId: Int!
       productId: String
-      marketSegment: String
       name: String!
       description: String!
       productType: String!
@@ -421,7 +418,6 @@ export const productsTypeDefs = /* GraphQL */ `
       userId: Int!
       id: String
       productId: String
-      marketSegment: String
       name: String
       description: String
       productType: String
@@ -482,6 +478,12 @@ export const variantOptionSelect = {
   isDefault: true,
   isActive: true,
   attributes: true,
+  segmentPriceRows: {
+    select: {
+      segmentKey: true,
+      sellingPrice: true,
+    },
+  },
 } satisfies Prisma.VariantOptionSelect;
 
 export const productSellerInclude = {
@@ -523,6 +525,18 @@ const buildSellerInfo = (product: Prisma.ProductGetPayload<typeof productSellerI
   };
 };
 
+const segmentPricesFromRows = (
+  rows: Array<{ segmentKey: string; sellingPrice: Prisma.Decimal | number | string }> | null | undefined,
+): Record<string, number> => {
+  const out: Record<string, number> = {};
+  for (const row of rows ?? []) {
+    const key = segmentPriceKey(row.segmentKey);
+    if (!key) continue;
+    out[key] = parseMoney(row.sellingPrice);
+  }
+  return out;
+};
+
 const mapVariantOption = (variantOption: Prisma.VariantOptionGetPayload<{ select: typeof variantOptionSelect }>) => ({
   id: variantOption.id,
   variantName: variantOption.variantName,
@@ -532,6 +546,8 @@ const mapVariantOption = (variantOption: Prisma.VariantOptionGetPayload<{ select
   originalSellingPrice: variantOption.originalSellingPrice ? parseMoney(variantOption.originalSellingPrice) : null,
   moq: variantOption.moq ?? null,
   moqByStockLevel: variantOption.moqByStockLevel ?? {},
+  // GraphQL still exposes a map; storage is VariantSegmentPrice rows.
+  segmentPrices: segmentPricesFromRows(variantOption.segmentPriceRows),
   stockQuantity: variantOption.stockQuantity ?? 0,
   lowStockThreshold: variantOption.lowStockThreshold ?? 0,
   stockStatus: variantOption.stockStatus ?? 'In Stock',
@@ -605,7 +621,6 @@ export const mapProduct = (
   return {
     id: product.id,
     productId: product.productId,
-    marketSegment: (product as { marketSegment?: string | null }).marketSegment ?? null,
     name: product.name,
     description: product.description,
     productType: product.productType,
@@ -896,7 +911,6 @@ const toPrismaStockLevelsJson = (levels: unknown): Prisma.InputJsonValue =>
 
 const buildProductData = ({
   productId,
-  marketSegment,
   name,
   description,
   productType,
@@ -917,7 +931,6 @@ const buildProductData = ({
   userId,
 }: {
   productId: string;
-  marketSegment?: string | null;
   name: string;
   description: string;
   productType: string;
@@ -942,7 +955,6 @@ const buildProductData = ({
 
   return {
     productId,
-    marketSegment: marketSegment?.trim() || null,
     name: name.trim(),
     description: description.trim(),
     productType: productType.trim(),
@@ -1004,12 +1016,20 @@ const stableStringifyAttributes = (v: unknown): string => {
 };
 
 const VARIANT_DECIMAL_MAX = 9_999_999_999.99;
+const VARIANT_PIECE_DECIMAL_MAX = 9_999_999_999.999999;
 const VARIANT_INT_MAX = 2_147_483_647;
 
 const clampVariantDecimal = (value: number): number => {
   if (!Number.isFinite(value)) return 0;
   const rounded = Math.round(value * 100) / 100;
   return Math.min(Math.max(rounded, 0), VARIANT_DECIMAL_MAX);
+};
+
+/** Per-Piece catalog prices keep 6 decimals (Decimal(18,6)) so package↔piece round-trips stay exact. */
+const clampVariantPieceDecimal = (value: number): number => {
+  if (!Number.isFinite(value)) return 0;
+  const rounded = Math.round(value * 1_000_000) / 1_000_000;
+  return Math.min(Math.max(rounded, 0), VARIANT_PIECE_DECIMAL_MAX);
 };
 
 /** Same parse and 2-decimal round createVariantOptionsPayload stores, so 0.0001 cannot pass as a positive price. */
@@ -1022,6 +1042,47 @@ const clampVariantInt = (value: number | null | undefined, fallback = 0): number
   return Math.min(Math.max(Math.trunc(parsed), 0), VARIANT_INT_MAX);
 };
 
+/**
+ * Segment prices are optional per-Piece selling prices keyed by market segment.
+ * Blank, non-numeric, and non-positive entries are dropped. Values keep 6-decimal
+ * per-Piece precision so a carton input like 180000 does not come back as 180000.04.
+ */
+const sanitizeSegmentPrices = (raw: unknown, currency?: string | null): Record<string, number> => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const sanitized: Record<string, number> = {};
+  for (const [label, value] of Object.entries(raw as Record<string, unknown>)) {
+    const key = segmentPriceKey(label);
+    if (!key || key.length > SEGMENT_PRICE_KEY_MAX) continue;
+    let parsed: number;
+    if (typeof value === 'number') parsed = value;
+    else if (typeof value === 'string' && value.trim()) parsed = parseNumberByCurrency(value, currency ?? undefined);
+    else continue;
+    const price = clampVariantPieceDecimal(parsed);
+    if (price > 0) sanitized[key] = price;
+  }
+  return sanitized;
+};
+
+type VariantOptionWritePayload = {
+  data: {
+    variantName: string;
+    attributes: Prisma.InputJsonValue;
+    sku: string | null;
+    purchasePrice: number;
+    sellingPrice: number;
+    originalSellingPrice: null;
+    moq: number | null;
+    moqByStockLevel: Prisma.InputJsonValue;
+    stockQuantity: number;
+    lowStockThreshold: number;
+    stockStatus: string;
+    isDefault: boolean;
+    isActive: boolean;
+  };
+  /** undefined = leave existing rows alone (imports / older clients). */
+  segmentPrices: Record<string, number> | undefined;
+};
+
 const createVariantOptionsPayload = (
   variantOptions: Array<{
     variantName: string;
@@ -1032,6 +1093,7 @@ const createVariantOptionsPayload = (
     originalSellingPrice?: string | null;
     moq?: number | null;
     moqByStockLevel?: Record<string, number> | null;
+    segmentPrices?: Record<string, unknown> | null;
     stockQuantity: number;
     lowStockThreshold: number;
     stockStatus: string;
@@ -1039,29 +1101,57 @@ const createVariantOptionsPayload = (
     isActive: boolean;
   }>,
   currency?: string | null,
-) =>
+): VariantOptionWritePayload[] =>
   variantOptions.map((option) => {
-    // Parse prices as numbers and round to 2 decimal places for Decimal precision
     const purchasePriceNum = parseNumberByCurrency(option.purchasePrice || '', currency ?? undefined);
     const sellingPriceNum = parseNumberByCurrency(option.sellingPrice || '', currency ?? undefined);
-    
+
     return {
-      variantName: normalizeVariantName(option.variantName),
-      attributes: option.attributes as Prisma.InputJsonValue,
-      sku: option.sku || null,
-      purchasePrice: clampVariantDecimal(purchasePriceNum),
-      sellingPrice: clampVariantDecimal(sellingPriceNum),
-      // Offers no longer rewrite catalog prices — do not persist originalSellingPrice
-      originalSellingPrice: null,
-      moq: option.moq == null ? null : clampVariantInt(option.moq, 0),
-      moqByStockLevel: Object.fromEntries(Object.entries(option.moqByStockLevel ?? {}).filter(([name, qty]) => name !== 'Pieces' && typeof qty === 'number' && Number.isSafeInteger(qty) && qty >= 0)) as Prisma.InputJsonValue,
-      stockQuantity: clampVariantInt(option.stockQuantity, 0),
-      lowStockThreshold: clampVariantInt(option.lowStockThreshold, 0),
-      stockStatus: option.stockStatus || 'In Stock',
-      isDefault: option.isDefault || false,
-      isActive: option.isActive !== false,
+      data: {
+        variantName: normalizeVariantName(option.variantName),
+        attributes: option.attributes as Prisma.InputJsonValue,
+        sku: option.sku || null,
+        // Piece-normalized catalog prices — keep 6 decimals for clean package round-trips.
+        purchasePrice: clampVariantPieceDecimal(purchasePriceNum),
+        sellingPrice: clampVariantPieceDecimal(sellingPriceNum),
+        originalSellingPrice: null,
+        moq: option.moq == null ? null : clampVariantInt(option.moq, 0),
+        moqByStockLevel: Object.fromEntries(Object.entries(option.moqByStockLevel ?? {}).filter(([name, qty]) => name !== 'Pieces' && typeof qty === 'number' && Number.isSafeInteger(qty) && qty >= 0)) as Prisma.InputJsonValue,
+        stockQuantity: clampVariantInt(option.stockQuantity, 0),
+        lowStockThreshold: clampVariantInt(option.lowStockThreshold, 0),
+        stockStatus: option.stockStatus || 'In Stock',
+        isDefault: option.isDefault || false,
+        isActive: option.isActive !== false,
+      },
+      segmentPrices:
+        option.segmentPrices === undefined
+          ? undefined
+          : sanitizeSegmentPrices(option.segmentPrices, currency),
     };
   });
+
+const syncVariantSegmentPrices = async (
+  tx: Prisma.TransactionClient | typeof prisma,
+  variantOptionId: number,
+  segmentPrices: Record<string, number> | undefined,
+) => {
+  if (segmentPrices === undefined) return;
+  const keys = Object.keys(segmentPrices);
+  if (keys.length === 0) {
+    await tx.variantSegmentPrice.deleteMany({ where: { variantOptionId } });
+    return;
+  }
+  await tx.variantSegmentPrice.deleteMany({
+    where: { variantOptionId, segmentKey: { notIn: keys } },
+  });
+  for (const [segmentKey, sellingPrice] of Object.entries(segmentPrices)) {
+    await tx.variantSegmentPrice.upsert({
+      where: { variantOptionId_segmentKey: { variantOptionId, segmentKey } },
+      create: { variantOptionId, segmentKey, sellingPrice },
+      update: { sellingPrice },
+    });
+  }
+};
 
 const broadcastProductChanges = async (productId?: string | null) => {
   if (!productId) return;
@@ -1094,7 +1184,6 @@ const mapProductWithOffers = async (product: Prisma.ProductGetPayload<{ include:
 export const createProduct = async (args: {
   userId: number;
   productId?: string | null;
-  marketSegment?: string | null;
   name: string;
   description: string;
   productType: string;
@@ -1127,6 +1216,7 @@ export const createProduct = async (args: {
     originalSellingPrice?: string | null;
     moq?: number | null;
     moqByStockLevel?: Record<string, number> | null;
+    segmentPrices?: Record<string, unknown> | null;
     stockQuantity: number;
     lowStockThreshold: number;
     stockStatus: string;
@@ -1137,7 +1227,6 @@ export const createProduct = async (args: {
   const {
     userId,
     productId,
-    marketSegment,
     name,
     description,
     productType,
@@ -1165,7 +1254,6 @@ export const createProduct = async (args: {
   validatePriceAnchorUnit(purchasePriceUnit, effectiveStockLevels, 'Purchase price unit');
 
   assertProductPayload({
-    marketSegment,
     name,
     description,
     productType,
@@ -1192,7 +1280,6 @@ export const createProduct = async (args: {
 
   const productData = buildProductData({
     productId: finalProductId,
-    marketSegment,
     name,
     description,
     productType,
@@ -1213,6 +1300,10 @@ export const createProduct = async (args: {
     userId,
   });
 
+  const variantWrites = variantOptions
+    ? createVariantOptionsPayload(variantOptions, currency ?? undefined)
+    : [];
+
   const product = await prisma.product.create({
     data: {
       ...productData,
@@ -1225,9 +1316,21 @@ export const createProduct = async (args: {
             })),
           }
         : undefined,
-      variantOptions: variantOptions
+      variantOptions: variantWrites.length
         ? {
-            create: createVariantOptionsPayload(variantOptions, currency ?? undefined),
+            create: variantWrites.map(({ data, segmentPrices }) => ({
+              ...data,
+              ...(segmentPrices && Object.keys(segmentPrices).length > 0
+                ? {
+                    segmentPriceRows: {
+                      create: Object.entries(segmentPrices).map(([segmentKey, sellingPrice]) => ({
+                        segmentKey,
+                        sellingPrice,
+                      })),
+                    },
+                  }
+                : {}),
+            })),
           }
         : undefined,
     },
@@ -1385,7 +1488,6 @@ export const updateProduct = async (args: {
   userId: number;
   id?: string | null;
   productId?: string | null;
-  marketSegment?: string | null;
   name?: string | null;
   description?: string | null;
   productType?: string | null;
@@ -1418,6 +1520,7 @@ export const updateProduct = async (args: {
     originalSellingPrice?: string | null;
     moq?: number | null;
     moqByStockLevel?: Record<string, number> | null;
+    segmentPrices?: Record<string, unknown> | null;
     stockQuantity: number;
     lowStockThreshold: number;
     stockStatus: string;
@@ -1429,7 +1532,6 @@ export const updateProduct = async (args: {
     userId,
     id,
     productId,
-    marketSegment,
     name,
     description,
     productType,
@@ -1500,12 +1602,6 @@ export const updateProduct = async (args: {
   }
   // Draft `present` mode skips omitted fields; publishing validates SKU on every variant.
   assertProductPayload({
-    marketSegment:
-      marketSegment !== undefined
-        ? marketSegment
-        : publishing
-          ? (productBeforeUpdate as { marketSegment?: string | null }).marketSegment
-          : undefined,
     name: name !== undefined ? name : productBeforeUpdate.name,
     description: description !== undefined ? description : productBeforeUpdate.description,
     productType: productType !== undefined ? productType : productBeforeUpdate.productType,
@@ -1535,10 +1631,6 @@ export const updateProduct = async (args: {
 
   const cleanUpdateData: Record<string, unknown> = {};
 
-  if (marketSegment !== undefined) {
-    const trimmedMarketSegment = String(marketSegment ?? '').trim();
-    cleanUpdateData.marketSegment = trimmedMarketSegment || null;
-  }
   if (name !== undefined) cleanUpdateData.name = String(name);
   if (description !== undefined) cleanUpdateData.description = String(description);
   if (productType !== undefined) cleanUpdateData.productType = String(productType);
@@ -1640,7 +1732,7 @@ export const updateProduct = async (args: {
     // after their historical OrderItems have been snapshotted and detached by the FK.
     if (variantOptions !== undefined && variantOptions !== null && Array.isArray(variantOptions)) {
       const payload = createVariantOptionsPayload(variantOptions, currency ?? undefined);
-      const keepNames = payload.map((p) => p.variantName);
+      const keepNames = payload.map((p) => p.data.variantName);
 
       // Map existing VariantOptions by attributes/name so edits preserve stable IDs.
       const existingVariantOptions = await tx.variantOption.findMany({
@@ -1662,26 +1754,30 @@ export const updateProduct = async (args: {
 
       // Upsert sequentially so we can recover from rare DB sequence drift safely.
       for (const raw of payload) {
-        const normalizedName = normalizeVariantName(raw.variantName);
-        const attrsKey = stableStringifyAttributes(raw.attributes);
+        const normalizedName = normalizeVariantName(raw.data.variantName);
+        const attrsKey = stableStringifyAttributes(raw.data.attributes);
         const matchedByAttrs = attrsKey ? existingByAttrs.get(attrsKey) ?? null : null;
         const existing = matchedByAttrs || existingByName.get(normalizedName) || null;
 
         // Keep the database identity when attributes identify the same variant.
         // A display-name-only change updates the existing row; historical order
         // labels remain isolated in OrderItem snapshots.
-        const p = { ...raw, variantName: normalizedName };
+        const p = { ...raw.data, variantName: normalizedName };
 
         const doUpsert = async () => {
           if (existing) {
-            return tx.variantOption.update({
+            const updatedOption = await tx.variantOption.update({
               where: { id: existing.id },
               data: { ...p },
             });
+            await syncVariantSegmentPrices(tx, updatedOption.id, raw.segmentPrices);
+            return updatedOption;
           }
-          return tx.variantOption.create({
+          const createdOption = await tx.variantOption.create({
             data: { ...p, productId: updated.id },
           });
+          await syncVariantSegmentPrices(tx, createdOption.id, raw.segmentPrices);
+          return createdOption;
         };
 
         try {

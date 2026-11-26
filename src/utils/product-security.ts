@@ -9,11 +9,6 @@ export const PRODUCT_REQUIRED_TEXT = {
   supplier: { min: 1, max: 200 },
 } as const;
 
-/** Optional on create/update (GraphQL `String`, DB nullable); validate length only when set. */
-export const PRODUCT_OPTIONAL_TEXT = {
-  marketSegment: { max: 100 },
-} as const;
-
 export type ProductRequiredTextField = keyof typeof PRODUCT_REQUIRED_TEXT;
 
 export function productRequiredTextError(
@@ -26,18 +21,6 @@ export function productRequiredTextError(
   if (trimmed.length === 0) return 'required';
   if (trimmed.length < min) return 'tooShort';
   if (trimmed.length > max) return 'tooLong';
-  return null;
-}
-
-/** Empty/null/undefined are allowed; non-empty values must fit the max length. */
-export function productMarketSegmentError(value: unknown): string | null {
-  if (value === undefined || value === null) return null;
-  if (typeof value !== 'string') return 'Market segment is invalid.';
-  const trimmed = value.trim();
-  if (trimmed.length === 0) return null;
-  if (trimmed.length > PRODUCT_OPTIONAL_TEXT.marketSegment.max) {
-    return 'Market segment is too long.';
-  }
   return null;
 }
 

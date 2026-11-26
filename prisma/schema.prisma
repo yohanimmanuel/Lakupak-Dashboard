@@ -339,8 +339,6 @@ model SupplyRecord {
 model Product {
   id                Int              @id @default(autoincrement())
   productId         String           @unique
-  /// Target retailer market segment from Buyer.businessType values
-  marketSegment     String?
   name              String
   description       String
   productType       String
@@ -756,16 +754,34 @@ model VariantOption {
   createdAt            DateTime @default(now()) @db.Timestamptz(3)
   updatedAt            DateTime @updatedAt @db.Timestamptz(3)
 
-  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
-  orderItems OrderItem[]
-  offers     Offer[]
-  buyerRecords BuyerRecord[]
+  product          Product               @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems       OrderItem[]
+  offers           Offer[]
+  buyerRecords     BuyerRecord[]
   supplierSupplyRecords SupplyRecord[]
   assortmentOpportunities AssortmentOpportunity[]
+  segmentPriceRows VariantSegmentPrice[]
 
   @@unique([productId, variantName])
   @@index([productId, isActive])
   @@index([productId, createdAt])
+}
+
+/// Per-variant selling price for one buyer market segment (Buyer.businessType key).
+model VariantSegmentPrice {
+  id              Int      @id @default(autoincrement())
+  variantOptionId Int
+  /// Trimmed, lowercased Buyer.businessType
+  segmentKey      String
+  /// Canonical per-Piece selling price for this segment
+  sellingPrice    Decimal  @db.Decimal(18, 6)
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(3)
+  variantOption   VariantOption @relation(fields: [variantOptionId], references: [id], onDelete: Cascade)
+
+  @@unique([variantOptionId, segmentKey])
+  @@index([variantOptionId])
+  @@index([segmentKey])
 }
 
 model Account {

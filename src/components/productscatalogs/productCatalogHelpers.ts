@@ -7,7 +7,6 @@ export const isFormDataEqual = (a: ProductFormData, b: ProductFormData): boolean
   return (
     a.id === b.id &&
     a.productId === b.productId &&
-    a.marketSegment === b.marketSegment &&
     a.name === b.name &&
     a.description === b.description &&
     a.productType === b.productType &&
@@ -36,6 +35,8 @@ export interface Combination {
   sellingPrice: string;
   moq?: number;
   moqByStockLevel?: Record<string, number>;
+  /** Selling price per market segment key, in the selling price unit; a missing key uses sellingPrice. */
+  segmentPrices?: Record<string, string>;
   stockQuantity: number;
   lowStockThreshold: number;
   stockStatus: 'In Stock' | 'Low Stock' | 'Out of Stock';
@@ -399,6 +400,7 @@ export function rebuildCombinationsFromVariants(
           sellingPrice: combinationData!.sellingPrice ?? '',
           moq: combinationData!.moq,
           moqByStockLevel: { ...(combinationData!.moqByStockLevel ?? {}) },
+          segmentPrices: { ...(combinationData!.segmentPrices ?? {}) },
           stockQuantity: combinationData!.stockQuantity ?? 0,
           lowStockThreshold: combinationData!.lowStockThreshold ?? 0,
           stockStatus: (combinationData!.stockStatus ?? 'In Stock') as Combination['stockStatus'],

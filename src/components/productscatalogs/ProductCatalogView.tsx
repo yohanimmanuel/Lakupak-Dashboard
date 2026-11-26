@@ -1,9 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   DollarSign, Tag, Upload, Plus, X, Loader2, CheckCircle, Info, ArrowLeft,
-  Package, Gift, RefreshCw, ChevronUp, ChevronDown, Download, Search,
+  Package, Gift, RefreshCw, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Download, Search,
 } from 'lucide-react';
 import Link from 'next/link';
 import VariationListImport from '@/components/productscatalogs/VariationListImport';
@@ -15,7 +15,11 @@ import { getProductStockStatus, getVariantStockStatus, getWholeStockQuantity, ge
 import { formatCurrencyAmount } from '@/utils/currencyUtils';
 import { parseNumberByCurrency, getPricePlaceholder } from '@/config/currencyConfig';
 import { getProductCompletion } from '@/utils/productCompletion';
+import { segmentPriceKey } from '@/utils/priceAnchorUtils';
+import { getVisiblePageNumbers } from '@/utils/tablePagination';
 import type { useProductCatalogController } from './useProductCatalogController';
+
+const PRICING_VARIANT_PAGE_SIZE = 5;
 
 function CategoryTypeGlyph({ value, color }: { value: string; color?: string }) {
   const imageSrc = getCategoryImageSrc(value);
@@ -83,7 +87,6 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
     legacyPiecesPerUnit,
     legacyStockUnit,
     marketSegmentOptions,
-    marketSegmentRef,
     parseNumberByCurrency,
     product,
     productControlClass,
@@ -100,7 +103,6 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
     setShowCatalogCategoryDropdown,
     setShowGeneralCategoryDropdown,
     setShowImportStockSetup,
-    setShowMarketSegmentDropdown,
     setShowSupplierDropdown,
     setShowVariationImport,
     setStockLevelRatioDrafts,
@@ -112,7 +114,6 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
     showCatalogCategoryDropdown,
     showGeneralCategoryDropdown,
     showImportStockSetup,
-    showMarketSegmentDropdown,
     showSuccessModal,
     showSupplierDropdown,
     showVariationImport,
@@ -146,6 +147,102 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
     variationTablePixelWidth,
     variationTableRef,
   } = props;
+
+  const [enabledSegments, setEnabledSegments] = useState<string[]>([]);
+  const enabledSegmentsSeededRef = useRef<string | null>(null);
+  const pricingTabs = useMemo(
+    () => ['default', ...enabledSegments.filter((segment) => marketSegmentOptions.includes(segment))],
+    [enabledSegments, marketSegmentOptions],
+  );
+  const [pricingTab, setPricingTab] = useState<string>('default');
+  const [pricingPage, setPricingPage] = useState(1);
+  const pricingTabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [pricingIndicator, setPricingIndicator] = useState({ left: 0, width: 0 });
+  const isDefaultPricingTab = pricingTab === 'default';
+  const activeSegmentKey = isDefaultPricingTab ? '' : segmentPriceKey(pricingTab);
+
+  // Seed enabled segments from saved prices when the product (or its combinations) first loads.
+  useEffect(() => {
+    const seedKey = `${formData.productId || 'new'}:${combinations.length}:${marketSegmentOptions.join('|')}`;
+    if (enabledSegmentsSeededRef.current === seedKey) return;
+    const keysWithPrices = new Set<string>();
+    for (const combo of combinations) {
+      for (const key of Object.keys(combo.segmentPrices ?? {})) {
+        if (String(combo.segmentPrices?.[key] ?? '').trim()) keysWithPrices.add(key);
+      }
+    }
+    const seeded = marketSegmentOptions.filter((label) => keysWithPrices.has(segmentPriceKey(label)));
+    setEnabledSegments(seeded);
+    enabledSegmentsSeededRef.current = seedKey;
+  }, [combinations, formData.productId, marketSegmentOptions]);
+
+  useEffect(() => {
+    setEnabledSegments((prev) => prev.filter((segment) => marketSegmentOptions.includes(segment)));
+  }, [marketSegmentOptions]);
+
+  useEffect(() => {
+    if (pricingTab !== 'default' && !pricingTabs.includes(pricingTab)) {
+      setPricingTab('default');
+    }
+  }, [pricingTab, pricingTabs]);
+
+  useEffect(() => {
+    setPricingPage(1);
+  }, [pricingTab, combinations.length]);
+
+  const pricingTotalPages = Math.max(1, Math.ceil(combinations.length / PRICING_VARIANT_PAGE_SIZE));
+  const safePricingPage = Math.min(pricingPage, pricingTotalPages);
+  const pricingFrom = combinations.length === 0 ? 0 : (safePricingPage - 1) * PRICING_VARIANT_PAGE_SIZE + 1;
+  const pricingTo = Math.min(safePricingPage * PRICING_VARIANT_PAGE_SIZE, combinations.length);
+  const pagedCombinations = combinations.slice(
+    (safePricingPage - 1) * PRICING_VARIANT_PAGE_SIZE,
+    safePricingPage * PRICING_VARIANT_PAGE_SIZE,
+  );
+
+  useLayoutEffect(() => {
+    const idx = Math.max(0, pricingTabs.findIndex((tab) => tab === pricingTab));
+    const node = pricingTabRefs.current[idx];
+    if (!node) return;
+    setPricingIndicator({ left: node.offsetLeft, width: node.offsetWidth });
+  }, [pricingTab, pricingTabs]);
+
+  const clearSegmentPrices = (segmentLabel: string) => {
+    const key = segmentPriceKey(segmentLabel);
+    if (!key) return;
+    for (const combo of combinations) {
+      if (!(key in (combo.segmentPrices ?? {}))) continue;
+      const next = { ...(combo.segmentPrices ?? {}) };
+      delete next[key];
+      updateCombination(combo.id, 'segmentPrices', next);
+    }
+  };
+
+  const toggleEnabledSegment = (segmentLabel: string) => {
+    if (isViewMode) return;
+    const isEnabled = enabledSegments.includes(segmentLabel);
+    if (isEnabled) {
+      setEnabledSegments((prev) => prev.filter((segment) => segment !== segmentLabel));
+      clearSegmentPrices(segmentLabel);
+      if (pricingTab === segmentLabel) setPricingTab('default');
+      return;
+    }
+    setEnabledSegments((prev) =>
+      marketSegmentOptions.filter((segment) => segment === segmentLabel || prev.includes(segment)),
+    );
+    setPricingTab(segmentLabel);
+  };
+
+  const updateSegmentSellingPrice = (combinationId: string, segmentLabel: string, value: string) => {
+    const key = segmentPriceKey(segmentLabel);
+    if (!key) return;
+    const combination = combinations.find((row) => row.id === combinationId);
+    if (!combination) return;
+    const next = { ...(combination.segmentPrices ?? {}) };
+    if (!value.trim()) delete next[key];
+    else next[key] = value;
+    updateCombination(combinationId, 'segmentPrices', next);
+  };
+
   return (
     <div className="w-full mx-auto bg-white rounded-lg border border-[#e6e6e6]">
       {/* Header */}
@@ -311,67 +408,6 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
-                    {tCatalog('generalInfo.marketSegment')}
-                  </label>
-                  <div className="relative" ref={marketSegmentRef}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowMarketSegmentDropdown((open) => !open);
-                        setShowGeneralCategoryDropdown(false);
-                        setShowCatalogCategoryDropdown(false);
-                      }}
-                      disabled={isViewMode}
-                      aria-invalid={fieldErrors.marketSegment ? true : undefined}
-                      className={`${productControlClass('marketSegment')} text-left flex items-center justify-between`}
-                    >
-                      <span className={formData.marketSegment ? 'text-black' : 'text-gray-500'}>
-                        {formData.marketSegment || tCatalog('generalInfo.selectMarketSegment')}
-                      </span>
-                      <ChevronDown className="w-4 h-4 text-gray-400" />
-                    </button>
-                    {showMarketSegmentDropdown && !isViewMode && (
-                      <div className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-[#e6e6e6] bg-white shadow-lg">
-                        {(() => {
-                          const options = [...marketSegmentOptions];
-                          const selected = formData.marketSegment.trim();
-                          if (selected && !options.some((option) => option.toLowerCase() === selected.toLowerCase())) {
-                            options.unshift(selected);
-                          }
-                          if (options.length === 0) {
-                            return (
-                              <div className="px-3 py-2 text-xs text-gray-500">
-                                {tCatalog('generalInfo.noMarketSegments')}
-                              </div>
-                            );
-                          }
-                          return options.map((segment) => (
-                            <button
-                              key={segment}
-                              type="button"
-                              onClick={() => {
-                                handleInputChange('marketSegment', segment);
-                                setShowMarketSegmentDropdown(false);
-                              }}
-                              className={`block w-full px-3 py-2 text-left text-xs hover:bg-gray-100 ${
-                                formData.marketSegment === segment
-                                  ? 'font-semibold text-[#0a61d7]'
-                                  : 'text-gray-700'
-                              }`}
-                            >
-                              {segment}
-                            </button>
-                          ));
-                        })()}
-                      </div>
-                    )}
-                  </div>
-                  {fieldErrors.marketSegment ? (
-                    <p className="text-red-500 text-xs mt-1">{fieldErrors.marketSegment}</p>
-                  ) : null}
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-2">
                     {tCatalog('generalInfo.brand')}<span className="text-red-500 ml-1">*</span>
                   </label>
                   <input
@@ -396,7 +432,6 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
                       onClick={() => {
                         setShowGeneralCategoryDropdown(!showGeneralCategoryDropdown);
                         setShowCatalogCategoryDropdown(false);
-                        setShowMarketSegmentDropdown(false);
                       }}
                       disabled={isViewMode}
                       aria-invalid={fieldErrors.productType ? true : undefined}
@@ -474,7 +509,6 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
                         setShowSupplierDropdown((open) => !open);
                         setShowGeneralCategoryDropdown(false);
                         setShowCatalogCategoryDropdown(false);
-                        setShowMarketSegmentDropdown(false);
                       }}
                       disabled={isViewMode}
                       aria-invalid={fieldErrors.supplier ? true : undefined}
@@ -907,21 +941,6 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
                     )}
                   </div>
                 </div>
-                
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-2">
-                    {tCatalog('generalInfo.marketSegment')}
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.marketSegment}
-                    disabled
-                    readOnly
-                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg bg-gray-50 text-black cursor-not-allowed"
-                    placeholder={tCatalog('generalInfo.selectMarketSegment')}
-                  />
-                </div>
-                
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">
                     {tCatalog('settings.catalogName')}
@@ -1311,6 +1330,173 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
               onChange={updatePriceAnchor}
             />
 
+            <div className="mb-3 mt-4">
+              <h4 className="text-sm font-semibold text-gray-800">{tCatalog('variants.segmentPricingTitle')}</h4>
+              <p className="mt-1 text-xs text-gray-500">{tCatalog('variants.segmentPriceHint')}</p>
+              {marketSegmentOptions.length === 0 ? (
+                <p className="mt-2 text-xs text-amber-700">{tCatalog('variants.noSegmentsHint')}</p>
+              ) : (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {marketSegmentOptions.map((segment) => {
+                    const checked = enabledSegments.includes(segment);
+                    return (
+                      <label
+                        key={segment}
+                        className={`inline-flex items-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-3 py-1.5 text-xs font-medium text-gray-700 ${
+                          isViewMode ? 'cursor-default opacity-80' : 'cursor-pointer'
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          role="checkbox"
+                          aria-checked={checked}
+                          aria-label={segment}
+                          disabled={isViewMode}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            toggleEnabledSegment(segment);
+                          }}
+                          className={`flex h-4 w-4 items-center justify-center rounded border-2 transition-all duration-200 ${
+                            checked
+                              ? 'border-green-500 bg-green-500'
+                              : 'border-gray-300 bg-white hover:border-green-400'
+                          } ${isViewMode ? 'cursor-not-allowed opacity-60' : ''}`}
+                        >
+                          {checked ? (
+                            <svg className="h-3 w-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path
+                                fillRule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          ) : null}
+                        </button>
+                        <span>{segment}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+              <p className="mt-2 text-[11px] text-gray-500">{tCatalog('variants.segmentEnableHint')}</p>
+              <div className="mt-3 w-full min-w-0 overflow-x-auto">
+                <div className="relative inline-flex w-max overflow-hidden rounded-lg bg-gray-100">
+                  <div
+                    className="absolute top-0 z-[1] h-full rounded-xl bg-[#0a61d7] transition-all duration-300"
+                    style={{ left: pricingIndicator.left, width: pricingIndicator.width }}
+                  />
+                  {pricingTabs.map((tab, idx) => (
+                    <button
+                      key={tab}
+                      type="button"
+                      ref={(el) => {
+                        pricingTabRefs.current[idx] = el;
+                      }}
+                      onClick={() => setPricingTab(tab)}
+                      className={`relative z-10 shrink-0 whitespace-nowrap px-4 py-2 text-[14px] font-medium transition-colors duration-200 focus:outline-none ${
+                        pricingTab === tab ? 'text-white' : 'text-gray-700 hover:text-[#0a61d7]'
+                      }`}
+                      style={{ background: 'transparent', boxShadow: 'none' }}
+                    >
+                      {tab === 'default' ? tCatalog('variants.defaultPriceTab') : tab}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {!isDefaultPricingTab ? (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[640px] border-collapse border border-gray-300">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      {variants.map((variant, index) => (
+                        <th
+                          key={variant.id}
+                          className="border-b border-r border-gray-300 px-2 py-1.5 text-left text-xs font-semibold text-gray-700"
+                        >
+                          {variant.variantType || tCatalog('variants.varFallback', { index: index + 1 })}
+                        </th>
+                      ))}
+                      <th className="border-b border-r border-gray-300 px-2 py-1.5 text-left text-xs font-semibold text-gray-700">
+                        {tCatalog('variants.sku')}
+                      </th>
+                      <th className="border-b border-gray-300 px-2 py-1.5 text-left text-xs font-semibold text-gray-700">
+                        {`${tCatalog('variants.sellingPrice')} / ${formData.sellingPriceUnit || 'Pieces'} · ${pricingTab}`}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pagedCombinations.map((combination) => {
+                      const segmentValue = String(
+                        combination.segmentPrices?.[activeSegmentKey] ?? '',
+                      );
+                      return (
+                        <tr key={combination.id}>
+                          {variants.map((variant) => (
+                            <td
+                              key={variant.id}
+                              className="border-b border-r border-gray-300 px-2 py-1.5 align-middle text-xs text-black"
+                            >
+                              {combination[`variant_${variant.id}` as keyof typeof combination]?.toString() ||
+                                tCatalog('variants.none')}
+                            </td>
+                          ))}
+                          <td className="border-b border-r border-gray-300 px-2 py-1.5 align-middle text-xs text-black">
+                            {combination.sku || '—'}
+                          </td>
+                          <td className="border-b border-gray-300 px-2 py-1.5 align-middle">
+                            <div className="flex flex-col">
+                              <div className="relative">
+                                <div className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+                                  {currencySymbol}
+                                </div>
+                                <input
+                                  type="text"
+                                  value={segmentValue}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    if (validateNumericInput(value)) {
+                                      updateSegmentSellingPrice(combination.id, pricingTab, value);
+                                    }
+                                  }}
+                                  disabled={isViewMode || isOfferConnected}
+                                  className="w-full rounded-lg border border-gray-300 py-1.5 pl-7 pr-2 text-xs text-black focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#0a61d7] disabled:bg-gray-50"
+                                  placeholder={getPricePlaceholder(userCurrency)}
+                                />
+                              </div>
+                              {!segmentValue.trim() ? (
+                                <div className="mt-1 text-[10px] text-gray-500">
+                                  {tCatalog('variants.usesDefaultPrice')}
+                                  {combination.sellingPrice
+                                    ? `: ${currencySymbol} ${combination.sellingPrice}`
+                                    : ''}
+                                </div>
+                              ) : (formData.sellingPriceUnit || 'Pieces') !== 'Pieces' ? (
+                                (() => {
+                                  const anchor = activeStockLevels.find(
+                                    (level) => level.name === formData.sellingPriceUnit,
+                                  );
+                                  const anchorPieces = anchor?.piecesPerUnit || 1;
+                                  const raw = parseNumberByCurrency(segmentValue, userCurrency);
+                                  if (!Number.isFinite(raw)) return null;
+                                  return (
+                                    <div className="mt-1 truncate text-[10px] text-gray-500">
+                                      {tCatalog('variants.pricePerPiece')}: {currencySymbol}{' '}
+                                      {formatCurrencyAmount(raw / anchorPieces, userCurrency)}
+                                    </div>
+                                  );
+                                })()
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
                 <div className="overflow-x-auto">
                   <table
                     ref={variationTableRef}
@@ -1449,7 +1635,8 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
                       </tr>
                     </thead>
                     <tbody>
-                       {combinations.map((combination, index) => {
+                       {pagedCombinations.map((combination, pageIndex) => {
+                         const index = (safePricingPage - 1) * PRICING_VARIANT_PAGE_SIZE + pageIndex;
                          const rowHeight = variationRowHeight(combination.id);
                          return (
                          <tr key={combination.id} style={{ height: rowHeight }}>
@@ -1747,6 +1934,55 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
                     </tbody>
                   </table>
                           </div>
+            )}
+
+            {combinations.length > PRICING_VARIANT_PAGE_SIZE ? (
+              <div className="mt-4 flex min-w-0 flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0 shrink text-sm text-gray-500">
+                  {tCatalog('variants.pricingShowing', {
+                    from: pricingFrom,
+                    to: pricingTo,
+                    total: combinations.length,
+                  })}
+                </div>
+                <div className="flex max-w-full min-w-0 items-center gap-2 overflow-x-auto">
+                  <button
+                    type="button"
+                    onClick={() => setPricingPage(Math.max(1, safePricingPage - 1))}
+                    disabled={safePricingPage <= 1}
+                    aria-label={tCatalog('variants.pricingPreviousPage')}
+                    className="shrink-0 px-3 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <div className="flex items-center gap-1">
+                    {getVisiblePageNumbers(safePricingPage, pricingTotalPages).map((pageNum) => (
+                      <button
+                        key={pageNum}
+                        type="button"
+                        onClick={() => setPricingPage(pageNum)}
+                        className={`shrink-0 rounded-lg px-3 py-2 text-sm ${
+                          safePricingPage === pageNum
+                            ? 'bg-[#0a61d7] text-white'
+                            : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPricingPage(Math.min(pricingTotalPages, safePricingPage + 1))}
+                    disabled={safePricingPage >= pricingTotalPages}
+                    aria-label={tCatalog('variants.pricingNextPage')}
+                    className="shrink-0 px-3 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ) : null}
             </div>
             </div>
           </div>

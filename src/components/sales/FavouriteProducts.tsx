@@ -36,15 +36,12 @@ export default function FavouriteProducts({
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('All Types');
-  const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [page, setPage] = useState(1);
   const [showTypeDropdown, setShowTypeDropdown] = useState(false);
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const rowsPerPage = TABLE_PAGE_SIZE;
   
   const typeDropdownRef = useRef<HTMLDivElement>(null);
-  const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const prevFormDataFavoriteProductsRef = useRef<FavoriteProduct[] | undefined>(formData.favoriteProducts);
 
   // Fetch products from GraphQL API
@@ -65,7 +62,6 @@ export default function FavouriteProducts({
               brand
               supplier
               status
-              marketSegment
               catalogName
               images
               variantOptions {
@@ -154,9 +150,6 @@ export default function FavouriteProducts({
       if (typeDropdownRef.current && !typeDropdownRef.current.contains(event.target as Node)) {
         setShowTypeDropdown(false);
       }
-      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
-        setShowCategoryDropdown(false);
-      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -167,16 +160,6 @@ export default function FavouriteProducts({
 
   // Get unique product types and categories
   const productTypes = ['All Types', ...Array.from(new Set(products.map(p => p.productType).filter(Boolean)))];
-  const productCategories = [
-    'All Categories',
-    ...Array.from(
-      new Set(
-        products
-          .map((p) => p.marketSegment)
-          .filter((value): value is string => Boolean(value)),
-      ),
-    ),
-  ];
 
   // Filter products
   const filteredProducts = products.filter(product => {
@@ -186,10 +169,9 @@ export default function FavouriteProducts({
       product.brand?.toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesType = selectedType === 'All Types' || product.productType === selectedType;
-    const matchesCategory = selectedCategory === 'All Categories' || product.marketSegment === selectedCategory;
     const isPublished = product.status === 'Published';
 
-    return matchesSearch && matchesType && matchesCategory && isPublished;
+    return matchesSearch && matchesType && isPublished;
   });
 
   // Pagination
@@ -354,40 +336,6 @@ export default function FavouriteProducts({
             )}
           </div>
 
-          {/* Category Filter */}
-          <div className="relative" ref={categoryDropdownRef}>
-            <button
-              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-[#e6e6e6] bg-white text-gray-700 hover:bg-gray-100 text-sm"
-              onClick={() => {
-                setShowCategoryDropdown(!showCategoryDropdown);
-                setShowTypeDropdown(false);
-              }}
-            >
-              {translateFilter(selectedCategory)}
-              <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
-            </button>
-            {showCategoryDropdown && (
-              <div className="absolute right-0 mt-2 w-48 bg-white border border-[#e6e6e6] rounded-lg shadow z-20">
-                {productCategories.map((category) => (
-                  <button
-                    key={category}
-                    onClick={() => {
-                      setSelectedCategory(category);
-                      setShowCategoryDropdown(false);
-                      setPage(1);
-                    }}
-                    className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg last:rounded-b-lg ${
-                      selectedCategory === category
-                        ? 'text-[#0a61d7] font-semibold hover:bg-gray-100'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    {translateFilter(category)}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
 
           {/* View Mode Toggle */}
           <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">

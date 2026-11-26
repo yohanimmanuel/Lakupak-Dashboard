@@ -515,7 +515,6 @@ const CUSTOMER_ANALYTICS_QUERY = `
         name
         description
         productType
-        marketSegment
         brand
         supplier
         status
@@ -570,7 +569,7 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 	const [buyers, setBuyers] = useState<BuyerLite[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [hasData, setHasData] = useState(false);
-	const [categoryFilter, setCategoryFilter] = useState<'productType' | 'marketSegment'>('marketSegment');
+	const [categoryFilter, setCategoryFilter] = useState<'productType'>('productType');
 	const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
 	const categoryDropdownRef = useRef<HTMLDivElement>(null);
 	const onReadyRef = useRef(onReadyAction);
@@ -580,7 +579,6 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 
 	const categoryOptions = useMemo(
 		() => [
-			{ value: 'marketSegment' as const, label: translateCategoryFilter('marketSegment') },
 			{ value: 'productType' as const, label: translateCategoryFilter('productType') },
 		],
 		[translateCategoryFilter],
@@ -756,7 +754,7 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 				if (categoryFilter === 'productType') {
 					category = prod?.productType || 'Uncategorized';
 				} else {
-					category = prod?.marketSegment || 'Uncategorized';
+					category = prod?.productType || 'Uncategorized';
 				}
 				// Calculate units using piece-based pricing
 				const piecesPerPackage = it.piecesPerPackage || 1;
@@ -926,7 +924,7 @@ const CustomerSalesAnalytics: React.FC<CustomerSalesAnalyticsProps> = ({ timeRan
 											<button
 												key={option.value}
 												onClick={() => {
-													setCategoryFilter(option.value as 'productType' | 'marketSegment');
+													setCategoryFilter(option.value as 'productType');
 													setIsCategoryDropdownOpen(false);
 												}}
 												className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors first:rounded-t-lg last:rounded-b-lg ${

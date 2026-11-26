@@ -70,7 +70,6 @@ const ANALYTICS_PAGE_QUERY = `
         name
         description
         productType
-        marketSegment
         brand
         supplier
         status

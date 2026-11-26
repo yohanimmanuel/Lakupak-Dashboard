@@ -252,7 +252,6 @@ const OPERATIONAL_ANALYTICS_QUERY = `
         productId
         name
         productType
-        marketSegment
         brand
         supplier
         status

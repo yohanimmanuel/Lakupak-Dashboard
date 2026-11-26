@@ -29,6 +29,8 @@ export interface VariantOption {
   originalSellingPrice?: string;
   moq?: number;
   moqByStockLevel?: Record<string, number>;
+  /** Per-Piece selling price by market segment key (trimmed, lowercased buyer business type). */
+  segmentPrices?: Record<string, number> | null;
   stockQuantity: number;
   lowStockThreshold: number;
   stockStatus: 'In Stock' | 'Low Stock' | 'Out of Stock';
@@ -85,8 +87,6 @@ export interface ProductVariant {
 export interface Product {
   id?: number;
   productId: string;
-  /** Target retailer segment from distributor buyer business types */
-  marketSegment?: string | null;
   name: string;
   description: string;
   productType: string;
@@ -190,7 +190,6 @@ export type ProductImportResult = {
 export interface ProductFormData {
   id?: number;
   productId?: string;
-  marketSegment: string;
   name: string;
   description: string;
   productType: string;

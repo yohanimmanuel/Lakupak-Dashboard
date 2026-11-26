@@ -8,7 +8,6 @@ import {
 
 const baseProduct: ProductLike = {
   sku: 'TEST-SKU-1',
-  marketSegment: 'Retail GT',
   name: 'Test Product',
   description: 'A complete test product description',
   productType: 'Food & Beverages',

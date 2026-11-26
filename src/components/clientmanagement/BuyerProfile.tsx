@@ -22,7 +22,12 @@ import MapFullscreenModal from '@/components/MapFullscreenModal';
 import MapComponent from '@/components/ordershipment/MapComponent';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
 import { geocodeAddress, type GeocodeResult } from '@/utils/mapboxUtils';
-import { getBuyerOrderQuantity, parseBuyerOrderTotal } from '@/utils/buyerOrderQuantity';
+import {
+  formatBuyerOrderQuantityDisplay,
+  getBuyerOrderQuantity,
+  normalizeBuyerOrderTotal,
+  parseBuyerOrderTotal,
+} from '@/utils/buyerOrderQuantity';
 
 type ProfileFieldKey =
   | 'storeName'
@@ -892,7 +897,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
           <div className="font-semibold text-md text-black">{tBuyersProfile('orderSection')}</div>
         </div>
         <div className="flex flex-wrap gap-4 mb-2">
-          <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">{tBuyersProfile('totalOrdersLabel')} <span className="font-bold text-black">{totalOrders}</span></div>
+          <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">{tBuyersProfile('totalOrdersLabel')} <span className="font-bold text-black">{formatBuyerOrderQuantityDisplay(totalOrders)}</span></div>
           <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">{tBuyersProfile('totalSpendLabel')} <span className="font-bold text-[#0a61d7]">{formatCurrency(totalSpend, userCurrency)}</span></div>
           <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">{tBuyersProfile('outstandingLabel')} <span className="font-bold text-[#f65911]">{formatCurrency(totalOutstanding, userCurrency)}</span></div>
         </div>
@@ -970,7 +975,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
                                   <div key={item.id} className="rounded-md bg-gray-50 px-2 py-1.5">
                                     <div className="font-medium text-gray-900">{item.productName}</div>
                                     <div>Variant: <span className="font-medium text-gray-900">{item.variantNameSnapshot || ((item.variantOptionId ?? item.variantId) != null ? `Variant #${item.variantOptionId ?? item.variantId}` : '—')}</span></div>
-                                    <div>Ordered: <span className="font-medium text-gray-900">{item.packageQuantity} {item.packageType || 'Pieces'}</span> <span className="text-gray-500">({item.piecesPerPackage || 1} pieces per package)</span></div>
+                                    <div>Ordered: <span className="font-medium text-gray-900">{formatBuyerOrderQuantityDisplay(item.packageQuantity)} {item.packageType || 'Pieces'}</span> <span className="text-gray-500">({item.piecesPerPackage || 1} pieces per package)</span></div>
                                   </div>
                                 ))}
                                 {hoverOrderDetails[order.orderNo].orderItems.length > 2 ? (
@@ -983,7 +988,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
                               <div className="rounded-md bg-gray-50 px-2 py-1.5">
                                 <div className="font-medium text-gray-900">{dedupeProductNames(order.product) || '—'}</div>
                                 <div>Variant: <span className="font-medium text-gray-900">{order.variantName || '—'}</span></div>
-                                <div>Ordered: <span className="font-medium text-gray-900">{order.totalOrders || '—'}</span> <span className="text-gray-500">({Math.max(1, Number(order.piecesPerPackage) || 1)} pieces per package)</span></div>
+                                <div>Ordered: <span className="font-medium text-gray-900">{order.totalOrders ? normalizeBuyerOrderTotal(order.totalOrders, order.stockType || 'Pieces') : '—'}</span> <span className="text-gray-500">({Math.max(1, Number(order.piecesPerPackage) || 1)} pieces per package)</span></div>
                               </div>
                             )}
                             <div>Last order: <span className="font-medium text-gray-900">{order.lastOrderDate || '—'}</span></div>
@@ -1009,7 +1014,9 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
                     })()}
                   </td>
                   <td className="py-4 px-4 text-black">
-                    {order.totalOrders}
+                    {order.totalOrders
+                      ? normalizeBuyerOrderTotal(order.totalOrders, order.stockType || 'Pieces')
+                      : order.totalOrders}
                   </td>
                   <td className="py-4 px-4 text-black">
                     {(() => {
@@ -1181,7 +1188,7 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
           <div className="p-3 bg-gray-50 rounded-lg">
             <div className="text-sm font-semibold text-gray-700 mb-2">{tBuyersProfile('monthlyOrdersAnalytics')}</div>
             <div className="text-xs text-gray-600">
-              <div>{tBuyersProfile('totalMonthlyOrders')} <span className="font-medium">{totalOrders}</span></div>
+              <div>{tBuyersProfile('totalMonthlyOrders')} <span className="font-medium">{formatBuyerOrderQuantityDisplay(totalOrders)}</span></div>
               <div className="border-b border-gray-300 pb-2">{tBuyersProfile('totalMonthlyRecords')} <span className="font-medium">{(() => {
                 // Extract unique months from order dates
                 const uniqueMonths = new Set();

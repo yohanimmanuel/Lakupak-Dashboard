@@ -93,7 +93,6 @@ interface CategoryData {
 interface TopProduct {
   name: string;
   productType: string;
-  marketSegment: string;
   orderVolume: number;
   profit: number;
   margin: number;
@@ -165,7 +164,6 @@ const FINANCIAL_ANALYTICS_QUERY = `
         name
         description
         productType
-        marketSegment
         brand
         supplier
         status
@@ -226,7 +224,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
   const growthComparisonLabel = tShared(getAnalyticsGrowthComparisonKey(timeRange));
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [categoryFilter, setCategoryFilter] = useState<'productType' | 'marketSegment'>('marketSegment');
+  const [categoryFilter, setCategoryFilter] = useState<'productType'>('productType');
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   const [selectedTopProduct, setSelectedTopProduct] = useState<TopProduct | null>(null);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
@@ -253,10 +251,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
   }, [timeRange]);
 
   const categoryOptions = useMemo(
-    () => [
-      { value: 'marketSegment', label: translateCategoryFilter('marketSegment') },
-      { value: 'productType', label: translateCategoryFilter('productType') },
-    ],
+    () => [{ value: 'productType', label: translateCategoryFilter('productType') }],
     [translateCategoryFilter]
   );
 
@@ -594,11 +589,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
           
           // Get category based on selected filter
           let category = 'Uncategorized';
-          if (categoryFilter === 'productType') {
-            category = product?.productType || 'Uncategorized';
-          } else {
-            category = product?.marketSegment || 'Uncategorized';
-          }
+          category = product?.productType || 'Uncategorized';
           
           const revenue = calculateOrderItemRevenue(item, findOrderItemVariantOption(product, item));
           const cost = calculateOrderItemCost(item, product, calculateFreeItems(item));
@@ -629,7 +620,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
       return [];
     }
 
-    const productStats: { [key: string]: { orderVolume: number; unitsSold: number; piecesSold: number; category: string; marketSegment: string; name: string; profit: number; image?: string | null } } = {};
+    const productStats: { [key: string]: { orderVolume: number; unitsSold: number; piecesSold: number; category: string; name: string; profit: number; image?: string | null } } = {};
     
     const productById = createProductLookup(products);
     const avgMargin = getAverageProductMargin(products);
@@ -649,7 +640,6 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
               unitsSold: 0,
               piecesSold: 0,
               category: product?.productType || 'Uncategorized',
-              marketSegment: product?.marketSegment || 'Uncategorized',
               name: product?.name || `Product ${productId}`,
               profit: 0,
               image: product?.images?.[0] ?? null,
@@ -682,7 +672,6 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
         piecesSold: stats.piecesSold,
         margin,
         productType: stats.category,
-        marketSegment: stats.marketSegment,
         profit: stats.profit,
         productId: productId,
         image: stats.image ?? null,
@@ -991,7 +980,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
                      <button
                        key={option.value}
                        onClick={() => {
-                         setCategoryFilter(option.value as 'productType' | 'marketSegment');
+                         setCategoryFilter(option.value as 'productType');
                          setIsCategoryDropdownOpen(false);
                        }}
                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors first:rounded-t-lg last:rounded-b-lg ${
@@ -1427,7 +1416,7 @@ const FinancialAnalytics: React.FC<FinancialAnalyticsProps> = ({ timeRange = '1M
                          </div>
                       </td>
                       <td className="py-3 px-4 text-center text-gray-600">
-                        {product.marketSegment}
+                        {product.productType}
                       </td>
                       <td className="py-3 px-4 text-center text-black">
                         {product.piecesSold.toLocaleString()}
@@ -1951,7 +1940,6 @@ function handleTopProductRowKeyDown(
 export type TopProductRow = {
   name: string;
   productType: string;
-  marketSegment: string;
   orderVolume: number;
   profit: number;
   margin: number;
@@ -1971,7 +1959,7 @@ export const calculateTopProducts = (
     return [];
   }
 
-  const productStats: { [key: string]: { orderVolume: number; unitsSold: number; piecesSold: number; category: string; marketSegment: string; name: string; profit: number; image?: string | null } } = {};
+  const productStats: { [key: string]: { orderVolume: number; unitsSold: number; piecesSold: number; category: string; name: string; profit: number; image?: string | null } } = {};
   const productById = createProductLookup(products);
   const avgMargin = getAverageProductMargin(products);
 
@@ -1988,7 +1976,6 @@ export const calculateTopProducts = (
               unitsSold: 0,
               piecesSold: 0,
               category: product?.productType || 'Uncategorized',
-              marketSegment: product?.marketSegment || 'Uncategorized',
               name: product?.name || `Product ${productId}`,
               profit: 0,
               image: product?.images?.[0] ?? null,
@@ -2019,7 +2006,6 @@ export const calculateTopProducts = (
       piecesSold: stats.piecesSold,
       margin,
       productType: stats.category,
-      marketSegment: stats.marketSegment,
       profit: stats.profit,
       productId,
       image: stats.image ?? null,
@@ -2161,7 +2147,7 @@ export const AnalyticsTopProductsTable: React.FC<{
                   </Link>
                 </div>
               </td>
-              <td className="py-3 px-4 text-center text-gray-600">{product.marketSegment}</td>
+              <td className="py-3 px-4 text-center text-gray-600">{product.productType}</td>
               <td className="py-3 px-4 text-center text-black">{product.piecesSold.toLocaleString()}</td>
               <td className="py-3 px-4 text-center font-semibold text-black">{utilsFormatCurrency(product.orderVolume, userCurrency)}</td>
               <td className="py-3 px-4 text-center font-semibold text-black">{utilsFormatCurrency(product.profit, userCurrency)}</td>

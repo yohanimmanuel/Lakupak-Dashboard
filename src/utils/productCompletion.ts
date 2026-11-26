@@ -2,7 +2,6 @@ import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { parsePrice } from '@/utils/currencyUtils';
 
 export type ProductRequiredFieldKey =
-  | 'marketSegment'
   | 'name'
   | 'description'
   | 'category'
@@ -29,7 +28,6 @@ export interface ProductCompletionInfo {
 
 export interface ProductLike {
   sku?: string | null;
-  marketSegment?: string | null;
   name?: string | null;
   description?: string | null;
   productType?: string | null;
@@ -77,8 +75,8 @@ function resolveVariantPrice(
 }
 
 /**
- * Calculates product catalog completion across the 9 standard fields:
- * Market Segment, Name, Description, Category (Product Type), Brand, Supplier, Images, Variants, Stock.
+ * Calculates product catalog completion across the 8 standard fields:
+ * Name, Description, Category (Product Type), Brand, Supplier, Images, Variants, Stock.
  *
  * Can accept either:
  * - A Product object with `variantOptions` (e.g. from ProductTable)
@@ -93,7 +91,6 @@ export function getProductCompletion(
   const requirePositiveStock = options?.requirePositiveStock ?? false;
   const requirePositivePrice = options?.requirePositivePrice ?? false;
 
-  const hasMarketSegment = Boolean(String(product?.marketSegment || '').trim());
   const hasName = Boolean(String(product?.name || '').trim());
   const hasDescription = Boolean(String(product?.description || '').trim());
   const hasCategory = Boolean(String(product?.productType || '').trim());
@@ -178,7 +175,6 @@ export function getProductCompletion(
   }
 
   const fields: ProductFieldCheck[] = [
-    { key: 'marketSegment', nameKey: 'marketSegment', isComplete: hasMarketSegment },
     { key: 'name', nameKey: 'name', isComplete: hasName },
     { key: 'description', nameKey: 'description', isComplete: hasDescription },
     { key: 'category', nameKey: 'category', isComplete: hasCategory },
@@ -226,7 +222,7 @@ export function productHasMissingVariants(
 /**
  * Checks if a product is eligible for marketplace publishing.
  * Requires:
- * 1. 100% catalog completion across all 9 fields (including all variants priced and configured)
+ * 1. 100% catalog completion across all 8 fields (including all variants priced and configured)
  * 2. Total stock quantity > 0 (as enforced by backend GraphQL mutation)
  */
 export function isProductMarketplacePublishable(

@@ -45,13 +45,6 @@ const getTypeFilters = (products: Product[]) => {
   return ["All Types", ...Array.from(categories)];
 };
 
-const getMarketSegmentFilters = (products: Product[]) => {
-  const segments = new Set(
-    products.map((product) => product.marketSegment).filter((value): value is string => Boolean(value)),
-  );
-  return ["All Categories", ...Array.from(segments)];
-};
-
 export default function ProductTable({ products = [], setProductsAction, onSelectProductAction, onExportXLSXAction, profileToTableRowAction, onRefreshProductsAction, withSuppressedAutoRefreshAction, pickerMode = false, pickerConfirmLabel = 'Use selected', onConfirmPickerSelectionAction, initialSelectedProductIds, pickerSingleSelect = true }: { 
   products?: Product[]; 
   setProductsAction?: (fn: (prev: Product[]) => Product[]) => void; 
@@ -106,9 +99,6 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
   const getTypeFilterLabel = (type: string) =>
     type === 'All Types' ? translateFilter(type) : translateCategory(type);
 
-  const getProdCategoryFilterLabel = (value: string) =>
-    value === 'All Categories' ? translateFilter(value) : value;
-
   // Helper: catalog prices are not offer-rewritten, so there is no separate "original" range
   const getOriginalPriceRange = (_originalProduct: Product | undefined): string | null => {
     return null;
@@ -159,16 +149,13 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
   const [selectedTab, setSelectedTab] = useState("All");
   const [selectedStockFilter, setSelectedStockFilter] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("All Types");
-  const [selectedProdCategory, setSelectedProdCategory] = useState("All Categories");
   const [selectedOfferFilter, setSelectedOfferFilter] = useState("all");
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
   
   // Get dynamic filters based on current products
   const categoryFilters = getTypeFilters(products);
-  const prodCategoryFilters = getMarketSegmentFilters(products);
   const [showStockDropdown, setShowStockDropdown] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
-  const [showProdCategoryDropdown, setShowProdCategoryDropdown] = useState(false);
   const [showOfferDropdown, setShowOfferDropdown] = useState(false);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
@@ -202,7 +189,6 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
   
   if (selectedTab !== "All") filteredProducts = filteredProducts.filter((p: ProductTableRow) => p.status === selectedTab);
   if (selectedCategory !== "All Types") filteredProducts = filteredProducts.filter((p: ProductTableRow) => p.productType === selectedCategory);
-  if (selectedProdCategory !== "All Categories") filteredProducts = filteredProducts.filter((p: ProductTableRow) => (products.find(x => x.productId === p.productId)?.marketSegment) === selectedProdCategory);
   
   if (selectedStockFilter !== "all") {
     filteredProducts = filteredProducts.filter((p: ProductTableRow) => {
@@ -747,7 +733,6 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                 setShowStockDropdown(v => !v);
                 setShowCategoryDropdown(false);
                 setShowFilterDropdown(false);
-                setShowProdCategoryDropdown(false);
                 setShowOfferDropdown(false);
               }}
             >
@@ -785,7 +770,6 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                 setShowCategoryDropdown(v => !v);
                 setShowStockDropdown(false);
                 setShowFilterDropdown(false);
-                setShowProdCategoryDropdown(false);
                 setShowOfferDropdown(false);
               }}
             >
@@ -815,44 +799,6 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
             )}
           </div>
 
-          {/* Product Category Filter Dropdown */}
-          <div className="relative w-full @4xl/main:w-auto">
-            <button
-              className="flex w-full items-center justify-between gap-1 whitespace-nowrap rounded-lg border border-[#e6e6e6] bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 @4xl/main:w-auto @4xl/main:justify-start"
-              onClick={() => {
-                setShowProdCategoryDropdown(v => !v);
-                setShowStockDropdown(false);
-                setShowFilterDropdown(false);
-                setShowCategoryDropdown(false);
-                setShowOfferDropdown(false);
-              }}
-            >
-              <Filter className="w-4 h-4" />
-              {getProdCategoryFilterLabel(selectedProdCategory)}
-              <ChevronDown className="w-4 h-4 ml-1 text-gray-500" />
-            </button>
-            {showProdCategoryDropdown && (
-              <div className="absolute left-0 z-20 mt-2 w-48 rounded-lg border border-[#e6e6e6] bg-white shadow">
-                {prodCategoryFilters.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => {
-                      setSelectedProdCategory(cat);
-                      setShowProdCategoryDropdown(false);
-                    }}
-                    className={`w-full text-left px-4 py-2 text-sm first:rounded-t-lg last:rounded-b-lg ${
-                      selectedProdCategory === cat
-                        ? 'text-[#0a61d7] font-semibold hover:bg-gray-100'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    {getProdCategoryFilterLabel(cat)}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
           {/* Offer Filter Dropdown */}
           <div className="relative w-full @4xl/main:w-auto">
             <button
@@ -862,7 +808,6 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                 setShowStockDropdown(false);
                 setShowFilterDropdown(false);
                 setShowCategoryDropdown(false);
-                setShowProdCategoryDropdown(false);
               }}
             >
               <Gift className="w-4 h-4" />
@@ -1152,7 +1097,6 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                  </th>
                  <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tShared('columns.productName')}</th>
                  <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tShared('columns.type')}</th>
-                 <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tShared('columns.category')}</th>
                  <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tShared('columns.brand')}</th>
                  <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tShared('columns.stock')}</th>
                  <th className="text-left py-3 px-4 font-medium text-xs uppercase">{tShared('columns.sellingPrice')}</th>
@@ -1225,17 +1169,6 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                    ) : (
                      <span className="text-red-600 font-bold">{tShared('missing.type')}</span>
                    )}
-                 </td>
-                 <td className="truncate py-3 px-4 text-xs text-gray-700">
-                  {(() => {
-                    const originalProduct = products.find(p => p.productId === product.productId);
-                    const category = originalProduct?.marketSegment;
-                    return String(category || '').trim() ? (
-                      category
-                    ) : (
-                      <span className="text-red-600 font-bold">{tShared('missing.category')}</span>
-                    );
-                  })()}
                  </td>
                  <td className="max-w-20 truncate py-3 px-4 text-xs text-gray-700">
                    {String(product.brand).trim() ? (
@@ -1577,17 +1510,6 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                    )}
                  </p>
                  <p className="text-xs text-gray-500">
-                   {(() => {
-                     const originalProduct = products.find(p => p.productId === product.productId);
-                     const category = originalProduct?.marketSegment;
-                     return String(category || '').trim() ? (
-                       category
-                     ) : (
-                       <span className="text-red-600 font-bold">{tShared('missing.category')}</span>
-                     );
-                   })()}
-                 </p>
-                 <p className="text-xs text-gray-500">
                    {String(product.brand).trim() ? (
                      product.brand
                    ) : (
@@ -1906,17 +1828,6 @@ export default function ProductTable({ products = [], setProductsAction, onSelec
                    ) : (
                      <span className="text-red-600 font-bold">{tShared('missing.type')}</span>
                    )}
-                 </p>
-                 <p className="text-xs text-gray-500">
-                   {(() => {
-                     const originalProduct = products.find(p => p.productId === product.productId);
-                     const category = originalProduct?.marketSegment;
-                     return String(category || '').trim() ? (
-                       category
-                     ) : (
-                       <span className="text-red-600 font-bold">{tShared('missing.category')}</span>
-                     );
-                   })()}
                  </p>
                  <p className="text-xs text-gray-500">
                    {String(product.brand).trim() ? (

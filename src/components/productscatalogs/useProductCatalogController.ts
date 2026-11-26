@@ -7,7 +7,7 @@ import { useUserStore } from '@/store/userStore';
 import type { Product, ProductFormData, StockLevel, ProductVariantDefinition, VariantOption } from '../../types/product';
 import { getDefaultCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
 import { parseNumberByCurrency } from '@/config/currencyConfig';
-import { getPriceAnchorPieces, scaleAnchoredPrice, priceToPieceValue } from '@/utils/priceAnchorUtils';
+import { getPriceAnchorPieces, scaleAnchoredPrice, scaleSegmentPrices, segmentPriceKey, priceToPieceValue } from '@/utils/priceAnchorUtils';
 import { getAvailableCategories, getCategoryByValue } from '@/utils/categoryUtils';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
@@ -22,7 +22,6 @@ import {
 import { CATALOG_COMPLETION_OPTIONS } from '@/utils/productCompletion';
 import {
   PRODUCT_REQUIRED_TEXT,
-  productMarketSegmentError,
   productRequiredTextError,
   type ProductRequiredTextField,
 } from '@/utils/product-security';
@@ -84,7 +83,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
   const [formData, setFormData] = useState<ProductFormData>({
     id: product?.id,
     productId: product?.productId || '',
-    marketSegment: product?.marketSegment || '',
     name: product?.name || '',
     description: product?.description || '',
     productType: product?.productType || '',
@@ -247,6 +245,7 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
           sellingPrice: scaleAnchoredPrice(option.sellingPrice, 1, getPriceAnchorPieces(normalizeStockLevels(product.stockLevels), product.sellingPriceUnit), userCurrency),
           moq: option.moq,
           moqByStockLevel: option.moqByStockLevel ?? {},
+          segmentPrices: scaleSegmentPrices(option.segmentPrices, 1, getPriceAnchorPieces(normalizeStockLevels(product.stockLevels), product.sellingPriceUnit), userCurrency),
           stockQuantity: option.stockQuantity || 0,
           lowStockThreshold: option.lowStockThreshold || 0,
           stockStatus: getVariantStockStatus(option.stockQuantity || 0, option.lowStockThreshold || 0),
@@ -342,7 +341,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
       const freshFormData: ProductFormData = {
         id: product.id,
         productId: product.productId || '',
-        marketSegment: product.marketSegment || '',
         name: product.name || '',
         description: product.description || '',
         productType: product.productType || '',
@@ -381,14 +379,15 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
   // Category dropdown states
   const [showGeneralCategoryDropdown, setShowGeneralCategoryDropdown] = useState(false);
   const [showCatalogCategoryDropdown, setShowCatalogCategoryDropdown] = useState(false);
-  const [showMarketSegmentDropdown, setShowMarketSegmentDropdown] = useState(false);
   const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
   const [supplierSearch, setSupplierSearch] = useState('');
   const [supplierOptions, setSupplierOptions] = useState<Array<{ supplierId: string; name: string }>>([]);
   const [marketSegmentOptions, setMarketSegmentOptions] = useState<string[]>([]);
+  const [marketSegmentsLoaded, setMarketSegmentsLoaded] = useState(false);
+  // Selling Price column scope: '' edits the default price, otherwise a segment price key.
+  const [selectedPriceSegment, setSelectedPriceSegment] = useState('');
   // Refs for click outside detection
   const generalCategoryRef = useRef<HTMLDivElement>(null);
-  const marketSegmentRef = useRef<HTMLDivElement>(null);
   const supplierDropdownRef = useRef<HTMLDivElement>(null);
   // Store original form data on mount for edit mode
   useEffect(() => {
@@ -396,7 +395,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
       const initial = {
         id: product?.id,
         productId: product?.productId || '',
-        marketSegment: product?.marketSegment || '',
         name: product?.name || '',
         description: product?.description || '',
         productType: product?.productType || '',
@@ -440,6 +438,8 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
         setMarketSegmentOptions(segments);
       } catch {
         if (!cancelled) setMarketSegmentOptions([]);
+      } finally {
+        if (!cancelled) setMarketSegmentsLoaded(true);
       }
     })();
     return () => {
@@ -523,9 +523,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
       if (catalogCategoryRef.current && !catalogCategoryRef.current.contains(event.target as Node)) {
         setShowCatalogCategoryDropdown(false);
       }
-      if (marketSegmentRef.current && !marketSegmentRef.current.contains(event.target as Node)) {
-        setShowMarketSegmentDropdown(false);
-      }
       if (supplierDropdownRef.current && !supplierDropdownRef.current.contains(event.target as Node)) {
         setShowSupplierDropdown(false);
       }
@@ -569,6 +566,9 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
     setCombinations((current) => current.map((combo) => ({
       ...combo,
       [priceField]: scaleAnchoredPrice(combo[priceField], fromPieces, toPieces, userCurrency),
+      ...(kind === 'selling'
+        ? { segmentPrices: scaleSegmentPrices(combo.segmentPrices, fromPieces, toPieces, userCurrency) }
+        : {}),
     })));
     setFormData((prev) => ({ ...prev, [field]: nextUnitName }));
   };
@@ -623,7 +623,11 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
     const resetPurchaseAnchor = formData.purchasePriceUnit === removedName;
     if (resetSellingAnchor) {
       const fromPieces = getPriceAnchorPieces(formData.stockLevels, formData.sellingPriceUnit);
-      setCombinations((current) => current.map((combo) => ({ ...combo, sellingPrice: scaleAnchoredPrice(combo.sellingPrice, fromPieces, 1, userCurrency) })));
+      setCombinations((current) => current.map((combo) => ({
+        ...combo,
+        sellingPrice: scaleAnchoredPrice(combo.sellingPrice, fromPieces, 1, userCurrency),
+        segmentPrices: scaleSegmentPrices(combo.segmentPrices, fromPieces, 1, userCurrency),
+      })));
     }
     if (resetPurchaseAnchor) {
       const fromPieces = getPriceAnchorPieces(formData.stockLevels, formData.purchasePriceUnit);
@@ -707,7 +711,7 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
     return numericRegex.test(value);
   };
   // Update combination
-  const updateCombination = (combinationId: string, field: string, value: string | number | Record<string, number> | undefined) => {
+  const updateCombination = (combinationId: string, field: string, value: string | number | Record<string, number> | Record<string, string> | undefined) => {
     setCombinations(prev => prev.map(combination => {
       if (combination.id === combinationId) {
         const updated = { ...combination, [field]: value };
@@ -1180,13 +1184,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
       const code = productRequiredTextError(field, String(formData[field] ?? ''));
       if (code) errors[field] = productFieldMessage(field, code);
     }
-    const marketSegmentError = productMarketSegmentError(formData.marketSegment);
-    if (marketSegmentError) {
-      errors.marketSegment =
-        marketSegmentError === 'Market segment is too long.'
-          ? tCatalog('validation.tooLong', { field: translateFieldName('marketSegment') })
-          : marketSegmentError;
-    }
     const priceCurrency = user?.currency || userCurrency;
     const validVariants = variants.filter((v) => v.variantType && v.options.some((opt) => opt.name));
     const variationMatrix = buildVariationMatrixForSave(status);
@@ -1287,7 +1284,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
         stockLevels: formData.stockLevels,
         id: formData.id,
         productId: formData.productId,
-        marketSegment: String(finalData.marketSegment || '').trim(),
         userId: user.id,
         currency: user.currency,
         totalStock,
@@ -1319,6 +1315,16 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
           originalSellingPrice: null,
           moq: combo.moq,
           moqByStockLevel: Object.fromEntries(Object.entries(combo.moqByStockLevel ?? {}).filter(([name, value]) => formData.stockLevels.some(level => level.name === name && level.name !== 'Pieces') && Number.isSafeInteger(value) && value >= 0)),
+          // Optional: blank entries are dropped so the segment falls back to the default price.
+          // Persist per-Piece strings (same as sellingPrice) so the server can parse by currency.
+          segmentPrices: Object.fromEntries(
+            Object.entries(combo.segmentPrices ?? {})
+              .map(([key, raw]) => [key, serializeComboPrice(raw, formData.sellingPriceUnit)] as const)
+              .filter(([, price]) => {
+                const parsed = Number(price);
+                return String(price).trim() !== '' && Number.isFinite(parsed) && parsed > 0;
+              }),
+          ),
           stockQuantity: combo.stockQuantity,
           lowStockThreshold: combo.lowStockThreshold,
           stockStatus: getVariantStockStatus(combo.stockQuantity, combo.lowStockThreshold),
@@ -1331,7 +1337,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
         mutation CreateProduct(
           $userId: Int!
           $productId: String
-          $marketSegment: String
           $name: String!
           $description: String!
           $productType: String!
@@ -1355,7 +1360,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
           createProduct(
             userId: $userId
             productId: $productId
-            marketSegment: $marketSegment
             name: $name
             description: $description
             productType: $productType
@@ -1378,7 +1382,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
           ) {
             id
             productId
-            marketSegment
             name
             status
           }
@@ -1389,7 +1392,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
           $userId: Int!
           $id: String
           $productId: String
-          $marketSegment: String
           $name: String
           $description: String
           $productType: String
@@ -1414,7 +1416,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
             userId: $userId
             id: $id
             productId: $productId
-            marketSegment: $marketSegment
             name: $name
             description: $description
             productType: $productType
@@ -1437,7 +1438,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
           ) {
             id
             productId
-            marketSegment
             name
             status
           }
@@ -1448,7 +1448,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
         const createVariables: Record<string, unknown> = {
           userId: user.id,
           productId: payload.productId,
-          marketSegment: payload.marketSegment,
           name: payload.name,
           description: payload.description,
           productType: payload.productType,
@@ -1488,7 +1487,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
         // Include all fields from payload - GraphQL client will filter out null/undefined
         const updateVariables: Record<string, unknown> = {
           userId: user.id,
-          marketSegment: payload.marketSegment,
           name: payload.name,
           description: payload.description,
           productType: payload.productType,
@@ -1789,7 +1787,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
     legacyPiecesPerUnit,
     legacyStockUnit,
     marketSegmentOptions,
-    marketSegmentRef,
     parseNumberByCurrency,
     product,
     productControlClass,
@@ -1806,7 +1803,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
     setShowCatalogCategoryDropdown,
     setShowGeneralCategoryDropdown,
     setShowImportStockSetup,
-    setShowMarketSegmentDropdown,
     setShowSupplierDropdown,
     setShowVariationImport,
     setStockLevelRatioDrafts,
@@ -1818,7 +1814,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
     showCatalogCategoryDropdown,
     showGeneralCategoryDropdown,
     showImportStockSetup,
-    showMarketSegmentDropdown,
     showSuccessModal,
     showSupplierDropdown,
     showVariationImport,

@@ -67,7 +67,6 @@ export default function ProductsListPage() {
           brand
           supplier
           status
-          marketSegment
           catalogName
           images
           halalCertified
@@ -80,10 +79,11 @@ export default function ProductsListPage() {
           variantOptions {
             id
             variantName
-                purchasePrice
+            purchasePrice
             sellingPrice
             originalSellingPrice
             moq
+            segmentPrices
             stockQuantity
             lowStockThreshold
             stockStatus

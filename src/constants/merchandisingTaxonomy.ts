@@ -1,7 +1,6 @@
 /**
  * Merchandising taxonomy (predefined slugs + synonyms).
  * `Product.merchandisingCategorySlug` stores the merchandising row below.
- * `Product.marketSegment` stores the target retailer segment (buyer businessType).
  */
 
 export type MerchandisingCategoryDef = {

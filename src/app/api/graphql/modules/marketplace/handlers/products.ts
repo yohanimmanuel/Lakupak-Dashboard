@@ -15,21 +15,6 @@ function isSafeCategoryFilterToken(value: string): boolean {
   return value.length > 0 && value.length <= 64 && /^[\p{L}\p{N}\s&\-_/]+$/u.test(value);
 }
 
-/**
- * Marketplace clients filter Retail/Wholesale and treat empty salesChannel as a miss.
- * Product.productCategory (sales channel) was removed; infer from marketSegment when possible.
- */
-function salesChannelFromMarketSegment(marketSegment?: string | null): 'Retail' | 'Wholesale' | 'Both' {
-  const segment = String(marketSegment || '').trim().toLowerCase();
-  if (!segment) return 'Both';
-  const hasRetail = segment.includes('retail');
-  const hasWholesale = segment.includes('wholesale') || segment.includes('b2b');
-  if (hasRetail && hasWholesale) return 'Both';
-  if (hasWholesale) return 'Wholesale';
-  if (hasRetail) return 'Retail';
-  return 'Both';
-}
-
 const MARKETPLACE_STOCK_UNITS = new Set(['Pieces', 'Boxes', 'Cartons']);
 
 function marketplaceStockUnit(raw?: string | null): 'Pieces' | 'Boxes' | 'Cartons' {
@@ -826,7 +811,14 @@ export const fetchMarketplaceProducts = async (args: {
       stock: totalStock,
       stockStatus,
       variants: product.variants || [],
-      variantOptions: product.variantOptions || [],
+      // Raw rows are returned as JSON: segment prices are distributor-private and must not reach buyers.
+      variantOptions: (product.variantOptions || []).map((vo) => {
+        const publicOption: Record<string, unknown> = { ...vo };
+        // Segment prices are distributor-private (relational rows or legacy map).
+        delete publicOption.segmentPrices;
+        delete publicOption.segmentPriceRows;
+        return publicOption;
+      }),
       variantOptionsFormatted: variantOptions.map((vo) => ({
         id: vo.id,
         sku: vo.sku,
@@ -844,10 +836,8 @@ export const fetchMarketplaceProducts = async (args: {
       })),
       images: product.images || [],
       category: product.productType || 'Uncategorized',
-      productCategory: (product as { marketSegment?: string | null }).marketSegment || '',
-      salesChannel: salesChannelFromMarketSegment(
-        (product as { marketSegment?: string | null }).marketSegment,
-      ),
+      productCategory: '',
+      salesChannel: 'Both' as const,
       brand: product.brand,
       unit: marketplaceStockUnit((product as { stockUnit?: string | null }).stockUnit),
       supplier: product.supplier,
