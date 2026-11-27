@@ -2,7 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useRef } from 'react';
 import type { DocsNavSection, DocLocale } from '@/lib/docs/types';
+
+const SIDEBAR_SCROLL_KEY = 'lakupak-docs-sidebar-scroll';
 
 export function DocsSidebar({
   locale,
@@ -12,9 +15,36 @@ export function DocsSidebar({
   sections: DocsNavSection[];
 }) {
   const pathname = usePathname();
+  const asideRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const el = asideRef.current;
+    if (!el) return;
+
+    const restore = () => {
+      const saved = sessionStorage.getItem(SIDEBAR_SCROLL_KEY);
+      if (saved != null) el.scrollTop = Number(saved) || 0;
+    };
+
+    restore();
+    // Next soft navigations can briefly reset scroll before paint settles.
+    const frame = requestAnimationFrame(restore);
+
+    const onScroll = () => {
+      sessionStorage.setItem(SIDEBAR_SCROLL_KEY, String(el.scrollTop));
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      el.removeEventListener('scroll', onScroll);
+    };
+  }, [pathname]);
 
   return (
-    <aside className="w-60 shrink-0 border-r border-gray-200 bg-gray-50/80 h-full overflow-y-auto">
+    <aside
+      ref={asideRef}
+      className="w-60 shrink-0 border-r border-gray-200 bg-gray-50/80 h-full overflow-y-auto"
+    >
       <div className="bg-[#0a61d7] px-4 py-3">
         <Link href={`/${locale}/docs`} className="text-sm font-semibold text-white hover:text-blue-100">
           Lakupak Docs
