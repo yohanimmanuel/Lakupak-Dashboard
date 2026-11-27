@@ -130,7 +130,12 @@ class MarketplaceWebSocketServer {
           if (data.type === 'offer_updated') {
             this.broadcastOfferUpdate(data.offerId, data.productIds || []);
           } else if (data.type === 'prices_updated') {
-            this.broadcastPriceUpdate(data.productIds || []);
+            this.broadcastPriceUpdate(
+              data.productIds || [],
+              typeof data.targetUserId === 'number' ? data.targetUserId : undefined,
+              data.targetType,
+              typeof data.distributorId === 'number' ? data.distributorId : undefined,
+            );
           } else if (data.type === 'product_updated') {
             this.broadcastProductUpdate(data.productIds || [], data.action, data.distributorId);
           } else if (data.type === 'order_updated') {
@@ -435,13 +440,23 @@ class MarketplaceWebSocketServer {
     this.broadcast(message);
   }
 
-  // Broadcast price update to all connected clients
-  broadcastPriceUpdate(productIds: string[]): void {
+  // Catalog price edits reach every client. A buyer segment change reaches only that marketplace user.
+  broadcastPriceUpdate(
+    productIds: string[],
+    targetUserId?: number,
+    targetType?: WsPrincipalType,
+    distributorId?: number,
+  ): void {
     const message: WebSocketMessage = {
       type: 'prices_updated',
-      productIds
+      productIds,
+      ...(typeof distributorId === 'number' ? { distributorId } : {}),
     };
 
+    if (typeof targetUserId === 'number' && targetUserId > 0) {
+      this.broadcastToUser(message, targetUserId, targetType);
+      return;
+    }
     this.broadcast(message);
   }
 

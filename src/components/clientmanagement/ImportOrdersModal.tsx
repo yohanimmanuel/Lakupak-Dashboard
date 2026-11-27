@@ -438,6 +438,7 @@ export default function ImportOrdersModal({
               { name: tImport('buyerGuideColumn8Name'), description: tImport('buyerGuideColumn8Description') },
             ]}
             exampleRows={[["Example Product","EXAMPLE-SKU-1","Size: 30 x 2 | Colour: Blue","5","Pieces","10000","50000","0","2026-11-21"],["Example Product","EXAMPLE-SKU-2","Size: 90 x 2 | Flavour: Spicy | Colour: Black","10","Pieces","15000","150000","0","2026-11-21"],["Example Product","EXAMPLE-SKU-3","Size: 40 x 3 | Flavour: BBQ","2","Pieces","12000","24000","0","2026-11-21"]]}
+            showVariantFormat
             templateName="Lakupak_Buyer_Records_Template.xlsx"
             onFileSelectedAction={handleFile}
             error={error}

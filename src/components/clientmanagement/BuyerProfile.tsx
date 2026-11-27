@@ -804,9 +804,21 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
 
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
                 {buyer.businessType?.trim() ? (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-1.5 py-0.5 font-medium text-gray-700">
+                  <span className="group relative inline-flex items-center gap-1 rounded-md bg-gray-100 px-1.5 py-0.5 font-medium text-gray-700">
                     <Tag className="h-3 w-3" />
                     {buyer.businessType}
+                    <span className="pointer-events-none absolute left-0 top-full z-30 mt-1 hidden w-64 rounded-lg border border-[#e6e6e6] bg-white p-3 text-left font-normal shadow-lg group-hover:block">
+                      <span className="block text-[11px] text-gray-500">{tBuyersProfile('segmentMain')}</span>
+                      <span className="mb-2 block text-xs font-medium text-black">{buyer.businessType}</span>
+                      <span className="block text-[11px] text-gray-500">{tBuyersProfile('segmentSub')}</span>
+                      <span className="mb-2 block text-xs font-medium text-black">
+                        {buyer.subChannel?.trim() || tBuyersProfile('segmentEmpty')}
+                      </span>
+                      <span className="block text-[11px] text-gray-500">{tBuyersProfile('segmentOutlet')}</span>
+                      <span className="block text-xs font-medium text-black">
+                        {buyer.outletExamples?.trim() || tBuyersProfile('segmentEmpty')}
+                      </span>
+                    </span>
                   </span>
                 ) : (
                   <span className="font-medium text-red-600">{tShared('missing.businessType')}</span>

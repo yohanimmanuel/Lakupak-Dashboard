@@ -11,6 +11,7 @@ import { parseNumberByCurrency } from '@/config/currencyConfig';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 import { TABLE_PAGE_SIZE, getVisiblePageNumbers } from '@/utils/tablePagination';
+import { readBuyerLogistics } from '@/utils/buyerLogistics';
 
 const statusTabs = [
   { label: "All" },
@@ -68,8 +69,8 @@ function normalizePreferredDeliveryDays(value: unknown): string {
 }
 
 const BUYER_MASTER_HEADERS = [
-  'ID', 'Store Name', 'Owner', 'Phone', 'Email', 'Address', 'Business Type', 'Status',
-  'Created At', 'Preferred Delivery Days', 'Last Shipment', 'Shipment Success', 'Notes',
+  'ID', 'Store Name', 'Owner', 'Phone', 'Email', 'Address', 'Main Channel', 'Sub-channel', 'Outlet Specifics', 'Status',
+  'Created At', 'Preferred Delivery Days', 'Last Order Date', 'Last Visit Date', 'Shipment Success', 'Notes',
 ];
 
 /** Table-only urgency fields — detail/edit pages keep the fuller progress bar. */
@@ -484,10 +485,16 @@ export default function BuyerTable({
   const handleExportXLSX = useCallback(() => {
     const headers = BUYER_MASTER_HEADERS;
     const rows = filteredBuyers.map((b: BuyerTableRow) => {
-      const source = buyers.find((item) => item.buyerId === b.buyerId) as (Buyer & {
-        preferredDays?: string; logistics?: string; lastShipment?: string; shipmentSuccess?: string; lastVisit?: string;
-      }) | undefined;
-      const preferredDays = normalizePreferredDeliveryDays(source?.preferredDays || source?.logistics || '');
+      const source = buyers.find((item) => item.buyerId === b.buyerId);
+      const logistics = readBuyerLogistics(source?.logistics);
+      const preferredDays = normalizePreferredDeliveryDays(logistics.preferredDays);
+      let notes = source?.notes || '';
+      try {
+        const parsed = JSON.parse(notes);
+        if (Array.isArray(parsed)) notes = parsed.map((item) => String(item)).join(', ');
+      } catch {
+        // Notes are already plain text.
+      }
       return [
         b.buyerId,
         b.storeName || b.name,
@@ -495,13 +502,16 @@ export default function BuyerTable({
         b.phone || source?.phone || '',
         b.email || source?.email || '',
         b.address,
-        b.businessType,
+        source?.businessType || b.businessType,
+        source?.subChannel || '',
+        source?.outletExamples || '',
         b.status,
         b.createdAt || '',
         preferredDays,
-        source?.lastShipment || source?.lastVisit || '',
-        source?.shipmentSuccess || '',
-        source?.notes || '',
+        logistics.lastShipment,
+        logistics.lastVisit,
+        logistics.shipmentSuccess,
+        notes,
       ];
     });
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);

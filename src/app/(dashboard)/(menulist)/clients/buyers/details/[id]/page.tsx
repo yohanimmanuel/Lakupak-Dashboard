@@ -21,6 +21,8 @@ const BUYER_QUERY = `
       email
       phone
       businessType
+      subChannel
+      outletExamples
       address
       status
       logistics

@@ -127,11 +127,27 @@ export async function broadcastProductUpdate(
 /**
  * Broadcast price update to all connected WebSocket clients
  */
-export async function broadcastPriceUpdate(productIds: string[]): Promise<void> {
+export async function broadcastPriceUpdate(
+  productIds: string[],
+  options?: {
+    targetUserId?: number;
+    targetType?: WsNotificationTargetType;
+    distributorId?: number;
+  },
+): Promise<void> {
   try {
+    const targetUserId = options?.targetUserId;
+    const targetType = options?.targetType;
+    const distributorId = options?.distributorId;
     await dispatchBroadcast(
-      { type: 'prices_updated', productIds },
-      (srv) => srv.broadcastPriceUpdate(productIds),
+      {
+        type: 'prices_updated',
+        productIds,
+        ...(typeof targetUserId === 'number' ? { targetUserId } : {}),
+        ...(targetType ? { targetType } : {}),
+        ...(typeof distributorId === 'number' ? { distributorId } : {}),
+      },
+      (srv) => srv.broadcastPriceUpdate(productIds, targetUserId, targetType, distributorId),
     );
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {

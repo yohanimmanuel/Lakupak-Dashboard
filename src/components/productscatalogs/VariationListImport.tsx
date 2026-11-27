@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { X, FileText, Eye, CheckCircle2, AlertTriangle, Loader2, Plus, Trash2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useProductsTranslations } from '@/hooks/useProductsTranslations';
@@ -9,7 +9,28 @@ import ImportStartPanel, { getDuplicateImportMappingErrors } from '@/components/
 export type VariationImportVariantColumn = {
   id: string;
   label: string;
+  /** Existing option labels for this variant type, used as template examples. */
+  exampleValues?: string[];
 };
+
+function exampleValuesForColumn(column: VariationImportVariantColumn, columnIndex: number): [string, string, string] {
+  const label = column.label.toLowerCase();
+  const labeled = /size|ukuran|volume|kemasan|pack|isi/.test(label)
+    ? ['135ml', '275ml', '500ml']
+    : /colou?r|warna/.test(label)
+      ? ['Blue', 'Red', 'Green']
+      : /flavou?r|rasa/.test(label)
+        ? ['Sweet', 'Spicy', 'Original']
+        : ([['Option A', 'Option B', 'Option C'], ['Type A', 'Type B', 'Type C'], ['Group A', 'Group B', 'Group C']][columnIndex] || ['Sample A', 'Sample B', 'Sample C']);
+  const values = [...new Set((column.exampleValues || []).map((value) => value.trim()).filter(Boolean))];
+  if (values.length >= 3) return [values[0], values[1], values[2]];
+  for (const fallback of labeled) {
+    if (values.length >= 3) break;
+    if (!values.some((value) => value.toLocaleLowerCase() === fallback.toLocaleLowerCase())) values.push(fallback);
+  }
+  while (values.length < 3) values.push(`Sample ${values.length + 1}`);
+  return [values[0], values[1], values[2]];
+}
 
 export type VariationImportRow = {
   variantValues: Record<string, string>;
@@ -44,6 +65,8 @@ type VariationListImportProps = {
   onCloseAction: () => void;
   variantColumns: VariationImportVariantColumn[];
   onImportAction: (data: VariationImportPayload) => Promise<VariationImportResult>;
+  /** Shown after column mapping and before the variant preview. */
+  renderStockStepAction?: (actions: { onBack: () => void; onContinue: () => void }) => React.ReactNode;
 };
 
 type ImportField = {
@@ -218,6 +241,7 @@ export default function VariationListImport({
   onCloseAction,
   variantColumns,
   onImportAction,
+  renderStockStepAction,
 }: VariationListImportProps) {
   const { tCatalog } = useProductsTranslations();
   const t = (key: string, values?: Record<string, string | number>) =>
@@ -232,6 +256,25 @@ export default function VariationListImport({
   const [importing, setImporting] = useState(false);
   const [extraVariantColumns, setExtraVariantColumns] = useState<VariationImportVariantColumn[]>([]);
   const [selectedRowIndices, setSelectedRowIndices] = useState<Set<number>>(new Set());
+  const fileReadId = useRef(0);
+  const [wasOpen, setWasOpen] = useState(open);
+  // Reset when the dialog closes. This follows the current props during render
+  // so a file that finishes reading after close cannot reopen a later step.
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (!open) {
+      fileReadId.current += 1;
+      setRows([]);
+      setStep(0);
+      setFilename('');
+      setFileHeaders([]);
+      setMapping({});
+      setError('');
+      setImporting(false);
+      setExtraVariantColumns([]);
+      setSelectedRowIndices(new Set());
+    }
+  }
 
   const baseVariantColumns = useMemo(
     () => [...variantColumns, ...extraVariantColumns],
@@ -293,6 +336,7 @@ export default function VariationListImport({
   };
 
   const resetState = () => {
+    fileReadId.current += 1;
     setRows([]);
     setStep(0);
     setFilename('');
@@ -362,8 +406,11 @@ export default function VariationListImport({
     if (!['xlsx', 'xls', 'csv'].includes(ext || '')) { setError('Choose an Excel (.xlsx, .xls) or CSV file.'); return; }
     if (file.size > 10 * 1024 * 1024) { setError('File is larger than 10 MB.'); return; }
     setFilename(file.name);
+    const readId = fileReadId.current + 1;
+    fileReadId.current = readId;
     const reader = new FileReader();
     reader.onload = (evt: ProgressEvent<FileReader>) => {
+      if (readId !== fileReadId.current) return;
       if (!evt.target?.result) {
         setError(t('fileReadError'));
         return;
@@ -420,7 +467,10 @@ export default function VariationListImport({
         setError(t('fileReadError'));
       }
     };
-    reader.onerror = () => setError('The file could not be read.');
+    reader.onerror = () => {
+      if (readId !== fileReadId.current) return;
+      setError('The file could not be read.');
+    };
     if (ext === 'csv') reader.readAsText(file);
     else reader.readAsArrayBuffer(file);
   };
@@ -500,8 +550,9 @@ export default function VariationListImport({
     if (errors.length) { setError(errors.slice(0, 10).join(' ')); return; }
     setError('');
     setSelectedRowIndices(new Set(rows.map((_, index) => index)));
-    setStep(2);
+    setStep(renderStockStepAction ? 2 : 3);
   };
+  const previewStep = 3;
   const allRowsSelected = rows.length > 0 && selectedRowIndices.size === rows.length;
   const someRowsSelected = selectedRowIndices.size > 0 && !allRowsSelected;
 
@@ -569,7 +620,7 @@ export default function VariationListImport({
           </h2>
         </div>
 
-        <div className="flex flex-1 min-h-0 flex-col overflow-hidden px-4 py-4">
+        <div className={`flex flex-1 min-h-0 flex-col overflow-hidden ${step === 2 ? '' : 'px-4 py-4'}`}>
         {step === 0 && (
           <div className="flex-1 min-h-0 overflow-y-auto">
           <ImportStartPanel
@@ -591,6 +642,17 @@ export default function VariationListImport({
               { name: 'Low Stock Threshold', description: 'Low-stock alert threshold in Pieces.' },
               { name: 'Status', description: 'Optional stock status label.' },
             ]}
+            exampleRows={[0, 1, 2].map((rowIndex) => [
+              ...variantColumns.map((column, columnIndex) => exampleValuesForColumn(column, columnIndex)[rowIndex]),
+              `EXAMPLE-SKU-${rowIndex + 1}`,
+              ['176000', '286000', '330000'][rowIndex],
+              ['121000', '154000', '242000'][rowIndex],
+              '1',
+              ['220', '140', '80'][rowIndex],
+              '10',
+              'In Stock',
+            ])}
+            exampleHint={t('exampleHint')}
             templateName="Lakupak_Product_Variants_Template.xlsx"
             onFileSelectedAction={handleFile}
             error={error}
@@ -722,13 +784,22 @@ export default function VariationListImport({
                 onClick={openPreviewStep}
                 disabled={Object.keys(mapping).filter((k) => mapping[k]).length === 0}
               >
-                {t('preview')}
+                {renderStockStepAction ? t('prepareStockLevels') : t('preview')}
               </button>
             </div>
           </div>
         )}
 
-        {step === 2 && (
+        {step === 2 && renderStockStepAction ? (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            {renderStockStepAction({
+              onBack: () => setStep(1),
+              onContinue: () => setStep(previewStep),
+            })}
+          </div>
+        ) : null}
+
+        {step === previewStep && (
           <div className="flex flex-1 min-h-0 flex-col gap-3">
             {notice}
             <div className="flex-shrink-0 flex flex-wrap items-center justify-between gap-3 text-black">
@@ -814,7 +885,7 @@ export default function VariationListImport({
               <button
                 type="button"
                 className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200"
-                onClick={() => setStep(1)}
+                onClick={() => setStep(renderStockStepAction ? 2 : 1)}
                 disabled={importing}
               >
                 {t('back')}

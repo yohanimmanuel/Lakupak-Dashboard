@@ -62,6 +62,7 @@ model User {
   salesJobs SalesJob[]
   salesJobSettings SalesJobSettings?
   clientMatchCandidates ClientMatchCandidate[]
+  marketSegmentDirectories MarketSegmentDirectory[]
   aiConversations AiConversation[]
   marketplaceHomeOffers MarketplaceHomeOffer[]
   assortmentOpportunities AssortmentOpportunity[]
@@ -219,7 +220,12 @@ model Buyer {
   email        String
   phone        String
   storeName    String
+  /// Main channel. Also the VariantSegmentPrice key.
   businessType String
+  /// Optional sub-channel from the market segment directory.
+  subChannel   String   @default("")
+  /// Optional outlet examples from the market segment directory.
+  outletExamples String @default("")
   address      String
   region       String?
   status       String
@@ -237,6 +243,23 @@ model Buyer {
   buyerRecords BuyerRecord[]
 
   @@unique([userId, customerNumber])
+}
+
+/// Distributor-owned market segment structure. Keeps VariantSegmentPrice rows
+/// after the last buyer of a main channel is deleted, until this directory row is removed.
+model MarketSegmentDirectory {
+  id             Int      @id @default(autoincrement())
+  userId         Int
+  mainChannel    String
+  subChannel     String   @default("")
+  outletExamples String   @default("")
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, mainChannel, subChannel, outletExamples])
+  @@index([userId])
 }
 
 /// Normalized buyer order/product detail rows (formerly Buyer.orderDetails JSON).

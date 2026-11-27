@@ -26,10 +26,13 @@ type BuyerImportRow = {
   Phone: string;
   Email: string;
   Address: string;
-  'Business Type': string;
+  'Main Channel': string;
+  'Sub-channel': string;
+  'Outlet Specifics': string;
   Status: string;
   'Created At': string;
-  'Last Shipment': string;
+  'Last Order Date': string;
+  'Last Visit Date': string;
   'Shipment Success': string;
   Notes: string;
   preferredDays?: string;
@@ -71,11 +74,14 @@ const buyerFields: MasterImportField[] = [
   { key: 'Phone', labelKey: 'phone' },
   { key: 'Email', labelKey: 'email' },
   { key: 'Address', labelKey: 'address' },
-  { key: 'Business Type', labelKey: 'businessType' },
+  { key: 'Main Channel', labelKey: 'businessType' },
+  { key: 'Sub-channel', labelKey: 'subChannel' },
+  { key: 'Outlet Specifics', labelKey: 'outletSpecifics' },
   { key: 'Status', labelKey: 'status' },
   { key: 'Created At', labelKey: 'createdAt' },
   { key: 'Preferred Delivery Days', labelKey: 'preferredDeliveryDays' },
-  { key: 'Last Shipment', labelKey: 'lastShipment' },
+  { key: 'Last Order Date', labelKey: 'lastShipment' },
+  { key: 'Last Visit Date', labelKey: 'lastVisit' },
   { key: 'Shipment Success', labelKey: 'shipmentSuccess' },
   { key: 'Notes', labelKey: 'notes' },
 ];
@@ -133,11 +139,14 @@ const buyerSynonyms: { [key: string]: string[] } = {
   'Phone': ['phone', 'no hp', 'no telepon', 'telepon', 'phone number', 'no telp'],
   'Email': ['email', 'e-mail', 'mail'],
   'Address': ['address', 'alamat', 'alamat toko', 'store address'],
-  'Business Type': ['business type', 'tipe bisnis', 'jenis usaha', 'type'],
+  'Main Channel': ['main channel', 'business type', 'businessType', 'tipe bisnis', 'jenis usaha', 'type'],
+  'Sub-channel': ['sub-channel', 'sub channel', 'subchannel', 'sub channel'],
+  'Outlet Specifics': ['outlet specifics', 'outlet examples', 'outlet example', 'contoh outlet'],
   'Status': ['status', 'buyer status'],
   'Created At': ['created at', 'tanggal dibuat', 'created'],
   'Preferred Delivery Days': ['preferred delivery days', 'preferred days', 'delivery days', 'hari pengiriman'],
-  'Last Shipment': ['last shipment', 'pengiriman terakhir', 'last delivery'],
+  'Last Order Date': ['last order date', 'last shipment', 'pengiriman terakhir', 'last delivery'],
+  'Last Visit Date': ['last visit date', 'last visit', 'kunjungan terakhir'],
   'Shipment Success': ['shipment success', 'success rate', 'shipment rate'],
   'Notes': ['notes', 'catatan', 'tags'],
 };
@@ -156,6 +165,28 @@ const supplierSynonyms: { [key: string]: string[] } = {
   'Delivery Success': ['delivery success', 'success rate', 'delivery rate'],
   'Notes': ['notes', 'catatan', 'tags'],
 };
+
+function cellToImportText(value: unknown): string {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+  return value != null ? String(value) : '';
+}
+
+const BUYER_EXAMPLE_ROWS = [
+  ['', 'Warung Indah', 'Yohan', '+62 81200000001', 'yohan@example.com', 'Jl. Melati 21, Jakarta', 'Retail GT', 'Retail', 'Toko kelontong', 'Active', '2026-11-01', 'Monday, Wednesday, Friday', '2026-11-20', '2026-11-27', '98', 'Priority account'],
+  ['', 'Indomaret Senayan', 'Sari', '+62 81200000002', 'sari@example.com', 'Jl. Senayan 4, Jakarta', 'Retail MT', 'Minimarket', 'Indomaret', 'Active', '2026-11-02', 'Tuesday, Thursday', '2026-11-18', '2026-11-25', '95', 'Weekly delivery'],
+  ['', 'Kantin Sejahtera', 'Budi', '+62 81200000003', 'budi@example.com', 'Jl. Sudirman 10, Jakarta', 'Retail GT', 'Kantin', 'Kantin kantor', 'Prospect', '2026-11-03', 'Monday, Friday', '', '', '', ''],
+];
+
+const SUPPLIER_EXAMPLE_ROWS = [
+  ['', 'Sumber Rasa', 'Andi', '+62 81100000001', 'andi@example.com', 'Manufacturer', 'Jl. Industri 8, Bekasi', 'Active', '2026-11-01', 'Monday, Thursday', '2026-11-15', '97', 'Primary supplier'],
+  ['', 'Laut Biru Foods', 'Dewi', '+62 81100000002', 'dewi@example.com', 'Distributor', 'Jl. Pelabuhan 2, Surabaya', 'Active', '2026-11-04', 'Wednesday', '2026-11-19', '94', ''],
+  ['', 'Gudang Timur', 'Raka', '+62 81100000003', 'raka@example.com', 'Wholesaler', 'Jl. Pergudangan 5, Tangerang', 'Inactive', '2026-11-06', 'Tuesday, Friday', '', '', 'New supplier'],
+];
 
 function generateBuyerId() {
   return 'LKB-' + Math.floor(10000000 + Math.random() * 90000000).toString();
@@ -232,7 +263,7 @@ export default function ImportData({ open, onCloseAction, onImportAction, type =
         workbook = XLSX.read(text, { type: 'string' });
       } else {
         const data = new Uint8Array(evt.target.result as ArrayBuffer);
-        workbook = XLSX.read(data, { type: 'array' });
+        workbook = XLSX.read(data, { type: 'array', cellDates: true });
       }
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const json = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
@@ -257,7 +288,7 @@ export default function ImportData({ open, onCloseAction, onImportAction, type =
           const obj: Record<string, string> = {};
           fileHeadersRow.forEach((h, i) => {
             if (!h) return;
-            obj[h] = cells[i] != null ? String(cells[i]) : '';
+            obj[h] = cellToImportText(cells[i]);
           });
           return obj as ImportRow;
         })
@@ -406,6 +437,8 @@ export default function ImportData({ open, onCloseAction, onImportAction, type =
             instructions={[0, 1, 2, 3].map((index) =>
               tImport(`master.${type === 'Buyers' ? 'buyer' : 'supplier'}.instruction${index}`))}
             columns={importColumnGuides}
+            exampleRows={type === 'Buyers' ? BUYER_EXAMPLE_ROWS : SUPPLIER_EXAMPLE_ROWS}
+            exampleHint={tImport(type === 'Buyers' ? 'exampleBuyerHint' : 'exampleSupplierHint')}
             templateName={type === 'Buyers' ? 'Lakupak_Buyer_Template.xlsx' : 'Lakupak_Supplier_Template.xlsx'}
             onFileSelectedAction={handleFile}
             error={error}

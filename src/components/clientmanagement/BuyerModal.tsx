@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Trash, Plus, User, Upload, Download, AlertCircle, CheckCircle, ChevronDown, ChevronLeft, ChevronRight, ArrowLeft, Save } from 'lucide-react';
+import { Trash, Plus, User, Upload, Download, AlertCircle, CheckCircle, ChevronDown, ChevronLeft, ChevronRight, ArrowLeft, Save, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import * as XLSX from 'xlsx';
@@ -193,6 +193,8 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
         email: '', 
         address: '', 
         businessType: '', 
+        subChannel: '',
+        outletExamples: '',
         status: statusOptions[0], 
         createdAt: new Date().toISOString().split('T')[0], 
         preferredDays: '', 
@@ -214,6 +216,8 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
       email: initialData.email && !initialData.email.includes('Missing') ? initialData.email : '',
       address: initialData.address && !initialData.address.includes('Missing') ? initialData.address : '',
       businessType: initialData.businessType && !initialData.businessType.includes('Missing') ? initialData.businessType : '',
+      subChannel: initialData.subChannel || '',
+      outletExamples: initialData.outletExamples || '',
       status: initialData.status || statusOptions[0],
       createdAt: initialData.createdAt ? new Date(initialData.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       preferredDays: parsedLogistics.preferredDays && !parsedLogistics.preferredDays.includes('Missing') ? parsedLogistics.preferredDays : '',
@@ -269,6 +273,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [avatar, setAvatar] = useState(initialData?.avatar || '');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -284,6 +289,9 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
+  const segmentMenuRef = useRef<HTMLDivElement>(null);
+  const [segmentMenu, setSegmentMenu] = useState<null | 'main' | 'sub' | 'outlet'>(null);
+  const [segmentRows, setSegmentRows] = useState<Array<{ mainChannel: string; subChannel: string; outletExamples: string }>>([]);
   const preferredDaysDropdownRef = useRef<HTMLDivElement>(null);
   const orderRowsEditedRef = useRef(false);
   const hydratedMarketplaceBuyerKeyRef = useRef('');
@@ -605,6 +613,9 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
       if (statusDropdownRef.current && !statusDropdownRef.current.contains(target)) {
         setShowStatusDropdown(false);
       }
+      if (segmentMenuRef.current && !segmentMenuRef.current.contains(target)) {
+        setSegmentMenu(null);
+      }
       if (preferredDaysDropdownRef.current && !preferredDaysDropdownRef.current.contains(target)) {
         setShowPreferredDaysDropdown(false);
       }
@@ -615,6 +626,60 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    fetchGraphQL<{ marketSegmentDirectories: Array<{ mainChannel: string; subChannel: string; outletExamples: string }> }>(
+      `query Segments($userId: Int!) {
+        marketSegmentDirectories(userId: $userId) { mainChannel subChannel outletExamples }
+      }`,
+      { userId: user.id },
+    )
+      .then((data) => {
+        if (!cancelled) setSegmentRows(data.marketSegmentDirectories || []);
+      })
+      .catch(() => {
+        if (!cancelled) setSegmentRows([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  const mainChannelOptions = useMemo(() => {
+    const values = Array.from(new Set(segmentRows.map((row) => row.mainChannel.trim()).filter(Boolean)));
+    if (form.businessType && !values.some((value) => value.toLowerCase() === form.businessType.toLowerCase())) {
+      values.unshift(form.businessType);
+    }
+    return values;
+  }, [form.businessType, segmentRows]);
+
+  const subChannelOptions = useMemo(() => {
+    const main = form.businessType.trim().toLowerCase();
+    return Array.from(
+      new Set(
+        segmentRows
+          .filter((row) => row.mainChannel.trim().toLowerCase() === main)
+          .map((row) => row.subChannel.trim())
+          .filter(Boolean),
+      ),
+    );
+  }, [form.businessType, segmentRows]);
+
+  const outletExampleOptions = useMemo(() => {
+    const main = form.businessType.trim().toLowerCase();
+    const sub = (form.subChannel || '').trim().toLowerCase();
+    return Array.from(
+      new Set(
+        segmentRows
+          .filter((row) => row.mainChannel.trim().toLowerCase() === main)
+          .filter((row) => !sub || row.subChannel.trim().toLowerCase() === sub)
+          .map((row) => row.outletExamples.trim())
+          .filter(Boolean),
+      ),
+    );
+  }, [form.businessType, form.subChannel, segmentRows]);
 
   const validateForm = useCallback(() => {
     const errors: Record<string, string> = {};
@@ -953,6 +1018,8 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
             $email: String
             $phone: String
             $businessType: String
+            $subChannel: String
+            $outletExamples: String
             $address: String
             $status: String
             $avatar: String
@@ -969,6 +1036,8 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
               email: $email
               phone: $phone
               businessType: $businessType
+              subChannel: $subChannel
+              outletExamples: $outletExamples
               address: $address
               status: $status
               avatar: $avatar
@@ -984,6 +1053,8 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
               email
               phone
               businessType
+              subChannel
+              outletExamples
               address
               status
               logistics
@@ -1007,6 +1078,8 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
           email: payload.email,
           phone: payload.phone,
           businessType: payload.businessType,
+          subChannel: payload.subChannel,
+          outletExamples: payload.outletExamples,
           address: payload.address,
           status: payload.status,
           avatar: payload.avatar,
@@ -1027,6 +1100,8 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
             $email: String
             $phone: String
             $businessType: String
+            $subChannel: String
+            $outletExamples: String
             $address: String
             $status: String
             $avatar: String
@@ -1042,6 +1117,8 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
               email: $email
               phone: $phone
               businessType: $businessType
+              subChannel: $subChannel
+              outletExamples: $outletExamples
               address: $address
               status: $status
               avatar: $avatar
@@ -1057,6 +1134,8 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
               email
               phone
               businessType
+              subChannel
+              outletExamples
               address
               status
               logistics
@@ -1079,6 +1158,8 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
           email: payload.email,
           phone: payload.phone,
           businessType: payload.businessType,
+          subChannel: payload.subChannel,
+          outletExamples: payload.outletExamples,
           address: payload.address,
           status: payload.status,
           avatar: payload.avatar,
@@ -1127,9 +1208,10 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
       handleError(tBuyersModal('invalidImage'));
       return;
     }
-    
+    if (uploadingPhoto) return;
+
+    setUploadingPhoto(true);
     try {
-      // Direct upload to Cloudinary (faster, no base64 conversion)
       const result = await uploadToCloudinaryDirect(file, 'buyers');
 
       if (result.success && result.url) {
@@ -1139,8 +1221,11 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
       }
     } catch (error) {
       handleError(error instanceof Error ? error.message : tBuyersModal('uploadFailed'));
+    } finally {
+      setUploadingPhoto(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
-  }, [handleError]);
+  }, [handleError, tBuyersModal, uploadingPhoto]);
 
   // Hydrate form when initialData is provided (edit or AI prefill on add)
   useEffect(() => {
@@ -1167,6 +1252,8 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
       email: initialData.email && !initialData.email.includes('Missing') ? initialData.email : '',
       address: initialData.address && !initialData.address.includes('Missing') ? initialData.address : '',
       businessType: initialData.businessType && !initialData.businessType.includes('Missing') ? initialData.businessType : '',
+      subChannel: initialData.subChannel || '',
+      outletExamples: initialData.outletExamples || '',
       status: initialData.status || (isEditMode ? statusOptions[0] : 'Prospect'),
       createdAt: initialData.createdAt ? new Date(initialData.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       preferredDays: parsedLogistics.preferredDays && !parsedLogistics.preferredDays.includes('Missing') ? parsedLogistics.preferredDays : '',
@@ -1258,19 +1345,26 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
           {/* Avatar Section */}
           <div className="flex flex-col items-left mb-4 mt-4">
             <div className="flex items-center gap-3">
-              <div className="w-18 h-18 rounded-full bg-gray-100 border flex items-center justify-center overflow-hidden mb-2">
+              <div className="relative mb-2 flex h-18 w-18 items-center justify-center overflow-hidden rounded-full border bg-gray-100">
                 {avatar ? (
-                  <img src={avatar} alt="Profile" className="w-full h-full object-cover" />
+                  <img src={avatar} alt="Profile" className="h-full w-full object-cover" />
                 ) : (
-                  <User className="w-10 h-10 text-gray-400" />
+                  <User className="h-10 w-10 text-gray-400" />
                 )}
+                {uploadingPhoto ? (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                    <Loader2 className="h-6 w-6 animate-spin text-white" />
+                  </div>
+                ) : null}
               </div>
               <button
                 type="button"
-                className="ml-2 px-3 py-2 rounded-lg bg-[#0a61d7] text-white text-xs font-semibold hover:bg-[#084ba6] flex items-center gap-1 transition-colors"
+                disabled={uploadingPhoto}
+                className="ml-2 flex items-center gap-1 rounded-lg bg-[#0a61d7] px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#084ba6] disabled:cursor-not-allowed disabled:opacity-60"
                 onClick={() => fileInputRef.current?.click()}
               >
-                <Upload className="w-4 h-4" /> {tBuyersModal('uploadPhoto')}
+                {uploadingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                {uploadingPhoto ? tBuyersModal('uploadingPhoto') : tBuyersModal('uploadPhoto')}
               </button>
               <input
                 ref={fileInputRef}
@@ -1358,15 +1452,147 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
             />
           </div>
           
-          {/* Business Type and Status */}
+          {/* Market segment and Status */}
+          <div className="flex gap-2" ref={segmentMenuRef}>
+            <div className="flex-1">
+              <label className="mb-1 block text-xs font-medium text-gray-700">{tBuyersModal('businessType')}</label>
+              <div className="relative">
+                <button
+                  type="button"
+                  className={CLIENT_SELECT_BUTTON_CLASS}
+                  onClick={() => setSegmentMenu((open) => (open === 'main' ? null : 'main'))}
+                >
+                  <span className={form.businessType ? 'text-black' : 'text-gray-500'}>
+                    {form.businessType || tBuyersModal('businessTypePlaceholder')}
+                  </span>
+                  <ChevronDown className="h-4 w-4 text-gray-400" />
+                </button>
+                {segmentMenu === 'main' && (
+                  <div className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-[#e6e6e6] bg-white shadow-lg">
+                    {mainChannelOptions.length === 0 ? (
+                      <Link href="/clients/buyers/market-segments" className="block px-3 py-2 text-xs text-[#0a61d7] hover:bg-gray-50">
+                        {tBuyersModal('noSegments')}
+                      </Link>
+                    ) : (
+                      mainChannelOptions.map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          className={`w-full px-3 py-2 text-left text-xs hover:bg-gray-100 ${form.businessType === option ? 'bg-gray-50 font-semibold text-[#0a61d7]' : 'text-gray-700'}`}
+                          onClick={() => {
+                            setForm((current) => ({
+                              ...current,
+                              businessType: option,
+                              subChannel: '',
+                              outletExamples: '',
+                            }));
+                            setSegmentMenu(null);
+                          }}
+                        >
+                          {option}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex-1">
+              <label className="mb-1 block text-xs font-medium text-gray-700">{tBuyersModal('subChannel')}</label>
+              <div className="relative">
+                <button
+                  type="button"
+                  className={CLIENT_SELECT_BUTTON_CLASS}
+                  onClick={() => setSegmentMenu((open) => (open === 'sub' ? null : 'sub'))}
+                >
+                  <span className={form.subChannel ? 'text-black' : 'text-gray-500'}>
+                    {form.subChannel || tBuyersModal('subChannelPlaceholder')}
+                  </span>
+                  <ChevronDown className="h-4 w-4 text-gray-400" />
+                </button>
+                {segmentMenu === 'sub' && (
+                  <div className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-[#e6e6e6] bg-white shadow-lg">
+                    <button
+                      type="button"
+                      className="w-full px-3 py-2 text-left text-xs text-gray-500 hover:bg-gray-100"
+                      onClick={() => {
+                        setForm((current) => ({ ...current, subChannel: '', outletExamples: '' }));
+                        setSegmentMenu(null);
+                      }}
+                    >
+                      {tBuyersModal('noneOption')}
+                    </button>
+                    {subChannelOptions.map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        className={`w-full px-3 py-2 text-left text-xs hover:bg-gray-100 ${form.subChannel === option ? 'bg-gray-50 font-semibold text-[#0a61d7]' : 'text-gray-700'}`}
+                        onClick={() => {
+                          const outlet = segmentRows.find(
+                            (row) =>
+                              row.mainChannel.trim().toLowerCase() === form.businessType.trim().toLowerCase() &&
+                              row.subChannel.trim().toLowerCase() === option.toLowerCase() &&
+                              row.outletExamples.trim(),
+                          )?.outletExamples;
+                          setForm((current) => ({
+                            ...current,
+                            subChannel: option,
+                            outletExamples: outlet?.trim() || '',
+                          }));
+                          setSegmentMenu(null);
+                        }}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex-1">
+              <label className="mb-1 block text-xs font-medium text-gray-700">{tBuyersModal('outletExamples')}</label>
+              <div className="relative">
+                <button
+                  type="button"
+                  className={CLIENT_SELECT_BUTTON_CLASS}
+                  onClick={() => setSegmentMenu((open) => (open === 'outlet' ? null : 'outlet'))}
+                >
+                  <span className={`truncate ${form.outletExamples ? 'text-black' : 'text-gray-500'}`}>
+                    {form.outletExamples || tBuyersModal('outletExamplesPlaceholder')}
+                  </span>
+                  <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
+                </button>
+                {segmentMenu === 'outlet' && (
+                  <div className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-[#e6e6e6] bg-white shadow-lg">
+                    <button
+                      type="button"
+                      className="w-full px-3 py-2 text-left text-xs text-gray-500 hover:bg-gray-100"
+                      onClick={() => {
+                        setForm((current) => ({ ...current, outletExamples: '' }));
+                        setSegmentMenu(null);
+                      }}
+                    >
+                      {tBuyersModal('noneOption')}
+                    </button>
+                    {outletExampleOptions.map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        className={`w-full px-3 py-2 text-left text-xs hover:bg-gray-100 ${form.outletExamples === option ? 'bg-gray-50 font-semibold text-[#0a61d7]' : 'text-gray-700'}`}
+                        onClick={() => {
+                          setForm((current) => ({ ...current, outletExamples: option }));
+                          setSegmentMenu(null);
+                        }}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
           <div className="flex gap-2">
-            <ClientField
-              className="flex-1"
-              label={tBuyersModal('businessType')}
-              value={form.businessType || ''}
-              onChange={(businessType) => setForm((f) => ({ ...f, businessType }))}
-              placeholder={tBuyersModal('businessTypePlaceholder')}
-            />
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 mb-1">{tBuyersModal('status')}</label>
               <div className="relative" ref={statusDropdownRef}>

@@ -13,8 +13,7 @@ import {
 } from '@/utils/supplier-security';
 import type { SupplierFormData } from '@/types/client';
 import { NotificationService } from '../notifications';
-import { syncOrderToBuyerProfile } from '@/utils/buyerSync';
-import { clearOrphanVariantSegmentPrices } from '@/utils/marketplaceSegmentPrice';
+import { parseMarketplaceUserIdFromBuyerId, syncOrderToBuyerProfile } from '@/utils/buyerSync';
 import { getSupplyReceivedInput, getSupplyRecordType } from '@/lib/suppliers/supplyRecords';
 
 const nullToUndefined = <T extends Record<string, unknown>>(obj: T): { [K in keyof T]: T[K] extends null ? undefined : T[K] } => {
@@ -33,6 +32,8 @@ export const contactsTypeDefs = /* GraphQL */ `
     email: String!
     phone: String!
     businessType: String!
+    subChannel: String!
+    outletExamples: String!
     address: String!
     status: String!
     logistics: String
@@ -83,6 +84,19 @@ export const contactsTypeDefs = /* GraphQL */ `
     deleted: Buyer
   }
 
+  type MarketSegmentDirectory {
+    id: Int!
+    mainChannel: String!
+    subChannel: String!
+    outletExamples: String!
+    sortOrder: Int!
+  }
+
+  type DeleteMarketSegmentDirectoryResult {
+    success: Boolean!
+    pricesRemoved: Boolean!
+  }
+
   type DeleteSupplierResult {
     success: Boolean!
     deleted: Supplier
@@ -95,6 +109,8 @@ export const contactsTypeDefs = /* GraphQL */ `
     email: String
     phone: String
     businessType: String
+    subChannel: String
+    outletExamples: String
     address: String
     status: String
     avatar: String
@@ -181,7 +197,7 @@ export const contactsTypeDefs = /* GraphQL */ `
 
     supplier(userId: Int!, id: String!): Supplier
 
-
+    marketSegmentDirectories(userId: Int!): [MarketSegmentDirectory!]!
   }
 
   extend type Mutation {
@@ -193,6 +209,8 @@ export const contactsTypeDefs = /* GraphQL */ `
       email: String
       phone: String
       businessType: String
+      subChannel: String
+      outletExamples: String
       address: String
       status: String
       avatar: String
@@ -210,6 +228,8 @@ export const contactsTypeDefs = /* GraphQL */ `
       email: String
       phone: String
       businessType: String
+      subChannel: String
+      outletExamples: String
       address: String
       status: String
       avatar: String
@@ -222,6 +242,36 @@ export const contactsTypeDefs = /* GraphQL */ `
       userId: Int!
       id: String!
     ): DeleteBuyerResult!
+
+    createMarketSegmentDirectory(
+      userId: Int!
+      mainChannel: String!
+      subChannel: String
+      outletExamples: String
+    ): MarketSegmentDirectory!
+
+    updateMarketSegmentDirectory(
+      userId: Int!
+      id: Int!
+      mainChannel: String!
+      subChannel: String
+      outletExamples: String
+    ): MarketSegmentDirectory!
+
+    deleteMarketSegmentDirectory(
+      userId: Int!
+      id: Int!
+    ): DeleteMarketSegmentDirectoryResult!
+
+    bulkDeleteMarketSegmentDirectories(
+      userId: Int!
+      ids: [Int!]!
+    ): DeleteMarketSegmentDirectoryResult!
+
+    reorderMarketSegmentDirectories(
+      userId: Int!
+      ids: [Int!]!
+    ): [MarketSegmentDirectory!]!
 
     bulkDeleteBuyers(
       userId: Int!
@@ -358,6 +408,8 @@ const mapBuyer = (buyer: BuyerWithRecords) => ({
   email: buyer.email,
   phone: buyer.phone,
   businessType: buyer.businessType,
+  subChannel: buyer.subChannel || '',
+  outletExamples: buyer.outletExamples || '',
   address: buyer.address,
   status: buyer.status,
   logistics: buyer.logistics ?? null,
@@ -761,6 +813,8 @@ const createBuyer = async (args: {
   email?: string | null;
   phone?: string | null;
   businessType?: string | null;
+  subChannel?: string | null;
+  outletExamples?: string | null;
   address?: string | null;
   status?: string | null;
   avatar?: string | null;
@@ -805,6 +859,8 @@ const createBuyer = async (args: {
     email: String(buyerData.email || ''),
     phone: String(buyerData.phone || ''),
     businessType: String(buyerData.businessType || ''),
+    subChannel: String(buyerData.subChannel || ''),
+    outletExamples: String(buyerData.outletExamples || ''),
     address: String(buyerData.address || ''),
     status: String(buyerData.status || 'Active'),
     avatar: buyerData.avatar ? String(buyerData.avatar) : null,
@@ -899,6 +955,8 @@ const updateBuyer = async (args: {
   email?: string | null;
   phone?: string | null;
   businessType?: string | null;
+  subChannel?: string | null;
+  outletExamples?: string | null;
   address?: string | null;
   status?: string | null;
   avatar?: string | null;
@@ -983,6 +1041,27 @@ const updateBuyer = async (args: {
         include: { buyerRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] } },
       });
     });
+
+    const previousSegment = segmentPriceKey(existingBuyer.businessType);
+    const nextSegment =
+      cleanUpdateData.businessType !== undefined
+        ? segmentPriceKey(cleanUpdateData.businessType)
+        : previousSegment;
+    if (previousSegment !== nextSegment) {
+      const marketplaceUserId = parseMarketplaceUserIdFromBuyerId(existingBuyer.buyerId);
+      if (marketplaceUserId) {
+        try {
+          const { broadcastPriceUpdate } = await import('@/utils/websocketBroadcast');
+          await broadcastPriceUpdate([], {
+            targetUserId: marketplaceUserId,
+            targetType: 'marketplace',
+            distributorId: Number(userId),
+          });
+        } catch (error) {
+          console.error('[Buyers] Segment price websocket failed:', error);
+        }
+      }
+    }
 
     // Keep assortment opportunity segments aligned with live buyer business type.
     if (
@@ -1115,13 +1194,6 @@ const deleteBuyer = async (args: { userId: number; id: string }) => {
       });
     }
 
-    // If this was the last buyer in a market segment, drop that segment's
-    // catalog prices so remaining / recreated buyers use the default price.
-    await clearOrphanVariantSegmentPrices({
-      distributorUserId,
-      removedBusinessTypes: [deleted.businessType],
-      db: tx,
-    });
   });
 
   // Invalidate dashboard cache after buyer deletion
@@ -1275,6 +1347,8 @@ const bulkCreateBuyers = async (args: {
     email?: string | null;
     phone?: string | null;
     businessType?: string | null;
+    subChannel?: string | null;
+    outletExamples?: string | null;
     address?: string | null;
     status?: string | null;
     avatar?: string | null;
@@ -1310,6 +1384,8 @@ const bulkCreateBuyers = async (args: {
     email: string;
     phone: string;
     businessType: string;
+    subChannel: string;
+    outletExamples: string;
     address: string;
     status: string;
     avatar: string | null;
@@ -1331,6 +1407,8 @@ const bulkCreateBuyers = async (args: {
         email: normalizeImportEmail(row.email),
         phone: normalizeImportPhone(row.phone),
         businessType: truncateImportText(row.businessType, 100),
+        subChannel: truncateImportText(row.subChannel, 100),
+        outletExamples: truncateImportText(row.outletExamples, 300),
         address: truncateImportText(row.address, 500),
         status: truncateImportText(row.status, 50) || 'Active',
         avatar: row.avatar ? String(row.avatar) : null,
@@ -1370,6 +1448,18 @@ const bulkCreateBuyers = async (args: {
       }
       return result.count;
     });
+    try {
+      await recordImportedMarketSegments(
+        distributorUserId,
+        ready.map((row) => ({
+          mainChannel: row.businessType,
+          subChannel: row.subChannel,
+          outletExamples: row.outletExamples,
+        })),
+      );
+    } catch (error) {
+      console.error('[Buyers] Imported market segment directory sync failed:', error);
+    }
     failedCount += Math.max(0, buyers.length - successCount - failedCount);
   } else {
     failedCount = buyers.length;
@@ -1889,11 +1979,6 @@ const bulkDeleteBuyers = async (args: { userId: number; ids: string[] }) => {
       where: { userId: distributorUserId, id: { in: dbIds } },
     });
 
-    await clearOrphanVariantSegmentPrices({
-      distributorUserId,
-      removedBusinessTypes: found.map((buyer) => buyer.businessType),
-      db: tx,
-    });
   });
 
   try {
@@ -2275,6 +2360,240 @@ const bulkDeleteSuppliers = async (args: { userId: number; ids: string[] }) => {
 };
 
 import { withDashboardAuth } from '../common/auth';
+import { segmentPriceKey } from '@/utils/priceAnchorUtils';
+
+function normalizeSegmentLabel(value: string | null | undefined, max: number): string {
+  return String(value ?? '').trim().replace(/\s+/g, ' ').slice(0, max);
+}
+
+async function listMarketSegmentDirectories(args: { userId: number }) {
+  return prisma.marketSegmentDirectory.findMany({
+    where: { userId: Number(args.userId) },
+    orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+  });
+}
+
+async function assertUniqueSegmentRow(
+  userId: number,
+  mainChannel: string,
+  subChannel: string,
+  outletExamples: string,
+  ignoreId?: number,
+) {
+  const rows = await prisma.marketSegmentDirectory.findMany({
+    where: { userId },
+    select: { id: true, mainChannel: true, subChannel: true, outletExamples: true },
+  });
+  const mainKey = mainChannel.toLowerCase();
+  const subKey = subChannel.toLowerCase();
+  const outletKey = outletExamples.toLowerCase();
+  const clash = rows.find(
+    (row) =>
+      row.id !== ignoreId &&
+      row.mainChannel.trim().toLowerCase() === mainKey &&
+      row.subChannel.trim().toLowerCase() === subKey &&
+      row.outletExamples.trim().toLowerCase() === outletKey,
+  );
+  if (clash) throw new Error('This main channel, sub-channel, and outlet specifics already exist');
+}
+
+/** Keep one directory row per main channel, sub-channel, and outlet specifics. */
+async function recordImportedMarketSegments(
+  userId: number,
+  rows: Array<{ mainChannel: string; subChannel: string; outletExamples: string }>,
+) {
+  const incoming = rows
+    .map((row) => ({
+      mainChannel: normalizeSegmentLabel(row.mainChannel, 100),
+      subChannel: normalizeSegmentLabel(row.subChannel, 100),
+      outletExamples: normalizeSegmentLabel(row.outletExamples, 300),
+    }))
+    .filter((row) => row.mainChannel);
+  if (incoming.length === 0) return;
+
+  const existing = await prisma.marketSegmentDirectory.findMany({
+    where: { userId },
+    select: { mainChannel: true, subChannel: true, outletExamples: true, sortOrder: true },
+  });
+  const seen = new Set(
+    existing.map(
+      (row) =>
+        `${segmentPriceKey(row.mainChannel)}\0${segmentPriceKey(row.subChannel)}\0${segmentPriceKey(row.outletExamples)}`,
+    ),
+  );
+  let sortOrder = existing.reduce((max, row) => Math.max(max, row.sortOrder), -1);
+  const toCreate: Array<{
+    userId: number;
+    mainChannel: string;
+    subChannel: string;
+    outletExamples: string;
+    sortOrder: number;
+  }> = [];
+  for (const row of incoming) {
+    const key = `${segmentPriceKey(row.mainChannel)}\0${segmentPriceKey(row.subChannel)}\0${segmentPriceKey(row.outletExamples)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    sortOrder += 1;
+    toCreate.push({ userId, ...row, sortOrder });
+  }
+  if (toCreate.length === 0) return;
+  await prisma.marketSegmentDirectory.createMany({ data: toCreate });
+}
+
+async function createMarketSegmentDirectory(args: {
+  userId: number;
+  mainChannel: string;
+  subChannel?: string | null;
+  outletExamples?: string | null;
+}) {
+  const mainChannel = normalizeSegmentLabel(args.mainChannel, 100);
+  if (!mainChannel) throw new Error('Main channel is required');
+  const subChannel = normalizeSegmentLabel(args.subChannel, 100);
+  const outletExamples = normalizeSegmentLabel(args.outletExamples, 300);
+  const userId = Number(args.userId);
+  await assertUniqueSegmentRow(userId, mainChannel, subChannel, outletExamples);
+  const last = await prisma.marketSegmentDirectory.findFirst({
+    where: { userId },
+    orderBy: { sortOrder: 'desc' },
+    select: { sortOrder: true },
+  });
+  return prisma.marketSegmentDirectory.create({
+    data: { userId, mainChannel, subChannel, outletExamples, sortOrder: (last?.sortOrder ?? -1) + 1 },
+  });
+}
+
+async function updateMarketSegmentDirectory(args: {
+  userId: number;
+  id: number;
+  mainChannel: string;
+  subChannel?: string | null;
+  outletExamples?: string | null;
+}) {
+  const userId = Number(args.userId);
+  const existing = await prisma.marketSegmentDirectory.findFirst({
+    where: { id: Number(args.id), userId },
+  });
+  if (!existing) throw new Error('Market segment not found');
+  const mainChannel = normalizeSegmentLabel(args.mainChannel, 100);
+  if (!mainChannel) throw new Error('Main channel is required');
+  const subChannel = normalizeSegmentLabel(args.subChannel, 100);
+  const outletExamples = normalizeSegmentLabel(args.outletExamples, 300);
+  await assertUniqueSegmentRow(userId, mainChannel, subChannel, outletExamples, existing.id);
+  const updated = await prisma.marketSegmentDirectory.update({
+    where: { id: existing.id },
+    data: { mainChannel, subChannel, outletExamples },
+  });
+  await retargetSegmentPrices(userId, existing.mainChannel, mainChannel);
+  return updated;
+}
+
+async function dropPricesForUnownedChannels(userId: number, candidateKeys: string[]) {
+  const keys = [...new Set(candidateKeys.map((key) => segmentPriceKey(key)).filter(Boolean))];
+  if (keys.length === 0) return false;
+  const remaining = await prisma.marketSegmentDirectory.findMany({
+    where: { userId },
+    select: { mainChannel: true },
+  });
+  const owned = new Set(remaining.map((row) => segmentPriceKey(row.mainChannel)).filter(Boolean));
+  const orphanKeys = keys.filter((key) => !owned.has(key));
+  if (orphanKeys.length === 0) return false;
+  await prisma.variantSegmentPrice.deleteMany({
+    where: {
+      segmentKey: { in: orphanKeys },
+      variantOption: { product: { userId } },
+    },
+  });
+  return true;
+}
+
+/** Keep prices attached when a main-channel label changes and no directory row still uses the old label. */
+async function retargetSegmentPrices(userId: number, fromLabel: string, toLabel: string) {
+  const fromKey = segmentPriceKey(fromLabel);
+  const toKey = segmentPriceKey(toLabel);
+  if (!fromKey || !toKey || fromKey === toKey) return;
+  const remaining = await prisma.marketSegmentDirectory.findMany({
+    where: { userId },
+    select: { mainChannel: true },
+  });
+  if (remaining.some((row) => segmentPriceKey(row.mainChannel) === fromKey)) return;
+  const sources = await prisma.variantSegmentPrice.findMany({
+    where: { segmentKey: fromKey, variantOption: { product: { userId } } },
+    select: { id: true, variantOptionId: true },
+  });
+  for (const source of sources) {
+    const clash = await prisma.variantSegmentPrice.findFirst({
+      where: { variantOptionId: source.variantOptionId, segmentKey: toKey },
+      select: { id: true },
+    });
+    if (clash) {
+      await prisma.variantSegmentPrice.delete({ where: { id: source.id } });
+    } else {
+      await prisma.variantSegmentPrice.update({
+        where: { id: source.id },
+        data: { segmentKey: toKey },
+      });
+    }
+  }
+}
+
+async function deleteMarketSegmentDirectory(args: { userId: number; id: number }) {
+  const userId = Number(args.userId);
+  const existing = await prisma.marketSegmentDirectory.findFirst({
+    where: { id: Number(args.id), userId },
+  });
+  if (!existing) throw new Error('Market segment not found');
+  await prisma.marketSegmentDirectory.delete({ where: { id: existing.id } });
+  const pricesRemoved = await dropPricesForUnownedChannels(userId, [existing.mainChannel]);
+  return { success: true, pricesRemoved };
+}
+
+async function bulkDeleteMarketSegmentDirectories(args: { userId: number; ids: number[] }) {
+  const userId = Number(args.userId);
+  const ids = [...new Set((args.ids || []).map((id) => Number(id)).filter((id) => Number.isInteger(id)))];
+  if (ids.length === 0) return { success: true, pricesRemoved: false };
+  const existing = await prisma.marketSegmentDirectory.findMany({
+    where: { userId, id: { in: ids } },
+    select: { id: true, mainChannel: true },
+  });
+  if (existing.length === 0) return { success: true, pricesRemoved: false };
+  await prisma.marketSegmentDirectory.deleteMany({
+    where: { userId, id: { in: existing.map((row) => row.id) } },
+  });
+  const pricesRemoved = await dropPricesForUnownedChannels(
+    userId,
+    existing.map((row) => row.mainChannel),
+  );
+  return { success: true, pricesRemoved };
+}
+
+async function reorderMarketSegmentDirectories(args: { userId: number; ids: number[] }) {
+  const userId = Number(args.userId);
+  const existing = await prisma.marketSegmentDirectory.findMany({
+    where: { userId },
+    orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+    select: { id: true },
+  });
+  const owned = new Set(existing.map((row) => row.id));
+  const seen = new Set<number>();
+  const ordered: number[] = [];
+  for (const id of (args.ids || []).map((value) => Number(value))) {
+    if (!owned.has(id) || seen.has(id)) continue;
+    seen.add(id);
+    ordered.push(id);
+  }
+  for (const row of existing) {
+    if (!seen.has(row.id)) ordered.push(row.id);
+  }
+  await prisma.$transaction(
+    ordered.map((id, index) =>
+      prisma.marketSegmentDirectory.update({
+        where: { id },
+        data: { sortOrder: index },
+      }),
+    ),
+  );
+  return listMarketSegmentDirectories({ userId });
+}
 
 export const contactsResolvers = {
   Query: {
@@ -2282,12 +2601,18 @@ export const contactsResolvers = {
     buyer: withDashboardAuth(fetchSingleBuyer),
     suppliers: withDashboardAuth(fetchSuppliersConnection),
     supplier: withDashboardAuth(fetchSingleSupplier),
+    marketSegmentDirectories: withDashboardAuth(listMarketSegmentDirectories),
   },
   Mutation: {
     createBuyer: withDashboardAuth(createBuyer),
     bulkCreateBuyers: withDashboardAuth(bulkCreateBuyers),
     updateBuyer: withDashboardAuth(updateBuyer),
     deleteBuyer: withDashboardAuth(deleteBuyer),
+    createMarketSegmentDirectory: withDashboardAuth(createMarketSegmentDirectory),
+    updateMarketSegmentDirectory: withDashboardAuth(updateMarketSegmentDirectory),
+    deleteMarketSegmentDirectory: withDashboardAuth(deleteMarketSegmentDirectory),
+    bulkDeleteMarketSegmentDirectories: withDashboardAuth(bulkDeleteMarketSegmentDirectories),
+    reorderMarketSegmentDirectories: withDashboardAuth(reorderMarketSegmentDirectories),
     bulkDeleteBuyers: withDashboardAuth(bulkDeleteBuyers),
     createSupplier: withDashboardAuth(createSupplier),
     bulkCreateSuppliers: withDashboardAuth(bulkCreateSuppliers),

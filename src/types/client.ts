@@ -7,6 +7,8 @@ export interface Buyer {
   phone: string;
   storeName: string;
   businessType: string;
+  subChannel?: string;
+  outletExamples?: string;
   address: string;
   status: string;
   logistics?: string;
@@ -147,6 +149,8 @@ export interface BuyerFormData {
   phone: string;
   storeName: string;
   businessType: string;
+  subChannel?: string;
+  outletExamples?: string;
   address: string;
   status: string;
   createdAt?: string;

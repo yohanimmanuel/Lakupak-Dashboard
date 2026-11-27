@@ -4,13 +4,13 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Statcards from '@/components/clientmanagement/Statcards';
 import BuyerTable from "@/components/clientmanagement/BuyerTable";
 import Link from 'next/link';
-import { Plus, Upload, Download, RefreshCw, Check, AlertTriangle, GitCompare } from 'lucide-react';
+import { Plus, Upload, Download, RefreshCw, Check, AlertTriangle, GitCompare, Layers } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import ImportData from '@/components/clientmanagement/ImportData';
 import { useUserStore } from '@/store/userStore';
 import { Buyer, BuyerTableRow, OrderDetail } from '@/types/client';
 import { formatDate, formatNumber } from '@/utils/dateUtils';
-import { logisticsLastVisit } from '@/utils/buyerLogistics';
+import { logisticsDateOnly, logisticsLastVisit } from '@/utils/buyerLogistics';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -145,6 +145,8 @@ export default function BuyersPage() {
           email
           phone
           businessType
+          subChannel
+          outletExamples
           address
           status
           logistics
@@ -324,6 +326,12 @@ export default function BuyersPage() {
             <Download className="h-4 w-4" /> {tShared('exportData')}
           </button>
           <Link
+            href="/clients/buyers/market-segments"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-gray-100 @4xl/main:w-auto"
+          >
+            <Layers className="h-4 w-4" /> {tBuyers('marketSegmentsButton')}
+          </Link>
+          <Link
             href="/clients/buyers/buyer-matching"
             className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-gray-100 @4xl/main:w-auto"
           >
@@ -431,6 +439,14 @@ export default function BuyersPage() {
                     'Business Type',
                     'businessType',
                     'type',
+                    'Main Channel',
+                    'mainChannel',
+                    'Sub-channel',
+                    'Sub Channel',
+                    'subChannel',
+                    'Outlet Specifics',
+                    'Outlet Examples',
+                    'outletExamples',
                     'Address',
                     'address',
                     'location',
@@ -439,6 +455,16 @@ export default function BuyersPage() {
                     'Preferred Delivery Days',
                     'preferredDays',
                     'preferredDeliveryDays',
+                    'Last Order Date',
+                    'Last Shipment',
+                    'lastShipment',
+                    'lastOrderDate',
+                    'Last Visit Date',
+                    'Last Visit',
+                    'lastVisit',
+                    'lastVisitDate',
+                    'Shipment Success',
+                    'shipmentSuccess',
                     'Notes',
                     'notes',
                     'Order Details',
@@ -455,7 +481,21 @@ export default function BuyersPage() {
               });
 
               const preferredDaysValue = pick('preferredDays', 'Preferred Delivery Days', 'preferredDeliveryDays');
-              if (preferredDaysValue) additionalFields.preferredDays = preferredDaysValue;
+              const lastOrderDate = logisticsDateOnly(
+                pick('Last Order Date', 'Last Shipment', 'lastShipment', 'lastOrderDate') || '',
+              );
+              const lastVisitDate = logisticsDateOnly(
+                pick('Last Visit Date', 'Last Visit', 'lastVisit', 'lastVisitDate') || '',
+              );
+              const shipmentSuccess = pick('Shipment Success', 'shipmentSuccess') || '';
+              const logistics = {
+                preferredDays: preferredDaysValue || '',
+                lastShipment: lastOrderDate,
+                lastVisit: lastVisitDate,
+                shipmentSuccess,
+                ...additionalFields,
+              };
+              const hasLogistics = Object.values(logistics).some((value) => String(value).trim() !== '');
 
               const notesValue = pick('Notes', 'notes', 'comments', 'Comments', 'tags', 'Tags');
               const orderDetailsValue = pick('Order Details', 'orderDetails', 'orders');
@@ -466,13 +506,12 @@ export default function BuyersPage() {
                 owner: pick('Owner', 'owner', 'contact'),
                 email: pick('Email', 'email'),
                 phone: pick('Phone', 'phone', 'telephone'),
-                businessType: pick('Business Type', 'businessType', 'type'),
+                businessType: pick('Main Channel', 'Business Type', 'businessType', 'mainChannel', 'type'),
+                subChannel: pick('Sub-channel', 'Sub Channel', 'subChannel'),
+                outletExamples: pick('Outlet Specifics', 'Outlet Examples', 'outletExamples'),
                 address: pick('Address', 'address', 'location'),
                 status: pick('Status', 'status'),
-                logistics:
-                  Object.keys(additionalFields).length > 0
-                    ? JSON.stringify(additionalFields)
-                    : undefined,
+                logistics: hasLogistics ? JSON.stringify(logistics) : undefined,
                 notes: notesValue ? JSON.stringify([notesValue]) : undefined,
                 orderDetails: orderDetailsValue
                   ? typeof orderDetailsValue === 'string' && orderDetailsValue.trim().startsWith('[')

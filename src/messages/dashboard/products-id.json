@@ -330,7 +330,8 @@
     "productGuideColumn4Name": "Pemasok",
     "productGuideColumn4Description": "Nama pemasok produk.",
     "productGuideColumn5Name": "Nama Katalog",
-    "productGuideColumn5Description": "Nama pengelompokan katalog opsional."
+    "productGuideColumn5Description": "Nama pengelompokan katalog opsional.",
+    "exampleProductHint": "Templat memuat tiga contoh produk. Ganti dengan produk Anda. Jangan menambah SKU varian, harga, atau jumlah stok di file ini."
   },
   "deleted": {
     "title": "Produk telah dihapus",
@@ -591,13 +592,13 @@
       "defaultPriceTab": "Harga default",
       "usesDefaultPrice": "Menggunakan harga default",
       "useDefaultPriceAction": "Gunakan harga default",
-      "noSegmentsHint": "Belum ada segmen pasar. Segmen berasal dari jenis usaha pembeli Anda.",
+      "noSegmentsHint": "Belum ada segmen pasar. Tambah main channel di direktori segmen pasar.",
       "pricingShowing": "Menampilkan {from}–{to} dari {total}",
       "pricingPreviousPage": "Halaman sebelumnya",
       "pricingNextPage": "Halaman berikutnya",
       "importPriceAnchorsDescription": "Pilih satuan yang digunakan pada kolom Harga Jual dan Harga Beli di spreadsheet. Setiap varian tetap memiliki harganya sendiri.",
       "importPriceAnchorsNote": "Nilai Harga Jual yang diimpor adalah per {sellingUnit}; Harga Beli adalah per {purchaseUnit}.",
-      "importStockRatiosTitle": "Siapkan tingkat stok (Langkah 3 dari 3)",
+      "importStockRatiosTitle": "Siapkan tingkat stok",
       "importStockRatiosDescription": "Setelah memetakan kolom spreadsheet, pastikan konversi tingkat stok dan satuan harga sebelum meninjau pratinjau impor.",
       "importStockRatiosNote": "Jumlah stok yang diimpor akan menggunakan konversi tingkat stok yang dikonfigurasi di sini.",
       "cancelImport": "Batalkan impor",
@@ -616,6 +617,8 @@
       "notMapped": "-- Tidak Dipetakan --",
       "back": "Kembali",
       "preview": "Lanjut",
+      "prepareStockLevels": "Lanjutkan ke tingkat stok",
+      "exampleHint": "Templat memuat tiga contoh kombinasi untuk kolom varian produk ini. Ganti nilai contoh, SKU, dan harga sebelum mengimpor. Harga berupa angka pada satuan harga yang Anda konfirmasi berikutnya, dan jumlah stok dalam pieces.",
       "importButton": "Terapkan ke Daftar Variasi",
       "importing": "Menerapkan...",
       "importError": "Impor gagal. Silakan coba lagi.",
@@ -912,8 +915,5 @@
       "shares_size": "Ukuran sama dengan SKU yang dibeli",
       "shares_packaging": "Kemasan sama dengan SKU yang dibeli"
     }
-  },
-  "variationImport": {
-    "prepareStockLevels": "Lanjutkan ke pengaturan tingkat stok"
   }
 }

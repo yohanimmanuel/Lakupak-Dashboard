@@ -244,6 +244,12 @@ export default function ProductImport({ open, onCloseAction, onImportAction }: P
               { name: tImport('productGuideColumn4Name'), required: true, description: tImport('productGuideColumn4Description') },
               { name: tImport('productGuideColumn5Name'), description: tImport('productGuideColumn5Description') },
             ]}
+            exampleRows={[
+              ['Bango Kecap Manis', 'Sweet soy sauce for retail stores', 'Food & Beverages', 'Bango', 'Sumber Rasa', 'Sauces'],
+              ['Teh Botol Sosro', 'Jasmine tea in glass bottles', 'Food & Beverages', 'Sosro', 'Laut Biru Foods', 'Beverages'],
+              ['Indomie Goreng', 'Instant fried noodles, 85g', 'Food & Beverages', 'Indomie', 'Gudang Timur', 'Noodles'],
+            ]}
+            exampleHint={tImport('exampleProductHint')}
             templateName="Lakupak_Product_Template.xlsx"
             onFileSelectedAction={handleFile}
             error={error}

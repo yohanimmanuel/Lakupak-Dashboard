@@ -330,7 +330,8 @@
     "productGuideColumn4Name": "Supplier",
     "productGuideColumn4Description": "Supplier name associated with the product.",
     "productGuideColumn5Name": "Catalog Name",
-    "productGuideColumn5Description": "Optional catalog grouping name."
+    "productGuideColumn5Description": "Optional catalog grouping name.",
+    "exampleProductHint": "The template includes three sample products. Replace them with your own products. Do not add variant SKUs, prices, or stock quantities in this file."
   },
   "deleted": {
     "title": "Product has been deleted",
@@ -591,13 +592,13 @@
       "defaultPriceTab": "Default price",
       "usesDefaultPrice": "Uses default price",
       "useDefaultPriceAction": "Use default price",
-      "noSegmentsHint": "No market segments yet. Segments come from the business types of your buyers.",
+      "noSegmentsHint": "No market segments yet. Add a main channel in the market segment directory.",
       "pricingShowing": "Showing {from}–{to} of {total}",
       "pricingPreviousPage": "Previous page",
       "pricingNextPage": "Next page",
       "importPriceAnchorsDescription": "Choose the unit used by the Selling Price and Purchase Price columns in the spreadsheet. Each variant keeps its own prices.",
       "importPriceAnchorsNote": "Imported Selling Price values are per {sellingUnit}; Purchase Price values are per {purchaseUnit}.",
-      "importStockRatiosTitle": "Prepare stock levels (Step 3 of 3)",
+      "importStockRatiosTitle": "Prepare stock levels",
       "importStockRatiosDescription": "After mapping the spreadsheet columns, confirm the stock-level conversion and price units before reviewing the import preview.",
       "importStockRatiosNote": "Imported stock quantities are interpreted using these configured stock-level conversions.",
       "cancelImport": "Cancel import",
@@ -616,6 +617,8 @@
       "notMapped": "-- Not Mapped --",
       "back": "Back",
       "preview": "Preview",
+      "prepareStockLevels": "Continue to stock levels",
+      "exampleHint": "The template includes three sample combinations for this product's variant columns. Replace the sample values, SKUs, and prices before importing. Prices are numbers in the price unit you confirm next, and stock quantities are in pieces.",
       "importButton": "Apply to Variation List",
       "importing": "Applying...",
       "importError": "Import failed. Please try again.",
@@ -912,8 +915,5 @@
       "shares_size": "Shares size with a SKU they buy",
       "shares_packaging": "Shares packaging with a SKU they buy"
     }
-  },
-  "variationImport": {
-    "prepareStockLevels": "Continue to stock-level preparation"
   }
 }

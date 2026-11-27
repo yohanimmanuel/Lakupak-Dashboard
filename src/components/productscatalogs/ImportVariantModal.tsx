@@ -25,6 +25,8 @@ type ImportVariantModalProps = {
   onConvertLegacyStock?(): void;
   onCancel(): void;
   onContinue(): void;
+  /** Renders inside the variation-import dialog, after column mapping. */
+  embedded?: boolean;
 };
 
 /**
@@ -52,13 +54,14 @@ export default function ImportVariantModal({
   onConvertLegacyStock,
   onCancel,
   onContinue,
+  embedded = false,
 }: ImportVariantModalProps) {
   const { tCatalog } = useProductsTranslations();
   if (!open) return null;
 
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
-      <div className="relative flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-[#e6e6e6] bg-white shadow-xl">
+  const panel = (
+      <div className={`relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-white ${embedded ? '' : 'max-h-[90vh] max-w-5xl rounded-2xl border border-[#e6e6e6] shadow-xl'}`}>
+        {!embedded && (
         <button
           type="button"
           onClick={onCancel}
@@ -67,15 +70,16 @@ export default function ImportVariantModal({
         >
           <X className="h-5 w-5" />
         </button>
+        )}
 
-        <div className="flex-shrink-0 border-b border-gray-200 px-5 pt-5 pb-3 pr-14">
+        <div className={`flex-shrink-0 border-b border-gray-200 p-4 ${embedded ? '' : 'pr-14'}`}>
           <h2 className="text-lg font-semibold text-gray-900">{tCatalog('variants.importStockRatiosTitle')}</h2>
           <p className="mt-1 text-sm text-gray-600">
             {tCatalog('variants.importStockRatiosDescription')}
           </p>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
         <StockLevelConversion
           stockLevels={stockLevels}
           ratioDrafts={ratioDrafts}
@@ -116,13 +120,13 @@ export default function ImportVariantModal({
 
         </div>
 
-        <div className="flex-shrink-0 flex justify-end gap-2 border-t border-gray-200 bg-white px-5 py-4">
+        <div className="flex-shrink-0 flex justify-end gap-2 border-t border-gray-200 bg-white p-4">
           <button
             type="button"
             onClick={onCancel}
             className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
           >
-            {tCatalog('variants.cancelImport')}
+            {embedded ? tCatalog('variationImport.back') : tCatalog('variants.cancelImport')}
           </button>
           <button
             type="button"
@@ -135,6 +139,13 @@ export default function ImportVariantModal({
           </button>
         </div>
       </div>
+  );
+
+  if (embedded) return panel;
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+      {panel}
     </div>
   );
 }

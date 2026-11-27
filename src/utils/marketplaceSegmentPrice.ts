@@ -200,14 +200,12 @@ export async function clearOrphanVariantSegmentPrices(opts: {
   ];
   if (candidateKeys.length === 0) return;
 
-  const remainingBuyers = await db.buyer.findMany({
+  const directoryRows = await db.marketSegmentDirectory.findMany({
     where: { userId: opts.distributorUserId },
-    select: { businessType: true },
+    select: { mainChannel: true },
   });
   const remainingKeys = new Set(
-    remainingBuyers
-      .map((buyer) => segmentPriceKey(buyer.businessType))
-      .filter((key) => key.length > 0),
+    directoryRows.map((row) => segmentPriceKey(row.mainChannel)).filter((key) => key.length > 0),
   );
   const orphanKeys = candidateKeys.filter((key) => !remainingKeys.has(key));
   if (orphanKeys.length === 0) return;

@@ -17,6 +17,8 @@ type BuyerInput = {
   email?: string;
   phone?: string;
   businessType?: string;
+  subChannel?: string;
+  outletExamples?: string;
   address?: string;
   status?: 'Active' | 'Prospect' | 'Inactive' | 'Blocked' | string;
   avatar?: string | null;
@@ -64,6 +66,14 @@ export const validateBuyerInput = (data: BuyerInput): { valid: boolean; error?: 
   
   if (data.businessType && data.businessType.trim().length > 100) {
     return { valid: false, error: 'Business type must be less than 100 characters' };
+  }
+
+  if (data.subChannel && data.subChannel.trim().length > 100) {
+    return { valid: false, error: 'Sub-channel must be less than 100 characters' };
+  }
+
+  if (data.outletExamples && data.outletExamples.trim().length > 300) {
+    return { valid: false, error: 'Outlet examples must be less than 300 characters' };
   }
   
   if (data.address && data.address.trim().length > 500) {
@@ -113,6 +123,14 @@ export const validateBuyerUpdate = (data: BuyerInput): { valid: boolean; error?:
   if (data.businessType !== undefined && data.businessType.trim().length > 100) {
     return { valid: false, error: 'Business type must be less than 100 characters' };
   }
+
+  if (data.subChannel !== undefined && data.subChannel.trim().length > 100) {
+    return { valid: false, error: 'Sub-channel must be less than 100 characters' };
+  }
+
+  if (data.outletExamples !== undefined && data.outletExamples.trim().length > 300) {
+    return { valid: false, error: 'Outlet examples must be less than 300 characters' };
+  }
   
   if (data.address !== undefined && data.address.trim().length > 500) {
     return { valid: false, error: 'Address must be less than 500 characters' };
@@ -156,6 +174,14 @@ export const sanitizeBuyerData = (data: BuyerInput) => {
   
   if (data.businessType !== undefined) {
     sanitized.businessType = String(data.businessType).trim();
+  }
+
+  if (data.subChannel !== undefined) {
+    sanitized.subChannel = String(data.subChannel).trim();
+  }
+
+  if (data.outletExamples !== undefined) {
+    sanitized.outletExamples = String(data.outletExamples).trim();
   }
   
   if (data.address !== undefined) {

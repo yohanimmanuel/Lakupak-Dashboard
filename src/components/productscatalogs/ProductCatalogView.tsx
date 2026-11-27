@@ -102,7 +102,6 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
     setLegacyPiecesPerUnit,
     setShowCatalogCategoryDropdown,
     setShowGeneralCategoryDropdown,
-    setShowImportStockSetup,
     setShowSupplierDropdown,
     setShowVariationImport,
     setStockLevelRatioDrafts,
@@ -113,7 +112,6 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
     setVariationRowHeights,
     showCatalogCategoryDropdown,
     showGeneralCategoryDropdown,
-    showImportStockSetup,
     showSuccessModal,
     showSupplierDropdown,
     showVariationImport,
@@ -1268,7 +1266,7 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
                       <button
                         type="button"
                         disabled={isOfferConnected || combinations.length === 0}
-                        onClick={() => setShowImportStockSetup(true)}
+                        onClick={() => setShowVariationImport(true)}
                         className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                         title={tCatalog('variants.importVariationsTitle')}
                       >
@@ -2154,48 +2152,49 @@ export default function ProductCatalogView(props: ProductCatalogViewProps) {
         </div>
       )}
 
-      <ImportVariantModal
-        open={showImportStockSetup}
-        stockLevels={formData.stockLevels}
-        sellingPriceUnit={formData.sellingPriceUnit || 'Pieces'}
-        purchasePriceUnit={formData.purchasePriceUnit || 'Pieces'}
-        onPriceAnchorChange={updatePriceAnchor}
-        ratioDrafts={stockLevelRatioDrafts}
-        totalPieces={combinations.reduce((sum, combo) => sum + combo.stockQuantity, 0)}
-        legacyStockUnit={legacyStockUnit}
-        legacyPiecesPerUnit={legacyPiecesPerUnit}
-        legacyConversionError={legacyConversionError}
-        isOfferConnected={isOfferConnected}
-        onAddStockLevel={addStockLevel}
-        onUpdateStockLevel={updateStockLevel}
-        onRatioDraftChange={(index, value) => {
-          setStockLevelRatioDrafts((prev) => ({ ...prev, [index]: value }));
-          updateStockLevelRatioValue(index, value);
-        }}
-        onRatioBlur={commitStockLevelRatioDraft}
-        onRemoveStockLevel={removeStockLevel}
-        onLegacyPiecesPerUnitChange={(value) => {
-          setLegacyPiecesPerUnit(value);
-          setLegacyConversionError('');
-        }}
-        onConvertLegacyStock={convertLegacyStockToPieces}
-        onCancel={() => setShowImportStockSetup(false)}
-        onContinue={() => {
-          const ratioError = validateStockLevels(formData.stockLevels);
-          if (ratioError) {
-            alert(ratioError);
-            return;
-          }
-          setShowImportStockSetup(false);
-          setShowVariationImport(true);
-        }}
-      />
-
       <VariationListImport
         open={showVariationImport}
         onCloseAction={() => setShowVariationImport(false)}
         variantColumns={variationImportColumns}
         onImportAction={handleVariationImport}
+        renderStockStepAction={({ onBack, onContinue }) => (
+          <ImportVariantModal
+            embedded
+            open
+            stockLevels={formData.stockLevels}
+            sellingPriceUnit={formData.sellingPriceUnit || 'Pieces'}
+            purchasePriceUnit={formData.purchasePriceUnit || 'Pieces'}
+            onPriceAnchorChange={updatePriceAnchor}
+            ratioDrafts={stockLevelRatioDrafts}
+            totalPieces={combinations.reduce((sum, combo) => sum + combo.stockQuantity, 0)}
+            legacyStockUnit={legacyStockUnit}
+            legacyPiecesPerUnit={legacyPiecesPerUnit}
+            legacyConversionError={legacyConversionError}
+            isOfferConnected={isOfferConnected}
+            onAddStockLevel={addStockLevel}
+            onUpdateStockLevel={updateStockLevel}
+            onRatioDraftChange={(index, value) => {
+              setStockLevelRatioDrafts((prev) => ({ ...prev, [index]: value }));
+              updateStockLevelRatioValue(index, value);
+            }}
+            onRatioBlur={commitStockLevelRatioDraft}
+            onRemoveStockLevel={removeStockLevel}
+            onLegacyPiecesPerUnitChange={(value) => {
+              setLegacyPiecesPerUnit(value);
+              setLegacyConversionError('');
+            }}
+            onConvertLegacyStock={convertLegacyStockToPieces}
+            onCancel={onBack}
+            onContinue={() => {
+              const ratioError = validateStockLevels(formData.stockLevels);
+              if (ratioError) {
+                alert(ratioError);
+                return;
+              }
+              onContinue();
+            }}
+          />
+        )}
       />
     </div>
   );

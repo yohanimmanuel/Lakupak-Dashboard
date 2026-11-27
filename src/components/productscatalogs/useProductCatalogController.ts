@@ -133,7 +133,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
   const skipBeforeUnloadRef = useRef(false);
   const [variationRefreshTick, setVariationRefreshTick] = useState(0);
   const [showVariationImport, setShowVariationImport] = useState(false);
-  const [showImportStockSetup, setShowImportStockSetup] = useState(false);
   const [variationColWidths, setVariationColWidths] = useState<Record<string, number>>({});
   const [variationColWidthsReady, setVariationColWidthsReady] = useState(false);
   const [variationRowHeights, setVariationRowHeights] = useState<Record<string, number>>({});
@@ -415,26 +414,30 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
       setOriginalFormData(JSON.parse(JSON.stringify(initial)));
     }
   }, [mode, product]);
-  // Load market segments from buyer business types (same source as assortment heatmap).
+  // Product segment prices follow the market segment directory main channels.
   useEffect(() => {
     if (!user?.id) return;
     let cancelled = false;
     (async () => {
       try {
         const result = await fetchGraphQL<{
-          assortmentGapHeatmap: { segments: string[] };
+          marketSegmentDirectories: Array<{ mainChannel: string }>;
         }>(
           `query MarketSegments($userId: Int!) {
-            assortmentGapHeatmap(userId: $userId, period: "90d", page: 1, limit: 1) {
-              segments
-            }
+            marketSegmentDirectories(userId: $userId) { mainChannel }
           }`,
           { userId: user.id },
         );
         if (cancelled) return;
-        const segments = (result.assortmentGapHeatmap?.segments || [])
-          .map((segment) => segment.trim())
-          .filter(Boolean);
+        const seen = new Set<string>();
+        const segments: string[] = [];
+        for (const row of result.marketSegmentDirectories || []) {
+          const label = String(row.mainChannel || '').trim();
+          const key = label.toLowerCase();
+          if (!label || seen.has(key)) continue;
+          seen.add(key);
+          segments.push(label);
+        }
         setMarketSegmentOptions(segments);
       } catch {
         if (!cancelled) setMarketSegmentOptions([]);
@@ -737,6 +740,7 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
       variants.map((variant, index) => ({
         id: variant.id,
         label: variant.variantType || tCatalog('variants.varFallback', { index: index + 1 }),
+        exampleValues: variant.options.map((option) => option.name).filter((name) => name.trim()),
       })),
     [variants, tCatalog],
   );
@@ -1802,7 +1806,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
     setLegacyPiecesPerUnit,
     setShowCatalogCategoryDropdown,
     setShowGeneralCategoryDropdown,
-    setShowImportStockSetup,
     setShowSupplierDropdown,
     setShowVariationImport,
     setStockLevelRatioDrafts,
@@ -1813,7 +1816,6 @@ export function useProductCatalogController({ mode = 'add', product, onSave, onC
     setVariationRowHeights,
     showCatalogCategoryDropdown,
     showGeneralCategoryDropdown,
-    showImportStockSetup,
     showSuccessModal,
     showSupplierDropdown,
     showVariationImport,
