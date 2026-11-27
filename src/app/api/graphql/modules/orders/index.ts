@@ -13,6 +13,7 @@ const orderInclude = {
   orderItemsRel: {
     include: {
       product: true,
+      variantOption: { select: { sku: true, variantName: true } },
     },
   },
   returnRequests: true,
@@ -158,7 +159,7 @@ export const ordersTypeDefs = /* GraphQL */ `
 const mapOrderItems = (
   items: Array<
     Prisma.OrderItemGetPayload<{
-      include: { product: true };
+      include: { product: true; variantOption: { select: { sku: true; variantName: true } } };
     }>
   >,
 ) =>
@@ -183,9 +184,9 @@ const mapOrderItems = (
     offerNameSnapshot: item.offerNameSnapshot,
     offerIdSnapshot: item.offerIdSnapshot ?? null,
     promotionDetailsSnapshot: item.promotionDetailsSnapshot,
-    variantNameSnapshot: item.variantNameSnapshot,
+    variantNameSnapshot: item.variantNameSnapshot || item.variantOption?.variantName || null,
     productNameSnapshot: item.productNameSnapshot ?? null,
-    productSkuSnapshot: item.productSkuSnapshot ?? null,
+    productSkuSnapshot: item.productSkuSnapshot || item.variantOption?.sku || null,
     productTypeSnapshot: item.productTypeSnapshot ?? null,
     originalPriceSnapshot: item.originalPriceSnapshot ? parseMoney(item.originalPriceSnapshot) : null, // Convert Decimal to number
     discountPercentage: item.discountPercentage ? parseMoney(item.discountPercentage) : null, // Convert Decimal to number

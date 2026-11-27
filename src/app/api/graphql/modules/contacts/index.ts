@@ -563,6 +563,7 @@ async function loadBuyerOrderLineSnapshots(
           pricePerPackage: true,
           promotionDetailsSnapshot: true,
           moqSnapshot: true,
+          variantOption: { select: { sku: true, variantName: true } },
         },
       },
     },
@@ -573,10 +574,11 @@ async function loadBuyerOrderLineSnapshots(
       id: item.id,
       productId: item.productId ?? null,
       productName: item.productNameSnapshot || 'Unknown Product',
-      productSkuSnapshot: item.productSkuSnapshot ?? null,
+      // Older marketplace lines may have a blank SKU snapshot; use the live variant SKU for display.
+      productSkuSnapshot: item.productSkuSnapshot || item.variantOption?.sku || null,
       variantOptionId: item.variantOptionId ?? null,
       variantId: item.variantId ?? null,
-      variantNameSnapshot: item.variantNameSnapshot ?? null,
+      variantNameSnapshot: item.variantNameSnapshot || item.variantOption?.variantName || null,
       packageQuantity: item.packageQuantity ?? null,
       packageType: item.packageType ?? null,
       piecesPerPackage: item.piecesPerPackage ?? null,
@@ -627,6 +629,7 @@ function withBuyerOrderLineSnapshots(
       const variantIds = [...new Set(lines.map((line) => line.variantOptionId).filter((value): value is number => value != null))];
       return {
         ...record,
+        // Prefer saved CRM SKU; otherwise fill from order-line / variant SKU used on the edit page.
         skuSnapshot: record.skuSnapshot || (skus.length ? skus.join(', ') : null),
         variantName: record.variantName || (variants.length ? variants.join(', ') : null),
         productId: record.productId || (productIds.length === 1 ? productIds[0] : null),
@@ -685,15 +688,20 @@ const fetchBuyersConnection = async (args: {
   ]);
 
   // Backfill missing legacy BuyerRecord SKU/variant labels from immutable OrderItem
-  // snapshots in one batched query. Do not depend on the current Product Catalog.
+  // snapshots in one batched query. Fall back to the linked variant SKU when the
+  // snapshot is blank (same source the edit page uses).
   const buyerOrderNos = buyers.flatMap((buyer) =>
     (buyer as BuyerWithRecords).buyerRecords
       ?.filter((record) => record.syncedFromOrders || String(record.orderNo || '').toUpperCase().startsWith('LKO-'))
       .map((record) => record.orderNo) || [],
   );
   const orderLineSnapshots = await loadBuyerOrderLineSnapshots(userId, buyerOrderNos);
+  const withSnapshots = buyers.map((buyer) =>
+    withBuyerOrderLineSnapshots(buyer as BuyerWithRecords, orderLineSnapshots),
+  );
+  const nodes = await Promise.all(withSnapshots.map((buyer) => fillBuyerRecordSkusFromVariants(buyer)));
   return {
-    nodes: buyers.map((buyer) => mapBuyer(withBuyerOrderLineSnapshots(buyer as BuyerWithRecords, orderLineSnapshots))),
+    nodes: nodes.map((buyer) => mapBuyer(buyer)),
     pagination: buildPaginationInfo(safePage, safeLimit, totalCount),
   };
 };
@@ -778,8 +786,41 @@ const fetchSingleBuyer = async (args: { userId: number; id: string }) => {
     ?.filter((record) => record.syncedFromOrders || String(record.orderNo || '').toUpperCase().startsWith('LKO-'))
     .map((record) => record.orderNo) || [];
   const orderLineSnapshots = await loadBuyerOrderLineSnapshots(userId, buyerOrderNos);
-  return mapBuyer(withBuyerOrderLineSnapshots(buyer as BuyerWithRecords, orderLineSnapshots));
+  const withSnapshots = withBuyerOrderLineSnapshots(buyer as BuyerWithRecords, orderLineSnapshots);
+  return mapBuyer(await fillBuyerRecordSkusFromVariants(withSnapshots));
 };
+
+/** When a row has a variant but a blank SKU snapshot, show the same SKU the edit page resolves. */
+async function fillBuyerRecordSkusFromVariants(buyer: BuyerWithRecords): Promise<BuyerWithRecords> {
+  const records = buyer.buyerRecords || [];
+  const missingIds = [
+    ...new Set(
+      records
+        .filter((record) => !String(record.skuSnapshot || '').trim() && record.variantOptionId != null)
+        .map((record) => record.variantOptionId as number),
+    ),
+  ];
+  if (!missingIds.length) return buyer;
+  const options = await prisma.variantOption.findMany({
+    where: { id: { in: missingIds } },
+    select: { id: true, sku: true, variantName: true },
+  });
+  if (!options.length) return buyer;
+  const byId = new Map(options.map((option) => [option.id, option]));
+  return {
+    ...buyer,
+    buyerRecords: records.map((record) => {
+      if (String(record.skuSnapshot || '').trim() || record.variantOptionId == null) return record;
+      const option = byId.get(record.variantOptionId);
+      if (!option) return record;
+      return {
+        ...record,
+        skuSnapshot: option.sku || null,
+        variantName: record.variantName || option.variantName || null,
+      };
+    }),
+  };
+}
 
 const fetchSingleSupplier = async (args: { userId: number; id: string }) => {
   const { userId, id } = args;

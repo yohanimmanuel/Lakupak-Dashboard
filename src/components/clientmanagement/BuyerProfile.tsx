@@ -1075,15 +1075,28 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
                   <td className="py-4 px-4 text-black">
                     {(() => {
                       const detail = hoverOrderDetails[order.orderNo];
-                      if (detail?.orderItems?.length) return compactOrderValues(detail.orderItems.map((item) => item.productSkuSnapshot));
-                      return compactOrderValues(String(order.sku || '').split(',').map((v) => v.trim()));
+                      const fromRecord = String(order.sku || '').split(',').map((v) => v.trim());
+                      if (detail?.orderItems?.length) {
+                        const fromItems = detail.orderItems.map((item) => item.productSkuSnapshot);
+                        // Live OrderItem snapshots can be blank after merge; keep the CRM/edit SKU.
+                        if (fromItems.some((value) => String(value || '').trim())) {
+                          return compactOrderValues(fromItems);
+                        }
+                      }
+                      return compactOrderValues(fromRecord);
                     })()}
                   </td>
                   <td className="py-4 px-4 text-black">
                     {(() => {
                       const detail = hoverOrderDetails[order.orderNo];
-                      if (detail?.orderItems?.length) return compactOrderValues(detail.orderItems.map((item) => item.variantNameSnapshot));
-                      return compactOrderValues(String(order.variantName || '').split(',').map((v) => v.trim()));
+                      const fromRecord = String(order.variantName || '').split(',').map((v) => v.trim());
+                      if (detail?.orderItems?.length) {
+                        const fromItems = detail.orderItems.map((item) => item.variantNameSnapshot);
+                        if (fromItems.some((value) => String(value || '').trim())) {
+                          return compactOrderValues(fromItems);
+                        }
+                      }
+                      return compactOrderValues(fromRecord);
                     })()}
                   </td>
                   <td className="py-4 px-4 text-black">
