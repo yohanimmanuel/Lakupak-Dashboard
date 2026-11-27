@@ -1,5 +1,5 @@
 import { supplierReceiptTotals } from '@/lib/suppliers/supplierReceiptTotals';
-import { type Buyer as BuyerModel, type Supplier as SupplierModel } from '@/lib/db';
+import { type Buyer as BuyerModel, type Prisma, type Supplier as SupplierModel } from '@/lib/db';
 import { prisma } from '../common/prisma';
 import { sanitizePagination, buildPaginationInfo, isNumericId, parseMoney, MAX_PRODUCT_LIMIT } from '../common/utils';
 import {
@@ -2021,17 +2021,35 @@ const syncSuppliersFromProducts = async (args: { userId: number }) => {
   };
 };
 
+/** Whether a catalog variant still belongs to this supplier. A missing variant does not. */
+const variantOwnedBySupplier = async (
+  tx: Prisma.TransactionClient,
+  userId: number,
+  supplierName: string,
+  variantId: number | null,
+): Promise<boolean> => {
+  if (variantId == null) return false;
+  const variant = await tx.variantOption.findFirst({
+    where: { id: variantId, product: { userId } },
+    select: { product: { select: { supplier: true } } },
+  });
+  if (!variant) return false;
+  const owner = String(variant.product.supplier || '').trim().toLowerCase();
+  const mine = String(supplierName || '').trim().toLowerCase();
+  return Boolean(mine && owner === mine);
+};
+
 /**
- * Soft archive a receipt only when its original catalog variant has been deleted.
- * Active receipts linked to live variants cannot be archived.
+ * Soft-archive receipt history that is no longer a live link to this supplier's catalog.
+ * That includes supplier changes, unlinked imports, and deleted-variant snapshots.
+ * Archive is visibility-only and never changes stock.
  */
-/** Archive only orphaned/legacy receipt history. This is visibility-only and never changes stock. */
 const setSupplierReceiptArchived = async (args: { userId: number; supplierId: string; suppliesno: string; archived: boolean }): Promise<boolean> => {
   const { userId, supplierId, suppliesno, archived } = args;
   await prisma.$transaction(async (tx) => {
     const supplier = await tx.supplier.findFirst({
       where: { userId, OR: isNumericId(supplierId) ? [{ id: Number(supplierId) }, { supplierId }] : [{ supplierId }] },
-      select: { id: true },
+      select: { id: true, name: true },
     });
     if (!supplier) throw new Error('Supplier not found');
 
@@ -2039,16 +2057,6 @@ const setSupplierReceiptArchived = async (args: { userId: number; supplierId: st
       where: { supplierRefId: supplier.id, suppliesno },
     });
     if (!row || row.recordType !== 'history') throw new Error('Receipt history record not found');
-    if (row.variantOptionId != null) throw new Error('Only receipts whose original catalog variant is no longer linked can be archived');
-
-    const historicalId = row.historicalVariantOptionId;
-    if (historicalId) {
-      const stillExists = await tx.variantOption.findFirst({
-        where: { id: historicalId, product: { userId } },
-        select: { id: true },
-      });
-      if (stillExists) throw new Error('The original catalog variant still exists; this receipt cannot be archived.');
-    }
     if (row.stockApplied && row.stockAppliedVariantOptionId != null) {
       const appliedTargetStillExists = await tx.variantOption.findFirst({
         where: { id: row.stockAppliedVariantOptionId, product: { userId } },
@@ -2073,7 +2081,7 @@ const deleteArchivedSupplierReceipt = async (args: { userId: number; supplierId:
   await prisma.$transaction(async (tx) => {
     const supplier = await tx.supplier.findFirst({
       where: { userId, OR: isNumericId(supplierId) ? [{ id: Number(supplierId) }, { supplierId }] : [{ supplierId }] },
-      select: { id: true },
+      select: { id: true, name: true },
     });
     if (!supplier) throw new Error('Supplier not found');
 
@@ -2083,8 +2091,8 @@ const deleteArchivedSupplierReceipt = async (args: { userId: number; supplierId:
     if (!row || row.recordType !== 'history' || !row.archivedAt) {
       throw new Error('Only archived receipt history can be permanently deleted.');
     }
-    if (row.variantOptionId != null) {
-      throw new Error('A receipt linked to a live catalog variant cannot be permanently deleted here.');
+    if (await variantOwnedBySupplier(tx, userId, supplier.name, row.variantOptionId)) {
+      throw new Error('A receipt linked to a variant owned by this supplier cannot be permanently deleted here.');
     }
     if (row.stockApplied && row.stockAppliedVariantOptionId != null) {
       const appliedTargetStillExists = await tx.variantOption.findFirst({

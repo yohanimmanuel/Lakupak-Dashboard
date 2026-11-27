@@ -318,14 +318,6 @@ function isDeletedVariantReceipt(row: SupplyDetail): boolean {
     row.historicalVariantOptionId != null;
 }
 
-/** Older saved receipt with labels but no durable live or historical variant ID. */
-function isLegacyUnlinkedReceipt(row: SupplyDetail): boolean {
-  return Boolean(String(row.suppliesno || '').trim()) &&
-    row.variantOptionId == null &&
-    row.historicalVariantOptionId == null &&
-    !isBlankHistoryRow(row);
-}
-
 /** Compact explanation for legacy/deleted variant receipts; no persistent row-height expansion. */
 function SupplierVariantAlert({ message, title }: { message: string; title: string }) {
   const [open, setOpen] = useState(false);
@@ -936,12 +928,15 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
     selectedHistoryRecords.every((row) => row.updateCurrentStock !== true);
   const canBulkUnupdateStock = selectedHistoryRecords.length > 0 &&
     selectedHistoryRecords.every((row) => row.updateCurrentStock === true);
-  const canArchiveHistoryRow = (row: SupplyDetail) =>
-    isEditMode && Boolean(String(row.suppliesno || '').trim()) &&
-    row.variantOptionId == null &&
-    (isDeletedVariantReceipt(row) || isLegacyUnlinkedReceipt(row));
+  // SKU tooltip and archive button: not linked to this supplier's catalog, or the product moved.
+  const rowHasSupplyTooltip = (row: SupplyDetail) => {
+    if (catalogLoadStatus !== 'loaded') return false;
+    if (!String(row.suppliesno || '').trim() || !String(row.sku || '').trim()) return false;
+    if (isSupplierChangedReceipt(row)) return true;
+    return !catalogOptions.some((option) => option.variantOptionId === row.variantOptionId);
+  };
   const canBulkArchiveHistory = selectedHistoryRecords.length > 0 &&
-    selectedHistoryRecords.every(canArchiveHistoryRow);
+    selectedHistoryRecords.every(rowHasSupplyTooltip);
 
   const toggleHistoryRowSelection = useCallback((idx: number) => {
     setSelectedHistoryRows((prev) => {
@@ -1131,7 +1126,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
   }, [initialData, isEditMode, safeParseJSON, getLatestSuppliedDate]);
 
   const setSupplyArchived = async (row: SupplyDetail, archived: boolean): Promise<boolean> => {
-    if (!isEditMode || !user?.id || !initialData?.supplierId || archiveBusy) return false;
+    if (!user?.id || !initialData?.supplierId || archiveBusy) return false;
     setArchiveBusy(true);
     setError('');
     try {
@@ -1707,22 +1702,10 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                     {historyRows.slice(historyPageStart, historyPageEnd).map((row, visibleIndex) => {
                       const idx = historyPageStart + visibleIndex;
                       const supplierChanged = isSupplierChangedReceipt(row);
-                      const deletedVariant = isDeletedVariantReceipt(row);
-                      const hasReplacementVariant = deletedVariant &&
+                      const hasReplacementVariant = isDeletedVariantReceipt(row) &&
                         catalogLoadStatus === 'loaded' &&
                         hasMatchingLiveVariant(row);
-                      const needsVariantLink = isLegacyUnlinkedReceipt(row) || hasReplacementVariant;
-                      const canArchiveRow = canArchiveHistoryRow(row);
-                      // Once the user chooses an owned product or live variant,
-                      // the old-receipt warning must not linger over the editable
-                      // SKU dropdown. Incomplete corrections use placeholders.
-                      const selectedLiveVariant = row.variantOptionId != null &&
-                        catalogOptions.some((option) => option.variantOptionId === row.variantOptionId);
-                      const correctingOwnedProduct = row.variantOptionId == null &&
-                        !String(row.sku || '').trim() &&
-                        catalogOptions.some((option) => option.productId === row.productId);
-                      const showVariantAttention = !selectedLiveVariant && !correctingOwnedProduct &&
-                        (supplierChanged || needsVariantLink || canArchiveRow);
+                      const showVariantAttention = rowHasSupplyTooltip(row);
                       return (
                       <tr key={row.suppliesno || `hist-${idx}`} className="whitespace-nowrap">
                         <td className="px-3 py-2">
@@ -1761,15 +1744,13 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                             needsAttention={showVariantAttention}
                             attentionTitle={supplierChanged ? tSuppliersModal('supplierChangedTitle') : tSuppliersModal('variantAttentionTitle')}
                             disabled={false}
-                            attentionMessage={supplierChanged
-                              ? tSuppliersModal('supplierChangedDescription')
-                              : hasReplacementVariant
-                              ? tSuppliersModal('variantDeletedCorrectionDescription')
-                              : needsVariantLink
-                                ? tSuppliersModal('variantLegacyDescription')
-                                : canArchiveRow
+                            attentionMessage={!showVariantAttention
+                              ? undefined
+                              : supplierChanged
+                                ? tSuppliersModal('supplierChangedDescription')
+                                : hasReplacementVariant
                                   ? tSuppliersModal('variantDeletedCorrectionDescription')
-                                  : undefined}
+                                  : tSuppliersModal('variantLegacyDescription')}
                             onSelect={(variantId) => handleHistoryVariantSelect(idx, variantId)}
                             renderOption={(option) => (
                               <span className="flex flex-col gap-0.5">
@@ -1892,7 +1873,7 @@ export default function SupplierModal({ initialData, mode = 'add', onSave }: Sup
                             >
                               <Plus className="h-4 w-4" />
                             </button>
-                            {canArchiveRow ? (
+                            {showVariantAttention ? (
                               <button
                                 type="button"
                                 className="rounded-full p-1 text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"

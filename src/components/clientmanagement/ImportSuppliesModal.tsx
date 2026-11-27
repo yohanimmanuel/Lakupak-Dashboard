@@ -8,7 +8,6 @@ import type { StockLevel } from '@/types/product';
 import { convertSupplyQuantityToPieces, getSupplyUnitOptions } from '@/lib/suppliers/supplyPackageUnits';
 import { useClientsTranslations } from '@/hooks/useClientsTranslations';
 import ImportSelectionCheckbox from '@/components/clientmanagement/ImportSelectionCheckbox';
-import ClientCatalogSelect from '@/components/clientmanagement/ClientCatalogSelect';
 import ImportStartPanel, { getDuplicateImportMappingErrors } from '@/components/imports/ImportStartPanel';
 import { normalizeImportVariant } from '@/lib/catalog/importVariantMatching';
 
@@ -335,7 +334,7 @@ export default function ImportSuppliesModal({
     );
   };
 
-  const validateMappedData = (mappedRows: SupplyDetail[]) => {
+  const validateMappedData = (mappedRows: SupplyDetail[], onlyIndices?: Set<number>) => {
     if (!mappedRows.length) return [tImport('noDataToImport')];
     if (!mapping.totalSupplied || (!mapping.sku && !mapping.product)) {
       return ['Map Received Quantity and either SKU or Product + Variant before continuing.'];
@@ -344,6 +343,7 @@ export default function ImportSuppliesModal({
     if (mappingErrors.length) return mappingErrors;
     const errors: string[] = [];
     rows.forEach((raw, index) => {
+      if (onlyIndices && !onlyIndices.has(index)) return;
       const line = index + 2;
       const row = mappedRows[index];
       const match = getCatalogMatch(raw, mapping, supplierCatalog);
@@ -434,7 +434,7 @@ export default function ImportSuppliesModal({
     const mappedRows = getMappedRows();
     
     // Validate mapped data
-    const errors = validateMappedData(mappedRows);
+    const errors = validateMappedData(mappedRows, selectedRowIndices);
     if (errors.length > 0) {
       setValidationErrors(errors);
       return;
@@ -630,12 +630,12 @@ export default function ImportSuppliesModal({
               </div>
             )}
 
-            {hasCatalogMismatches && (
+            {mismatchedRowIndices.some((index) => selectedRowIndices.has(index)) && (
               <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700" role="alert">
                 {tImport('catalogMismatchSummary')}
               </div>
             )}
-            {foreignRowIndices.length > 0 && (
+            {hasForeignSelected && (
               <div className="rounded-lg border border-red-200 bg-red-50 p-3">
                 <div className="mb-1 flex items-center gap-2 text-sm font-semibold text-red-700">
                   <AlertTriangle className="h-4 w-4 shrink-0" />
@@ -660,7 +660,8 @@ export default function ImportSuppliesModal({
                     <th className="py-2 px-3 font-medium uppercase">{tImport('supplyFields.product')}</th>
                     <th className="py-2 px-3 font-medium uppercase">{tImport('supplyFields.sku')}</th>
                     <th className="py-2 px-3 font-medium uppercase">{tImport('supplyFields.variantName')}</th>
-                    <th className="py-2 px-3 font-medium uppercase">{tImport('supplyFields.totalSupplied')} ({tImport('supplyFields.receivedUnit')})</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tImport('supplyFields.totalSupplied')}</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tImport('orderFields.stockType')}</th>
                     <th className="py-2 px-3 font-medium uppercase">{tImport('supplyFields.totalValue')}</th>
                     <th className="py-2 px-3 font-medium uppercase">{tImport('supplyFields.lastSuppliedDate')}</th>
                   </tr>
@@ -690,31 +691,12 @@ export default function ImportSuppliesModal({
                           />
                         </td>
                         {(['product', 'sku', 'variantName'] as const).map((key) => (
-                          <td key={key} className="py-2 px-3">{row[key] || ''}</td>
+                          <td key={key} className="py-2 px-3 text-black">{row[key] || ''}</td>
                         ))}
-                        <td className="py-2 px-3">
-                          <div className="flex min-w-[15rem] items-center gap-2">
-                            <span>{row.receivedQuantity || ''}</span>
-                            {(() => {
-                              const raw = rows[idx] || {};
-                              const catalogMatch = getCatalogMatch(raw, mapping, supplierCatalog);
-                              const options = getSupplyUnitOptions(catalogMatch?.stockLevels);
-                              const selected = String(raw.__receivedUnit || row.receivedUnit || 'Pieces');
-                              return (
-                                <ClientCatalogSelect
-                                  value={selected}
-                                  placeholder={options.some((level) => level.name.toLowerCase() === selected.toLowerCase()) ? 'Pieces' : `Unknown: ${selected}`}
-                                  options={options.map((level) => ({ value: level.name, label: level.name }))}
-                                  allowNone={false}
-                                  onChange={(receivedUnit: string) => setRows((current) => current.map((item, rowIndex) => rowIndex === idx ? { ...item, __receivedUnit: receivedUnit } : item))}
-                                  searchPlaceholder="Search stock type..."
-                                />
-                              );
-                            })()}
-                          </div>
-                        </td>
-                        <td className="py-2 px-3">{row.totalValue || ''}</td>
-                        <td className="py-2 px-3">{row.lastSuppliedDate || ''}</td>
+                        <td className="py-2 px-3 text-black">{row.receivedQuantity || ''}</td>
+                        <td className="py-2 px-3 text-black">{row.receivedUnit || ''}</td>
+                        <td className="py-2 px-3 text-black">{row.totalValue || ''}</td>
+                        <td className="py-2 px-3 text-black">{row.lastSuppliedDate || ''}</td>
                       </tr>
                     );
                   })}
