@@ -56,6 +56,12 @@ Catatan: **Shipping cost is agreed between buyer and distributor — not charged
 
 **Business Information**, **Products from {nama distributor}**.
 
+### Harga pada pesanan
+
+Setiap baris menyimpan harga dari halaman produk. Cara harga kartu dipilih dijelaskan di [Jelajah dan cari](/id/docs/marketplace/browse-search). Perubahan katalog atau saluran kemudian tidak menulis ulang pesanan ini.
+
+Diskon toko pribadi terpisah. Anda melihatnya pada pesanan saat distributor mengirim harga, atau langsung jika pengaturan perusahaan mereka menampilkan tarif klien saat pesanan dikirim.
+
 ### Buat pesanan
 
 **Order Confirmation** ? **Place Order** / **Placing…**

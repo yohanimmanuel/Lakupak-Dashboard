@@ -40,6 +40,23 @@ From several tabs you can open:
 2. **Login** or **Register**, and enter the distributor **referral code** when prompted (required to join or open that storefront)
 3. After sign-in, land on **Home** with your store name and delivery address for that distributor
 
+## Market segment price
+
+The price on a product is the distributor’s price for your **main channel**.
+
+Registration does not assign a channel. The distributor sets your main channel on the buyer record and approves access. Until then, product cards use each variant’s default selling price.
+
+After a main channel is set:
+
+- A variant with a price for that channel shows that price.
+- A variant without a price for that channel shows its default selling price.
+- Sub-channel and outlet specifics do not change the price.
+- If the distributor changes your main channel, the catalog prices you see update for your account.
+
+Checkout stores the price you saw. A later change to the catalog does not rewrite an order you already placed. A private discount, when the distributor has one for your shop, is released on the order separately from this segment price.
+
+See [Browse and search](/en/docs/marketplace/browse-search) and [Cart and checkout](/en/docs/marketplace/cart-checkout).
+
 Suspended accounts see **Account suspended** with a countdown and **Go to login**.
 
 ## How it fits Lakupak

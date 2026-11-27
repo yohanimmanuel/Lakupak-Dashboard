@@ -62,17 +62,25 @@ Ubah **order status:** Pending, Confirmed, Packed, Shipped, Delivered, Failed, C
 
 ### Harga di pesanan pembelian
 
-Setiap baris menyimpan harga dasar katalog dari checkout. Perubahan katalog kemudian tidak menulis ulang pesanan itu.
+Setiap baris menyimpan harga dari checkout. Perubahan katalog atau harga segmen kemudian tidak menulis ulang pesanan itu.
 
-Tarif klien (persen, nominal tetap, atau Buy X Get Y) dihitung untuk retailer itu di pesanan pembelian. Anda melihatnya di halaman detail. Pembeli belum melihatnya sampai Anda membukanya.
+Saat checkout, baris dimulai dari harga segmen pasar pembeli: harga varian untuk **saluran utama** mereka. Jika mereka belum punya saluran utama, atau saluran itu tidak punya harga segmen, baris memakai harga jual bawaan varian. Sub-saluran dan rincian outlet tidak memilih harga lain.
+
+Tarif klien (persen, nominal tetap, atau Buy X Get Y) dihitung untuk retailer itu di pesanan pembelian, di atas harga awal itu. Anda melihatnya di halaman detail. Pembeli belum melihatnya sampai Anda membukanya.
 
 **Harga aman pembeli**
 
-- Kartu produk di Marketplace selalu menampilkan harga dasar katalog.
-- Setelah pembeli mengirim pesanan, pesanan mereka tetap menampilkan harga dasar itu. Hubungan yang sudah ada tidak membuka diskon klien atau kuantitas gratis.
 - **Send pricing to buyer** menulis harga pesanan pembelian, menampilkan diskon dan kuantitas gratis, lalu memberi tahu pembeli. **Send pricing update** melakukan hal yang sama setelah Anda mengubah baris. Setiap baris harus punya harga sebelum dikirim.
 - Jika suatu baris belum punya harga, total menampilkan **Pending price**. Total baris nol adalah baris yang benar-benar gratis hanya setelah harga dikirim.
-- Pengaturan perusahaan **Show discounted price when buyers submit a PO** (Settings → Distributor Operations) adalah pengecualian. Jika aktif, pembeli melihat tarif klien begitu mereka mengirim. Jika mati, mereka tetap pada harga dasar katalog sampai Anda mengirim harga.
+- Pengaturan perusahaan **Show discounted price when buyers submit a PO** (Settings → Distributor Operations) adalah pengecualian. Jika aktif, pembeli melihat tarif klien begitu mereka mengirim. Jika mati, mereka tetap pada harga segmen atau harga bawaan sampai Anda mengirim harga.
+
+### Cara pembeli membeli dengan harga segmen
+
+1. Pembeli mendaftar di Marketplace. Saluran utama mereka kosong, jadi kartu memakai harga jual bawaan, sampai Anda mengisi saluran dan menyetujui akses.
+2. Anda mengisi **Business type (main channel)** pada pembeli. Marketplace memperbarui harga katalog pembeli itu.
+3. Pembeli membuka produk yang diterbitkan. Varian menampilkan harga segmen untuk saluran utama itu, atau harga jual bawaan jika saluran tidak punya harga segmen.
+4. Pembeli menambahkan varian ke keranjang dan membuat pesanan. Baris menyimpan harga pada saat itu.
+5. Tarif klien pribadi, jika ada, tetap tersembunyi sampai **Send pricing to buyer**, kecuali **Show discounted price when buyers submit a PO** aktif.
 
 Badge **Discount** atau **Promotion** (Buy X Get Y) bisa muncul di baris. Kuantitas gratis dihitung **Before MOQ** atau **After MOQ**, sesuai aturan yang tersimpan pada tarif. **After MOQ** tidak memberi kuantitas gratis jika kuantitas pesanan sama dengan minimum produk.
 
@@ -110,9 +118,8 @@ Tidak ada impor pesanan dari layar ini.
 | Buat pesanan manual / terima PO marketplace | Menghubungkan pembeli dan baris varian; menyimpan detail produk, jumlah, dan harga saat pemesanan. |
 | Ubah pesanan | Memperbarui baris, pengiriman, kontak, resi, dan status yang diizinkan; perubahan stok memakai ID varian terkait, bukan hanya nama. |
 | Ubah status / pembayaran | Memperbarui pelaporan pemenuhan dan pembayaran secara terpisah. |
-| Kirim harga / pembaruan harga | Membuka tarif khusus dan jumlah gratis bagi pembeli serta mengirim notifikasi; selain itu harga dasar tetap tampil kecuali pengaturan mengizinkan tampilan langsung. |
-| Archive / Unarchive | Mengeluarkan/mengembalikan pesanan dari daftar aktif tanpa menghapus informasi historis. |
+| Kirim harga / pembaruan harga | Membuka tarif klien pribadi dan kuantitas gratis bagi pembeli serta mengirim notifikasi. Sampai saat itu pembeli tetap pada harga segmen atau bawaan, kecuali sakelar Pengaturan menampilkan tarif saat pesanan dikirim. |
+| Archive / Unarchive | Mengeluarkan atau mengembalikan pesanan dari daftar aktif tanpa menghapus informasi historis. |
 | Delete Cancelled | Hanya pesanan Cancelled yang memenuhi syarat; arsip bukan penghapusan. |
-| Export | Mengunduh data pesanan; tidak ada impor pada layar ini. |
 
-**Cari pesanan:** ID, pembeli, resi, dan nama produk jika tersedia. Snapshot varian mempertahankan arti transaksi lama setelah katalog berubah.
+**Cari pesanan:** ID, pembeli, resi, dan nama produk jika tersedia. Snapshot produk dan varian mempertahankan arti transaksi lama setelah katalog berubah.

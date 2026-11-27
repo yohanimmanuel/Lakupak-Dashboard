@@ -51,6 +51,8 @@ Values use your account currency from Settings.
 | **Refresh** | Reload buyer data from the server |
 | **Import Data** | Bulk create buyers from spreadsheet (XLSX) |
 | **Export Data** | Download the filtered table to XLSX |
+| **Market Segments** | Open the market segment directory (`/clients/buyers/market-segments`), where main channels, sub-channels, and outlet specifics are kept for segment pricing |
+| **Match Buyers** | Open buyer matching (`/clients/buyers/buyer-matching`) to review a prospect against a marketplace order. A blue count shows pending matches |
 | **Add Buyer** | Open `/clients/buyers/add` |
 
 After refresh, a short status toast shows how many buyers loaded.
@@ -83,7 +85,9 @@ Use **Clients → Buyers** to capture outlets you have not sold to yet:
 
 The buyer form includes:
 
-- Store name, owner, phone, email, address, business type
+- Store name, owner, phone, email, address
+- **Business type (main channel)**, chosen from the market segment directory. This is the price key for product segment prices
+- **Sub-channel** and **Outlet specifics** (optional labels; they do not change the price)
 - Status: Active, Prospect, Inactive, or Blocked
 - Created date
 - Logistics: preferred delivery days, last shipment, shipment success rate
@@ -112,10 +116,97 @@ Totals include total orders, total spend, and outstanding balance.
 
 - Delete one buyer from the table actions, or select multiple rows for **bulk delete**.
 - Deleted buyers are removed from the active list. If you open an old link, you may see a **Buyer data has been deleted** page; historical orders can still reference that buyer.
+- Deleting a buyer does not delete product segment prices. Those prices stay while the main channel remains in the market segment directory.
 
 ### Import format (buyers)
 
-Import accepts spreadsheet rows with flexible column names (for example Store Name, Owner, Email, Phone, Business Type, Address, Status). Unmapped columns can be stored in logistics or notes. Each row creates a buyer via GraphQL.
+Import accepts spreadsheet rows with flexible column names. The download template includes an example row for each column. An older **Business Type** column is read as the main channel.
+
+| Column | Use |
+|--------|-----|
+| Store Name, Owner, Email, Phone, Address, Status | Buyer profile |
+| Main Channel, Sub-channel, Outlet Specifics | Channel labels; also create a market segment directory row that remains if the buyer is later deleted. An identical main, sub, and outlet combination is stored once |
+| Last Order Date, Last Visit Date | Dates only |
+| Shipment Success | Logistics rate |
+| Last shipment | Date only |
+
+Unmapped columns can be stored in logistics or notes. Each row creates a buyer via GraphQL. Export uses the same channel and date fields.
+
+## Buyer matching
+
+Buyer matching checks whether a buyer you already keep in Clients is the same shop as a buyer who registered or ordered in Marketplace. Open it from **Clients → Buyers → Match Buyers** (`/clients/buyers/buyer-matching`).
+
+The blue count on **Match Buyers** is the number of pairs still in **Pending**.
+
+### Functions
+
+| Function | What it does |
+|----------|----------------|
+| **Confidence and signals** | Score from phone, store name, owner, and street address. An exact field adds more than a similar one, and the badges name the fields that lined up. **75 or more** is high. **50 to 74** is medium. Below 50 is not queued. A shared phone is preferred when more than one buyer could match. |
+| **Cards** | The left card is **Prospect buyer**, the buyer already in your list. The right card is **Existing buyer**, the Marketplace account, with the order id when there is one. |
+| **Queues** | **Pending** is still open. **Needs more info**, **Not a match**, and **Recently merged** (last 30 days) are the other tabs. |
+| **Merge** | Keeps the Marketplace buyer and absorbs the CRM buyer into it. Orders, sales jobs, offers, and order lines move to the Marketplace buyer. The CRM buyer record is removed. Marketplace name, phone, store, and address win; the CRM record only fills blanks. The main channel keeps the CRM segment when the Marketplace channel is blank. Merge does not approve storefront access. The pair then shows under **Recently merged**. |
+| **Not a match** | Dismisses the pair into the **Not a match** tab. The two buyers stay separate. |
+| **Needs more info** | Moves the pair into the **Needs more info** tab so you can check it later. |
+| **Undo** | On a dismissed pair, returns it to **Pending**. On a merged pair, restores the CRM buyer and moves orders, jobs, and offers back. Undo does not write a default segment and does not delete product segment prices. |
+| **Auto matching** | Off by default. When it is on, only a high-confidence pair (75 or more) merges by itself. Medium pairs still wait in **Pending**. |
+| **Search** | Filters the open tab by buyer, store, address, or phone. |
+
+Each action shows a spinner on its button until the request finishes.
+
+### How to review a pair
+
+1. Open **Clients → Buyers → Match Buyers**.
+2. Leave **Auto matching** off until you trust high-confidence pairs.
+3. Open **Pending**. Read the score and the signal badges.
+4. Compare **Prospect buyer** on the left with **Existing buyer** and the order on the right.
+5. Click **Merge** when they are the same shop. Click **Not a match** when they are different. Click **Needs more info** when you need to check first.
+6. Use the tabs and search to find a pair later. **Undo** a merge or a dismissal from that card.
+
+### What the buyer sees
+
+1. The shop is already a Prospect, or another buyer, in your Clients list.
+2. The same shop registers or orders in Marketplace. The new membership starts with a blank main channel.
+3. If the phone, store, owner, or address reaches a score of 50 or more, a card appears in Pending. A score of 75 or more merges on its own only when **Auto matching** is on.
+4. After you merge, history sits on the Marketplace buyer. Access stays pending.
+5. Open that buyer, set **Business type (main channel)** if it is still blank, then **Approve access**. Marketplace then uses that channel’s segment price. See [Market segment pricing](#market-segment-pricing).
+
+## Market segment pricing
+
+Market segment pricing is the selling price a variant uses for a buyer’s **main channel**. Open it from **Clients → Buyers → Market Segments**.
+
+A private client rate in **Offers** is a separate discount on top of that price. Segment pricing decides which catalog selling price the buyer starts from.
+
+### Functions
+
+| Function | What it does |
+|----------|----------------|
+| **Main channel** | Required. This is the buyer’s business type and the key for product segment prices. `General Trade` and `general trade` are the same key. |
+| **Sub-channel** | Optional label, for example Retail. It does not select a different price. |
+| **Outlet specifics** | Optional label, for example the kind of shop. It does not select a different price. |
+| **Market segment directory** | The list of channels you sell through. Product price choices come from the distinct main channels here. |
+| **Add segment** | Creates one directory row. Main channel is required. The “Main channel is required” notice clears after 5 seconds. |
+| **Record from buyers** | Copies each existing buyer’s main channel, sub-channel, and outlet specifics into the directory. The same combination is stored once. The success notice clears after 5 seconds. Running it again adds only new combinations. |
+| **Drag to reorder** | Saves the directory order. |
+| **Edit** | Opens a popup for that row. It does not replace the add-segment bar. |
+| **Delete / Delete selected** | Removes directory rows. Prices for a main channel are removed only when the last row for that channel is deleted and no buyer still uses it. |
+| **Buyer profile badge** | Shows the main channel. Hover shows main channel, sub-channel, and outlet specifics. |
+
+The same main channel and sub-channel may appear on more than one row when the outlet specifics differ. A row is blocked only when all three values are the same, ignoring capital letters.
+
+### Configure buyers, then product prices
+
+1. Open **Clients → Buyers → Market Segments**.
+2. Enter the **Main channel**. Add **Sub-channel** and **Outlet specifics** when you use them. Click **Add segment**.
+3. Drag rows into the order you want. The order is saved.
+4. When buyers already exist, click **Record from buyers**. Matching combinations are combined into one row.
+5. On **Add Buyer** or **Edit Details**, set **Business type (main channel)** from that directory. Sub-channel and outlet specifics stay optional.
+6. Open the product and set **Market Segment Pricing** for the channels this product sells to. See [Products](/en/docs/dashboard/products).
+7. Publish the product so Marketplace can show that price.
+
+A buyer who registers in Marketplace starts with a blank main channel. They see the default selling price until you choose their main channel and approve access. After approval, Marketplace uses that channel’s segment price. Changing the main channel later updates the prices that buyer sees.
+
+Buyer import and export columns for channels and logistics dates are listed under [Import format (buyers)](#import-format-buyers).
 
 ## Suppliers
 
@@ -176,7 +267,13 @@ Aggregates include total units supplied and total purchase value. **On-time deli
 
 ### Import format (suppliers)
 
-Bulk import maps flexible columns (Name, Contact, Email, Phone, Business Type, Address, Status, supplies, and more). Extra fields can go into logistics or notes.
+Bulk import maps flexible columns (Name, Contact, Email, Phone, Business Type, Address, Status, and more). The download template includes an example row. Extra fields can go into logistics or notes.
+
+### Import and archive supply history
+
+On the supplier profile, **Import supplies** maps the spreadsheet, then shows a preview. Received quantity and stock type appear as separate plain-text columns. Only the rows you leave selected are imported. Deselect a row that has no unique match in this supplier’s catalog, or that belongs to another supplier, before you confirm.
+
+A saved receipt shows an **Archive** action when its SKU tooltip says it is not linked to this supplier’s catalog, or the product moved to another supplier. Archive only hides the receipt from active history. If the receipt already applied stock on a live variant, untick **Update Current Stock** and save before you archive.
 
 ## How buyers and suppliers connect to the rest of Lakupak
 
@@ -193,55 +290,33 @@ Keeping client records current improves order fulfillment, analytics, and dashbo
 - [Products](/en/docs/dashboard/products) for catalog linked to supply lines
 - [Home](/en/docs/dashboard/home) for buyer and supplier widgets
 
-## Current supply history, snapshots, and inventory linkage (November 2026)
+## Supply history, snapshots, and stock
 
-Supplier records and the product catalog are **separate but linkable**. Adding, editing, renaming, or deleting a catalog product or variant does **not** automatically create supplier receipt history, rewrite existing receipts, or move receipt records to another variant. Supplier receipts are created or imported explicitly. This replaces the older automatic product-to-supplier synchronization behavior.
+Supplier records and the product catalog are **separate but linkable**. Catalog edits do not create receipts, rewrite history, or move a receipt to another variant. Receipts are created or imported explicitly.
 
-- **Supply history** records individual supplier receipts, including the supplied date, product/variant snapshot, entered quantity and unit, value, and whether an inventory update was requested and applied.
-- **Snapshots** preserve previously recorded product, variant, and supply information separately from new receipt transactions. Legacy `AUTO-` records are retained as historical snapshots; `HIST-` records identify supply history. Do not count a snapshot as an additional receipt.
-- **Variant identity:** inventory links use the live product ID and variant option ID, not just a matching SKU or display name. Recreating a deleted variant with the same name or SKU creates a different identity.
-- **Deleted or renamed catalog variants:** existing supply history and snapshot records retain their recorded product and variant labels as historical snapshots. A missing live option is not silently substituted with another variant.
-- **Unmatched historical rows:** select a valid current catalog variant before applying a new stock update. If the variant was deleted, choose another live variant for a new receipt or archive/delete the obsolete supply record where the interface permits. An unselected new receipt needs no legacy warning.
-- **Received units:** receipts preserve the entered quantity and stock level (such as cartons), while the canonical inventory quantity is calculated in base pieces using that variant's conversion rules. These are two representations of one quantity, not separate inventories.
-- **Update Current Stock:** stock changes are an explicit receipt action; an imported or saved supplier row must not be assumed to have changed inventory unless its stock update was successfully applied. Avoid reapplying the same historical receipt.
+- **Supply history** stores each receipt: date, product/variant snapshot, entered quantity and unit, value, and whether **Update Current Stock** was applied.
+- **Snapshots** keep older product and variant labels. Legacy `AUTO-` rows are historical snapshots; `HIST-` rows are supply history. Do not count a snapshot as an extra receipt.
+- Inventory links use the live product ID and variant option ID. Recreating a deleted variant with the same name or SKU creates a new identity. A missing live option is not replaced silently.
+- Received quantity and stock type stay as entered (for example cartons). Inventory stores the base-piece equivalent. Those are two views of one quantity.
+- Stock changes only when **Update Current Stock** succeeds. Saving or importing a row does not add stock by itself.
 
-Buyer order lines and supplier receipt lines are operational records; catalog edits should not retroactively rewrite their historical product and variant snapshots. For stock on hand, use the product variant inventory view rather than summing supplier receipts alone (orders and other adjustments can also affect stock).
+For stock on hand, use the product variant inventory view. Orders and other adjustments also change stock.
 
-### Deleting and archiving supply history
+### Archive, restore, and delete
 
-- **Archive:** move a receipt out of the active Supply History view while retaining its recorded details as a snapshot. Archived receipts can be reviewed in **Archived Supplies**; archiving is not the same as deleting a receipt or reversing an inventory movement.
-- **Delete:** explicitly remove the selected supply history record (including via supported bulk actions). A deletion is different from archiving. Deletion is restricted to eligible records; where offered, the deletion flow may allow reversing an inventory update; only a stock movement that was actually applied can be reversed, and only when the user opts into that reversal. Deleting a record without reversing inventory does not automatically remove stock already received.
-- **Why a stock reversal may be unavailable:** if the original product variant was deleted, its former inventory target no longer exists. The historical receipt/snapshot can still be identified, but the system must not deduct stock from a newly created variant merely because its name or SKU matches.
-- **Unchecking Update Current Stock:** for an existing successfully applied receipt, disabling this option reverses the linked stock movement when its original live variant remains available; the receipt itself remains in history. This is not equivalent to deleting the receipt.
-- **Historical mismatch:** a deleted or recreated variant can leave a frozen label without a valid live selection. For future stock updates, explicitly select an existing variant; otherwise archive or delete obsolete records as appropriate.
+| Action | Result |
+|--------|--------|
+| **Archive** / **Archive selected** | Moves an eligible receipt to **Archived Supplies**. Does not reverse stock. |
+| **Restore** / **Restore selected** | Returns the receipt to active history without creating another stock movement. |
+| **Delete** | Removes an eligible receipt after confirmation. Reversing previously applied stock is a separate choice and only works when the original live variant still exists. |
+| Untick **Update Current Stock** on an applied receipt | Reverses that stock movement when the original variant is still available; the receipt stays in history. |
 
-**Important:** Archiving is for retaining records without cluttering active history; deletion is for intentionally removing a record. Review the stock-reversal choice before confirming deletion.
-
-### Archive, restore, and protected receipt actions
-
-- Archive an eligible receipt with its **Archive** action or **Archive selected**. It leaves active Supply History but remains available under **Archived Supplies**; archiving does not itself reverse stock.
-- Open **Archived Supplies** to **Restore** a receipt or **Restore selected** in bulk. Restored receipts return to active history without creating another stock receipt.
-- Permanent deletion from **Archived Supplies** is limited to eligible records. **Historical records tied to live catalog variants are protected**; a disabled or rejected delete is not a reason to delete the product variant merely to bypass protection.
-- A receipt deleted through the supported active-history flow is removed only after confirmation. Reversing previously applied inventory is a separate choice and requires the original stock movement to exist; deleted catalog variants cannot be used as reversal targets.
-- For bulk archive, restore, or delete, review the selected rows and confirmation. If an operation fails partway through, verify which records were processed before retrying.
-
-### Reconciliation and stock updates
-
-- A **new empty row** has no mismatch warning. An **older unlinked receipt** needs a live catalog variant selected before a new stock update. A **deleted variant** retains its historical label, but that label is not a live inventory link.
-- **Update Current Stock** is explicit: enabling it applies stock to the selected variant, disabling it can reverse an already applied movement, and editing a receipt can adjust the movement. The system tracks successful application so saving again does not duplicate stock.
-- Import files may use differing column labels. Verify mapped product/variant identities, quantities, units, and whether inventory should change before saving; a matching SKU text alone is not proof of the same variant.
+Historical receipts tied to a live catalog variant of this supplier are protected from permanent delete. A disabled delete is not a reason to delete the product variant. For future stock on an unlinked or deleted-variant receipt, select a live variant, or archive or delete the obsolete row.
 
 ## CRUD actions and system results
 
 | Action | System result |
 |---|---|
-| Create/edit buyer | Saves the buyer profile and optional order lines; order history retains recorded product/variant details. |
-| Import/export buyers | Maps spreadsheet columns into buyer fields; exports the selected/filtered data. Review unmatched names before saving. |
-| Delete buyer | Removes the buyer from the active CRM; historical orders may still refer to that buyer. Linked private rates without a valid client cannot remain Active. |
-| Create/edit/import supplier receipt | Records Supply History with entered quantity/unit and a product/variant snapshot. Inventory changes only when **Update Current Stock** succeeds. |
-| Archive / restore receipt | Moves eligible history out of / back into the active list; retains its snapshot and does not itself reverse stock. Individual and bulk actions are available where enabled. |
-| Delete receipt | Permanent deletion is subject to eligibility checks; **historical receipts for live catalog variants are protected** in the current confirmation flow. Where deletion is permitted, a previously applied stock movement is reversed only when selected and possible. |
-| Edit an applied receipt / untick stock update | Reconciles the old movement against the original variant when available; unticking retains the receipt but reverses the applied movement when possible. |
-| Delete/recreate variant | Existing receipts and snapshots stay historical; a recreated name/SKU has a new variant ID and cannot inherit the old inventory link automatically. |
-
-**Matching guidance:** A blank new receipt needs only the dropdown placeholder. A legacy or recreated variant needs an explicit live-variant reselection. A deleted variant requires another valid variant for future stock actions, or archive/delete of an eligible obsolete record. Avoid interpreting an old matching name as the same variant ID.
+| Delete buyer | Removes the buyer from the active CRM; historical orders may still refer to that buyer. Segment prices stay with the market segment directory. Linked private rates without a valid client cannot remain Active. |
+| Create/edit/import supplier receipt | Records Supply History with entered quantity/unit and a product/variant snapshot. Inventory changes only when **Update Current Stock** succeeds. Import writes only the selected preview rows. |
+| Archive / restore / delete receipt | Archive and restore move visibility; delete is permanent for eligible rows only. Stock reverses only when chosen and possible. |

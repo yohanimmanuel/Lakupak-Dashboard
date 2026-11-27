@@ -14,7 +14,7 @@ Jalur: `/useraccounts/welcome`.
 
 **Login** membuka **Welcome Back** dengan **Your Email**, **Password**, **kode referral** distributor (saat diperlukan untuk membuka storefront), **Forgot password?**, dan **Create Account**.
 
-**Register** membuka wizard **Create Account** yang mengumpulkan field profil (nama, email, nama toko, username, kata sandi) dan **kode referral** distributor yang valid. Pendaftaran membutuhkan kode valid agar pembeli baru bergabung ke storefront privat distributor itu.
+**Register** membuka wizard **Create Account** yang mengumpulkan field profil (nama, email, nama toko, username, kata sandi) dan **kode referral** distributor yang valid. Pendaftaran membutuhkan kode valid agar pembeli baru bergabung ke storefront privat distributor itu. Pendaftaran tidak memilih **saluran utama**. Akses tetap menunggu sampai distributor mengisi saluran Anda dan menyetujui akses. Persetujuan memberi tahu Anda di Marketplace dan menghapus pemberitahuan akses menunggu. Lihat [Harga segmen pasar](/id/docs/marketplace/overview#harga-segmen-pasar).
 
 Footer: persetujuan **Security and Privacy**.
 

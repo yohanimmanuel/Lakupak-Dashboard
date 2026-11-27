@@ -63,6 +63,18 @@ Jalur: `/search`.
 
 Pencarian memakai indeks katalog cepat agar pembeli menemukan produk menurut nama, kategori, dan filter.
 
+## Harga yang Anda lihat
+
+Setiap kartu produk dan halaman produk menampilkan harga jual untuk **saluran utama** Anda.
+
+| Data pembeli Anda | Harga di kartu |
+|-------------------|----------------|
+| Belum ada saluran utama | Harga jual bawaan varian |
+| Saluran utama dengan harga segmen | Harga segmen itu |
+| Saluran utama tanpa harga segmen pada varian ini | Harga jual bawaan varian |
+
+Distributor menetapkan saluran utama di Dashboard. Mengubahnya memperbarui harga di katalog Anda. Harga berlaku per varian. Kuantitas, MOQ, dan stok tetap pada varian yang Anda pilih.
+
 ## Detail produk
 
 Jalur: `/product?productId=…`.

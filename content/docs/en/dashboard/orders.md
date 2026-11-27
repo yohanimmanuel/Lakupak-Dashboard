@@ -64,17 +64,25 @@ Update **order status** inline: Pending, Confirmed, Packed, Shipped, Delivered, 
 
 ### Price on the purchase order
 
-Each line keeps the catalog base price from checkout. A later catalog change does not rewrite that order.
+Each line keeps the price from checkout. A later catalog or segment-price change does not rewrite that order.
 
-The client rate (percentage, fixed amount, or Buy X Get Y) is calculated for that retailer on the purchase order. You see it on the detail page. The buyer does not, until you release it.
+At checkout, the line starts from the buyer’s market segment price: the variant price for their **main channel**. When they have no main channel, or that channel has no segment price, the line uses the variant’s default selling price. Sub-channel and outlet specifics do not pick a different price.
+
+The client rate (percentage, fixed amount, or Buy X Get Y) is calculated for that retailer on the purchase order, on top of that starting price. You see it on the detail page. The buyer does not, until you release it.
 
 **Buyer safety price**
 
-- Product cards in Marketplace always show the catalog base price.
-- After the buyer submits, their order still shows that base price. An existing relationship does not reveal the client discount or free quantity.
 - **Send pricing to buyer** writes the purchase-order price, shows the discount and any free quantity, and notifies the buyer. **Send pricing update** does the same after you change a line. Every line needs a price before you can send.
 - If a line has no price yet, the total shows **Pending price**. A zero line total is a real fully discounted line only after pricing has been sent.
-- Company setting **Show discounted price when buyers submit a PO** (Settings → Distributor Operations) is the exception. When it is on, the buyer sees the client rate as soon as they submit. When it is off, they stay on the catalog base price until you send pricing.
+- Company setting **Show discounted price when buyers submit a PO** (Settings → Distributor Operations) is the exception. When it is on, the buyer sees the client rate as soon as they submit. When it is off, they stay on the segment or default price until you send pricing.
+
+### How a buyer purchases at a segment price
+
+1. The buyer registers in Marketplace. Their main channel stays blank, so cards use the default selling price, until you set the channel and approve access.
+2. You set **Business type (main channel)** on the buyer. Marketplace updates that buyer’s catalog prices.
+3. The buyer opens a published product. The variant shows the segment price for that main channel, or the default selling price when the channel has none.
+4. The buyer adds the variant to the cart and places the order. The line stores the price from that moment.
+5. A private client rate, when one exists, stays hidden until **Send pricing to buyer**, unless **Show discounted price when buyers submit a PO** is on.
 
 Offer badges on lines may show **Discount** or **Promotion** (Buy X Get Y). Free quantity is counted **Before MOQ** or **After MOQ**, using the rule saved on the rate. **After MOQ** gives no free quantity when the ordered quantity equals the product minimum.
 
@@ -118,9 +126,8 @@ There is no order import from this screen.
 | Create manual order / receive marketplace PO | Associates a buyer and product variant lines; captures order-time product, variant, quantity and price details. |
 | Edit order | Updates permitted lines, delivery/contact details, tracking and status; inventory-affecting changes must reconcile against the linked variant, not a matching name alone. |
 | Change status / payment | Updates fulfillment or payment reporting; delivery and payment are distinct statuses. |
-| Send pricing / update | Releases retailer-specific rates and free quantities to the buyer and sends a notification; otherwise buyer-facing catalog base pricing is retained unless the Settings toggle allows immediate display. |
-| Archive / unarchive | Removes/restores orders from the active list without erasing historical order information. |
-| Delete cancelled orders | Restricted to eligible Cancelled orders; confirm deletion rather than treating archive as deletion. |
-| Export | Downloads order data; no import is offered on this screen. |
+| Send pricing / update | Releases the private client rate and free quantities to the buyer and sends a notification. Until then the buyer stays on the segment or default price, unless the Settings toggle shows the rate on submit. |
+| Archive / unarchive | Removes or restores orders from the active list without erasing historical order information. |
+| Delete cancelled orders | Restricted to eligible Cancelled orders; archive is not deletion. |
 
-**Finding an order:** Search by order ID, buyer, tracking number and product name where available. Product/variant snapshots protect the meaning of past lines after catalog changes.
+**Finding an order:** Search by order ID, buyer, tracking number, and product name where available. Product and variant snapshots protect past lines after catalog changes.

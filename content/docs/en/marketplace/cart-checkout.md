@@ -56,7 +56,13 @@ Note shown in app: **Shipping cost is agreed between buyer and distributor — n
 
 Also: **Business Information**, **Products from {distributor name}**.
 
-### Place order
+### Price on the order
+
+Each line stores the price from the product page. How that card price is chosen is explained in [Browse and search](/en/docs/marketplace/browse-search). A later catalog or channel change does not rewrite this order.
+
+A private shop discount is separate. You see it on the order when the distributor sends pricing, or immediately when their company setting shows the client rate on submit.
+
+## Place order
 
 **Order Confirmation** ? **Place Order** / **Placing…**
 

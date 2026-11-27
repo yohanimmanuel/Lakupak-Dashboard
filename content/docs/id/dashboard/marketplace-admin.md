@@ -39,13 +39,15 @@ Merangkum apa yang dilihat pembeli tentang storefront Anda:
 
 | Metrik | Arti |
 |--------|---------|
-| **Total Sales** | Pendapatan marketplace dalam periode |
+| **Total Sales** | Pendapatan marketplace dalam periode, dari harga yang tersimpan saat checkout |
 | **Total Views** | View produk dan toko |
 | **Conversion Rate** | View ke pembelian |
 
+Penjualan dan konversi memakai harga yang dibayar pembeli saat checkout (harga segmen atau harga jual bawaan pada saat itu). Ubah harga di [Produk](/id/docs/dashboard/products) dan [Klien](/id/docs/dashboard/clients#harga-segmen-pasar). Halaman ini tidak mengedit harga.
+
 ### Customer journey
 
-Funnel: **Views** → **Added to Cart** → **Purchases**.
+Funnel: **Views** → **Added to Cart** → **Purchases**. Untuk apa yang dilihat pembeli di jalur itu, lihat [Ringkasan Marketplace](/id/docs/marketplace/overview).
 
 ### Tabel kinerja produk
 
@@ -70,6 +72,8 @@ Status kosong: **No Published Products**.
 
 Metrik berasal dari aktivitas marketplace akun Anda. Katalog sangat besar mungkin dimuat dalam batch terbatas; refresh setelah publish atau unpublish untuk memperbarui hitungan.
 
+Halaman ini **pelaporan hanya-baca**. Pilih periode atau **Refresh** untuk menghitung ulang funnel. **Manage Products** dan **Edit settings** membuka modul lain; keduanya tidak mengubah angka penjualan historis di sini.
+
 ## Tautan terkait
 
 | Tujuan | Ke |
@@ -77,14 +81,3 @@ Metrik berasal dari aktivitas marketplace akun Anda. Katalog sangat besar mungki
 | Publikasikan katalog | [Produk](/id/docs/dashboard/products) |
 | Setup perusahaan dan pengiriman | [Pengaturan](/id/docs/dashboard/settings) |
 | Marketplace pembeli | [Ringkasan Marketplace](/id/docs/marketplace/overview) |
-
-## Tindakan dan hasil sistem
-
-| Tindakan | Hasil sistem |
-|---|---|
-| Pilih periode / Refresh | Memuat ulang penjualan, view, konversi, dan funnel untuk periode terpilih; tidak mengubah transaksi. |
-| Sort / buka performa produk | Mengurutkan tabel atau membuka analitik dan ulasan produk; tidak mengubah katalog. |
-| Manage Products | Membuka katalog untuk publish/unpublish atau edit produk; menentukan listing marketplace aktif. |
-| Edit settings | Membuka Distributor Operations untuk memperbarui identitas, kontak, dan opsi pengiriman yang terlihat oleh pembeli. |
-
-Halaman ini **pelaporan hanya-baca**, bukan tempat membuat, mengubah, atau menghapus penjualan, view, atau pesanan. Aktivitas marketplace dan publikasi produk menentukan hasilnya; Refresh dapat diperlukan setelah perubahan.

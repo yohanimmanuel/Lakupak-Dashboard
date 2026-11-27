@@ -13,8 +13,9 @@ This page describes the **business flow** of a typical Lakupak order across Dash
 The distributor maintains products in **Dashboard → Products**:
 
 - Draft SKUs with variants, stock, and images
+- Optional **Market Segment Pricing** per main channel from the Clients directory
 - **Publish** when ready so buyers can see them on Marketplace
-- Set a **client rate** for a retailer in **Offers**. The catalog keeps the base price. The rate applies on that retailer's purchase order.
+- Set a **client rate** for a retailer in **Offers**. The rate is a private discount on top of the segment or default selling price and applies on that retailer's purchase order
 
 Unpublished items stay internal and never appear to buyers.
 
@@ -23,11 +24,11 @@ Unpublished items stay internal and never appear to buyers.
 Buyers use **Marketplace** to:
 
 - Browse **Home**, **Categories**, or **Search**
-- Open a distributor store or product detail
+- Open a distributor store or product detail at the **segment price** for their main channel, or the **default selling price** when no segment price applies
 - Add to cart or **Buy Now**, respecting minimum order quantities
 - **Checkout** with delivery address, payment method (bank transfer or COD), and shipping option
 
-The order is created in the distributor's workspace immediately after checkout. The buyer still sees the catalog base price. The distributor releases the client rate with **Send pricing**, unless **Show discounted price when buyers submit a PO** is on.
+The order is created in the distributor's workspace immediately after checkout. The line stores the segment or default price from that moment. The distributor releases the client rate with **Send pricing**, unless **Show discounted price when buyers submit a PO** is on.
 
 ## 3. Distributor fulfillment
 

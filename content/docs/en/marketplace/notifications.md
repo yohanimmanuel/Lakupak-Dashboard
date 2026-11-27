@@ -18,6 +18,8 @@ The tab works for guests (latest updates) and logged-in buyers (order section).
 
 Non-order notifications with types such as **discount**, **promotion**, and **update** (tag, gift, or bell icons).
 
+When the distributor **approves marketplace access**, a notice arrives here (and as a push when enabled). The pending-access alert is cleared at the same time.
+
 ### Order updates block
 
 **Order updates** shows up to five recent order events with **View all** ? **Order updates** full list (`/order-notifications`).

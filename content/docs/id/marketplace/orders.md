@@ -1,6 +1,6 @@
 ---
 title: Pesanan
-description: Daftar pesanan, harga katalog sampai distributor mengirim harga, bayar, batal, dan pelacakan.
+description: Daftar pesanan, harga segmen atau bawaan sampai distributor mengirim harga, bayar, batal, dan pelacakan.
 section: Marketplace
 module: marketplace
 order: 34
@@ -10,16 +10,16 @@ Lacak pesanan B2B dari pembuatan hingga pengiriman, pembayaran, ulasan, dan retu
 
 ## Harga yang Anda lihat
 
-Kartu produk, keranjang, dan checkout menampilkan **harga dasar katalog** distributor. Tarif privat Anda tidak ada di kartu itu.
+Kartu produk, keranjang, dan checkout menampilkan **harga segmen** untuk saluran utama Anda, atau **harga jual bawaan** varian jika Anda belum punya saluran atau saluran itu tidak punya harga segmen. Tarif privat Anda tidak ada di kartu itu. Lihat [Jelajah dan cari](/id/docs/marketplace/browse-search).
 
 Setelah Anda mengirim pesanan pembelian:
 
-- Anda tetap melihat harga dasar katalog, dan tidak melihat diskon klien atau kuantitas gratis, meskipun Anda sudah berbelanja dari distributor itu.
+- Anda tetap melihat harga segmen atau harga bawaan itu, dan tidak melihat diskon klien atau kuantitas gratis, meskipun Anda sudah berbelanja dari distributor itu.
 - Distributor membuka harga pesanan pembelian dengan **Send pricing**. Setelah itu, pesanan menampilkan total diskon dan kuantitas gratis di samping kuantitas yang dipesan.
 - Jika distributor mengaktifkan **Show discounted price when buyers submit a PO**, pesanan menampilkan tarif mereka begitu Anda mengirim.
 - Total yang belum dikonfirmasi tampil sebagai **Pending price**.
 
-Perubahan harga katalog setelah checkout tidak menulis ulang pesanan yang sudah dibuat.
+Perubahan katalog atau harga segmen setelah checkout tidak menulis ulang pesanan yang sudah dibuat.
 
 ## Tab Orders
 

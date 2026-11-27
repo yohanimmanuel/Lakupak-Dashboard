@@ -45,7 +45,7 @@ Nilai ini tampil di permukaan storefront dan checkout saat pemesanan marketplace
 
 **Show discounted price when buyers submit a PO**
 
-Pembeli selalu melihat harga dasar katalog di kartu produk. Jika sakelar ini aktif, pesanan pembelian baru menampilkan tarif klien itu begitu mereka mengirim. Jika mati, pesanan tetap pada harga dasar katalog sampai Anda memakai **Send pricing to buyer** di pesanan. Hubungan pembeli yang sudah ada tidak menyalakan tarif dengan sendirinya.
+Kartu produk menampilkan harga segmen pasar untuk saluran utama pembeli, atau harga jual bawaan varian jika saluran itu tidak punya harga segmen. Jika sakelar ini aktif, pesanan pembelian baru juga menampilkan tarif pribadi klien itu begitu mereka mengirim. Jika mati, pesanan tetap pada harga segmen atau harga bawaan sampai Anda memakai **Send pricing to buyer**. Hubungan pembeli yang sudah ada tidak menyalakan tarif pribadi dengan sendirinya.
 
 Lihat [Penawaran](/id/docs/dashboard/offers) dan [Pesanan](/id/docs/dashboard/orders).
 
@@ -104,7 +104,7 @@ Jaga data perusahaan dan penagihan tetap mutakhir.
 | Edit / Save / Cancel profil | Menyimpan atau membatalkan perubahan profil; tidak mengubah data pembeli/pemasok. |
 | Simpan identitas perusahaan dan pengiriman | Memperbarui logo, kontak, pickup, metode kirim, dan lead time di storefront jika fitur aktif. |
 | Simpan kode referral | Memvalidasi keunikan kode sebelum pembeli memakainya untuk bergabung. |
-| Ubah tampilan harga diskon | Menentukan apakah PO baru langsung menampilkan tarif klien atau menunggu **Send pricing to buyer**; kartu produk tetap harga dasar. |
+| Ubah tampilan harga diskon | Menentukan apakah PO baru langsung menampilkan tarif klien atau menunggu **Send pricing to buyer**. Kartu produk tetap menampilkan harga segmen atau harga jual bawaan. |
 | Ubah bahasa / wilayah / mata uang | Memperbarui preferensi yang didukung; mata uang dapat dibatasi wilayah. |
 | Edit rekening / alamat tagihan | Menyimpan detail tagihan; tidak otomatis mencatat pembayaran. |
 | Buat/ubah password | Memperbarui kredensial melalui alur keamanan. |

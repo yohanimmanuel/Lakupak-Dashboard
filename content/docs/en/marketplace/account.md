@@ -14,7 +14,7 @@ Path: `/useraccounts/welcome`.
 
 **Login** opens **Welcome Back** with **Your Email**, **Password**, distributor **referral code** (when required to open a storefront), **Forgot password?**, and **Create Account**.
 
-**Register** opens a **Create Account** wizard that collects profile fields (name, email, store name, username, password) and a valid distributor **referral code**. Registration requires a valid code so the new buyer joins that distributor's private storefront.
+**Register** opens a **Create Account** wizard that collects profile fields (name, email, store name, username, password) and a valid distributor **referral code**. Registration requires a valid code so the new buyer joins that distributor's private storefront. Registration does not choose a **main channel**. Access stays pending until the distributor sets your channel and approves access. Approval notifies you in Marketplace and clears the pending-access notice. See [Market segment price](/en/docs/marketplace/overview#market-segment-price).
 
 Footer: **By registration, you agree to our Security and Privacy.**
 

@@ -40,6 +40,23 @@ Dari beberapa tab:
 2. **Login** atau **Register**, dan masukkan **kode referral** distributor saat diminta (wajib untuk bergabung atau membuka storefront itu)
 3. Setelah masuk, tampil **Home** dengan nama toko dan alamat pengiriman untuk distributor tersebut
 
+## Harga segmen pasar
+
+Harga pada produk adalah harga distributor untuk **saluran utama** Anda.
+
+Pendaftaran tidak menetapkan saluran. Distributor mengisi saluran utama pada data pembeli dan menyetujui akses. Sampai saat itu, kartu produk memakai harga jual bawaan setiap varian.
+
+Setelah saluran utama diisi:
+
+- Varian yang punya harga untuk saluran itu menampilkan harga tersebut.
+- Varian tanpa harga untuk saluran itu menampilkan harga jual bawaannya.
+- Sub-saluran dan rincian outlet tidak mengubah harga.
+- Jika distributor mengubah saluran utama Anda, harga katalog yang Anda lihat ikut berubah untuk akun Anda.
+
+Checkout menyimpan harga yang Anda lihat. Perubahan katalog kemudian tidak menulis ulang pesanan yang sudah dibuat. Diskon pribadi, bila distributor memilikinya untuk toko Anda, dibuka pada pesanan secara terpisah dari harga segmen ini.
+
+Lihat [Jelajah dan cari](/id/docs/marketplace/browse-search) dan [Keranjang dan checkout](/id/docs/marketplace/cart-checkout).
+
 Akun ditangguhkan menampilkan **Account suspended** dan **Go to login**.
 
 ## Peran di ekosistem Lakupak

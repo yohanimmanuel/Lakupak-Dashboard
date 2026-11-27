@@ -18,6 +18,8 @@ Tab bisa dipakai tamu (latest updates) dan pembeli login (bagian pesanan).
 
 Notifikasi non-pesanan: tipe **discount**, **promotion**, **update**.
 
+Saat distributor **menyetujui akses marketplace**, pemberitahuan masuk ke sini (dan sebagai push jika diaktifkan). Alert akses menunggu dihapus pada saat yang sama.
+
 ### Blok pembaruan pesanan
 
 **Order updates** menampilkan hingga lima event terbaru; **View all** ? daftar lengkap `/order-notifications`.

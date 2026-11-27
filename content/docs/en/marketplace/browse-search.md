@@ -63,6 +63,18 @@ When not searching: **Recent Searches**, **Suggestions**, **Popular Categories**
 
 Search uses fast catalog indexing so buyers can find products by name, category, and filters quickly.
 
+## Price you see
+
+Each product card and the product page show the selling price for your **main channel**.
+
+| Your buyer record | Price on the card |
+|-------------------|-------------------|
+| No main channel yet | The variant’s default selling price |
+| Main channel with a segment price | That segment price |
+| Main channel with no segment price on this variant | The variant’s default selling price |
+
+The distributor sets the main channel in the Dashboard. Changing it updates the prices on your catalog. The price is per variant. Quantity, MOQ, and stock stay on the variant you select.
+
 ## Product detail
 
 Path: `/product?productId=…` (component: `ProductMarketplace`).

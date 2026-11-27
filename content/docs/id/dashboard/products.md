@@ -98,6 +98,24 @@ Ikuti urutan ini saat membuat atau mengedit produk:
 
 > **Penting:** Setelah menambah, menghapus, atau mengganti nama tipe/opsi varian, klik **Refresh** lagi sebelum menyimpan atau mempublikasikan. Jika langkah ini dilewati, tabel varian bisa tidak sinkron dan **Save** atau **Publish** bisa gagal meskipun form terlihat sudah lengkap.
 
+### Harga segmen pasar
+
+**Market Segment Pricing** ada di form produk, di bawah jangkar harga varian.
+
+Pilihannya adalah **saluran utama** dari **Clients → Buyers → Market Segments**. Jika direktori kosong, form meminta Anda menambah saluran utama di sana.
+
+| Kontrol | Kegunaannya |
+|---------|-------------|
+| Kotak segmen | Mengaktifkan saluran utama itu untuk produk ini. Saluran yang dicentang mendapat kolom harga sendiri di setiap varian. Saluran yang tidak dicentang tetap memakai harga jual bawaan varian. |
+| Sel harga segmen | Harga jual saluran utama itu pada varian itu. Sel kosong juga tetap memakai harga jual bawaan. |
+| Harga jual bawaan | Harga yang dipakai jika pembeli belum punya saluran utama, atau saluran itu tidak punya harga segmen. |
+
+Harga disimpan per saluran utama, bukan per pembeli. Dua pembeli dengan saluran utama yang sama melihat harga segmen yang sama. Sub-saluran dan rincian outlet tidak membuat harga tambahan.
+
+Menghapus pembeli tidak menghapus harga ini. Menghapus baris direktori terakhir untuk suatu saluran utama menghapus harga saluran itu dari varian.
+
+Buat saluran utama di [Klien](/id/docs/dashboard/clients#harga-segmen-pasar), lalu centang saluran pada produk ini, isi harga segmen yang berbeda dari harga bawaan, dan terbitkan. Pembeli Marketplace melihat harga segmen untuk saluran utamanya. Checkout menyimpan harga itu pada baris pesanan. Lihat [Pesanan](/id/docs/dashboard/orders) dan [Jelajah dan cari](/id/docs/marketplace/browse-search).
+
 Varian dan harga bisa **terkunci** jika produk memiliki penawaran aktif. Selain itu, varian katalog dapat diubah namanya atau dihapus secara terpisah dari pesanan. Item pesanan lama tetap menyimpan snapshot produk, SKU, nama varian, dan atribut saat pemesanan.
 
 ### Simpan, draf, dan unpublish
@@ -156,20 +174,16 @@ Pieces, karton, dan box adalah **satuan dari stok varian yang sama**, bukan stok
 
 Lihat [Klien](/id/docs/dashboard/clients) untuk penjelasan riwayat suplai dan snapshot.
 
-### Apa yang terjadi saat varian dihapus?
+### Penghapusan varian dan impor
 
-Menghapus varian katalog menghilangkan identitas inventaris aktif dan varian tersebut tidak dapat dipilih untuk transaksi baru. **Penghapusan varian tidak otomatis menghapus atau mengarsipkan Riwayat Suplai maupun Snapshot.** Penerimaan lama tetap menyimpan label dan ID historis. Varian yang dibuat ulang dengan nama atau SKU sama memiliki identitas baru dan tidak otomatis terhubung ke pergerakan stok lama.
+Menghapus varian katalog menghilangkan identitas inventaris aktif. Penghapusan tidak mengarsipkan atau menghapus Riwayat Suplai maupun Snapshot. Membuat ulang nama atau SKU yang sama membuat identitas baru. Untuk arsip, pulihkan, pembalikan stok, dan penerimaan yang tidak tertaut, lihat [Klien](/id/docs/dashboard/clients#riwayat-suplai-snapshot-dan-stok).
 
-Jika penerimaan lama terkait varian yang telah dihapus, pergerakan stok asal tidak dapat dibalik pada baris katalog yang sudah tidak ada. Untuk penerimaan baru yang memengaruhi stok, pilih varian aktif secara eksplisit. Jangan memindahkan penerimaan atau stok historis secara otomatis ke varian pengganti. Gunakan tindakan Archive atau Delete pada profil Pemasok untuk mengelola catatan usang dan periksa pilihan pembalikan stok. Lihat [Klien](/id/docs/dashboard/clients).
+Produk impor dibuat sebagai **Draft**. Periksa opsi varian, SKU, rasio satuan, jumlah, dan harga sebelum publikasi. Pesanan dan penerimaan pemasok memakai stok varian yang sama; karton, box, dan pieces adalah satuan dari satu inventaris.
 
 ## Tindakan CRUD dan hasil sistem
 
 | Tindakan | Hasil sistem |
 |---|---|
 | Tambah/impor produk | Membuat katalog Draft; Product ID berbeda dari SKU per varian. Stok awal bukan penerimaan pemasok. |
-| Ubah varian, harga, satuan | Menyimpan ID/SKU varian, rasio satuan, harga, MOQ, dan stok; Refresh daftar variasi setelah mengubah opsi. Semua satuan memakai satu inventaris. |
-| Publish / Unpublish | Menampilkan/menghapus produk yang memenuhi syarat dari marketplace; tindakan massal tidak mengubah riwayat pesanan atau suplai. |
-| Hapus produk/varian | Menghapus pilihan katalog aktif tetapi mempertahankan baris pesanan, Riwayat Suplai, dan Snapshot. Nama/SKU sama tidak memulihkan ID varian lama. |
-| Impor/ekspor katalog | Memetakan kolom spreadsheet dan mengekspor katalog; periksa varian, satuan, dan status Draft sebelum publikasi. |
-
-Pesanan dan penerimaan pemasok yang memperbarui stok memakai inventaris varian yang sama. Jangan menghitung karton dan hasil konversi pieces sebagai stok terpisah.
+| Publish / Unpublish | Menampilkan atau menghapus produk yang memenuhi syarat dari marketplace tanpa mengubah riwayat pesanan atau suplai. |
+| Hapus produk/varian | Menghapus pilihan katalog aktif; mempertahankan baris pesanan, Riwayat Suplai, dan Snapshot. |

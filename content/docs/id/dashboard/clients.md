@@ -51,6 +51,8 @@ Nilai memakai mata uang akun dari Pengaturan.
 | **Refresh** | Muat ulang data pembeli dari server |
 | **Import Data** | Buat pembeli massal dari spreadsheet (XLSX) |
 | **Export Data** | Unduh tabel terfilter ke XLSX |
+| **Market Segments** (Segmen Pasar) | Buka direktori segmen pasar (`/clients/buyers/market-segments`), tempat saluran utama, sub-saluran, dan rincian outlet disimpan untuk harga segmen |
+| **Match Buyers** (Cocokkan Pembeli) | Buka pencocokan pembeli (`/clients/buyers/buyer-matching`) untuk meninjau prospek terhadap pesanan Marketplace. Angka biru menunjukkan pencocokan yang menunggu |
 | **Add Buyer** | Buka `/clients/buyers/add` |
 
 Setelah refresh, toast singkat menampilkan jumlah pembeli yang dimuat.
@@ -83,7 +85,9 @@ Gunakan **Clients → Buyers** untuk mencatat outlet yang belum Anda jual:
 
 Form mencakup:
 
-- Nama toko, pemilik, telepon, email, alamat, tipe bisnis
+- Nama toko, pemilik, telepon, email, alamat
+- **Tipe bisnis (saluran utama)**, dipilih dari direktori segmen pasar. Ini kunci harga untuk harga segmen produk
+- **Sub-saluran** dan **Rincian outlet** (label opsional; tidak mengubah harga)
 - Status: Active, Prospect, Inactive, atau Blocked
 - Tanggal dibuat
 - Logistik: hari pengiriman pilihan, pengiriman terakhir, tingkat keberhasilan pengiriman
@@ -112,10 +116,97 @@ Total mencakup jumlah pesanan, total belanja, dan saldo outstanding.
 
 - Hapus satu pembeli dari aksi tabel, atau pilih banyak baris untuk **bulk delete**.
 - Pembeli terhapus hilang dari daftar aktif. Tautan lama dapat menampilkan halaman **Buyer data has been deleted**; pesanan lama tetap bisa mereferensikan pembeli tersebut.
+- Menghapus pembeli tidak menghapus harga segmen produk. Harga itu tetap ada selama saluran utama masih ada di direktori segmen pasar.
 
 ### Format impor (pembeli)
 
-Impor menerima baris spreadsheet dengan nama kolom fleksibel (misalnya Store Name, Owner, Email, Phone, Business Type, Address, Status). Kolom tambahan bisa masuk logistik atau catatan. Setiap baris membuat pembeli via GraphQL.
+Impor menerima baris spreadsheet dengan nama kolom fleksibel. Template unduhan memuat satu baris contoh untuk setiap kolom. Kolom **Business Type** yang lama dibaca sebagai saluran utama.
+
+| Kolom | Penggunaan |
+|-------|------------|
+| Store Name, Owner, Email, Phone, Address, Status | Profil pembeli |
+| Main Channel, Sub-channel, Outlet Specifics | Label saluran; juga membuat baris direktori segmen pasar yang tetap ada jika pembeli nanti dihapus. Kombinasi saluran utama, sub-saluran, dan rincian outlet yang sama disimpan sekali |
+| Last Order Date, Last Visit Date | Tanggal saja |
+| Shipment Success | Tingkat keberhasilan logistik |
+| Last shipment | Tanggal saja |
+
+Kolom tambahan bisa masuk logistik atau catatan. Setiap baris membuat pembeli via GraphQL. Ekspor memakai kolom saluran dan tanggal yang sama.
+
+## Pencocokan pembeli
+
+Pencocokan pembeli memeriksa apakah pembeli yang sudah ada di Klien adalah toko yang sama dengan pembeli yang mendaftar atau memesan di Marketplace. Buka dari **Clients → Buyers → Match Buyers** (`/clients/buyers/buyer-matching`).
+
+Angka biru pada **Match Buyers** adalah jumlah pasangan yang masih di **Pending**.
+
+### Fungsi
+
+| Fungsi | Kegunaannya |
+|--------|-------------|
+| **Keyakinan dan sinyal** | Skor dari telepon, nama toko, pemilik, dan alamat jalan. Kecocokan persis menambah lebih banyak daripada yang mirip, dan lencana menyebut kolom yang cocok. **75 atau lebih** tinggi. **50 sampai 74** sedang. Di bawah 50 tidak masuk antrean. Nomor yang sama diutamakan jika lebih dari satu pembeli mungkin cocok. |
+| **Kartu** | Kartu kiri adalah **Prospect buyer**, pembeli yang sudah ada di daftar Anda. Kartu kanan adalah **Existing buyer**, akun Marketplace, beserta nomor pesanan jika ada. |
+| **Antrean** | **Pending** masih terbuka. **Needs more info**, **Not a match**, dan **Recently merged** (30 hari terakhir) adalah tab lainnya. |
+| **Merge** | Mempertahankan pembeli Marketplace dan menyerap pembeli CRM ke dalamnya. Pesanan, pekerjaan sales, penawaran, dan baris pesanan pindah ke pembeli Marketplace. Catatan pembeli CRM dihapus. Nama, telepon, toko, dan alamat Marketplace yang dipakai; catatan CRM hanya mengisi yang kosong. Saluran utama mempertahankan segmen CRM jika saluran Marketplace masih kosong. Penggabungan tidak menyetujui akses etalase. Pasangan itu kemudian tampil di **Recently merged**. |
+| **Not a match** | Menolak pasangan ke tab **Not a match**. Kedua pembeli tetap terpisah. |
+| **Needs more info** | Memindahkan pasangan ke tab **Needs more info** agar bisa diperiksa nanti. |
+| **Undo** | Pada pasangan yang ditolak, mengembalikannya ke **Pending**. Pada pasangan yang sudah digabung, memulihkan pembeli CRM dan mengembalikan pesanan, pekerjaan, serta penawaran. Undo tidak menulis segmen bawaan dan tidak menghapus harga segmen produk. |
+| **Auto matching** | Mati secara bawaan. Jika menyala, hanya pasangan berkeyakinan tinggi (75 atau lebih) yang tergabung sendiri. Pasangan sedang tetap menunggu di **Pending**. |
+| **Search** | Menyaring tab yang terbuka menurut pembeli, toko, alamat, atau telepon. |
+
+Setiap aksi menampilkan putaran pada tombolnya sampai permintaan selesai.
+
+### Cara meninjau pasangan
+
+1. Buka **Clients → Buyers → Match Buyers**.
+2. Biarkan **Auto matching** mati sampai Anda yakin pada pasangan berkeyakinan tinggi.
+3. Buka **Pending**. Baca skor dan lencana sinyal.
+4. Bandingkan **Prospect buyer** di kiri dengan **Existing buyer** dan pesanan di kanan.
+5. Klik **Merge** jika mereka toko yang sama. Klik **Not a match** jika berbeda. Klik **Needs more info** jika perlu dicek dulu.
+6. Pakai tab dan pencarian untuk menemukan pasangan nanti. **Undo** penggabungan atau penolakan dari kartu itu.
+
+### Yang dilihat pembeli
+
+1. Toko itu sudah menjadi Prospect, atau pembeli lain, di daftar Klien Anda.
+2. Toko yang sama mendaftar atau memesan di Marketplace. Keanggotaan baru mulai tanpa saluran utama.
+3. Jika telepon, toko, pemilik, atau alamat mencapai skor 50 atau lebih, kartu muncul di Pending. Skor 75 atau lebih tergabung sendiri hanya jika **Auto matching** menyala.
+4. Setelah Anda menggabungkan, riwayat berada pada pembeli Marketplace. Akses tetap menunggu.
+5. Buka pembeli itu, isi **Business type (main channel)** jika masih kosong, lalu **Approve access**. Marketplace kemudian memakai harga segmen saluran itu. Lihat [Harga segmen pasar](#harga-segmen-pasar).
+
+## Harga segmen pasar
+
+Harga segmen pasar adalah harga jual varian untuk **saluran utama** pembeli. Buka dari **Clients → Buyers → Market Segments**.
+
+Tarif klien pribadi di **Offers** adalah diskon terpisah di atas harga itu. Harga segmen menentukan harga jual katalog yang dipakai pembeli sebagai titik awal.
+
+### Fungsi
+
+| Fungsi | Kegunaannya |
+|--------|-------------|
+| **Saluran utama** | Wajib. Ini tipe bisnis pembeli dan kunci harga segmen produk. `General Trade` dan `general trade` adalah kunci yang sama. |
+| **Sub-saluran** | Label opsional, misalnya Retail. Tidak memilih harga lain. |
+| **Rincian outlet** | Label opsional, misalnya jenis toko. Tidak memilih harga lain. |
+| **Direktori segmen pasar** | Daftar saluran tempat Anda berjualan. Pilihan harga produk berasal dari saluran utama yang berbeda di sini. |
+| **Add segment** | Membuat satu baris direktori. Saluran utama wajib. Pemberitahuan “Main channel is required” hilang setelah 5 detik. |
+| **Record from buyers** | Menyalin saluran utama, sub-saluran, dan rincian outlet setiap pembeli yang ada ke direktori. Kombinasi yang sama disimpan sekali. Pemberitahuan sukses hilang setelah 5 detik. Menjalankannya lagi hanya menambah kombinasi baru. |
+| **Seret untuk mengurutkan** | Menyimpan urutan direktori. |
+| **Edit** | Membuka popup untuk baris itu. Tidak menggantikan bilah tambah segmen. |
+| **Delete / Delete selected** | Menghapus baris direktori. Harga suatu saluran utama dihapus hanya ketika baris terakhir saluran itu dihapus dan tidak ada pembeli yang masih memakainya. |
+| **Lencana profil pembeli** | Menampilkan saluran utama. Arahkan kursor untuk melihat saluran utama, sub-saluran, dan rincian outlet. |
+
+Saluran utama dan sub-saluran yang sama boleh muncul di lebih dari satu baris jika rincian outlet berbeda. Baris ditolak hanya ketika ketiga nilai sama, tanpa membedakan huruf besar.
+
+### Mengatur pembeli, lalu harga produk
+
+1. Buka **Clients → Buyers → Market Segments**.
+2. Isi **Main channel**. Tambahkan **Sub-channel** dan **Outlet specifics** bila dipakai. Klik **Add segment**.
+3. Seret baris ke urutan yang diinginkan. Urutan tersimpan.
+4. Jika pembeli sudah ada, klik **Record from buyers**. Kombinasi yang sama digabung menjadi satu baris.
+5. Di **Add Buyer** atau **Edit Details**, pilih **Business type (main channel)** dari direktori itu. Sub-saluran dan rincian outlet tetap opsional.
+6. Buka produk dan atur **Market Segment Pricing** untuk saluran yang dijual produk itu. Lihat [Produk](/id/docs/dashboard/products).
+7. Terbitkan produk agar Marketplace menampilkan harga itu.
+
+Pembeli yang mendaftar di Marketplace mulai tanpa saluran utama. Mereka melihat harga jual bawaan sampai Anda memilih saluran utama dan menyetujui akses. Setelah disetujui, Marketplace memakai harga segmen saluran itu. Mengubah saluran utama kemudian memperbarui harga yang dilihat pembeli itu.
+
+Kolom impor dan ekspor untuk saluran serta tanggal logistik ada di [Format impor (pembeli)](#format-impor-pembeli).
 
 ## Pemasok (Suppliers)
 
@@ -174,7 +265,13 @@ Agregat termasuk total unit supplied dan total nilai pembelian. **On-time delive
 
 ### Format impor (pemasok)
 
-Impor massal memetakan kolom fleksibel (Name, Contact, Email, Phone, Business Type, Address, Status, supplies, dan lainnya). Field ekstra bisa masuk logistik atau catatan.
+Impor massal memetakan kolom fleksibel (Name, Contact, Email, Phone, Business Type, Address, Status, dan lainnya). Template unduhan memuat satu baris contoh. Field ekstra bisa masuk logistik atau catatan.
+
+### Impor dan arsip riwayat suplai
+
+Di profil pemasok, **Import supplies** memetakan spreadsheet lalu menampilkan pratinjau. Jumlah diterima dan tipe stok tampil sebagai kolom teks terpisah. Hanya baris yang tetap dipilih yang diimpor. Batalkan pilihan baris yang tidak punya kecocokan unik di katalog pemasok ini, atau yang milik pemasok lain, sebelum mengonfirmasi.
+
+Penerimaan tersimpan menampilkan aksi **Archive** ketika tooltip SKU-nya mengatakan penerimaan tidak tertaut ke katalog pemasok ini, atau produk pindah ke pemasok lain. Arsip hanya menyembunyikan penerimaan dari riwayat aktif. Jika penerimaan sudah menerapkan stok pada varian aktif, nonaktifkan **Update Current Stock** dan simpan sebelum mengarsipkan.
 
 ## Hubungan dengan modul Lakupak lain
 
@@ -191,41 +288,33 @@ Data klien yang mutakhir memperbaiki pemenuhan pesanan, analitik, dan widget das
 - [Produk](/id/docs/dashboard/products) untuk katalog terkait supply
 - [Beranda](/id/docs/dashboard/home) untuk widget pembeli dan pemasok
 
-## Riwayat suplai, snapshot, dan hubungan stok terkini (November 2026)
+## Riwayat suplai, snapshot, dan stok
 
-Catatan pemasok dan katalog produk **terpisah tetapi dapat ditautkan**. Menambah, mengubah, mengganti nama, atau menghapus produk/varian tidak otomatis membuat penerimaan pemasok, mengubah riwayat, atau memindahkan penerimaan ke varian lain. Riwayat penerimaan dibuat atau diimpor secara eksplisit; sinkronisasi otomatis dari katalog ke pemasok yang lama tidak lagi digunakan.
+Catatan pemasok dan katalog produk **terpisah tetapi dapat ditautkan**. Perubahan katalog tidak membuat penerimaan, menulis ulang riwayat, atau memindahkan penerimaan ke varian lain. Penerimaan dibuat atau diimpor secara eksplisit.
 
-- **Riwayat suplai** menyimpan setiap penerimaan: tanggal, snapshot produk/varian, jumlah dan satuan yang dimasukkan, nilai, serta status penerapan pembaruan stok.
-- **Snapshot** mempertahankan informasi produk, varian, dan suplai historis, terpisah dari transaksi penerimaan baru. Catatan lama berawalan `AUTO-` tetap disimpan sebagai snapshot historis, sedangkan `HIST-` menunjukkan riwayat suplai. Jangan menghitung snapshot sebagai penerimaan tambahan.
-- **Identitas varian:** hubungan inventaris menggunakan ID produk dan ID opsi varian aktif, bukan hanya SKU atau nama yang sama. Varian yang dihapus lalu dibuat ulang memiliki ID baru.
-- **Varian terhapus atau berganti nama:** riwayat suplai dan snapshot tetap menyimpan label historisnya; sistem tidak boleh otomatis menghubungkannya ke varian baru.
-- **Data lama tidak cocok:** pilih ulang varian katalog aktif sebelum memperbarui stok. Jika varian sudah dihapus, pilih varian lain untuk penerimaan baru atau arsipkan/hapus catatan usang jika tersedia. Penerimaan baru yang masih kosong tidak memerlukan peringatan data lama.
-- **Satuan penerimaan:** jumlah dan satuan asli (misalnya karton) tetap disimpan; jumlah dasar dalam pieces dihitung menggunakan rasio konversi varian. Keduanya bukan dua inventaris terpisah.
-- **Update Current Stock:** stok hanya diperbarui melalui tindakan penerimaan yang eksplisit dan berhasil. Jangan menganggap impor atau penyimpanan baris otomatis menambah stok, dan jangan menerapkan penerimaan yang sama dua kali.
+- **Riwayat suplai** menyimpan setiap penerimaan: tanggal, snapshot produk/varian, jumlah dan satuan yang dimasukkan, nilai, serta apakah **Update Current Stock** diterapkan.
+- **Snapshot** mempertahankan label produk dan varian lama. Baris `AUTO-` adalah snapshot historis; baris `HIST-` adalah riwayat suplai. Jangan menghitung snapshot sebagai penerimaan tambahan.
+- Hubungan inventaris memakai ID produk dan ID opsi varian aktif. Varian yang dihapus lalu dibuat ulang dengan nama atau SKU yang sama memiliki identitas baru. Opsi aktif yang hilang tidak diganti diam-diam.
+- Jumlah diterima dan tipe stok tetap seperti yang dimasukkan (misalnya karton). Inventaris menyimpan setara pieces dasar. Itu dua tampilan dari satu jumlah.
+- Stok berubah hanya jika **Update Current Stock** berhasil. Menyimpan atau mengimpor baris tidak menambah stok dengan sendirinya.
 
-Catatan pesanan pembeli dan penerimaan pemasok mempertahankan snapshot historis. Gunakan stok varian di katalog untuk mengetahui stok saat ini, bukan hanya menjumlahkan penerimaan pemasok.
+Untuk stok saat ini, gunakan tampilan inventaris varian di katalog. Pesanan dan penyesuaian lain juga mengubah stok.
 
-### Menghapus dan mengarsipkan riwayat suplai
+### Arsip, pulihkan, dan hapus
 
-- **Archive:** memindahkan penerimaan dari tampilan Riwayat Suplai aktif tetapi tetap menyimpan detailnya sebagai snapshot. Catatan dapat dilihat di **Archived Supplies**. Arsip bukan penghapusan atau pembalikan stok.
-- **Delete:** menghapus catatan riwayat suplai secara eksplisit, termasuk melalui aksi massal jika tersedia. Saat penghapusan, pengguna dapat memilih apakah pembaruan stok sebelumnya perlu dibalik. Stok hanya dapat dibalik jika pergerakan tersebut benar-benar pernah diterapkan dan pengguna memilih pembalikan. Menghapus catatan tanpa pembalikan tidak otomatis mengurangi stok.
-- **Mengapa pembalikan bisa tidak tersedia:** jika varian asal sudah dihapus, target stok lama tidak lagi ada. Sistem tidak boleh mengurangi stok varian baru hanya karena nama atau SKU-nya sama.
-- **Menonaktifkan Update Current Stock:** pada penerimaan yang sebelumnya berhasil menambah stok, menonaktifkan opsi ini membalik pergerakan stok jika varian asal masih tersedia, tetapi catatan penerimaan tetap ada.
-- **Ketidakcocokan historis:** varian yang dihapus atau dibuat ulang dapat menyisakan label historis tanpa pilihan varian aktif. Pilih varian yang masih berlaku untuk pembaruan stok berikutnya, atau arsipkan/hapus catatan yang sudah tidak diperlukan.
+| Tindakan | Hasil |
+|----------|-------|
+| **Archive** / **Archive selected** | Memindahkan penerimaan yang memenuhi syarat ke **Archived Supplies**. Tidak membalik stok. |
+| **Restore** / **Restore selected** | Mengembalikan penerimaan ke riwayat aktif tanpa membuat pergerakan stok baru. |
+| **Delete** | Menghapus penerimaan yang memenuhi syarat setelah konfirmasi. Membalik stok yang pernah diterapkan adalah pilihan terpisah dan hanya berhasil jika varian aktif asal masih ada. |
+| Nonaktifkan **Update Current Stock** pada penerimaan yang sudah diterapkan | Membalik pergerakan stok itu jika varian asal masih tersedia; penerimaan tetap di riwayat. |
 
-**Penting:** Arsip mempertahankan catatan tanpa memenuhi daftar aktif; penghapusan menghilangkan catatan secara sengaja. Periksa pilihan pembalikan stok sebelum konfirmasi.
+Penerimaan historis yang tertaut ke varian katalog aktif pemasok ini dilindungi dari hapus permanen. Tombol hapus yang dinonaktifkan bukan alasan untuk menghapus varian produk. Untuk stok berikutnya pada penerimaan yang tidak tertaut atau variannya sudah dihapus, pilih varian aktif, atau arsipkan atau hapus baris yang usang.
 
 ## Tindakan CRUD dan hasil sistem
 
 | Tindakan | Hasil sistem |
 |---|---|
-| Tambah/ubah pembeli | Menyimpan profil dan baris pesanan opsional; riwayat pesanan tetap menyimpan detail produk/varian saat transaksi. |
-| Impor/ekspor pembeli | Memetakan kolom spreadsheet; ekspor mengikuti data yang dipilih/terfilter. Periksa nama yang belum cocok. |
-| Hapus pembeli | Menghapus dari CRM aktif; pesanan historis masih dapat merujuk pembeli. Tarif privat tanpa klien valid tidak bisa tetap Active. |
-| Tambah/ubah/impor penerimaan | Menyimpan Riwayat Suplai, jumlah/satuan asli, dan snapshot produk/varian. Stok berubah hanya jika **Update Current Stock** berhasil. |
-| Archive / Restore | Memindahkan catatan yang memenuhi syarat keluar/masuk daftar aktif tanpa membalik stok; snapshot tetap ada. Tersedia tindakan individual dan massal sesuai fitur. |
-| Delete penerimaan | Penghapusan permanen mengikuti syarat; **riwayat untuk varian katalog aktif dilindungi** dalam konfirmasi saat ini. Pembalikan stok yang pernah diterapkan hanya dilakukan jika dipilih dan memungkinkan. |
-| Ubah penerimaan / nonaktifkan update stok | Menyesuaikan pergerakan lama pada varian asal jika tersedia; menonaktifkan update mempertahankan catatan tetapi membalik stok bila memungkinkan. |
-| Hapus/buat ulang varian | Riwayat dan snapshot tetap ada; varian baru memiliki ID baru meskipun nama/SKU sama. |
-
-**Panduan pencocokan:** Baris baru yang kosong cukup memakai placeholder. Varian lama atau dibuat ulang harus dipilih ulang secara eksplisit. Varian yang dihapus memerlukan pilihan varian aktif lain untuk transaksi berikutnya, atau arsip/hapus catatan usang yang memenuhi syarat.
+| Hapus pembeli | Menghapus dari CRM aktif; pesanan historis masih dapat merujuk pembeli. Harga segmen tetap di direktori segmen pasar. Tarif privat tanpa klien valid tidak bisa tetap Active. |
+| Tambah/ubah/impor penerimaan | Menyimpan Riwayat Suplai, jumlah/satuan asli, dan snapshot produk/varian. Stok berubah hanya jika **Update Current Stock** berhasil. Impor hanya menulis baris pratinjau yang dipilih. |
+| Archive / restore / delete penerimaan | Archive dan restore mengubah tampilan; delete permanen hanya untuk baris yang memenuhi syarat. Stok dibalik hanya jika dipilih dan memungkinkan. |

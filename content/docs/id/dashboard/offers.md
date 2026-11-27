@@ -6,7 +6,7 @@ module: dashboard
 order: 15
 ---
 
-**Client Rates & Offers** menetapkan tarif produk privat untuk satu retailer. Pakai ini saat memperkenalkan SKU yang kurang termanfaatkan atau melindungi syarat yang dinegosiasikan: setiap toko bisa punya persen, nominal tetap, atau Buy X Get Y sendiri tanpa mengubah harga dasar katalog yang dilihat toko lain.
+**Client Rates & Offers** menetapkan tarif produk privat untuk satu retailer. Pakai ini saat memperkenalkan SKU yang kurang termanfaatkan atau melindungi syarat yang dinegosiasikan: setiap toko bisa punya persen, nominal tetap, atau Buy X Get Y sendiri tanpa mengubah harga segmen atau harga jual bawaan yang dilihat toko lain.
 
 Tarif berlaku di pesanan pembelian retailer tersebut. Tarif penawaran produk per retailer dikelola dalam satu tabel: klien, produk atau varian, diskon, status, dan durasi.
 
@@ -55,11 +55,11 @@ Menghapus pembeli, atau mengosongkan klien pada tarif, mengembalikan tarif itu k
 
 ## Apa yang bisa dilakukan tarif
 
-Tarif terikat ke satu klien dan ke produk atau varian yang mereka beli. SKU yang sama bisa punya tarif berbeda untuk tiap retailer. Toko lain tetap melihat harga dasar katalog.
+Tarif terikat ke satu klien dan ke produk atau varian yang mereka beli. SKU yang sama bisa punya tarif berbeda untuk tiap retailer. Toko lain tetap memakai harga segmen atau harga jual bawaan mereka sendiri.
 
 | Tipe | Efek di pesanan pembelian |
 |------|---------------------------|
-| **Percentage** | Memotong baris sebesar persen dari harga dasar katalog |
+| **Percentage** | Memotong baris sebesar persen dari harga segmen atau harga jual bawaan yang memulai baris itu |
 | **Fixed Amount Off** | Mengurangi nominal tetap |
 | **Buy X Get Y** | Menambah kuantitas gratis saat aturan beli terpenuhi |
 
@@ -93,12 +93,12 @@ Status: **Active**, **Draft**, **Inactive**, dan **Expired** jika rentang tangga
 
 ## Kapan pembeli melihat tarif
 
-Katalog tidak pernah menampilkan tarif klien. Pada pesanan pembelian baru, pembeli tetap melihat harga dasar katalog, termasuk jika mereka sudah berbelanja dari Anda.
+Kartu produk tidak pernah menampilkan tarif klien. Pada pesanan pembelian baru, pembeli tetap melihat harga segmen atau harga jual bawaan dari checkout, termasuk jika mereka sudah berbelanja dari Anda.
 
-Dua kontrol yang membuka harga itu:
+Dua kontrol yang membuka tarif privat:
 
 - **Send pricing to buyer** pada pesanan (atau **Send pricing update** setelah Anda mengubah baris). Langkah ini menampilkan total diskon dan kuantitas gratis, lalu memberi tahu pembeli.
-- Pengaturan perusahaan **Show discounted price when buyers submit a PO** (Settings → Distributor Operations). Jika aktif, pesanan pembelian menampilkan tarif klien begitu pembeli mengirim. Jika mati, pesanan tetap pada harga dasar katalog sampai Anda mengirim harga.
+- Pengaturan perusahaan **Show discounted price when buyers submit a PO** (Settings → Distributor Operations). Jika aktif, pesanan pembelian menampilkan tarif klien begitu pembeli mengirim. Jika mati, pesanan tetap pada harga segmen atau harga bawaan sampai Anda mengirim harga.
 
 ## Hapus dan ekspor
 
@@ -125,4 +125,4 @@ Dua kontrol yang membuka harga itu:
 | Delete (satuan/massal) | Menghapus tarif terpilih setelah konfirmasi, bukan produk atau pembelinya. |
 | Export | Mengunduh tarif dan metrik penggunaan. |
 
-**Visibilitas:** Tarif privat hanya untuk retailer terkait. Kartu produk tetap memakai harga dasar; aksi kirim harga atau pengaturan distributor menentukan kapan harga negosiasi terlihat.
+**Visibilitas:** Tarif privat hanya untuk retailer terkait. Kartu produk tetap memakai harga segmen atau harga jual bawaan; aksi kirim harga atau pengaturan distributor menentukan kapan harga negosiasi terlihat.

@@ -1,6 +1,6 @@
 ---
 title: Orders
-description: Order list, catalog price until the distributor sends pricing, pay, cancel, and tracking.
+description: Order list, segment or default price until the distributor sends pricing, pay, cancel, and tracking.
 section: Marketplace
 module: marketplace
 order: 34
@@ -10,16 +10,16 @@ Track B2B orders from placement through delivery, payment, reviews, and returns.
 
 ## Price you see
 
-Product cards, cart, and checkout show the distributor's **catalog base price**. Your private rate is not on those cards.
+Product cards, cart, and checkout show the **segment price** for your main channel, or the variant’s **default selling price** when you have no channel or that channel has no segment price. Your private rate is not on those cards. See [Browse and search](/en/docs/marketplace/browse-search).
 
 After you submit a purchase order:
 
-- You still see the catalog base price, and you do not see a client discount or free quantity, even if you already buy from that distributor.
+- You still see that segment or default price, and you do not see a client discount or free quantity, even if you already buy from that distributor.
 - The distributor releases the purchase-order price with **Send pricing**. After that, the order shows the discounted total and any free quantity beside the ordered quantity.
 - If that distributor turned on **Show discounted price when buyers submit a PO**, the order shows their rate as soon as you submit.
 - A total that is not confirmed yet shows as **Pending price**.
 
-A catalog price change after checkout does not rewrite an order you already placed.
+A catalog or segment-price change after checkout does not rewrite an order you already placed.
 
 ## Orders tab
 

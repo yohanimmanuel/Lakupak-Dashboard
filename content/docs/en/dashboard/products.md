@@ -98,6 +98,24 @@ Follow this order when creating or editing a product:
 
 > **Important:** After you add, remove, or rename any variant type or option, click **Refresh** again before saving or publishing. If you skip this step, the variation table can be out of sync and **Save** or **Publish** may fail with an error even when the form looks complete.
 
+### Market segment pricing
+
+**Market Segment Pricing** sits on the product form, under the variant price anchors.
+
+The choices are the **main channels** from **Clients → Buyers → Market Segments**. If the directory is empty, the form tells you to add a main channel there.
+
+| Control | What it does |
+|---------|----------------|
+| Segment checkbox | Turns that main channel on for this product. A checked channel gets its own price column on each variant. An unchecked channel keeps the variant’s default selling price. |
+| Segment price cell | The selling price for that main channel on that variant. A blank cell also keeps the default selling price. |
+| Default selling price | The price used when the buyer has no main channel, or when that channel has no segment price. |
+
+Prices are stored per main channel, not per buyer. Two buyers with the same main channel see the same segment price. Sub-channel and outlet specifics do not create extra prices.
+
+Deleting a buyer leaves these prices in place. Deleting the last directory row for a main channel removes that channel’s prices from the variants.
+
+Create the main channels in [Clients](/en/docs/dashboard/clients#market-segment-pricing), then tick the channels on this product, enter segment prices where they differ from the default, and publish. A Marketplace buyer sees the segment price for their main channel. Checkout stores that price on the order line. See [Orders](/en/docs/dashboard/orders) and [Browse and search](/en/docs/marketplace/browse-search).
+
 Variants and prices may be **locked** when the product has an active offer. Otherwise, catalog variants can be renamed or removed independently of orders. Past order items retain their original product, SKU, variant name, and attribute snapshots.
 
 ### Save, draft, and unpublish
@@ -156,26 +174,16 @@ Stock levels such as pieces, cartons, and boxes are **units of the same variant 
 
 For the distinction between supply history and snapshots, see [Clients](/en/docs/dashboard/clients).
 
-### What happens when a variant is deleted?
+### Variant deletion and imports
 
-Deleting a catalog variant removes its live inventory identity and makes it unavailable for future variant selection. **It does not automatically delete or archive supplier Supply History or Snapshots.** Existing receipts keep their historical labels and variant identifiers. Recreating an option with the same name or SKU produces a new identity and does not reconnect old stock movements.
+Deleting a catalog variant removes its live inventory identity. It does not delete or archive supplier Supply History or Snapshots. Recreating the same name or SKU creates a new identity. For archive, restore, stock reversal, and unlinked receipts, see [Clients](/en/docs/dashboard/clients#supply-history-snapshots-and-stock).
 
-If an old receipt references the deleted variant, its original stock movement cannot be reversed against a missing catalog row. Users must choose a current valid variant for new stock-affecting receipts; do not silently transfer historical stock or receipts to the replacement variant. To manage obsolete receipt entries, use the Supplier profile's archive or delete actions and review any stock-reversal choice. See [Clients](/en/docs/dashboard/clients).
-
-### Imports and historical inventory links
-
-- Imported products are created as **Draft**. Check mapped variant options, their SKUs, conversion levels, quantities, and prices before publishing; the product itself has no top-level SKU.
-- A receipt can reference a deleted variant through its historical snapshot, but it cannot update that removed variant's inventory. A newly created same-name variant is a different ID.
-- Orders and supplier receipts can both affect the same variant stock. They do not create separate carton, box, and piece inventories; conversions are alternative units of the same quantity.
+Imported products are created as **Draft**. Check mapped variant options, SKUs, conversion levels, quantities, and prices before publishing. Orders and supplier receipts affect the same variant stock; carton, box, and piece are units of that one inventory.
 
 ## CRUD actions and system results
 
 | Action | System result |
 |---|---|
 | Create/import product | Creates a Draft catalog entry; product ID is separate from variant-level SKUs. Initial stock is not a supplier receipt. |
-| Edit variants, prices, units | Saves each variant's identity, SKU, conversion levels, price, MOQ and stock; refresh the variation list after changing options. Stock levels represent one inventory. |
-| Publish / unpublish | Adds/removes eligible products from buyer marketplace discovery; bulk actions process selected products without changing historical orders or supplier receipts. |
-| Delete product or variant | Removes the live catalog selection; preserves historical order lines, Supply History and Snapshots. Recreating the same SKU/name does not restore the old variant ID. |
-| Import/export catalog | Maps spreadsheet columns and exports catalog data; verify variant matches, units and draft status before publishing. |
-
-Stock movements from orders and explicit supplier receipts affect the same variant inventory. Do not add a carton quantity and its converted piece quantity as separate stock.
+| Publish / unpublish | Adds or removes eligible products from buyer marketplace discovery without changing historical orders or supplier receipts. |
+| Delete product or variant | Removes the live catalog selection; preserves historical order lines, Supply History, and Snapshots. |

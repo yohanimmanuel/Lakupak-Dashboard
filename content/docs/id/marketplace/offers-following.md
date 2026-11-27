@@ -1,20 +1,20 @@
 ---
 title: Penawaran dan following
-description: Harga dasar katalog, tarif privat retailer, following, dan laporan.
+description: Harga segmen atau harga jual bawaan, tarif privat retailer, following, dan laporan.
 section: Marketplace
 module: marketplace
 order: 35
 ---
 
-Jelajahi harga dasar katalog, lalu bangun **jaringan** toko yang sering Anda beli. Tarif privat retailer bukan harga publik di katalog.
+Jelajahi harga segmen atau harga jual bawaan, lalu bangun **jaringan** toko yang sering Anda beli. Tarif privat retailer bukan harga publik di katalog.
 
 ## Harga katalog dan tarif Anda
 
-Kartu produk, pencarian, dan toko distributor selalu menampilkan **harga dasar katalog**. Tarif toko lain tidak ditampilkan di kartu itu.
+Kartu produk, pencarian, dan toko distributor menampilkan **harga segmen** untuk saluran utama Anda, atau **harga jual bawaan** jika tidak ada harga segmen. Tarif toko lain tidak ditampilkan di kartu itu. Lihat [Jelajah dan cari](/id/docs/marketplace/browse-search).
 
 Tarif Anda diatur distributor di **Client Rates & Offers** dan hanya berlaku di pesanan pembelian Anda:
 
-- Sampai distributor mengirim harga, pesanan tetap pada harga dasar katalog. Anda tidak melihat diskon atau kuantitas gratis Buy X Get Y.
+- Sampai distributor mengirim harga, pesanan tetap pada harga segmen atau harga bawaan. Anda tidak melihat diskon atau kuantitas gratis Buy X Get Y.
 - Setelah **Send pricing**, pesanan menampilkan tarif itu.
 - Jika distributor mengaktifkan **Show discounted price when buyers submit a PO**, tarif muncul di pesanan begitu Anda mengirim.
 
@@ -70,7 +70,7 @@ Modal **Report Distributor** dari profil distributor untuk melaporkan konten ata
 
 ## Dokumentasi terkait
 
-- [Jelajah dan cari](/id/docs/marketplace/browse-search) untuk harga dasar katalog
+- [Jelajah dan cari](/id/docs/marketplace/browse-search) untuk harga segmen atau harga jual bawaan
 - [Pesanan](/id/docs/marketplace/orders) untuk kapan tarif Anda muncul
 - [Akun](/id/docs/marketplace/account)
 - [Penawaran Dashboard](/id/docs/dashboard/offers)

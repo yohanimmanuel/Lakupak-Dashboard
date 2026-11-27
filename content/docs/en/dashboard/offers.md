@@ -6,7 +6,7 @@ module: dashboard
 order: 15
 ---
 
-**Client Rates & Offers** sets a private product rate for one retailer. Use this when introducing underused SKUs or protecting negotiated terms: each shop can have its own percentage, fixed amount, or Buy X Get Y terms without rewriting the catalog base price other shops see.
+**Client Rates & Offers** sets a private product rate for one retailer. Use this when introducing underused SKUs or protecting negotiated terms: each shop can have its own percentage, fixed amount, or Buy X Get Y terms without rewriting the segment or default selling price other shops see.
 
 The rate applies on that retailer's purchase order. Product offer rates per retailer are listed in one table so you can manage client, product or variant, discount, status, and duration together.
 
@@ -57,11 +57,11 @@ Deleting the buyer, or clearing the client on the rate, sets that rate back to *
 
 ## What a rate can do
 
-A rate is tied to one client and to the products or variants they buy. The same SKU can have a different rate for each retailer. Other shops still see the catalog base price.
+A rate is tied to one client and to the products or variants they buy. The same SKU can have a different rate for each retailer. Other shops keep their own segment or default selling price.
 
 | Type | What it does on the purchase order |
 |------|-------------------------------------|
-| **Percentage** | Cuts the line by a percent of the catalog base price |
+| **Percentage** | Cuts the line by a percent of the segment or default selling price that started the line |
 | **Fixed Amount Off** | Subtracts a fixed amount |
 | **Buy X Get Y** | Adds free quantity when the buy rule is met |
 
@@ -95,12 +95,12 @@ Statuses: **Active**, **Draft**, **Inactive**, and **Expired** when the date ran
 
 ## When the buyer sees the rate
 
-The catalog never shows the client rate. On a new purchase order the buyer still sees the catalog base price, including when they already buy from you.
+Product cards never show the client rate. On a new purchase order the buyer still sees the segment or default selling price from checkout, including when they already buy from you.
 
-Two controls release that price:
+Two controls release the private rate:
 
 - **Send pricing to buyer** on the order (or **Send pricing update** after you change a line). This is the step that shows the discounted total and any free quantity, and notifies the buyer.
-- Company setting **Show discounted price when buyers submit a PO** (Settings → Distributor Operations). When this is on, the purchase order shows the client rate as soon as the buyer submits. When it is off, the order stays at the catalog base price until you send pricing.
+- Company setting **Show discounted price when buyers submit a PO** (Settings → Distributor Operations). When this is on, the purchase order shows the client rate as soon as the buyer submits. When it is off, the order stays on the segment or default price until you send pricing.
 
 ## Delete and export
 
@@ -127,4 +127,4 @@ Two controls release that price:
 | Delete (single or bulk) | Removes selected rate records after confirmation, not the underlying product or buyer. |
 | Export | Downloads offer records and usage metrics. |
 
-**Visibility:** Rates are private to the linked retailer. Product cards retain base prices; the order's pricing-send action or the distributor Settings toggle determines when the buyer sees the negotiated price.
+**Visibility:** Rates are private to the linked retailer. Product cards keep the segment or default selling price; the order’s pricing-send action or the distributor Settings toggle determines when the buyer sees the negotiated price.

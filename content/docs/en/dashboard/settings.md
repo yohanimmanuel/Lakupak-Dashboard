@@ -45,7 +45,7 @@ These values appear on storefront and checkout surfaces when private marketplace
 
 **Show discounted price when buyers submit a PO**
 
-Buyers always see the catalog base price on product cards. When this switch is on, a new purchase order shows that client's rate as soon as they submit. When it is off, the order stays at the catalog base price until you use **Send pricing to buyer** on the order. An existing buyer relationship does not turn the rate on by itself.
+Product cards show the market segment price for the buyer’s main channel, or the variant’s default selling price when that channel has no segment price. When this switch is on, a new purchase order also shows that client’s private rate as soon as they submit. When it is off, the order stays on the segment or default price until you use **Send pricing to buyer**. An existing buyer relationship does not turn the private rate on by itself.
 
 See [Offers](/en/docs/dashboard/offers) and [Orders](/en/docs/dashboard/orders).
 
@@ -107,7 +107,7 @@ Keep billing and company data current to avoid payout or compliance issues.
 | Edit / Save / Cancel profile | Saves or discards personal profile changes; does not edit buyer or supplier records. |
 | Save company identity and delivery options | Updates storefront-facing logo, contacts, pickup, shipping methods and lead time where marketplace features are enabled. |
 | Save referral code | Validates uniqueness before buyers can use the code to join the storefront. |
-| Toggle buyer discounted-price display | Controls whether new submitted POs show applicable client rates immediately or wait for **Send pricing to buyer**; product cards still show base price. |
+| Toggle buyer discounted-price display | Controls whether new submitted POs show applicable client rates immediately or wait for **Send pricing to buyer**. Product cards still show the segment or default selling price. |
 | Change language / region / currency | Changes supported interface and regional settings; currency availability can be restricted by region. |
 | Edit billing account / address | Updates saved billing details; does not itself record a payment or payout. |
 | Create/change password | Updates credentials through the security flow. |
