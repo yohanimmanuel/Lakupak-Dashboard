@@ -152,6 +152,8 @@ Angka biru pada **Match Buyers** adalah jumlah pasangan yang masih di **Pending*
 | **Auto matching** | Mati secara bawaan. Jika menyala, hanya pasangan berkeyakinan tinggi (75 atau lebih) yang tergabung sendiri. Pasangan sedang tetap menunggu di **Pending**. |
 | **Search** | Menyaring tab yang terbuka menurut pembeli, toko, alamat, atau telepon. |
 
+Menghapus pembeli juga menghapus setiap pencocokan terbuka yang memakai pembeli itu di salah satu sisi. Lencana Match Buyers dihitung ulang setelah daftar pembeli dimuat ulang.
+
 Setiap aksi menampilkan putaran pada tombolnya sampai permintaan selesai.
 
 ### Cara meninjau pasangan

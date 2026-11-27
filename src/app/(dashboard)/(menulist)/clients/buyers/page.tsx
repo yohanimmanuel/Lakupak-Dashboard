@@ -226,6 +226,15 @@ export default function BuyersPage() {
       setBuyers(buyersWithAnalytics);
       hasLoadedBuyersRef.current = true;
       setOverlayMessage(tBuyers('showingData', { count: buyersWithAnalytics.length }));
+      try {
+        const matchData = await fetchGraphQL<{ clientMatchPendingCount: number }>(
+          `query MatchCount($userId: Int!) { clientMatchPendingCount(userId: $userId) }`,
+          { userId: user.id },
+        );
+        setPendingMatches(matchData.clientMatchPendingCount || 0);
+      } catch {
+        setPendingMatches(0);
+      }
     } catch (error) {
       // Error fetching buyers
       console.error('Error loading buyers:', error);
@@ -269,16 +278,6 @@ export default function BuyersPage() {
       }
     };
   }, [user?.id, fetchBuyers]);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    fetchGraphQL<{ clientMatchPendingCount: number }>(
-      `query MatchCount($userId: Int!) { clientMatchPendingCount(userId: $userId) }`,
-      { userId: user.id },
-    )
-      .then((data) => setPendingMatches(data.clientMatchPendingCount || 0))
-      .catch(() => setPendingMatches(0));
-  }, [user?.id]);
 
   // Auto-hide success and error messages
   useEffect(() => {

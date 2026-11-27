@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db';
 import { classifyClientSignals } from '@/lib/clientMatching/signals';
 import { withDashboardAuth } from '../common/auth';
-import { countBuyerMatchesForReview, dismissCandidate, findPossibleBuyerMatches, getClientMatchSettings, manualMergeOrder, mergeCandidate, reopenUndoneMatches, setClientMatchSettings, undoAutoMerge, undoDismissedMatch } from '@/lib/clientMatching/service';
+import { countBuyerMatchesForReview, dismissCandidate, findPossibleBuyerMatches, getClientMatchSettings, manualMergeOrder, mergeCandidate, pruneOrphanClientMatches, reopenUndoneMatches, setClientMatchSettings, undoAutoMerge, undoDismissedMatch } from '@/lib/clientMatching/service';
 
 export const clientMatchingTypeDefs = /* GraphQL */ `
   type ClientMatchSide {
@@ -297,6 +297,7 @@ export const clientMatchingResolvers = {
   Query: {
     clientMatchCandidates: withDashboardAuth(async (args: { userId: number; queue?: string | null }) => {
       const queue = args.queue || 'pending';
+      await pruneOrphanClientMatches(args.userId);
       if (queue === 'all') {
         await reopenUndoneMatches(args.userId);
         const rows = await prisma.clientMatchCandidate.findMany({

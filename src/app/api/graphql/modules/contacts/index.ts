@@ -1159,6 +1159,10 @@ const deleteBuyer = async (args: { userId: number; id: string }) => {
         AND ${buyerBusinessId} = ANY ("clientIds")
     `;
 
+    // Match queue: existingClientId cascades, but provisionalClientId does not.
+    const { clearClientMatchesForBuyers } = await import('@/lib/clientMatching/service');
+    await clearClientMatchesForBuyers(distributorUserId, [buyerBusinessId], tx);
+
     // Pending unpaid POs for this relationship should look like a new buyer again
     // (no priced lines until the distributor re-sends pricing).
     const pendingOrderWhere = {
@@ -1980,6 +1984,9 @@ const bulkDeleteBuyers = async (args: { userId: number; ids: string[] }) => {
       where: pendingOrderWhere,
       data: { subtotal: 0, totalAmount: 0, discounts: 0 },
     });
+
+    const { clearClientMatchesForBuyers } = await import('@/lib/clientMatching/service');
+    await clearClientMatchesForBuyers(distributorUserId, buyerBusinessIds, tx);
 
     await tx.buyer.deleteMany({
       where: { userId: distributorUserId, id: { in: dbIds } },

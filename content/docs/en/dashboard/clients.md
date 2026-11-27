@@ -152,6 +152,8 @@ The blue count on **Match Buyers** is the number of pairs still in **Pending**.
 | **Auto matching** | Off by default. When it is on, only a high-confidence pair (75 or more) merges by itself. Medium pairs still wait in **Pending**. |
 | **Search** | Filters the open tab by buyer, store, address, or phone. |
 
+Deleting a buyer also removes every open match that uses that buyer on either side. The Match Buyers badge recounts after the buyers list refreshes.
+
 Each action shows a spinner on its button until the request finishes.
 
 ### How to review a pair

@@ -105,6 +105,8 @@ type MergeUndoSnapshot = {
   /** Prospect jobs this merge moved, with the client they had before the merge. */
   splitProspectJobs?: { id: string; clientId: string }[];
   movedOfferIds: string[];
+  /** CRM order-detail rows (BuyerRecord) moved from the prospect onto the marketplace buyer. */
+  movedBuyerRecordIds?: number[];
   /** Orders whose buyerId was null before this merge. Undo clears that link. */
   nullOriginOrderIds?: string[];
 };
@@ -269,15 +271,72 @@ export async function findPossibleBuyerMatches(distributorId: number): Promise<R
   return matches;
 }
 
+/**
+ * Remove match rows tied to deleted buyers. existingClientId cascades in Prisma;
+ * provisionalClientId does not, and open review must not keep a one-sided pair.
+ */
+export async function clearClientMatchesForBuyers(
+  distributorId: number,
+  buyerIds: string[],
+  tx?: Tx,
+) {
+  const ids = [...new Set(buyerIds.map((id) => String(id || '').trim()).filter(Boolean))];
+  if (!ids.length) return;
+  const db = tx ?? prisma;
+  await db.clientMatchCandidate.deleteMany({
+    where: {
+      distributorId,
+      OR: [{ existingClientId: { in: ids } }, { provisionalClientId: { in: ids } }],
+    },
+  });
+}
+
+/** Drop open candidates whose CRM or marketplace side no longer exists. */
+export async function pruneOrphanClientMatches(distributorId: number): Promise<number> {
+  const open = await prisma.clientMatchCandidate.findMany({
+    where: {
+      distributorId,
+      status: { in: [...REVIEW_OPEN_STATUSES] },
+    },
+    select: { id: true, existingClientId: true, provisionalClientId: true },
+  });
+  if (!open.length) return 0;
+
+  const buyerIds = Array.from(
+    new Set(
+      open.flatMap((row) =>
+        [row.existingClientId, row.provisionalClientId].filter((id): id is string => Boolean(id && id.trim())),
+      ),
+    ),
+  );
+  const living = buyerIds.length
+    ? await prisma.buyer.findMany({
+        where: { userId: distributorId, buyerId: { in: buyerIds } },
+        select: { buyerId: true },
+      })
+    : [];
+  const livingSet = new Set(living.map((buyer) => buyer.buyerId));
+  const orphanIds = open
+    .filter((row) => {
+      if (!livingSet.has(row.existingClientId)) return true;
+      const other = String(row.provisionalClientId ?? '').trim();
+      return Boolean(other) && !livingSet.has(other);
+    })
+    .map((row) => row.id);
+  if (!orphanIds.length) return 0;
+  const deleted = await prisma.clientMatchCandidate.deleteMany({
+    where: { distributorId, id: { in: orphanIds } },
+  });
+  return deleted.count;
+}
+
 /** Open review rows, plus possible matches still pending or above 50 confidence. */
 export async function countBuyerMatchesForReview(distributorId: number): Promise<number> {
+  await pruneOrphanClientMatches(distributorId);
   const open = await prisma.clientMatchCandidate.count({
     where: {
       distributorId,
-      OR: [
-        { status: { in: [...REVIEW_OPEN_STATUSES] } },
-        { confidenceScore: { gt: POSSIBLE_MATCH_SCORE }, status: { notIn: ['merged', 'not_a_match'] } },
-      ],
+      status: { in: [...REVIEW_OPEN_STATUSES] },
     },
   });
   const possible = await findPossibleBuyerMatches(distributorId);
@@ -552,10 +611,17 @@ async function mergeProspectIntoMarketplace(
   });
 
   // Keep CRM order/product history that would otherwise cascade-delete with the prospect.
-  await tx.buyerRecord.updateMany({
+  // Track the row ids so unmerge can return ownership to the manual buyer.
+  const movedBuyerRecords = await tx.buyerRecord.findMany({
     where: { buyerRefId: prospect.id },
-    data: { buyerRefId: market.id },
+    select: { id: true },
   });
+  if (movedBuyerRecords.length > 0) {
+    await tx.buyerRecord.updateMany({
+      where: { id: { in: movedBuyerRecords.map((row) => row.id) } },
+      data: { buyerRefId: market.id },
+    });
+  }
 
   if (orders.length > 0) {
     await tx.order.updateMany({
@@ -630,6 +696,7 @@ async function mergeProspectIntoMarketplace(
       .filter((job) => job.jobType === 'prospect_new_outlet' && job.clientId)
       .map((job) => ({ id: job.id, clientId: job.clientId as string })),
     movedOfferIds: offers.map((offer) => offer.offerId),
+    movedBuyerRecordIds: movedBuyerRecords.map((row) => row.id),
   };
 }
 
@@ -755,6 +822,67 @@ async function restoreMovedJobs(
   }
 }
 
+/**
+ * After a broken unmerge, CRM order-detail rows can still sit on the marketplace buyer.
+ * Put them back on the manual buyer before a re-merge so ownership is tracked again.
+ */
+async function reclaimBuyerRecordsStillOnMarketplace(
+  tx: Tx,
+  distributorId: number,
+  prospectBuyerId: string,
+  marketplaceBuyerId: string,
+  snapshot: MergeUndoSnapshot | null | undefined,
+) {
+  if (!snapshot || prospectBuyerId === marketplaceBuyerId) return;
+  const movedRecordIds = (snapshot.movedBuyerRecordIds ?? []).filter((id) => Number.isFinite(id) && id > 0);
+  const movedOrderIds = snapshot.movedOrderIds ?? [];
+  if (!movedRecordIds.length && !movedOrderIds.length) return;
+
+  const [prospect, market] = await Promise.all([
+    tx.buyer.findFirst({
+      where: { buyerId: prospectBuyerId, userId: distributorId },
+      select: { id: true },
+    }),
+    tx.buyer.findFirst({
+      where: { buyerId: marketplaceBuyerId, userId: distributorId },
+      select: { id: true },
+    }),
+  ]);
+  if (!prospect || !market) return;
+
+  if (movedRecordIds.length > 0) {
+    await tx.buyerRecord.updateMany({
+      where: { id: { in: movedRecordIds }, buyerRefId: market.id },
+      data: { buyerRefId: prospect.id },
+    });
+    return;
+  }
+
+  if (movedOrderIds.length > 0) {
+    await tx.buyerRecord.updateMany({
+      where: {
+        buyerRefId: market.id,
+        orderNo: { in: movedOrderIds },
+      },
+      data: { buyerRefId: prospect.id },
+    });
+  }
+
+  // Older merges did not store BuyerRecord ids at all. If the manual buyer has no
+  // order-detail rows left, return CRM import rows (not marketplace-synced) that are still stranded.
+  if (snapshot.movedBuyerRecordIds !== undefined) return;
+  const prospectRecordCount = await tx.buyerRecord.count({ where: { buyerRefId: prospect.id } });
+  if (prospectRecordCount === 0) {
+    await tx.buyerRecord.updateMany({
+      where: {
+        buyerRefId: market.id,
+        syncedFromOrders: false,
+      },
+      data: { buyerRefId: prospect.id },
+    });
+  }
+}
+
 async function restoreProspectSnapshot(tx: Tx, distributorId: number, snapshot: MergeUndoSnapshot) {
   const prospect = snapshot.prospect;
   const before = snapshot.marketplaceBefore;
@@ -770,6 +898,16 @@ async function restoreProspectSnapshot(tx: Tx, distributorId: number, snapshot: 
       where: { orderId: { in: snapshot.movedOrderIds }, userId: distributorId },
       data: { buyerId: prospect.buyerId },
     });
+  }
+  // Return CRM order-detail ownership to the manual buyer. Never leave those rows on marketplace.
+  if (before?.buyerId && before.buyerId !== prospect.buyerId) {
+    await reclaimBuyerRecordsStillOnMarketplace(
+      tx,
+      distributorId,
+      prospect.buyerId,
+      before.buyerId,
+      snapshot,
+    );
   }
   await restoreMovedJobs(
     tx,
@@ -1042,7 +1180,7 @@ export async function mergeCandidate(distributorId: number, candidateId: string)
   });
   if (!existing) throw new Error('Existing client not found');
 
-  const stored = candidate.undoSnapshot as { provisionalProfile?: ProvisionalProfile } | null;
+  const stored = candidate.undoSnapshot as (MergeUndoSnapshot & { provisionalProfile?: ProvisionalProfile }) | null;
   const incoming = stored?.provisionalProfile;
   let absorbId = existing.buyerId;
   let surviveId =
@@ -1063,6 +1201,8 @@ export async function mergeCandidate(distributorId: number, candidateId: string)
     let undo: MergeUndoSnapshot | null = null;
     let survivingId = existing!.buyerId;
     if (surviveId) {
+      // Heal order-detail rows left on marketplace after a prior incomplete unmerge.
+      await reclaimBuyerRecordsStillOnMarketplace(tx, distributorId, absorbId, surviveId, stored);
       undo = await mergeProspectIntoMarketplace(tx, {
         distributorId,
         prospectId: absorbId,
