@@ -97,6 +97,10 @@ export const contactsTypeDefs = /* GraphQL */ `
     pricesRemoved: Boolean!
   }
 
+  type SyncMarketSegmentsFromBuyersResult {
+    created: Int!
+  }
+
   type DeleteSupplierResult {
     success: Boolean!
     deleted: Supplier
@@ -272,6 +276,8 @@ export const contactsTypeDefs = /* GraphQL */ `
       userId: Int!
       ids: [Int!]!
     ): [MarketSegmentDirectory!]!
+
+    syncMarketSegmentsFromBuyers(userId: Int!): SyncMarketSegmentsFromBuyersResult!
 
     bulkDeleteBuyers(
       userId: Int!
@@ -2409,7 +2415,7 @@ async function recordImportedMarketSegments(
       outletExamples: normalizeSegmentLabel(row.outletExamples, 300),
     }))
     .filter((row) => row.mainChannel);
-  if (incoming.length === 0) return;
+  if (incoming.length === 0) return 0;
 
   const existing = await prisma.marketSegmentDirectory.findMany({
     where: { userId },
@@ -2436,8 +2442,26 @@ async function recordImportedMarketSegments(
     sortOrder += 1;
     toCreate.push({ userId, ...row, sortOrder });
   }
-  if (toCreate.length === 0) return;
+  if (toCreate.length === 0) return 0;
   await prisma.marketSegmentDirectory.createMany({ data: toCreate });
+  return toCreate.length;
+}
+
+async function syncMarketSegmentsFromBuyers(args: { userId: number }) {
+  const userId = Number(args.userId);
+  const buyers = await prisma.buyer.findMany({
+    where: { userId },
+    select: { businessType: true, subChannel: true, outletExamples: true },
+  });
+  const created = await recordImportedMarketSegments(
+    userId,
+    buyers.map((buyer) => ({
+      mainChannel: buyer.businessType,
+      subChannel: buyer.subChannel,
+      outletExamples: buyer.outletExamples,
+    })),
+  );
+  return { created };
 }
 
 async function createMarketSegmentDirectory(args: {
@@ -2613,6 +2637,7 @@ export const contactsResolvers = {
     deleteMarketSegmentDirectory: withDashboardAuth(deleteMarketSegmentDirectory),
     bulkDeleteMarketSegmentDirectories: withDashboardAuth(bulkDeleteMarketSegmentDirectories),
     reorderMarketSegmentDirectories: withDashboardAuth(reorderMarketSegmentDirectories),
+    syncMarketSegmentsFromBuyers: withDashboardAuth(syncMarketSegmentsFromBuyers),
     bulkDeleteBuyers: withDashboardAuth(bulkDeleteBuyers),
     createSupplier: withDashboardAuth(createSupplier),
     bulkCreateSuppliers: withDashboardAuth(bulkCreateSuppliers),

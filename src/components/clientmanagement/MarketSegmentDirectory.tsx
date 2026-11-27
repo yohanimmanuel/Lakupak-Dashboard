@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, GripVertical, Loader2, Pencil, Plus, Trash, Trash2 } from 'lucide-react';
+import { AlertCircle, GripVertical, Loader2, Pencil, Plus, RefreshCw, Trash, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { useUserStore } from '@/store/userStore';
@@ -54,6 +54,9 @@ export default function MarketSegmentDirectory() {
   const [pendingDelete, setPendingDelete] = useState<number[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [notice, setNotice] = useState('');
+  const [noticeTick, setNoticeTick] = useState(0);
   const [error, setError] = useState('');
   const [requiredTick, setRequiredTick] = useState(0);
   const [dragId, setDragId] = useState<number | null>(null);
@@ -93,6 +96,35 @@ export default function MarketSegmentDirectory() {
     }, 5000);
     return () => window.clearTimeout(timer);
   }, [error, requiredTick, t]);
+
+  useEffect(() => {
+    if (!noticeTick || !notice) return;
+    const timer = window.setTimeout(() => setNotice(''), 5000);
+    return () => window.clearTimeout(timer);
+  }, [notice, noticeTick]);
+
+  const syncFromBuyers = async () => {
+    if (!userId || syncing) return;
+    setSyncing(true);
+    setError('');
+    setNotice('');
+    try {
+      const data = await fetchGraphQL<{ syncMarketSegmentsFromBuyers: { created: number } }>(
+        `mutation SyncSegments($userId: Int!) {
+          syncMarketSegmentsFromBuyers(userId: $userId) { created }
+        }`,
+        { userId },
+      );
+      const created = data.syncMarketSegmentsFromBuyers?.created ?? 0;
+      setNotice(created > 0 ? t('syncCreated', { count: created }) : t('syncNone'));
+      setNoticeTick((tick) => tick + 1);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('syncFailed'));
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const requireMainChannel = () => {
     setError(t('mainRequired'));
@@ -242,10 +274,27 @@ export default function MarketSegmentDirectory() {
 
   return (
     <div className="flex min-h-full w-full min-w-0 flex-col bg-gradient-to-b from-gray-50 to-white p-4">
-      <div className="mb-4">
-        <h1 className="mb-2 text-2xl font-bold text-black">{t('title')}</h1>
-        <p className="max-w-3xl text-sm text-gray-600">{t('subtitle')}</p>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="mb-2 text-2xl font-bold text-black">{t('title')}</h1>
+          <p className="max-w-3xl text-sm text-gray-600">{t('subtitle')}</p>
+        </div>
+        <button
+          type="button"
+          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-[#e6e6e6] bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-gray-100 disabled:opacity-50"
+          onClick={() => void syncFromBuyers()}
+          disabled={syncing || loading}
+        >
+          <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+          {syncing ? t('syncingFromBuyers') : t('syncFromBuyers')}
+        </button>
       </div>
+
+      {notice ? (
+        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+          {notice}
+        </div>
+      ) : null}
 
       {error ? (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
