@@ -127,6 +127,12 @@ export async function POST(request: NextRequest) {
         .filter((u) => u.length > 0 && u.length <= 2048 && isProbablyHttpUrl(u))
         .slice(0, 5);
     }
+    if (safeImageUrls.length === 0) {
+      return NextResponse.json(
+        { error: 'At least one evidence photo is required' },
+        { status: 400, headers }
+      );
+    }
 
     const created = await prisma.orderReturnRequest.create({
       data: {
