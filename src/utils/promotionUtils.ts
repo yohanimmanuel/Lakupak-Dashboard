@@ -12,6 +12,11 @@ export interface PromotionDetails {
   applyMode?: PromotionApplyMode;
   /** Optional product MOQ already converted to pieces (preferred for order snapshots). */
   moq?: number | null;
+  /**
+   * Absolute free pieces set by distributor order edit. When present, skips buy-x-get-y
+   * set math so free qty can be maintained independently from unit-price discounts.
+   */
+  freePieces?: number | null;
 }
 
 export interface PromotionGift {
@@ -159,6 +164,12 @@ export function calculateOrderItemPromotion(
   const ppp = Math.max(1, Math.trunc(Number(piecesPerPackage) || 1));
   const packages = Math.max(0, Number(quantityInPackages) || 0);
   const totalPieces = Math.trunc(packages * ppp);
+
+  const absoluteFree = Number(parsedPromotionDetails.freePieces);
+  if (Number.isFinite(absoluteFree) && absoluteFree > 0) {
+    const freeQty = Math.trunc(absoluteFree);
+    return { freeQty, totalReceived: totalPieces + freeQty };
+  }
 
   // Snapshot may already store piece MOQ; otherwise treat provided moq as pieces.
   const moqPieces =

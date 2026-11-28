@@ -11,6 +11,7 @@ import { recordManualOrderClientMatch } from '@/lib/clientMatching/service';
 import { syncOrderToBuyerProfile } from '@/utils/buyerSync';
 import { invalidateDashboardCache } from '@/lib/queryCache';
 import { normalizeStockLevels } from '@/utils/stockUtils';
+import { calculateOrderItemPromotion } from '@/utils/promotionUtils';
 import {
   STOCK_NO_DEDUCT_STATUSES,
   calculateTotalQuantityWithPromotions,
@@ -51,6 +52,23 @@ type ItemInput = {
   packageQuantity: number;
   packageType: string;
   piecesPerPackage: number;
+  /** When false, skip live client offers and keep list/base price. Defaults to true. */
+  applyOffer?: boolean;
+  /** Absolute free pieces for this line (distributor edit). Null/undefined = derive from offer. */
+  freeQuantityPieces?: number | null;
+};
+
+type ExistingLinePriceHint = {
+  productId: string | null;
+  variantOptionId: number | null;
+  packageType: string | null;
+  piecesPerPackage: number | null;
+  packageQuantity?: number | null;
+  originalPriceSnapshot?: unknown;
+  offerApplied?: boolean | null;
+  pricePerPackage?: unknown;
+  promotionDetailsSnapshot?: string | null;
+  moqSnapshot?: number | null;
 };
 
 function clip(value: unknown, max: number): string {
@@ -184,12 +202,7 @@ async function priceDistributorLines(
   userId: number,
   buyerId: string,
   items: ItemInput[],
-  existingStockLevels: Array<{
-    productId: string | null;
-    variantOptionId: number | null;
-    packageType: string | null;
-    piecesPerPackage: number | null;
-  }> = [],
+  existingStockLevels: ExistingLinePriceHint[] = [],
 ): Promise<{ error: string; code: string; status: number } | { priced: PricedLine[]; currency: string | null }> {
   const seller = await prisma.user.findUnique({
     where: { id: userId },
@@ -246,20 +259,61 @@ async function priceDistributorLines(
       return { error: `Invalid stock type "${item.packageType}" for product ${product.name}.`, code: 'invalid_stock_level', status: 400 };
     }
 
-    // Variant selling prices are stored per Piece. Convert to the selected order unit here.
-    const basePricePerPiece = money(Number(variant.sellingPrice));
-    const offer = await getOfferForClientAndProduct(buyerId, product.productId, {
-      userId,
-      variantOptionId: variant.id,
-      stockLevelName: selectedStockLevel.name,
-    });
+    // Prefer the order's original list price when editing so a live catalog change
+    // (or a net package snapshot) cannot become a second discount base.
+    const snapshotRaw = historicalStockLevel?.originalPriceSnapshot;
+    const snapshotPiece =
+      snapshotRaw == null ? 0 : money(decimalToNumber(snapshotRaw as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined));
+    const catalogPiece = money(Number(variant.sellingPrice));
+    const basePricePerPiece = snapshotPiece > 0 ? snapshotPiece : catalogPiece;
+    const wantOffer = item.applyOffer !== false;
+    const offer = wantOffer
+      ? await getOfferForClientAndProduct(buyerId, product.productId, {
+          userId,
+          variantOptionId: variant.id,
+          stockLevelName: selectedStockLevel.name,
+        })
+      : null;
     const applied = offer ? applyOfferToPrice(basePricePerPiece, offer) : null;
     const unitPricePerPiece = money(applied ? applied.unitPrice : basePricePerPiece);
     const piecesPerPackage = selectedStockLevel.piecesPerUnit;
     const unitPrice = money(unitPricePerPiece * piecesPerPackage);
-    const hasPromo = Boolean(applied?.promotionDetails);
+    const explicitFree =
+      item.freeQuantityPieces != null && Number.isFinite(Number(item.freeQuantityPieces))
+        ? Math.max(0, Math.trunc(Number(item.freeQuantityPieces)))
+        : null;
+    const autoPromo = applied?.promotionDetails
+      ? {
+          minQuantity: applied.promotionDetails.buyQuantity,
+          freeQuantity: applied.promotionDetails.freeQuantity,
+          applyMode: applied.promotionDetails.applyMode,
+          moq: variant.moq != null && variant.moq > 0 ? variant.moq : null,
+        }
+      : null;
+    let promotionDetails: string | null = null;
+    if (explicitFree != null) {
+      if (explicitFree > 0) {
+        promotionDetails = JSON.stringify({
+          minQuantity: Math.max(1, item.packageQuantity),
+          freeQuantity: 0,
+          applyMode: 'from_zero',
+          moq: variant.moq != null && variant.moq > 0 ? variant.moq : null,
+          freePieces: explicitFree,
+        });
+      }
+    } else if (autoPromo) {
+      promotionDetails = JSON.stringify(autoPromo);
+    }
+    const hasPromo = Boolean(promotionDetails);
     const hasDiscount = Boolean(applied && applied.discountAmount > 0);
-    const offerBadge = !offer ? null : hasPromo && hasDiscount ? 'All Offers' : hasPromo ? 'Promotion' : 'Discount';
+    const offerBadge =
+      !offer && !hasPromo
+        ? null
+        : hasPromo && hasDiscount
+          ? 'All Offers'
+          : hasPromo
+            ? 'Promotion'
+            : 'Discount';
     priced.push({
       productId: product.productId,
       variantOptionId: variant.id,
@@ -277,9 +331,9 @@ async function priceDistributorLines(
       unitPricePerPiece,
       basePricePerPiece,
       subtotal: money(unitPrice * item.packageQuantity),
-      offerApplied: Boolean(offer),
+      offerApplied: Boolean(offer) || hasPromo,
       offerBadge,
-      offerName: offer ? offer.notes || offer.description || 'Client offer' : null,
+      offerName: offer ? offer.notes || offer.description || 'Client offer' : hasPromo ? 'Free items' : null,
       offerId: offer?.id ?? null,
       discountAmount:
         applied && applied.discountAmount > 0 && offer?.discountType !== 'buy_x_get_y'
@@ -287,14 +341,7 @@ async function priceDistributorLines(
           : null,
       discountPercentage:
         offer?.discountType === 'percentage' && applied?.discountPercentage ? applied.discountPercentage : null,
-      promotionDetails: applied?.promotionDetails
-        ? JSON.stringify({
-            minQuantity: applied.promotionDetails.buyQuantity,
-            freeQuantity: applied.promotionDetails.freeQuantity,
-            applyMode: applied.promotionDetails.applyMode,
-            moq: variant.moq != null && variant.moq > 0 ? variant.moq : null,
-          })
-        : null,
+      promotionDetails,
       lineDiscount: money(Math.max(0, basePricePerPiece - unitPricePerPiece) * piecesPerPackage * item.packageQuantity),
     });
   }
@@ -388,6 +435,14 @@ export async function createDistributorOrderHandler(request: NextRequest) {
     const packageQuantity = Number(row.packageQuantity);
     const packageType = clip(row.packageType, 40) || 'Pieces';
     const piecesPerPackage = Number(row.piecesPerPackage ?? 1);
+    const applyOffer = row.applyOffer === false ? false : true;
+    const freeRaw = row.freeQuantityPieces;
+    const freeQuantityPieces =
+      freeRaw == null || freeRaw === ''
+        ? null
+        : Number.isInteger(Number(freeRaw)) && Number(freeRaw) >= 0 && Number(freeRaw) <= 1_000_000
+          ? Number(freeRaw)
+          : ('invalid' as const);
     if (!productId || !Number.isInteger(variantOptionId) || variantOptionId <= 0) {
       return NextResponse.json({ error: 'Each line needs a product and variant', code: 'invalid' }, { status: 400, headers });
     }
@@ -397,12 +452,15 @@ export async function createDistributorOrderHandler(request: NextRequest) {
     if (!packageType || !Number.isSafeInteger(piecesPerPackage) || piecesPerPackage < 1) {
       return NextResponse.json({ error: 'Select a valid stock type', code: 'invalid_stock_level' }, { status: 400, headers });
     }
+    if (freeQuantityPieces === 'invalid') {
+      return NextResponse.json({ error: 'Free items must be a whole number of pieces', code: 'invalid' }, { status: 400, headers });
+    }
     const key = `${productId}:${variantOptionId}`;
     if (seen.has(key)) {
       return NextResponse.json({ error: 'The same product variant is listed twice', code: 'duplicate_line' }, { status: 400, headers });
     }
     seen.add(key);
-    items.push({ productId, variantOptionId, packageQuantity, packageType, piecesPerPackage });
+    items.push({ productId, variantOptionId, packageQuantity, packageType, piecesPerPackage, applyOffer, freeQuantityPieces });
   }
 
   const buyer = await prisma.buyer.findFirst({
@@ -599,6 +657,14 @@ export async function updateDistributorOrderHandler(userId: number, body: Record
     const packageQuantity = Number(row.packageQuantity);
     const packageType = clip(row.packageType, 40) || 'Pieces';
     const piecesPerPackage = Number(row.piecesPerPackage ?? 1);
+    const applyOffer = row.applyOffer === false ? false : true;
+    const freeRaw = row.freeQuantityPieces;
+    const freeQuantityPieces =
+      freeRaw == null || freeRaw === ''
+        ? null
+        : Number.isInteger(Number(freeRaw)) && Number(freeRaw) >= 0 && Number(freeRaw) <= 1_000_000
+          ? Number(freeRaw)
+          : ('invalid' as const);
     if (!productId || !Number.isInteger(variantOptionId) || variantOptionId <= 0) {
       return NextResponse.json({ error: 'Each line needs a product and variant', code: 'invalid' }, { status: 400, headers });
     }
@@ -608,12 +674,15 @@ export async function updateDistributorOrderHandler(userId: number, body: Record
     if (!packageType || !Number.isSafeInteger(piecesPerPackage) || piecesPerPackage < 1) {
       return NextResponse.json({ error: 'Select a valid stock type', code: 'invalid_stock_level' }, { status: 400, headers });
     }
+    if (freeQuantityPieces === 'invalid') {
+      return NextResponse.json({ error: 'Free items must be a whole number of pieces', code: 'invalid' }, { status: 400, headers });
+    }
     const key = `${productId}:${variantOptionId}`;
     if (seen.has(key)) {
       return NextResponse.json({ error: 'The same product variant is listed twice', code: 'duplicate_line' }, { status: 400, headers });
     }
     seen.add(key);
-    items.push({ productId, variantOptionId, packageQuantity, packageType, piecesPerPackage });
+    items.push({ productId, variantOptionId, packageQuantity, packageType, piecesPerPackage, applyOffer, freeQuantityPieces });
   }
 
   const existing = await prisma.order.findFirst({
@@ -622,7 +691,20 @@ export async function updateDistributorOrderHandler(userId: number, body: Record
       buyerId: true,
       subtotal: true,
       discounts: true,
-      orderItemsRel: { select: { productId: true, variantOptionId: true, packageQuantity: true, packageType: true, piecesPerPackage: true } },
+      orderItemsRel: {
+        select: {
+          productId: true,
+          variantOptionId: true,
+          packageQuantity: true,
+          packageType: true,
+          piecesPerPackage: true,
+          originalPriceSnapshot: true,
+          offerApplied: true,
+          pricePerPackage: true,
+          promotionDetailsSnapshot: true,
+          moqSnapshot: true,
+        },
+      },
     },
   });
   if (!existing) {
@@ -633,18 +715,34 @@ export async function updateDistributorOrderHandler(userId: number, body: Record
     return NextResponse.json({ error: 'Client not found', code: 'client_not_found' }, { status: 404, headers });
   }
 
+  const existingFreePieces = (row: (typeof existing.orderItemsRel)[number]) => {
+    if (!row.promotionDetailsSnapshot) return 0;
+    return (
+      calculateOrderItemPromotion(
+        row.promotionDetailsSnapshot,
+        row.packageQuantity || 1,
+        row.piecesPerPackage || 1,
+        row.moqSnapshot,
+      )?.freeQty || 0
+    );
+  };
+
   const sameLines =
     existing.buyerId === buyerId &&
     existing.orderItemsRel.length === items.length &&
     items.every((item) =>
-      existing.orderItemsRel.some(
-        (row) =>
+      existing.orderItemsRel.some((row) => {
+        const freeMatches =
+          item.freeQuantityPieces == null || item.freeQuantityPieces === existingFreePieces(row);
+        return (
           row.productId === item.productId &&
           row.variantOptionId === item.variantOptionId &&
           row.packageQuantity === item.packageQuantity &&
           row.packageType === item.packageType &&
-          (row.piecesPerPackage ?? 1) === item.piecesPerPackage,
-      ),
+          (row.piecesPerPackage ?? 1) === item.piecesPerPackage &&
+          freeMatches
+        );
+      }),
     );
 
   const pricedResult = sameLines

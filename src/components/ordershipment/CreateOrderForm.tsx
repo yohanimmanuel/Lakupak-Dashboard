@@ -14,6 +14,7 @@ import { isBankTransferPaymentTerms, isCodPaymentTerms } from '@/utils/orderPaym
 import { geocodeAddress, type MapCoordinates } from '@/utils/mapboxUtils';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { SkeletonOrderForm } from '@/components/skeleton/SkeletonOrderForm';
+import { calculateOrderItemPromotion } from '@/utils/promotionUtils';
 
 const DELIVERY_METHODS = ['Self Pickup', 'Seller/Distributor Delivery', 'Buyer-arranged Courier'] as const;
 const ORDER_STATUSES = ['Pending', 'Confirmed', 'Packed', 'Shipped', 'Delivered', 'Received', 'Failed', 'Cancelled', 'Returned'] as const;
@@ -85,9 +86,19 @@ type Line = {
   productId: string;
   variantOptionId: string;
   quantity: string;
+  /** Free pieces for this line (separate from paid qty / unit price). */
+  freeItems: string;
   packageType: string;
   piecesPerPackage: number;
+  /** Net package unit currently saved on the order (offer already applied). */
   savedUnit: number | null;
+  /** Gross package list unit from originalPriceSnapshot × pieces, when offer was applied. */
+  savedOriginalUnit: number | null;
+  savedOfferApplied: boolean;
+  savedDiscountAmount: number | null;
+  savedDiscountPercentage: number | null;
+  savedPromotion: string | null;
+  savedOfferBadge: string | null;
   savedBuyerId: string;
   savedName: string;
   savedVariant: string;
@@ -127,6 +138,12 @@ type LoadedOrder = {
     productName?: string;
     productNameSnapshot?: string | null;
     variantNameSnapshot?: string | null;
+    offerApplied?: boolean | null;
+    offerBadgeSnapshot?: string | null;
+    originalPriceSnapshot?: number | null;
+    discountAmount?: number | null;
+    discountPercentage?: number | null;
+    promotionDetailsSnapshot?: string | null;
   }>;
 };
 
@@ -142,23 +159,6 @@ function productStockLevels(product: ProductNode | undefined): StockLevelNode[] 
     seen.add(key);
   }
   return levels;
-}
-
-function orderLineKey(
-  buyer: string,
-  rows: Array<{
-    productId?: string | null;
-    variantOptionId?: string | number | null;
-    packageQuantity?: number | null;
-    quantity?: string | number | null;
-    packageType?: string | null;
-    piecesPerPackage?: number | null;
-  }>,
-): string {
-  const parts = rows
-    .map((row) => `${row.productId || ''}:${row.variantOptionId || ''}:${row.packageQuantity ?? row.quantity ?? 1}:${row.packageType || 'Pieces'}:${row.piecesPerPackage ?? 1}`)
-    .sort();
-  return `${buyer}|${parts.join('|')}`;
 }
 
 function todayInput(): string {
@@ -334,7 +334,72 @@ function LakupakSelect({
 }
 
 function blankLine(key: number): Line {
-  return { key, productId: '', variantOptionId: '', quantity: '1', packageType: '', piecesPerPackage: 1, savedUnit: null, savedBuyerId: '', savedName: '', savedVariant: '' };
+  return {
+    key,
+    productId: '',
+    variantOptionId: '',
+    quantity: '1',
+    freeItems: '0',
+    packageType: '',
+    piecesPerPackage: 1,
+    savedUnit: null,
+    savedOriginalUnit: null,
+    savedOfferApplied: false,
+    savedDiscountAmount: null,
+    savedDiscountPercentage: null,
+    savedPromotion: null,
+    savedOfferBadge: null,
+    savedBuyerId: '',
+    savedName: '',
+    savedVariant: '',
+  };
+}
+
+function freePiecesFromPromotion(
+  promotion: string | null | undefined,
+  packageQuantity: number,
+  piecesPerPackage: number,
+  moq?: number | null,
+): number {
+  if (!promotion) return 0;
+  return (
+    calculateOrderItemPromotion(promotion, packageQuantity, piecesPerPackage, moq)?.freeQty || 0
+  );
+}
+
+function suggestedFreePiecesFromOffer(
+  offer: OfferNode | null,
+  packageQuantity: number,
+  piecesPerPackage: number,
+): number {
+  if (!offer || packageQuantity < 1) return 0;
+  const free =
+    offer.freeQuantity && offer.freeQuantity > 0
+      ? offer.freeQuantity
+      : offer.discountType === 'buy_x_get_y'
+        ? Math.round(offer.discountValue)
+        : 0;
+  const buy = offer.buyQuantity && offer.buyQuantity > 0 ? offer.buyQuantity : free > 0 ? 1 : 0;
+  if (!(buy > 0 && free > 0)) return 0;
+  return (
+    calculateOrderItemPromotion(
+      {
+        minQuantity: buy,
+        freeQuantity: free,
+        applyMode: 'from_zero',
+      },
+      packageQuantity,
+      piecesPerPackage,
+      null,
+    )?.freeQty || 0
+  );
+}
+
+function packageListUnit(line: Pick<Line, 'savedOriginalUnit' | 'savedUnit' | 'piecesPerPackage'>, catalogPiece: number): number {
+  if (catalogPiece > 0) return catalogPiece * Math.max(1, line.piecesPerPackage || 1);
+  if (line.savedOriginalUnit != null && Number.isFinite(line.savedOriginalUnit)) return line.savedOriginalUnit;
+  if (line.savedUnit != null && Number.isFinite(line.savedUnit)) return line.savedUnit;
+  return 0;
 }
 
 export default function CreateOrderForm({ orderId }: { orderId?: string }) {
@@ -374,8 +439,6 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
   const [savedStatus, setSavedStatus] = useState('Pending');
   const [savedPayment, setSavedPayment] = useState('Unpaid');
   const [paidInput, setPaidInput] = useState('0');
-  const [loadedDiscount, setLoadedDiscount] = useState(0);
-  const [loadedLineKey, setLoadedLineKey] = useState<string | null>(null);
   const [unpaidDraft, setUnpaidDraft] = useState<string | null>(null);
   const loadedAmountPaid = useRef<number | null>(null);
   const fillPaidFromTotal = useRef(false);
@@ -511,7 +574,6 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
           setPaidInput(formatNumberByCurrency(0, user.currency));
         }
         setUnpaidDraft(null);
-        setLoadedDiscount(Math.max(0, Number(order.discounts) || 0));
         setShippingFee(String(order.shippingFee ?? 0));
         setPickupDate(dateInput(order.preferredPickupDate));
         setPickupTime(order.preferredPickupTime || '');
@@ -525,18 +587,25 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
         setDeliveryNote(order.deliveryNote || '');
         setPod(order.pod || '');
         const loaded = (order.orderItems || []).filter((item) => item.productId && item.variantOptionId);
-        const normalizedLoaded = loaded.map((item) => ({
-          ...item,
-          packageType:
-            item.packageType && item.packageType !== item.productTypeSnapshot
-              ? item.packageType
-              : 'Pieces',
-          piecesPerPackage:
+        const normalizedLoaded = loaded.map((item) => {
+          const piecesPerPackage =
             item.packageType && item.packageType !== item.productTypeSnapshot
               ? Math.max(1, Number(item.piecesPerPackage) || 1)
-              : 1,
-        }));
-        setLoadedLineKey(orderLineKey(nextBuyer, normalizedLoaded));
+              : 1;
+          const originalPiece =
+            item.originalPriceSnapshot != null && Number.isFinite(Number(item.originalPriceSnapshot))
+              ? Number(item.originalPriceSnapshot)
+              : null;
+          return {
+            ...item,
+            packageType:
+              item.packageType && item.packageType !== item.productTypeSnapshot
+                ? item.packageType
+                : 'Pieces',
+            piecesPerPackage,
+            savedOriginalUnit: originalPiece != null ? originalPiece * piecesPerPackage : null,
+          };
+        });
         if (normalizedLoaded.length > 0) {
           setLines(
             normalizedLoaded.map((item, index) => ({
@@ -547,6 +616,25 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
               packageType: item.packageType,
               piecesPerPackage: item.piecesPerPackage,
               savedUnit: item.pricePerPackage != null ? Number(item.pricePerPackage) : null,
+              savedOriginalUnit: item.savedOriginalUnit,
+              savedOfferApplied: item.offerApplied === true,
+              freeItems: String(
+                freePiecesFromPromotion(
+                  item.promotionDetailsSnapshot,
+                  Number(item.packageQuantity) || 1,
+                  item.piecesPerPackage,
+                ),
+              ),
+              savedDiscountAmount:
+                item.discountAmount != null && Number.isFinite(Number(item.discountAmount))
+                  ? Number(item.discountAmount)
+                  : null,
+              savedDiscountPercentage:
+                item.discountPercentage != null && Number.isFinite(Number(item.discountPercentage))
+                  ? Number(item.discountPercentage)
+                  : null,
+              savedPromotion: item.promotionDetailsSnapshot || null,
+              savedOfferBadge: item.offerBadgeSnapshot || null,
               savedBuyerId: nextBuyer,
               savedName: item.productName || item.productNameSnapshot || item.productId || '',
               savedVariant: item.variantNameSnapshot || '',
@@ -598,6 +686,15 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
     for (const line of lines) {
       if (!line.productId || products.some((product) => product.productId === line.productId) || extras.some((product) => product.productId === line.productId)) continue;
       const variantId = Number(line.variantOptionId);
+      const pieces = Math.max(1, line.piecesPerPackage || 1);
+      // Fallback catalog must expose per-piece list price. Never reuse net package unit
+      // as sellingPrice or live offers will discount an already-discounted value.
+      const listPiece =
+        line.savedOriginalUnit != null && Number.isFinite(line.savedOriginalUnit)
+          ? line.savedOriginalUnit / pieces
+          : line.savedUnit != null && Number.isFinite(line.savedUnit)
+            ? line.savedUnit / pieces
+            : 0;
       extras.push({
         productId: line.productId,
         name: line.savedName || line.productId,
@@ -609,11 +706,12 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
           ? [{ name: line.packageType, piecesPerUnit: line.piecesPerPackage }]
           : [{ name: 'Pieces', piecesPerUnit: 1 }],
         variantOptions: Number.isInteger(variantId)
-          ? [{ id: variantId, variantName: line.savedVariant || line.variantOptionId, sellingPrice: line.savedUnit || 0, sku: null, moq: null, isDefault: true, isActive: true }]
+          ? [{ id: variantId, variantName: line.savedVariant || line.variantOptionId, sellingPrice: listPiece, sku: null, moq: null, isDefault: true, isActive: true }]
           : [],
       });
     }
-    return [...extras, ...products];
+    // Real catalog first so find() never prefers a snapshot fallback.
+    return [...products, ...extras];
   }, [lines, products]);
 
   const filteredBuyers = useMemo(() => {
@@ -665,7 +763,14 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
       variantOptionId: '',
       packageType: '',
       piecesPerPackage: 1,
+      freeItems: '0',
       savedUnit: null,
+      savedOriginalUnit: null,
+      savedOfferApplied: false,
+      savedDiscountAmount: null,
+      savedDiscountPercentage: null,
+      savedPromotion: null,
+      savedOfferBadge: null,
     });
   }
 
@@ -673,10 +778,24 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
     const product = catalog.find((row) => row.productId === productId);
     const level = productStockLevels(product).find((candidate) => candidate.name === levelName);
     if (!level) return;
+    const line = lines.find((row) => row.key === key);
+    const variantId = Number(line?.variantOptionId);
+    const offer =
+      product && Number.isInteger(variantId)
+        ? pickOffer(offers, product, variantId, level.name)
+        : null;
+    const qty = Number.parseInt(line?.quantity || '0', 10) || 0;
     updateLine(key, {
       packageType: level.name,
       piecesPerPackage: level.piecesPerUnit,
       savedUnit: null,
+      savedOriginalUnit: null,
+      savedOfferApplied: false,
+      savedDiscountAmount: null,
+      savedDiscountPercentage: null,
+      savedPromotion: null,
+      savedOfferBadge: null,
+      freeItems: String(suggestedFreePiecesFromOffer(offer, qty, level.piecesPerUnit)),
     });
   }
 
@@ -684,31 +803,46 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
     const product = catalog.find((row) => row.productId === line.productId);
     const variant = product?.variantOptions.find((option) => String(option.id) === line.variantOptionId);
     const quantity = Number.parseInt(line.quantity, 10);
-    const offer = product && variant ? pickOffer(offers, product, variant.id, line.packageType) : null;
-    const preview = previewPrice(variant ? Number(variant.sellingPrice) : 0, offer);
+    const piecesPerPackage = Math.max(1, line.piecesPerPackage || 1);
+    const catalogPiece = variant ? Number(variant.sellingPrice) : 0;
+    const orderListPiece =
+      line.savedOriginalUnit != null && Number.isFinite(line.savedOriginalUnit) && line.savedOriginalUnit > 0
+        ? line.savedOriginalUnit / piecesPerPackage
+        : 0;
+    // Prefer the order's original list price so edit does not re-discount a moved catalog price.
+    const basePiece = orderListPiece > 0 ? orderListPiece : catalogPiece > 0 ? catalogPiece : 0;
+    const liveOffer = product && variant ? pickOffer(offers, product, variant.id, line.packageType) : null;
+    const preview = previewPrice(basePiece, liveOffer);
     const qty = Number.isInteger(quantity) && quantity > 0 ? quantity : 0;
     const keepSaved = line.savedUnit != null && line.savedBuyerId === buyerId && line.savedBuyerId !== '';
-    const piecesPerPackage = Math.max(1, line.piecesPerPackage || 1);
-    const unit = keepSaved ? line.savedUnit! : preview.unit * piecesPerPackage;
-    return { line, product, variant, qty, preview, unit, keepSaved, piecesPerPackage, subtotal: unit * qty };
+    const listUnit = packageListUnit(line, basePiece);
+    const unit = keepSaved
+      ? line.savedUnit!
+      : basePiece > 0
+        ? preview.unit * piecesPerPackage
+        : line.savedUnit ?? 0;
+    const freeItems = Math.max(0, Number.parseInt(line.freeItems, 10) || 0);
+    return {
+      line,
+      product,
+      variant,
+      qty,
+      preview,
+      liveOffer,
+      unit,
+      listUnit,
+      keepSaved,
+      piecesPerPackage,
+      freeItems,
+      subtotal: unit * qty,
+    };
   });
 
   const subtotal = pricedLines.reduce((sum, row) => sum + row.subtotal, 0);
   const shipping = parseNumberByCurrency(shippingFee || '0', currency) || 0;
-  const currentLineKey = orderLineKey(
-    buyerId,
-    pricedLines
-      .filter((row) => row.product && row.variant && row.qty > 0)
-      .map((row) => ({
-        productId: row.product!.productId,
-        variantOptionId: row.variant!.id,
-        packageQuantity: row.qty,
-        packageType: row.line.packageType,
-        piecesPerPackage: row.piecesPerPackage,
-      })),
-  );
-  const appliedDiscounts = loadedLineKey != null && currentLineKey === loadedLineKey ? loadedDiscount : 0;
-  const total = Math.max(0, subtotal + (Number.isFinite(shipping) ? shipping : 0) - appliedDiscounts);
+  // Order item package prices are already net of client offers. Do not subtract
+  // order.discounts again or the edit total double-counts the same discount.
+  const total = Math.max(0, subtotal + (Number.isFinite(shipping) ? shipping : 0));
   const recordNett = isCodPaymentTerms(paymentTerms) || isBankTransferPaymentTerms(paymentTerms);
   const paidAmount = Math.min(total, Math.max(0, Math.round((parseNumberByCurrency(paidInput || '0', currency) || 0) * 100) / 100));
   const unpaidAmount = Math.max(0, Math.round((total - paidAmount) * 100) / 100);
@@ -728,18 +862,51 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
   const percent = Math.round((doneCount / completed.length) * 100);
   const missing = completed.filter((field) => field.value === '').map((field) => translateFieldName(field.name));
 
-  function offerLabel(preview: ReturnType<typeof previewPrice>): string {
-    if (preview.kind === 'percent') return tShared('offerBadges.percentOff', { percent: String(Math.round(preview.percent)) });
-    if (preview.kind === 'fixed') return `${formatCurrency(preview.amount, currency)} ${tShared('offerBadges.off')}`;
-    if (preview.kind === 'promo') return tShared('offerBadges.buyGet', { min: String(preview.buy), free: String(preview.free) });
-    if (preview.kind === 'both') {
-      const price = preview.percent
-        ? tShared('offerBadges.percentOff', { percent: String(Math.round(preview.percent)) })
-        : `${formatCurrency(preview.amount, currency)} ${tShared('offerBadges.off')}`;
-      return `${price}, ${tShared('offerBadges.buyGet', { min: String(preview.buy), free: String(preview.free) })}`;
+  /** Offer Applied column parts: discount (red) and/or promotion (purple). */
+  function offerAppliedParts(
+    preview: ReturnType<typeof previewPrice>,
+    line: Line,
+  ): { discount: string | null; promotion: string | null } {
+    let discount: string | null = null;
+    if (preview.percent > 0) {
+      discount = tCreate('offerDiscPercent', { percent: String(Math.round(preview.percent)) });
+    } else if (preview.amount > 0 && preview.kind !== 'promo') {
+      discount = `${formatCurrency(preview.amount, currency)} ${tShared('offerBadges.off')}`;
+    } else if (line.savedDiscountPercentage != null && line.savedDiscountPercentage > 0) {
+      discount = tCreate('offerDiscPercent', { percent: String(Math.round(line.savedDiscountPercentage)) });
+    } else if (line.savedDiscountAmount != null && line.savedDiscountAmount > 0) {
+      discount = `${formatCurrency(line.savedDiscountAmount, currency)} ${tShared('offerBadges.off')}`;
     }
-    return '';
+
+    let buy = preview.buy;
+    let free = preview.free;
+    if (!(buy > 0 && free > 0) && line.savedPromotion) {
+      try {
+        const parsed = JSON.parse(line.savedPromotion) as {
+          minQuantity?: number;
+          freeQuantity?: number;
+          buyQuantity?: number;
+        };
+        buy = parsed.minQuantity ?? parsed.buyQuantity ?? 0;
+        free = parsed.freeQuantity ?? 0;
+      } catch {
+        // ignore
+      }
+    }
+    const promotion =
+      buy > 0 && free > 0 ? tCreate('offerBuyGet', { min: String(buy), free: String(free) }) : null;
+
+    return { discount, promotion };
   }
+
+  const tableInputClass =
+    'w-full min-w-[4.5rem] px-2 py-1.5 text-black text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0a61d7] focus:border-transparent bg-white disabled:bg-gray-50 disabled:text-gray-700 disabled:cursor-not-allowed';
+  const quantityHeader = (() => {
+    const units = [...new Set(lines.map((row) => row.packageType).filter(Boolean))];
+    return units.length === 1
+      ? tCreate('quantityWithUnit', { unit: units[0] })
+      : tCreate('quantity');
+  })();
 
   function errorText(code: string | undefined): string {
     switch (code) {
@@ -806,6 +973,8 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
         packageQuantity: row.qty,
         packageType: row.line.packageType,
         piecesPerPackage: row.piecesPerPackage,
+        applyOffer: true,
+        freeQuantityPieces: row.freeItems,
       }));
     if (items.length === 0) {
       setError(tCreate('needProduct'));
@@ -1043,7 +1212,7 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
           </section>
 
           <section className="border-b border-[#e6e6e6] p-4">
-            <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="mb-4">
               <h2 className="text-sm font-semibold text-black">{tDetails('orderItems.title')}</h2>
             </div>
             <p className="mb-3 text-xs text-gray-500">{tCreate('offerNote')}</p>
@@ -1052,88 +1221,187 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
                 {tCreate('productsEmpty')} <Link href="/products/list" className="font-medium text-[#0a61d7]">{tCreate('createProduct')}</Link>
               </p>
             )}
-            <div className="divide-y divide-[#e6e6e6] rounded-lg border border-[#e6e6e6]">
-              {pricedLines.map(({ line, product, preview, unit, keepSaved }) => {
-                const variants = product?.variantOptions.filter((option) => option.isActive) ?? [];
-                const stockLevels = product ? productStockLevels(product) : [];
-                const selectedLevelExists = stockLevels.some((level) => level.name === line.packageType);
-                if (!selectedLevelExists && line.packageType && line.piecesPerPackage > 1) {
-                  stockLevels.push({ name: line.packageType, piecesPerUnit: line.piecesPerPackage });
-                }
-                const quantityValue = Number.parseInt(line.quantity, 10) || 0;
-                return (
-                  <div key={line.key} className="grid items-end gap-3 p-3 md:grid-cols-[1.3fr_1fr_1fr_88px_110px_minmax(150px,auto)]">
-                    <div>
-                      <label className={labelClass}>{tCreate('product')}</label>
-                      <LakupakSelect
-                        value={line.productId}
-                        placeholder={tCreate('selectProduct')}
-                        options={catalog.map((row) => ({ value: row.productId, label: row.name }))}
-                        onChange={(value) => chooseProduct(line.key, value)}
-                      />
-                    </div>
-                    <div>
-                      <label className={labelClass}>{tCreate('variant')}</label>
-                      <LakupakSelect
-                        value={line.variantOptionId}
-                        placeholder={product ? 'None' : 'Select product first'}
-                        options={variants.map((option) => ({ value: String(option.id), label: option.variantName }))}
-                        onChange={(value) => updateLine(line.key, { variantOptionId: value, savedUnit: null })}
-                      />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Stock type</label>
-                      <LakupakSelect
-                        value={line.packageType}
-                        placeholder={product ? 'None' : 'Select product first'}
-                        allowEmpty={true}
-                        options={stockLevels.map((level) => ({ value: level.name, label: level.name }))}
-                        onChange={(value) => chooseStockLevel(line.key, line.productId, value)}
-                      />
-                    </div>
-                    <div>
-                      <label className={labelClass}>{tCreate('quantity')}</label>
-                      <input className={inputClass} inputMode="numeric" value={line.quantity} onChange={(event) => updateLine(line.key, { quantity: event.target.value.replace(/[^\d]/g, ''), savedUnit: null })} />
-                    </div>
-                    <div className="flex h-full flex-col justify-end">
-                      <div className={labelClass}>{tCreate('unitPrice')}</div>
-                      <div className="flex min-h-[34px] items-center text-xs font-medium text-black">{formatCurrency(unit, currency)}</div>
-                      {!keepSaved && preview.kind !== 'none' && <div className="mt-1 text-xs text-[#0a61d7]">{offerLabel(preview)}</div>}
-                    </div>
-                    <div className="flex h-full flex-col justify-end">
-                      <div className={labelClass}>{tCreate('lineTotal')}</div>
-                      <div className="flex min-h-[34px] items-center justify-between gap-2">
-                        <div className="text-xs font-semibold text-black">{formatCurrency(unit * quantityValue, currency)}</div>
-                        <div className="flex shrink-0 items-center gap-1">
-                          <button
-                            type="button"
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#e6e6e6] text-gray-600 transition-colors hover:bg-gray-100 hover:text-[#0a61d7]"
-                            aria-label={tCreate('addProduct')}
-                            title={tCreate('addProduct')}
-                            onClick={() => {
-                              setLines((current) => [...current, blankLine(nextKey)]);
-                              setNextKey((key) => key + 1);
+            <div className="min-w-0 overflow-x-auto rounded-lg border border-[#e6e6e6]">
+              <table className="min-w-full text-xs font-medium text-left">
+                <thead className="bg-gray-100 text-gray-500">
+                  <tr className="whitespace-nowrap">
+                    <th className="px-3 py-2.5 font-medium uppercase">{tCreate('product')}</th>
+                    <th className="px-3 py-2.5 font-medium uppercase">{tCreate('variant')}</th>
+                    <th className="px-3 py-2.5 font-medium uppercase">{tCreate('stockType')}</th>
+                    <th className="px-3 py-2.5 font-medium uppercase">{quantityHeader}</th>
+                    <th className="px-3 py-2.5 font-medium uppercase">{tCreate('freeItems')}</th>
+                    <th className="px-3 py-2.5 font-medium uppercase">{tCreate('unitPrice')}</th>
+                    <th className="px-3 py-2.5 font-medium uppercase">{tCreate('offerApplied')}</th>
+                    <th className="px-3 py-2.5 font-medium uppercase">{tCreate('lineTotal')}</th>
+                    <th className="px-3 py-2.5 text-center font-medium uppercase">{tCreate('actions')}</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white">
+                  {pricedLines.map(({ line, product, preview, liveOffer, unit, listUnit, piecesPerPackage }) => {
+                    const variants = product?.variantOptions.filter((option) => option.isActive) ?? [];
+                    const stockLevels = product ? productStockLevels(product) : [];
+                    const selectedLevelExists = stockLevels.some((level) => level.name === line.packageType);
+                    if (!selectedLevelExists && line.packageType && line.piecesPerPackage > 1) {
+                      stockLevels.push({ name: line.packageType, piecesPerUnit: line.piecesPerPackage });
+                    }
+                    const quantityValue = Number.parseInt(line.quantity, 10) || 0;
+                    const offerParts = offerAppliedParts(preview, line);
+                    return (
+                      <tr key={line.key} className="border-b border-[#e6e6e6] last:border-b-0 align-middle">
+                        <td className="px-3 py-3 min-w-[10rem]">
+                          <LakupakSelect
+                            value={line.productId}
+                            placeholder={tCreate('selectProduct')}
+                            options={catalog.map((row) => ({ value: row.productId, label: row.name }))}
+                            onChange={(value) => chooseProduct(line.key, value)}
+                          />
+                        </td>
+                        <td className="px-3 py-3 min-w-[9rem]">
+                          <LakupakSelect
+                            value={line.variantOptionId}
+                            placeholder={product ? 'None' : 'Select product first'}
+                            options={variants.map((option) => ({ value: String(option.id), label: option.variantName }))}
+                            onChange={(value) => {
+                              const nextOffer = product
+                                ? pickOffer(offers, product, Number(value), line.packageType)
+                                : null;
+                              const qty = Number.parseInt(line.quantity, 10) || 0;
+                              updateLine(line.key, {
+                                variantOptionId: value,
+                                savedUnit: null,
+                                savedOriginalUnit: null,
+                                savedOfferApplied: false,
+                                savedDiscountAmount: null,
+                                savedDiscountPercentage: null,
+                                savedPromotion: null,
+                                savedOfferBadge: null,
+                                freeItems: String(
+                                  suggestedFreePiecesFromOffer(nextOffer, qty, piecesPerPackage),
+                                ),
+                              });
                             }}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </button>
-                          {lines.length > 1 && (
+                          />
+                        </td>
+                        <td className="px-3 py-3 min-w-[7rem]">
+                          <LakupakSelect
+                            value={line.packageType}
+                            placeholder={product ? 'None' : 'Select product first'}
+                            allowEmpty={true}
+                            options={stockLevels.map((level) => ({ value: level.name, label: level.name }))}
+                            onChange={(value) => chooseStockLevel(line.key, line.productId, value)}
+                          />
+                        </td>
+                        <td className="px-3 py-3 min-w-[6.5rem]">
+                          <input
+                            className={tableInputClass}
+                            inputMode="numeric"
+                            value={line.quantity}
+                            title={
+                              line.packageType
+                                ? tCreate('quantityWithUnit', { unit: line.packageType })
+                                : tCreate('quantity')
+                            }
+                            aria-label={
+                              line.packageType
+                                ? tCreate('quantityWithUnit', { unit: line.packageType })
+                                : tCreate('quantity')
+                            }
+                            onChange={(event) => {
+                              const quantity = event.target.value.replace(/[^\d]/g, '');
+                              const qty = Number.parseInt(quantity, 10) || 0;
+                              const suggested = suggestedFreePiecesFromOffer(liveOffer, qty, piecesPerPackage);
+                              const fromSaved = freePiecesFromPromotion(
+                                line.savedPromotion,
+                                qty,
+                                piecesPerPackage,
+                              );
+                              updateLine(line.key, {
+                                quantity,
+                                savedUnit: null,
+                                freeItems: String(suggested > 0 ? suggested : fromSaved),
+                              });
+                            }}
+                          />
+                        </td>
+                        <td className="px-3 py-3 min-w-[5.5rem]">
+                          <input
+                            className={tableInputClass}
+                            inputMode="numeric"
+                            value={line.freeItems}
+                            onChange={(event) =>
+                              updateLine(line.key, {
+                                freeItems: event.target.value.replace(/[^\d]/g, ''),
+                              })
+                            }
+                          />
+                        </td>
+                        <td className="px-3 py-3 min-w-[8rem] whitespace-nowrap">
+                          {listUnit > unit + 0.001 ? (
+                            <span className="text-xs text-black">
+                              <span className="text-gray-400 line-through mr-1.5">
+                                {formatCurrency(listUnit, currency)}
+                              </span>
+                              <span className="font-medium">{formatCurrency(unit, currency)}</span>
+                            </span>
+                          ) : (
+                            <span className="text-xs font-medium text-black">
+                              {formatCurrency(unit, currency)}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-3 min-w-[9rem] whitespace-nowrap">
+                          {offerParts.discount || offerParts.promotion ? (
+                            <span className="text-xs font-medium">
+                              {offerParts.discount ? (
+                                <span className="text-red-500">{offerParts.discount}</span>
+                              ) : null}
+                              {offerParts.discount && offerParts.promotion ? (
+                                <span className="text-gray-400"> | </span>
+                              ) : null}
+                              {offerParts.promotion ? (
+                                <span className="text-purple-600">{offerParts.promotion}</span>
+                              ) : null}
+                            </span>
+                          ) : (
+                            <span className="text-xs font-medium text-gray-400">{tCreate('offerNone')}</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-3 min-w-[7rem] whitespace-nowrap">
+                          <span className="text-xs font-semibold text-black">
+                            {formatCurrency(unit * quantityValue, currency)}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3">
+                          <div className="flex items-center justify-center gap-1">
                             <button
                               type="button"
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                              className="inline-flex h-8 w-8 items-center justify-center text-gray-400 transition-colors hover:text-[#0a61d7]"
+                              aria-label={tCreate('addProduct')}
+                              title={tCreate('addProduct')}
+                              onClick={() => {
+                                setLines((current) => [...current, blankLine(nextKey)]);
+                                setNextKey((key) => key + 1);
+                              }}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={lines.length <= 1}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-400"
                               aria-label={tCreate('remove')}
                               title={tCreate('remove')}
                               onClick={() => setLines((current) => current.filter((row) => row.key !== line.key))}
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </section>
 
