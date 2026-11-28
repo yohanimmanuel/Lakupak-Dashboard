@@ -1,36 +1,35 @@
 ---
 title: What is Lakupak?
-description: An AI-native B2B commerce and sales platform that helps Indonesian FMCG distributors utilise their product portfolios across the right retailers.
+description: An AI-native B2B commerce and sales platform that connects fragmented FMCG distributor operations in Indonesia into one commercial environment.
 section: Overview
 module: overview
 order: 1
 ---
 
-**Lakupak** is an AI-native B2B commerce and sales platform for independent FMCG distributors in Indonesia. In Indonesian, *"laku"* means something that sells well, moves quickly, and succeeds in the market. That meaning reflects the platform's mission: help distributors connect the right products with the right retailers, make sales interactions more productive, and turn commercial data into actionable opportunities.
+**Lakupak** is an AI-native B2B commerce and sales platform for independent FMCG distributors in Indonesia. In Indonesian, *"laku"* means something that sells well, moves quickly, and succeeds in the market. That meaning reflects the platform's mission: help distributors connect the information, people, and activities needed to run commerce effectively, with trust and commercial control intact.
 
 ## The problem Lakupak focuses on
 
-Independent distributors often manage hundreds of products across hundreds of retailers. Bestsellers dominate repeat orders, while other potentially valuable products reach only a small share of eligible shops.
+Independent distributors already manage product catalogues, retailer networks, and active sales operations. The information and activities to run those businesses are often scattered across spreadsheets, accounting software, ERP systems, WhatsApp, and manual workflows.
 
 That creates four linked challenges:
 
-- **Limited product penetration** across the retailer network
-- **Limited opportunity visibility** for sales teams
-- **Fragmented commercial data** across chats, spreadsheets, and separate tools
-- **Inefficient sales time**, so suitable products go unpresented
+- **Fragmented business information** across products, customers, orders, pricing, and sales activity
+- **Inefficient sales activities**, so representatives spend time retrieving information instead of higher-value work
+- **Complex buyer-specific pricing and commercial terms** that are hard to apply consistently
+- **Limited operational and commercial visibility** for managers who need to know who to follow up, what is working, and where opportunities remain
 
-Low penetration is a signal to investigate, not proof of demand. A product may be unsuitable, mispriced, out of stock, or unpopular. Lakupak helps distinguish genuine opportunities from noise.
+The fundamental problem is not that distributors cannot sell. It is that disconnected operations limit how well they use existing resources. Low assortment penetration and underused products can be **symptoms** of that chaos, not the sole underlying problem. Lakupak focuses on the operational and commercial processes that let distributors identify and pursue genuine opportunities.
 
 ## How Lakupak helps
 
-Lakupak connects distributor operations, sales intelligence, and private B2B commerce:
+Lakupak connects distributor operations, AI-powered commercial intelligence, and private B2B commerce:
 
-1. **Unify** retailer relationships, catalog, inventory, orders, offers, and sales activity
-2. **Identify** assortment gaps and product–retailer combinations worth investigating
-3. **Prioritise** opportunities using purchase history, suitability, pricing, and stock
-4. **Activate** focused follow-ups and product introductions
-5. **Convert** through a private, authorised buyer Marketplace
-6. **Learn** from exposure, responses, orders, and repeat purchases
+1. **Unify** product catalogues, retailer relationships, purchasing histories, pricing, orders, and sales activities
+2. **Identify** inefficiencies, missed follow-ups, declining purchases, and potential sales opportunities
+3. **Match** relevant products, retailers, and commercial activities using history, customer characteristics, pricing, and stock, without assuming every product suits every shop
+4. **Execute** through sales workflows, targeted offers, follow-ups, recommendations, and a private authorised Marketplace
+5. **Learn** from recorded activities, retailer responses, orders, and repeat purchases
 
 Recommendations stay grounded in available data. They are estimates, not guaranteed demand.
 

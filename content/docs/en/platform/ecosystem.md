@@ -15,14 +15,14 @@ Lakupak is an **AI-native B2B commerce and sales platform** with experiences bui
 | **Lakupak Dashboard** (web) | Distributor teams | Run clients, catalog, orders, offers, and settings; analyse the business with Lakupak AI |
 | **Lakupak Marketplace** (mobile) | Authorised retail buyers | Discover products, order in bulk, track delivery |
 
-## Portfolio utilisation model
+## Connected commercial operations
 
-Lakupak is built around product portfolio underutilisation and low assortment penetration for independent Indonesian FMCG distributors:
+Lakupak connects fragmented distributor operations into one commercial environment:
 
-- Keep commercial operations connected so penetration gaps can be investigated
-- Prioritise suitable product–retailer opportunities with evidence
-- Protect per-retailer pricing and relationships
-- Treat low penetration as a signal to investigate, not guaranteed demand
+- **Unify** clients, catalog, orders, pricing, and sales activity
+- **Decide** with clearer visibility, matching, and AI-supported commercial intelligence
+- **Execute** through sales workflows and a private authorised Marketplace
+- Treat underused products as a signal to investigate once operations are connected, not as guaranteed demand
 
 ## What connects the apps
 

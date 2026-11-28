@@ -20,18 +20,19 @@ Mereka bisa berupa:
 
 ### Tantangan umum
 
-- Volume pesanan tinggi, disiplin digital rendah
-- Tim sales kunjungan tetapi restock masih via telepon
-- Stockout dan overstock karena data terlambat
-- Sulit membuktikan tingkat layanan ke akun kunci
+- Produk, pelanggan, pesanan, dan harga tersebar di chat, spreadsheet, dan sistem terpisah
+- Harga dan syarat komersial khusus pembeli yang sulit diambil dan diterapkan secara konsisten
+- Tim sales yang sulit memprioritaskan siapa yang dikunjungi dan apa yang ditawarkan berikutnya
+- Visibilitas harian lemah terhadap follow-up, status pesanan, dan kinerja komersial
 
 ### Bantuan Lakupak
 
-- **Katalog** pusat dengan varian, stok, kontrol publish
+- **Clients** (pembeli dan pemasok) dengan riwayat di satu tempat
+- Katalog **Products** pusat dengan varian, stok, harga segmen, dan kontrol publish
 - Alur **Orders** dari pemesanan hingga pemenuhan
-- **Clients** (pembeli dan pemasok) dengan riwayat
-- **Offers** tanpa daftar harga manual
-- Metrik hasil tipis di Klien, Produk, Pesanan, dan Lakupak AI
+- **Offers** untuk tarif privat per retailer tanpa daftar harga manual
+- Storefront **Marketplace** privat untuk retailer terotorisasi
+- Alur **Sales** bila modul tersedia, plus metrik hasil tipis dan Lakupak AI
 
 Mulai: [Ringkasan Dashboard](/id/docs/dashboard/overview).
 

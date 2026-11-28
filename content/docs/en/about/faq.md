@@ -14,6 +14,10 @@ Answers to questions distributors, buyers, and partners often ask about Lakupak.
 
 Yes. Lakupak is a **B2B commerce and sales platform**. Distributors run daily operations in **Dashboard**, and authorised buyers order in **Marketplace**. See [Mission and story](/en/docs/about/mission-and-story).
 
+### Is Lakupak only about selling more SKUs?
+
+No. Lakupak starts with **operations and sales coordination**: unifying clients, catalog, orders, pricing, and activity that today live in chats and spreadsheets. Product–retailer intelligence and assortment opportunities are one capability on that foundation, not the whole product.
+
 ### Who owns the customer relationship?
 
 The **distributor** owns the commercial relationship with retail buyers. Lakupak provides the channel and record-keeping; it does not interpose as the seller of record in the traditional sense.

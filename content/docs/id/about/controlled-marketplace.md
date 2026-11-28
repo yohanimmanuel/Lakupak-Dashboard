@@ -43,8 +43,12 @@ Model terkendali selaras dengan praktik lapangan:
 
 ## Platform operasi plus marketplace
 
-1. **Operasi privat** (Dashboard): stok, CRM, katalog, pesanan, penawaran
-2. **Storefront pembeli** (Marketplace): pengalaman pesan modern untuk retailer terotorisasi
+Storefront Marketplace berdiri di atas Dashboard operasional. Lakupak menggabungkan:
+
+1. **Fondasi operasional** (Dashboard): klien, katalog, stok, pesanan, penawaran, dan aktivitas penjualan
+2. **Storefront pembeli** (Marketplace): pengalaman pesan modern untuk retailer terotorisasi di atas fondasi yang sama
+
+Distributor dapat memakai sisi operasi sambil memperluas adopsi marketplace pada basis pembeli yang sudah ada.
 
 ## Dokumentasi terkait
 

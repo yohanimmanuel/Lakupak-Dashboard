@@ -15,14 +15,14 @@ Lakupak adalah **platform perdagangan dan penjualan B2B berbasis AI** dengan pen
 | **Lakupak Dashboard** (web) | Tim distributor | Menjalankan klien, katalog, pesanan, penawaran, dan pengaturan; menganalisis bisnis dengan Lakupak AI |
 | **Lakupak Marketplace** (seluler) | Pembeli ritel terotorisasi | Menemukan produk, memesan grosir, melacak pengiriman |
 
-## Model pemanfaatan portofolio
+## Operasi komersial terhubung
 
-Lakupak dibangun di sekitar underutilisasi portofolio produk dan penetrasi asortimen rendah bagi distributor FMCG independen Indonesia:
+Lakupak menghubungkan operasional distributor yang terfragmentasi menjadi satu lingkungan komersial:
 
-- Jaga operasi komersial tetap terhubung agar celah penetrasi bisa diselidiki
-- Prioritaskan peluang produk–retailer yang cocok dengan bukti
-- Lindungi harga dan hubungan per retailer
-- Perlakukan penetrasi rendah sebagai sinyal untuk diselidiki, bukan permintaan yang dijamin
+- **Satukan** klien, katalog, pesanan, harga, dan aktivitas penjualan
+- **Putuskan** dengan visibilitas lebih jelas, pencocokan, dan intelijen komersial berbasis AI
+- **Jalankan** lewat alur penjualan dan Marketplace privat yang terotorisasi
+- Perlakukan produk yang kurang termanfaatkan sebagai sinyal untuk diselidiki setelah operasional terhubung, bukan sebagai permintaan yang dijamin
 
 ## Apa yang menghubungkan aplikasi
 

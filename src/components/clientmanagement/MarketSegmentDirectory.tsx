@@ -380,8 +380,11 @@ export default function MarketSegmentDirectory() {
           <tbody className="bg-white">
             {loading ? (
               <tr>
-                <td colSpan={5} className="py-12 text-center text-sm text-gray-500">
-                  {t('loading')}
+                <td colSpan={5} className="py-12">
+                  <div className="flex flex-col items-center justify-center gap-3">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#0a61d7] border-t-transparent" />
+                    <p className="text-sm text-gray-500">{t('loading')}</p>
+                  </div>
                 </td>
               </tr>
             ) : rows.length === 0 ? (

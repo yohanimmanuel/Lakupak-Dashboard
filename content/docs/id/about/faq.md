@@ -14,6 +14,10 @@ Jawaban untuk pertanyaan yang sering diajukan distributor, pembeli, dan mitra.
 
 Ya. Lakupak adalah **platform perdagangan dan penjualan B2B**. Distributor menjalankan operasi harian di **Dashboard**, dan pembeli terotorisasi memesan di **Marketplace**. Lihat [Misi dan cerita](/id/docs/about/mission-and-story).
 
+### Apakah Lakupak hanya soal menjual lebih banyak SKU?
+
+Tidak. Lakupak dimulai dari **koordinasi operasional dan penjualan**: menyatukan klien, katalog, pesanan, harga, dan aktivitas yang hari ini hidup di chat dan spreadsheet. Intelijen produk–retailer dan peluang asortimen adalah satu kapabilitas di atas fondasi itu, bukan seluruh produk.
+
 ### Siapa pemilik hubungan pelanggan?
 
 **Distributor** memiliki hubungan komersial dengan pembeli ritel. Lakupak menyediakan saluran dan pencatatan.

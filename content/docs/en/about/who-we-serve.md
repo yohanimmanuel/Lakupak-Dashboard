@@ -20,18 +20,19 @@ They may be:
 
 ### Common challenges
 
-- High order volume with low digital discipline
-- Sales teams visiting stores but restock still via phone
-- Stockouts and overstocks because data is late
-- Difficulty proving service level to key accounts
+- Products, customers, orders, and pricing scattered across chats, spreadsheets, and separate systems
+- Buyer-specific prices and commercial terms that are hard to retrieve and apply consistently
+- Sales teams that struggle to prioritise who to visit and what to offer next
+- Weak day-to-day visibility into follow-ups, order status, and commercial performance
 
 ### What Lakupak helps with
 
-- Central **catalog** with variants, stock, and publish control
-- **Orders** pipeline from placement to fulfillment
 - **Clients** (buyers and suppliers) with history in one place
-- **Offers** without manual price lists
-- Thin outcome metrics in Clients, Products, Orders, and Lakupak AI
+- Central **Products** catalog with variants, stock, segment pricing, and publish control
+- **Orders** pipeline from placement to fulfillment
+- **Offers** for private per-retailer rates without manual price lists
+- Private **Marketplace** storefront for authorised retailers
+- **Sales** workflows where the module is available, plus thin outcome metrics and Lakupak AI
 
 Start: [Dashboard overview](/en/docs/dashboard/overview).
 

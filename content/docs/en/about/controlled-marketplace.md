@@ -43,10 +43,10 @@ A controlled model matches how trade actually works:
 
 ## Operating platform plus marketplace
 
-Lakupak combines:
+The Marketplace storefront sits on top of the ops Dashboard. Lakupak combines:
 
-1. **Private operations** (Dashboard): stock, CRM, catalog, orders, offers
-2. **Buyer-facing storefront** (Marketplace): modern ordering for authorised retailers
+1. **Operational foundation** (Dashboard): clients, catalog, stock, orders, offers, and sales activity
+2. **Buyer-facing storefront** (Marketplace): modern ordering for authorised retailers on that same foundation
 
 Distributors can use the operations side even as they grow marketplace adoption with their existing buyer base.
 

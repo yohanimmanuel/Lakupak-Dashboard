@@ -8,14 +8,16 @@ order: 3
 
 Gunakan halaman ini untuk memilih pengalaman yang tepat dan menyelesaikan setup awal. Untuk framing produk, lihat [Misi dan cerita](/id/docs/about/mission-and-story).
 
+Tujuan untuk distributor adalah **fondasi operasional yang terhubung**: klien, segmen, katalog, harga, dan penawaran di satu tempat, lalu pemesanan Marketplace privat untuk pembeli terotorisasi.
+
 ## Distributor (Dashboard)
 
 1. Daftar di situs Lakupak dan masuk ke Dashboard.
 2. Lengkapi **Settings → Distributor Operations** (profil perusahaan, preferensi pengiriman, dan pengaturan storefront yang tersedia).
-3. Tambah retailer di **Clients → Buyers** (dan pemasok jika perlu).
-4. Bangun katalog di **Products** (varian, harga, stok, gambar).
-5. Atur **Offers** untuk tarif produk per retailer jika diperlukan.
-6. Catat dan penuhi **Orders**, serta publikasikan produk agar pembeli terotorisasi bisa memesan di Marketplace.
+3. Atur **Settings → Market Segments** (atau setara), lalu tambah retailer di **Clients → Buyers** (dan pemasok jika perlu). Gunakan **Match Buyers** bila prospek Marketplace perlu dihubungkan ke pembeli CRM yang sudah ada.
+4. Bangun katalog di **Products** (varian, harga default dan segmen, stok, gambar).
+5. Atur **Offers** untuk tarif produk privat per retailer jika diperlukan.
+6. **Publish** produk, lalu catat dan penuhi **Orders** agar pembeli terotorisasi bisa memesan di Marketplace.
 
 Pusat dokumen: [Ringkasan Dashboard](/id/docs/dashboard/overview).
 

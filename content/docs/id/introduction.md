@@ -1,36 +1,35 @@
 ---
 title: Apa itu Lakupak?
-description: Platform perdagangan dan penjualan B2B berbasis AI yang membantu distributor FMCG Indonesia memanfaatkan portofolio produk di retailer yang tepat.
+description: Platform perdagangan dan penjualan B2B berbasis AI yang menghubungkan operasional distributor FMCG Indonesia yang terfragmentasi menjadi satu lingkungan komersial.
 section: Ringkasan
 module: overview
 order: 1
 ---
 
-**Lakupak** adalah platform perdagangan dan penjualan B2B berbasis AI untuk distributor FMCG independen di Indonesia. Dalam bahasa Indonesia, *"laku"* berarti sesuatu yang laris, bergerak cepat, dan berhasil di pasar. Makna itu mencerminkan misi platform: membantu distributor menghubungkan produk yang tepat dengan retailer yang tepat, membuat interaksi penjualan lebih produktif, dan mengubah data komersial menjadi peluang yang bisa ditindaklanjuti.
+**Lakupak** adalah platform perdagangan dan penjualan B2B berbasis AI untuk distributor FMCG independen di Indonesia. Dalam bahasa Indonesia, *"laku"* berarti sesuatu yang laris, bergerak cepat, dan berhasil di pasar. Makna itu mencerminkan misi platform: membantu distributor menghubungkan informasi, orang, dan aktivitas yang dibutuhkan agar perdagangan berjalan efektif, dengan kepercayaan dan kendali komersial tetap utuh.
 
 ## Masalah yang difokuskan Lakupak
 
-Distributor independen sering mengelola ratusan produk di ratusan retailer. Produk laris mendominasi pesanan berulang, sementara produk berharga lainnya hanya menjangkau sebagian kecil toko yang layak.
+Distributor independen sudah mengelola katalog produk, jaringan retailer, dan operasi penjualan aktif. Informasi dan aktivitas untuk menjalankan bisnis itu sering tersebar di spreadsheet, perangkat lunak akuntansi, ERP, WhatsApp, dan alur kerja manual.
 
 Itu menciptakan empat tantangan yang saling terkait:
 
-- **Penetrasi produk terbatas** di jaringan retailer
-- **Visibilitas peluang terbatas** bagi tim penjualan
-- **Data komersial terfragmentasi** di chat, spreadsheet, dan alat terpisah
-- **Waktu penjualan tidak efisien**, sehingga produk yang cocok tidak tersampaikan
+- **Informasi bisnis terfragmentasi** di produk, pelanggan, pesanan, harga, dan aktivitas penjualan
+- **Aktivitas penjualan tidak efisien**, sehingga perwakilan menghabiskan waktu mencari informasi alih-alih pekerjaan bernilai lebih tinggi
+- **Harga dan syarat komersial khusus pembeli** yang sulit diterapkan secara konsisten
+- **Visibilitas operasional dan komersial terbatas** bagi manajer yang perlu tahu siapa yang harus diikuti, apa yang berjalan, dan di mana peluang masih terbuka
 
-Penetrasi rendah adalah sinyal untuk diselidiki, bukan bukti permintaan. Produk bisa tidak cocok, salah harga, kosong, atau memang tidak laku. Lakupak membantu membedakan peluang nyata dari noise.
+Masalah mendasarnya bukan bahwa distributor tidak bisa menjual. Melainkan operasional yang terputus membatasi pemanfaatan sumber daya yang sudah ada. Penetrasi asortimen rendah dan produk yang kurang termanfaatkan bisa menjadi **gejala** kekacauan itu, bukan satu-satunya akar masalah. Lakupak fokus pada proses operasional dan komersial yang memungkinkan distributor mengidentifikasi dan mengejar peluang yang nyata.
 
 ## Bagaimana Lakupak membantu
 
-Lakupak menghubungkan operasional distributor, intelijen penjualan, dan perdagangan B2B privat:
+Lakupak menghubungkan operasional distributor, intelijen komersial berbasis AI, dan perdagangan B2B privat:
 
-1. **Satukan** hubungan retailer, katalog, inventori, pesanan, penawaran, dan aktivitas penjualan
-2. **Identifikasi** celah asortimen dan kombinasi produk–retailer yang layak diselidiki
-3. **Prioritaskan** peluang memakai riwayat pembelian, kesesuaian, harga, dan stok
-4. **Aktifkan** follow-up dan pengenalan produk yang terfokus
-5. **Konversi** lewat Marketplace pembeli yang privat dan terotorisasi
-6. **Belajar** dari eksposur, respons, pesanan, dan pembelian berulang
+1. **Satukan (Unify)** katalog produk, hubungan retailer, riwayat pembelian, harga, pesanan, dan aktivitas penjualan
+2. **Identifikasi (Identify)** inefisiensi, follow-up yang terlewat, pembelian yang menurun, dan peluang penjualan potensial
+3. **Cocokkan (Match)** produk, retailer, dan aktivitas komersial yang relevan memakai riwayat, karakteristik pelanggan, harga, dan stok, tanpa menganggap setiap produk cocok untuk setiap toko
+4. **Jalankan (Execute)** lewat alur penjualan, penawaran terarah, follow-up, rekomendasi, dan Marketplace privat yang terotorisasi
+5. **Belajar (Learn)** dari aktivitas tercatat, respons retailer, pesanan, dan pembelian berulang
 
 Rekomendasi tetap berdasar data yang tersedia. Itu estimasi, bukan permintaan yang dijamin.
 

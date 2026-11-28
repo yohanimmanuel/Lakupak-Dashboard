@@ -13,13 +13,13 @@ Ringkasan **hasil bisnis** per peran. Untuk langkah penggunaan, buka panduan mod
 | Area | Tanpa alat terstruktur | Dengan Lakupak |
 |------|------------------------|-------------|
 | Pemesanan | Chat, screenshot, ketik ulang | Pesanan terstruktur di **Orders** |
-| Katalog | PDF atau harga lisan | **Products** live dengan stok |
+| Katalog | PDF atau harga lisan | **Products** live dengan stok, harga segmen, dan publish |
 | Pelanggan | Ingatan dan buku | **Clients** dengan riwayat |
 | Promosi | Diskon manual per chat | **Offers** dengan aturan |
 | Etalase | Restock informal saja | **Marketplace** privat untuk retailer terotorisasi |
 | Wawasan | Kejutan akhir bulan | KPI Beranda dan metrik tipis di Klien, Produk, Pesanan |
 
-Kemenangan tipikal: lebih sedikit kesalahan pesanan, pemenuhan lebih cepat, retensi akun warung kunci lebih baik, pandangan lebih jelas ke SKU lambat.
+Kemenangan tipikal: lebih sedikit pengetikan ulang antar chat dan sistem, CRM, katalog, pesanan, dan penawaran yang terhubung, harga khusus pembeli yang lebih jelas, serta waktu penjualan yang lebih produktif. SKU yang kurang termanfaatkan lebih mudah diselidiki setelah operasional terhubung, bukan satu-satunya ukuran keberhasilan.
 
 Panduan: [Dashboard](/id/docs/dashboard/overview).
 

@@ -13,13 +13,13 @@ This page summarizes **business outcomes** by role. For step-by-step usage, open
 | Area | Without structured tools | With Lakupak |
 |------|--------------------------|----------|
 | Ordering | Chats, screenshots, retyped lines | Structured orders in **Orders** with status |
-| Catalog | Static PDFs or verbal price lists | Live **Products** with stock and publish |
+| Catalog | Static PDFs or verbal price lists | Live **Products** with stock, segment pricing, and publish |
 | Customers | Memory and notebooks | **Clients** with history and segments |
 | Promotions | Manual discounts per chat | **Offers** with dates and product rules |
 | Storefront | Informal restock only | Private **Marketplace** for authorised retailers |
 | Insight | End-of-month surprises | Home KPIs and thin metrics in Clients, Products, Orders |
 
-Typical wins: fewer order errors, faster fulfillment, better retention of key warung accounts, clearer view of slow-moving SKUs.
+Typical wins: less retyping between chat and systems, connected CRM, catalog, orders, and offers, clearer buyer-specific pricing, and more productive sales time. Underused SKUs become easier to investigate once operations are connected, not the only measure of success.
 
 Doc hub: [Dashboard](/en/docs/dashboard/overview).
 
