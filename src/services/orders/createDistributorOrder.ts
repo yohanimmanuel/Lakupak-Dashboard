@@ -12,6 +12,7 @@ import { syncOrderToBuyerProfile } from '@/utils/buyerSync';
 import { invalidateDashboardCache } from '@/lib/queryCache';
 import { normalizeStockLevels } from '@/utils/stockUtils';
 import { calculateOrderItemPromotion } from '@/utils/promotionUtils';
+import { roundMoney } from '@/utils/priceAnchorUtils';
 import {
   STOCK_NO_DEDUCT_STATUSES,
   calculateTotalQuantityWithPromotions,
@@ -75,8 +76,8 @@ function clip(value: unknown, max: number): string {
   return String(value ?? '').trim().slice(0, max);
 }
 
-function money(value: number): number {
-  return Math.round(Math.max(0, value) * 100) / 100;
+function money(value: number, currency?: string | null): number {
+  return roundMoney(value, currency);
 }
 
 function optionalDate(value: unknown): Date | null | 'invalid' {
@@ -230,6 +231,7 @@ async function priceDistributorLines(
     },
   });
   const productById = new Map(products.map((product) => [product.productId, product]));
+  const currency = seller?.currency || 'IDR';
   const priced: PricedLine[] = [];
   for (const item of items) {
     const product = productById.get(item.productId);
@@ -261,10 +263,13 @@ async function priceDistributorLines(
 
     // Prefer the order's original list price when editing so a live catalog change
     // (or a net package snapshot) cannot become a second discount base.
+    // Keep per-piece precision; round only at package / line totals (IDR has 0 decimals).
     const snapshotRaw = historicalStockLevel?.originalPriceSnapshot;
     const snapshotPiece =
-      snapshotRaw == null ? 0 : money(decimalToNumber(snapshotRaw as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined));
-    const catalogPiece = money(Number(variant.sellingPrice));
+      snapshotRaw == null
+        ? 0
+        : decimalToNumber(snapshotRaw as string | number | { toNumber?: () => number; toString?: () => string } | null | undefined);
+    const catalogPiece = Number(variant.sellingPrice) || 0;
     const basePricePerPiece = snapshotPiece > 0 ? snapshotPiece : catalogPiece;
     const wantOffer = item.applyOffer !== false;
     const offer = wantOffer
@@ -275,9 +280,11 @@ async function priceDistributorLines(
         })
       : null;
     const applied = offer ? applyOfferToPrice(basePricePerPiece, offer) : null;
-    const unitPricePerPiece = money(applied ? applied.unitPrice : basePricePerPiece);
     const piecesPerPackage = selectedStockLevel.piecesPerUnit;
-    const unitPrice = money(unitPricePerPiece * piecesPerPackage);
+    const rawNetPiece = applied ? applied.unitPrice : basePricePerPiece;
+    // Round package unit first so 190000/22 − Rp400/pc × 22 → 181200, not 181199.92.
+    const unitPrice = money(rawNetPiece * piecesPerPackage, currency);
+    const unitPricePerPiece = piecesPerPackage > 0 ? unitPrice / piecesPerPackage : rawNetPiece;
     const explicitFree =
       item.freeQuantityPieces != null && Number.isFinite(Number(item.freeQuantityPieces))
         ? Math.max(0, Math.trunc(Number(item.freeQuantityPieces)))
@@ -293,10 +300,12 @@ async function priceDistributorLines(
     let promotionDetails: string | null = null;
     if (explicitFree != null) {
       if (explicitFree > 0) {
+        // Keep buy/get metadata for Offer Applied display; freePieces is the
+        // absolute free count used by stock and Order Details.
         promotionDetails = JSON.stringify({
-          minQuantity: Math.max(1, item.packageQuantity),
-          freeQuantity: 0,
-          applyMode: 'from_zero',
+          minQuantity: autoPromo?.minQuantity ?? Math.max(1, item.packageQuantity),
+          freeQuantity: autoPromo?.freeQuantity ?? 0,
+          applyMode: autoPromo?.applyMode ?? 'from_zero',
           moq: variant.moq != null && variant.moq > 0 ? variant.moq : null,
           freePieces: explicitFree,
         });
@@ -330,22 +339,25 @@ async function priceDistributorLines(
       unitPrice,
       unitPricePerPiece,
       basePricePerPiece,
-      subtotal: money(unitPrice * item.packageQuantity),
+      subtotal: money(unitPrice * item.packageQuantity, currency),
       offerApplied: Boolean(offer) || hasPromo,
       offerBadge,
       offerName: offer ? offer.notes || offer.description || 'Client offer' : hasPromo ? 'Free items' : null,
       offerId: offer?.id ?? null,
       discountAmount:
         applied && applied.discountAmount > 0 && offer?.discountType !== 'buy_x_get_y'
-          ? money(applied.discountAmount)
+          ? money(applied.discountAmount, currency)
           : null,
       discountPercentage:
         offer?.discountType === 'percentage' && applied?.discountPercentage ? applied.discountPercentage : null,
       promotionDetails,
-      lineDiscount: money(Math.max(0, basePricePerPiece - unitPricePerPiece) * piecesPerPackage * item.packageQuantity),
+      lineDiscount: money(
+        Math.max(0, money(basePricePerPiece * piecesPerPackage, currency) - unitPrice) * item.packageQuantity,
+        currency,
+      ),
     });
   }
-  return { priced, currency: seller?.currency || null };
+  return { priced, currency };
 }
 
 export async function createDistributorOrderHandler(request: NextRequest) {
@@ -376,7 +388,9 @@ export async function createDistributorOrderHandler(request: NextRequest) {
   const assignedLogistics = clip(body.assignedLogistics, 120);
   const trackingNumber = clip(body.trackingNumber, 80);
   const deliveryNote = clip(body.deliveryNote, 1000);
-  const pod = clip(body.pod, 500);
+  const podRaw = clip(body.pod, 2048);
+  const pod =
+    deliveryMethod === 'Seller/Distributor Delivery' && podRaw ? podRaw : '';
 
   if (!buyerId || !contactPerson || !contactPhone || !storeName || !deliveryAddress) {
     return NextResponse.json(
@@ -479,10 +493,14 @@ export async function createDistributorOrderHandler(request: NextRequest) {
     );
   }
   const priced = pricedResult.priced;
+  const currency = pricedResult.currency || 'IDR';
 
-  const subtotal = money(priced.reduce((sum, line) => sum + line.subtotal, 0));
+  const subtotal = money(
+    priced.reduce((sum, line) => sum + line.subtotal, 0),
+    currency,
+  );
   const totalOrders = priced.reduce((sum, line) => sum + line.packageQuantity, 0);
-  const totalAmount = money(subtotal + shippingFee);
+  const totalAmount = money(subtotal + shippingFee, currency);
   const now = new Date();
 
   let orderId = '';
@@ -605,7 +623,10 @@ export async function updateDistributorOrderHandler(userId: number, body: Record
   const assignedLogistics = clip(body.assignedLogistics, 120);
   const trackingNumber = clip(body.trackingNumber, 80);
   const deliveryNote = clip(body.deliveryNote, 1000);
-  const pod = clip(body.pod, 500);
+  // Cloudinary secure URLs can exceed 500 chars; keep enough room for query params.
+  const podRaw = clip(body.pod, 2048);
+  const pod =
+    deliveryMethod === 'Seller/Distributor Delivery' && podRaw ? podRaw : '';
 
   if (!orderId || !buyerId || !contactPerson || !contactPhone || !storeName || !deliveryAddress) {
     return NextResponse.json({ error: 'Client, contact, store, and delivery address are required', code: 'invalid' }, { status: 400, headers });
@@ -727,7 +748,21 @@ export async function updateDistributorOrderHandler(userId: number, body: Record
     );
   };
 
+  const sellerCurrency =
+    (
+      await prisma.user.findUnique({
+        where: { id: userId },
+        select: { currency: true },
+      })
+    )?.currency || 'IDR';
+
+  const packagePriceNeedsRounding = existing.orderItemsRel.some((row) => {
+    const stored = decimalToNumber(row.pricePerPackage);
+    return Math.abs(stored - money(stored, sellerCurrency)) > 0.0001;
+  });
+
   const sameLines =
+    !packagePriceNeedsRounding &&
     existing.buyerId === buyerId &&
     existing.orderItemsRel.length === items.length &&
     items.every((item) =>
@@ -755,8 +790,14 @@ export async function updateDistributorOrderHandler(userId: number, body: Record
     );
   }
   const priced = pricedResult && 'priced' in pricedResult ? pricedResult.priced : null;
-  const subtotal = priced ? money(priced.reduce((sum, line) => sum + line.subtotal, 0)) : money(decimalToNumber(existing.subtotal));
-  const discounts = priced ? 0 : money(decimalToNumber(existing.discounts));
+  const currency = (pricedResult && 'currency' in pricedResult ? pricedResult.currency : null) || sellerCurrency;
+  const subtotal = priced
+    ? money(
+        priced.reduce((sum, line) => sum + line.subtotal, 0),
+        currency,
+      )
+    : money(decimalToNumber(existing.subtotal), currency);
+  const discounts = priced ? 0 : money(decimalToNumber(existing.discounts), currency);
   const totalOrders = priced
     ? priced.reduce((sum, line) => sum + line.packageQuantity, 0)
     : items.reduce((sum, item) => sum + item.packageQuantity, 0);
@@ -827,7 +868,7 @@ export async function updateDistributorOrderHandler(userId: number, body: Record
         subtotal,
         discounts,
         shippingFee,
-        totalAmount: money(subtotal + shippingFee - discounts),
+        totalAmount: money(subtotal + shippingFee - discounts, currency),
         paymentTerms,
         totalOrders,
         contactPerson,

@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ChevronDown, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Loader2, Plus, Search, Trash2 } from 'lucide-react';
 import MapComponent from '@/components/ordershipment/MapComponent';
 import { useOrdersTranslations } from '@/hooks/useOrdersTranslations';
 import { useUserStore } from '@/store/userStore';
@@ -15,6 +15,7 @@ import { geocodeAddress, type MapCoordinates } from '@/utils/mapboxUtils';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { SkeletonOrderForm } from '@/components/skeleton/SkeletonOrderForm';
 import { calculateOrderItemPromotion } from '@/utils/promotionUtils';
+import { roundMoney } from '@/utils/priceAnchorUtils';
 
 const DELIVERY_METHODS = ['Self Pickup', 'Seller/Distributor Delivery', 'Buyer-arranged Courier'] as const;
 const ORDER_STATUSES = ['Pending', 'Confirmed', 'Packed', 'Shipped', 'Delivered', 'Received', 'Failed', 'Cancelled', 'Returned'] as const;
@@ -454,6 +455,7 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
   const [deliveryNote, setDeliveryNote] = useState('');
   const [pod, setPod] = useState('');
   const [podFileName, setPodFileName] = useState('');
+  const [podUploading, setPodUploading] = useState(false);
   const [lines, setLines] = useState<Line[]>([blankLine(1)]);
   const [nextKey, setNextKey] = useState(2);
   const [saving, setSaving] = useState(false);
@@ -822,6 +824,10 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
         ? preview.unit * piecesPerPackage
         : line.savedUnit ?? 0;
     const freeItems = Math.max(0, Number.parseInt(line.freeItems, 10) || 0);
+    // Round package unit to currency minor units so IDR does not show
+    // Rp181.200 × 9 as Rp1.630.799 from piece↔package float leftovers.
+    const unitRounded = roundMoney(unit, currency);
+    const listRounded = roundMoney(listUnit, currency);
     return {
       line,
       product,
@@ -829,20 +835,23 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
       qty,
       preview,
       liveOffer,
-      unit,
-      listUnit,
+      unit: unitRounded,
+      listUnit: listRounded,
       keepSaved,
       piecesPerPackage,
       freeItems,
-      subtotal: unit * qty,
+      subtotal: roundMoney(unitRounded * qty, currency),
     };
   });
 
-  const subtotal = pricedLines.reduce((sum, row) => sum + row.subtotal, 0);
-  const shipping = parseNumberByCurrency(shippingFee || '0', currency) || 0;
+  const subtotal = roundMoney(
+    pricedLines.reduce((sum, row) => sum + row.subtotal, 0),
+    currency,
+  );
+  const shipping = roundMoney(parseNumberByCurrency(shippingFee || '0', currency) || 0, currency);
   // Order item package prices are already net of client offers. Do not subtract
   // order.discounts again or the edit total double-counts the same discount.
-  const total = Math.max(0, subtotal + (Number.isFinite(shipping) ? shipping : 0));
+  const total = Math.max(0, roundMoney(subtotal + (Number.isFinite(shipping) ? shipping : 0), currency));
   const recordNett = isCodPaymentTerms(paymentTerms) || isBankTransferPaymentTerms(paymentTerms);
   const paidAmount = Math.min(total, Math.max(0, Math.round((parseNumberByCurrency(paidInput || '0', currency) || 0) * 100) / 100));
   const unpaidAmount = Math.max(0, Math.round((total - paidAmount) * 100) / 100);
@@ -946,17 +955,35 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
 
   async function uploadPod(file: File) {
     setPodFileName(file.name);
+    setPodUploading(true);
+    setError('');
     try {
-      const result = await uploadToCloudinaryDirect(file, 'orders/pod');
-      if (result.success && result.url) setPod(result.url);
-      else throw new Error(result.error || 'Upload failed');
+      // Upload allowlist uses exact names (`pod`); `orders/pod` is rejected and remapped.
+      const result = await uploadToCloudinaryDirect(file, 'pod');
+      if (result.success && result.url) {
+        setPod(result.url);
+        return;
+      }
+      setPodFileName('');
+      throw new Error(result.error || 'Upload failed');
     } catch (uploadError) {
-      setError(tDetails('alerts.podUploadFailed', { error: uploadError instanceof Error ? uploadError.message : tCreate('saveFailed') }));
+      setPodFileName('');
+      setError(
+        tDetails('alerts.podUploadFailed', {
+          error: uploadError instanceof Error ? uploadError.message : tCreate('saveFailed'),
+        }),
+      );
+    } finally {
+      setPodUploading(false);
     }
   }
 
   async function save() {
     setError('');
+    if (podUploading) {
+      setError(tDetails('editModal.podUploading'));
+      return;
+    }
     if (!buyerId) {
       setError(tCreate('needClient'));
       return;
@@ -1007,7 +1034,8 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
       assignedLogistics: deliveryMethod === 'Seller/Distributor Delivery' ? joinAssignedLogistics(logisticsMode, logisticsVendor) : null,
       trackingNumber: deliveryMethod === 'Seller/Distributor Delivery' ? trackingNumber.trim() : '',
       deliveryNote: deliveryNote.trim(),
-      pod: pod || null,
+      // POD only applies to seller/distributor delivery (cleared for pickup/courier).
+      pod: deliveryMethod === 'Seller/Distributor Delivery' ? pod || null : null,
     };
 
     setSaving(true);
@@ -1568,41 +1596,96 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
                 <label className={labelClass}>{tCreate('deliveryNote')}</label>
                 <textarea className={inputClass} rows={3} value={deliveryNote} onChange={(event) => setDeliveryNote(event.target.value)} placeholder={tDetails('editModal.placeholders.deliveryNote')} />
               </div>
-              {POD_STATUSES.includes(orderStatus) && (
+              {deliveryMethod === 'Seller/Distributor Delivery' &&
+                POD_STATUSES.includes(orderStatus) && (
                 <div className="sm:col-span-2">
                   <label className={labelClass}>{tDetails('editModal.labels.pod')}</label>
                   <div
-                    className="cursor-pointer rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-center"
+                    className={`rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-center ${
+                      podUploading || pod || podFileName ? 'cursor-default' : 'cursor-pointer'
+                    }`}
                     onDragOver={(event) => {
                       event.preventDefault();
                       event.stopPropagation();
                     }}
                     onDrop={(event) => {
                       event.preventDefault();
+                      if (podUploading || pod || podFileName) return;
                       const file = event.dataTransfer.files?.[0];
                       if (file) void uploadPod(file);
                     }}
-                    onClick={() => document.getElementById('order-pod-input')?.click()}
+                    onClick={() => {
+                      if (pod || podFileName || podUploading) return;
+                      document.getElementById('order-pod-input')?.click();
+                    }}
                     role="button"
+                    aria-busy={podUploading}
                     aria-label={tDetails('editModal.podUploadAria')}
                   >
-                    <input id="order-pod-input" type="file" accept="image/*,application/pdf" className="hidden" onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      if (file) void uploadPod(file);
-                    }} />
-                    <div className="text-xs text-gray-600">
-                      {podFileName ? (
-                        <span className="font-medium">{tDetails('editModal.podSelected', { fileName: podFileName })}</span>
-                      ) : pod ? (
-                        <span className="font-medium">{tDetails('editModal.podExisting')}</span>
-                      ) : (
-                        <>
-                          <span className="font-medium text-gray-700">{tDetails('editModal.podDragDrop')}</span> {tDetails('editModal.podDragDropSuffix')} <span className="font-semibold text-[#0a61d7]">{tDetails('editModal.podBrowse')}</span>
-                        </>
-                      )}
-                    </div>
-                    <p className="mt-1 text-[10px] text-gray-500">{tDetails('editModal.podAcceptedFormats')}</p>
+                    <input
+                      id="order-pod-input"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      className="hidden"
+                      disabled={podUploading}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) void uploadPod(file);
+                        event.target.value = '';
+                      }}
+                    />
+                    {podUploading ? (
+                      <div className="flex flex-col items-center gap-2 text-xs text-gray-600">
+                        <Loader2 className="h-5 w-5 animate-spin text-[#0a61d7]" aria-hidden />
+                        <span className="font-medium text-[#0a61d7]">
+                          {tDetails('editModal.podUploadingProgress')}
+                        </span>
+                        {podFileName ? (
+                          <span className="text-[10px] text-gray-500">{podFileName}</span>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <>
+                        <div className="text-xs text-gray-600">
+                          {podFileName ? (
+                            <span className="font-medium">{tDetails('editModal.podSelected', { fileName: podFileName })}</span>
+                          ) : pod ? (
+                            <span className="font-medium">{tDetails('editModal.podExisting')}</span>
+                          ) : (
+                            <>
+                              <span className="font-medium text-gray-700">{tDetails('editModal.podDragDrop')}</span> {tDetails('editModal.podDragDropSuffix')} <span className="font-semibold text-[#0a61d7]">{tDetails('editModal.podBrowse')}</span>
+                            </>
+                          )}
+                        </div>
+                        <p className="mt-1 text-[10px] text-gray-500">{tDetails('editModal.podAcceptedFormats')}</p>
+                      </>
+                    )}
                   </div>
+                  {(pod || podFileName) && !podUploading ? (
+                    <div className="mt-2 flex flex-wrap items-center gap-3">
+                      {pod ? (
+                        <a
+                          href={pod}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs font-medium text-[#0a61d7] underline underline-offset-2 hover:text-[#084ba6]"
+                        >
+                          {tDetails('pod.view')}
+                        </a>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="text-xs font-semibold text-red-600 underline underline-offset-2 hover:text-red-700"
+                        onClick={() => {
+                          setPod('');
+                          setPodFileName('');
+                          setError('');
+                        }}
+                      >
+                        {tDetails('editModal.podRemove')}
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               )}
             </div>
@@ -1611,7 +1694,7 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
               <button
                 type="button"
                 onClick={() => void save()}
-                disabled={saving || loading || orderLoading}
+                disabled={saving || loading || orderLoading || podUploading}
                 className="w-full rounded-lg bg-[#0a61d7] px-4 py-2 text-sm font-semibold text-white hover:bg-[#084ba6] disabled:opacity-60 @4xl/main:w-auto"
               >
                 {saving ? tCreate('saving') : editing ? tCreate('saveChanges') : tCreate('save')}

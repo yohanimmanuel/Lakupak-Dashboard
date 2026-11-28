@@ -22,6 +22,7 @@ import { useOrdersTranslations } from '@/hooks/useOrdersTranslations';
 
 /** Statuses where POD is shown and can be edited — distributor delivery records after handoff */
 const POD_TRACKING_STATUSES = ['Delivered', 'Received', 'Returned'] as const;
+const SELLER_DISTRIBUTOR_DELIVERY = 'Seller/Distributor Delivery';
 
 function displayAssignedLogistics(value: string, t: (key: string) => string): string {
   const trimmed = value.trim();
@@ -99,6 +100,8 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
     pod: source.pod || '',
   });
   const [committedFields] = useState(() => buildEditFields(orderWithDuration));
+  const isSellerDistributorDelivery =
+    (committedFields.deliveryMethod || order.deliveryMethod || '') === SELLER_DISTRIBUTOR_DELIVERY;
   const [showPodPreview, setShowPodPreview] = useState(false);
   const [localItems, setLocalItems] = useState(order.orderItems);
   const [setPriceError, setSetPriceError] = useState<string | null>(null);
@@ -1077,7 +1080,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         </div>
                       )}
 
-                    {committedFields.pod && (
+                    {isSellerDistributorDelivery && committedFields.pod && (
                       <div className="mt-4 pt-4 border-t border-gray-200">
                         <div className="text-sm font-semibold text-black mb-2">{tDetails('pod.title')}</div>
                         {String(committedFields.pod).startsWith('data:') ? (
@@ -1100,7 +1103,8 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         )}
                       </div>
                     )}
-                    {!committedFields.pod &&
+                    {isSellerDistributorDelivery &&
+                      !committedFields.pod &&
                       (POD_TRACKING_STATUSES as readonly string[]).includes(orderStatus) && (
                         <div className="mt-4 pt-4 border-t border-dashed border-gray-200 text-xs text-gray-600">
                           {tDetails.rich('pod.missingInline', {
@@ -1114,6 +1118,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               }
 
               if (
+                isSellerDistributorDelivery &&
                 committedFields.pod &&
                 !(
                   (order.returnRequests && order.returnRequests.length > 0) ||
@@ -1146,6 +1151,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               }
 
               if (
+                isSellerDistributorDelivery &&
                 !committedFields.pod &&
                 (POD_TRACKING_STATUSES as readonly string[]).includes(orderStatus)
               ) {
@@ -1232,26 +1238,21 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                         qty: item.packageQuantity || 1,
                       })}
                       {item.offerApplied && item.promotionDetailsSnapshot && (() => {
-                        // Only show promotion details if available
                         try {
                           const promoDetails = JSON.parse(item.promotionDetailsSnapshot);
-                          if (promoDetails.minQuantity && promoDetails.freeQuantity) {
-                            // Extract MOQ from promotion details (same as Marketplace)
-                            const moq = promoDetails.moq || item.moqSnapshot || null;
-                            const promotionGift = calculateOrderItemPromotion(
-                              promoDetails,
-                              item.packageQuantity || 1,
-                              item.piecesPerPackage || 1,
-                              moq
-                            );
-                            return promotionGift ? (
-                              <span className="font-bold text-purple-600"> {tDetails('orderItems.freePieces', { count: promotionGift.freeQty })}</span>
-                            ) : '';
-                          }
+                          const moq = promoDetails.moq || item.moqSnapshot || null;
+                          const promotionGift = calculateOrderItemPromotion(
+                            promoDetails,
+                            item.packageQuantity || 1,
+                            item.piecesPerPackage || 1,
+                            moq
+                          );
+                          return promotionGift?.freeQty ? (
+                            <span className="font-bold text-purple-600"> {tDetails('orderItems.freePieces', { count: promotionGift.freeQty })}</span>
+                          ) : '';
                         } catch {
-                          // Invalid JSON, skip
+                          return '';
                         }
-                        return '';
                       })()}
                     </p>
                   </div>
@@ -1320,16 +1321,14 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                     if (item.offerApplied && item.promotionDetailsSnapshot) {
                       try {
                         const promoDetails = JSON.parse(item.promotionDetailsSnapshot);
-                        if (promoDetails.minQuantity && promoDetails.freeQuantity) {
-                          const moq = promoDetails.moq || item.moqSnapshot || null;
-                          const promotionGift = calculateOrderItemPromotion(
-                            promoDetails,
-                            item.packageQuantity || 1,
-                            item.piecesPerPackage || 1,
-                            moq
-                          );
-                          return total + (promotionGift?.freeQty || 0);
-                        }
+                        const moq = promoDetails.moq || item.moqSnapshot || null;
+                        const promotionGift = calculateOrderItemPromotion(
+                          promoDetails,
+                          item.packageQuantity || 1,
+                          item.piecesPerPackage || 1,
+                          moq
+                        );
+                        return total + (promotionGift?.freeQty || 0);
                       } catch {
                         // Invalid JSON, skip
                       }
@@ -1374,26 +1373,21 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                       <td className="py-2">
                         {item.packageQuantity || 1}
                         {item.offerApplied && item.promotionDetailsSnapshot && (() => {
-                          // Only show promotion details if available
                           try {
                             const promoDetails = JSON.parse(item.promotionDetailsSnapshot);
-                            if (promoDetails.minQuantity && promoDetails.freeQuantity) {
-                              // Extract MOQ from promotion details (same as Marketplace)
-                              const moq = promoDetails.moq || item.moqSnapshot || null;
-                              const promotionGift = calculateOrderItemPromotion(
-                                promoDetails,
-                                item.packageQuantity || 1,
-                                item.piecesPerPackage || 1,
-                                moq
-                              );
-                              return promotionGift ? (
-                                <span className="font-bold text-purple-600"> {tDetails('orderItems.freePieces', { count: promotionGift.freeQty })}</span>
-                              ) : '';
-                            }
+                            const moq = promoDetails.moq || item.moqSnapshot || null;
+                            const promotionGift = calculateOrderItemPromotion(
+                              promoDetails,
+                              item.packageQuantity || 1,
+                              item.piecesPerPackage || 1,
+                              moq
+                            );
+                            return promotionGift?.freeQty ? (
+                              <span className="font-bold text-purple-600"> {tDetails('orderItems.freePieces', { count: promotionGift.freeQty })}</span>
+                            ) : '';
                           } catch {
-                            // Invalid JSON, skip
+                            return '';
                           }
-                          return '';
                         })()}
                       </td>
                       <td className="py-2">{Math.max(1, Number(item.piecesPerPackage) || 1)}</td>
@@ -1531,24 +1525,21 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                           qty: item.packageQuantity || 1,
                         })}
                         {item.offerApplied && item.promotionDetailsSnapshot && (() => {
-                          // Only show promotion details if available
                           try {
                             const promoDetails = JSON.parse(item.promotionDetailsSnapshot);
-                            if (promoDetails.minQuantity && promoDetails.freeQuantity) {
-                              // Extract MOQ from promotion details (same as Marketplace)
-                              const moq = promoDetails.moq || item.moqSnapshot || null;
-                              const promotionGift = calculateOrderItemPromotion(
-                                promoDetails,
-                                item.packageQuantity || 1,
-                                item.piecesPerPackage || 1,
-                                moq
-                              );
-                              return promotionGift ? tDetails('orderItems.freePieces', { count: promotionGift.freeQty }) : '';
-                            }
+                            const moq = promoDetails.moq || item.moqSnapshot || null;
+                            const promotionGift = calculateOrderItemPromotion(
+                              promoDetails,
+                              item.packageQuantity || 1,
+                              item.piecesPerPackage || 1,
+                              moq
+                            );
+                            return promotionGift?.freeQty
+                              ? tDetails('orderItems.freePieces', { count: promotionGift.freeQty })
+                              : '';
                           } catch {
-                            // Invalid JSON, skip
+                            return '';
                           }
-                          return '';
                         })()}
                       </p>
                       

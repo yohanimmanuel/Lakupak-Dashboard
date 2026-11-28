@@ -17,6 +17,13 @@ export function getCurrencyPriceDecimals(currency: string): number {
   return typeof max === 'number' && Number.isFinite(max) ? Math.max(0, max) : 2;
 }
 
+/** Round a package/line/order amount to the currency's minor units. */
+export function roundMoney(value: number, currency?: string | null): number {
+  const decimals = getCurrencyPriceDecimals(currency || 'IDR');
+  const factor = 10 ** decimals;
+  return Math.round(Math.max(0, Number(value) || 0) * factor) / factor;
+}
+
 /** Re-express a price from one package anchor to another without changing its per-piece value. */
 export function scaleAnchoredPrice(
   raw: unknown,
