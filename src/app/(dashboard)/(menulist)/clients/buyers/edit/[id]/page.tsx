@@ -37,6 +37,7 @@ const BUYER_QUERY = `
       logistics
       notes
       orderDetails
+      returnDetails
       orderLineDetails
       avgMonthlySpending
       avgMonthlyOrders

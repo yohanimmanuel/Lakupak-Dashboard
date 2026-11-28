@@ -256,6 +256,9 @@ export async function updateOrderHandler(request: NextRequest) {
     }
     // Owner id every operation must be scoped to (null = unrestricted platform admin).
     const ownerScopeUserId: number | null = isPlatformAdmin ? null : (authenticatedUserId ?? null);
+    // Accepting a return moves the order to Returned, but inventory is restored
+    // only when the distributor confirms physical receipt of the returned items.
+    let skipFullStockRestoreForReturnAccept = false;
 
     if (body.bulkOrderStatus === true) {
       return updateOrdersStatusBulk(
@@ -403,7 +406,7 @@ export async function updateOrderHandler(request: NextRequest) {
         // Verify ownership: the caller must own the order linked to this return request
         const existingReturnRequest = await prisma.orderReturnRequest.findUnique({
           where: { id },
-          include: { order: true },
+          include: { order: true, items: true },
         });
 
         if (!existingReturnRequest) {
@@ -418,17 +421,79 @@ export async function updateOrderHandler(request: NextRequest) {
           return NextResponse.json({ error: 'Forbidden: you do not own this order' }, { status: 403, headers: localHeaders });
         }
 
+        const creditFromItems = existingReturnRequest.items.reduce(
+          (sum, item) => sum + decimalToNumber(item.lineCreditAmount),
+          0,
+        );
+        const creditAmount =
+          existingReturnRequest.creditAmount != null
+            ? decimalToNumber(existingReturnRequest.creditAmount)
+            : creditFromItems;
+
         const rr = await prisma.orderReturnRequest.update({
           where: { id },
-          data: { status },
+          data: {
+            status,
+            ...(status === 'Accepted' && creditAmount > 0 ? { creditAmount } : {}),
+          },
+          include: { items: true },
         });
+
+        if (status === 'Accepted' && creditAmount > 0) {
+          await prisma.order.update({
+            where: { orderId: rr.orderId },
+            data: { returnCreditAmount: creditAmount },
+          });
+        }
+
+        // CRM return history is written on Accept (not on confirm-received).
+        // Physical receipt and inventory restock are separate later steps.
+        if (status === 'Accepted' && rr.items.length > 0) {
+          try {
+            const {
+              resolveBuyerRefIdForOrder,
+              syncBuyerReturnRecordsFromRequest,
+            } = await import('@/lib/clients/buyerReturnRecords');
+            const buyerRefId = await resolveBuyerRefIdForOrder(prisma, {
+              buyerId: existingReturnRequest.order.buyerId,
+              userId: existingReturnRequest.order.userId,
+            });
+            if (buyerRefId != null) {
+              await syncBuyerReturnRecordsFromRequest(prisma, {
+                buyerRefId,
+                orderNo: rr.orderId,
+                returnRequestId: rr.id,
+                reason: rr.reason ?? null,
+                returnedAt: new Date(),
+                items: rr.items.map((item) => ({
+                  returnRequestItemId: item.id,
+                  productNameSnapshot: item.productNameSnapshot,
+                  productId: item.productId,
+                  productSkuSnapshot: item.productSkuSnapshot,
+                  variantNameSnapshot: item.variantNameSnapshot,
+                  packageType: item.packageType,
+                  piecesPerPackage: item.piecesPerPackage,
+                  quantityReturned: item.quantityReturned,
+                  lineCreditAmount: decimalToNumber(item.lineCreditAmount),
+                })),
+              });
+            } else {
+              console.error(
+                '[buyerReturnRecords] skip sync on accept: buyer profile not found',
+                rr.orderId,
+              );
+            }
+          } catch (err) {
+            console.error('[buyerReturnRecords] sync on accept failed', err);
+          }
+        }
 
         auditOrder(request, {
           action: 'return_decision',
           resourceId: rr.orderId,
           actorId: body.userId && !isNaN(Number(body.userId)) ? Number(body.userId) : null,
           actorType: 'dashboard',
-          metadata: { returnRequestId: id, decision: status },
+          metadata: { returnRequestId: id, decision: status, creditAmount },
         });
 
         // Delegate order state change to the unified orderStatus flow below
@@ -439,6 +504,10 @@ export async function updateOrderHandler(request: NextRequest) {
           body.returnedAt = new Date().toISOString();
           body.returnReason = rr.reason ?? null;
           body.returnReasonDetail = rr.reasonDetail ?? null;
+          // Accept never marks physical receipt or restores inventory.
+          delete body.returnItemsReceivedAt;
+          delete body.confirmReturnItemsReceived;
+          skipFullStockRestoreForReturnAccept = true;
         }
 
         // Rejection does not change Order.orderStatus, so the buyer push block below never runs.
@@ -469,7 +538,9 @@ export async function updateOrderHandler(request: NextRequest) {
       try {
         const existing = await prisma.order.findUnique({
           where: { orderId },
-          include: { returnRequests: true },
+          include: {
+            returnRequests: { select: { status: true } },
+          },
         });
 
         if (!existing) {
@@ -488,53 +559,54 @@ export async function updateOrderHandler(request: NextRequest) {
           return NextResponse.json({ error: 'Order is not in Returned status' }, { status: 400, headers: localHeaders });
         }
 
+        const acceptedRequests = (existing.returnRequests ?? []).filter((rr) => rr.status === 'Accepted');
         const hasAcceptedReturn =
-          existing.returnStatus === 'Accepted' ||
-          (existing.returnRequests ?? []).some((rr) => rr.status === 'Accepted');
+          existing.returnStatus === 'Accepted' || acceptedRequests.length > 0;
         if (!hasAcceptedReturn) {
           return NextResponse.json({ error: 'No accepted return request for this order' }, { status: 400, headers: localHeaders });
         }
 
-        const confirmedAt = new Date();
-        const result = await prisma.order.updateMany({
-          where: {
-            orderId,
-            returnItemsReceivedAt: null,
-            orderStatus: 'Returned',
-            ...(existing.fleetId ? { returnCollectedAt: { not: null } } : {}),
-          },
-          data: { returnItemsReceivedAt: confirmedAt },
-        });
-        if (result.count === 0) {
-          const current = await prisma.order.findUnique({
-            where: { orderId },
-            select: {
-              orderStatus: true,
-              returnItemsReceivedAt: true,
-              fleetId: true,
-              returnCollectedAt: true,
-            },
-          });
-          if (!current || current.orderStatus !== 'Returned') {
-            return NextResponse.json(
-              { error: 'Order is not in Returned status' },
-              { status: 400, headers: localHeaders },
-            );
-          }
-          if (current.fleetId && !current.returnCollectedAt) {
-            return NextResponse.json(
-              { error: 'Driver has not collected return items yet' },
-              { status: 400, headers: localHeaders },
-            );
-          }
+        if (existing.fleetId && !existing.returnCollectedAt) {
+          return NextResponse.json(
+            { error: 'Driver has not collected return items yet' },
+            { status: 400, headers: localHeaders },
+          );
+        }
+        if (existing.returnItemsReceivedAt) {
           return NextResponse.json(
             { error: 'Return items already confirmed received' },
             { status: 400, headers: localHeaders },
           );
         }
-        const updated = await prisma.order.findUniqueOrThrow({
-          where: { orderId },
-        });
+
+        // Confirm receipt only — inventory restock is decided later in BuyerModal.
+        const confirmedAt = new Date();
+        let updated;
+        try {
+          updated = await runOrderTransaction(async (tx) => {
+            const result = await tx.order.updateMany({
+              where: {
+                orderId,
+                returnItemsReceivedAt: null,
+                orderStatus: 'Returned',
+                ...(existing.fleetId ? { returnCollectedAt: { not: null } } : {}),
+              },
+              data: { returnItemsReceivedAt: confirmedAt },
+            });
+            if (result.count === 0) {
+              throw new OrderStatusConflictError('Return items already confirmed received');
+            }
+            return tx.order.findUniqueOrThrow({ where: { orderId } });
+          });
+        } catch (error) {
+          if (error instanceof OrderStatusConflictError) {
+            return NextResponse.json(
+              { error: error.message },
+              { status: 400, headers: localHeaders },
+            );
+          }
+          throw error;
+        }
 
         const marketplaceUserId = parseMarketplaceUserIdFromBuyerId(updated.buyerId);
         if (marketplaceUserId != null) {
@@ -1095,7 +1167,12 @@ export async function updateOrderHandler(request: NextRequest) {
 
               // Restore the old reservation when leaving a deducted state OR when
               // replacing lines on an order that already has deducted inventory.
-              if (!wasNotDeducted && (willBeNotDeducted || itemsWereReplaced)) {
+              // Return accept → Returned defers restore until confirm-received.
+              const deferReturnRestock =
+                skipFullStockRestoreForReturnAccept &&
+                nextStatus === 'Returned' &&
+                !itemsWereReplaced;
+              if (!wasNotDeducted && (willBeNotDeducted || itemsWereReplaced) && !deferReturnRestock) {
                 for (const item of previousItems) if (item.productId) stockAffectedProductIds.add(item.productId);
                 stockNotificationJobs.push(...(await restoreStockForOrderItems(tx, previousItems)));
               }

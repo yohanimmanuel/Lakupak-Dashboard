@@ -5,8 +5,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import * as XLSX from 'xlsx';
 import { useUserStore } from '@/store/userStore';
-import { Buyer, BuyerFormData, OrderDetail } from '@/types/client';
+import { Buyer, BuyerFormData, OrderDetail, ReturnDetail } from '@/types/client';
 import { generateSecureBuyerId } from '@/utils/buyer-security';
+import { formatDate } from '@/utils/dateUtils';
 import {
   validateOptionalEmail,
   validateRequiredPhone,
@@ -21,7 +22,7 @@ import ImportOrdersModal from '@/components/clientmanagement/ImportOrdersModal';
 import ClientCatalogSelect from '@/components/clientmanagement/ClientCatalogSelect';
 import ImportSelectionCheckbox from '@/components/clientmanagement/ImportSelectionCheckbox';
 import MapComponent from '@/components/ordershipment/MapComponent';
-import { getDefaultCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
+import { formatCurrency, getDefaultCurrency, getCurrencySymbol } from '@/utils/currencyUtils';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { fetchGraphQL } from '@/lib/graphqlClient';
 import { calculatePromotionGift } from '@/utils/promotionUtils';
@@ -267,6 +268,158 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
   useEffect(() => {
     if (orderPage !== safeOrderPage) setOrderPage(safeOrderPage);
   }, [orderPage, safeOrderPage]);
+
+  const parseReturnDetails = useCallback((raw: string | null | undefined): ReturnDetail[] => {
+    if (!raw) return [];
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .map((row): ReturnDetail | null => {
+          if (!row || typeof row !== 'object') return null;
+          const r = row as Record<string, unknown>;
+          const decision =
+            r.stockDecision === 'restocked' || r.stockDecision === 'skipped'
+              ? r.stockDecision
+              : null;
+          const updateStock =
+            typeof r.updateStock === 'boolean' ? r.updateStock : decision === 'restocked';
+          return {
+            id: typeof r.id === 'number' ? r.id : undefined,
+            orderNo: String(r.orderNo || ''),
+            returnRequestId: typeof r.returnRequestId === 'number' ? r.returnRequestId : undefined,
+            product: String(r.product || ''),
+            productId: r.productId != null ? String(r.productId) : undefined,
+            sku: r.sku != null ? String(r.sku) : undefined,
+            variantName: r.variantName != null ? String(r.variantName) : undefined,
+            stockType: r.stockType != null ? String(r.stockType) : undefined,
+            piecesPerPackage:
+              typeof r.piecesPerPackage === 'number' ? r.piecesPerPackage : undefined,
+            quantityReturned: Number(r.quantityReturned) || 0,
+            lineCreditAmount: Number(r.lineCreditAmount) || 0,
+            reason: r.reason != null ? String(r.reason) : undefined,
+            returnedAt: r.returnedAt != null ? String(r.returnedAt) : undefined,
+            stockDecision: decision,
+            stockDecidedAt: r.stockDecidedAt != null ? String(r.stockDecidedAt) : undefined,
+            // Same as supplier updateCurrentStock: checkbox intent only until Save.
+            updateStock,
+          };
+        })
+        .filter((row): row is ReturnDetail => row !== null)
+        .sort((a, b) => {
+          const ta = a.returnedAt ? new Date(a.returnedAt).getTime() : 0;
+          const tb = b.returnedAt ? new Date(b.returnedAt).getTime() : 0;
+          return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
+        });
+    } catch {
+      return [];
+    }
+  }, []);
+
+  const [returnRows, setReturnRows] = useState<ReturnDetail[]>(() =>
+    parseReturnDetails(initialData?.returnDetails),
+  );
+  const returnStockEpochRef = useRef(0);
+
+  useEffect(() => {
+    setReturnRows(parseReturnDetails(initialData?.returnDetails));
+  }, [initialData?.returnDetails, parseReturnDetails]);
+
+  // Backfill CRM return rows for accepted returns that never synced (e.g. older accepts).
+  useEffect(() => {
+    if (!isEditMode || !initialData?.buyerId) return;
+    let cancelled = false;
+    const epochAtStart = returnStockEpochRef.current;
+    void (async () => {
+      try {
+        const res = await fetch('/api/buyers/return-records-sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ buyerId: initialData.buyerId }),
+        });
+        if (!res.ok || cancelled) return;
+        const data = await res.json().catch(() => null);
+        if (!data?.returnDetails || !Array.isArray(data.returnDetails) || cancelled) return;
+        if (returnStockEpochRef.current !== epochAtStart) return;
+        setReturnRows((prev) => {
+          const incoming = parseReturnDetails(JSON.stringify(data.returnDetails));
+          return incoming.map((row) => {
+            const local = prev.find((p) => p.id != null && p.id === row.id);
+            // Preserve checkbox intent the user already toggled before sync returned.
+            if (local && typeof local.updateStock === 'boolean') {
+              return {
+                ...row,
+                updateStock: local.updateStock,
+                stockDecision: local.stockDecision ?? row.stockDecision,
+                stockDecidedAt: local.stockDecidedAt ?? row.stockDecidedAt,
+              };
+            }
+            return row;
+          });
+        });
+      } catch {
+        // best-effort backfill
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isEditMode, initialData?.buyerId, parseReturnDetails]);
+
+  const returnRowsPerPage = 8;
+  const [returnPage, setReturnPage] = useState(1);
+  const totalReturnPages = Math.max(1, Math.ceil(returnRows.length / returnRowsPerPage));
+  const safeReturnPage = Math.min(returnPage, totalReturnPages);
+  const returnPageStart = (safeReturnPage - 1) * returnRowsPerPage;
+  const returnPageEnd = Math.min(returnPageStart + returnRowsPerPage, returnRows.length);
+
+  useEffect(() => {
+    if (returnPage !== safeReturnPage) setReturnPage(safeReturnPage);
+  }, [returnPage, safeReturnPage]);
+
+  /** Apply return-stock checkbox intents on Save only (supplier updateCurrentStock pattern). */
+  const applyReturnStockOnSave = useCallback(async (): Promise<boolean> => {
+    const pending = returnRows.filter((row) => {
+      if (row.id == null) return false;
+      const wantUpdate = row.updateStock === true;
+      const alreadyRestocked = row.stockDecision === 'restocked';
+      return wantUpdate !== alreadyRestocked;
+    });
+    if (pending.length === 0) return true;
+
+    for (const row of pending) {
+      const decision = row.updateStock === true ? 'restocked' : 'skipped';
+      const res = await fetch('/api/buyers/return-stock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ returnRecordId: row.id, decision }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          typeof data.error === 'string' && data.error
+            ? data.error
+            : tBuyersModal('stockDecisionFailed'),
+        );
+      }
+    }
+
+    returnStockEpochRef.current += 1;
+    setReturnRows((prev) =>
+      prev.map((row) => {
+        const wantUpdate = row.updateStock === true;
+        const alreadyRestocked = row.stockDecision === 'restocked';
+        if (row.id == null || wantUpdate === alreadyRestocked) return row;
+        return {
+          ...row,
+          stockDecision: wantUpdate ? 'restocked' : 'skipped',
+          stockDecidedAt: new Date().toISOString(),
+          updateStock: wantUpdate,
+        };
+      }),
+    );
+    return true;
+  }, [returnRows, tBuyersModal]);
 
   // Enhanced state for production features
   const [saving, setSaving] = useState(false);
@@ -1060,6 +1213,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
               logistics
               notes
               orderDetails
+              returnDetails
               avgMonthlySpending
               avgMonthlyOrders
               userId
@@ -1089,6 +1243,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
       });
       
         savedBuyer = data.updateBuyer;
+        await applyReturnStockOnSave();
         onSave?.(savedBuyer as unknown as BuyerFormData);
       } else {
         const CREATE_BUYER_MUTATION = `
@@ -1141,6 +1296,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
               logistics
               notes
               orderDetails
+              returnDetails
               avgMonthlySpending
               avgMonthlyOrders
               userId
@@ -1169,6 +1325,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
         });
         
         savedBuyer = data.createBuyer;
+        await applyReturnStockOnSave();
         onSave?.(savedBuyer as unknown as BuyerFormData);
       }
 
@@ -1195,7 +1352,7 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
       setSaving(false);
       setIsSubmitting(false);
     }
-  }, [form, avatar, id, orderRows, isEditMode, initialData, user?.id, onSave, router, validateForm, handleError, isSubmitting, showSuccessModal, tBuyersModal, getBuyerProductStockLevels, getBuyerCalculatedSpend]);
+  }, [form, avatar, id, orderRows, returnRows, applyReturnStockOnSave, isEditMode, initialData, user?.id, onSave, router, validateForm, handleError, isSubmitting, showSuccessModal, tBuyersModal, getBuyerProductStockLevels, getBuyerCalculatedSpend]);
 
   // Enhanced file handling
   const handleFileUpload = useCallback(async (file: File) => {
@@ -1940,6 +2097,150 @@ export default function BuyerModal({ initialData, mode = 'add', onSave }: BuyerM
                   className="rounded-lg p-2 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
                   onClick={() => setOrderPage((page) => Math.min(totalOrderPages, page + 1))}
                   disabled={safeOrderPage === totalOrderPages}
+                  aria-label={tShared('nextPage')}
+                >
+                  <ChevronRight className="h-4 w-4 text-gray-500" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Return History — written when return is accepted; stock checkbox matches supplier supplies */}
+          <div className="my-2 border-t border-gray-200 pt-2">
+            <div className="mb-2">
+              <label className="block text-sm font-bold text-black">{tBuyersModal('returnSection')}</label>
+            </div>
+            <div className="overflow-x-auto rounded-lg border border-gray-200">
+              <table className="min-w-full text-xs font-medium text-left bg-white">
+                <thead>
+                  <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
+                    <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colNo')}</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colOrderNo')}</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colProduct')}</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colQtyReturned')}</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colReturnCredit')}</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colReturnReason')}</th>
+                    <th className="py-2 px-3 font-medium uppercase">{tBuyersModal('colReturnedAt')}</th>
+                    <th className="py-2 px-3 text-center font-medium uppercase">{tBuyersModal('colStockAction')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {returnRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-10 px-3 text-center text-sm text-gray-500">
+                        {tBuyersModal('noReturns')}
+                      </td>
+                    </tr>
+                  ) : (
+                    returnRows.slice(returnPageStart, returnPageEnd).map((row, visibleIndex) => {
+                      const idx = returnPageStart + visibleIndex;
+                      const stockChecked = row.updateStock === true;
+                      return (
+                        <tr key={`${row.id ?? 'r'}-${row.orderNo}-${idx}`} className="whitespace-nowrap border-b last:border-b-0">
+                          <td className="py-2 px-3 font-medium text-black">{idx + 1}</td>
+                          <td className="py-2 px-3 text-black">{row.orderNo || '—'}</td>
+                          <td className="py-2 px-3 text-black">
+                            <div className="font-medium">{row.product || '—'}</div>
+                            {row.variantName ? (
+                              <div className="text-[10px] text-gray-500">{row.variantName}</div>
+                            ) : null}
+                          </td>
+                          <td className="py-2 px-3 text-black">
+                            {row.quantityReturned} {row.stockType || 'Pieces'}
+                          </td>
+                          <td className="py-2 px-3 font-semibold text-[#0a61d7]">
+                            {formatCurrency(Number(row.lineCreditAmount) || 0, userCurrency)}
+                          </td>
+                          <td className="py-2 px-3 text-black max-w-[16rem] truncate" title={row.reason || undefined}>
+                            {row.reason || '—'}
+                          </td>
+                          <td className="py-2 px-3 text-black">
+                            {formatDate(row.returnedAt) || '—'}
+                          </td>
+                          <td className="py-2 px-3 text-center">
+                            {row.id != null ? (
+                              <button
+                                type="button"
+                                role="checkbox"
+                                aria-checked={stockChecked}
+                                aria-label={tBuyersModal('updateStock')}
+                                onClick={() =>
+                                  setReturnRows((rows) =>
+                                    rows.map((r, i) =>
+                                      i === idx
+                                        ? {
+                                            ...r,
+                                            // Checkbox is intent only — inventory changes on Save.
+                                            updateStock: r.updateStock !== true,
+                                          }
+                                        : r,
+                                    ),
+                                  )
+                                }
+                                className={`mx-auto flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-all duration-200 ${
+                                  stockChecked
+                                    ? 'border-green-500 bg-green-500'
+                                    : 'border-gray-300 bg-white hover:border-green-400'
+                                }`}
+                              >
+                                {stockChecked ? (
+                                  <svg className="h-3 w-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                      clipRule="evenodd"
+                                    />
+                                  </svg>
+                                ) : null}
+                              </button>
+                            ) : (
+                              '—'
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-2 text-xs text-gray-500">{tBuyersModal('stockDecisionPending')}</p>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-xs text-gray-500">
+                {tShared('pagination.showing', {
+                  from: returnRows.length === 0 ? 0 : returnPageStart + 1,
+                  to: returnPageEnd,
+                  total: returnRows.length,
+                })}
+              </div>
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  className="rounded-lg p-2 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                  onClick={() => setReturnPage((page) => Math.max(1, page - 1))}
+                  disabled={safeReturnPage === 1}
+                  aria-label={tShared('previousPage')}
+                >
+                  <ChevronLeft className="h-4 w-4 text-gray-500" />
+                </button>
+                {getVisiblePageNumbers(safeReturnPage, totalReturnPages).map((pageNumber) => (
+                  <button
+                    key={pageNumber}
+                    type="button"
+                    className={`rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                      pageNumber === safeReturnPage ? 'bg-[#0a61d7] text-white' : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
+                    }`}
+                    onClick={() => setReturnPage(pageNumber)}
+                    aria-current={pageNumber === safeReturnPage ? 'page' : undefined}
+                  >
+                    {pageNumber}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className="rounded-lg p-2 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                  onClick={() => setReturnPage((page) => Math.min(totalReturnPages, page + 1))}
+                  disabled={safeReturnPage === totalReturnPages}
                   aria-label={tShared('nextPage')}
                 >
                   <ChevronRight className="h-4 w-4 text-gray-500" />

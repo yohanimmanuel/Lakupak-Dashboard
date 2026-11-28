@@ -39,6 +39,7 @@ export const contactsTypeDefs = /* GraphQL */ `
     logistics: String
     notes: String
     orderDetails: String
+    returnDetails: String
     orderLineDetails: String
     avgMonthlySpending: Float
     avgMonthlyOrders: Float
@@ -376,6 +377,24 @@ type BuyerWithRecords = BuyerModel & {
     skuSnapshot: string | null;
     sortOrder: number;
   }>;
+  buyerReturnRecords?: Array<{
+    id: number;
+    orderNo: string;
+    returnRequestId: number | null;
+    product: string;
+    productId: string | null;
+    skuSnapshot: string | null;
+    variantName: string | null;
+    stockType: string | null;
+    piecesPerPackage: number | null;
+    quantityReturned: number;
+    lineCreditAmount: unknown;
+    reason: string | null;
+    returnedAt: Date | null;
+    stockDecision: string | null;
+    stockDecidedAt: Date | null;
+    sortOrder: number;
+  }>;
 };
 
 type SupplierWithRecords = SupplierModel & {
@@ -442,6 +461,31 @@ const mapBuyer = (buyer: BuyerWithRecords) => ({
             discountBadge: row.discountBadge ?? undefined,
             offerApplied: row.offerApplied ?? undefined,
             syncedFromOrders: row.syncedFromOrders || undefined,
+          })),
+        )
+      : null,
+  returnDetails:
+    buyer.buyerReturnRecords && buyer.buyerReturnRecords.length > 0
+      ? JSON.stringify(
+          buyer.buyerReturnRecords.map((row) => ({
+            id: row.id,
+            orderNo: row.orderNo,
+            returnRequestId: row.returnRequestId ?? undefined,
+            product: row.product,
+            productId: row.productId ?? undefined,
+            sku: row.skuSnapshot ?? undefined,
+            variantName: row.variantName ?? undefined,
+            stockType: row.stockType ?? undefined,
+            piecesPerPackage: row.piecesPerPackage ?? undefined,
+            quantityReturned: row.quantityReturned,
+            lineCreditAmount: parseMoney(row.lineCreditAmount as never),
+            reason: row.reason ?? undefined,
+            returnedAt: row.returnedAt ? row.returnedAt.toISOString() : undefined,
+            stockDecision:
+              row.stockDecision === 'restocked' || row.stockDecision === 'skipped'
+                ? row.stockDecision
+                : null,
+            stockDecidedAt: row.stockDecidedAt ? row.stockDecidedAt.toISOString() : undefined,
           })),
         )
       : null,
@@ -681,7 +725,7 @@ const fetchBuyersConnection = async (args: {
       take: safeLimit,
       orderBy: { createdAt: 'desc' },
       include: {
-        buyerRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] },
+        buyerRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] }, buyerReturnRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] },
       },
     }),
     prisma.buyer.count({ where: whereClause }),
@@ -760,7 +804,7 @@ const fetchSingleBuyer = async (args: { userId: number; id: string }) => {
   const { userId, id } = args;
 
   const buyerInclude = {
-    buyerRecords: { orderBy: [{ sortOrder: 'asc' as const }, { id: 'asc' as const }] },
+    buyerRecords: { orderBy: [{ sortOrder: 'asc' as const }, { id: 'asc' as const }] }, buyerReturnRecords: { orderBy: [{ sortOrder: 'asc' as const }, { id: 'asc' as const }] },
   };
 
   let buyer;
@@ -954,7 +998,7 @@ const createBuyer = async (args: {
       await replaceBuyerOrderRecords(tx, buyer.id, orderDetailsPayload);
       return tx.buyer.findUnique({
         where: { id: buyer.id },
-        include: { buyerRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] } },
+        include: { buyerRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] }, buyerReturnRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] } },
       });
     });
 
@@ -1085,7 +1129,7 @@ const updateBuyer = async (args: {
       }
       return tx.buyer.findUnique({
         where: { id: buyer.id },
-        include: { buyerRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] } },
+        include: { buyerRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] }, buyerReturnRecords: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] } },
       });
     });
 
@@ -1152,7 +1196,7 @@ const deleteBuyer = async (args: { userId: number; id: string }) => {
   }
 
   const buyerRecordsInclude = {
-    buyerRecords: { orderBy: [{ sortOrder: 'asc' as const }, { id: 'asc' as const }] },
+    buyerRecords: { orderBy: [{ sortOrder: 'asc' as const }, { id: 'asc' as const }] }, buyerReturnRecords: { orderBy: [{ sortOrder: 'asc' as const }, { id: 'asc' as const }] },
   };
 
   let deleted;

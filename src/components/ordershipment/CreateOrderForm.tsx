@@ -14,7 +14,12 @@ import { isBankTransferPaymentTerms, isCodPaymentTerms } from '@/utils/orderPaym
 import { geocodeAddress, type MapCoordinates } from '@/utils/mapboxUtils';
 import { uploadToCloudinaryDirect } from '@/utils/cloudinaryDirect';
 import { SkeletonOrderForm } from '@/components/skeleton/SkeletonOrderForm';
-import { calculateOrderItemPromotion } from '@/utils/promotionUtils';
+import {
+  calculateOrderItemPromotion,
+  normalizePromotionApplyMode,
+  resolveMoqInPieces,
+  type PromotionDetails,
+} from '@/utils/promotionUtils';
 import { roundMoney } from '@/utils/priceAnchorUtils';
 
 const DELIVERY_METHODS = ['Self Pickup', 'Seller/Distributor Delivery', 'Buyer-arranged Courier'] as const;
@@ -50,6 +55,8 @@ type VariantNode = {
   sellingPrice: number;
   sku: string | null;
   moq: number | null;
+  /** Stock-level MOQ in packages of that level (e.g. Cartons: 3). */
+  moqByStockLevel?: Record<string, number> | null;
   isDefault: boolean;
   isActive: boolean;
 };
@@ -78,6 +85,8 @@ type OfferNode = {
   discountValue: number;
   buyQuantity: number | null;
   freeQuantity: number | null;
+  /** from_zero | after_moq — defaults to after_moq when omitted. */
+  promotionApplyMode?: string | null;
   startDate: string;
   endDate: string | null;
   status: string;
@@ -356,6 +365,36 @@ function blankLine(key: number): Line {
   };
 }
 
+/** Piece MOQ for the selected stock level (level map first, then legacy pieces MOQ). */
+function lineMoqInPieces(
+  variant: Pick<VariantNode, 'moq' | 'moqByStockLevel'> | null | undefined,
+  packageType: string,
+  piecesPerPackage: number,
+): number | null {
+  return resolveMoqInPieces({
+    packageType,
+    piecesPerPackage,
+    moqPieces: variant?.moq,
+    moqByStockLevel: variant?.moqByStockLevel ?? null,
+  });
+}
+
+/** Minimum paid package qty allowed for this variant + stock level (product MOQ). */
+function minPackageQuantityForMoq(
+  variant: Pick<VariantNode, 'moq' | 'moqByStockLevel'> | null | undefined,
+  packageType: string,
+  piecesPerPackage: number,
+): number {
+  const moqPieces = lineMoqInPieces(variant, packageType, piecesPerPackage);
+  if (moqPieces == null || moqPieces <= 0) return 1;
+  const ppp = Math.max(1, Math.trunc(piecesPerPackage) || 1);
+  return Math.max(1, Math.ceil(moqPieces / ppp));
+}
+
+/**
+ * Recompute free pieces from buy-x-get-y rules for a new qty.
+ * Ignores absolute `freePieces` locks so applyMode (after_moq / from_zero) can run.
+ */
 function freePiecesFromPromotion(
   promotion: string | null | undefined,
   packageQuantity: number,
@@ -363,8 +402,27 @@ function freePiecesFromPromotion(
   moq?: number | null,
 ): number {
   if (!promotion) return 0;
+  let parsed: PromotionDetails | null = null;
+  try {
+    parsed = JSON.parse(promotion) as PromotionDetails;
+  } catch {
+    return 0;
+  }
+  if (!parsed) return 0;
+  const { freePieces: _ignored, ...rules } = parsed;
+  const moqPieces =
+    moq != null && Number(moq) > 0
+      ? Math.trunc(Number(moq))
+      : rules.moq != null && Number(rules.moq) > 0
+        ? Math.trunc(Number(rules.moq))
+        : null;
   return (
-    calculateOrderItemPromotion(promotion, packageQuantity, piecesPerPackage, moq)?.freeQty || 0
+    calculateOrderItemPromotion(
+      { ...rules, moq: moqPieces },
+      packageQuantity,
+      piecesPerPackage,
+      moqPieces,
+    )?.freeQty || 0
   );
 }
 
@@ -372,6 +430,7 @@ function suggestedFreePiecesFromOffer(
   offer: OfferNode | null,
   packageQuantity: number,
   piecesPerPackage: number,
+  moqPieces: number | null,
 ): number {
   if (!offer || packageQuantity < 1) return 0;
   const free =
@@ -382,17 +441,42 @@ function suggestedFreePiecesFromOffer(
         : 0;
   const buy = offer.buyQuantity && offer.buyQuantity > 0 ? offer.buyQuantity : free > 0 ? 1 : 0;
   if (!(buy > 0 && free > 0)) return 0;
+  const applyMode = normalizePromotionApplyMode(offer.promotionApplyMode);
   return (
     calculateOrderItemPromotion(
       {
         minQuantity: buy,
         freeQuantity: free,
-        applyMode: 'from_zero',
+        applyMode,
+        moq: moqPieces,
       },
       packageQuantity,
       piecesPerPackage,
-      null,
+      moqPieces,
     )?.freeQty || 0
+  );
+}
+
+/** Live offer wins; otherwise recompute from saved promotion rules (+ MOQ / applyMode). */
+function freePiecesForQuantityChange(opts: {
+  liveOffer: OfferNode | null;
+  savedPromotion: string | null | undefined;
+  packageQuantity: number;
+  piecesPerPackage: number;
+  moqPieces: number | null;
+}): number {
+  const fromLive = suggestedFreePiecesFromOffer(
+    opts.liveOffer,
+    opts.packageQuantity,
+    opts.piecesPerPackage,
+    opts.moqPieces,
+  );
+  if (opts.liveOffer) return fromLive;
+  return freePiecesFromPromotion(
+    opts.savedPromotion,
+    opts.packageQuantity,
+    opts.piecesPerPackage,
+    opts.moqPieces,
   );
 }
 
@@ -506,7 +590,7 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
               products(userId: $userId, page: 1, limit: 200) {
                 nodes {
                   productId name productType images merchandisingCategorySlug stockLevels
-                  variantOptions { id variantName sellingPrice sku moq isDefault isActive }
+                  variantOptions { id variantName sellingPrice sku moq moqByStockLevel isDefault isActive }
                 }
               }
             }`,
@@ -610,37 +694,52 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
         });
         if (normalizedLoaded.length > 0) {
           setLines(
-            normalizedLoaded.map((item, index) => ({
-              key: index + 1,
-              productId: item.productId || '',
-              variantOptionId: String(item.variantOptionId),
-              quantity: String(item.packageQuantity || 1),
-              packageType: item.packageType,
-              piecesPerPackage: item.piecesPerPackage,
-              savedUnit: item.pricePerPackage != null ? Number(item.pricePerPackage) : null,
-              savedOriginalUnit: item.savedOriginalUnit,
-              savedOfferApplied: item.offerApplied === true,
-              freeItems: String(
-                freePiecesFromPromotion(
-                  item.promotionDetailsSnapshot,
-                  Number(item.packageQuantity) || 1,
-                  item.piecesPerPackage,
+            normalizedLoaded.map((item, index) => {
+              let promoMoq: number | null = null;
+              try {
+                const promo = item.promotionDetailsSnapshot
+                  ? (JSON.parse(item.promotionDetailsSnapshot) as PromotionDetails)
+                  : null;
+                if (promo?.moq != null && Number(promo.moq) > 0) {
+                  promoMoq = Math.trunc(Number(promo.moq));
+                }
+              } catch {
+                promoMoq = null;
+              }
+              const qty = Number(item.packageQuantity) || 1;
+              return {
+                key: index + 1,
+                productId: item.productId || '',
+                variantOptionId: String(item.variantOptionId),
+                quantity: String(qty),
+                packageType: item.packageType,
+                piecesPerPackage: item.piecesPerPackage,
+                savedUnit: item.pricePerPackage != null ? Number(item.pricePerPackage) : null,
+                savedOriginalUnit: item.savedOriginalUnit,
+                savedOfferApplied: item.offerApplied === true,
+                freeItems: String(
+                  freePiecesFromPromotion(
+                    item.promotionDetailsSnapshot,
+                    qty,
+                    item.piecesPerPackage,
+                    promoMoq,
+                  ),
                 ),
-              ),
-              savedDiscountAmount:
-                item.discountAmount != null && Number.isFinite(Number(item.discountAmount))
-                  ? Number(item.discountAmount)
-                  : null,
-              savedDiscountPercentage:
-                item.discountPercentage != null && Number.isFinite(Number(item.discountPercentage))
-                  ? Number(item.discountPercentage)
-                  : null,
-              savedPromotion: item.promotionDetailsSnapshot || null,
-              savedOfferBadge: item.offerBadgeSnapshot || null,
-              savedBuyerId: nextBuyer,
-              savedName: item.productName || item.productNameSnapshot || item.productId || '',
-              savedVariant: item.variantNameSnapshot || '',
-            })),
+                savedDiscountAmount:
+                  item.discountAmount != null && Number.isFinite(Number(item.discountAmount))
+                    ? Number(item.discountAmount)
+                    : null,
+                savedDiscountPercentage:
+                  item.discountPercentage != null && Number.isFinite(Number(item.discountPercentage))
+                    ? Number(item.discountPercentage)
+                    : null,
+                savedPromotion: item.promotionDetailsSnapshot || null,
+                savedOfferBadge: item.offerBadgeSnapshot || null,
+                savedBuyerId: nextBuyer,
+                savedName: item.productName || item.productNameSnapshot || item.productId || '',
+                savedVariant: item.variantNameSnapshot || '',
+              };
+            }),
           );
           setNextKey(normalizedLoaded.length + 1);
         }
@@ -668,7 +767,8 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
           `query CreateOrderOffers($userId: Int!, $buyerId: String!) {
             offersForBuyer(userId: $userId, buyerId: $buyerId) {
               id productId categoryId variantOptionId eligibleStockLevels
-              discountType discountValue buyQuantity freeQuantity startDate endDate status
+              discountType discountValue buyQuantity freeQuantity promotionApplyMode
+              startDate endDate status
             }
           }`,
           { userId: user.id, buyerId },
@@ -782,14 +882,22 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
     if (!level) return;
     const line = lines.find((row) => row.key === key);
     const variantId = Number(line?.variantOptionId);
+    const variant =
+      product && Number.isInteger(variantId)
+        ? product.variantOptions.find((option) => option.id === variantId)
+        : undefined;
     const offer =
       product && Number.isInteger(variantId)
         ? pickOffer(offers, product, variantId, level.name)
         : null;
-    const qty = Number.parseInt(line?.quantity || '0', 10) || 0;
+    const minQty = minPackageQuantityForMoq(variant, level.name, level.piecesPerUnit);
+    const rawQty = Number.parseInt(line?.quantity || '0', 10) || 0;
+    const qty = Math.max(minQty, rawQty > 0 ? rawQty : minQty);
+    const moqPieces = lineMoqInPieces(variant, level.name, level.piecesPerUnit);
     updateLine(key, {
       packageType: level.name,
       piecesPerPackage: level.piecesPerUnit,
+      quantity: String(qty),
       savedUnit: null,
       savedOriginalUnit: null,
       savedOfferApplied: false,
@@ -797,7 +905,7 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
       savedDiscountPercentage: null,
       savedPromotion: null,
       savedOfferBadge: null,
-      freeItems: String(suggestedFreePiecesFromOffer(offer, qty, level.piecesPerUnit)),
+      freeItems: String(suggestedFreePiecesFromOffer(offer, qty, level.piecesPerUnit, moqPieces)),
     });
   }
 
@@ -943,12 +1051,14 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
   function messageFromOrderResponse(data: { code?: string; error?: string; detail?: string }): string {
     const detail = typeof data.detail === 'string' ? data.detail.trim() : '';
     if (detail) return detail;
-    if (data.code === 'invalid_stock_level' && typeof data.error === 'string' && data.error.trim()) {
+    if (
+      (data.code === 'invalid_stock_level' ||
+        data.code === 'below_moq' ||
+        data.code === 'insufficient_stock') &&
+      typeof data.error === 'string' &&
+      data.error.trim()
+    ) {
       return data.error.trim();
-    }
-    if (data.code === 'insufficient_stock') {
-      const server = typeof data.error === 'string' ? data.error.trim() : '';
-      if (server) return server;
     }
     return errorText(data.code);
   }
@@ -992,17 +1102,46 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
       setError(tCreate('needFields'));
       return;
     }
+    const belowMoq = pricedLines.some((row) => {
+      if (!row.product || !row.variant || row.qty <= 0) return false;
+      const minQty = minPackageQuantityForMoq(
+        row.variant,
+        row.line.packageType,
+        row.piecesPerPackage,
+      );
+      return row.qty < minQty;
+    });
+    if (belowMoq) {
+      setError(tCreate('fixBelowMoq'));
+      return;
+    }
+
+    // Refresh free pieces with after_moq / from_zero before save (qty already MOQ-valid).
     const items = pricedLines
       .filter((row) => row.product && row.variant && row.qty > 0)
-      .map((row) => ({
-        productId: row.product!.productId,
-        variantOptionId: row.variant!.id,
-        packageQuantity: row.qty,
-        packageType: row.line.packageType,
-        piecesPerPackage: row.piecesPerPackage,
-        applyOffer: true,
-        freeQuantityPieces: row.freeItems,
-      }));
+      .map((row) => {
+        const moqPieces = lineMoqInPieces(
+          row.variant,
+          row.line.packageType,
+          row.piecesPerPackage,
+        );
+        const freeItems = freePiecesForQuantityChange({
+          liveOffer: row.liveOffer,
+          savedPromotion: row.line.savedPromotion,
+          packageQuantity: row.qty,
+          piecesPerPackage: row.piecesPerPackage,
+          moqPieces,
+        });
+        return {
+          productId: row.product!.productId,
+          variantOptionId: row.variant!.id,
+          packageQuantity: row.qty,
+          packageType: row.line.packageType,
+          piecesPerPackage: row.piecesPerPackage,
+          applyOffer: true,
+          freeQuantityPieces: freeItems,
+        };
+      });
     if (items.length === 0) {
       setError(tCreate('needProduct'));
       return;
@@ -1265,7 +1404,7 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
                   </tr>
                 </thead>
                 <tbody className="bg-white">
-                  {pricedLines.map(({ line, product, preview, liveOffer, unit, listUnit, piecesPerPackage }) => {
+                  {pricedLines.map(({ line, product, variant, preview, liveOffer, unit, listUnit, piecesPerPackage }) => {
                     const variants = product?.variantOptions.filter((option) => option.isActive) ?? [];
                     const stockLevels = product ? productStockLevels(product) : [];
                     const selectedLevelExists = stockLevels.some((level) => level.name === line.packageType);
@@ -1290,12 +1429,27 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
                             placeholder={product ? 'None' : 'Select product first'}
                             options={variants.map((option) => ({ value: String(option.id), label: option.variantName }))}
                             onChange={(value) => {
+                              const nextVariant = product?.variantOptions.find(
+                                (option) => String(option.id) === value,
+                              );
                               const nextOffer = product
                                 ? pickOffer(offers, product, Number(value), line.packageType)
                                 : null;
-                              const qty = Number.parseInt(line.quantity, 10) || 0;
+                              const minQty = minPackageQuantityForMoq(
+                                nextVariant,
+                                line.packageType,
+                                piecesPerPackage,
+                              );
+                              const rawQty = Number.parseInt(line.quantity, 10) || 0;
+                              const qty = Math.max(minQty, rawQty > 0 ? rawQty : minQty);
+                              const moqPieces = lineMoqInPieces(
+                                nextVariant,
+                                line.packageType,
+                                piecesPerPackage,
+                              );
                               updateLine(line.key, {
                                 variantOptionId: value,
+                                quantity: String(qty),
                                 savedUnit: null,
                                 savedOriginalUnit: null,
                                 savedOfferApplied: false,
@@ -1304,7 +1458,12 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
                                 savedPromotion: null,
                                 savedOfferBadge: null,
                                 freeItems: String(
-                                  suggestedFreePiecesFromOffer(nextOffer, qty, piecesPerPackage),
+                                  suggestedFreePiecesFromOffer(
+                                    nextOffer,
+                                    qty,
+                                    piecesPerPackage,
+                                    moqPieces,
+                                  ),
                                 ),
                               });
                             }}
@@ -1320,36 +1479,72 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
                           />
                         </td>
                         <td className="px-3 py-3 min-w-[6.5rem]">
-                          <input
-                            className={tableInputClass}
-                            inputMode="numeric"
-                            value={line.quantity}
-                            title={
-                              line.packageType
-                                ? tCreate('quantityWithUnit', { unit: line.packageType })
-                                : tCreate('quantity')
-                            }
-                            aria-label={
-                              line.packageType
-                                ? tCreate('quantityWithUnit', { unit: line.packageType })
-                                : tCreate('quantity')
-                            }
-                            onChange={(event) => {
-                              const quantity = event.target.value.replace(/[^\d]/g, '');
-                              const qty = Number.parseInt(quantity, 10) || 0;
-                              const suggested = suggestedFreePiecesFromOffer(liveOffer, qty, piecesPerPackage);
-                              const fromSaved = freePiecesFromPromotion(
-                                line.savedPromotion,
-                                qty,
-                                piecesPerPackage,
-                              );
-                              updateLine(line.key, {
-                                quantity,
-                                savedUnit: null,
-                                freeItems: String(suggested > 0 ? suggested : fromSaved),
-                              });
-                            }}
-                          />
+                          {(() => {
+                            const minQty = minPackageQuantityForMoq(
+                              variant,
+                              line.packageType,
+                              piecesPerPackage,
+                            );
+                            const rawQty = Number.parseInt(line.quantity, 10) || 0;
+                            const belowMoq =
+                              Boolean(variant) &&
+                              line.quantity.trim() !== '' &&
+                              rawQty > 0 &&
+                              rawQty < minQty;
+                            return (
+                              <div className="min-w-[6.5rem]">
+                                <input
+                                  className={`${tableInputClass}${
+                                    belowMoq
+                                      ? ' border-red-500 focus:border-red-500 focus:ring-red-500'
+                                      : ''
+                                  }`}
+                                  inputMode="numeric"
+                                  value={line.quantity}
+                                  aria-invalid={belowMoq}
+                                  title={
+                                    line.packageType
+                                      ? tCreate('quantityWithUnit', { unit: line.packageType })
+                                      : tCreate('quantity')
+                                  }
+                                  aria-label={
+                                    line.packageType
+                                      ? tCreate('quantityWithUnit', { unit: line.packageType })
+                                      : tCreate('quantity')
+                                  }
+                                  onChange={(event) => {
+                                    const quantity = event.target.value.replace(/[^\d]/g, '');
+                                    const nextQty = Number.parseInt(quantity, 10) || 0;
+                                    const moqPieces = lineMoqInPieces(
+                                      variant,
+                                      line.packageType,
+                                      piecesPerPackage,
+                                    );
+                                    const freeItems = freePiecesForQuantityChange({
+                                      liveOffer,
+                                      savedPromotion: line.savedPromotion,
+                                      packageQuantity: nextQty,
+                                      piecesPerPackage,
+                                      moqPieces,
+                                    });
+                                    updateLine(line.key, {
+                                      quantity,
+                                      savedUnit: null,
+                                      freeItems: String(freeItems),
+                                    });
+                                  }}
+                                />
+                                {belowMoq ? (
+                                  <p className="mt-1 text-[10px] font-medium leading-tight text-red-600">
+                                    {tCreate('belowMoq', {
+                                      min: String(minQty),
+                                      unit: line.packageType || tCreate('quantity'),
+                                    })}
+                                  </p>
+                                ) : null}
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="px-3 py-3 min-w-[5.5rem]">
                           <input
@@ -1361,6 +1556,7 @@ export default function CreateOrderForm({ orderId }: { orderId?: string }) {
                                 freeItems: event.target.value.replace(/[^\d]/g, ''),
                               })
                             }
+                            title="Free pieces (auto from offer MOQ rules; editable override)"
                           />
                         </td>
                         <td className="px-3 py-3 min-w-[8rem] whitespace-nowrap">

@@ -52,7 +52,31 @@ export async function getOrdersHandler(request: NextRequest) {
       },
       returnRequests: {
         orderBy: { createdAt: 'asc' },
-        select: { id: true, reason: true, reasonDetail: true, status: true, imageUrls: true, createdAt: true },
+        select: {
+          id: true,
+          reason: true,
+          reasonDetail: true,
+          status: true,
+          imageUrls: true,
+          creditAmount: true,
+          createdAt: true,
+          items: {
+            orderBy: { id: 'asc' },
+            select: {
+              id: true,
+              orderItemId: true,
+              productId: true,
+              productNameSnapshot: true,
+              variantNameSnapshot: true,
+              productSkuSnapshot: true,
+              packageType: true,
+              piecesPerPackage: true,
+              quantityReturned: true,
+              unitPriceSnapshot: true,
+              lineCreditAmount: true,
+            },
+          },
+        },
       },
     } satisfies Prisma.OrderInclude;
 
@@ -159,6 +183,16 @@ export async function getOrdersHandler(request: NextRequest) {
         shippingOptionMaxDays = num(company.defaultDeliveryLeadTimeMaxDays) ?? 7;
       }
 
+      const mappedReturnRequests = (detailOrder.returnRequests ?? []).map((rr) => ({
+        ...rr,
+        creditAmount: rr.creditAmount == null ? null : decimalToNumber(rr.creditAmount),
+        items: (rr.items ?? []).map((item) => ({
+          ...item,
+          unitPriceSnapshot: decimalToNumber(item.unitPriceSnapshot),
+          lineCreditAmount: decimalToNumber(item.lineCreditAmount),
+        })),
+      }));
+
       const orderResponse = {
         ...detailOrder,
         sellerUserId: detailOrder.userId,
@@ -168,6 +202,11 @@ export async function getOrdersHandler(request: NextRequest) {
         shippingFee: decimalToNumber(detailOrder.shippingFee),
         totalAmount: pricePreview?.totalAmount ?? decimalToNumber(detailOrder.totalAmount),
         amountPaid: detailOrder.amountPaid == null ? null : decimalToNumber(detailOrder.amountPaid),
+        returnCreditAmount:
+          detailOrder.returnCreditAmount == null
+            ? null
+            : decimalToNumber(detailOrder.returnCreditAmount),
+        returnRequests: mappedReturnRequests,
         orderItems: enrichedOrderItems,
         shippingOptionMinDays: shippingOptionMinDays ?? null,
         shippingOptionMaxDays: shippingOptionMaxDays ?? null,

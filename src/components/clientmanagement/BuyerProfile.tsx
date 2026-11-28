@@ -5,7 +5,7 @@ import { Phone, MapPin, Tag, Truck, Info, Calendar, BarChart2, ArrowLeft, Edit, 
 import Link from "next/link";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts';
 import { useState, useEffect, useRef } from 'react';
-import { Buyer, OrderDetail } from '@/types/client';
+import { Buyer, OrderDetail, ReturnDetail } from '@/types/client';
 import { formatDate, formatNumber } from '@/utils/dateUtils';
 import { logisticsLastVisit } from '@/utils/buyerLogistics';
 import { formatCurrency, getDefaultCurrency } from '@/utils/currencyUtils';
@@ -135,6 +135,37 @@ function parseBuyerOrderDetails(raw: string | null | undefined): OrderDetail[] {
   }
 }
 
+function parseBuyerReturnDetails(raw: string | null | undefined): ReturnDetail[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((row): ReturnDetail | null => {
+        if (!row || typeof row !== 'object') return null;
+        const r = row as Record<string, unknown>;
+        return {
+          orderNo: String(r.orderNo || ''),
+          returnRequestId: typeof r.returnRequestId === 'number' ? r.returnRequestId : undefined,
+          product: String(r.product || ''),
+          productId: r.productId != null ? String(r.productId) : undefined,
+          sku: r.sku != null ? String(r.sku) : undefined,
+          variantName: r.variantName != null ? String(r.variantName) : undefined,
+          stockType: r.stockType != null ? String(r.stockType) : undefined,
+          piecesPerPackage:
+            typeof r.piecesPerPackage === 'number' ? r.piecesPerPackage : undefined,
+          quantityReturned: Number(r.quantityReturned) || 0,
+          lineCreditAmount: Number(r.lineCreditAmount) || 0,
+          reason: r.reason != null ? String(r.reason) : undefined,
+          returnedAt: r.returnedAt != null ? String(r.returnedAt) : undefined,
+        };
+      })
+      .filter((row): row is ReturnDetail => row !== null);
+  } catch {
+    return [];
+  }
+}
+
 function isLiveBuyerOrder(order: OrderDetail): boolean {
   return order.syncedFromOrders === true || /^LKO-\d+(?:-\d+)?$/i.test(String(order.orderNo || '').trim());
 }
@@ -226,6 +257,15 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
   useEffect(() => {
     setOrderDetails(parseBuyerOrderDetails(buyer.orderDetails));
   }, [buyer.orderDetails]);
+
+  const [returnDetails, setReturnDetails] = useState<ReturnDetail[]>(() =>
+    parseBuyerReturnDetails(buyer.returnDetails),
+  );
+  useEffect(() => {
+    setReturnDetails(parseBuyerReturnDetails(buyer.returnDetails));
+  }, [buyer.returnDetails]);
+  const [returnPage, setReturnPage] = useState(1);
+  const returnRowsPerPage = 8;
   
   const notes: string[] = (() => {
     if (!buyer.notes) return [];
@@ -359,6 +399,26 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
   const pagedOrderDetails = sortedOrderDetails.slice(
     (orderPage - 1) * orderRowsPerPage,
     orderPage * orderRowsPerPage,
+  );
+
+  const sortedReturnDetails = [...returnDetails].sort((a, b) => {
+    const dateA = getHistoryDateTimestamp(a.returnedAt);
+    const dateB = getHistoryDateTimestamp(b.returnedAt);
+    if (dateA === null && dateB === null) return 0;
+    if (dateA === null) return 1;
+    if (dateB === null) return -1;
+    return dateB - dateA;
+  });
+  const totalReturnRows = sortedReturnDetails.length;
+  const totalReturnPages = Math.max(1, Math.ceil(totalReturnRows / returnRowsPerPage));
+  const safeReturnPage = Math.min(returnPage, totalReturnPages);
+  const pagedReturnDetails = sortedReturnDetails.slice(
+    (safeReturnPage - 1) * returnRowsPerPage,
+    safeReturnPage * returnRowsPerPage,
+  );
+  const totalReturnCredit = returnDetails.reduce(
+    (sum, row) => sum + (Number(row.lineCreditAmount) || 0),
+    0,
   );
 
   const closeOrderDetail = () => {
@@ -1161,6 +1221,112 @@ export default function BuyerProfile({ buyer, onClose, onUpdate }: BuyerProfileP
                 className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
                 onClick={() => setOrderPage(p => Math.min(totalOrderPages, p + 1))}
                 disabled={orderPage === totalOrderPages}
+                aria-label={tShared('nextPage')}
+              >
+                <ChevronRight className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      {/* Return History — accepted + completed returns only */}
+      <div className="bg-white rounded-lg border border-[#e6e6e6] p-4 relative">
+        <div className="mb-4">
+          <div className="font-semibold text-md text-black">{tBuyersProfile('returnSection')}</div>
+        </div>
+        <div className="flex flex-wrap gap-4 mb-2">
+          <div className="text-xs text-gray-600 bg-gray-100 rounded px-3 py-1">
+            {tBuyersProfile('totalReturnCreditLabel')}{' '}
+            <span className="font-bold text-[#0a61d7]">
+              {formatCurrency(totalReturnCredit, userCurrency)}
+            </span>
+          </div>
+        </div>
+        <div className="min-w-0 overflow-x-auto rounded-lg">
+          <table className="w-max min-w-full whitespace-nowrap text-xs font-medium text-left">
+            <thead>
+              <tr className="text-gray-500 bg-gray-100 whitespace-nowrap">
+                <th className="py-2 px-4 font-medium uppercase">{tBuyersModal('colNo')}</th>
+                <th className="py-2 px-4 font-medium uppercase">{tBuyersProfile('colOrderNo')}</th>
+                <th className="py-2 px-4 font-medium uppercase">{tBuyersProfile('productName')}</th>
+                <th className="py-2 px-4 font-medium uppercase">{tBuyersProfile('colQtyReturned')}</th>
+                <th className="py-2 px-4 font-medium uppercase">{tBuyersProfile('colReturnCredit')}</th>
+                <th className="py-2 px-4 font-medium uppercase">{tBuyersProfile('colReturnReason')}</th>
+                <th className="py-2 px-4 font-medium uppercase">{tBuyersProfile('colReturnedAt')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pagedReturnDetails.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-10 px-4 text-center text-sm text-gray-500">
+                    {tBuyersProfile('noReturns')}
+                  </td>
+                </tr>
+              ) : (
+                pagedReturnDetails.map((row, idx) => (
+                  <tr
+                    key={`${row.orderNo}-${row.returnRequestId ?? 'r'}-${idx + (safeReturnPage - 1) * returnRowsPerPage}`}
+                    className="border-b last:border-b-0"
+                  >
+                    <td className="py-4 px-4 font-medium text-black">
+                      {(safeReturnPage - 1) * returnRowsPerPage + idx + 1}
+                    </td>
+                    <td className="py-4 px-4 text-black">{row.orderNo || '—'}</td>
+                    <td className="py-4 px-4 text-black">
+                      <div className="font-medium text-black">{row.product || '—'}</div>
+                      {row.variantName ? (
+                        <div className="text-[10px] text-gray-500">{row.variantName}</div>
+                      ) : null}
+                    </td>
+                    <td className="py-4 px-4 text-black">
+                      {row.quantityReturned} {row.stockType || 'Pieces'}
+                    </td>
+                    <td className="py-4 px-4 font-semibold text-[#0a61d7]">
+                      {formatCurrency(Number(row.lineCreditAmount) || 0, userCurrency)}
+                    </td>
+                    <td className="py-4 px-4 text-black max-w-[16rem] truncate" title={row.reason || undefined}>
+                      {row.reason || '—'}
+                    </td>
+                    <td className="py-4 px-4 text-black">
+                      {formatDate(row.returnedAt) || '—'}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-4 gap-2">
+            <div className="text-xs text-gray-500">
+              {tShared('pagination.showing', {
+                from: (safeReturnPage - 1) * returnRowsPerPage + (totalReturnRows === 0 ? 0 : 1),
+                to: Math.min(safeReturnPage * returnRowsPerPage, totalReturnRows),
+                total: totalReturnRows,
+              })}
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
+                onClick={() => setReturnPage((p) => Math.max(1, p - 1))}
+                disabled={safeReturnPage === 1}
+                aria-label={tShared('previousPage')}
+              >
+                <ChevronLeft className="w-4 h-4 text-gray-500" />
+              </button>
+              {getVisiblePageNumbers(safeReturnPage, totalReturnPages).map((p) => (
+                <button
+                  key={p}
+                  className={`px-3 py-2 rounded-lg font-semibold text-sm transition ${
+                    p === safeReturnPage ? 'bg-[#0a61d7] text-white' : 'bg-white text-[#0a61d7] hover:bg-[#f7faff]'
+                  }`}
+                  onClick={() => setReturnPage(p)}
+                >
+                  {p}
+                </button>
+              ))}
+              <button
+                className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
+                onClick={() => setReturnPage((p) => Math.min(totalReturnPages, p + 1))}
+                disabled={safeReturnPage === totalReturnPages}
                 aria-label={tShared('nextPage')}
               >
                 <ChevronRight className="w-4 h-4 text-gray-500" />

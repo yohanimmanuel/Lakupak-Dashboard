@@ -57,6 +57,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   } = useOrdersTranslations();
   const [showAllItems, setShowAllItems] = useState(false);
   const [earningsPage, setEarningsPage] = useState(1);
+  const [returnRequestPage, setReturnRequestPage] = useState(1);
   const [orderStatus, setOrderStatus] = useState<string>(order.orderStatus);
   const [paymentStatus] = useState<Order['paymentStatus']>(order.paymentStatus);
   const [showPaymentProofModal, setShowPaymentProofModal] = useState(false);
@@ -214,10 +215,24 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
   const totalEarningsPages = Math.ceil(localItems.length / earningsPerPage);
   const startIndex = (earningsPage - 1) * earningsPerPage;
   const endIndex = startIndex + earningsPerPage;
-  const currentEarningsItems = localItems.slice(startIndex, endIndex);
 
-  const latestPendingReturnRequest =
-    order.returnRequests && order.returnRequests.find((rr) => rr.status === 'Pending');
+  // One return request card per page — each card includes evidence + line items.
+  const returnRequestsList = order.returnRequests ?? [];
+  const returnRequestsPerPage = 1;
+  const totalReturnRequestPages = Math.max(
+    1,
+    Math.ceil(returnRequestsList.length / returnRequestsPerPage),
+  );
+  const safeReturnRequestPage = Math.min(returnRequestPage, totalReturnRequestPages);
+  const returnRequestStartIndex = (safeReturnRequestPage - 1) * returnRequestsPerPage;
+  const pagedReturnRequests = returnRequestsList.slice(
+    returnRequestStartIndex,
+    returnRequestStartIndex + returnRequestsPerPage,
+  );
+  // Accept/Reject only for the return request currently visible (Pending pages).
+  const visiblePendingReturnRequest =
+    pagedReturnRequests.find((rr) => rr.status === 'Pending') ?? null;
+  const currentEarningsItems = localItems.slice(startIndex, endIndex);
 
   const hasAcceptedReturnRequest =
     order.returnStatus === 'Accepted' ||
@@ -872,14 +887,24 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
               ) {
                 return (
                   <div className="mb-4 p-4 rounded-lg border bg-gray-50 border-[#e6e6e6]">
-                    <div className="text-sm font-semibold text-black mb-2">{tDetails('return.title')}</div>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div className="text-sm font-semibold text-black">{tDetails('return.title')}</div>
+                      {returnRequestsList.length > 1 ? (
+                        <span className="text-xs text-gray-500">
+                          {tDetails('orderSummary.pageOf', {
+                            current: safeReturnRequestPage,
+                            total: totalReturnRequestPages,
+                          })}
+                        </span>
+                      ) : null}
+                    </div>
                     <div className="text-xs text-gray-700 space-y-3">
-                      {(order.returnRequests ?? []).map((rr, index) => (
-                        <div key={rr.id ?? index} className="border border-gray-200 rounded-lg p-2 mb-1">
+                      {pagedReturnRequests.map((rr, index) => (
+                        <div key={rr.id ?? `${safeReturnRequestPage}-${index}`} className="border border-gray-200 rounded-lg p-2 mb-1">
                           <div className="flex items-center justify-between mb-1">
                             <span className="font-medium text-gray-900">
                               {tDetails('return.reasonLabel', {
-                                index: index + 1,
+                                index: returnRequestStartIndex + index + 1,
                                 reason: translateReturnReason(rr.reason) + (rr.reasonDetail ? ` — ${rr.reasonDetail}` : ''),
                               })}
                             </span>
@@ -919,21 +944,114 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                               ))}
                             </div>
                           )}
+                          {rr.items && rr.items.length > 0 && (
+                            <div className="mt-3 overflow-x-auto">
+                              <table className="w-full text-[11px]">
+                                <thead>
+                                  <tr className="border-b border-[#e6e6e6] text-gray-500">
+                                    <th className="py-1.5 text-left font-medium uppercase">
+                                      {tDetails('return.itemsTable.product')}
+                                    </th>
+                                    <th className="py-1.5 text-left font-medium uppercase">
+                                      {tDetails('return.itemsTable.stockType')}
+                                    </th>
+                                    <th className="py-1.5 text-left font-medium uppercase">
+                                      {tDetails('return.itemsTable.qty')}
+                                    </th>
+                                    <th className="py-1.5 text-left font-medium uppercase">
+                                      {tDetails('return.itemsTable.unitPrice')}
+                                    </th>
+                                    <th className="py-1.5 text-right font-medium uppercase">
+                                      {tDetails('return.itemsTable.credit')}
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody className="text-black">
+                                  {rr.items.map((item) => (
+                                    <tr key={item.id} className="border-b border-[#e6e6e6]">
+                                      <td className="py-1.5">
+                                        <span className="font-medium">{item.productNameSnapshot}</span>
+                                        {item.variantNameSnapshot ? (
+                                          <span className="block text-gray-500">{item.variantNameSnapshot}</span>
+                                        ) : null}
+                                      </td>
+                                      <td className="py-1.5">{item.packageType || '—'}</td>
+                                      <td className="py-1.5">{item.quantityReturned}</td>
+                                      <td className="py-1.5">{formatMoney(item.unitPriceSnapshot)}</td>
+                                      <td className="py-1.5 text-right font-medium">
+                                        {formatMoney(item.lineCreditAmount)}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                              {(rr.creditAmount != null ||
+                                rr.items.reduce((sum, row) => sum + (Number(row.lineCreditAmount) || 0), 0) >
+                                  0) && (
+                                <div className="mt-2 flex justify-between text-xs font-semibold text-black">
+                                  <span>{tDetails('return.creditTotal')}</span>
+                                  <span>
+                                    {formatMoney(
+                                      rr.creditAmount != null
+                                        ? Number(rr.creditAmount)
+                                        : rr.items.reduce(
+                                            (sum, row) => sum + (Number(row.lineCreditAmount) || 0),
+                                            0,
+                                          ),
+                                    )}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ))}
 
-                      {latestPendingReturnRequest && (
+                      {totalReturnRequestPages > 1 && (
+                        <div className="flex justify-center items-center gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setReturnRequestPage((prev) => Math.max(1, Math.min(prev, totalReturnRequestPages) - 1))
+                            }
+                            disabled={safeReturnRequestPage === 1}
+                            className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {tDetails('orderSummary.previous')}
+                          </button>
+                          <span className="text-xs text-gray-600">
+                            {tDetails('orderSummary.pageOf', {
+                              current: safeReturnRequestPage,
+                              total: totalReturnRequestPages,
+                            })}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setReturnRequestPage((prev) =>
+                                Math.min(totalReturnRequestPages, Math.min(prev, totalReturnRequestPages) + 1),
+                              )
+                            }
+                            disabled={safeReturnRequestPage === totalReturnRequestPages}
+                            className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {tDetails('orderSummary.next')}
+                          </button>
+                        </div>
+                      )}
+
+                      {visiblePendingReturnRequest && (
                         <div className="mt-3 flex gap-2">
                           <button
                             onClick={async () => {
-                              if (!latestPendingReturnRequest?.id || !user?.id || isProcessingReturn) return;
+                              if (!visiblePendingReturnRequest?.id || !user?.id || isProcessingReturn) return;
                               setIsProcessingReturn(true);
                               try {
                                 const res = await fetch('/api/orders', {
                                   method: 'PUT',
                                   headers: { 'Content-Type': 'application/json' },
                                   body: JSON.stringify({
-                                    returnRequestId: latestPendingReturnRequest.id,
+                                    returnRequestId: visiblePendingReturnRequest.id,
                                     returnRequestStatus: 'Accepted',
                                     userId: user.id,
                                   }),
@@ -946,7 +1064,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                                 const updated = await res.json().catch(() => null);
                                 if (updated?.status === 'Accepted') {
                                   // Optimistically reflect in UI
-                                  latestPendingReturnRequest.status = 'Accepted';
+                                  visiblePendingReturnRequest.status = 'Accepted';
                                   setOrderStatus('Returned');
                                 }
                                 window.location.reload();
@@ -967,14 +1085,14 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                           </button>
                           <button
                             onClick={async () => {
-                              if (!latestPendingReturnRequest?.id || !user?.id || isProcessingReturn) return;
+                              if (!visiblePendingReturnRequest?.id || !user?.id || isProcessingReturn) return;
                               setIsProcessingReturn(true);
                               try {
                                 const res = await fetch('/api/orders', {
                                   method: 'PUT',
                                   headers: { 'Content-Type': 'application/json' },
                                   body: JSON.stringify({
-                                    returnRequestId: latestPendingReturnRequest.id,
+                                    returnRequestId: visiblePendingReturnRequest.id,
                                     returnRequestStatus: 'Rejected',
                                     userId: user.id,
                                   }),
@@ -986,7 +1104,7 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                                 }
                                 const updated = await res.json().catch(() => null);
                                 if (updated?.status === 'Rejected') {
-                                  latestPendingReturnRequest.status = 'Rejected';
+                                  visiblePendingReturnRequest.status = 'Rejected';
                                 }
                                 window.location.reload();
                               } catch (err) {
@@ -1409,6 +1527,31 @@ export default function OrderDetails({ order, onBack }: OrderDetailsProps) {
                       {formatMoney(calculateSubtotal())}
                     </td>
                   </tr>
+                  {Number(order.returnCreditAmount) > 0 ? (
+                    <>
+                      <tr>
+                        <td colSpan={5} className="py-2 text-sm font-medium text-gray-700">
+                          {tDetails('orderSummary.returnCredit')}
+                        </td>
+                        <td className="py-2 text-right text-sm font-semibold text-red-600">
+                          −{formatMoney(Number(order.returnCreditAmount))}
+                        </td>
+                      </tr>
+                      <tr className="border-t border-[#e6e6e6]">
+                        <td colSpan={5} className="py-2 text-base font-semibold text-gray-900">
+                          {tDetails('orderSummary.nettAfterReturn')}
+                        </td>
+                        <td className="py-2 text-right text-base font-bold text-gray-900">
+                          {formatMoney(
+                            Math.max(
+                              0,
+                              calculateSubtotal() - Number(order.returnCreditAmount || 0),
+                            ),
+                          )}
+                        </td>
+                      </tr>
+                    </>
+                  ) : null}
                 </tfoot>
               </table>
             </div>

@@ -286,7 +286,10 @@ export async function getMobileMarketplaceOrders(request: NextRequest, tokenUser
           },
         },
       },
-      returnRequests: { orderBy: { createdAt: 'desc' } },
+      returnRequests: {
+        orderBy: { createdAt: 'desc' },
+        include: { items: true },
+      },
     },
   });
 
@@ -296,6 +299,7 @@ export async function getMobileMarketplaceOrders(request: NextRequest, tokenUser
 
   const ordersWithItems = orders.map((order) => {
     const orderItems = (order.orderItemsRel || []).map((oi) => ({
+      id: oi.id,
       productId: oi.productId ?? null,
       subtotal: decimalToNumber(oi.subtotal),
       packageType: oi.packageType,

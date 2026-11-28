@@ -11,7 +11,7 @@ import { recordManualOrderClientMatch } from '@/lib/clientMatching/service';
 import { syncOrderToBuyerProfile } from '@/utils/buyerSync';
 import { invalidateDashboardCache } from '@/lib/queryCache';
 import { normalizeStockLevels } from '@/utils/stockUtils';
-import { calculateOrderItemPromotion } from '@/utils/promotionUtils';
+import { calculateOrderItemPromotion, resolveMoqInPieces } from '@/utils/promotionUtils';
 import { roundMoney } from '@/utils/priceAnchorUtils';
 import {
   STOCK_NO_DEDUCT_STATUSES,
@@ -225,6 +225,7 @@ async function priceDistributorLines(
           sku: true,
           sellingPrice: true,
           moq: true,
+          moqByStockLevel: true,
           attributes: true,
         },
       },
@@ -261,6 +262,28 @@ async function priceDistributorLines(
       return { error: `Invalid stock type "${item.packageType}" for product ${product.name}.`, code: 'invalid_stock_level', status: 400 };
     }
 
+    const piecesPerPackage = selectedStockLevel.piecesPerUnit;
+    const moqByStockLevel =
+      variant.moqByStockLevel && typeof variant.moqByStockLevel === 'object' && !Array.isArray(variant.moqByStockLevel)
+        ? (variant.moqByStockLevel as Record<string, number>)
+        : null;
+    const moqPieces = resolveMoqInPieces({
+      packageType: selectedStockLevel.name,
+      piecesPerPackage,
+      moqPieces: variant.moq,
+      moqByStockLevel,
+    });
+    if (moqPieces != null && moqPieces > 0) {
+      const minPackages = Math.max(1, Math.ceil(moqPieces / piecesPerPackage));
+      if (item.packageQuantity < minPackages) {
+        return {
+          error: `Minimum order quantity for ${variant.variantName} is ${minPackages} ${selectedStockLevel.name}.`,
+          code: 'below_moq',
+          status: 400,
+        };
+      }
+    }
+
     // Prefer the order's original list price when editing so a live catalog change
     // (or a net package snapshot) cannot become a second discount base.
     // Keep per-piece precision; round only at package / line totals (IDR has 0 decimals).
@@ -280,7 +303,6 @@ async function priceDistributorLines(
         })
       : null;
     const applied = offer ? applyOfferToPrice(basePricePerPiece, offer) : null;
-    const piecesPerPackage = selectedStockLevel.piecesPerUnit;
     const rawNetPiece = applied ? applied.unitPrice : basePricePerPiece;
     // Round package unit first so 190000/22 − Rp400/pc × 22 → 181200, not 181199.92.
     const unitPrice = money(rawNetPiece * piecesPerPackage, currency);
@@ -294,7 +316,7 @@ async function priceDistributorLines(
           minQuantity: applied.promotionDetails.buyQuantity,
           freeQuantity: applied.promotionDetails.freeQuantity,
           applyMode: applied.promotionDetails.applyMode,
-          moq: variant.moq != null && variant.moq > 0 ? variant.moq : null,
+          moq: moqPieces,
         }
       : null;
     let promotionDetails: string | null = null;
@@ -305,8 +327,8 @@ async function priceDistributorLines(
         promotionDetails = JSON.stringify({
           minQuantity: autoPromo?.minQuantity ?? Math.max(1, item.packageQuantity),
           freeQuantity: autoPromo?.freeQuantity ?? 0,
-          applyMode: autoPromo?.applyMode ?? 'from_zero',
-          moq: variant.moq != null && variant.moq > 0 ? variant.moq : null,
+          applyMode: autoPromo?.applyMode ?? 'after_moq',
+          moq: moqPieces,
           freePieces: explicitFree,
         });
       }
@@ -335,7 +357,7 @@ async function priceDistributorLines(
       productImage: product.images[0] || null,
       variantName: variant.variantName,
       attributes: variant.attributes == null ? undefined : (variant.attributes as Prisma.InputJsonValue),
-      moq: variant.moq,
+      moq: moqPieces,
       unitPrice,
       unitPricePerPiece,
       basePricePerPiece,

@@ -68,6 +68,8 @@ export interface Order {
   returnCollectedAt?: Date | string | null;
   returnItemsReceivedAt?: Date | string | null;
   returnPod?: string | null;
+  /** Sum of accepted return credits for nota nett (does not rewrite lines). */
+  returnCreditAmount?: number | null;
   /** Multiple return reasons when buyer submitted more than one return request */
   returnRequests?: Array<{
     id: number;
@@ -75,7 +77,21 @@ export interface Order {
     reasonDetail?: string | null;
     status: 'Pending' | 'Accepted' | 'Rejected';
     imageUrls?: string[];
+    creditAmount?: number | null;
     createdAt: string | Date;
+    items?: Array<{
+      id: number;
+      orderItemId?: number | null;
+      productId?: string | null;
+      productNameSnapshot: string;
+      variantNameSnapshot?: string | null;
+      productSkuSnapshot?: string | null;
+      packageType?: string | null;
+      piecesPerPackage: number;
+      quantityReturned: number;
+      unitPriceSnapshot: number;
+      lineCreditAmount: number;
+    }>;
   }>;
 }
 

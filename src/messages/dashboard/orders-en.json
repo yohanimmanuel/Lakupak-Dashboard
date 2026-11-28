@@ -320,11 +320,19 @@
       "reject": "Reject return",
       "processing": "Processing...",
       "itemsReceivedTitle": "Confirm return items",
-      "itemsReceivedQuestion": "Have the returned items been received by the distributor?",
+      "itemsReceivedQuestion": "Have the returned items been physically received by the distributor? This does not update product stock — decide restock in the buyer’s Return History.",
       "itemsReceivedConfirm": "Yes, return items received",
       "itemsReceivedConfirmed": "Return items confirmed received on {date}",
       "itemsReceivedWaitingDriver": "Waiting for the driver to collect return items from the buyer.",
-      "itemsReceivedFailed": "Failed to confirm return items received: {detail}"
+      "itemsReceivedFailed": "Failed to confirm return items received: {detail}",
+      "creditTotal": "Return credit (money back)",
+      "itemsTable": {
+        "product": "Product",
+        "stockType": "Stock type",
+        "qty": "Qty returned",
+        "unitPrice": "Unit price",
+        "credit": "Credit"
+      }
     },
     "pod": {
       "title": "Proof of Delivery (POD)",
@@ -357,6 +365,8 @@
         "totalAmount": "Total Amount"
       },
       "totalPrice": "Total price",
+      "returnCredit": "Return credit (money back)",
+      "nettAfterReturn": "Nett after return",
       "previous": "Previous",
       "next": "Next",
       "pageOf": "Page {current} of {total}"
@@ -444,6 +454,9 @@
     "variant": "Variant",
     "quantity": "Quantity",
     "quantityWithUnit": "Quantity ({unit})",
+    "belowMoq": "Cannot be below the MOQ ({min} {unit})",
+    "belowMoqShort": "Cannot be below the MOQ",
+    "fixBelowMoq": "One or more product quantities are below the MOQ. Increase quantity to continue.",
     "freeItems": "Free Pieces",
     "unitPrice": "Unit price",
     "lineTotal": "Line total",

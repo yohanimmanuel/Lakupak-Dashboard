@@ -14,6 +14,8 @@ export interface Buyer {
   logistics?: string;
   notes?: string;
   orderDetails?: string;
+  /** Accepted + completed return lines for CRM history (JSON array). */
+  returnDetails?: string;
   /** Immutable OrderItem line snapshots included in the initial buyer query. */
   orderLineDetails?: string;
   avgMonthlySpending?: number;
@@ -107,6 +109,31 @@ export interface OrderDetail {
   stockType?: string;
   /** Number of base Pieces represented by one selected stockType unit. */
   piecesPerPackage?: number;
+}
+
+/** Accepted return line for CRM return history (from BuyerReturnRecord). */
+export interface ReturnDetail {
+  id?: number;
+  orderNo: string;
+  returnRequestId?: number;
+  product: string;
+  productId?: string;
+  sku?: string;
+  variantName?: string;
+  stockType?: string;
+  piecesPerPackage?: number;
+  quantityReturned: number;
+  lineCreditAmount: number;
+  reason?: string;
+  returnedAt?: string;
+  /** Server-applied decision: null/undefined = never applied; restocked | skipped after Save */
+  stockDecision?: 'restocked' | 'skipped' | null;
+  stockDecidedAt?: string;
+  /**
+   * Local checkbox intent (supplier updateCurrentStock pattern).
+   * Stock is applied only when the buyer form is saved — not on tick.
+   */
+  updateStock?: boolean;
 }
 
 export interface SupplyDetail {

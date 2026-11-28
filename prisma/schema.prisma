@@ -241,6 +241,7 @@ model Buyer {
   matchCandidates ClientMatchCandidate[] @relation("MatchExistingClient")
   assortmentOpportunities AssortmentOpportunity[]
   buyerRecords BuyerRecord[]
+  buyerReturnRecords BuyerReturnRecord[]
 
   @@unique([userId, customerNumber])
 }
@@ -291,6 +292,40 @@ model BuyerRecord {
 
   @@index([buyerRefId])
   @@index([buyerRefId, sortOrder])
+}
+
+/// Accepted return lines for distributor CRM (mirror of BuyerRecord for purchases).
+/// Stock is restored only after an explicit restock decision in BuyerModal.
+model BuyerReturnRecord {
+  id                  Int       @id @default(autoincrement())
+  buyerRefId          Int
+  orderNo             String    @default("")
+  returnRequestId     Int?
+  /// Links back to OrderReturnRequestItem for accurate inventory restore.
+  returnRequestItemId Int?
+  product             String    @default("")
+  productId           String?
+  skuSnapshot         String?
+  variantName         String?
+  stockType           String?
+  piecesPerPackage    Int?
+  quantityReturned    Int       @default(0)
+  lineCreditAmount    Decimal   @default(0) @db.Decimal(12, 2)
+  reason              String?
+  returnedAt          DateTime? @db.Timestamptz(3)
+  /// null = pending decision; restocked = returned to sellable stock; skipped = not reusable.
+  stockDecision       String?
+  stockDecidedAt      DateTime? @db.Timestamptz(3)
+  sortOrder           Int       @default(0)
+  createdAt           DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime  @updatedAt @db.Timestamptz(3)
+  buyer               Buyer     @relation(fields: [buyerRefId], references: [id], onDelete: Cascade)
+
+  @@index([buyerRefId])
+  @@index([buyerRefId, sortOrder])
+  @@index([returnRequestId])
+  @@index([returnRequestItemId])
+  @@index([orderNo])
 }
 
 model Supplier {
@@ -628,6 +663,8 @@ model Order {
   returnCollectedAt       DateTime?   @db.Timestamptz(3) // Driver collected return from buyer
   returnItemsReceivedAt   DateTime?   @db.Timestamptz(3) // Distributor confirmed return items received
   returnPod               String?     // Proof of return pickup (driver)
+  /// Sum of accepted return credits for nota nett (does not rewrite OrderItem lines).
+  returnCreditAmount      Decimal?    @db.Decimal(12, 2)
   isDeleted               Boolean     @default(false)
   buyerIdSnapshot         String?
   contactPersonSnapshot   String?
@@ -697,11 +734,14 @@ model OrderReturnRequest {
   reason            String          // e.g. wrong_item, defective, not_as_described, changed_mind, late_delivery, other
   reasonDetail      String?         // Optional text when reason is "other" or extra details
   imageUrls         String[]        @default([]) // Cloudinary evidence URLs, recommended max 5
-  status            String          @default("Pending") // Pending | Approved | Rejected
+  status            String          @default("Pending") // Pending | Accepted | Rejected
+  /// Sum of item line credits for this request (money back display / nota).
+  creditAmount      Decimal?        @db.Decimal(12, 2)
   createdAt         DateTime        @default(now()) @db.Timestamptz(3)
   updatedAt         DateTime        @updatedAt @db.Timestamptz(3)
   order             Order           @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
   marketplaceUser   MarketplaceUser @relation(fields: [marketplaceUserId], references: [id], onDelete: Cascade)
+  items             OrderReturnRequestItem[]
 
   @@index([orderId])
   @@index([marketplaceUserId])
@@ -709,6 +749,28 @@ model OrderReturnRequest {
   @@index([orderId, createdAt])
   @@index([marketplaceUserId, createdAt])
   @@index([status, createdAt])
+}
+
+/// Line items on a return request (product + qty returned). Does not rewrite OrderItem rows.
+model OrderReturnRequestItem {
+  id                  Int                @id @default(autoincrement())
+  returnRequestId     Int
+  orderItemId         Int?
+  productId           String?
+  productNameSnapshot String
+  variantNameSnapshot String?
+  productSkuSnapshot  String?
+  packageType         String?
+  piecesPerPackage    Int                @default(1)
+  quantityReturned    Int                // packages in chosen return stock type
+  unitPriceSnapshot   Decimal            @db.Decimal(12, 2) // pricePerPackage at request time
+  lineCreditAmount    Decimal            @db.Decimal(12, 2)
+  createdAt           DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime           @updatedAt @db.Timestamptz(3)
+  returnRequest       OrderReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+
+  @@index([returnRequestId])
+  @@index([orderItemId])
 }
 
 model OrderItem {

@@ -320,11 +320,19 @@
       "reject": "Tolak pengembalian",
       "processing": "Memproses...",
       "itemsReceivedTitle": "Konfirmasi barang retur",
-      "itemsReceivedQuestion": "Apakah barang retur sudah diterima oleh distributor?",
+      "itemsReceivedQuestion": "Apakah barang retur sudah diterima secara fisik oleh distributor? Ini tidak mengubah stok produk — keputusan restock ada di Riwayat Retur pembeli.",
       "itemsReceivedConfirm": "Ya, barang retur sudah diterima",
       "itemsReceivedConfirmed": "Barang retur dikonfirmasi diterima pada {date}",
       "itemsReceivedWaitingDriver": "Menunggu driver mengambil barang retur dari pembeli.",
-      "itemsReceivedFailed": "Gagal mengonfirmasi penerimaan barang retur: {detail}"
+      "itemsReceivedFailed": "Gagal mengonfirmasi penerimaan barang retur: {detail}",
+      "creditTotal": "Kredit retur (uang kembali)",
+      "itemsTable": {
+        "product": "Produk",
+        "stockType": "Tipe stok",
+        "qty": "Qty retur",
+        "unitPrice": "Harga satuan",
+        "credit": "Kredit"
+      }
     },
     "pod": {
       "title": "Bukti Pengiriman (POD)",
@@ -357,6 +365,8 @@
         "totalAmount": "Total Jumlah"
       },
       "totalPrice": "Total harga",
+      "returnCredit": "Kredit retur (uang kembali)",
+      "nettAfterReturn": "Nett setelah retur",
       "previous": "Sebelumnya",
       "next": "Berikutnya",
       "pageOf": "Halaman {current} dari {total}"
@@ -444,6 +454,9 @@
     "variant": "Varian",
     "quantity": "Jumlah",
     "quantityWithUnit": "Jumlah ({unit})",
+    "belowMoq": "Tidak boleh di bawah MOQ ({min} {unit})",
+    "belowMoqShort": "Tidak boleh di bawah MOQ",
+    "fixBelowMoq": "Satu atau lebih jumlah produk di bawah MOQ. Naikkan jumlah untuk melanjutkan.",
     "freeItems": "Free Pieces",
     "unitPrice": "Harga satuan",
     "lineTotal": "Total baris",

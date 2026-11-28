@@ -16,7 +16,10 @@ const orderInclude = {
       variantOption: { select: { sku: true, variantName: true } },
     },
   },
-  returnRequests: true,
+  returnRequests: {
+    include: { items: true },
+    orderBy: { createdAt: 'asc' as const },
+  },
 } as const;
 
 export const ordersTypeDefs = /* GraphQL */ `
@@ -65,6 +68,20 @@ export const ordersTypeDefs = /* GraphQL */ `
     phone: String
   }
 
+  type OrderReturnRequestItem {
+    id: Int!
+    orderItemId: Int
+    productId: String
+    productNameSnapshot: String!
+    variantNameSnapshot: String
+    productSkuSnapshot: String
+    packageType: String
+    piecesPerPackage: Int!
+    quantityReturned: Int!
+    unitPriceSnapshot: Float!
+    lineCreditAmount: Float!
+  }
+
   type OrderReturnRequest {
     id: Int!
     orderId: String!
@@ -73,6 +90,8 @@ export const ordersTypeDefs = /* GraphQL */ `
     reasonDetail: String
     imageUrls: [String!]!
     status: String!
+    creditAmount: Float
+    items: [OrderReturnRequestItem!]!
     createdAt: String
     updatedAt: String
   }
@@ -122,6 +141,7 @@ export const ordersTypeDefs = /* GraphQL */ `
     returnCollectedAt: String
     returnItemsReceivedAt: String
     returnPod: String
+    returnCreditAmount: Float
     buyer: BuyerSummary
     seller: SellerInfo
     orderItems: [OrderItem!]!
@@ -243,6 +263,7 @@ const mapOrder = (
   returnCollectedAt: order?.returnCollectedAt?.toISOString() ?? null,
   returnItemsReceivedAt: order?.returnItemsReceivedAt?.toISOString() ?? null,
   returnPod: order?.returnPod ?? null,
+  returnCreditAmount: order?.returnCreditAmount != null ? parseMoney(order.returnCreditAmount) : null,
   buyer: order?.buyer
     ? {
         buyerId: order.buyer.buyerId,
@@ -273,6 +294,20 @@ const mapOrder = (
     reasonDetail: rr.reasonDetail ?? null,
     imageUrls: rr.imageUrls ?? [],
     status: rr.status,
+    creditAmount: rr.creditAmount != null ? parseMoney(rr.creditAmount) : null,
+    items: ((rr as { items?: Array<Record<string, unknown>> }).items ?? []).map((item) => ({
+      id: item.id,
+      orderItemId: item.orderItemId ?? null,
+      productId: item.productId ?? null,
+      productNameSnapshot: item.productNameSnapshot ?? 'Unknown Product',
+      variantNameSnapshot: item.variantNameSnapshot ?? null,
+      productSkuSnapshot: item.productSkuSnapshot ?? null,
+      packageType: item.packageType ?? null,
+      piecesPerPackage: Math.max(1, Number(item.piecesPerPackage) || 1),
+      quantityReturned: Math.max(0, Number(item.quantityReturned) || 0),
+      unitPriceSnapshot: parseMoney(item.unitPriceSnapshot as never),
+      lineCreditAmount: parseMoney(item.lineCreditAmount as never),
+    })),
     createdAt: rr.createdAt?.toISOString() ?? null,
     updatedAt: rr.updatedAt?.toISOString() ?? null,
   })),
